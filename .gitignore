@@ -14,5 +14,9 @@ packages/
 # Local NuGet/build temp
 .tmp/
 
+# Sandbox scripts scratch (SDK-local nuget cache, logs, tmp) — see scripts/sandbox
+.sandbox/
+
 # Native core dumps
 core
+core.*

@@ -58,7 +58,11 @@ public partial class StatCard : UserControl
     public StatCard()
     {
         InitializeComponent();
-        UpdateAll();
+        // Only the tree-independent content is applied here. Resource-backed
+        // brushes are resolved in OnAttachedToVisualTree: during construction
+        // the control is not yet in the visual/logical tree, so App-level
+        // resources are unreachable.
+        UpdateContent();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -68,14 +72,24 @@ public partial class StatCard : UserControl
         if (change.Property == IconProperty
             || change.Property == ValueProperty
             || change.Property == LabelProperty
-            || change.Property == DeltaProperty
-            || change.Property == IsDeltaPositiveProperty)
+            || change.Property == DeltaProperty)
         {
-            UpdateAll();
+            UpdateContent();
+        }
+        else if (change.Property == IsDeltaPositiveProperty)
+        {
+            UpdateDeltaBrushes();
         }
     }
 
-    private void UpdateAll()
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        // Resources are only reliably resolvable once attached to the tree.
+        UpdateDeltaBrushes();
+    }
+
+    private void UpdateContent()
     {
         IconPath.Data = Icon;
         ValueText.Text = Value;
@@ -84,9 +98,23 @@ public partial class StatCard : UserControl
         var hasDelta = !string.IsNullOrEmpty(Delta);
         DeltaChip.IsVisible = hasDelta;
         DeltaText.Text = Delta;
-
-        var (bg, fg) = IsDeltaPositive ? ("OkBgBrush", "OkBrush") : ("DangerBgBrush", "DangerBrush");
-        DeltaChip.Background = (IBrush?)this.FindResource(bg) ?? Brushes.Transparent;
-        DeltaText.Foreground = (IBrush?)this.FindResource(fg) ?? Brushes.Black;
     }
+
+    private void UpdateDeltaBrushes()
+    {
+        var (bg, fg) = IsDeltaPositive
+            ? ("OkBgBrush", "OkBrush")
+            : ("DangerBgBrush", "DangerBrush");
+
+        DeltaChip.Background = ResolveBrush(bg, Brushes.Transparent);
+        DeltaText.Foreground = ResolveBrush(fg, Brushes.Black);
+    }
+
+    // TryFindResource returns false (and never AvaloniaProperty.UnsetValue) when
+    // the key is missing, so we avoid casting UnsetValueType to IBrush. We also
+    // guard the value type instead of a blind cast.
+    private IBrush ResolveBrush(string key, IBrush fallback) =>
+        this.TryFindResource(key, out var value) && value is IBrush brush
+            ? brush
+            : fallback;
 }

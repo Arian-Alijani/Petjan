@@ -4,7 +4,7 @@
 
     <!-- Matches Animora-UI/assets/styles.css .stat/.stat-head/.stat-icon/
          .stat-delta/.stat-value/.stat-label. -->
-    <Border Classes="card" Padding="{StaticResource Spacing16}">
+    <Border Classes="card" Padding="{StaticResource Pad16}">
         <StackPanel Spacing="{StaticResource Spacing20}">
 
             <Grid ColumnDefinitions="Auto,*,Auto">
