@@ -1,15 +1,14 @@
-using Animora.Desktop.Pages._ControlGallery;
 using Avalonia.Controls;
 
 namespace Animora.Desktop.Shell;
 
 public partial class MainWindow : Window
 {
-    // Phase 03: temporarily hosts the control gallery for visual smoke
-    // testing. Phase 05 replaces this with the real app shell.
-    public MainWindow(ControlGalleryView gallery)
+    // The real app shell (Phase 05). Composed from the DI-injected
+    // MainWindowViewModel, which owns the sidebar/topbar/navigation.
+    public MainWindow(MainWindowViewModel viewModel)
     {
         InitializeComponent();
-        Content = gallery;
+        DataContext = viewModel;
     }
 }

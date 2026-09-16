@@ -1,6 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:loc="using:Animora.Desktop.Localization"
+             xmlns:shell="using:Animora.Desktop.Shell"
              x:Class="Animora.Desktop.App"
              RequestedThemeVariant="Default">
 
@@ -22,8 +23,18 @@
                  {StaticResource PersianDigitsConverter} / {StaticResource JalaliDateConverter}. -->
             <loc:PersianDigitsConverter x:Key="PersianDigitsConverter" />
             <loc:JalaliDateConverter x:Key="JalaliDateConverter" />
+
+            <!-- Phase 05: resolves an icon resource key string to its Geometry,
+                 so the data-driven sidebar can bind icons by key. -->
+            <shell:IconKeyConverter x:Key="IconKeyConverter" />
         </ResourceDictionary>
     </Application.Resources>
+
+    <!-- Phase 05: convention-based ViewModel -> View resolution, used by the
+         shell's ContentControl to render the current page. -->
+    <Application.DataTemplates>
+        <shell:ViewLocator />
+    </Application.DataTemplates>
 
     <Application.Styles>
         <FluentTheme />

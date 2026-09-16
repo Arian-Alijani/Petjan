@@ -1,14 +1,30 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="using:Animora.Desktop.Shell"
         x:Class="Animora.Desktop.Shell.MainWindow"
-        Title="Animora"
+        x:DataType="shell:MainWindowViewModel"
+        Title="وت‌پلاس — کلینیک هوشمند"
         Width="1440"
         Height="900"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BgBrush}">
 
-    <!-- Phase 03: Content is set in code-behind to the (DI-resolved)
-         ControlGalleryView — a temporary dev-only host so the new shared
-         control library can be visually smoke-tested. Phase 05 replaces
-         this window's content with the real app shell. -->
+    <!-- App shell: sidebar column + (topbar over scrollable content) column,
+         matching the reference's .app / .sidebar / .main / .page structure. -->
+    <Grid ColumnDefinitions="Auto,*">
+
+        <shell:SidebarView Grid.Column="0"
+                           DataContext="{Binding Sidebar}" />
+
+        <DockPanel Grid.Column="1" LastChildFill="True">
+            <shell:TopbarView DockPanel.Dock="Top"
+                              DataContext="{Binding Topbar}" />
+
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+                <ContentControl Content="{Binding CurrentPage}" />
+            </ScrollViewer>
+        </DockPanel>
+    </Grid>
+
 </Window>
