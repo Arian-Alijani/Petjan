@@ -41,9 +41,16 @@ of any other session. To stay correct and cheap on tokens:
 5. Look at **only** the `Animora-UI` files the phase file names, for visual
    and behavioral reference — never browse the rest of `Animora-UI`.
 6. Implement exactly the phase's "Scope" — nothing from "Out of scope."
-7. Verify against the phase's "Acceptance criteria" (must build + run in
-   Visual Studio / `dotnet run`, must be visually/behaviorally comparable to
-   the referenced `Animora-UI` screen).
+   **For screen phases (06–29): the Fidelity Protocol (`CONVENTIONS.md` §4a)
+   is mandatory — rebuild every element the reference renders (including
+   charts/donuts/gauges/rings), transcribe exact measurable values from the
+   screen's Reference CSS (§8), reproduce Persian text character-for-character,
+   and never drop/simplify/defer a visible element. This is the entire point
+   of the roadmap: the rebuild must be indistinguishable from the reference.**
+7. Verify against the phase's "Acceptance criteria." Building + running is
+   necessary but **not sufficient** for a screen phase: perform the
+   element-by-element visual verification (`CONVENTIONS.md` §6.7 + §7a) and
+   record it in `PROGRESS.md` before marking the phase done.
 8. Update `PROGRESS.md`: mark the phase done, advance "Next phase," append
    any decision/deviation to the log. Do **not** edit other phase files.
 9. Commit, per the repository's standard git workflow.
@@ -54,7 +61,12 @@ of any other session. To stay correct and cheap on tokens:
 - `STACK.md` and `ARCHITECTURE.md` decisions are preserved exactly — never
   re-derived, never contradicted, never "upgraded" opportunistically.
 - `Animora-UI` code is reference-only — **never copied**; every line is
-  rewritten idiomatically for Avalonia/C#/MVVM.
+  rewritten idiomatically for Avalonia/C#/MVVM. (User-facing Persian *text*
+  is reproduced exactly — that is matching the design, not copying code.)
+- **Pixel/element fidelity is the goal, not a bonus.** Per `CONVENTIONS.md`
+  §4a and `ROADMAP.md` §3a, every visible reference element is rebuilt in full
+  with exact CSS-derived values; nothing is dropped, simplified, or deferred.
+  Softer wording anywhere is overridden by §4a.
 - Every phase is small/medium, independently buildable and runnable in
   Visual Studio, and leaves the code ready for the (separate, future)
   backend/sync integration without rework.

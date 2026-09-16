@@ -70,13 +70,41 @@ keep every phase small, per the Locked sizing rule.
 
 The roadmap is complete when Phase 29 is marked `Done` in `PROGRESS.md`:
 every screen in `Animora-UI/*.html` has a corresponding Avalonia page that
-builds, runs, and is visually/behaviorally comparable to its reference; all
-screens are reachable through the app shell's navigation exactly as they
-are reachable in the reference (sidebar items + cross-screen quick actions);
-no backend/sync wiring exists yet (by design — that is the next, separate
-roadmap) but every screen's data dependency is expressed as an
-`Animora.Contracts` interface with a mock implementation, ready to be
-swapped for a real one.
+builds, runs, and is **visually indistinguishable from its reference** (not
+merely "comparable" — see §3a and `CONVENTIONS.md` §4a); all screens are
+reachable through the app shell's navigation exactly as they are reachable in
+the reference (sidebar items + cross-screen quick actions); no backend/sync
+wiring exists yet (by design — that is the next, separate roadmap) but every
+screen's data dependency is expressed as an `Animora.Contracts` interface with
+a mock implementation behind it, so that the future backend/sync roadmap can
+swap in a real implementation with **zero** View/ViewModel changes.
+
+## 3a. Global fidelity mandate (applies to every screen phase; overrides softer wording)
+
+The one purpose of this roadmap is a rebuild that a professional designer,
+seeing it beside the `Animora-UI` reference, **cannot distinguish from the
+reference**. This is enforced by `CONVENTIONS.md` §4a (Fidelity Protocol) and
+§6 (Definition of Done, fidelity gate + visual verification). In particular,
+for phases 06–29:
+
+- **Nothing visible in the reference may be dropped, simplified, merged, or
+  deferred.** Every box, table (with identical columns in identical order),
+  card, chart, donut, gauge, progress ring, badge, tab, sub-nav and text label
+  is rebuilt. Charts/donuts/gauges/rings are first-class deliverables, drawn
+  with Avalonia primitives — never omitted "for budget."
+- **Every measurable value comes from the screen's own CSS** (the files listed
+  in `CONVENTIONS.md` §8), transcribed exactly — paddings, gaps, radii,
+  borders, font sizes/weights, grid templates, fixed/min/max sizes, fills,
+  shadows — reusing Phase 02 tokens where they apply. No eyeballing.
+- **All user-facing Persian text is reproduced character-for-character;** all
+  numbers/dates go through the Phase 04 helpers.
+- **A screen phase is not done when it builds — it is done when it has been
+  visually verified element-by-element against the reference** (`CONVENTIONS.md`
+  §6.7 + §7a) and matches.
+
+If a phase file anywhere below still contains softer language (e.g. "at a
+glance," "nice-to-have," "acceptable to omit"), the rules in this section and
+`CONVENTIONS.md` §4a take precedence.
 
 ## 4. Explicit non-goals of this roadmap (do not implement, even if asked mid-phase)
 

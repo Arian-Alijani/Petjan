@@ -3,7 +3,8 @@
 **Band:** M · **Depends on:** 05 · **Satisfies:** R-4, R-5, R-18
 
 ## Read before starting
-- `CONVENTIONS.md` §2, §3, §5
+- `CONVENTIONS.md` §2, §3, §4a (Fidelity Protocol — MANDATORY), §5, §6 (Definition of Done incl. fidelity gate + visual verification), §7a
+- **Reference CSS (MANDATORY — the source of every measurable value, per §4a rule 3 / §8): `styles.css` + `finance.css` (tab bar, overview cards, the overview/income charts + KPI tiles + tables).** Read the sections these file(s) define for every element this screen renders and transcribe the exact paddings, gaps, radii, borders, font sizes/weights, grid/column templates, fixed/min/max sizes, fills and shadows — reusing Phase 02 tokens where a value equals a token. Do not eyeball or approximate.
 - `Animora-UI/expense.html` and `Animora-UI/reports.html` (both full —
   both mount the same `assets/finance-page.js` controller with different
   `initFinancePage({ tab, range })` starting args: `expense.html` starts
@@ -25,6 +26,13 @@ targets) with one shared Finance screen: tab strip (`Overview | Income |
 Expense | Profit`) + timeframe range filter, fully implementing the
 Overview and Income tab panels now. Expense/Profit tab panels are Phase
 26 (shown as a simple placeholder for this phase).
+
+## Fidelity (MANDATORY — read `CONVENTIONS.md` §4a in full)
+- **Rebuild every element the reference screen renders — nothing dropped, simplified, merged, summarized, or deferred.** Every card, panel, header, stat/KPI box, chart/donut/gauge/ring/sparkline, badge/pill, tab, sub-nav, table (with the SAME columns in the SAME order), list row, avatar, icon, button, chip, empty-state and caption must exist, in the same place, order, grouping and count as the reference. This screen's charts (revenue/income trend lines, KPI spark elements) are first-class deliverables — draw them with Avalonia primitives (`Polyline`/`Path`/`ArcSegment`/`LinearGradientBrush`); they may NOT be omitted or replaced with a table.
+- **No visible reference element may be declared "out of scope," "nice-to-have," or "optional" here.** The only permitted simplification is *motion*: an animated value may render at its final/current value instead of animating — the element itself still exists and shows the correct value (§4a rule 6).
+- **Exact measurable values** come from the Reference CSS above (§4a rule 3), not from judgement. Proportional CSS grids map to star-sized `Grid` columns/rows; fixed px sizes map to fixed sizes — transcribed, never re-guessed.
+- **Exact Persian text** for every label/title/subtitle/column header/button/empty-state/tab, character-for-character; all numbers and dates through the Phase 04 Persian digit / grouping / Jalali helpers (§4a rule 4). State colors/pills map 1:1 to Phase 02 semantic tokens (§4a rule 5).
+- **Backend-ready:** the ViewModel binds only to the `Animora.Contracts` interface(s); the mock is the sole swap point for a future real backend — no sample data, mock call, or design-time branch leaks into a View or the ViewModel's public shape (R-18).
 
 ## Contracts to add (`Animora.Contracts/Finance/`)
 - `IFinanceQueryService` — `Task<FinanceOverview> GetOverviewAsync(string range)`,
@@ -78,6 +86,7 @@ Overview and Income tab panels now. Expense/Profit tab panels are Phase
   the same Finance screen with the correct initial tab/range per entry;
   Overview and Income tabs render correctly and respond to range changes;
   Expense/Profit tabs show the Phase 26 placeholder without error.
+- **Visual verification (§6.7 + §7a) performed** and recorded in `PROGRESS.md`: the rebuilt screen was compared element-by-element against the reference and matches (same boxes/order/sizes/colors/Persian text); every measurable value traces to the Reference CSS; no reference element is missing. Building and running alone does NOT satisfy this phase.
 
 ## PROGRESS.md update
 Mark Phase 25 done; advance "Next phase" to 26; record the charting

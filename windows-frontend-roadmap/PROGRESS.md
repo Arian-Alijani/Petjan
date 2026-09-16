@@ -7,6 +7,20 @@
 ## Current state
 
 - **Next phase to execute:** `07` — Reception & Queue Screen
+- **⚠️ Fidelity Protocol now in force (roadmap update, applies to Phase 07+).**
+  The roadmap was tightened after Phase 06 shipped visibly different from the
+  `Animora-UI` reference (missing chart/donut/ring, eyeballed spacing/boxes).
+  From Phase 07 onward every screen phase MUST follow `CONVENTIONS.md` §4a
+  (Fidelity Protocol) + §6 (fidelity gate + visual verification) + §7a + §8
+  (per-phase Reference CSS map): rebuild **every** reference element (charts/
+  donuts/gauges/rings included), transcribe **exact** measurable values from
+  each screen's own `.css` file(s), reproduce Persian text
+  character-for-character, and visually verify element-by-element before
+  marking a phase done. **Do NOT retro-rework Phases 01–06 for this** — they
+  are already `Done`; the new rules apply going forward. Phase 29's final
+  fidelity audit is the place where any residual gap in an already-done screen
+  (e.g. the Phase 06 dashboard's omitted chart/donut/ring) is caught and
+  assigned a fix, per that phase's Task 4.
 - **Repo state (Phase 06):** the Dashboard placeholder is replaced with the
   real, role-aware screen. `Animora.Contracts/Dashboard/` gained
   `DashboardModels.cs` (`DashboardTone`, `DashboardStat`, `DashboardListItem`,

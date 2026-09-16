@@ -99,6 +99,80 @@ for the real implementation — no Desktop/View code changes.
   Persian digit formatting and Jalali calendar conversion are small pure
   utility classes in `Animora.Desktop/Localization`, written from Avalonia/
   .NET idioms — never transliterated from the reference's JS.
+- **The reference CSS is authoritative for every measurable visual value.**
+  A screen's exact paddings, gaps, corner radii, border widths/colors, font
+  sizes/weights, line-heights, column/row template sizes, min/max widths and
+  heights, background/gradient fills, shadow offsets/blur, and the number and
+  order of every box come from that screen's own `.css` file(s) — not from
+  the phase author's judgement, and not approximated. When a screen phase
+  runs, it **must** read the CSS file(s) that screen's `.html` `<link>`s
+  (§8 lists them per phase) and transcribe those exact values into the view,
+  reusing the Phase 02 tokens where a value equals a token and adding a new
+  token when a repeated literal has no token yet. "Looks about right" is a
+  defect, not a pass — see §8.
+
+## 4a. Fidelity Protocol — the whole point of this roadmap (MANDATORY, read every phase)
+
+The single goal of this roadmap is that a professional designer, shown the
+rebuilt Avalonia screen next to its `Animora-UI` reference, **cannot tell
+which is which**. Every screen phase (06–28) and the QA phase (29) is bound by
+the following non-negotiable rules. They override any softer wording that may
+survive elsewhere in a phase file:
+
+1. **Rebuild every element — nothing is dropped, simplified, merged, or
+   "summarized."** Every card, panel, header, sub-header, stat/KPI box,
+   chart, donut/pie, gauge, progress ring, sparkline, badge/pill, tab,
+   sub-nav, table (with the exact same columns in the exact same order),
+   list row, avatar, icon, button, chip, empty-state, tooltip, divider and
+   caption that the reference screen renders **must exist** in the rebuilt
+   screen, in the same place, same order, same grouping, same count. If the
+   reference shows a revenue chart, a species donut and a live countdown
+   ring, the rebuild has a revenue chart, a species donut and a live
+   countdown ring — not a substitute list, not a placeholder, not "omitted
+   for budget."
+2. **No phase may declare a visible reference element "out of scope,"
+   "nice-to-have," "optional," or defer it to a later phase** unless that
+   element is *explicitly* the deliverable of another already-listed phase
+   (e.g. a modal that its own Part-2 phase owns). Splitting a screen across
+   two phases splits *which elements* each phase builds — it never licenses
+   dropping an element from the screen entirely. Charts/donuts/gauges/rings
+   are first-class deliverables of the phase whose screen shows them, exactly
+   like tables and cards; they are implemented with Avalonia drawing
+   primitives (`Path`/`PathGeometry`, `Polyline`, arcs via `ArcSegment`,
+   `LinearGradientBrush`, etc.), never skipped.
+3. **Exact measurable values, not eyeballed ones.** Transcribe the real
+   numbers from the screen's CSS (see rule in §4). Two boxes that are equal
+   width in the reference are equal width in the rebuild; a 12px gap is 12px,
+   not 8 or 16; a 16px radius is 16px. Star-sizing/`Grid` templates must
+   reproduce the reference's proportional column/row split (e.g. a
+   `grid-template-columns: 2fr 1fr` becomes `ColumnDefinitions="2*,*"`, a
+   fixed `320px` rail becomes a fixed `320` column — never re-guessed).
+4. **All text is the reference's exact Persian text.** Every label, title,
+   subtitle, column header, button caption, empty-state message, tab name
+   and helper line is copied character-for-character (including wording,
+   spacing and punctuation) from the reference — only the *code* is rewritten,
+   never the user-facing copy. Numbers render through the Phase 04 Persian
+   digit / grouping / Jalali helpers so they read identically to the
+   reference.
+5. **Same colors/tones per state.** A row/badge/pill that is danger-red in
+   the reference is the danger token in the rebuild; ok/warn/info/muted tones
+   map 1:1 to the same Phase 02 semantic tokens. Never invent a tone or
+   recolor a state.
+6. **Static-but-exact beats animated-but-wrong, but do not delete the
+   thing.** Live counters, `requestAnimationFrame` easing, and real-time
+   clocks may render at their final/current value instead of animating (that
+   is an acceptable simplification of *motion only*) — but the counter, the
+   clock face, the ring and its filled arc must still be present and show the
+   correct value. Removing the element is never an acceptable substitute for
+   skipping its animation.
+7. **When the reference is ambiguous, read more of the reference — never
+   invent.** If a value or behavior isn't clear from the CSS/JS the phase
+   points at, read the exact adjacent CSS/JS rule that defines it. Only if it
+   is genuinely undefined in the reference may a phase choose a value, and it
+   must then log that choice in `PROGRESS.md`'s deviation log with the reason.
+8. **Verify visually before marking done (see §6 step 7).** A phase is not
+   done because it builds; it is done when its screen has been rendered and
+   compared element-by-element against the reference screenshot and matches.
 
 ## 5. Data pattern for UI-only phases (no backend yet)
 
@@ -121,22 +195,111 @@ A phase is done when **all** of the following hold:
 1. `dotnet build Animora.sln` succeeds with zero errors/warnings introduced
    by this phase.
 2. The app runs (`dotnet run --project src/Animora.Desktop`, or F5 in Visual
-   Studio) and the phase's screen/feature is reachable and visually/
-   behaviorally comparable to the referenced `Animora-UI` file(s).
+   Studio) and the phase's screen/feature is reachable.
 3. No file under `/Animora-UI` or `/windows-frontend-roadmap` (other than
    `PROGRESS.md`) was modified.
 4. No `Animora-UI` markup/script/style was copy-pasted; all new code is
-   idiomatic Avalonia/C#.
+   idiomatic Avalonia/C#. (User-facing Persian *text/copy* is reproduced
+   exactly, per §4a rule 4 — that is not "copying code," it is matching the
+   design.)
 5. New shared interfaces (if any) were added to `Animora.Contracts`, not
-   hardcoded inside a View or a screen ViewModel.
-6. `PROGRESS.md` is updated: phase marked done, "Next phase" advanced, any
-   deviation/decision logged.
+   hardcoded inside a View or a screen ViewModel. The ViewModel binds only to
+   the interface; the mock is the only thing that would be swapped for a real
+   backend implementation later (backend-ready seam, R-18) — no mock call,
+   sample datum, or `if (design-time)` branch leaks into a View or into the
+   ViewModel's public shape.
+6. **Fidelity gate (§4a) — mandatory for every screen phase 06–28 and for 29:**
+   - Every visible element the reference screen renders exists in the rebuild,
+     in the same order/grouping/count — nothing dropped, merged, simplified,
+     or deferred (§4a rules 1–2). This explicitly includes charts, donuts,
+     gauges, progress rings and sparklines.
+   - Every measurable value (padding, gap, radius, border, font size/weight,
+     line-height, column/row template, fixed/min/max sizes, fills, shadows)
+     matches the screen's own `.css` file(s) (§4a rule 3), via Phase 02 tokens
+     where applicable.
+   - All user-facing Persian text matches the reference character-for-character;
+     all numbers/dates go through the Phase 04 helpers (§4a rules 4).
+   - State colors/tones map 1:1 to Phase 02 semantic tokens (§4a rule 5).
+7. **Visual verification performed and recorded.** Before marking the phase
+   done, render the screen (see §7a for how in this sandbox) and compare it
+   **element-by-element** against the reference screenshot of the same screen.
+   Note in `PROGRESS.md` that the visual comparison was done and list any
+   value that is intentionally different (with the reference number and the
+   reason). "Builds and runs" alone is **not** sufficient to mark a screen
+   phase done.
+8. `PROGRESS.md` is updated: phase marked done, "Next phase" advanced, any
+   deviation/decision logged, and the §6.7 visual-verification note added.
 
 ## 7. Token/scope discipline for execution sessions
 
 - Read only the phase file + this file + `PROGRESS.md`, plus the exact
   `STACK.md` / `ARCHITECTURE.md` section numbers and exact `Animora-UI`
   file paths the phase file names. Do not browse the rest of the repo.
+- **The `.css` file(s) a screen phase names in "Read before starting" are
+  mandatory reading, not optional context** — they carry the exact measurable
+  values the Fidelity Protocol (§4a) requires. A screen phase executed without
+  reading its CSS cannot satisfy §6.6 and must not be marked done. (§8 is the
+  canonical per-phase CSS map; the phase file repeats its own entry.)
 - Do not re-litigate stack/architecture decisions; implement them.
 - Prefer small, focused diffs; do not refactor prior phases' code unless
   the phase file explicitly asks for it.
+
+## 7a. How to render & visually verify a screen in this sandbox
+
+The desktop app targets Windows, and this Linux sandbox is headless — but the
+Fidelity Protocol (§4a) still requires a real visual check before a screen
+phase is marked done. Use whichever of these is available; do not skip the
+check:
+
+1. **Preferred — render the Avalonia screen.** Build, then run under a virtual
+   display so the window actually paints, and capture it:
+   `scripts/sandbox/build.sh full` then run the app under `xvfb-run` and grab a
+   screenshot of the window (e.g. `xvfb-run -a dotnet run --project
+   src/Animora.Desktop` with a screenshot/`import`/`scrot` capture, or
+   Avalonia's headless-with-rendering test harness if wired). Compare that
+   capture to the reference (step 3).
+2. **Fallback — if no rendering is possible at all in the session**, still do a
+   *structural* comparison: enumerate every element in the reference screenshot
+   and confirm the rebuilt `.axaml` contains a matching element with the same
+   text, order and token values. Record in `PROGRESS.md` that only a structural
+   (not pixel) check was possible and why.
+3. **Get the reference image.** Render the reference screen itself for
+   side-by-side comparison: serve `Animora-UI/` with a static server
+   (`python -m http.server 8080` from that folder) and screenshot the page, or
+   reuse `Animora-UI/shot_role.py` / `shot_tabs.py` (the prototype's own
+   Playwright screenshot scripts) which already target `:8080`. Compare
+   element-by-element against your rebuild capture.
+
+The check is done when you can point at each reference element and its rebuilt
+counterpart and confirm same position, size, spacing, color and text.
+
+## 8. Per-phase reference CSS map (authoritative — the phase file repeats its row)
+
+Every screen phase MUST read `styles.css` (the shared base: layout grid,
+`.page`, `.hero`, `.card`, `.btn`, `.stat`, `.tbl`, `.badge`, pills, modal/
+drawer, toast) **plus** its screen-specific `.css` below, restricted to the
+sections that screen uses. These are the files that screen's `.html` actually
+`<link>`s — they are the source of truth for §4a rule 3.
+
+| Phase(s) | Screen | Required CSS (read the sections the screen uses) |
+|---|---|---|
+| 06 | Dashboard | `styles.css` + `dashboard.css` |
+| 07 | Reception | `styles.css` (reception rules live in the shared file) |
+| 08, 09 | Patients & Owners | `styles.css` + `patients.css` |
+| 10, 11 | Visits | `styles.css` (visit/clinic rules live in the shared file) |
+| 12 | Vaccination | `styles.css` + `vaccination.css` |
+| 13, 14 | Appointments | `styles.css` + `appointments.css` + `booking.css` |
+| 15, 16 | Boarding | `styles.css` + `boarding.css` |
+| 17, 18 | Inventory | `styles.css` + `inventory.css` |
+| 19 | Purchase | `styles.css` (static markup, no screen-specific CSS) |
+| 20, 21 | Sale/POS | `styles.css` + `sale.css` |
+| 22 | Cashier | `styles.css` (cashier rules live in the shared file) |
+| 23, 24 | Cheques | `styles.css` + `cheques.css` |
+| 25, 26 | Finance | `styles.css` + `finance.css` |
+| 27 | History | `styles.css` + `history.css` |
+| 28 | Profile & Settings | `styles.css` + `profile.css` + `appointments.css` |
+
+> If, while implementing, you find a visual value that none of the listed
+> files defines, the value is inherited from `styles.css` — search it there
+> before choosing your own. Only a value genuinely absent from all listed CSS
+> may be author-chosen, and only with a `PROGRESS.md` deviation-log entry.
