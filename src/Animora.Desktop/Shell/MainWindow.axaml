@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="using:Animora.Desktop.Shell"
         x:Class="Animora.Desktop.Shell.MainWindow"
+        x:Name="Root"
         x:DataType="shell:MainWindowViewModel"
         Title="وت‌پلاس — کلینیک هوشمند"
         Width="1440"
@@ -23,7 +24,7 @@
              ClipToBounds keeps the fixed-width inner content from spilling out
              while the outer width tweens. -->
         <shell:SidebarView Grid.Column="0"
-                           Width="{Binding SidebarWidth}"
+                           Width="{Binding #Root.((shell:MainWindowViewModel)DataContext).SidebarWidth}"
                            ClipToBounds="True"
                            DataContext="{Binding Sidebar}">
             <shell:SidebarView.Transitions>
