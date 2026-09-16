@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<title>وت‌پلاس · انبار و کالا</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="assets/styles.css"/>
+<link rel="stylesheet" href="assets/inventory.css"/>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-slot"></div>
+  <main class="main">
+    <div id="topbar-slot"></div>
+    <div class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-eyebrow">مرکز انبار</div>
+          <h1 class="page-title">انبار و کالا</h1>
+          <p class="page-subtitle">کالاها و تنوع‌ها را مدیریت کنید و موجودی انبار را به‌روز نگه دارید.</p>
+        </div>
+        <button class="btn btn-primary" id="inv-header-new"><span>کالای جدید</span></button>
+      </div>
+
+      <div id="inv-view"><!-- rendered by inventory.js --></div>
+    </div>
+  </main>
+</div>
+<div id="notif-slot"></div>
+
+<script src="assets/icons.js"></script>
+<script src="assets/layout.js"></script>
+<script src="assets/inventory-data.js"></script>
+<script src="assets/inventory.js"></script>
+<script>mountLayout({ active: 'inventory', title: 'انبار و کالا', crumbs: ['کسب و کار / انبار'] });</script>
+</body>
+</html>

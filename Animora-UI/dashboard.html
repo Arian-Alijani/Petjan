@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<title>وت‌پلاس · داشبورد</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="assets/styles.css"/>
+<link rel="stylesheet" href="assets/dashboard.css"/>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-slot"></div>
+  <main class="main">
+    <div id="topbar-slot"></div>
+    <div class="page">
+      <div id="dash-root" aria-live="polite"></div>
+    </div>
+  </main>
+</div>
+<div id="notif-slot"></div>
+<script src="assets/icons.js"></script>
+<script src="assets/layout.js"></script>
+<script src="assets/clinic-data.js"></script>
+<script src="assets/clinic-flow.js"></script>
+<script src="assets/dashboard-views.js"></script>
+<script>mountLayout({ active: 'dashboard', title: 'مرکز فرمان', crumbs: ['داشبورد'], role: 'manager' });</script>
+<script src="assets/dashboard.js"></script>
+</body>
+</html>

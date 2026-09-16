@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%231f8b7d%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3C/svg%3E"/>
+<title>وت‌پلاس · آمار و گزارش فروش</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="assets/styles.css"/>
+<link rel="stylesheet" href="assets/finance.css"/>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-slot"></div>
+  <main class="main">
+    <div id="topbar-slot"></div>
+    <div class="page fin-page">
+
+      <div class="page-header">
+        <div>
+          <div class="page-eyebrow">مرکز هوش و بینایی</div>
+          <h1 class="page-title">آمار و گزارش فروش</h1>
+          <p class="page-subtitle">عملکرد مالی، خدمات پرفروش، رفتار مراجعین و روند سود — همه در یک نگاه.</p>
+        </div>
+        <button class="btn btn-outline" onclick="toast && toast('خروجی PDF آماده شد (نمونه طراحی)','download')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          خروجی PDF
+        </button>
+      </div>
+
+      <!-- entire workspace is rendered by finance-page.js -->
+      <div id="fin-root"></div>
+
+    </div>
+  </main>
+</div>
+<div id="notif-slot"></div>
+<script src="assets/icons.js"></script>
+<script src="assets/layout.js"></script>
+<script src="assets/cheques-data.js"></script>
+<script src="assets/finance-data.js"></script>
+<script src="assets/finance-page.js"></script>
+<script>
+  mountLayout({ active: 'reports', title: 'آمار و گزارش فروش', crumbs: ['هوش کسب‌وکار', 'گزارش فروش'] });
+  if (window.initFinancePage) window.initFinancePage({ tab: 'overview', range: '7d' });
+</script>
+</body>
+</html>

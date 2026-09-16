@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<title>وت‌پلاس · پانسیون</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="assets/styles.css"/>
+<link rel="stylesheet" href="assets/boarding.css"/>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-slot"></div>
+  <main class="main">
+    <div id="topbar-slot"></div>
+    <div class="page">
+
+      <!-- ═══════════════ UNIFIED TOOLBAR (one piece) ═══════════════ -->
+      <div class="pagebar bd-mainbar reveal">
+        <!-- tier 1 · section tabs: مدیریت اقامت / تاریخچه / تنظیمات -->
+        <div class="pagebar-row">
+          <div class="pb-seg pb-seg--fill lg" id="bd-main-seg" role="tablist" aria-label="بخش‌های پانسیون">
+            <button class="active" data-section="board" role="tab" aria-selected="true">
+              <span class="bd-seg-ic" data-ic="home"></span>
+              <span>مدیریت اقامت</span>
+            </button>
+            <button data-section="history" role="tab" aria-selected="false">
+              <span class="bd-seg-ic" data-ic="timeline"></span>
+              <span>تاریخچه</span>
+            </button>
+            <button data-section="settings" role="tab" aria-selected="false">
+              <span class="bd-seg-ic" data-ic="tools"></span>
+              <span>تنظیمات</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- tier 2 · board filters (status tabs + search + actions) — only on مدیریت اقامت -->
+        <div class="pagebar-row tier2" id="bd-board-tools">
+          <!-- Status tabs -->
+          <div class="pb-seg" id="bd-status-tabs" role="tablist" aria-label="وضعیت اقامت‌ها">
+            <button class="active" data-tab="all" role="tab" aria-selected="true">همه <span class="seg-n" id="ct-all">۰</span></button>
+            <button data-tab="current" role="tab" aria-selected="false">اقامت فعلی <span class="seg-n" id="ct-current">۰</span></button>
+            <button data-tab="overdue" role="tab" aria-selected="false">عقب‌افتاده <span class="seg-n" id="ct-overdue">۰</span></button>
+            <button data-tab="leaving" role="tab" aria-selected="false">تخلیه امروز <span class="seg-n" id="ct-leaving">۰</span></button>
+            <button data-tab="done" role="tab" aria-selected="false">تخلیه‌شده <span class="seg-n" id="ct-done">۰</span></button>
+          </div>
+          <!-- Search -->
+          <div class="pb-search" id="bd-search-wrap" style="margin-inline-start:auto;flex:0 1 340px">
+            <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+            <input id="bd-search" type="text" placeholder="جستجوی حیوان، مالک، اتاق…" autocomplete="off"/>
+            <button class="clear" id="bd-search-clear" title="پاک‌کردن"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+          <!-- Actions -->
+          <div class="pb-actions">
+            <button class="btn btn-outline" id="bd-filter-species" title="فیلتر گونه">
+              <span id="bd-species-label">همه گونه‌ها</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <button class="btn btn-primary" id="bd-new">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              پذیرش جدید
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ SECTION: مدیریت اقامت ═══════════════ -->
+      <section class="bd-section" id="bd-section-board">
+
+        <!-- Cards grid (full width, detail opens as centered modal) -->
+        <div class="bd-cards-grid" id="bd-cards"></div>
+
+      </section>
+
+      <!-- ═══════════════ SECTION: تاریخچه ═══════════════ -->
+      <section class="bd-section" id="bd-section-history" hidden>
+
+        <!-- History toolbar -->
+        <div class="pagebar bd-sub-bar" style="margin-bottom:18px">
+          <div class="pagebar-row">
+            <div class="flex center gap-10">
+              <span style="color:var(--brand-600);font-size:11px;font-weight:700;white-space:nowrap">تاریخچه اقامت</span>
+              <span class="pill pill-info" id="bd-hist-count">—</span>
+            </div>
+            <div class="pb-search" style="margin-inline-start:auto;flex:0 1 300px">
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+              <input id="bd-hist-search" type="text" placeholder="جستجوی حیوان، مالک…" autocomplete="off"/>
+              <button class="clear" id="bd-hist-clear" title="پاک‌کردن"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            <select class="pb-select" id="bd-hist-species">
+              <option value="">همه گونه‌ها</option>
+              <option value="dog">سگ</option>
+              <option value="cat">گربه</option>
+              <option value="bird">پرنده</option>
+              <option value="rabbit">خرگوش</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- History cards grid -->
+        <div class="bd-hist-grid" id="bd-hist-grid"></div>
+
+      </section>
+
+      <!-- ═══════════════ SECTION: تنظیمات ═══════════════ -->
+      <section class="bd-section" id="bd-section-settings" hidden>
+        <div class="bd-settings-grid">
+
+          <!-- نرخ‌گذاری -->
+          <div class="card">
+            <div class="card-header">
+              <div class="flex center gap-10">
+                <span style="color:var(--brand-600);font-size:11px;font-weight:700">نرخ‌گذاری</span>
+                <h3>نرخ پایه اقامت</h3>
+              </div>
+            </div>
+            <div class="card-body">
+              <p class="bd-set-hint">نرخ شبانه پیش‌فرض هنگام پذیرش جدید پیشنهاد می‌شود و در هر اقامت قابل ویرایش است.</p>
+              <div class="bd-set-rate-grid">
+                <div class="bd-set-rate-row">
+                  <div class="bd-set-rate-label">
+                    <span class="bd-sp-ic" data-ic="dog"></span>
+                    <div>
+                      <div class="bd-set-rate-name">سگ — اتاق معمولی</div>
+                      <div class="bd-set-rate-sub">بر اساس اندازه — متوسط</div>
+                    </div>
+                  </div>
+                  <div class="bd-set-rate-input">
+                    <input class="input" type="text" value="۸۰۰٬۰۰۰" dir="ltr" data-rate="dog-std"/>
+                    <span class="bd-set-unit">ریال / شب</span>
+                  </div>
+                </div>
+                <div class="bd-set-rate-row">
+                  <div class="bd-set-rate-label">
+                    <span class="bd-sp-ic" data-ic="dog"></span>
+                    <div>
+                      <div class="bd-set-rate-name">سگ — سوئیت VIP</div>
+                      <div class="bd-set-rate-sub">فضای بزرگ‌تر</div>
+                    </div>
+                  </div>
+                  <div class="bd-set-rate-input">
+                    <input class="input" type="text" value="۱٬۲۰۰٬۰۰۰" dir="ltr" data-rate="dog-vip"/>
+                    <span class="bd-set-unit">ریال / شب</span>
+                  </div>
+                </div>
+                <div class="bd-set-rate-row">
+                  <div class="bd-set-rate-label">
+                    <span class="bd-sp-ic" data-ic="cat"></span>
+                    <div>
+                      <div class="bd-set-rate-name">گربه — اتاق معمولی</div>
+                      <div class="bd-set-rate-sub">اتاق استاندارد</div>
+                    </div>
+                  </div>
+                  <div class="bd-set-rate-input">
+                    <input class="input" type="text" value="۵۵۰٬۰۰۰" dir="ltr" data-rate="cat-std"/>
+                    <span class="bd-set-unit">ریال / شب</span>
+                  </div>
+                </div>
+                <div class="bd-set-rate-row">
+                  <div class="bd-set-rate-label">
+                    <span class="bd-sp-ic" data-ic="bird"></span>
+                    <div>
+                      <div class="bd-set-rate-name">پرنده</div>
+                      <div class="bd-set-rate-sub">قفس اختصاصی</div>
+                    </div>
+                  </div>
+                  <div class="bd-set-rate-input">
+                    <input class="input" type="text" value="۳۲۰٬۰۰۰" dir="ltr" data-rate="bird"/>
+                    <span class="bd-set-unit">ریال / شب</span>
+                  </div>
+                </div>
+                <div class="bd-set-rate-row">
+                  <div class="bd-set-rate-label">
+                    <span class="bd-sp-ic" data-ic="rabbit"></span>
+                    <div>
+                      <div class="bd-set-rate-name">خرگوش / جونده</div>
+                      <div class="bd-set-rate-sub">قفس کوچک</div>
+                    </div>
+                  </div>
+                  <div class="bd-set-rate-input">
+                    <input class="input" type="text" value="۳۸۰٬۰۰۰" dir="ltr" data-rate="rabbit"/>
+                    <span class="bd-set-unit">ریال / شب</span>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:18px;text-align:end">
+                <button class="btn btn-primary" onclick="bdSettingsSave('نرخ‌های شبانه')">ذخیره نرخ‌ها</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- اتاق‌ها / باکس‌ها -->
+          <div class="card">
+            <div class="card-header">
+              <div class="flex center gap-10">
+                <span style="color:var(--brand-600);font-size:11px;font-weight:700">ظرفیت</span>
+                <h3>اتاق‌ها و باکس‌ها</h3>
+              </div>
+              <button class="btn btn-outline btn--sm" onclick="bdAddRoom()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                اتاق جدید
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="bd-rooms-grid" id="bd-rooms-grid"></div>
+            </div>
+          </div>
+
+          <!-- خدمات پانسیون -->
+          <div class="card">
+            <div class="card-header">
+              <div class="flex center gap-10">
+                <span style="color:var(--brand-600);font-size:11px;font-weight:700">خدمات</span>
+                <h3>خدمات اختصاصی پانسیون</h3>
+              </div>
+              <button class="btn btn-outline btn--sm" onclick="bdAddService()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                خدمت جدید
+              </button>
+            </div>
+            <div class="card-body">
+              <div id="bd-svcs-list"></div>
+            </div>
+          </div>
+
+          <!-- تنظیمات عمومی -->
+          <div class="card">
+            <div class="card-header">
+              <div class="flex center gap-10">
+                <span style="color:var(--brand-600);font-size:11px;font-weight:700">عمومی</span>
+                <h3>تنظیمات رفاهی و اعلان</h3>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="bd-toggle-row">
+                <div>
+                  <div class="bd-toggle-label">پیامک تأیید پذیرش</div>
+                  <div class="bd-toggle-sub">پس از ثبت اقامت به مالک ارسال شود</div>
+                </div>
+                <label class="vx-switch"><input type="checkbox" checked onchange="bdSettingsToggle(this,'پیامک پذیرش')"><span class="track"></span><span class="thumb"></span></label>
+              </div>
+              <div class="bd-toggle-row">
+                <div>
+                  <div class="bd-toggle-label">یادآور یک روز قبل از تخلیه</div>
+                  <div class="bd-toggle-sub">پیامک به مالک برای آمادگی تحویل</div>
+                </div>
+                <label class="vx-switch"><input type="checkbox" checked onchange="bdSettingsToggle(this,'یادآور تخلیه')"><span class="track"></span><span class="thumb"></span></label>
+              </div>
+              <div class="bd-toggle-row">
+                <div>
+                  <div class="bd-toggle-label">انتقال خودکار فاکتور به صندوق</div>
+                  <div class="bd-toggle-sub">پس از تخلیه فاکتور آماده ارسال به صندوق</div>
+                </div>
+                <label class="vx-switch"><input type="checkbox" onchange="bdSettingsToggle(this,'انتقال خودکار')"><span class="track"></span><span class="thumb"></span></label>
+              </div>
+              <div class="bd-toggle-row">
+                <div>
+                  <div class="bd-toggle-label">هشدار ظرفیت پر</div>
+                  <div class="bd-toggle-sub">اعلان هنگام تکمیل ظرفیت پانسیون</div>
+                </div>
+                <label class="vx-switch"><input type="checkbox" checked onchange="bdSettingsToggle(this,'هشدار ظرفیت')"><span class="track"></span><span class="thumb"></span></label>
+              </div>
+              <div class="field" style="margin-top:14px">
+                <label>ساعت Check-Out پیش‌فرض</label>
+                <select class="selectbox">
+                  <option>۱۲:۰۰ ظهر</option>
+                  <option selected>۱۴:۰۰ بعدازظهر</option>
+                  <option>۱۶:۰۰ بعدازظهر</option>
+                </select>
+              </div>
+              <div style="margin-top:18px;text-align:end">
+                <button class="btn btn-primary" onclick="bdSettingsSave('تنظیمات عمومی')">ذخیره</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div><!-- .page -->
+  </main>
+</div>
+<div id="notif-slot"></div>
+<!-- Species dropdown (portal) -->
+<div class="bd-dropdown" id="bd-species-dropdown" hidden>
+  <button class="bd-dd-item active" data-sp="">همه گونه‌ها</button>
+  <button class="bd-dd-item" data-sp="dog"><span class="bd-dd-ic" data-ic="dog"></span>سگ</button>
+  <button class="bd-dd-item" data-sp="cat"><span class="bd-dd-ic" data-ic="cat"></span>گربه</button>
+  <button class="bd-dd-item" data-sp="bird"><span class="bd-dd-ic" data-ic="bird"></span>پرنده</button>
+  <button class="bd-dd-item" data-sp="rabbit"><span class="bd-dd-ic" data-ic="rabbit"></span>خرگوش</button>
+</div>
+<script src="assets/icons.js"></script>
+<script src="assets/layout.js"></script>
+<script src="assets/clinic-data.js"></script>
+<script src="assets/boarding.js"></script>
+<script>
+  mountLayout({ active: 'boarding', title: 'پانسیون', crumbs: ['مدیریت کلینیک', 'پانسیون'] });
+  if (window.initBoardingPage) window.initBoardingPage();
+</script>
+</body>
+</html>

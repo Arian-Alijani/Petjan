@@ -1,0 +1,453 @@
+/* =========================================================
+   Vetplus · Finance — page styles
+   Layer on top of assets/styles.css. Prefix: .fin-
+   Covers: tabs, KPI hero, SVG charts, category/product lists,
+   expense modal, insights. RTL-first, token-driven.
+   ========================================================= */
+:root {
+  /* page-scoped semantic pair: income (up) vs expense (down) */
+  --fin-income:    #0d9488;
+  --fin-income-bg: #e7f4f0;
+  --fin-expense:   #d92d20;
+  --fin-expense-bg:#fef3f2;
+  --fin-profit:    #1570cd;
+  --fin-profit-bg: #eff8ff;
+  --fin-grid:      #eef2f0;
+  --fin-track:     #f0f4f2;   /* donut/gauge track — matches dashboard */
+}
+
+/* shared header eyebrow + head chip (used across every finance card) */
+.fin-eyebrow { color: var(--brand-600); font-size: 11px; font-weight: 800; letter-spacing: .1px; margin-bottom: 2px; }
+.fin-head-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  background: var(--bg-2); border-radius: 20px; padding: 5px 10px;
+  white-space: nowrap;
+}
+.fin-head-chip svg { width: 13px; height: 13px; }
+.fin-head-chip.good { background: var(--ok-bg); color: var(--ok); }
+.fin-head-chip.bad  { background: var(--danger-bg); color: var(--danger); }
+
+/* ---------------- page rhythm ---------------- */
+.fin-page .page-header { margin-bottom: 4px; }
+
+/* ---------------- Toolbar ----------------
+   Tabs + range picker now ride on the shared unified `.pagebar` shell
+   (`.pb-seg.lg` tabs + `.pb-seg` range picker) defined in styles.css —
+   matching the Inventory hub. `.fin-toolbar` only sets the bottom rhythm;
+   the segmented styling comes from `.pb-seg`. */
+.fin-toolbar { margin-bottom: 20px; }
+
+/* ---------------- Tab panels ---------------- */
+.fin-panel { display: none; animation: finFade .32s cubic-bezier(.4,0,.2,1); }
+.fin-panel.active { display: block; }
+@keyframes finFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ---------------- KPI hero strip ---------------- */
+.fin-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.fin-kpi {
+  position: relative; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 16px 18px;
+  box-shadow: var(--shadow-card);
+}
+.fin-kpi.hero { color: #fff; border: 0; background: linear-gradient(135deg, #1a5c56, #104a43); }
+.fin-kpi.hero .fin-kpi-label,
+.fin-kpi.hero .fin-kpi-foot { color: #c7e3de; }
+.fin-kpi-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.fin-kpi-ic {
+  width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--brand-50); color: var(--brand-700);
+}
+.fin-kpi-ic svg { width: 18px; height: 18px; }
+.fin-kpi-ic.income  { background: var(--fin-income-bg);  color: var(--fin-income); }
+.fin-kpi-ic.expense { background: var(--fin-expense-bg); color: var(--fin-expense); }
+.fin-kpi-ic.profit  { background: var(--fin-profit-bg);  color: var(--fin-profit); }
+.fin-kpi.hero .fin-kpi-ic { background: rgba(255,255,255,.16); color: #fff; }
+.fin-kpi-delta {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 20px;
+  background: var(--ok-bg); color: var(--ok);
+}
+.fin-kpi-delta svg { width: 12px; height: 12px; }
+.fin-kpi-delta.down { background: var(--danger-bg); color: var(--danger); }
+.fin-kpi.hero .fin-kpi-delta { background: rgba(255,255,255,.16); color: #dff5ef; }
+/* for expense card, "up" is bad → invert color meaning is handled in JS via classes below */
+.fin-kpi-delta.bad  { background: var(--danger-bg); color: var(--danger); }
+.fin-kpi-delta.good { background: var(--ok-bg); color: var(--ok); }
+.fin-kpi.hero .fin-kpi-delta.bad,
+.fin-kpi.hero .fin-kpi-delta.good { background: rgba(255,255,255,.16); color: #dff5ef; }
+.fin-kpi-value { font-size: 24px; font-weight: 800; letter-spacing: -.4px; }
+.fin-kpi-unit { font-size: 13px; font-weight: 700; opacity: .7; margin-inline-start: 3px; }
+.fin-kpi-label { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.fin-kpi-foot { color: var(--muted-2); font-size: 11px; margin-top: 8px; display: flex; align-items: center; gap: 5px; }
+.fin-kpi-spark { position: absolute; inset-inline-end: 0; bottom: 0; width: 100%; height: 44px; opacity: .5; pointer-events: none; }
+
+/* ---------------- Mini stat strip (per-tab focused summary) ---------------- */
+.fin-mini-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 4px; }
+.fin-mini {
+  position: relative; display: flex; align-items: center; gap: 12px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.fin-mini::before {
+  content: ''; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--brand-500);
+}
+.fin-mini.income::before  { background: var(--fin-income); }
+.fin-mini.expense::before { background: var(--fin-expense); }
+.fin-mini.profit::before  { background: var(--fin-profit); }
+.fin-mini-ic {
+  width: 40px; height: 40px; border-radius: 12px; flex: none; display: grid; place-items: center;
+  background: var(--brand-50); color: var(--brand-700);
+}
+.fin-mini-ic svg { width: 19px; height: 19px; }
+.fin-mini.income  .fin-mini-ic { background: var(--fin-income-bg);  color: var(--fin-income); }
+.fin-mini.expense .fin-mini-ic { background: var(--fin-expense-bg); color: var(--fin-expense); }
+.fin-mini.profit  .fin-mini-ic { background: var(--fin-profit-bg);  color: var(--fin-profit); }
+.fin-mini-body { min-width: 0; flex: 1; }
+.fin-mini-label { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fin-mini-value { font-size: 18px; font-weight: 800; letter-spacing: -.3px; margin-top: 2px; }
+.fin-mini-unit { font-size: 11px; font-weight: 700; color: var(--muted-2); margin-inline-start: 3px; }
+.fin-mini-delta {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 2px;
+  font-size: 10.5px; font-weight: 800; padding: 3px 7px; border-radius: 20px;
+}
+.fin-mini-delta svg { width: 11px; height: 11px; }
+.fin-mini-delta.good { background: var(--ok-bg); color: var(--ok); }
+.fin-mini-delta.bad  { background: var(--danger-bg); color: var(--danger); }
+
+/* ---------------- Profit half-gauge ---------------- */
+.fin-gauge-wrap { position: relative; padding: 20px 20px 6px; display: grid; place-items: center; }
+.fin-gauge { width: 220px; max-width: 100%; height: auto; overflow: visible; }
+.fin-gauge-track { fill: none; stroke: var(--fin-track); stroke-width: 12; stroke-linecap: round; }
+.fin-gauge-val {
+  fill: none; stroke: var(--fin-profit); stroke-width: 12; stroke-linecap: round;
+  transition: stroke-dashoffset 1.1s cubic-bezier(.22,1,.36,1);
+  animation: finGauge 1.1s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes finGauge { to { stroke-dashoffset: var(--to); } }
+.fin-gauge-center { position: absolute; top: 56%; left: 0; right: 0; text-align: center; }
+.fin-gauge-center .v { font-size: 30px; font-weight: 800; color: var(--fin-profit); letter-spacing: -.5px; line-height: 1; }
+.fin-gauge-center .v i { font-style: normal; font-size: 15px; font-weight: 700; color: var(--muted-2); }
+.fin-gauge-center .l { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.fin-gauge-legend { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 8px 20px 20px; }
+.fin-gauge-legend > div {
+  text-align: center; padding: 12px 8px; border-radius: 14px;
+  background: var(--bg); border: 1px solid var(--line-2);
+}
+.fin-gauge-legend .k { display: block; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+.fin-gauge-legend b { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* ---------------- Generic card grid ---------------- */
+.fin-grid-2 { display: grid; grid-template-columns: 1.55fr 1fr; gap: 16px; margin-top: 16px; }
+.fin-grid-2.even { grid-template-columns: 1fr 1fr; }
+.fin-card-sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+/* ---------------- Trend chart (redesigned, minimal) ---------------- */
+.fin-chart-card { display: flex; flex-direction: column; }
+.fin-chart-wrap { padding: 16px 14px 14px; }
+.fin-chart { width: 100%; height: 250px; display: block; overflow: visible; }
+.fin-chart-legend .swatch { border-radius: 4px; }
+.fin-chart-legend .fin-sw-line {
+  width: 16px; height: 4px; border-radius: 4px;
+  background: var(--c); position: relative;
+}
+.fin-chart-legend .fin-sw-line::after {
+  content: ''; position: absolute; inset-inline-start: 50%; top: 50%;
+  transform: translate(-50%, -50%); width: 7px; height: 7px; border-radius: 50%;
+  background: #fff; box-shadow: 0 0 0 2px var(--c);
+}
+
+/* grid + axis */
+.fin-grid-line { stroke: var(--fin-grid); stroke-dasharray: 2 6; stroke-width: 1; }
+.fin-axis-y { fill: var(--muted-2); font-size: 9.5px; font-family: 'Vazirmatn', sans-serif; }
+
+/* areas + lines */
+.fin-area-rev { fill: url(#finRevGrad); }
+.fin-area-exp { fill: url(#finExpGrad); }
+.fin-line-rev { fill: none; stroke: var(--fin-income);  stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.fin-line-exp { fill: none; stroke: var(--fin-expense); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 0; opacity: .9; }
+.fin-line-pro { fill: none; stroke: var(--fin-profit); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+/* draw-in animation for the three lines */
+.fin-line-rev, .fin-line-exp, .fin-line-pro {
+  stroke-dasharray: var(--dash) var(--dash);
+  stroke-dashoffset: var(--dash);
+  animation: finDraw 1.05s cubic-bezier(.4,0,.2,1) forwards;
+}
+.fin-line-exp { animation-delay: .1s; }
+.fin-line-pro { animation-delay: .2s; }
+@keyframes finDraw { to { stroke-dashoffset: 0; } }
+
+/* hover column: crosshair + focus dots reveal on hover */
+.fin-col-hit { fill: transparent; cursor: pointer; }
+.fin-crosshair { stroke: var(--brand-400); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0; transition: opacity .15s ease; }
+.fin-focus-dot { opacity: 0; transition: opacity .15s ease, r .15s ease; fill: #fff; stroke-width: 2.5; }
+.fin-focus-dot.rev { stroke: var(--fin-income); }
+.fin-focus-dot.exp { stroke: var(--fin-expense); }
+.fin-col-group.on .fin-crosshair { opacity: .7; }
+.fin-col-group.on .fin-focus-dot { opacity: 1; }
+.fin-col-group.on .fin-col-hit { fill: rgba(13,148,136,.04); }
+
+.fin-xlabels { display: flex; color: var(--muted-2); font-size: 10px; padding: 6px 46px 0 10px; }
+.fin-xlabels span { flex: 1; text-align: center; white-space: nowrap; }
+.fin-xlabels span.ghost { opacity: 0; }
+
+/* floating chart tooltip */
+.fin-tip {
+  position: fixed; z-index: 60; pointer-events: none;
+  background: #104a43; color: #fff; border-radius: 12px;
+  padding: 10px 12px; font-size: 11px; line-height: 1.75;
+  box-shadow: var(--shadow-pop); opacity: 0; transform: translateY(4px);
+  transition: opacity .12s ease, transform .12s ease; min-width: 158px;
+}
+.fin-tip.show { opacity: 1; transform: none; }
+.fin-tip .t-date { color: #8fb5b0; font-size: 10px; margin-bottom: 5px; font-weight: 700; }
+.fin-tip .t-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.fin-tip .t-row .sw { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-inline-end: 5px; }
+.fin-tip .t-row b { font-weight: 800; }
+.fin-tip .t-profit { margin-top: 4px; border-top: 1px solid rgba(255,255,255,.15); padding-top: 5px; }
+
+/* ---------------- Donut (dashboard-matched) ---------------- */
+.fin-donut-body { padding: 18px 20px 20px; display: flex; flex-direction: column; align-items: center; }
+.fin-donut-wrap { position: relative; width: 176px; height: 176px; }
+.fin-donut-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.fin-donut-track { transition: opacity .3s ease; }
+.fin-donut-wrap .fin-seg {
+  fill: none; cursor: pointer;
+  transform-box: fill-box; transform-origin: center;
+  transition: opacity .28s ease, stroke-width .35s cubic-bezier(.22,1,.36,1), filter .35s ease;
+}
+.fin-donut-wrap.dim .fin-seg { opacity: .22; }
+.fin-donut-wrap.dim .fin-donut-track { opacity: .5; }
+.fin-donut-wrap .fin-seg.on { opacity: 1; stroke-width: 18; filter: drop-shadow(0 6px 14px rgba(16,24,40,.20)); }
+.fin-donut-center {
+  position: absolute; inset: 30px; border-radius: 50%;
+  display: grid; place-content: center; text-align: center; gap: 3px; pointer-events: none;
+  background: radial-gradient(circle at 50% 40%, #ffffff 55%, #fbfdfc 100%);
+  box-shadow: inset 0 0 0 1px rgba(231,236,234,.9), 0 6px 18px rgba(16,24,40,.05);
+}
+.fin-donut-center .v {
+  font-size: 22px; font-weight: 800; letter-spacing: -.5px; line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  transition: color .25s ease, transform .3s cubic-bezier(.22,1,.36,1);
+}
+.fin-donut-wrap.dim .fin-donut-center .v { transform: scale(1.04); }
+.fin-donut-center .l { color: var(--muted); font-size: 10.5px; font-weight: 600; }
+
+.fin-legend { width: 100%; margin-top: 18px; display: flex; flex-direction: column; gap: 2px; }
+.fin-leg-row {
+  position: relative; isolation: isolate; overflow: hidden;
+  display: grid; grid-template-columns: 9px minmax(0,1fr) auto auto;
+  gap: 9px; align-items: center; padding: 8px 11px; border-radius: 12px; cursor: pointer;
+  border: 1px solid transparent;
+  transition: background .25s ease, border-color .25s ease, transform .25s cubic-bezier(.22,1,.36,1);
+}
+.fin-leg-row > * { position: relative; z-index: 1; }
+.fin-leg-fill {
+  position: absolute; z-index: 0; inset-block: 0; inset-inline-start: 0; width: 0; border-radius: 12px;
+  background: linear-gradient(to left, var(--c) 0%, color-mix(in srgb, var(--c) 25%, transparent) 100%);
+  opacity: .15; transition: width 1.1s cubic-bezier(.22,1,.36,1), opacity .25s ease;
+}
+.fin-leg-row:hover, .fin-leg-row.on { background: #f9fbfa; border-color: var(--line-2); transform: translateX(-3px); }
+.fin-leg-row:hover .fin-leg-fill, .fin-leg-row.on .fin-leg-fill { opacity: .26; }
+.fin-leg-sw { width: 9px; height: 9px; border-radius: 50%; transition: transform .25s, box-shadow .25s; }
+.fin-leg-row:hover .fin-leg-sw, .fin-leg-row.on .fin-leg-sw { transform: scale(1.4); box-shadow: 0 0 0 3px rgba(13,148,136,.10); }
+.fin-leg-name { font-size: 12px; font-weight: 700; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.fin-leg-val { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: end; }
+.fin-leg-pct { font-size: 11px; font-weight: 800; color: var(--ink); text-align: end; font-variant-numeric: tabular-nums; min-width: 34px; }
+
+/* ---------------- Category / product rows ---------------- */
+.fin-list { padding: 8px 20px 16px; }
+.fin-list-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px dashed var(--line-2); }
+.fin-list-row:last-child { border-bottom: 0; }
+.fin-list-lead { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.fin-list-ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; background: var(--brand-50); color: var(--brand-700); }
+.fin-list-ic svg { width: 16px; height: 16px; }
+.fin-list-ic.teal  { background: var(--brand-50);  color: var(--brand-700); }
+.fin-list-ic.blue  { background: var(--info-bg);   color: var(--info); }
+.fin-list-ic.lilac { background: var(--lilac-bg);  color: #7b5cc4; }
+.fin-list-ic.amber { background: var(--warn-bg);   color: var(--warn); }
+.fin-list-ic.peach { background: var(--peach-bg);  color: #d16a20; }
+.fin-list-ic.mute  { background: #eef2f0;          color: #536b68; }
+.fin-list-ic.warn  { background: var(--warn-bg);   color: var(--warn); }
+.fin-list-name { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fin-list-meta { color: var(--muted); font-size: 11px; margin-top: 2px; }
+.fin-list-track { height: 8px; width: 130px; background: var(--bg-2); border-radius: 20px; overflow: hidden; margin-top: 7px; }
+.fin-list-track > span { display: block; height: 100%; border-radius: 20px; transform-origin: right center; }
+.fin-list-val { text-align: end; }
+.fin-list-val .amt { font-weight: 800; font-size: 13px; }
+.fin-list-val .sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+.fin-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 20px; }
+.fin-chip.up { background: var(--ok-bg); color: var(--ok); }
+.fin-chip.down { background: var(--danger-bg); color: var(--danger); }
+.fin-chip svg { width: 11px; height: 11px; }
+
+/* margin bar inside product row */
+.fin-margin { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.fin-margin .dotbar { width: 46px; height: 5px; border-radius: 20px; background: var(--bg-2); overflow: hidden; }
+.fin-margin .dotbar > span { display: block; height: 100%; background: var(--fin-income); border-radius: 20px; }
+
+/* ---------------- Horizontal species bars ---------------- */
+.fin-hbar { display: grid; grid-template-columns: 74px 1fr auto; gap: 12px; align-items: center; padding: 9px 0; }
+.fin-hbar .lbl { font-size: 12px; color: var(--ink-2); text-align: end; font-weight: 600; }
+.fin-hbar .track { height: 11px; background: var(--bg-2); border-radius: 20px; overflow: hidden; }
+.fin-hbar .track > span { display: block; height: 100%; border-radius: 20px; transform-origin: right center; }
+.fin-hbar .val { font-size: 12px; color: var(--muted); font-weight: 800; }
+
+/* ---------------- Heatmap ---------------- */
+.fin-heatmap { display: grid; grid-template-columns: 42px repeat(12, 1fr); gap: 4px; }
+.fin-heatmap .hlbl { font-size: 10px; color: var(--muted); display: grid; place-items: center; }
+.fin-heatmap .cell { height: 22px; border-radius: 6px; background: var(--bg-2); transition: transform .12s ease; cursor: default; }
+.fin-heatmap .cell:hover { transform: scale(1.18); }
+.fin-heat-legend { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; color: var(--muted); font-size: 11px; }
+.fin-heat-legend .scale { display: flex; gap: 3px; }
+.fin-heat-legend .scale span { width: 14px; height: 14px; border-radius: 3px; }
+
+/* ---------------- Insights ---------------- */
+.fin-insights { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
+.fin-insight { display: flex; gap: 12px; padding: 14px 16px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow-card); }
+.fin-insight .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; }
+.fin-insight .ic svg { width: 17px; height: 17px; }
+.fin-insight .ic.ok    { background: var(--ok-bg);    color: var(--ok); }
+.fin-insight .ic.warn  { background: var(--warn-bg);  color: var(--warn); }
+.fin-insight .ic.info  { background: var(--info-bg);  color: var(--info); }
+.fin-insight .ic.lilac { background: var(--lilac-bg); color: #7b5cc4; }
+.fin-insight p { margin: 0; font-size: 12.5px; line-height: 1.75; color: var(--ink-2); }
+
+/* ---------------- Expense table ---------------- */
+.fin-tbl-cat { display: inline-flex; align-items: center; gap: 7px; }
+.fin-tbl-cat .swatch { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+.fin-tbl .amt-cell { font-weight: 800; color: var(--fin-expense); }
+
+/* new-row highlight after adding an expense */
+@keyframes finRowIn { from { background: var(--brand-50); } to { background: transparent; } }
+.fin-row-new { animation: finRowIn 1.6s ease; }
+
+/* ---------------- Expense modal ---------------- */
+.fin-quick { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.fin-quick button {
+  border: 1px solid var(--line); background: var(--panel); cursor: pointer;
+  padding: 8px 12px; border-radius: 10px; font-family: inherit;
+  font-size: 12px; font-weight: 700; color: var(--ink-2);
+  display: inline-flex; align-items: center; gap: 6px; transition: all .16s ease;
+}
+.fin-quick button svg { width: 14px; height: 14px; }
+.fin-quick button:hover { border-color: var(--brand-400); color: var(--brand-700); }
+.fin-quick button.on { border-color: var(--brand-600); background: var(--brand-50); color: var(--brand-700); }
+
+/* ---------------- Toast (self-contained fallback) ---------------- */
+#fin-toast {
+  position: fixed; inset-inline-start: 22px; bottom: 22px; z-index: 200;
+  display: flex; align-items: center; gap: 9px;
+  background: #104a43; color: #fff; padding: 12px 16px;
+  border-radius: 12px; box-shadow: var(--shadow-pop);
+  font-size: 13px; font-weight: 600;
+  opacity: 0; transform: translateY(12px); pointer-events: none;
+  transition: opacity .24s ease, transform .24s ease;
+}
+#fin-toast.show { opacity: 1; transform: none; }
+#fin-toast svg { width: 16px; height: 16px; color: #6fdcc0; flex: none; }
+
+/* ---------------- Reveal ---------------- */
+.fin-rv { opacity: 0; transform: translateY(14px); transition: opacity .5s cubic-bezier(.4,0,.2,1), transform .5s cubic-bezier(.4,0,.2,1); }
+.fin-rv.in { opacity: 1; transform: none; }
+
+/* ---------------- Key highlight bar (کشف کلیدی) ---------------- */
+.fin-highlight {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; border-radius: var(--radius);
+  border: 1px solid var(--line); background: var(--panel);
+  box-shadow: var(--shadow-card); margin-bottom: 16px;
+  position: relative; overflow: hidden;
+}
+.fin-highlight::before {
+  content: ''; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 4px;
+}
+.fin-highlight.ok::before   { background: var(--fin-income); }
+.fin-highlight.warn::before { background: var(--warn); }
+.fin-highlight.info::before { background: var(--fin-profit); }
+.fin-hl-ic { width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center; }
+.fin-hl-ic svg { width: 20px; height: 20px; }
+.fin-highlight.ok   .fin-hl-ic { background: var(--fin-income-bg);  color: var(--fin-income); }
+.fin-highlight.warn .fin-hl-ic { background: var(--warn-bg);        color: var(--warn); }
+.fin-highlight.info .fin-hl-ic { background: var(--fin-profit-bg);  color: var(--fin-profit); }
+.fin-hl-text { min-width: 0; }
+.fin-hl-label { display: block; font-size: 10.5px; font-weight: 800; color: var(--muted-2); letter-spacing: .3px; margin-bottom: 2px; }
+.fin-hl-text p { margin: 0; font-size: 13px; line-height: 1.7; color: var(--ink-2); }
+.fin-hl-text p b { color: var(--ink); font-weight: 800; }
+
+/* allow the products card header to wrap its sort toggle on narrow widths */
+.card-header:has(.fin-prod-sort) { flex-wrap: wrap; gap: 10px; }
+
+/* ---------------- Product sort toggle (small segmented) ---------------- */
+.fin-seg {
+  display: inline-flex; background: var(--bg-2);
+  border-radius: 10px; padding: 3px; gap: 2px; flex: none;
+}
+.fin-seg > button {
+  border: 0; background: transparent; cursor: pointer; font-family: inherit;
+  font-size: 11.5px; font-weight: 700; color: var(--muted);
+  padding: 6px 11px; border-radius: 8px; white-space: nowrap;
+  transition: color .2s, background .25s, box-shadow .25s;
+}
+.fin-seg > button:hover:not(.active) { color: var(--ink-2); }
+.fin-seg > button.active { background: var(--panel); color: var(--brand-700); box-shadow: 0 2px 8px rgba(16,24,40,.08); }
+
+/* ---------------- Rank badge + kind tag in product rows ---------------- */
+.fin-list-row.prod-row { grid-template-columns: 26px 1fr auto; gap: 10px; }
+.fin-rank {
+  width: 24px; height: 24px; border-radius: 8px; align-self: center;
+  display: grid; place-items: center; font-size: 12px; font-weight: 800;
+  font-variant-numeric: tabular-nums; background: var(--bg-2); color: var(--muted);
+}
+.fin-rank.ghost { background: transparent; color: var(--muted-2); font-weight: 700; }
+.fin-rank.rank-1 { background: #fbeecb; color: #b7791f; }
+.fin-rank.rank-2 { background: #eef1f4; color: #667085; }
+.fin-rank.rank-3 { background: #f7e6d5; color: #c05621; }
+.fin-kind-tag {
+  display: inline-block; font-size: 10px; font-weight: 800; padding: 1px 7px;
+  border-radius: 20px; margin-inline-start: 5px; vertical-align: middle;
+}
+.fin-kind-tag.svc  { background: var(--fin-income-bg); color: var(--fin-income); }
+.fin-kind-tag.prod { background: var(--info-bg);       color: var(--info); }
+
+/* ---------------- Service vs Product card ---------------- */
+.svp-body { padding: 18px 20px 20px; }
+.svp-bar { display: flex; height: 14px; border-radius: 20px; overflow: hidden; background: var(--bg-2); gap: 2px; }
+.svp-seg { display: block; height: 100%; transition: width 1s cubic-bezier(.22,1,.36,1); }
+.svp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.svp-item { border: 1px solid var(--line-2); border-radius: 14px; padding: 14px; background: var(--bg); }
+.svp-head { display: flex; align-items: center; gap: 8px; }
+.svp-ic { width: 30px; height: 30px; flex: none; border-radius: 9px; display: grid; place-items: center; }
+.svp-ic svg { width: 16px; height: 16px; }
+.svp-name { font-size: 12.5px; font-weight: 700; color: var(--ink-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.svp-share { margin-inline-start: auto; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.svp-value { font-size: 19px; font-weight: 800; letter-spacing: -.4px; margin-top: 10px; font-variant-numeric: tabular-nums; }
+.svp-metrics { display: flex; gap: 14px; margin-top: 8px; color: var(--muted); font-size: 11px; }
+.svp-metrics span { display: inline-flex; align-items: center; gap: 4px; }
+.svp-metrics svg { width: 13px; height: 13px; opacity: .8; }
+
+/* ---------------- Responsive ---------------- */
+@media (max-width: 1080px) {
+  .fin-kpis { grid-template-columns: repeat(2, 1fr); }
+  .fin-mini-strip { grid-template-columns: repeat(2, 1fr); }
+  .fin-grid-2, .fin-grid-2.even { grid-template-columns: 1fr; }
+  .fin-insights { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .fin-kpis { grid-template-columns: 1fr; }
+  .fin-mini-strip { grid-template-columns: 1fr; }
+  .fin-gauge-legend { grid-template-columns: 1fr; }
+  .svp-grid { grid-template-columns: 1fr; }
+  .fin-prod-sort { align-self: stretch; }
+  .fin-prod-sort > button { flex: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fin-panel, .fin-rv { animation: none !important; transition: none !important; }
+  .fin-rv { opacity: 1 !important; transform: none !important; }
+  .fin-line-rev, .fin-line-exp, .fin-line-pro { animation: none !important; stroke-dashoffset: 0 !important; }
+  .fin-gauge-val { animation: none !important; }
+}

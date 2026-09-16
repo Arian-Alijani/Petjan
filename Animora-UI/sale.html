@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%231f8b7d%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3C/svg%3E"/>
+<title>وت‌پلاس · فروش و صندوق</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="assets/styles.css"/>
+<link rel="stylesheet" href="assets/sale.css"/>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-slot"></div>
+  <main class="main">
+    <div id="topbar-slot"></div>
+    <div class="page sw-page">
+
+      <!-- ============ Compact page header ============ -->
+      <div class="sw-topline">
+        <div class="sw-topline-lead">
+          <div class="sw-topline-title">
+            <h1>فروش و صندوق</h1>
+          </div>
+          <p class="sw-topline-sub">تبدیل ویزیت‌ها به فاکتور، و ثبت فروش مستقیم برای مشتری گذری.</p>
+        </div>
+
+        <!-- Mini KPIs, inline — no huge cards -->
+        <div class="sw-mini-kpis" id="sw-kpi"></div>
+
+        <div class="sw-topline-actions">
+          <button class="btn btn-outline" id="sw-print-day">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            گزارش روز
+          </button>
+          <button class="btn btn-primary" id="sw-new-invoice">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            فاکتور جدید
+          </button>
+        </div>
+      </div>
+
+      <!-- ============ Two-panel workspace ============ -->
+      <div class="sw-workspace">
+
+        <!-- ========= RIGHT (in RTL: primary) — Invoice work surface ========= -->
+        <section class="sw-work" id="sw-work">
+          <div class="sw-inv" id="sw-inv"></div>
+        </section>
+
+        <!-- ========= LEFT — Activity sidebar (queue) ========= -->
+        <aside class="sw-side">
+          <div class="sw-side-head">
+            <div class="sw-seg" id="sw-seg" role="tablist"></div>
+          </div>
+          <div class="sw-side-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="sw-search" placeholder="جستجو در ویزیت، فاکتور یا مالک…"/>
+          </div>
+          <div class="sw-side-body" id="sw-qlist"></div>
+        </aside>
+
+      </div>
+
+      <!-- ============ Sticky action bar ============ -->
+      <!-- Rendered inside the invoice — dynamic. -->
+
+    </div>
+  </main>
+</div>
+
+<!-- ============ CATALOG DRAWER (on-demand, scales to 1000s of items) ============ -->
+<div class="cat-drawer" id="cat-drawer" aria-hidden="true">
+  <div class="cat-drawer-backdrop" data-close></div>
+  <div class="cat-drawer-panel" role="dialog" aria-modal="true">
+    <div class="cat-drawer-head">
+      <div class="cat-drawer-title">
+        <h3>افزودن خدمت یا کالا</h3>
+        <span class="cat-drawer-hint">
+          <kbd>↑</kbd><kbd>↓</kbd> جابجایی
+          <span class="dot"></span>
+          <kbd>Enter</kbd> افزودن
+          <span class="dot"></span>
+          <kbd>Esc</kbd> بستن
+        </span>
+      </div>
+      <button class="cat-drawer-close" data-close aria-label="بستن">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="cat-drawer-search">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="cat-search" autocomplete="off" placeholder="جستجوی نام، دستهٔ خدمت یا کالا…"/>
+      <kbd class="cat-drawer-shortcut">Ctrl K</kbd>
+    </div>
+
+    <div class="cat-drawer-filters" id="cat-filters"></div>
+
+    <div class="cat-drawer-body">
+      <div class="cat-drawer-recent" id="cat-recent"></div>
+      <div class="cat-drawer-list" id="cat-list" role="listbox"></div>
+      <div class="cat-drawer-empty" id="cat-empty" style="display:none">
+        هیچ آیتمی با این جستجو یافت نشد
+      </div>
+    </div>
+
+    <div class="cat-drawer-foot">
+      <span class="cat-drawer-count" id="cat-count"></span>
+      <span class="cat-drawer-tip">می‌تونی چند بار کلیک کنی تا تعداد بیشتری اضافه بشه — یا از داخل فاکتور تعداد رو تنظیم کن.</span>
+    </div>
+  </div>
+</div>
+
+<div id="notif-slot"></div>
+
+<script src="assets/icons.js"></script>
+<script src="assets/layout.js"></script>
+<script src="assets/cheques-data.js"></script>
+<script src="assets/clinic-data.js"></script>
+<script src="assets/clinic-flow.js"></script>
+<script src="assets/patients-data.js"></script>
+<script src="assets/sale-page.js"></script>
+<script>
+  mountLayout({ active: 'sale', title: 'فروش و صندوق', crumbs: ['مدیریت کلینیک', 'فروش و صندوق'] });
+  if (window.initSalePage) window.initSalePage();
+</script>
+</body>
+</html>

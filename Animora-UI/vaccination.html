@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<title>وت‌پلاس · واکسیناسیون</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="assets/styles.css"/>
+<link rel="stylesheet" href="assets/vaccination.css"/>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-slot"></div>
+  <main class="main">
+    <div id="topbar-slot"></div>
+    <div class="page">
+
+      <!-- ═══════════════ UNIFIED TOOLBAR (one piece) ═══════════════ -->
+      <div class="pagebar vx-mainbar reveal">
+        <!-- tier 1 · section tabs: نوبت / انبار واکسن / تنظیمات -->
+        <div class="pagebar-row">
+          <div class="pb-seg lg vx-mainseg" id="vxMainSeg" role="tablist" aria-label="بخش‌های واکسیناسیون">
+            <button class="active" data-tab="visits" role="tab" aria-selected="true">
+              <span class="vx-mainseg-ic" data-ic="syringe"></span><span>نوبت</span>
+            </button>
+            <button data-tab="stock" role="tab" aria-selected="false">
+              <span class="vx-mainseg-ic" data-ic="box"></span><span>انبار واکسن</span>
+            </button>
+            <button data-tab="settings" role="tab" aria-selected="false">
+              <span class="vx-mainseg-ic" data-ic="tools"></span><span>تنظیمات</span>
+            </button>
+          </div>
+        </div>
+        <!-- tier 2 · status filters (start) + search (end/left) — only on نوبت -->
+        <div class="pagebar-row tier2 vx-visits-tools">
+          <div class="vx-status-seg" id="vxSeg" role="tablist" aria-label="فیلتر وضعیت نوبت"></div>
+          <div class="pb-search" id="vxSearchWrap" style="margin-inline-start:auto">
+            <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+            <input id="vxSearch" type="text" placeholder="جستجوی بیمار، مالک یا واکسن…" autocomplete="off"/>
+            <button class="clear" id="vxSearchClear" title="پاک کردن"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+        </div>
+        <!-- tier 3 · species filter (start) + actions (end/left) — only on نوبت -->
+        <div class="pagebar-row tier2 vx-visits-tools">
+          <select class="pb-select" id="vxSpecies" title="فیلتر بر اساس گونه">
+            <option value="">همه گونه‌ها</option>
+            <option value="cat">گربه</option>
+            <option value="dog">سگ</option>
+            <option value="bird">پرنده</option>
+            <option value="rabbit">خرگوش</option>
+            <option value="rodent">جونده</option>
+          </select>
+          <div class="pb-actions" style="margin-inline-start:auto">
+            <button class="btn btn-outline" onclick="vaxBulkSms()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+              ارسال گروهی یادآور
+            </button>
+            <button class="btn btn-primary" onclick="openVaxModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              ثبت واکسن جدید
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ PANEL · نوبت ============ -->
+      <section class="vx-panel" id="vxPanelVisits" role="tabpanel">
+        <!-- Records table -->
+        <div class="card">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>بیمار / مالک</th>
+                <th>واکسن</th>
+                <th>سررسید بعدی</th>
+                <th>وضعیت</th>
+                <th>پیامک</th>
+                <th style="text-align:start">اقدامات</th>
+              </tr>
+            </thead>
+            <tbody id="vxRows"></tbody>
+          </table>
+          <div class="pager" id="vxPager"></div>
+        </div>
+      </section>
+
+      <!-- ============ PANEL · انبار واکسن ============ -->
+      <section class="vx-panel" id="vxPanelStock" role="tabpanel" hidden>
+        <div class="card">
+          <div class="card-header">
+            <div class="flex center gap-10">
+              <span style="color:var(--brand-600);font-size:11px;font-weight:700">انبار واکسن</span>
+              <h3>موجودی واکسن‌های کلینیک</h3>
+            </div>
+            <a href="inventory.html" class="link-more">مدیریت انبار ←</a>
+          </div>
+          <div class="vx-cat-grid wide" id="vxCatalog"></div>
+        </div>
+      </section>
+
+      <!-- ============ PANEL · تنظیمات ============ -->
+      <section class="vx-panel" id="vxPanelSettings" role="tabpanel" hidden>
+        <div class="vx-set-grid">
+          <!-- Reminder timing / automation -->
+          <div class="card vx-sms-panel">
+            <div class="card-header">
+              <div class="flex center gap-10">
+                <span style="color:var(--brand-600);font-size:11px;font-weight:700">پیامک</span>
+                <h3>زمان‌بندی و اخطار خودکار</h3>
+              </div>
+            </div>
+            <p class="vx-sms-hint">سامانه به‌صورت خودکار برای نوبت‌های نزدیک و عقب‌افتاده در زمان تعیین‌شده پیامک ارسال می‌کند.</p>
+
+            <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px">
+              <div class="field"><label>سرشماره ارسال</label><input class="input" value="۵۰۰۰۲۱۰۰۰۰" dir="ltr"/></div>
+              <div class="field"><label>زمان ارسال روزانه</label>
+                <select class="selectbox"><option>۰۹:۰۰ صبح</option><option>۱۱:۰۰ صبح</option><option>۱۷:۰۰ عصر</option></select></div>
+              <div class="field"><label>فاصله یادآوری</label>
+                <select class="selectbox"><option>۳ روز پیش از نوبت</option><option>۷ روز پیش از نوبت</option><option>۱ روز پیش از نوبت</option></select></div>
+              <div class="field"><label>تکرار اخطار عقب‌افتاده</label>
+                <select class="selectbox"><option>هر ۷ روز</option><option>هر ۳ روز</option><option>هر ۱۴ روز</option></select></div>
+            </div>
+
+            <div class="vx-toggle-row">
+              <div>
+                <div class="t-label">یادآوری پیش از نوبت</div>
+                <div class="t-sub">ارسال به مالک بیمار</div>
+              </div>
+              <label class="vx-switch"><input type="checkbox" checked onchange="vaxToggle(this,'یادآوری پیش از نوبت')"><span class="track"></span><span class="thumb"></span></label>
+            </div>
+            <div class="vx-toggle-row">
+              <div>
+                <div class="t-label">اخطار سررسید گذشته</div>
+                <div class="t-sub">تکرار تا انجام واکسن</div>
+              </div>
+              <label class="vx-switch"><input type="checkbox" checked onchange="vaxToggle(this,'اخطار عقب‌افتاده')"><span class="track"></span><span class="thumb"></span></label>
+            </div>
+            <div class="vx-toggle-row">
+              <div>
+                <div class="t-label">تأیید پس از تزریق</div>
+                <div class="t-sub">شامل تاریخ نوبت بعدی</div>
+              </div>
+              <label class="vx-switch"><input type="checkbox" onchange="vaxToggle(this,'تأیید تزریق')"><span class="track"></span><span class="thumb"></span></label>
+            </div>
+            <div class="vx-toggle-row">
+              <div>
+                <div class="t-label">ارسال در روزهای تعطیل</div>
+                <div class="t-sub">پیامک‌ها در تعطیلات نیز ارسال شوند</div>
+              </div>
+              <label class="vx-switch"><input type="checkbox" onchange="vaxToggle(this,'ارسال در تعطیلات')"><span class="track"></span><span class="thumb"></span></label>
+            </div>
+
+            <div style="margin-top:16px;text-align:end">
+              <button class="btn btn-primary" onclick="vaxToast('تنظیمات پیامک ذخیره شد (نمونه طراحی)','check')">ذخیره تنظیمات</button>
+            </div>
+          </div>
+
+          <!-- SMS templates -->
+          <div class="card vx-sms-panel">
+            <div class="card-header">
+              <div class="flex center gap-10">
+                <span style="color:var(--brand-600);font-size:11px;font-weight:700">قالب‌ها</span>
+                <h3>قالب‌های پیامک</h3>
+              </div>
+            </div>
+            <p class="vx-sms-hint">قالب‌های آماده برای یادآوری، اخطار و تأیید تزریق. برای ویرایش روی هر قالب کلیک کنید.</p>
+            <div id="vxTemplates"></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+<div id="notif-slot"></div>
+<script src="assets/icons.js"></script>
+<script src="assets/layout.js"></script>
+<script>mountLayout({ active: 'vaccine', title: 'واکسیناسیون', crumbs: ['مراقبت', 'واکسیناسیون'] });</script>
+<script src="assets/vaccination-data.js"></script>
+<script src="assets/vaccination.js"></script>
+<script>initVaccinationPage();</script>
+</body>
+</html>

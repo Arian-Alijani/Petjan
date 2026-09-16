@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<title>وت‌پلاس · مدیریت چک</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="assets/styles.css"/>
+<link rel="stylesheet" href="assets/cheques.css"/>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-slot"></div>
+  <main class="main">
+    <div id="topbar-slot"></div>
+
+    <div class="page ch-page">
+
+      <!-- ── سربرگ صفحه ───────────────────────────────── -->
+      <div class="ch-head">
+        <div>
+          <div class="page-eyebrow">خزانه‌داری و اسناد دریافتنی</div>
+          <h1 class="page-title">مدیریت چک</h1>
+          <p class="page-subtitle">چک‌های دریافتی و پرداختی، سررسیدها و وضعیت وصول — همه در یک نگاه.</p>
+        </div>
+        <div class="actions">
+          <button class="btn btn-outline" id="chExport" title="خروجی اکسل">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            خروجی
+          </button>
+          <button class="btn btn-primary" id="chNew" title="ثبت چک جدید — کلید N">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            ثبت چک جدید
+          </button>
+        </div>
+      </div>
+
+      <!-- ── کارت‌های شاخص ────────────────────────────── -->
+      <div class="ch-kpis" id="chKpis"></div>
+
+      <!-- ── نوار ابزار (unified .pagebar) ────────────── -->
+      <div class="pagebar">
+        <!-- tier 1 · direction tabs (start) + search + view switch (end/left) -->
+        <div class="pagebar-row">
+          <div class="pb-seg lg pb-seg--fill" id="chTabs" role="tablist">
+            <button data-tab="all" class="on" role="tab" aria-selected="true"><span>همه چک‌ها</span><span class="seg-n"></span></button>
+            <button data-tab="in" role="tab" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg>
+              <span>دریافتی</span><span class="seg-n"></span>
+            </button>
+            <button data-tab="out" role="tab" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
+              <span>پرداختی</span><span class="seg-n"></span>
+            </button>
+          </div>
+
+          <div class="pb-tools">
+            <div class="pb-search" id="chSearchWrap">
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+              <input id="chQ" placeholder="جستجوی شماره چک، صیادی، طرف حساب یا مبلغ… (کلید /)" autocomplete="off"/>
+              <button class="clear" id="chQClear" title="پاک کردن">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="pb-seg" id="chViews" role="tablist">
+              <button data-view="table" class="on" title="نمای جدول" aria-label="نمای جدول">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1.5"/><rect x="3" y="14" width="18" height="5" rx="1.5"/></svg>
+              </button>
+              <button data-view="grid" title="نمای برگ چک" aria-label="نمای برگ چک">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              </button>
+              <button data-view="calendar" title="تقویم سررسید" aria-label="تقویم سررسید">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </button>
+              <button data-view="timeline" title="نوار زمانی سررسید" aria-label="نوار زمانی سررسید">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><path d="M5 8v8"/><path d="M10 6h11M10 18h11"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- tier 2 · status chips (start) + bank/range selects (end/left) -->
+        <div class="pagebar-row tier2">
+          <div class="pb-chips" id="chChips"></div>
+          <div class="pb-tools">
+            <select class="pb-select" id="chBank" title="فیلتر بانک"></select>
+            <select class="pb-select" id="chRange" title="فیلتر سررسید">
+              <option value="all">همه سررسیدها</option>
+              <option value="overdue">سررسید گذشته</option>
+              <option value="week">۷ روز آینده</option>
+              <option value="month">۳۰ روز آینده</option>
+              <option value="quarter">۹۰ روز آینده</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── بدنه ─────────────────────────────────────── -->
+      <div class="ch-body">
+        <div>
+          <div id="chBulk"></div>
+          <div class="ch-main" id="chMain"></div>
+        </div>
+        <aside class="ch-side" id="chSide"></aside>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="notif-slot"></div>
+<script src="assets/icons.js"></script>
+<script src="assets/layout.js"></script>
+<script src="assets/cheques-data.js"></script>
+<script src="assets/cheques-ui.js"></script>
+<script src="assets/cheques.js"></script>
+<script>
+  mountLayout({ active: 'cheques', title: 'مدیریت چک', crumbs: ['مالی', 'چک‌ها'] });
+  initChequesPage();
+</script>
+</body>
+</html>

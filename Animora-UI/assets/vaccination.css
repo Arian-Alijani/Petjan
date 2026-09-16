@@ -1,0 +1,241 @@
+/* =========================================================
+   Vetplus · Vaccination — page-scoped styles
+   Layer on top of assets/styles.css
+   Prefix: .vx-
+   ========================================================= */
+:root {
+  --vx-shot: #6f57c9;      /* vaccine accent (violet) */
+  --vx-shot-bg: #efeafb;
+}
+
+/* Icons injected raw via JS have no intrinsic size — constrain them where
+   this page places them (buttons, modal header box). */
+.modal .btn svg,
+.vx-detail-card .btn svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.modal-header .icon-box svg { width: 20px; height: 20px; }
+
+/* ---------------- Primary section bar (نوبت · انبار واکسن · تنظیمات) ----------------
+   Now a segmented control living inside a `.pagebar` toolbar shell. */
+.vx-mainbar { margin-bottom: 16px; }
+.vx-mainseg { width: 100%; }
+.vx-mainseg > button {
+  flex: 1 1 0; justify-content: center;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.vx-mainseg .vx-mainseg-ic { display: inline-flex; }
+.vx-mainseg .vx-mainseg-ic svg { width: 17px; height: 17px; }
+/* visits-only filter rows hide when off the نوبت panel (override .pagebar-row flex) */
+.vx-visits-tools[hidden] { display: none; }
+
+/* ---------------- Panels ---------------- */
+.vx-panel[hidden] { display: none; }
+.vx-panel { animation: vxFade .28s ease both; }
+@keyframes vxFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* Settings tab: two-column layout */
+.vx-set-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; align-items: start; }
+
+@media (max-width: 640px) {
+  .vx-mainseg > button span:not(.vx-mainseg-ic) { display: none; }
+  .vx-mainseg > button { gap: 0; }
+}
+@media (max-width: 900px) {
+  .vx-set-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vx-panel { animation: none; }
+}
+
+/* ---------------- Status filter chips (همه · نزدیک · عقب‌افتاده · آتی · انجام‌شده) ---------------- */
+.vx-status-seg { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.vx-status-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12.5px; font-weight: 700;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.vx-status-chip:hover { border-color: var(--vx-shot); color: var(--vx-shot); background: var(--vx-shot-bg); transform: translateY(-1px); }
+.vx-status-chip .seg-n {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 6px;
+  border-radius: 999px;
+  background: var(--bg-2); color: var(--muted);
+  font-size: 11px; font-weight: 800;
+  transition: background .18s ease, color .18s ease;
+}
+.vx-status-chip.active {
+  border-color: var(--vx-shot);
+  background: var(--vx-shot);
+  color: #fff;
+  box-shadow: 0 8px 20px -12px rgba(111,87,201,.85);
+}
+.vx-status-chip.active .seg-n { background: rgba(255,255,255,.24); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .vx-status-chip { transition: none; } }
+
+/* ---------------- Toolbar ----------------
+   The control bar uses the shared unified `.pagebar` shell defined in
+   styles.css — matching the Inventory hub. The status filter chips live in
+   `#vxSeg.vx-status-seg` (styled above) at the start of the first row. */
+
+/* ---------------- Records table ---------------- */
+.vx-pet-cell { display: flex; align-items: center; gap: 10px; }
+.vx-pet-cell .name { font-weight: 700; font-size: 13px; }
+.vx-pet-cell .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.vx-vac-cell { display: flex; flex-direction: column; gap: 3px; }
+.vx-vac-cell .v-name { font-weight: 700; font-size: 12.5px; }
+.vx-vac-cell .v-dose { font-size: 11px; color: var(--muted); }
+.vx-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700;
+  padding: 2px 8px; border-radius: 8px; background: var(--vx-shot-bg); color: var(--vx-shot); }
+
+.vx-due { display: flex; flex-direction: column; gap: 2px; }
+.vx-due .d { font-weight: 700; font-size: 12.5px; }
+.vx-due .rel { font-size: 11px; }
+.vx-due .rel.past { color: var(--danger); }
+.vx-due .rel.soon { color: var(--warn); }
+.vx-due .rel.far { color: var(--muted); }
+
+.vx-sms-cell { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; }
+.vx-sms-cell svg { width: 14px; height: 14px; }
+.vx-sms-cell.ok { color: var(--ok); }
+.vx-sms-cell.info { color: var(--info); }
+.vx-sms-cell.danger { color: var(--danger); }
+.vx-sms-cell.mute { color: var(--muted); }
+
+.vx-row-actions { display: flex; align-items: center; gap: 4px; justify-content: flex-start; }
+.vx-mini {
+  width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--muted); cursor: pointer;
+  display: grid; place-items: center; transition: all .16s ease;
+}
+.vx-mini svg { width: 15px; height: 15px; }
+.vx-mini:hover { border-color: var(--vx-shot); color: var(--vx-shot); background: var(--vx-shot-bg); }
+.vx-mini.done:hover { border-color: var(--ok); color: var(--ok); background: var(--ok-bg); }
+
+.vx-empty { padding: 46px 20px; text-align: center; color: var(--muted); }
+.vx-empty svg { width: 40px; height: 40px; opacity: .4; margin-bottom: 10px; }
+
+/* Vaccine catalog / inventory cards */
+.vx-cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vx-cat-grid.wide { grid-template-columns: repeat(3, 1fr); }
+.vx-cat {
+  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px;
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+}
+.vx-cat:hover { border-color: var(--brand-400); box-shadow: 0 8px 20px -14px rgba(16,24,40,.4); transform: translateY(-2px); }
+.vx-cat-head { display: flex; align-items: center; gap: 10px; }
+.vx-cat-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: 0 0 auto; }
+.vx-cat-ic svg { width: 18px; height: 18px; }
+.vx-cat .c-name { font-weight: 800; font-size: 13px; }
+.vx-cat .c-short { font-size: 10.5px; color: var(--muted); font-weight: 700; }
+.vx-cat .c-protects { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.6; min-height: 34px; }
+.vx-cat-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px;
+  padding-top: 8px; border-top: 1px dashed var(--line-2); }
+.vx-stockbar { height: 6px; border-radius: 6px; background: var(--bg-2); overflow: hidden; flex: 1; margin-inline-end: 10px; }
+.vx-stockbar i { display: block; height: 100%; border-radius: 6px; }
+.vx-cat .c-stock { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.vx-cat .c-stock.low { color: var(--danger); }
+
+/* SMS / reminders panel */
+.vx-sms-panel .vx-sms-hint { font-size: 12px; color: var(--muted); line-height: 1.7; margin-bottom: 14px; }
+.vx-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--line-2); }
+.vx-toggle-row:last-of-type { border-bottom: 0; }
+.vx-toggle-row .t-label { font-size: 12.5px; font-weight: 700; }
+.vx-toggle-row .t-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.vx-switch { position: relative; width: 42px; height: 24px; flex: 0 0 auto; cursor: pointer; }
+.vx-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.vx-switch .track { position: absolute; inset: 0; border-radius: 20px; background: var(--line);
+  transition: background .2s; }
+.vx-switch .thumb { position: absolute; top: 3px; inset-inline-end: 3px; width: 18px; height: 18px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s; }
+.vx-switch input:checked ~ .track { background: var(--vx-shot); }
+.vx-switch input:checked ~ .thumb { transform: translateX(-18px); }
+
+.vx-tmpl { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 11px 13px; margin-top: 10px;
+  cursor: pointer; transition: border-color .18s, background .18s; }
+.vx-tmpl:hover { border-color: var(--vx-shot); background: var(--vx-shot-bg); }
+.vx-tmpl .tm-name { font-size: 12.5px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; }
+.vx-tmpl .tm-name svg { width: 15px; height: 15px; color: var(--muted); flex: 0 0 auto; }
+.vx-tmpl .tm-body { font-size: 11px; color: var(--muted); line-height: 1.7; margin-top: 5px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ---------------- SMS composer modal ---------------- */
+.vx-compose-to { display: flex; align-items: center; gap: 10px; background: var(--bg-2);
+  border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 14px; }
+.vx-compose-to .avatar-pet { width: 34px; height: 34px; font-size: 13px; }
+.vx-compose-to .to-name { font-weight: 700; font-size: 13px; }
+.vx-compose-to .to-mob { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.vx-tmpl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.vx-preview {
+  border: 1px dashed var(--line); border-radius: var(--radius-sm); padding: 14px;
+  background: linear-gradient(180deg, #f7f6fd, #fff); font-size: 12.5px; line-height: 1.9; color: var(--ink-2);
+  min-height: 90px;
+}
+.vx-count { font-size: 11px; color: var(--muted); margin-top: 8px; text-align: end; }
+.vx-count b { color: var(--vx-shot); }
+
+/* ---------------- Detail modal shell (centered — self-contained) ---------------- */
+.vx-detail-root { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
+.vx-detail-root.open { pointer-events: auto; }
+.vx-detail-bd {
+  position: absolute; inset: 0; background: rgba(16,24,40,.42);
+  backdrop-filter: blur(3px); opacity: 0; transition: opacity .3s ease;
+}
+.vx-detail-root.open .vx-detail-bd { opacity: 1; }
+.vx-detail-card {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(.94);
+  width: 520px; max-width: calc(100vw - 32px); max-height: calc(100vh - 48px);
+  background: var(--panel);
+  border-radius: var(--radius);
+  box-shadow: 0 30px 80px -20px rgba(16,24,40,.5);
+  opacity: 0;
+  transition: transform .34s cubic-bezier(.22,1,.36,1), opacity .28s ease, visibility .34s;
+  visibility: hidden;
+  display: flex; flex-direction: column; overflow-y: auto;
+}
+.vx-detail-root.open .vx-detail-card {
+  transform: translate(-50%, -50%) scale(1); opacity: 1; visibility: visible;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vx-detail-card { transition: opacity .2s ease, visibility .2s; }
+  .vx-detail-root.open .vx-detail-card { transform: translate(-50%, -50%); }
+}
+
+/* ---------------- Detail (record) ---------------- */
+.vx-dr-head { display: flex; align-items: center; gap: 12px; padding: 20px 22px 16px; border-bottom: 1px solid var(--line-2); }
+.vx-dr-head .avatar-pet { width: 48px; height: 48px; font-size: 18px; }
+.vx-dr-head .h-name { font-size: 17px; font-weight: 800; }
+.vx-dr-head .h-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.vx-dr-body { padding: 18px 22px; }
+.vx-dr-sec-title { font-size: 11px; font-weight: 700; color: var(--brand-600); text-transform: none;
+  margin: 18px 0 10px; letter-spacing: .2px; }
+.vx-dr-sec-title:first-child { margin-top: 0; }
+.vx-kv { display: grid; grid-template-columns: auto 1fr; gap: 9px 14px; font-size: 12.5px; }
+.vx-kv dt { color: var(--muted); white-space: nowrap; }
+.vx-kv dd { margin: 0; font-weight: 700; text-align: start; }
+
+.vx-timeline { position: relative; padding-inline-start: 22px; }
+.vx-timeline::before { content: ''; position: absolute; inset-inline-start: 6px; top: 4px; bottom: 4px;
+  width: 2px; background: var(--line); }
+.vx-tl-item { position: relative; padding-bottom: 16px; }
+.vx-tl-item:last-child { padding-bottom: 0; }
+.vx-tl-item::before { content: ''; position: absolute; inset-inline-start: -22px; top: 3px;
+  width: 12px; height: 12px; border-radius: 50%; background: var(--panel); border: 2.5px solid var(--vx-shot); }
+.vx-tl-item.muted::before { border-color: var(--line); }
+.vx-tl-item .tl-title { font-size: 12.5px; font-weight: 700; }
+.vx-tl-item .tl-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ---------------- Responsive-ish safety (design only) ---------------- */
+@media (max-width: 1100px) {
+  .vx-cat-grid.wide { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 720px) {
+  .vx-cat-grid, .vx-cat-grid.wide { grid-template-columns: 1fr; }
+}

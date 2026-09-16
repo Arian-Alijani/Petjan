@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<title>وت‌پلاس · پروفایل و تنظیمات</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="assets/styles.css"/>
+<link rel="stylesheet" href="assets/appointments.css"/>
+<link rel="stylesheet" href="profile.css"/>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-slot"></div>
+  <main class="main">
+    <div id="topbar-slot"></div>
+    <div class="page">
+
+      <div class="page-header">
+        <div>
+          <div class="page-eyebrow">حساب کاربری</div>
+          <h1 class="page-title">پروفایل و تنظیمات</h1>
+          <p class="page-subtitle">اطلاعات کاربری، تنظیمات نوبت‌دهی، اعلان‌ها و ظاهر برنامه را مدیریت کنید.</p>
+        </div>
+        <div class="sc-actions">
+          <button class="btn btn-outline" onclick="PF.discard()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            بازگشت تغییرات
+          </button>
+          <button class="btn btn-primary" onclick="PF.save()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            ذخیره تغییرات
+          </button>
+        </div>
+      </div>
+
+      <div id="pf-root" aria-live="polite"></div>
+
+    </div>
+  </main>
+</div>
+<div id="notif-slot"></div>
+<script src="assets/icons.js"></script>
+<script src="assets/layout.js"></script>
+<script>mountLayout({ active: 'profile', title: 'پروفایل و تنظیمات', crumbs: ['حساب کاربری', 'پروفایل و تنظیمات'] });</script>
+<script src="assets/profile.js"></script>
+</body>
+</html>

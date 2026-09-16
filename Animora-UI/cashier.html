@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%231f8b7d%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3C/svg%3E"/>
+<title>وت‌پلاس · صندوق و مالی</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="assets/styles.css"/>
+<style>
+  /* Phase-7 (cs-*) polish — design tokens only */
+  .cs-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  @media (max-width: 1180px) { .cs-grid { grid-template-columns: 1fr; } }
+
+  .cs-tabs {
+    display: inline-flex; gap: 4px; padding: 4px;
+    background: var(--bg-2); border-radius: 10px;
+  }
+  .cs-tabs button {
+    border: 0; background: transparent;
+    font-size: 12px; font-weight: 700; color: var(--ink-2);
+    padding: 7px 12px; border-radius: 8px; cursor: pointer;
+    transition: background .18s, color .18s, box-shadow .18s;
+  }
+  .cs-tabs button:hover { color: var(--brand-700); }
+  .cs-tabs button.on { background: #fff; color: var(--brand-700); box-shadow: 0 4px 10px rgba(16,24,40,.06); }
+  .cs-tabs button .ct {
+    display:inline-block; margin-inline-start: 6px;
+    background: var(--bg-2); color: var(--muted);
+    font-size: 11px; padding: 2px 6px; border-radius: 999px;
+  }
+  .cs-tabs button.on .ct { background: var(--brand-50); color: var(--brand-700); }
+
+  .cs-list-toolbar { display:flex; align-items:center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line-2); flex-wrap: wrap; }
+  .cs-searchbox {
+    display:inline-flex; align-items:center; gap: 8px; padding: 8px 12px;
+    background: #fff; border: 1px solid var(--line); border-radius: 10px; min-width: 240px;
+    transition: border-color .18s, box-shadow .18s;
+  }
+  .cs-searchbox:focus-within { border-color: var(--brand-400); box-shadow: 0 0 0 4px rgba(13,148,136,.10); }
+  .cs-searchbox input { border: 0; outline: 0; background: transparent; flex: 1; font-family: inherit; font-size: 13px; }
+  .cs-searchbox svg { width:16px; height:16px; color: var(--muted); }
+
+  /* Invoice list rows (clickable) */
+  .cs-inv-row {
+    display: grid;
+    grid-template-columns: 38px 1.2fr 1fr auto auto;
+    gap: 12px; align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line-2);
+    cursor: pointer;
+    transition: background .14s;
+  }
+  .cs-inv-row:hover { background: #fbfcfb; }
+  .cs-inv-row.on { background: var(--brand-50); }
+  .cs-inv-row .id { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .cs-inv-row .cust { min-width: 0; }
+  .cs-inv-row .cust .name { font-weight: 800; color: var(--ink); font-size: 13px; }
+  .cs-inv-row .cust .pet { color: var(--muted); font-size: 12px; }
+  .cs-inv-row .nums { text-align: end; }
+  .cs-inv-row .nums .total { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .cs-inv-row .nums .due { color: var(--danger); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .cs-inv-row .nums .due.settled { color: var(--ok); }
+
+  /* Detail card */
+  .cs-detail-head {
+    padding: 18px 20px;
+    background:
+      radial-gradient(120% 120% at 100% 0%, rgba(13,148,136,.10) 0%, transparent 60%),
+      linear-gradient(160deg, var(--brand-50) 0%, #fff 100%);
+    border-bottom: 1px solid var(--line-2);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .cs-detail-head .row { display:flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .cs-detail-head h3 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -.2px; }
+  .cs-detail-head .id { color: var(--brand-700); font-weight: 800; font-variant-numeric: tabular-nums; margin-inline-start: 6px; }
+  .cs-detail-head .cust { color: var(--ink-2); font-size: 13px; }
+  .cs-detail-head .pillbox { display:flex; gap: 6px; }
+
+  /* Editable line rows inside detail */
+  .cs-lines { display: flex; flex-direction: column; gap: 6px; padding: 16px 20px; }
+  .cs-line {
+    display: grid;
+    grid-template-columns: 26px 1fr 90px 90px 100px 28px;
+    gap: 8px; align-items: center;
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px;
+    transition: border-color .18s, background .18s;
+  }
+  .cs-line:hover { background: #fbfcfb; border-color: var(--brand-100); }
+  .cs-line .tag { width: 26px; height: 26px; border-radius: 8px; display:grid; place-items:center; font-size: 11px; font-weight: 800; background: var(--brand-50); color: var(--brand-700); }
+  .cs-line .tag.item { background: var(--lilac-bg); color: #7b5cc4; }
+  .cs-line .ttl { font-weight: 700; }
+  .cs-line input {
+    border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 8px;
+    font: inherit; color: var(--ink); width: 100%; text-align: center;
+    font-variant-numeric: tabular-nums;
+    transition: border-color .18s, box-shadow .18s;
+  }
+  .cs-line input:focus { outline: 0; border-color: var(--brand-400); box-shadow: 0 0 0 3px rgba(13,148,136,.10); }
+  .cs-line .sub { font-size: 11px; color: var(--muted); text-align: end; font-variant-numeric: tabular-nums; }
+  .cs-line .rm { border: 0; background: transparent; color: var(--muted); cursor: pointer; width: 28px; height: 28px; border-radius: 8px; display:grid; place-items:center; transition: background .14s, color .14s; }
+  .cs-line .rm:hover { background: var(--danger-bg); color: var(--danger); }
+
+  .cs-discount {
+    padding: 0 20px 16px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .cs-discount .field { margin-bottom: 0; }
+
+  /* Totals + payment */
+  .cs-totals {
+    margin: 0 20px 16px;
+    background: linear-gradient(160deg, var(--brand-50) 0%, #fff 70%);
+    border: 1px solid var(--brand-100);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: grid; grid-template-columns: 1fr auto; gap: 6px 16px;
+  }
+  .cs-totals .row { display: contents; }
+  .cs-totals .lbl { color: var(--ink-2); font-size: 13px; }
+  .cs-totals .val { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+  .cs-totals .tot { padding-top: 10px; border-top: 1px solid var(--line-2); margin-top: 6px; }
+  .cs-totals .tot .lbl { font-size: 15px; }
+  .cs-totals .tot .val { font-size: 24px; color: var(--brand-700); }
+  .cs-totals .paid { padding-top: 10px; border-top: 1px dashed var(--line); margin-top: 6px; grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; }
+  .cs-totals .paid .val { color: var(--ok); }
+
+  .cs-payment { padding: 0 20px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cs-payment label { font-size: 12px; font-weight: 700; color: var(--ink-2); margin-bottom: 4px; display: block; }
+  .cs-payment .selectbox, .cs-payment .input {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: #fff; font: inherit; color: var(--ink);
+    transition: border-color .18s, box-shadow .18s;
+  }
+  .cs-payment .selectbox:focus, .cs-payment .input:focus {
+    outline: 0; border-color: var(--brand-400); box-shadow: 0 0 0 4px rgba(13,148,136,.10);
+  }
+
+  /* Pay presets */
+  .cs-pay-presets {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;
+  }
+  .cs-pay-presets button {
+    border: 0; cursor: pointer; padding: 6px 10px; border-radius: 999px;
+    background: var(--brand-50); color: var(--brand-700); font-size: 12px; font-weight: 800;
+    transition: background .14s, color .14s;
+  }
+  .cs-pay-presets button:hover { background: var(--brand-100); }
+
+  .cs-footbar { padding: 14px 20px; border-top: 1px solid var(--line-2); display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; }
+
+  /* Empty state */
+  .cs-empty {
+    text-align: center; padding: 40px 24px; color: var(--muted);
+  }
+  .cs-empty .ico {
+    width: 56px; height: 56px; margin: 0 auto 10px;
+    border-radius: 14px; display:grid; place-items:center;
+    background: var(--bg-2); color: var(--muted-2);
+  }
+
+  /* Method chips */
+  .cs-method-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cs-method-row .chip {
+    background: var(--bg-2); color: var(--ink-2); border: 1px solid var(--line);
+    padding: 6px 10px; border-radius: 999px; cursor: pointer;
+    font-size: 12px; font-weight: 800;
+    transition: background .14s, color .14s, border-color .14s;
+    user-select: none;
+  }
+  .cs-method-row .chip:hover { background: var(--brand-50); border-color: var(--brand-100); color: var(--brand-700); }
+  .cs-method-row .chip.on { background: var(--brand-600); color: #fff; border-color: var(--brand-600); }
+
+  /* Stat hero at top of cashier */
+  .cs-stat {
+    transition: transform .22s cubic-bezier(.22,1,.36,1), box-shadow .22s ease;
+  }
+  .cs-stat:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(16,24,40,.08); }
+
+  /* Payment history list (collapsible) */
+  .cs-pay-history { padding: 0 20px 16px; }
+  .cs-pay-history .head { display:flex; align-items:center; justify-content: space-between; margin-bottom: 8px; }
+  .cs-pay-history .head h4 { margin: 0; font-size: 13px; font-weight: 800; color: var(--ink-2); }
+  .cs-pay-history .item {
+    display: grid; grid-template-columns: 90px 1fr auto; gap: 8px;
+    padding: 8px 12px; border-radius: 8px; background: var(--bg-2); margin-bottom: 4px;
+    font-size: 12px;
+  }
+  .cs-pay-history .item .m { padding: 2px 8px; border-radius: 6px; background: #fff; font-weight: 800; text-align: center; }
+  .cs-pay-history .item .a { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .cs-pay-history .item .at { color: var(--muted); }
+  .cs-pay-history .item.neg .a { color: var(--danger); }
+
+  /* Toast — same as other pages */
+  .toast-host { position: fixed; inset-block-start: 18px; inset-inline-end: 18px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+  .toast { display: inline-flex; align-items: center; gap: 10px; background: #fff; color: var(--ink); padding: 12px 16px; border-radius: 12px; box-shadow: var(--shadow-pop); border: 1px solid var(--line); font-size: 13px; font-weight: 700; animation: toastIn .24s cubic-bezier(.22,1,.36,1) both; }
+  .toast svg { width: 18px; height: 18px; color: var(--brand-600); }
+  .toast.error svg { color: var(--danger); }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .toast.out { animation: toastOut .28s ease both; }
+  @keyframes toastOut { to { opacity: 0; transform: translateY(-6px); } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-slot"></div>
+  <main class="main">
+    <div id="topbar-slot"></div>
+    <div class="page rc-page">
+
+      <div class="page-header">
+        <div>
+          <div class="page-eyebrow">صندوق و مالی</div>
+          <h1 class="page-title">مدیریت فاکتور و پرداخت</h1>
+          <p class="page-subtitle">صورتحساب‌ها را ببندید، مالیات و تخفیف را تنظیم کنید، پرداخت‌ها را ثبت و در صورت نیاز عودت دهید.</p>
+        </div>
+        <div style="display:flex; gap: 8px;">
+          <button class="btn btn-outline" id="cs-print">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            چاپ فاکتور
+          </button>
+          <button class="btn btn-primary" id="cs-export">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            خروجی اکسل
+          </button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="stats-grid" id="cs-stats"></div>
+
+      <!-- Two-pane grid -->
+      <div class="cs-grid" style="margin-top: 18px;">
+        <!-- LEFT: invoice list -->
+        <div class="card">
+          <div class="cs-list-toolbar">
+            <div class="cs-tabs" id="cs-tabs" role="tablist">
+              <button data-tab="open"  class="on">باز <span class="ct" id="ct-open">۰</span></button>
+              <button data-tab="settled">تسویه‌شده <span class="ct" id="ct-settled">۰</span></button>
+              <button data-tab="void">ابطال‌شده <span class="ct" id="ct-void">۰</span></button>
+              <button data-tab="all">همه <span class="ct" id="ct-all">۰</span></button>
+            </div>
+            <div style="flex:1"></div>
+            <div class="cs-searchbox">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="cs-search" placeholder="جستجو در فاکتورها، مالکین یا حیوانات…"/>
+            </div>
+          </div>
+          <div id="cs-list" style="padding: 4px 0;"></div>
+        </div>
+
+        <!-- RIGHT: invoice detail -->
+        <div class="card" id="cs-detail">
+          <div class="cs-detail-head" id="cs-detail-head"></div>
+          <div id="cs-detail-body"></div>
+          <div class="cs-footbar" id="cs-footbar"></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="notif-slot"></div>
+<script src="assets/icons.js"></script>
+<script src="assets/layout.js"></script>
+<script src="assets/clinic-data.js"></script>
+<script src="assets/clinic-flow.js"></script>
+<script src="assets/cashier.js"></script>
+<script>
+  mountLayout({ active: 'cashier', title: 'صندوق و مالی', crumbs: ['مدیریت کلینیک', 'صندوق'] });
+  if (window.initCashierPage) window.initCashierPage();
+</script>
+</body>
+</html>

@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%231f8b7d%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3C/svg%3E"/>
+<title>وت‌پلاس · پذیرش و صف</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="assets/styles.css"/>
+<style>
+  /* Phase-5 page-specific polish (no new tokens; uses design tokens only) */
+  .rc-page { padding-bottom: 32px; }
+  .rc-hero {
+    position: relative;
+    border-radius: var(--radius-lg);
+    padding: 24px 24px 22px;
+    background:
+      radial-gradient(120% 120% at 100% 0%, rgba(13,148,136,.10) 0%, transparent 60%),
+      linear-gradient(160deg, #ffffff 0%, #f6faf8 100%);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .rc-hero::after {
+    content: '';
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(120deg, transparent 0 55%, rgba(13,148,136,.05) 100%);
+  }
+  .rc-hero .row { display:flex; gap:14px; align-items:center; flex-wrap: wrap; }
+  .rc-hero-head { display:flex; gap:14px; align-items:center; margin-bottom: 14px; }
+  .rc-hero-head .ico {
+    width: 44px; height: 44px; border-radius: 12px;
+    display:grid; place-items:center;
+    background: linear-gradient(180deg, var(--brand-600) 0%, var(--brand-700) 100%);
+    color:#fff; box-shadow: 0 8px 22px rgba(13,148,136,.30);
+  }
+  .rc-hero-head .ico svg { width: 22px; height: 22px; }
+  .rc-live {
+    display:inline-flex; align-items:center; gap:8px;
+    background: var(--ok-bg); color: var(--ok);
+    padding: 6px 12px; border-radius: 999px;
+    font-size: 12px; font-weight: 800; letter-spacing: -.2px;
+  }
+  .rc-live::before {
+    content:''; width:8px; height:8px; border-radius:50%;
+    background: var(--ok);
+    box-shadow: 0 0 0 0 rgba(47,143,106,.55);
+    animation: rcLivePulse 1.6s cubic-bezier(.4,0,.2,1) infinite;
+  }
+  @keyframes rcLivePulse {
+    0%   { box-shadow: 0 0 0 0 rgba(47,143,106,.55); }
+    70%  { box-shadow: 0 0 0 8px rgba(47,143,106,0); }
+    100% { box-shadow: 0 0 0 0 rgba(47,143,106,0); }
+  }
+  @media (prefers-reduced-motion: reduce) { .rc-live::before { animation: none; } }
+  .rc-metric {
+    flex: 1; min-width: 140px;
+    display:flex; flex-direction: column; gap: 4px;
+    padding: 10px 14px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid var(--line-2);
+  }
+  .rc-metric .lbl { font-size: 11px; color: var(--muted); font-weight: 700; }
+  .rc-metric .val { font-size: 16px; font-weight: 800; color: var(--ink); }
+  .rc-metric .val .num-fa { font-variant-numeric: tabular-nums; }
+
+  /* KPI ring decorations */
+  .rc-stat {
+    transition: transform .22s cubic-bezier(.22,1,.36,1), box-shadow .22s ease;
+  }
+  .rc-stat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(16,24,40,.08);
+  }
+
+  /* Queue list */
+  .rc-toolbar {
+    display:flex; align-items:center; gap:10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line-2);
+    flex-wrap: wrap;
+  }
+  .rc-toolbar .seg {
+    display:inline-flex; gap: 4px; padding: 4px;
+    background: var(--bg-2); border-radius: 10px;
+  }
+  .rc-toolbar .seg button {
+    border: 0; background: transparent;
+    color: var(--ink-2); font-weight: 700; font-size: 12px;
+    padding: 7px 12px; border-radius: 8px;
+    transition: background .18s ease, color .18s ease, box-shadow .18s ease;
+    cursor: pointer;
+  }
+  .rc-toolbar .seg button:hover { color: var(--brand-700); }
+  .rc-toolbar .seg button.on {
+    background: #fff; color: var(--brand-700);
+    box-shadow: 0 4px 12px rgba(16,24,40,.06);
+  }
+  .rc-toolbar .grow { flex: 1; }
+  .rc-searchbox {
+    display:inline-flex; align-items:center; gap: 8px;
+    padding: 8px 12px;
+    background: #fff; border: 1px solid var(--line);
+    border-radius: 10px; min-width: 240px;
+    transition: border-color .18s ease, box-shadow .18s ease;
+  }
+  .rc-searchbox:focus-within {
+    border-color: var(--brand-400);
+    box-shadow: 0 0 0 4px rgba(13,148,136,.10);
+  }
+  .rc-searchbox input {
+    border: 0; outline: 0; background: transparent; flex: 1;
+    font-family: inherit; font-size: 13px; color: var(--ink);
+  }
+  .rc-searchbox svg { width: 16px; height: 16px; color: var(--muted); }
+
+  /* Queue card layout */
+  .rc-list { display: flex; flex-direction: column; padding: 14px 18px; gap: 12px; }
+  .rc-row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 14px; align-items: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    position: relative;
+    transition: border-color .18s, transform .18s, box-shadow .22s;
+  }
+  .rc-row:hover {
+    transform: translateY(-1px);
+    border-color: var(--brand-100);
+    box-shadow: 0 8px 20px rgba(16,24,40,.06);
+  }
+  .rc-row.urgent {
+    border-color: #f5c7c1;
+    background: linear-gradient(180deg, #fff7f4 0%, #fff 75%);
+  }
+  .rc-row.urgent::before {
+    content: '';
+    position: absolute; right: -1px; top: 14px; bottom: 14px;
+    width: 4px; border-radius: 4px;
+    background: linear-gradient(180deg, var(--danger) 0%, #e8786e 100%);
+    box-shadow: 0 0 12px rgba(208,70,58,.35);
+  }
+  .rc-row.called {
+    background: linear-gradient(180deg, #f1fbf7 0%, #fff 75%);
+    border-color: var(--brand-100);
+  }
+  .rc-row.invisit {
+    background: linear-gradient(180deg, var(--brand-50) 0%, #fff 75%);
+    border-color: var(--brand-400);
+  }
+  .rc-row.done { opacity: .82; }
+  .rc-row .seq {
+    font-weight: 900; font-size: 14px; color: var(--muted);
+    text-align: center;
+  }
+  .rc-row.urgent .seq { color: var(--danger); }
+  .rc-row.called .seq, .rc-row.invisit .seq { color: var(--brand-700); }
+
+  .rc-pet { display: grid; grid-template-columns: 48px 1fr; gap: 12px; align-items: center; }
+  .rc-pet .avbox { width: 48px; height: 48px; }
+  .rc-pet .avbox .avatar-pet { width: 48px; height: 48px; font-size: 16px; border-radius: 12px; }
+  .rc-pet .meta { min-width: 0; }
+  .rc-pet .name { font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: -.2px; }
+  .rc-pet .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .rc-pet .sub b { color: var(--ink-2); font-weight: 700; }
+
+  .rc-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .rc-pills .pill { font-size: 11px; padding: 4px 10px; }
+  .rc-pills .src-dot {
+    display:inline-flex; align-items:center; gap:5px;
+    font-size: 11px; color: var(--muted); font-weight: 700;
+  }
+  .rc-pills .src-dot .dot { width:6px; height:6px; border-radius:50%; }
+
+  .rc-when { display:flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .rc-when .time { font-size: 18px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
+  .rc-when .dur { font-size: 11px; color: var(--muted); }
+  .rc-when .doc { display:inline-flex; align-items:center; gap: 6px; font-size: 12px; color: var(--ink-2); font-weight: 700; }
+  .rc-when .doc .av {
+    width: 22px; height: 22px; border-radius: 6px;
+    display:grid; place-items:center; color:#fff; font-size: 11px; font-weight: 800;
+  }
+
+  .rc-actions {
+    display:flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
+    margin-top: 8px;
+  }
+  .rc-actions .btn { padding: 7px 12px; font-size: 12px; }
+  .rc-actions .btn svg { width: 13px; height: 13px; }
+
+  /* Empty state */
+  .rc-empty {
+    text-align: center; padding: 40px 24px; color: var(--muted);
+  }
+  .rc-empty .ico {
+    width: 56px; height: 56px; margin: 0 auto 10px;
+    border-radius: 14px; display:grid; place-items:center;
+    background: var(--bg-2); color: var(--muted-2);
+  }
+
+  /* Walk-in modal */
+  .rc-modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(16,24,40,.40);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 100;
+    display: grid; place-items: center;
+    animation: rcModalIn .22s ease both;
+  }
+  @keyframes rcModalIn { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .rc-modal-backdrop { animation: none; } }
+  .rc-modal {
+    background: #fff; border-radius: var(--radius-lg);
+    padding: 22px; width: 480px; max-width: 92vw;
+    box-shadow: var(--shadow-pop);
+    animation: rcModalPop .26s cubic-bezier(.22,1,.36,1) both;
+  }
+  @keyframes rcModalPop { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .rc-modal { animation: none; } }
+  .rc-modal h3 { margin: 0 0 16px; font-size: 16px; font-weight: 800; }
+  .rc-modal .close-btn {
+    background: transparent; border: 0; cursor: pointer; color: var(--muted);
+    width: 32px; height: 32px; border-radius: 8px;
+    display:grid; place-items:center;
+  }
+  .rc-modal .close-btn:hover { background: var(--bg-2); color: var(--ink); }
+  .rc-modal .actions { display:flex; justify-content: space-between; gap: 8px; margin-top: 16px; }
+  .rc-modal label { display:block; font-size: 12px; color: var(--ink-2); font-weight: 700; margin-bottom: 6px; }
+  .rc-modal .input, .rc-modal .selectbox {
+    width: 100%; padding: 10px 12px;
+    border-radius: 10px; border: 1px solid var(--line);
+    font-family: inherit; font-size: 13px;
+    background: #fff; color: var(--ink);
+    transition: border-color .18s, box-shadow .18s;
+  }
+  .rc-modal .input:focus, .rc-modal .selectbox:focus {
+    outline: 0; border-color: var(--brand-400);
+    box-shadow: 0 0 0 4px rgba(13,148,136,.10);
+  }
+  .rc-modal .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Pagination footer */
+  .rc-pager { padding: 12px 16px; border-top: 1px solid var(--line-2); }
+
+  /* Toast host fix if missing */
+  .toast-host { position: fixed; inset-block-start: 18px; inset-inline-end: 18px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+  .toast {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: #fff; color: var(--ink);
+    padding: 12px 16px; border-radius: 12px;
+    box-shadow: var(--shadow-pop);
+    border: 1px solid var(--line);
+    font-size: 13px; font-weight: 700;
+    animation: toastIn .24s cubic-bezier(.22,1,.36,1) both;
+  }
+  .toast svg { width: 18px; height: 18px; color: var(--brand-600); }
+  .toast.error svg { color: var(--danger); }
+  .toast.warn svg { color: var(--warn); }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .toast.out { animation: toastOut .28s ease both; }
+  @keyframes toastOut { to { opacity: 0; transform: translateY(-6px); } }
+  @media (prefers-reduced-motion: reduce) { .toast, .toast.out { animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-slot"></div>
+  <main class="main">
+    <div id="topbar-slot"></div>
+    <div class="page rc-page">
+
+      <div class="page-header">
+        <div>
+          <div class="page-eyebrow">پذیرش و صف امروز</div>
+          <h1 class="page-title">مدیریت صف و مراجعین</h1>
+          <p class="page-subtitle">نوبت‌ها، مراجعین بدون نوبت و اورژانس‌ها را در یک صف زنده ببینید؛ فراخوان، ترک صف و ارجاع به ویزیت را با یک کلیک انجام دهید.</p>
+        </div>
+        <div style="display:flex; gap: 10px;">
+          <button class="btn btn-outline" id="rc-walkin">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            ثبت مراجعهٔ حضوری
+          </button>
+          <button class="btn btn-primary" id="rc-refresh">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+            بازخوانی صف
+          </button>
+        </div>
+      </div>
+
+      <!-- Hero strip: live status + key metrics -->
+      <div class="rc-hero" style="margin-bottom: 18px;">
+        <div class="rc-hero-head">
+          <div class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div style="flex:1; min-width:0">
+            <div style="font-weight:800;font-size:16px">امروز، <span id="rc-today-long">—</span></div>
+            <div style="color:var(--muted);font-size:12px">آخرین بازخوانی: <span class="num-fa" id="rc-now-hm">—</span> · داده‌ها نمونه هستند</div>
+          </div>
+          <span class="rc-live">صف فعال</span>
+        </div>
+        <div class="row">
+          <div class="rc-metric">
+            <span class="lbl">میانگین انتظار</span>
+            <span class="val"><span class="num-fa" id="rc-avg-wait">۰</span> دقیقه</span>
+          </div>
+          <div class="rc-metric">
+            <span class="lbl">نوبت بعدی</span>
+            <span class="val" id="rc-next-pet">—</span>
+          </div>
+          <div class="rc-metric">
+            <span class="lbl">اورژانس‌های فعال</span>
+            <span class="val"><span class="num-fa" id="rc-urgent-cnt">۰</span> مورد</span>
+          </div>
+          <div class="rc-metric">
+            <span class="lbl">تکمیل‌شده امروز</span>
+            <span class="val"><span class="num-fa" id="rc-done-cnt">۰</span> مورد</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPIs (4-col) -->
+      <div class="stats-grid" id="rc-stats"></div>
+
+      <!-- Queue card -->
+      <div class="card" style="margin-top: 18px;">
+        <div class="rc-toolbar">
+          <div class="seg" role="tablist" id="rc-tabs">
+            <button data-tab="all" class="on">همه</button>
+            <button data-tab="active">فعال</button>
+            <button data-tab="urgent">اورژانس</button>
+            <button data-tab="done">پایان‌یافته</button>
+          </div>
+          <div class="grow"></div>
+          <div class="rc-searchbox">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="rc-search" placeholder="جستجوی حیوان، مالک یا پزشک…"/>
+          </div>
+          <button class="btn btn-outline" id="rc-filter-btn" title="فیلتر پیشرفته">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            فیلتر
+          </button>
+        </div>
+        <div id="rc-list" class="rc-list"></div>
+        <div class="rc-pager">
+          <div style="display:flex; gap:8px; align-items:center; font-size: 12px; color: var(--muted);">
+            <span>نمایش</span>
+            <select class="selectbox" id="rc-page-size" style="padding:6px 8px; border-radius:8px; border:1px solid var(--line); background:#fff">
+              <option>۸</option><option>۱۲</option><option>۲۴</option>
+            </select>
+            <span>از</span>
+            <b class="num-fa" id="rc-total">۰</b>
+            <span>مورد</span>
+            <div style="flex:1"></div>
+            <button class="btn btn-ghost" id="rc-prev">قبلی</button>
+            <b class="num-fa" id="rc-page-num">۱</b>
+            <button class="btn btn-ghost" id="rc-next">بعدی</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+<div id="notif-slot"></div>
+
+<script src="assets/icons.js"></script>
+<script src="assets/layout.js"></script>
+<script src="assets/clinic-data.js"></script>
+<script src="assets/clinic-flow.js"></script>
+<script src="assets/reception.js"></script>
+<script>
+  mountLayout({ active: 'reception', title: 'پذیرش و صف امروز', crumbs: ['مدیریت کلینیک', 'پذیرش'] });
+  if (window.initReceptionPage) window.initReceptionPage();
+</script>
+</body>
+</html>

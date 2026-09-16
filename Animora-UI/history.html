@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<title>وت‌پلاس · تاریخچه</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="assets/styles.css"/>
+<link rel="stylesheet" href="assets/history.css"/>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-slot"></div>
+  <main class="main">
+    <div id="topbar-slot"></div>
+    <div class="page">
+
+      <!-- page header -->
+      <div class="page-header">
+        <div>
+          <div class="page-eyebrow">دفتر رویدادهای مدیریتی</div>
+          <h1 class="page-title">تاریخچه</h1>
+          <p class="page-subtitle">تمام عملیات کلینیک — فروش، نوبت، واکسن، هزینه، انبار و چک — در یک دفتر یکپارچه.</p>
+        </div>
+        <div class="sc-actions">
+          <button class="btn btn-outline" onclick="HIST.exportCSV()" title="خروجی CSV">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            خروجی CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI bar -->
+      <div class="hy-kpi-bar" id="hyKpi"></div>
+
+      <!-- Period + search toolbar -->
+      <div class="hy-toolbar">
+        <!-- period chips -->
+        <div class="hy-period-chips" id="hyPeriod"></div>
+
+        <!-- search -->
+        <div class="pb-search" id="hySearchWrap" style="margin-inline-start:auto">
+          <span class="ic">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
+          <input id="hySearch" type="text" placeholder="جستجو در رویدادها…" autocomplete="off"/>
+          <button class="clear" onclick="document.getElementById('hySearch').value='';HIST.setCat('all')" title="پاک کردن" aria-label="پاک کردن">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Category filter chips -->
+      <div class="hy-cat-row" id="hyCats"></div>
+
+      <!-- Ledger feed (summary bar + table) -->
+      <div id="hyFeed"></div>
+
+    </div>
+  </main>
+</div>
+<div id="notif-slot"></div>
+
+<script src="assets/icons.js"></script>
+<script src="assets/layout.js"></script>
+<!-- data sources loaded in dependency order -->
+<script src="assets/clinic-data.js"></script>
+<script src="assets/finance-data.js"></script>
+<script src="assets/patients-data.js"></script>
+<script src="assets/inventory-data.js"></script>
+<script src="assets/cheques-data.js"></script>
+<script src="assets/history.js"></script>
+<script>
+  mountLayout({ active: 'history', title: 'تاریخچه', crumbs: ['سیستم', 'تاریخچه'] });
+  HIST.init();
+</script>
+</body>
+</html>
