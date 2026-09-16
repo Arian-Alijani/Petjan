@@ -90,8 +90,10 @@
                     <controls:StatCard Icon="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
                                         Value="{Binding Value}"
                                         Label="{Binding Label}"
+                                        Foot="{Binding Foot}"
                                         Delta="{Binding Delta}"
-                                        IsDeltaPositive="{Binding IsDeltaPositive}" />
+                                        IsDeltaPositive="{Binding IsDeltaPositive}"
+                                        IconTone="{Binding IconTone, Converter={StaticResource ToneConverter}}" />
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>

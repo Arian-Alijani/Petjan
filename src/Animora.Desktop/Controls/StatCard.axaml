@@ -44,6 +44,10 @@
                 <TextBlock x:Name="LabelText"
                            FontSize="{StaticResource FontSizeSm}"
                            Foreground="{StaticResource MutedBrush}" />
+                <TextBlock x:Name="FootText"
+                           FontSize="{StaticResource FontSizeXs}"
+                           Foreground="{StaticResource Muted2Brush}"
+                           IsVisible="False" />
             </StackPanel>
 
         </StackPanel>

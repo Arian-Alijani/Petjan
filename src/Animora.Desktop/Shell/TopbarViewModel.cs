@@ -48,4 +48,12 @@ public sealed partial class TopbarViewModel : ObservableObject
     [RelayCommand]
     private void CreateNew() =>
         _toast.Show("ایجاد سریع در این نسخه فعال نیست.");
+
+    [RelayCommand]
+    private void ToggleSidebar() =>
+        _toast.Show("جمع/باز کردن منو در این نسخه فعال نیست.");
+
+    [RelayCommand]
+    private void ToggleTheme() =>
+        _toast.Show("تم تیره در این نسخه فعال نیست.");
 }

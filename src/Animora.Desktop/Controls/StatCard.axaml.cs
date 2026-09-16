@@ -19,11 +19,17 @@ public partial class StatCard : UserControl
     public static readonly StyledProperty<string?> LabelProperty =
         AvaloniaProperty.Register<StatCard, string?>(nameof(Label));
 
+    public static readonly StyledProperty<string?> FootProperty =
+        AvaloniaProperty.Register<StatCard, string?>(nameof(Foot));
+
     public static readonly StyledProperty<string?> DeltaProperty =
         AvaloniaProperty.Register<StatCard, string?>(nameof(Delta));
 
     public static readonly StyledProperty<bool> IsDeltaPositiveProperty =
         AvaloniaProperty.Register<StatCard, bool>(nameof(IsDeltaPositive), true);
+
+    public static readonly StyledProperty<Tone> IconToneProperty =
+        AvaloniaProperty.Register<StatCard, Tone>(nameof(IconTone), Tone.Brand);
 
     public Geometry? Icon
     {
@@ -43,6 +49,12 @@ public partial class StatCard : UserControl
         set => SetValue(LabelProperty, value);
     }
 
+    public string? Foot
+    {
+        get => GetValue(FootProperty);
+        set => SetValue(FootProperty, value);
+    }
+
     public string? Delta
     {
         get => GetValue(DeltaProperty);
@@ -53,6 +65,12 @@ public partial class StatCard : UserControl
     {
         get => GetValue(IsDeltaPositiveProperty);
         set => SetValue(IsDeltaPositiveProperty, value);
+    }
+
+    public Tone IconTone
+    {
+        get => GetValue(IconToneProperty);
+        set => SetValue(IconToneProperty, value);
     }
 
     public StatCard()
@@ -72,6 +90,7 @@ public partial class StatCard : UserControl
         if (change.Property == IconProperty
             || change.Property == ValueProperty
             || change.Property == LabelProperty
+            || change.Property == FootProperty
             || change.Property == DeltaProperty)
         {
             UpdateContent();
@@ -80,6 +99,10 @@ public partial class StatCard : UserControl
         {
             UpdateDeltaBrushes();
         }
+        else if (change.Property == IconToneProperty)
+        {
+            UpdateIconTone();
+        }
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -87,6 +110,27 @@ public partial class StatCard : UserControl
         base.OnAttachedToVisualTree(e);
         // Resources are only reliably resolvable once attached to the tree.
         UpdateDeltaBrushes();
+        UpdateIconTone();
+    }
+
+    // Tints the icon tile (bg + border + stroke) per tone, mirroring the
+    // reference .stat-icon.<tone> palette (teal/lilac/info/danger).
+    private void UpdateIconTone()
+    {
+        var (bg, border, stroke) = IconTone switch
+        {
+            Tone.Danger => ("DangerBgBrush", "DangerBrush", "DangerBrush"),
+            Tone.Warn => ("WarnBgBrush", "WarnBrush", "WarnBrush"),
+            Tone.Info => ("InfoBgBrush", "InfoBrush", "InfoBrush"),
+            Tone.Ok => ("OkBgBrush", "OkBrush", "OkBrush"),
+            Tone.Lilac => ("LilacBgBrush", "LilacBrush", "LilacBrush"),
+            Tone.Peach => ("PeachBgBrush", "PeachBrush", "PeachBrush"),
+            _ => ("Brand50Brush", "Brand100Brush", "Brand600Brush"),
+        };
+
+        IconTile.Background = ResolveBrush(bg, Brushes.Transparent);
+        IconTile.BorderBrush = ResolveBrush(border, Brushes.Transparent);
+        IconPath.Stroke = ResolveBrush(stroke, Brushes.Black);
     }
 
     private void UpdateContent()
@@ -94,6 +138,10 @@ public partial class StatCard : UserControl
         IconPath.Data = Icon;
         ValueText.Text = Value;
         LabelText.Text = Label;
+
+        var hasFoot = !string.IsNullOrEmpty(Foot);
+        FootText.IsVisible = hasFoot;
+        FootText.Text = Foot;
 
         var hasDelta = !string.IsNullOrEmpty(Delta);
         DeltaChip.IsVisible = hasDelta;

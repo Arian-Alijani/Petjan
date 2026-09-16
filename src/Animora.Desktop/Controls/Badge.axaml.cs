@@ -66,6 +66,9 @@ public partial class Badge : UserControl
             Tone.Warn => ("WarnBgBrush", "WarnBrush"),
             Tone.Info => ("InfoBgBrush", "InfoBrush"),
             Tone.Ok => ("OkBgBrush", "OkBrush"),
+            Tone.Brand => ("Brand50Brush", "Brand700Brush"),
+            Tone.Lilac => ("LilacBgBrush", "LilacBrush"),
+            Tone.Peach => ("PeachBgBrush", "PeachBrush"),
             _ => ("Line2Brush", "MutedBrush"),
         };
 
