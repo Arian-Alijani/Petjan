@@ -9,7 +9,7 @@
          (Animora-UI/assets/dashboard-views.js), reduced from a table to the
          same avatar+title+subtitle+tag row shape used across this screen
          (payment-mix breakdown is out of this phase's static-render budget). -->
-    <Grid ColumnDefinitions="1fr,1fr" ColumnSpacing="16">
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
 
         <Border Grid.Column="0" Classes="card">
             <StackPanel>

@@ -36,8 +36,14 @@
   options). `NavigationMenu`'s `dashboard` entry and `MainWindowViewModel`'s
   startup page now target `DashboardPageViewModel` instead of the placeholder.
   DI registers `IDashboardQueryService`/`DashboardPageViewModel` as singletons.
-  Not yet build-verified in this session (no `dotnet` SDK installed in this
-  sandbox instance — see deviation log).
+  **Build-verified (audit session):** installed .NET 10 SDK (10.0.401),
+  `scripts/sandbox/build.sh full` = **0 warnings / 0 errors**, and
+  `scripts/sandbox/run.sh` = **SMOKE RUN OK** for all three roles
+  (Manager/Cashier/Doctor, toggled via `MockCurrentUserContext.Role`, restored
+  to `Manager` default). One real defect the un-built code had hidden was fixed
+  (the three role sub-views used CSS `ColumnDefinitions="1fr,1fr"`, invalid in
+  Avalonia → corrected to `"*,*"`; see deviation log). Quick-actions tile 7
+  restored to the reference's "خرید و تأمین" (see log).
 - **Repo state (Phase 05):** the real app shell now exists.
   `Animora.Contracts` gained `Navigation/NavItem.cs` (nav DTO — Key/Label/
   IconKey/ViewModelType/GroupName/BadgeCount), `Navigation/UserRole.cs`
@@ -136,7 +142,7 @@
   (`App.Services`). Central package pins live in `Directory.Packages.props`;
   shared build settings in `Directory.Build.props`. No theming/controls/
   navigation/screens yet.
-- **Roadmap status:** Phases 01–04 done and **build-verified** (0/0). 4 of 29
+- **Roadmap status:** Phases 01–06 done and **build-verified** (0/0). 6 of 29
   phases implemented.
 
 ## Phase checklist
@@ -148,7 +154,7 @@
 | 03 | Base Control Library | ✅ Done | Build-verified (0/0); TryFindResource + AVLN3001 defects fixed (see log) |
 | 04 | RTL & Localization Utilities | ⚠️ Done with deviation | Build-verified (0/0). Persian-digit codepoint follows the actual reference `toFa` (U+06Fx), not the phase text's U+066x example — see log |
 | 05 | App Shell: Sidebar, Topbar, Navigation | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK. Notification bell reuses IconClock (no bell icon in the set); see log |
-| 06 | Dashboard Screen | ⚠️ Done with deviation | Not build-verified this session (no dotnet SDK present) — see log |
+| 06 | Dashboard Screen | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK (all 3 roles). Fixed AVLN2005 `1fr`→`*` grid-length defect; quick-tile 7 restored to reference; see log |
 | 07 | Reception & Queue Screen | ⬜ Not started | |
 | 08 | Patients & Owners — List/Grid | ⬜ Not started | |
 | 09 | Patients & Owners — Pet File / Owner Sheet | ⬜ Not started | |
@@ -183,18 +189,32 @@ deviation (see log below).
 
 ### Phase 06 — Dashboard Screen (role-based)
 
-- **Not build-verified this session — no `dotnet` SDK present.** This
-  sandbox instance has no `dotnet` on `PATH` (the SDK installed during the
-  Phase 04 session lives in a different sandbox instance's `$HOME`, not
-  persisted here). Code was written to follow every established pattern in
-  Phases 01–05 exactly (compiled-binding `x:DataType` on every `DataTemplate`,
-  `ObservableObject`/`[ObservableProperty]`/`[RelayCommand]` source-gen,
-  `TryFindResource`-safe resource lookups, DI registration mirroring existing
-  entries) but the actual `dotnet build Animora.sln` run is deferred to the
-  next session with a working SDK, per this session's explicit "no
-  build/test" instruction. **Action item:** run
-  `scripts/sandbox/install-prereqs.sh && scripts/sandbox/build.sh full`
-  before starting Phase 07 and fix anything it flags.
+- **RESOLVED — build now verified; one hidden defect fixed.** The Phase 06
+  code originally shipped un-built (no `dotnet` SDK in that session). A later
+  audit session installed the .NET 10 SDK (10.0.401) and actually compiled +
+  smoke-ran the solution. The missing build had hidden one real, fatal defect:
+  1. **`AVLN2005` — invalid grid length `1fr`.**
+     `ManagerDashboardView`, `CashierDashboardView`, and `DoctorDashboardView`
+     each declared `<Grid ColumnDefinitions="1fr,1fr" …>`. `1fr` is CSS/WPF-
+     `GridLength` grid syntax that Avalonia's XAML compiler **rejects** —
+     Avalonia uses star sizing (`*`). All three were failing to parse, so the
+     whole `Animora.Desktop` project would not build. Fix: changed all three to
+     `ColumnDefinitions="*,*"` (two equal columns, identical layout intent).
+  After the fix, `scripts/sandbox/build.sh full` = **0 warnings / 0 errors**
+  and `scripts/sandbox/run.sh` = **SMOKE RUN OK** with `MockCurrentUserContext.
+  Role` set to each of `Manager`/`Cashier`/`Doctor` in turn (all three role
+  sub-views build their visual tree and render one frame with no crash), then
+  restored to the `Manager` default. The earlier "run install-prereqs + build
+  before Phase 07" action item is now closed.
+- **Quick-actions tile 7 restored to the reference's "خرید و تأمین".** The
+  first pass silently replaced reference `TILES[6]` (`خرید و تأمین`, truck
+  icon) with a bespoke "مدیریت چک" tile. Task 3 asks the quick-actions strip to
+  mirror `dashboard.js`'s `TILES`/`href` array, so the label/subtitle/target
+  were restored to the reference (`خرید و تأمین` · `سفارش تأمین`). Phase 03's
+  23-icon set has no truck geometry, so `IconReceipt` stands in for that one
+  tile's icon only (documented inline); a later phase that adds a truck icon can
+  swap it. Tile 4's subtitle was likewise aligned to the reference
+  (`۶ یادآور امروز`).
 - **`DashboardSnapshot` uses two generically-shaped content lists, not five
   bespoke sections.** The phase file says "shape it to match what
   DASH_VIEW_MANAGER/CASHIER/DOCTOR actually render, not a generic catch-all,"
