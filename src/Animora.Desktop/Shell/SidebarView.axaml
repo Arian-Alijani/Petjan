@@ -14,7 +14,8 @@
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="12,9" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="MinHeight" Value="40" />
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
@@ -25,6 +26,7 @@
             <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
             <Setter Property="FontSize" Value="13.5" />
             <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="LineHeight" Value="21" />
         </Style>
         <Style Selector="Button.nav-item Path.nav-icon">
             <Setter Property="Stroke" Value="{StaticResource MutedBrush}" />
@@ -61,7 +63,7 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Width="264"
+    <Border Width="288"
             Background="{StaticResource PanelBrush}"
             BorderBrush="{StaticResource Line2Brush}"
             BorderThickness="1,0,0,0"
@@ -76,6 +78,7 @@
                     Margin="0,0,0,12">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0"
+                                IsVisible="{Binding IsExpanded}"
                                 VerticalAlignment="Center"
                                 Spacing="2">
                         <TextBlock Text="وت‌پلاس"
@@ -106,40 +109,11 @@
                 </Grid>
             </Border>
 
-            <!-- Bottom cluster: upsell CTA + sync status + user card -->
-            <StackPanel DockPanel.Dock="Bottom" Spacing="8">
-                <!-- Upsell CTA -->
-                <Border CornerRadius="14"
-                        Padding="14"
-                        BorderBrush="{StaticResource Brand100Brush}"
-                        BorderThickness="1">
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                            <GradientStop Offset="0" Color="{StaticResource Brand50Color}" />
-                            <GradientStop Offset="0.9" Color="White" />
-                        </LinearGradientBrush>
-                    </Border.Background>
-                    <StackPanel Spacing="4" HorizontalAlignment="Center">
-                        <TextBlock Text="نسخه حرفه‌ای"
-                                   HorizontalAlignment="Center"
-                                   FontSize="13.5"
-                                   FontWeight="Bold"
-                                   Foreground="{StaticResource InkBrush}" />
-                        <TextBlock Text="همه‌چیز برای یک کلینیک درخشان"
-                                   HorizontalAlignment="Center"
-                                   TextAlignment="Center"
-                                   TextWrapping="Wrap"
-                                   FontSize="11.5"
-                                   Foreground="{StaticResource MutedBrush}" />
-                        <Button Classes="primary"
-                                Margin="0,6,0,0"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center"
-                                Content="مشاهده امکانات"
-                                Command="{Binding OpenUpsellCommand}" />
-                    </StackPanel>
-                </Border>
-
+            <!-- Bottom cluster: sync status + user card. Hidden in compact
+                 mode so the navigation icons keep the full rail height. -->
+            <StackPanel DockPanel.Dock="Bottom"
+                        IsVisible="{Binding IsExpanded}"
+                        Spacing="8">
                 <!-- Sync status -->
                 <StackPanel Orientation="Horizontal"
                             Spacing="8"
@@ -214,6 +188,7 @@
                         <DataTemplate x:DataType="shell:NavGroupViewModel">
                             <StackPanel Margin="0,0,0,4">
                                 <TextBlock Text="{Binding Title}"
+                                           IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}"
                                            Foreground="{StaticResource Muted2Brush}"
                                            FontSize="10.5"
                                            FontWeight="Bold"
@@ -224,6 +199,7 @@
                                             <Button Classes="nav-item"
                                                     Classes.active="{Binding IsActive}"
                                                     Margin="0,1"
+                                                    ToolTip.Tip="{Binding Label}"
                                                     Command="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).NavigateCommand}"
                                                     CommandParameter="{Binding}">
                                                 <!-- RTL layout: accent rail | icon | label | badge.
@@ -247,9 +223,10 @@
                                                           Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                                     <TextBlock Grid.Column="2"
                                                                Classes="nav-label"
+                                                               IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}"
                                                                VerticalAlignment="Center"
-                                                               Margin="10,0,0,0"
-                                                               TextTrimming="CharacterEllipsis"
+                                                               Margin="12,2,4,2"
+                                                               TextWrapping="NoWrap"
                                                                Text="{Binding Label}" />
                                                     <Border Grid.Column="3"
                                                             Classes="nav-badge"

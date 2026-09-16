@@ -19,6 +19,21 @@ public sealed partial class TopbarViewModel : ObservableObject
     [ObservableProperty]
     private PageViewModelBase? _currentPage;
 
+    [ObservableProperty]
+    private bool _isSidebarOpen = true;
+
+    [ObservableProperty]
+    private double _openIconOpacity = 1;
+
+    [ObservableProperty]
+    private double _closedIconOpacity;
+
+    [ObservableProperty]
+    private double _toggleIconRotation;
+
+    [ObservableProperty]
+    private string _sidebarToggleToolTip = "جمع کردن منو";
+
     public TopbarViewModel(
         INavigationService navigation,
         IToastService toast,
@@ -57,8 +72,15 @@ public sealed partial class TopbarViewModel : ObservableObject
     public event EventHandler? SidebarToggleRequested;
 
     [RelayCommand]
-    private void ToggleSidebar() =>
+    private void ToggleSidebar()
+    {
+        IsSidebarOpen = !IsSidebarOpen;
+        OpenIconOpacity = IsSidebarOpen ? 1 : 0;
+        ClosedIconOpacity = IsSidebarOpen ? 0 : 1;
+        ToggleIconRotation += 180;
+        SidebarToggleToolTip = IsSidebarOpen ? "جمع کردن منو" : "باز کردن منو";
         SidebarToggleRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     [RelayCommand]
     private void ToggleTheme() =>
