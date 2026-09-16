@@ -1,0 +1,24 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <!-- Design tokens: corner radii + spacing scale.
+         Radii mirror the radius tokens in Animora-UI/assets/styles.css :root.
+         Spacing is a consistent 4px-based scale matching the reference's
+         observed paddings/gaps (not a literal per-rule enumeration). -->
+
+    <!-- corner radii -->
+    <CornerRadius x:Key="RadiusSm">10</CornerRadius>
+    <CornerRadius x:Key="Radius">16</CornerRadius>
+    <CornerRadius x:Key="RadiusLg">20</CornerRadius>
+
+    <!-- 4px-based spacing scale (x:Double so it composes into Thickness/Padding) -->
+    <sys:Double x:Key="Spacing4">4</sys:Double>
+    <sys:Double x:Key="Spacing8">8</sys:Double>
+    <sys:Double x:Key="Spacing12">12</sys:Double>
+    <sys:Double x:Key="Spacing16">16</sys:Double>
+    <sys:Double x:Key="Spacing20">20</sys:Double>
+    <sys:Double x:Key="Spacing24">24</sys:Double>
+    <sys:Double x:Key="Spacing32">32</sys:Double>
+
+</ResourceDictionary>

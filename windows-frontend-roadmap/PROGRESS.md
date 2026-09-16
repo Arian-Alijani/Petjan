@@ -6,7 +6,17 @@
 
 ## Current state
 
-- **Next phase to execute:** `02` — Design Tokens & Theme Resources
+- **Next phase to execute:** `03` — Base Control Library
+- **Repo state (Phase 02):** `Animora.Desktop` now carries the shared
+  design-token layer under `Resources/Theme/`: `Colors.axaml` (all `:root`
+  brand/surface/ink/semantic/accent tokens as `Color` + `SolidColorBrush`),
+  `Spacing.axaml` (radii + 4px spacing scale), `Elevation.axaml`
+  (`ShadowCard`/`ShadowPop` BoxShadows), `Typography.axaml` (bundled Vazirmatn
+  `AppFontFamily` + FontSize scale). All four merged in `App.axaml`, which sets
+  the app-wide default `FontFamily` via a `TopLevel` base style. `MainWindow`
+  renders a themed panel as a resource smoke test. Vazirmatn is embedded as an
+  `AvaloniaResource`. `dotnet build Animora.sln` = 0 warnings / 0 errors. No
+  controls/navigation/screens yet.
 - **Repo state:** `Animora.sln` (classic format) builds with all 5 projects on
   .NET 10 (`net10.0`, C# 14). Four placeholder class libraries
   (`Animora.Contracts`, `Animora.Domain`, `Animora.Application`,
@@ -16,14 +26,14 @@
   (`App.Services`). Central package pins live in `Directory.Packages.props`;
   shared build settings in `Directory.Build.props`. No theming/controls/
   navigation/screens yet.
-- **Roadmap status:** Phase 01 done. 1 of 29 phases implemented.
+- **Roadmap status:** Phase 02 done. 2 of 29 phases implemented.
 
 ## Phase checklist
 
 | # | Phase | Status | Notes |
 |---|---|---|---|
 | 01 | Solution & Project Scaffold | ⚠️ Done with deviation | Avalonia.Diagnostics dropped (no 12.x); Fluent theme package added (see log) |
-| 02 | Design Tokens & Theme Resources | ⬜ Not started | |
+| 02 | Design Tokens & Theme Resources | ✅ Done | Vazirmatn v33.003 variable TTF bundled (OFL) |
 | 03 | Base Control Library | ⬜ Not started | |
 | 04 | RTL & Localization Utilities | ⬜ Not started | |
 | 05 | App Shell: Sidebar, Topbar, Navigation | ⬜ Not started | |
@@ -59,6 +69,26 @@ deviation (see log below).
 
 > Append one entry per deviation from the roadmap/conventions, newest on
 > top. If a phase followed the plan exactly, no entry is needed.
+
+### Phase 02 — Design Tokens & Theme Resources
+
+- **Font asset source (logged per task 4).** Vazirmatn **v33.003** (matches the
+  reference's `@import` of `vazirmatn@v33.003`), the **variable** weight file
+  `fonts/variable/Vazirmatn[wght].ttf` from the official OFL-licensed repo
+  `rastikerdar/vazirmatn` (via jsDelivr CDN at build time only). Bundled at
+  `src/Animora.Desktop/Assets/Fonts/Vazirmatn.ttf` (renamed from the `[wght]`
+  filename so the `avares://` URI has no bracket characters); `OFL.txt` kept
+  alongside it. Embedded as an `AvaloniaResource` — no runtime CDN fetch, per
+  STACK.md's zero-Internet-at-runtime rule. Internal family name is
+  `Vazirmatn`, referenced as
+  `avares://Animora.Desktop/Assets/Fonts#Vazirmatn`.
+- **Note — resource style pattern.** Colors are exposed as both `Color`
+  (`…Color`) and `SolidColorBrush` (`…Brush`) keys so later phases can bind
+  either a brush (fills) or a raw color (gradients/animations) without
+  redefining values.
+- **Note — XAML comment constraint.** CSS token names like `--radius` /
+  `--shadow-card` cannot appear verbatim in XAML comments (`--` is illegal
+  inside an XML comment); comments paraphrase them instead.
 
 ### Phase 01 — Solution & Project Scaffold
 
