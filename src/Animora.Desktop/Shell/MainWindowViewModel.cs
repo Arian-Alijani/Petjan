@@ -1,4 +1,5 @@
 using System;
+using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -29,9 +30,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         _navigation.CurrentViewModelChanged += OnCurrentViewModelChanged;
 
-        // Default landing page: the dashboard slot (a placeholder until Phase 06).
-        var page = _navigation.NavigateTo<PlaceholderPageViewModel>();
-        page.ConfigureFor("داشبورد");
+        // Default landing page: the real Dashboard screen (Phase 06).
+        _navigation.NavigateTo<DashboardPageViewModel>();
         Sidebar.SetActive(StartupKey);
     }
 

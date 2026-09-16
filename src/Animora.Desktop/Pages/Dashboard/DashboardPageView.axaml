@@ -1,0 +1,163 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dashboard="using:Animora.Desktop.Pages.Dashboard"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             xmlns:contracts="using:Animora.Contracts.Dashboard"
+             x:Class="Animora.Desktop.Pages.Dashboard.DashboardPageView"
+             x:DataType="dashboard:DashboardPageViewModel">
+
+    <StackPanel Margin="26,22,26,40" Spacing="20">
+
+        <!-- Hero banner: matches Animora-UI/assets/styles.css .hero/.hero-inner
+             (white card, teal accent, title + subtitle + primary CTA). -->
+        <Border Classes="card" Padding="28,26">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="8" VerticalAlignment="Center">
+                    <Border CornerRadius="20"
+                            Padding="10,5"
+                            HorizontalAlignment="Left"
+                            Background="{StaticResource Brand50Brush}"
+                            BorderBrush="{StaticResource Brand100Brush}"
+                            BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Classes="icon"
+                                  Width="13"
+                                  Height="13"
+                                  Stroke="{StaticResource Brand700Brush}"
+                                  Data="{StaticResource IconCalendar}" />
+                            <TextBlock Text="{Binding Eyebrow}"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource Brand700Brush}" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="{Binding HeroTitle}"
+                               FontSize="{StaticResource FontSizeXl}"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource InkBrush}" />
+                    <TextBlock Text="{Binding HeroSubtitle}"
+                               FontSize="{StaticResource FontSizeSm}"
+                               Foreground="{StaticResource MutedBrush}"
+                               TextWrapping="Wrap"
+                               MaxWidth="520" />
+                    <Button Classes="primary"
+                            Margin="0,6,0,0"
+                            HorizontalAlignment="Left"
+                            Command="{Binding OpenQuickActionCommand}"
+                            CommandParameter="{Binding PrimaryAction}">
+                        <TextBlock Text="{Binding PrimaryAction.Label}" />
+                    </Button>
+                </StackPanel>
+
+                <Border Grid.Column="1"
+                        Width="96"
+                        Height="96"
+                        CornerRadius="24"
+                        VerticalAlignment="Center"
+                        BorderBrush="{StaticResource Brand100Brush}"
+                        BorderThickness="1">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Offset="0" Color="{StaticResource Brand50Color}" />
+                            <GradientStop Offset="1" Color="White" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Path Classes="icon"
+                          Width="40"
+                          Height="40"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          Stroke="{StaticResource Brand600Brush}"
+                          Data="{StaticResource IconShield}" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- KPI row: Phase 03 StatCard, matching .stats-grid (4 columns). -->
+        <ItemsControl ItemsSource="{Binding Stats}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="4" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.Styles>
+                <Style Selector="ContentPresenter">
+                    <Setter Property="Margin" Value="6,0" />
+                </Style>
+            </ItemsControl.Styles>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="contracts:DashboardStat">
+                    <controls:StatCard Icon="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                        Value="{Binding Value}"
+                                        Label="{Binding Label}"
+                                        Delta="{Binding Delta}"
+                                        IsDeltaPositive="{Binding IsDeltaPositive}" />
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Role-specific content: one ViewModel, three sub-views selected by
+             role (CONVENTIONS.md §3) — mirrors DASH_VIEW_MANAGER/CASHIER/DOCTOR. -->
+        <dashboard:ManagerDashboardView IsVisible="{Binding IsManager}" DataContext="{Binding}" />
+        <dashboard:CashierDashboardView IsVisible="{Binding IsCashier}" DataContext="{Binding}" />
+        <dashboard:DoctorDashboardView IsVisible="{Binding IsDoctor}" DataContext="{Binding}" />
+
+        <!-- Quick access strip, matching .quick-grid (TILES array). -->
+        <Border Classes="card">
+            <StackPanel>
+                <StackPanel Classes="card-header">
+                    <TextBlock Classes="card-title" Text="دسترسی سریع به بخش‌های مهم" />
+                </StackPanel>
+                <Border Classes="card-header-rule" />
+                <ItemsControl Margin="18" ItemsSource="{Binding QuickActions}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="4" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.Styles>
+                        <Style Selector="ContentPresenter">
+                            <Setter Property="Margin" Value="6" />
+                        </Style>
+                    </ItemsControl.Styles>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="dashboard:DashboardQuickAction">
+                            <Button Classes="outline"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"
+                                    Padding="14,12"
+                                    Command="{Binding $parent[UserControl].((dashboard:DashboardPageViewModel)DataContext).OpenQuickActionCommand}"
+                                    CommandParameter="{Binding}">
+                                <StackPanel Spacing="8">
+                                    <Border Width="34"
+                                            Height="34"
+                                            CornerRadius="10"
+                                            Background="{StaticResource Brand50Brush}">
+                                        <Path Classes="icon"
+                                              Width="16"
+                                              Height="16"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Stroke="{StaticResource Brand600Brush}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                    </Border>
+                                    <StackPanel Spacing="1">
+                                        <TextBlock Text="{Binding Label}"
+                                                   FontSize="{StaticResource FontSizeSm}"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="{Binding Subtitle}"
+                                                   FontSize="{StaticResource FontSizeXs}"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
+
+</UserControl>

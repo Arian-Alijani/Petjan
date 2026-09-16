@@ -1,0 +1,92 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dashboard="using:Animora.Desktop.Pages.Dashboard"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Dashboard.ManagerDashboardView"
+             x:DataType="dashboard:DashboardPageViewModel">
+
+    <!-- Mirrors DASH_VIEW_MANAGER's "live queue" + "management alerts" cards
+         (Animora-UI/assets/dashboard-views.js). The revenue-chart/species-donut
+         sections are out of this phase's budget (Out of scope §: no
+         live/animated data beyond a simple mock render). -->
+    <Grid ColumnDefinitions="1fr,1fr" ColumnSpacing="16">
+
+        <Border Grid.Column="0" Classes="card">
+            <StackPanel>
+                <StackPanel Classes="card-header">
+                    <TextBlock Classes="card-title" Text="{Binding PrimaryListTitle}" />
+                </StackPanel>
+                <Border Classes="card-header-rule" />
+                <ItemsControl Margin="18" ItemsSource="{Binding PrimaryList}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
+                            <Grid Margin="0,0,0,10" ColumnDefinitions="Auto,*,Auto">
+                                <Border Grid.Column="0"
+                                        Width="34"
+                                        Height="34"
+                                        CornerRadius="10"
+                                        Background="{StaticResource Brand50Brush}">
+                                    <TextBlock Text="{Binding AvatarText}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource Brand700Brush}" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
+                                    <TextBlock Text="{Binding Title}"
+                                               FontSize="{StaticResource FontSizeSm}"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="{Binding Subtitle}"
+                                               FontSize="{StaticResource FontSizeXs}"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                                <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Column="1" Classes="card">
+            <StackPanel>
+                <StackPanel Classes="card-header">
+                    <TextBlock Classes="card-title" Text="{Binding SecondaryListTitle}" />
+                </StackPanel>
+                <Border Classes="card-header-rule" />
+                <ItemsControl Margin="18" ItemsSource="{Binding SecondaryList}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
+                            <Grid Margin="0,0,0,10" ColumnDefinitions="Auto,*,Auto">
+                                <Border Grid.Column="0"
+                                        Width="34"
+                                        Height="34"
+                                        CornerRadius="10"
+                                        Background="{StaticResource Brand50Brush}">
+                                    <TextBlock Text="{Binding AvatarText}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource Brand700Brush}" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
+                                    <TextBlock Text="{Binding Title}"
+                                               FontSize="{StaticResource FontSizeSm}"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="{Binding Subtitle}"
+                                               FontSize="{StaticResource FontSizeXs}"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                                <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+    </Grid>
+
+</UserControl>

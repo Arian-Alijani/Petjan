@@ -6,7 +6,38 @@
 
 ## Current state
 
-- **Next phase to execute:** `06` — Dashboard Screen (role-based)
+- **Next phase to execute:** `07` — Reception & Queue Screen
+- **Repo state (Phase 06):** the Dashboard placeholder is replaced with the
+  real, role-aware screen. `Animora.Contracts/Dashboard/` gained
+  `DashboardModels.cs` (`DashboardTone`, `DashboardStat`, `DashboardListItem`,
+  `DashboardSnapshot` — shaped to what the three `DASH_VIEW_*` functions
+  actually render: a hero title/subtitle, a 4-item KPI list, and two labeled
+  content lists per role) and `IDashboardQueryService`
+  (`GetSnapshotAsync(UserRole)`). `Animora.Desktop/Mocks/MockDashboardQueryService`
+  returns deterministic per-role sample data re-derived from
+  `dashboard-views.js`'s manager/cashier/doctor sections; registered as a
+  singleton (stateless mock data, no reason to reload per navigation).
+  `Animora.Desktop/Pages/Dashboard/` adds `DashboardPageViewModel` (loads the
+  current role's snapshot via the injected service in its constructor —
+  synchronous `GetAwaiter().GetResult()` over the mock's `Task.FromResult`;
+  exposes `Stats`/`PrimaryList`/`SecondaryList` + `IsManager`/`IsCashier`/
+  `IsDoctor` role flags + `QuickActions`/`OpenQuickActionCommand`),
+  `DashboardRowViewModel` (adapts a Contracts `DashboardListItem` to the
+  Desktop `Controls.Tone` enum for direct `Badge.Tone` binding),
+  `DashboardQuickAction` (the 8-tile quick-access list, mirroring
+  `dashboard.js`'s `TILES` array — all targets still resolve to
+  `PlaceholderPageViewModel` until their own phase runs), `DashboardPageView`
+  (hero banner + Phase 03 `StatCard` KPI row + role-conditional content region
+  + quick-access grid), and one sub-view per role — `ManagerDashboardView`
+  (live queue + management alerts), `CashierDashboardView` (open invoices +
+  ready-to-bill), `DoctorDashboardView` (live queue + vaccination reminders) —
+  all three sharing the same `DashboardPageViewModel` DataContext, visibility-
+  toggled by the role flags (no `DataTemplate`-per-role needed for 3 fixed
+  options). `NavigationMenu`'s `dashboard` entry and `MainWindowViewModel`'s
+  startup page now target `DashboardPageViewModel` instead of the placeholder.
+  DI registers `IDashboardQueryService`/`DashboardPageViewModel` as singletons.
+  Not yet build-verified in this session (no `dotnet` SDK installed in this
+  sandbox instance — see deviation log).
 - **Repo state (Phase 05):** the real app shell now exists.
   `Animora.Contracts` gained `Navigation/NavItem.cs` (nav DTO — Key/Label/
   IconKey/ViewModelType/GroupName/BadgeCount), `Navigation/UserRole.cs`
@@ -117,7 +148,7 @@
 | 03 | Base Control Library | ✅ Done | Build-verified (0/0); TryFindResource + AVLN3001 defects fixed (see log) |
 | 04 | RTL & Localization Utilities | ⚠️ Done with deviation | Build-verified (0/0). Persian-digit codepoint follows the actual reference `toFa` (U+06Fx), not the phase text's U+066x example — see log |
 | 05 | App Shell: Sidebar, Topbar, Navigation | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK. Notification bell reuses IconClock (no bell icon in the set); see log |
-| 06 | Dashboard Screen | ⬜ Not started | |
+| 06 | Dashboard Screen | ⚠️ Done with deviation | Not build-verified this session (no dotnet SDK present) — see log |
 | 07 | Reception & Queue Screen | ⬜ Not started | |
 | 08 | Patients & Owners — List/Grid | ⬜ Not started | |
 | 09 | Patients & Owners — Pet File / Owner Sheet | ⬜ Not started | |
@@ -149,6 +180,60 @@ deviation (see log below).
 
 > Append one entry per deviation from the roadmap/conventions, newest on
 > top. If a phase followed the plan exactly, no entry is needed.
+
+### Phase 06 — Dashboard Screen (role-based)
+
+- **Not build-verified this session — no `dotnet` SDK present.** This
+  sandbox instance has no `dotnet` on `PATH` (the SDK installed during the
+  Phase 04 session lives in a different sandbox instance's `$HOME`, not
+  persisted here). Code was written to follow every established pattern in
+  Phases 01–05 exactly (compiled-binding `x:DataType` on every `DataTemplate`,
+  `ObservableObject`/`[ObservableProperty]`/`[RelayCommand]` source-gen,
+  `TryFindResource`-safe resource lookups, DI registration mirroring existing
+  entries) but the actual `dotnet build Animora.sln` run is deferred to the
+  next session with a working SDK, per this session's explicit "no
+  build/test" instruction. **Action item:** run
+  `scripts/sandbox/install-prereqs.sh && scripts/sandbox/build.sh full`
+  before starting Phase 07 and fix anything it flags.
+- **`DashboardSnapshot` uses two generically-shaped content lists, not five
+  bespoke sections.** The phase file says "shape it to match what
+  DASH_VIEW_MANAGER/CASHIER/DOCTOR actually render, not a generic catch-all,"
+  but all three role views' secondary sections (live queue, alerts, open
+  invoices, ready-to-bill, vaccination reminders) share the exact same visual
+  shape in the reference: avatar-letter + title + subtitle + one status pill.
+  A single `DashboardListItem(AvatarText, Title, Subtitle, TagText, TagTone)`
+  DTO plus two labeled instances (`PrimaryList`/`SecondaryList` with their own
+  `*ListTitle`) covers every role's two-section layout without a proliferation
+  of near-identical single-use DTOs — still role-shaped (each role's mock
+  supplies different titles/rows/tones), just not five separate record types.
+- **Revenue chart, species donut, and doctor hero live-clock/progress-ring
+  omitted.** The phase's "Out of scope" section explicitly excludes spending
+  budget on the reference's `requestAnimationFrame` counters/animations and
+  scopes "one role-specific content section," and CONVENTIONS §7 caps phase
+  scope to what's asked. The interactive SVG chart, donut, and doctor
+  countdown ring are the reference's most animation-heavy, highest-effort
+  pieces and are not reproduced; each role's two most information-dense
+  sections (queue/alerts, invoices/ready-to-bill, queue/vaccination) are kept
+  instead, matching "at a glance" comparability per the acceptance criteria.
+- **Three role sub-views are visibility-toggled, not a `DataTemplate`-per-role
+  `ContentControl`.** The phase file offers either "a `DataTemplate`-per-role
+  or a `ContentControl` + converter" — with exactly three fixed, known roles
+  (never more), three sibling `UserControl`s in the same `DashboardPageView`
+  with `IsVisible` bound to `IsManager`/`IsCashier`/`IsDoctor` is simpler than
+  either alternative and needs no converter or template-selector plumbing;
+  all three share the one injected `DashboardPageViewModel` as DataContext
+  exactly as the phase file asks.
+- **`IDashboardQueryService` resolved synchronously in the ViewModel
+  constructor**, not via an async `OnLoaded`. `PageViewModelBase` (Phase 05)
+  has no `OnLoaded` hook yet, and the mock's `Task.FromResult` is already
+  complete — `GetAwaiter().GetResult()` is safe here with no thread-pool
+  hazard. Documented inline as the seam a future real/async backend
+  implementation revisits (no ViewModel shape change needed, only the load
+  call site).
+- **`MockDashboardQueryService` registered as a singleton**, per the phase
+  file's explicit "scoped/singleton — decide and note in PROGRESS.md" ask:
+  it holds no state and returns fixed data per role, so a singleton avoids
+  pointless re-allocation with no behavioral difference from scoped.
 
 ### Phase 05 — App Shell: Sidebar, Topbar, Navigation
 

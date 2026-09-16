@@ -1,5 +1,7 @@
+using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
 using Animora.Desktop.Mocks;
+using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Avalonia;
@@ -46,6 +48,12 @@ public partial class App : Application
         // item; the sidebar retargets it per click. Screen phases (06+)
         // register their own page ViewModels here.
         services.AddSingleton<PlaceholderPageViewModel>();
+
+        // Phase 06: Dashboard screen — query service is stateless/pure mock
+        // data, so a singleton is sufficient (no per-navigation reload needed
+        // until a real backend adds freshness semantics).
+        services.AddSingleton<IDashboardQueryService, MockDashboardQueryService>();
+        services.AddSingleton<DashboardPageViewModel>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Animora.Contracts.Navigation;
+using Animora.Desktop.Pages.Dashboard;
 
 namespace Animora.Desktop.Shell;
 
@@ -17,7 +18,7 @@ public static class NavigationMenu
     // Icon keys map to the StreamGeometry resources in Resources/Theme/Icons.axaml.
     public static IReadOnlyList<NavItem> Items { get; } = new NavItem[]
     {
-        new("dashboard", "داشبورد", "IconDashboard", typeof(PlaceholderPageViewModel), "مرکز فرمان"),
+        new("dashboard", "داشبورد", "IconDashboard", typeof(DashboardPageViewModel), "مرکز فرمان"),
         new("appointments", "نوبت‌ها", "IconCalendar", typeof(PlaceholderPageViewModel), "مرکز فرمان", BadgeCount: 4),
 
         new("patients", "بیماران و مالکین", "IconUsers", typeof(PlaceholderPageViewModel), "مدیریت کلینیک"),
