@@ -5,6 +5,12 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- AVLN3001: Windows/UserControls in this app are always created through
+         the DI container (constructor injection), never via Avalonia's runtime
+         XAML loader, so they intentionally have no public parameterless
+         constructor. Suppress the "won't be reachable via runtime loader"
+         warning so the DI-first design keeps a clean 0-warning build. -->
+    <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
