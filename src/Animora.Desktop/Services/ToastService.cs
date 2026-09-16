@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Animora.Desktop.Controls;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
 
@@ -26,8 +27,16 @@ public sealed class ToastService : IToastService
             Tone.Info => "IconSearch",
             _ => "IconCheck",
         };
-        Application.Current?.TryFindResource(iconKey, out var iconResource);
-        var icon = iconResource as Geometry;
+        // Icon geometries live in Application.Resources (merged from
+        // Resources/Theme/Icons.axaml). TryGetResource / TryFindResource are
+        // IResourceHost extension methods from Avalonia.Controls; Application
+        // implements IResourceHost.
+        Geometry? icon = null;
+        if (Application.Current is { } app &&
+            app.TryFindResource(iconKey, out var iconResource))
+        {
+            icon = iconResource as Geometry;
+        }
 
         var message = new ToastMessage { Text = text, Tone = tone, Icon = icon };
         Toasts.Add(message);
