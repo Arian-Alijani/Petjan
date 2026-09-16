@@ -35,14 +35,26 @@ side-by-side visual comparison pass against `Animora-UI`.
    documented cross-screen navigation call named in each screen phase
    file (e.g. Visits→Sale/Cashier hand-off, Boarding "goto-cashier")
    now navigates correctly end-to-end.
-4. Run the app and, screen by screen (17 screens total), open the
-   corresponding `Animora-UI/*.html` reference (e.g. via a local static
-   server, `python -m http.server` inside `Animora-UI/`, if a visual
-   side-by-side is wanted) and confirm: layout structure, color/typography,
-   spacing, and primary interactions are comparable. Log any material
-   visual gap found as a `PROGRESS.md` decision-log entry with a
-   pointer to which phase should own the fix (do **not** silently
-   patch a prior phase's file without recording why here).
+4. **Final fidelity audit (§4a + §7a) — screen by screen (17 screens).**
+   Render each rebuilt screen and its `Animora-UI/*.html` reference
+   side-by-side (serve `Animora-UI/` with `python -m http.server 8080` and
+   screenshot each page — or reuse `shot_role.py`/`shot_tabs.py` — then
+   capture the Avalonia screen per §7a). For each screen, walk an
+   **element-by-element checklist** against the reference and confirm ALL of:
+   - every box/card/panel/table/chart/donut/gauge/ring/badge/tab the
+     reference renders is present, in the same order/grouping/count (nothing
+     dropped or simplified — the historical failure mode);
+   - column sets/orders in every table match the reference exactly;
+   - spacing, radii, borders, font sizes/weights and grid proportions match
+     the screen's Reference CSS (§8);
+   - every user-facing Persian string matches character-for-character;
+   - state colors/tones match 1:1.
+   Any mismatch — including a missing chart/donut/ring/gauge or a dropped
+   element — is a **defect that must be fixed before Phase 29 can be marked
+   done**; record each fix (and which phase's screen it belonged to) in the
+   `PROGRESS.md` decision log. A screen that merely "looks close" does not
+   pass. Do not mark the roadmap complete while any reference element is
+   missing or any measurable value was eyeballed rather than transcribed.
 5. Confirm RTL is correctly applied on every screen (no accidentally
    LTR-only control introduced by a screen phase that forgot to inherit
    the app-wide `FlowDirection`).
@@ -65,8 +77,14 @@ side-by-side visual comparison pass against `Animora-UI`.
 - Every one of the 17 reference screens is reachable from the running
   app through the same navigation paths the reference exposes (sidebar +
   documented quick-actions), with no leftover placeholder anywhere.
-- The full roadmap (`ROADMAP.md` §3 "what done means globally") is
-  satisfied.
+- **The final fidelity audit (Task 4) passed for all 17 screens:** each
+  rebuilt screen is visually indistinguishable from its reference
+  element-by-element (no dropped/simplified elements, all charts/donuts/
+  gauges/rings present, exact CSS-derived values, exact Persian text,
+  1:1 tones), and every mismatch found during the audit was fixed and
+  logged in `PROGRESS.md`.
+- The full roadmap (`ROADMAP.md` §3 + §3a "what done means globally" and the
+  global fidelity mandate) is satisfied.
 
 ## PROGRESS.md update
 Mark Phase 29 done. Add a final "Roadmap complete" note under "Repo

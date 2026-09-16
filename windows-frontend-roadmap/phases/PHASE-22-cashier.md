@@ -3,7 +3,8 @@
 **Band:** M · **Depends on:** 05 · **Satisfies:** R-4, R-5, R-18
 
 ## Read before starting
-- `CONVENTIONS.md` §2, §3, §5
+- `CONVENTIONS.md` §2, §3, §4a (Fidelity Protocol — MANDATORY), §5, §6 (Definition of Done incl. fidelity gate + visual verification), §7a
+- **Reference CSS (MANDATORY — the source of every measurable value, per §4a rule 3 / §8): `styles.css` (status-tab filter, stats, invoice list, detail panel with lines/totals/payment/history/actions are styled in the shared file).** Read the sections these file(s) define for every element this screen renders and transcribe the exact paddings, gaps, radii, borders, font sizes/weights, grid/column templates, fixed/min/max sizes, fills and shadows — reusing Phase 02 tokens where a value equals a token. Do not eyeball or approximate.
 - `Animora-UI/cashier.html` (full)
 - `Animora-UI/assets/cashier.js` — full file (524 lines): status-tab
   filter, stats, invoice list, detail panel (lines/totals/payment panel/
@@ -17,6 +18,13 @@ distinct from Sale/POS (Phases 20/21) — it is the cash-register/settlement
 view, not the item-adding workspace; do not merge them or skip this phase
 assuming Phase 20/21 covers it (see `ROADMAP.md` for the Phase 11
 hand-off clarification).
+
+## Fidelity (MANDATORY — read `CONVENTIONS.md` §4a in full)
+- **Rebuild every element the reference screen renders — nothing dropped, simplified, merged, summarized, or deferred.** Every card, panel, header, stat/KPI box, chart/donut/gauge/ring/sparkline, badge/pill, tab, sub-nav, table (with the SAME columns in the SAME order), list row, avatar, icon, button, chip, empty-state and caption must exist, in the same place, order, grouping and count as the reference.
+- **No visible reference element may be declared "out of scope," "nice-to-have," or "optional" here.** The only permitted simplification is *motion*: an animated value may render at its final/current value instead of animating — the element itself still exists and shows the correct value (§4a rule 6).
+- **Exact measurable values** come from the Reference CSS above (§4a rule 3), not from judgement. Proportional CSS grids map to star-sized `Grid` columns/rows; fixed px sizes map to fixed sizes — transcribed, never re-guessed.
+- **Exact Persian text** for every label/title/subtitle/column header/button/empty-state/tab, character-for-character; all numbers and dates through the Phase 04 Persian digit / grouping / Jalali helpers (§4a rule 4). State colors/pills map 1:1 to Phase 02 semantic tokens (§4a rule 5).
+- **Backend-ready:** the ViewModel binds only to the `Animora.Contracts` interface(s); the mock is the sole swap point for a future real backend — no sample data, mock call, or design-time branch leaks into a View or the ViewModel's public shape (R-18).
 
 ## Contracts to add (`Animora.Contracts/Cashier/`)
 - `ICashierService` — `Task<IReadOnlyList<CashierInvoice>>
@@ -65,6 +73,7 @@ hand-off clarification).
 - App builds/runs; Cashier screen shows filtered invoice list + detail
   panel; pay/void/refund update the invoice's status/totals/history
   correctly and reflect back in the list.
+- **Visual verification (§6.7 + §7a) performed** and recorded in `PROGRESS.md`: the rebuilt screen was compared element-by-element against the reference and matches (same boxes/order/sizes/colors/Persian text); every measurable value traces to the Reference CSS; no reference element is missing. Building and running alone does NOT satisfy this phase.
 
 ## PROGRESS.md update
 Mark Phase 22 done; advance "Next phase" to 23; record the
