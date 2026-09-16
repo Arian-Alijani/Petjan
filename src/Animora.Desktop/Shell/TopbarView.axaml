@@ -10,8 +10,8 @@
             Padding="24,12">
         <Grid ColumnDefinitions="Auto,*,Auto">
 
-            <!-- Fold toggle: collapses the sidebar. Sits at the far right in
-                 RTL (grid column 0), matching the reference topbar. -->
+            <!-- Animated menu toggle. It morphs between close/menu symbols while
+                 rotating, and leaves the compact icon navigation rail available. -->
             <Button Grid.Column="0"
                     Classes="ghost"
                     Command="{Binding ToggleSidebarCommand}"
@@ -19,12 +19,46 @@
                     Height="36"
                     Padding="0"
                     VerticalAlignment="Center"
-                    ToolTip.Tip="جمع کردن منو">
-                <Path Classes="icon"
-                      Width="18"
-                      Height="18"
-                      Stroke="{StaticResource Ink2Brush}"
-                      Data="{StaticResource IconFold}" />
+                    ToolTip.Tip="{Binding SidebarToggleToolTip}">
+                <Grid Width="20"
+                      Height="20"
+                      RenderTransformOrigin="50%,50%">
+                    <Grid.RenderTransform>
+                        <RotateTransform Angle="{Binding ToggleIconRotation}">
+                            <RotateTransform.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Angle"
+                                                      Duration="0:0:0.24"
+                                                      Easing="CubicEaseInOut" />
+                                </Transitions>
+                            </RotateTransform.Transitions>
+                        </RotateTransform>
+                    </Grid.RenderTransform>
+                    <Path Classes="icon"
+                          Width="18"
+                          Height="18"
+                          Opacity="{Binding OpenIconOpacity}"
+                          Stroke="{StaticResource Ink2Brush}"
+                          Data="{StaticResource IconX}">
+                        <Path.Transitions>
+                            <Transitions>
+                                <DoubleTransition Property="Opacity" Duration="0:0:0.16" />
+                            </Transitions>
+                        </Path.Transitions>
+                    </Path>
+                    <Path Classes="icon"
+                          Width="18"
+                          Height="18"
+                          Opacity="{Binding ClosedIconOpacity}"
+                          Stroke="{StaticResource Ink2Brush}"
+                          Data="{StaticResource IconMenu}">
+                        <Path.Transitions>
+                            <Transitions>
+                                <DoubleTransition Property="Opacity" Duration="0:0:0.16" />
+                            </Transitions>
+                        </Path.Transitions>
+                    </Path>
+                </Grid>
             </Button>
 
             <!-- Title block: accent rail + breadcrumbs + heading -->

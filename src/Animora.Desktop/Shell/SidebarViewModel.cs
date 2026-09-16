@@ -9,25 +9,25 @@ namespace Animora.Desktop.Shell;
 
 /// <summary>
 /// Drives the sidebar: brand header, grouped nav list (with active-item
-/// tracking), the inert upsell CTA, and the bottom user-status card bound to
-/// <see cref="ICurrentUserContext"/>.
+/// tracking), compact/expanded presentation state, and the bottom user-status
+/// card bound to <see cref="ICurrentUserContext"/>.
 /// </summary>
 public sealed partial class SidebarViewModel : ObservableObject
 {
     private readonly INavigationService _navigation;
-    private readonly IToastService _toast;
     private readonly Dictionary<string, NavEntryViewModel> _entriesByKey;
 
     [ObservableProperty]
     private NavEntryViewModel? _activeEntry;
 
+    [ObservableProperty]
+    private bool _isExpanded = true;
+
     public SidebarViewModel(
         INavigationService navigation,
-        IToastService toast,
         ICurrentUserContext currentUser)
     {
         _navigation = navigation;
-        _toast = toast;
         CurrentUser = currentUser;
 
         Groups = NavigationMenu.Items
@@ -83,12 +83,4 @@ public sealed partial class SidebarViewModel : ObservableObject
         entry.IsActive = true;
         ActiveEntry = entry;
     }
-
-    [RelayCommand]
-    private void OpenUpsell() =>
-        _toast.Show("نسخه حرفه‌ای به‌زودی در دسترس خواهد بود.");
-
-    [RelayCommand]
-    private void ToggleCollapse() =>
-        _toast.Show("جمع/باز کردن منو در این نسخه فعال نیست.");
 }

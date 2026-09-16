@@ -14,7 +14,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
 {
     private const string StartupKey = "dashboard";
 
-    private const double ExpandedSidebarWidth = 264;
+    private const double ExpandedSidebarWidth = 288;
+
+    // Keep a compact navigation rail visible when the full menu is collapsed so
+    // every page remains reachable from its icon.
+    private const double CollapsedSidebarWidth = 76;
 
     private readonly INavigationService _navigation;
 
@@ -26,8 +30,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private bool _isSidebarOpen = true;
 
     /// <summary>
-    /// Target width for the animated sidebar host: full width when open, 0 when
-    /// collapsed. The view tweens between these via a DoubleTransition.
+    /// Target width for the animated sidebar host: full menu when open and a
+    /// compact icon rail when collapsed. The view tweens between the two widths.
     /// </summary>
     [ObservableProperty]
     private double _sidebarWidth = ExpandedSidebarWidth;
@@ -52,7 +56,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private void OnSidebarToggleRequested(object? sender, EventArgs e)
     {
         IsSidebarOpen = !IsSidebarOpen;
-        SidebarWidth = IsSidebarOpen ? ExpandedSidebarWidth : 0;
+        Sidebar.IsExpanded = IsSidebarOpen;
+        SidebarWidth = IsSidebarOpen ? ExpandedSidebarWidth : CollapsedSidebarWidth;
     }
 
     public SidebarViewModel Sidebar { get; }
