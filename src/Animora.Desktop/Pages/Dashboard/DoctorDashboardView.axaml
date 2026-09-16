@@ -8,7 +8,7 @@
     <!-- Mirrors DASH_VIEW_DOCTOR's "live queue" + "vaccination reminders"
          cards (Animora-UI/assets/dashboard-views.js); the hero live-clock and
          progress-ring are out of this phase's static-render budget. -->
-    <Grid ColumnDefinitions="1fr,1fr" ColumnSpacing="16">
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
 
         <Border Grid.Column="0" Classes="card">
             <StackPanel>

@@ -9,7 +9,7 @@
          (Animora-UI/assets/dashboard-views.js). The revenue-chart/species-donut
          sections are out of this phase's budget (Out of scope §: no
          live/animated data beyond a simple mock render). -->
-    <Grid ColumnDefinitions="1fr,1fr" ColumnSpacing="16">
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
 
         <Border Grid.Column="0" Classes="card">
             <StackPanel>
