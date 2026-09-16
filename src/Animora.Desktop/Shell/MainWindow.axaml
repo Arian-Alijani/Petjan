@@ -1,0 +1,15 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Animora.Desktop.Shell.MainWindow"
+        Title="Animora"
+        Width="1440"
+        Height="900"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid>
+        <TextBlock Text="Animora Desktop — Phase 01 scaffold"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center" />
+    </Grid>
+
+</Window>

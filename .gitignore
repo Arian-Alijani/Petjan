@@ -1,0 +1,18 @@
+# .NET build output
+bin/
+obj/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+
+# NuGet
+packages/
+*.nupkg
+
+# Local NuGet/build temp
+.tmp/
+
+# Native core dumps
+core
