@@ -3,7 +3,7 @@
              xmlns:shell="using:Animora.Desktop.Shell"
              x:Class="Animora.Desktop.Shell.SidebarView"
              x:DataType="shell:SidebarViewModel"
-             Width="264">
+             ClipToBounds="True">
 
     <UserControl.Styles>
         <!-- Nav item chrome, matching .nav-item / .nav-item.active in
@@ -61,9 +61,10 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Background="{StaticResource PanelBrush}"
+    <Border Width="264"
+            Background="{StaticResource PanelBrush}"
             BorderBrush="{StaticResource Line2Brush}"
-            BorderThickness="0,0,1,0"
+            BorderThickness="1,0,0,0"
             Padding="14,18,14,14">
         <DockPanel LastChildFill="True">
 
@@ -225,29 +226,32 @@
                                                     Margin="0,1"
                                                     Command="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).NavigateCommand}"
                                                     CommandParameter="{Binding}">
-                                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                                    <!-- Left accent bar (active only) -->
+                                                <!-- RTL layout: accent rail | icon | label | badge.
+                                                     Each element sits in its own column so nothing
+                                                     overlaps. In RTL the accent rail renders at the
+                                                     leading (right) edge of the item. -->
+                                                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                                                    <!-- Leading accent bar (active only) -->
                                                     <Border Classes="nav-accent"
                                                             Grid.Column="0"
                                                             Width="3"
-                                                            Margin="-12,1,10,1"
+                                                            Margin="0,2,9,2"
                                                             CornerRadius="3"
+                                                            VerticalAlignment="Stretch"
                                                             Background="{StaticResource Brand600Brush}" />
-                                                    <StackPanel Grid.Column="0"
-                                                                Orientation="Horizontal"
-                                                                Spacing="10"
-                                                                VerticalAlignment="Center">
-                                                        <Path Classes="icon nav-icon"
-                                                              Width="18"
-                                                              Height="18"
-                                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Column="1"
+                                                    <Path Grid.Column="1"
+                                                          Classes="icon nav-icon"
+                                                          Width="18"
+                                                          Height="18"
+                                                          VerticalAlignment="Center"
+                                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                    <TextBlock Grid.Column="2"
                                                                Classes="nav-label"
                                                                VerticalAlignment="Center"
                                                                Margin="10,0,0,0"
+                                                               TextTrimming="CharacterEllipsis"
                                                                Text="{Binding Label}" />
-                                                    <Border Grid.Column="2"
+                                                    <Border Grid.Column="3"
                                                             Classes="nav-badge"
                                                             IsVisible="{Binding HasBadge}"
                                                             CornerRadius="20"

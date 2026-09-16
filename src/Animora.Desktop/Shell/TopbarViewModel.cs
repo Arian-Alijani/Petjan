@@ -49,9 +49,16 @@ public sealed partial class TopbarViewModel : ObservableObject
     private void CreateNew() =>
         _toast.Show("ایجاد سریع در این نسخه فعال نیست.");
 
+    /// <summary>
+    /// Raised when the fold button is pressed. The shell (MainWindowViewModel)
+    /// listens to this to collapse/expand the sidebar, keeping the toggle state
+    /// out of the topbar itself.
+    /// </summary>
+    public event EventHandler? SidebarToggleRequested;
+
     [RelayCommand]
     private void ToggleSidebar() =>
-        _toast.Show("جمع/باز کردن منو در این نسخه فعال نیست.");
+        SidebarToggleRequested?.Invoke(this, EventArgs.Empty);
 
     [RelayCommand]
     private void ToggleTheme() =>
