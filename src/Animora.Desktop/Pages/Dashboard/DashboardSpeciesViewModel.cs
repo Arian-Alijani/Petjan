@@ -20,8 +20,15 @@ public sealed class DashboardSpeciesViewModel
         ColorHex = species.ColorHex;
         SwatchBrush = ParseBrush(species.ColorHex);
         CountText = PersianNumberFormatter.FormatGrouped(species.Count);
+
+        // Round to a whole percent, then render as an integer so the string
+        // form is culture-invariant and never carries a decimal point.
+        // Casting to long guarantees the int64 ToString(IFormatProvider)
+        // overload is selected (avoids the fragile double overload resolution
+        // that trips some SDKs with "No overload for 'ToString' takes 1 args").
+        var percent = (long)Math.Round(fraction * 100, MidpointRounding.AwayFromZero);
         PercentText = PersianNumberFormatter.ToPersianDigits(
-            Math.Round(fraction * 100).ToString(CultureInfo.InvariantCulture)) + "٪";
+            percent.ToString(CultureInfo.InvariantCulture)) + "٪";
     }
 
     public string Name { get; }
