@@ -1,7 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:Animora.Desktop.Controls"
+             xmlns:gallery="using:Animora.Desktop.Pages._ControlGallery"
              x:Class="Animora.Desktop.Pages._ControlGallery.ControlGalleryView"
+             x:DataType="gallery:ControlGalleryView"
              Background="{StaticResource BgBrush}">
 
     <!-- Dev-only smoke test view (Phase 03 Task 10). Instantiates one of
@@ -66,6 +68,22 @@
                     <controls:EmptyState Icon="{StaticResource IconClipboard}"
                                          Title="هیچ موردی یافت نشد"
                                          Subtitle="نمونهٔ حالت خالی برای بررسی چیدمان و آیکن." />
+                </Border>
+
+                <!-- Phase 04: localization proof (Persian digits + Jalali date) -->
+                <Border Classes="card">
+                    <StackPanel>
+                        <StackPanel Classes="card-header">
+                            <TextBlock Classes="card-title" Text="محلی‌سازی — فاز ۰۴" />
+                        </StackPanel>
+                        <Border Classes="card-header-rule" />
+                        <StackPanel Classes="card-body" Spacing="{StaticResource Spacing8}">
+                            <TextBlock Foreground="{StaticResource InkBrush}"
+                                       Text="{Binding SampleCount, Converter={StaticResource PersianDigitsConverter}, ConverterParameter=grouped}" />
+                            <TextBlock Foreground="{StaticResource InkBrush}"
+                                       Text="{Binding Today, Converter={StaticResource JalaliDateConverter}, ConverterParameter=long}" />
+                        </StackPanel>
+                    </StackPanel>
                 </Border>
 
                 <!-- Toast / modal / drawer triggers -->

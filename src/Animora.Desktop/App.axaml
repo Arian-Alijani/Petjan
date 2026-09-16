@@ -1,5 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:Animora.Desktop.Localization"
              x:Class="Animora.Desktop.App"
              RequestedThemeVariant="Default">
 
@@ -16,15 +17,24 @@
                      belong in Resources, not Styles. -->
                 <ResourceInclude Source="avares://Animora.Desktop/Resources/Controls/Button.axaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Phase 04: localization converters, usable from any binding via
+                 {StaticResource PersianDigitsConverter} / {StaticResource JalaliDateConverter}. -->
+            <loc:PersianDigitsConverter x:Key="PersianDigitsConverter" />
+            <loc:JalaliDateConverter x:Key="JalaliDateConverter" />
         </ResourceDictionary>
     </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
 
-        <!-- Application-wide default font: Vazirmatn (bundled). -->
+        <!-- Application-wide default font: Vazirmatn (bundled).
+             Phase 04: RTL is set once here at the single top-level location
+             (CONVENTIONS.md §4) so every descendant mirrors by default,
+             matching <html dir="rtl"> in the reference. -->
         <Style Selector="TopLevel">
             <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            <Setter Property="FlowDirection" Value="RightToLeft" />
         </Style>
 
         <!-- Phase 03: shared selector-based styles (icon Path look, card). -->

@@ -6,7 +6,7 @@
 
 ## Current state
 
-- **Next phase to execute:** `04` — RTL & Localization Utilities
+- **Next phase to execute:** `05` — App Shell: Sidebar, Topbar, Navigation
 - **Build verification (this session):** installed the real **.NET 10 SDK
   (10.0.401)** and ran `dotnet restore` + `dotnet build Animora.sln` — now
   **0 warnings / 0 errors** across all 5 projects. This was the first session
@@ -18,6 +18,24 @@
   `dotnet run` reaches Avalonia bootstrap and stops only at `XOpenDisplay`
   (no display in this Linux sandbox) — bootstrap + DI + XAML/resource load all
   succeed; the window itself opens on the Windows target.
+- **Repo state (Phase 04):** `Animora.Desktop/Localization/` now holds the shared
+  RTL + localization utilities: `PersianMonthNames.cs` (12 Jalali month
+  constants فروردین..اسفند as a `static string[]` + `Get(month)`),
+  `PersianNumberFormatter.cs` (pure `ToPersianDigits(object?)` and
+  `FormatGrouped(long)`/`GroupAscii(long)` — re-derived from `toFa` and
+  `group()` in .NET string idioms, not ported regex), `JalaliDate.cs`
+  (`readonly struct { Year, Month, Day }` with `FromDateTime`/`ToDateTime`/
+  `Today` backed by `System.Globalization.PersianCalendar`, and
+  `ToString("long"|"medium"|"short")` producing e.g. "۱۴ مهر ۱۴۰۴"), and
+  `Converters.cs` (`PersianDigitsConverter` + `JalaliDateConverter`,
+  one-way `IValueConverter`s). `App.axaml` sets `FlowDirection="RightToLeft"`
+  once on the `TopLevel` base style (single top-level RTL location per
+  CONVENTIONS.md §4) and registers both converters as
+  `PersianDigitsConverter`/`JalaliDateConverter` resource keys. The temporary
+  control gallery gained a "محلی‌سازی — فاز ۰۴" card with two proof
+  `TextBlock`s (grouped Persian number + today's Jalali date) bound through the
+  converters. `dotnet build Animora.sln` = 0 warnings / 0 errors; conversion
+  spot-checked (2025-10-06 → ۱۴ مهر ۱۴۰۴).
 - **Repo state (Phase 03):** `Animora.Desktop` now carries the shared control
   library: `Resources/Theme/Icons.axaml` (23 `StreamGeometry` icons re-drawn
   from `Animora-UI/assets/icons.js`, covering Phase 05's sidebar set + common
@@ -62,7 +80,7 @@
   (`App.Services`). Central package pins live in `Directory.Packages.props`;
   shared build settings in `Directory.Build.props`. No theming/controls/
   navigation/screens yet.
-- **Roadmap status:** Phases 01–03 done and **build-verified** (0/0). 3 of 29
+- **Roadmap status:** Phases 01–04 done and **build-verified** (0/0). 4 of 29
   phases implemented.
 
 ## Phase checklist
@@ -72,7 +90,7 @@
 | 01 | Solution & Project Scaffold | ✅ Done | Build-verified (0/0). Avalonia.Diagnostics/Fluent package deltas are forced by Avalonia 12.x packaging, not defects (see log) |
 | 02 | Design Tokens & Theme Resources | ✅ Done | Vazirmatn v33.003 variable TTF bundled (OFL) |
 | 03 | Base Control Library | ✅ Done | Build-verified (0/0); TryFindResource + AVLN3001 defects fixed (see log) |
-| 04 | RTL & Localization Utilities | ⬜ Not started | |
+| 04 | RTL & Localization Utilities | ⚠️ Done with deviation | Build-verified (0/0). Persian-digit codepoint follows the actual reference `toFa` (U+06Fx), not the phase text's U+066x example — see log |
 | 05 | App Shell: Sidebar, Topbar, Navigation | ⬜ Not started | |
 | 06 | Dashboard Screen | ⬜ Not started | |
 | 07 | Reception & Queue Screen | ⬜ Not started | |
@@ -106,6 +124,40 @@ deviation (see log below).
 
 > Append one entry per deviation from the roadmap/conventions, newest on
 > top. If a phase followed the plan exactly, no entry is needed.
+
+### Phase 04 — RTL & Localization Utilities
+
+- **Persian-digit codepoint follows the reference behavior, not the phase
+  text's example.** Task 2 wrote the target digits as "٠١٢٣٤٥٦٧٨٩"
+  (Arabic-Indic, U+0660..U+0669), but the actual `toFa` reference it points to
+  (`Animora-UI/assets/layout.js`) maps to "۰۱۲۳۴۵۶۷۸۹" (Persian / Extended
+  Arabic-Indic, U+06F0..U+06F9), and every other reference helper (`window.fa`,
+  `J.long`) uses the same U+06Fx set. Since the phase explicitly says "matching
+  `toFa`'s behavior," `PersianNumberFormatter.ToPersianDigits` emits U+06Fx —
+  the correct Persian digits users expect — rather than the example's
+  Arabic-Indic glyphs.
+- **Thousands separator = U+066C (٬), matching `group()`.** `FormatGrouped`
+  inserts U+066C exactly as the reference's `group()` regex does; grouping is
+  computed with plain .NET string math (modulo-3 first group), not a ported JS
+  regex.
+- **`JalaliDate.ToString` supports three formats.** Beyond the required
+  "long" shape ("۱۴ مهر ۱۴۰۴"), it also accepts "medium" ("۱۴ مهر") and
+  "short" ("۱۴۰۴/۰۷/۱۴"), mirroring the reference's `J.long`/`J.medium`
+  plus a numeric form later phases (e.g. Phase 13/23 pickers) will want.
+  Default (null/empty) = "long".
+- **Converters are one-way + also exposed as `.Instance` singletons.**
+  `PersianDigitsConverter`/`JalaliDateConverter` throw on `ConvertBack`
+  (display-only) and are registered both as `App.axaml` resource keys (for
+  `{StaticResource ...}` bindings, per Task 5) and as static `Instance`
+  fields (for `x:Static`/code use). `PersianDigitsConverter` honors a
+  `ConverterParameter=grouped` to switch integral values to the grouped form;
+  `JalaliDateConverter` takes the format name ("long"/"medium"/"short") as its
+  parameter.
+- **Gallery proof needed `x:DataType`.** Adding `{Binding}` proof `TextBlock`s
+  to `ControlGalleryView` triggered `AVLN2100` (compiled bindings require an
+  explicit data type); added `x:DataType="gallery:ControlGalleryView"` and set
+  `DataContext = this` in code-behind so the two proof bindings compile. This
+  is a temporary dev-only view (Phase 05 replaces MainWindow's content).
 
 ### Phase 03 — Base Control Library
 
