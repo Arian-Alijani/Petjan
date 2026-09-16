@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Animora.Desktop.Controls.DrawerHost"
+             IsVisible="False">
+
+    <!-- Matches Animora-UI's drawer pattern (side panel over a dim
+         backdrop, e.g. cheques add/edit drawer). Right-anchored, full
+         window height. Content is supplied by IDialogService.ShowDrawer(). -->
+    <Panel>
+        <Border x:Name="Backdrop"
+                Background="#59101828"
+                PointerPressed="OnBackdropPressed" />
+        <Border x:Name="Panel"
+                Background="{StaticResource PanelBrush}"
+                BoxShadow="{StaticResource ShadowPop}"
+                Width="420"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Stretch"
+                Padding="0"
+                ClipToBounds="True">
+            <ContentPresenter x:Name="ContentHost" />
+        </Border>
+    </Panel>
+
+</UserControl>

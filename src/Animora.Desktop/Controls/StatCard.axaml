@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Animora.Desktop.Controls.StatCard">
+
+    <!-- Matches Animora-UI/assets/styles.css .stat/.stat-head/.stat-icon/
+         .stat-delta/.stat-value/.stat-label. -->
+    <Border Classes="card" Padding="{StaticResource Spacing16}">
+        <StackPanel Spacing="{StaticResource Spacing20}">
+
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Border x:Name="IconTile"
+                        Grid.Column="0"
+                        Width="38"
+                        Height="38"
+                        CornerRadius="12"
+                        BorderThickness="1"
+                        Background="{StaticResource Brand50Brush}"
+                        BorderBrush="{StaticResource Brand100Brush}">
+                    <Path x:Name="IconPath"
+                          Classes="icon"
+                          Width="18"
+                          Height="18"
+                          Stroke="{StaticResource Brand600Brush}" />
+                </Border>
+
+                <Border x:Name="DeltaChip"
+                        Grid.Column="2"
+                        CornerRadius="10"
+                        Padding="8,3"
+                        Background="{StaticResource OkBgBrush}"
+                        VerticalAlignment="Top">
+                    <TextBlock x:Name="DeltaText"
+                               FontSize="{StaticResource FontSizeXs}"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource OkBrush}" />
+                </Border>
+            </Grid>
+
+            <StackPanel Spacing="{StaticResource Spacing4}">
+                <TextBlock x:Name="ValueText"
+                           FontSize="{StaticResource FontSizeXl}"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource InkBrush}" />
+                <TextBlock x:Name="LabelText"
+                           FontSize="{StaticResource FontSizeSm}"
+                           Foreground="{StaticResource MutedBrush}" />
+            </StackPanel>
+
+        </StackPanel>
+    </Border>
+
+</UserControl>

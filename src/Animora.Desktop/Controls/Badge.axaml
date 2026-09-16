@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Animora.Desktop.Controls.Badge"
+             HorizontalAlignment="Left">
+
+    <!-- Matches Animora-UI/assets/styles.css .pill/.pill-ok/.pill-warn/
+         .pill-danger/.pill-info (+ ".pill-mute" as the Neutral tone). -->
+    <Border x:Name="Root"
+            CornerRadius="20"
+            Padding="10,4"
+            Background="{StaticResource Line2Brush}">
+        <TextBlock x:Name="TextBlock"
+                   FontSize="{StaticResource FontSizeXs}"
+                   FontWeight="Bold"
+                   Foreground="{StaticResource MutedBrush}" />
+    </Border>
+
+</UserControl>

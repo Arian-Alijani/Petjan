@@ -1,3 +1,5 @@
+using Animora.Desktop.Pages._ControlGallery;
+using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -29,8 +31,14 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
 
-        // Phase 01: only what an empty MainWindow needs.
-        // Screen ViewModels and mock services are registered in later phases.
+        // Phase 03: shared control-library services. Screen ViewModels and
+        // mock data services are registered in later phases.
+        services.AddSingleton<ToastService>();
+        services.AddSingleton<IToastService>(sp => sp.GetRequiredService<ToastService>());
+        services.AddSingleton<DialogService>();
+        services.AddSingleton<IDialogService>(sp => sp.GetRequiredService<DialogService>());
+
+        services.AddTransient<ControlGalleryView>();
         services.AddSingleton<MainWindow>();
 
         return services.BuildServiceProvider();

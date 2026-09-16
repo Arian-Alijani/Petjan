@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Animora.Desktop.Controls.DataTable">
+
+    <!-- Styling shell over Avalonia's DataGrid matching Animora-UI's
+         .tbl (flat, no zebra, header row bg + bottom rule, row hover).
+         Consuming screens provide Columns/RowTemplates via the Grid
+         property; this control does not know about columns. -->
+    <DataGrid x:Name="Grid"
+              AutoGenerateColumns="False"
+              CanUserResizeColumns="True"
+              CanUserSortColumns="False"
+              GridLinesVisibility="Horizontal"
+              HeadersVisibility="Column"
+              IsReadOnly="True"
+              HorizontalGridLinesBrush="{StaticResource Line2Brush}"
+              Background="Transparent"
+              RowBackground="Transparent"
+              FontSize="{StaticResource FontSizeSm}">
+
+        <DataGrid.Styles>
+            <Style Selector="DataGridColumnHeader">
+                <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+                <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+                <Setter Property="FontSize" Value="{StaticResource FontSizeXs}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Padding" Value="16,12" />
+                <Setter Property="HorizontalContentAlignment" Value="Right" />
+            </Style>
+            <Style Selector="DataGridRow">
+                <Setter Property="MinHeight" Value="48" />
+            </Style>
+            <Style Selector="DataGridRow:pointerover /template/ Rectangle#BackgroundRectangle">
+                <Setter Property="Fill" Value="{StaticResource BgBrush}" />
+            </Style>
+            <Style Selector="DataGridCell">
+                <Setter Property="Padding" Value="16,10" />
+                <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            </Style>
+        </DataGrid.Styles>
+
+    </DataGrid>
+
+</UserControl>

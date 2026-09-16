@@ -10,6 +10,11 @@
                 <ResourceInclude Source="avares://Animora.Desktop/Resources/Theme/Spacing.axaml" />
                 <ResourceInclude Source="avares://Animora.Desktop/Resources/Theme/Elevation.axaml" />
                 <ResourceInclude Source="avares://Animora.Desktop/Resources/Theme/Typography.axaml" />
+                <ResourceInclude Source="avares://Animora.Desktop/Resources/Theme/Icons.axaml" />
+                <!-- ControlThemes (e.g. Button's {x:Type Button} theme) are
+                     resources, looked up implicitly by TargetType — they
+                     belong in Resources, not Styles. -->
+                <ResourceInclude Source="avares://Animora.Desktop/Resources/Controls/Button.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
@@ -21,6 +26,10 @@
         <Style Selector="TopLevel">
             <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
         </Style>
+
+        <!-- Phase 03: shared selector-based styles (icon Path look, card). -->
+        <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/IconStyle.axaml" />
+        <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/Card.axaml" />
     </Application.Styles>
 
 </Application>

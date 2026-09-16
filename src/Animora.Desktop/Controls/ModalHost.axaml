@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Animora.Desktop.Controls.ModalHost"
+             IsVisible="False">
+
+    <!-- Matches Animora-UI's .modal-backdrop + .modal: dim/blur backdrop,
+         centered rounded panel with pop shadow. Content is supplied by
+         IDialogService.ShowModal(); this control only owns the chrome. -->
+    <Panel>
+        <Border x:Name="Backdrop"
+                Background="#59101828"
+                PointerPressed="OnBackdropPressed" />
+        <Border x:Name="Panel"
+                Background="{StaticResource PanelBrush}"
+                CornerRadius="{StaticResource RadiusLg}"
+                BoxShadow="{StaticResource ShadowPop}"
+                MaxWidth="520"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Padding="0"
+                ClipToBounds="True">
+            <ContentPresenter x:Name="ContentHost" />
+        </Border>
+    </Panel>
+
+</UserControl>

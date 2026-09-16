@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Animora.Desktop.Controls.EmptyState"
+             HorizontalAlignment="Center"
+             VerticalAlignment="Center">
+
+    <!-- Matches Animora-UI's .empty-state pattern (visits.html; also seen
+         across patients/inventory/sale/boarding): rounded icon tile,
+         title, subtitle, all centered. -->
+    <StackPanel Spacing="{StaticResource Spacing20}"
+                HorizontalAlignment="Center"
+                Margin="40,64">
+
+        <Border Width="108"
+                Height="108"
+                CornerRadius="32"
+                Background="{StaticResource Brand50Brush}"
+                BorderBrush="{StaticResource Brand100Brush}"
+                BorderThickness="1"
+                HorizontalAlignment="Center">
+            <Path x:Name="IconPath"
+                  Classes="icon"
+                  Width="52"
+                  Height="52"
+                  Stroke="{StaticResource Brand600Brush}" />
+        </Border>
+
+        <StackPanel Spacing="{StaticResource Spacing8}"
+                    MaxWidth="420">
+            <TextBlock x:Name="TitleText"
+                       FontSize="{StaticResource FontSizeLg}"
+                       FontWeight="Bold"
+                       Foreground="{StaticResource InkBrush}"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center" />
+            <TextBlock x:Name="SubtitleText"
+                       FontSize="{StaticResource FontSizeSm}"
+                       Foreground="{StaticResource MutedBrush}"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+
+    </StackPanel>
+
+</UserControl>

@@ -1,0 +1,42 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Card matching Animora-UI/assets/styles.css .card/.card-header/.card-body.
+         Usage: <Border Classes="card"><StackPanel Classes="card-header">...
+         header content...</StackPanel><ContentPresenter Classes="card-body" .../>
+         </Border> — plain style selectors on Border, not a full ControlTheme,
+         since "card" composes an existing element rather than a new control. -->
+
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+        <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+    </Style>
+
+    <!-- .card-header: bottom border strip with title text -->
+    <Style Selector="StackPanel.card-header">
+        <Setter Property="Orientation" Value="Horizontal" />
+        <Setter Property="Margin" Value="18,16,18,0" />
+    </Style>
+    <Style Selector="Border.card-header-rule">
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Margin" Value="18,12,18,0" />
+    </Style>
+    <Style Selector="TextBlock.card-title">
+        <Setter Property="FontSize" Value="{StaticResource FontSizeMd}" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+    </Style>
+
+    <!-- .card-body -->
+    <Style Selector="ContentPresenter.card-body">
+        <Setter Property="Padding" Value="18" />
+    </Style>
+    <Style Selector="Panel.card-body">
+        <Setter Property="Margin" Value="18" />
+    </Style>
+
+</Styles>
