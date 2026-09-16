@@ -1,0 +1,83 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Button variants matching Animora-UI/assets/styles.css .btn/.btn-primary/
+         .btn-outline/.btn-ghost/.btn-danger-ghost. Usage: a base Button with
+         Classes="primary" | "outline" | "ghost" | "danger-ghost". -->
+
+    <ControlTheme x:Key="{x:Type Button}" TargetType="Button">
+        <Setter Property="Padding" Value="16,10" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+        <Setter Property="FontSize" Value="{StaticResource FontSizeSm}" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <ContentPresenter x:Name="PART_ContentPresenter"
+                                  Background="{TemplateBinding Background}"
+                                  BorderBrush="{TemplateBinding BorderBrush}"
+                                  BorderThickness="{TemplateBinding BorderThickness}"
+                                  CornerRadius="{TemplateBinding CornerRadius}"
+                                  Content="{TemplateBinding Content}"
+                                  Padding="{TemplateBinding Padding}"
+                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </ControlTemplate>
+        </Setter>
+
+        <Style Selector="^:pointerover">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="^:pressed">
+            <Setter Property="RenderTransform" Value="translate(0, 1px)" />
+        </Style>
+        <Style Selector="^:disabled">
+            <Setter Property="Opacity" Value="0.5" />
+        </Style>
+
+        <!-- .btn-primary -->
+        <Style Selector="^.primary">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="^.primary:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
+        <!-- .btn-outline -->
+        <Style Selector="^.outline">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        </Style>
+        <Style Selector="^.outline:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
+        <!-- .btn-ghost -->
+        <Style Selector="^.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="^.ghost:pointerover">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+
+        <!-- .btn-danger-ghost -->
+        <Style Selector="^.danger-ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+        </Style>
+        <Style Selector="^.danger-ghost:pointerover">
+            <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
+        </Style>
+    </ControlTheme>
+
+</ResourceDictionary>

@@ -6,7 +6,33 @@
 
 ## Current state
 
-- **Next phase to execute:** `03` — Base Control Library
+- **Next phase to execute:** `04` — RTL & Localization Utilities
+- **Repo state (Phase 03):** `Animora.Desktop` now carries the shared control
+  library: `Resources/Theme/Icons.axaml` (23 `StreamGeometry` icons re-drawn
+  from `Animora-UI/assets/icons.js`, covering Phase 05's sidebar set + common
+  actions), `Resources/Controls/IconStyle.axaml` (shared `Path.icon` look),
+  `Resources/Controls/Button.axaml` (`ControlTheme` for `Button` with
+  `primary|outline|ghost|danger-ghost` classes), `Resources/Controls/Card.axaml`
+  (`Border.card`/`card-header`/`card-header-rule`/`card-title`/`card-body`
+  selector styles). `Controls/` adds composite `UserControl`s: `StatCard`,
+  `Badge` (+ shared `Tone` enum), `DataTable` (thin `DataGrid` wrapper styled
+  to `.tbl`), `EmptyState`, `ToastHost`, `ModalHost`, `DrawerHost`. Services:
+  `IToastService`/`ToastService` and `IDialogService`/`DialogService`
+  (`Services/`), both registered as singletons in `App.axaml.cs`'s DI
+  container. A temporary `Pages/_ControlGallery/ControlGalleryView`
+  instantiates one of each control (4 button variants, card, 2 stat cards,
+  5 badge tones, empty state, toast/modal/drawer triggers) and is now
+  `MainWindow`'s DI-injected content, replacing the Phase 02 resource smoke
+  test. Added `Avalonia.Controls.DataGrid` 12.1.2 package (matches the
+  pinned Avalonia 12.1.2 line) to `Directory.Packages.props` +
+  `Animora.Desktop.csproj`.
+- **Build note:** this sandbox has no `dotnet` SDK installed (no toolchain
+  available at all, unlike Phase 01's headless-X11-only limitation) — code
+  was written and reviewed manually against Avalonia 12.x API shape
+  (`ControlTheme`, `StyledProperty`, `DataGrid`, `StreamGeometry` mini-language)
+  but **not compiled in this session**. First session with `dotnet` available
+  must run `dotnet build Animora.sln` and fix any errors before starting
+  Phase 04.
 - **Repo state (Phase 02):** `Animora.Desktop` now carries the shared
   design-token layer under `Resources/Theme/`: `Colors.axaml` (all `:root`
   brand/surface/ink/semantic/accent tokens as `Color` + `SolidColorBrush`),
@@ -26,7 +52,7 @@
   (`App.Services`). Central package pins live in `Directory.Packages.props`;
   shared build settings in `Directory.Build.props`. No theming/controls/
   navigation/screens yet.
-- **Roadmap status:** Phase 02 done. 2 of 29 phases implemented.
+- **Roadmap status:** Phase 03 done (unverified build — see build note above). 3 of 29 phases implemented.
 
 ## Phase checklist
 
@@ -34,7 +60,7 @@
 |---|---|---|---|
 | 01 | Solution & Project Scaffold | ⚠️ Done with deviation | Avalonia.Diagnostics dropped (no 12.x); Fluent theme package added (see log) |
 | 02 | Design Tokens & Theme Resources | ✅ Done | Vazirmatn v33.003 variable TTF bundled (OFL) |
-| 03 | Base Control Library | ⬜ Not started | |
+| 03 | Base Control Library | ⚠️ Done with deviation | Not compiled — sandbox has no dotnet SDK (see log) |
 | 04 | RTL & Localization Utilities | ⬜ Not started | |
 | 05 | App Shell: Sidebar, Topbar, Navigation | ⬜ Not started | |
 | 06 | Dashboard Screen | ⬜ Not started | |
@@ -69,6 +95,61 @@ deviation (see log below).
 
 > Append one entry per deviation from the roadmap/conventions, newest on
 > top. If a phase followed the plan exactly, no entry is needed.
+
+### Phase 03 — Base Control Library
+
+- **Deviation — build not verified.** This session's sandbox has no
+  `dotnet` SDK at all (`dotnet: command not found`), unlike Phase 01's
+  headless-X11-only limitation which still allowed `dotnet build`. All
+  Phase 03 code (Icons/Button/Card `ControlTheme`s + selectors, `StatCard`,
+  `Badge`, `DataTable`, `EmptyState`, `ToastHost`, `ModalHost`, `DrawerHost`,
+  `IToastService`/`ToastService`, `IDialogService`/`DialogService`,
+  `ControlGalleryView`, DI wiring) was written and manually re-checked
+  against Avalonia 12.x API shape, but **`dotnet build Animora.sln` has not
+  actually been run**. The next session with a working `dotnet` SDK must
+  run the build first and fix anything it flags before starting Phase 04.
+- **Icon set — `StreamGeometry`, not `PathIcon`/`DrawingImage` resources.**
+  Task 1 allowed any of "Geometry/PathIcon resources (or a DrawingImage
+  resource per icon)"; chose plain `StreamGeometry` keyed resources
+  (`Icon<Name>`) consumed via `<Path Classes="icon" Data="{StaticResource
+  IconX}"/>` — simplest idiomatic option, and every consumer (StatCard,
+  EmptyState, ToastHost, future screens) only needs a `Geometry`-typed
+  bindable property, not a full `PathIcon` control instance.
+  Icon coverage: sidebar keys `dashboard, calendar, users, clipboard,
+  syringe, home, cart, box, receipt, chart, cheque, clock, shield` (all
+  present) + action keys `plus, check, x, search, edit, trash, more, filter,
+  chevronDown, chevronLeft, chevronRight` (all present) = 23 keys total, per
+  the phase's minimum list. No additional icons were added.
+- **`DataTable` uses Avalonia's `DataGrid`.** Added
+  `Avalonia.Controls.DataGrid` 12.1.2 as a new central package pin (matches
+  the existing Avalonia 12.1.2 line exactly) rather than an `ItemsControl`
+  custom-rows alternative — Task 6 allows either; `DataGrid` is idiomatic
+  and gives later screen phases sorting/virtualization for free. Only the
+  styling shell is supplied (header bg + bottom rule, flat rows, hover);
+  columns are left to consuming screens.
+- **Card is a set of `Style` selectors (`Styles` root), not a `ControlTheme`.**
+  Task 3 says "a `ControlTheme` for a `Border`-based `Card`" but a `Card` is
+  not registered as a distinct control type here — `Classes="card"` is
+  applied directly to a plain `Border`, so implicit-key `ControlTheme`
+  lookup (which keys off `TargetType`) doesn't apply the same way it does
+  for `Button`. Implemented as class selectors on `Border`/`StackPanel`/
+  `TextBlock`/`ContentPresenter`/`Panel` instead, functionally equivalent
+  for screen authors (`<Border Classes="card">…</Border>`).
+- **`IconStyle.axaml` and `Card.axaml` are `Styles`-rooted files included via
+  `StyleInclude`; `Icons.axaml`/`Button.axaml` are `ResourceDictionary`-rooted
+  and included via `ResourceInclude`.** Avalonia requires unkeyed `Style`
+  selectors to live under a `Styles` root (merged into
+  `Application.Styles`), while keyed resources (`StreamGeometry`,
+  `ControlTheme`) live under `ResourceDictionary` (merged into
+  `Application.Resources`) — the phase file's own file-path suggestions
+  (`Resources/Controls/*.axaml`) don't distinguish these; split by content
+  instead.
+- **Toast/Dialog services are attached, not fully DI-wired to a global root.**
+  `ToastHost.Attach(ToastService)` and `DialogService.Attach(ModalHost,
+  DrawerHost)` are called explicitly by `ControlGalleryView` because Phase 03
+  has no permanent shell yet (that's Phase 05). Phase 05 should call the
+  same `Attach` methods once, from the real shell's root, instead of
+  per-screen.
 
 ### Phase 02 — Design Tokens & Theme Resources
 

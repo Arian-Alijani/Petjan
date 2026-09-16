@@ -1,0 +1,18 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Shared stroke-icon look: consumers use <Path Classes="icon" Data="{StaticResource IconX}"/>.
+         Fill stays transparent because several source icons in
+         Animora-UI/assets/icons.js are open paths (lines/chevrons) that
+         would render nothing if filled. -->
+    <Style Selector="Path.icon">
+        <Setter Property="Fill" Value="Transparent" />
+        <Setter Property="StrokeThickness" Value="2" />
+        <Setter Property="StrokeLineCap" Value="Round" />
+        <Setter Property="StrokeJoin" Value="Round" />
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="20" />
+    </Style>
+
+</Styles>

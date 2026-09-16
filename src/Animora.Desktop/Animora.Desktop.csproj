@@ -13,6 +13,7 @@
     <!-- Fluent is a separate package in Avalonia 12.x (decoupled from core). -->
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" />
     <!-- DevTools ships inside the core Avalonia package in 12.x; the separate
          Avalonia.Diagnostics package has no 12.x release (see PROGRESS.md log). -->
     <PackageReference Include="CommunityToolkit.Mvvm" />

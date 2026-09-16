@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Controls.ToastHost"
+             HorizontalAlignment="Right"
+             VerticalAlignment="Top"
+             IsHitTestVisible="False">
+
+    <!-- Matches Animora-UI's .toast-host: fixed top-corner stack of
+         .toast items (icon + text, popup shadow). Bind ItemsSource to
+         ToastService.Toasts from the composition root. -->
+    <ItemsControl x:Name="Items" Margin="18">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <StackPanel Spacing="{StaticResource Spacing8}" />
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="controls:ToastMessage">
+                <Border Background="{StaticResource PanelBrush}"
+                        BorderBrush="{StaticResource LineBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        BoxShadow="{StaticResource ShadowPop}"
+                        Padding="16,12">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Spacing8}">
+                        <Path Classes="icon"
+                              Data="{Binding Icon}"
+                              Width="18"
+                              Height="18"
+                              Stroke="{StaticResource Brand600Brush}" />
+                        <TextBlock Text="{Binding Text}"
+                                   FontSize="{StaticResource FontSizeSm}"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource InkBrush}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+</UserControl>

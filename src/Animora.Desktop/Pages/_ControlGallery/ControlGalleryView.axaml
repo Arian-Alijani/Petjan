@@ -1,0 +1,87 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages._ControlGallery.ControlGalleryView"
+             Background="{StaticResource BgBrush}">
+
+    <!-- Dev-only smoke test view (Phase 03 Task 10). Instantiates one of
+         each new shared control so the control library can be visually
+         verified before Phase 05 replaces MainWindow's content with the
+         real app shell. -->
+    <Panel>
+        <ScrollViewer Padding="{StaticResource Spacing32}">
+            <StackPanel Spacing="{StaticResource Spacing24}" MaxWidth="900">
+
+                <TextBlock Text="Control Gallery — Phase 03"
+                           FontSize="{StaticResource FontSizeXl}"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource InkBrush}" />
+
+                <!-- Buttons: 4 variants -->
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Spacing12}">
+                    <Button Classes="primary" Content="دکمه اصلی" />
+                    <Button Classes="outline" Content="دکمه خطی" />
+                    <Button Classes="ghost" Content="دکمه شبح" />
+                    <Button Classes="danger-ghost" Content="دکمه حذف" />
+                </StackPanel>
+
+                <!-- Card -->
+                <Border Classes="card">
+                    <StackPanel>
+                        <StackPanel Classes="card-header">
+                            <TextBlock Classes="card-title" Text="عنوان کارت" />
+                        </StackPanel>
+                        <Border Classes="card-header-rule" />
+                        <ContentPresenter Classes="card-body">
+                            <TextBlock Text="محتوای نمونهٔ کارت." Foreground="{StaticResource MutedBrush}" />
+                        </ContentPresenter>
+                    </StackPanel>
+                </Border>
+
+                <!-- Stat cards -->
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Spacing16}">
+                    <controls:StatCard Icon="{StaticResource IconUsers}"
+                                       Value="۱۲۴"
+                                       Label="بیماران فعال"
+                                       Delta="+۱۲٪"
+                                       IsDeltaPositive="True" />
+                    <controls:StatCard Icon="{StaticResource IconReceipt}"
+                                       Value="۳۸"
+                                       Label="فاکتور امروز"
+                                       Delta="-۴٪"
+                                       IsDeltaPositive="False" />
+                </StackPanel>
+
+                <!-- Badges: multiple tones -->
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Spacing8}">
+                    <controls:Badge Text="خنثی" Tone="Neutral" />
+                    <controls:Badge Text="خطر" Tone="Danger" />
+                    <controls:Badge Text="هشدار" Tone="Warn" />
+                    <controls:Badge Text="اطلاع" Tone="Info" />
+                    <controls:Badge Text="تایید" Tone="Ok" />
+                </StackPanel>
+
+                <!-- Empty state -->
+                <Border Classes="card">
+                    <controls:EmptyState Icon="{StaticResource IconClipboard}"
+                                         Title="هیچ موردی یافت نشد"
+                                         Subtitle="نمونهٔ حالت خالی برای بررسی چیدمان و آیکن." />
+                </Border>
+
+                <!-- Toast / modal / drawer triggers -->
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Spacing12}">
+                    <Button Classes="outline" Content="نمایش پیام" Click="OnShowToastClick" />
+                    <Button Classes="outline" Content="باز کردن مودال" Click="OnShowModalClick" />
+                    <Button Classes="outline" Content="باز کردن کشو" Click="OnShowDrawerClick" />
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Overlay hosts, on top of the gallery content -->
+        <controls:ModalHost x:Name="Modal" />
+        <controls:DrawerHost x:Name="Drawer" />
+        <controls:ToastHost x:Name="Toast" />
+    </Panel>
+
+</UserControl>

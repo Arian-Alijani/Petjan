@@ -1,0 +1,143 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Icon set: StreamGeometry resources re-drawn from
+         Animora-UI/assets/icons.js (Lucide-style outline SVGs) using
+         Avalonia's own path mini-language, not embedded raw SVG strings.
+         Consumers render these with a Path using Stroke (not Fill) —
+         see the "icon" style below — because the source set is stroke-only
+         line art (fill: none in the reference). Keys cover Phase 05's
+         sidebar set plus common action icons per the phase task list. -->
+
+    <StreamGeometry x:Key="IconDashboard">
+        M3,3 L10,3 L10,12 L3,12 Z
+        M14,3 L21,3 L21,8 L14,8 Z
+        M14,12 L21,12 L21,21 L14,21 Z
+        M3,16 L10,16 L10,21 L3,21 Z
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconCalendar">
+        M3,4 L21,4 L21,22 L3,22 Z
+        M16,2 L16,6
+        M8,2 L8,6
+        M3,10 L21,10
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconUsers">
+        M17,21 v-2 a4,4 0 0 0 -4,-4 H5 a4,4 0 0 0 -4,4 v2
+        M5,7 A4,4 0 1 0 13,7 A4,4 0 1 0 5,7 Z
+        M23,21 v-2 a4,4 0 0 0 -3,-3.87
+        M16,3.13 a4,4 0 0 1 0,7.75
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconClipboard">
+        M16,4 h2 a2,2 0 0 1 2,2 v14 a2,2 0 0 1 -2,2 H6 a2,2 0 0 1 -2,-2 V6 a2,2 0 0 1 2,-2 h2
+        M8,2 L16,2 L16,6 L8,6 Z
+        M9,12 h6 M9,16 h4
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconSyringe">
+        M18,2 l4,4
+        M17,7 l3,-3
+        M19,9 L8.7,19.3 c-1,1 -2.5,1 -3.4,0 l-.6,-.6 c-1,-1 -1,-2.5 0,-3.4 L15,5
+        M9,11 l4,4
+        M5,19 l-3,3
+        M14,4 l6,6
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconHome">
+        M3,9 L12,2 L21,9 L21,20 A2,2 0 0 1 19,22 H5 A2,2 0 0 1 3,20 Z
+        M9,22 L9,12 L15,12 L15,22
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconCart">
+        M8,21 A1,1 0 1 0 10,21 A1,1 0 1 0 8,21 Z
+        M19,21 A1,1 0 1 0 21,21 A1,1 0 1 0 19,21 Z
+        M1,1 h4 l2.68,13.39 a2,2 0 0 0 2,1.61 h9.72 a2,2 0 0 0 2,-1.61 L23,6 H6
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconBox">
+        M21,16 V8 a2,2 0 0 0 -1,-1.73 l-7,-4 a2,2 0 0 0 -2,0 l-7,4 A2,2 0 0 0 3,8 v8 a2,2 0 0 0 1,1.73 l7,4 a2,2 0 0 0 2,0 l7,-4 A2,2 0 0 0 21,16 Z
+        M3.27,6.96 L12,12.01 L20.73,6.96
+        M12,22.08 L12,12
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconReceipt">
+        M4,2 v20 l3,-2 l3,2 l3,-2 l3,2 l3,-2 l3,2 V2 l-3,2 l-3,-2 l-3,2 l-3,-2 l-3,2 Z
+        M8,8 h8 M8,12 h8 M8,16 h5
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconChart">
+        M12,20 L12,10
+        M18,20 L18,4
+        M6,20 L6,16
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconCheque">
+        M2,5 L22,5 L22,19 L2,19 Z
+        M6,10 h6 M6,14 h3
+        M15.5,13.5 l1.6,1.7 l3.2,-3.4
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconClock">
+        M2,12 A10,10 0 1 0 22,12 A10,10 0 1 0 2,12 Z
+        M12,6 L12,12 L16,14
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconShield">
+        M12,22 s8,-4 8,-10 V5 l-8,-3 l-8,3 v7 c0,6 8,10 8,10 z
+        M9,12 l2,2 l4,-4
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconPlus">
+        M12,5 L12,19
+        M5,12 L19,12
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconCheck">
+        M4,12 L9,17 L20,6
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconX">
+        M18,6 L6,18
+        M6,6 L18,18
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconSearch">
+        M3,11 A8,8 0 1 0 19,11 A8,8 0 1 0 3,11 Z
+        M21,21 L16.65,16.65
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconEdit">
+        M11,4 H4 a2,2 0 0 0 -2,2 v14 a2,2 0 0 0 2,2 h14 a2,2 0 0 0 2,-2 v-7
+        M18.5,2.5 a2.121,2.121 0 0 1 3,3 L12,15 l-4,1 l1,-4 Z
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconTrash">
+        M3,6 L5,6 L21,6
+        M19,6 l-2,14 a2,2 0 0 1 -2,2 H9 a2,2 0 0 1 -2,-2 L5,6
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconMore">
+        M10.8,5 A1.2,1.2 0 1 0 13.2,5 A1.2,1.2 0 1 0 10.8,5 Z
+        M10.8,12 A1.2,1.2 0 1 0 13.2,12 A1.2,1.2 0 1 0 10.8,12 Z
+        M10.8,19 A1.2,1.2 0 1 0 13.2,19 A1.2,1.2 0 1 0 10.8,19 Z
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconFilter">
+        M22,3 L2,3 L10,12.46 L10,19 L14,21 L14,12.46 Z
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconChevronDown">
+        M6,9 L12,15 L18,9
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconChevronLeft">
+        M15,18 L9,12 L15,6
+    </StreamGeometry>
+
+    <StreamGeometry x:Key="IconChevronRight">
+        M9,18 L15,12 L9,6
+    </StreamGeometry>
+
+</ResourceDictionary>
