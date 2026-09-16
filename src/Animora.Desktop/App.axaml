@@ -3,8 +3,24 @@
              x:Class="Animora.Desktop.App"
              RequestedThemeVariant="Default">
 
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Animora.Desktop/Resources/Theme/Colors.axaml" />
+                <ResourceInclude Source="avares://Animora.Desktop/Resources/Theme/Spacing.axaml" />
+                <ResourceInclude Source="avares://Animora.Desktop/Resources/Theme/Elevation.axaml" />
+                <ResourceInclude Source="avares://Animora.Desktop/Resources/Theme/Typography.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
+
+        <!-- Application-wide default font: Vazirmatn (bundled). -->
+        <Style Selector="TopLevel">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+        </Style>
     </Application.Styles>
 
 </Application>

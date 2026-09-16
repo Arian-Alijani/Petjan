@@ -1,0 +1,81 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Design tokens: colors. Values mirror Animora-UI/assets/styles.css :root.
+         Each token is exposed as a Color (…Color) and a matching SolidColorBrush
+         (…Brush) so both fill scenarios and value binding are covered. -->
+
+    <!-- brand — calm, premium teal -->
+    <Color x:Key="Brand900Color">#0c3631</Color>
+    <Color x:Key="Brand800Color">#104a43</Color>
+    <Color x:Key="Brand700Color">#0e7566</Color>
+    <Color x:Key="Brand600Color">#0d9488</Color>
+    <Color x:Key="Brand500Color">#14b8a6</Color>
+    <Color x:Key="Brand400Color">#2dd4bf</Color>
+    <Color x:Key="Brand100Color">#ccfbf1</Color>
+    <Color x:Key="Brand50Color">#f0fdfa</Color>
+
+    <SolidColorBrush x:Key="Brand900Brush" Color="{StaticResource Brand900Color}" />
+    <SolidColorBrush x:Key="Brand800Brush" Color="{StaticResource Brand800Color}" />
+    <SolidColorBrush x:Key="Brand700Brush" Color="{StaticResource Brand700Color}" />
+    <SolidColorBrush x:Key="Brand600Brush" Color="{StaticResource Brand600Color}" />
+    <SolidColorBrush x:Key="Brand500Brush" Color="{StaticResource Brand500Color}" />
+    <SolidColorBrush x:Key="Brand400Brush" Color="{StaticResource Brand400Color}" />
+    <SolidColorBrush x:Key="Brand100Brush" Color="{StaticResource Brand100Color}" />
+    <SolidColorBrush x:Key="Brand50Brush" Color="{StaticResource Brand50Color}" />
+
+    <!-- surfaces & lines -->
+    <Color x:Key="BgColor">#f6f8f9</Color>
+    <Color x:Key="Bg2Color">#f1f5f6</Color>
+    <Color x:Key="PanelColor">#ffffff</Color>
+    <Color x:Key="LineColor">#e5eaee</Color>
+    <Color x:Key="Line2Color">#eef2f5</Color>
+
+    <SolidColorBrush x:Key="BgBrush" Color="{StaticResource BgColor}" />
+    <SolidColorBrush x:Key="Bg2Brush" Color="{StaticResource Bg2Color}" />
+    <SolidColorBrush x:Key="PanelBrush" Color="{StaticResource PanelColor}" />
+    <SolidColorBrush x:Key="LineBrush" Color="{StaticResource LineColor}" />
+    <SolidColorBrush x:Key="Line2Brush" Color="{StaticResource Line2Color}" />
+
+    <!-- ink & muted text -->
+    <Color x:Key="InkColor">#101828</Color>
+    <Color x:Key="Ink2Color">#344054</Color>
+    <Color x:Key="MutedColor">#667085</Color>
+    <Color x:Key="Muted2Color">#98a2b3</Color>
+
+    <SolidColorBrush x:Key="InkBrush" Color="{StaticResource InkColor}" />
+    <SolidColorBrush x:Key="Ink2Brush" Color="{StaticResource Ink2Color}" />
+    <SolidColorBrush x:Key="MutedBrush" Color="{StaticResource MutedColor}" />
+    <SolidColorBrush x:Key="Muted2Brush" Color="{StaticResource Muted2Color}" />
+
+    <!-- semantic: danger / warn / info / ok, each with a soft bg -->
+    <Color x:Key="DangerColor">#d92d20</Color>
+    <Color x:Key="DangerBgColor">#fef3f2</Color>
+    <Color x:Key="WarnColor">#b54708</Color>
+    <Color x:Key="WarnBgColor">#fffaeb</Color>
+    <Color x:Key="InfoColor">#1570cd</Color>
+    <Color x:Key="InfoBgColor">#eff8ff</Color>
+    <Color x:Key="OkColor">#027a48</Color>
+    <Color x:Key="OkBgColor">#ecfdf3</Color>
+
+    <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}" />
+    <SolidColorBrush x:Key="DangerBgBrush" Color="{StaticResource DangerBgColor}" />
+    <SolidColorBrush x:Key="WarnBrush" Color="{StaticResource WarnColor}" />
+    <SolidColorBrush x:Key="WarnBgBrush" Color="{StaticResource WarnBgColor}" />
+    <SolidColorBrush x:Key="InfoBrush" Color="{StaticResource InfoColor}" />
+    <SolidColorBrush x:Key="InfoBgBrush" Color="{StaticResource InfoBgColor}" />
+    <SolidColorBrush x:Key="OkBrush" Color="{StaticResource OkColor}" />
+    <SolidColorBrush x:Key="OkBgBrush" Color="{StaticResource OkBgColor}" />
+
+    <!-- accents: lilac / peach, each with a soft bg -->
+    <Color x:Key="LilacColor">#a48afb</Color>
+    <Color x:Key="LilacBgColor">#f4f3ff</Color>
+    <Color x:Key="PeachColor">#f0b593</Color>
+    <Color x:Key="PeachBgColor">#fdf1e7</Color>
+
+    <SolidColorBrush x:Key="LilacBrush" Color="{StaticResource LilacColor}" />
+    <SolidColorBrush x:Key="LilacBgBrush" Color="{StaticResource LilacBgColor}" />
+    <SolidColorBrush x:Key="PeachBrush" Color="{StaticResource PeachColor}" />
+    <SolidColorBrush x:Key="PeachBgBrush" Color="{StaticResource PeachBgColor}" />
+
+</ResourceDictionary>

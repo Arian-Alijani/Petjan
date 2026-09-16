@@ -1,0 +1,18 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <!-- Design tokens: typography.
+         Font: Vazirmatn (OFL, bundled as an embedded asset — no runtime CDN),
+         matching the reference's @import of vazirmatn.
+         Type scale mirrors the reference's observed heading/body sizes. -->
+
+    <FontFamily x:Key="AppFontFamily">avares://Animora.Desktop/Assets/Fonts#Vazirmatn</FontFamily>
+
+    <sys:Double x:Key="FontSizeXs">11</sys:Double>
+    <sys:Double x:Key="FontSizeSm">13</sys:Double>
+    <sys:Double x:Key="FontSizeMd">15</sys:Double>
+    <sys:Double x:Key="FontSizeLg">19</sys:Double>
+    <sys:Double x:Key="FontSizeXl">26</sys:Double>
+
+</ResourceDictionary>

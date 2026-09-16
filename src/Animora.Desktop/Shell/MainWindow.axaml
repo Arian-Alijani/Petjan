@@ -4,12 +4,35 @@
         Title="Animora"
         Width="1440"
         Height="900"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BgBrush}">
 
+    <!-- Phase 02 smoke test: proves the merged theme dictionaries + bundled
+         Vazirmatn font resolve at runtime (background, brand color, panel,
+         card shadow, radius, spacing, type scale all come from resources). -->
     <Grid>
-        <TextBlock Text="Animora Desktop — Phase 01 scaffold"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center" />
+        <Border Background="{StaticResource PanelBrush}"
+                CornerRadius="{StaticResource Radius}"
+                BoxShadow="{StaticResource ShadowCard}"
+                Padding="{StaticResource Spacing32}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+            <StackPanel Spacing="{StaticResource Spacing8}">
+                <TextBlock Text="Animora"
+                           FontSize="{StaticResource FontSizeXl}"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource Brand600Brush}"
+                           HorizontalAlignment="Center" />
+                <TextBlock Text="طراحی توکن‌ها و منابع تم — فاز ۰۲"
+                           FontSize="{StaticResource FontSizeMd}"
+                           Foreground="{StaticResource InkBrush}"
+                           HorizontalAlignment="Center" />
+                <TextBlock Text="Design Tokens &amp; Theme Resources"
+                           FontSize="{StaticResource FontSizeSm}"
+                           Foreground="{StaticResource MutedBrush}"
+                           HorizontalAlignment="Center" />
+            </StackPanel>
+        </Border>
     </Grid>
 
 </Window>
