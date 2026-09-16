@@ -1,4 +1,5 @@
-using Animora.Desktop.Pages._ControlGallery;
+using Animora.Contracts.Identity;
+using Animora.Desktop.Mocks;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Avalonia;
@@ -31,14 +32,24 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
 
-        // Phase 03: shared control-library services. Screen ViewModels and
-        // mock data services are registered in later phases.
+        // Phase 03: shared control-library services.
         services.AddSingleton<ToastService>();
         services.AddSingleton<IToastService>(sp => sp.GetRequiredService<ToastService>());
         services.AddSingleton<DialogService>();
         services.AddSingleton<IDialogService>(sp => sp.GetRequiredService<DialogService>());
 
-        services.AddTransient<ControlGalleryView>();
+        // Phase 05: identity seam + navigation + shell composition.
+        services.AddSingleton<ICurrentUserContext, MockCurrentUserContext>();
+        services.AddSingleton<INavigationService, NavigationService>();
+
+        // A single shared placeholder instance backs every not-yet-built nav
+        // item; the sidebar retargets it per click. Screen phases (06+)
+        // register their own page ViewModels here.
+        services.AddSingleton<PlaceholderPageViewModel>();
+
+        services.AddSingleton<SidebarViewModel>();
+        services.AddSingleton<TopbarViewModel>();
+        services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
 
         return services.BuildServiceProvider();

@@ -1,0 +1,277 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:shell="using:Animora.Desktop.Shell"
+             x:Class="Animora.Desktop.Shell.SidebarView"
+             x:DataType="shell:SidebarViewModel"
+             Width="264">
+
+    <UserControl.Styles>
+        <!-- Nav item chrome, matching .nav-item / .nav-item.active in
+             Animora-UI/assets/styles.css (soft-tinted active state + left
+             accent bar via the ActiveBar Border). -->
+        <Style Selector="Button.nav-item">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="12,9" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.nav-item:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="Button.nav-item TextBlock.nav-label">
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontWeight" Value="Medium" />
+        </Style>
+        <Style Selector="Button.nav-item Path.nav-icon">
+            <Setter Property="Stroke" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Button.nav-item Border.nav-badge">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="Button.nav-item TextBlock.nav-badge-text">
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Button.nav-item Border.nav-accent">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+
+        <!-- Active state -->
+        <Style Selector="Button.nav-item.active /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.nav-item.active TextBlock.nav-label">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="Button.nav-item.active Path.nav-icon">
+            <Setter Property="Stroke" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Button.nav-item.active Border.nav-badge">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Button.nav-item.active TextBlock.nav-badge-text">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.nav-item.active Border.nav-accent">
+            <Setter Property="IsVisible" Value="True" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="{StaticResource PanelBrush}"
+            BorderBrush="{StaticResource Line2Brush}"
+            BorderThickness="0,0,1,0"
+            Padding="14,18,14,14">
+        <DockPanel LastChildFill="True">
+
+            <!-- Brand header -->
+            <Border DockPanel.Dock="Top"
+                    BorderBrush="{StaticResource Line2Brush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="8,4,8,16"
+                    Margin="0,0,0,12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0"
+                                VerticalAlignment="Center"
+                                Spacing="2">
+                        <TextBlock Text="وت‌پلاس"
+                                   FontSize="19"
+                                   FontWeight="ExtraBold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="کلینیک هوشمند"
+                                   FontSize="11"
+                                   Foreground="{StaticResource Muted2Brush}" />
+                    </StackPanel>
+                    <Border Grid.Column="1"
+                            Width="40"
+                            Height="40"
+                            CornerRadius="12"
+                            VerticalAlignment="Center">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="{StaticResource Brand500Color}" />
+                                <GradientStop Offset="1" Color="{StaticResource Brand600Color}" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Path Classes="icon"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              Stroke="White"
+                              Data="{StaticResource IconShield}" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Bottom cluster: upsell CTA + sync status + user card -->
+            <StackPanel DockPanel.Dock="Bottom" Spacing="8">
+                <!-- Upsell CTA -->
+                <Border CornerRadius="14"
+                        Padding="14"
+                        BorderBrush="{StaticResource Brand100Brush}"
+                        BorderThickness="1">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                            <GradientStop Offset="0" Color="{StaticResource Brand50Color}" />
+                            <GradientStop Offset="0.9" Color="White" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <StackPanel Spacing="4" HorizontalAlignment="Center">
+                        <TextBlock Text="نسخه حرفه‌ای"
+                                   HorizontalAlignment="Center"
+                                   FontSize="13.5"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="همه‌چیز برای یک کلینیک درخشان"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   FontSize="11.5"
+                                   Foreground="{StaticResource MutedBrush}" />
+                        <Button Classes="primary"
+                                Margin="0,6,0,0"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Content="مشاهده امکانات"
+                                Command="{Binding OpenUpsellCommand}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Sync status -->
+                <StackPanel Orientation="Horizontal"
+                            Spacing="8"
+                            Margin="4,4,4,0">
+                    <Ellipse Width="8"
+                             Height="8"
+                             VerticalAlignment="Center"
+                             Fill="{StaticResource OkBrush}" />
+                    <StackPanel Spacing="1">
+                        <TextBlock Text="همگام‌سازی فعال"
+                                   FontWeight="Bold"
+                                   FontSize="11.5"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="آخرین بروزرسانی: چند ثانیه پیش"
+                                   FontSize="11"
+                                   Foreground="{StaticResource MutedBrush}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- User card -->
+                <Border CornerRadius="12"
+                        Padding="10,9"
+                        Background="White"
+                        BorderBrush="{StaticResource Line2Brush}"
+                        BorderThickness="1">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Border Grid.Column="0"
+                                Width="34"
+                                Height="34"
+                                CornerRadius="10">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Offset="0" Color="{StaticResource Brand500Color}" />
+                                    <GradientStop Offset="1" Color="{StaticResource Brand700Color}" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <TextBlock Text="{Binding CurrentUser.Initials}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontWeight="ExtraBold"
+                                       FontSize="14"
+                                       Foreground="White" />
+                        </Border>
+                        <StackPanel Grid.Column="1"
+                                    Margin="10,0"
+                                    VerticalAlignment="Center"
+                                    Spacing="1">
+                            <TextBlock Text="{Binding CurrentUser.Name}"
+                                       FontSize="12.5"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource InkBrush}" />
+                            <TextBlock Text="{Binding CurrentUser.RoleLabel}"
+                                       FontSize="10.5"
+                                       Foreground="{StaticResource MutedBrush}" />
+                        </StackPanel>
+                        <Path Grid.Column="2"
+                              Classes="icon"
+                              VerticalAlignment="Center"
+                              Width="15"
+                              Height="15"
+                              Stroke="{StaticResource Muted2Brush}"
+                              Data="{StaticResource IconChevronLeft}" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+
+            <!-- Grouped nav list (fills the middle) -->
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="shell:NavGroupViewModel">
+                            <StackPanel Margin="0,0,0,4">
+                                <TextBlock Text="{Binding Title}"
+                                           Foreground="{StaticResource Muted2Brush}"
+                                           FontSize="10.5"
+                                           FontWeight="Bold"
+                                           Padding="12,14,12,6" />
+                                <ItemsControl ItemsSource="{Binding Entries}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="shell:NavEntryViewModel">
+                                            <Button Classes="nav-item"
+                                                    Classes.active="{Binding IsActive}"
+                                                    Margin="0,1"
+                                                    Command="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).NavigateCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <!-- Left accent bar (active only) -->
+                                                    <Border Classes="nav-accent"
+                                                            Grid.Column="0"
+                                                            Width="3"
+                                                            Margin="-12,1,10,1"
+                                                            CornerRadius="3"
+                                                            Background="{StaticResource Brand600Brush}" />
+                                                    <StackPanel Grid.Column="0"
+                                                                Orientation="Horizontal"
+                                                                Spacing="10"
+                                                                VerticalAlignment="Center">
+                                                        <Path Classes="icon nav-icon"
+                                                              Width="18"
+                                                              Height="18"
+                                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1"
+                                                               Classes="nav-label"
+                                                               VerticalAlignment="Center"
+                                                               Margin="10,0,0,0"
+                                                               Text="{Binding Label}" />
+                                                    <Border Grid.Column="2"
+                                                            Classes="nav-badge"
+                                                            IsVisible="{Binding HasBadge}"
+                                                            CornerRadius="20"
+                                                            Padding="7,1"
+                                                            MinWidth="20"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Classes="nav-badge-text"
+                                                                   Text="{Binding BadgeText}"
+                                                                   HorizontalAlignment="Center"
+                                                                   FontSize="11"
+                                                                   FontWeight="Bold" />
+                                                    </Border>
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+        </DockPanel>
+    </Border>
+
+</UserControl>

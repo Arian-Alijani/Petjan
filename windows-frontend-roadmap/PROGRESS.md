@@ -6,8 +6,33 @@
 
 ## Current state
 
-- **Next phase to execute:** `05` — App Shell: Sidebar, Topbar, Navigation
-- **Build verification (this session):** installed the real **.NET 10 SDK
+- **Next phase to execute:** `06` — Dashboard Screen (role-based)
+- **Repo state (Phase 05):** the real app shell now exists.
+  `Animora.Contracts` gained `Navigation/NavItem.cs` (nav DTO — Key/Label/
+  IconKey/ViewModelType/GroupName/BadgeCount), `Navigation/UserRole.cs`
+  (`Manager|Cashier|Doctor`), and `Identity/ICurrentUserContext.cs` (name/
+  role/initials seam). `Animora.Desktop/Shell/` adds `PageViewModelBase`
+  (Title/Eyebrow/Breadcrumbs/IsBusy — every screen VM derives from it),
+  `NavigationMenu` (static groups/items mirroring the reference's `NAV_ITEMS`
+  exactly), `SidebarView(+VM)` + `NavGroupViewModel`/`NavEntryViewModel`
+  (brand header, grouped nav with active highlight + left accent bar, badge
+  pills, upsell CTA + sync-status + user card), `TopbarView(+VM)` (accent
+  title/breadcrumbs bound to the current page, visual-only search, quick-
+  create, inert bell, user chip), `PlaceholderPageView(+VM)` (single shared
+  "not built yet" page every nav item currently targets), `ViewLocator`
+  (convention-based VM→View resolution, registered as an app `DataTemplate`),
+  `IconKeyConverter` (icon-key string → Geometry, app resource), and
+  `MainWindow(+VM)` (Grid: SidebarView column + Topbar-over-ContentControl
+  column). `Animora.Desktop/Services/` adds `INavigationService`/
+  `NavigationService` (DI-resolved `NavigateTo<T>()`, observable
+  `CurrentViewModel`). `Animora.Desktop/Mocks/MockCurrentUserContext`
+  returns the reference's default `manager` identity. DI wires the identity/
+  navigation/shell singletons; `MainWindow` no longer hosts the Phase 03
+  control gallery (kept on disk, dev-only, unreferenced). Every sidebar item
+  routes to the placeholder without error, active-highlight tracks the click,
+  startup lands on the "داشبورد" slot. `scripts/sandbox/build.sh full` =
+  0 warnings / 0 errors; `scripts/sandbox/run.sh` = SMOKE RUN OK.
+- **Build verification (Phase 04 session):** installed the real **.NET 10 SDK
   (10.0.401)** and ran `dotnet restore` + `dotnet build Animora.sln` — now
   **0 warnings / 0 errors** across all 5 projects. This was the first session
   with a working `dotnet` toolchain since Phase 01, so it retroactively
@@ -91,7 +116,7 @@
 | 02 | Design Tokens & Theme Resources | ✅ Done | Vazirmatn v33.003 variable TTF bundled (OFL) |
 | 03 | Base Control Library | ✅ Done | Build-verified (0/0); TryFindResource + AVLN3001 defects fixed (see log) |
 | 04 | RTL & Localization Utilities | ⚠️ Done with deviation | Build-verified (0/0). Persian-digit codepoint follows the actual reference `toFa` (U+06Fx), not the phase text's U+066x example — see log |
-| 05 | App Shell: Sidebar, Topbar, Navigation | ⬜ Not started | |
+| 05 | App Shell: Sidebar, Topbar, Navigation | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK. Notification bell reuses IconClock (no bell icon in the set); see log |
 | 06 | Dashboard Screen | ⬜ Not started | |
 | 07 | Reception & Queue Screen | ⬜ Not started | |
 | 08 | Patients & Owners — List/Grid | ⬜ Not started | |
@@ -124,6 +149,42 @@ deviation (see log below).
 
 > Append one entry per deviation from the roadmap/conventions, newest on
 > top. If a phase followed the plan exactly, no entry is needed.
+
+### Phase 05 — App Shell: Sidebar, Topbar, Navigation
+
+- **Notification bell reuses `IconClock`.** Phase 03's icon set (23 keys) has
+  no dedicated "bell" geometry, and CONVENTIONS.md §7 scopes this phase to
+  not re-open earlier phases. The topbar bell is a visual/inert stub anyway
+  (Task 7), so it borrows `IconClock` + the red dot for the visual demo. A
+  later phase that wires real notifications can add a proper bell icon.
+- **`NavItem.ViewModelType` is a `System.Type`, targets resolved via DI.**
+  Task 1 listed "Href/ViewModelType"; since this is a native MVVM client (no
+  URLs), the DTO carries the `PageViewModelBase`-derived `Type` and
+  `INavigationService.NavigateTo(Type)` resolves the instance from the
+  container — the idiomatic Avalonia navigation seam per CONVENTIONS.md §3.
+- **Single shared `PlaceholderPageViewModel` (registered singleton).** Every
+  nav item targets the same placeholder instance; the sidebar calls
+  `ConfigureFor(label)` on navigation so the topbar title/breadcrumb/content
+  reflect the clicked item. Each screen phase (06+) registers its own page VM
+  and swaps that one item's `NavigationMenu` target.
+- **View resolution via a convention `ViewLocator` `IDataTemplate`.** Instead
+  of per-VM `DataTemplate`s, an app-level `ViewLocator` maps `…ViewModel` →
+  `…View` by name and constructs the View parameterless (DataContext = the
+  injected VM). This is the standard Avalonia MVVM pattern and keeps Views
+  DI-free while ViewModels stay DI-injected.
+- **`MainWindowViewModel` mirrors `INavigationService.CurrentViewModel`.** The
+  content `ContentControl` binds to a `CurrentPage` observable on the shell VM
+  (updated from `CurrentViewModelChanged`) rather than to the interface
+  property directly, because compiled bindings observe change notification off
+  the concrete VM, not the notification-free service interface.
+- **Nav command binding uses `$parent[UserControl]`.** The nav `Button` lives
+  two `ItemsControl` levels deep (groups → entries); its `NavigateCommand`
+  binds through `$parent[UserControl]`'s `SidebarViewModel` DataContext, since
+  the nearest `ItemsControl` ancestor's DataContext is the `NavGroupViewModel`.
+- **Phase 03 control gallery left on disk, unreferenced.** `MainWindow` now
+  hosts the real shell; `Pages/_ControlGallery/*` is no longer registered in
+  DI or shown, but kept as a dev-only reference (deleting it was out of this
+  phase's scope).
 
 ### Phase 04 — RTL & Localization Utilities
 
