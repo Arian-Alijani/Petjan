@@ -23,9 +23,17 @@ public partial class ControlGalleryView : UserControl
 
         InitializeComponent();
 
+        DataContext = this;
+
         Toast.Attach((ToastService)toastService);
         _dialogService.Attach(Modal, Drawer);
     }
+
+    /// <summary>Phase 04 proof: a raw ASCII number bound through PersianDigitsConverter.</summary>
+    public int SampleCount { get; } = 1234567;
+
+    /// <summary>Phase 04 proof: today's Gregorian date, bound through JalaliDateConverter.</summary>
+    public System.DateTime Today { get; } = System.DateTime.Now;
 
     private void OnShowToastClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
         _toastService.Show("تغییرات با موفقیت ذخیره شد.", Tone.Ok);
