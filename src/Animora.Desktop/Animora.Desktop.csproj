@@ -5,6 +5,16 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- Guarantee the Avalonia XAML compiler always runs for this assembly.
+         Without this, a build where CoreCompile is skipped (stale obj/, an
+         incremental up-to-date hit, or a design-time build promoted to a real
+         one) can emit Animora.Desktop.dll WITHOUT the CompiledAvaloniaXaml
+         resource. At runtime AvaloniaXamlLoader.Load(this) in App.Initialize()
+         then throws:
+           "No precompiled XAML found for Animora.Desktop.App ...".
+         Forcing this true makes the CompileAvaloniaXaml target's condition
+         ($(EnableAvaloniaXamlCompilation) != false) always satisfied. -->
+    <EnableAvaloniaXamlCompilation>true</EnableAvaloniaXamlCompilation>
     <!-- AVLN3001: Windows/UserControls in this app are always created through
          the DI container (constructor injection), never via Avalonia's runtime
          XAML loader, so they intentionally have no public parameterless
@@ -35,5 +45,85 @@
   <ItemGroup>
     <ProjectReference Include="..\Animora.Contracts\Animora.Contracts.csproj" />
   </ItemGroup>
+
+  <!-- ===================================================================== -->
+  <!-- Safety net: fail the build (with a clear, actionable message) if the   -->
+  <!-- produced assembly does NOT contain compiled Avalonia XAML.             -->
+  <!--                                                                        -->
+  <!-- The Avalonia CompileAvaloniaXaml target only runs as part of           -->
+  <!-- CoreCompile. If CoreCompile is skipped (stale obj/bin, a fast          -->
+  <!-- up-to-date check on Windows/VS, a corrupted incremental state, etc.)   -->
+  <!-- the DLL is emitted WITHOUT the '!AvaloniaResources' embedded resource, -->
+  <!-- and the app crashes at startup with                                    -->
+  <!--   "No precompiled XAML found for Animora.Desktop.App".                 -->
+  <!--                                                                        -->
+  <!-- This target inspects the freshly built assembly and turns that silent, -->
+  <!-- run-time-only failure into a loud, fixable BUILD error, telling the    -->
+  <!-- developer to do a clean rebuild.                                       -->
+  <!-- ===================================================================== -->
+  <Target Name="VerifyCompiledAvaloniaXaml"
+          AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' AND '$(BuildingProject)' == 'true'">
+    <PropertyGroup>
+      <_AnimoraBuiltAssembly>$(TargetDir)$(TargetFileName)</_AnimoraBuiltAssembly>
+    </PropertyGroup>
+    <!-- The Avalonia resource compiler embeds a manifest resource literally
+         named "!AvaloniaResources". Its presence is the definitive proof that
+         the XAML was precompiled into this assembly. We read the assembly bytes
+         and check for that marker (it appears verbatim in the metadata). -->
+    <VerifyAvaloniaXamlEmbedded AssemblyPath="$(_AnimoraBuiltAssembly)" />
+  </Target>
+
+  <UsingTask TaskName="VerifyAvaloniaXamlEmbedded"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <AssemblyPath ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Method" Language="cs"><![CDATA[
+        public override bool Execute()
+        {
+            // Nothing built (e.g. copy-only build) — don't block.
+            bool found = true;
+            if (System.IO.File.Exists(AssemblyPath))
+            {
+                byte[] bytes = System.IO.File.ReadAllBytes(AssemblyPath);
+                // Search the raw assembly bytes for the ASCII marker
+                // "!AvaloniaResources" — the manifest resource the Avalonia XAML
+                // compiler embeds. Its presence proves XAML was precompiled.
+                byte[] marker = System.Text.Encoding.ASCII.GetBytes("!AvaloniaResources");
+                found = false;
+                for (int i = 0; i + marker.Length <= bytes.Length && !found; i++)
+                {
+                    bool match = true;
+                    for (int j = 0; j < marker.Length; j++)
+                    {
+                        if (bytes[i + j] != marker[j]) { match = false; break; }
+                    }
+                    found = match;
+                }
+            }
+
+            if (!found)
+            {
+                Log.LogError(
+                    "Compiled Avalonia XAML is MISSING from '" + AssemblyPath + "'. " +
+                    "The app would crash at startup with \"No precompiled XAML found for " +
+                    "Animora.Desktop.App\". This is almost always a stale build. " +
+                    "Do a CLEAN rebuild: delete the bin/ and obj/ folders (or run " +
+                    "'dotnet clean' then 'dotnet build'), and rebuild the whole solution.");
+            }
+            else
+            {
+                Log.LogMessage(Microsoft.Build.Framework.MessageImportance.Normal,
+                    "Verified: compiled Avalonia XAML is embedded in " + AssemblyPath + ".");
+            }
+
+            return found;
+        }
+      ]]></Code>
+    </Task>
+  </UsingTask>
 
 </Project>
