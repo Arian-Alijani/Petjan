@@ -12,4 +12,7 @@ public enum Tone
     Warn,
     Info,
     Ok,
+    Brand,
+    Lilac,
+    Peach,
 }

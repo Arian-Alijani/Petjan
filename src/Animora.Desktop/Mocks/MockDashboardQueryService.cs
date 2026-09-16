@@ -27,10 +27,31 @@ public sealed class MockDashboardQueryService : IDashboardQueryService
         HeroSubtitle: "نمای کلی امروز کلینیک — درآمد، ویزیت‌ها و هشدارهای مهم.",
         Stats: new[]
         {
-            new DashboardStat("IconChart", "درآمد امروز", "۸۶٫۴ م", "۲۴٪↑", true),
-            new DashboardStat("IconUsers", "بیماران فعال", "۱٬۲۸۴", "۸٪↑", true),
-            new DashboardStat("IconClipboard", "ویزیت‌های امروز", "۱۸ ویزیت", "۷۵٪", true),
-            new DashboardStat("IconBox", "هشدار موجودی", "۳", "۲٫۱٪↓", false),
+            new DashboardStat("IconArrowUpRight", "درآمد امروز", "۸۶٫۴ م", "۲۴٪↑", true, DashboardTone.Brand, "هدف: ۷۵ م تومان"),
+            new DashboardStat("IconUsers", "بیماران فعال", "۱٬۲۸۴", "۸٪↑", true, DashboardTone.Lilac, "۲۷ پرونده جدید این ماه"),
+            new DashboardStat("IconChart", "ویزیت‌های امروز", "۱۸ ویزیت", "۷۵٪", true, DashboardTone.Info, "۱۲ انجام‌شده · ۶ در صف"),
+            new DashboardStat("IconBox", "هشدار موجودی", "۳", "۲٫۱٪↓", false, DashboardTone.Danger, "نیازمند تأمین فوری"),
+        },
+        RevenuePulse: new DashboardRevenuePulse(
+            "۱۸٬۴۰۰٬۰۰۰ تومان",
+            "۲۴٪↑ نسبت به دیروز",
+            // Normalized 0..1 sample series driving the area/line chart, shaped
+            // to the reference pulseChart's gentle rise-dip-rise silhouette.
+            new[] { 0.42, 0.55, 0.48, 0.62, 0.58, 0.74, 0.68, 0.82, 0.9 }),
+        DoctorLoads: new[]
+        {
+            new DashboardDoctorLoad("آ", "دکتر آریا نیک", "داخلی و جراحی", 5, 7, "#0D9488"),
+            new DashboardDoctorLoad("م", "دکتر مینا همتی", "واکسن و پیشگیری", 3, 6, "#1570CD"),
+            new DashboardDoctorLoad("س", "دکتر سهیل کاویانی", "دندان‌پزشکی", 4, 5, "#8F74D1"),
+            new DashboardDoctorLoad("ن", "نگار راد", "آرایش و نگهداری", 0, 3, "#E08A5C"),
+        },
+        Species: new[]
+        {
+            new DashboardSpecies("سگ", 578, "#0D9488"),
+            new DashboardSpecies("گربه", 398, "#B8A2E6"),
+            new DashboardSpecies("پرنده", 154, "#F0B593"),
+            new DashboardSpecies("خرگوش و جوندگان", 103, "#8FB5F0"),
+            new DashboardSpecies("سایر گونه‌ها", 51, "#CFD9D6"),
         },
         PrimaryListTitle: "صف زندهٔ امروز",
         PrimaryList: new[]

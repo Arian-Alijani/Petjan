@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:loc="using:Animora.Desktop.Localization"
              xmlns:shell="using:Animora.Desktop.Shell"
+             xmlns:dashboard="using:Animora.Desktop.Pages.Dashboard"
              x:Class="Animora.Desktop.App"
              RequestedThemeVariant="Default">
 
@@ -27,6 +28,10 @@
             <!-- Phase 05: resolves an icon resource key string to its Geometry,
                  so the data-driven sidebar can bind icons by key. -->
             <shell:IconKeyConverter x:Key="IconKeyConverter" />
+
+            <!-- Maps a Contracts DashboardTone to the Desktop Tone enum, so KPI
+                 StatCards can colour their icon tile per tone (teal/lilac/info/danger). -->
+            <dashboard:ToneConverter x:Key="ToneConverter" />
         </ResourceDictionary>
     </Application.Resources>
 

@@ -17,14 +17,7 @@ public sealed class DashboardRowViewModel
         Title = item.Title;
         Subtitle = item.Subtitle;
         TagText = item.TagText;
-        Tone = item.TagTone switch
-        {
-            DashboardTone.Danger => Tone.Danger,
-            DashboardTone.Warn => Tone.Warn,
-            DashboardTone.Info => Tone.Info,
-            DashboardTone.Ok => Tone.Ok,
-            _ => Tone.Neutral,
-        };
+        Tone = ToneMap.From(item.TagTone);
     }
 
     public string AvatarText { get; }

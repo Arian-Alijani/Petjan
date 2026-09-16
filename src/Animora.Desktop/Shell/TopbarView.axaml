@@ -10,9 +10,11 @@
             Padding="24,12">
         <Grid ColumnDefinitions="Auto,*,Auto">
 
-            <!-- Fold toggle (inert stub) -->
+            <!-- Fold toggle: collapses the sidebar. Sits at the far right in
+                 RTL (grid column 0), matching the reference topbar. -->
             <Button Grid.Column="0"
                     Classes="ghost"
+                    Command="{Binding ToggleSidebarCommand}"
                     Width="36"
                     Height="36"
                     Padding="0"
@@ -22,7 +24,7 @@
                       Width="18"
                       Height="18"
                       Stroke="{StaticResource Ink2Brush}"
-                      Data="{StaticResource IconMore}" />
+                      Data="{StaticResource IconFold}" />
             </Button>
 
             <!-- Title block: accent rail + breadcrumbs + heading -->
@@ -120,6 +122,20 @@
                     </StackPanel>
                 </Button>
 
+                <!-- Theme toggle (moon) — inert stub, matching the reference. -->
+                <Button Classes="ghost"
+                        Command="{Binding ToggleThemeCommand}"
+                        Width="36"
+                        Height="36"
+                        Padding="0"
+                        ToolTip.Tip="تم روشن/تیره">
+                    <Path Classes="icon"
+                          Width="18"
+                          Height="18"
+                          Stroke="{StaticResource Ink2Brush}"
+                          Data="{StaticResource IconMoon}" />
+                </Button>
+
                 <!-- Notification bell (inert stub, red dot) -->
                 <Button Classes="ghost"
                         Command="{Binding OpenNotificationsCommand}"
@@ -132,7 +148,7 @@
                               Width="18"
                               Height="18"
                               Stroke="{StaticResource Ink2Brush}"
-                              Data="{StaticResource IconClock}" />
+                              Data="{StaticResource IconBell}" />
                         <Ellipse Width="8"
                                  Height="8"
                                  HorizontalAlignment="Right"

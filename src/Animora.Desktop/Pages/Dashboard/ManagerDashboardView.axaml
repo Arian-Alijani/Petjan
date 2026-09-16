@@ -5,88 +5,350 @@
              x:Class="Animora.Desktop.Pages.Dashboard.ManagerDashboardView"
              x:DataType="dashboard:DashboardPageViewModel">
 
-    <!-- Mirrors DASH_VIEW_MANAGER's "live queue" + "management alerts" cards
-         (Animora-UI/assets/dashboard-views.js). The revenue-chart/species-donut
-         sections are out of this phase's budget (Out of scope §: no
-         live/animated data beyond a simple mock render). -->
-    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+    <!-- Mirrors DASH_VIEW_MANAGER (Animora-UI/assets/dashboard-views.js):
+         Row 1 — revenue pulse chart (1.3fr) + doctor workload (1fr).
+         Row 2 — live queue + species donut + management alerts (1fr each). -->
+    <StackPanel Spacing="16">
 
-        <Border Grid.Column="0" Classes="card">
-            <StackPanel>
-                <StackPanel Classes="card-header">
-                    <TextBlock Classes="card-title" Text="{Binding PrimaryListTitle}" />
-                </StackPanel>
-                <Border Classes="card-header-rule" />
-                <ItemsControl Margin="18" ItemsSource="{Binding PrimaryList}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
-                            <Grid Margin="0,0,0,10" ColumnDefinitions="Auto,*,Auto">
-                                <Border Grid.Column="0"
-                                        Width="34"
-                                        Height="34"
-                                        CornerRadius="10"
-                                        Background="{StaticResource Brand50Brush}">
-                                    <TextBlock Text="{Binding AvatarText}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
+        <!-- ============ Row 1: revenue pulse + doctor workload ============ -->
+        <Grid ColumnDefinitions="1.3*,1*" ColumnSpacing="16">
+
+            <!-- نبض مالی کلینیک (clinic financial pulse) -->
+            <Border Grid.Column="0" Classes="card" Padding="20,18">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="نبض مالی کلینیک"
+                                       FontSize="{StaticResource FontSizeMd}"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource InkBrush}" />
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Bottom">
+                                <TextBlock Text="{Binding RevenuePulse.Value}"
+                                           FontSize="{StaticResource FontSizeXl}"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource InkBrush}"
+                                           VerticalAlignment="Bottom" />
+                                <TextBlock Text="{Binding RevenuePulse.Caption}"
+                                           FontSize="{StaticResource FontSizeXs}"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource OkBrush}"
+                                           VerticalAlignment="Bottom"
+                                           Margin="4,0,0,3" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Range tabs (روز/هفته/ماه/سال) — visual match, inert. -->
+                        <Border Grid.Column="1"
+                                VerticalAlignment="Top"
+                                CornerRadius="10"
+                                Padding="3"
+                                Background="{StaticResource Brand50Brush}"
+                                BorderBrush="{StaticResource Line2Brush}"
+                                BorderThickness="1">
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <Border CornerRadius="8" Padding="10,4" Background="{StaticResource PanelBrush}">
+                                    <TextBlock Text="هفته"
+                                               FontSize="{StaticResource FontSizeXs}"
                                                FontWeight="Bold"
                                                Foreground="{StaticResource Brand700Brush}" />
                                 </Border>
-                                <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
-                                    <TextBlock Text="{Binding Title}"
-                                               FontSize="{StaticResource FontSizeSm}"
-                                               FontWeight="Bold"
-                                               Foreground="{StaticResource InkBrush}" />
-                                    <TextBlock Text="{Binding Subtitle}"
+                                <Border CornerRadius="8" Padding="10,4">
+                                    <TextBlock Text="روز"
                                                FontSize="{StaticResource FontSizeXs}"
                                                Foreground="{StaticResource MutedBrush}" />
-                                </StackPanel>
-                                <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </Border>
-
-        <Border Grid.Column="1" Classes="card">
-            <StackPanel>
-                <StackPanel Classes="card-header">
-                    <TextBlock Classes="card-title" Text="{Binding SecondaryListTitle}" />
-                </StackPanel>
-                <Border Classes="card-header-rule" />
-                <ItemsControl Margin="18" ItemsSource="{Binding SecondaryList}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
-                            <Grid Margin="0,0,0,10" ColumnDefinitions="Auto,*,Auto">
-                                <Border Grid.Column="0"
-                                        Width="34"
-                                        Height="34"
-                                        CornerRadius="10"
-                                        Background="{StaticResource Brand50Brush}">
-                                    <TextBlock Text="{Binding AvatarText}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
-                                               FontWeight="Bold"
-                                               Foreground="{StaticResource Brand700Brush}" />
                                 </Border>
-                                <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
-                                    <TextBlock Text="{Binding Title}"
+                                <Border CornerRadius="8" Padding="10,4">
+                                    <TextBlock Text="ماه"
+                                               FontSize="{StaticResource FontSizeXs}"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </Border>
+                                <Border CornerRadius="8" Padding="10,4">
+                                    <TextBlock Text="سال"
+                                               FontSize="{StaticResource FontSizeXs}"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Area + line chart drawn from the normalized pulse series.
+                         Canvas is 500×180 to match the reference viewBox. -->
+                    <Border CornerRadius="12" ClipToBounds="True" Height="180">
+                        <Viewbox Stretch="Fill">
+                            <Canvas Width="500" Height="180">
+                                <!-- dashed gridlines -->
+                                <Line StartPoint="0,40" EndPoint="500,40"
+                                      Stroke="{StaticResource Line2Brush}" StrokeThickness="1" StrokeDashArray="3,4" />
+                                <Line StartPoint="0,80" EndPoint="500,80"
+                                      Stroke="{StaticResource Line2Brush}" StrokeThickness="1" StrokeDashArray="3,4" />
+                                <Line StartPoint="0,120" EndPoint="500,120"
+                                      Stroke="{StaticResource Line2Brush}" StrokeThickness="1" StrokeDashArray="3,4" />
+
+                                <!-- filled area under the line -->
+                                <Path Data="{Binding RevenueAreaGeometry}">
+                                    <Path.Fill>
+                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                            <GradientStop Offset="0" Color="#5914B8A6" />
+                                            <GradientStop Offset="1" Color="#0014B8A6" />
+                                        </LinearGradientBrush>
+                                    </Path.Fill>
+                                </Path>
+
+                                <!-- revenue trend line -->
+                                <Path Data="{Binding RevenueLineGeometry}"
+                                      Stroke="#14B8A6"
+                                      StrokeThickness="2.5"
+                                      StrokeLineCap="Round"
+                                      StrokeJoin="Round" />
+                            </Canvas>
+                        </Viewbox>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- بار کاری پزشکان امروز (doctor workload today) -->
+            <Border Grid.Column="1" Classes="card">
+                <StackPanel>
+                    <Grid Classes="card-header" ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Classes="card-title" Text="بار کاری پزشکان امروز" />
+                        <TextBlock Grid.Column="1"
+                                   Text="نوبت انجام‌شده / کل"
+                                   VerticalAlignment="Center"
+                                   FontSize="{StaticResource FontSizeXs}"
+                                   Foreground="{StaticResource MutedBrush}" />
+                    </Grid>
+                    <Border Classes="card-header-rule" />
+                    <ItemsControl Margin="18,14,18,18" ItemsSource="{Binding DoctorLoads}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="dashboard:DashboardDoctorLoadViewModel">
+                                <Grid Margin="0,0,0,12" ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0"
+                                            Width="32"
+                                            Height="32"
+                                            CornerRadius="10"
+                                            Background="{Binding TintBrush}">
+                                        <TextBlock Text="{Binding Initial}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontWeight="Bold"
+                                                   Foreground="{Binding AccentBrush}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="5">
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontSize="{StaticResource FontSizeSm}"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <!-- progress bar (done/total): the filled
+                                             portion is a proportional star column. -->
+                                        <Border Height="7"
+                                                CornerRadius="4"
+                                                Background="{StaticResource Line2Brush}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="{Binding DoneStar}" />
+                                                    <ColumnDefinition Width="{Binding RemainStar}" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0"
+                                                        Height="7"
+                                                        CornerRadius="4"
+                                                        Background="{Binding AccentBrush}" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding CountText}"
+                                               VerticalAlignment="Center"
                                                FontSize="{StaticResource FontSizeSm}"
                                                FontWeight="Bold"
                                                Foreground="{StaticResource InkBrush}" />
-                                    <TextBlock Text="{Binding Subtitle}"
-                                               FontSize="{StaticResource FontSizeXs}"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                </StackPanel>
-                                <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
 
-    </Grid>
+        </Grid>
+
+        <!-- ======= Row 2: live queue + species donut + alerts ======= -->
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
+
+            <!-- صف زندهٔ امروز (today's live queue) -->
+            <Border Grid.Column="0" Classes="card">
+                <StackPanel>
+                    <StackPanel Classes="card-header">
+                        <TextBlock Classes="card-title" Text="{Binding PrimaryListTitle}" />
+                    </StackPanel>
+                    <Border Classes="card-header-rule" />
+                    <ItemsControl Margin="18" ItemsSource="{Binding PrimaryList}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
+                                <Grid Margin="0,0,0,10" ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0"
+                                            Width="34"
+                                            Height="34"
+                                            CornerRadius="10"
+                                            Background="{StaticResource Brand50Brush}">
+                                        <TextBlock Text="{Binding AvatarText}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource Brand700Brush}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontSize="{StaticResource FontSizeSm}"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="{Binding Subtitle}"
+                                                   FontSize="{StaticResource FontSizeXs}"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                    </StackPanel>
+                                    <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- بیماران بر اساس گونه (patients by species) -->
+            <Border Grid.Column="1" Classes="card">
+                <StackPanel>
+                    <StackPanel Classes="card-header">
+                        <TextBlock Classes="card-title" Text="بیماران بر اساس گونه" />
+                    </StackPanel>
+                    <Border Classes="card-header-rule" />
+
+                    <StackPanel Margin="18">
+                        <!-- Donut + centre total -->
+                        <Grid Width="170" Height="170" HorizontalAlignment="Center" Margin="0,0,0,14">
+                            <Viewbox Stretch="Uniform">
+                                <Canvas Width="120" Height="120">
+                                    <!-- track ring -->
+                                    <Ellipse Canvas.Left="12" Canvas.Top="12"
+                                             Width="96" Height="96"
+                                             Stroke="{StaticResource Line2Brush}"
+                                             StrokeThickness="13"
+                                             Fill="Transparent" />
+                                    <!-- coloured slices -->
+                                    <ItemsControl ItemsSource="{Binding SpeciesSlices}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="dashboard:DonutSliceViewModel">
+                                                <Path Data="{Binding Geometry}"
+                                                      Stroke="{Binding Brush}"
+                                                      StrokeThickness="{Binding StrokeThickness}"
+                                                      StrokeLineCap="Flat" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Canvas>
+                            </Viewbox>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="1">
+                                <TextBlock Text="{Binding SpeciesTotal}"
+                                           HorizontalAlignment="Center"
+                                           FontSize="{StaticResource FontSizeLg}"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource InkBrush}" />
+                                <TextBlock Text="کل بیماران فعال"
+                                           HorizontalAlignment="Center"
+                                           FontSize="{StaticResource FontSizeXs}"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Legend rows -->
+                        <ItemsControl ItemsSource="{Binding Species}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="dashboard:DashboardSpeciesViewModel">
+                                    <Grid Margin="0,0,0,6" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="9">
+                                        <Ellipse Grid.Column="0"
+                                                 Width="9"
+                                                 Height="9"
+                                                 VerticalAlignment="Center"
+                                                 Fill="{Binding SwatchBrush}" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding Name}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="{StaticResource FontSizeXs}"
+                                                   FontWeight="Bold"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{StaticResource Ink2Brush}" />
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding CountText}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="{StaticResource FontSizeXs}"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                        <TextBlock Grid.Column="3"
+                                                   Text="{Binding PercentText}"
+                                                   VerticalAlignment="Center"
+                                                   MinWidth="32"
+                                                   TextAlignment="End"
+                                                   FontSize="{StaticResource FontSizeXs}"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- هشدارهای مدیریتی (management alerts) -->
+            <Border Grid.Column="2" Classes="card">
+                <StackPanel>
+                    <Grid Classes="card-header" ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Classes="card-title" Text="{Binding SecondaryListTitle}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="نیازمند اقدام"
+                                   VerticalAlignment="Center"
+                                   FontSize="{StaticResource FontSizeXs}"
+                                   Foreground="{StaticResource MutedBrush}" />
+                    </Grid>
+                    <Border Classes="card-header-rule" />
+                    <ItemsControl Margin="18" ItemsSource="{Binding SecondaryList}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
+                                <Grid Margin="0,0,0,10" ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0"
+                                            Width="34"
+                                            Height="34"
+                                            CornerRadius="10"
+                                            Background="{StaticResource Brand50Brush}">
+                                        <TextBlock Text="{Binding AvatarText}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource Brand700Brush}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontSize="{StaticResource FontSizeSm}"
+                                                   FontWeight="Bold"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="{Binding Subtitle}"
+                                                   FontSize="{StaticResource FontSizeXs}"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                    </StackPanel>
+                                    <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+        </Grid>
+
+    </StackPanel>
 
 </UserControl>
