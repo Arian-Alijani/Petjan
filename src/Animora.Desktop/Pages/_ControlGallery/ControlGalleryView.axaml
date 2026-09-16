@@ -9,7 +9,7 @@
          verified before Phase 05 replaces MainWindow's content with the
          real app shell. -->
     <Panel>
-        <ScrollViewer Padding="{StaticResource Spacing32}">
+        <ScrollViewer Padding="{StaticResource Pad32}">
             <StackPanel Spacing="{StaticResource Spacing24}" MaxWidth="900">
 
                 <TextBlock Text="Control Gallery — Phase 03"

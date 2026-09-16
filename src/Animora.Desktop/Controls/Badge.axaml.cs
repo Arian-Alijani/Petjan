@@ -32,7 +32,10 @@ public partial class Badge : UserControl
     public Badge()
     {
         InitializeComponent();
-        UpdateAppearance();
+        // Tree-independent content only; tone brushes are resolved once the
+        // control is attached to the visual tree (see OnAttachedToVisualTree),
+        // because App-level resources are not reachable during construction.
+        TextBlock.Text = Text;
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -45,14 +48,18 @@ public partial class Badge : UserControl
         }
         else if (change.Property == ToneProperty)
         {
-            UpdateAppearance();
+            UpdateToneBrushes();
         }
     }
 
-    private void UpdateAppearance()
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        TextBlock.Text = Text;
+        base.OnAttachedToVisualTree(e);
+        UpdateToneBrushes();
+    }
 
+    private void UpdateToneBrushes()
+    {
         var (bg, fg) = Tone switch
         {
             Tone.Danger => ("DangerBgBrush", "DangerBrush"),
@@ -62,7 +69,14 @@ public partial class Badge : UserControl
             _ => ("Line2Brush", "MutedBrush"),
         };
 
-        Root.Background = (IBrush?)this.FindResource(bg) ?? Brushes.Transparent;
-        TextBlock.Foreground = (IBrush?)this.FindResource(fg) ?? Brushes.Black;
+        Root.Background = ResolveBrush(bg, Brushes.Transparent);
+        TextBlock.Foreground = ResolveBrush(fg, Brushes.Black);
     }
+
+    // TryFindResource returns false (never AvaloniaProperty.UnsetValue) when the
+    // key is missing, so we never cast UnsetValueType to IBrush.
+    private IBrush ResolveBrush(string key, IBrush fallback) =>
+        this.TryFindResource(key, out var value) && value is IBrush brush
+            ? brush
+            : fallback;
 }

@@ -12,7 +12,11 @@
     <CornerRadius x:Key="Radius">16</CornerRadius>
     <CornerRadius x:Key="RadiusLg">20</CornerRadius>
 
-    <!-- 4px-based spacing scale (x:Double so it composes into Thickness/Padding) -->
+    <!-- 4px-based spacing scale.
+         Doubles feed scalar properties: StackPanel.Spacing, Grid gaps, etc.
+         A boxed Double CANNOT be assigned to a Thickness property (Padding/
+         Margin/BorderThickness) — Avalonia performs a direct cast and throws
+         InvalidCastException. For those properties use the PadX tokens below. -->
     <sys:Double x:Key="Spacing4">4</sys:Double>
     <sys:Double x:Key="Spacing8">8</sys:Double>
     <sys:Double x:Key="Spacing12">12</sys:Double>
@@ -20,5 +24,15 @@
     <sys:Double x:Key="Spacing20">20</sys:Double>
     <sys:Double x:Key="Spacing24">24</sys:Double>
     <sys:Double x:Key="Spacing32">32</sys:Double>
+
+    <!-- Uniform Thickness tokens for Padding/Margin (same 4px scale).
+         Use these instead of the Double tokens on Thickness properties. -->
+    <Thickness x:Key="Pad4">4</Thickness>
+    <Thickness x:Key="Pad8">8</Thickness>
+    <Thickness x:Key="Pad12">12</Thickness>
+    <Thickness x:Key="Pad16">16</Thickness>
+    <Thickness x:Key="Pad20">20</Thickness>
+    <Thickness x:Key="Pad24">24</Thickness>
+    <Thickness x:Key="Pad32">32</Thickness>
 
 </ResourceDictionary>
