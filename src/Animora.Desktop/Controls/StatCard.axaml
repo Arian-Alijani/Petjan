@@ -2,50 +2,61 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Animora.Desktop.Controls.StatCard">
 
-    <!-- Matches Animora-UI/assets/styles.css .stat/.stat-head/.stat-icon/
-         .stat-delta/.stat-value/.stat-label. -->
-    <Border Classes="card" Padding="{StaticResource Pad16}">
-        <StackPanel Spacing="{StaticResource Spacing20}">
+    <!-- KPI stat card, Material-Design-3 outlined style, RTL-aware.
+         Header row: delta chip in the leading (right) column, tinted icon tile
+         in the trailing (left) column. Value/label block is right-aligned,
+         matching the target reference. -->
+    <Border Classes="card" Padding="20,18">
+        <StackPanel Spacing="16">
 
             <Grid ColumnDefinitions="Auto,*,Auto">
-                <Border x:Name="IconTile"
+                <!-- Delta chip: leading edge (right in RTL) -->
+                <Border x:Name="DeltaChip"
                         Grid.Column="0"
-                        Width="38"
-                        Height="38"
+                        CornerRadius="10"
+                        Padding="8,3"
+                        Background="{StaticResource OkBgBrush}"
+                        VerticalAlignment="Top"
+                        HorizontalAlignment="Left">
+                    <TextBlock x:Name="DeltaText"
+                               FontSize="{StaticResource FontSizeXs}"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource OkBrush}" />
+                </Border>
+
+                <!-- Icon tile: trailing edge (left in RTL) -->
+                <Border x:Name="IconTile"
+                        Grid.Column="2"
+                        Width="40"
+                        Height="40"
                         CornerRadius="12"
                         BorderThickness="1"
                         Background="{StaticResource Brand50Brush}"
                         BorderBrush="{StaticResource Brand100Brush}">
                     <Path x:Name="IconPath"
                           Classes="icon"
-                          Width="18"
-                          Height="18"
+                          Width="19"
+                          Height="19"
                           Stroke="{StaticResource Brand600Brush}" />
-                </Border>
-
-                <Border x:Name="DeltaChip"
-                        Grid.Column="2"
-                        CornerRadius="10"
-                        Padding="8,3"
-                        Background="{StaticResource OkBgBrush}"
-                        VerticalAlignment="Top">
-                    <TextBlock x:Name="DeltaText"
-                               FontSize="{StaticResource FontSizeXs}"
-                               FontWeight="Bold"
-                               Foreground="{StaticResource OkBrush}" />
                 </Border>
             </Grid>
 
-            <StackPanel Spacing="{StaticResource Spacing4}">
+            <StackPanel Spacing="3" HorizontalAlignment="Right">
                 <TextBlock x:Name="ValueText"
                            FontSize="{StaticResource FontSizeXl}"
                            FontWeight="Bold"
+                           TextAlignment="Right"
+                           HorizontalAlignment="Right"
                            Foreground="{StaticResource InkBrush}" />
                 <TextBlock x:Name="LabelText"
                            FontSize="{StaticResource FontSizeSm}"
+                           TextAlignment="Right"
+                           HorizontalAlignment="Right"
                            Foreground="{StaticResource MutedBrush}" />
                 <TextBlock x:Name="FootText"
                            FontSize="{StaticResource FontSizeXs}"
+                           TextAlignment="Right"
+                           HorizontalAlignment="Right"
                            Foreground="{StaticResource Muted2Brush}"
                            IsVisible="False" />
             </StackPanel>

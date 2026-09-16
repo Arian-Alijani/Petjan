@@ -7,14 +7,33 @@
         Width="1440"
         Height="900"
         WindowStartupLocation="CenterScreen"
+        FlowDirection="RightToLeft"
         Background="{StaticResource BgBrush}">
 
     <!-- App shell: sidebar column + (topbar over scrollable content) column,
-         matching the reference's .app / .sidebar / .main / .page structure. -->
+         matching the reference's .app / .sidebar / .main / .page structure.
+         FlowDirection is pinned here on the Window itself: setting it only via a
+         TopLevel style leaves the Window's own default (LeftToRight) as a local
+         value that wins over the style, which mirrored the whole shell wrong. -->
     <Grid ColumnDefinitions="Auto,*">
 
+        <!-- Sidebar host: width is animated (0 <-> 264) so the topbar fold
+             toggle can collapse/expand the menu smoothly. Placed in the RTL
+             leading column, so it renders on the right of the window.
+             ClipToBounds keeps the fixed-width inner content from spilling out
+             while the outer width tweens. -->
         <shell:SidebarView Grid.Column="0"
-                           DataContext="{Binding Sidebar}" />
+                           Width="{Binding SidebarWidth}"
+                           ClipToBounds="True"
+                           DataContext="{Binding Sidebar}">
+            <shell:SidebarView.Transitions>
+                <Transitions>
+                    <DoubleTransition Property="Width"
+                                      Duration="0:0:0.24"
+                                      Easing="CubicEaseInOut" />
+                </Transitions>
+            </shell:SidebarView.Transitions>
+        </shell:SidebarView>
 
         <DockPanel Grid.Column="1" LastChildFill="True">
             <shell:TopbarView DockPanel.Dock="Top"
