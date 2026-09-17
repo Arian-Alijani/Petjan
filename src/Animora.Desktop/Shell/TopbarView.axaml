@@ -10,9 +10,12 @@
             Padding="24,12">
         <Grid ColumnDefinitions="Auto,*,Auto">
 
-            <!-- Animated menu toggle. A single chevron/arrow that smoothly
-                 rotates to flip its direction as the sidebar collapses/expands,
-                 leaving the compact icon navigation rail available. -->
+            <!-- Animated menu toggle. This is now the SINGLE sidebar fold
+                 control for the whole shell (the duplicate in-sidebar toggle
+                 was removed). It uses the fold (double-chevron ») glyph so the
+                 former in-sidebar icon now lives here, in the topbar's leading
+                 slot, and smoothly rotates to flip direction as the sidebar
+                 collapses/expands. -->
             <Button Grid.Column="0"
                     Classes="ghost"
                     Command="{Binding ToggleSidebarCommand}"
@@ -28,7 +31,7 @@
                       VerticalAlignment="Center"
                       RenderTransformOrigin="50%,50%"
                       Stroke="{StaticResource Ink2Brush}"
-                      Data="{StaticResource IconChevronRight}">
+                      Data="{StaticResource IconFold}">
                     <Path.RenderTransform>
                         <RotateTransform Angle="{Binding ToggleIconRotation}">
                             <RotateTransform.Transitions>

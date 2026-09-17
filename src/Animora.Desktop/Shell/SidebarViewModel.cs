@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Animora.Contracts.Identity;
@@ -24,22 +23,6 @@ public sealed partial class SidebarViewModel : ObservableObject
     [ObservableProperty]
     private bool _isExpanded = true;
 
-    // 0° keeps the double-chevron pointing toward the sidebar's leading (right,
-    // RTL) edge — a "collapse" hint — while expanded; 180° flips it to point
-    // away as an "expand" hint while collapsed. The view tweens between them.
-    [ObservableProperty]
-    private double _toggleIconRotation;
-
-    [ObservableProperty]
-    private string _toggleToolTip = "جمع کردن منو";
-
-    /// <summary>
-    /// Raised when the in-sidebar fold button is pressed. The shell
-    /// (MainWindowViewModel) listens to this to collapse/expand the rail,
-    /// keeping the width/animation state out of the sidebar itself.
-    /// </summary>
-    public event EventHandler? ToggleRequested;
-
     public SidebarViewModel(
         INavigationService navigation,
         ICurrentUserContext currentUser)
@@ -62,18 +45,6 @@ public sealed partial class SidebarViewModel : ObservableObject
     public IReadOnlyList<NavGroupViewModel> Groups { get; }
 
     public ICurrentUserContext CurrentUser { get; }
-
-    /// <summary>Request the shell to flip the rail between expanded and compact.</summary>
-    [RelayCommand]
-    private void Toggle() => ToggleRequested?.Invoke(this, EventArgs.Empty);
-
-    // Keep the fold-button glyph + tooltip in sync with the presentation state,
-    // whether the toggle came from the sidebar itself or the topbar.
-    partial void OnIsExpandedChanged(bool value)
-    {
-        ToggleIconRotation = value ? 0 : 180;
-        ToggleToolTip = value ? "جمع کردن منو" : "باز کردن منو";
-    }
 
     /// <summary>Navigate to the clicked entry's target and update the highlight.</summary>
     [RelayCommand]
