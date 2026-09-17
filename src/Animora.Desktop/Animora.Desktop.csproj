@@ -43,9 +43,14 @@
          Vazirmatn upstream ships a single VARIABLE font (wght 100..900). Avalonia
          does not resolve arbitrary variable-font weights, so any non-Regular
          FontWeight rendered as .notdef boxes (solid black rectangles). We instead
-         embed discrete STATIC weight files (see scripts/build_vazirmatn_weights.py),
-         all sharing the "Vazirmatn" typographic family so the font matcher can
-         pick the correct file per requested FontWeight. -->
+         embed the six OFFICIAL upstream STATIC weight files (see
+         scripts/build_vazirmatn_weights.py). They share the preferred family
+         "Vazirmatn" (name ID 16) but keep a collision-free legacy naming table
+         (RIBBI Regular/Bold + a unique legacy family for each heavier weight), so
+         Windows DirectWrite/GDI, macOS CoreText and Linux FreeType all resolve
+         every requested FontWeight (400..900) to real outlines — not just Linux.
+         Do NOT collapse the heavy weights onto one shared legacy family name:
+         that reintroduces a RIBBI collision that only breaks on Windows. -->
     <AvaloniaResource Include="Assets\Fonts\Vazirmatn-Regular.ttf" />
     <AvaloniaResource Include="Assets\Fonts\Vazirmatn-Medium.ttf" />
     <AvaloniaResource Include="Assets\Fonts\Vazirmatn-SemiBold.ttf" />

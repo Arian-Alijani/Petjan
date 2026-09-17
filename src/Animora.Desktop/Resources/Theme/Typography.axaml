@@ -6,21 +6,31 @@
          Font: Vazirmatn (OFL, bundled as an embedded asset — no runtime CDN),
          matching the reference (Animora-UI) which imports Vazirmatn.
 
-         IMPORTANT: Vazirmatn is bundled as discrete STATIC weight files
-         (Regular/Medium/SemiBold/Bold/ExtraBold/Black — see
-         scripts/build_vazirmatn_weights.py). Two earlier attempts failed:
-           1. Using the upstream VARIABLE font — Avalonia can't weight-resolve it,
-              so every non-Regular label rendered as solid black boxes.
-           2. Instancing static weights but giving heavy weights their OWN legacy
-              family name ("Vazirmatn ExtraBold", ...) while leaving the variable
-              STAT axis + fvar instance name records behind. Avalonia then could
-              not collapse the six files into one weightable "Vazirmatn" family,
-              so ExtraBold/Black still fell back to .notdef (black rectangles).
-         Current fix: every file shares ONE legacy+typographic family name
-         "Vazirmatn", differs only by usWeightClass (400..900), and all
-         variable-font leftovers are stripped. The folder-scoped avares:// URI
-         below then exposes a single "Vazirmatn" family with six real weights, so
-         every requested FontWeight binds to real outlines.
+         IMPORTANT: Vazirmatn is bundled as the six OFFICIAL upstream STATIC
+         weight files (Regular/Medium/SemiBold/Bold/ExtraBold/Black — see
+         scripts/build_vazirmatn_weights.py). THREE earlier attempts failed:
+           1. Upstream VARIABLE font — Avalonia can't weight-resolve it, so every
+              non-Regular label rendered as solid black boxes.
+           2. Static weights with each heavy file keeping its OWN legacy family
+              name + leftover variable STAT/fvar tables — matcher couldn't
+              collapse them into one family; heavy weights fell back to .notdef.
+           3. Forcing ALL six files to ID1="Vazirmatn" with a legacy RIBBI
+              subfamily of only "Regular"/"Bold". That collided three files onto
+              (Vazirmatn, Regular) and three onto (Vazirmatn, Bold). The RIBBI
+              model allows ONE face per (family, subfamily): Linux/FreeType kept
+              all six (so the sandbox looked fixed) but Windows DirectWrite kept
+              only one Bold + one Regular and discarded Medium/SemiBold/ExtraBold/
+              Black — so ExtraBold headings were black boxes ON WINDOWS ONLY.
+         Current fix: use the upstream static faces verbatim. They use the correct
+         cross-platform layout — RIBBI base pair (ID1="Vazirmatn" + ID2 Regular/
+         Bold) for 400/700, and a UNIQUE legacy family ("Vazirmatn Medium",
+         "Vazirmatn SemiBold", "Vazirmatn ExtraBold", "Vazirmatn Black") plus
+         preferred family ID16="Vazirmatn" for the other weights. No legacy
+         collision, no variable tables, so Windows/macOS/Linux all resolve each
+         FontWeight (400..900) to real outlines. The avares:// URI below matches
+         on the preferred family "Vazirmatn" and exposes all six weights.
+         NEVER re-collapse the heavy weights back onto ID1="Vazirmatn" — that is
+         attempt #3, which silently passes on Linux and breaks Windows.
 
          Type scale + the weight tokens below mirror the reference's observed
          heading/body sizes and weights (400/500/600/700/800) so all app text is

@@ -1,65 +1,105 @@
 #!/usr/bin/env python3
 """
-Normalize the bundled static Vazirmatn weight files into ONE clean, canonical
-multi-weight family so Avalonia's font matcher resolves every FontWeight to the
-correct outlines instead of rendering heavy weights (Bold/ExtraBold/Black) as
-solid black rectangles (.notdef "tofu").
+Fetch + verify the bundled static Vazirmatn weight files so Avalonia's font
+matcher resolves EVERY requested FontWeight (Regular..Black) to real outlines on
+ALL platforms — Windows (DirectWrite/GDI), macOS (CoreText) and Linux
+(FreeType/fontconfig) — instead of rendering heavy weights as solid black
+rectangles (.notdef "tofu").
+
+================================================================================
+Bug history / root cause  (READ THIS BEFORE TOUCHING FONT NAMING)
+================================================================================
+Three attempts were made; the first two shipped and STILL showed black boxes for
+bold headings on real Windows machines even though headless Linux screenshots
+looked fine. This is the crucial trap: the Linux FreeType/fontconfig matcher
+weight-resolves by OS/2.usWeightClass and is forgiving, so a broken naming table
+renders correctly under Xvfb in the sandbox — while Windows DirectWrite/GDI,
+which strictly honours the legacy RIBBI (Regular/Italic/Bold/BoldItalic) model,
+drops the duplicates and falls back to .notdef. Never validate a font-naming fix
+on Linux alone.
+
+  Attempt 1 — use the upstream VARIABLE font (single Vazirmatn.ttf, wght 100..900).
+    Avalonia cannot weight-resolve a variable font, so every non-Regular label
+    rendered as tofu. -> switched to discrete static weights.
+
+  Attempt 2 — static weights, but each heavy file kept its OWN legacy family
+    name (ID1 = "Vazirmatn ExtraBold", ...) while leftover variable tables
+    (STAT weight axis, fvar named-instances, nameID >= 256) were still present.
+    The matcher couldn't collapse the six disagreeing families into one, so the
+    heavy weights still fell back to tofu.
+
+  Attempt 3 (the regression this fix replaces) — forced ALL six files to
+    ID1 = "Vazirmatn" and ID2 = a RIBBI subfamily of only "Regular"/"Bold".
+    That created a LEGACY-FAMILY COLLISION:
+        family="Vazirmatn" subfamily="Regular"  <- Regular 400, Medium 500, SemiBold 600
+        family="Vazirmatn" subfamily="Bold"     <- Bold 700, ExtraBold 800, Black 900
+    The RIBBI model allows only ONE face per (family, subfamily) pair. Linux
+    kept all six (weight-class match) so the sandbox looked fixed; Windows
+    DirectWrite kept exactly one "Bold" face (700) and one "Regular" face,
+    discarding Medium/SemiBold/ExtraBold/Black. Requesting ExtraBold(800)/
+    Black(900) then found no face -> .notdef -> black rectangles. THAT is why
+    the headings were boxes on your machine but not in the sandbox.
+
+================================================================================
+The canonical fix (this script) — the Google Fonts static-family model
+================================================================================
+Use the UPSTREAM official static TTFs verbatim. Their naming is the correct,
+cross-platform "preferred family + RIBBI base pair" layout:
+
+    file        ID1 (legacy family)   ID2 (RIBBI)  ID16 (preferred)  ID17
+    ---------   -------------------   -----------  ----------------  ---------
+    Regular     Vazirmatn             Regular      (absent)          (absent)
+    Bold        Vazirmatn             Bold         (absent)          (absent)
+    Medium      Vazirmatn Medium      Regular      Vazirmatn         Medium
+    SemiBold    Vazirmatn SemiBold    Regular      Vazirmatn         SemiBold
+    ExtraBold   Vazirmatn ExtraBold   Regular      Vazirmatn         ExtraBold
+    Black       Vazirmatn Black       Regular      Vazirmatn         Black
+
+Why this resolves everywhere:
+  * The legacy table is a valid RIBBI pair (Vazirmatn / Regular + Bold) with NO
+    duplicate (family, subfamily) rows, so DirectWrite/GDI keep every face.
+  * Medium/SemiBold/ExtraBold/Black each carry a UNIQUE legacy family name, so
+    they never collide with anything and register as their own faces.
+  * ID16 = "Vazirmatn" (preferred/typographic family) ties all six together, so
+    a matcher that understands the preferred family sees one "Vazirmatn" with
+    six weights; one that doesn't still finds each weight via its legacy name.
+  * No leftover variable tables (STAT/fvar/gvar/avar/HVAR/VVAR/MVAR); the only
+    nameID >= 256 record is the harmless "Farsi Digits" stylistic-set label.
+
+Avalonia's `avares://.../Assets/Fonts#Vazirmatn` URI matches on the preferred
+family, and each `FontWeight` (400/500/600/700/800/900) binds to the file whose
+OS/2.usWeightClass matches — so ExtraBold headings render real Persian glyphs.
+
+DO NOT rewrite ID1 to a single shared "Vazirmatn" for the heavy weights again:
+that is exactly the Attempt-3 collision that broke Windows.
 
 --------------------------------------------------------------------------------
-Bug history / root cause
+Usage
 --------------------------------------------------------------------------------
-1. Upstream Vazirmatn ships a single VARIABLE font (wght 100..900). Avalonia
-   cannot weight-resolve a variable font, so a first attempt to use it rendered
-   every non-Regular label as tofu.
+  python3 scripts/build_vazirmatn_weights.py            # verify bundled files
+  python3 scripts/build_vazirmatn_weights.py --fetch     # re-download from upstream
 
-2. The first fix instanced discrete static weights, but split the LEGACY family
-   name (name ID 1) per weight ("Vazirmatn SemiBold", "Vazirmatn ExtraBold", ...)
-   while keeping only the TYPOGRAPHIC family (ID 16) equal to "Vazirmatn". It
-   also left the variable-font leftovers behind (a STAT table still advertising
-   the Weight axis, plus fvar named-instance name records 256+ and a stale
-   Unique-ID / name ID 3 that still said "...Vazirmatn-Regular").
-
-   Avalonia 12.x builds an EmbeddedFontCollection keyed by the family name that
-   the platform typeface reports. When the six files disagree on the family name
-   (some say "Vazirmatn", some say "Vazirmatn ExtraBold") AND still carry a STAT
-   Weight axis + named-instance records, the matcher cannot reliably collapse
-   them into one "Vazirmatn" family with six weights. Requesting the heaviest
-   weights (ExtraBold 800 / Black 900) then fails to bind to real outlines and
-   falls back to .notdef -> solid black rectangles.
-
---------------------------------------------------------------------------------
-The canonical fix (this script)
---------------------------------------------------------------------------------
-Rewrite every static file so they form ONE unambiguous static family:
-  * name ID 1 (legacy family)  = "Vazirmatn"   for ALL six weights
-  * name ID 2 (legacy subfam.) = RIBBI style   ("Regular" or "Bold")
-  * name ID 16 (typo family)   = "Vazirmatn"   for ALL six weights
-  * name ID 17 (typo subfamily)= real style     (Regular/Medium/.../Black)
-  * name ID 4  (full)          = "Vazirmatn <Style>"
-  * name ID 6  (PostScript)    = "Vazirmatn-<Style>"
-  * name ID 3  (unique id)     = "Vazirmatn-<Style>"  (was stale "...Regular")
-  * OS/2.usWeightClass         = 400/500/600/700/800/900
-  * OS/2.fsSelection / head.macStyle bold+regular bits set correctly
-  * Remove leftover variable tables (STAT/fvar/gvar/avar/HVAR/VVAR/MVAR) and the
-    fvar named-instance / axis name records (nameID >= 256) so nothing advertises
-    a variable axis anymore.
-
-Because Regular(400) and Bold(700) use the RIBBI subfamily ("Regular"/"Bold")
-while Medium/SemiBold/ExtraBold/Black also keep legacy family "Vazirmatn" (with
-their real usWeightClass), the matcher sees a single "Vazirmatn" family with six
-distinct weights and binds each requested FontWeight to real glyph outlines.
-
-Idempotent: run it against the already-bundled static TTFs (the variable original
-is no longer in the repo). It reads each Vazirmatn-<Style>.ttf, normalizes it, and
-writes it back in place.
+The upstream release is Vazirmatn (rastikerdar/vazirmatn), OFL-1.1. `--fetch`
+overwrites the six bundled TTFs with the official static faces; the default run
+only VERIFIES that the bundled files still have the correct, collision-free
+naming (fails loudly if a future edit reintroduces the bug).
 """
+from __future__ import annotations
+
+import argparse
+import sys
+import urllib.request
 from pathlib import Path
+
 from fontTools.ttLib import TTFont
 
 FONTS_DIR = Path("src/Animora.Desktop/Assets/Fonts")
-FAMILY = "Vazirmatn"
+PREFERRED_FAMILY = "Vazirmatn"
+UPSTREAM = (
+    "https://github.com/rastikerdar/vazirmatn/raw/master/fonts/ttf/Vazirmatn-{style}.ttf"
+)
 
-# style -> usWeightClass
+# style -> expected OS/2.usWeightClass
 WEIGHTS = {
     "Regular": 400,
     "Medium": 500,
@@ -69,86 +109,119 @@ WEIGHTS = {
     "Black": 900,
 }
 
-# Variable-font tables that must not survive in a static instance.
+# Variable-font tables that must never be present in a static instance.
 VAR_TABLES = ("STAT", "fvar", "gvar", "avar", "HVAR", "VVAR", "MVAR", "cvar")
 
 
-def set_name(name_table, name_id, value):
-    """Set a name record on Windows (3,1,0x409) and Mac (1,0,0) platforms."""
-    name_table.setName(value, name_id, 3, 1, 0x409)
-    name_table.setName(value, name_id, 1, 0, 0)
+def _name(font: TTFont, nid: int) -> str | None:
+    rec = font["name"].getName(nid, 3, 1, 0x409) or font["name"].getName(nid, 1, 0, 0)
+    return rec.toUnicode() if rec else None
 
 
-def normalize(style: str, weight: int):
-    path = FONTS_DIR / f"Vazirmatn-{style}.ttf"
-    font = TTFont(str(path))
+def fetch() -> None:
+    FONTS_DIR.mkdir(parents=True, exist_ok=True)
+    for style in WEIGHTS:
+        url = UPSTREAM.format(style=style)
+        dst = FONTS_DIR / f"Vazirmatn-{style}.ttf"
+        print(f"  downloading {style:10s} <- {url}")
+        with urllib.request.urlopen(url) as resp:
+            dst.write_bytes(resp.read())
+    print("Fetched all six official static faces.")
 
-    is_bold = weight >= 700  # RIBBI "bold" bit for 700+
 
-    # --- OS/2 weight + selection bits ---
-    os2 = font["OS/2"]
-    os2.usWeightClass = weight
-    fs = os2.fsSelection
-    fs &= ~(1 << 0)              # clear ITALIC
-    if is_bold:
-        fs |= (1 << 5)          # set BOLD
-        fs &= ~(1 << 6)         # clear REGULAR
-    else:
-        fs &= ~(1 << 5)         # clear BOLD
-        fs |= (1 << 6)          # set REGULAR
-    os2.fsSelection = fs
+def verify() -> bool:
+    """Return True iff all six files are the correct, collision-free static faces.
 
-    # --- head.macStyle bold bit ---
-    head = font["head"]
-    if is_bold:
-        head.macStyle |= 0x01
-    else:
-        head.macStyle &= ~0x01
+    Enforces the invariants that keep heavy weights from becoming Windows tofu:
+      - exactly the expected usWeightClass per file
+      - a valid RIBBI base pair (Regular + Bold under legacy family "Vazirmatn")
+        with NO extra file re-using that legacy family (the Attempt-3 collision)
+      - preferred family (ID16) == "Vazirmatn" for the non-RIBBI weights
+      - no leftover variable-font tables
+    """
+    ok = True
+    legacy_family_users: dict[str, list[str]] = {}
 
-    # --- names: one canonical "Vazirmatn" family for every weight ---
-    name = font["name"]
+    for style, expected_w in WEIGHTS.items():
+        path = FONTS_DIR / f"Vazirmatn-{style}.ttf"
+        if not path.exists():
+            print(f"  MISSING: {path}")
+            ok = False
+            continue
 
-    # RIBBI legacy subfamily: only Regular/Bold are valid RIBBI styles; every
-    # non-RIBBI weight still lives under the SAME legacy family "Vazirmatn" and is
-    # disambiguated purely by usWeightClass. This keeps all six in one family so
-    # the matcher can weight-resolve them.
-    legacy_sub = "Bold" if is_bold else "Regular"
-    full = f"{FAMILY} {style}"
-    ps = f"{FAMILY}-{style}"
+        font = TTFont(str(path))
+        os2_w = font["OS/2"].usWeightClass
+        id1 = _name(font, 1)
+        id2 = _name(font, 2)
+        id16 = _name(font, 16)
+        var_left = [t for t in VAR_TABLES if t in font]
 
-    set_name(name, 1, FAMILY)          # Legacy family  (SAME for all weights)
-    set_name(name, 2, legacy_sub)      # Legacy subfamily (RIBBI)
-    set_name(name, 3, ps)              # Unique ID (was stale "...Regular")
-    set_name(name, 4, full)            # Full name
-    set_name(name, 6, ps)              # PostScript name
-    set_name(name, 16, FAMILY)         # Typographic family (SAME for all weights)
-    set_name(name, 17, style)          # Typographic subfamily (real style)
+        legacy_family_users.setdefault((id1, id2), []).append(style)
 
-    # Drop fvar named-instance / variation axis name records (IDs 256+) that the
-    # variable original left behind; they make matchers think this is still a
-    # variable/named-instance face.
-    name.names = [r for r in name.names if r.nameID < 256]
+        problems = []
+        if os2_w != expected_w:
+            problems.append(f"usWeightClass={os2_w} (expected {expected_w})")
+        if var_left:
+            problems.append(f"variable tables left: {var_left}")
 
-    # --- drop leftover variable-font tables ---
-    removed = []
-    for tag in VAR_TABLES:
-        if tag in font:
-            del font[tag]
-            removed.append(tag)
+        if style in ("Regular", "Bold"):
+            # RIBBI base pair: legacy family must be the bare preferred family.
+            if id1 != PREFERRED_FAMILY:
+                problems.append(f"ID1={id1!r} (expected {PREFERRED_FAMILY!r})")
+            if id2 != style:
+                problems.append(f"ID2={id2!r} (expected {style!r})")
+        else:
+            # Non-RIBBI weight: needs a UNIQUE legacy family + preferred=Vazirmatn.
+            if id1 == PREFERRED_FAMILY:
+                problems.append(
+                    f"ID1={id1!r} collides with the RIBBI base family "
+                    f"(must be a unique 'Vazirmatn {style}')"
+                )
+            if id16 != PREFERRED_FAMILY:
+                problems.append(f"ID16={id16!r} (expected {PREFERRED_FAMILY!r})")
 
-    font.save(str(path))
-    print(
-        f"  -> {path.name:24s} usWeightClass={weight} bold={is_bold} "
-        f"removed={removed or '-'}"
+        status = "OK" if not problems else "FAIL"
+        print(
+            f"  [{status}] {path.name:24s} w={os2_w} ID1={id1!r} ID2={id2!r} ID16={id16!r}"
+        )
+        for p in problems:
+            print(f"         - {p}")
+            ok = False
+
+    # Legacy-family collision guard: the (family, subfamily) pairs used by the
+    # RIBBI base must be claimed by exactly one file each. This is the exact
+    # invariant whose violation caused the Windows-only black-box regression.
+    for (fam, sub), users in legacy_family_users.items():
+        if fam == PREFERRED_FAMILY and len(users) > 1:
+            print(
+                f"  COLLISION: legacy family ({fam!r},{sub!r}) claimed by "
+                f"{users} — DirectWrite will drop all but one -> tofu."
+            )
+            ok = False
+
+    return ok
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument(
+        "--fetch",
+        action="store_true",
+        help="re-download the six official static faces from upstream first",
     )
+    args = ap.parse_args()
 
+    if args.fetch:
+        print("Fetching official static Vazirmatn faces ...")
+        fetch()
 
-def main():
-    print(f"Normalizing static Vazirmatn weights in {FONTS_DIR} ...")
-    for style, weight in WEIGHTS.items():
-        normalize(style, weight)
-    print("Done. All six files now form one canonical 'Vazirmatn' family.")
+    print(f"Verifying static Vazirmatn weights in {FONTS_DIR} ...")
+    if verify():
+        print("OK: all six files form a valid, collision-free 'Vazirmatn' family.")
+        return 0
+    print("ERROR: font naming is broken — heavy weights will render as tofu.")
+    return 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
