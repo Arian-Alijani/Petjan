@@ -78,4 +78,28 @@
     <SolidColorBrush x:Key="PeachBrush" Color="{StaticResource PeachColor}" />
     <SolidColorBrush x:Key="PeachBgBrush" Color="{StaticResource PeachBgColor}" />
 
+    <!-- Patients & Owners accents, from patients.css :root. -->
+    <Color x:Key="RoseColor">#c96fa8</Color>
+    <Color x:Key="RoseBgColor">#fbe4f1</Color>
+    <Color x:Key="MintColor">#3fa48c</Color>
+    <Color x:Key="MintBgColor">#ddf0e9</Color>
+
+    <SolidColorBrush x:Key="RoseBrush" Color="{StaticResource RoseColor}" />
+    <SolidColorBrush x:Key="RoseBgBrush" Color="{StaticResource RoseBgColor}" />
+    <SolidColorBrush x:Key="MintBrush" Color="{StaticResource MintColor}" />
+    <SolidColorBrush x:Key="MintBgBrush" Color="{StaticResource MintBgColor}" />
+
+    <!-- Patients directory one-off surfaces, read from patients.css
+         (.pt-table thead th bg, .oc-pets/.pk-owner inset, table row hover,
+         .pb-search input:hover). -->
+    <Color x:Key="TableHeadColor">#fafbfa</Color>
+    <Color x:Key="InsetColor">#fcfdfc</Color>
+    <Color x:Key="RowHoverColor">#f8fbfa</Color>
+    <Color x:Key="InputHoverColor">#f3f7f4</Color>
+
+    <SolidColorBrush x:Key="TableHeadBrush" Color="{StaticResource TableHeadColor}" />
+    <SolidColorBrush x:Key="InsetBrush" Color="{StaticResource InsetColor}" />
+    <SolidColorBrush x:Key="RowHoverBrush" Color="{StaticResource RowHoverColor}" />
+    <SolidColorBrush x:Key="InputHoverBrush" Color="{StaticResource InputHoverColor}" />
+
 </ResourceDictionary>
