@@ -370,6 +370,24 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(HasPets));
         OnPropertyChanged(nameof(HasSearchText));
         OnPropertyChanged(nameof(ResultCountText));
+
+        // Entity / layout switches — the XAML binds visibility to these computed
+        // properties, so they must be re-raised whenever ViewMode/Layout or the
+        // filtered collections change; otherwise the toggle only takes effect
+        // after navigating away and back (forcing a full re-render).
+        OnPropertyChanged(nameof(IsOwnersView));
+        OnPropertyChanged(nameof(IsPetsView));
+        OnPropertyChanged(nameof(IsGridView));
+        OnPropertyChanged(nameof(IsListView));
+
+        // The four render combinations + shared empty state.
+        OnPropertyChanged(nameof(ShowOwnersGrid));
+        OnPropertyChanged(nameof(ShowOwnersTable));
+        OnPropertyChanged(nameof(ShowPetsGrid));
+        OnPropertyChanged(nameof(ShowPetsTable));
+        OnPropertyChanged(nameof(ShowEmptyState));
+        OnPropertyChanged(nameof(EmptyTitle));
+
         ClearSearchCommand.NotifyCanExecuteChanged();
     }
 
