@@ -55,23 +55,16 @@ cross-platform "preferred family + RIBBI base pair" layout:
     ExtraBold   Vazirmatn ExtraBold   Regular      Vazirmatn         ExtraBold
     Black       Vazirmatn Black       Regular      Vazirmatn         Black
 
-Why this resolves everywhere:
-  * The legacy table is a valid RIBBI pair (Vazirmatn / Regular + Bold) with NO
-    duplicate (family, subfamily) rows, so DirectWrite/GDI keep every face.
-  * Medium/SemiBold/ExtraBold/Black each carry a UNIQUE legacy family name, so
-    they never collide with anything and register as their own faces.
-  * ID16 = "Vazirmatn" (preferred/typographic family) ties all six together, so
-    a matcher that understands the preferred family sees one "Vazirmatn" with
-    six weights; one that doesn't still finds each weight via its legacy name.
-  * No leftover variable tables (STAT/fvar/gvar/avar/HVAR/VVAR/MVAR); the only
-    nameID >= 256 record is the harmless "Farsi Digits" stylistic-set label.
+The upstream files are valid, but that alone does NOT guarantee Avalonia will
+select them. A directory URI such as `Assets/Fonts#Vazirmatn` asks Avalonia/Skia
+to group files whose legacy names (ID1) differ by using their typographic family
+(ID16). That grouping produced different results on Windows and Linux. The app
+therefore uses one file URI per weight, with the exact ID1 after `#`, and maps
+effective FontWeight values to those resources in App.axaml. This script verifies
+both halves of that invariant: font metadata and the XAML file-to-family mapping.
 
-Avalonia's `avares://.../Assets/Fonts#Vazirmatn` URI matches on the preferred
-family, and each `FontWeight` (400/500/600/700/800/900) binds to the file whose
-OS/2.usWeightClass matches — so ExtraBold headings render real Persian glyphs.
-
-DO NOT rewrite ID1 to a single shared "Vazirmatn" for the heavy weights again:
-that is exactly the Attempt-3 collision that broke Windows.
+DO NOT rewrite ID1 to one shared "Vazirmatn", and do not replace the per-file
+resources with one directory URI. Both earlier approaches reintroduce ambiguity.
 
 --------------------------------------------------------------------------------
 Usage
@@ -90,10 +83,13 @@ import argparse
 import sys
 import urllib.request
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 from fontTools.ttLib import TTFont
 
 FONTS_DIR = Path("src/Animora.Desktop/Assets/Fonts")
+TYPOGRAPHY_XAML = Path("src/Animora.Desktop/Resources/Theme/Typography.axaml")
+APP_XAML = Path("src/Animora.Desktop/App.axaml")
 PREFERRED_FAMILY = "Vazirmatn"
 UPSTREAM = (
     "https://github.com/rastikerdar/vazirmatn/raw/master/fonts/ttf/Vazirmatn-{style}.ttf"
@@ -111,6 +107,7 @@ WEIGHTS = {
 
 # Variable-font tables that must never be present in a static instance.
 VAR_TABLES = ("STAT", "fvar", "gvar", "avar", "HVAR", "VVAR", "MVAR", "cvar")
+PERSIAN_PROBE = "نبض مالی کلینیک بیماران فعال ۱۲۳۴۵۶۷۸۹۰"
 
 
 def _name(font: TTFont, nid: int) -> str | None:
@@ -129,6 +126,75 @@ def fetch() -> None:
     print("Fetched all six official static faces.")
 
 
+def verify_xaml_mapping(legacy_families: dict[str, str]) -> bool:
+    """Ensure every weight uses its own file URI and exact internal ID1."""
+    try:
+        root = ET.parse(TYPOGRAPHY_XAML).getroot()
+    except (OSError, ET.ParseError) as exc:
+        print(f"  FAIL: cannot parse {TYPOGRAPHY_XAML}: {exc}")
+        return False
+
+    xaml_key = "{http://schemas.microsoft.com/winfx/2006/xaml}Key"
+    resources = {
+        node.attrib.get(xaml_key): (node.text or "").strip()
+        for node in root
+        if node.tag.endswith("FontFamily")
+    }
+    ok = True
+    for style, family in legacy_families.items():
+        key = "AppFontFamily" if style == "Regular" else f"AppFontFamily{style}"
+        expected = (
+            "avares://Animora.Desktop/Assets/Fonts/"
+            f"Vazirmatn-{style}.ttf#{family}"
+        )
+        actual = resources.get(key)
+        if actual != expected:
+            print(f"  [FAIL] {key}: {actual!r}; expected {expected!r}")
+            ok = False
+        else:
+            print(f"  [OK] {key}: exact file + ID1")
+
+    try:
+        app_root = ET.parse(APP_XAML).getroot()
+    except (OSError, ET.ParseError) as exc:
+        print(f"  FAIL: cannot parse {APP_XAML}: {exc}")
+        return False
+
+    selector_values: dict[str, str | None] = {}
+    for node in app_root.iter():
+        if not node.tag.endswith("Style") or "Selector" not in node.attrib:
+            continue
+        setter = next(
+            (
+                child
+                for child in node
+                if child.tag.endswith("Setter")
+                and child.attrib.get("Property") == "FontFamily"
+            ),
+            None,
+        )
+        selector_values[node.attrib["Selector"]] = (
+            setter.attrib.get("Value") if setter is not None else None
+        )
+
+    for style in WEIGHTS:
+        if style == "Regular":
+            continue
+        key = f"AppFontFamily{style}"
+        expected_value = f"{{StaticResource {key}}}"
+        for control in ("TextBlock", "ContentPresenter"):
+            selector = f"{control}[FontWeight={style}]"
+            actual = selector_values.get(selector)
+            if actual != expected_value:
+                print(
+                    f"  [FAIL] {selector}: {actual!r}; expected {expected_value!r}"
+                )
+                ok = False
+            else:
+                print(f"  [OK] {selector}: mapped to {key}")
+    return ok
+
+
 def verify() -> bool:
     """Return True iff all six files are the correct, collision-free static faces.
 
@@ -140,7 +206,8 @@ def verify() -> bool:
       - no leftover variable-font tables
     """
     ok = True
-    legacy_family_users: dict[str, list[str]] = {}
+    legacy_family_users: dict[tuple[str | None, str | None], list[str]] = {}
+    legacy_families: dict[str, str] = {}
 
     for style, expected_w in WEIGHTS.items():
         path = FONTS_DIR / f"Vazirmatn-{style}.ttf"
@@ -155,14 +222,22 @@ def verify() -> bool:
         id2 = _name(font, 2)
         id16 = _name(font, 16)
         var_left = [t for t in VAR_TABLES if t in font]
+        cmap = font.getBestCmap() or {}
+        missing_probe = sorted(
+            {char for char in PERSIAN_PROBE if not char.isspace() and ord(char) not in cmap}
+        )
 
         legacy_family_users.setdefault((id1, id2), []).append(style)
+        if id1:
+            legacy_families[style] = id1
 
         problems = []
         if os2_w != expected_w:
             problems.append(f"usWeightClass={os2_w} (expected {expected_w})")
         if var_left:
             problems.append(f"variable tables left: {var_left}")
+        if missing_probe:
+            problems.append(f"missing Persian probe glyphs: {missing_probe}")
 
         if style in ("Regular", "Bold"):
             # RIBBI base pair: legacy family must be the bare preferred family.
@@ -199,6 +274,13 @@ def verify() -> bool:
             )
             ok = False
 
+    print(f"Verifying deterministic XAML mapping in {TYPOGRAPHY_XAML} ...")
+    if set(legacy_families) != set(WEIGHTS):
+        print("  FAIL: cannot verify XAML mapping because font metadata is incomplete")
+        ok = False
+    elif not verify_xaml_mapping(legacy_families):
+        ok = False
+
     return ok
 
 
@@ -217,9 +299,9 @@ def main() -> int:
 
     print(f"Verifying static Vazirmatn weights in {FONTS_DIR} ...")
     if verify():
-        print("OK: all six files form a valid, collision-free 'Vazirmatn' family.")
+        print("OK: all static faces and deterministic per-file XAML mappings are valid.")
         return 0
-    print("ERROR: font naming is broken — heavy weights will render as tofu.")
+    print("ERROR: font metadata or deterministic XAML mapping is broken.")
     return 1
 
 
