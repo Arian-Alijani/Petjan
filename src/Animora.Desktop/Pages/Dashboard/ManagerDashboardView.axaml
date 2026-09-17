@@ -187,11 +187,13 @@
                                             Height="34"
                                             CornerRadius="10"
                                             Background="{StaticResource Brand50Brush}">
-                                        <TextBlock Text="{Binding AvatarText}"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   FontWeight="Bold"
-                                                   Foreground="{StaticResource Brand700Brush}" />
+                                        <Path Classes="icon"
+                                              Width="18"
+                                              Height="18"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Stroke="{StaticResource Brand700Brush}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
                                         <TextBlock Text="{Binding Title}"
@@ -265,25 +267,32 @@
                         <ItemsControl ItemsSource="{Binding Species}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="dashboard:DashboardSpeciesViewModel">
-                                    <Grid Margin="0,0,0,6" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="9">
+                                    <Grid Margin="0,0,0,6" ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="9">
                                         <Ellipse Grid.Column="0"
                                                  Width="9"
                                                  Height="9"
                                                  VerticalAlignment="Center"
                                                  Fill="{Binding SwatchBrush}" />
-                                        <TextBlock Grid.Column="1"
+                                        <Path Grid.Column="1"
+                                              Classes="icon"
+                                              Width="15"
+                                              Height="15"
+                                              VerticalAlignment="Center"
+                                              Stroke="{Binding SwatchBrush}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                        <TextBlock Grid.Column="2"
                                                    Text="{Binding Name}"
                                                    VerticalAlignment="Center"
                                                    FontSize="{StaticResource FontSizeXs}"
                                                    FontWeight="Bold"
                                                    TextTrimming="CharacterEllipsis"
                                                    Foreground="{StaticResource Ink2Brush}" />
-                                        <TextBlock Grid.Column="2"
+                                        <TextBlock Grid.Column="3"
                                                    Text="{Binding CountText}"
                                                    VerticalAlignment="Center"
                                                    FontSize="{StaticResource FontSizeXs}"
                                                    Foreground="{StaticResource MutedBrush}" />
-                                        <TextBlock Grid.Column="3"
+                                        <TextBlock Grid.Column="4"
                                                    Text="{Binding PercentText}"
                                                    VerticalAlignment="Center"
                                                    MinWidth="32"
@@ -315,11 +324,13 @@
                                             Height="34"
                                             CornerRadius="10"
                                             Background="{StaticResource Brand50Brush}">
-                                        <TextBlock Text="{Binding AvatarText}"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   FontWeight="Bold"
-                                                   Foreground="{StaticResource Brand700Brush}" />
+                                        <Path Classes="icon"
+                                              Width="18"
+                                              Height="18"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Stroke="{StaticResource Brand700Brush}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
                                         <TextBlock Text="{Binding Title}"

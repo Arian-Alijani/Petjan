@@ -16,14 +16,16 @@
          FlowDirection is pinned here on the Window itself: setting it only via a
          TopLevel style leaves the Window's own default (LeftToRight) as a local
          value that wins over the style, which mirrored the whole shell wrong. -->
-    <Grid ColumnDefinitions="Auto,*">
+    <!-- Grid columns are physical in Avalonia. Keep the menu explicitly in
+         the final/right column instead of relying on FlowDirection to mirror
+         the shell; this prevents the Persian sidebar from moving left on some
+         platforms. -->
+    <Grid ColumnDefinitions="*,Auto">
 
         <!-- Sidebar host: width is animated (0 <-> 264) so the topbar fold
-             toggle can collapse/expand the menu smoothly. Placed in the RTL
-             leading column, so it renders on the right of the window.
-             ClipToBounds keeps the fixed-width inner content from spilling out
-             while the outer width tweens. -->
-        <shell:SidebarView Grid.Column="0"
+             toggle can collapse/expand the menu smoothly. The explicit second
+             column pins it to the right edge in every RTL desktop render. -->
+        <shell:SidebarView Grid.Column="1"
                            Width="{Binding #Root.((shell:MainWindowViewModel)DataContext).SidebarWidth}"
                            ClipToBounds="True"
                            DataContext="{Binding Sidebar}">
@@ -36,7 +38,7 @@
             </shell:SidebarView.Transitions>
         </shell:SidebarView>
 
-        <DockPanel Grid.Column="1" LastChildFill="True">
+        <DockPanel Grid.Column="0" LastChildFill="True">
             <shell:TopbarView DockPanel.Dock="Top"
                               DataContext="{Binding Topbar}" />
 

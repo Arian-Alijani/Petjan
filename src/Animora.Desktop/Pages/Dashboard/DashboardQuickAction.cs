@@ -20,10 +20,7 @@ public sealed record DashboardQuickAction(string Label, string Subtitle, string 
         new DashboardQuickAction("واکسیناسیون", "۶ یادآور امروز", "IconSyringe", typeof(PlaceholderPageViewModel)),
         new DashboardQuickAction("فروش و صندوق", "صدور فاکتور", "IconCart", typeof(PlaceholderPageViewModel)),
         new DashboardQuickAction("انبار و کالا", "کنترل موجودی", "IconBox", typeof(PlaceholderPageViewModel)),
-        // Reference TILES[6] is "خرید و تأمین" (truck icon); Phase 03's 23-icon
-        // set has no truck geometry, so IconReceipt stands in for the tile's
-        // icon while label/subtitle/target stay faithful to dashboard.js.
-        new DashboardQuickAction("خرید و تأمین", "سفارش تأمین", "IconReceipt", typeof(PlaceholderPageViewModel)),
+        new DashboardQuickAction("خرید و تأمین", "سفارش تأمین", "IconTruck", typeof(PlaceholderPageViewModel)),
         new DashboardQuickAction("گزارش‌ها", "تحلیل عملکرد", "IconChart", typeof(PlaceholderPageViewModel)),
     };
 }

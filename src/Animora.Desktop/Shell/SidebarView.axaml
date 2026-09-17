@@ -3,6 +3,7 @@
              xmlns:shell="using:Animora.Desktop.Shell"
              x:Class="Animora.Desktop.Shell.SidebarView"
              x:DataType="shell:SidebarViewModel"
+             FlowDirection="RightToLeft"
              ClipToBounds="True">
 
     <UserControl.Styles>
@@ -266,6 +267,8 @@
                             <StackPanel Margin="0,0,0,4">
                                 <TextBlock Text="{Binding Title}"
                                            IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}"
+                                           HorizontalAlignment="Right"
+                                           TextAlignment="Right"
                                            Foreground="{StaticResource Muted2Brush}"
                                            FontSize="10.5"
                                            FontWeight="Bold"

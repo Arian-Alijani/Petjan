@@ -17,6 +17,7 @@ public sealed class DashboardSpeciesViewModel
     public DashboardSpeciesViewModel(DashboardSpecies species, double fraction)
     {
         Name = species.Name;
+        IconKey = ResolveIconKey(species.Name);
         ColorHex = species.ColorHex;
         SwatchBrush = ParseBrush(species.ColorHex);
         CountText = PersianNumberFormatter.FormatGrouped(species.Count);
@@ -33,6 +34,9 @@ public sealed class DashboardSpeciesViewModel
 
     public string Name { get; }
 
+    /// <summary>Reference animal glyph used alongside this legend label.</summary>
+    public string IconKey { get; }
+
     public string ColorHex { get; }
 
     public IBrush SwatchBrush { get; }
@@ -40,6 +44,15 @@ public sealed class DashboardSpeciesViewModel
     public string CountText { get; }
 
     public string PercentText { get; }
+
+    private static string ResolveIconKey(string name) => name switch
+    {
+        "سگ" => "IconDog",
+        "گربه" => "IconCat",
+        "پرنده" => "IconBird",
+        "خرگوش و جوندگان" => "IconRabbit",
+        _ => "IconPaw",
+    };
 
     private static IBrush ParseBrush(string hex)
     {

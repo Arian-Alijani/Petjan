@@ -26,11 +26,13 @@
                                         Height="34"
                                         CornerRadius="10"
                                         Background="{StaticResource Brand50Brush}">
-                                    <TextBlock Text="{Binding AvatarText}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
-                                               FontWeight="Bold"
-                                               Foreground="{StaticResource Brand700Brush}" />
+                                    <Path Classes="icon"
+                                              Width="18"
+                                              Height="18"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Stroke="{StaticResource Brand700Brush}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
                                     <TextBlock Text="{Binding Title}"
@@ -64,11 +66,13 @@
                                         Height="34"
                                         CornerRadius="10"
                                         Background="{StaticResource Brand50Brush}">
-                                    <TextBlock Text="{Binding AvatarText}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
-                                               FontWeight="Bold"
-                                               Foreground="{StaticResource Brand700Brush}" />
+                                    <Path Classes="icon"
+                                              Width="18"
+                                              Height="18"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Stroke="{StaticResource Brand700Brush}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
                                     <TextBlock Text="{Binding Title}"
