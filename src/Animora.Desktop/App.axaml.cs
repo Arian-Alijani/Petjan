@@ -2,10 +2,12 @@ using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Patients;
 using Animora.Contracts.Reception;
+using Animora.Contracts.Visits;
 using Animora.Desktop.Mocks;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Reception;
+using Animora.Desktop.Pages.Visits;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Avalonia;
@@ -78,6 +80,11 @@ public partial class App : Application
         services.AddSingleton<IRecordSheetPresenter, RecordSheetPresenter>();
         services.AddTransient<OwnerSheetViewModel>();
         services.AddTransient<PetFileViewModel>();
+
+        // Phase 10: Visits triage gate (doctor rail + entry-mode workspace).
+        // Stateless deterministic mock, so a singleton suffices.
+        services.AddSingleton<IVisitsTriageService, MockVisitsTriageService>();
+        services.AddSingleton<VisitsTriagePageViewModel>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();
