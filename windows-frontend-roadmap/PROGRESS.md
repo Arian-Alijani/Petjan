@@ -164,7 +164,7 @@
 | # | Phase | Status | Notes |
 |---|---|---|---|
 | 01 | Solution & Project Scaffold | ✅ Done | Build-verified (0/0). Avalonia.Diagnostics/Fluent package deltas are forced by Avalonia 12.x packaging, not defects (see log) |
-| 02 | Design Tokens & Theme Resources | ✅ Done | Vazirmatn v33.003 variable TTF bundled (OFL) |
+| 02 | Design Tokens & Theme Resources | ✅ Done | Vazirmatn v33.003 static weight TTFs bundled (OFL) |
 | 03 | Base Control Library | ✅ Done | Build-verified (0/0); TryFindResource + AVLN3001 defects fixed (see log) |
 | 04 | RTL & Localization Utilities | ⚠️ Done with deviation | Build-verified (0/0). Persian-digit codepoint follows the actual reference `toFa` (U+06Fx), not the phase text's U+066x example — see log |
 | 05 | App Shell: Sidebar, Topbar, Navigation | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK. Notification bell reuses IconClock (no bell icon in the set); see log |
@@ -419,15 +419,27 @@ deviation (see log below).
 ### Phase 02 — Design Tokens & Theme Resources
 
 - **Font asset source (logged per task 4).** Vazirmatn **v33.003** (matches the
-  reference's `@import` of `vazirmatn@v33.003`), the **variable** weight file
-  `fonts/variable/Vazirmatn[wght].ttf` from the official OFL-licensed repo
-  `rastikerdar/vazirmatn` (via jsDelivr CDN at build time only). Bundled at
-  `src/Animora.Desktop/Assets/Fonts/Vazirmatn.ttf` (renamed from the `[wght]`
-  filename so the `avares://` URI has no bracket characters); `OFL.txt` kept
-  alongside it. Embedded as an `AvaloniaResource` — no runtime CDN fetch, per
-  STACK.md's zero-Internet-at-runtime rule. Internal family name is
-  `Vazirmatn`, referenced as
-  `avares://Animora.Desktop/Assets/Fonts#Vazirmatn`.
+  reference's `@import` of `vazirmatn@v33.003`) from the official OFL-licensed
+  repo `rastikerdar/vazirmatn`. `OFL.txt` kept alongside the font files.
+  Embedded as `AvaloniaResource`s — no runtime CDN fetch, per STACK.md's
+  zero-Internet-at-runtime rule. Internal family name is `Vazirmatn`,
+  referenced everywhere via `avares://Animora.Desktop/Assets/Fonts#Vazirmatn`.
+  **This is the single font-of-record for the whole app** — every menu, box,
+  card and label must use `AppFontFamily`; no other UI font is permitted.
+- **Font weight fix — variable → static instances (black-box bug).**
+  The original bundle was the **variable** `Vazirmatn[wght].ttf` exposing only
+  the default Regular (400) named instance. Avalonia does not resolve arbitrary
+  variable-font weights, so any `FontWeight` other than Regular
+  (Medium/SemiBold/Bold/ExtraBold) had no matching outlines and rendered every
+  heading/emphasis label as `.notdef` **solid black rectangles** (the observed
+  bug). Fix: `scripts/build_vazirmatn_weights.py` instantiates discrete STATIC
+  weight files — `Vazirmatn-Regular/Medium/SemiBold/Bold/ExtraBold/Black.ttf`
+  (usWeightClass 400/500/600/700/800/900) — all sharing the typographic family
+  `Vazirmatn`, so Avalonia's matcher picks the right file per requested weight.
+  All six are bundled as `AvaloniaResource`s; the variable original was removed.
+  Standardized weight ramp (mirrors the reference): body 400/500, labels/
+  emphasis 600, headings/values 700, hero 800 — exposed as `FontWeight*` tokens
+  in `Typography.axaml`.
 - **Note — resource style pattern.** Colors are exposed as both `Color`
   (`…Color`) and `SolidColorBrush` (`…Brush`) keys so later phases can bind
   either a brush (fills) or a raw color (gradients/animations) without

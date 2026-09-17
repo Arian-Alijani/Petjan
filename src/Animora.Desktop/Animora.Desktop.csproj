@@ -37,9 +37,21 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Bundle the Vazirmatn font (OFL) as an Avalonia resource so it is
-         embedded in the assembly and served via avares:// with no runtime CDN. -->
-    <AvaloniaResource Include="Assets\Fonts\Vazirmatn.ttf" />
+    <!-- Bundle the Vazirmatn font (OFL) as Avalonia resources so it is embedded
+         in the assembly and served via avares:// with no runtime CDN.
+
+         Vazirmatn upstream ships a single VARIABLE font (wght 100..900). Avalonia
+         does not resolve arbitrary variable-font weights, so any non-Regular
+         FontWeight rendered as .notdef boxes (solid black rectangles). We instead
+         embed discrete STATIC weight files (see scripts/build_vazirmatn_weights.py),
+         all sharing the "Vazirmatn" typographic family so the font matcher can
+         pick the correct file per requested FontWeight. -->
+    <AvaloniaResource Include="Assets\Fonts\Vazirmatn-Regular.ttf" />
+    <AvaloniaResource Include="Assets\Fonts\Vazirmatn-Medium.ttf" />
+    <AvaloniaResource Include="Assets\Fonts\Vazirmatn-SemiBold.ttf" />
+    <AvaloniaResource Include="Assets\Fonts\Vazirmatn-Bold.ttf" />
+    <AvaloniaResource Include="Assets\Fonts\Vazirmatn-ExtraBold.ttf" />
+    <AvaloniaResource Include="Assets\Fonts\Vazirmatn-Black.ttf" />
   </ItemGroup>
 
   <ItemGroup>
