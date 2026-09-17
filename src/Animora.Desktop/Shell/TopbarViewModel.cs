@@ -69,12 +69,21 @@ public sealed partial class TopbarViewModel : ObservableObject
     public event EventHandler? SidebarToggleRequested;
 
     [RelayCommand]
-    private void ToggleSidebar()
-    {
-        IsSidebarOpen = !IsSidebarOpen;
-        ToggleIconRotation = IsSidebarOpen ? 0 : 180;
-        SidebarToggleToolTip = IsSidebarOpen ? "جمع کردن منو" : "باز کردن منو";
+    private void ToggleSidebar() =>
+        // The shell owns the open/closed state and pushes it back via
+        // SyncSidebarState, so both the topbar and in-sidebar toggles stay
+        // consistent regardless of which one was pressed.
         SidebarToggleRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// Push the authoritative open/closed state (owned by the shell) into the
+    /// topbar's fold control so its glyph/tooltip always reflect reality.
+    /// </summary>
+    public void SyncSidebarState(bool isOpen)
+    {
+        IsSidebarOpen = isOpen;
+        ToggleIconRotation = isOpen ? 0 : 180;
+        SidebarToggleToolTip = isOpen ? "جمع کردن منو" : "باز کردن منو";
     }
 
     [RelayCommand]

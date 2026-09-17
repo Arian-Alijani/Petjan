@@ -47,6 +47,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         _navigation.CurrentViewModelChanged += OnCurrentViewModelChanged;
         Topbar.SidebarToggleRequested += OnSidebarToggleRequested;
+        Sidebar.ToggleRequested += OnSidebarToggleRequested;
 
         // Default landing page: the real Dashboard screen (Phase 06).
         _navigation.NavigateTo<DashboardPageViewModel>();
@@ -58,6 +59,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
         IsSidebarOpen = !IsSidebarOpen;
         Sidebar.IsExpanded = IsSidebarOpen;
         SidebarWidth = IsSidebarOpen ? ExpandedSidebarWidth : CollapsedSidebarWidth;
+
+        // Keep the topbar's fold control in sync no matter which toggle
+        // (topbar or in-sidebar) initiated the change.
+        Topbar.SyncSidebarState(IsSidebarOpen);
     }
 
     public SidebarViewModel Sidebar { get; }
