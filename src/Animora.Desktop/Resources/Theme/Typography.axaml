@@ -4,8 +4,18 @@
 
     <!-- Design tokens: typography.
          Font: Vazirmatn (OFL, bundled as an embedded asset — no runtime CDN),
-         matching the reference's @import of vazirmatn.
-         Type scale mirrors the reference's observed heading/body sizes. -->
+         matching the reference (Animora-UI) which imports Vazirmatn.
+
+         IMPORTANT: Vazirmatn is bundled as discrete STATIC weight files
+         (Regular/Medium/SemiBold/Bold/ExtraBold/Black — see
+         scripts/build_vazirmatn_weights.py). The variable original could not be
+         weight-resolved by Avalonia and rendered non-Regular text as solid black
+         boxes. The folder-scoped avares:// URI below exposes every bundled weight
+         under the single "Vazirmatn" family so FontWeight resolves correctly.
+
+         Type scale + the weight tokens below mirror the reference's observed
+         heading/body sizes and weights (400/500/600/700/800) so all app text is
+         standardized to one font and one consistent weight ramp. -->
 
     <FontFamily x:Key="AppFontFamily">avares://Animora.Desktop/Assets/Fonts#Vazirmatn</FontFamily>
 
@@ -14,5 +24,13 @@
     <sys:Double x:Key="FontSizeMd">15</sys:Double>
     <sys:Double x:Key="FontSizeLg">19</sys:Double>
     <sys:Double x:Key="FontSizeXl">26</sys:Double>
+
+    <!-- Weight tokens: bundled Vazirmatn static weights. Reference maps:
+         body=400/500, labels/emphasis=600, headings/values=700, hero=800. -->
+    <FontWeight x:Key="FontWeightRegular">Normal</FontWeight>
+    <FontWeight x:Key="FontWeightMedium">Medium</FontWeight>
+    <FontWeight x:Key="FontWeightSemiBold">SemiBold</FontWeight>
+    <FontWeight x:Key="FontWeightBold">Bold</FontWeight>
+    <FontWeight x:Key="FontWeightExtraBold">ExtraBold</FontWeight>
 
 </ResourceDictionary>

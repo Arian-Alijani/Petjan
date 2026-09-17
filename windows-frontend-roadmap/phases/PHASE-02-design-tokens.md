@@ -36,10 +36,15 @@ Avalonia equivalent.
    reference's `--shadow-card` / `--shadow-pop` values (converted from CSS
    `box-shadow` offsets/blur/color/alpha to Avalonia `BoxShadow` syntax).
 4. Create `src/Animora.Desktop/Resources/Theme/Typography.axaml`:
-   - Add the Vazirmatn font as an embedded asset. Retrieve a properly
-     licensed static/variable Vazirmatn font file (OFL-licensed, matches
-     `@import url('...vazirmatn...')` in the reference) and place it under
-     `src/Animora.Desktop/Assets/Fonts/`. Reference it via Avalonia's
+   - Add the Vazirmatn font as an embedded asset. Vazirmatn is the single
+     font-of-record for the whole app (OFL-licensed, matches
+     `@import url('...vazirmatn...')` in the reference). **Bundle discrete static
+     weight files, not the variable original** — Avalonia cannot weight-resolve
+     a variable font, so non-Regular text renders as solid black `.notdef`
+     boxes. Generate `Vazirmatn-{Regular,Medium,SemiBold,Bold,ExtraBold,Black}.ttf`
+     with `scripts/build_vazirmatn_weights.py` (all sharing the `Vazirmatn`
+     typographic family) and place them under
+     `src/Animora.Desktop/Assets/Fonts/`. Reference the family via Avalonia's
      `avares://` font resource syntax (`FontFamily="avares://Animora.Desktop/Assets/Fonts#Vazirmatn"`).
      Record the exact font source/version used in `PROGRESS.md`'s decision
      log (no runtime CDN fetch — must be bundled, per `STACK.md`'s
