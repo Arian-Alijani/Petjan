@@ -46,8 +46,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         Topbar = topbar;
 
         _navigation.CurrentViewModelChanged += OnCurrentViewModelChanged;
+        // The topbar hosts the single sidebar fold control for the whole shell.
         Topbar.SidebarToggleRequested += OnSidebarToggleRequested;
-        Sidebar.ToggleRequested += OnSidebarToggleRequested;
 
         // Default landing page: the real Dashboard screen (Phase 06).
         _navigation.NavigateTo<DashboardPageViewModel>();

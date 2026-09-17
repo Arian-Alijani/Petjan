@@ -75,10 +75,9 @@
             Padding="14,18,14,14">
         <DockPanel LastChildFill="True">
 
-            <!-- Brand header: fold toggle (leading/left edge) + paw logo.
-                 Expanded shows [toggle | brand text ... logo]; collapsed
-                 stacks the toggle above the centred logo so both stay reachable
-                 in the compact rail. -->
+            <!-- Brand header: paw logo + brand identity only. The in-sidebar
+                 fold toggle was removed — the shell now has a single sidebar
+                 fold control, which lives in the topbar's leading slot. -->
             <Border DockPanel.Dock="Top"
                     BorderBrush="{StaticResource Line2Brush}"
                     BorderThickness="0,0,0,1"
@@ -86,42 +85,7 @@
                     Margin="0,0,0,10">
                 <StackPanel Spacing="10">
 
-                    <!-- Row 1: fold toggle. In RTL the leading edge is the
-                         right, so the button is docked left (the outer edge),
-                         matching the target's top-left placement. -->
-                    <Button Classes="ghost"
-                            Command="{Binding ToggleCommand}"
-                            Width="34"
-                            Height="34"
-                            Padding="0"
-                            CornerRadius="10"
-                            BorderThickness="1"
-                            BorderBrush="{StaticResource Line2Brush}"
-                            ToolTip.Tip="{Binding ToggleToolTip}"
-                            HorizontalAlignment="{Binding IsExpanded, Converter={x:Static shell:SidebarView.RailAlignmentConverter}}">
-                        <Path Classes="icon"
-                              Width="18"
-                              Height="18"
-                              HorizontalAlignment="Center"
-                              VerticalAlignment="Center"
-                              RenderTransformOrigin="50%,50%"
-                              Stroke="{StaticResource Ink2Brush}"
-                              Data="{StaticResource IconFold}">
-                            <Path.RenderTransform>
-                                <RotateTransform Angle="{Binding ToggleIconRotation}">
-                                    <RotateTransform.Transitions>
-                                        <Transitions>
-                                            <DoubleTransition Property="Angle"
-                                                              Duration="0:0:0.28"
-                                                              Easing="CubicEaseInOut" />
-                                        </Transitions>
-                                    </RotateTransform.Transitions>
-                                </RotateTransform>
-                            </Path.RenderTransform>
-                        </Path>
-                    </Button>
-
-                    <!-- Row 2: brand identity. Two mutually-exclusive layers so
+                    <!-- Brand identity. Two mutually-exclusive layers so
                          each state is laid out cleanly:
                          • Expanded  → [brand text ... paw logo] hugging the
                            leading (right) edge under RTL.
@@ -315,15 +279,22 @@
                                                     ToolTip.Tip="{Binding Label}"
                                                     Command="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).NavigateCommand}"
                                                     CommandParameter="{Binding}">
-                                                <!-- RTL layout: [accent overlay] icon | label | badge.
-                                                     The accent rail is an OVERLAY (own layer, pinned to
-                                                     the leading/right edge) so it never shifts the icon.
-                                                     The icon column stretches and centers its content,
-                                                     so in the compact rail the icon stays perfectly
-                                                     centered with no icon-less strip left over. The
-                                                     label + badge collapse (IsVisible + zero layout size)
-                                                     when the sidebar is compact. -->
-                                                <Grid ColumnDefinitions="*,Auto">
+                                                <!-- RTL layout, expanded:  [badge | label ...] label right-aligned + icon
+                                                     pinned to the leading (right) edge.
+                                                     Fixed 3-column grid:  badge(Auto) | label(*) | icon(Auto).
+                                                     Because the icon lives in its own fixed trailing column
+                                                     (the RTL leading/right edge) on EVERY row, all the tab
+                                                     icons line up in one tidy vertical column regardless of
+                                                     label length; the labels are right-aligned so they hug
+                                                     the icons. In the compact rail the badge + label collapse
+                                                     and the icon is re-centered across the whole pill. -->
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
                                                     <!-- Leading accent bar (active only), overlaid on
                                                          the pill's inner (right, RTL leading) edge.
                                                          Negative right margin cancels the button's
@@ -332,7 +303,7 @@
                                                          target. -->
                                                     <Border Classes="nav-accent"
                                                             Grid.Column="0"
-                                                            Grid.ColumnSpan="2"
+                                                            Grid.ColumnSpan="3"
                                                             Width="4"
                                                             Margin="0,-3,-12,-3"
                                                             CornerRadius="4,0,0,4"
@@ -340,52 +311,13 @@
                                                             VerticalAlignment="Stretch"
                                                             Background="{StaticResource Brand600Brush}" />
 
-                                                    <!-- Icon + label share the first (stretching) column.
-                                                         When expanded the row is right-aligned (RTL);
-                                                         when compact only the icon shows, centered. -->
-                                                    <StackPanel Grid.Column="0"
-                                                                Orientation="Horizontal"
-                                                                Spacing="12"
-                                                                VerticalAlignment="Center"
-                                                                HorizontalAlignment="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded, Converter={x:Static shell:SidebarView.RailAlignmentConverter}}">
-                                                        <!-- Icon + compact-rail notification dot. The
-                                                             dot only appears for badged entries while
-                                                             the sidebar is collapsed (the expanded rail
-                                                             shows the numeric badge instead), pinned to
-                                                             the icon's top-outer corner. -->
-                                                        <Panel Width="18" Height="18" VerticalAlignment="Center">
-                                                            <Path Classes="icon nav-icon"
-                                                                  Width="18"
-                                                                  Height="18"
-                                                                  VerticalAlignment="Center"
-                                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
-                                                            <Ellipse Width="7"
-                                                                     Height="7"
-                                                                     HorizontalAlignment="Left"
-                                                                     VerticalAlignment="Top"
-                                                                     Margin="-3,-2,0,0"
-                                                                     Fill="{StaticResource Brand500Brush}">
-                                                                <Ellipse.IsVisible>
-                                                                    <MultiBinding Converter="{x:Static shell:SidebarView.BadgeDotConverter}">
-                                                                        <Binding Path="HasBadge" />
-                                                                        <Binding Path="$parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded" />
-                                                                    </MultiBinding>
-                                                                </Ellipse.IsVisible>
-                                                            </Ellipse>
-                                                        </Panel>
-                                                        <TextBlock Classes="nav-label"
-                                                                   IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}"
-                                                                   VerticalAlignment="Center"
-                                                                   TextWrapping="NoWrap"
-                                                                   Text="{Binding Label}" />
-                                                    </StackPanel>
-
-                                                    <Border Grid.Column="1"
+                                                    <!-- Badge (leading = far left in RTL) -->
+                                                    <Border Grid.Column="0"
                                                             Classes="nav-badge"
                                                             CornerRadius="20"
                                                             Padding="7,1"
                                                             MinWidth="20"
-                                                            Margin="4,0,0,0"
+                                                            Margin="0,0,8,0"
                                                             VerticalAlignment="Center">
                                                         <Border.IsVisible>
                                                             <MultiBinding Converter="{x:Static shell:SidebarView.AllTrueConverter}">
@@ -399,6 +331,60 @@
                                                                    FontSize="11"
                                                                    FontWeight="Bold" />
                                                     </Border>
+
+                                                    <!-- Label: fills the middle column and is right-aligned
+                                                         (RTL) so it sits flush against the icon column. Hidden
+                                                         in the compact rail. -->
+                                                    <TextBlock Grid.Column="1"
+                                                               Classes="nav-label"
+                                                               IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}"
+                                                               VerticalAlignment="Center"
+                                                               HorizontalAlignment="Right"
+                                                               TextAlignment="Right"
+                                                               Margin="0,0,12,0"
+                                                               TextWrapping="NoWrap"
+                                                               Text="{Binding Label}" />
+
+                                                    <!-- Icon-column spacer: reserves the fixed 18px trailing
+                                                         column so the label can never slide underneath the
+                                                         icon. It keeps the icon column a real, constant width
+                                                         on every row → the icons line up vertically. -->
+                                                    <Border Grid.Column="2"
+                                                            Width="18"
+                                                            IsHitTestVisible="False" />
+
+                                                    <!-- Icon: overlaid across all columns. Expanded → pinned
+                                                         Right, so it sits in the fixed trailing (RTL leading)
+                                                         column and every row's icon aligns vertically. Compact
+                                                         → the label + badge collapse and the icon re-centers
+                                                         across the whole pill via the alignment converter. -->
+                                                    <Panel Grid.Column="0"
+                                                           Grid.ColumnSpan="3"
+                                                           Width="18"
+                                                           Height="18"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded, Converter={x:Static shell:SidebarView.RailAlignmentConverter}}">
+                                                        <Path Classes="icon nav-icon"
+                                                              Width="18"
+                                                              Height="18"
+                                                              VerticalAlignment="Center"
+                                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                        <!-- compact-rail notification dot for badged
+                                                             entries (numeric badge is shown when expanded) -->
+                                                        <Ellipse Width="7"
+                                                                 Height="7"
+                                                                 HorizontalAlignment="Left"
+                                                                 VerticalAlignment="Top"
+                                                                 Margin="-3,-2,0,0"
+                                                                 Fill="{StaticResource Brand500Brush}">
+                                                            <Ellipse.IsVisible>
+                                                                <MultiBinding Converter="{x:Static shell:SidebarView.BadgeDotConverter}">
+                                                                    <Binding Path="HasBadge" />
+                                                                    <Binding Path="$parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded" />
+                                                                </MultiBinding>
+                                                            </Ellipse.IsVisible>
+                                                        </Ellipse>
+                                                    </Panel>
                                                 </Grid>
                                             </Button>
                                         </DataTemplate>
