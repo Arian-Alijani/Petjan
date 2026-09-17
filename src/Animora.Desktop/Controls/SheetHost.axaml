@@ -1,0 +1,28 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Animora.Desktop.Controls.SheetHost"
+             IsVisible="False">
+
+    <!-- Matches Animora-UI's centered "sheet" system (patients.css .sheet-root /
+         .sheet-bd / .sheet.owner-sheet / .sheet.pet-sheet): a dim, blurred
+         backdrop with a centered, elevated rounded surface that scales in.
+         Owner File (680×760) and Patient File (1120×880) are BOTH sheets in the
+         reference — not full pages — so this host owns their chrome. Content is
+         supplied by IDialogService.ShowSheet(); the host only manages the frame. -->
+    <Panel>
+        <Border x:Name="Backdrop"
+                Background="#6B101828"
+                PointerPressed="OnBackdropPressed" />
+        <Border x:Name="Panel"
+                Background="White"
+                CornerRadius="28"
+                BoxShadow="0 24 70 0 #47101828, 0 4 14 0 #1F101828"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Padding="0"
+                ClipToBounds="True">
+            <ContentPresenter x:Name="ContentHost" />
+        </Border>
+    </Panel>
+
+</UserControl>

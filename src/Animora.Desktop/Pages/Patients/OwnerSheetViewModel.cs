@@ -51,7 +51,7 @@ public sealed class OwnerSheetPetRowViewModel
 public sealed partial class OwnerSheetViewModel : PageViewModelBase
 {
     private readonly IPatientsQueryService _patients;
-    private readonly INavigationService _navigation;
+    private readonly IRecordSheetPresenter _presenter;
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
 
@@ -73,12 +73,12 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
 
     public OwnerSheetViewModel(
         IPatientsQueryService patients,
-        INavigationService navigation,
+        IRecordSheetPresenter presenter,
         IDialogService dialogs,
         IToastService toast)
     {
         _patients = patients;
-        _navigation = navigation;
+        _presenter = presenter;
         _dialogs = dialogs;
         _toast = toast;
         Title = "پرونده مالک";
@@ -247,7 +247,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void Close() => _navigation.NavigateTo<PatientsPageViewModel>();
+    private void Close() => _dialogs.Close();
 
     [RelayCommand]
     private void Call()
@@ -293,7 +293,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         }
 
         var petId = row.Pet.Id;
-        _navigation.NavigateTo<PetFileViewModel>(vm => vm.Load(petId));
+        _presenter.OpenPetSheet(petId);
     }
 
     private static string OrRecorded(string? value) =>

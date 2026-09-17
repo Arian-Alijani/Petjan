@@ -30,7 +30,12 @@ public sealed partial class AddPetModalViewModel : ObservableObject
         OwnerPetCountText = $"{Localization.PersianNumberFormatter.ToPersianDigits(owner.Pets.Count.ToString())} حیوان فعلی";
     }
 
-    public PetFormViewModel Pet { get; } = new();
+    /// <summary>
+    /// The reference's #petModal defaults the gender pills to «نر» (male) and
+    /// renders the pet fields without the wizard's titled section rules, so the
+    /// shared form starts male and hides its section titles.
+    /// </summary>
+    public PetFormViewModel Pet { get; } = new(defaultFemale: false) { ShowSectionTitles = false };
 
     public string OwnerName { get; }
     public string OwnerInitials { get; }

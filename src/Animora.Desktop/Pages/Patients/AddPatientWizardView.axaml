@@ -1,0 +1,469 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:patients="using:Animora.Desktop.Pages.Patients"
+             x:Class="Animora.Desktop.Pages.Patients.AddPatientWizardView"
+             x:Name="Root"
+             x:DataType="patients:AddPatientWizardViewModel"
+             Width="760"
+             MaxWidth="760"
+             FlowDirection="RightToLeft">
+
+    <!-- Add owner + pet wizard — re-draws Animora-UI/patients.html #ownerModal
+         (.modal.wide) + patients-page.js openOwnerModal/setWizMode/paintWiz/
+         renderWizOwnerList. This is the View ViewLocator was missing, so the
+         wizard modal previously opened empty ("View not found"). -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.meyebrow">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="TextBlock.mtitle">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="Button.mclose">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <!-- wiz-steps -->
+        <Style Selector="Border.wstep">
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="#fafbfa" />
+            <Setter Property="Padding" Value="9,12" />
+        </Style>
+        <Style Selector="Border.wstep.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Border.wstep.done">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="TextBlock.wstep-t">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.wstep.on TextBlock.wstep-t">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Border.wstep.done TextBlock.wstep-t">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
+        <!-- seg wizard-mode toggle -->
+        <Style Selector="Border.segwrap">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="3" />
+        </Style>
+        <Style Selector="Button.segbtn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="14,7" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.segbtn.on">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
+        <!-- field-row-title -->
+        <Style Selector="TextBlock.frt">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Rectangle.frtrule">
+            <Setter Property="Fill" Value="{StaticResource LineBrush}" />
+            <Setter Property="Height" Value="1" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.flabel">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="TextBlock.req">
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+            <Setter Property="Margin" Value="2,0,0,0" />
+        </Style>
+        <Style Selector="TextBlock.fhint">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+
+        <!-- fields -->
+        <Style Selector="TextBox.qf">
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="40" />
+        </Style>
+        <Style Selector="ComboBox.qf">
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="40" />
+        </Style>
+
+        <!-- radio pills (.radio-pills) -->
+        <Style Selector="Button.rpill">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.rpill.on">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+
+        <!-- file badge -->
+        <Style Selector="Border.filebadge">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="11,4" />
+        </Style>
+        <Style Selector="TextBlock.filebadge-t">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
+        <!-- existing owner picker -->
+        <Style Selector="Border.opick">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+        </Style>
+        <Style Selector="Button.orow">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="CornerRadius" Value="0" />
+        </Style>
+        <Style Selector="Button.orow.picked">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel>
+
+        <!-- modal-header -->
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="22,18,22,6">
+            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
+                    Background="{StaticResource Brand50Brush}">
+                <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}"
+                      Data="{StaticResource IconUsers}" HorizontalAlignment="Center"
+                      VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                <TextBlock Classes="meyebrow" Text="ساخت پرونده جدید" />
+                <TextBlock Classes="mtitle" Text="ثبت مالک و حیوان" />
+            </StackPanel>
+            <Button Grid.Column="2" Classes="mclose" Command="{Binding CancelCommand}"
+                    VerticalAlignment="Top" ToolTip.Tip="بستن">
+                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                      Data="{StaticResource IconX}" HorizontalAlignment="Center"
+                      VerticalAlignment="Center" />
+            </Button>
+        </Grid>
+
+        <!-- wiz-steps -->
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="22,0,22,12">
+            <Border Grid.Column="0" Classes="wstep" Classes.on="{Binding IsStepOne}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Border Width="21" Height="21" CornerRadius="999"
+                            Background="{StaticResource BgBrush}"
+                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
+                        <TextBlock Text="۱" FontSize="11" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource Ink2Brush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Classes="wstep-t" Text="اطلاعات مالک" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Classes="wstep" Classes.on="{Binding IsStepTwo}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Border Width="21" Height="21" CornerRadius="999"
+                            Background="{StaticResource BgBrush}"
+                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
+                        <TextBlock Text="۲" FontSize="11" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource Ink2Brush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Classes="wstep-t" Text="اطلاعات حیوان" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- modal-body (scroll) -->
+        <ScrollViewer MaxHeight="560" Padding="22,4,22,20">
+          <StackPanel>
+
+            <!-- ══ step 1 ══ -->
+            <StackPanel IsVisible="{Binding IsStepOne}">
+
+                <!-- wiz-mode seg -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="2" Margin="0,0,0,10">
+                    <Border Grid.ColumnSpan="2" Classes="segwrap" />
+                    <Button Grid.Column="0" Classes="segbtn" Classes.on="{Binding IsNewMode}"
+                            Command="{Binding SetModeCommand}" CommandParameter="new">
+                        <StackPanel Orientation="Horizontal" Spacing="6"
+                                    HorizontalAlignment="Center">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconUser}" />
+                            <TextBlock Text="مالک جدید" />
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="1" Classes="segbtn" Classes.on="{Binding IsExistingMode}"
+                            Command="{Binding SetModeCommand}" CommandParameter="existing">
+                        <StackPanel Orientation="Horizontal" Spacing="6"
+                                    HorizontalAlignment="Center">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconSearch}" />
+                            <TextBlock Text="انتخاب مالک موجود" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- wiz-mode-hint -->
+                <Border Background="{StaticResource Brand50Brush}" CornerRadius="11"
+                        Padding="13,10" Margin="0,0,0,16">
+                    <TextBlock Text="{Binding ModeHint}" FontSize="11.5" TextWrapping="Wrap"
+                               Foreground="{StaticResource Brand700Brush}" LineHeight="20" />
+                </Border>
+
+                <!-- new-owner fields -->
+                <StackPanel IsVisible="{Binding IsNewMode}">
+
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,4,0,12">
+                        <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+                              Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconIdCard}" />
+                        <TextBlock Grid.Column="1" Classes="frt" Text="اطلاعات هویتی" />
+                        <Rectangle Grid.Column="2" Classes="frtrule" />
+                        <Border Grid.Column="3" Classes="filebadge">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="12" Height="12"
+                                      Stroke="{StaticResource Muted2Brush}" Data="{StaticResource IconFile}" />
+                                <TextBlock Classes="filebadge-t" Text="{Binding FileBadge}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,0,0,12">
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Classes="flabel" Text="نام" />
+                                <TextBlock Classes="req" Text="*" />
+                            </StackPanel>
+                            <TextBox Classes="qf" Text="{Binding FirstName}" PlaceholderText="مثال: نگار" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Classes="flabel" Text="نام خانوادگی" />
+                                <TextBlock Classes="req" Text="*" />
+                            </StackPanel>
+                            <TextBox Classes="qf" Text="{Binding LastName}" PlaceholderText="مثال: محمدی" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="6">
+                            <TextBlock Classes="flabel" Text="کد ملی" />
+                            <TextBox Classes="qf" Text="{Binding NationalId}" PlaceholderText="۰۰۱۲۳۴۵۶۷۸" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,0,0,14">
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <TextBlock Classes="flabel" Text="جنسیت مالک" />
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                                <Button Classes="rpill" Classes.on="{Binding OwnerIsFemale}"
+                                        Content="خانم" Margin="0"
+                                        Command="{Binding SetOwnerGenderCommand}" CommandParameter="female" />
+                                <Button Classes="rpill" Classes.on="{Binding !OwnerIsFemale}"
+                                        Content="آقا" Margin="0"
+                                        Command="{Binding SetOwnerGenderCommand}" CommandParameter="male" />
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <TextBlock Classes="flabel" Text="نحوه آشنایی" />
+                            <ComboBox Classes="qf" ItemsSource="{Binding Referrals}"
+                                      SelectedItem="{Binding Referral}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8" Margin="0,0,0,12">
+                        <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+                              Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconPhone}" />
+                        <TextBlock Grid.Column="1" Classes="frt" Text="راه‌های ارتباطی" />
+                        <Rectangle Grid.Column="2" Classes="frtrule" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,0,0,12">
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Classes="flabel" Text="شماره موبایل اول" />
+                                <TextBlock Classes="req" Text="*" />
+                            </StackPanel>
+                            <TextBox Classes="qf" Text="{Binding Mobile1}" PlaceholderText="۰۹۱۲۳۴۵۶۷۸۹" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <TextBlock Classes="flabel" Text="شماره موبایل دوم" />
+                            <TextBox Classes="qf" Text="{Binding Mobile2}" PlaceholderText="اختیاری" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="6">
+                            <TextBlock Classes="flabel" Text="تلفن ثابت" />
+                            <TextBox Classes="qf" Text="{Binding Phone}" PlaceholderText="۰۲۱۸۸۷۷۶۶۵۵" />
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="flabel" Text="آدرس" />
+                        <TextBox Classes="qf" Text="{Binding Address}" TextWrapping="Wrap"
+                                 AcceptsReturn="True" MinHeight="64"
+                                 PlaceholderText="استان، شهر، خیابان، کوچه، پلاک و واحد" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- existing-owner picker -->
+                <StackPanel IsVisible="{Binding IsExistingMode}">
+                    <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8" Margin="0,4,0,12">
+                        <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+                              Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconSearch}" />
+                        <TextBlock Grid.Column="1" Classes="frt" Text="جستجوی پرونده مالک" />
+                        <Rectangle Grid.Column="2" Classes="frtrule" />
+                    </Grid>
+
+                    <TextBox Classes="qf" Text="{Binding OwnerSearch}" Margin="0,0,0,12"
+                             PlaceholderText="نام مالک، شماره پرونده یا موبایل را جستجو کنید..." />
+
+                    <Border Classes="opick" MaxHeight="258">
+                        <ScrollViewer>
+                            <StackPanel>
+                                <ItemsControl ItemsSource="{Binding OwnerRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="patients:WizardOwnerRowViewModel">
+                                            <Button Classes="orow"
+                                                    Classes.picked="{Binding IsPicked}"
+                                                    Command="{Binding #Root.((patients:AddPatientWizardViewModel)DataContext).PickOwnerCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <Grid ColumnDefinitions="36,*,Auto" ColumnSpacing="11">
+                                                    <Border Grid.Column="0" Width="36" Height="36"
+                                                            CornerRadius="11" Background="{Binding ToneBrush}">
+                                                        <TextBlock Text="{Binding Initials}" Foreground="White"
+                                                                   FontSize="13" FontWeight="ExtraBold"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Spacing="2"
+                                                                VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}" FontSize="12.5"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{StaticResource InkBrush}" />
+                                                        <TextBlock Text="{Binding SubText}" FontSize="10.5"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
+                                                    <Path Grid.Column="2" Classes="icon" Width="16"
+                                                          Height="16"
+                                                          Stroke="{StaticResource Brand600Brush}"
+                                                          IsVisible="{Binding IsPicked}"
+                                                          Data="{StaticResource IconCheck}"
+                                                          VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="مالکی با این مشخصات پیدا نشد"
+                                           IsVisible="{Binding !HasOwnerRows}" FontSize="12"
+                                           Foreground="{StaticResource MutedBrush}"
+                                           HorizontalAlignment="Center" Padding="22" />
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- ══ step 2 ══ -->
+            <StackPanel IsVisible="{Binding IsStepTwo}">
+
+                <!-- owner-mini-preview (existing-owner mode) -->
+                <Border IsVisible="{Binding IsExistingMode}" Background="#fafbfa"
+                        BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                        CornerRadius="14" Padding="14,12" Margin="0,0,0,16">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                        <Border Grid.Column="0" Width="38" Height="38" CornerRadius="12"
+                                Background="{Binding SelectedOwner.ToneBrush}">
+                            <TextBlock Text="{Binding SelectedOwner.Initials}" Foreground="White"
+                                       FontSize="13" FontWeight="ExtraBold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding SelectedOwner.Name}" FontSize="13"
+                                       FontWeight="Bold" Foreground="{StaticResource InkBrush}" />
+                            <TextBlock Text="{Binding SelectedOwner.SubText}" FontSize="10.5"
+                                       Foreground="{StaticResource MutedBrush}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- shared pet-fields block (with titled section rules) -->
+                <patients:PetFormView DataContext="{Binding Pet}" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- modal-footer -->
+        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="22,14">
+            <Grid ColumnDefinitions="Auto,*">
+                <Button Grid.Column="0" Classes="ghost" Content="انصراف"
+                        Command="{Binding CancelCommand}" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                            HorizontalAlignment="Right">
+                    <Button Classes="outline" Command="{Binding BackCommand}"
+                            IsVisible="{Binding IsStepTwo}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconChevronRight}" />
+                            <TextBlock Text="بازگشت" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="primary" Command="{Binding NextCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                                  IsVisible="{Binding IsStepTwo}"
+                                  Data="{StaticResource IconCheck}" />
+                            <TextBlock Text="{Binding NextLabel}" />
+                            <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                                  IsVisible="{Binding IsStepOne}"
+                                  Data="{StaticResource IconChevronLeft}" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </StackPanel>
+</UserControl>

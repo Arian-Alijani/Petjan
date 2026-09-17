@@ -1,0 +1,295 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:patients="using:Animora.Desktop.Pages.Patients"
+             x:Class="Animora.Desktop.Pages.Patients.PetFormView"
+             x:Name="PetForm"
+             x:DataType="patients:PetFormViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Reusable pet-fields block shared by the owner wizard's step 2
+         (patients.html #wizTypes + its field grids) and the add-pet modal
+         (#petTypes). Reproduces bindTypePicker (species tiles swap the breed
+         select) + fillOptions (habitat/behavior/diet selects), the radio-pill
+         gender picker and the «عقیم شده است» switch row — all values from
+         styles.css + patients.css. -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.frt">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Rectangle.frtrule">
+            <Setter Property="Fill" Value="{StaticResource LineBrush}" />
+            <Setter Property="Height" Value="1" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.flabel">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="TextBlock.fhint">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector="TextBlock.req">
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+            <Setter Property="Margin" Value="2,0,0,0" />
+        </Style>
+
+        <!-- fields (.input / .selectbox) -->
+        <Style Selector="TextBox.pf">
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="40" />
+        </Style>
+        <Style Selector="ComboBox.pf">
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="40" />
+        </Style>
+
+        <!-- type tiles (.type-picker / .type-tile) -->
+        <Style Selector="Button.tile">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="8,12,8,10" />
+            <Setter Property="Margin" Value="5,0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.tile:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="Button.tile.active">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="Button.tile.active:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="Border.tileicon">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.tile.active Border.tileicon">
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="Button.tile Path">
+            <Setter Property="Stroke" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
+        <!-- radio pills (.radio-pills) -->
+        <Style Selector="Button.rpill">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.rpill:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="Button.rpill.on">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="Button.rpill.on:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+
+        <!-- switch row (.switch-row / .switch) -->
+        <Style Selector="Button.swrow">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="13,8" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.swrow:pointerover">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        </Style>
+        <Style Selector="Border.swtrack">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="Border.swtrack.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Border.swknob">
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,3,0" />
+        </Style>
+        <Style Selector="Border.swtrack.on Border.swknob">
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="Margin" Value="3,0,0,0" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Spacing="0">
+
+        <!-- ◂ نوع حیوان (wizard only) -->
+        <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,4,0,12"
+              IsVisible="{Binding ShowSectionTitles}">
+            <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+                  Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconPaw}" />
+            <TextBlock Grid.Column="1" Classes="frt" Text="نوع حیوان" />
+            <Rectangle Grid.Column="2" Classes="frtrule" />
+        </Grid>
+
+        <!-- type picker (6 tiles) -->
+        <ItemsControl ItemsSource="{Binding Tiles}" Margin="0,0,0,14">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="6" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="patients:SpeciesTileViewModel">
+                    <Button Classes="tile" Classes.active="{Binding IsActive}"
+                            Command="{Binding $parent[UserControl].((patients:PetFormViewModel)DataContext).SelectSpeciesCommand}"
+                            CommandParameter="{Binding Species}">
+                        <StackPanel Spacing="6" HorizontalAlignment="Center">
+                            <Border Classes="tileicon">
+                                <Path Classes="icon" Width="18" Height="18"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                            </Border>
+                            <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="Bold"
+                                       Foreground="{StaticResource Ink2Brush}"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- row 1: name / breed / color -->
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,0,0,12">
+            <StackPanel Grid.Column="0" Spacing="6">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Classes="flabel" Text="نام حیوان" />
+                    <TextBlock Classes="req" Text="*" />
+                </StackPanel>
+                <TextBox Classes="pf" Text="{Binding Name}" PlaceholderText="مثال: پشمک" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6">
+                <TextBlock Classes="flabel" Text="نژاد" />
+                <ComboBox Classes="pf" ItemsSource="{Binding BreedOptions}"
+                          SelectedItem="{Binding Breed}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="6">
+                <TextBlock Classes="flabel" Text="رنگ حیوان" />
+                <TextBox Classes="pf" Text="{Binding Color}" PlaceholderText="مثال: سفید کرم" />
+            </StackPanel>
+        </Grid>
+
+        <!-- row 2: birth / gender / habitat -->
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,0,0,12">
+            <StackPanel Grid.Column="0" Spacing="6">
+                <TextBlock Classes="flabel" Text="تاریخ تولد" />
+                <TextBox Classes="pf" Text="{Binding Birth}" PlaceholderText="۱۴۰۲/۰۴/۲۱" />
+                <TextBlock Classes="fhint" Text="سن به‌صورت خودکار محاسبه می‌شود" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6">
+                <TextBlock Classes="flabel" Text="جنسیت حیوان" />
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                    <Button Classes="rpill" Classes.on="{Binding IsFemale}"
+                            Content="ماده" Margin="0"
+                            Command="{Binding SetGenderCommand}" CommandParameter="female" />
+                    <Button Classes="rpill" Classes.on="{Binding IsMale}"
+                            Content="نر" Margin="0"
+                            Command="{Binding SetGenderCommand}" CommandParameter="male" />
+                    <Button Classes="rpill" Classes.on="{Binding IsUnknown}"
+                            Content="نامشخص" Margin="0"
+                            Command="{Binding SetGenderCommand}" CommandParameter="unknown" />
+                </StackPanel>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="6">
+                <TextBlock Classes="flabel" Text="محل زندگی" />
+                <ComboBox Classes="pf" ItemsSource="{Binding Habitats}"
+                          SelectedItem="{Binding Habitat}" />
+            </StackPanel>
+        </Grid>
+
+        <!-- row 3: behavior / diet / surgery history -->
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,0,0,12">
+            <StackPanel Grid.Column="0" Spacing="6">
+                <TextBlock Classes="flabel" Text="رفتار حیوان" />
+                <ComboBox Classes="pf" ItemsSource="{Binding Behaviors}"
+                          SelectedItem="{Binding Behavior}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6">
+                <TextBlock Classes="flabel" Text="جیره غذایی" />
+                <ComboBox Classes="pf" ItemsSource="{Binding Diets}"
+                          SelectedItem="{Binding Diet}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="6">
+                <TextBlock Classes="flabel" Text="سابقه جراحی" />
+                <TextBox Classes="pf" Text="{Binding SurgeryHistory}" PlaceholderText="مثال: عقیم‌سازی ۱۴۰۲" />
+            </StackPanel>
+        </Grid>
+
+        <!-- ◂ میکروچیپ و وضعیت (wizard only) -->
+        <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,6,0,12"
+              IsVisible="{Binding ShowSectionTitles}">
+            <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+                  Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconCpu}" />
+            <TextBlock Grid.Column="1" Classes="frt" Text="میکروچیپ و وضعیت" />
+            <Rectangle Grid.Column="2" Classes="frtrule" />
+        </Grid>
+
+        <!-- row 4: microchip code / implant date / neutered switch -->
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+            <StackPanel Grid.Column="0" Spacing="6">
+                <TextBlock Classes="flabel" Text="کد میکروچیپ" />
+                <TextBox Classes="pf" Text="{Binding MicrochipCode}" PlaceholderText="۹۸۵۱۴۱۰۰۲۳۱۷۶۵۴" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6">
+                <TextBlock Classes="flabel" Text="تاریخ کاشت" />
+                <TextBox Classes="pf" Text="{Binding MicrochipDate}" PlaceholderText="۱۴۰۲/۰۹/۰۲" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="6">
+                <TextBlock Classes="flabel" Text=" " />
+                <Button Classes="swrow" Command="{Binding ToggleNeuteredCommand}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="عقیم شده است" FontSize="12.5" FontWeight="Bold"
+                                       Foreground="{StaticResource InkBrush}" />
+                            <TextBlock Text="وضعیت عقیم‌سازی" FontSize="10.5"
+                                       Foreground="{StaticResource MutedBrush}" />
+                        </StackPanel>
+                        <Border Grid.Column="1" Classes="swtrack" Classes.on="{Binding Neutered}">
+                            <Border Classes="swknob" />
+                        </Border>
+                    </Grid>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </StackPanel>
+</UserControl>

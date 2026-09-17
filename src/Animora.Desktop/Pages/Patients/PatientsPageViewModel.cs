@@ -20,7 +20,7 @@ namespace Animora.Desktop.Pages.Patients;
 public sealed partial class PatientsPageViewModel : PageViewModelBase
 {
     private readonly IPatientsQueryService _patientsQueryService;
-    private readonly INavigationService _navigation;
+    private readonly IRecordSheetPresenter _presenter;
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
     private IReadOnlyList<PetSummary> _allPets = [];
@@ -46,12 +46,12 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
     public PatientsPageViewModel(
         IPatientsQueryService patientsQueryService,
-        INavigationService navigation,
+        IRecordSheetPresenter presenter,
         IDialogService dialogs,
         IToastService toast)
     {
         _patientsQueryService = patientsQueryService;
-        _navigation = navigation;
+        _presenter = presenter;
         _dialogs = dialogs;
         _toast = toast;
         Title = "بیماران و مالکین";
@@ -173,25 +173,30 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         ApplyFilter();
     }
 
-    /// <summary>Drill-in: opens the pet file for the selected pet (Phase 09).</summary>
+    /// <summary>
+    /// Drill-in: opens the pet file in the centered record sheet (reference
+    /// renders the patient file as <c>.sheet.pet-sheet</c> over the directory,
+    /// not a separate page).
+    /// </summary>
     [RelayCommand]
     private void OpenPet(PetSummary? pet)
     {
         if (pet is not null)
         {
-            var id = pet.Id;
-            _navigation.NavigateTo<PetFileViewModel>(vm => vm.Load(id));
+            _presenter.OpenPetSheet(pet.Id);
         }
     }
 
-    /// <summary>Drill-in: opens the owner sheet for the selected owner (Phase 09).</summary>
+    /// <summary>
+    /// Drill-in: opens the owner file in the centered record sheet (reference
+    /// <c>.sheet.owner-sheet</c>).
+    /// </summary>
     [RelayCommand]
     private void OpenOwner(OwnerSummary? owner)
     {
         if (owner is not null)
         {
-            var id = owner.Id;
-            _navigation.NavigateTo<OwnerSheetViewModel>(vm => vm.Load(id));
+            _presenter.OpenOwnerSheet(owner.Id);
         }
     }
 
@@ -199,11 +204,11 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     private void ExportExcel() =>
         _toast.Show("خروجی اکسل آماده شد (نمونه طراحی)", Tone.Ok);
 
-    /// <summary>Opens the add owner/pet wizard modal (Phase 09).</summary>
+    /// <summary>Opens the add owner/pet wizard modal (Phase 09, 760-wide).</summary>
     [RelayCommand]
     private void AddNewOwnerPet() =>
         _dialogs.ShowModal(new AddPatientWizardViewModel(
-            _patientsQueryService, _dialogs, () => ApplyFilter()));
+            _patientsQueryService, _dialogs, () => ApplyFilter()), maxWidth: 760);
 
     [RelayCommand]
     private void CallOwner(OwnerSummary? owner)
@@ -214,14 +219,30 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         }
     }
 
-    /// <summary>Add-pet-to-existing-owner stub — Phase 09 owns the pet modal.</summary>
+    /// <summary>Opens the add-pet modal for an existing owner (Phase 09, 760-wide).</summary>
     [RelayCommand]
     private void AddPet(OwnerSummary? owner)
     {
-        if (owner is not null)
+        if (owner is null)
         {
-            _toast.Show($"افزودن حیوان به پرونده «{owner.FirstName} {owner.LastName}» — فاز ۰۹", Tone.Info);
+            return;
         }
+
+        var detail = _patientsQueryService.GetOwnerAsync(owner.Id).GetAwaiter().GetResult();
+        if (detail is null)
+        {
+            return;
+        }
+
+        _dialogs.ShowModal(new AddPetModalViewModel(
+            detail,
+            req =>
+            {
+                _patientsQueryService.CreatePetAsync(detail.Id, req).GetAwaiter().GetResult();
+                LoadAsync().GetAwaiter().GetResult();
+                _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
+            },
+            _dialogs), maxWidth: 760);
     }
 
     private async Task LoadAsync()

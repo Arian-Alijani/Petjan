@@ -70,9 +70,12 @@ public partial class App : Application
         services.AddSingleton<IPatientsQueryService, MockPatientsQueryService>();
         services.AddSingleton<PatientsPageViewModel>();
 
-        // Phase 09: Patients & Owners drill-in detail screens. Transient so each
-        // navigation resolves a fresh page whose state is loaded via the id
-        // passed by INavigationService.NavigateTo<T>(configure).
+        // Phase 09: Patients & Owners drill-in detail screens. The reference
+        // renders both records as centered "sheets" over the directory (not
+        // pages), so the directory asks IRecordSheetPresenter to resolve +
+        // load + present them. Transient ViewModels so each opened record is a
+        // fresh, fully-loaded instance; the presenter itself is stateless.
+        services.AddSingleton<IRecordSheetPresenter, RecordSheetPresenter>();
         services.AddTransient<OwnerSheetViewModel>();
         services.AddTransient<PetFileViewModel>();
 

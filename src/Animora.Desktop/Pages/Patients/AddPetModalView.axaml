@@ -1,0 +1,116 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:patients="using:Animora.Desktop.Pages.Patients"
+             x:Class="Animora.Desktop.Pages.Patients.AddPetModalView"
+             x:Name="Root"
+             x:DataType="patients:AddPetModalViewModel"
+             Width="760"
+             MaxWidth="760"
+             FlowDirection="RightToLeft">
+
+    <!-- Add-pet-to-existing-owner modal — re-draws Animora-UI/patients.html
+         #petModal (.modal.wide) + patients-page.js openPetModal. Compact owner
+         preview + the shared pet-fields block (section titles hidden). This is
+         the View ViewLocator was missing. -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.meyebrow">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="TextBlock.mtitle">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="Button.mclose">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="Border.tagsoft">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="10,4" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel>
+
+        <!-- modal-header -->
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="22,18,22,6">
+            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
+                    Background="{StaticResource Brand50Brush}">
+                <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}"
+                      Data="{StaticResource IconPaw}" HorizontalAlignment="Center"
+                      VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                <TextBlock Classes="meyebrow" Text="افزودن به پرونده موجود" />
+                <TextBlock Classes="mtitle" Text="ثبت حیوان جدید" />
+            </StackPanel>
+            <Button Grid.Column="2" Classes="mclose" Command="{Binding CancelCommand}"
+                    VerticalAlignment="Top" ToolTip.Tip="بستن">
+                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                      Data="{StaticResource IconX}" HorizontalAlignment="Center"
+                      VerticalAlignment="Center" />
+            </Button>
+        </Grid>
+
+        <!-- modal-body (scroll) -->
+        <ScrollViewer MaxHeight="560" Padding="22,8,22,20">
+            <StackPanel>
+
+                <!-- owner-mini-preview -->
+                <Border Background="#fafbfa" BorderBrush="{StaticResource Line2Brush}"
+                        BorderThickness="1" CornerRadius="14" Padding="14,12" Margin="0,0,0,16">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                        <Border Grid.Column="0" Width="38" Height="38" CornerRadius="12"
+                                Background="{Binding OwnerToneBrush}">
+                            <TextBlock Text="{Binding OwnerInitials}" Foreground="White"
+                                       FontSize="13" FontWeight="ExtraBold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding OwnerName}" FontSize="13" FontWeight="Bold"
+                                       Foreground="{StaticResource InkBrush}" />
+                            <TextBlock Text="{Binding OwnerSubText}" FontSize="10.5"
+                                       Foreground="{StaticResource MutedBrush}" />
+                        </StackPanel>
+                        <Border Grid.Column="2" Classes="tagsoft" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <Path Classes="icon" Width="12" Height="12"
+                                      Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconPaw}" />
+                                <TextBlock Text="{Binding OwnerPetCountText}" FontSize="11.5"
+                                           Foreground="{StaticResource Ink2Brush}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- shared pet-fields block (section titles hidden) -->
+                <patients:PetFormView DataContext="{Binding Pet}" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- modal-footer -->
+        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="22,14">
+            <Grid ColumnDefinitions="Auto,*">
+                <Button Grid.Column="0" Classes="ghost" Content="انصراف"
+                        Command="{Binding CancelCommand}" />
+                <Button Grid.Column="1" Classes="primary" HorizontalAlignment="Right"
+                        Command="{Binding SaveCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                              Data="{StaticResource IconCheck}" />
+                        <TextBlock Text="ثبت حیوان" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+    </StackPanel>
+</UserControl>
