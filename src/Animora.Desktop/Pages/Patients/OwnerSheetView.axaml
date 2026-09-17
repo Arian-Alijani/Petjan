@@ -3,6 +3,7 @@
              xmlns:patients="using:Animora.Desktop.Pages.Patients"
              xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Patients.OwnerSheetView"
+             x:Name="Root"
              x:DataType="patients:OwnerSheetViewModel"
              FlowDirection="RightToLeft">
 
@@ -153,43 +154,53 @@
                         <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
                                 BorderThickness="1" CornerRadius="14" ClipToBounds="True">
                             <StackPanel>
-                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                                    <TextBlock Grid.Column="0" Classes="odk" Text="نام" />
-                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding EditFirstName}"
-                                               IsVisible="{Binding IsEditing}" />
-                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding FirstName}"
-                                               IsVisible="{Binding IsViewing}" />
+                                <Border Classes="odrow">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Classes="odk" Text="نام" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding EditFirstName}"
+                                                   IsVisible="{Binding IsEditing}" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding FirstName}"
+                                                   IsVisible="{Binding IsViewing}" />
+                                    </Grid>
                                 </Border>
-                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                                    <TextBlock Grid.Column="0" Classes="odk" Text="نام خانوادگی" />
-                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding EditLastName}"
-                                               IsVisible="{Binding IsEditing}" />
-                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding LastName}"
-                                               IsVisible="{Binding IsViewing}" />
+                                <Border Classes="odrow">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Classes="odk" Text="نام خانوادگی" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding EditLastName}"
+                                                   IsVisible="{Binding IsEditing}" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding LastName}"
+                                                   IsVisible="{Binding IsViewing}" />
+                                    </Grid>
                                 </Border>
-                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                                    <TextBlock Grid.Column="0" Classes="odk" Text="کد ملی" />
-                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding NationalIdText}"
-                                               IsVisible="{Binding IsViewing}" />
-                                    <TextBox Grid.Column="1" Text="{Binding EditNationalId}" Width="240"
-                                             HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
-                                             FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                <Border Classes="odrow">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Classes="odk" Text="کد ملی" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding NationalIdText}"
+                                                   IsVisible="{Binding IsViewing}" />
+                                        <TextBox Grid.Column="1" Text="{Binding EditNationalId}" Width="240"
+                                                 HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
+                                                 FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                    </Grid>
                                 </Border>
-                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                                    <TextBlock Grid.Column="0" Classes="odk" Text="جنسیت" />
-                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding GenderLabel}"
-                                               IsVisible="{Binding IsViewing}" />
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                                                HorizontalAlignment="Left" IsVisible="{Binding IsEditing}">
-                                        <RadioButton GroupName="ogender" Content="خانم"
-                                                     IsChecked="{Binding EditIsFemale}" />
-                                        <RadioButton GroupName="ogender" Content="آقا"
-                                                     IsChecked="{Binding !EditIsFemale}" />
-                                    </StackPanel>
+                                <Border Classes="odrow">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Classes="odk" Text="جنسیت" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding GenderLabel}"
+                                                   IsVisible="{Binding IsViewing}" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                                    HorizontalAlignment="Left" IsVisible="{Binding IsEditing}">
+                                            <RadioButton GroupName="ogender" Content="خانم"
+                                                         IsChecked="{Binding EditIsFemale}" />
+                                            <RadioButton GroupName="ogender" Content="آقا"
+                                                         IsChecked="{Binding !EditIsFemale}" />
+                                        </StackPanel>
+                                    </Grid>
                                 </Border>
-                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                                    <TextBlock Grid.Column="0" Classes="odk" Text="شماره پرونده" />
-                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding File}" />
+                                <Border Classes="odrow">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Classes="odk" Text="شماره پرونده" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding File}" />
+                                    </Grid>
                                 </Border>
                             </StackPanel>
                         </Border>
@@ -201,29 +212,35 @@
                         <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
                                 BorderThickness="1" CornerRadius="14" ClipToBounds="True">
                             <StackPanel>
-                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                                    <TextBlock Grid.Column="0" Classes="odk" Text="موبایل اول" />
-                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding Mobile1Text}"
-                                               IsVisible="{Binding IsViewing}" />
-                                    <TextBox Grid.Column="1" Text="{Binding EditMobile1}" Width="240"
-                                             HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
-                                             FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                <Border Classes="odrow">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Classes="odk" Text="موبایل اول" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding Mobile1Text}"
+                                                   IsVisible="{Binding IsViewing}" />
+                                        <TextBox Grid.Column="1" Text="{Binding EditMobile1}" Width="240"
+                                                 HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
+                                                 FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                    </Grid>
                                 </Border>
-                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                                    <TextBlock Grid.Column="0" Classes="odk" Text="موبایل دوم" />
-                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding Mobile2Text}"
-                                               IsVisible="{Binding IsViewing}" />
-                                    <TextBox Grid.Column="1" Text="{Binding EditMobile2}" Width="240"
-                                             HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
-                                             FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                <Border Classes="odrow">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Classes="odk" Text="موبایل دوم" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding Mobile2Text}"
+                                                   IsVisible="{Binding IsViewing}" />
+                                        <TextBox Grid.Column="1" Text="{Binding EditMobile2}" Width="240"
+                                                 HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
+                                                 FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                    </Grid>
                                 </Border>
-                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                                    <TextBlock Grid.Column="0" Classes="odk" Text="تلفن ثابت" />
-                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding PhoneText}"
-                                               IsVisible="{Binding IsViewing}" />
-                                    <TextBox Grid.Column="1" Text="{Binding EditPhone}" Width="240"
-                                             HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
-                                             FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                <Border Classes="odrow">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Classes="odk" Text="تلفن ثابت" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding PhoneText}"
+                                                   IsVisible="{Binding IsViewing}" />
+                                        <TextBox Grid.Column="1" Text="{Binding EditPhone}" Width="240"
+                                                 HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
+                                                 FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                    </Grid>
                                 </Border>
                             </StackPanel>
                         </Border>
@@ -235,15 +252,19 @@
                         <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
                                 BorderThickness="1" CornerRadius="14" ClipToBounds="True">
                             <StackPanel>
-                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                                    <TextBlock Grid.Column="0" Classes="odk" Text="آدرس"
-                                               VerticalAlignment="Top" />
-                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding AddressText}"
-                                               TextWrapping="Wrap" TextAlignment="Left" />
+                                <Border Classes="odrow">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Classes="odk" Text="آدرس"
+                                                   VerticalAlignment="Top" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding AddressText}"
+                                                   TextWrapping="Wrap" TextAlignment="Left" />
+                                    </Grid>
                                 </Border>
-                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                                    <TextBlock Grid.Column="0" Classes="odk" Text="نحوه آشنایی" />
-                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding ReferralText}" />
+                                <Border Classes="odrow">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Classes="odk" Text="نحوه آشنایی" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding ReferralText}" />
+                                    </Grid>
                                 </Border>
                             </StackPanel>
                         </Border>
@@ -327,35 +348,41 @@
                         <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
                                 BorderThickness="1" CornerRadius="14" ClipToBounds="True">
                             <Grid ColumnDefinitions="*,*,*">
-                                <StackPanel Grid.Column="0" Padding="10,13" HorizontalAlignment="Center">
-                                    <TextBlock Text="{Binding VisitsCountText}" FontSize="14.5"
-                                               FontWeight="ExtraBold"
-                                               Foreground="{StaticResource InkBrush}"
-                                               HorizontalAlignment="Center" />
-                                    <TextBlock Text="ویزیت ثبت‌شده" FontSize="10.5"
-                                               Foreground="{StaticResource MutedBrush}"
-                                               HorizontalAlignment="Center" Margin="0,3,0,0" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="1" Padding="10,13" HorizontalAlignment="Center"
-                                            BorderBrush="{StaticResource Line2Brush}"
-                                            BorderThickness="1,0,1,0">
-                                    <TextBlock Text="{Binding PetsCountText}" FontSize="14.5"
-                                               FontWeight="ExtraBold"
-                                               Foreground="{StaticResource InkBrush}"
-                                               HorizontalAlignment="Center" />
-                                    <TextBlock Text="حیوان فعال" FontSize="10.5"
-                                               Foreground="{StaticResource MutedBrush}"
-                                               HorizontalAlignment="Center" Margin="0,3,0,0" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="2" Padding="10,13" HorizontalAlignment="Center">
-                                    <TextBlock Text="{Binding LastVisitText}" FontSize="14.5"
-                                               FontWeight="ExtraBold"
-                                               Foreground="{StaticResource InkBrush}"
-                                               HorizontalAlignment="Center" />
-                                    <TextBlock Text="آخرین مراجعه" FontSize="10.5"
-                                               Foreground="{StaticResource MutedBrush}"
-                                               HorizontalAlignment="Center" Margin="0,3,0,0" />
-                                </StackPanel>
+                                <Border Grid.Column="0" Padding="10,13">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding VisitsCountText}" FontSize="14.5"
+                                                   FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource InkBrush}"
+                                                   HorizontalAlignment="Center" />
+                                        <TextBlock Text="ویزیت ثبت‌شده" FontSize="10.5"
+                                                   Foreground="{StaticResource MutedBrush}"
+                                                   HorizontalAlignment="Center" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="1" Padding="10,13"
+                                        BorderBrush="{StaticResource Line2Brush}"
+                                        BorderThickness="1,0,1,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding PetsCountText}" FontSize="14.5"
+                                                   FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource InkBrush}"
+                                                   HorizontalAlignment="Center" />
+                                        <TextBlock Text="حیوان فعال" FontSize="10.5"
+                                                   Foreground="{StaticResource MutedBrush}"
+                                                   HorizontalAlignment="Center" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="2" Padding="10,13">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding LastVisitText}" FontSize="14.5"
+                                                   FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource InkBrush}"
+                                                   HorizontalAlignment="Center" />
+                                        <TextBlock Text="آخرین مراجعه" FontSize="10.5"
+                                                   Foreground="{StaticResource MutedBrush}"
+                                                   HorizontalAlignment="Center" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                </Border>
                             </Grid>
                         </Border>
                     </StackPanel>

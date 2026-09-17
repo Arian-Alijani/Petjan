@@ -181,7 +181,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     // ---- weight tab ----
     public ObservableCollection<Controls.WeightChartPoint> WeightPoints { get; } = [];
     public ObservableCollection<WeightRowViewModel> WeightRows { get; } = [];
-    public string WeightRecordCountText => $"{Fa(WeightRows.Count)} رکورد";
+    public string WeightRecordCountText => $"{Fa(WeightRows.Count.ToString())} رکورد";
     public string DefaultWeightDate => JalaliDate.Today.ToString("short");
 
     // ---- vax tab ----
