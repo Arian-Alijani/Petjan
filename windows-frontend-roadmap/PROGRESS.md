@@ -41,7 +41,8 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
 
 ## Current state
 
-- **Next phase to execute:** `08` — Patients & Owners — List/Grid
+- **Next phase to execute:** `09` — Patients & Owners — Detail (Owner sheet / Pet file)
+- **Repo state (Phase 08, build- & smoke-run verified):** Patients & Owners directory now has backend-ready contracts (`IPatientsQueryService`, `PetSummary`/`OwnerSummary` DTOs + `PetSpecies`/`PetStatus`/`PetGender`/`OwnerGender`/`PatientAvatarTone` enums in `Animora.Contracts/Patients/`), a deterministic in-memory `MockPatientsQueryService` (10 pets across cat/dog/bird/rabbit/rodent/other, 6 owners with tags/balances), presentation adapters (`PatientsPageEnums`, `PatientsPresentation`, `PatientsSpeciesChipViewModel`, `OwnerPetChipViewModel`, `OwnerCardViewModel`, `PetCardViewModel`), the `PatientsPageViewModel` (search + derived species-chips + pets/owners entity switch + list/grid layout + vaccine filter + sort, mirroring `petMatches`/`ownerMatches`/`sortPets`/`renderSpeciesChips`, with `OpenPet`/`OpenOwner` toast stubs for Phase 09), and `PatientsPageView.axaml(.cs)` (page header with «خروجی»/«مالک و بیمار جدید», unified `.pagebar` with two tiers, owner-grid/pets-grid cards, owners/pets tables, shared `pt-empty`). New shared helpers: `Localization/PersianText` (search normalization) and `Localization/RelativeDateFormatter` (since/until/age Jalali phrases). New theme additions: `IconPhone/Mobile/IdCard/Pin/Download/List/Grid/More2`, rose/mint + table/inset/hover surface tokens, and `ShadowSegment`/`ShadowChip`. DI registers `IPatientsQueryService`/`PatientsPageViewModel`; the sidebar `patients` item now targets `PatientsPageViewModel`. **Build verification (this session):** installed .NET 10.0.401 + Xvfb via `scripts/sandbox/install-prereqs.sh`; `scripts/sandbox/build.sh full` = **0 warnings / 0 errors** and `scripts/sandbox/run.sh` = **SMOKE RUN OK**. Five defects that the previously-unbuilt code had hidden were fixed during consolidation: (1) `OwnerCardViewModel.PetsPreviewText` was both assigned in the constructor and re-declared as a read-only computed property (CS0200) → kept the constructor's all-pets assignment as an auto-property and removed the duplicate; (2) `BoxShadow` set directly on `Button.cardlink` (Button has no such property) → moved to the template's `ContentPresenter#PART_ContentPresenter`; (3) `Padding` on a `Grid` → `Margin`; (4)+(5) `FontSize` on two table-row `Border`s → `TextElement.FontSize` attached property so the cascade is preserved.
 - **⚠️ Fidelity Protocol now in force (roadmap update, applies to Phase 07+).**
   The roadmap was tightened after Phase 06 shipped visibly different from the
   `Animora-UI` reference (missing chart/donut/ring, eyeballed spacing/boxes).
@@ -192,7 +193,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
   (`App.Services`). Central package pins live in `Directory.Packages.props`;
   shared build settings in `Directory.Build.props`. No theming/controls/
   navigation/screens yet.
-- **Roadmap status:** Phases 01–07 done and **build-verified** (0/0) + render-verified; 7 of 29 phases are formally done.
+- **Roadmap status:** Phases 01–08 done and **build-verified** (0/0) + smoke-run verified; 8 of 29 phases are formally done.
 
 ## Phase checklist
 
@@ -205,7 +206,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
 | 05 | App Shell: Sidebar, Topbar, Navigation | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK. Notification bell reuses IconClock (no bell icon in the set); see log |
 | 06 | Dashboard Screen | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK (all 3 roles). Fixed AVLN2005 `1fr`→`*` grid-length defect; quick-tile 7 restored to reference; see log |
 | 07 | Reception & Queue Screen | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK + render-compared to reference. Fixed 4 `AVLN5001` `Watermark`→`PlaceholderText` obsolete-API warnings; see log |
-| 08 | Patients & Owners — List/Grid | ⬜ Not started | |
+| 08 | Patients & Owners — List/Grid | ✅ Done | Build-verified (0/0) + smoke run OK. Fixed 5 hidden defects on consolidation (CS0200 `PetsPreviewText`; `BoxShadow` on Button; `Padding` on Grid; 2× `FontSize` on Border); see log |
 | 09 | Patients & Owners — Pet File / Owner Sheet | ⬜ Not started | |
 | 10 | Visits — Doctor Rail & Triage | ⬜ Not started | |
 | 11 | Visits — Clinical Encounter Wizard | ⬜ Not started | |

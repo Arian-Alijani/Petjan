@@ -12,4 +12,10 @@
     <!-- shadow-pop token: 0 12px 32px spread=neg8 @.18, 0 4px 10px spread=neg4 @.08 -->
     <BoxShadows x:Key="ShadowPop">0 12 32 -8 #2E101828, 0 4 10 -4 #14101828</BoxShadows>
 
+    <!-- Segmented-control active button: 0 2px 8px rgba(16,24,40,.08) -->
+    <BoxShadows x:Key="ShadowSegment">0 2 8 0 #14101828</BoxShadows>
+
+    <!-- Active filter chip: 0 2px 8px rgba(13,148,136,.22) -->
+    <BoxShadows x:Key="ShadowChip">0 2 8 0 #380D9488</BoxShadows>
+
 </ResourceDictionary>

@@ -1,8 +1,10 @@
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
+using Animora.Contracts.Patients;
 using Animora.Contracts.Reception;
 using Animora.Desktop.Mocks;
 using Animora.Desktop.Pages.Dashboard;
+using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Reception;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
@@ -61,6 +63,11 @@ public partial class App : Application
         // mutations while navigating between Dashboard and Reception.
         services.AddSingleton<IReceptionQueueService, MockReceptionQueueService>();
         services.AddSingleton<ReceptionPageViewModel>();
+
+        // Phase 08: Patients & Owners directory. Stateless read-only mock, so a
+        // singleton suffices (no per-navigation reload semantics yet).
+        services.AddSingleton<IPatientsQueryService, MockPatientsQueryService>();
+        services.AddSingleton<PatientsPageViewModel>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();

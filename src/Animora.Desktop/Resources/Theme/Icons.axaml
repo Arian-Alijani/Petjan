@@ -218,4 +218,45 @@
         M13,16 a3,3 0 0 1 2.24,5 M18,12 h.01 M18,21 H10 a4,4 0 0 1 -4,-4 a7,7 0 0 1 7,-7 h.2 L9.6,6.4 a1,1 0 1 1 2.8,-2.8 L15.8,7 h.2 c3.3,0 6,2.7 6,6 v1 a2,2 0 0 1 -2,2 h-1 a3,3 0 0 0 -3,3 M20,8 V4 a2,2 0 1 0 -4,0 v3 M7.61,12.52 a3,3 0 1 0 -1.6,4.3
     </StreamGeometry>
 
+    <!-- Patients & Owners directory glyphs, redrawn from the reference's
+         patients-ui.js action set (phone/mobile/id-card/pin) and the
+         list/grid/export toolbar icons (icons.js list/grid/download). -->
+    <StreamGeometry x:Key="IconPhone">
+        M22,16.92 v3 a2,2 0 0 1 -2.18,2 a19.79,19.79 0 0 1 -8.63,-3.07 a19.5,19.5 0 0 1 -6,-6 a19.79,19.79 0 0 1 -3.07,-8.67 A2,2 0 0 1 4.11,2 h3 a2,2 0 0 1 2,1.72 c.13,.96 .36,1.9 .7,2.81 a2,2 0 0 1 -.45,2.11 L8.09,9.91 a16,16 0 0 0 6,6 l1.27,-1.27 a2,2 0 0 1 2.11,-.45 c.9,.34 1.85,.57 2.81,.7 A2,2 0 0 1 22,16.92 z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconMobile">
+        M7,2 h10 a2,2 0 0 1 2,2 v16 a2,2 0 0 1 -2,2 h-10 a2,2 0 0 1 -2,-2 v-16 a2,2 0 0 1 2,-2 z
+        M12,18 h0.01
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconIdCard">
+        M4,4 h16 a2,2 0 0 1 2,2 v12 a2,2 0 0 1 -2,2 h-16 a2,2 0 0 1 -2,-2 v-12 a2,2 0 0 1 2,-2 z
+        M6,11 A2.5,2.5 0 1 0 11,11 A2.5,2.5 0 1 0 6,11 Z
+        M4.5,17 c.8,-1.6 2.3,-2.5 4,-2.5 c1.7,0 3.2,.9 4,2.5
+        M15,9 h4 M15,13 h4
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconPin">
+        M21,10 c0,7 -9,13 -9,13 c0,0 -9,-6 -9,-13 a9,9 0 0 1 18,0 z
+        M9,10 A3,3 0 1 0 15,10 A3,3 0 1 0 9,10 Z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconDownload">
+        M21,15 v4 a2,2 0 0 1 -2,2 H5 a2,2 0 0 1 -2,-2 v-4
+        M7,10 L12,15 L17,10
+        M12,15 V3
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconList">
+        M8,6 L21,6 M8,12 L21,12 M8,18 L21,18 M3,6 L3.01,6 M3,12 L3.01,12 M3,18 L3.01,18
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconGrid">
+        M4,3 h5 a1,1 0 0 1 1,1 v5 a1,1 0 0 1 -1,1 h-5 a1,1 0 0 1 -1,-1 v-5 a1,1 0 0 1 1,-1 z
+        M15,3 h5 a1,1 0 0 1 1,1 v5 a1,1 0 0 1 -1,1 h-5 a1,1 0 0 1 -1,-1 v-5 a1,1 0 0 1 1,-1 z
+        M4,14 h5 a1,1 0 0 1 1,1 v5 a1,1 0 0 1 -1,1 h-5 a1,1 0 0 1 -1,-1 v-5 a1,1 0 0 1 1,-1 z
+        M15,14 h5 a1,1 0 0 1 1,1 v5 a1,1 0 0 1 -1,1 h-5 a1,1 0 0 1 -1,-1 v-5 a1,1 0 0 1 1,-1 z
+    </StreamGeometry>
+    <!-- reference icons.js "more2": circled ellipsis — the species glyph for
+         rodents / "other" (SPECIES.rodent.icon/.other.icon). -->
+    <StreamGeometry x:Key="IconMore2">
+        M2,12 A10,10 0 1 0 22,12 A10,10 0 1 0 2,12 Z
+        M8,12 h.01 M12,12 h.01 M16,12 h.01
+    </StreamGeometry>
+
 </ResourceDictionary>
