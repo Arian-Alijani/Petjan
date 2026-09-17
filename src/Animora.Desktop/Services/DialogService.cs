@@ -22,9 +22,9 @@ public sealed class DialogService : IDialogService
         _drawerHost.BackdropRequestedClose += (_, _) => Close();
     }
 
-    public void ShowModal(Control content) => _modalHost?.SetContent(content);
+    public void ShowModal(object content) => _modalHost?.SetContent(content);
 
-    public void ShowDrawer(Control content) => _drawerHost?.SetContent(content);
+    public void ShowDrawer(object content) => _drawerHost?.SetContent(content);
 
     public void Close()
     {

@@ -35,5 +35,6 @@ public sealed class ViewLocator : IDataTemplate
         return new TextBlock { Text = $"View not found: {viewName}" };
     }
 
-    public bool Match(object? data) => data is PageViewModelBase;
+    public bool Match(object? data) =>
+        data?.GetType().Name.EndsWith("ViewModel", StringComparison.Ordinal) == true;
 }

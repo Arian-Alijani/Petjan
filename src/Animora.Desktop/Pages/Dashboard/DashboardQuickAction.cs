@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Animora.Desktop.Pages.Reception;
 using Animora.Desktop.Shell;
 
 namespace Animora.Desktop.Pages.Dashboard;
@@ -16,7 +17,7 @@ public sealed record DashboardQuickAction(string Label, string Subtitle, string 
     {
         new DashboardQuickAction("نوبت جدید", "ثبت در تقویم", "IconCalendar", typeof(PlaceholderPageViewModel)),
         new DashboardQuickAction("پرونده بیمار", "جستجو و ثبت", "IconUsers", typeof(PlaceholderPageViewModel)),
-        new DashboardQuickAction("شروع ویزیت", "ثبت معاینه", "IconClipboard", typeof(PlaceholderPageViewModel)),
+        new DashboardQuickAction("شروع ویزیت", "ثبت معاینه", "IconClipboard", typeof(ReceptionPageViewModel)),
         new DashboardQuickAction("واکسیناسیون", "۶ یادآور امروز", "IconSyringe", typeof(PlaceholderPageViewModel)),
         new DashboardQuickAction("فروش و صندوق", "صدور فاکتور", "IconCart", typeof(PlaceholderPageViewModel)),
         new DashboardQuickAction("انبار و کالا", "کنترل موجودی", "IconBox", typeof(PlaceholderPageViewModel)),

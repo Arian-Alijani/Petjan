@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="using:Animora.Desktop.Shell"
+        xmlns:controls="using:Animora.Desktop.Controls"
         x:Class="Animora.Desktop.Shell.MainWindow"
         x:Name="Root"
         x:DataType="shell:MainWindowViewModel"
@@ -19,7 +20,8 @@
          and always renders on the RIGHT edge, as Persian RTL requires. The
          individual child views (SidebarView, TopbarView, pages) keep their own
          FlowDirection=RightToLeft, so all Persian text still flows right-to-left. -->
-    <Grid ColumnDefinitions="*,Auto" FlowDirection="LeftToRight">
+    <Grid>
+        <Grid ColumnDefinitions="*,Auto" FlowDirection="LeftToRight">
 
         <!-- Sidebar host: width is animated so the topbar fold toggle can
              collapse/expand the menu smoothly. Pinned to the right (last)
@@ -48,6 +50,13 @@
                 <ContentControl Content="{Binding CurrentPage}" />
             </ScrollViewer>
         </DockPanel>
+        </Grid>
+
+        <!-- Permanent shell overlays. ViewModels open dialogs/toasts through
+             services; no screen owns window or overlay plumbing. -->
+        <controls:ToastHost x:Name="Toast" ZIndex="100" IsHitTestVisible="False" />
+        <controls:ModalHost x:Name="Modal" ZIndex="110" />
+        <controls:DrawerHost x:Name="Drawer" ZIndex="120" />
     </Grid>
 
 </Window>
