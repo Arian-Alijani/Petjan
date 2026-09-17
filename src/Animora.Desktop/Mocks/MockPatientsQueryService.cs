@@ -335,7 +335,7 @@ public sealed class MockPatientsQueryService : IPatientsQueryService
         new(id, code, name, species, breed, color, gender, tone, status, ownerId, birth, weightKg,
             lastVisitDaysAgo >= 0 ? Today.AddDays(-lastVisitDaysAgo) : null,
             lastVisitType, hasVaccines,
-            nextVaccineDaysAhead is { } days ? Today.AddDays(days) : null,
             nextVaccineName,
+            nextVaccineDaysAhead is { } days ? Today.AddDays(days) : null,
             microchip);
 }
