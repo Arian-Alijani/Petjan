@@ -75,43 +75,151 @@
             Padding="14,18,14,14">
         <DockPanel LastChildFill="True">
 
-            <!-- Brand header -->
+            <!-- Brand header: fold toggle (leading/left edge) + paw logo.
+                 Expanded shows [toggle | brand text ... logo]; collapsed
+                 stacks the toggle above the centred logo so both stay reachable
+                 in the compact rail. -->
             <Border DockPanel.Dock="Top"
                     BorderBrush="{StaticResource Line2Brush}"
                     BorderThickness="0,0,0,1"
-                    Padding="8,4,8,16"
-                    Margin="0,0,0,12">
-                <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0"
-                                IsVisible="{Binding IsExpanded}"
-                                VerticalAlignment="Center"
-                                Spacing="2">
-                        <TextBlock Text="وت‌پلاس"
-                                   FontSize="19"
-                                   FontWeight="ExtraBold"
-                                   Foreground="{StaticResource InkBrush}" />
-                        <TextBlock Text="کلینیک هوشمند"
-                                   FontSize="11"
-                                   Foreground="{StaticResource Muted2Brush}" />
-                    </StackPanel>
-                    <Border Grid.Column="1"
-                            Width="40"
-                            Height="40"
-                            CornerRadius="12"
-                            VerticalAlignment="Center">
+                    Padding="6,2,6,16"
+                    Margin="0,0,0,10">
+                <StackPanel Spacing="10">
+
+                    <!-- Row 1: fold toggle. In RTL the leading edge is the
+                         right, so the button is docked left (the outer edge),
+                         matching the target's top-left placement. -->
+                    <Button Classes="ghost"
+                            Command="{Binding ToggleCommand}"
+                            Width="34"
+                            Height="34"
+                            Padding="0"
+                            CornerRadius="10"
+                            BorderThickness="1"
+                            BorderBrush="{StaticResource Line2Brush}"
+                            ToolTip.Tip="{Binding ToggleToolTip}"
+                            HorizontalAlignment="{Binding IsExpanded, Converter={x:Static shell:SidebarView.RailAlignmentConverter}}">
+                        <Path Classes="icon"
+                              Width="18"
+                              Height="18"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              RenderTransformOrigin="50%,50%"
+                              Stroke="{StaticResource Ink2Brush}"
+                              Data="{StaticResource IconFold}">
+                            <Path.RenderTransform>
+                                <RotateTransform Angle="{Binding ToggleIconRotation}">
+                                    <RotateTransform.Transitions>
+                                        <Transitions>
+                                            <DoubleTransition Property="Angle"
+                                                              Duration="0:0:0.28"
+                                                              Easing="CubicEaseInOut" />
+                                        </Transitions>
+                                    </RotateTransform.Transitions>
+                                </RotateTransform>
+                            </Path.RenderTransform>
+                        </Path>
+                    </Button>
+
+                    <!-- Row 2: brand identity. Two mutually-exclusive layers so
+                         each state is laid out cleanly:
+                         • Expanded  → [brand text ... paw logo] hugging the
+                           leading (right) edge under RTL.
+                         • Collapsed → the paw logo alone, centred in the rail. -->
+                    <Panel>
+                        <!-- Expanded layer -->
+                        <Grid IsVisible="{Binding IsExpanded}"
+                              ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0"
+                                        VerticalAlignment="Center"
+                                        Spacing="2">
+                                <TextBlock Text="وت‌پلاس"
+                                           FontSize="19"
+                                           FontWeight="ExtraBold"
+                                           Foreground="{StaticResource InkBrush}" />
+                                <TextBlock Text="کلینیک هوشمند"
+                                           FontSize="11"
+                                           Foreground="{StaticResource Muted2Brush}" />
+                            </StackPanel>
+                            <Border Grid.Column="1"
+                                    Width="40"
+                                    Height="40"
+                                    CornerRadius="12"
+                                    VerticalAlignment="Center">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                        <GradientStop Offset="0" Color="{StaticResource Brand500Color}" />
+                                        <GradientStop Offset="1" Color="{StaticResource Brand600Color}" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Path Classes="icon"
+                                      Width="22"
+                                      Height="22"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Stroke="White"
+                                      Data="{StaticResource IconPaw}" />
+                            </Border>
+                        </Grid>
+
+                        <!-- Collapsed layer: centred logo -->
+                        <Border IsVisible="{Binding IsExpanded, Converter={x:Static shell:SidebarView.InverseBoolConverter}}"
+                                Width="40"
+                                Height="40"
+                                CornerRadius="12"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Offset="0" Color="{StaticResource Brand500Color}" />
+                                    <GradientStop Offset="1" Color="{StaticResource Brand600Color}" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Path Classes="icon"
+                                  Width="22"
+                                  Height="22"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  Stroke="White"
+                                  Data="{StaticResource IconPaw}" />
+                        </Border>
+                    </Panel>
+                </StackPanel>
+            </Border>
+
+            <!-- Compact-rail footer: just the user avatar, centred, with the
+                 sync-active teal dot on its top-outer corner (mirrors the
+                 target's collapsed profile chip). -->
+            <Border DockPanel.Dock="Bottom"
+                    IsVisible="{Binding IsExpanded, Converter={x:Static shell:SidebarView.InverseBoolConverter}}"
+                    HorizontalAlignment="Center"
+                    Margin="0,8,0,2">
+                <Panel>
+                    <Border Width="38"
+                            Height="38"
+                            CornerRadius="11">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
                                 <GradientStop Offset="0" Color="{StaticResource Brand500Color}" />
-                                <GradientStop Offset="1" Color="{StaticResource Brand600Color}" />
+                                <GradientStop Offset="1" Color="{StaticResource Brand700Color}" />
                             </LinearGradientBrush>
                         </Border.Background>
-                        <Path Classes="icon"
-                              HorizontalAlignment="Center"
-                              VerticalAlignment="Center"
-                              Stroke="White"
-                              Data="{StaticResource IconShield}" />
+                        <TextBlock Text="{Binding CurrentUser.Initials}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontWeight="ExtraBold"
+                                   FontSize="15"
+                                   Foreground="White" />
                     </Border>
-                </Grid>
+                    <Ellipse Width="9"
+                             Height="9"
+                             HorizontalAlignment="Left"
+                             VerticalAlignment="Top"
+                             Margin="-2,-2,0,0"
+                             Stroke="{StaticResource PanelBrush}"
+                             StrokeThickness="1.5"
+                             Fill="{StaticResource OkBrush}" />
+                </Panel>
             </Border>
 
             <!-- Bottom cluster: sync status + user card. Hidden in compact
@@ -216,13 +324,18 @@
                                                      label + badge collapse (IsVisible + zero layout size)
                                                      when the sidebar is compact. -->
                                                 <Grid ColumnDefinitions="*,Auto">
-                                                    <!-- Leading accent bar (active only), overlaid -->
+                                                    <!-- Leading accent bar (active only), overlaid on
+                                                         the pill's inner (right, RTL leading) edge.
+                                                         Negative right margin cancels the button's
+                                                         12px horizontal padding so the 4px bar sits
+                                                         flush against the pill edge, matching the
+                                                         target. -->
                                                     <Border Classes="nav-accent"
                                                             Grid.Column="0"
                                                             Grid.ColumnSpan="2"
-                                                            Width="3"
-                                                            Margin="0,2"
-                                                            CornerRadius="3"
+                                                            Width="4"
+                                                            Margin="0,-3,-12,-3"
+                                                            CornerRadius="4,0,0,4"
                                                             HorizontalAlignment="Right"
                                                             VerticalAlignment="Stretch"
                                                             Background="{StaticResource Brand600Brush}" />
@@ -235,11 +348,31 @@
                                                                 Spacing="12"
                                                                 VerticalAlignment="Center"
                                                                 HorizontalAlignment="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded, Converter={x:Static shell:SidebarView.RailAlignmentConverter}}">
-                                                        <Path Classes="icon nav-icon"
-                                                              Width="18"
-                                                              Height="18"
-                                                              VerticalAlignment="Center"
-                                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                        <!-- Icon + compact-rail notification dot. The
+                                                             dot only appears for badged entries while
+                                                             the sidebar is collapsed (the expanded rail
+                                                             shows the numeric badge instead), pinned to
+                                                             the icon's top-outer corner. -->
+                                                        <Panel Width="18" Height="18" VerticalAlignment="Center">
+                                                            <Path Classes="icon nav-icon"
+                                                                  Width="18"
+                                                                  Height="18"
+                                                                  VerticalAlignment="Center"
+                                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                            <Ellipse Width="7"
+                                                                     Height="7"
+                                                                     HorizontalAlignment="Left"
+                                                                     VerticalAlignment="Top"
+                                                                     Margin="-3,-2,0,0"
+                                                                     Fill="{StaticResource Brand500Brush}">
+                                                                <Ellipse.IsVisible>
+                                                                    <MultiBinding Converter="{x:Static shell:SidebarView.BadgeDotConverter}">
+                                                                        <Binding Path="HasBadge" />
+                                                                        <Binding Path="$parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded" />
+                                                                    </MultiBinding>
+                                                                </Ellipse.IsVisible>
+                                                            </Ellipse>
+                                                        </Panel>
                                                         <TextBlock Classes="nav-label"
                                                                    IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}"
                                                                    VerticalAlignment="Center"
