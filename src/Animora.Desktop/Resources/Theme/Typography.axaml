@@ -8,10 +8,19 @@
 
          IMPORTANT: Vazirmatn is bundled as discrete STATIC weight files
          (Regular/Medium/SemiBold/Bold/ExtraBold/Black — see
-         scripts/build_vazirmatn_weights.py). The variable original could not be
-         weight-resolved by Avalonia and rendered non-Regular text as solid black
-         boxes. The folder-scoped avares:// URI below exposes every bundled weight
-         under the single "Vazirmatn" family so FontWeight resolves correctly.
+         scripts/build_vazirmatn_weights.py). Two earlier attempts failed:
+           1. Using the upstream VARIABLE font — Avalonia can't weight-resolve it,
+              so every non-Regular label rendered as solid black boxes.
+           2. Instancing static weights but giving heavy weights their OWN legacy
+              family name ("Vazirmatn ExtraBold", ...) while leaving the variable
+              STAT axis + fvar instance name records behind. Avalonia then could
+              not collapse the six files into one weightable "Vazirmatn" family,
+              so ExtraBold/Black still fell back to .notdef (black rectangles).
+         Current fix: every file shares ONE legacy+typographic family name
+         "Vazirmatn", differs only by usWeightClass (400..900), and all
+         variable-font leftovers are stripped. The folder-scoped avares:// URI
+         below then exposes a single "Vazirmatn" family with six real weights, so
+         every requested FontWeight binds to real outlines.
 
          Type scale + the weight tokens below mirror the reference's observed
          heading/body sizes and weights (400/500/600/700/800) so all app text is
