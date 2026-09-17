@@ -41,7 +41,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
 
 ## Current state
 
-- **Next phase to execute:** `07` — Reception & Queue Screen (implementation complete; compile/render verification pending because this sandbox has no .NET SDK)
+- **Next phase to execute:** `08` — Patients & Owners — List/Grid
 - **⚠️ Fidelity Protocol now in force (roadmap update, applies to Phase 07+).**
   The roadmap was tightened after Phase 06 shipped visibly different from the
   `Animora-UI` reference (missing chart/donut/ring, eyeballed spacing/boxes).
@@ -56,7 +56,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
   fidelity audit is the place where any residual gap in an already-done screen
   (e.g. the Phase 06 dashboard's omitted chart/donut/ring) is caught and
   assigned a fix, per that phase's Task 4.
-- **Repo state (Phase 07, verification pending):** Reception now has backend-ready contracts (`IReceptionQueueService`, queue/walk-in DTOs), a stateful in-memory mock, a complete MVVM page with live hero metrics, four KPI cards, exact queue filters/search/pager/empty state, state-specific actions, and the walk-in modal. Dashboard's «شروع ویزیت» deep-link targets Reception; shell-level modal/toast hosts are permanently wired. All 27 AXAML files pass XML parsing, `git diff --check` passes, and a 23-label structural fidelity check passes. Compile/render verification could not run because this sandbox currently has no `dotnet`, `csc`, `msbuild`, or `mono`; Phase 07 therefore remains in progress rather than being marked done.
+- **Repo state (Phase 07, build- & render-verified):** Reception now has backend-ready contracts (`IReceptionQueueService`, queue/walk-in DTOs), a stateful in-memory mock, a complete MVVM page with live hero metrics, four KPI cards, exact queue filters/search/pager/empty state, state-specific actions, and the walk-in modal. Dashboard's «شروع ویزیت» deep-link targets Reception; shell-level modal/toast hosts are permanently wired. **Build verification (this session):** installed the .NET 10 SDK (10.0.401), `scripts/sandbox/build.sh full` = **0 warnings / 0 errors**, and `scripts/sandbox/run.sh` = **SMOKE RUN OK**. **Render verification:** captured a headless Xvfb screenshot of the Reception screen (temporarily setting it as the startup page, then reverting) and compared element-by-element against `Animora-UI/reception.html` — hero (live Jalali date + «صف فعال» pill + 4 metrics میانگین انتظار/نوبت بعدی/اورژانس‌های فعال/تکمیل‌شده امروز), 4 KPI cards, filter tabs (همه/فعال/اورژانس/پایان‌یافته), search placeholder «جستجوی حیوان، مالک یا پزشک…», «فیلتر» button, header eyebrow/title/subtitle, «ثبت مراجعهٔ حضوری» + «بازخوانی صف» buttons, and per-row queue actions all match. One defect the un-built code had hidden was fixed (four `TextBox.Watermark` usages triggering `AVLN5001` obsolete-API warnings → migrated to `PlaceholderText`; see log). Phase 07 is now Done.
 - **Repo state (Phase 06):** the Dashboard placeholder is replaced with the
   real, role-aware screen. `Animora.Contracts/Dashboard/` gained
   `DashboardModels.cs` (`DashboardTone`, `DashboardStat`, `DashboardListItem`,
@@ -192,7 +192,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
   (`App.Services`). Central package pins live in `Directory.Packages.props`;
   shared build settings in `Directory.Build.props`. No theming/controls/
   navigation/screens yet.
-- **Roadmap status:** Phases 01–06 done and **build-verified** (0/0). Phase 07 is implemented and structurally verified but awaits compile/render verification; 6 of 29 phases are formally done.
+- **Roadmap status:** Phases 01–07 done and **build-verified** (0/0) + render-verified; 7 of 29 phases are formally done.
 
 ## Phase checklist
 
@@ -204,7 +204,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
 | 04 | RTL & Localization Utilities | ⚠️ Done with deviation | Build-verified (0/0). Persian-digit codepoint follows the actual reference `toFa` (U+06Fx), not the phase text's U+066x example — see log |
 | 05 | App Shell: Sidebar, Topbar, Navigation | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK. Notification bell reuses IconClock (no bell icon in the set); see log |
 | 06 | Dashboard Screen | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK (all 3 roles). Fixed AVLN2005 `1fr`→`*` grid-length defect; quick-tile 7 restored to reference; see log |
-| 07 | Reception & Queue Screen | 🔄 In progress | Implementation + structural verification complete; compile/render verification pending (sandbox has no .NET SDK) |
+| 07 | Reception & Queue Screen | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK + render-compared to reference. Fixed 4 `AVLN5001` `Watermark`→`PlaceholderText` obsolete-API warnings; see log |
 | 08 | Patients & Owners — List/Grid | ⬜ Not started | |
 | 09 | Patients & Owners — Pet File / Owner Sheet | ⬜ Not started | |
 | 10 | Visits — Doctor Rail & Triage | ⬜ Not started | |
@@ -238,7 +238,31 @@ deviation (see log below).
 
 ### Phase 07 — Reception & Queue Screen
 
-- **Verification blocker — no .NET toolchain in this sandbox session.** The implementation and focused static checks are complete: every AXAML file parses as XML, `git diff --check` is clean, all required action bindings are present, and the reference-to-Avalonia structural text audit passed for 23 representative labels. Both direct `dotnet build` and the repository's low-memory `scripts/sandbox/build.sh fast` stop immediately because no `dotnet` executable exists; `csc`, `msbuild`, and `mono` are also absent. No long-running installer/build was started, honoring the task's request to avoid hanging work. Phase 07 remains `In progress` and the next session must run the optimized build and rendered visual comparison before advancing the phase pointer to 08.
+- **RESOLVED — build & render now verified; one hidden defect fixed.** The
+  earlier session shipped the Reception code un-built because that sandbox had
+  no .NET toolchain. This session installed the **.NET 10 SDK (10.0.401)** via
+  `scripts/sandbox/install-prereqs.sh`, then:
+  1. `scripts/sandbox/build.sh full` = **0 warnings / 0 errors** across all 5
+     projects.
+  2. `scripts/sandbox/run.sh` = **SMOKE RUN OK** (app builds its full visual
+     tree and renders one frame headlessly under Xvfb with no startup crash).
+  3. **Rendered visual comparison:** installed `xvfb`/`imagemagick`, temporarily
+     pointed `MainWindowViewModel`'s startup navigation at
+     `ReceptionPageViewModel`, captured the screen with
+     `scripts/sandbox/shot.sh`, and compared it element-by-element against
+     `Animora-UI/reception.html`. Header (eyebrow/title/subtitle + «ثبت مراجعهٔ
+     حضوری»/«بازخوانی صف»), hero (live Jalali date, «صف فعال» pill, 4 metrics),
+     4 KPI cards, filter tabs (همه/فعال/اورژانس/پایان‌یافته), search placeholder,
+     «فیلتر» button, and per-row queue actions all match the reference. The
+     temporary startup change was reverted (startup is back on
+     `DashboardPageViewModel`) and the solution re-built 0/0.
+  The missing build had hidden one real (non-fatal) defect:
+  **`AVLN5001` — obsolete `TextBox.Watermark`.** `ReceptionPageView.axaml` (×1)
+  and `WalkInModalView.axaml` (×3) used `Watermark="…"`, which Avalonia 12 marks
+  obsolete in favour of `PlaceholderText`. All four were migrated to
+  `PlaceholderText` (identical placeholder behaviour), restoring the roadmap's
+  0-warning/0-error standard. Phase 07 is now **Done**; the phase pointer
+  advances to 08.
 - **Shell dialog API accepts ViewModels as content.** `IDialogService`/hosts now accept `object` rather than requiring a concrete `Control`, allowing `ReceptionPageViewModel` to open `WalkInModalViewModel` while the existing `ViewLocator` materializes `WalkInModalView`. This removes View construction from the ViewModel and keeps the modal flow idiomatic MVVM. The permanent modal/drawer/toast hosts are now attached once at `MainWindow`, as Phase 03 explicitly left for the real shell.
 - **Dashboard deep-link wiring.** The existing «شروع ویزیت» quick action now navigates to `ReceptionPageViewModel`, replacing its placeholder target without adding a non-reference sidebar item or changing the dashboard tile count.
 

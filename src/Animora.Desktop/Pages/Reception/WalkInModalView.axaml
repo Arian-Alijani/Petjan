@@ -24,18 +24,18 @@
         <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
             <StackPanel Grid.Column="0" Spacing="6">
                 <TextBlock Text="نام حیوان" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
-                <TextBox Text="{Binding Name}" Watermark="مثلاً: پشمک" Padding="12,10" CornerRadius="10" />
+                <TextBox Text="{Binding Name}" PlaceholderText="مثلاً: پشمک" Padding="12,10" CornerRadius="10" />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="6">
                 <TextBlock Text="نام مالک" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
-                <TextBox Text="{Binding Owner}" Watermark="نام و نام خانوادگی" Padding="12,10" CornerRadius="10" />
+                <TextBox Text="{Binding Owner}" PlaceholderText="نام و نام خانوادگی" Padding="12,10" CornerRadius="10" />
             </StackPanel>
         </Grid>
 
         <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
             <StackPanel Grid.Column="0" Spacing="6">
                 <TextBlock Text="شماره تماس" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
-                <TextBox Text="{Binding Phone}" Watermark="۰۹xxxxxxxxx" Padding="12,10" CornerRadius="10" />
+                <TextBox Text="{Binding Phone}" PlaceholderText="۰۹xxxxxxxxx" Padding="12,10" CornerRadius="10" />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="6">
                 <TextBlock Text="پزشک معالج" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
