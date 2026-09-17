@@ -1,0 +1,399 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:patients="using:Animora.Desktop.Pages.Patients"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Patients.OwnerSheetView"
+             x:DataType="patients:OwnerSheetViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Owner Sheet — re-draws Animora-UI/patients.html #drawerRoot (.sheet.owner-sheet)
+         + patients-page.js renderOwnerSheet. Rendered as a page (this phase wires
+         Phase 08's OpenOwner command to INavigationService, per the phase task). -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.odk">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.odv">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+        <Style Selector="TextBlock.odv.empty">
+            <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+            <Setter Property="FontWeight" Value="Medium" />
+        </Style>
+        <Style Selector="TextBlock.odsec">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Border.odrow">
+            <Setter Property="Padding" Value="11,14" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+        </Style>
+        <Style Selector="Border.odrow:last-child">
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.odbtn">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.odbtn.primary">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.odsm">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="11,0" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="CornerRadius" Value="9" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Background="{StaticResource BgBrush}">
+
+        <!-- sheet-head -->
+        <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource Line2Brush}"
+                BorderThickness="0,0,0,1" Padding="22,16">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <Border Grid.Column="0" Width="44" Height="44" CornerRadius="14"
+                        Background="{Binding ToneBrush}">
+                    <TextBlock Text="{Binding Initials}" Foreground="White" FontSize="15"
+                               FontWeight="ExtraBold" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="ExtraBold"
+                               Foreground="{StaticResource InkBrush}" />
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <TextBlock Text="{Binding FileText}" FontSize="11.5" FontWeight="Bold"
+                                   Foreground="{StaticResource Ink2Brush}" />
+                        <TextBlock Text="·" FontSize="11.5" Foreground="{StaticResource Muted2Brush}" />
+                        <TextBlock Text="{Binding GenderLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                   Foreground="{StaticResource MutedBrush}" />
+                        <TextBlock Text="·" FontSize="11.5" Foreground="{StaticResource Muted2Brush}" />
+                        <TextBlock Text="{Binding SinceText}" FontSize="11.5" FontWeight="SemiBold"
+                                   Foreground="{StaticResource MutedBrush}" />
+                        <Border IsVisible="{Binding IsEditing}" Background="{StaticResource Brand50Brush}"
+                                CornerRadius="20" Padding="9,3">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <Path Classes="icon" Width="12" Height="12"
+                                      Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconEdit}" />
+                                <TextBlock Text="حالت ویرایش" FontSize="10.5" FontWeight="Bold"
+                                           Foreground="{StaticResource Brand700Brush}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+                <Button Grid.Column="2" Width="36" Height="36" Padding="0" CornerRadius="10"
+                        Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                        Command="{Binding CloseCommand}" ToolTip.Tip="بستن پرونده">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                          Data="{StaticResource IconX}" HorizontalAlignment="Center"
+                          VerticalAlignment="Center" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- sheet-body -->
+        <ScrollViewer Grid.Row="1" Padding="22">
+            <StackPanel Spacing="22" MaxWidth="680" HorizontalAlignment="Center">
+
+                <!-- od-cta — view mode only -->
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8" IsVisible="{Binding IsViewing}">
+                    <Button Grid.Column="0" Classes="odbtn" Command="{Binding CallCommand}"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconPhone}" />
+                            <TextBlock Text="تماس" />
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="1" Classes="odbtn" Command="{Binding SmsCommand}"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconSms}" />
+                            <TextBlock Text="پیامک" />
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="2" Classes="odbtn" Command="{Binding RemindCommand}"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconBell}" />
+                            <TextBlock Text="یادآوری" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- od-grid -->
+                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                      ColumnSpacing="14" RowSpacing="14">
+
+                    <!-- identity -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="10">
+                        <TextBlock Classes="odsec" Text="اطلاعات هویتی" />
+                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
+                                BorderThickness="1" CornerRadius="14" ClipToBounds="True">
+                            <StackPanel>
+                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Classes="odk" Text="نام" />
+                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding EditFirstName}"
+                                               IsVisible="{Binding IsEditing}" />
+                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding FirstName}"
+                                               IsVisible="{Binding IsViewing}" />
+                                </Border>
+                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Classes="odk" Text="نام خانوادگی" />
+                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding EditLastName}"
+                                               IsVisible="{Binding IsEditing}" />
+                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding LastName}"
+                                               IsVisible="{Binding IsViewing}" />
+                                </Border>
+                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Classes="odk" Text="کد ملی" />
+                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding NationalIdText}"
+                                               IsVisible="{Binding IsViewing}" />
+                                    <TextBox Grid.Column="1" Text="{Binding EditNationalId}" Width="240"
+                                             HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
+                                             FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                </Border>
+                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Classes="odk" Text="جنسیت" />
+                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding GenderLabel}"
+                                               IsVisible="{Binding IsViewing}" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                                HorizontalAlignment="Left" IsVisible="{Binding IsEditing}">
+                                        <RadioButton GroupName="ogender" Content="خانم"
+                                                     IsChecked="{Binding EditIsFemale}" />
+                                        <RadioButton GroupName="ogender" Content="آقا"
+                                                     IsChecked="{Binding !EditIsFemale}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Classes="odk" Text="شماره پرونده" />
+                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding File}" />
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- contact -->
+                    <StackPanel Grid.Row="0" Grid.Column="1" Spacing="10">
+                        <TextBlock Classes="odsec" Text="راه‌های ارتباطی" />
+                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
+                                BorderThickness="1" CornerRadius="14" ClipToBounds="True">
+                            <StackPanel>
+                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Classes="odk" Text="موبایل اول" />
+                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding Mobile1Text}"
+                                               IsVisible="{Binding IsViewing}" />
+                                    <TextBox Grid.Column="1" Text="{Binding EditMobile1}" Width="240"
+                                             HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
+                                             FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                </Border>
+                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Classes="odk" Text="موبایل دوم" />
+                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding Mobile2Text}"
+                                               IsVisible="{Binding IsViewing}" />
+                                    <TextBox Grid.Column="1" Text="{Binding EditMobile2}" Width="240"
+                                             HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
+                                             FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                </Border>
+                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Classes="odk" Text="تلفن ثابت" />
+                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding PhoneText}"
+                                               IsVisible="{Binding IsViewing}" />
+                                    <TextBox Grid.Column="1" Text="{Binding EditPhone}" Width="240"
+                                             HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
+                                             FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- address (span) -->
+                    <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="10">
+                        <TextBlock Classes="odsec" Text="نشانی و نحوه آشنایی" />
+                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
+                                BorderThickness="1" CornerRadius="14" ClipToBounds="True">
+                            <StackPanel>
+                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Classes="odk" Text="آدرس"
+                                               VerticalAlignment="Top" />
+                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding AddressText}"
+                                               TextWrapping="Wrap" TextAlignment="Left" />
+                                </Border>
+                                <Border Classes="odrow" ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Classes="odk" Text="نحوه آشنایی" />
+                                    <TextBlock Grid.Column="1" Classes="odv" Text="{Binding ReferralText}" />
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- pets (span) -->
+                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Spacing="10">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="7">
+                                <TextBlock Classes="odsec" Text="حیوانات" />
+                                <Border Background="{StaticResource Bg2Brush}" CornerRadius="7"
+                                        MinWidth="20" Height="20" Padding="6,0">
+                                    <TextBlock Text="{Binding PetsCountText}" FontSize="11"
+                                               FontWeight="ExtraBold"
+                                               Foreground="{StaticResource Ink2Brush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </StackPanel>
+                            <Button Grid.Column="1" Classes="odbtn odsm" Command="{Binding AddPetCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="icon" Width="13" Height="13"
+                                          Stroke="{Binding $parent[Button].Foreground}"
+                                          Data="{StaticResource IconPlus}" />
+                                    <TextBlock Text="افزودن حیوان" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
+                                BorderThickness="1" CornerRadius="14" ClipToBounds="True">
+                            <StackPanel>
+                                <ItemsControl ItemsSource="{Binding Pets}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="patients:OwnerSheetPetRowViewModel">
+                                            <Button Background="Transparent" BorderThickness="0"
+                                                    Padding="14,11" HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    Command="{Binding #Root.((patients:OwnerSheetViewModel)DataContext).OpenPetCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <Grid ColumnDefinitions="34,*,Auto,Auto" ColumnSpacing="11">
+                                                    <Border Grid.Column="0" Width="34" Height="34"
+                                                            CornerRadius="11" Background="{Binding ToneBrush}">
+                                                        <Path Classes="icon" Width="16" Height="16"
+                                                              Stroke="White"
+                                                              Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}"
+                                                              HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Spacing="2"
+                                                                VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}" FontSize="12.5"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{StaticResource InkBrush}" />
+                                                        <TextBlock Text="{Binding SubText}" FontSize="10.5"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
+                                                    <controls:Badge Grid.Column="2" Text="{Binding StatusText}"
+                                                                    Tone="{Binding StatusTone}"
+                                                                    VerticalAlignment="Center" />
+                                                    <Path Grid.Column="3" Classes="icon" Width="15"
+                                                          Height="15"
+                                                          Stroke="{StaticResource Muted2Brush}"
+                                                          Data="{StaticResource IconChevronLeft}"
+                                                          VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="حیوانی برای این مالک ثبت نشده است"
+                                           IsVisible="{Binding !HasPets}" FontSize="12"
+                                           Foreground="{StaticResource MutedBrush}"
+                                           HorizontalAlignment="Center" Padding="22" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- activity (span) -->
+                    <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Spacing="10">
+                        <TextBlock Classes="odsec" Text="خلاصه فعالیت" />
+                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
+                                BorderThickness="1" CornerRadius="14" ClipToBounds="True">
+                            <Grid ColumnDefinitions="*,*,*">
+                                <StackPanel Grid.Column="0" Padding="10,13" HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding VisitsCountText}" FontSize="14.5"
+                                               FontWeight="ExtraBold"
+                                               Foreground="{StaticResource InkBrush}"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="ویزیت ثبت‌شده" FontSize="10.5"
+                                               Foreground="{StaticResource MutedBrush}"
+                                               HorizontalAlignment="Center" Margin="0,3,0,0" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Padding="10,13" HorizontalAlignment="Center"
+                                            BorderBrush="{StaticResource Line2Brush}"
+                                            BorderThickness="1,0,1,0">
+                                    <TextBlock Text="{Binding PetsCountText}" FontSize="14.5"
+                                               FontWeight="ExtraBold"
+                                               Foreground="{StaticResource InkBrush}"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="حیوان فعال" FontSize="10.5"
+                                               Foreground="{StaticResource MutedBrush}"
+                                               HorizontalAlignment="Center" Margin="0,3,0,0" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Padding="10,13" HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding LastVisitText}" FontSize="14.5"
+                                               FontWeight="ExtraBold"
+                                               Foreground="{StaticResource InkBrush}"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="آخرین مراجعه" FontSize="10.5"
+                                               Foreground="{StaticResource MutedBrush}"
+                                               HorizontalAlignment="Center" Margin="0,3,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- sheet-foot -->
+        <Border Grid.Row="2" Background="White" BorderBrush="{StaticResource Line2Brush}"
+                BorderThickness="0,1,0,0" Padding="22,13">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="odbtn primary" Height="42" Command="{Binding SaveCommand}"
+                        IsVisible="{Binding IsEditing}" HorizontalAlignment="Stretch" Width="200">
+                    <StackPanel Orientation="Horizontal" Spacing="6"
+                                HorizontalAlignment="Center">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                              Data="{StaticResource IconCheck}" />
+                        <TextBlock Text="ذخیره تغییرات" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="odbtn" Height="42" Command="{Binding CancelEditCommand}"
+                        IsVisible="{Binding IsEditing}" Width="120">
+                    <TextBlock Text="انصراف" HorizontalAlignment="Center" />
+                </Button>
+                <Button Classes="odbtn primary" Height="42" Command="{Binding EditCommand}"
+                        IsVisible="{Binding IsViewing}" Width="200">
+                    <StackPanel Orientation="Horizontal" Spacing="6"
+                                HorizontalAlignment="Center">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                              Data="{StaticResource IconEdit}" />
+                        <TextBlock Text="ویرایش اطلاعات" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="odbtn" Height="42" Command="{Binding CloseCommand}"
+                        IsVisible="{Binding IsViewing}" Width="120">
+                    <TextBlock Text="بستن" HorizontalAlignment="Center" />
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

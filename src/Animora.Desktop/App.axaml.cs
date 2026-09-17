@@ -64,10 +64,17 @@ public partial class App : Application
         services.AddSingleton<IReceptionQueueService, MockReceptionQueueService>();
         services.AddSingleton<ReceptionPageViewModel>();
 
-        // Phase 08: Patients & Owners directory. Stateless read-only mock, so a
-        // singleton suffices (no per-navigation reload semantics yet).
+        // Phase 08: Patients & Owners directory. Stateful mock (Phase 09 adds
+        // owner/pet create + edit persistence), so a singleton preserves
+        // mutations while navigating between the list and the detail screens.
         services.AddSingleton<IPatientsQueryService, MockPatientsQueryService>();
         services.AddSingleton<PatientsPageViewModel>();
+
+        // Phase 09: Patients & Owners drill-in detail screens. Transient so each
+        // navigation resolves a fresh page whose state is loaded via the id
+        // passed by INavigationService.NavigateTo<T>(configure).
+        services.AddTransient<OwnerSheetViewModel>();
+        services.AddTransient<PetFileViewModel>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();

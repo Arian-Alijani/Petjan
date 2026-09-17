@@ -50,6 +50,33 @@ public static class PersianNumberFormatter
     }
 
     /// <summary>
+    /// Converts every Persian (U+06F0..U+06F9) or Arabic-Indic (U+0660..U+0669)
+    /// digit in <paramref name="text"/> back to its ASCII equivalent, leaving all
+    /// other characters untouched — the inverse of <see cref="ToPersianDigits"/>,
+    /// used to parse user-entered Jalali dates / weights from numeric inputs.
+    /// </summary>
+    public static string ToAsciiDigits(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return string.Empty;
+        }
+
+        var buffer = new StringBuilder(text.Length);
+        foreach (var ch in text)
+        {
+            buffer.Append(ch switch
+            {
+                >= '\u06F0' and <= '\u06F9' => (char)('0' + (ch - '\u06F0')),
+                >= '\u0660' and <= '\u0669' => (char)('0' + (ch - '\u0660')),
+                _ => ch,
+            });
+        }
+
+        return buffer.ToString();
+    }
+
+    /// <summary>
     /// Formats <paramref name="value"/> with a Persian thousands separator (٬) and
     /// Persian digits — e.g. 1234567 → "۱٬۲۳۴٬۵۶۷". Matches the reference's
     /// <c>fa(group(n))</c> composition.

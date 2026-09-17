@@ -118,6 +118,73 @@ public static class PatientsPresentation
         return a + b;
     }
 
+    // ---- pet-file hero tone (patients-page.js HERO_TONE) ----
+    // NOTE: distinct copy from the list STATUS_MAP above — the pet file's hero
+    // chip reads «وضعیت پایدار / در حال پیگیری / بیمار مزمن».
+
+    public static string HeroStatusLabel(PetStatus status) => status switch
+    {
+        PetStatus.FollowUp => "در حال پیگیری",
+        PetStatus.Critical => "بیمار مزمن",
+        _ => "وضعیت پایدار",
+    };
+
+    /// <summary>Hero chip tone class (ok/warn/alert).</summary>
+    public static string HeroStatusClass(PetStatus status) => status switch
+    {
+        PetStatus.FollowUp => "warn",
+        PetStatus.Critical => "alert",
+        _ => "ok",
+    };
+
+    // ---- lab status (patients-page.js petDocsTab map) ----
+
+    public static Tone LabTone(LabStatus status) => status switch
+    {
+        LabStatus.Warn => Tone.Warn,
+        LabStatus.Danger => Tone.Danger,
+        LabStatus.Pending => Tone.Info,
+        _ => Tone.Ok,
+    };
+
+    /// <summary>Timeline dot tone for a visit type (patients-page.js petVisitsTab dotTone).</summary>
+    public static string VisitDotVax(string type) => type switch
+    {
+        "واکسیناسیون" => "violet",
+        "جراحی" => "danger",
+        "درمانی" => "amber",
+        "پیگیری" => "info",
+        _ => string.Empty,
+    };
+
+    /// <summary>Species breeds (patients-data.js SPECIES[].breeds).</summary>
+    public static IReadOnlyList<string> Breeds(PetSpecies species) => species switch
+    {
+        PetSpecies.Cat => ["پرشین", "اسکاتیش فولد", "برمه‌ای", "مو کوتاه اهلی", "رگدال", "بنگال"],
+        PetSpecies.Dog => ["گلدن رتریور", "شیتزو", "پامرانین", "هاسکی", "ژرمن شپرد", "پودل"],
+        PetSpecies.Bird => ["طوطی کاسکو", "کاکادو", "مرغ عشق", "قناری", "روزلا"],
+        PetSpecies.Rabbit => ["لوپ هلندی", "آنقوره", "رکس", "مینی لوپ"],
+        PetSpecies.Rodent => ["همستر سوری", "خوکچه هندی", "چینچیلا"],
+        _ => ["لاک‌پشت", "ایگوانا", "مار"],
+    };
+
+    /// <summary>Reference taxonomy option lists (patients-data.js).</summary>
+    public static IReadOnlyList<string> Referrals { get; } =
+        ["معرفی دوستان", "اینستاگرام", "جستجوی گوگل", "تابلوی کلینیک", "پت‌شاپ همکار", "دامپزشک ارجاع‌دهنده", "سایر"];
+
+    public static IReadOnlyList<string> Habitats { get; } =
+        ["آپارتمان", "خانه حیاط‌دار", "باغ / فضای باز", "قفس", "آکواریوم / تراریوم", "خیابانی (سرپرستی)"];
+
+    public static IReadOnlyList<string> Behaviors { get; } =
+        ["آرام و اجتماعی", "بازیگوش", "مضطرب", "پرخاشگر با غریبه", "ترسو", "کنجکاو"];
+
+    public static IReadOnlyList<string> Diets { get; } =
+        ["غذای خشک تجاری", "غذای کنسروی", "غذای خانگی", "رژیم درمانی (رنال)", "رژیم درمانی (گوارشی)", "مخلوط خشک و تر", "دانه و میوه"];
+
+    /// <summary>Species display order for the wizard's type tiles (patients-data.js SPECIES order).</summary>
+    public static IReadOnlyList<PetSpecies> SpeciesOrder { get; } =
+        [PetSpecies.Cat, PetSpecies.Dog, PetSpecies.Bird, PetSpecies.Rabbit, PetSpecies.Rodent, PetSpecies.Other];
+
     // ---- primitives ----
 
     public sealed record SexDotInfo(string Glyph, string Title, IBrush Background, IBrush Foreground);

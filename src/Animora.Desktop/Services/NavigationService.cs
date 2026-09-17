@@ -24,6 +24,14 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
     public TViewModel NavigateTo<TViewModel>() where TViewModel : PageViewModelBase =>
         (TViewModel)NavigateTo(typeof(TViewModel));
 
+    public TViewModel NavigateTo<TViewModel>(Action<TViewModel> configure) where TViewModel : PageViewModelBase
+    {
+        var viewModel = (TViewModel)_services.GetRequiredService(typeof(TViewModel));
+        configure(viewModel);
+        CurrentViewModel = viewModel;
+        return viewModel;
+    }
+
     public PageViewModelBase NavigateTo(Type viewModelType)
     {
         ArgumentNullException.ThrowIfNull(viewModelType);

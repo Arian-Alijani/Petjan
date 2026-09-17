@@ -20,6 +20,8 @@ namespace Animora.Desktop.Pages.Patients;
 public sealed partial class PatientsPageViewModel : PageViewModelBase
 {
     private readonly IPatientsQueryService _patientsQueryService;
+    private readonly INavigationService _navigation;
+    private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
     private IReadOnlyList<PetSummary> _allPets = [];
     private IReadOnlyList<OwnerSummary> _allOwners = [];
@@ -42,9 +44,15 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     [ObservableProperty]
     private PetSpecies? _selectedSpecies;
 
-    public PatientsPageViewModel(IPatientsQueryService patientsQueryService, IToastService toast)
+    public PatientsPageViewModel(
+        IPatientsQueryService patientsQueryService,
+        INavigationService navigation,
+        IDialogService dialogs,
+        IToastService toast)
     {
         _patientsQueryService = patientsQueryService;
+        _navigation = navigation;
+        _dialogs = dialogs;
         _toast = toast;
         Title = "بیماران و مالکین";
         Eyebrow = "مدیریت کلینیک";
@@ -165,23 +173,25 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         ApplyFilter();
     }
 
-    /// <summary>Drill-in stub — Phase 09 replaces this with the pet-file view.</summary>
+    /// <summary>Drill-in: opens the pet file for the selected pet (Phase 09).</summary>
     [RelayCommand]
     private void OpenPet(PetSummary? pet)
     {
         if (pet is not null)
         {
-            _toast.Show($"پرونده بیمار «{pet.Name}» — فاز ۰۹", Tone.Info);
+            var id = pet.Id;
+            _navigation.NavigateTo<PetFileViewModel>(vm => vm.Load(id));
         }
     }
 
-    /// <summary>Drill-in stub — Phase 09 replaces this with the owner-sheet view.</summary>
+    /// <summary>Drill-in: opens the owner sheet for the selected owner (Phase 09).</summary>
     [RelayCommand]
     private void OpenOwner(OwnerSummary? owner)
     {
         if (owner is not null)
         {
-            _toast.Show($"پرونده مالک «{owner.FirstName} {owner.LastName}» — فاز ۰۹", Tone.Info);
+            var id = owner.Id;
+            _navigation.NavigateTo<OwnerSheetViewModel>(vm => vm.Load(id));
         }
     }
 
@@ -189,10 +199,11 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     private void ExportExcel() =>
         _toast.Show("خروجی اکسل آماده شد (نمونه طراحی)", Tone.Ok);
 
-    /// <summary>Add-flow stub — Phase 09 owns the owner/pet wizard.</summary>
+    /// <summary>Opens the add owner/pet wizard modal (Phase 09).</summary>
     [RelayCommand]
     private void AddNewOwnerPet() =>
-        _toast.Show("ثبت مالک و حیوان جدید — فاز ۰۹", Tone.Info);
+        _dialogs.ShowModal(new AddPatientWizardViewModel(
+            _patientsQueryService, _dialogs, () => ApplyFilter()));
 
     [RelayCommand]
     private void CallOwner(OwnerSummary? owner)
