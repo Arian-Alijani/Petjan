@@ -1,0 +1,1145 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:patients="using:Animora.Desktop.Pages.Patients"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Patients.PetFileView"
+             x:DataType="patients:PetFileViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Pet File — re-draws Animora-UI/patients.html #petFileRoot (.sheet.pet-sheet)
+         + patients-page.js renderPetFile/petSummary/petInfoTab/petVisitsTab/
+         petWeightTab/petVaxTab/petDocsTab. Six tabs; everything the reference
+         renders exists (charts, chips, panels, empty states). -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.panelhead">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.panel">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="ClipToBounds" Value="True" />
+            <Setter Property="Margin" Value="0,0,0,14" />
+        </Style>
+        <Style Selector="Border.panelhead">
+            <Setter Property="Padding" Value="16,14" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+        </Style>
+        <Style Selector="Button.miniact">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="11,0" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="TextBlock.dt">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="TextBlock.dd">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="TextBlock.dd.empty">
+            <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+            <Setter Property="FontWeight" Value="Medium" />
+        </Style>
+        <Style Selector="Border.vcell">
+            <Setter Property="Background" Value="#fbfcfb" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+        <Style Selector="TextBlock.vl">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="TextBlock.vv">
+            <Setter Property="FontSize" Value="19" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+        </Style>
+        <Style Selector="TextBlock.kv">
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+        </Style>
+        <Style Selector="TextBlock.kv.small">
+            <Setter Property="FontSize" Value="16" />
+        </Style>
+        <Style Selector="TextBlock.kl">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="TextBlock.kd">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="0,3,0,0" />
+        </Style>
+        <Style Selector="TextBlock.kd.up">
+            <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.kd.down">
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+        </Style>
+        <Style Selector="Border.kpicell">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="14,13" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer Background="{StaticResource BgBrush}">
+        <StackPanel Margin="22,20,22,24" MaxWidth="1120">
+
+            <!-- ══ pf-hero ══ -->
+            <Border CornerRadius="22" Padding="24,22" Margin="0,0,0,16" ClipToBounds="True">
+                <Border.Background>
+                    <RadialGradientBrush Center="88%,-30%" GradientOrigin="88%,-30%"
+                                         RadiusX="130%" RadiusY="150%">
+                        <GradientStop Color="#14b8a6" Offset="0" />
+                        <GradientStop Color="#104a43" Offset="0.55" />
+                        <GradientStop Color="#0c3631" Offset="1" />
+                    </RadialGradientBrush>
+                </Border.Background>
+                <StackPanel Spacing="0">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="18">
+                        <Border Grid.Column="0" Width="84" Height="84" CornerRadius="26"
+                                Background="{Binding ToneBrush}">
+                            <Path Classes="icon" Width="40" Height="40" Stroke="White"
+                                  Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" FontSize="27" FontWeight="ExtraBold"
+                                       Foreground="White" />
+                            <TextBlock Text="{Binding CodeText}" FontSize="12" Foreground="#a9ccc6" />
+                            <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,11,0,0">
+                                <Border CornerRadius="20" Padding="11,5"
+                                        Background="#2E88D6AB" BorderBrush="#4C58D6AB"
+                                        BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="13" Height="13" Stroke="#c9f4e5"
+                                              Data="{StaticResource IconPulse}" />
+                                        <TextBlock Text="{Binding HeroStatusText}" FontSize="11.5"
+                                                   FontWeight="SemiBold" Foreground="#c9f4e5" />
+                                    </StackPanel>
+                                </Border>
+                                <Border CornerRadius="20" Padding="11,5" Background="#1CFFFFFF"
+                                        BorderBrush="#24FFFFFF" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="13" Height="13" Stroke="#eaf6f3"
+                                              Data="{StaticResource IconCake}" />
+                                        <TextBlock Text="{Binding AgeText}" FontSize="11.5"
+                                                   FontWeight="SemiBold" Foreground="#eaf6f3" />
+                                    </StackPanel>
+                                </Border>
+                                <Border CornerRadius="20" Padding="11,5" Background="#1CFFFFFF"
+                                        BorderBrush="#24FFFFFF" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="13" Height="13" Stroke="#eaf6f3"
+                                              Data="{StaticResource IconScale}" />
+                                        <TextBlock Text="{Binding WeightChipText}" FontSize="11.5"
+                                                   FontWeight="SemiBold" Foreground="#eaf6f3" />
+                                    </StackPanel>
+                                </Border>
+                                <Border CornerRadius="20" Padding="11,5" Background="#1CFFFFFF"
+                                        BorderBrush="#24FFFFFF" BorderThickness="1"
+                                        IsVisible="{Binding HasNextVaxChip}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="13" Height="13" Stroke="#eaf6f3"
+                                              Data="{StaticResource IconSyringe}" />
+                                        <TextBlock Text="{Binding NextVaxChipText}" FontSize="11.5"
+                                                   FontWeight="SemiBold" Foreground="#eaf6f3" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
+                                    VerticalAlignment="Center">
+                            <Button CornerRadius="12" Padding="14,9" Background="#1FFFFFFF"
+                                    BorderBrush="#33FFFFFF" BorderThickness="1"
+                                    Command="{Binding AddVisitCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                                          Data="{StaticResource IconPlus}" />
+                                    <TextBlock Text="ثبت ویزیت" FontSize="12.5" FontWeight="Bold"
+                                               Foreground="White" />
+                                </StackPanel>
+                            </Button>
+                            <Button CornerRadius="12" Padding="14,9" Background="White"
+                                    BorderThickness="0" Command="{Binding CloseCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <Path Classes="icon" Width="14" Height="14"
+                                          Stroke="{StaticResource Brand800Brush}"
+                                          Data="{StaticResource IconPrinter}" />
+                                    <TextBlock Text="چاپ" FontSize="12.5" FontWeight="Bold"
+                                               Foreground="{StaticResource Brand800Brush}" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- owner ribbon -->
+                    <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="10"
+                          Margin="0,16,0,0" Padding="0,14,0,0">
+                        <Grid.Styles>
+                            <Style Selector="TextBlock.owbar">
+                                <Setter Property="FontSize" Value="12.5" />
+                                <Setter Property="Foreground" Value="#cfe6e2" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                            </Style>
+                        </Grid.Styles>
+                        <Border Grid.Column="0" Width="30" Height="30" CornerRadius="10"
+                                Background="{Binding OwnerToneBrush}" BorderBrush="#33FFFFFF"
+                                BorderThickness="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding OwnerInitials}" Foreground="White" FontSize="12"
+                                       FontWeight="ExtraBold" HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Grid.Column="1" Classes="owbar" Text="{Binding OwnerName}"
+                                   FontWeight="Bold" Foreground="White" FontSize="13.5" />
+                        <TextBlock Grid.Column="2" Classes="owbar" Text="{Binding OwnerMobile}" />
+                        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="مشاهده پرونده مالک" FontSize="11" Foreground="#BFFFFFFF"
+                                       VerticalAlignment="Center" />
+                            <Button Background="#1AFFFFFF" BorderBrush="#24FFFFFF" BorderThickness="1"
+                                    CornerRadius="20" Padding="10,4" Command="{Binding BackToOwnerCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Border Width="20" Height="20" CornerRadius="7"
+                                            Background="{Binding OwnerToneBrush}">
+                                        <TextBlock Text="{Binding OwnerInitials}" Foreground="White"
+                                                   FontSize="10" FontWeight="ExtraBold"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <Path Classes="icon" Width="13" Height="13" Stroke="#eaf6f3"
+                                          Data="{StaticResource IconChevronLeft}" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ══ pf-tabs ══ -->
+            <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
+                    BorderThickness="1" CornerRadius="14" Padding="5" Margin="0,0,0,14"
+                    BoxShadow="{StaticResource ShadowCard}">
+                <ItemsControl ItemsSource="{Binding Tabs}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="patients:PetTabViewModel">
+                            <Button CornerRadius="10" Padding="14,9" Margin="0,0,4,0"
+                                    Background="Transparent" BorderThickness="0"
+                                    Command="{Binding #Root.((patients:PetFileViewModel)DataContext).SelectTabCommand}"
+                                    CommandParameter="{Binding Key}">
+                                <Button.Styles>
+                                    <Style Selector="Button">
+                                        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+                                        <Setter Property="FontSize" Value="12.5" />
+                                        <Setter Property="FontWeight" Value="Bold" />
+                                    </Style>
+                                    <Style Selector="Button Path">
+                                        <Setter Property="Stroke" Value="{StaticResource MutedBrush}" />
+                                    </Style>
+                                </Button.Styles>
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <Path Classes="icon" Width="15" Height="15"
+                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                    <TextBlock Text="{Binding Label}" />
+                                    <Border Background="#0F000000" CornerRadius="20" Padding="6,1"
+                                            IsVisible="{Binding CountText, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                        <TextBlock Text="{Binding CountText}" FontSize="10" />
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <!-- active-tab highlight overlay is driven by the tab's IsActive via
+                     a sibling presenter; the reference colours the active chip brand-600. -->
+                <Border.IsVisible>True</Border.IsVisible>
+            </Border>
+
+            <!-- ══ SUMMARY TAB ══ -->
+            <StackPanel IsVisible="{Binding IsSummaryTab}">
+                <!-- kpi-strip -->
+                <UniformGrid Columns="4" Margin="0,0,0,14">
+                    <Border Classes="kpicell" Margin="0,0,10,0">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <Path Classes="icon" Width="13" Height="13"
+                                      Stroke="{StaticResource Brand600Brush}"
+                                      Data="{StaticResource IconScale}" />
+                                <TextBlock Classes="kl" Text="وزن فعلی" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Classes="kv" Text="{Binding CurrentWeightText}" />
+                                <TextBlock Text="کیلو" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}"
+                                           VerticalAlignment="Bottom" Margin="3,0,0,4" />
+                            </StackPanel>
+                            <TextBlock Classes="kd" Text="{Binding WeightDeltaText}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Classes="kpicell" Margin="0,0,10,0">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <Path Classes="icon" Width="13" Height="13"
+                                      Stroke="{StaticResource Brand600Brush}"
+                                      Data="{StaticResource IconCake}" />
+                                <TextBlock Classes="kl" Text="سن" />
+                            </StackPanel>
+                            <TextBlock Classes="kv small" Text="{Binding AgeText}" />
+                            <TextBlock Classes="kd" Text="{Binding BirthText}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Classes="kpicell" Margin="0,0,10,0">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <Path Classes="icon" Width="13" Height="13"
+                                      Stroke="{StaticResource Brand600Brush}"
+                                      Data="{StaticResource IconHistory}" />
+                                <TextBlock Classes="kl" Text="آخرین ویزیت" />
+                            </StackPanel>
+                            <TextBlock Classes="kv small" Text="{Binding LastVisitSinceText}" />
+                            <TextBlock Classes="kd" Text="{Binding LastVisitTypeText}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Classes="kpicell">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <Path Classes="icon" Width="13" Height="13"
+                                      Stroke="{StaticResource Brand600Brush}"
+                                      Data="{StaticResource IconSyringe}" />
+                                <TextBlock Classes="kl" Text="واکسن بعدی" />
+                            </StackPanel>
+                            <TextBlock Classes="kv small" Text="{Binding NextVaxDateText}" />
+                            <TextBlock Classes="kd" Text="{Binding NextVaxLabelText}" />
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+
+                <!-- pf-layout -->
+                <Grid ColumnDefinitions="*,330" ColumnSpacing="16">
+                    <StackPanel Grid.Column="0">
+                        <Border Classes="panel">
+                            <StackPanel>
+                                <Border Classes="panelhead">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{StaticResource Brand600Brush}"
+                                                  Data="{StaticResource IconTrend}" />
+                                            <TextBlock Classes="panelhead" Text="روند وزن" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5">
+                                            <Border Width="9" Height="9" CornerRadius="3"
+                                                    Background="{StaticResource Brand600Brush}"
+                                                    VerticalAlignment="Center" />
+                                            <TextBlock Text="کیلوگرم" FontSize="11.5"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <StackPanel Padding="8,6,8,8">
+                                    <controls:WeightChart Height="180"
+                                                          Points="{Binding WeightMiniPoints}"
+                                                          LineBrush="{StaticResource Brand600Brush}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="panel">
+                            <StackPanel>
+                                <Border Classes="panelhead">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Path Classes="icon" Width="16" Height="16"
+                                              Stroke="{StaticResource Brand600Brush}"
+                                              Data="{StaticResource IconClipboard}" />
+                                        <TextBlock Classes="panelhead" Text="علائم حیاتی آخرین معاینه" />
+                                    </StackPanel>
+                                </Border>
+                                <StackPanel Padding="16">
+                                    <UniformGrid Columns="4">
+                                        <ItemsControl ItemsSource="{Binding Vitals}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Columns="4" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="patients:VitalCellViewModel">
+                                                    <Border Classes="vcell" Margin="0,0,10,0">
+                                                        <StackPanel>
+                                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                                <Path Classes="icon" Width="12" Height="12"
+                                                                      Stroke="{StaticResource Muted2Brush}"
+                                                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                                <TextBlock Classes="vl" Text="{Binding Label}" />
+                                                            </StackPanel>
+                                                            <TextBlock Classes="vv" Text="{Binding Value}" />
+                                                            <TextBlock Text="{Binding Unit}" FontSize="10"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="{StaticResource MutedBrush}" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </UniformGrid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <Border Classes="panel">
+                            <StackPanel>
+                                <Border Classes="panelhead">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Path Classes="icon" Width="16" Height="16"
+                                              Stroke="{StaticResource Brand600Brush}"
+                                              Data="{StaticResource IconShield}" />
+                                        <TextBlock Classes="panelhead" Text="هشدارهای بالینی" />
+                                    </StackPanel>
+                                </Border>
+                                <StackPanel Padding="16" Spacing="8">
+                                    <ItemsControl ItemsSource="{Binding Alerts}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="patients:PetAlertRowViewModel">
+                                                <Border Padding="13,11" CornerRadius="13" Margin="0,0,0,8"
+                                                        Background="{Binding Background}"
+                                                        BorderBrush="{Binding Border}"
+                                                        BorderThickness="1">
+                                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                                        <Border Width="28" Height="28" CornerRadius="9"
+                                                                Background="White">
+                                                            <Path Classes="icon" Width="14" Height="14"
+                                                                  Stroke="{Binding Foreground}"
+                                                                  HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center"
+                                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                        </Border>
+                                                        <StackPanel Spacing="2">
+                                                            <TextBlock Text="{Binding Title}" FontSize="12.5"
+                                                                       FontWeight="ExtraBold" />
+                                                            <TextBlock Text="{Binding Detail}" FontSize="11.5"
+                                                                       TextWrapping="Wrap" Opacity="0.85" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="panel">
+                            <StackPanel>
+                                <Border Classes="panelhead">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Path Classes="icon" Width="15" Height="15"
+                                              Stroke="{StaticResource Brand600Brush}"
+                                              Data="{StaticResource IconUser}" />
+                                        <TextBlock Classes="panelhead" Text="مالک" />
+                                    </StackPanel>
+                                </Border>
+                                <StackPanel Padding="15" Spacing="12">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
+                                        <Border Grid.Column="0" Width="44" Height="44" CornerRadius="14"
+                                                Background="{Binding OwnerToneBrush}">
+                                            <TextBlock Text="{Binding OwnerInitials}" Foreground="White"
+                                                       FontSize="15" FontWeight="ExtraBold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding OwnerName}" FontSize="14"
+                                                       FontWeight="ExtraBold"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock FontSize="11" Foreground="{StaticResource MutedBrush}">
+                                                <Run Text="{Binding OwnerFileText}" /><Run Text=" · " /><Run Text="{Binding OwnerMobile}" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                        <Button Grid.Column="0" Classes="miniact" Command="{Binding CallOwnerCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6"
+                                                        HorizontalAlignment="Center">
+                                                <Path Classes="icon" Width="13" Height="13"
+                                                      Stroke="{Binding $parent[Button].Foreground}"
+                                                      Data="{StaticResource IconPhone}" />
+                                                <TextBlock Text="تماس" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Column="1" Classes="miniact"
+                                                Command="{Binding BackToOwnerCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6"
+                                                        HorizontalAlignment="Center">
+                                                <Path Classes="icon" Width="13" Height="13"
+                                                      Stroke="{Binding $parent[Button].Foreground}"
+                                                      Data="{StaticResource IconFile}" />
+                                                <TextBlock Text="پرونده مالک" />
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="panel" IsVisible="{Binding HasNotes}">
+                            <StackPanel>
+                                <Border Classes="panelhead">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Path Classes="icon" Width="15" Height="15"
+                                              Stroke="{StaticResource Brand600Brush}"
+                                              Data="{StaticResource IconClipboard}" />
+                                        <TextBlock Classes="panelhead" Text="یادداشت" />
+                                    </StackPanel>
+                                </Border>
+                                <TextBlock Text="{Binding Notes}" Padding="15" FontSize="12.5"
+                                           LineHeight="24" Foreground="{StaticResource Ink2Brush}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+
+            <!-- ══ INFO TAB ══ -->
+            <StackPanel IsVisible="{Binding IsInfoTab}">
+                <Border Classes="panel">
+                    <StackPanel>
+                        <Border Classes="panelhead">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                    <Path Classes="icon" Width="16" Height="16"
+                                          Stroke="{StaticResource Brand600Brush}"
+                                          Data="{StaticResource IconPaw}" />
+                                    <TextBlock Classes="panelhead" Text="مشخصات حیوان" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                                IsVisible="{Binding IsEditingInfo}">
+                                        <Button Classes="miniact" Command="{Binding SaveInfoCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                <Path Classes="icon" Width="13" Height="13"
+                                                      Stroke="{Binding $parent[Button].Foreground}"
+                                                      Data="{StaticResource IconCheck}" />
+                                                <TextBlock Text="ذخیره" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Classes="miniact" Command="{Binding CancelInfoEditCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                <Path Classes="icon" Width="13" Height="13"
+                                                      Stroke="{Binding $parent[Button].Foreground}"
+                                                      Data="{StaticResource IconX}" />
+                                                <TextBlock Text="انصراف" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                    <Button Classes="miniact" Command="{Binding EditInfoCommand}"
+                                            IsVisible="{Binding !IsEditingInfo}">
+                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                            <Path Classes="icon" Width="13" Height="13"
+                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                  Data="{StaticResource IconEdit}" />
+                                            <TextBlock Text="ویرایش" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <StackPanel Padding="16">
+                            <ItemsControl ItemsSource="{Binding InfoItems}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.Styles>
+                                    <Style Selector="ContentPresenter">
+                                        <Setter Property="Width" Value="50%" />
+                                    </Style>
+                                </ItemsControl.Styles>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="patients:PetInfoItemViewModel">
+                                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
+                                                BorderThickness="1" CornerRadius="12" Padding="12,10"
+                                                Margin="0,0,10,10">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <Path Classes="icon" Width="12" Height="12"
+                                                          Stroke="{StaticResource Muted2Brush}"
+                                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                    <TextBlock Classes="dt" Text="{Binding Label}" />
+                                                </StackPanel>
+                                                <TextBlock Classes="dd" Text="{Binding Value}"
+                                                           Classes.empty="{Binding IsEmpty}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="panel" IsVisible="{Binding HasMicrochip}">
+                    <StackPanel>
+                        <Border Classes="panelhead">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Classes="icon" Width="16" Height="16"
+                                      Stroke="{StaticResource Brand600Brush}"
+                                      Data="{StaticResource IconCpu}" />
+                                <TextBlock Classes="panelhead" Text="میکروچیپ" />
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Padding="16">
+                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                                    CornerRadius="16" ClipToBounds="True">
+                                <StackPanel>
+                                    <Border Background="#f4faf8" Padding="16,14">
+                                        <Border.BorderBrush>
+                                            <StaticResource ResourceKey="Line2Brush" />
+                                        </Border.BorderBrush>
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="13"
+                                                    Background="{StaticResource Brand600Brush}">
+                                                <Path Classes="icon" Width="19" Height="19" Stroke="White"
+                                                      Data="{StaticResource IconCpu}"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding MicrochipDigits}" FontSize="17"
+                                                           FontWeight="ExtraBold"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                                <TextBlock Text="شناسه میکروچیپ" FontSize="10.5"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Classes="miniact"
+                                                    Command="{Binding CopyMicrochipCommand}">
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <Path Classes="icon" Width="13" Height="13"
+                                                          Stroke="{Binding $parent[Button].Foreground}"
+                                                          Data="{StaticResource IconCopy}" />
+                                                    <TextBlock Text="کپی" />
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                    <StackPanel Background="White" Padding="16,14" Spacing="6">
+                                        <Path Classes="icon" Height="46" Stretch="Fill"
+                                              Stroke="{StaticResource InkBrush}"
+                                              Data="{StaticResource IconBarcode}"
+                                              HorizontalAlignment="Stretch" />
+                                        <TextBlock Text="{Binding MicrochipDigits}" FontSize="11"
+                                                   Foreground="{StaticResource Ink2Brush}"
+                                                   HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                    <Grid ColumnDefinitions="*,*,*" Background="{StaticResource Line2Brush}">
+                                        <StackPanel Grid.Column="0" Background="White" Padding="12,10">
+                                            <TextBlock Text="تاریخ کاشت" FontSize="10"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       HorizontalAlignment="Center" />
+                                            <TextBlock Text="{Binding MicrochipDate}" FontSize="12"
+                                                       FontWeight="Bold" HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Background="White" Padding="12,10"
+                                                    Margin="1,0,0,0">
+                                            <TextBlock Text="سازنده" FontSize="10"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       HorizontalAlignment="Center" />
+                                            <TextBlock Text="{Binding MicrochipVendor}" FontSize="12"
+                                                       FontWeight="Bold" HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Background="White" Padding="12,10"
+                                                    Margin="1,0,0,0">
+                                            <TextBlock Text="محل کاشت" FontSize="10"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       HorizontalAlignment="Center" />
+                                            <TextBlock Text="{Binding MicrochipLocation}" FontSize="12"
+                                                       FontWeight="Bold" HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="panel" IsVisible="{Binding HasSurgeries}">
+                    <StackPanel>
+                        <Border Classes="panelhead">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Classes="icon" Width="16" Height="16"
+                                      Stroke="{StaticResource Brand600Brush}"
+                                      Data="{StaticResource IconScalpel}" />
+                                <TextBlock Classes="panelhead" Text="سابقه جراحی" />
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Padding="16" Spacing="8">
+                            <ItemsControl ItemsSource="{Binding Surgeries}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="patients:SurgeryRowViewModel">
+                                        <Border Padding="13,11" CornerRadius="13" Margin="0,0,0,8"
+                                                Background="{StaticResource InfoBgBrush}"
+                                                BorderBrush="#cfdcf5" BorderThickness="1">
+                                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <Border Width="28" Height="28" CornerRadius="9" Background="White">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{StaticResource InfoBrush}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          Data="{StaticResource IconScalpel}" />
+                                                </Border>
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="{Binding Title}" FontSize="12.5"
+                                                               FontWeight="ExtraBold" />
+                                                    <TextBlock Text="{Binding Surgeon}" FontSize="11.5"
+                                                               Opacity="0.85" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- ══ VISITS TAB ══ -->
+            <StackPanel IsVisible="{Binding IsVisitsTab}">
+                <Border Classes="panel">
+                    <StackPanel>
+                        <Border Classes="panelhead">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                    <Path Classes="icon" Width="16" Height="16"
+                                          Stroke="{StaticResource Brand600Brush}"
+                                          Data="{StaticResource IconHistory}" />
+                                    <TextBlock Classes="panelhead" Text="تاریخچه ویزیت‌ها" />
+                                </StackPanel>
+                                <Button Grid.Column="2" Classes="miniact"
+                                        Command="{Binding AddVisitCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                        <Path Classes="icon" Width="13" Height="13"
+                                              Stroke="{Binding $parent[Button].Foreground}"
+                                              Data="{StaticResource IconPlus}" />
+                                        <TextBlock Text="ثبت ویزیت" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+                        <StackPanel Padding="16">
+                            <StackPanel IsVisible="{Binding !HasVisits}">
+                                <TextBlock Text="{Binding VisitsEmptyText}" FontSize="12"
+                                           Foreground="{StaticResource MutedBrush}"
+                                           HorizontalAlignment="Center" Padding="22" />
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{Binding Visits}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="patients:VisitRowViewModel">
+                                        <Border BorderBrush="{StaticResource Line2Brush}"
+                                                BorderThickness="1" CornerRadius="15" Margin="0,0,0,14"
+                                                ClipToBounds="True">
+                                            <StackPanel>
+                                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10"
+                                                      Padding="14,12">
+                                                    <StackPanel Grid.Column="0" Spacing="2">
+                                                        <TextBlock Text="{Binding Type}" FontSize="13"
+                                                                   FontWeight="ExtraBold" />
+                                                        <TextBlock Text="{Binding Reason}" FontSize="11.5"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal"
+                                                                Spacing="8" VerticalAlignment="Center">
+                                                        <Border Background="{StaticResource Bg2Brush}"
+                                                                CornerRadius="8" Padding="9,4">
+                                                            <TextBlock Text="{Binding DateText}" FontSize="11"
+                                                                       Foreground="{StaticResource Ink2Brush}" />
+                                                        </Border>
+                                                        <Border Background="{StaticResource Bg2Brush}"
+                                                                CornerRadius="8" Padding="9,4">
+                                                            <TextBlock Text="{Binding Vet}" FontSize="11"
+                                                                       Foreground="{StaticResource Ink2Brush}" />
+                                                        </Border>
+                                                        <Path Classes="icon" Width="16" Height="16"
+                                                              Stroke="{StaticResource Muted2Brush}"
+                                                              Data="{StaticResource IconChevronDown}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                                <StackPanel Padding="14,12" Spacing="10"
+                                                            BorderBrush="{StaticResource Line2Brush}"
+                                                            BorderThickness="0,1,0,0">
+                                                    <StackPanel Spacing="3">
+                                                        <TextBlock Text="معاینه" FontSize="10.5"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                        <TextBlock Text="{Binding Exam}" FontSize="12.5"
+                                                                   Foreground="{StaticResource Ink2Brush}"
+                                                                   TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                    <StackPanel Spacing="3">
+                                                        <TextBlock Text="تشخیص" FontSize="10.5"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                        <TextBlock Text="{Binding Diagnosis}" FontSize="12.5"
+                                                                   Foreground="{StaticResource Ink2Brush}"
+                                                                   TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                    <StackPanel Spacing="5">
+                                                        <TextBlock Text="دستور دارویی" FontSize="10.5"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                        <ItemsControl ItemsSource="{Binding Prescriptions}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Background="{StaticResource Brand50Brush}"
+                                                                            CornerRadius="10" Padding="10,7"
+                                                                            Margin="0,0,0,5">
+                                                                        <TextBlock FontSize="12"
+                                                                                   Foreground="{StaticResource Brand900Brush}"
+                                                                                   Text="{Binding}" />
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- ══ WEIGHT TAB ══ -->
+            <StackPanel IsVisible="{Binding IsWeightTab}">
+                <Border Classes="panel">
+                    <StackPanel>
+                        <Border Classes="panelhead">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                    <Path Classes="icon" Width="16" Height="16"
+                                          Stroke="{StaticResource Brand600Brush}"
+                                          Data="{StaticResource IconTrend}" />
+                                    <TextBlock Classes="panelhead" Text="نمودار تغییرات وزن" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5">
+                                    <Border Width="9" Height="9" CornerRadius="3"
+                                            Background="{StaticResource Brand600Brush}"
+                                            VerticalAlignment="Center" />
+                                    <TextBlock Text="کیلوگرم" FontSize="11.5"
+                                               Foreground="{StaticResource MutedBrush}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <StackPanel Padding="8,6,8,8">
+                            <controls:WeightChart Height="240"
+                                                  Points="{Binding WeightPoints}"
+                                                  LineBrush="{StaticResource Brand600Brush}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="panel">
+                    <StackPanel>
+                        <Border Classes="panelhead">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Classes="icon" Width="16" Height="16"
+                                      Stroke="{StaticResource Brand600Brush}"
+                                      Data="{StaticResource IconScale}" />
+                                <TextBlock Classes="panelhead" Text="ثبت وزن جدید" />
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Padding="16">
+                            <Border Background="#f6faf9" BorderBrush="{StaticResource Line2Brush}"
+                                    BorderThickness="1" CornerRadius="14" Padding="14">
+                                <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="10">
+                                    <StackPanel Grid.Column="0" Spacing="6">
+                                        <TextBlock Text="تاریخ (شمسی)" FontSize="11"
+                                                   Foreground="{StaticResource Ink2Brush}" />
+                                        <TextBox Text="{Binding NewWeightDate}"
+                                                 PlaceholderText="{Binding DefaultWeightDate}"
+                                                 Padding="12,10" CornerRadius="10" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="6">
+                                        <TextBlock Text="وزن (کیلوگرم)" FontSize="11"
+                                                   Foreground="{StaticResource Ink2Brush}" />
+                                        <TextBox Text="{Binding NewWeightValue}"
+                                                 PlaceholderText="مثال: ۴٫۵"
+                                                 Padding="12,10" CornerRadius="10" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Classes="primary" Height="40"
+                                            VerticalAlignment="Bottom"
+                                            Command="{Binding AddWeightCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                                                  Data="{StaticResource IconPlus}" />
+                                            <TextBlock Text="افزودن" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="panel">
+                    <StackPanel>
+                        <Border Classes="panelhead">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                    <Path Classes="icon" Width="16" Height="16"
+                                          Stroke="{StaticResource Brand600Brush}"
+                                          Data="{StaticResource IconRows}" />
+                                    <TextBlock Classes="panelhead" Text="سابقه اندازه‌گیری وزن" />
+                                </StackPanel>
+                                <Border Grid.Column="2" Background="{StaticResource Bg2Brush}"
+                                        CornerRadius="20" Padding="10,4">
+                                    <TextBlock Text="{Binding WeightRecordCountText}" FontSize="11.5"
+                                               Foreground="{StaticResource Ink2Brush}" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                        <Grid ColumnDefinitions="*,*,*" Background="{StaticResource TableHeadBrush}">
+                            <TextBlock Grid.Column="0" Text="تاریخ" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource MutedBrush}" Padding="14,10" />
+                            <TextBlock Grid.Column="1" Text="وزن (کیلو)" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource MutedBrush}" Padding="14,10" />
+                            <TextBlock Grid.Column="2" Text="تغییر نسبت به قبل" FontSize="11"
+                                       FontWeight="SemiBold" Foreground="{StaticResource MutedBrush}"
+                                       Padding="14,10" />
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding WeightRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="patients:WeightRowViewModel">
+                                    <Grid ColumnDefinitions="*,*,*"
+                                          BorderBrush="{StaticResource Line2Brush}"
+                                          BorderThickness="0,0,0,1">
+                                        <TextBlock Grid.Column="0" Text="{Binding DateText}" FontSize="12.5"
+                                                   Padding="14,10" />
+                                        <TextBlock Grid.Column="1" Text="{Binding WeightText}" FontSize="12.5"
+                                                   FontWeight="Bold" Padding="14,10" />
+                                        <TextBlock Grid.Column="2" Text="{Binding DeltaText}" FontSize="12.5"
+                                                   Padding="14,10" Foreground="{Binding DeltaBrush}"
+                                                   FontWeight="Bold" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- ══ VAX TAB ══ -->
+            <StackPanel IsVisible="{Binding IsVaxTab}">
+                <Border Classes="panel">
+                    <StackPanel>
+                        <Border Classes="panelhead">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                    <Path Classes="icon" Width="16" Height="16"
+                                          Stroke="{StaticResource Brand600Brush}"
+                                          Data="{StaticResource IconSyringe}" />
+                                    <TextBlock Classes="panelhead" Text="سابقه واکسیناسیون" />
+                                </StackPanel>
+                                <Button Grid.Column="2" Classes="miniact" Command="{Binding AddVaxCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                        <Path Classes="icon" Width="13" Height="13"
+                                              Stroke="{Binding $parent[Button].Foreground}"
+                                              Data="{StaticResource IconPlus}" />
+                                        <TextBlock Text="ثبت واکسن" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+                        <StackPanel Padding="16" IsVisible="{Binding !HasVaccinations}">
+                            <TextBlock Text="{Binding VaxEmptyText}" FontSize="12"
+                                       Foreground="{StaticResource MutedBrush}"
+                                       HorizontalAlignment="Center" Padding="22" />
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding Vaccinations}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="patients:VaxRowViewModel">
+                                    <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="12"
+                                          Padding="16,13" BorderBrush="{StaticResource Line2Brush}"
+                                          BorderThickness="0,0,0,1">
+                                        <Border Grid.Column="0" Width="40" Height="40" CornerRadius="13"
+                                                Background="{StaticResource Brand50Brush}">
+                                            <Path Classes="icon" Width="18" Height="18"
+                                                  Stroke="{StaticResource Brand700Brush}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Data="{StaticResource IconSyringe}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontSize="13"
+                                                       FontWeight="ExtraBold" />
+                                            <TextBlock Text="{Binding SubText}" FontSize="11"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Spacing="4" HorizontalAlignment="Left">
+                                            <TextBlock Text="{Binding NextText}" FontSize="11.5"
+                                                       Foreground="{StaticResource Ink2Brush}"
+                                                       HorizontalAlignment="Left" />
+                                            <controls:Badge Text="{Binding BadgeText}" Tone="{Binding BadgeTone}"
+                                                            HorizontalAlignment="Left" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- ══ DOCS TAB ══ -->
+            <StackPanel IsVisible="{Binding IsDocsTab}">
+                <Border Classes="panel" IsVisible="{Binding HasLabs}">
+                    <StackPanel>
+                        <Border Classes="panelhead">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Classes="icon" Width="16" Height="16"
+                                      Stroke="{StaticResource Brand600Brush}"
+                                      Data="{StaticResource IconFlask}" />
+                                <TextBlock Classes="panelhead" Text="آزمایش‌ها و تصویربرداری" />
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Padding="16" Spacing="8">
+                            <ItemsControl ItemsSource="{Binding Labs}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="patients:LabRowViewModel">
+                                        <Border Padding="13,11" CornerRadius="13" Margin="0,0,0,8"
+                                                Background="{Binding Background}"
+                                                BorderBrush="{Binding Border}"
+                                                BorderThickness="1">
+                                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <Border Width="28" Height="28" CornerRadius="9" Background="White">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{Binding Foreground}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          Data="{StaticResource IconMicroscope}" />
+                                                </Border>
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock FontSize="12.5" FontWeight="ExtraBold">
+                                                        <Run Text="{Binding Name}" /><Run Text=" · " /><Run Text="{Binding DateText}" />
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding Result}" FontSize="11.5"
+                                                               Opacity="0.85" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="panel">
+                    <StackPanel>
+                        <Border Classes="panelhead">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Classes="icon" Width="16" Height="16"
+                                      Stroke="{StaticResource Brand600Brush}"
+                                      Data="{StaticResource IconFolder}" />
+                                <TextBlock Classes="panelhead" Text="مدارک و فایل‌ها" />
+                            </StackPanel>
+                        </Border>
+                        <StackPanel IsVisible="{Binding !HasDocuments}">
+                            <TextBlock Text="{Binding DocsEmptyText}" FontSize="12"
+                                       Foreground="{StaticResource MutedBrush}"
+                                       HorizontalAlignment="Center" Padding="22" />
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding Documents}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="patients:DocRowViewModel">
+                                    <Grid ColumnDefinitions="34,*,Auto" ColumnSpacing="11"
+                                          Padding="16,11" BorderBrush="{StaticResource Line2Brush}"
+                                          BorderThickness="0,0,0,1">
+                                        <Border Grid.Column="0" Width="34" Height="34" CornerRadius="11"
+                                                Background="{StaticResource Bg2Brush}">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{StaticResource Ink2Brush}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Data="{StaticResource IconFile}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontSize="12.5"
+                                                       FontWeight="Bold" />
+                                            <TextBlock Text="{Binding Meta}" FontSize="10.5"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                        <Button Grid.Column="2" Classes="miniact" Width="34" Padding="0"
+                                                Command="{Binding #Root.((patients:PetFileViewModel)DataContext).DownloadDocCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Path Classes="icon" Width="14" Height="14"
+                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                  Data="{StaticResource IconDownload}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Padding="16">
+                            <Button BorderBrush="{StaticResource LineBrush}" BorderThickness="1.5"
+                                    BorderDashArray="4,3" CornerRadius="14" Background="#fbfcfb"
+                                    Padding="22" HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Command="{Binding UploadDocCommand}">
+                                <StackPanel Spacing="4" HorizontalAlignment="Center">
+                                    <Path Classes="icon" Width="22" Height="22"
+                                          Stroke="{StaticResource MutedBrush}"
+                                          Data="{StaticResource IconUpload}"
+                                          HorizontalAlignment="Center" />
+                                    <TextBlock Text="فایلی را اینجا رها کنید" FontSize="12.5"
+                                               FontWeight="Bold" HorizontalAlignment="Center"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                    <TextBlock Text="تصویر، PDF یا نتیجه آزمایش" FontSize="11"
+                                               HorizontalAlignment="Center"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

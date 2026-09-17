@@ -259,4 +259,122 @@
         M8,12 h.01 M12,12 h.01 M16,12 h.01
     </StreamGeometry>
 
+    <!-- ===== Phase 09 additions =====
+         Icon geometries re-drawn from Animora-UI/assets/patients-ui.js's
+         Object.assign(window.Icons, {...}) block (the extra glyphs the patients
+         module merges into the global set) plus the reference icons.js entries
+         the Pet File / Owner Sheet / wizard render. Same stroke-only look. -->
+
+    <StreamGeometry x:Key="IconInfo">
+        M2,12 A10,10 0 1 0 22,12 A10,10 0 1 0 2,12 Z
+        M12,16 v-4 M12,8 h.01
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconCake">
+        M20,21 v-8 a2,2 0 0 0 -2,-2 H6 a2,2 0 0 0 -2,2 v8
+        M4,16 c0,0 1.5,-1 4,-1 c2.5,0 4,2 8,2 c2.5,0 4,-1 4,-1
+        M2,21 h20
+        M7,8 v-.5 a1.5,1.5 0 1 1 3,0 V8 M14,8 v-.5 a1.5,1.5 0 1 1 3,0 V8
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconPalette">
+        M12,2 a10,10 0 0 0 0,20 a2,2 0 0 0 2,-2 v-1 a2,2 0 0 1 2,-2 h1 a4,4 0 0 0 4,-4 a10,10 0 0 0 -9,-11 z
+        M13.5,6.5 h.01 M17.5,10.5 h.01 M8.5,7.5 h.01 M6.5,12.5 h.01
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconSmile">
+        M2,12 A10,10 0 1 0 22,12 A10,10 0 1 0 2,12 Z
+        M8,14 c0,0 1.5,2 4,2 c2.5,0 4,-2 4,-2
+        M9,9 h.01 M15,9 h.01
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconCpu">
+        M6,4 L18,4 A2,2 0 0 1 20,6 L20,18 A2,2 0 0 1 18,20 L6,20 A2,2 0 0 1 4,18 L4,6 A2,2 0 0 1 6,4 Z
+        M9,9 L15,9 L15,15 L9,15 Z
+        M9,2 v2 M15,2 v2 M9,20 v2 M15,20 v2 M2,9 h2 M2,15 h2 M20,9 h2 M20,15 h2
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconBarcode">
+        M3,5 v14 M7,5 v14 M11,5 v10 M15,5 v14 M19,5 v14
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconThermo">
+        M14,14.76 V3.5 a2.5,2.5 0 0 0 -5,0 v11.26 a4.5,4.5 0 1 0 5,0 z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconPulse">
+        M22,12 h-4 l-3,9 L9,3 l-3,9 H2
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconLungs">
+        M12,3 v10
+        M9,13 c0,3 -1,6 -3.5,6 C3,19 2,17 2,14 c0,-3 2,-6 4,-8
+        M15,13 c0,3 1,6 3.5,6 C21,19 22,17 22,14 c0,-3 -2,-6 -4,-8
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconStetho">
+        M4,3 v6 a5,5 0 0 0 10,0 V3
+        M4,3 H2 M14,3 h2
+        M9,14 v2 a5,5 0 0 0 10,0 v-2
+        M16.5,11 A2.5,2.5 0 1 0 21.5,11 A2.5,2.5 0 1 0 16.5,11 Z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconScalpel">
+        M14,4 L20,10 L10,20 H4 v-6 z
+        M14,4 l6,6
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconFolder">
+        M4,4 h5 l2,3 h9 a2,2 0 0 1 2,2 v9 a2,2 0 0 1 -2,2 H4 a2,2 0 0 1 -2,-2 V6 a2,2 0 0 1 2,-2 z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconUpload">
+        M21,15 v4 a2,2 0 0 1 -2,2 H5 a2,2 0 0 1 -2,-2 v-4
+        M17,8 L12,3 L7,8
+        M12,3 V15
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconUser">
+        M20,21 v-2 a4,4 0 0 0 -4,-4 H8 a4,4 0 0 0 -4,4 v2
+        M4,7 A4,4 0 1 0 12,7 A4,4 0 1 0 4,7 Z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconSms">
+        M21,11.5 a8.38,8.38 0 0 1 -.9,3.8 a8.5,8.5 0 0 1 -7.6,4.7 a8.38,8.38 0 0 1 -3.8,-.9 L3,21 l1.9,-5.7 a8.38,8.38 0 0 1 -.9,-3.8 a8.5,8.5 0 0 1 4.7,-7.6 a8.38,8.38 0 0 1 3.8,-.9 h.5 a8.48,8.48 0 0 1 8,8 v.5 z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconMicroscope">
+        M6,18 h8 M3,22 h18
+        M14,22 a7,7 0 1 0 0,-14 h-1
+        M9,14 h2
+        M9,12 a2,2 0 0 1 -2,-2 V6 a2,2 0 0 1 2,-2 h1 a2,2 0 0 1 2,2 v4 a2,2 0 0 1 -2,2 z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconTrend">
+        M23,6 L13.5,15.5 L8.5,10.5 L1,18
+        M17,6 h6 v6
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconHistory">
+        M3,3 v5 h5
+        M3.05,13 a9,9 0 1 0 2.95,-7.7 L3,8
+        M12,7 v5 l4,2
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconScale">
+        M12,3 v18 M5,21 h14
+        M3,9 L7,3 L11,9 a4,4 0 0 1 -8,0 z
+        M13,9 L17,3 L21,9 a4,4 0 0 1 -8,0 z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconFlask">
+        M9,3 h6 v6 l4,8 a2,2 0 0 1 -1.79,2.9 H6.79 A2,2 0 0 1 5,17 l4,-8 V3 z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconTag">
+        M20.59,13.41 L13.42,20.6 a2,2 0 0 1 -2.83,0 L2,12 V2 h10 l8.59,8.59 a2,2 0 0 1 0,2.82 z
+        M7,7 h.01
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconHome2">
+        M3,9 L12,2 L21,9 v11 a2,2 0 0 1 -2,2 H5 a2,2 0 0 1 -2,-2 z
+        M9,22 V12 h6 v10
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconBowl">
+        M3,11 h18 a9,9 0 0 1 -9,9 a9,9 0 0 1 -9,-9 z
+        M8,7 c0,-1.5 1,-2 1,-3 M12,6 c0,-1.5 1,-2 1,-3 M16,7 c0,-1.5 1,-2 1,-3
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconRows">
+        M4,4 h16 a1.5,1.5 0 0 1 1.5,1.5 v2 a1.5,1.5 0 0 1 -1.5,1.5 H4 a1.5,1.5 0 0 1 -1.5,-1.5 v-2 a1.5,1.5 0 0 1 1.5,-1.5 z
+        M4,14 h16 a1.5,1.5 0 0 1 1.5,1.5 v2 a1.5,1.5 0 0 1 -1.5,1.5 H4 a1.5,1.5 0 0 1 -1.5,-1.5 v-2 a1.5,1.5 0 0 1 1.5,-1.5 z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconPrinter">
+        M6,9 V2 h12 v7
+        M6,18 H4 a2,2 0 0 1 -2,-2 v-5 a2,2 0 0 1 2,-2 h16 a2,2 0 0 1 2,2 v5 a2,2 0 0 1 -2,2 h-2
+        M6,14 L18,14 L18,22 L6,22 Z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconCopy">
+        M11,9 h11 a2,2 0 0 1 2,2 v11 a2,2 0 0 1 -2,2 H11 a2,2 0 0 1 -2,-2 V11 a2,2 0 0 1 2,-2 z
+        M5,15 H4 a2,2 0 0 1 -2,-2 V4 a2,2 0 0 1 2,-2 h9 a2,2 0 0 1 2,2 v1
+    </StreamGeometry>
+
 </ResourceDictionary>

@@ -20,6 +20,12 @@ public interface INavigationService
     /// <summary>Resolve <typeparamref name="TViewModel"/> from DI and make it current.</summary>
     TViewModel NavigateTo<TViewModel>() where TViewModel : PageViewModelBase;
 
+    /// <summary>
+    /// Resolve <typeparamref name="TViewModel"/> from DI, run <paramref name="configure"/>
+    /// on it (to pass a drill-in id/context before it is shown), then make it current.
+    /// </summary>
+    TViewModel NavigateTo<TViewModel>(Action<TViewModel> configure) where TViewModel : PageViewModelBase;
+
     /// <summary>Resolve <paramref name="viewModelType"/> from DI and make it current.</summary>
     PageViewModelBase NavigateTo(Type viewModelType);
 }
