@@ -11,20 +11,19 @@
         FlowDirection="RightToLeft"
         Background="{StaticResource BgBrush}">
 
-    <!-- App shell: sidebar column + (topbar over scrollable content) column,
-         matching the reference's .app / .sidebar / .main / .page structure.
-         FlowDirection is pinned here on the Window itself: setting it only via a
-         TopLevel style leaves the Window's own default (LeftToRight) as a local
-         value that wins over the style, which mirrored the whole shell wrong. -->
-    <!-- Grid columns are physical in Avalonia. Keep the menu explicitly in
-         the final/right column instead of relying on FlowDirection to mirror
-         the shell; this prevents the Persian sidebar from moving left on some
-         platforms. -->
-    <Grid ColumnDefinitions="*,Auto">
+    <!-- App shell: (topbar over scrollable content) column + sidebar column.
+         The shell Grid is laid out LeftToRight so its columns are DETERMINISTIC
+         physical slots — we do NOT rely on FlowDirection mirroring to place the
+         menu, because that mirror flipped the Persian sidebar to the left on
+         this platform. The sidebar therefore lives in the last (right) column
+         and always renders on the RIGHT edge, as Persian RTL requires. The
+         individual child views (SidebarView, TopbarView, pages) keep their own
+         FlowDirection=RightToLeft, so all Persian text still flows right-to-left. -->
+    <Grid ColumnDefinitions="*,Auto" FlowDirection="LeftToRight">
 
-        <!-- Sidebar host: width is animated (0 <-> 264) so the topbar fold
-             toggle can collapse/expand the menu smoothly. The explicit second
-             column pins it to the right edge in every RTL desktop render. -->
+        <!-- Sidebar host: width is animated so the topbar fold toggle can
+             collapse/expand the menu smoothly. Pinned to the right (last)
+             column so the navigation menu sits on the right of the window. -->
         <shell:SidebarView Grid.Column="1"
                            Width="{Binding #Root.((shell:MainWindowViewModel)DataContext).SidebarWidth}"
                            ClipToBounds="True"
@@ -40,10 +39,12 @@
 
         <DockPanel Grid.Column="0" LastChildFill="True">
             <shell:TopbarView DockPanel.Dock="Top"
+                              FlowDirection="RightToLeft"
                               DataContext="{Binding Topbar}" />
 
             <ScrollViewer HorizontalScrollBarVisibility="Disabled"
-                          VerticalScrollBarVisibility="Auto">
+                          VerticalScrollBarVisibility="Auto"
+                          FlowDirection="RightToLeft">
                 <ContentControl Content="{Binding CurrentPage}" />
             </ScrollViewer>
         </DockPanel>
