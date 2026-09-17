@@ -282,28 +282,29 @@
                                                     ToolTip.Tip="{Binding Label}"
                                                     Command="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).NavigateCommand}"
                                                     CommandParameter="{Binding}">
-                                                <!-- RTL layout, expanded:  [badge | label ...] label right-aligned + icon
-                                                     pinned to the leading (right) edge.
-                                                     Fixed 3-column grid:  badge(Auto) | label(*) | icon(Auto).
-                                                     Because the icon lives in its own fixed trailing column
-                                                     (the RTL leading/right edge) on EVERY row, all the tab
-                                                     icons line up in one tidy vertical column regardless of
-                                                     label length; the labels are right-aligned so they hug
-                                                     the icons. In the compact rail the badge + label collapse
-                                                     and the icon is re-centered across the whole pill. -->
-                                                <Grid>
+                                                <!-- Persian RTL nav row. The inner Grid is laid out
+                                                     LeftToRight so its columns are DETERMINISTIC physical
+                                                     slots (FlowDirection mirroring previously flipped the
+                                                     icon to the physical LEFT, which is the bug we are
+                                                     fixing). Physical column order, left → right:
+                                                        badge(Auto) | label(*) | icon(Auto)
+                                                     so the ICON sits flush on the far RIGHT edge on every
+                                                     row (they line up in one vertical column), the label
+                                                     is right-aligned so it hugs the icon, and the numeric
+                                                     badge sits on the far left. In the compact rail the
+                                                     badge + label collapse and the icon re-centers across
+                                                     the whole pill. -->
+                                                <Grid FlowDirection="LeftToRight">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
 
-                                                    <!-- Leading accent bar (active only), overlaid on
-                                                         the pill's inner (right, RTL leading) edge.
-                                                         Negative right margin cancels the button's
-                                                         12px horizontal padding so the 4px bar sits
-                                                         flush against the pill edge, matching the
-                                                         target. -->
+                                                    <!-- Active accent bar, overlaid flush against the
+                                                         pill's inner RIGHT (RTL leading) edge. Negative
+                                                         right margin cancels the button's 12px padding so
+                                                         the 4px bar sits flush against the pill edge. -->
                                                     <Border Classes="nav-accent"
                                                             Grid.Column="0"
                                                             Grid.ColumnSpan="3"
@@ -314,7 +315,7 @@
                                                             VerticalAlignment="Stretch"
                                                             Background="{StaticResource Brand600Brush}" />
 
-                                                    <!-- Badge (leading = far left in RTL) -->
+                                                    <!-- Badge (far left, RTL trailing edge) -->
                                                     <Border Grid.Column="0"
                                                             Classes="nav-badge"
                                                             CornerRadius="20"
@@ -335,11 +336,13 @@
                                                                    FontWeight="Bold" />
                                                     </Border>
 
-                                                    <!-- Label: fills the middle column and is right-aligned
-                                                         (RTL) so it sits flush against the icon column. Hidden
-                                                         in the compact rail. -->
+                                                    <!-- Label: fills the middle column, right-aligned so it
+                                                         hugs the icon on the right. FlowDirection is RTL here
+                                                         so the Persian text shapes/flows correctly. Hidden in
+                                                         the compact rail. -->
                                                     <TextBlock Grid.Column="1"
                                                                Classes="nav-label"
+                                                               FlowDirection="RightToLeft"
                                                                IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}"
                                                                VerticalAlignment="Center"
                                                                HorizontalAlignment="Right"
@@ -348,19 +351,19 @@
                                                                TextWrapping="NoWrap"
                                                                Text="{Binding Label}" />
 
-                                                    <!-- Icon-column spacer: reserves the fixed 18px trailing
+                                                    <!-- Icon-column spacer: reserves the fixed 18px far-right
                                                          column so the label can never slide underneath the
-                                                         icon. It keeps the icon column a real, constant width
-                                                         on every row → the icons line up vertically. -->
+                                                         icon; keeps the icon column a constant width on every
+                                                         row → all icons line up vertically on the right. -->
                                                     <Border Grid.Column="2"
                                                             Width="18"
                                                             IsHitTestVisible="False" />
 
                                                     <!-- Icon: overlaid across all columns. Expanded → pinned
-                                                         Right, so it sits in the fixed trailing (RTL leading)
-                                                         column and every row's icon aligns vertically. Compact
-                                                         → the label + badge collapse and the icon re-centers
-                                                         across the whole pill via the alignment converter. -->
+                                                         Right, so it sits in the fixed far-right column and
+                                                         every row's icon aligns vertically on the right edge.
+                                                         Compact → the label + badge collapse and the icon
+                                                         re-centers across the whole pill via the converter. -->
                                                     <Panel Grid.Column="0"
                                                            Grid.ColumnSpan="3"
                                                            Width="18"
