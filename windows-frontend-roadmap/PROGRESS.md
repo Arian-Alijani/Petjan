@@ -4,6 +4,41 @@
 > truth for "what already exists" and "what to do next." Update it at the
 > end of every phase you execute — do not skip this step.
 
+## The two standing principles (apply to EVERY phase, no exceptions)
+
+These two goals are the entire reason this roadmap exists. They are in force
+in **every** phase (foundation phases 01–05 *and* screen phases 06–29), and
+they are never traded off against speed, token budget, or "good enough."
+Neither may be relaxed by a phase file, a deviation-log entry, or a future
+session. When they seem to conflict, satisfy **both** — never sacrifice one.
+
+1. **Pixel-faithful rebuild of `Animora-UI` — nothing removed, nothing
+   changed visually.** The finished screen must be indistinguishable from its
+   `Animora-UI/*.html` reference: every box, table, card, chart, donut, gauge,
+   ring, badge, tab, sub-nav, icon and text label is rebuilt in full, in the
+   same place / order / grouping / count, with **exact** measurable values
+   transcribed from the screen's own CSS and Persian text reproduced
+   character-for-character. No visible element is ever dropped, simplified,
+   merged, approximated, or deferred. *(Full rules: `CONVENTIONS.md` §4a
+   Fidelity Protocol + §6 fidelity gate; `ROADMAP.md` §3a.)*
+
+2. **Backend-ready, standard, idiomatic code — the front end ends this
+   roadmap cleanly waiting for a backend.** Every screen's data need is a
+   plain `Animora.Contracts` interface + DTO, consumed by the ViewModel via
+   constructor DI, with the *only* concrete implementation being an in-memory
+   `Mock*` in `Animora.Desktop/Mocks`. When the future backend/database
+   roadmap runs, it implements the same interfaces for real and swaps one DI
+   registration — **zero** View/ViewModel changes. No mock call, sample datum,
+   `if (design-time)` branch, or hardcoded data ever leaks into a View or a
+   ViewModel's public shape. Code is idiomatic Avalonia/C#/MVVM
+   (CommunityToolkit.Mvvm), never transliterated from the reference's JS.
+   *(Full rules: `CONVENTIONS.md` §1 layout, §3 MVVM, §5 data pattern; the
+   "Backend-ready" note in each screen phase.)*
+
+> These are stated here (the always-read file) so no session can miss them.
+> They restate — never replace — the authoritative rules in `CONVENTIONS.md`
+> and `ROADMAP.md`; if wording ever differs, those files govern.
+
 ## Current state
 
 - **Next phase to execute:** `07` — Reception & Queue Screen
