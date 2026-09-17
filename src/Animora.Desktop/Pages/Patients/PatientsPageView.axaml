@@ -1,0 +1,928 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:patients="using:Animora.Desktop.Pages.Patients"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Patients.PatientsPageView"
+             x:Name="Root"
+             x:DataType="patients:PatientsPageViewModel"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <!-- Segmented switch (.pb-seg): a soft track with pill buttons; the
+             active pill gets the reference's white fill + 2/8 shadow. -->
+        <Style Selector="Border.seg">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="3" />
+        </Style>
+        <Style Selector="Border.segitem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="9" />
+        </Style>
+        <Style Selector="Border.segitem.on">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+        </Style>
+        <Style Selector="Button.segtap">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="15,8" />
+        </Style>
+        <Style Selector="Button.segtap.lg">
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="20,9" />
+        </Style>
+        <Style Selector="Button.segtap:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.segitem Path">
+            <Setter Property="Stroke" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Border.segitem.on Path">
+            <Setter Property="Stroke" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Border.segitem.on TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
+        <!-- Filter chips (.pb-chip): pill outline; active = brand fill + white
+             text + 2/8 brand shadow. -->
+        <Style Selector="Border.chip">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="999" />
+        </Style>
+        <Style Selector="Border.chip:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Background" Value="#f6faf8" />
+        </Style>
+        <Style Selector="Border.chip.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowChip}" />
+        </Style>
+        <Style Selector="Button.chiptap">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="13,6" />
+        </Style>
+        <Style Selector="Button.chiptap:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.chip Path">
+            <Setter Property="Stroke" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Border.chip:pointerover Path">
+            <Setter Property="Stroke" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Border.chip:pointerover TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Border.chip.on Path">
+            <Setter Property="Stroke" Value="White" />
+        </Style>
+        <Style Selector="Border.chip.on TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Border.chip.on Button.chiptap">
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+
+        <!-- Chip count pill (.pb-chip .cnt). -->
+        <Style Selector="Border.cnt">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="MinWidth" Value="18" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="Padding" Value="5,0" />
+        </Style>
+        <Style Selector="Border.cnt TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Border.chip.on Border.cnt">
+            <Setter Property="Background" Value="#38FFFFFF" />
+        </Style>
+        <Style Selector="Border.chip.on Border.cnt TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- Compact toolbar select (.pb-select). -->
+        <Style Selector="ComboBox.pbselect">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+
+        <!-- Owner card / pet card hover affordances on the clickable surface. -->
+        <Style Selector="Path.reveal">
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+
+        <!-- Tiny footer buttons (.btn-tiny). -->
+        <Style Selector="Button.tiny">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="11,6" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.tiny:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.tiny.add">
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="FontSize" Value="11.5" />
+        </Style>
+
+        <!-- Table cells. -->
+        <Style Selector="TextBlock.th">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="TextBlock.nm">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.sb">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="TextBlock.overdue">
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+        </Style>
+        <!-- Owner card (.owner-card) / pet card (.pet-card) as a clickable
+             surface; the active card gets the brand border, and the trailing
+             chevron reveals on hover. -->
+        <Style Selector="Button.cardlink">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.cardlink:pointerover">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+        </Style>
+        <Style Selector="Path.reveal">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Stroke" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Button.cardlink:pointerover Path.reveal">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="Stroke" Value="{StaticResource Brand600Brush}" />
+        </Style>
+
+        <!-- Owner card internals. -->
+        <Style Selector="Border.gpill">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="7,2" />
+        </Style>
+        <Style Selector="Border.gpill TextBlock">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Border.filebadge">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="8,2" />
+        </Style>
+        <Style Selector="Border.filebadge TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Border.tagpill">
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="8,2" />
+        </Style>
+        <Style Selector="Border.tagpill TextBlock">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="TextBlock.ocline">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+
+        <!-- Pet chip inside an owner card (.pet-chip) — a clickable row. -->
+        <Style Selector="Button.petchip">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="9,7" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.petchip:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.petchip:pointerover Path.reveal">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="Stroke" Value="{StaticResource Brand600Brush}" />
+        </Style>
+
+        <!-- Sex dot (.sex-dot). -->
+        <Style Selector="Border.sexdot">
+            <Setter Property="Width" Value="15" />
+            <Setter Property="Height" Value="15" />
+            <Setter Property="CornerRadius" Value="999" />
+        </Style>
+        <Style Selector="Border.sexdot TextBlock">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+        </Style>
+
+        <!-- Pet card internals (.pet-card). -->
+        <Style Selector="Border.pkav">
+            <Setter Property="Width" Value="56" />
+            <Setter Property="Height" Value="56" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+        </Style>
+        <Style Selector="Border.pkbreed">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="10,4" />
+        </Style>
+        <Style Selector="TextBlock.fv">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.fl">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+
+        <!-- Pets table (adapted from the reference's .pt-table: the same
+             white card, header band, 12/16 cell padding and 11.5px muted
+             uppercase-ish header). -->
+        <Style Selector="TextBlock.ovcell">
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.ovcell.overdue">
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+        </Style>
+
+        <!-- Table row link (adapted .pt-table tbody tr) -->
+        <Style Selector="Button.rowlink">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.rowlink:pointerover Border">
+            <Setter Property="Background" Value="{StaticResource RowHoverBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Margin="26,22,26,40">
+
+        <!-- ── page header (.pt-head) ─────────────────────────────── -->
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,0,0,18">
+            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Bottom">
+                <TextBlock Text="پرونده الکترونیک سلامت" FontSize="12" FontWeight="Bold"
+                           Foreground="{StaticResource Brand600Brush}" />
+                <TextBlock Text="بیماران و مالکین" FontSize="26" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" />
+                <TextBlock Text="هر مالک، هر حیوان و کل تاریخچه سلامت — در یک نگاه شفاف."
+                           FontSize="13" Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                        VerticalAlignment="Bottom">
+                <Button Classes="outline" Command="{Binding ExportExcelCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="15" Height="15"
+                              Stroke="{Binding $parent[Button].Foreground}"
+                              Data="{StaticResource IconDownload}" />
+                        <TextBlock Text="خروجی" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="primary" Command="{Binding AddNewOwnerPetCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="16" Height="16" Stroke="White"
+                              Data="{StaticResource IconPlus}" />
+                        <TextBlock Text="مالک و بیمار جدید" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- ── toolbar (.pagebar) ─────────────────────────────────── -->
+        <Border Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                CornerRadius="{StaticResource Radius}"
+                BoxShadow="{StaticResource ShadowCard}"
+                Padding="14,12" Margin="0,0,0,16">
+            <StackPanel Spacing="12">
+
+                <!-- tier 1 · entity switch (start) + search (end) -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <Border Grid.Column="0" Classes="seg" HorizontalAlignment="Stretch">
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="2">
+                            <Border Grid.Column="0" Classes="segitem" Classes.on="{Binding IsOwnersView}">
+                                <Button Classes="segtap lg" HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Command="{Binding SetViewModeCommand}" CommandParameter="owners">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <Path Classes="icon" Width="16" Height="16"
+                                              Data="{StaticResource IconUsers}" />
+                                        <TextBlock Text="مالکین" FontSize="13.5" FontWeight="Bold" />
+                                    </StackPanel>
+                                </Button>
+                            </Border>
+                            <Border Grid.Column="1" Classes="segitem" Classes.on="{Binding IsPetsView}">
+                                <Button Classes="segtap lg" HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Command="{Binding SetViewModeCommand}" CommandParameter="pets">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <Path Classes="icon" Width="16" Height="16"
+                                              Data="{StaticResource IconPaw}" />
+                                        <TextBlock Text="بیماران" FontSize="13.5" FontWeight="Bold" />
+                                    </StackPanel>
+                                </Button>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- search field (.pb-search) -->
+                    <Border Grid.Column="1" Width="420" MinWidth="200"
+                            Background="{StaticResource Bg2Brush}"
+                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                            CornerRadius="12" Padding="13,0">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                                  VerticalAlignment="Center"
+                                  Stroke="{StaticResource MutedBrush}"
+                                  Data="{StaticResource IconSearch}" IsHitTestVisible="False" />
+                            <TextBox Grid.Column="1" Text="{Binding SearchText}"
+                                     PlaceholderText="جستجوی نام، مالک، پرونده، موبایل یا میکروچیپ…"
+                                     FontSize="13" BorderThickness="0" Background="Transparent"
+                                     Padding="0,10" VerticalContentAlignment="Center" />
+                            <Button Grid.Column="2" Width="20" Height="20" Padding="0"
+                                    CornerRadius="999" Background="{StaticResource Brand50Brush}"
+                                    BorderThickness="0" VerticalAlignment="Center"
+                                    IsVisible="{Binding HasSearchText}"
+                                    Command="{Binding ClearSearchCommand}">
+                                <Path Classes="icon" Width="11" Height="11"
+                                      Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconX}" />
+                            </Button>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- tier 2 · species chips (start) + secondary controls (end) -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12"
+                      Padding="0,12,0,0">
+                    <StackPanel Grid.Column="0">
+                        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                                Padding="0,12,0,0" Margin="0,-12,0,0">
+                            <ItemsControl ItemsSource="{Binding SpeciesChips}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="patients:PatientsSpeciesChipViewModel">
+                                        <Border Classes="chip" Classes.on="{Binding IsActive}" Margin="0,0,7,0">
+                                            <Button Classes="chiptap"
+                                                    Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).SetSpeciesCommand}"
+                                                    CommandParameter="{Binding CommandValue}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                    <TextBlock Text="{Binding Label}" />
+                                                    <Border Classes="cnt">
+                                                        <TextBlock Text="{Binding CountText}"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </Button>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- trailing control cluster (.pb-tools) -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ResultCountText}" FontSize="12"
+                                   Foreground="{StaticResource MutedBrush}"
+                                   VerticalAlignment="Center" />
+                        <Border Width="1" Height="22" Background="{StaticResource LineBrush}" />
+                        <ComboBox Classes="pbselect" SelectedIndex="{Binding VaccineFilterIndex}">
+                            <ComboBoxItem Content="واکسن: همه" />
+                            <ComboBoxItem Content="دارای واکسن" />
+                            <ComboBoxItem Content="بدون واکسن" />
+                        </ComboBox>
+                        <ComboBox Classes="pbselect" SelectedIndex="{Binding SortIndex}">
+                            <ComboBoxItem Content="جدیدترین ویزیت" />
+                            <ComboBoxItem Content="نام (الفبا)" />
+                            <ComboBoxItem Content="سن" />
+                        </ComboBox>
+                        <Border Classes="seg">
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <Border Classes="segitem" Classes.on="{Binding IsListView}">
+                                    <Button Classes="segtap"
+                                            Command="{Binding SetLayoutCommand}" CommandParameter="list">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <Path Classes="icon" Width="15" Height="15"
+                                                  Data="{StaticResource IconList}" />
+                                            <TextBlock Text="سطری" />
+                                        </StackPanel>
+                                    </Button>
+                                </Border>
+                                <Border Classes="segitem" Classes.on="{Binding IsGridView}">
+                                    <Button Classes="segtap"
+                                            Command="{Binding SetLayoutCommand}" CommandParameter="grid">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <Path Classes="icon" Width="15" Height="15"
+                                                  Data="{StaticResource IconGrid}" />
+                                            <TextBlock Text="باکسی" />
+                                        </StackPanel>
+                                    </Button>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- ── content ──────────────────────────────────────────────
+             Four render combinations + a shared empty state, mirroring the
+             reference's render(): owners/pets × list(rows)/grid(boxes).
+             RTL: "start" = Right, "end" = Left. -->
+
+        <!-- owner grid (.owner-grid): auto-fill min 400px cards -->
+        <ItemsControl ItemsSource="{Binding FilteredOwners}" IsVisible="{Binding ShowOwnersGrid}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="patients:OwnerCardViewModel">
+                    <Button Classes="cardlink" Width="400" Margin="0,0,16,16"
+                            Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
+                            CommandParameter="{Binding Owner}">
+                        <StackPanel>
+                            <!-- oc-top -->
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="16,16,16,12">
+                                <Border Grid.Column="0" Width="46" Height="46" CornerRadius="14"
+                                        Background="{Binding ToneBrush}" VerticalAlignment="Top">
+                                    <TextBlock Text="{Binding Initials}" FontSize="16" FontWeight="ExtraBold"
+                                               Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <TextBlock Text="{Binding Name}" FontSize="15.5" FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <Border Classes="gpill" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding GenderLabel}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Border Classes="filebadge">
+                                            <TextBlock Text="{Binding FileText}" />
+                                        </Border>
+                                        <ItemsControl ItemsSource="{Binding Tags}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="8" /></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="patients:OwnerTagViewModel">
+                                                    <Border Classes="tagpill" Background="{Binding Background}" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Text}" Foreground="{Binding Foreground}" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </StackPanel>
+                                <Button Grid.Column="2" Width="36" Height="36" Padding="0" CornerRadius="10"
+                                        Background="{StaticResource PanelBrush}" BorderThickness="0"
+                                        VerticalAlignment="Top"
+                                        Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
+                                        CommandParameter="{Binding Owner}">
+                                    <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconMore}" />
+                                </Button>
+                            </Grid>
+
+                            <!-- oc-contact: 2-col grid of contact lines + a full-width address -->
+                            <StackPanel Margin="16,0,16,12" Spacing="6">
+                                <ItemsControl ItemsSource="{Binding ContactLines}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Columns="2" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="patients:OwnerContactLineViewModel">
+                                            <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,0,0,6">
+                                                <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
+                                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                <TextBlock Text="{Binding Value}" Classes="ocline" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Top"
+                                          Data="{StaticResource IconPin}" />
+                                    <TextBlock Text="{Binding Address}" Classes="ocline" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- oc-pets -->
+                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                                    Background="{StaticResource InsetBrush}" Padding="16,12,16,14">
+                                <StackPanel>
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,9">
+                                        <TextBlock Grid.Column="0" Text="{Binding PetCountText}" FontSize="11"
+                                                   FontWeight="Bold" Foreground="{StaticResource MutedBrush}"
+                                                   VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Classes="tiny add"
+                                                Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).AddPetCommand}"
+                                                CommandParameter="{Binding Owner}">
+                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                <Path Classes="icon" Width="13" Height="13"
+                                                      Stroke="{Binding $parent[Button].Foreground}"
+                                                      Data="{StaticResource IconPlus}" />
+                                                <TextBlock Text="افزودن حیوان" />
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                    <ItemsControl ItemsSource="{Binding Pets}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><StackPanel Orientation="Vertical" Spacing="6" /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="patients:OwnerPetChipViewModel">
+                                                <Button Classes="petchip"
+                                                        Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenPetCommand}"
+                                                        CommandParameter="{Binding Pet}">
+                                                    <Grid ColumnDefinitions="34,*,Auto,Auto" ColumnSpacing="10">
+                                                        <Border Grid.Column="0" Width="34" Height="34" CornerRadius="11"
+                                                                Background="{Binding ToneBrush}">
+                                                            <Path Classes="icon" Width="17" Height="17" Stroke="White"
+                                                                  Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}"
+                                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="Bold"
+                                                                           Foreground="{StaticResource InkBrush}" />
+                                                                <Border Classes="sexdot" Background="{Binding Sex.Background}">
+                                                                    <TextBlock Text="{Binding Sex.Glyph}" Foreground="{Binding Sex.Foreground}"
+                                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                </Border>
+                                                            </StackPanel>
+                                                            <TextBlock Text="{Binding SubText}" FontSize="10.5"
+                                                                       Foreground="{StaticResource MutedBrush}" />
+                                                        </StackPanel>
+                                                        <controls:Badge Grid.Column="2" VerticalAlignment="Center"
+                                                                        Text="{Binding StatusText}" Tone="{Binding StatusTone}" />
+                                                        <Path Grid.Column="3" Classes="icon reveal" Width="15" Height="15"
+                                                              VerticalAlignment="Center" Data="{StaticResource IconChevronLeft}" />
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- oc-foot -->
+                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="16,10">
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+                                    <Button Grid.Column="0" Classes="tiny"
+                                            Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
+                                            CommandParameter="{Binding Owner}">
+                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                            <Path Classes="icon" Width="13" Height="13"
+                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                  Data="{StaticResource IconFile}" />
+                                            <TextBlock Text="پرونده مالک" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="1" Classes="tiny"
+                                            Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).CallOwnerCommand}"
+                                            CommandParameter="{Binding Owner}">
+                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                            <Path Classes="icon" Width="13" Height="13"
+                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                  Data="{StaticResource IconPhone}" />
+                                            <TextBlock Text="تماس" />
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock Grid.Column="3" Text="{Binding SinceText}" FontSize="11"
+                                               Foreground="{StaticResource Muted2Brush}" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- pets grid (.pets-grid): auto-fill min 272px cards -->
+        <ItemsControl ItemsSource="{Binding FilteredPets}" IsVisible="{Binding ShowPetsGrid}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="patients:PetCardViewModel">
+                    <Button Classes="cardlink" Width="272" Margin="0,0,16,16"
+                            Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenPetCommand}"
+                            CommandParameter="{Binding Pet}">
+                        <StackPanel>
+                            <!-- pk-cover (74px) + overlapping pk-av -->
+                            <Border Height="74" CornerRadius="18,18,0,0" ClipToBounds="False"
+                                    Background="{Binding CoverBrush}">
+                                <Grid>
+                                    <controls:Badge HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                    Margin="12,10,0,0"
+                                                    Text="{Binding StatusText}" Tone="{Binding StatusTone}" />
+                                    <Border Width="56" Height="56" CornerRadius="18"
+                                            HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                                            Margin="16,0,16,-22" Background="{Binding ToneBrush}"
+                                            BorderBrush="White" BorderThickness="3"
+                                            BoxShadow="{StaticResource ShadowSegment}">
+                                        <Path Classes="icon" Width="26" Height="26" Stroke="White"
+                                              Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+                            <StackPanel Margin="16,12,16,14" Spacing="0">
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <Border Classes="sexdot" Background="{Binding Sex.Background}">
+                                        <TextBlock Text="{Binding Sex.Glyph}" Foreground="{Binding Sex.Foreground}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="{Binding CodeText}" FontSize="11"
+                                           Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
+                                <Border Classes="pkbreed" HorizontalAlignment="Left" Margin="0,9,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="13" Height="13"
+                                              Stroke="{StaticResource MutedBrush}"
+                                              Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}" />
+                                        <TextBlock Text="{Binding BreedText}" FontSize="11.5"
+                                                   Foreground="{StaticResource Ink2Brush}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                                        Margin="0,12,0,0" Padding="0,11,0,0">
+                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                                        <StackPanel Grid.Column="0" Spacing="1">
+                                            <TextBlock Text="{Binding AgeShortText}" Classes="fv" HorizontalAlignment="Center" />
+                                            <TextBlock Text="سن" Classes="fl" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="1">
+                                            <TextBlock Classes="fv" HorizontalAlignment="Center">
+                                                <Run Text="{Binding WeightText}" /><Run Text=" کیلو" FontSize="9" />
+                                            </TextBlock>
+                                            <TextBlock Text="وزن فعلی" Classes="fl" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Spacing="1">
+                                            <TextBlock Text="{Binding LastVisitText}" Classes="fv" FontSize="11.5"
+                                                       HorizontalAlignment="Center" />
+                                            <TextBlock Text="آخرین ویزیت" Classes="fl" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <Border Background="{StaticResource InsetBrush}" BorderBrush="{StaticResource Line2Brush}"
+                                    BorderThickness="0,1,0,0" Padding="16,10">
+                                <Grid ColumnDefinitions="24,*,Auto" ColumnSpacing="8">
+                                    <Border Grid.Column="0" Width="24" Height="24" CornerRadius="8"
+                                            Background="{Binding OwnerToneBrush}">
+                                        <TextBlock Text="{Binding OwnerInitials}" FontSize="11" FontWeight="ExtraBold"
+                                                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{Binding OwnerName}" FontSize="12" FontWeight="Bold"
+                                               Foreground="{StaticResource InkBrush}" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <Path Grid.Column="2" Classes="icon reveal" Width="15" Height="15"
+                                          VerticalAlignment="Center" Data="{StaticResource IconChevronLeft}" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- owners table (list mode) -->
+        <Border IsVisible="{Binding ShowOwnersTable}" Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                CornerRadius="18" BoxShadow="{StaticResource ShadowCard}" ClipToBounds="True">
+            <StackPanel>
+                <Border Background="{StaticResource TableHeadBrush}"
+                        BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
+                    <Grid ColumnDefinitions="2*,1.6*,1*,1.6*,1.2*,0.9*,1.2*,Auto" ColumnSpacing="0">
+                        <TextBlock Grid.Column="0" Classes="th" Margin="16,12" Text="مالک" />
+                        <TextBlock Grid.Column="1" Classes="th" Margin="16,12" Text="تماس" />
+                        <TextBlock Grid.Column="2" Classes="th" Margin="16,12" Text="پرونده" />
+                        <TextBlock Grid.Column="3" Classes="th" Margin="16,12" Text="حیوانات" />
+                        <TextBlock Grid.Column="4" Classes="th" Margin="16,12" Text="آخرین ویزیت" />
+                        <TextBlock Grid.Column="5" Classes="th" Margin="16,12" Text="واکسن" />
+                        <TextBlock Grid.Column="6" Classes="th" Margin="16,12" Text="مانده حساب" />
+                        <TextBlock Grid.Column="7" Classes="th" Margin="16,12" Text="" />
+                    </Grid>
+                </Border>
+                <ItemsControl ItemsSource="{Binding FilteredOwners}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="patients:OwnerCardViewModel">
+                            <Button Classes="rowlink" HorizontalContentAlignment="Stretch"
+                                    Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
+                                    CommandParameter="{Binding Owner}">
+                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" FontSize="13">
+                                    <Grid ColumnDefinitions="2*,1.6*,1*,1.6*,1.2*,0.9*,1.2*,Auto">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="16,12">
+                                            <Border Width="36" Height="36" CornerRadius="12" Background="{Binding ToneBrush}">
+                                                <TextBlock Text="{Binding Initials}" FontSize="12" FontWeight="ExtraBold"
+                                                           Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Classes="nm" />
+                                                <TextBlock Text="{Binding FileText}" Classes="sb" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="16,12" VerticalAlignment="Center">
+                                            <TextBlock FontSize="12.5" FontWeight="Bold" Text="{Binding Owner.Mobile1}"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Classes="sb" Text="{Binding Owner.Phone, TargetNullValue=بدون تلفن ثابت}" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Margin="16,12" Classes="sb" FontSize="12.5"
+                                                   Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center"
+                                                   Text="{Binding Owner.File}" />
+                                        <StackPanel Grid.Column="3" Margin="16,12" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding PetCountText}" FontSize="13"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding PetsPreviewText}" Classes="sb" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="4" Margin="16,12" Text="{Binding LastVisitText}"
+                                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                                        <controls:Badge Grid.Column="5" Margin="16,0" VerticalAlignment="Center"
+                                                        Text="{Binding VaccineStateText}"
+                                                        Tone="{Binding VaccineStateTone}" />
+                                        <TextBlock Grid.Column="6" Margin="16,12" Text="{Binding BalanceText}"
+                                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                                        <Path Grid.Column="7" Margin="16,0" Classes="icon" Width="16" Height="16"
+                                              VerticalAlignment="Center" Stroke="{StaticResource Muted2Brush}"
+                                              Data="{StaticResource IconChevronLeft}" />
+                                    </Grid>
+                                </Border>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- pets table (list mode) -->
+        <Border IsVisible="{Binding ShowPetsTable}" Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                CornerRadius="18" BoxShadow="{StaticResource ShadowCard}" ClipToBounds="True">
+            <StackPanel>
+                <Border Background="{StaticResource TableHeadBrush}"
+                        BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
+                    <Grid ColumnDefinitions="2*,1.6*,1.4*,1*,0.9*,1.3*,1.4*,Auto,Auto">
+                        <TextBlock Grid.Column="0" Classes="th" Margin="16,12" Text="بیمار" />
+                        <TextBlock Grid.Column="1" Classes="th" Margin="16,12" Text="مالک" />
+                        <TextBlock Grid.Column="2" Classes="th" Margin="16,12" Text="گونه / نژاد" />
+                        <TextBlock Grid.Column="3" Classes="th" Margin="16,12" Text="سن" />
+                        <TextBlock Grid.Column="4" Classes="th" Margin="16,12" Text="وزن" />
+                        <TextBlock Grid.Column="5" Classes="th" Margin="16,12" Text="آخرین ویزیت" />
+                        <TextBlock Grid.Column="6" Classes="th" Margin="16,12" Text="واکسن بعدی" />
+                        <TextBlock Grid.Column="7" Classes="th" Margin="16,12" Text="وضعیت" />
+                        <TextBlock Grid.Column="8" Classes="th" Margin="16,12" Text="" />
+                    </Grid>
+                </Border>
+                <ItemsControl ItemsSource="{Binding FilteredPets}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="patients:PetCardViewModel">
+                            <Button Classes="rowlink" HorizontalContentAlignment="Stretch"
+                                    Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenPetCommand}"
+                                    CommandParameter="{Binding Pet}">
+                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" FontSize="13">
+                                    <Grid ColumnDefinitions="2*,1.6*,1.4*,1*,0.9*,1.3*,1.4*,Auto,Auto">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="16,12">
+                                            <Border Width="36" Height="36" CornerRadius="12" Background="{Binding ToneBrush}">
+                                                <Path Classes="icon" Width="18" Height="18" Stroke="White"
+                                                      Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="{Binding Name}" Classes="nm" />
+                                                    <Border Classes="sexdot" Background="{Binding Sex.Background}">
+                                                        <TextBlock Text="{Binding Sex.Glyph}" Foreground="{Binding Sex.Foreground}"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Code}" Classes="sb" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="16,12" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding OwnerName}" FontSize="12.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding OwnerMobile}" Classes="sb" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Margin="16,12" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding SpeciesLabel}" Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding Breed}" Classes="sb" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="3" Margin="16,12" Classes="sb" FontSize="12.5"
+                                                   Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center"
+                                                   Text="{Binding AgeLongText}" />
+                                        <TextBlock Grid.Column="4" Margin="16,12" Classes="ovcell"
+                                                   VerticalAlignment="Center" Text="{Binding WeightTableText}" />
+                                        <StackPanel Grid.Column="5" Margin="16,12" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding LastVisitText}" Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding LastVisitType}" Classes="sb" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="6" Margin="16,12" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding NextVaccineText}" Classes="ovcell"
+                                                       Classes.overdue="{Binding IsNextVaccineOverdue}" />
+                                            <TextBlock Text="{Binding NextVaccineName}" Classes="sb" />
+                                        </StackPanel>
+                                        <controls:Badge Grid.Column="7" Margin="16,0" VerticalAlignment="Center"
+                                                        Text="{Binding StatusText}" Tone="{Binding StatusTone}" />
+                                        <Path Grid.Column="8" Margin="16,0" Classes="icon" Width="16" Height="16"
+                                              VerticalAlignment="Center" Stroke="{StaticResource Muted2Brush}"
+                                              Data="{StaticResource IconChevronLeft}" />
+                                    </Grid>
+                                </Border>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- empty state (.pt-empty) -->
+        <Border IsVisible="{Binding ShowEmptyState}" Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                CornerRadius="18" Padding="20,64">
+            <StackPanel HorizontalAlignment="Center" Spacing="0">
+                <Border Width="58" Height="58" CornerRadius="20" Background="{StaticResource Bg2Brush}"
+                        HorizontalAlignment="Center">
+                    <Path Classes="icon" Width="26" Height="26" Stroke="{StaticResource Muted2Brush}"
+                          Data="{StaticResource IconSearch}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Text="{Binding EmptyTitle}" FontSize="15" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" HorizontalAlignment="Center" Margin="0,14,0,5" />
+                <TextBlock Text="عبارت جستجو یا فیلترها را تغییر دهید." FontSize="12.5"
+                           Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" Margin="0,0,0,14" />
+                <Button Classes="outline" HorizontalAlignment="Center" Command="{Binding ResetFiltersCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="14" Height="14"
+                              Stroke="{Binding $parent[Button].Foreground}"
+                              Data="{StaticResource IconX}" />
+                        <TextBlock Text="پاک کردن فیلترها" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
