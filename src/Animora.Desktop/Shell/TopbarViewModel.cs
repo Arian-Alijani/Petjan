@@ -22,12 +22,9 @@ public sealed partial class TopbarViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSidebarOpen = true;
 
-    [ObservableProperty]
-    private double _openIconOpacity = 1;
-
-    [ObservableProperty]
-    private double _closedIconOpacity;
-
+    // Chevron rotation: 0° = arrow pointing toward the sidebar (collapse hint)
+    // while expanded; 180° flips it to point away (expand hint) while collapsed.
+    // The view tweens between the two angles for a smooth direction flip.
     [ObservableProperty]
     private double _toggleIconRotation;
 
@@ -75,9 +72,7 @@ public sealed partial class TopbarViewModel : ObservableObject
     private void ToggleSidebar()
     {
         IsSidebarOpen = !IsSidebarOpen;
-        OpenIconOpacity = IsSidebarOpen ? 1 : 0;
-        ClosedIconOpacity = IsSidebarOpen ? 0 : 1;
-        ToggleIconRotation += 180;
+        ToggleIconRotation = IsSidebarOpen ? 0 : 180;
         SidebarToggleToolTip = IsSidebarOpen ? "جمع کردن منو" : "باز کردن منو";
         SidebarToggleRequested?.Invoke(this, EventArgs.Empty);
     }

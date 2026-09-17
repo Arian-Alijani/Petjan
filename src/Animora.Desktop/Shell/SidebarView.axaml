@@ -63,10 +63,15 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Width="288"
-            Background="{StaticResource PanelBrush}"
+    <!-- The host control's width is animated between the expanded (288) and
+         compact (76) rails by the shell. Letting this Border stretch to fill
+         that width (instead of a fixed 288) means the nav content actually
+         reflows into the compact rail rather than being clipped, so no
+         label-only / icon-less strip is left behind when collapsed. -->
+    <Border Background="{StaticResource PanelBrush}"
             BorderBrush="{StaticResource Line2Brush}"
             BorderThickness="1,0,0,0"
+            HorizontalAlignment="Stretch"
             Padding="14,18,14,14">
         <DockPanel LastChildFill="True">
 
@@ -202,39 +207,59 @@
                                                     ToolTip.Tip="{Binding Label}"
                                                     Command="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).NavigateCommand}"
                                                     CommandParameter="{Binding}">
-                                                <!-- RTL layout: accent rail | icon | label | badge.
-                                                     Each element sits in its own column so nothing
-                                                     overlaps. In RTL the accent rail renders at the
-                                                     leading (right) edge of the item. -->
-                                                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-                                                    <!-- Leading accent bar (active only) -->
+                                                <!-- RTL layout: [accent overlay] icon | label | badge.
+                                                     The accent rail is an OVERLAY (own layer, pinned to
+                                                     the leading/right edge) so it never shifts the icon.
+                                                     The icon column stretches and centers its content,
+                                                     so in the compact rail the icon stays perfectly
+                                                     centered with no icon-less strip left over. The
+                                                     label + badge collapse (IsVisible + zero layout size)
+                                                     when the sidebar is compact. -->
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <!-- Leading accent bar (active only), overlaid -->
                                                     <Border Classes="nav-accent"
                                                             Grid.Column="0"
+                                                            Grid.ColumnSpan="2"
                                                             Width="3"
-                                                            Margin="0,2,9,2"
+                                                            Margin="0,2"
                                                             CornerRadius="3"
+                                                            HorizontalAlignment="Right"
                                                             VerticalAlignment="Stretch"
                                                             Background="{StaticResource Brand600Brush}" />
-                                                    <Path Grid.Column="1"
-                                                          Classes="icon nav-icon"
-                                                          Width="18"
-                                                          Height="18"
-                                                          VerticalAlignment="Center"
-                                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
-                                                    <TextBlock Grid.Column="2"
-                                                               Classes="nav-label"
-                                                               IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}"
-                                                               VerticalAlignment="Center"
-                                                               Margin="12,2,4,2"
-                                                               TextWrapping="NoWrap"
-                                                               Text="{Binding Label}" />
-                                                    <Border Grid.Column="3"
+
+                                                    <!-- Icon + label share the first (stretching) column.
+                                                         When expanded the row is right-aligned (RTL);
+                                                         when compact only the icon shows, centered. -->
+                                                    <StackPanel Grid.Column="0"
+                                                                Orientation="Horizontal"
+                                                                Spacing="12"
+                                                                VerticalAlignment="Center"
+                                                                HorizontalAlignment="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded, Converter={x:Static shell:SidebarView.RailAlignmentConverter}}">
+                                                        <Path Classes="icon nav-icon"
+                                                              Width="18"
+                                                              Height="18"
+                                                              VerticalAlignment="Center"
+                                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                        <TextBlock Classes="nav-label"
+                                                                   IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}"
+                                                                   VerticalAlignment="Center"
+                                                                   TextWrapping="NoWrap"
+                                                                   Text="{Binding Label}" />
+                                                    </StackPanel>
+
+                                                    <Border Grid.Column="1"
                                                             Classes="nav-badge"
-                                                            IsVisible="{Binding HasBadge}"
                                                             CornerRadius="20"
                                                             Padding="7,1"
                                                             MinWidth="20"
+                                                            Margin="4,0,0,0"
                                                             VerticalAlignment="Center">
+                                                        <Border.IsVisible>
+                                                            <MultiBinding Converter="{x:Static shell:SidebarView.AllTrueConverter}">
+                                                                <Binding Path="HasBadge" />
+                                                                <Binding Path="$parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded" />
+                                                            </MultiBinding>
+                                                        </Border.IsVisible>
                                                         <TextBlock Classes="nav-badge-text"
                                                                    Text="{Binding BadgeText}"
                                                                    HorizontalAlignment="Center"
