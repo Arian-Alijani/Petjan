@@ -138,16 +138,16 @@ body.sidebar-collapsed .nav-item { justify-content: center; padding: 10px; }
   font-weight: 700;
 }
 .nav-item.active::before {
-  content: ''; position: absolute; inset-inline-start: 0; top: 9px; bottom: 9px;
+  content: ''; position: absolute; inset-inline-end: 0; top: 9px; bottom: 9px;
   width: 3px; background: var(--brand-600); border-radius: 3px;
   /* the active item is the one thing that legitimately changes between
      pages — give it its own small, minimal fade instead of animating the
      whole nav list on every navigation */
   animation: navActiveIn .3s cubic-bezier(.22,1,.36,1) both;
 }
-body.sidebar-collapsed .nav-item.active::before { inset-inline-start: -2px; }
+body.sidebar-collapsed .nav-item.active::before { inset-inline-end: -2px; }
 @keyframes navActiveIn { from { opacity: 0; transform: scaleY(.4); } to { opacity: 1; transform: none; } }
-.nav-item svg { width: 18px; height: 18px; flex: none; color: var(--muted); transition: color .15s; }
+.nav-item svg { width: 20px; height: 20px; flex: 0 0 20px; box-sizing: content-box; padding-inline-end: 4px; color: var(--muted); transition: color .15s; }
 .nav-item:hover svg { color: var(--brand-600); }
 .nav-item.active svg { color: var(--brand-600); }
 .nav-item > span:not(.badge) {
