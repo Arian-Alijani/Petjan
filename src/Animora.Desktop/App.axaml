@@ -53,6 +53,43 @@
             <Setter Property="FlowDirection" Value="RightToLeft" />
         </Style>
 
+        <!-- The upstream static faces do not all share the same legacy family
+             name. Select the exact embedded FILE for every effective weight,
+             rather than asking Avalonia/Skia to group a directory by preferred
+             family name. This is intentionally applied to both TextBlock and
+             ContentPresenter (the latter draws string content in templates).
+             See Typography.axaml for the Windows-specific failure mode. -->
+        <Style Selector="TextBlock[FontWeight=Medium]">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamilyMedium}" />
+        </Style>
+        <Style Selector="TextBlock[FontWeight=SemiBold]">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamilySemiBold}" />
+        </Style>
+        <Style Selector="TextBlock[FontWeight=Bold]">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamilyBold}" />
+        </Style>
+        <Style Selector="TextBlock[FontWeight=ExtraBold]">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamilyExtraBold}" />
+        </Style>
+        <Style Selector="TextBlock[FontWeight=Black]">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamilyBlack}" />
+        </Style>
+        <Style Selector="ContentPresenter[FontWeight=Medium]">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamilyMedium}" />
+        </Style>
+        <Style Selector="ContentPresenter[FontWeight=SemiBold]">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamilySemiBold}" />
+        </Style>
+        <Style Selector="ContentPresenter[FontWeight=Bold]">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamilyBold}" />
+        </Style>
+        <Style Selector="ContentPresenter[FontWeight=ExtraBold]">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamilyExtraBold}" />
+        </Style>
+        <Style Selector="ContentPresenter[FontWeight=Black]">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamilyBlack}" />
+        </Style>
+
         <!-- Phase 03: shared selector-based styles (icon Path look, card). -->
         <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/IconStyle.axaml" />
         <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/Card.axaml" />

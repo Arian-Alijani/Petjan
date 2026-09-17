@@ -3,40 +3,29 @@
                     xmlns:sys="clr-namespace:System;assembly=System.Runtime">
 
     <!-- Design tokens: typography.
-         Font: Vazirmatn (OFL, bundled as an embedded asset — no runtime CDN),
-         matching the reference (Animora-UI) which imports Vazirmatn.
+         Font: Vazirmatn (OFL, bundled; no runtime CDN).
 
-         IMPORTANT: Vazirmatn is bundled as the six OFFICIAL upstream STATIC
-         weight files (Regular/Medium/SemiBold/Bold/ExtraBold/Black — see
-         scripts/build_vazirmatn_weights.py). THREE earlier attempts failed:
-           1. Upstream VARIABLE font — Avalonia can't weight-resolve it, so every
-              non-Regular label rendered as solid black boxes.
-           2. Static weights with each heavy file keeping its OWN legacy family
-              name + leftover variable STAT/fvar tables — matcher couldn't
-              collapse them into one family; heavy weights fell back to .notdef.
-           3. Forcing ALL six files to ID1="Vazirmatn" with a legacy RIBBI
-              subfamily of only "Regular"/"Bold". That collided three files onto
-              (Vazirmatn, Regular) and three onto (Vazirmatn, Bold). The RIBBI
-              model allows ONE face per (family, subfamily): Linux/FreeType kept
-              all six (so the sandbox looked fixed) but Windows DirectWrite kept
-              only one Bold + one Regular and discarded Medium/SemiBold/ExtraBold/
-              Black — so ExtraBold headings were black boxes ON WINDOWS ONLY.
-         Current fix: use the upstream static faces verbatim. They use the correct
-         cross-platform layout — RIBBI base pair (ID1="Vazirmatn" + ID2 Regular/
-         Bold) for 400/700, and a UNIQUE legacy family ("Vazirmatn Medium",
-         "Vazirmatn SemiBold", "Vazirmatn ExtraBold", "Vazirmatn Black") plus
-         preferred family ID16="Vazirmatn" for the other weights. No legacy
-         collision, no variable tables, so Windows/macOS/Linux all resolve each
-         FontWeight (400..900) to real outlines. The avares:// URI below matches
-         on the preferred family "Vazirmatn" and exposes all six weights.
-         NEVER re-collapse the heavy weights back onto ID1="Vazirmatn" — that is
-         attempt #3, which silently passes on Linux and breaks Windows.
+         IMPORTANT: do not address the whole Fonts directory as one family. The
+         official static files intentionally have different legacy family names:
+         Regular/Bold are "Vazirmatn", while Medium/SemiBold/ExtraBold/Black are
+         "Vazirmatn Medium", etc. A directory URI ending in #Vazirmatn therefore
+         depends on Avalonia/Skia grouping those separate faces through OpenType
+         name ID 16. That grouping is platform-dependent and failed on Windows,
+         even though Linux selected the expected face.
 
-         Type scale + the weight tokens below mirror the reference's observed
-         heading/body sizes and weights (400/500/600/700/800) so all app text is
-         standardized to one font and one consistent weight ramp. -->
+         Each resource below instead points to ONE file and its exact internal
+         legacy family (name ID 1). App.axaml maps the effective FontWeight to the
+         corresponding resource. Face selection is consequently deterministic:
+         no family grouping, fallback, synthesis, or installed system font is
+         involved. Keep the upstream static files verbatim; see the verifier in
+         scripts/build_vazirmatn_weights.py. -->
 
-    <FontFamily x:Key="AppFontFamily">avares://Animora.Desktop/Assets/Fonts#Vazirmatn</FontFamily>
+    <FontFamily x:Key="AppFontFamily">avares://Animora.Desktop/Assets/Fonts/Vazirmatn-Regular.ttf#Vazirmatn</FontFamily>
+    <FontFamily x:Key="AppFontFamilyMedium">avares://Animora.Desktop/Assets/Fonts/Vazirmatn-Medium.ttf#Vazirmatn Medium</FontFamily>
+    <FontFamily x:Key="AppFontFamilySemiBold">avares://Animora.Desktop/Assets/Fonts/Vazirmatn-SemiBold.ttf#Vazirmatn SemiBold</FontFamily>
+    <FontFamily x:Key="AppFontFamilyBold">avares://Animora.Desktop/Assets/Fonts/Vazirmatn-Bold.ttf#Vazirmatn</FontFamily>
+    <FontFamily x:Key="AppFontFamilyExtraBold">avares://Animora.Desktop/Assets/Fonts/Vazirmatn-ExtraBold.ttf#Vazirmatn ExtraBold</FontFamily>
+    <FontFamily x:Key="AppFontFamilyBlack">avares://Animora.Desktop/Assets/Fonts/Vazirmatn-Black.ttf#Vazirmatn Black</FontFamily>
 
     <sys:Double x:Key="FontSizeXs">11</sys:Double>
     <sys:Double x:Key="FontSizeSm">13</sys:Double>
@@ -44,8 +33,8 @@
     <sys:Double x:Key="FontSizeLg">19</sys:Double>
     <sys:Double x:Key="FontSizeXl">26</sys:Double>
 
-    <!-- Weight tokens: bundled Vazirmatn static weights. Reference maps:
-         body=400/500, labels/emphasis=600, headings/values=700, hero=800. -->
+    <!-- Weight tokens. App.axaml pairs each non-Regular value with its exact
+         static font file; do not use these weights without that mapping. -->
     <FontWeight x:Key="FontWeightRegular">Normal</FontWeight>
     <FontWeight x:Key="FontWeightMedium">Medium</FontWeight>
     <FontWeight x:Key="FontWeightSemiBold">SemiBold</FontWeight>
