@@ -188,7 +188,7 @@
                                 </StackPanel>
                             </Button>
                             <Button CornerRadius="12" Padding="14,9" Background="White"
-                                    BorderThickness="0" Command="{Binding CloseCommand}">
+                                    BorderThickness="0" Command="{Binding PrintCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="7">
                                     <Path Classes="icon" Width="14" Height="14"
                                           Stroke="{StaticResource Brand800Brush}"

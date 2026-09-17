@@ -16,8 +16,19 @@ public partial class ModalHost : UserControl
         InitializeComponent();
     }
 
-    public void SetContent(object? content)
+    /// <summary>
+    /// Shows <paramref name="content"/> in the centered modal panel, capped at
+    /// <paramref name="maxWidth"/> (reference <c>.modal</c> = 520;
+    /// <c>.modal.wide</c> = 760 — used by the owner/pet wizard + add-pet modal).
+    /// Passing null content hides the host.
+    /// </summary>
+    public void SetContent(object? content, double maxWidth = 520)
     {
+        if (content is not null)
+        {
+            Panel.MaxWidth = maxWidth;
+        }
+
         ContentHost.Content = content;
         IsVisible = content is not null;
     }

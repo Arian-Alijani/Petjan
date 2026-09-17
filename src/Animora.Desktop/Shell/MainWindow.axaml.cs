@@ -15,6 +15,6 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         Toast.Attach(toastService);
-        dialogService.Attach(Modal, Drawer);
+        dialogService.Attach(Modal, Drawer, Sheet);
     }
 }

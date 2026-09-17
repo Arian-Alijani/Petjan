@@ -41,7 +41,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
 
 ## Current state
 
-- **Next phase to execute:** `09` — Patients & Owners — Detail (Owner sheet / Pet file)
+- **Next phase to execute:** `10` — Visits — Doctor Rail & Triage
 - **Repo state (Phase 08, build- & smoke-run verified):** Patients & Owners directory now has backend-ready contracts (`IPatientsQueryService`, `PetSummary`/`OwnerSummary` DTOs + `PetSpecies`/`PetStatus`/`PetGender`/`OwnerGender`/`PatientAvatarTone` enums in `Animora.Contracts/Patients/`), a deterministic in-memory `MockPatientsQueryService` (10 pets across cat/dog/bird/rabbit/rodent/other, 6 owners with tags/balances), presentation adapters (`PatientsPageEnums`, `PatientsPresentation`, `PatientsSpeciesChipViewModel`, `OwnerPetChipViewModel`, `OwnerCardViewModel`, `PetCardViewModel`), the `PatientsPageViewModel` (search + derived species-chips + pets/owners entity switch + list/grid layout + vaccine filter + sort, mirroring `petMatches`/`ownerMatches`/`sortPets`/`renderSpeciesChips`, with `OpenPet`/`OpenOwner` toast stubs for Phase 09), and `PatientsPageView.axaml(.cs)` (page header with «خروجی»/«مالک و بیمار جدید», unified `.pagebar` with two tiers, owner-grid/pets-grid cards, owners/pets tables, shared `pt-empty`). New shared helpers: `Localization/PersianText` (search normalization) and `Localization/RelativeDateFormatter` (since/until/age Jalali phrases). New theme additions: `IconPhone/Mobile/IdCard/Pin/Download/List/Grid/More2`, rose/mint + table/inset/hover surface tokens, and `ShadowSegment`/`ShadowChip`. DI registers `IPatientsQueryService`/`PatientsPageViewModel`; the sidebar `patients` item now targets `PatientsPageViewModel`. **Build verification (this session):** installed .NET 10.0.401 + Xvfb via `scripts/sandbox/install-prereqs.sh`; `scripts/sandbox/build.sh full` = **0 warnings / 0 errors** and `scripts/sandbox/run.sh` = **SMOKE RUN OK**. Five defects that the previously-unbuilt code had hidden were fixed during consolidation: (1) `OwnerCardViewModel.PetsPreviewText` was both assigned in the constructor and re-declared as a read-only computed property (CS0200) → kept the constructor's all-pets assignment as an auto-property and removed the duplicate; (2) `BoxShadow` set directly on `Button.cardlink` (Button has no such property) → moved to the template's `ContentPresenter#PART_ContentPresenter`; (3) `Padding` on a `Grid` → `Margin`; (4)+(5) `FontSize` on two table-row `Border`s → `TextElement.FontSize` attached property so the cascade is preserved.
 - **⚠️ Fidelity Protocol now in force (roadmap update, applies to Phase 07+).**
   The roadmap was tightened after Phase 06 shipped visibly different from the
@@ -207,7 +207,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
 | 06 | Dashboard Screen | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK (all 3 roles). Fixed AVLN2005 `1fr`→`*` grid-length defect; quick-tile 7 restored to reference; see log |
 | 07 | Reception & Queue Screen | ⚠️ Done with deviation | Build-verified (0/0) + smoke run OK + render-compared to reference. Fixed 4 `AVLN5001` `Watermark`→`PlaceholderText` obsolete-API warnings; see log |
 | 08 | Patients & Owners — List/Grid | ✅ Done | Build-verified (0/0) + smoke run OK. Fixed 5 hidden defects on consolidation (CS0200 `PetsPreviewText`; `BoxShadow` on Button; `Padding` on Grid; 2× `FontSize` on Border); see log |
-| 09 | Patients & Owners — Pet File / Owner Sheet | ⬜ Not started | |
+| 09 | Patients & Owners — Pet File / Owner Sheet | ✅ Done | Build-verified (0/0) + smoke run OK. Records now open as centered sheets (matching the reference); fixed the empty wizard modal; see log |
 | 10 | Visits — Doctor Rail & Triage | ⬜ Not started | |
 | 11 | Visits — Clinical Encounter Wizard | ⬜ Not started | |
 | 12 | Vaccination Screen | ⬜ Not started | |
@@ -407,165 +407,4 @@ deviation (see log below).
 
 ### Phase 03 — Base Control Library
 
-- **RESOLVED — build now verified; two hidden defects fixed.** A later
-  session installed the .NET 10 SDK (10.0.401) and actually compiled the
-  solution. `dotnet build Animora.sln` is now **0 warnings / 0 errors**. The
-  previously-unverified build had hidden two real defects, both now fixed:
-  1. **`ToastService.TryFindResource` compile error.**
-     `Services/ToastService.cs` called `Application.Current?.TryFindResource(
-     iconKey, out var iconResource)` but only imported `Avalonia`,
-     `Avalonia.Media`, `Avalonia.Threading`. In Avalonia, `TryFindResource` is
-     an **extension method on `IResourceHost`** defined in
-     `Avalonia.Controls.ResourceNodeExtensions`; without `using
-     Avalonia.Controls;` the compiler reported *"'Application' does not
-     contain a definition for 'TryFindResource'"* (this is exactly the
-     Windows-side error the user hit). Fix: added `using Avalonia.Controls;`
-     and rewrote the lookup as a guarded `if (Application.Current is { } app &&
-     app.TryFindResource(iconKey, out var iconResource))` so the bool return
-     value is actually used and the nullable `out` is handled. `Application`
-     implements `IResourceHost`, and the icon `StreamGeometry`s live in
-     `Application.Resources` (merged from `Resources/Theme/Icons.axaml`), so the
-     app-level lookup resolves correctly.
-  2. **`AVLN3001` runtime-loader warnings.** `MainWindow` and
-     `ControlGalleryView` only have DI (constructor-injected) constructors and
-     no public parameterless constructor, so Avalonia warned they *"won't be
-     reachable via runtime loader."* This is expected for a DI-first app —
-     these views are always created through the DI container, never via the
-     runtime XAML loader. Rather than add fake parameterless constructors that
-     would break the DI contract, suppressed `AVLN3001` in
-     `Animora.Desktop.csproj` (`<NoWarn>$(NoWarn);AVLN3001</NoWarn>`) with an
-     explanatory comment, restoring the Phase 02 "0 warnings / 0 errors" bar.
-  Headless `dotnet run` still stops at `XOpenDisplay` (no display in the Linux
-  sandbox), which only proves the window can't render here; bootstrap, DI and
-  XAML/resource load all execute. The original "run the build and fix anything
-  it flags before Phase 04" action item is now closed.
-- **Icon set — `StreamGeometry`, not `PathIcon`/`DrawingImage` resources.**
-  Task 1 allowed any of "Geometry/PathIcon resources (or a DrawingImage
-  resource per icon)"; chose plain `StreamGeometry` keyed resources
-  (`Icon<Name>`) consumed via `<Path Classes="icon" Data="{StaticResource
-  IconX}"/>` — simplest idiomatic option, and every consumer (StatCard,
-  EmptyState, ToastHost, future screens) only needs a `Geometry`-typed
-  bindable property, not a full `PathIcon` control instance.
-  Icon coverage: sidebar keys `dashboard, calendar, users, clipboard,
-  syringe, home, cart, box, receipt, chart, cheque, clock, shield` (all
-  present) + action keys `plus, check, x, search, edit, trash, more, filter,
-  chevronDown, chevronLeft, chevronRight` (all present) = 23 keys total, per
-  the phase's minimum list. No additional icons were added.
-- **`DataTable` uses Avalonia's `DataGrid`.** Added
-  `Avalonia.Controls.DataGrid` 12.1.2 as a new central package pin (matches
-  the existing Avalonia 12.1.2 line exactly) rather than an `ItemsControl`
-  custom-rows alternative — Task 6 allows either; `DataGrid` is idiomatic
-  and gives later screen phases sorting/virtualization for free. Only the
-  styling shell is supplied (header bg + bottom rule, flat rows, hover);
-  columns are left to consuming screens.
-- **Card is a set of `Style` selectors (`Styles` root), not a `ControlTheme`.**
-  Task 3 says "a `ControlTheme` for a `Border`-based `Card`" but a `Card` is
-  not registered as a distinct control type here — `Classes="card"` is
-  applied directly to a plain `Border`, so implicit-key `ControlTheme`
-  lookup (which keys off `TargetType`) doesn't apply the same way it does
-  for `Button`. Implemented as class selectors on `Border`/`StackPanel`/
-  `TextBlock`/`ContentPresenter`/`Panel` instead, functionally equivalent
-  for screen authors (`<Border Classes="card">…</Border>`).
-- **`IconStyle.axaml` and `Card.axaml` are `Styles`-rooted files included via
-  `StyleInclude`; `Icons.axaml`/`Button.axaml` are `ResourceDictionary`-rooted
-  and included via `ResourceInclude`.** Avalonia requires unkeyed `Style`
-  selectors to live under a `Styles` root (merged into
-  `Application.Styles`), while keyed resources (`StreamGeometry`,
-  `ControlTheme`) live under `ResourceDictionary` (merged into
-  `Application.Resources`) — the phase file's own file-path suggestions
-  (`Resources/Controls/*.axaml`) don't distinguish these; split by content
-  instead.
-- **Toast/Dialog services are attached, not fully DI-wired to a global root.**
-  `ToastHost.Attach(ToastService)` and `DialogService.Attach(ModalHost,
-  DrawerHost)` are called explicitly by `ControlGalleryView` because Phase 03
-  has no permanent shell yet (that's Phase 05). Phase 05 should call the
-  same `Attach` methods once, from the real shell's root, instead of
-  per-screen.
-
-### Phase 02 — Design Tokens & Theme Resources
-
-- **Font asset source (logged per task 4).** Vazirmatn **v33.003** (matches the
-  reference's `@import` of `vazirmatn@v33.003`) from the official OFL-licensed
-  repo `rastikerdar/vazirmatn`. `OFL.txt` kept alongside the font files.
-  Embedded as `AvaloniaResource`s — no runtime CDN fetch, per STACK.md's
-  zero-Internet-at-runtime rule. Internal family name is `Vazirmatn`,
-  referenced everywhere via `avares://Animora.Desktop/Assets/Fonts#Vazirmatn`.
-  **This is the single font-of-record for the whole app** — every menu, box,
-  card and label must use `AppFontFamily`; no other UI font is permitted.
-- **Font weight fix — variable → static instances (black-box bug).**
-  The original bundle was the **variable** `Vazirmatn[wght].ttf` exposing only
-  the default Regular (400) named instance. Avalonia does not resolve arbitrary
-  variable-font weights, so any `FontWeight` other than Regular
-  (Medium/SemiBold/Bold/ExtraBold) had no matching outlines and rendered every
-  heading/emphasis label as `.notdef` **solid black rectangles** (the observed
-  bug). Fix: `scripts/build_vazirmatn_weights.py` instantiates discrete STATIC
-  weight files — `Vazirmatn-Regular/Medium/SemiBold/Bold/ExtraBold/Black.ttf`
-  (usWeightClass 400/500/600/700/800/900) — all sharing the typographic family
-  `Vazirmatn`, so Avalonia's matcher picks the right file per requested weight.
-  All six are bundled as `AvaloniaResource`s; the variable original was removed.
-  Standardized weight ramp (mirrors the reference): body 400/500, labels/
-  emphasis 600, headings/values 700, hero 800 — exposed as `FontWeight*` tokens
-  in `Typography.axaml`.
-- **Note — resource style pattern.** Colors are exposed as both `Color`
-  (`…Color`) and `SolidColorBrush` (`…Brush`) keys so later phases can bind
-  either a brush (fills) or a raw color (gradients/animations) without
-  redefining values.
-- **Note — XAML comment constraint.** CSS token names like `--radius` /
-  `--shadow-card` cannot appear verbatim in XAML comments (`--` is illegal
-  inside an XML comment); comments paraphrase them instead.
-
-### Phase 01 — Solution & Project Scaffold
-
-- **Status upgraded to ✅ Done (build-verified).** The Phase 01 "deviations"
-  below (`Avalonia.Diagnostics` dropped, `Avalonia.Themes.Fluent` added,
-  classic `.sln` format) are all **forced by Avalonia 12.x packaging or by the
-  explicit `Animora.sln` filename requirement**, not implementation defects —
-  the scaffold builds exactly as intended. Retained here as rationale, but they
-  no longer warrant a ⚠️ status now that `dotnet build Animora.sln` passes
-  0/0 on the real .NET 10 SDK.
-- **Exact package versions chosen** (STACK.md doesn't pin these two):
-  - `CommunityToolkit.Mvvm` = **8.4.2** (latest stable; net10.0-compatible).
-  - `Microsoft.Extensions.DependencyInjection` = **10.0.12** (latest stable
-    10.x line, aligned with .NET 10).
-- **Deviation — `Avalonia.Diagnostics` removed.** The phase listed it as a
-  Debug-only *placeholder* ("remove later if unused"). Avalonia 12.x has **no
-  `Avalonia.Diagnostics` 12.x release** (the DevTools moved into the core
-  `Avalonia` package; highest standalone version is 11.3.x). Pinning it to
-  12.1.2 makes `dotnet restore` fail (NU1102). Dropped the package to keep an
-  exact-pin, no-floating-range policy; DevTools remain available via the core
-  package when a later phase wires `AttachDevTools`.
-- **Deviation — `Avalonia.Themes.Fluent` 12.1.2 added.** In Avalonia 12.x the
-  Fluent theme is a **separate package** (decoupled from the `Avalonia`
-  metapackage); `<FluentTheme />` in `App.axaml` fails to resolve without it
-  (AVLN2000). Added the pin so the app has a base theme to render the empty
-  window. This is the standard base theme every later phase needs anyway.
-- **Note — `Animora.sln` in classic format.** The .NET 10 SDK's
-  `dotnet new sln` now emits `.slnx` by default; created with
-  `--format sln` to honor the phase's explicit `Animora.sln` filename.
-- **Note — launch verified indirectly.** The build sandbox is headless
-  Linux, so the WinExe cannot open a window here; a `dotnet run` reaches the
-  X11 platform init and fails only on `XOpenDisplay` — confirming bootstrap +
-  DI + XAML load run correctly. The actual window opens on Windows (target).
-
-## How to update this file at the end of a phase
-
-1. Change that phase's row: `⬜ Not started` → `✅ Done` (or `⚠️ Done with
-   deviation` if you deviated — add a log entry explaining why/what).
-2. Update **"Next phase to execute"** to the following phase number.
-3. Update **"Repo state"** with a one/two-line factual summary of what now
-   exists (e.g. "`src/Animora.Desktop` builds and runs; shows Dashboard +
-   Sidebar; Patients/Visits/etc. screens are still placeholders").
-4. Do not rewrite history rows for already-`Done` phases.
-5. Commit this file together with the phase's code changes.
-tual window opens on Windows (target).
-
-## How to update this file at the end of a phase
-
-1. Change that phase's row: `⬜ Not started` → `✅ Done` (or `⚠️ Done with
-   deviation` if you deviated — add a log entry explaining why/what).
-2. Update **"Next phase to execute"** to the following phase number.
-3. Update **"Repo state"** with a one/two-line factual summary of what now
-   exists (e.g. "`src/Animora.Desktop` builds and runs; shows Dashboard +
-   Sidebar; Patients/Visits/etc. screens are still placeholders").
-4. Do not rewrite history rows for already-`Done` phases.
-5. Commit this file together with the phase's code changes.
+- **RESOLVED — build now verified; two hidden defects fixed.** A

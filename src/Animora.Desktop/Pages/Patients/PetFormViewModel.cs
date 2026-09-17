@@ -42,6 +42,14 @@ public sealed partial class PetFormViewModel : ObservableObject
     [ObservableProperty] private string _microchipDate = string.Empty;
     [ObservableProperty] private bool _neutered;
 
+    /// <summary>
+    /// Whether the "نوع حیوان" / "میکروچیپ و وضعیت" section-title rules are
+    /// shown. True in the owner wizard (its step-2 pane draws the titled section
+    /// headers), false in the compact add-pet modal, which renders the same
+    /// fields without the extra titles (reference #petTypes block).
+    /// </summary>
+    [ObservableProperty] private bool _showSectionTitles = true;
+
     [ObservableProperty] private bool _isMale = true;
     [ObservableProperty] private bool _isFemale;
     [ObservableProperty] private bool _isUnknown;
@@ -55,11 +63,25 @@ public sealed partial class PetFormViewModel : ObservableObject
     public IReadOnlyList<string> Behaviors => PatientsPresentation.Behaviors;
     public IReadOnlyList<string> Diets => PatientsPresentation.Diets;
 
-    public PetFormViewModel()
+    /// <param name="defaultFemale">
+    /// Which gender pill starts selected, matching each reference form: the
+    /// owner wizard's «اطلاعات حیوان» defaults to «ماده» (female), while the
+    /// add-pet modal defaults to «نر» (male).
+    /// </param>
+    public PetFormViewModel(bool defaultFemale = true)
     {
         foreach (var species in PatientsPresentation.SpeciesOrder)
         {
             Tiles.Add(new SpeciesTileViewModel(species));
+        }
+
+        if (defaultFemale)
+        {
+            IsFemale = true;   // auto-clears IsMale via OnIsFemaleChanged
+        }
+        else
+        {
+            IsMale = true;
         }
 
         SelectSpecies(PetSpecies.Cat);
@@ -79,6 +101,19 @@ public sealed partial class PetFormViewModel : ObservableObject
     {
         if (value) { IsMale = false; IsFemale = false; }
     }
+
+    /// <summary>Radio-pill gender picker: "female" | "male" | "unknown".</summary>
+    [RelayCommand]
+    private void SetGender(string? gender)
+    {
+        IsFemale = gender == "female";
+        IsMale = gender == "male";
+        IsUnknown = gender == "unknown";
+    }
+
+    /// <summary>The reference's «عقیم شده است» switch row (toggles the bool).</summary>
+    [RelayCommand]
+    private void ToggleNeutered() => Neutered = !Neutered;
 
     [RelayCommand]
     private void SelectSpecies(PetSpecies species)

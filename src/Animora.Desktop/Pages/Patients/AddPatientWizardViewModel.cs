@@ -113,6 +113,10 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
     [RelayCommand]
     private void SetMode(string? mode) => IsExistingMode = mode == "existing";
 
+    /// <summary>Owner-gender radio pills in step 1: "female" | "male".</summary>
+    [RelayCommand]
+    private void SetOwnerGender(string? gender) => OwnerIsFemale = gender != "male";
+
     [RelayCommand]
     private void PickOwner(WizardOwnerRowViewModel? row)
     {

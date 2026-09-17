@@ -73,7 +73,8 @@ public sealed record SurgeryRowViewModel(string Title, string Surgeon);
 public sealed partial class PetFileViewModel : PageViewModelBase
 {
     private readonly IPatientsQueryService _patients;
-    private readonly INavigationService _navigation;
+    private readonly IRecordSheetPresenter _presenter;
+    private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
 
     private PetDetail? _pet;
@@ -97,11 +98,13 @@ public sealed partial class PetFileViewModel : PageViewModelBase
 
     public PetFileViewModel(
         IPatientsQueryService patients,
-        INavigationService navigation,
+        IRecordSheetPresenter presenter,
+        IDialogService dialogs,
         IToastService toast)
     {
         _patients = patients;
-        _navigation = navigation;
+        _presenter = presenter;
+        _dialogs = dialogs;
         _toast = toast;
         Title = "پرونده بیمار";
         Eyebrow = "بیماران و مالکین";
@@ -661,6 +664,9 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     }
 
     [RelayCommand]
+    private void Print() => _toast.Show("چاپ پرونده (نمونه طراحی)", Controls.Tone.Info);
+
+    [RelayCommand]
     private void BackToOwner()
     {
         var ownerId = _pet?.OwnerId;
@@ -669,11 +675,14 @@ public sealed partial class PetFileViewModel : PageViewModelBase
             return;
         }
 
-        _navigation.NavigateTo<OwnerSheetViewModel>(vm => vm.Load(ownerId));
+        // The reference closes the pet sheet then reopens the owner sheet
+        // (closePetFile(); openOwnerDrawer(...)) so the record surface stays a
+        // centered overlay rather than a page navigation.
+        _presenter.OpenOwnerSheet(ownerId);
     }
 
     [RelayCommand]
-    private void Close() => _navigation.NavigateTo<PatientsPageViewModel>();
+    private void Close() => _dialogs.Close();
 
     // ---- helpers ----
 
