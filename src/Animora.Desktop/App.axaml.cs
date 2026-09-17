@@ -1,7 +1,9 @@
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
+using Animora.Contracts.Reception;
 using Animora.Desktop.Mocks;
 using Animora.Desktop.Pages.Dashboard;
+using Animora.Desktop.Pages.Reception;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Avalonia;
@@ -54,6 +56,11 @@ public partial class App : Application
         // until a real backend adds freshness semantics).
         services.AddSingleton<IDashboardQueryService, MockDashboardQueryService>();
         services.AddSingleton<DashboardPageViewModel>();
+
+        // Phase 07: stateful in-memory live queue. Singleton lifetime preserves
+        // mutations while navigating between Dashboard and Reception.
+        services.AddSingleton<IReceptionQueueService, MockReceptionQueueService>();
+        services.AddSingleton<ReceptionPageViewModel>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();

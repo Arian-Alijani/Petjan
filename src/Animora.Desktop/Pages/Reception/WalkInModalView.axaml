@@ -1,0 +1,76 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:reception="using:Animora.Desktop.Pages.Reception"
+             xmlns:contracts="using:Animora.Contracts.Reception"
+             x:Class="Animora.Desktop.Pages.Reception.WalkInModalView"
+             x:DataType="reception:WalkInModalViewModel"
+             Width="480"
+             MaxWidth="480"
+             FlowDirection="RightToLeft">
+    <StackPanel Margin="22" Spacing="10">
+        <Grid ColumnDefinitions="36,*,32" ColumnSpacing="10" Margin="0,0,0,2">
+            <Border Grid.Column="0" Width="36" Height="36" CornerRadius="10" Background="{StaticResource Brand50Brush}">
+                <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource Brand700Brush}"
+                      Data="{StaticResource IconPlus}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBlock Grid.Column="1" Text="ثبت مراجعهٔ حضوری" FontSize="16" FontWeight="ExtraBold"
+                       Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+            <Button Grid.Column="2" Classes="ghost" Width="32" Height="32" Padding="7"
+                    Command="{Binding CancelCommand}" ToolTip.Tip="بستن">
+                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconX}" />
+            </Button>
+        </Grid>
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+            <StackPanel Grid.Column="0" Spacing="6">
+                <TextBlock Text="نام حیوان" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+                <TextBox Text="{Binding Name}" Watermark="مثلاً: پشمک" Padding="12,10" CornerRadius="10" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6">
+                <TextBlock Text="نام مالک" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+                <TextBox Text="{Binding Owner}" Watermark="نام و نام خانوادگی" Padding="12,10" CornerRadius="10" />
+            </StackPanel>
+        </Grid>
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+            <StackPanel Grid.Column="0" Spacing="6">
+                <TextBlock Text="شماره تماس" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+                <TextBox Text="{Binding Phone}" Watermark="۰۹xxxxxxxxx" Padding="12,10" CornerRadius="10" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6">
+                <TextBlock Text="پزشک معالج" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+                <ComboBox ItemsSource="{Binding Doctors}" SelectedItem="{Binding SelectedDoctor}" Padding="12,8" CornerRadius="10">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="contracts:ReceptionDoctor">
+                            <TextBlock>
+                                <Run Text="{Binding Name}" /><Run Text=" · " /><Run Text="{Binding Specialty}" />
+                            </TextBlock>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Spacing="6">
+            <TextBlock Text="اولویت" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Border Padding="12,8" CornerRadius="10" Background="{StaticResource Bg2Brush}">
+                    <RadioButton GroupName="priority" Content="عادی" IsChecked="{Binding IsNormal}" />
+                </Border>
+                <Border Padding="12,8" CornerRadius="10" Background="{StaticResource Bg2Brush}">
+                    <RadioButton GroupName="priority" Content="اورژانس" IsChecked="{Binding IsUrgent}" />
+                </Border>
+            </StackPanel>
+        </StackPanel>
+
+        <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+            <Button Grid.Column="0" Classes="ghost" Content="انصراف" HorizontalAlignment="Left" Command="{Binding CancelCommand}" />
+            <Button Grid.Column="1" Classes="primary" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsSaving}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Path Classes="icon" Width="14" Height="14" Stroke="White" Data="{StaticResource IconCheck}" />
+                    <TextBlock Text="ثبت مراجعه" />
+                </StackPanel>
+            </Button>
+        </Grid>
+    </StackPanel>
+</UserControl>

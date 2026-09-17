@@ -1,0 +1,192 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:reception="using:Animora.Desktop.Pages.Reception"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Reception.ReceptionPageView"
+             x:Name="Root"
+             x:DataType="reception:ReceptionPageViewModel"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <Style Selector="Button.compact">
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <Style Selector="Button.segment">
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Margin="26,22,26,32" Spacing="18">
+        <!-- Page header: exact reference copy and two actions. -->
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
+            <StackPanel Grid.Column="0" Spacing="4">
+                <TextBlock Text="پذیرش و صف امروز" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Brand600Brush}" Margin="0,0,0,2" />
+                <TextBlock Text="مدیریت صف و مراجعین" FontSize="26" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                <TextBlock Text="نوبت‌ها، مراجعین بدون نوبت و اورژانس‌ها را در یک صف زنده ببینید؛ فراخوان، ترک صف و ارجاع به ویزیت را با یک کلیک انجام دهید."
+                           FontSize="13" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Bottom">
+                <Button Classes="outline" Command="{Binding OpenWalkInModalCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="14" Height="14" Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconPlus}" />
+                        <TextBlock Text="ثبت مراجعهٔ حضوری" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="primary" Command="{Binding RefreshCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="14" Height="14" Stroke="White" Data="{StaticResource IconClock}" />
+                        <TextBlock Text="بازخوانی صف" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Live hero strip: 24px padding, 20px radius, 14px gaps. -->
+        <Border CornerRadius="{StaticResource RadiusLg}" Padding="24,24,24,22"
+                BorderBrush="{StaticResource LineBrush}" BorderThickness="1" BoxShadow="{StaticResource ShadowCard}" ClipToBounds="True">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Offset="0" Color="#FFFFFFFF" />
+                    <GradientStop Offset="1" Color="#FFF6FAF8" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <StackPanel Spacing="14">
+                <Grid ColumnDefinitions="44,*,Auto" ColumnSpacing="14">
+                    <Border Grid.Column="0" Width="44" Height="44" CornerRadius="12">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                <GradientStop Offset="0" Color="{StaticResource Brand600Color}" />
+                                <GradientStop Offset="1" Color="{StaticResource Brand700Color}" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Path Classes="icon" Width="22" Height="22" Stroke="White" Data="{StaticResource IconCalendar}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                        <TextBlock FontSize="16" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}">
+                            <Run Text="امروز، " /><Run Text="{Binding TodayText}" />
+                        </TextBlock>
+                        <TextBlock FontSize="12" Foreground="{StaticResource MutedBrush}">
+                            <Run Text="آخرین بازخوانی: " /><Run Text="{Binding LastRefreshText}" /><Run Text=" · داده‌ها نمونه هستند" />
+                        </TextBlock>
+                    </StackPanel>
+                    <Border Grid.Column="2" Padding="12,6" CornerRadius="999" Background="{StaticResource OkBgBrush}" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Ellipse Width="8" Height="8" Fill="{StaticResource OkBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="صف فعال" FontSize="12" FontWeight="ExtraBold" Foreground="{StaticResource OkBrush}" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+                <UniformGrid Columns="4">
+                    <Border Margin="0,0,7,0" Padding="14,10" CornerRadius="12" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1">
+                        <StackPanel Spacing="4"><TextBlock Text="میانگین انتظار" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" /><TextBlock FontSize="16" FontWeight="ExtraBold"><Run Text="{Binding AverageWaitText}" /><Run Text=" دقیقه" /></TextBlock></StackPanel>
+                    </Border>
+                    <Border Margin="7,0" Padding="14,10" CornerRadius="12" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1">
+                        <StackPanel Spacing="4"><TextBlock Text="نوبت بعدی" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" /><TextBlock Text="{Binding NextPatientText}" FontSize="16" FontWeight="ExtraBold" /></StackPanel>
+                    </Border>
+                    <Border Margin="7,0" Padding="14,10" CornerRadius="12" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1">
+                        <StackPanel Spacing="4"><TextBlock Text="اورژانس‌های فعال" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" /><TextBlock FontSize="16" FontWeight="ExtraBold"><Run Text="{Binding UrgentCount}" /><Run Text=" مورد" /></TextBlock></StackPanel>
+                    </Border>
+                    <Border Margin="7,0,0,0" Padding="14,10" CornerRadius="12" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1">
+                        <StackPanel Spacing="4"><TextBlock Text="تکمیل‌شده امروز" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" /><TextBlock FontSize="16" FontWeight="ExtraBold"><Run Text="{Binding DoneCount}" /><Run Text=" مورد" /></TextBlock></StackPanel>
+                    </Border>
+                </UniformGrid>
+            </StackPanel>
+        </Border>
+
+        <!-- Four KPI cards. -->
+        <UniformGrid Columns="4">
+            <controls:StatCard Margin="0,0,8,0" Icon="{StaticResource IconClock}" Value="{Binding WaitingCount}" Label="در انتظار" Foot="اولویت‌بندی بر اساس زمان و اورژانس" Delta="{Binding WaitingCount}" IconTone="Info" />
+            <controls:StatCard Margin="8,0" Icon="{StaticResource IconBell}" Value="{Binding CalledCount}" Label="فراخوانده‌شده" Foot="پزشک معالج منتظر ورود بیمار است" Delta="{Binding CalledCount}" IconTone="Lilac" />
+            <controls:StatCard Margin="8,0" Icon="{StaticResource IconBriefcase}" Value="{Binding InVisitCount}" Label="در حال ویزیت" Foot="پرونده فعال روی میز پزشک" Delta="{Binding InVisitCount}" IconTone="Ok" />
+            <controls:StatCard Margin="8,0,0,0" Icon="{StaticResource IconCheck}" Value="{Binding DoneCount}" Label="پایان‌یافته امروز" Foot="صورتحساب به صندوق" Delta="{Binding DoneCount}" IconTone="Warn" />
+        </UniformGrid>
+
+        <!-- Queue card, toolbar, rows and pager. -->
+        <Border Classes="card">
+            <StackPanel>
+                <Grid ColumnDefinitions="Auto,*,240,Auto" ColumnSpacing="10" Margin="16,14">
+                    <Border Grid.Column="0" Padding="4" CornerRadius="10" Background="{StaticResource Bg2Brush}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Grid><Button Classes="segment" Content="همه" Command="{Binding SetFilterCommand}" CommandParameter="all" /><Border IsVisible="{Binding IsAllFilter}" Background="{StaticResource PanelBrush}" CornerRadius="8" IsHitTestVisible="False"><TextBlock Text="همه" Padding="12,7" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Brand700Brush}" /></Border></Grid>
+                            <Grid><Button Classes="segment" Content="فعال" Command="{Binding SetFilterCommand}" CommandParameter="active" /><Border IsVisible="{Binding IsActiveFilter}" Background="{StaticResource PanelBrush}" CornerRadius="8" IsHitTestVisible="False"><TextBlock Text="فعال" Padding="12,7" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Brand700Brush}" /></Border></Grid>
+                            <Grid><Button Classes="segment" Content="اورژانس" Command="{Binding SetFilterCommand}" CommandParameter="urgent" /><Border IsVisible="{Binding IsUrgentFilter}" Background="{StaticResource PanelBrush}" CornerRadius="8" IsHitTestVisible="False"><TextBlock Text="اورژانس" Padding="12,7" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Brand700Brush}" /></Border></Grid>
+                            <Grid><Button Classes="segment" Content="پایان‌یافته" Command="{Binding SetFilterCommand}" CommandParameter="done" /><Border IsVisible="{Binding IsDoneFilter}" Background="{StaticResource PanelBrush}" CornerRadius="8" IsHitTestVisible="False"><TextBlock Text="پایان‌یافته" Padding="12,7" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Brand700Brush}" /></Border></Grid>
+                        </StackPanel>
+                    </Border>
+                    <Grid Grid.Column="2">
+                        <TextBox Text="{Binding SearchText}" Watermark="جستجوی حیوان، مالک یا پزشک…" Padding="36,8,12,8" CornerRadius="10" />
+                        <Path Classes="icon" Width="16" Height="16" Margin="12,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}" IsHitTestVisible="False" />
+                    </Grid>
+                    <Button Grid.Column="3" Classes="outline compact" Command="{Binding FilterAdvancedCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8"><Path Classes="icon" Width="14" Height="14" Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconFilter}" /><TextBlock Text="فیلتر" /></StackPanel>
+                    </Button>
+                </Grid>
+                <Border Height="1" Background="{StaticResource Line2Brush}" />
+
+                <ItemsControl Margin="18,14" ItemsSource="{Binding VisibleQueue}" IsVisible="{Binding HasRows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="reception:ReceptionQueueRowViewModel">
+                            <Border Margin="0,0,0,12" Padding="16,14" CornerRadius="{StaticResource Radius}" BorderThickness="1" BorderBrush="{Binding RowBorder}" Background="{Binding RowBackground}" BoxShadow="{StaticResource ShadowCard}">
+                                <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="14">
+                                    <TextBlock Grid.Column="0" Text="{Binding SequenceText}" FontSize="14" FontWeight="Black" Foreground="{StaticResource MutedBrush}" TextAlignment="Center" VerticalAlignment="Center" />
+                                    <Grid Grid.Column="1" ColumnDefinitions="48,*" ColumnSpacing="12">
+                                        <Border Grid.Column="0" Width="48" Height="48" CornerRadius="12" Background="{StaticResource PeachBrush}" VerticalAlignment="Top">
+                                            <Path Classes="icon" Width="23" Height="23" Stroke="White" Data="{StaticResource IconPaw}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="2">
+                                            <TextBlock FontSize="15" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"><Run Text="{Binding Ticket.PatientName}" /><Run Text=" · " Foreground="{StaticResource Muted2Brush}" /><Run Text="{Binding Ticket.PatientKind}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Muted2Brush}" /></TextBlock>
+                                            <TextBlock FontSize="12" Foreground="{StaticResource MutedBrush}"><Run Text="مالک: " /><Run Text="{Binding Ticket.OwnerName}" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" /><Run Text=" · " /><Run Text="{Binding Ticket.OwnerPhone}" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" /></TextBlock>
+                                            <WrapPanel Margin="0,6,0,0" Orientation="Horizontal">
+                                                <controls:Badge Margin="0,0,6,0" Text="{Binding PriorityText}" Tone="{Binding PriorityTone}" />
+                                                <controls:Badge Margin="0,0,6,0" Text="{Binding SourceText}" Tone="{Binding SourceTone}" />
+                                                <controls:Badge Margin="0,0,6,0" Text="{Binding StateText}" Tone="{Binding StateTone}" />
+                                                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center"><Ellipse Width="6" Height="6" Fill="{Binding DoctorBrush}" /><TextBlock Text="{Binding Ticket.DoctorSpecialty}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" /></StackPanel>
+                                            </WrapPanel>
+                                            <WrapPanel Margin="0,8,0,0" Orientation="Horizontal">
+                                                <Button Margin="0,0,6,0" Classes="primary compact" IsVisible="{Binding CanCallDoctor}" Command="{Binding #Root.((reception:ReceptionPageViewModel)DataContext).CallDoctorCommand}" CommandParameter="{Binding}" Content="فراخوان پزشک" />
+                                                <Button Margin="0,0,6,0" Classes="outline compact" IsVisible="{Binding CanEnterVisit}" Command="{Binding #Root.((reception:ReceptionPageViewModel)DataContext).EnterVisitCommand}" CommandParameter="{Binding}" Content="ورود به ویزیت" />
+                                                <Button Margin="0,0,6,0" Classes="ghost compact" IsVisible="{Binding CanAdmit}" Command="{Binding #Root.((reception:ReceptionPageViewModel)DataContext).AdmitCommand}" CommandParameter="{Binding}" Content="پذیرش قطعی" />
+                                                <Button Margin="0,0,6,0" Classes="outline compact" IsVisible="{Binding CanViewEncounter}" Command="{Binding #Root.((reception:ReceptionPageViewModel)DataContext).ViewEncounterCommand}" Content="مشاهده پرونده" />
+                                                <Button Margin="0,0,6,0" Classes="ghost compact" Command="{Binding #Root.((reception:ReceptionPageViewModel)DataContext).ToggleUrgentCommand}" CommandParameter="{Binding}" Content="{Binding UrgencyActionText}" />
+                                                <Button Margin="0,0,6,0" Classes="ghost compact" Command="{Binding #Root.((reception:ReceptionPageViewModel)DataContext).CallOwnerCommand}" CommandParameter="{Binding}" Content="تماس" />
+                                                <Button Classes="danger-ghost compact" IsVisible="{Binding CanRemove}" Command="{Binding #Root.((reception:ReceptionPageViewModel)DataContext).RemoveCommand}" CommandParameter="{Binding}" Content="ترک/عدم مراجعه" />
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                    <StackPanel Grid.Column="2" HorizontalAlignment="Left" Spacing="4">
+                                        <TextBlock Text="{Binding ArrivalText}" FontSize="18" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" HorizontalAlignment="Left" />
+                                        <TextBlock Text="{Binding DurationText}" FontSize="11" Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Left" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="22" Height="22" CornerRadius="6" Background="{Binding DoctorBrush}"><TextBlock Text="{Binding Ticket.DoctorInitials}" FontSize="11" FontWeight="ExtraBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                                            <TextBlock Text="{Binding Ticket.DoctorName}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <StackPanel Margin="24,40" HorizontalAlignment="Center" Spacing="4" IsVisible="{Binding IsEmpty}">
+                    <Border Width="56" Height="56" CornerRadius="14" Background="{StaticResource Bg2Brush}" Margin="0,0,0,6"><Path Classes="icon" Width="26" Height="26" Stroke="{StaticResource Muted2Brush}" Data="{StaticResource IconClipboard}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                    <TextBlock Text="موردی در این فیلتر یافت نشد" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" HorizontalAlignment="Center" />
+                    <TextBlock Text="تغییر فیلتر یا ثبت مراجعهٔ جدید را امتحان کنید." Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
+                </StackPanel>
+
+                <Border Height="1" Background="{StaticResource Line2Brush}" />
+                <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="8" Margin="16,12">
+                    <TextBlock Grid.Column="0" Text="نمایش" FontSize="12" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" SelectedIndex="0" Padding="8,6" CornerRadius="8"><ComboBoxItem Content="۸" /><ComboBoxItem Content="۱۲" /><ComboBoxItem Content="۲۴" /></ComboBox>
+                    <TextBlock Grid.Column="2" Text="از" FontSize="12" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4"><TextBlock Text="{Binding TotalCount}" FontSize="12" FontWeight="Bold" /><TextBlock Text="مورد" FontSize="12" Foreground="{StaticResource MutedBrush}" /></StackPanel>
+                    <Button Grid.Column="5" Classes="ghost compact" Content="قبلی" Command="{Binding PreviousPageCommand}" IsEnabled="{Binding CanGoPrevious}" />
+                    <TextBlock Grid.Column="6" Text="{Binding PageNumberText}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
+                    <Button Grid.Column="7" Classes="ghost compact" Content="بعدی" Command="{Binding NextPageCommand}" IsEnabled="{Binding CanGoNext}" />
+                </Grid>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

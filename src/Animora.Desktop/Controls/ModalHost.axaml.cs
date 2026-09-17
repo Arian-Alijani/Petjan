@@ -16,7 +16,7 @@ public partial class ModalHost : UserControl
         InitializeComponent();
     }
 
-    public void SetContent(Control? content)
+    public void SetContent(object? content)
     {
         ContentHost.Content = content;
         IsVisible = content is not null;
