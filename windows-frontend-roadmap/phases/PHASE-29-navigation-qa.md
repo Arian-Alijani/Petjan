@@ -64,7 +64,26 @@ side-by-side visual comparison pass against `Animora-UI`.
    complex screens' `.axaml`/`.cs` for tell-tale copied JS idioms —
    template-literal HTML strings, `document.getElementById`, etc. — none
    should be present in idiomatic Avalonia/C# code).
-7. Confirm `dotnet build Animora.sln` is warning-clean (or that any
+7. **Backend-readiness audit (standing principle 2 — `PROGRESS.md` +
+   `CONVENTIONS.md` §5).** This is the seam that lets the future backend/
+   database roadmap plug in with zero View/ViewModel rework, so verify it
+   once, globally, at the end:
+   - Every screen ViewModel depends only on an `Animora.Contracts` interface
+     (constructor-injected), never on a `Mock*` type, a concrete data class,
+     or a static/singleton data source directly.
+   - Every `Animora.Contracts` interface a screen uses has exactly one
+     concrete implementation and it lives in `Animora.Desktop/Mocks`
+     (`Mock<Interface-without-I>`), registered in the DI container — so the
+     backend roadmap swaps one DI line per service, nothing else.
+   - No sample datum, in-line seed list, mock call, or `if (design-time)`
+     branch leaks into any View (`.axaml`/`.cs`) or into a ViewModel's public
+     shape. Grep for hardcoded demo data in `Pages/**` and confirm it is only
+     in `Mocks/**`.
+   - `Animora.Domain` / `Animora.Application` / `Animora.Sync.Abstractions`
+     are still placeholder-only (no UI code leaked into them, no premature
+     backend/EF/Datasync code added — that is the next roadmap).
+   Any violation is a defect fixed and logged before Phase 29 is marked done.
+8. Confirm `dotnet build Animora.sln` is warning-clean (or that any
    remaining warnings are pre-existing/expected and listed in
    `PROGRESS.md`).
 
@@ -83,6 +102,11 @@ side-by-side visual comparison pass against `Animora-UI`.
   gauges/rings present, exact CSS-derived values, exact Persian text,
   1:1 tones), and every mismatch found during the audit was fixed and
   logged in `PROGRESS.md`.
+- **The backend-readiness audit (Task 7) passed:** every screen binds only to
+  `Animora.Contracts` interfaces, each has a single `Mocks/**` implementation
+  swapped via one DI registration, no data leaks into Views/ViewModels, and
+  the Domain/Application/Sync projects are still placeholders — so the future
+  backend/database roadmap can plug in with zero View/ViewModel changes.
 - The full roadmap (`ROADMAP.md` §3 + §3a "what done means globally" and the
   global fidelity mandate) is satisfied.
 
