@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Animora.Desktop.Pages.Purchasing;
 using Animora.Desktop.Pages.Reception;
 using Animora.Desktop.Shell;
 
@@ -21,7 +22,7 @@ public sealed record DashboardQuickAction(string Label, string Subtitle, string 
         new DashboardQuickAction("واکسیناسیون", "۶ یادآور امروز", "IconSyringe", typeof(PlaceholderPageViewModel)),
         new DashboardQuickAction("فروش و صندوق", "صدور فاکتور", "IconCart", typeof(PlaceholderPageViewModel)),
         new DashboardQuickAction("انبار و کالا", "کنترل موجودی", "IconBox", typeof(PlaceholderPageViewModel)),
-        new DashboardQuickAction("خرید و تأمین", "سفارش تأمین", "IconTruck", typeof(PlaceholderPageViewModel)),
+        new DashboardQuickAction("خرید و تأمین", "سفارش تأمین", "IconTruck", typeof(PurchasingPageViewModel)),
         new DashboardQuickAction("گزارش‌ها", "تحلیل عملکرد", "IconChart", typeof(PlaceholderPageViewModel)),
     };
 }

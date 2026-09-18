@@ -4,6 +4,7 @@ using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Inventory;
 using Animora.Contracts.Patients;
+using Animora.Contracts.Purchasing;
 using Animora.Contracts.Reception;
 using Animora.Contracts.Visits;
 using Animora.Contracts.Vaccination;
@@ -13,6 +14,7 @@ using Animora.Desktop.Pages.Boarding;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Patients;
+using Animora.Desktop.Pages.Purchasing;
 using Animora.Desktop.Pages.Reception;
 using Animora.Desktop.Pages.Vaccination;
 using Animora.Desktop.Pages.Visits;
@@ -125,6 +127,11 @@ public partial class App : Application
         // mock, so a singleton suffices.
         services.AddSingleton<IInventoryQueryService, MockInventoryQueryService>();
         services.AddSingleton<InventoryPageViewModel>();
+
+        // Phase 19: Purchase & suppliers screen. Stateless deterministic mock,
+        // so a singleton suffices.
+        services.AddSingleton<IPurchasingQueryService, MockPurchasingQueryService>();
+        services.AddSingleton<PurchasingPageViewModel>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();
