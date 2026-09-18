@@ -1,0 +1,995 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pf="using:Animora.Desktop.Pages.Profile"
+             x:Class="Animora.Desktop.Pages.Profile.ProfilePageView"
+             x:Name="Root"
+             x:DataType="pf:ProfilePageViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Profile & Settings — re-draws Animora-UI/profile.html + assets/profile.js
+         (hero identity card, KPI strip, settings sub-nav rail, and the five
+         settings tab panels). Values transcribed from profile.css +
+         appointments.css (.sc-actions/.sc-fgroup/.chip) + styles.css
+         (.page-header/.btn/.pagebar/.pb-seg/.pb-select/.chip/.pill/.card). -->
+    <UserControl.Styles>
+        <!-- ═══ hero identity card (.pf-hero) ═══ -->
+        <Style Selector="Border.pf-hero">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusLg}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="Padding" Value="22,20" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+        </Style>
+        <Style Selector="Border.pf-hero-rail">
+            <Setter Property="Height" Value="4" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+        <!-- .pf-avatar -->
+        <Style Selector="Border.pf-avatar">
+            <Setter Property="Width" Value="72" />
+            <Setter Property="Height" Value="72" />
+            <Setter Property="CornerRadius" Value="22" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <!-- .pf-kpis -->
+        <Style Selector="Border.pf-kpi">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="Padding" Value="15,13" />
+        </Style>
+        <Style Selector="Border.pf-kpi-ic">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="CornerRadius" Value="11" />
+        </Style>
+        <!-- .pf-quick .pf-q -->
+        <Style Selector="Border.pf-q">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="99" />
+            <Setter Property="Padding" Value="11,4" />
+        </Style>
+
+        <!-- ═══ settings card (.ps-card) ═══ -->
+        <Style Selector="Border.ps-card">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusLg}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="Padding" Value="18" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
+        <Style Selector="Border.ps-card-ic">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="TextBlock.ps-title">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.ps-sub">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="TextBlock.ps-label">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+
+        <!-- ═══ text inputs (.ps-input) ═══ -->
+        <Style Selector="TextBox.ps-input">
+            <Setter Property="Height" Value="34" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="MinWidth" Value="170" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <!-- ═══ selects (.pb-select) ═══ -->
+        <Style Selector="ComboBox.ps-select">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="MinWidth" Value="150" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+
+        <!-- ═══ switch row (.switch-row) ═══ -->
+        <Style Selector="Border.switch-row">
+            <Setter Property="Background" Value="#fbfcfb" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="13" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        <Style Selector="TextBlock.sw-title">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="TextBlock.sw-sub">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+
+        <!-- ═══ team member (.pf-member) ═══ -->
+        <Style Selector="Border.pf-member">
+            <Setter Property="Background" Value="#fbfcfb" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="13" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        <Style Selector="Border.pf-member-av">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="CornerRadius" Value="11" />
+        </Style>
+        <Style Selector="TextBlock.pf-member-name">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.pf-member-sub">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+
+        <!-- ═══ notification matrix row (.pf-mrow) ═══ -->
+        <Style Selector="Border.pf-mrow">
+            <Setter Property="Background" Value="#fbfcfb" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="13" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        <Style Selector="TextBlock.pf-mn-t">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="TextBlock.pf-mn-s">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="TextBlock.pf-ch-label">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- ═══ working-day chip (.chip) ═══ -->
+        <Style Selector="Button.pf-chip">
+            <Setter Property="Background" Value="white" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="99" />
+            <Setter Property="Padding" Value="11,0" />
+            <Setter Property="Height" Value="29" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.pf-chip:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Muted2Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.pf-chip.on">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+
+        <!-- ═══ theme option (.pf-topt) ═══ -->
+        <Style Selector="Button.pf-topt">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.pf-topt:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Button.pf-topt.on">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Border.pf-tg">
+            <Setter Property="Height" Value="44" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Margin" Value="0,0,0,9" />
+        </Style>
+
+        <!-- ═══ session row (.pf-sitem) ═══ -->
+        <Style Selector="Border.pf-sitem">
+            <Setter Property="Background" Value="#fbfcfb" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="13" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        <Style Selector="Border.pf-sitem-ic">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="TextBlock.pf-st-t">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="TextBlock.pf-st-s">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+
+        <!-- pagebar / segmented subsections (mirror shared .pagebar/.pb-seg) -->
+        <Style Selector="Border.pf-pagebar">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+        </Style>
+        <Style Selector="Border.pf-seg">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="3" />
+        </Style>
+        <Style Selector="Button.pf-seg-btn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="20,9" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.pf-seg-btn:pointerover">
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.pf-seg-btn.on">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.pf-seg-btn.on /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+        </Style>
+
+        <Style Selector="TextBlock.pf-eyebrow">
+            <Setter Property="Foreground" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style Selector="TextBlock.pf-page-title">
+            <Setter Property="FontSize" Value="26" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.pf-page-subtitle">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Margin="26,22,26,40">
+
+        <!-- ═══════════ page header ═══════════ -->
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,0,0,18">
+            <StackPanel Grid.Column="0" VerticalAlignment="Bottom">
+                <TextBlock Classes="pf-eyebrow" Text="{Binding PageEyebrow}" />
+                <TextBlock Classes="pf-page-title" Text="{Binding PageTitle}" />
+                <TextBlock Classes="pf-page-subtitle" Text="{Binding PageSubtitle}" MaxWidth="720" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+                <Button Classes="outline" Command="{Binding DiscardCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="16" Height="16" Stroke="{Binding $parent[Button].Foreground}"
+                              Data="{StaticResource IconRefresh}" VerticalAlignment="Center" />
+                        <TextBlock Text="بازگشت تغییرات" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="primary" Command="{Binding SaveSettingsCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="16" Height="16" Stroke="White"
+                              Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                        <TextBlock Text="ذخیره تغییرات" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- ═══════════ hero identity card ═══════════ -->
+        <Border Classes="pf-hero" ClipToBounds="True">
+            <Panel>
+                <Border Classes="pf-hero-rail">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                            <GradientStop Offset="0" Color="#0d9488" />
+                            <GradientStop Offset="0.5" Color="#2dd4bf" />
+                            <GradientStop Offset="1" Color="#a48afb" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="18" Margin="0,4,0,0">
+                    <!-- .pf-id -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <TextBlock Text="{Binding UserName}" FontSize="19" FontWeight="ExtraBold"
+                                       Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                            <Border Background="{StaticResource InfoBgBrush}" CornerRadius="20" Padding="10,4"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding UserRole}" FontSize="11" FontWeight="Bold"
+                                           Foreground="{StaticResource InfoBrush}" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="{Binding UserRoleLine}" FontSize="12"
+                                   Foreground="{StaticResource MutedBrush}" />
+                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,7,0,0">
+                            <Border Classes="pf-q">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="icon" Width="12" Height="12" Stroke="{StaticResource Muted2Brush}"
+                                          Data="{StaticResource IconPhone}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding UserPhone}" FontSize="11" FontWeight="Bold"
+                                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="pf-q">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="icon" Width="12" Height="12" Stroke="{StaticResource Muted2Brush}"
+                                          Data="{StaticResource IconSms}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding UserEmail}" FontSize="11" FontWeight="Bold"
+                                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="pf-q">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="icon" Width="12" Height="12" Stroke="{StaticResource Muted2Brush}"
+                                          Data="{StaticResource IconClock}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding LastLoginLine}" FontSize="11" FontWeight="Bold"
+                                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                    <!-- .pf-avatar -->
+                    <Border Grid.Column="2" Classes="pf-avatar">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#0d9488" />
+                                <GradientStop Offset="1" Color="#104a43" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <TextBlock Text="{Binding UserInitials}" FontSize="26" FontWeight="ExtraBold"
+                                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Panel>
+        </Border>
+
+        <!-- ═══════════ KPI strip ═══════════ -->
+        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="10" Margin="0,0,0,16">
+            <ItemsControl Grid.ColumnSpan="4" ItemsSource="{Binding Kpis}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="10" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="pf:ProfileKpiViewModel">
+                        <Border Classes="pf-kpi">
+                            <StackPanel Orientation="Horizontal" Spacing="11">
+                                <Border Classes="pf-kpi-ic" Background="{Binding IconBackground}">
+                                    <Path Classes="icon" Width="17" Height="17" Stroke="{Binding IconForeground}"
+                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Value}" FontSize="16" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource InkBrush}" LineHeight="21" />
+                                    <TextBlock Text="{Binding Label}" FontSize="10.5"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+
+        <!-- ═══════════ settings sub-nav rail (.pagebar .pb-seg.lg) ═══════════ -->
+        <Border Classes="pf-pagebar">
+            <Border Classes="pf-seg" HorizontalAlignment="Left">
+                <ItemsControl ItemsSource="{Binding Tabs}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="2" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="pf:ProfileTabViewModel">
+                            <Button Classes="pf-seg-btn" Classes.on="{Binding IsActive}"
+                                    Command="{Binding #Root.((pf:ProfilePageViewModel)DataContext).SelectTabCommand}"
+                                    CommandParameter="{Binding Id}">
+                                <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center">
+                                    <Path Classes="icon" Width="16" Height="16"
+                                          Stroke="{Binding $parent[Button].Foreground}" VerticalAlignment="Center"
+                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+        </Border>
+
+        <!-- ═══════════ TAB · پروفایل کاربری ═══════════ -->
+        <Grid IsVisible="{Binding IsProfileTab}" ColumnDefinitions="*,*" ColumnSpacing="14" VerticalAlignment="Top">
+            <!-- card · اطلاعات شخصی -->
+            <Border Grid.Column="0" Classes="ps-card">
+                <StackPanel Spacing="11">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Border Classes="ps-card-ic">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconUsers}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Classes="ps-title" Text="اطلاعات شخصی" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                   Text="نام و راه‌های تماسی که در سربرگ‌ها و پیامک‌ها استفاده می‌شود." />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="نام و نام خانوادگی"
+                                   VerticalAlignment="Center" />
+                        <TextBox Grid.Column="0" Classes="ps-input" Text="{Binding ProfileName}" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="شمارهٔ تماس" VerticalAlignment="Center" />
+                        <TextBox Grid.Column="0" Classes="ps-input" Text="{Binding ProfilePhone}" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="ایمیل کاری" VerticalAlignment="Center" />
+                        <TextBox Grid.Column="0" Classes="ps-input" Text="{Binding ProfileEmail}" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="شمارهٔ نظام veterinarians"
+                                   VerticalAlignment="Center" />
+                        <TextBox Grid.Column="0" Classes="ps-input" Text="{Binding NationalCodeLine}" IsEnabled="False" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- card · تیم کلینیک -->
+            <Border Grid.Column="1" Classes="ps-card">
+                <StackPanel Spacing="11">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Border Classes="ps-card-ic">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconUsers}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Classes="ps-title" Text="تیم کلینیک" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                   Text="اعضای فعال و شیفت آن‌ها." />
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Team}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="8" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pf:ProfileTeamMemberViewModel">
+                                <Border Classes="pf-member">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                                        <Border Grid.Column="0" Classes="pf-member-av" Background="{Binding AvatarBrush}">
+                                            <TextBlock Text="{Binding Initials}" FontSize="13" FontWeight="ExtraBold"
+                                                       Foreground="White" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Classes="pf-member-name" Text="{Binding Name}" />
+                                            <TextBlock Classes="pf-member-sub" Text="{Binding Subtitle}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <Border Grid.Column="2" VerticalAlignment="Center" CornerRadius="20" Padding="10,4"
+                                                Background="{Binding RoleBackground}">
+                                            <TextBlock Text="{Binding RoleLabel}" FontSize="11" FontWeight="Bold"
+                                                       Foreground="{Binding RoleForeground}" />
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ═══════════ TAB · تنظیمات نوبت‌دهی ═══════════ -->
+        <Grid IsVisible="{Binding IsScheduleTab}" ColumnDefinitions="*,*" ColumnSpacing="14" RowDefinitions="Auto,Auto"
+              VerticalAlignment="Top">
+            <!-- card · ساعات و روزهای کاری -->
+            <Border Grid.Row="0" Grid.Column="0" Classes="ps-card">
+                <StackPanel Spacing="11">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Border Classes="ps-card-ic">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconCalendar}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Classes="ps-title" Text="ساعات و روزهای کاری" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                   Text="بازه‌ای که تقویم برای نوبت‌دهی نمایش می‌دهد." />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="ساعت شروع" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="0" Classes="ps-select" ItemsSource="{Binding WorkFromOptions.Options}"
+                                  SelectedIndex="{Binding WorkFromOptions.SelectedIndex}" HorizontalAlignment="Left" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="ساعت پایان" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="0" Classes="ps-select" ItemsSource="{Binding WorkToOptions.Options}"
+                                  SelectedIndex="{Binding WorkToOptions.SelectedIndex}" HorizontalAlignment="Left" />
+                    </Grid>
+                    <StackPanel Spacing="9">
+                        <TextBlock Classes="ps-label" Text="روزهای کاری هفته" />
+                        <ItemsControl ItemsSource="{Binding DayChips}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="pf:ProfileDayChipViewModel">
+                                    <Button Classes="pf-chip" Classes.on="{Binding IsOn}"
+                                            Command="{Binding #Root.((pf:ProfilePageViewModel)DataContext).ToggleDayCommand}"
+                                            CommandParameter="{Binding}">
+                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- card · قوانین نوبت‌دهی -->
+            <Border Grid.Row="0" Grid.Column="1" Classes="ps-card">
+                <StackPanel Spacing="11">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Border Classes="ps-card-ic">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconCalendar}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Classes="ps-title" Text="قوانین نوبت‌دهی" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                   Text="مدت و تراکم پیش‌فرض نوبت‌های جدید." />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="مدت پیش‌فرض هر نوبت" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="0" Classes="ps-select" ItemsSource="{Binding DurationOptions.Options}"
+                                  SelectedIndex="{Binding DurationOptions.SelectedIndex}" HorizontalAlignment="Left" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="فاصلهٔ استراحت بین نوبت‌ها"
+                                   VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="0" Classes="ps-select" ItemsSource="{Binding GapOptions.Options}"
+                                  SelectedIndex="{Binding GapOptions.SelectedIndex}" HorizontalAlignment="Left" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="حد مجاز هم‌پوشانی هر پزشک"
+                                   VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="0" Classes="ps-select" ItemsSource="{Binding OverlapOptions.Options}"
+                                  SelectedIndex="{Binding OverlapOptions.SelectedIndex}" HorizontalAlignment="Left" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="نمای پیش‌فرض تقویم" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="0" Classes="ps-select" ItemsSource="{Binding CalendarViewOptions.Options}"
+                                  SelectedIndex="{Binding CalendarViewOptions.SelectedIndex}" HorizontalAlignment="Left" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- card · اطلاع‌رسانی به مالک -->
+            <Border Grid.Row="1" Grid.Column="0" Classes="ps-card" Margin="0,14,0,0">
+                <StackPanel Spacing="11">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Border Classes="ps-card-ic">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconSms}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Classes="ps-title" Text="اطلاع‌رسانی به مالک" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                   Text="پیام‌های خودکار مرتبط با نوبت." />
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding OwnerNotifyToggles}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="11" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pf:ProfileToggleViewModel">
+                                <Border Classes="switch-row" Cursor="Hand">
+                                    <StackPanel Orientation="Horizontal" Spacing="11">
+                                        <ToggleSwitch IsChecked="{Binding IsOn}" OnContent="" OffContent=""
+                                                      VerticalAlignment="Center" />
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Classes="sw-title" Text="{Binding Label}" />
+                                            <TextBlock Classes="sw-sub" Text="{Binding Sub}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- card · نمایش تقویم -->
+            <Border Grid.Row="1" Grid.Column="1" Classes="ps-card" Margin="0,14,0,0">
+                <StackPanel Spacing="11">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Border Classes="ps-card-ic">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconCalendar}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Classes="ps-title" Text="نمایش تقویم" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                   Text="چیدمان و عناصر دیداری جدول زمانی." />
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding CalendarDisplayToggles}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="11" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pf:ProfileToggleViewModel">
+                                <Border Classes="switch-row" Cursor="Hand">
+                                    <StackPanel Orientation="Horizontal" Spacing="11">
+                                        <ToggleSwitch IsChecked="{Binding IsOn}" OnContent="" OffContent=""
+                                                      VerticalAlignment="Center" />
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Classes="sw-title" Text="{Binding Label}" />
+                                            <TextBlock Classes="sw-sub" Text="{Binding Sub}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ═══════════ TAB · اعلان‌ها ═══════════ -->
+        <Grid IsVisible="{Binding IsAlertsTab}" ColumnDefinitions="*,*" ColumnSpacing="14" VerticalAlignment="Top">
+            <!-- card · ماتریس اعلان‌ها -->
+            <Border Grid.Column="0" Classes="ps-card">
+                <StackPanel Spacing="11">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Border Classes="ps-card-ic">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconBell}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Classes="ps-title" Text="ماتریس اعلان‌ها" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                   Text="برای هر رویداد، کانال‌های ارسال را روشن یا خاموش کنید." />
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding MatrixRows}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="8" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pf:ProfileMatrixRowViewModel">
+                                <Border Classes="pf-mrow">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Classes="pf-mn-t" Text="{Binding Label}" />
+                                            <TextBlock Classes="pf-mn-s" Text="{Binding Sub}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14"
+                                                    VerticalAlignment="Center">
+                                            <CheckBox IsChecked="{Binding Sms}" Content="پیامک" FontSize="11"
+                                                      Foreground="{StaticResource MutedBrush}" />
+                                            <CheckBox IsChecked="{Binding InApp}" Content="درون‌برنامه" FontSize="11"
+                                                      Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- card · ساعات سکوت -->
+            <Border Grid.Column="1" Classes="ps-card">
+                <StackPanel Spacing="11">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Border Classes="ps-card-ic">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconClock}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Classes="ps-title" Text="ساعات سکوت" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                   Text="در این بازه پیامک‌های غیرضرور ارسال نمی‌شوند." />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="از ساعت" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="0" Classes="ps-select" ItemsSource="{Binding QuietFromOptions.Options}"
+                                  SelectedIndex="{Binding QuietFromOptions.SelectedIndex}" HorizontalAlignment="Left" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="تا ساعت" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="0" Classes="ps-select" ItemsSource="{Binding QuietToOptions.Options}"
+                                  SelectedIndex="{Binding QuietToOptions.SelectedIndex}" HorizontalAlignment="Left" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding QuietToggles}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pf:ProfileToggleViewModel">
+                                <Border Classes="switch-row" Margin="0,11,0,0" Cursor="Hand">
+                                    <StackPanel Orientation="Horizontal" Spacing="11">
+                                        <ToggleSwitch IsChecked="{Binding IsOn}" OnContent="" OffContent=""
+                                                      VerticalAlignment="Center" />
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Classes="sw-title" Text="{Binding Label}" />
+                                            <TextBlock Classes="sw-sub" Text="{Binding Sub}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ═══════════ TAB · ظاهر و تم ═══════════ -->
+        <Grid IsVisible="{Binding IsLookTab}" ColumnDefinitions="*,*" ColumnSpacing="14" VerticalAlignment="Top">
+            <!-- card · حالت نمایش -->
+            <Border Grid.Column="0" Classes="ps-card">
+                <StackPanel Spacing="11">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Border Classes="ps-card-ic">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconMoon}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Classes="ps-title" Text="حالت نمایش" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                   Text="تم روشن یا تیره برای همهٔ صفحات." />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <ItemsControl Grid.ColumnSpan="2" ItemsSource="{Binding ThemeOptions}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="pf:ProfileThemeOptionViewModel">
+                                    <Button Classes="pf-topt" Classes.on="{Binding IsOn}"
+                                            Command="{Binding #Root.((pf:ProfilePageViewModel)DataContext).PickThemeCommand}"
+                                            CommandParameter="{Binding}">
+                                        <StackPanel>
+                                            <Border Classes="pf-tg" Background="{Binding PreviewBackground}" />
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="ExtraBold"
+                                                               Foreground="{StaticResource Ink2Brush}" />
+                                                    <TextBlock Text="{Binding Sub}" FontSize="10.5" Margin="0,2,0,0"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                </StackPanel>
+                                                <Path Grid.Column="1" Classes="icon" Width="15" Height="15"
+                                                      Stroke="{StaticResource Brand600Brush}"
+                                                      Data="{StaticResource IconCheck}" VerticalAlignment="Top"
+                                                      IsVisible="{Binding IsOn}" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- card · چیدمان فشرده -->
+            <Border Grid.Column="1" Classes="ps-card">
+                <StackPanel Spacing="11">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Border Classes="ps-card-ic">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconRows}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Classes="ps-title" Text="چیدمان فشرده" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                   Text="فاصلهٔ کمتر در جدول‌ها برای نمایش بیشتر ردیف‌ها." />
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding LookToggles}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="11" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pf:ProfileToggleViewModel">
+                                <Border Classes="switch-row" Cursor="Hand">
+                                    <StackPanel Orientation="Horizontal" Spacing="11">
+                                        <ToggleSwitch IsChecked="{Binding IsOn}" OnContent="" OffContent=""
+                                                      VerticalAlignment="Center" />
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Classes="sw-title" Text="{Binding Label}" />
+                                            <TextBlock Classes="sw-sub" Text="{Binding Sub}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ═══════════ TAB · امنیت و نشست‌ها ═══════════ -->
+        <Grid IsVisible="{Binding IsSecurityTab}" ColumnDefinitions="*,*" ColumnSpacing="14" VerticalAlignment="Top">
+            <!-- card · امنیت حساب -->
+            <Border Grid.Column="0" Classes="ps-card">
+                <StackPanel Spacing="11">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Border Classes="ps-card-ic">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconShield}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Classes="ps-title" Text="امنیت حساب" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                   Text="گذرواژه و ورود دومرحله‌ای." />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="گذرواژهٔ فعلی" VerticalAlignment="Center" />
+                        <TextBox Grid.Column="0" Classes="ps-input" PasswordChar="•" Text="••••••••" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock Grid.Column="1" Classes="ps-label" Text="گذرواژهٔ جدید" VerticalAlignment="Center" />
+                        <TextBox Grid.Column="0" Classes="ps-input" PasswordChar="•" PlaceholderText="حداقل ۸ نویسه" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding SecurityToggles}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pf:ProfileToggleViewModel">
+                                <Border Classes="switch-row" Margin="0,11,0,0" Cursor="Hand">
+                                    <StackPanel Orientation="Horizontal" Spacing="11">
+                                        <ToggleSwitch IsChecked="{Binding IsOn}" OnContent="" OffContent=""
+                                                      VerticalAlignment="Center" />
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Classes="sw-title" Text="{Binding Label}" />
+                                            <TextBlock Classes="sw-sub" Text="{Binding Sub}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- card · نشست‌های فعال -->
+            <Border Grid.Column="1" Classes="ps-card">
+                <StackPanel Spacing="11">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="9">
+                            <Border Classes="ps-card-ic">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconUsers}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Classes="ps-title" Text="نشست‌های فعال" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                   Text="دستگاه‌هایی که با حساب شما وارد شده‌اند." />
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Sessions}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="8" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pf:ProfileSessionViewModel">
+                                <Border Classes="pf-sitem">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                                        <Border Grid.Column="0" Classes="pf-sitem-ic">
+                                            <Path Classes="icon" Width="14" Height="14"
+                                                  Stroke="{StaticResource Muted2Brush}"
+                                                  Data="{StaticResource IconShield}" HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Classes="pf-st-t" Text="{Binding Name}" VerticalAlignment="Center" />
+                                                <Border Background="{StaticResource OkBgBrush}" CornerRadius="20" Padding="10,4"
+                                                        VerticalAlignment="Center" IsVisible="{Binding IsCurrent}">
+                                                    <TextBlock Text="این نشست" FontSize="11" FontWeight="Bold"
+                                                               Foreground="{StaticResource OkBrush}" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Classes="pf-st-s" Text="{Binding Detail}" />
+                                        </StackPanel>
+                                        <Button Grid.Column="2" Classes="outline" Padding="12,6" FontSize="12"
+                                                VerticalAlignment="Center" IsVisible="{Binding CanSignOut}"
+                                                Command="{Binding #Root.((pf:ProfilePageViewModel)DataContext).EndSessionCommand}"
+                                                Content="خروج" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+    </StackPanel>
+</UserControl>

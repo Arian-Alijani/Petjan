@@ -8,6 +8,7 @@ using Animora.Desktop.Pages.Finance;
 using Animora.Desktop.Pages.History;
 using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Patients;
+using Animora.Desktop.Pages.Profile;
 using Animora.Desktop.Pages.Sales;
 using Animora.Desktop.Pages.Vaccination;
 using Animora.Desktop.Pages.Visits;
@@ -44,6 +45,6 @@ public static class NavigationMenu
         new("cheques", "مدیریت چک", "IconCheque", typeof(ChequesPageViewModel), "مالی و خزانه", BadgeCount: 3),
 
         new("history", "تاریخچه", "IconClock", typeof(HistoryPageViewModel), "سیستم"),
-        new("profile", "پروفایل و تنظیمات", "IconShield", typeof(PlaceholderPageViewModel), "سیستم"),
+        new("profile", "پروفایل و تنظیمات", "IconShield", typeof(ProfilePageViewModel), "سیستم"),
     };
 }

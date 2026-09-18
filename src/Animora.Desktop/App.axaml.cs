@@ -8,6 +8,7 @@ using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Inventory;
 using Animora.Contracts.Patients;
+using Animora.Contracts.Profile;
 using Animora.Contracts.Purchasing;
 using Animora.Contracts.Reception;
 using Animora.Contracts.Sales;
@@ -23,6 +24,7 @@ using Animora.Desktop.Pages.Finance;
 using Animora.Desktop.Pages.History;
 using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Patients;
+using Animora.Desktop.Pages.Profile;
 using Animora.Desktop.Pages.Purchasing;
 using Animora.Desktop.Pages.Sales;
 using Animora.Desktop.Pages.Reception;
@@ -170,6 +172,13 @@ public partial class App : Application
         // mock (a singleton is sufficient; its data is static).
         services.AddSingleton<IHistoryQueryService, MockHistoryQueryService>();
         services.AddSingleton<HistoryPageViewModel>();
+
+        // Phase 28: Profile & Settings screen. The mock persists edits
+        // in-memory only for the session (mirroring the reference's explicit
+        // "settings live in memory only" design), so a singleton preserves
+        // edits while navigating away and back.
+        services.AddSingleton<IUserProfileService, MockUserProfileService>();
+        services.AddSingleton<ProfilePageViewModel>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();
