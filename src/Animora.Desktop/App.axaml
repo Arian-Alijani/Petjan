@@ -103,6 +103,11 @@
         <!-- Phase 03: shared selector-based styles (icon Path look, card). -->
         <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/IconStyle.axaml" />
         <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/Card.axaml" />
+
+        <!-- Phase 25: Finance workspace styles (.pagebar/.pb-seg, KPI/mini cards,
+             highlight bar, list rows, donut legend, heatmap). Scoped to the
+             FinancePageView subtree so they never leak to other screens. -->
+        <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/FinanceStyles.axaml" />
     </Application.Styles>
 
 </Application>

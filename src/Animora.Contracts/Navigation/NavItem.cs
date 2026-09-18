@@ -12,10 +12,14 @@ namespace Animora.Contracts.Navigation;
 /// <param name="ViewModelType">The <c>PageViewModelBase</c>-derived type this item navigates to.</param>
 /// <param name="GroupName">The nav section this item belongs to.</param>
 /// <param name="BadgeCount">Optional badge count pill; null hides the pill.</param>
+/// <param name="InitialTab">Optional initial tab a target ViewModel should open on (e.g. Finance).</param>
+/// <param name="InitialRange">Optional initial range a target ViewModel should open on (e.g. Finance).</param>
 public sealed record NavItem(
     string Key,
     string Label,
     string IconKey,
     Type ViewModelType,
     string GroupName,
-    int? BadgeCount = null);
+    int? BadgeCount = null,
+    string? InitialTab = null,
+    string? InitialRange = null);
