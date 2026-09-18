@@ -1,0 +1,105 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:boarding="using:Animora.Desktop.Pages.Boarding"
+             x:Class="Animora.Desktop.Pages.Boarding.TransferModalView"
+             x:Name="Root"
+             x:DataType="boarding:TransferModalViewModel"
+             Width="580"
+             MaxWidth="580"
+             FlowDirection="RightToLeft">
+
+    <!-- Transfer-to-cashier modal — re-draws Animora-UI/assets/boarding.js
+         openTransferModal (.modal.bd-modal-wide). Values from boarding.css
+         (.bd-tlines/.bd-tline/.bd-totals) + styles.css (.modal-header/…). -->
+    <UserControl.Styles>
+        <Style Selector="Button.mclose">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel>
+        <!-- modal-header -->
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="22,18,22,6">
+            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
+                    Background="{StaticResource Brand50Brush}">
+                <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}"
+                      Data="{StaticResource IconWallet}" HorizontalAlignment="Center"
+                      VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="انتقال به صندوق" FontSize="11" FontWeight="Bold"
+                           Foreground="{StaticResource Brand600Brush}" />
+                <TextBlock Text="پیش‌نمایش فاکتور اقامت" FontSize="18" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" />
+            </StackPanel>
+            <Button Grid.Column="2" Classes="mclose" Command="{Binding CancelCommand}"
+                    VerticalAlignment="Top" ToolTip.Tip="بستن">
+                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                      Data="{StaticResource IconX}" HorizontalAlignment="Center"
+                      VerticalAlignment="Center" />
+            </Button>
+        </Grid>
+
+        <!-- modal-body -->
+        <StackPanel Margin="22,14,22,20">
+            <TextBlock FontSize="13" LineHeight="22" TextWrapping="Wrap" Margin="0,0,0,12"
+                       Foreground="{StaticResource Ink2Brush}">
+                <Run Text="{Binding HintLead}" /><Run Text="{Binding HintPet}" FontWeight="ExtraBold" /><Run Text="{Binding HintMiddle}" /><Run Text="{Binding HintOwner}" FontWeight="ExtraBold" /><Run Text="{Binding HintTail}" />
+            </TextBlock>
+
+            <!-- invoice preview lines (.bd-tlines) -->
+            <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="10"
+                    ClipToBounds="True" Margin="0,0,0,12">
+                <ItemsControl ItemsSource="{Binding Lines}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="boarding:TransferLineViewModel">
+                            <Border Padding="12,9">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" FontSize="12.5" TextWrapping="Wrap"
+                                               Foreground="{StaticResource InkBrush}">
+                                        <Run Text="{Binding Title}" /><Run Text=" " /><Run Text="{Binding QuantityText}"
+                                            Foreground="{StaticResource MutedBrush}" />
+                                    </TextBlock>
+                                    <TextBlock Grid.Column="1" Text="{Binding AmountText}" FontSize="12.5"
+                                               FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+
+            <!-- amount to transfer (.bd-totals grand) -->
+            <Border Background="{StaticResource Brand50Brush}" BorderBrush="{StaticResource Brand100Brush}"
+                    BorderThickness="1" CornerRadius="14" Padding="16,14">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="مبلغ قابل انتقال" FontSize="14" FontWeight="Bold"
+                               Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding TotalText}" FontSize="20" FontWeight="ExtraBold"
+                               Foreground="{StaticResource Brand700Brush}" VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </StackPanel>
+
+        <!-- modal-footer -->
+        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="22,14,22,20">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="primary" Command="{Binding ConfirmCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                              Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                        <TextBlock Text="تأیید و انتقال" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="ghost" Command="{Binding CancelCommand}" Content="انصراف" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

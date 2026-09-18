@@ -1,0 +1,290 @@
+using Animora.Contracts.Boarding;
+using Animora.Desktop.Localization;
+using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
+
+namespace Animora.Desktop.Pages.Boarding;
+
+/// <summary>
+/// One day cell of the detail modal's day timeline, mirroring the reference's
+/// <c>.bd-dm-day</c> block (boarding.js <c>_openDetailFor</c>): the night's
+/// ordinal, its «d MMM» date, and a dot when the day recorded consumed lines.
+/// </summary>
+public sealed class BoardingDayCellViewModel
+{
+    public BoardingDayCellViewModel(int ordinal, DateOnly date, bool isPast, bool isToday, bool hasDot, string tooltip)
+    {
+        NumberText = BoardingPresentation.Fa(ordinal);
+        DateText = BoardingPresentation.Medium(date);
+        IsPast = isPast;
+        IsToday = isToday;
+        HasDot = hasDot;
+        Tooltip = tooltip;
+
+        // Reference .bd-dm-day states: today → brand-600 fill (white text);
+        // past → brand-50 fill with brand-100 border; otherwise panel white.
+        Background = isToday
+            ? BoardingPresentation.Fill("#0d9488")
+            : isPast
+                ? BoardingPresentation.Fill("#f0fdfa")
+                : BoardingPresentation.Fill("#ffffff");
+        BorderBrush = isToday
+            ? BoardingPresentation.Fill("#0d9488")
+            : isPast
+                ? BoardingPresentation.Fill("#ccfbf1")
+                : BoardingPresentation.Fill("#e6e9ec");
+        NumberBrush = isToday ? BoardingPresentation.Fill("#ffffff") : BoardingPresentation.Fill("#101828");
+        DateBrush = isToday ? BoardingPresentation.Fill("#ccf2ee") : BoardingPresentation.Fill("#667085");
+        DotBrush = isToday ? BoardingPresentation.Fill("#ffffff") : BoardingPresentation.Fill("#0d9488");
+    }
+
+    public string NumberText { get; }
+    public string DateText { get; }
+    public bool IsPast { get; }
+    public bool IsToday { get; }
+    public bool HasDot { get; }
+    public string Tooltip { get; }
+    public IBrush Background { get; }
+    public IBrush BorderBrush { get; }
+    public IBrush NumberBrush { get; }
+    public IBrush DateBrush { get; }
+    public IBrush DotBrush { get; }
+}
+
+/// <summary>
+/// One consumed line row of the detail modal, mirroring the reference's
+/// <c>.bd-dm-cons-row</c> (tag / title+sub / qty / amount / remove). The remove
+/// button is hidden for a finished («done») stay, exactly as the reference
+/// hides it when the stay is not editable.
+/// </summary>
+public sealed partial class BoardingConsumedRowViewModel : ObservableObject
+{
+    public BoardingConsumedRowViewModel(int index, BoardingStayItem item, bool editable)
+    {
+        Index = index;
+        KindLabel = BoardingPresentation.ItemKindLabel(item.Kind);
+        (TagBackground, TagForeground) = BoardingPresentation.ItemTagBrushes(item.Kind);
+        Title = item.Title;
+        SubText = $"{BoardingPresentation.Medium(item.At)} · فی {BoardingPresentation.Money(item.Price)}";
+        QuantityText = $"× {BoardingPresentation.Fa(item.Quantity)}";
+        AmountText = BoardingPresentation.Money((long)item.Quantity * item.Price);
+        IsRemovable = editable;
+    }
+
+    public int Index { get; }
+    public string KindLabel { get; }
+    public IBrush TagBackground { get; }
+    public IBrush TagForeground { get; }
+    public string Title { get; }
+    public string SubText { get; }
+    public string QuantityText { get; }
+    public string AmountText { get; }
+    public bool IsRemovable { get; }
+}
+
+/// <summary>
+/// One <c>&lt;optgroup&gt;</c> of the detail modal's add row, mirroring the
+/// reference's three catalogs (خدمات پانسیون / خدمات کلینیک / کالاها).
+/// </summary>
+public sealed class BoardingAddGroupViewModel
+{
+    public BoardingAddGroupViewModel(string label, IReadOnlyList<BoardingSelectableItem> items)
+    {
+        Label = label;
+        Options = items
+            .Select(i => new BoardingAddOptionViewModel(i))
+            .ToList();
+    }
+
+    public string Label { get; }
+    public IReadOnlyList<BoardingAddOptionViewModel> Options { get; }
+}
+
+/// <summary>
+/// One selectable add-row option, mirroring the reference's
+/// <c>&lt;option value="kind:ref"&gt;{title} · {money(price)}&lt;/option&gt;</c>.
+/// </summary>
+public sealed class BoardingAddOptionViewModel
+{
+    public BoardingAddOptionViewModel(BoardingSelectableItem item)
+    {
+        Item = item;
+        Text = $"{item.Title} · {BoardingPresentation.Money(item.Price)}";
+    }
+
+    public BoardingSelectableItem Item { get; }
+    public string Text { get; }
+}
+
+/// <summary>
+/// One payment-mode radio of the new-stay modal, mirroring the reference's
+/// <c>.bd-pay-opt</c> pair («پس‌پرداخت» default / «پیش‌پرداخت»).
+/// </summary>
+public sealed partial class BoardingPaymentOptionViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isSelected;
+
+    public BoardingPaymentOptionViewModel(BoardingPaymentMode mode, string title, string hint)
+    {
+        Mode = mode;
+        Title = title;
+        Hint = hint;
+    }
+
+    public BoardingPaymentMode Mode { get; }
+    public string Title { get; }
+    public string Hint { get; }
+}
+
+/// <summary>
+/// One known-pet suggestion in the new-stay modal's autocomplete list,
+/// mirroring the reference's <c>.bd-ac-item</c> rows.
+/// </summary>
+public sealed class BoardingKnownPetViewModel
+{
+    public BoardingKnownPetViewModel(BoardingKnownPet pet)
+    {
+        Pet = pet;
+        SpeciesIconKey = BoardingPresentation.SpeciesIconKey(pet.Species);
+        SpeciesLabel = BoardingPresentation.SpeciesLabel(pet.Species);
+        SearchText = PersianText.Normalize($"{pet.PetName} {pet.Breed} {pet.OwnerName} {pet.OwnerPhone}");
+    }
+
+    public BoardingKnownPet Pet { get; }
+    public string PetName => Pet.PetName;
+    public string Breed => Pet.Breed;
+    public string OwnerName => Pet.OwnerName;
+    public string SpeciesIconKey { get; }
+    public string SpeciesLabel { get; }
+    public string SearchText { get; }
+}
+
+/// <summary>
+/// One history card of the History tab, mirroring the reference's
+/// <c>.bd-hcard</c> (boarding.js <c>renderHistory</c>).
+/// </summary>
+public sealed class BoardingHistoryCardViewModel
+{
+    public BoardingHistoryCardViewModel(BoardingStay stay, int nights, int progressPercent, string statusLabel, string statusTone, string totalCostText)
+    {
+        Stay = stay;
+        PetName = stay.PetName;
+        BreedLine = $"{BoardingPresentation.SpeciesLabel(stay.Species)} · {stay.Breed}";
+        SpeciesIconKey = BoardingPresentation.SpeciesIconKey(stay.Species);
+        AvatarBrush = BoardingPresentation.AvatarBrush(stay.Tone);
+        AvatarGlyphBrush = BoardingPresentation.AvatarGlyphBrush(stay.Tone);
+        StatusLabel = statusLabel;
+        (StatusPillBackground, StatusPillForeground) = BoardingPresentation.PillBrushes(statusTone);
+        CheckInText = BoardingPresentation.Long(stay.CheckIn);
+        CheckOutText = BoardingPresentation.Long(stay.CheckOut);
+        NightsText = $"{BoardingPresentation.Fa(nights)} شب";
+        ProgressBrush = BoardingPresentation.ProgressBarBrush(false, false, progressPercent);
+        OwnerName = stay.OwnerName;
+        RoomText = $"اتاق {stay.Room}";
+        TotalCostText = totalCostText;
+    }
+
+    public BoardingStay Stay { get; }
+    public string PetName { get; }
+    public string BreedLine { get; }
+    public string SpeciesIconKey { get; }
+    public IBrush AvatarBrush { get; }
+    public IBrush AvatarGlyphBrush { get; }
+    public string StatusLabel { get; }
+    public IBrush StatusPillBackground { get; }
+    public IBrush StatusPillForeground { get; }
+    public string CheckInText { get; }
+    public string CheckOutText { get; }
+    public string NightsText { get; }
+    public IBrush ProgressBrush { get; }
+    public string OwnerName { get; }
+    public string RoomText { get; }
+    public string TotalCostText { get; }
+}
+
+/// <summary>
+/// One room tile of the Settings tab, mirroring the reference's
+/// <c>.bd-room-tile</c> (boarding.js <c>renderSettingsRooms</c>).
+/// </summary>
+public sealed class BoardingRoomTileViewModel
+{
+    public BoardingRoomTileViewModel(RoomInfo room)
+    {
+        Label = PersianNumberFormatter.ToPersianDigits(room.Label);
+        TypeLabel = BoardingPresentation.RoomTypeLabel(room.Type);
+        SpeciesIconKey = BoardingPresentation.SpeciesIconKey(room.Species);
+        IsOccupied = room.IsOccupied;
+        StatusText = room.IsOccupied ? "اشغال" : "آزاد";
+    }
+
+    public string Label { get; }
+    public string TypeLabel { get; }
+    public string SpeciesIconKey { get; }
+    public bool IsOccupied { get; }
+    public string StatusText { get; }
+}
+
+/// <summary>
+/// One service row of the Settings tab, mirroring the reference's
+/// <c>.bd-svc-row</c> (boarding.js <c>renderSettingsSvcs</c>).
+/// </summary>
+public sealed class BoardingServiceRowViewModel
+{
+    public BoardingServiceRowViewModel(ServiceInfo service)
+    {
+        Service = service;
+        Title = service.Title;
+        PriceText = BoardingPresentation.Money(service.Price);
+    }
+
+    public ServiceInfo Service { get; }
+    public string Title { get; }
+    public string PriceText { get; }
+}
+
+/// <summary>
+/// One rate row of the Settings tab's «نرخ پایه اقامت» card, mirroring the
+/// static rows in Animora-UI/boarding.html (species icon + name/sub + a
+/// pre-filled rate input + «ریال / شب» unit).
+/// </summary>
+public sealed partial class BoardingRateRowViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _valueText;
+
+    public BoardingRateRowViewModel(string speciesIconKey, string name, string sub, string valueText)
+    {
+        SpeciesIconKey = speciesIconKey;
+        Name = name;
+        Sub = sub;
+        _valueText = valueText;
+    }
+
+    public string SpeciesIconKey { get; }
+    public string Name { get; }
+    public string Sub { get; }
+}
+
+/// <summary>
+/// One toggle row of the Settings tab's «تنظیمات رفاهی و اعلان» card,
+/// mirroring the reference's <c>.bd-toggle-row</c> + <c>.vx-switch</c>.
+/// </summary>
+public sealed partial class BoardingSettingToggleViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isOn;
+
+    public BoardingSettingToggleViewModel(string name, string label, string sub, bool isOn)
+    {
+        Name = name;
+        Label = label;
+        Sub = sub;
+        _isOn = isOn;
+    }
+
+    /// <summary>The name the reference passes to <c>bdSettingsToggle(this, name)</c>.</summary>
+    public string Name { get; }
+    public string Label { get; }
+    public string Sub { get; }
+}

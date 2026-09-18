@@ -415,24 +415,10 @@
             </StackPanel>
         </StackPanel>
 
-        <!-- ═══ SECTION: تاریخچه (content built in Phase 16) ═══ -->
-        <Border IsVisible="{Binding IsHistorySection}" Classes="pagebar" Padding="24" Margin="0">
-            <StackPanel Spacing="6" HorizontalAlignment="Center">
-                <TextBlock Text="تاریخچه اقامت‌ها در فاز ۱۶ (Phase 16) ساخته می‌شود" FontSize="13.5"
-                           FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" HorizontalAlignment="Center" />
-                <TextBlock Text="این بخش همراه با مودال‌های جزئیات/تخلیه در فاز بعدی تکمیل می‌شود." FontSize="12"
-                           Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
-            </StackPanel>
-        </Border>
+        <!-- ═══ SECTION: تاریخچه (Phase 16 — real content) ═══ -->
+        <boarding:BoardingHistoryTabView IsVisible="{Binding IsHistorySection}" />
 
-        <!-- ═══ SECTION: تنظیمات (content built in Phase 16) ═══ -->
-        <Border IsVisible="{Binding IsSettingsSection}" Classes="pagebar" Padding="24" Margin="0">
-            <StackPanel Spacing="6" HorizontalAlignment="Center">
-                <TextBlock Text="تنظیمات پانسیون در فاز ۱۶ (Phase 16) ساخته می‌شود" FontSize="13.5"
-                           FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" HorizontalAlignment="Center" />
-                <TextBlock Text="نرخ‌گذاری، اتاق‌ها و خدمات در فاز بعدی تکمیل می‌شود." FontSize="12"
-                           Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
-            </StackPanel>
-        </Border>
+        <!-- ═══ SECTION: تنظیمات (Phase 16 — real content) ═══ -->
+        <boarding:BoardingSettingsTabView IsVisible="{Binding IsSettingsSection}" />
     </StackPanel>
 </UserControl>

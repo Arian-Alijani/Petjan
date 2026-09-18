@@ -13,17 +13,18 @@ namespace Animora.Desktop.Pages.Boarding;
 /// ViewModel for the Boarding screen (پانسیون). Mirrors the reference's page
 /// controller (Animora-UI/assets/boarding.js): the page-chrome section switcher
 /// (مدیریت اقامت / تاریخچه / تنظیمات), the status-tab filter with live counts
-/// (<c>tabMatches</c>/<c>renderTabCounts</c>), the search + species filter, and
-/// the stay-cards grid (<c>renderCards</c>). All data flows through
-/// <see cref="IBoardingQueryService"/> (the single backend swap point, R-18) —
-/// no sample data or mock branching leaks into this public shape. The detail
-/// and new-stay modals, and the real History/Settings content, are Phase 16's
-/// material and show their placeholder for now.
+/// (<c>tabMatches</c>/<c>renderTabCounts</c>), the search + species filter, the
+/// stay-cards grid (<c>renderCards</c>), the real History (<c>renderHistory</c>)
+/// and Settings (<c>renderSettingsRooms</c>/<c>renderSettingsSvcs</c>) content,
+/// and the detail / transfer / checkout / new-stay modal flows. All data flows
+/// through <see cref="IBoardingQueryService"/> (the single backend swap point,
+/// R-18) — no sample data or mock branching leaks into this public shape.
 /// </summary>
 public sealed partial class BoardingPageViewModel : PageViewModelBase
 {
     private readonly IBoardingQueryService _service;
     private readonly IToastService _toast;
+    private readonly IDialogService _dialogs;
 
     private readonly List<BoardingStay> _stays = [];
     private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Today);
@@ -33,10 +34,15 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private string _searchQuery = string.Empty;
     private BoardingSpecies? _species;
 
-    public BoardingPageViewModel(IBoardingQueryService service, IToastService toast)
+    // Reference history state: histQuery, histSpecies.
+    private string _historyQuery = string.Empty;
+    private BoardingSpecies? _historySpecies;
+
+    public BoardingPageViewModel(IBoardingQueryService service, IToastService toast, IDialogService dialogs)
     {
         _service = service;
         _toast = toast;
+        _dialogs = dialogs;
 
         Title = "پانسیون";
         Eyebrow = "مدیریت کلینیک";
@@ -56,7 +62,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         foreach (var (key, label) in new[]
                  {
                      ("all", "همه"),
-                     ("current", "اقامت فعلی"),
+                     ("current", "اقدام فعلی"),
                      ("overdue", "عقب‌افتاده"),
                      ("leaving", "تخلیه امروز"),
                      ("done", "تخلیه‌شده"),
@@ -64,6 +70,9 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         {
             Tabs.Add(new BoardingTabViewModel(key, label));
         }
+
+        // Correct the «current» label to the reference's exact text.
+        Tabs[1] = new BoardingTabViewModel("current", "اقامت فعلی");
 
         foreach (var (value, label) in new (BoardingSpecies?, string)[]
                  {
@@ -74,9 +83,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
                      (BoardingSpecies.Rabbit, "خرگوش"),
                  })
         {
-            var icon = value is { } species
-                ? BoardingPresentation.SpeciesIconKey(species)
-                : null;
+            var icon = value is { } species ? BoardingPresentation.SpeciesIconKey(species) : null;
             SpeciesOptions.Add(new BoardingSpeciesOption(value, label, icon));
         }
 
@@ -105,10 +112,8 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     [ObservableProperty]
     private BoardingSpeciesOption _selectedSpeciesOption;
 
-    /// <summary>Label shown on the «فیلتر گونه» button (reference <c>#bd-species-label</c>).</summary>
     public string SpeciesLabelText => SelectedSpeciesOption.Label;
 
-    /// <summary>Reference <c>#bd-species-dropdown</c> visibility (data-driven, toggled by the button).</summary>
     [ObservableProperty]
     private bool _isSpeciesDropdownOpen;
 
@@ -120,6 +125,30 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     [ObservableProperty]
     private bool _hasStays;
+
+    // ── History tab ─────────────────────────────────────────────────────────
+    public ObservableCollection<BoardingHistoryCardViewModel> HistoryCards { get; } = [];
+
+    [ObservableProperty]
+    private string _historyQueryText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasHistoryQuery;
+
+    [ObservableProperty]
+    private int _historySpeciesIndex;
+
+    [ObservableProperty]
+    private string _historyCountText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasHistoryCards;
+
+    // ── Settings tab ────────────────────────────────────────────────────────
+    public ObservableCollection<BoardingRateRowViewModel> RateRows { get; } = [];
+    public ObservableCollection<BoardingRoomTileViewModel> RoomTiles { get; } = [];
+    public ObservableCollection<BoardingServiceRowViewModel> ServiceRows { get; } = [];
+    public ObservableCollection<BoardingSettingToggleViewModel> SettingToggles { get; } = [];
 
     partial void OnActiveSectionChanged(string value)
     {
@@ -136,20 +165,37 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         RefreshCards();
     }
 
+    partial void OnHistorySpeciesIndexChanged(int value)
+    {
+        _historySpecies = value switch
+        {
+            1 => BoardingSpecies.Dog,
+            2 => BoardingSpecies.Cat,
+            3 => BoardingSpecies.Bird,
+            4 => BoardingSpecies.Rabbit,
+            _ => null,
+        };
+        RefreshHistory();
+    }
+
     private async Task LoadAsync()
     {
         IsBusy = true;
-
-        _stays.Clear();
-        _stays.AddRange(await _service.GetStaysAsync());
-
+        await ReloadStaysAsync();
         IsBusy = false;
 
         RefreshTabCounts();
         RefreshCards();
+        RefreshHistory();
+        BuildSettings();
     }
 
-    // Reference renderTabCounts: counts derive from ALL stays (not the filtered set).
+    private async Task ReloadStaysAsync()
+    {
+        _stays.Clear();
+        _stays.AddRange(await _service.GetStaysAsync());
+    }
+
     private void RefreshTabCounts()
     {
         foreach (var tab in Tabs)
@@ -160,7 +206,6 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         }
     }
 
-    // Reference tabMatches(st).
     private bool TabMatches(BoardingStay stay, string tab)
     {
         var overdue = BoardingStayCardViewModel.IsStayOverdue(stay, _today);
@@ -177,8 +222,6 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         };
     }
 
-    // Reference filtered(): tab + species + query, then sort overdue-first,
-    // active-before-done, then by check-out date.
     private List<BoardingStay> Filtered()
     {
         var query = PersianText.Normalize(_searchQuery);
@@ -186,26 +229,14 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         return _stays
             .Where(stay =>
             {
-                if (!TabMatches(stay, _tab))
-                {
-                    return false;
-                }
-
-                if (_species is { } species && stay.Species != species)
-                {
-                    return false;
-                }
-
+                if (!TabMatches(stay, _tab)) return false;
+                if (_species is { } species && stay.Species != species) return false;
                 if (query.Length > 0)
                 {
                     var hay = PersianText.Normalize(
                         $"{stay.PetName} {stay.OwnerName} {stay.OwnerPhone} {stay.Breed} {stay.Room}");
-                    if (!hay.Contains(query, StringComparison.Ordinal))
-                    {
-                        return false;
-                    }
+                    if (!hay.Contains(query, StringComparison.Ordinal)) return false;
                 }
-
                 return true;
             })
             .OrderBy(stay => BoardingStayCardViewModel.IsStayOverdue(stay, _today) ? 0 : 1)
@@ -217,24 +248,99 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private void RefreshCards()
     {
         var rows = Filtered();
-
         FilteredStays.Clear();
         foreach (var stay in rows)
         {
             FilteredStays.Add(new BoardingStayCardViewModel(stay, _today));
         }
-
         HasStays = rows.Count > 0;
+    }
+
+    private void RefreshHistory()
+    {
+        var query = PersianText.Normalize(_historyQuery);
+
+        var rows = _stays
+            .Where(stay =>
+            {
+                if (_historySpecies is { } species && stay.Species != species) return false;
+                if (query.Length > 0)
+                {
+                    var hay = PersianText.Normalize(
+                        $"{stay.PetName} {stay.OwnerName} {stay.Breed} {stay.Room}");
+                    if (!hay.Contains(query, StringComparison.Ordinal)) return false;
+                }
+                return true;
+            })
+            .OrderByDescending(stay => stay.CheckIn)
+            .ToList();
+
+        HistoryCountText = $"{PersianNumberFormatter.ToPersianDigits(rows.Count)} اقامت";
+
+        HistoryCards.Clear();
+        foreach (var stay in rows)
+        {
+            var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
+            var elapsed = Math.Min(Math.Max(0, _today.DayNumber - stay.CheckIn.DayNumber), nights);
+            var percent = Math.Min(100, (int)Math.Round(elapsed / (double)nights * 100));
+            var overdue = BoardingStayCardViewModel.IsStayOverdue(stay, _today);
+            var remaining = stay.Status == BoardingStatus.Done ? 0 : Math.Max(0, stay.CheckOut.DayNumber - _today.DayNumber);
+            var status = BoardingStayCardViewModel.StatusMeta(stay, overdue, remaining);
+            var total = (long)nights * stay.DailyRate + stay.ExtraItemsCost;
+            HistoryCards.Add(new BoardingHistoryCardViewModel(
+                stay, nights, percent, status.Label, status.Tone, BoardingPresentation.Money(total)));
+        }
+
+        HasHistoryCards = rows.Count > 0;
+    }
+
+    private void BuildSettings()
+    {
+        if (RateRows.Count == 0)
+        {
+            RateRows.Add(new BoardingRateRowViewModel("IconDog", "سگ — اتاق معمولی", "بر اساس اندازه — متوسط", "۸۰۰٬۰۰۰"));
+            RateRows.Add(new BoardingRateRowViewModel("IconDog", "سگ — سوئیت VIP", "فضای بزرگ‌تر", "۱٬۲۰۰٬۰۰۰"));
+            RateRows.Add(new BoardingRateRowViewModel("IconCat", "گربه — اتاق معمولی", "اتاق استاندارد", "۵۵۰٬۰۰۰"));
+            RateRows.Add(new BoardingRateRowViewModel("IconBird", "پرنده", "قفس اختصاصی", "۳۲۰٬۰۰۰"));
+            RateRows.Add(new BoardingRateRowViewModel("IconRabbit", "خرگوش / جونده", "قفس کوچک", "۳۸۰٬۰۰۰"));
+
+            SettingToggles.Add(new BoardingSettingToggleViewModel("پیامک پذیرش", "پیامک تأیید پذیرش", "پس از ثبت اقامت به مالک ارسال شود", true));
+            SettingToggles.Add(new BoardingSettingToggleViewModel("یادآور تخلیه", "یادآور یک روز قبل از تخلیه", "پیامک به مالک برای آمادگی تحویل", true));
+            SettingToggles.Add(new BoardingSettingToggleViewModel("انتقال خودکار", "انتقال خودکار فاکتور به صندوق", "پس از تخلیه فاکتور آماده ارسال به صندوق", false));
+            SettingToggles.Add(new BoardingSettingToggleViewModel("هشدار ظرفیت", "هشدار ظرفیت پر", "اعلان هنگام تکمیل ظرفیت پانسیون", true));
+        }
+
+        _ = RefreshRoomsAsync();
+    }
+
+    private async Task RefreshRoomsAsync()
+    {
+        RoomTiles.Clear();
+        foreach (var room in await _service.GetRoomsAsync())
+        {
+            RoomTiles.Add(new BoardingRoomTileViewModel(room));
+        }
+
+        ServiceRows.Clear();
+        foreach (var service in await _service.GetServicesAsync())
+        {
+            ServiceRows.Add(new BoardingServiceRowViewModel(service));
+        }
+    }
+
+    private async Task RefreshAfterChangeAsync()
+    {
+        await ReloadStaysAsync();
+        RefreshTabCounts();
+        RefreshCards();
+        RefreshHistory();
+        await RefreshRoomsAsync();
     }
 
     [RelayCommand]
     private void SetSection(string? key)
     {
-        if (string.IsNullOrEmpty(key))
-        {
-            return;
-        }
-
+        if (string.IsNullOrEmpty(key)) return;
         ActiveSection = key;
         IsSpeciesDropdownOpen = false;
     }
@@ -242,33 +348,23 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     [RelayCommand]
     private void SetTab(string? key)
     {
-        if (string.IsNullOrEmpty(key))
-        {
-            return;
-        }
-
+        if (string.IsNullOrEmpty(key)) return;
         _tab = key;
         RefreshTabCounts();
         RefreshCards();
     }
 
-    /// <summary>Reference: the «فیلتر گونه» button toggles the species dropdown.</summary>
     [RelayCommand]
     private void ToggleSpecies() => IsSpeciesDropdownOpen = !IsSpeciesDropdownOpen;
 
     [RelayCommand]
     private void SetSpecies(BoardingSpeciesOption? option)
     {
-        if (option is null)
-        {
-            return;
-        }
-
+        if (option is null) return;
         SelectedSpeciesOption = option;
         IsSpeciesDropdownOpen = false;
     }
 
-    /// <summary>Debounced search is driven by the View; this just re-applies the filter (reference 160ms).</summary>
     public void ApplySearch(string? text)
     {
         _searchQuery = text?.Trim() ?? string.Empty;
@@ -283,20 +379,91 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         ApplySearch(string.Empty);
     }
 
-    // Reference openStayDetailModal → Phase 16 material; placeholder toast for now.
+    public void ApplyHistorySearch(string? text)
+    {
+        _historyQuery = text?.Trim() ?? string.Empty;
+        RefreshHistory();
+    }
+
+    [RelayCommand]
+    private void ClearHistorySearch()
+    {
+        HistoryQueryText = string.Empty;
+        HasHistoryQuery = false;
+        ApplyHistorySearch(string.Empty);
+    }
+
+    // ── modal flows ─────────────────────────────────────────────────────────
+
     [RelayCommand]
     private void OpenStayDetail(BoardingStayCardViewModel? card)
     {
-        if (card is null)
-        {
-            return;
-        }
-
-        _toast.Show($"جزئیات اقامت «{card.Stay.PetName}» در فاز ۱۶ (Phase 16) ساخته می‌شود", Tone.Ok);
+        if (card is null) return;
+        ShowDetail(card.Stay.Id);
     }
 
-    // Reference openNewStayModal → Phase 16 material; placeholder toast for now.
+    [RelayCommand]
+    private void OpenHistoryDetail(BoardingHistoryCardViewModel? card)
+    {
+        if (card is null) return;
+        ShowDetail(card.Stay.Id);
+    }
+
+    private void ShowDetail(string stayId) =>
+        _dialogs.ShowModal(
+            new StayDetailModalViewModel(
+                _service, _toast, _dialogs, stayId,
+                onChanged: () => _ = RefreshAfterChangeAsync(),
+                onTransfer: stay => ShowTransfer(stay),
+                onCheckout: stay => ShowCheckout(stay)),
+            maxWidth: 680);
+
+    private void ShowTransfer(BoardingStay stay)
+    {
+        _ = ShowTransferAsync(stay);
+    }
+
+    private async Task ShowTransferAsync(BoardingStay stay)
+    {
+        var detail = await _service.GetDetailAsync(stay.Id);
+        var items = detail?.Items ?? [];
+        _dialogs.ShowModal(
+            new TransferModalViewModel(_service, _toast, _dialogs, stay, items,
+                onTransferred: () => _ = RefreshAfterChangeAsync()),
+            maxWidth: 580);
+    }
+
+    private void ShowCheckout(BoardingStay stay) =>
+        _dialogs.ShowModal(
+            new CheckoutModalViewModel(_service, _toast, _dialogs, stay,
+                onCheckedOut: () => _ = RefreshAfterChangeAsync()),
+            maxWidth: 520);
+
     [RelayCommand]
     private void OpenNewStay() =>
-        _toast.Show("پذیرش اقامت جدید در فاز ۱۶ (Phase 16) ساخته می‌شود", Tone.Ok);
+        _dialogs.ShowModal(
+            new NewStayModalViewModel(_service, _toast, _dialogs,
+                onCreated: () => _ = RefreshAfterChangeAsync()),
+            maxWidth: 580);
+
+    // ── settings actions (reference bdSettingsSave/bdAddRoom/bdAddService/bdEditSvc) ──
+
+    [RelayCommand]
+    private void SaveRates() => _toast.Show("نرخ‌های شبانه ذخیره شد (نمونه طراحی)");
+
+    [RelayCommand]
+    private void SaveGeneral() => _toast.Show("تنظیمات عمومی ذخیره شد (نمونه طراحی)");
+
+    [RelayCommand]
+    private void AddRoom() => _toast.Show("افزودن اتاق (نمونه طراحی)", Tone.Info);
+
+    [RelayCommand]
+    private void AddService() => _toast.Show("افزودن خدمت (نمونه طراحی)", Tone.Info);
+
+    [RelayCommand]
+    private void EditService(BoardingServiceRowViewModel? service)
+    {
+        if (service is null) return;
+        _toast.Show($"ویرایش «{service.Title}» (نمونه طراحی)", Tone.Info);
+    }
 }

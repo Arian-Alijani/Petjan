@@ -1,0 +1,262 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:boarding="using:Animora.Desktop.Pages.Boarding"
+             x:Class="Animora.Desktop.Pages.Boarding.BoardingSettingsTabView"
+             x:Name="Root"
+             x:DataType="boarding:BoardingPageViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Settings tab — re-draws Animora-UI/boarding.html #bd-section-settings
+         (نرخ پایه اقامت / اتاق‌ها و باکس‌ها / خدمات اختصاصی پانسیون /
+         تنظیمات رفاهی و اعلان). Values transcribed from boarding.css +
+         styles.css (.card/.card-header/.card-body). -->
+    <UserControl.Styles>
+        <Style Selector="Border.scard">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+        </Style>
+        <Style Selector="TextBlock.seyebrow">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="TextBlock.stitle">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="Border.rate-row">
+            <Setter Property="Background" Value="{StaticResource BgBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        <Style Selector="Border.room-tile">
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="Background" Value="{StaticResource BgBrush}" />
+        </Style>
+        <Style Selector="Border.room-tile.occupied">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="16" RowDefinitions="Auto,Auto" VerticalAlignment="Top">
+
+        <!-- ═══ card · نرخ پایه اقامت ═══ -->
+        <Border Grid.Row="0" Grid.Column="0" Classes="scard">
+            <StackPanel>
+                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="18,16">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Classes="seyebrow" Text="نرخ‌گذاری" VerticalAlignment="Center" />
+                        <TextBlock Classes="stitle" Text="نرخ پایه اقامت" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <StackPanel Margin="18">
+                    <TextBlock Text="نرخ شبانه پیش‌فرض هنگام پذیرش جدید پیشنهاد می‌شود و در هر اقامت قابل ویرایش است."
+                               FontSize="12" TextWrapping="Wrap" LineHeight="20"
+                               Foreground="{StaticResource MutedBrush}" Margin="0,0,0,14" />
+                    <ItemsControl ItemsSource="{Binding RateRows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="boarding:BoardingRateRowViewModel">
+                                <Border Classes="rate-row" Margin="0,0,0,10">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                                            <Path Classes="icon" Width="18" Height="18"
+                                                  Stroke="{StaticResource Brand600Brush}" VerticalAlignment="Center"
+                                                  Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}" />
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="Bold"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                                <TextBlock Text="{Binding Sub}" FontSize="11"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                                    VerticalAlignment="Center">
+                                            <TextBox Text="{Binding ValueText}" Width="110" FontSize="12.5" />
+                                            <TextBlock Text="ریال / شب" FontSize="11"
+                                                       Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel HorizontalAlignment="Right" Margin="0,8,0,0">
+                        <Button Classes="primary" Command="{Binding SaveRatesCommand}" Content="ذخیره نرخ‌ها" />
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ card · اتاق‌ها و باکس‌ها ═══ -->
+        <Border Grid.Row="0" Grid.Column="1" Classes="scard">
+            <StackPanel>
+                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="18,16">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <TextBlock Classes="seyebrow" Text="ظرفیت" VerticalAlignment="Center" />
+                            <TextBlock Classes="stitle" Text="اتاق‌ها و باکس‌ها" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button Grid.Column="2" Classes="outline" Command="{Binding AddRoomCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource InkBrush}"
+                                      Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                                <TextBlock Text="اتاق جدید" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
+                <StackPanel Margin="18">
+                    <ItemsControl ItemsSource="{Binding RoomTiles}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="3" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="boarding:BoardingRoomTileViewModel">
+                                <Border Classes="room-tile" Classes.occupied="{Binding IsOccupied}"
+                                        Margin="0,0,10,10">
+                                    <StackPanel>
+                                        <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8" Margin="0,0,0,8">
+                                            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                                                  Stroke="{StaticResource Brand600Brush}" VerticalAlignment="Center"
+                                                  Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="13"
+                                                       FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"
+                                                       VerticalAlignment="Center" />
+                                            <Border Grid.Column="2" Background="{StaticResource LilacBgBrush}"
+                                                    CornerRadius="7" Padding="7,2" HorizontalAlignment="Right">
+                                                <TextBlock Text="{Binding TypeLabel}" FontSize="10.5" FontWeight="Bold"
+                                                           Foreground="#7b5cc4" />
+                                            </Border>
+                                        </Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
+                                                  Data="{StaticResource IconHome}"
+                                                  Stroke="{StaticResource Brand700Brush}"
+                                                  IsVisible="{Binding IsOccupied}" />
+                                            <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
+                                                  Data="{StaticResource IconCheck}"
+                                                  Stroke="{StaticResource OkBrush}"
+                                                  IsVisible="{Binding !IsOccupied}" />
+                                            <TextBlock Text="{Binding StatusText}" FontSize="11.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource Brand700Brush}"
+                                                       VerticalAlignment="Center" IsVisible="{Binding IsOccupied}" />
+                                            <TextBlock Text="{Binding StatusText}" FontSize="11.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource OkBrush}"
+                                                       VerticalAlignment="Center" IsVisible="{Binding !IsOccupied}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ card · خدمات اختصاصی پانسیون ═══ -->
+        <Border Grid.Row="1" Grid.Column="0" Classes="scard" Margin="0,16,0,0">
+            <StackPanel>
+                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="18,16">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <TextBlock Classes="seyebrow" Text="خدمات" VerticalAlignment="Center" />
+                            <TextBlock Classes="stitle" Text="خدمات اختصاصی پانسیون" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button Grid.Column="2" Classes="outline" Command="{Binding AddServiceCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource InkBrush}"
+                                      Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                                <TextBlock Text="خدمت جدید" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
+                <StackPanel Margin="18">
+                    <ItemsControl ItemsSource="{Binding ServiceRows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="boarding:BoardingServiceRowViewModel">
+                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1"
+                                        Padding="0,10">
+                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="13"
+                                                   FontWeight="Bold" Foreground="{StaticResource InkBrush}"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding PriceText}" FontSize="12.5"
+                                                   FontWeight="ExtraBold" Foreground="{StaticResource Brand700Brush}"
+                                                   VerticalAlignment="Center" />
+                                        <Button Grid.Column="2" Classes="ghost" Width="30" Height="30" Padding="0"
+                                                Command="{Binding #Root.((boarding:BoardingPageViewModel)DataContext).EditServiceCommand}"
+                                                CommandParameter="{Binding}" ToolTip.Tip="ویرایش">
+                                            <Path Classes="icon" Width="15" Height="15"
+                                                  Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconEdit}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ card · تنظیمات رفاهی و اعلان ═══ -->
+        <Border Grid.Row="1" Grid.Column="1" Classes="scard" Margin="0,16,0,0">
+            <StackPanel>
+                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="18,16">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Classes="seyebrow" Text="عمومی" VerticalAlignment="Center" />
+                        <TextBlock Classes="stitle" Text="تنظیمات رفاهی و اعلان" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <StackPanel Margin="18">
+                    <ItemsControl ItemsSource="{Binding SettingToggles}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="boarding:BoardingSettingToggleViewModel">
+                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1"
+                                        Padding="0,12">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Label}" FontSize="12.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding Sub}" FontSize="11" Margin="0,3,0,0"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsOn}"
+                                                      OnContent="" OffContent="" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <StackPanel Margin="0,14,0,0">
+                        <TextBlock Text="ساعت Check-Out پیش‌فرض" FontSize="12"
+                                   Foreground="{StaticResource Ink2Brush}" Margin="0,0,0,6" />
+                        <ComboBox SelectedIndex="1" HorizontalAlignment="Stretch">
+                            <ComboBoxItem Content="۱۲:۰۰ ظهر" />
+                            <ComboBoxItem Content="۱۴:۰۰ بعدازظهر" />
+                            <ComboBoxItem Content="۱۶:۰۰ بعدازظهر" />
+                        </ComboBox>
+                    </StackPanel>
+
+                    <StackPanel HorizontalAlignment="Right" Margin="0,18,0,0">
+                        <Button Classes="primary" Command="{Binding SaveGeneralCommand}" Content="ذخیره" />
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

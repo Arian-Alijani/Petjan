@@ -1,0 +1,311 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:boarding="using:Animora.Desktop.Pages.Boarding"
+             x:Class="Animora.Desktop.Pages.Boarding.NewStayModalView"
+             x:Name="Root"
+             x:DataType="boarding:NewStayModalViewModel"
+             Width="580"
+             MaxWidth="580"
+             FlowDirection="RightToLeft">
+
+    <!-- New-stay modal — re-draws Animora-UI/assets/boarding.js
+         openNewStayModal (.modal.bd-modal-wide). Values from boarding.css
+         (.bd-new-mode/.bd-ac-list/.bd-pay-mode/.bd-form-divider) +
+         styles.css (.modal-header/.field/.input/.grid-2). -->
+    <UserControl.Styles>
+        <Style Selector="Button.mclose">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="TextBlock.flabel">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style Selector="Button.mode">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="14,7" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Button.mode.is-active">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.mode.is-active /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowChip}" />
+        </Style>
+        <Style Selector="Button.ac">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+        <Style Selector="Button.ac:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Border.pay-opt">
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="14,10" />
+        </Style>
+        <Style Selector="Border.pay-opt.is-selected">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- modal-header -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="22,18,22,6">
+            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
+                    Background="{StaticResource Brand50Brush}">
+                <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}"
+                      Data="{StaticResource IconHome}" HorizontalAlignment="Center"
+                      VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="پذیرش پانسیون" FontSize="11" FontWeight="Bold"
+                           Foreground="{StaticResource Brand600Brush}" />
+                <TextBlock Text="ثبت اقامت جدید" FontSize="18" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" />
+            </StackPanel>
+            <Button Grid.Column="2" Classes="mclose" Command="{Binding CancelCommand}"
+                    VerticalAlignment="Top" ToolTip.Tip="بستن">
+                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                      Data="{StaticResource IconX}" HorizontalAlignment="Center"
+                      VerticalAlignment="Center" />
+            </Button>
+        </Grid>
+
+        <!-- modal-body (scroll) -->
+        <ScrollViewer Grid.Row="1" MaxHeight="520" Padding="22,8,22,20">
+            <StackPanel>
+                <!-- mode switch (.bd-new-mode) -->
+                <Border Background="{StaticResource Bg2Brush}" CornerRadius="10" Padding="3"
+                        HorizontalAlignment="Left" Margin="0,0,0,16">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <Button Classes="mode" Classes.is-active="{Binding IsExistingMode}"
+                                Command="{Binding SetModeCommand}" CommandParameter="existing"
+                                Content="از پرونده‌های موجود" />
+                        <Button Classes="mode" Classes.is-active="{Binding IsManualMode}"
+                                Command="{Binding SetModeCommand}" CommandParameter="manual"
+                                Content="وارد کردن دستی" />
+                    </StackPanel>
+                </Border>
+
+                <!-- mode · existing file picker -->
+                <StackPanel IsVisible="{Binding IsExistingMode}">
+                    <TextBlock Classes="flabel" Text="جستجوی بیمار" />
+                    <Border Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource LineBrush}"
+                            BorderThickness="1" CornerRadius="12" Padding="12,8" Margin="0,0,0,8">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                                  Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}"
+                                  VerticalAlignment="Center" />
+                            <TextBox Grid.Column="1" Text="{Binding PatientQueryText}" Background="Transparent"
+                                     BorderThickness="0" FontSize="13" VerticalContentAlignment="Center"
+                                     PlaceholderText="نام حیوان یا مالک را تایپ کنید…" />
+                        </Grid>
+                    </Border>
+
+                    <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusSm}" ClipToBounds="True" Margin="0,0,0,12"
+                            IsVisible="{Binding IsPickerVisible}">
+                        <ItemsControl ItemsSource="{Binding KnownPets}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="boarding:BoardingKnownPetViewModel">
+                                    <Button Classes="ac"
+                                            Command="{Binding #Root.((boarding:NewStayModalViewModel)DataContext).PickPetCommand}"
+                                            CommandParameter="{Binding}">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                            <Path Grid.Column="0" Width="20" Height="20" Fill="Transparent"
+                                                  StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                                                  Stretch="Uniform" Stroke="{StaticResource Brand600Brush}"
+                                                  VerticalAlignment="Center"
+                                                  Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding PetName}" FontSize="13" FontWeight="Bold"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                                <TextBlock Text="{Binding Breed}" FontSize="12"
+                                                           Foreground="{StaticResource MutedBrush}"
+                                                           VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding OwnerName}" FontSize="11.5"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+
+                    <!-- selected pet card (.bd-sel-pet-card) -->
+                    <Border Background="{StaticResource Brand50Brush}" BorderBrush="{StaticResource Brand100Brush}"
+                            BorderThickness="1.5" CornerRadius="12" Padding="14,10" Margin="0,0,0,12"
+                            IsVisible="{Binding HasSelectedPet}">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                            <Path Grid.Column="0" Width="22" Height="22" Fill="Transparent" StrokeThickness="2"
+                                  StrokeLineCap="Round" StrokeJoin="Round" Stretch="Uniform"
+                                  Stroke="{StaticResource Brand600Brush}" VerticalAlignment="Center"
+                                  Data="{Binding SelectedPetIconKey, Converter={StaticResource IconKeyConverter}}" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding SelectedPetName}" FontSize="13.5" FontWeight="Bold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="{Binding SelectedPetSpecies}" FontSize="12"
+                                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding SelectedPetSub}" FontSize="11.5" Margin="0,2,0,0"
+                                           Foreground="{StaticResource MutedBrush}" />
+                            </StackPanel>
+                            <Button Grid.Column="2" Classes="ghost" Width="34" Height="34" Padding="0"
+                                    Command="{Binding ClearPetCommand}" ToolTip.Tip="تغییر">
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                                      Data="{StaticResource IconX}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Button>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <!-- mode · manual fields -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto"
+                      IsVisible="{Binding IsManualMode}">
+                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
+                        <TextBlock Classes="flabel" Text="نام حیوان *" />
+                        <TextBox Text="{Binding ManualName}" FontSize="13" PlaceholderText="مثلاً: لئو" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,12">
+                        <TextBlock Classes="flabel" Text="گونه *" />
+                        <ComboBox ItemsSource="{Binding SpeciesOptions}" SelectedItem="{Binding SelectedSpeciesOption}"
+                                  HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="boarding:BoardingSpeciesOption">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,12">
+                        <TextBlock Classes="flabel" Text="نژاد" />
+                        <TextBox Text="{Binding ManualBreed}" FontSize="13" PlaceholderText="مثلاً: ژرمن شپرد" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,12">
+                        <TextBlock Classes="flabel" Text="نام مالک *" />
+                        <TextBox Text="{Binding ManualOwner}" FontSize="13" PlaceholderText="مثلاً: امیر رستگار" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,12">
+                        <TextBlock Classes="flabel" Text="موبایل مالک" />
+                        <TextBox Text="{Binding ManualPhone}" FontSize="13" PlaceholderText="09xx-xxx-xxxx" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- form divider (.bd-form-divider) -->
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,14,0,10">
+                    <TextBlock Grid.Column="0" Text="اطلاعات اقامت" FontSize="11" FontWeight="ExtraBold"
+                               Foreground="{StaticResource Brand700Brush}" VerticalAlignment="Center" />
+                    <Border Grid.Column="1" Height="1" Background="{StaticResource Line2Brush}"
+                            VerticalAlignment="Center" />
+                </Grid>
+
+                <!-- stay form (.grid-2) -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto">
+                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
+                        <TextBlock Classes="flabel" Text="اتاق / سوئیت *" />
+                        <ComboBox ItemsSource="{Binding RoomOptions}" SelectedItem="{Binding SelectedRoomOption}"
+                                  HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="boarding:BoardingRoomOptionViewModel">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,12">
+                        <TextBlock Classes="flabel" Text="نرخ شبانه (ریال)" />
+                        <TextBox Text="{Binding DailyRateText}" FontSize="13" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,12">
+                        <TextBlock Classes="flabel" Text="تاریخ ورود *" />
+                        <TextBox Text="{Binding CheckInText}" FontSize="13" PlaceholderText="۱۴۰۴/۰۶/۰۱" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,12">
+                        <TextBlock Classes="flabel" Text="تاریخ خروج *" />
+                        <TextBox Text="{Binding CheckOutText}" FontSize="13" PlaceholderText="۱۴۰۴/۰۶/۱۰" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- payment mode (.bd-pay-mode) -->
+                <TextBlock Classes="flabel" Text="نوع پرداخت" />
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,0,0,12">
+                    <ItemsControl Grid.Column="0" Grid.ColumnSpan="2" ItemsSource="{Binding PaymentOptions}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="boarding:BoardingPaymentOptionViewModel">
+                                <Button Classes="pay-opt" Classes.is-selected="{Binding IsSelected}"
+                                        Margin="0,0,10,0"
+                                        Command="{Binding #Root.((boarding:NewStayModalViewModel)DataContext).ChoosePaymentCommand}"
+                                        CommandParameter="{Binding}">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <Ellipse Width="16" Height="16" Stroke="{StaticResource LineBrush}"
+                                                 StrokeThickness="1.5" VerticalAlignment="Top">
+                                            <Ellipse.Fill>
+                                                <SolidColorBrush Color="White" />
+                                            </Ellipse.Fill>
+                                        </Ellipse>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold"
+                                                       Foreground="{StaticResource Ink2Brush}" />
+                                            <TextBlock Text="{Binding Hint}" FontSize="10.5" Margin="0,2,0,0"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+
+                <!-- care note -->
+                <TextBlock Classes="flabel" Text="یادداشت نگهداری" />
+                <TextBox Text="{Binding NoteText}" AcceptsReturn="True" TextWrapping="Wrap"
+                         MinHeight="60" FontSize="13" Margin="0,0,0,8"
+                         PlaceholderText="رژیم غذایی، دارو، رفتار خاص…" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- modal-footer -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                Padding="22,14,22,20">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="primary" Command="{Binding SubmitCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                              Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                        <TextBlock Text="ثبت پذیرش" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="ghost" Command="{Binding CancelCommand}" Content="انصراف" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

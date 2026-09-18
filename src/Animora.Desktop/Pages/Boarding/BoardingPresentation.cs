@@ -197,4 +197,85 @@ public static class BoardingPresentation
     /// <summary>Persian digits for an integer value (reference <c>fa(v)</c>).</summary>
     public static string Fa(int value) =>
         PersianNumberFormatter.ToPersianDigits(value.ToString(CultureInfo.InvariantCulture));
+
+    /// <summary>Reference <c>J().long(date)</c> — «۱۴ مهر ۱۴۰۴», Persian digits.</summary>
+    public static string Long(DateOnly date) =>
+        JalaliDate.FromDateTime(date.ToDateTime(TimeOnly.MinValue)).ToString("long");
+
+    /// <summary>Reference <c>J().medium(date)</c> — «۱۴ مهر», Persian digits.</summary>
+    public static string Medium(DateOnly date) =>
+        JalaliDate.FromDateTime(date.ToDateTime(TimeOnly.MinValue)).ToString("medium");
+
+    /// <summary>Reference <c>J().short(date)</c> — «۱۴۰۴/۰۷/۱۴», Persian digits.</summary>
+    public static string Short(DateOnly date) =>
+        JalaliDate.FromDateTime(date.ToDateTime(TimeOnly.MinValue)).ToString("short");
+
+    /// <summary>
+    /// Parses a Jalali «YYYY/MM/DD» text field (Persian or ASCII digits, as the
+    /// reference's <c>#bd-f-in</c>/<c>#bd-f-out</c> inputs hold) back to a
+    /// <see cref="DateOnly"/>. Returns null when the shape or values are invalid
+    /// — mirroring the reference's <c>/^\d{4}\/\d{2}\/\d{2}$/</c> guard plus a
+    /// real calendar-validity check.
+    /// </summary>
+    public static DateOnly? ParseJalali(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        // Normalize Persian digits + Arabic yeh/kaf to their ASCII form.
+        var ascii = PersianText.Normalize(text);
+        var parts = ascii.Split('/');
+        if (parts.Length != 3)
+        {
+            return null;
+        }
+
+        if (!int.TryParse(parts[0], out var year)
+            || !int.TryParse(parts[1], out var month)
+            || !int.TryParse(parts[2], out var day))
+        {
+            return null;
+        }
+
+        if (year is < 1300 or > 1500 || month is < 1 or > 12 || day < 1 || day > 31)
+        {
+            return null;
+        }
+
+        try
+        {
+            return DateOnly.FromDateTime(new JalaliDate(year, month, day).ToDateTime());
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Reference <c>payLabel(mode)</c> — «پیش‌پرداخت» / «پس‌پرداخت».</summary>
+    public static string PayLabel(BoardingPaymentMode mode) =>
+        mode == BoardingPaymentMode.Prepaid ? "پیش‌پرداخت" : "پس‌پرداخت";
+
+    /// <summary>Reference <c>payTone(mode)</c> — prepaid ok, postpaid info.</summary>
+    public static string PayTone(BoardingPaymentMode mode) =>
+        mode == BoardingPaymentMode.Prepaid ? "ok" : "info";
+
+    /// <summary>Reference <c>ROOMS[].type</c> chip text — «VIP» / «معمولی».</summary>
+    public static string RoomTypeLabel(BoardingRoomType type) =>
+        type == BoardingRoomType.Vip ? "VIP" : "معمولی";
+
+    /// <summary>Reference consumed-row tag — «خدمت» / «کالا».</summary>
+    public static string ItemKindLabel(BoardingItemKind kind) =>
+        kind == BoardingItemKind.Item ? "کالا" : "خدمت";
+
+    /// <summary>
+    /// The consumed-row tag brush, mirroring <c>.bd-cons-tag</c> (brand-50 /
+    /// brand-700) and <c>.bd-cons-tag.item</c> (lilac-bg / #7b5cc4).
+    /// </summary>
+    public static (IBrush Background, IBrush Foreground) ItemTagBrushes(BoardingItemKind kind) =>
+        kind == BoardingItemKind.Item
+            ? (Fill("#efe7fb"), Fill("#7b5cc4"))
+            : (Fill("#effcf9"), Fill("#0f766e"));
 }
