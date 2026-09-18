@@ -136,3 +136,78 @@ public sealed record FinanceIncome(
     IReadOnlyList<FinanceSpecies> Species,
     IReadOnlyList<FinancePaymentSplit> Payments,
     IReadOnlyList<IReadOnlyList<int>> Heatmap);
+
+/// <summary>
+/// One option of the expense modal's «دسته‌بندی» select (mirrors the
+/// <c>EXPENSE_CATEGORIES</c> id/label/color the reference's modal renders).
+/// </summary>
+public sealed record FinanceCategoryOption(string Id, string Label, string Color);
+
+/// <summary>
+/// One option of the expense modal's «روش پرداخت» select (mirrors
+/// <c>PAYMENT_METHODS</c>).
+/// </summary>
+public sealed record FinancePaymentMethod(string Id, string Label);
+
+/// <summary>
+/// One row of the Expense-tab table (mirrors the reference's <c>EXPENSE_LOG</c>
+/// entry joined to its category + payment method, as rendered by
+/// <c>expenseTableCard</c>).
+/// </summary>
+public sealed record FinanceExpenseRow(
+    string Id,
+    string Description,
+    string CategoryLabel,
+    string CategoryColor,
+    string Date,
+    string MethodLabel,
+    long Amount,
+    string By);
+
+/// <summary>
+/// The Expense-tab dataset (mirrors the fields <c>panelExpense</c> consumes):
+/// the shared KPIs/series/categories plus the expense ledger rows for the
+/// <c>expenseTableCard</c>.
+/// </summary>
+public sealed record FinanceExpense(
+    string RangeLabel,
+    int DayCount,
+    long RevTotal,
+    long ExpTotal,
+    FinanceDeltas Delta,
+    IReadOnlyList<FinanceSeriesPoint> Series,
+    IReadOnlyList<FinanceCategory> ByCategory,
+    IReadOnlyList<FinanceExpenseRow> Rows);
+
+/// <summary>
+/// A request to record a new expense (mirrors the reference's
+/// <c>addExpense(rec)</c> payload from the modal's form fields).
+/// </summary>
+public sealed record NewExpenseRequest(
+    string Description, string CategoryId, string MethodId, long Amount, string Date);
+
+/// <summary>
+/// The newly recorded expense, as returned by <c>AddExpenseAsync</c> (mirrors
+/// the object <c>D.addExpense</c> returns and the table re-renders).
+/// </summary>
+public sealed record ExpenseEntry(
+    string Id, string Description, string CategoryId, string MethodId, long Amount, string Date, string By);
+
+/// <summary>
+/// The Profit-tab dataset (mirrors the fields <c>panelProfit</c> consumes):
+/// the margin gauge inputs, the shared KPIs/series/categories, the
+/// most-profitable products and the insight cards.
+/// </summary>
+public sealed record FinanceProfit(
+    string RangeLabel,
+    int DayCount,
+    long RevTotal,
+    long ExpTotal,
+    long Profit,
+    double Margin,
+    FinanceDeltas Delta,
+    double AvgDailyProfit,
+    IReadOnlyList<FinanceSeriesPoint> Series,
+    IReadOnlyList<FinanceCategory> ByCategory,
+    IReadOnlyList<FinanceProduct> Products,
+    IReadOnlyList<FinanceInsight> Insights);

@@ -113,11 +113,33 @@ public sealed class MockFinanceQueryService : IFinanceQueryService
     // Weekday weighting: Thursday busy, Friday quiet (0 = شنبه .. 6 = جمعه).
     private static readonly double[] DowWeight = [1.0, 1.05, 1.1, 1.0, 1.15, 1.35, 0.55];
 
+    // EXPENSE_LOG seed (mirrors the reference's mutable in-memory ledger).
+    private static readonly (string Id, string Desc, string Cat, string Date, string Method, long Amount, string By)[] ExpenseSeed =
+    [
+        ("e1", "شارژ ساختمان آبان", "rent", "1405/08/01", "transfer", 3_200_000, "آریا نیک"),
+        ("e2", "سرویس دستگاه اتوکلاو", "repair", "1405/07/28", "pos", 2_850_000, "پریسا صداقت"),
+        ("e3", "خرید سرم و لوازم مصرفی", "supply", "1405/07/26", "transfer", 6_400_000, "آریا نیک"),
+        ("e4", "حقوق پرسنل مهر", "salary", "1405/07/25", "transfer", 48_000_000, "واحد مالی"),
+        ("e5", "تبلیغات اینستاگرام", "marketing", "1405/07/22", "credit", 4_200_000, "واحد مارکتینگ"),
+        ("e6", "قبض برق دوماهه", "rent", "1405/07/20", "transfer", 1_850_000, "آریا نیک"),
+        ("e7", "خرید غذای خشک (پت‌شاپ)", "supply", "1405/07/18", "transfer", 12_300_000, "واحد خرید"),
+        ("e8", "بیمه تکمیلی پرسنل", "tax", "1405/07/15", "transfer", 5_600_000, "واحد مالی"),
+        ("e9", "تعمیر کولر گازی اتاق عمل", "repair", "1405/07/12", "cash", 1_650_000, "پریسا صداقت"),
+        ("e10", "طراحی بروشور خدمات", "marketing", "1405/07/10", "pos", 2_100_000, "واحد مارکتینگ"),
+        ("e11", "خرید داروی بیهوشی", "supply", "1405/07/08", "transfer", 8_700_000, "دکتر نیک"),
+        ("e12", "ملزومات اداری و پرینتر", "other", "1405/07/05", "cash", 1_320_000, "واحد اداری"),
+    ];
+
     private readonly List<DailyRow> _daily;
+    private readonly List<ExpenseRow> _expenses;
+    private int _expenseUid = 100;
 
     public MockFinanceQueryService()
     {
         _daily = BuildDaily();
+        _expenses = ExpenseSeed
+            .Select(e => new ExpenseRow(e.Id, e.Desc, e.Cat, e.Date, e.Method, e.Amount, e.By))
+            .ToList();
     }
 
     public Task<IReadOnlyList<FinanceRange>> GetRangesAsync() =>
@@ -125,6 +147,86 @@ public sealed class MockFinanceQueryService : IFinanceQueryService
 
     public Task<IReadOnlyList<FinanceProductSort>> GetProductSortsAsync() =>
         Task.FromResult<IReadOnlyList<FinanceProductSort>>(ProductSorts);
+
+    public Task<IReadOnlyList<FinanceCategoryOption>> GetExpenseCategoriesAsync() =>
+        Task.FromResult<IReadOnlyList<FinanceCategoryOption>>(
+            Categories.Select(c => new FinanceCategoryOption(c.Id, c.Label, c.Color)).ToArray());
+
+    public Task<IReadOnlyList<FinancePaymentMethod>> GetPaymentMethodsAsync() =>
+        Task.FromResult<IReadOnlyList<FinancePaymentMethod>>(
+            PaymentMethods.Select(m => new FinancePaymentMethod(m.Id, m.Label)).ToArray());
+
+    public Task<ExpenseEntry> AddExpenseAsync(NewExpenseRequest request)
+    {
+        var cat = Categories.FirstOrDefault(c => c.Id == request.CategoryId)?.Id ?? "other";
+        var method = PaymentMethods.FirstOrDefault(m => m.Id == request.MethodId).Id ?? "cash";
+        var desc = string.IsNullOrWhiteSpace(request.Description) ? "هزینه بدون شرح" : request.Description.Trim();
+        var date = string.IsNullOrWhiteSpace(request.Date) ? JalaliCalendar.Today : request.Date;
+        var entry = new ExpenseRow(
+            "e" + (++_expenseUid),
+            desc,
+            cat,
+            date,
+            method,
+            request.Amount,
+            "دکتر آریا نیک");
+
+        _expenses.Insert(0, entry);
+
+        return Task.FromResult(new ExpenseEntry(
+            entry.Id, entry.Desc, entry.Cat, entry.Method, entry.Amount, entry.Date, entry.By));
+    }
+
+    public Task<FinanceExpense> GetExpenseAsync(string range)
+    {
+        var agg = Aggregate(range);
+        return Task.FromResult(new FinanceExpense(
+            agg.Range.Label,
+            agg.Range.Days,
+            agg.RevTotal,
+            agg.ExpTotal,
+            agg.Delta,
+            agg.Series,
+            agg.ByCategory,
+            _expenses.Select(ToRow).ToArray()));
+    }
+
+    public Task<FinanceProfit> GetProfitAsync(string range)
+    {
+        var agg = Aggregate(range);
+        return Task.FromResult(new FinanceProfit(
+            agg.Range.Label,
+            agg.Range.Days,
+            agg.RevTotal,
+            agg.ExpTotal,
+            agg.Profit,
+            agg.Margin,
+            agg.Delta,
+            agg.AvgDailyProfit,
+            agg.Series,
+            agg.ByCategory,
+            Products,
+            Insights));
+    }
+
+    private static FinanceExpenseRow ToRow(ExpenseRow e)
+    {
+        var cat = Categories.FirstOrDefault(c => c.Id == e.Cat);
+        var method = PaymentMethods.FirstOrDefault(m => m.Id == e.Method);
+        return new FinanceExpenseRow(
+            e.Id,
+            e.Desc,
+            cat?.Label ?? e.Cat,
+            cat?.Color ?? "#7a8b89",
+            e.Date,
+            method.Label ?? e.Method,
+            e.Amount,
+            e.By);
+    }
+
+    /// <summary>One mutable expense ledger entry (the reference's <c>EXPENSE_LOG</c> row).</summary>
+    private sealed record ExpenseRow(
+        string Id, string Desc, string Cat, string Date, string Method, long Amount, string By);
 
     public Task<FinanceOverview> GetOverviewAsync(string range)
     {
