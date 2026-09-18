@@ -1,0 +1,226 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inv="using:Animora.Desktop.Pages.Inventory"
+             x:Class="Animora.Desktop.Pages.Inventory.NewProductModalView"
+             x:Name="Root"
+             x:DataType="inv:NewProductModalViewModel"
+             Width="640"
+             MaxWidth="640"
+             MaxHeight="720"
+             FlowDirection="RightToLeft">
+
+    <!-- New-product modal — re-draws Animora-UI/assets/inventory.js
+         openNewProductModal (.inv-modal.wide.new-product-modal). Values from
+         inventory.css (.type-toggle/.type-opt/.var-grid/.section-hd) + styles.css
+         (.field/.input/.btn). -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.fld">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="0,0,0,5" />
+        </Style>
+        <Style Selector="TextBox.inp">
+            <Setter Property="Padding" Value="8,7" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.sec">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="LetterSpacing" Value="1" />
+        </Style>
+
+        <!-- type toggle (.type-opt) -->
+        <Style Selector="Button.topt">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.topt.on">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- ═══ header ═══ -->
+        <Border Grid.Row="0" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1"
+                Padding="22,20,22,16">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Color="#ffffff" Offset="0" />
+                    <GradientStop Color="#fafcfb" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                <Border Grid.Column="0" Width="50" Height="50" CornerRadius="12"
+                        Background="{Binding ThumbBrush}">
+                    <Path Classes="icon" Width="22" Height="22" Stroke="White"
+                          Data="{StaticResource IconPlus}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="افزودن به انبار" FontSize="11" FontWeight="Bold"
+                               Foreground="{StaticResource Brand600Brush}" LetterSpacing="1" Margin="0,0,0,4" />
+                    <TextBlock Text="کالای جدید" FontSize="18" FontWeight="ExtraBold"
+                               LetterSpacing="-0.3" Foreground="{StaticResource InkBrush}" />
+                    <TextBlock Text="ابتدا اطلاعات پایه را وارد کنید. تنوع اختیاری است." FontSize="12.5"
+                               Margin="0,4,0,0" Foreground="{StaticResource MutedBrush}" />
+                </StackPanel>
+                <Button Grid.Column="2" Width="36" Height="36" Padding="0" CornerRadius="10"
+                        Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                        BorderThickness="1" VerticalAlignment="Top" Command="{Binding CancelCommand}"
+                        ToolTip.Tip="بستن">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                          Data="{StaticResource IconX}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- ═══ body ═══ -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="22,18,22,18">
+                <TextBlock Classes="sec" Text="اطلاعات پایه" Margin="0,0,0,10" />
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto">
+                    <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10">
+                        <TextBlock Classes="fld" Text="نام کالا" />
+                        <TextBox Classes="inp" Text="{Binding Name}" PlaceholderText="مثلاً: قرص ویتامین" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,10">
+                        <TextBlock Classes="fld" Text="کد کالا" />
+                        <TextBox Classes="inp" FontFamily="monospace" Text="{Binding CodeText}"
+                                 PlaceholderText="AN-1900" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,10">
+                        <TextBlock Classes="fld" Text="برند" />
+                        <TextBox Classes="inp" Text="{Binding Brand}" PlaceholderText="BioVet" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,10">
+                        <TextBlock Classes="fld" Text="دسته" />
+                        <ComboBox HorizontalAlignment="Stretch" CornerRadius="10" MinHeight="36"
+                                  ItemsSource="{Binding CategoryOptions}" SelectedItem="{Binding SelectedCategory}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="inv:CategoryOptionViewModel">
+                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,0,10">
+                        <TextBlock Classes="fld" Text="نماد" />
+                        <TextBox Classes="inp" Text="{Binding Glyph}" FontSize="20" TextAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Margin="0,0,0,4">
+                    <TextBlock Classes="fld" Text="توضیحات" />
+                    <TextBox Classes="inp" Text="{Binding Description}" AcceptsReturn="True" TextWrapping="Wrap"
+                             MinHeight="78" VerticalContentAlignment="Top"
+                             PlaceholderText="توضیح مختصر برای پرسنل صندوق و ویزیت" />
+                </StackPanel>
+
+                <TextBlock Classes="sec" Text="نوع کالا" Margin="0,18,0,10" />
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                    <ItemsControl Grid.ColumnSpan="2" ItemsSource="{Binding TypeOptions}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="10" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="inv:InventoryProductTypeOptionViewModel">
+                                <Button Classes="topt" Classes.on="{Binding IsActive}"
+                                        Command="{Binding #Root.((inv:NewProductModalViewModel)DataContext).ChooseTypeCommand}"
+                                        CommandParameter="{Binding Key}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                        <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
+                                                VerticalAlignment="Center" Background="{StaticResource Brand50Brush}">
+                                            <Path Classes="icon" Width="20" Height="20"
+                                                  Stroke="{StaticResource Brand700Brush}"
+                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Title}" FontSize="13.5" FontWeight="ExtraBold"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding Sub}" FontSize="11" Margin="0,2,0,0"
+                                                       Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <Border Grid.Column="2" Width="20" Height="20" CornerRadius="50"
+                                                VerticalAlignment="Top" Background="{StaticResource Brand600Brush}"
+                                                IsVisible="{Binding IsActive}">
+                                            <Path Classes="icon" Width="12" Height="12" Stroke="White"
+                                                  Data="{StaticResource IconCheck}" HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center" />
+                                        </Border>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+
+                <!-- single-unit price/stock (default) -->
+                <Grid IsVisible="{Binding ShowSingleFields}" ColumnDefinitions="*,*" ColumnSpacing="12"
+                      Margin="0,12,0,0" RowDefinitions="Auto,Auto">
+                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,10">
+                        <TextBlock Classes="fld" Text="موجودی اولیه" />
+                        <TextBox Classes="inp" Text="{Binding StockText}" PlaceholderText="۰" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,10">
+                        <TextBlock Classes="fld" Text="نقطه سفارش" />
+                        <TextBox Classes="inp" Text="{Binding ReorderText}" PlaceholderText="۵" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,10">
+                        <TextBlock Classes="fld" Text="قیمت خرید (تومان)" />
+                        <TextBox Classes="inp" Text="{Binding CostText}" PlaceholderText="۰" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,10">
+                        <TextBlock Classes="fld" Text="قیمت فروش (تومان)" />
+                        <TextBox Classes="inp" Text="{Binding PriceText}" PlaceholderText="۰" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- variant setup (opt-in) -->
+                <StackPanel IsVisible="{Binding ShowVariantFields}" Margin="0,12,0,0">
+                    <TextBlock Classes="fld" Text="ویژگی تنوع" />
+                    <TextBox Classes="inp" Text="{Binding AttributeName}"
+                             PlaceholderText="مثلاً: وزن، سایز، دوز" />
+                    <TextBlock Classes="fld" Text="گزینه‌ها را با ویرگول جدا کنید" Margin="0,10,0,5" />
+                    <TextBox Classes="inp" Text="{Binding AttributeOptionsText}"
+                             PlaceholderText="۲ کیلوگرم، ۴ کیلوگرم، ۸ کیلوگرم" />
+                    <TextBlock FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                               Foreground="{StaticResource MutedBrush}"
+                               Text="به‌ازای هر گزینه یک تنوع با قیمت و موجودی مستقل ساخته می‌شود که پس از ساخت قابل ویرایش است." />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ═══ footer ═══ -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                Padding="22,14" Background="{StaticResource PanelBrush}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="primary" Command="{Binding CreateCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                              Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                        <TextBlock Text="ساخت کالا" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="ghost" Content="انصراف" Command="{Binding CancelCommand}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,0 +1,173 @@
+using System.Collections.ObjectModel;
+using Animora.Contracts.Inventory;
+using Animora.Desktop.Controls;
+using Animora.Desktop.Localization;
+using Animora.Desktop.Services;
+using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace Animora.Desktop.Pages.Inventory;
+
+/// <summary>
+/// Backs the Inventory «کالای جدید» modal (Animora-UI/assets/inventory.js
+/// <c>openNewProductModal</c>): the base-info fields, the تک‌واحد / چند‌تنوعی
+/// type toggle, the single-unit price/stock block (default) and the opt-in
+/// variant setup. Submits through <see cref="IInventoryQueryService.CreateProductAsync"/>
+/// (R-18).
+/// </summary>
+public sealed partial class NewProductModalViewModel : ObservableObject
+{
+    private readonly IInventoryQueryService _service;
+    private readonly IToastService _toast;
+    private readonly IDialogService _dialogs;
+    private readonly Action? _onCreated;
+
+    public NewProductModalViewModel(
+        IInventoryQueryService service,
+        IToastService toast,
+        IDialogService dialogs,
+        Action? onCreated = null)
+    {
+        _service = service;
+        _toast = toast;
+        _dialogs = dialogs;
+        _onCreated = onCreated;
+
+        TypeOptions.Add(new InventoryProductTypeOptionViewModel(
+            "no", "IconBox", "تک‌واحد", "یک قیمت و موجودی واحد") { IsActive = true });
+        TypeOptions.Add(new InventoryProductTypeOptionViewModel(
+            "yes", "IconLayers", "چند‌تنوعی", "وزن، سایز یا دوز مختلف"));
+
+        _ = LoadAsync();
+    }
+
+    // ── base info ───────────────────────────────────────────────────────────
+    /// <summary>The header thumbnail gradient — reference's brand-400→brand-600 fill.</summary>
+    public IBrush ThumbBrush { get; } = InventoryPresentation.NewProductThumbBrush();
+
+    [ObservableProperty] private string _name = string.Empty;
+    [ObservableProperty] private string _codeText = string.Empty;
+    [ObservableProperty] private string _brand = string.Empty;
+    [ObservableProperty] private string _glyph = "📦";
+    [ObservableProperty] private string _description = string.Empty;
+
+    public ObservableCollection<CategoryOptionViewModel> CategoryOptions { get; } = [];
+    [ObservableProperty] private CategoryOptionViewModel? _selectedCategory;
+
+    // ── type toggle ─────────────────────────────────────────────────────────
+    public ObservableCollection<InventoryProductTypeOptionViewModel> TypeOptions { get; } = [];
+
+    [ObservableProperty] private bool _hasVariants;
+
+    public bool ShowSingleFields => !HasVariants;
+    public bool ShowVariantFields => HasVariants;
+
+    partial void OnHasVariantsChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowSingleFields));
+        OnPropertyChanged(nameof(ShowVariantFields));
+    }
+
+    [RelayCommand]
+    private void ChooseType(string? key)
+    {
+        HasVariants = key == "yes";
+        foreach (var option in TypeOptions)
+        {
+            option.IsActive = option.Key == key;
+        }
+    }
+
+    // ── single-unit fields ──────────────────────────────────────────────────
+    [ObservableProperty] private string _stockText = string.Empty;
+    [ObservableProperty] private string _reorderText = string.Empty;
+    [ObservableProperty] private string _costText = string.Empty;
+    [ObservableProperty] private string _priceText = string.Empty;
+
+    // ── variant setup ───────────────────────────────────────────────────────
+    [ObservableProperty] private string _attributeName = string.Empty;
+    [ObservableProperty] private string _attributeOptionsText = string.Empty;
+
+    private async Task LoadAsync()
+    {
+        foreach (var category in await _service.GetCategoriesAsync())
+        {
+            CategoryOptions.Add(new CategoryOptionViewModel(category));
+        }
+
+        SelectedCategory = CategoryOptions.FirstOrDefault();
+    }
+
+    [RelayCommand]
+    private async Task CreateAsync()
+    {
+        var name = Name.Trim();
+        if (name.Length == 0)
+        {
+            _toast.Show("نام کالا را وارد کنید", Tone.Danger);
+            return;
+        }
+
+        var code = CodeText.Trim();
+        var brand = Brand.Trim();
+        var glyph = string.IsNullOrWhiteSpace(Glyph) ? "📦" : Glyph.Trim();
+        var categoryId = SelectedCategory?.Id ?? CategoryOptions.FirstOrDefault()?.Id ?? "med";
+
+        IReadOnlyList<string> attributeOptions = [];
+        IReadOnlyList<ProductVariant> variants;
+
+        if (HasVariants)
+        {
+            var attrName = AttributeName.Trim();
+            attributeOptions = AttributeOptionsText
+                .Split([',', '،'], StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .ToList();
+            if (attributeOptions.Count == 0)
+            {
+                attributeOptions = ["گزینه ۱"];
+            }
+
+            variants = [];
+        }
+        else
+        {
+            var stock = ParseInt(StockText);
+            var reorder = ParseInt(ReorderText);
+            variants =
+            [
+                new ProductVariant(
+                    "v_" + Guid.NewGuid().ToString("N")[..6],
+                    "تک واحد",
+                    code.Length > 0 ? code : "—",
+                    stock,
+                    reorder == 0 ? 5 : reorder,
+                    ParseLong(CostText),
+                    ParseLong(PriceText),
+                    null),
+            ];
+        }
+
+        var request = new NewProductRequest(
+            code, name, brand, categoryId, glyph, Description.Trim(),
+            HasVariants ? AttributeName.Trim() : null,
+            attributeOptions,
+            variants);
+
+        await _service.CreateProductAsync(request);
+        _dialogs.Close();
+        _toast.Show("کالا ساخته شد (نمونه طراحی)");
+        _onCreated?.Invoke();
+    }
+
+    [RelayCommand]
+    private void Cancel() => _dialogs.Close();
+
+    private static int ParseInt(string text) =>
+        int.TryParse(PersianNumberFormatter.ToAsciiDigits(text), out var v) ? v : 0;
+
+    private static long ParseLong(string text) =>
+        long.TryParse(PersianNumberFormatter.ToAsciiDigits(text), out var v) ? v : 0;
+}

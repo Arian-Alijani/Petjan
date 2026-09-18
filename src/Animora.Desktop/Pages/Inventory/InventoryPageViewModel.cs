@@ -26,6 +26,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 {
     private readonly IInventoryQueryService _service;
     private readonly IToastService _toast;
+    private readonly IDialogService _dialogs;
 
     private readonly List<Product> _products = [];
     private readonly List<CategoryInfo> _categories = [];
@@ -36,10 +37,11 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private string _catFilter = "all";
     private string _stockFilter = "all";
 
-    public InventoryPageViewModel(IInventoryQueryService service, IToastService toast)
+    public InventoryPageViewModel(IInventoryQueryService service, IToastService toast, IDialogService dialogs)
     {
         _service = service;
         _toast = toast;
+        _dialogs = dialogs;
 
         Title = "انبار و کالا";
         Eyebrow = "مرکز انبار";
@@ -292,29 +294,76 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         row.IsExpanded = !row.IsExpanded;
     }
 
-    // Opening the product / new-product / stock-adjust modals is Phase 18.
+    // ── Phase 18: real product / new-product / stock-adjust modals ──────────
+
+    /// <summary>
+    /// Opens the product detail/edit modal (reference <c>openProductModal(pid)</c>),
+    /// refreshing the list on save/delete (the reference's <c>render()</c>).
+    /// </summary>
     [RelayCommand]
     private void OpenProduct(InventoryProductRowViewModel? row)
     {
         if (row is null) return;
-        _toast.Show($"ویرایش «{row.Name}» — Phase 18", Tone.Info);
+        _dialogs.ShowModal(new ProductModalViewModel(_service, _toast, _dialogs, row.Product.Id, Refresh), 680);
     }
 
+    /// <summary>
+    /// Opens the new-product modal (reference <c>openNewProductModal()</c>),
+    /// refreshing the list once a product is added.
+    /// </summary>
     [RelayCommand]
-    private void OpenNewProduct() => _toast.Show("کالای جدید — Phase 18", Tone.Info);
+    private void OpenNewProduct()
+    {
+        if (!IsProductsTab)
+        {
+            SetSubnav("products");
+        }
 
+        _dialogs.ShowModal(new NewProductModalViewModel(_service, _toast, _dialogs, Refresh), 640);
+    }
+
+    /// <summary>
+    /// Opens the stock-adjust modal (reference <c>openStockAdjustModal(pid)</c>),
+    /// refreshing the list once stock is committed.
+    /// </summary>
     [RelayCommand]
     private void OpenStockAdjust(InventoryProductRowViewModel? row)
     {
         if (row is null) return;
-        _toast.Show($"تغییر موجودی «{row.Name}» — Phase 18", Tone.Info);
+        _dialogs.ShowModal(new StockAdjustModalViewModel(_service, _toast, _dialogs, row.Product.Id, Refresh), 480);
     }
 
+    /// <summary>
+    /// Opens the product modal on its variants tab (reference edit-variant action
+    /// jumps into <c>openProductModal(pid, 'variants')</c>).
+    /// </summary>
     [RelayCommand]
     private void EditVariant(InventoryVariantRowViewModel? variant)
     {
         if (variant is null) return;
-        _toast.Show($"ویرایش تنوع «{variant.Label}» — Phase 18", Tone.Info);
+        var modal = new ProductModalViewModel(_service, _toast, _dialogs, variant.ProductId, Refresh)
+        {
+            ActiveTab = "variants",
+        };
+        _dialogs.ShowModal(modal, 680);
+    }
+
+    /// <summary>Re-reads the catalog and rebuilds every derived section (reference <c>render()</c>).</summary>
+    private void Refresh() => _ = ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        IsBusy = true;
+        _categories.Clear();
+        _categories.AddRange(await _service.GetCategoriesAsync());
+        _products.Clear();
+        _products.AddRange(await _service.GetProductsAsync());
+        IsBusy = false;
+
+        BuildSubnavCounts();
+        BuildFilterChips();
+        RefreshProducts();
+        BuildSettings();
     }
 
     // ── settings actions (reference new-cat / save-settings / del-cat) ──────

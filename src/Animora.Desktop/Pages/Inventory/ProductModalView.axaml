@@ -1,0 +1,758 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inv="using:Animora.Desktop.Pages.Inventory"
+             x:Class="Animora.Desktop.Pages.Inventory.ProductModalView"
+             x:Name="Root"
+             x:DataType="inv:ProductModalViewModel"
+             Width="680"
+             MaxWidth="680"
+             MaxHeight="760"
+             FlowDirection="RightToLeft">
+
+    <!-- Product detail/edit modal — re-draws Animora-UI/assets/inventory.js
+         openProductModal/renderProductModal/renderInfoTab/renderVariantsTab/
+         renderVariantCard/renderHistoryTab. Every measurable value transcribed
+         from inventory.css (.inv-modal*, .modal-tabs, .inv-kpi, .var-grid,
+         .qty-stepper, .var-card, .variant-intro, .attr-builder, .opt-chip,
+         .convert-hint, .hist-*, .type-toggle, .adjust-*) + styles.css
+         (.field/.input/.btn). -->
+    <UserControl.Styles>
+        <!-- ── shared field primitives (.field label / .input) ── -->
+        <Style Selector="TextBlock.fld">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="0,0,0,5" />
+        </Style>
+        <Style Selector="TextBox.inp">
+            <Setter Property="Padding" Value="8,7" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <!-- ── modal tab strip (.modal-tabs .tab) ── -->
+        <Style Selector="Button.mtab">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0,0,0,2" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="6,13" />
+            <Setter Property="Margin" Value="0,0,20,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.mtab:pointerover">
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="Button.mtab.on">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Border.tab-badge">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="MinWidth" Value="18" />
+            <Setter Property="Padding" Value="6,1" />
+        </Style>
+        <Style Selector="Button.mtab.on Border.tab-badge">
+            <Setter Property="Background" Value="{StaticResource Brand100Brush}" />
+        </Style>
+        <Style Selector="Border.tab-badge TextBlock">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.mtab.on Border.tab-badge TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Brand800Brush}" />
+        </Style>
+
+        <!-- ── section head (.section-hd h4) ── -->
+        <Style Selector="TextBlock.sec">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="LetterSpacing" Value="1" />
+        </Style>
+
+        <!-- ── KPI box (.inv-kpi) ── -->
+        <Style Selector="Border.kpi">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="16,18" />
+        </Style>
+        <Style Selector="TextBlock.kpi-num">
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="LetterSpacing" Value="-0.3" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.kpi-lbl">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="0,3,0,0" />
+        </Style>
+
+        <!-- ── variant card (.var-card / .var-head / .qty-stepper) ── -->
+        <Style Selector="Button.var-del">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+        </Style>
+        <Style Selector="Button.var-del:pointerover">
+            <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
+        </Style>
+        <Style Selector="Border.stepper">
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        </Style>
+        <Style Selector="Button.step">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Button.step:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="TextBox.step-in">
+            <Setter Property="Width" Value="64" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="4,0" />
+            <Setter Property="BorderThickness" Value="1,0,1,0" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <!-- ── option chips (.opt-chip) ── -->
+        <Style Selector="Button.opt-chip">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.opt-chip.add">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.opt-chip.add:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+
+        <!-- ── history filter chip (.hf-chip) ── -->
+        <Style Selector="Button.hf">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.hf.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- ═══ header (.inv-modal-head) ═══ -->
+        <Border Grid.Row="0" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1"
+                Padding="22,20,22,16">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Color="#ffffff" Offset="0" />
+                    <GradientStop Color="#fafcfb" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                <Border Grid.Column="0" Width="50" Height="50" CornerRadius="12" Background="{Binding ThumbBrush}">
+                    <TextBlock Text="{Binding Glyph}" FontSize="24" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding EyebrowLine}" FontSize="11" FontWeight="Bold"
+                               Foreground="{StaticResource Brand600Brush}" LetterSpacing="1" Margin="0,0,0,4" />
+                    <TextBlock Text="{Binding Name}" FontSize="18" FontWeight="ExtraBold"
+                               LetterSpacing="-0.3" Foreground="{StaticResource InkBrush}" />
+                    <TextBlock Text="{Binding SubLine}" FontSize="12.5" Margin="0,4,0,0"
+                               Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="2" Classes="var-del" Width="36" Height="36"
+                        Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                        BorderThickness="1" CornerRadius="10" VerticalAlignment="Top"
+                        Command="{Binding CancelCommand}" ToolTip.Tip="بستن">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                          Data="{StaticResource IconX}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- ═══ tab strip (.modal-tabs) ═══ -->
+        <Border Grid.Row="1" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1"
+                Padding="22,0" Background="{StaticResource PanelBrush}">
+            <StackPanel Orientation="Horizontal">
+                <Button Classes="mtab" Classes.on="{Binding IsInfoTab}" Command="{Binding SetTabCommand}"
+                        CommandParameter="info">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Path Classes="icon" Width="16" Height="16" Stroke="{Binding $parent[Button].Foreground}"
+                              Data="{StaticResource IconClipboard}" VerticalAlignment="Center" />
+                        <TextBlock Text="مشخصات" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="mtab" Classes.on="{Binding IsVariantsTab}" Command="{Binding SetTabCommand}"
+                        CommandParameter="variants">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Path Classes="icon" Width="16" Height="16" Stroke="{Binding $parent[Button].Foreground}"
+                              Data="{StaticResource IconLayers}" VerticalAlignment="Center" />
+                        <TextBlock Text="تنوع‌ها" VerticalAlignment="Center" />
+                        <Border Classes="tab-badge" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding VariantCountHeading}" />
+                        </Border>
+                    </StackPanel>
+                </Button>
+                <Button Classes="mtab" Classes.on="{Binding IsHistoryTab}" Command="{Binding SetTabCommand}"
+                        CommandParameter="history">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Path Classes="icon" Width="16" Height="16" Stroke="{Binding $parent[Button].Foreground}"
+                              Data="{StaticResource IconClock}" VerticalAlignment="Center" />
+                        <TextBlock Text="تاریخچه" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ body (.inv-modal-body.product-modal-body) ═══ -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="22,8,22,18">
+
+                <!-- ===== Info tab (renderInfoTab) ===== -->
+                <StackPanel IsVisible="{Binding IsInfoTab}">
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,0,0,18">
+                        <Border Grid.Column="0" Classes="kpi">
+                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                <Border Width="42" Height="42" CornerRadius="12" VerticalAlignment="Center"
+                                        Background="{StaticResource Brand50Brush}">
+                                    <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}"
+                                          Data="{StaticResource IconBox}" HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Classes="kpi-num" Text="{Binding TotalStockText}" />
+                                    <TextBlock Classes="kpi-lbl" Text="موجودی کل" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Classes="kpi">
+                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                <Border Width="42" Height="42" CornerRadius="12" VerticalAlignment="Center"
+                                        Background="{StaticResource InfoBgBrush}">
+                                    <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource InfoBrush}"
+                                          Data="{StaticResource IconWallet}" HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Classes="kpi-num" Text="{Binding TotalValueText}" />
+                                    <TextBlock Classes="kpi-lbl" Text="ارزش موجودی" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Classes="kpi">
+                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                <Border Width="42" Height="42" CornerRadius="12" VerticalAlignment="Center"
+                                        Background="{StaticResource WarnBgBrush}">
+                                    <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource WarnBrush}"
+                                          Data="{StaticResource IconLayers}" HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Classes="kpi-num" Text="{Binding UnitCountText}" />
+                                    <TextBlock Classes="kpi-lbl" Text="{Binding UnitCountLabel}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                        <TextBlock Grid.Column="0" Classes="sec" Text="اطلاعات پایه" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto">
+                        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10">
+                            <TextBlock Classes="fld" Text="نام کالا" />
+                            <TextBox Classes="inp" Text="{Binding Name}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,10">
+                            <TextBlock Classes="fld" Text="کد کالا" />
+                            <TextBox Classes="inp" FontFamily="monospace" Text="{Binding Code}" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,10">
+                            <TextBlock Classes="fld" Text="برند" />
+                            <TextBox Classes="inp" Text="{Binding Brand}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,10">
+                            <TextBlock Classes="fld" Text="دسته" />
+                            <ComboBox HorizontalAlignment="Stretch" CornerRadius="10" MinHeight="36"
+                                      ItemsSource="{Binding CategoryOptions}"
+                                      SelectedItem="{Binding SelectedCategory}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="inv:CategoryOptionViewModel">
+                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,0,10">
+                            <TextBlock Classes="fld" Text="نماد" />
+                            <TextBox Classes="inp" Text="{Binding Glyph}" FontSize="20"
+                                     TextAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Margin="0,0,0,4">
+                        <TextBlock Classes="fld" Text="توضیحات" />
+                        <TextBox Classes="inp" Text="{Binding Description}" AcceptsReturn="True"
+                                 TextWrapping="Wrap" MinHeight="78" VerticalContentAlignment="Top" />
+                    </StackPanel>
+
+                    <!-- single-unit price/stock (renderInfoTab `single` block) -->
+                    <StackPanel IsVisible="{Binding ShowSingleBlock}">
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,18,0,10">
+                            <TextBlock Grid.Column="0" Classes="sec" Text="قیمت و موجودی" />
+                        </Grid>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto">
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,10">
+                                <TextBlock Classes="fld" Text="موجودی فعلی" />
+                                <Border Classes="stepper" HorizontalAlignment="Left">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Classes="step" Content="−" Command="{Binding DecrementSingleCommand}" />
+                                        <TextBox Classes="step-in" Text="{Binding SingleStockText}" />
+                                        <Button Classes="step" Content="+" Command="{Binding IncrementSingleCommand}" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,10">
+                                <TextBlock Classes="fld" Text="نقطه سفارش" />
+                                <TextBox Classes="inp" Text="{Binding SingleReorderText}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,10">
+                                <TextBlock Classes="fld" Text="قیمت خرید (تومان)" />
+                                <TextBox Classes="inp" Text="{Binding SingleCostText}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,10">
+                                <TextBlock Classes="fld" Text="قیمت فروش (تومان)" />
+                                <TextBox Classes="inp" Text="{Binding SinglePriceText}" />
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Margin="0,0,0,4">
+                            <TextBlock Classes="fld" Text="تاریخ انقضا (اختیاری)" />
+                            <TextBox Classes="inp" Text="{Binding SingleExpiryText}" PlaceholderText="۱۴۰۶/۰۱/۰۱" />
+                        </StackPanel>
+
+                        <!-- convert hint (.convert-hint) -->
+                        <Border Background="{StaticResource Brand50Brush}" BorderBrush="{StaticResource Brand100Brush}"
+                                BorderThickness="1" CornerRadius="14" Padding="14,12" Margin="0,16,0,0">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="12"
+                                           LineHeight="19" TextWrapping="Wrap"
+                                           Foreground="{StaticResource Ink2Brush}"
+                                           Text="این کالا تک‌واحد است. اگر در چند وزن، حجم یا سایز ارائه می‌شود، می‌توانید آن را چند‌تنوعی کنید." />
+                                <Button Grid.Column="1" Classes="outline" Padding="10,6" FontSize="12"
+                                        VerticalAlignment="Center" Command="{Binding JumpToVariantsCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="14" Height="14"
+                                              Stroke="{StaticResource InkBrush}" Data="{StaticResource IconLayers}"
+                                              VerticalAlignment="Center" />
+                                        <TextBlock Text="افزودن تنوع" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- ===== Variants tab (renderVariantsTab) ===== -->
+                <StackPanel IsVisible="{Binding IsVariantsTab}">
+
+                    <!-- no-variant intro (.variant-intro) -->
+                    <StackPanel IsVisible="{Binding ShowVariantIntro}" Margin="0,24,0,12" HorizontalAlignment="Center">
+                        <Border Width="60" Height="60" CornerRadius="18" Background="{StaticResource Brand50Brush}"
+                                HorizontalAlignment="Center" Margin="0,0,0,14">
+                            <Path Classes="icon" Width="28" Height="28" Stroke="{StaticResource Brand700Brush}"
+                                  Data="{StaticResource IconLayers}" HorizontalAlignment="Center"
+                                  VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="این کالا هنوز تنوع ندارد" FontSize="16" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource InkBrush}" HorizontalAlignment="Center" />
+                        <TextBlock MaxWidth="420" TextAlignment="Center" TextWrapping="Wrap" Margin="0,6,0,18"
+                                   FontSize="12.5" LineHeight="21" Foreground="{StaticResource MutedBrush}"
+                                   Text="اگر این کالا در چند حالت مختلف (مثل وزن، حجم، سایز یا دوز) عرضه می‌شود، یک ویژگی تعریف کنید تا برای هر گزینه یک تنوع با قیمت و موجودی مستقل ساخته شود." />
+
+                        <Border Background="{StaticResource BgBrush}" BorderBrush="{StaticResource LineBrush}"
+                                BorderThickness="1" CornerRadius="16" Padding="16" MaxWidth="440">
+                            <StackPanel>
+                                <TextBlock Classes="fld" Text="نام ویژگی تنوع" />
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBox Grid.Column="0" Classes="inp" Text="{Binding NewAttributeName}"
+                                             PlaceholderText="مثلاً: وزن، سایز، دوز" />
+                                    <Button Grid.Column="1" Classes="primary" Padding="14,9"
+                                            Command="{Binding EnableAttributeCommand}"
+                                            CommandParameter="{Binding NewAttributeName}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                                                  Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                                            <TextBlock Text="ساخت تنوع" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                                <WrapPanel Margin="0,12,0,0" Orientation="Horizontal">
+                                    <TextBlock Text="پیشنهاد سریع:" FontSize="11.5" VerticalAlignment="Center"
+                                               Margin="0,0,6,6" Foreground="{StaticResource MutedBrush}" />
+                                    <ItemsControl ItemsSource="{Binding QuickAttributeSuggestions}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <Button Classes="opt-chip add" Content="{Binding}" Margin="0,0,6,6"
+                                                        Command="{Binding #Root.((inv:ProductModalViewModel)DataContext).EnableAttributeCommand}"
+                                                        CommandParameter="{Binding}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- attribute builder (.attr-builder) -->
+                    <Border IsVisible="{Binding ShowVariantBuilder}" Background="{StaticResource BgBrush}"
+                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="14"
+                            Padding="14" Margin="0,0,0,14">
+                        <StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,0,0,12">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Classes="fld" Text="نام ویژگی" />
+                                    <TextBox Classes="inp" Text="{Binding NewAttributeName}"
+                                             PlaceholderText="مثلاً: وزن، سایز، دوز" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="danger-ghost" Padding="10,7" FontSize="12"
+                                        VerticalAlignment="Bottom" Command="{Binding DisableAttributeCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="14" Height="14"
+                                              Stroke="{StaticResource DangerBrush}" Data="{StaticResource IconTrash}"
+                                              VerticalAlignment="Center" />
+                                        <TextBlock Text="حذف تنوع‌بندی" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+
+                            <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,0,8">
+                                <TextBlock Classes="fld" Text="گزینه‌ها" Margin="0" />
+                                <TextBlock Classes="fld" Text="{Binding AttributeOptionsCount}" Margin="0" />
+                            </StackPanel>
+                            <WrapPanel Orientation="Horizontal">
+                                <ItemsControl ItemsSource="{Binding AttributeOptions}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="inv:InventoryOptionChipViewModel">
+                                            <Border Background="{StaticResource PanelBrush}"
+                                                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                                    CornerRadius="999" Padding="12,6" Margin="0,0,6,6">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="{Binding Label}" FontSize="12.5" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                                                    <Button Width="16" Height="16" Padding="0" Background="Transparent"
+                                                            BorderThickness="0" Foreground="{StaticResource MutedBrush}"
+                                                            Command="{Binding #Root.((inv:ProductModalViewModel)DataContext).RemoveOptionCommand}"
+                                                            CommandParameter="{Binding}" ToolTip.Tip="حذف">
+                                                        <Path Classes="icon" Width="10" Height="10"
+                                                              Stroke="{StaticResource MutedBrush}"
+                                                              Data="{StaticResource IconX}"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
+                                    <TextBox Classes="inp" Width="150" Text="{Binding NewOptionText}"
+                                             PlaceholderText="افزودن گزینه" />
+                                    <Button Classes="opt-chip add" Content="افزودن گزینه"
+                                            Command="{Binding AddOptionCommand}" />
+                                </StackPanel>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- section head: تنوع‌ها (N) + تنوع دستی -->
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,18,0,10">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                            <TextBlock Classes="sec" Text="تنوع‌ها" />
+                            <TextBlock Classes="sec" Text="{Binding VariantCountHeading}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="ghost" Padding="10,6" FontSize="12"
+                                Command="{Binding AddManualVariantCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Ink2Brush}"
+                                      Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                                <TextBlock Text="تنوع دستی" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <!-- variant cards (#var-list) -->
+                    <ItemsControl ItemsSource="{Binding VariantCards}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="inv:InventoryVariantCardViewModel">
+                                <Border Background="{Binding CardBackground}" BorderBrush="{Binding CardBorder}"
+                                        BorderThickness="1" CornerRadius="14" Padding="14" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="0,0,0,12">
+                                            <TextBox Grid.Column="0" Text="{Binding Label}" BorderThickness="0"
+                                                     Background="Transparent" Padding="0,4" FontSize="15"
+                                                     FontWeight="ExtraBold" VerticalContentAlignment="Center" />
+                                            <Border Grid.Column="1" Background="{StaticResource Bg2Brush}"
+                                                    CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Sku}" FontFamily="monospace" FontSize="11"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </Border>
+                                            <Button Grid.Column="2" Classes="var-del" VerticalAlignment="Center"
+                                                    ToolTip.Tip="حذف تنوع"
+                                                    Command="{Binding #Root.((inv:ProductModalViewModel)DataContext).DeleteVariantCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <Path Classes="icon" Width="15" Height="15"
+                                                      Stroke="{StaticResource DangerBrush}" Data="{StaticResource IconTrash}" />
+                                            </Button>
+                                        </Grid>
+
+                                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto">
+                                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,10">
+                                                <TextBlock Classes="fld" Text="موجودی فعلی" />
+                                                <Border Classes="stepper" HorizontalAlignment="Left">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Classes="step" Content="−" Command="{Binding DecrementStockCommand}" />
+                                                        <TextBox Classes="step-in" Text="{Binding StockText}" />
+                                                        <Button Classes="step" Content="+" Command="{Binding IncrementStockCommand}" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,10">
+                                                <TextBlock Classes="fld" Text="نقطه سفارش" />
+                                                <TextBox Classes="inp" Text="{Binding ReorderText}" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,10">
+                                                <TextBlock Classes="fld" Text="قیمت خرید (تومان)" />
+                                                <TextBox Classes="inp" Text="{Binding CostText}" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,10">
+                                                <TextBlock Classes="fld" Text="قیمت فروش (تومان)" />
+                                                <TextBox Classes="inp" Text="{Binding PriceText}" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <StackPanel>
+                                            <TextBlock Classes="fld" Text="تاریخ انقضا (اختیاری)" />
+                                            <TextBox Classes="inp" Text="{Binding ExpiryText}" PlaceholderText="۱۴۰۶/۰۱/۰۱" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- ===== History tab (renderHistoryTab) ===== -->
+                <StackPanel IsVisible="{Binding IsHistoryTab}">
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,0,0,16">
+                        <Border Grid.Column="0" Classes="kpi">
+                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                <Border Width="42" Height="42" CornerRadius="12" VerticalAlignment="Center"
+                                        Background="{StaticResource OkBgBrush}">
+                                    <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource OkBrush}"
+                                          Data="{StaticResource IconArrowDownLeft}" HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Classes="kpi-num" Text="{Binding HistoryTotalInText}" />
+                                    <TextBlock Classes="kpi-lbl" Text="مجموع افزایش" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Classes="kpi">
+                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                <Border Width="42" Height="42" CornerRadius="12" VerticalAlignment="Center"
+                                        Background="{StaticResource DangerBgBrush}">
+                                    <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource DangerBrush}"
+                                          Data="{StaticResource IconArrowUpRight}" HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Classes="kpi-num" Text="{Binding HistoryTotalOutText}" />
+                                    <TextBlock Classes="kpi-lbl" Text="مجموع کاهش" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Classes="kpi">
+                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                <Border Width="42" Height="42" CornerRadius="12" VerticalAlignment="Center"
+                                        Background="{StaticResource WarnBgBrush}">
+                                    <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource WarnBrush}"
+                                          Data="{StaticResource IconRefresh}" HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Classes="kpi-num" Text="{Binding HistoryAdjustCountText}" />
+                                    <TextBlock Classes="kpi-lbl" Text="اصلاح موجودی" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,14">
+                        <Button Classes="hf" Classes.on="{Binding HistoryFilterAll}" Content="همه رخدادها"
+                                Margin="0,0,6,6" Command="{Binding SetHistoryFilterCommand}" CommandParameter="all" />
+                        <Button Classes="hf" Classes.on="{Binding HistoryFilterIn}" Content="افزایش"
+                                Margin="0,0,6,6" Command="{Binding SetHistoryFilterCommand}" CommandParameter="in" />
+                        <Button Classes="hf" Classes.on="{Binding HistoryFilterOut}" Content="کاهش"
+                                Margin="0,0,6,6" Command="{Binding SetHistoryFilterCommand}" CommandParameter="out" />
+                        <Button Classes="hf" Classes.on="{Binding HistoryFilterAdjust}" Content="اصلاح"
+                                Margin="0,0,6,6" Command="{Binding SetHistoryFilterCommand}" CommandParameter="adjust" />
+                    </WrapPanel>
+
+                    <!-- empty state (emptyState) -->
+                    <StackPanel IsVisible="{Binding !HasHistory}" Margin="0,40,0,20">
+                        <Border Width="64" Height="64" CornerRadius="20" Background="{StaticResource Brand50Brush}"
+                                HorizontalAlignment="Center">
+                            <Path Classes="icon" Width="28" Height="28" Stroke="{StaticResource Brand700Brush}"
+                                  Data="{StaticResource IconBox}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="رخدادی ثبت نشده" FontSize="15" FontWeight="Bold"
+                                   Foreground="{StaticResource InkBrush}" HorizontalAlignment="Center" Margin="0,14,0,0" />
+                        <TextBlock Text="با خرید، فروش یا اصلاح موجودی، تاریخچه اینجا نمایش داده می‌شود."
+                                   FontSize="12.5" Foreground="{StaticResource MutedBrush}"
+                                   HorizontalAlignment="Center" Margin="0,6,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <ItemsControl ItemsSource="{Binding HistoryItems}" IsVisible="{Binding HasHistory}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="inv:InventoryHistoryItemViewModel">
+                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1"
+                                        Padding="0,12">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                        <Border Grid.Column="0" Width="34" Height="34" CornerRadius="11"
+                                                Background="{Binding TileBackground}">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{Binding TileForeground}"
+                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="13"
+                                                           FontWeight="Bold" Foreground="{StaticResource InkBrush}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding QuantityText}" FontSize="14"
+                                                           FontWeight="ExtraBold"
+                                                           Foreground="{Binding QuantityForeground}" />
+                                            </Grid>
+                                            <WrapPanel Margin="0,4,0,0">
+                                                <Border Background="{StaticResource Brand50Brush}" CornerRadius="6"
+                                                        Padding="8,2" Margin="0,0,8,0"
+                                                        IsVisible="{Binding HasVariant}">
+                                                    <TextBlock Text="{Binding VariantLabel}" FontSize="10.5"
+                                                               FontWeight="Bold" Foreground="{StaticResource Brand800Brush}" />
+                                                </Border>
+                                                <TextBlock Text="{Binding MetaText}" FontSize="11.5"
+                                                           Foreground="{StaticResource MutedBrush}"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Text="•" FontSize="11.5" Margin="6,0" Opacity="0.5"
+                                                           Foreground="{StaticResource MutedBrush}"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding By}" FontSize="11.5"
+                                                           Foreground="{StaticResource MutedBrush}"
+                                                           VerticalAlignment="Center" />
+                                            </WrapPanel>
+                                            <Border IsVisible="{Binding HasNote}" Background="{StaticResource BgBrush}"
+                                                    BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                                                    CornerRadius="8" Padding="10,6" Margin="0,6,0,0">
+                                                <TextBlock Text="{Binding Note}" FontSize="11.5"
+                                                           Foreground="{StaticResource Ink2Brush}" TextWrapping="Wrap" />
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ═══ footer (.inv-modal-foot) ═══ -->
+        <Border Grid.Row="3" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                Padding="22,14" Background="{StaticResource PanelBrush}">
+            <Grid ColumnDefinitions="Auto,Auto,*">
+                <Button Grid.Column="0" Classes="primary" Command="{Binding SaveCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                              Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                        <TextBlock Text="ذخیره تغییرات" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="1" Classes="ghost" Content="انصراف" Margin="8,0,0,0"
+                        Command="{Binding CancelCommand}" />
+                <Button Grid.Column="2" Classes="danger-ghost" HorizontalAlignment="Left"
+                        Command="{Binding DeleteCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource DangerBrush}"
+                              Data="{StaticResource IconTrash}" VerticalAlignment="Center" />
+                        <TextBlock Text="حذف کالا" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

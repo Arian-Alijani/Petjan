@@ -95,9 +95,10 @@ public sealed partial class InventoryStockChipViewModel : ObservableObject
 /// </summary>
 public sealed class InventoryVariantRowViewModel
 {
-    public InventoryVariantRowViewModel(ProductVariant variant)
+    public InventoryVariantRowViewModel(ProductVariant variant, string productId)
     {
         Id = variant.Id;
+        ProductId = productId;
         Label = variant.Label;
         Sku = variant.Sku;
         IsLow = variant.Stock <= variant.ReorderPoint;
@@ -108,6 +109,9 @@ public sealed class InventoryVariantRowViewModel
     }
 
     public string Id { get; }
+
+    /// <summary>The owning product's id (used by the edit-variant action to open its modal).</summary>
+    public string ProductId { get; }
 
     public string Label { get; }
 
@@ -193,7 +197,7 @@ public sealed partial class InventoryProductRowViewModel : ObservableObject
         };
 
         Variants = new ObservableCollection<InventoryVariantRowViewModel>(
-            product.Variants.Select(v => new InventoryVariantRowViewModel(v)));
+            product.Variants.Select(v => new InventoryVariantRowViewModel(v, product.Id)));
     }
 
     public Product Product { get; }

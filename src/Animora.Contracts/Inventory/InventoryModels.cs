@@ -59,3 +59,72 @@ public sealed record Product(
     string Description,
     UnitInfo? Attribute,
     IReadOnlyList<ProductVariant> Variants);
+
+/// <summary>
+/// One stock-movement ledger entry, mirroring a row of the reference's
+/// <c>INV.MOVES</c> (Animora-UI/assets/inventory-data.js). <see cref="Kind"/> is
+/// <c>in</c> / <c>out</c> / <c>adjust</c>; <see cref="Qty"/> is signed for an
+/// adjustment and positive for a purchase/sale. Dates/times are Jalali strings
+/// as the reference carries them.
+/// </summary>
+public sealed record StockMovement(
+    string Id,
+    string ProductId,
+    string? VariantId,
+    string Kind,
+    int Qty,
+    string Source,
+    string By,
+    string Date,
+    string Time,
+    string? Note);
+
+/// <summary>
+/// A product plus its stock-movement ledger — the product modal's data need
+/// (reference <c>openProductModal</c> reads <c>PRODUCTS.find</c> + <c>movesOf</c>).
+/// </summary>
+public sealed record ProductDetail(
+    Product Product,
+    IReadOnlyList<StockMovement> Movements);
+
+/// <summary>
+/// The product modal's full draft: base info, the optional variant dimension and
+/// the variant rows — mirroring what the reference's «ذخیره تغییرات» writes back
+/// onto the in-memory <c>PRODUCTS</c> entry.
+/// </summary>
+public sealed record ProductInfoUpdate(
+    string Name,
+    string Code,
+    string Brand,
+    string CategoryId,
+    string Glyph,
+    string Description,
+    string? AttributeName,
+    IReadOnlyList<ProductVariant> Variants);
+
+/// <summary>
+/// A request to append one manually-authored variant (reference
+/// <c>makeVariant(p, 'تنوع جدید', …)</c> behind the variants tab's «تنوع دستی»).
+/// </summary>
+public sealed record NewVariantRequest(string Label);
+
+/// <summary>
+/// A request to create a new product from the modal, mirroring the reference's
+/// <c>openNewProductModal</c> create handler — single-unit or multi-variant.
+/// </summary>
+public sealed record NewProductRequest(
+    string Code,
+    string Name,
+    string Brand,
+    string CategoryId,
+    string Glyph,
+    string Description,
+    string? AttributeName,
+    IReadOnlyList<string> AttributeOptions,
+    IReadOnlyList<ProductVariant> Variants);
+
+/// <summary>
+/// A request to set one variant's on-hand stock, mirroring the stock-adjust
+/// modal's «ثبت موجودی» (the delta is logged as a history event).
+/// </summary>
+public sealed record StockAdjustRequest(int Stock);

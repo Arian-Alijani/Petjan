@@ -187,4 +187,92 @@ public static class InventoryPresentation
         "low" => "#b54708",
         _ => "#101828",
     });
+
+    /// <summary>
+    /// A history-timeline icon tile fill, mirroring <c>.hist-ic.in/out/adjust</c>
+    /// (inventory.css) — ok-bg / danger-bg / warn-bg.
+    /// </summary>
+    public static IBrush HistoryTileBackground(string kind) => Fill(kind switch
+    {
+        "in" => "#ecfdf3",
+        "out" => "#fef3f2",
+        _ => "#fffaeb",
+    });
+
+    /// <summary>The history-timeline icon glyph color, mirroring <c>.hist-ic.in/out/adjust</c>.</summary>
+    public static IBrush HistoryTileForeground(string kind) => Fill(kind switch
+    {
+        "in" => "#027a48",
+        "out" => "#d92d20",
+        _ => "#b54708",
+    });
+
+    /// <summary>The history movement-quantity color, mirroring <c>.hist-qty.in/out/adjust</c>.</summary>
+    public static IBrush HistoryQuantityForeground(string kind) => Fill(kind switch
+    {
+        "in" => "#027a48",
+        "out" => "#d92d20",
+        _ => "#b54708",
+    });
+
+    /// <summary>
+    /// The product-modal KPI icon-tile fill, mirroring <c>.inv-kpi .ic.&lt;tone&gt;</c>
+    /// (teal → brand-50, danger → danger-bg, warn → warn-bg, info → info-bg).
+    /// </summary>
+    public static IBrush KpiTileBackground(string tone) => Fill(tone switch
+    {
+        "teal" => "#f0fdfa",
+        "danger" => "#fef3f2",
+        "warn" => "#fffaeb",
+        "info" => "#eff8ff",
+        "ok" => "#ecfdf3",
+        _ => "#f1f5f6",
+    });
+
+    /// <summary>The product-modal KPI icon glyph color, mirroring <c>.inv-kpi .ic.&lt;tone&gt;</c>.</summary>
+    public static IBrush KpiTileForeground(string tone) => Fill(tone switch
+    {
+        "teal" => "#0e7566",
+        "danger" => "#d92d20",
+        "warn" => "#b54708",
+        "info" => "#1570cd",
+        "ok" => "#027a48",
+        _ => "#344054",
+    });
+
+    /// <summary>
+    /// The new-product «کالای جدید» header thumbnail fill — the reference's
+    /// inline <c>linear-gradient(135deg,var(--brand-400),var(--brand-600))</c>.
+    /// </summary>
+    public static IBrush NewProductThumbBrush()
+    {
+        return new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+            GradientStops =
+            {
+                new GradientStop(Color.Parse("#2dd4bf"), 0),
+                new GradientStop(Color.Parse("#0d9488"), 1),
+            },
+        };
+    }
+
+    /// <summary>
+    /// A row's muted/branding background used by the modal body — the reference's
+    /// <c>linear-gradient(180deg,#fff,#fef7f6)</c> for a low-stock variant card.
+    /// </summary>
+    public static IBrush LowStockRowBackground()
+    {
+        return new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
+            GradientStops =
+            {
+                new GradientStop(Color.Parse("#ffffff"), 0),
+                new GradientStop(Color.Parse("#fef7f6"), 1),
+            },
+        };
+    }
 }
