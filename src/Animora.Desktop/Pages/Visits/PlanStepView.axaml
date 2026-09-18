@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:visits="using:Animora.Desktop.Pages.Visits"
+             x:Class="Animora.Desktop.Pages.Visits.PlanStepView"
+             x:Name="Root"
+             x:DataType="visits:VisitEncounterViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Step 3 — Diagnosis & treatment plan (assets/visit.js renderPlan) -->
+    <StackPanel>
+        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <TextBlock Grid.Column="0" Classes="sec-title" Text="تشخیص و طرح درمان" />
+            <TextBlock Grid.Column="1" Classes="sec-hint" Text="اطلاعات این بخش در صورت پرینت روی برگهٔ نسخه چاپ می‌شود" />
+        </Grid>
+        <StackPanel Spacing="6" Margin="0,0,0,12">
+            <TextBlock Classes="fld-label" Text="تشخیص" />
+            <TextBox Classes="fld-input" Text="{Binding DiagnosisText}" PlaceholderText="مثلاً: عفونت قسمت فوقانی تنفسی" />
+        </StackPanel>
+        <StackPanel Spacing="6">
+            <TextBlock Classes="fld-label" Text="طرح درمان" />
+            <TextBox Classes="fld-input" Text="{Binding PlanText}" AcceptsReturn="True" TextWrapping="Wrap"
+                     MinHeight="130" PlaceholderText="اقدامات درمانی، توصیه‌ها، پیگیری‌های لازم…" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,105 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:visits="using:Animora.Desktop.Pages.Visits"
+             x:Class="Animora.Desktop.Pages.Visits.ReviewStepView"
+             x:Name="Root"
+             x:DataType="visits:VisitEncounterViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Step 5 — Invoice preview (assets/visit.js renderReview/reviewLineHtml) -->
+    <StackPanel>
+        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <TextBlock Grid.Column="0" Classes="sec-title" Text="پیش‌نمایش فاکتور" />
+            <TextBlock Grid.Column="1" Classes="sec-hint" Text="پس از تأیید، این ویزیت به‌عنوان انجام‌شده ثبت می‌شود" />
+        </Grid>
+
+        <Border Classes="review-box">
+            <StackPanel>
+                <TextBlock IsVisible="{Binding HasNoRxLines}" Classes="rx-empty"
+                           Text="هنوز خدمتی افزوده نشده — لطفاً به گام قبل برگردید." />
+                <ItemsControl ItemsSource="{Binding ServiceLines}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="visits:RxLineViewModel">
+                            <Border Classes="review-line">
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding Title}" FontWeight="ExtraBold" FontSize="13"
+                                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding KindLabel}" FontSize="11" FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding QtyXPriceText}" FontSize="12"
+                                               FontWeight="Bold" Foreground="{StaticResource MutedBrush}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding LineTotalText}" FontWeight="ExtraBold"
+                                               FontSize="13" Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ItemsControl ItemsSource="{Binding ItemLines}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="visits:RxLineViewModel">
+                            <Border Classes="review-line">
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding Title}" FontWeight="ExtraBold" FontSize="13"
+                                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding KindLabel}" FontSize="11" FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding QtyXPriceText}" FontSize="12"
+                                               FontWeight="Bold" Foreground="{StaticResource MutedBrush}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding LineTotalText}" FontWeight="ExtraBold"
+                                               FontSize="13" Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,14,0,0">
+            <Border Grid.Column="0" Classes="review-note">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="تشخیص" FontSize="11" FontWeight="ExtraBold" Foreground="{StaticResource MutedBrush}" />
+                    <TextBlock Text="{Binding DiagnosisDisplay}" FontSize="13" FontWeight="Bold"
+                               Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Classes="review-note">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="طرح درمان" FontSize="11" FontWeight="ExtraBold" Foreground="{StaticResource MutedBrush}" />
+                    <TextBlock Text="{Binding PlanDisplay}" FontSize="13" FontWeight="Bold"
+                               Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Classes="review-totals" Margin="0,18,0,0">
+            <StackPanel>
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="جمع اقلام" FontSize="13" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBlock Grid.Column="1" Text="{Binding SubtotalText}" FontSize="13" FontWeight="Bold"
+                               Foreground="{StaticResource Ink2Brush}" />
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                    <TextBlock Grid.Column="0" Text="مالیات (۹٪)" FontSize="13" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBlock Grid.Column="1" Text="{Binding TaxText}" FontSize="13" FontWeight="Bold"
+                               Foreground="{StaticResource Ink2Brush}" />
+                </Grid>
+                <Border Classes="review-total-rule">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="مبلغ نهایی قابل پرداخت" FontSize="15" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="{Binding TotalText}" FontSize="22" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource Brand700Brush}" VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

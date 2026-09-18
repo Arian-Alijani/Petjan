@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:visits="using:Animora.Desktop.Pages.Visits"
+             x:Class="Animora.Desktop.Pages.Visits.HistoryStepView"
+             x:Name="Root"
+             x:DataType="visits:VisitEncounterViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Step 2 — History & physical exam (assets/visit.js renderHistory + .col-2) -->
+    <StackPanel>
+        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <TextBlock Grid.Column="0" Classes="sec-title" Text="شرح‌حال و معاینهٔ فیزیکی" />
+            <TextBlock Grid.Column="1" Classes="sec-hint" Text="هر دو بخش قابل ویرایش‌اند" />
+        </Grid>
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <StackPanel Grid.Column="0" Spacing="6">
+                <TextBlock Classes="fld-label" Text="شرح حال بیمار" />
+                <TextBox Classes="fld-input" Text="{Binding HistoryText}" AcceptsReturn="True" TextWrapping="Wrap"
+                         MinHeight="150" PlaceholderText="سابقهٔ بیماری، مشاهدات مالک، طول مدت علائم…" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6">
+                <TextBlock Classes="fld-label" Text="معاینهٔ فیزیکی" />
+                <TextBox Classes="fld-input" Text="{Binding ExamText}" AcceptsReturn="True" TextWrapping="Wrap"
+                         MinHeight="150" PlaceholderText="یافته‌های معاینه: قلبی، ریوی، شکمی، عصبی، پوست…" />
+            </StackPanel>
+        </Grid>
+    </StackPanel>
+</UserControl>

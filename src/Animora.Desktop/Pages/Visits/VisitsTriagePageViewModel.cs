@@ -21,6 +21,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 {
     private readonly IVisitsTriageService _service;
     private readonly IToastService _toast;
+    private readonly INavigationService _navigation;
 
     [ObservableProperty]
     private DoctorTileViewModel? _selectedDoctor;
@@ -66,10 +67,14 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     [ObservableProperty]
     private string _newPatientPhone = string.Empty;
 
-    public VisitsTriagePageViewModel(IVisitsTriageService service, IToastService toast)
+    public VisitsTriagePageViewModel(
+        IVisitsTriageService service,
+        IToastService toast,
+        INavigationService navigation)
     {
         _service = service;
         _toast = toast;
+        _navigation = navigation;
         Title = "ویزیت و پرونده پزشکی";
         Eyebrow = "پرونده الکترونیک سلامت";
         Breadcrumbs.Add("مدیریت کلینیک");
@@ -274,7 +279,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 
         var draft = await _service.StartFromTicketAsync(row.TicketId);
         _toast.Show($"ویزیت « {draft.PatientName} » آغاز شد (نمونه طراحی)", Tone.Ok);
-        _toast.Show("Encounter wizard — Phase 11", Tone.Info);
+        _navigation.NavigateTo<VisitEncounterViewModel>(vm => vm.Load(draft));
     }
 
     [RelayCommand]
@@ -287,6 +292,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         }
 
         var request = new NewVisitRequest(
+            DoctorId: SelectedDoctor.Doctor.Id,
             PatientName: PickedPatient.Name,
             PatientKind: PickedPatient.Kind,
             OwnerName: PickedPatient.OwnerName,
@@ -297,9 +303,9 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
             IsUrgent: IsUrgent,
             Note: NoteText);
 
-        await _service.StartNewAsync(request);
+        var draft = await _service.StartNewAsync(request);
         _toast.Show($"ویزیت جدید بدون نوبت برای « {PickedPatient.Name} » آغاز شد (نمونه طراحی)", Tone.Ok);
-        _toast.Show("Encounter wizard — Phase 11", Tone.Info);
+        _navigation.NavigateTo<VisitEncounterViewModel>(vm => vm.Load(draft));
     }
 
     private void SelectType(VisitTypeOptionViewModel? option)

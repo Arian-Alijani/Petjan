@@ -13,6 +13,10 @@ namespace Animora.Desktop.Mocks;
 /// </summary>
 public sealed class MockVisitsTriageService : IVisitsTriageService
 {
+    private readonly VisitEncounterStore _store;
+
+    public MockVisitsTriageService(VisitEncounterStore store) => _store = store;
+
     private readonly IReadOnlyList<VisitTypeInfo> _types =
     [
         new("visit", "ویزیت عمومی", "IconBriefcase", "#0d9488", 30),
@@ -88,18 +92,33 @@ public sealed class MockVisitsTriageService : IVisitsTriageService
             }
         }
 
+        var doctor = _doctors.FirstOrDefault(d => d.Id == doctorId);
+        var bookedType = ResolveType(match?.TypeId);
         var draft = new EncounterDraft(
             Id: NewEncounterId(),
             TicketId: ticketId,
             DoctorId: doctorId,
+            DoctorName: doctor?.Name ?? string.Empty,
+            DoctorShortName: ShortName(doctor),
+            DoctorSpecialty: doctor?.Specialty ?? string.Empty,
+            DoctorInitials: doctor?.Initials ?? string.Empty,
+            DoctorAccent: doctor?.Accent ?? "#0d9488",
             PatientName: match?.PatientName ?? string.Empty,
             PatientKind: match?.PatientKind ?? string.Empty,
+            PatientIconKey: match?.PatientIconKey ?? "paw",
             OwnerName: match?.OwnerName ?? string.Empty,
-            TypeId: match?.TypeId ?? "visit",
+            OwnerPhone: match?.OwnerPhone ?? string.Empty,
+            TypeId: bookedType.Id,
+            TypeLabel: bookedType.Label,
+            TypeAccent: bookedType.Accent,
             IsUrgent: match?.IsUrgent ?? false,
+            IsSynthetic: false,
+            AtMinutes: match?.AtMinutes ?? 0,
+            DurationMinutes: match?.DurationMinutes ?? 0,
             Note: string.Empty,
             SourceTicketId: ticketId);
 
+        _store.Create(draft);
         return Task.FromResult(draft);
     }
 
@@ -107,19 +126,56 @@ public sealed class MockVisitsTriageService : IVisitsTriageService
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        var doctor = _doctors.FirstOrDefault(d => d.Id == request.DoctorId);
+        var type = ResolveType(request.TypeId);
+        var now = DateTime.Now;
         var draft = new EncounterDraft(
             Id: NewEncounterId(),
             TicketId: string.Empty,
-            DoctorId: string.Empty,
+            DoctorId: doctor?.Id ?? string.Empty,
+            DoctorName: doctor?.Name ?? string.Empty,
+            DoctorShortName: ShortName(doctor),
+            DoctorSpecialty: doctor?.Specialty ?? string.Empty,
+            DoctorInitials: doctor?.Initials ?? string.Empty,
+            DoctorAccent: doctor?.Accent ?? "#0d9488",
             PatientName: request.PatientName,
             PatientKind: request.PatientKind,
+            PatientIconKey: request.PatientIconKey,
             OwnerName: request.OwnerName,
-            TypeId: request.TypeId,
+            OwnerPhone: request.OwnerPhone,
+            TypeId: type.Id,
+            TypeLabel: type.Label,
+            TypeAccent: type.Accent,
             IsUrgent: request.IsUrgent,
+            IsSynthetic: true,
+            AtMinutes: (now.Hour * 60) + now.Minute,
+            DurationMinutes: type.DefaultDurationMinutes,
             Note: request.Note,
             SourceTicketId: string.Empty);
 
+        _store.Create(draft);
         return Task.FromResult(draft);
+    }
+
+    private VisitTypeInfo ResolveType(string? typeId) =>
+        _types.FirstOrDefault(t => t.Id == typeId) ?? _types[0];
+
+    /// <summary>
+    /// The doctor's display short-name (without the «دکتر» honorific) used by
+    /// the ribbon badge and the done step, mirroring the reference's
+    /// <c>DOCTORS[].short</c>.
+    /// </summary>
+    private static string ShortName(DoctorRailInfo? doctor)
+    {
+        if (doctor is null)
+        {
+            return string.Empty;
+        }
+
+        const string prefix = "دکتر ";
+        return doctor.Name.StartsWith(prefix, StringComparison.Ordinal)
+            ? doctor.Name[prefix.Length..]
+            : doctor.Name;
     }
 
     private static string NewEncounterId() => $"enc-{Guid.NewGuid():N}"[..12];

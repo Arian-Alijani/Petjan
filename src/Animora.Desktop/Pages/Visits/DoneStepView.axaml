@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:visits="using:Animora.Desktop.Pages.Visits"
+             x:Class="Animora.Desktop.Pages.Visits.DoneStepView"
+             x:Name="Root"
+             x:DataType="visits:VisitEncounterViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Done scene — success panel (assets/visit.js renderDone + visits.html .success-panel) -->
+    <StackPanel Margin="32,50">
+        <Border Classes="ok-ic">
+            <Path Classes="icon" Width="46" Height="46" Stroke="{StaticResource OkBrush}"
+                  Data="{StaticResource IconCheck}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <TextBlock Classes="ok-title" Text="ویزیت با موفقیت ثبت شد" />
+        <TextBlock Classes="ok-sub">
+            <Run Text="پروندهٔ بیمار به‌روزرسانی شد و فاکتور به صندوق ارسال شد. " />
+            <Run Text="(نمونه طراحی)" Opacity="0.7" />
+        </TextBlock>
+
+        <UniformGrid Columns="3" MaxWidth="520" HorizontalAlignment="Center" Margin="0,24,0,0">
+            <Border Classes="sum-cell">
+                <StackPanel>
+                    <TextBlock Classes="sum-lbl" Text="بیمار" />
+                    <TextBlock Classes="sum-val" Text="{Binding DonePatientName}" />
+                </StackPanel>
+            </Border>
+            <Border Classes="sum-cell">
+                <StackPanel>
+                    <TextBlock Classes="sum-lbl" Text="پزشک" />
+                    <TextBlock Classes="sum-val" Text="{Binding DoneDoctorShort}" />
+                </StackPanel>
+            </Border>
+            <Border Classes="sum-cell">
+                <StackPanel>
+                    <TextBlock Classes="sum-lbl" Text="مبلغ فاکتور" />
+                    <TextBlock Classes="sum-val" Text="{Binding DoneTotalText}" />
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,24,0,0">
+            <Button Classes="wz-done-btn primary" Command="{Binding NextVisitCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="White"
+                          Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                    <TextBlock Text="ویزیت بعدی" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Classes="wz-done-btn outline" Command="{Binding HandoffToCashierCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Ink2Brush}"
+                          Data="{StaticResource IconReceipt}" VerticalAlignment="Center" />
+                    <TextBlock Text="رفتن به صندوق" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </StackPanel>
+</UserControl>
