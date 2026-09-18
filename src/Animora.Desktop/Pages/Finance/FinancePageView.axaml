@@ -753,15 +753,11 @@
 
             </StackPanel>
 
-            <!-- ═══════════════ EXPENSE / PROFIT (Phase 26 placeholder) ═══════════════ -->
-            <Border Classes="phase-note" IsVisible="{Binding IsExpense}">
-                <TextBlock Text="{Binding PlaceholderText}" FontSize="13" Foreground="{StaticResource MutedBrush}"
-                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-            </Border>
-            <Border Classes="phase-note" IsVisible="{Binding IsProfit}">
-                <TextBlock Text="{Binding PlaceholderText}" FontSize="13" Foreground="{StaticResource MutedBrush}"
-                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-            </Border>
+            <!-- ═══════════════ EXPENSE TAB ═══════════════ -->
+            <fm:FinanceExpenseTabView IsVisible="{Binding IsExpense}" />
+
+            <!-- ═══════════════ PROFIT TAB ═══════════════ -->
+            <fm:FinanceProfitTabView IsVisible="{Binding IsProfit}" />
         </StackPanel>
     </ScrollViewer>
 </UserControl>

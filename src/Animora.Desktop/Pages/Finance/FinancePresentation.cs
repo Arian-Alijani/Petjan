@@ -331,6 +331,31 @@ public static class FinancePresentation
         _ => "IconBulb",
     };
 
+    /// <summary>
+    /// The <c>.fin-head-chip.(good|bad)</c> pill background (reused by the profit
+    /// gauge card's delta chip, finance.css <c>.fin-head-chip.good/.bad</c>).
+    /// </summary>
+    public static IBrush HeadChipBackground(string? tone) => Fill(
+        tone == "good" ? "#ecfdf3" : tone == "bad" ? "#fef3f2" : "#f1f5f6");
+
+    /// <summary>The <c>.fin-head-chip.(good|bad)</c> pill foreground.</summary>
+    public static IBrush HeadChipForeground(string? tone) => Fill(
+        tone == "good" ? "#027a48" : tone == "bad" ? "#d92d20" : "#667085");
+
+    /// <summary>
+    /// The icon key of a payment method (mirrors the reference's category/stat
+    /// icon for the expense modal + table; both use the shared <c>Icons.card</c>
+    /// for the payment-method family).
+    /// </summary>
+    public static string PaymentMethodIcon(string id) => id switch
+    {
+        "pos" => "IconCreditCard",
+        "cash" => "IconCoins",
+        "transfer" => "IconBank",
+        "credit" => "IconCreditCard",
+        _ => "IconCreditCard",
+    };
+
     // ── heatmap ─────────────────────────────────────────────────────────
 
     private static readonly string[] HeatShades =

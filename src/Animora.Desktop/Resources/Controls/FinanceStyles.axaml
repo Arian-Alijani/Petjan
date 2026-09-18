@@ -374,6 +374,31 @@
         <Setter Property="MinWidth" Value="34" />
     </Style>
 
+    <!-- ═══ Expense ledger table (finance.css .fin-tbl / .fin-row-new) ═══ -->
+    <Style Selector="Border.new-row">
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+    </Style>
+
+    <!-- ═══ Profit margin gauge (finance.css .fin-gauge*) ═══ -->
+    <Style Selector="Border.gauge-legend-cell">
+        <Setter Property="Background" Value="{StaticResource BgBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="Padding" Value="8,12" />
+    </Style>
+    <Style Selector="TextBlock.gauge-legend-k">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        <Setter Property="Margin" Value="0,0,0,5" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.gauge-legend-b">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+
     <!-- ═══ Placeholder (Phase 26) ═══ -->
     <Style Selector="Border.phase-note">
         <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />

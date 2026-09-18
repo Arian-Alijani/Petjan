@@ -29,6 +29,7 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 {
     private readonly IFinanceQueryService _service;
     private readonly IToastService _toast;
+    private readonly IDialogService _dialogs;
 
     private string _range = "30d";
     private string _prodSort = "revenue";
@@ -37,10 +38,11 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
     private string _entryTab = "overview";
     private string _entryRange = "30d";
 
-    public FinancePageViewModel(IFinanceQueryService service, IToastService toast)
+    public FinancePageViewModel(IFinanceQueryService service, IToastService toast, IDialogService dialogs)
     {
         _service = service;
         _toast = toast;
+        _dialogs = dialogs;
 
         Title = "مالی، هزینه‌ها و گزارش فروش";
         Eyebrow = "مرکز مالی و هوش کسب‌وکار";
@@ -62,13 +64,8 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 
     public string ExportLabel => _entryTab == "expense" ? "خروجی گزارش" : "خروجی PDF";
 
-    /// <summary>
-    /// Phase 26 placeholder copy shown on the هزینه‌ها / سود و تحلیل tabs
-    /// (their bodies land in the next phase).
-    /// </summary>
-    public string PlaceholderText => ActiveTab == "profit"
-        ? "تب «سود و تحلیل» در فاز ۲۶ پیاده‌سازی می‌شود."
-        : "تب «هزینه‌ها» در فاز ۲۶ پیاده‌سازی می‌شود.";
+    /// <summary>The «کشف کلیدی» highlight copy on the هزینه‌ها / سود و تحلیل tabs is built on load.</summary>
+    public string PlaceholderText => string.Empty;
 
     // ── Entry configuration (called by navigation) ───────────────────────
 
@@ -122,6 +119,12 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
     public ObservableCollection<FinanceChannelBarViewModel> ChannelBars { get; } = [];
 
     public ObservableCollection<FinanceHeatRowViewModel> HeatRows { get; } = [];
+
+    /// <summary>Expense tab ledger rows (finance.js <c>expenseTableCard</c>).</summary>
+    public ObservableCollection<FinanceExpenseRowViewModel> ExpenseRows { get; } = [];
+
+    /// <summary>Profit tab «سودآورترین‌ها» rows (finance.js <c>marginLeadersCard</c>).</summary>
+    public ObservableCollection<FinanceMarginLeaderViewModel> MarginLeaders { get; } = [];
 
     /// <summary>The heatmap's 12 hour header labels (۹..۲۰).</summary>
     public IReadOnlyList<string> HeatHours { get; } =
@@ -227,9 +230,15 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 
     private async Task LoadPanelAsync()
     {
-        if (ActiveTab is "expense" or "profit")
+        if (ActiveTab == "expense")
         {
-            // Phase 26 supplies these tab bodies; the placeholder sub-views show.
+            await LoadExpenseAsync();
+            return;
+        }
+
+        if (ActiveTab == "profit")
+        {
+            await LoadProfitAsync();
             return;
         }
 
@@ -272,6 +281,200 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(ChannelBarsChipText));
         OnPropertyChanged(nameof(SpeciesChipText));
     }
+
+    private async Task LoadExpenseAsync()
+    {
+        var data = await _service.GetExpenseAsync(_range);
+        RangeLabel = data.RangeLabel;
+        CategoryCount = data.ByCategory.Count;
+
+        TrendPoints = data.Series
+            .Select(p => new TrendChartPoint(p.Revenue, p.Expense, p.Profit, p.Label, p.Full))
+            .Reverse()
+            .ToArray();
+
+        // Shared trend chart + category breakdown + highlight (mirrors panelExpense).
+        BuildCategoryRows(data.ByCategory);
+        BuildExpenseRows(data.Rows);
+        BuildExpenseMiniStrip(data);
+        BuildExpenseHighlight(data);
+        BuildChart("کنترل مخارج", "روند هزینه");
+
+        OnPropertyChanged(nameof(ChartHeading));
+        OnPropertyChanged(nameof(CategoriesChipText));
+        OnPropertyChanged(nameof(ExpenseChipText));
+    }
+
+    /// <summary>The expense table's «N ردیف» head chip text.</summary>
+    public string ExpenseChipText => $"{FinancePresentation.Fa(ExpenseRows.Count)} ردیف";
+
+    private void BuildExpenseRows(IReadOnlyList<FinanceExpenseRow> rows)
+    {
+        ExpenseRows.Clear();
+        foreach (var r in rows)
+        {
+            ExpenseRows.Add(new FinanceExpenseRowViewModel(
+                r.Id, r.Description, r.CategoryLabel, r.CategoryColor,
+                PersianNumberFormatter.ToPersianDigits(r.Date), r.MethodLabel,
+                FinancePresentation.Money(r.Amount), r.By));
+        }
+    }
+
+    private void BuildExpenseMiniStrip(FinanceExpense data)
+    {
+        MiniStats.Clear();
+        var topCat = data.ByCategory.FirstOrDefault();
+        MiniStats.Add(new FinanceMiniStatViewModel("expense", "IconReceipt", "هزینه کل",
+            FinancePresentation.FaDec(data.ExpTotal / 1e6, 1), "م تومان",
+            FinancePresentation.SignPct(data.Delta.Expense),
+            data.Delta.Expense > 0 ? "bad" : "good"));
+        MiniStats.Add(new FinanceMiniStatViewModel("expense", "IconCoins", "میانگین روزانه",
+            FinancePresentation.FaDec(data.ExpTotal / (double)data.DayCount / 1e6, 1), "م تومان"));
+        MiniStats.Add(new FinanceMiniStatViewModel("expense", "IconScale", "نسبت هزینه به درآمد",
+            FinancePresentation.Fa(data.RevTotal == 0 ? 0 : (long)Math.Round(data.ExpTotal / (double)data.RevTotal * 100)),
+            "٪"));
+        MiniStats.Add(new FinanceMiniStatViewModel("expense", "IconTag", "بزرگ‌ترین دسته",
+            topCat?.Label ?? "—", null));
+    }
+
+    private void BuildExpenseHighlight(FinanceExpense data)
+    {
+        var topCat = data.ByCategory.FirstOrDefault();
+        if (topCat is null)
+        {
+            Highlight = null;
+            return;
+        }
+
+        var ratio = data.RevTotal == 0 ? 0 : (long)Math.Round(data.ExpTotal / (double)data.RevTotal * 100);
+        Highlight = new FinanceHighlightViewModel("warn", "IconAlert", "کشف کلیدی",
+        [
+            new("بزرگ‌ترین سرفصل هزینه ", false),
+            new(topCat.Label, true),
+            new(" با ", false),
+            new(FinancePresentation.MoneyShort(topCat.Value), true),
+            new(" است — نسبت هزینه به درآمد ", false),
+            new(FinancePresentation.Fa(ratio) + "٪", true),
+            new(".", false),
+        ]);
+    }
+
+    private async Task LoadProfitAsync()
+    {
+        var data = await _service.GetProfitAsync(_range);
+        RangeLabel = data.RangeLabel;
+        CategoryCount = data.ByCategory.Count;
+
+        TrendPoints = data.Series
+            .Select(p => new TrendChartPoint(p.Revenue, p.Expense, p.Profit, p.Label, p.Full))
+            .Reverse()
+            .ToArray();
+
+        MarginPercent = Math.Clamp(data.Margin, 0, 100);
+        MarginValueText = FinancePresentation.FaDec(data.Margin, 1);
+        MarginChipText = FinancePresentation.FaDec(Math.Abs(data.Delta.Margin), 1) + " واحد";
+        MarginChipTone = data.Delta.Margin >= 0 ? "good" : "bad";
+        MarginChipIcon = data.Delta.Margin >= 0 ? "IconArrowUpRight" : "IconTrendDown";
+        GaugeLegend =
+        [
+            new FinanceGaugeLegendViewModel("درآمد", FinancePresentation.MoneyShort(data.RevTotal),
+                FinancePresentation.Fill(FinancePresentation.IncomeColor)),
+            new FinanceGaugeLegendViewModel("هزینه", FinancePresentation.MoneyShort(data.ExpTotal),
+                FinancePresentation.Fill(FinancePresentation.ExpenseColor)),
+            new FinanceGaugeLegendViewModel("سود خالص", FinancePresentation.MoneyShort(data.Profit),
+                FinancePresentation.Fill(FinancePresentation.ProfitColor)),
+        ];
+
+        BuildCategoryRows(data.ByCategory);
+        BuildMarginLeaders(data.Products);
+        BuildProfitMiniStrip(data);
+        BuildProfitHighlight(data);
+        BuildInsights(data.Insights);
+        BuildChart("تحلیل سودآوری", "روند سود");
+
+        OnPropertyChanged(nameof(ChartHeading));
+        OnPropertyChanged(nameof(MarginLeadersChipText));
+    }
+
+    /// <summary>The profit margin-leaders «N قلم» head chip text.</summary>
+    public string MarginLeadersChipText => $"{FinancePresentation.Fa(MarginLeaders.Count)} قلم";
+
+    private void BuildMarginLeaders(IReadOnlyList<FinanceProduct> products)
+    {
+        MarginLeaders.Clear();
+        foreach (var p in products.OrderByDescending(p => p.Margin))
+        {
+            MarginLeaders.Add(new FinanceMarginLeaderViewModel(
+                p.Icon, p.Tone, p.Name,
+                FinancePresentation.MoneyShort(p.Profit),
+                p.Margin / 100.0,
+                FinancePresentation.FaPercent(p.Margin)));
+        }
+    }
+
+    private void BuildProfitMiniStrip(FinanceProfit data)
+    {
+        MiniStats.Clear();
+        MiniStats.Add(new FinanceMiniStatViewModel("profit", "IconPiggy", "سود خالص",
+            FinancePresentation.FaDec(data.Profit / 1e6, 1), "م تومان",
+            FinancePresentation.SignPct(data.Delta.Profit), data.Delta.Profit >= 0 ? "good" : "bad",
+            data.Delta.Profit >= 0 ? "IconArrowUpRight" : "IconTrendDown"));
+        MiniStats.Add(new FinanceMiniStatViewModel("profit", "IconPercent", "حاشیه سود",
+            FinancePresentation.FaDec(data.Margin, 1), "٪",
+            FinancePresentation.SignPct(data.Delta.Margin), data.Delta.Margin >= 0 ? "good" : "bad",
+            data.Delta.Margin >= 0 ? "IconArrowUpRight" : "IconTrendDown"));
+        MiniStats.Add(new FinanceMiniStatViewModel("profit", "IconCoins", "سود روزانه",
+            FinancePresentation.FaDec(data.AvgDailyProfit / 1e6, 1), "م تومان"));
+        MiniStats.Add(new FinanceMiniStatViewModel("profit", "IconWallet", "بازده هر تومان هزینه",
+            FinancePresentation.FaDec(data.ExpTotal == 0 ? 0 : (double)data.Profit / data.ExpTotal, 2), "تومان"));
+    }
+
+    private void BuildProfitHighlight(FinanceProfit data)
+    {
+        var topMarginProd = data.Products.OrderByDescending(p => p.Margin).FirstOrDefault();
+        if (topMarginProd is null)
+        {
+            Highlight = null;
+            return;
+        }
+
+        Highlight = new FinanceHighlightViewModel("info", "IconPiggy", "کشف کلیدی",
+        [
+            new("سودآورترین آیتم ", false),
+            new(topMarginProd.Name, true),
+            new(" با حاشیه سود ", false),
+            new(FinancePresentation.FaPercent(topMarginProd.Margin), true),
+            new(" است؛ حاشیه سود کل ", false),
+            new(FinancePresentation.FaDec(data.Margin, 1) + "٪", true),
+            new(".", false),
+        ]);
+    }
+
+    /// <summary>The profit margin gauge fill percent (finance.css .fin-gauge-val).</summary>
+    [ObservableProperty]
+    private double _marginPercent;
+
+    [ObservableProperty]
+    private string _marginValueText = string.Empty;
+
+    [ObservableProperty]
+    private string _marginChipText = string.Empty;
+
+    [ObservableProperty]
+    private string _marginChipTone = "good";
+
+    [ObservableProperty]
+    private string _marginChipIcon = "IconArrowUpRight";
+
+    /// <summary>Always true once the profit tab loads (the chart card's delta chip).</summary>
+    public bool HasMarginChip => !string.IsNullOrEmpty(MarginChipText);
+
+    public Avalonia.Media.IBrush MarginChipBrush => FinancePresentation.HeadChipBackground(MarginChipTone);
+
+    public Avalonia.Media.IBrush MarginChipForeground => FinancePresentation.HeadChipForeground(MarginChipTone);
+
+    [ObservableProperty]
+    private IReadOnlyList<FinanceGaugeLegendViewModel> _gaugeLegend = [];
 
     private void BuildKpis(FinanceOverview agg)
     {
@@ -617,6 +820,67 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
         _toast.Show(
             _entryTab == "expense" ? "گزارش آماده دانلود شد (نمونه طراحی)" : "خروجی PDF آماده شد (نمونه طراحی)",
             Tone.Ok);
+
+    /// <summary>Opens the «ثبت هزینه جدید» modal (finance.js <c>openExpenseModal</c>).</summary>
+    [RelayCommand]
+    private void AddExpense() =>
+        _dialogs.ShowModal(new AddExpenseModalViewModel(
+            _service, _toast, _dialogs, JalaliCalendar.Today, HighlightNewExpense), 520);
+
+    /// <summary>Prepends the newly recorded expense to the table and flashes its new-row highlight.</summary>
+    private void HighlightNewExpense(Contracts.Finance.ExpenseEntry entry)
+    {
+        var row = new FinanceExpenseRowViewModel(
+            entry.Id, entry.Description, CategoryLabel(entry.CategoryId), CategoryColor(entry.CategoryId),
+            PersianNumberFormatter.ToPersianDigits(entry.Date), MethodLabel(entry.MethodId),
+            FinancePresentation.Money(entry.Amount), entry.By)
+        {
+            IsNew = true,
+        };
+
+        ExpenseRows.Insert(0, row);
+        OnPropertyChanged(nameof(ExpenseChipText));
+        _ = FlashNewRowAsync(row);
+    }
+
+    private static async Task FlashNewRowAsync(FinanceExpenseRowViewModel row)
+    {
+        await Task.Delay(1600);
+        row.IsNew = false;
+    }
+
+    private static string CategoryLabel(string id) => id switch
+    {
+        "salary" => "حقوق و دستمزد",
+        "rent" => "اجاره و قبوض",
+        "supply" => "خرید دارو و کالا",
+        "marketing" => "بازاریابی",
+        "repair" => "تعمیر و نگهداری",
+        "tax" => "مالیات و بیمه",
+        "other" => "متفرقه",
+        _ => id,
+    };
+
+    private static string CategoryColor(string id) => id switch
+    {
+        "salary" => "#0d9488",
+        "rent" => "#e0a95b",
+        "supply" => "#5c8ad6",
+        "marketing" => "#b8a2e6",
+        "repair" => "#e08a5c",
+        "tax" => "#7a8b89",
+        "other" => "#b54708",
+        _ => "#7a8b89",
+    };
+
+    private static string MethodLabel(string id) => id switch
+    {
+        "pos" => "کارتخوان",
+        "cash" => "نقدی",
+        "transfer" => "انتقال",
+        "credit" => "اعتباری",
+        _ => id,
+    };
 
     private void SyncChrome()
     {

@@ -348,3 +348,98 @@ public sealed class DonutChart : Control
         return new Point(c.X + (r * Math.Cos(rad)), c.Y + (r * Math.Sin(rad)));
     }
 }
+
+/// <summary>
+/// The Profit-tab margin half-gauge, re-drawn from the reference's SVG
+/// <c>profitGaugeCard</c> (Animora-UI/assets/finance-page.js): a rounded
+/// half-ring track plus a value arc from the left end toward the right,
+/// proportional to the margin percent. Geometry mirrors the reference's
+/// <c>viewBox="0 0 140 82"</c> path <c>M14,74 A52,52 0 0 1 126,74</c> with a
+/// 12px rounded stroke. Drawn with Avalonia primitives; the draw-in animation
+/// renders at its final value per §4a rule 6.
+/// </summary>
+public sealed class MarginGauge : Control
+{
+    public static readonly StyledProperty<double> PercentProperty =
+        AvaloniaProperty.Register<MarginGauge, double>(nameof(Percent));
+
+    public static readonly StyledProperty<IBrush> FillProperty =
+        AvaloniaProperty.Register<MarginGauge, IBrush>(nameof(Fill),
+            new SolidColorBrush(Color.Parse("#1570cd")));
+
+    public static readonly StyledProperty<IBrush> TrackBrushProperty =
+        AvaloniaProperty.Register<MarginGauge, IBrush>(nameof(TrackBrush),
+            new SolidColorBrush(Color.Parse("#f0f4f2")));
+
+    static MarginGauge() => AffectsRender<MarginGauge>(PercentProperty, FillProperty, TrackBrushProperty);
+
+    /// <summary>The margin percent, 0..100.</summary>
+    public double Percent
+    {
+        get => GetValue(PercentProperty);
+        set => SetValue(PercentProperty, value);
+    }
+
+    public IBrush Fill
+    {
+        get => GetValue(FillProperty);
+        set => SetValue(FillProperty, value);
+    }
+
+    public IBrush TrackBrush
+    {
+        get => GetValue(TrackBrushProperty);
+        set => SetValue(TrackBrushProperty, value);
+    }
+
+    public override void Render(DrawingContext ctx)
+    {
+        var w = Bounds.Width;
+        var h = Bounds.Height;
+        if (w <= 1 || h <= 1)
+        {
+            return;
+        }
+
+        // Reference viewBox is 140×82 with r=52, arc ends at (14,74) and (126,74).
+        var scale = Math.Min(w / 140.0, h / 82.0);
+        var r = 52 * scale;
+        var cx = w / 2;
+        var cy = 74 * scale;
+        var thickness = 12 * scale;
+        var pct = Math.Clamp(Percent, 0, 100);
+
+        // Track (full half ring, left→right over the top).
+        DrawArc(ctx, cx, cy, r, 180, 0, TrackBrush, thickness);
+
+        if (pct <= 0)
+        {
+            return;
+        }
+
+        // Value arc: the half ring spans 180°, sweep proportional to the percent.
+        DrawArc(ctx, cx, cy, r, 180, 180 - (pct * 1.8), Fill, thickness);
+    }
+
+    private static void DrawArc(
+        DrawingContext ctx, double cx, double cy, double r, double startDeg, double endDeg, IBrush brush, double thickness)
+    {
+        var start = new Point(cx + (r * Math.Cos(startDeg * Math.PI / 180.0)), cy + (r * Math.Sin(startDeg * Math.PI / 180.0)));
+        var end = new Point(cx + (r * Math.Cos(endDeg * Math.PI / 180.0)), cy + (r * Math.Sin(endDeg * Math.PI / 180.0)));
+        var sweep = Math.Abs(endDeg - startDeg);
+        var large = sweep >= 180;
+
+        var geo = new StreamGeometry();
+        using (var g = geo.Open())
+        {
+            g.BeginFigure(start, false);
+            // y-down screen space: draw from 180° (left) to 0° (right) over the top
+            // means decreasing the angle, i.e. counter-clockwise in math terms but
+            // clockwise on screen — use CounterClockwise for the 180°→0° sweep.
+            g.ArcTo(end, new Size(r, r), 0, large, SweepDirection.CounterClockwise);
+            g.EndFigure(false);
+        }
+
+        ctx.DrawGeometry(null, new Pen(brush, thickness, lineCap: PenLineCap.Round), geo);
+    }
+}

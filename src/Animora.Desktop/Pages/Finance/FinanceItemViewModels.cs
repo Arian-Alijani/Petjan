@@ -176,7 +176,7 @@ public sealed class FinanceMiniStatViewModel
 {
     public FinanceMiniStatViewModel(
         string tone, string iconKey, string label, string value, string? unit,
-        string? deltaText = null, string? deltaTone = null)
+        string? deltaText = null, string? deltaTone = null, string? deltaIconKey = null)
     {
         Tone = tone;
         IconKey = iconKey;
@@ -185,6 +185,7 @@ public sealed class FinanceMiniStatViewModel
         Unit = unit;
         DeltaText = deltaText;
         DeltaTone = deltaTone ?? "good";
+        DeltaIconKey = deltaIconKey ?? (DeltaTone == "bad" ? "IconTrendDown" : "IconArrowUpRight");
     }
 
     public string Tone { get; }
@@ -215,7 +216,7 @@ public sealed class FinanceMiniStatViewModel
 
     public IBrush DeltaForeground => FinancePresentation.DeltaForeground(DeltaTone);
 
-    public string DeltaIconKey => DeltaTone == "bad" ? "IconTrendDown" : "IconArrowUpRight";
+    public string DeltaIconKey { get; }
 }
 
 /// <summary>One row of a donut's legend (finance.css <c>.fin-leg-row</c>).</summary>
@@ -604,4 +605,150 @@ public sealed class FinanceHighlightViewModel
     public IBrush IconBackground => FinancePresentation.HighlightIconBackground(Tone);
 
     public IBrush IconForeground => FinancePresentation.HighlightIconForeground(Tone);
+}
+
+/// <summary>
+/// One row of the Profit tab's «رتبه‌بندی بر اساس حاشیه سود» card
+/// (finance.css <c>.fin-list-row</c>, mirrors the reference's
+/// <c>marginLeadersCard</c>): the icon tile, name, gross-profit meta, a
+/// margin-percent track and the margin readout.
+/// </summary>
+public sealed class FinanceMarginLeaderViewModel
+{
+    public FinanceMarginLeaderViewModel(
+        string iconKey, string tone, string name, string profitText, double fraction, string marginText)
+    {
+        IconKey = iconKey;
+        Tone = tone;
+        Name = name;
+        ProfitText = profitText;
+        Fraction = fraction;
+        MarginText = marginText;
+    }
+
+    public string IconKey { get; }
+
+    public string Tone { get; }
+
+    public string Name { get; }
+
+    public string ProfitText { get; }
+
+    public double Fraction { get; }
+
+    public string MarginText { get; }
+
+    public IBrush IconBackground => FinancePresentation.ListIconBackground(Tone);
+
+    public IBrush IconForeground => FinancePresentation.ListIconForeground(Tone);
+
+    public IBrush TrackFill => FinancePresentation.Fill(FinancePresentation.ProfitColor);
+
+    public IBrush AmountBrush => FinancePresentation.Fill(FinancePresentation.ProfitColor);
+}
+
+/// <summary>
+/// One row of the Expense-tab ledger table (finance.css <c>.fin-tbl</c> +
+/// <c>.fin-tbl-cat</c>): the description, the category swatch/label, the date,
+/// the payment method, the amount (in the expense color) and the recorder.
+/// </summary>
+public sealed partial class FinanceExpenseRowViewModel : ObservableObject
+{
+    public FinanceExpenseRowViewModel(
+        string id, string description, string categoryLabel, string color,
+        string date, string methodLabel, string amountText, string by)
+    {
+        Id = id;
+        Description = description;
+        CategoryLabel = categoryLabel;
+        Color = color;
+        Date = date;
+        MethodLabel = methodLabel;
+        AmountText = amountText;
+        By = by;
+    }
+
+    public string Id { get; }
+
+    public string Description { get; }
+
+    public string CategoryLabel { get; }
+
+    public string Color { get; }
+
+    public string Date { get; }
+
+    public string MethodLabel { get; }
+
+    public string AmountText { get; }
+
+    public string By { get; }
+
+    /// <summary>Set briefly after an insert to flash the new-row highlight (finance.js <c>.fin-row-new</c>).</summary>
+    [ObservableProperty]
+    private bool _isNew;
+
+    public IBrush Swatch => FinancePresentation.Fill(Color);
+
+    public IBrush AmountBrush => FinancePresentation.Fill(FinancePresentation.ExpenseColor);
+}
+
+/// <summary>
+/// One option of the «دسته‌بندی» / «روش پرداخت» select in the expense modal
+/// (kept minimal — the modal binds the id + label).
+/// </summary>
+public sealed class FinanceOptionViewModel
+{
+    public FinanceOptionViewModel(string id, string label)
+    {
+        Id = id;
+        Label = label;
+    }
+
+    public string Id { get; }
+
+    public string Label { get; }
+
+    public override string ToString() => Label;
+}
+
+/// <summary>
+/// One readout of the profit gauge's 3-column legend (finance.css
+/// <c>.fin-gauge-legend &gt; div</c>: a label + a colored value).
+/// </summary>
+public sealed class FinanceGaugeLegendViewModel
+{
+    public FinanceGaugeLegendViewModel(string label, string value, IBrush valueBrush)
+    {
+        Label = label;
+        Value = value;
+        ValueBrush = valueBrush;
+    }
+
+    public string Label { get; }
+
+    public string Value { get; }
+
+    public IBrush ValueBrush { get; }
+}
+
+/// <summary>
+/// One quick-amount preset of the expense modal (finance.css <c>.fin-quick</c>):
+/// the value plus the short-money label, with an on/off state matching the
+/// reference's <c>.fin-quick button.on</c>.
+/// </summary>
+public sealed partial class FinanceQuickAmountViewModel : ObservableObject
+{
+    public FinanceQuickAmountViewModel(long value)
+    {
+        Value = value;
+        Label = FinancePresentation.MoneyShort(value);
+    }
+
+    public long Value { get; }
+
+    public string Label { get; }
+
+    [ObservableProperty]
+    private bool _isActive;
 }

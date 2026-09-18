@@ -36,6 +36,36 @@ public interface IFinanceQueryService
     /// re-sorts the product list by the chosen key.
     /// </summary>
     Task<IReadOnlyList<FinanceProductSort>> GetProductSortsAsync();
+
+    /// <summary>
+    /// The Expense-tab aggregate for the given range id (mirrors
+    /// <c>aggregate(range)</c> as consumed by <c>panelExpense</c>, plus the
+    /// expense ledger rows for <c>expenseTableCard</c>).
+    /// </summary>
+    Task<FinanceExpense> GetExpenseAsync(string range);
+
+    /// <summary>
+    /// The Profit-tab aggregate for the given range id (mirrors
+    /// <c>aggregate(range)</c> as consumed by <c>panelProfit</c>).
+    /// </summary>
+    Task<FinanceProfit> GetProfitAsync(string range);
+
+    /// <summary>
+    /// The expense modal's «دسته‌بندی» options (mirrors <c>EXPENSE_CATEGORIES</c>).
+    /// </summary>
+    Task<IReadOnlyList<FinanceCategoryOption>> GetExpenseCategoriesAsync();
+
+    /// <summary>
+    /// The expense modal's «روش پرداخت» options (mirrors <c>PAYMENT_METHODS</c>).
+    /// </summary>
+    Task<IReadOnlyList<FinancePaymentMethod>> GetPaymentMethodsAsync();
+
+    /// <summary>
+    /// Records a new expense (mirrors the reference's <c>D.addExpense</c>,
+    /// which unshifts a row onto the in-memory <c>EXPENSE_LOG</c> and returns
+    /// it so the table can highlight the new row).
+    /// </summary>
+    Task<ExpenseEntry> AddExpenseAsync(NewExpenseRequest request);
 }
 
 /// <summary>
