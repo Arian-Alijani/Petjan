@@ -4,6 +4,7 @@
              xmlns:shell="using:Animora.Desktop.Shell"
              xmlns:dashboard="using:Animora.Desktop.Pages.Dashboard"
              xmlns:vx="using:Animora.Desktop.Pages.Vaccination"
+             xmlns:ap="using:Animora.Desktop.Pages.Appointments"
              x:Class="Animora.Desktop.App"
              RequestedThemeVariant="Default">
 
@@ -37,6 +38,10 @@
             <!-- Phase 12: resolves the vaccination timeline dot's active flag to
                  the vaccine-accent stroke vs the neutral hairline (vx-shot / line). -->
             <vx:BoolToShotBrushConverter x:Key="BoolToBrushConverter" />
+
+            <!-- Phase 13: converts an HTML hex accent (e.g. "#0d9488") to a brush
+                 for the appointments type/doctor chips and event-card accents. -->
+            <ap:HexBrushConverter x:Key="HexBrushConverter" />
         </ResourceDictionary>
     </Application.Resources>
 

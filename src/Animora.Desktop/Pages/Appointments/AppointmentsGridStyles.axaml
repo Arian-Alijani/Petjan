@@ -1,0 +1,89 @@
+﻿<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      Shared styles for the appointments day/week time grid + the event card,
+      transcribed from Animora-UI/assets/appointments.css (.tg-*, .ev, .mv-*).
+      Loaded once by each grid sub-view. Recurring classes live here; per-item
+      colours are bound from the item ViewModels.
+    -->
+
+    <!-- time-grid shell -->
+    <Style Selector="ScrollViewer.tg-wrap">
+        <Setter Property="MaxHeight" Value="640" />
+        <Setter Property="MinHeight" Value="480" />
+    </Style>
+
+    <!-- hour row -->
+    <Style Selector="Border.tg-hour">
+        <Setter Property="Height" Value="78" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1,1,0,0" />
+    </Style>
+    <Style Selector="Border.tg-hour.first">
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Border.tg-gutter-hour">
+        <Setter Property="Height" Value="78" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- column (doctor / day) -->
+    <Style Selector="Border.tg-col">
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1,0,0,0" />
+    </Style>
+    <Style Selector="Border.tg-col.off">
+        <Setter Property="Background" Value="#fbfcfb" />
+    </Style>
+
+    <!-- header cell -->
+    <Style Selector="Border.tg-hcell">
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1,0,0,0" />
+    </Style>
+    <Style Selector="Border.tg-hcell.today">
+        <Setter Property="BorderThickness" Value="1,0,0,2" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+    </Style>
+    <Style Selector="Border.tg-hcell.off">
+        <Setter Property="Background" Value="#fafbfa" />
+    </Style>
+    <Style Selector="Border.tg-hcell.first">
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- event card -->
+    <Style Selector="Button.ev-card">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="BorderThickness" Value="1,1,0,1" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+    </Style>
+    <Style Selector="Button.ev-card.tier-xs">
+        <Setter Property="Padding" Value="7,2" />
+    </Style>
+    <Style Selector="Button.ev-card.tier-sm">
+        <Setter Property="Padding" Value="8,3" />
+    </Style>
+    <Style Selector="Button.ev-card.tier-md">
+        <Setter Property="Padding" Value="9,4" />
+    </Style>
+    <Style Selector="Button.ev-card.cancelled">
+        <Setter Property="Opacity" Value="0.62" />
+    </Style>
+
+    <!-- month chips -->
+    <Style Selector="Button.mv-chip">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="7,3" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+    </Style>
+</Styles>

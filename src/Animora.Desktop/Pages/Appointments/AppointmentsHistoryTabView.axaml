@@ -1,0 +1,364 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ap="using:Animora.Desktop.Pages.Appointments"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Name="Root"
+             x:Class="Animora.Desktop.Pages.Appointments.AppointmentsHistoryTabView"
+             x:DataType="ap:AppointmentsCalendarViewModel"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <Style Selector="Button.hs-row">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="Padding" Value="16,14" />
+            <Setter Property="MinHeight" Value="88" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.hs-row:pointerover">
+            <Setter Property="Background" Value="{StaticResource RowHoverBrush}" />
+        </Style>
+        <Style Selector="Button.hcal-d">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.hcal-d.rng">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.hcal-d.edge">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+            BorderThickness="1" CornerRadius="{StaticResource RadiusLg}"
+            BoxShadow="{StaticResource ShadowCard}" ClipToBounds="True" VerticalAlignment="Top">
+        <StackPanel>
+
+            <!-- tier 1 · scope chips + range picker + total -->
+            <Border Padding="16,12" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <TextBlock Grid.Column="0" Text="بازه زمانی" FontSize="11" FontWeight="Bold"
+                               VerticalAlignment="Center" Foreground="{StaticResource Muted2Brush}" />
+                    <ItemsControl Grid.Column="1" ItemsSource="{Binding HistoryScopeChips}" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="6" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="ap:HistoryScopeChipViewModel">
+                                <Button Classes="ap-chip" Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).SetHistoryScopeCommand}"
+                                        CommandParameter="{Binding}">
+                                    <TextBlock Text="{Binding Label}" />
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Button Classes="ap-chip" Command="{Binding ToggleHistoryCalendarCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource Brand600Brush}"
+                                      Data="{StaticResource IconCalendar}" />
+                                <TextBlock Text="{Binding HistoryRangeChipText}" />
+                            </StackPanel>
+                        </Button>
+                        <Border Background="{StaticResource Brand50Brush}" CornerRadius="99" Padding="12,5">
+                            <TextBlock Text="{Binding HistoryTotalText}" FontSize="12" FontWeight="Bold"
+                                       Foreground="{StaticResource Brand700Brush}" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- mini-calendar popover -->
+            <Border IsVisible="{Binding IsHistoryCalendarOpen}" Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="16,14">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="10">
+                        <Button Grid.Column="0" Classes="ap-icon" Width="32" Height="32"
+                                Background="{StaticResource PanelBrush}" BorderThickness="1"
+                                BorderBrush="{StaticResource LineBrush}"
+                                Command="{Binding HistoryCalendarStepCommand}" CommandParameter="1"
+                                ToolTip.Tip="ماه قبل">
+                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Ink2Brush}"
+                                  Data="{StaticResource IconChevronRight}" />
+                        </Button>
+                        <TextBlock Grid.Column="1" Text="{Binding HistoryCalendarLabel}" FontSize="15"
+                                   FontWeight="ExtraBold" VerticalAlignment="Center" MinWidth="130"
+                                   TextAlignment="Center" Foreground="{StaticResource InkBrush}" />
+                        <Button Grid.Column="2" Classes="ap-icon" Width="32" Height="32"
+                                Background="{StaticResource PanelBrush}" BorderThickness="1"
+                                BorderBrush="{StaticResource LineBrush}"
+                                Command="{Binding HistoryCalendarStepCommand}" CommandParameter="-1"
+                                ToolTip.Tip="ماه بعد">
+                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Ink2Brush}"
+                                  Data="{StaticResource IconChevronLeft}" />
+                        </Button>
+                        <Button Grid.Column="4" Classes="ap-chip" Command="{Binding HistoryCalendarTodayCommand}">
+                            <TextBlock Text="امروز" />
+                        </Button>
+                    </Grid>
+
+                    <Border Background="{StaticResource Bg2Brush}" CornerRadius="14" Padding="10">
+                        <StackPanel Spacing="6">
+                            <UniformGrid Columns="7">
+                                <TextBlock Text="ش" FontSize="10.5" FontWeight="Bold" TextAlignment="Center"
+                                           Foreground="{StaticResource Muted2Brush}" />
+                                <TextBlock Text="ی" FontSize="10.5" FontWeight="Bold" TextAlignment="Center"
+                                           Foreground="{StaticResource Muted2Brush}" />
+                                <TextBlock Text="د" FontSize="10.5" FontWeight="Bold" TextAlignment="Center"
+                                           Foreground="{StaticResource Muted2Brush}" />
+                                <TextBlock Text="س" FontSize="10.5" FontWeight="Bold" TextAlignment="Center"
+                                           Foreground="{StaticResource Muted2Brush}" />
+                                <TextBlock Text="چ" FontSize="10.5" FontWeight="Bold" TextAlignment="Center"
+                                           Foreground="{StaticResource Muted2Brush}" />
+                                <TextBlock Text="پ" FontSize="10.5" FontWeight="Bold" TextAlignment="Center"
+                                           Foreground="{StaticResource Muted2Brush}" />
+                                <TextBlock Text="ج" FontSize="10.5" FontWeight="Bold" TextAlignment="Center"
+                                           Foreground="{StaticResource Muted2Brush}" />
+                            </UniformGrid>
+                            <ItemsControl ItemsSource="{Binding HistoryCalendarDays}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="7" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="ap:HistoryCalendarCellViewModel">
+                                        <Button Classes="hcal-d" Classes.rng="{Binding InRange}" Classes.edge="{Binding Edge}"
+                                                IsEnabled="{Binding IsPast}"
+                                                Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).HistoryCalendarPickCommand}"
+                                                CommandParameter="{Binding}">
+                                            <TextBlock Text="{Binding DayText}" />
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <TextBlock Grid.Column="0" Text="{Binding HistoryCalendarHint}" FontSize="12"
+                                   VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                            <Button Classes="ap-chip" Command="{Binding HistoryCalendarClearCommand}">
+                                <TextBlock Text="پاک کردن" />
+                            </Button>
+                            <Button Background="{StaticResource Brand600Brush}" BorderThickness="0"
+                                    CornerRadius="99" Padding="14,5" Height="29"
+                                    IsEnabled="{Binding HistoryCalendarCanApply}"
+                                    Command="{Binding ApplyHistoryRangeCommand}">
+                                <TextBlock Text="اعمال بازه" FontSize="11.5" FontWeight="Bold" Foreground="White" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- tier 2 · status + selects -->
+            <Border Padding="16,12" Background="#fbfcfb" BorderBrush="{StaticResource Line2Brush}"
+                    BorderThickness="0,0,0,1">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="وضعیت" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"
+                               Foreground="{StaticResource Muted2Brush}" />
+                    <ItemsControl ItemsSource="{Binding HistoryStatusChips}" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="6" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="ap:HistoryStatusChipViewModel">
+                                <Button Classes="ap-chip" Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).SetHistoryStatusCommand}"
+                                        CommandParameter="{Binding}">
+                                    <TextBlock Text="{Binding Label}" />
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Border Width="1" Height="20" Background="{StaticResource LineBrush}" Margin="6,0" />
+                    <TextBlock Text="فیلترها" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"
+                               Foreground="{StaticResource Muted2Brush}" />
+                    <ComboBox ItemsSource="{Binding HistoryDoctorOptions}" SelectedValue="{Binding SelectedHistoryDoctor, Mode=TwoWay}"
+                              SelectedValueBinding="{Binding Id}" MinWidth="130" Height="32"
+                              VerticalAlignment="Center" />
+                    <ComboBox ItemsSource="{Binding HistoryTypeOptions}" SelectedValue="{Binding SelectedHistoryType, Mode=TwoWay}"
+                              SelectedValueBinding="{Binding Id}" MinWidth="130" Height="32"
+                              VerticalAlignment="Center" />
+                    <ComboBox ItemsSource="{Binding HistoryInvoiceOptions}" SelectedValue="{Binding SelectedHistoryInvoice, Mode=TwoWay}"
+                              SelectedValueBinding="{Binding Id}" MinWidth="130" Height="32"
+                              VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+
+            <!-- KPI band -->
+            <Border Padding="16,12" Background="#fbfcfb" BorderBrush="{StaticResource Line2Brush}"
+                    BorderThickness="0,0,0,1">
+                <ItemsControl ItemsSource="{Binding HistoryStats}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="6" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="ap:HistoryStatViewModel">
+                            <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource Line2Brush}"
+                                    BorderThickness="1" CornerRadius="12" Padding="12,9" Margin="5">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9">
+                                    <Border Grid.Column="0" Width="30" Height="30" CornerRadius="9"
+                                            Background="{StaticResource Bg2Brush}" VerticalAlignment="Center">
+                                        <Path Classes="icon" Width="15" Height="15"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Stroke="{StaticResource Muted2Brush}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding ValueText}" FontSize="15" FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="{Binding Label}" FontSize="10" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+
+            <!-- empty -->
+            <StackPanel IsVisible="{Binding !HasHistoryRows}" Spacing="4" Margin="20,70"
+                        HorizontalAlignment="Center">
+                <Border Width="54" Height="54" CornerRadius="16" Background="{StaticResource Bg2Brush}"
+                        HorizontalAlignment="Center" Margin="0,0,0,12">
+                    <Path Classes="icon" Width="24" Height="24" HorizontalAlignment="Center"
+                          VerticalAlignment="Center" Stroke="{StaticResource Muted2Brush}"
+                          Data="{StaticResource IconHistory}" />
+                </Border>
+                <TextBlock Text="تاریخچه‌ای برای این بازه نیست" FontSize="14" FontWeight="Bold"
+                           HorizontalAlignment="Center" Foreground="{StaticResource Ink2Brush}" />
+                <TextBlock Text="بازه، وضعیت یا فیلترها را تغییر دهید." FontSize="12"
+                           HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+            </StackPanel>
+
+            <!-- rows grouped by day -->
+            <ItemsControl ItemsSource="{Binding HistoryGroups}" IsVisible="{Binding HasHistoryRows}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="ap:HistoryDayGroupViewModel">
+                        <StackPanel>
+                            <Border Padding="16,10" Background="#f7faf9"
+                                    BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
+                                    <TextBlock Grid.Column="0" Text="{Binding DowText}" FontSize="11"
+                                               FontWeight="Bold" VerticalAlignment="Center"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding DateText}" FontSize="12.5"
+                                               FontWeight="ExtraBold" VerticalAlignment="Center"
+                                               Foreground="{StaticResource Ink2Brush}" />
+                                    <Button Grid.Column="2" Background="{StaticResource Brand50Brush}"
+                                            BorderThickness="0" CornerRadius="7" Padding="9,3"
+                                            HorizontalAlignment="Left"
+                                            Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).ViewDayInCalendarCommand}"
+                                            CommandParameter="{Binding}">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <Path Classes="icon" Width="11" Height="11" Stroke="{StaticResource Brand700Brush}"
+                                                  Data="{StaticResource IconCalendar}" />
+                                            <TextBlock Text="مشاهده در تقویم" FontSize="10" FontWeight="Bold"
+                                                       Foreground="{StaticResource Brand700Brush}" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Border Grid.Column="3" Background="{StaticResource Bg2Brush}" CornerRadius="8"
+                                            Padding="8,2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding CountText}" FontSize="10.5"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <ItemsControl ItemsSource="{Binding Rows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="ap:HistoryRowViewModel">
+                                        <Button Classes="hs-row"
+                                                Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).OpenBookingCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="12">
+                                                <StackPanel Grid.Column="0" Width="60" VerticalAlignment="Center"
+                                                            HorizontalAlignment="Center">
+                                                    <TextBlock Text="{Binding StartText}" FontSize="13.5" FontWeight="ExtraBold"
+                                                               HorizontalAlignment="Center" Foreground="{StaticResource InkBrush}" />
+                                                    <TextBlock Text="{Binding EndText}" FontSize="10"
+                                                               HorizontalAlignment="Center" Foreground="{StaticResource Muted2Brush}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="5">
+                                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                                        <TextBlock Text="{Binding PetName}" FontSize="14" FontWeight="ExtraBold"
+                                                                   Foreground="{StaticResource InkBrush}" />
+                                                        <Border Background="{StaticResource Bg2Brush}" CornerRadius="6" Padding="8,3">
+                                                            <TextBlock Text="{Binding TypeLabel}" FontSize="10.5" FontWeight="Bold"
+                                                                       Foreground="{StaticResource MutedBrush}" />
+                                                        </Border>
+                                                        <Border Background="{StaticResource Bg2Brush}" CornerRadius="6" Padding="7,2">
+                                                            <TextBlock Text="{Binding Code}" FontSize="10" FontWeight="Bold"
+                                                                       Foreground="{StaticResource Muted2Brush}" />
+                                                        </Border>
+                                                        <controls:Badge Text="{Binding StatusLabel}" Tone="{Binding StatusTone}" />
+                                                        <controls:Badge IsVisible="{Binding HasVisit}" Text="{Binding VisitLabel}"
+                                                                        Tone="{Binding VisitTone}" />
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Text="{Binding DoctorShort}" FontSize="11.5" FontWeight="Bold"
+                                                                   Foreground="{StaticResource Ink2Brush}" />
+                                                        <TextBlock Text="·" FontSize="11.5" Foreground="{StaticResource Muted2Brush}" />
+                                                        <TextBlock Text="{Binding OwnerName}" FontSize="11.5"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                        <TextBlock Text="·" FontSize="11.5" Foreground="{StaticResource Muted2Brush}" />
+                                                        <TextBlock Text="{Binding PetKind}" FontSize="11.5"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                        <TextBlock Text="·" FontSize="11.5" Foreground="{StaticResource Muted2Brush}" />
+                                                        <TextBlock Text="{Binding Phone}" FontSize="11"
+                                                                   Foreground="{StaticResource Ink2Brush}" />
+                                                    </StackPanel>
+                                                    <TextBlock IsVisible="{Binding HasNote}" Text="{Binding Note}" FontSize="11"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Foreground="{StaticResource Muted2Brush}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="3" MinWidth="160" Spacing="4"
+                                                            VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                    <controls:Badge Text="{Binding InvoiceLabel}" Tone="{Binding InvoiceTone}"
+                                                                    HorizontalAlignment="Right" />
+                                                    <Border IsVisible="{Binding HasPayment}" Background="{StaticResource PanelBrush}"
+                                                            BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                                                            CornerRadius="8" Padding="9,3" HorizontalAlignment="Right">
+                                                        <TextBlock Text="{Binding PaymentLabel}" FontSize="11"
+                                                                   Foreground="{StaticResource Ink2Brush}" />
+                                                    </Border>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4"
+                                                                HorizontalAlignment="Right">
+                                                        <TextBlock Text="{Binding PriceText}" FontSize="15" FontWeight="ExtraBold"
+                                                                   Foreground="{StaticResource InkBrush}" />
+                                                        <TextBlock Text="تومان" FontSize="9.5" VerticalAlignment="Bottom"
+                                                                   Foreground="{StaticResource Muted2Brush}" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Border>
+</UserControl>
