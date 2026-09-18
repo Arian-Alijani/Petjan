@@ -1,0 +1,438 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:boarding="using:Animora.Desktop.Pages.Boarding"
+             x:Class="Animora.Desktop.Pages.Boarding.BoardingPageView"
+             x:Name="Root"
+             x:DataType="boarding:BoardingPageViewModel"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <!-- ═══ Unified toolbar (styles.css .pagebar) ═══ -->
+        <Style Selector="Border.pagebar">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="Padding" Value="14,12" />
+        </Style>
+
+        <!-- segmented switch shell (.pb-seg) -->
+        <Style Selector="Border.seg">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="3" />
+        </Style>
+
+        <!-- section tabs (.pb-seg.lg > button) -->
+        <Style Selector="Button.bd-seg">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="20,9" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.bd-seg:pointerover">
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.bd-seg.is-active">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <!-- Button exposes no BoxShadow; it lives on the template's content-presenter surface. -->
+        <Style Selector="Button.bd-seg.is-active /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+        </Style>
+
+        <!-- status tabs (.pb-seg > button) -->
+        <Style Selector="Button.bd-tab">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="15,8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Button.bd-tab:pointerover">
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.bd-tab.is-active">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.bd-tab.is-active /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+        </Style>
+
+        <!-- count pill inside a status tab (.pb-seg > button .seg-n) -->
+        <Style Selector="Border.seg-n">
+            <Setter Property="Background" Value="#0F000000" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="MinWidth" Value="20" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="Padding" Value="6,0" />
+        </Style>
+
+        <!-- stay card (.bd-card) — a keyboard-focusable button like the reference's role=button div -->
+        <Style Selector="Button.bd-card">
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+            <Setter Property="Padding" Value="16,14" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.bd-card /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+        </Style>
+        <!-- .bd-card:hover — lifted shadow (border tint stays as the bound state colour) -->
+        <Style Selector="Button.bd-card:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="0 6 24 -10 #24101828" />
+        </Style>
+
+        <!-- stay-progress track (.bd-prog) -->
+        <Style Selector="Border.bd-prog">
+            <Setter Property="Height" Value="5" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+
+        <!-- room chip (.bd-room-chip) -->
+        <Style Selector="Border.bd-room-chip">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8,2" />
+        </Style>
+        <Style Selector="Border.bd-room-chip TextBlock">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
+        <!-- empty state (.bd-empty-state) -->
+        <Style Selector="Border.bd-empty-ico">
+            <Setter Property="Width" Value="60" />
+            <Setter Property="Height" Value="60" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+
+        <!-- species dropdown item (.bd-dd-item) -->
+        <Style Selector="Button.bd-dd-item">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+        <Style Selector="Button.bd-dd-item:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.bd-dd-item.is-active">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Margin="26,22,26,40">
+        <!-- ═══════════════ UNIFIED TOOLBAR ═══════════════ -->
+        <Border Classes="pagebar" Margin="0,0,0,16">
+            <StackPanel Spacing="12">
+                <!-- tier 1 · section tabs -->
+                <Grid ColumnDefinitions="*">
+                    <Border Classes="seg">
+                        <ItemsControl ItemsSource="{Binding Sections}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Rows="1" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="boarding:BoardingSectionViewModel">
+                                    <Button Classes="bd-seg" Classes.is-active="{Binding IsActive}"
+                                            Command="{Binding #Root.((boarding:BoardingPageViewModel)DataContext).SetSectionCommand}"
+                                            CommandParameter="{Binding Key}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                            <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </Grid>
+
+                <!-- tier 2 · board filters (status tabs + search + actions) — مدیریت اقامت only -->
+                <StackPanel IsVisible="{Binding ShowBoardTools}" Spacing="12">
+                    <Border Height="1" Background="{StaticResource Line2Brush}" />
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                        <!-- status tabs -->
+                        <Border Grid.Column="0" Classes="seg">
+                            <ItemsControl ItemsSource="{Binding Tabs}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="boarding:BoardingTabViewModel">
+                                        <Button Classes="bd-tab" Classes.is-active="{Binding IsActive}"
+                                                Command="{Binding #Root.((boarding:BoardingPageViewModel)DataContext).SetTabCommand}"
+                                                CommandParameter="{Binding Key}">
+                                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                                <Border Classes="seg-n" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding CountText}" FontSize="11" FontWeight="ExtraBold"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+
+                        <!-- search -->
+                        <Border Grid.Column="1" Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource LineBrush}"
+                                BorderThickness="1" CornerRadius="12" Padding="12,8" MaxWidth="340"
+                                HorizontalAlignment="Left">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                                      Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}" />
+                                <TextBox Grid.Column="1" Text="{Binding SearchQueryText}" Background="Transparent"
+                                         BorderThickness="0" FontSize="13" VerticalContentAlignment="Center"
+                                         PlaceholderText="جستجوی حیوان، مالک، اتاق…"
+                                         TextChanged="OnSearchTextChanged" KeyDown="OnSearchKeyDown" />
+                                <Button Grid.Column="2" Classes="ghost" Width="28" Height="28" Padding="4"
+                                        IsVisible="{Binding HasSearchValue}" Command="{Binding ClearSearchCommand}"
+                                        ToolTip.Tip="پاک‌کردن">
+                                    <Path Classes="icon" Width="12" Height="12"
+                                          Stroke="{StaticResource Brand700Brush}" Data="{StaticResource IconX}" />
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- actions -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button Name="SpeciesButton" Classes="outline" Command="{Binding ToggleSpeciesCommand}"
+                                    ToolTip.Tip="فیلتر گونه">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding SpeciesLabelText}" VerticalAlignment="Center" />
+                                    <Path Classes="icon" Width="13" Height="13"
+                                          Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconChevronDown}" />
+                                </StackPanel>
+                            </Button>
+
+                            <!-- species dropdown portal (.bd-dropdown) -->
+                            <Popup IsOpen="{Binding IsSpeciesDropdownOpen}" PlacementTarget="{Binding #SpeciesButton}"
+                                   Placement="BottomEdgeAlignedLeft" HorizontalOffset="0" VerticalOffset="6"
+                                   IsLightDismissEnabled="True">
+                                <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                                        BorderThickness="1" CornerRadius="{StaticResource RadiusSm}"
+                                        BoxShadow="{StaticResource ShadowPop}" MinWidth="160" ClipToBounds="True">
+                                    <ItemsControl ItemsSource="{Binding SpeciesOptions}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="boarding:BoardingSpeciesOption">
+                                                <Button Classes="bd-dd-item" Classes.is-active="{Binding IsActive}"
+                                                        Command="{Binding #Root.((boarding:BoardingPageViewModel)DataContext).SetSpeciesCommand}"
+                                                        CommandParameter="{Binding}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <Path Width="16" Height="16" Fill="Transparent" StrokeThickness="2"
+                                                              StrokeLineCap="Round" StrokeJoin="Round" Stretch="Uniform"
+                                                              IsVisible="{Binding HasIcon}"
+                                                              Stroke="{StaticResource Brand600Brush}"
+                                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                              VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </Popup>
+
+                            <Button Classes="primary" Command="{Binding OpenNewStayCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                                          Data="{StaticResource IconPlus}" />
+                                    <TextBlock Text="پذیرش جدید" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ SECTION: مدیریت اقامت ═══ -->
+        <StackPanel IsVisible="{Binding IsBoardSection}">
+            <!-- cards grid (.bd-cards-grid: repeat(auto-fill, minmax(340px,1fr)); gap 14px) —
+                 the target window resolves to three 1fr tracks, so a 3-column grid. -->
+            <ItemsControl ItemsSource="{Binding FilteredStays}" IsVisible="{Binding HasStays}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="3" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="boarding:BoardingStayCardViewModel">
+                        <Button Classes="bd-card" Margin="0,0,14,14"
+                                Background="{Binding CardBackground}" BorderBrush="{Binding CardBorderBrush}"
+                                Command="{Binding #Root.((boarding:BoardingPageViewModel)DataContext).OpenStayDetailCommand}"
+                                CommandParameter="{Binding}">
+                            <StackPanel>
+                                <!-- head (.bd-card-head) -->
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,0,0,12">
+                                    <Border Grid.Column="0" Width="42" Height="42" CornerRadius="13"
+                                            Background="{Binding AvatarBrush}" VerticalAlignment="Top">
+                                        <Path Width="22" Height="22" Fill="Transparent" StrokeThickness="2"
+                                              StrokeLineCap="Round" StrokeJoin="Round" Stretch="Uniform"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Stroke="{Binding AvatarGlyphBrush}"
+                                              Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding PetName}" FontSize="14" FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="{Binding BreedLine}" FontSize="11.5" Margin="0,2,0,0"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="5" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                        <Border Background="{Binding StatusPillBackground}" CornerRadius="20" Padding="8,3">
+                                            <TextBlock Text="{Binding StatusLabel}" FontSize="10.5" FontWeight="Bold"
+                                                       Foreground="{Binding StatusPillForeground}" />
+                                        </Border>
+                                        <Border Classes="bd-room-chip">
+                                            <TextBlock Text="{Binding RoomText}" />
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- check-in / out strip (.bd-card-checkin: padding 8px 0 6px; border-bottom) -->
+                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1"
+                                        Padding="0,8,0,6" Margin="0,0,0,8">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="ورود" FontSize="11.5" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding CheckInText}" FontSize="11.5" FontWeight="Bold"
+                                                   Foreground="{StaticResource Brand700Brush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="·" FontSize="11.5" Foreground="{StaticResource Muted2Brush}"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding NightsText}" FontSize="11.5" FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="·" FontSize="11.5" Foreground="{StaticResource Muted2Brush}"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Text="خروج" FontSize="11.5" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding CheckOutText}" FontSize="11.5" FontWeight="Bold"
+                                                   Foreground="{StaticResource Brand700Brush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- timeline (.bd-card-timeline / .bd-prog) -->
+                                <StackPanel Margin="0,0,0,10">
+                                    <Border Classes="bd-prog" Background="{Binding ProgressFill}" />
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                        <TextBlock Grid.Column="0" Text="{Binding ElapsedText}" FontSize="10.5"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding DayLabel}" FontSize="10.5"
+                                                   FontWeight="Bold" Foreground="{Binding DayLabelBrush}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- foot (.bd-card-foot: border-top, padding-top 10px) -->
+                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                                        Padding="0,10,0,0" Margin="0,2,0,0">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                        <Path Width="13" Height="13" Fill="Transparent" StrokeThickness="2"
+                                              StrokeLineCap="Round" StrokeJoin="Round" Stretch="Uniform"
+                                              Stroke="{StaticResource Muted2Brush}" Data="{StaticResource IconUser}"
+                                              VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding OwnerName}" FontSize="11.5"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                                HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding TotalCostText}" FontSize="12" FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource Brand700Brush}" VerticalAlignment="Center" />
+                                        <Border Background="{Binding PayPillBackground}" CornerRadius="20" Padding="7,2">
+                                            <TextBlock Text="{Binding PayLabel}" FontSize="10" FontWeight="Bold"
+                                                       Foreground="{Binding PayPillForeground}" />
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                                </Border>
+
+                                <!-- cta (.bd-card-cta: padding-top 10px, margin-top 2px) -->
+                                <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left"
+                                            Margin="0,12,0,0">
+                                    <TextBlock Text="مشاهده جزئیات" FontSize="11.5" FontWeight="Bold"
+                                               Foreground="{StaticResource Brand600Brush}" VerticalAlignment="Center" />
+                                    <Path Classes="icon" Width="14" Height="14"
+                                          Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconChevronLeft}"
+                                          VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- empty state (.bd-empty-state) -->
+            <StackPanel IsVisible="{Binding !HasStays}" HorizontalAlignment="Center" Margin="0,48,0,48" Spacing="6">
+                <Border Classes="bd-empty-ico" HorizontalAlignment="Center">
+                    <Path Width="28" Height="28" Fill="Transparent" StrokeThickness="2" StrokeLineCap="Round"
+                          StrokeJoin="Round" Stretch="Uniform" Stroke="{StaticResource Muted2Brush}"
+                          Data="{StaticResource IconHome}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Text="هیچ اقامتی در این بخش نیست" FontSize="15" FontWeight="Bold"
+                           Foreground="{StaticResource Ink2Brush}" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                <TextBlock Text="تب دیگری را بررسی کنید یا یک پذیرش جدید ثبت کنید." FontSize="12.5"
+                           Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- ═══ SECTION: تاریخچه (content built in Phase 16) ═══ -->
+        <Border IsVisible="{Binding IsHistorySection}" Classes="pagebar" Padding="24" Margin="0">
+            <StackPanel Spacing="6" HorizontalAlignment="Center">
+                <TextBlock Text="تاریخچه اقامت‌ها در فاز ۱۶ (Phase 16) ساخته می‌شود" FontSize="13.5"
+                           FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" HorizontalAlignment="Center" />
+                <TextBlock Text="این بخش همراه با مودال‌های جزئیات/تخلیه در فاز بعدی تکمیل می‌شود." FontSize="12"
+                           Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ SECTION: تنظیمات (content built in Phase 16) ═══ -->
+        <Border IsVisible="{Binding IsSettingsSection}" Classes="pagebar" Padding="24" Margin="0">
+            <StackPanel Spacing="6" HorizontalAlignment="Center">
+                <TextBlock Text="تنظیمات پانسیون در فاز ۱۶ (Phase 16) ساخته می‌شود" FontSize="13.5"
+                           FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" HorizontalAlignment="Center" />
+                <TextBlock Text="نرخ‌گذاری، اتاق‌ها و خدمات در فاز بعدی تکمیل می‌شود." FontSize="12"
+                           Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

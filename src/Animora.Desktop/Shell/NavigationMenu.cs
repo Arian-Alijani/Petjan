@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Animora.Contracts.Navigation;
 using Animora.Desktop.Pages.Appointments;
+using Animora.Desktop.Pages.Boarding;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Vaccination;
@@ -28,7 +29,7 @@ public static class NavigationMenu
         new("patients", "بیماران و مالکین", "IconUsers", typeof(PatientsPageViewModel), "مدیریت کلینیک"),
         new("visits", "ویزیت و پرونده", "IconClipboard", typeof(VisitsTriagePageViewModel), "مدیریت کلینیک"),
         new("vaccine", "واکسیناسیون", "IconSyringe", typeof(VaccinationPageViewModel), "مدیریت کلینیک"),
-        new("boarding", "پانسیون", "IconHome", typeof(PlaceholderPageViewModel), "مدیریت کلینیک", BadgeCount: 3),
+        new("boarding", "پانسیون", "IconHome", typeof(BoardingPageViewModel), "مدیریت کلینیک", BadgeCount: 3),
         new("sale", "فروش و صندوق", "IconCart", typeof(PlaceholderPageViewModel), "مدیریت کلینیک"),
 
         new("inventory", "انبار و کالا", "IconBox", typeof(PlaceholderPageViewModel), "کسب و کار", BadgeCount: 2),
