@@ -1,0 +1,194 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:boarding="using:Animora.Desktop.Pages.Boarding"
+             x:Class="Animora.Desktop.Pages.Boarding.BoardingHistoryTabView"
+             x:Name="Root"
+             x:DataType="boarding:BoardingPageViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- History tab — re-draws Animora-UI/boarding.html #bd-section-history +
+         boarding.js renderHistory (.bd-sub-bar toolbar + .bd-hist-grid/.bd-hcard).
+         Values transcribed from boarding.css. -->
+    <UserControl.Styles>
+        <Style Selector="Button.hcard">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+            <Setter Property="Padding" Value="16,14" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.hcard /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+        </Style>
+        <Style Selector="Button.hcard:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        </Style>
+        <Style Selector="Border.room-chip">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8,2" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel>
+        <!-- History toolbar (.pagebar.bd-sub-bar) -->
+        <Border Classes="pagebar" Padding="14,12" Margin="0,0,0,18">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <TextBlock Text="تاریخچه اقامت" FontSize="11" FontWeight="Bold"
+                               Foreground="{StaticResource Brand600Brush}" VerticalAlignment="Center" />
+                    <Border Background="#eff8ff" CornerRadius="20" Padding="10,4">
+                        <TextBlock Text="{Binding HistoryCountText}" FontSize="11" FontWeight="Bold"
+                                   Foreground="#1570cd" />
+                    </Border>
+                </StackPanel>
+
+                <Border Grid.Column="1" Background="{StaticResource Bg2Brush}"
+                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12"
+                        Padding="12,8" MaxWidth="300" HorizontalAlignment="Left">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                        <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                              Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}"
+                              VerticalAlignment="Center" />
+                        <TextBox Grid.Column="1" Text="{Binding HistoryQueryText}" Background="Transparent"
+                                 BorderThickness="0" FontSize="13" VerticalContentAlignment="Center"
+                                 PlaceholderText="جستجوی حیوان، مالک…" TextChanged="OnHistorySearchChanged" />
+                        <Button Grid.Column="2" Classes="ghost" Width="28" Height="28" Padding="4"
+                                IsVisible="{Binding HasHistoryQuery}" Command="{Binding ClearHistorySearchCommand}"
+                                ToolTip.Tip="پاک‌کردن">
+                            <Path Classes="icon" Width="12" Height="12" Stroke="{StaticResource Brand700Brush}"
+                                  Data="{StaticResource IconX}" />
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <ComboBox Grid.Column="2" MinWidth="150" SelectedIndex="{Binding HistorySpeciesIndex}">
+                    <ComboBoxItem Content="همه گونه‌ها" />
+                    <ComboBoxItem Content="سگ" />
+                    <ComboBoxItem Content="گربه" />
+                    <ComboBoxItem Content="پرنده" />
+                    <ComboBoxItem Content="خرگوش" />
+                </ComboBox>
+            </Grid>
+        </Border>
+
+        <!-- History cards grid (.bd-hist-grid) -->
+        <ItemsControl ItemsSource="{Binding HistoryCards}" IsVisible="{Binding HasHistoryCards}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="4" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="boarding:BoardingHistoryCardViewModel">
+                    <Button Classes="hcard" Margin="0,0,14,14"
+                            Command="{Binding #Root.((boarding:BoardingPageViewModel)DataContext).OpenHistoryDetailCommand}"
+                            CommandParameter="{Binding}">
+                        <StackPanel>
+                            <!-- top -->
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,0,0,12">
+                                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
+                                        Background="{Binding AvatarBrush}" VerticalAlignment="Top">
+                                    <Path Width="20" Height="20" Fill="Transparent" StrokeThickness="2"
+                                          StrokeLineCap="Round" StrokeJoin="Round" Stretch="Uniform"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Stroke="{Binding AvatarGlyphBrush}"
+                                          Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}" />
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding PetName}" FontSize="14" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="{Binding BreedLine}" FontSize="11.5" Margin="0,2,0,0"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                                <Border Grid.Column="2" Background="{Binding StatusPillBackground}"
+                                        CornerRadius="20" Padding="8,3" VerticalAlignment="Top">
+                                    <TextBlock Text="{Binding StatusLabel}" FontSize="10.5" FontWeight="Bold"
+                                               Foreground="{Binding StatusPillForeground}" />
+                                </Border>
+                            </Grid>
+
+                            <!-- dates -->
+                            <Grid ColumnDefinitions="*,Auto,*,Auto,*" ColumnSpacing="8" Margin="0,0,0,6">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="ورود" FontSize="10" FontWeight="Bold"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                    <TextBlock Text="{Binding CheckInText}" FontSize="12" FontWeight="Bold"
+                                               Foreground="{StaticResource Ink2Brush}" />
+                                </StackPanel>
+                                <Path Grid.Column="1" Classes="icon" Width="13" Height="13"
+                                      Stroke="{StaticResource Muted2Brush}" Data="{StaticResource IconChevronLeft}"
+                                      VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="خروج" FontSize="10" FontWeight="Bold"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                    <TextBlock Text="{Binding CheckOutText}" FontSize="12" FontWeight="Bold"
+                                               Foreground="{StaticResource Ink2Brush}" />
+                                </StackPanel>
+                                <Path Grid.Column="3" Classes="icon" Width="13" Height="13"
+                                      Stroke="{StaticResource Muted2Brush}" Data="{StaticResource IconChevronLeft}"
+                                      VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="مدت" FontSize="10" FontWeight="Bold"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                    <TextBlock Text="{Binding NightsText}" FontSize="12" FontWeight="Bold"
+                                               Foreground="{StaticResource Brand700Brush}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- progress -->
+                            <Border Height="4" CornerRadius="4" Background="{Binding ProgressBrush}"
+                                    ClipToBounds="True" Margin="0,4,0,8" />
+
+                            <!-- foot -->
+                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                                    Padding="0,8,0,0" Margin="0,2,0,0">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5"
+                                                VerticalAlignment="Center">
+                                        <Path Classes="icon" Width="11" Height="11"
+                                              Stroke="{StaticResource Muted2Brush}" Data="{StaticResource IconUsers}"
+                                              VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding OwnerName}" FontSize="11.5"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                                HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <Border Classes="room-chip">
+                                            <TextBlock Text="{Binding RoomText}" FontSize="10.5"
+                                                       FontWeight="ExtraBold"
+                                                       Foreground="{StaticResource Brand700Brush}" />
+                                        </Border>
+                                        <TextBlock Text="{Binding TotalCostText}" FontSize="11.5"
+                                                   FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource Brand700Brush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- empty state -->
+        <StackPanel IsVisible="{Binding !HasHistoryCards}" HorizontalAlignment="Center" Margin="0,48,0,48"
+                    Spacing="6">
+            <Border Width="60" Height="60" CornerRadius="16" Background="{StaticResource Bg2Brush}"
+                    HorizontalAlignment="Center">
+                <Path Width="28" Height="28" Fill="Transparent" StrokeThickness="2" StrokeLineCap="Round"
+                      StrokeJoin="Round" Stretch="Uniform" Stroke="{StaticResource Muted2Brush}"
+                      Data="{StaticResource IconTimeline}" HorizontalAlignment="Center"
+                      VerticalAlignment="Center" />
+            </Border>
+            <TextBlock Text="هیچ اقامتی یافت نشد" FontSize="15" FontWeight="Bold"
+                       Foreground="{StaticResource Ink2Brush}" HorizontalAlignment="Center" Margin="0,6,0,0" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>
