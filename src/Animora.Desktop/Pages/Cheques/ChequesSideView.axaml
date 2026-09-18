@@ -1,0 +1,227 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ch="using:Animora.Desktop.Pages.Cheques"
+             x:Class="Animora.Desktop.Pages.Cheques.ChequesSideView"
+             x:Name="Root"
+             x:DataType="ch:ChequesPageViewModel"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <!-- side card (.side-card) -->
+        <Style Selector="Border.side-card">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+        <Style Selector="Border.side-card /template/ ContentPresenter#PART_ContentPresenter" />
+
+        <!-- flow bar (.flow-col .bar) -->
+        <Style Selector="Border.flow-i">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="CornerRadius" Value="5,5,3,3" />
+            <Setter Property="VerticalAlignment" Value="Bottom" />
+        </Style>
+        <Style Selector="Border.flow-o">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="CornerRadius" Value="5,5,3,3" />
+            <Setter Property="VerticalAlignment" Value="Bottom" />
+        </Style>
+
+        <!-- bank row track (.bank-row .track) -->
+        <Style Selector="Border.track">
+            <Setter Property="Height" Value="7" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+
+        <!-- alert item (.alert-item) -->
+        <Style Selector="Button.alert-item">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.alert-item:pointerover">
+            <Setter Property="Background" Value="{StaticResource BgBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Spacing="14">
+        <!-- ═══ جریان نقدی چک‌ها (cardCashflow) ═══ -->
+        <Border Classes="side-card" DataContext="{Binding Cashflow}">
+            <StackPanel>
+                <Grid ColumnDefinitions="Auto,*,Auto" Margin="15,13,15,8" ColumnSpacing="8">
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="جریان نقدی چک‌ها" FontSize="13" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="۸ هفته آینده" FontSize="10.5" Foreground="{StaticResource MutedBrush}"
+                                   Margin="0,1,0,0" />
+                    </StackPanel>
+                    <Border Grid.Column="2" Background="{Binding NetBackground}" CornerRadius="20" Padding="9,4"
+                            VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <Path Classes="icon" Width="12" Height="12" Stroke="{Binding NetForeground}"
+                                  Data="{Binding NetIcon, Converter={StaticResource IconKeyConverter}}"
+                                  VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding NetText}" FontSize="11" FontWeight="Bold"
+                                       Foreground="{Binding NetForeground}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+                <StackPanel Margin="15,4,15,14">
+                    <!-- bars -->
+                    <Grid Height="84" ColumnSpacing="6">
+                        <ItemsControl ItemsSource="{Binding Weeks}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Rows="1" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="ch:ChequeCashflowWeekViewModel">
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="3" Margin="1,0"
+                                          ToolTip.Tip="{Binding TipText}" VerticalAlignment="Bottom">
+                                        <Border Grid.Column="0" Classes="flow-i" Height="{Binding InBarHeight}"
+                                                MinHeight="3" VerticalAlignment="Bottom">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#2dd4bf" Offset="0" />
+                                                    <GradientStop Color="#0d9488" Offset="1" />
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                        </Border>
+                                        <Border Grid.Column="1" Classes="flow-o" Height="{Binding OutBarHeight}"
+                                                MinHeight="3" VerticalAlignment="Bottom">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#f0b593" Offset="0" />
+                                                    <GradientStop Color="#de8f52" Offset="1" />
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                    <!-- labels -->
+                    <ItemsControl ItemsSource="{Binding Weeks}" Margin="0,8,0,0">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="ch:ChequeCashflowWeekViewModel">
+                                <TextBlock Text="{Binding FirstWord}" FontSize="9.5"
+                                           Foreground="{StaticResource Muted2Brush}"
+                                           HorizontalAlignment="Center" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <!-- legend -->
+                    <StackPanel Orientation="Horizontal" Spacing="14" Margin="0,10,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <Border Width="9" Height="9" CornerRadius="3" Background="#0d9488"
+                                    VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding InLegendText}" FontSize="11"
+                                       Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <Border Width="9" Height="9" CornerRadius="3" Background="#de8f52"
+                                    VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding OutLegendText}" FontSize="11"
+                                       Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ توزیع بانکی (cardBanks) ═══ -->
+        <Border Classes="side-card">
+            <StackPanel>
+                <StackPanel Margin="15,13,15,8">
+                    <TextBlock Text="توزیع بانکی" FontSize="13" FontWeight="ExtraBold"
+                               Foreground="{StaticResource InkBrush}" />
+                    <TextBlock Text="۵ بانک برتر بر اساس مبلغ" FontSize="10.5"
+                               Foreground="{StaticResource MutedBrush}" Margin="0,1,0,0" />
+                </StackPanel>
+                <StackPanel Margin="15,4,15,14">
+                    <ItemsControl ItemsSource="{Binding BankRows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="ch:ChequeBankRowViewModel">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,8">
+                                    <Border Grid.RowSpan="1" Grid.Column="0" Width="{Binding Mark.Size}"
+                                            Height="{Binding Mark.Size}" CornerRadius="{Binding Mark.CornerRadius}"
+                                            Background="{Binding Mark.Brush}" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Mark.ShortLabel}" FontSize="9" FontWeight="ExtraBold"
+                                                   Foreground="White" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,5">
+                                            <TextBlock Text="{Binding Name}" FontSize="11.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource Ink2Brush}" />
+                                            <TextBlock Text="{Binding CountText}" FontSize="11"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                        <Border Classes="track">
+                                            <Border HorizontalAlignment="Left" Width="{Binding TrackWidth}"
+                                                    CornerRadius="20" Background="{Binding TrackBrush}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2" Text="{Binding ValueText}" FontSize="11.5"
+                                               FontWeight="ExtraBold" Foreground="{StaticResource Ink2Brush}"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ هشدارها و اقدام‌ها (cardAlerts) ═══ -->
+        <Border Classes="side-card">
+            <StackPanel>
+                <StackPanel Margin="15,13,15,8">
+                    <TextBlock Text="هشدارها و اقدام‌ها" FontSize="13" FontWeight="ExtraBold"
+                               Foreground="{StaticResource InkBrush}" />
+                    <TextBlock Text="هوشمند بر اساس سررسید" FontSize="10.5"
+                               Foreground="{StaticResource MutedBrush}" Margin="0,1,0,0" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding Alerts}" Margin="10,2,10,12">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="ch:ChequeAlertViewModel">
+                            <Button Classes="alert-item"
+                                    Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).ApplyAlertCommand}"
+                                    CommandParameter="{Binding Kind}">
+                                <Grid ColumnDefinitions="30,*" ColumnSpacing="10">
+                                    <Border Grid.Column="0" Width="30" Height="30" CornerRadius="10"
+                                            Background="{Binding IconBackground}" VerticalAlignment="Top">
+                                        <Path Classes="icon" Width="15" Height="15"
+                                              Stroke="{Binding IconForeground}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="Bold"
+                                                   Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Detail}" FontSize="10.5"
+                                                   Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
