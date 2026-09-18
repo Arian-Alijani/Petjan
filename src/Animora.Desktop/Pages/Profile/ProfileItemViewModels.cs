@@ -1,0 +1,244 @@
+using System.Collections.Generic;
+using System.Globalization;
+using Animora.Desktop.Localization;
+using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
+
+namespace Animora.Desktop.Pages.Profile;
+
+/// <summary>
+/// Presentation helpers for the Profile &amp; Settings screen: Persian-digit
+/// formatting and hex→brush conversion — kept here so the ViewModel/View stay
+/// free of formatting literals and the Contracts stay free of UI resources.
+/// </summary>
+public static class ProfilePresentation
+{
+    public static string Fa(string? text) =>
+        PersianNumberFormatter.ToPersianDigits(text ?? string.Empty);
+
+    public static IBrush Fill(string hex) => new SolidColorBrush(Color.Parse(hex));
+
+    /// <summary>The four KPI-strip accent tones (reference profile.css .pf-kpi[.t-*]).</summary>
+    public static (IBrush Background, IBrush Foreground) KpiTone(string tone) => tone switch
+    {
+        "warn" => (Fill("#fffaeb"), Fill("#b54708")),
+        "info" => (Fill("#eff8ff"), Fill("#1570cd")),
+        "violet" => (Fill("#f4f3ff"), Fill("#7b5cc4")),
+        _ => (Fill("#f0fdfa"), Fill("#0e7566")),
+    };
+
+    public static readonly IReadOnlyList<string> Weekdays =
+        ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+}
+
+/// <summary>One KPI box of the strip under the hero (reference <c>hero()</c>).</summary>
+public sealed class ProfileKpiViewModel
+{
+    public ProfileKpiViewModel(string iconKey, string value, string suffix, string label, string tone)
+    {
+        IconKey = iconKey;
+        Value = ProfilePresentation.Fa(value) + suffix;
+        Label = label;
+        Tone = tone;
+        var (bg, fg) = ProfilePresentation.KpiTone(tone);
+        IconBackground = bg;
+        IconForeground = fg;
+    }
+
+    public string IconKey { get; }
+
+    public string Value { get; }
+
+    public string Label { get; }
+
+    public string Tone { get; }
+
+    public IBrush IconBackground { get; }
+
+    public IBrush IconForeground { get; }
+}
+
+/// <summary>One team-member row of the «تیم کلینیک» card (reference <c>TEAM</c>).</summary>
+public sealed class ProfileTeamMemberViewModel
+{
+    public ProfileTeamMemberViewModel(
+        string name, string subtitle, string initials, string accentHex, string roleLabel, string roleTone)
+    {
+        Name = name;
+        Subtitle = subtitle;
+        Initials = initials;
+        AvatarBrush = ProfilePresentation.Fill(accentHex);
+        RoleLabel = roleLabel;
+        RoleTone = roleTone;
+        (RoleBackground, RoleForeground) = roleTone == "info"
+            ? (ProfilePresentation.Fill("#eff8ff"), ProfilePresentation.Fill("#1570cd"))
+            : (ProfilePresentation.Fill("#eef2f0"), ProfilePresentation.Fill("#536b68"));
+    }
+
+    public string Name { get; }
+
+    public string Subtitle { get; }
+
+    public string Initials { get; }
+
+    public IBrush AvatarBrush { get; }
+
+    public string RoleLabel { get; }
+
+    /// <summary>"info" | "mute" — maps to the Phase 02 pill classes.</summary>
+    public string RoleTone { get; }
+
+    public IBrush RoleBackground { get; }
+
+    public IBrush RoleForeground { get; }
+}
+
+/// <summary>One active-session row of the «نشست‌های فعال» card (reference <c>SESS</c>).</summary>
+public sealed class ProfileSessionViewModel : ObservableObject
+{
+    public ProfileSessionViewModel(string name, string detail, bool isCurrent)
+    {
+        Name = name;
+        Detail = detail;
+        IsCurrent = isCurrent;
+    }
+
+    public string Name { get; }
+
+    public string Detail { get; }
+
+    public bool IsCurrent { get; }
+
+    public bool CanSignOut => !IsCurrent;
+}
+
+/// <summary>A working-day chip of the «روزهای کاری هفته» group (reference <c>JDOW</c>).</summary>
+public sealed partial class ProfileDayChipViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isOn;
+
+    public ProfileDayChipViewModel(int index, string label)
+    {
+        Index = index;
+        Label = label;
+    }
+
+    public int Index { get; }
+
+    public string Label { get; }
+}
+
+/// <summary>One row of the app notification matrix (reference <c>NMAT</c> + <c>ST.nMat</c>).</summary>
+public sealed partial class ProfileMatrixRowViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _sms;
+
+    [ObservableProperty]
+    private bool _inApp;
+
+    public ProfileMatrixRowViewModel(string eventId, string label, string sub, bool sms, bool inApp)
+    {
+        EventId = eventId;
+        Label = label;
+        Sub = sub;
+        _sms = sms;
+        _inApp = inApp;
+    }
+
+    public string EventId { get; }
+
+    public string Label { get; }
+
+    public string Sub { get; }
+}
+
+/// <summary>A theme-preview option of the «حالت نمایش» card (reference <c>.pf-topt</c>).</summary>
+public sealed partial class ProfileThemeOptionViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isOn;
+
+    public ProfileThemeOptionViewModel(string id, bool dark, string title, string sub)
+    {
+        Id = id;
+        IsDark = dark;
+        Title = title;
+        Sub = sub;
+        PreviewBackground = ProfilePresentation.Fill(dark ? "#1b2426" : "#f6f8f9");
+    }
+
+    /// <summary>"light" | "dark".</summary>
+    public string Id { get; }
+
+    public bool IsDark { get; }
+
+    public string Title { get; }
+
+    public string Sub { get; }
+
+    /// <summary>The swatch preview fill (.pf-topt.light/.dark .pf-tg).</summary>
+    public IBrush PreviewBackground { get; }
+}
+
+/// <summary>A sub-nav tab of the settings rail (reference <c>TABS</c>).</summary>
+public sealed partial class ProfileTabViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isActive;
+
+    public ProfileTabViewModel(string id, string label, string iconKey)
+    {
+        Id = id;
+        Label = label;
+        IconKey = iconKey;
+    }
+
+    public string Id { get; }
+
+    public string Label { get; }
+
+    public string IconKey { get; }
+}
+
+/// <summary>A titled option list for one settings select (.pb-select).</summary>
+public sealed class ProfileSelectViewModel
+{
+    public ProfileSelectViewModel(IReadOnlyList<string> options, string selected)
+    {
+        Options = options;
+        SelectedIndex = System.Linq.Enumerable.ToList(options).IndexOf(selected);
+        if (SelectedIndex < 0)
+        {
+            SelectedIndex = 0;
+        }
+    }
+
+    public IReadOnlyList<string> Options { get; }
+
+    public int SelectedIndex { get; set; }
+
+    public string Value => Options[SelectedIndex];
+}
+
+/// <summary>A single settings toggle row (reference <c>.switch-row</c>).</summary>
+public sealed partial class ProfileToggleViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isOn;
+
+    public ProfileToggleViewModel(string id, string label, string sub, bool isOn)
+    {
+        Id = id;
+        Label = label;
+        Sub = sub;
+        _isOn = isOn;
+    }
+
+    public string Id { get; }
+
+    public string Label { get; }
+
+    public string Sub { get; }
+}
