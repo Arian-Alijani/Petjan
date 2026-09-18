@@ -1,0 +1,179 @@
+using Animora.Contracts.Sales;
+using Avalonia;
+using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
+
+namespace Animora.Desktop.Pages.Sales;
+
+/// <summary>
+/// One line item of the invoice work surface, mirroring the reference's
+/// <c>.sw-line</c> (<c>renderLine</c>): the tag glyph/tone, title + unit price ×
+/// qty, the quantity stepper, the per-line discount box and the line subtotal
+/// (with the struck original when discounted). Read-only display in this phase;
+/// the stepper/discount controls render their values without wiring (Phase 21).
+/// </summary>
+public sealed class InvoiceLineViewModel
+{
+    public InvoiceLineViewModel(InvoiceLine line)
+    {
+        Title = line.Title;
+        IconKey = line.IconKey;
+        KindLabel = line.KindLabel;
+        (TagBackground, TagForeground) = SalePresentation.LineTagBrushes(line.Kind, line.IsCustom);
+
+        UnitText = SalePresentation.Money(line.UnitPrice) + " تومان × " + SalePresentation.Fa(line.Quantity);
+        QuantityText = SalePresentation.Fa(line.Quantity);
+        DiscountText = SalePresentation.Fa(line.DiscountPercent);
+
+        var sub = (long)Math.Round(line.UnitPrice * (double)line.Quantity);
+        var disc = (long)Math.Round(sub * line.DiscountPercent / 100.0);
+        var net = sub - disc;
+
+        HasDiscount = disc > 0;
+        SubtotalStruckText = SalePresentation.Money(sub);
+        SubtotalText = SalePresentation.Money(net);
+    }
+
+    public string Title { get; }
+
+    public string IconKey { get; }
+
+    public string KindLabel { get; }
+
+    public IBrush TagBackground { get; }
+
+    public IBrush TagForeground { get; }
+
+    public string UnitText { get; }
+
+    public string QuantityText { get; }
+
+    public string DiscountText { get; }
+
+    public bool HasDiscount { get; }
+
+    public string SubtotalStruckText { get; }
+
+    public string SubtotalText { get; }
+}
+
+/// <summary>
+/// One historical payment row of the invoice work surface, mirroring the
+/// reference's <c>.sw-history-item</c> (<c>renderHistory</c>): its method chip,
+/// note + timestamp and the signed amount (a refund row is danger-toned).
+/// </summary>
+public sealed class InvoicePaymentViewModel
+{
+    public InvoicePaymentViewModel(InvoicePayment payment)
+    {
+        (MethodBackground, MethodForeground) = SalePresentation.MethodBrushes(payment.Method);
+        MethodLabel = payment.MethodLabel;
+
+        var note = string.IsNullOrEmpty(payment.Note)
+            ? (payment.Amount < 0 ? "عودت وجه" : "پرداخت")
+            : payment.Note;
+        NoteText = string.IsNullOrEmpty(payment.At) ? note : note + " · " + payment.At;
+
+        IsRefund = payment.Amount < 0;
+        AmountText = (IsRefund ? "− " : string.Empty) +
+                     SalePresentation.Money(Math.Abs(payment.Amount)) + " تومان";
+        AmountBrush = IsRefund
+            ? SalePresentation.StateDotBrush(InvoiceState.Void)
+            : SalePresentation.StateDotBrush(InvoiceState.Settled);
+    }
+
+    public IBrush MethodBackground { get; }
+
+    public IBrush MethodForeground { get; }
+
+    public string MethodLabel { get; }
+
+    public string NoteText { get; }
+
+    public bool IsRefund { get; }
+
+    public string AmountText { get; }
+
+    public IBrush AmountBrush { get; }
+}
+
+/// <summary>
+/// One row of the sidebar's invoice list — either a group header («باز و در
+/// انتظار» / «تسویه‌شده» / «ابطال و عودت») or an invoice card. Mirrors the
+/// reference's <c>.sw-group-head</c> + <c>.sw-item</c> sequence in
+/// <c>renderSidebar</c>; the View chooses the template by <see cref="IsGroupHeader"/>.
+/// </summary>
+public sealed partial class SaleSidebarRowViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isActive;
+
+    private SaleSidebarRowViewModel(bool isGroupHeader)
+    {
+        IsGroupHeader = isGroupHeader;
+    }
+
+    public bool IsGroupHeader { get; }
+
+    // Group header fields.
+    public string GroupLabel { get; private init; } = string.Empty;
+
+    public string GroupCount { get; private init; } = string.Empty;
+
+    // Invoice card fields.
+    public string InvoiceId { get; private init; } = string.Empty;
+
+    public string SourceLabel { get; private init; } = string.Empty;
+
+    public string OwnerName { get; private init; } = string.Empty;
+
+    public string Subtitle { get; private init; } = string.Empty;
+
+    public string PetInitial { get; private init; } = string.Empty;
+
+    public IBrush AvatarBrush { get; private init; } = Brushes.Transparent;
+
+    public IBrush StateDotBrush { get; private init; } = Brushes.Transparent;
+
+    public string TotalText { get; private init; } = string.Empty;
+
+    public string TagText { get; private init; } = string.Empty;
+
+    public IBrush TagBackground { get; private init; } = Brushes.Transparent;
+
+    public IBrush TagForeground { get; private init; } = Brushes.Transparent;
+
+    public static SaleSidebarRowViewModel Header(string label, int count) => new(true)
+    {
+        GroupLabel = label,
+        GroupCount = SalePresentation.Fa(count),
+    };
+
+    public static SaleSidebarRowViewModel Card(InvoiceItemViewModel card)
+    {
+        var (tagBg, tagFg) = card.TagTone switch
+        {
+            TagKind.Due => (SalePresentation.StateDotBrush(InvoiceState.Void),
+                            SalePresentation.StateDotBrush(InvoiceState.Void)),
+            TagKind.Ok => (SalePresentation.StateDotBrush(InvoiceState.Settled),
+                           SalePresentation.StateDotBrush(InvoiceState.Settled)),
+            _ => (SalePresentation.StateDotBrush(InvoiceState.Refunded),
+                  SalePresentation.StateDotBrush(InvoiceState.Refunded)),
+        };
+
+        return new SaleSidebarRowViewModel(false)
+        {
+            InvoiceId = card.Id,
+            SourceLabel = card.SourceLabel,
+            OwnerName = card.OwnerName,
+            Subtitle = card.Subtitle,
+            PetInitial = card.PetInitial,
+            AvatarBrush = card.AvatarBrush,
+            StateDotBrush = card.StateDotBrush,
+            TotalText = card.TotalText,
+            TagText = card.TagText,
+            TagBackground = tagBg,
+            TagForeground = tagFg,
+        };
+    }
+}
