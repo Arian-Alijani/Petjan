@@ -1,6 +1,7 @@
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Boarding;
 using Animora.Contracts.Cashier;
+using Animora.Contracts.Cheques;
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Inventory;
@@ -14,6 +15,7 @@ using Animora.Desktop.Mocks;
 using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Boarding;
 using Animora.Desktop.Pages.Cashier;
+using Animora.Desktop.Pages.Cheques;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Patients;
@@ -147,6 +149,11 @@ public partial class App : Application
         // mutations while navigating.
         services.AddSingleton<ICashierService, MockCashierService>();
         services.AddSingleton<CashierPageViewModel>();
+
+        // Phase 23: Cheques (treasury) list/board screen. Stateful in-memory mock
+        // (row-menu status changes / deletes mutate the list), so a singleton.
+        services.AddSingleton<IChequesQueryService, MockChequesQueryService>();
+        services.AddSingleton<ChequesPageViewModel>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();

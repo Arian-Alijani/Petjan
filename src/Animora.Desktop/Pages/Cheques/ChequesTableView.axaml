@@ -1,0 +1,422 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ch="using:Animora.Desktop.Pages.Cheques"
+             x:Class="Animora.Desktop.Pages.Cheques.ChequesTableView"
+             x:Name="Root"
+             x:DataType="ch:ChequesPageViewModel"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <!-- table row shell (tbody tr) -->
+        <Style Selector="Button.ch-row">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        </Style>
+
+        <!-- status pill (.st) -->
+        <Style Selector="Border.st">
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="10,4" />
+        </Style>
+
+        <!-- countdown pill (.cd) -->
+        <Style Selector="Border.cd">
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="8,2" />
+        </Style>
+
+        <!-- direction tag (.dir-tag) -->
+        <Style Selector="Border.dir-tag">
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8,3" />
+        </Style>
+
+        <!-- small icon button (.ch-mini) -->
+        <Style Selector="Button.ch-mini">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.ch-mini:pointerover">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        </Style>
+
+        <!-- pager button (.ch-pager .pages button) -->
+        <Style Selector="Button.pg">
+            <Setter Property="MinWidth" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="4,0" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.pg:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.pg.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+
+        <!-- row menu (.ch-menu) -->
+        <Style Selector="Border.ch-menu">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowPop}" />
+            <Setter Property="Padding" Value="6" />
+            <Setter Property="MinWidth" Value="194" />
+        </Style>
+        <Style Selector="Button.ch-menu-item">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+        <Style Selector="Button.ch-menu-item:pointerover">
+            <Setter Property="Background" Value="{StaticResource BgBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+
+        <Style Selector="TextBlock.th">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Classes="ch-card" Background="{StaticResource PanelBrush}"
+            BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+            CornerRadius="{StaticResource Radius}" ClipToBounds="True">
+        <Border.BoxShadow>
+            <StaticResource ResourceKey="ShadowCard" />
+        </Border.BoxShadow>
+        <StackPanel>
+            <!-- card head (.ch-card-head) -->
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="10" Margin="18,14">
+                <TextBlock Grid.Column="0" Text="فهرست چک‌ها" FontSize="14.5" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{Binding ListHeadSummary}" FontSize="11"
+                           Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                <Button Grid.Column="3" Classes="ch-mini" Command="{Binding PrintListCommand}"
+                        ToolTip.Tip="چاپ فهرست">
+                    <Path Classes="icon" Width="15" Height="15" Stroke="{Binding $parent[Button].Foreground}"
+                          Data="{StaticResource IconPrinter}" />
+                </Button>
+                <Button Grid.Column="4" Classes="ch-mini" Command="{Binding RefreshCommand}"
+                        ToolTip.Tip="بازخوانی">
+                    <Path Classes="icon" Width="15" Height="15" Stroke="{Binding $parent[Button].Foreground}"
+                          Data="{StaticResource IconRefresh}" />
+                </Button>
+            </Grid>
+
+            <!-- table -->
+            <StackPanel IsVisible="{Binding HasRows}">
+                <!-- head row (.ch-tbl thead) -->
+                <Grid ColumnDefinitions="38,1.15*,1.35*,1.35*,1*,1*,1.15*,44"
+                      Background="{StaticResource TableHeadBrush}" Margin="0,0,0,0">
+                    <TextBlock Grid.Column="0" Text=" " />
+                    <Button Grid.Column="1" Classes="ghost" Padding="14,11" HorizontalContentAlignment="Left"
+                            Background="Transparent" Cursor="Hand"
+                            Command="{Binding SortByCommand}" CommandParameter="no">
+                        <StackPanel Orientation="Horizontal" Spacing="3">
+                            <TextBlock Classes="th" Text="شماره چک" />
+                            <TextBlock Classes="th" Text="▲" FontSize="9" Opacity="0.35" />
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="2" Classes="ghost" Padding="14,11" HorizontalContentAlignment="Left"
+                            Background="Transparent" Cursor="Hand"
+                            Command="{Binding SortByCommand}" CommandParameter="party">
+                        <StackPanel Orientation="Horizontal" Spacing="3">
+                            <TextBlock Classes="th" Text="طرف حساب" />
+                            <TextBlock Classes="th" Text="▲" FontSize="9" Opacity="0.35" />
+                        </StackPanel>
+                    </Button>
+                    <TextBlock Grid.Column="3" Classes="th" Text="بانک / شعبه" Margin="14,11" />
+                    <Button Grid.Column="4" Classes="ghost" Padding="14,11" HorizontalContentAlignment="Left"
+                            Background="Transparent" Cursor="Hand"
+                            Command="{Binding SortByCommand}" CommandParameter="amount">
+                        <StackPanel Orientation="Horizontal" Spacing="3">
+                            <TextBlock Classes="th" Text="مبلغ" />
+                            <TextBlock Classes="th" Text="▲" FontSize="9" Opacity="0.35" />
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="5" Classes="ghost" Padding="14,11" HorizontalContentAlignment="Left"
+                            Background="Transparent" Cursor="Hand"
+                            Command="{Binding SortByCommand}" CommandParameter="due">
+                        <StackPanel Orientation="Horizontal" Spacing="3">
+                            <TextBlock Classes="th" Text="سررسید" />
+                            <TextBlock Classes="th" Text="▲" FontSize="9" Opacity="0.35" />
+                        </StackPanel>
+                    </Button>
+                    <TextBlock Grid.Column="6" Classes="th" Text="وضعیت" Margin="14,11" />
+                    <TextBlock Grid.Column="7" Text=" " />
+                </Grid>
+
+                <!-- rows -->
+                <ItemsControl ItemsSource="{Binding TableRows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="ch:ChequeRowViewModel">
+                            <Grid>
+                                <Button Classes="ch-row"
+                                        Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).ToggleRowMenuCommand}"
+                                        CommandParameter="{Binding}">
+                                    <Grid ColumnDefinitions="38,1.15*,1.35*,1.35*,1*,1*,1.15*,44"
+                                          Background="{StaticResource PanelBrush}">
+                                        <Border Grid.ColumnSpan="8" Height="1" VerticalAlignment="Bottom"
+                                                Background="{StaticResource Line2Brush}" />
+                                        <!-- checkbox col -->
+                                        <Border Grid.Column="0" Padding="10,12">
+                                            <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Left"
+                                                      VerticalAlignment="Center" MinWidth="0" Padding="0"
+                                                      IsHitTestVisible="True"
+                                                      Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).ToggleSelectCommand}"
+                                                      CommandParameter="{Binding Id}" />
+                                        </Border>
+
+                                        <!-- number -->
+                                        <StackPanel Grid.Column="1" Margin="14,12" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="{Binding NumberText}" FontSize="13" FontWeight="ExtraBold"
+                                                       Foreground="{StaticResource InkBrush}" LetterSpacing="0.4" />
+                                            <TextBlock Text="{Binding SayadShort}" FontSize="10.5"
+                                                       Foreground="{StaticResource Muted2Brush}" LetterSpacing="0.3" />
+                                        </StackPanel>
+
+                                        <!-- party -->
+                                        <Grid Grid.Column="2" ColumnDefinitions="Auto,*" ColumnSpacing="9"
+                                              Margin="14,12" VerticalAlignment="Center">
+                                            <Border Grid.Column="0" Width="32" Height="32" CornerRadius="10"
+                                                    Background="{Binding AvatarBrush}">
+                                                <TextBlock Text="{Binding Initials}" FontSize="12" FontWeight="ExtraBold"
+                                                           Foreground="White" HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                                <TextBlock Text="{Binding Party}" FontSize="12.5" FontWeight="Bold"
+                                                           Foreground="{StaticResource InkBrush}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <TextBlock Text="{Binding Role}" FontSize="10.5"
+                                                               Foreground="{StaticResource MutedBrush}"
+                                                               VerticalAlignment="Center" />
+                                                    <TextBlock Text="·" FontSize="10.5"
+                                                               Foreground="{StaticResource MutedBrush}"
+                                                               VerticalAlignment="Center" />
+                                                    <Border Classes="dir-tag" Background="{Binding DirectionTagBackground}"
+                                                            VerticalAlignment="Center">
+                                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                                            <Path Classes="icon" Width="11" Height="11"
+                                                                  Stroke="{Binding DirectionTagForeground}"
+                                                                  Data="{Binding DirectionIcon, Converter={StaticResource IconKeyConverter}}"
+                                                                  VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding DirectionLabel}" FontSize="10.5"
+                                                                       FontWeight="Bold"
+                                                                       Foreground="{Binding DirectionTagForeground}"
+                                                                       VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- bank / branch -->
+                                        <Grid Grid.Column="3" ColumnDefinitions="Auto,*" ColumnSpacing="7"
+                                              Margin="14,12" VerticalAlignment="Center">
+                                            <Border Grid.Column="0" Width="{Binding BankMark.Size}"
+                                                    Height="{Binding BankMark.Size}"
+                                                    CornerRadius="{Binding BankMark.CornerRadius}"
+                                                    Background="{Binding BankMark.Brush}" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding BankMark.ShortLabel}" FontSize="9"
+                                                           FontWeight="ExtraBold" Foreground="White"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                                <TextBlock Text="{Binding BankName}" FontSize="12"
+                                                           Foreground="{StaticResource Ink2Brush}" />
+                                                <TextBlock Text="{Binding Branch}" FontSize="10"
+                                                           Foreground="{StaticResource Muted2Brush}" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- amount -->
+                                        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="3"
+                                                    Margin="14,12" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding AmountText}" FontSize="13" FontWeight="ExtraBold"
+                                                       Foreground="{Binding AmountForeground}" />
+                                            <TextBlock Text="تومان" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       VerticalAlignment="Bottom" Margin="0,0,0,2" />
+                                        </StackPanel>
+
+                                        <!-- due -->
+                                        <StackPanel Grid.Column="5" Margin="14,12" VerticalAlignment="Center" Spacing="3">
+                                            <TextBlock Text="{Binding DueText}" FontSize="12.5"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <Border Classes="cd" Background="{Binding Countdown.Background}"
+                                                    HorizontalAlignment="Left">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <Path Classes="icon" Width="10" Height="10"
+                                                          Stroke="{Binding Countdown.Foreground}"
+                                                          Data="{Binding Countdown.IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                          VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding Countdown.Text}" FontSize="10.5"
+                                                               FontWeight="Bold"
+                                                               Foreground="{Binding Countdown.Foreground}"
+                                                               VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <!-- status -->
+                                        <Border Grid.Column="6" Classes="st" Background="{Binding Status.Background}"
+                                                HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                Margin="14,12">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <Path Classes="icon" Width="12" Height="12"
+                                                      Stroke="{Binding Status.Foreground}"
+                                                      Data="{Binding Status.IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                      VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Status.Label}" FontSize="11" FontWeight="Bold"
+                                                           Foreground="{Binding Status.Foreground}"
+                                                           VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- more menu trigger -->
+                                        <Border Grid.Column="7" Padding="10,12" VerticalAlignment="Center">
+                                            <Button Classes="ch-mini" ToolTip.Tip="عملیات"
+                                                    Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).ToggleRowMenuCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <Path Classes="icon" Width="15" Height="15"
+                                                      Stroke="{Binding $parent[Button].Foreground}"
+                                                      Data="{StaticResource IconMore}" />
+                                            </Button>
+                                        </Border>
+                                    </Grid>
+                                </Button>
+
+                                <!-- row menu popup (.ch-menu) -->
+                                <Popup IsOpen="{Binding IsMenuOpen}"
+                                       Placement="BottomEdgeAlignedRight" VerticalOffset="0"
+                                       IsLightDismissEnabled="True">
+                                    <Border Classes="ch-menu">
+                                        <StackPanel>
+                                            <ItemsControl ItemsSource="{Binding MenuActions}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="ch:ChequeMenuActionViewModel">
+                                                        <StackPanel>
+                                                            <Border Height="1" Margin="4,5"
+                                                                    Background="{StaticResource Line2Brush}"
+                                                                    IsVisible="{Binding ShowTopSeparator}" />
+                                                            <Button Classes="ch-menu-item"
+                                                                    Foreground="{Binding $parent[Button].Foreground}"
+                                                                    Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).RunRowActionCommand}"
+                                                                    CommandParameter="{Binding}">
+                                                                <StackPanel Orientation="Horizontal" Spacing="9">
+                                                                    <Path Classes="icon" Width="15" Height="15"
+                                                                          Stroke="{StaticResource MutedBrush}"
+                                                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                                          VerticalAlignment="Center" />
+                                                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                                                </StackPanel>
+                                                            </Button>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- pager (.ch-pager) -->
+                <Grid ColumnDefinitions="Auto,*" Margin="16,12" DataContext="{Binding Pager}"
+                      IsVisible="{Binding #Root.((ch:ChequesPageViewModel)DataContext).Pager, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Grid.Column="0" Text="{Binding Text}" FontSize="12"
+                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                        <Button Classes="pg" IsEnabled="{Binding HasPrev}"
+                                Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).GoToPageCommand}"
+                                CommandParameter="{Binding PrevPage}">
+                            <Path Classes="icon" Width="13" Height="13" Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconChevronRight}" />
+                        </Button>
+                        <ItemsControl ItemsSource="{Binding Pages}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="4" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="ch:ChequePagerButtonViewModel">
+                                    <Button Classes="pg" Classes.on="{Binding IsActive}" IsEnabled="{Binding IsEnabled}"
+                                            Content="{Binding Label}"
+                                            Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).GoToPageCommand}"
+                                            CommandParameter="{Binding Page}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Classes="pg" IsEnabled="{Binding HasNext}"
+                                Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).GoToPageCommand}"
+                                CommandParameter="{Binding NextPage}">
+                            <Path Classes="icon" Width="13" Height="13" Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconChevronLeft}" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+
+            <!-- empty state (.ch-empty) -->
+            <StackPanel IsVisible="{Binding !HasRows}" Margin="20,54">
+                <Border Width="92" Height="92" CornerRadius="28" Background="{StaticResource Bg2Brush}"
+                        HorizontalAlignment="Center">
+                    <Path Classes="icon" Width="40" Height="40" Stroke="{StaticResource Muted2Brush}"
+                          Data="{StaticResource IconCheque}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Text="چکی با این فیلترها پیدا نشد" FontSize="15" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" HorizontalAlignment="Center" Margin="0,14,0,0" />
+                <TextBlock Text="عبارت جستجو یا فیلترهای وضعیت را تغییر دهید." FontSize="12.5"
+                           Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" Margin="0,6,0,16" />
+                <Button Classes="outline" HorizontalAlignment="Center" Command="{Binding ClearFiltersCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="14" Height="14" Stroke="{Binding $parent[Button].Foreground}"
+                              Data="{StaticResource IconRefresh}" VerticalAlignment="Center" />
+                        <TextBlock Text="پاک کردن فیلترها" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>
