@@ -40,6 +40,8 @@ public sealed partial class VaccineCatalogCardViewModel : ObservableObject
     public IBrush IconForeground { get; }
     public string Protects { get; }
     public bool IsLow { get; }
+
+    /// <summary>Stock fill percentage (0..100), mirroring the reference's inline width% on the bar.</summary>
     public int StockPercent { get; }
     public IBrush StockFill { get; }
     public string StockText { get; }

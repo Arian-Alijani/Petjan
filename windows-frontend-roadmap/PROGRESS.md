@@ -41,7 +41,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
 
 ## Current state
 
-- **Next phase to execute:** `12` — Vaccination Screen (Phase 11 code is written but **NOT yet build-verified** — see the Phase 11 log entry; run `scripts/sandbox/build.sh full` and the §6.7 visual check before treating it as done).
+- **Next phase to execute:** `13` — Appointments — Calendar Views. Phases 11 and 12 are both now **build-verified (0/0)** and **smoke-run verified** (`scripts/sandbox/run.sh` = SMOKE RUN OK under Xvfb).
 - **Repo state (Phase 10, build- & smoke-run verified):** the Visits placeholder is replaced with the real pre-encounter triage gate. `Animora.Contracts/Visits/` gained `VisitEntryMode`, `VisitTypeInfo`, `BookedAppointmentState`, `DoctorRailInfo`, `BookedAppointmentRef`, `VisitPatientRef`, `NewVisitRequest`, `EncounterDraft` and `IVisitsTriageService` (`GetDoctorsAsync`/`GetBookedForDoctorAsync`/`GetVisitTypes`/`GetPatientsAsync`/`StartFromTicketAsync`/`StartNewAsync`). `Animora.Desktop/Mocks/MockVisitsTriageService` returns the reference's 4-doctor roster with their today counts and booked tickets, the 6-type visit catalog and a 7-patient pick-list, and produces a fresh `EncounterDraft` per start. `Animora.Desktop/Pages/Visits/` adds `VisitsPresentation` (pet-icon keys + species avatar/picked-glyph palettes + gradient helper), `DoctorTileViewModel`, `BookedRowViewModel`, `VisitTypeOptionViewModel`, `VisitTypeChipViewModel`, the `VisitsTriagePageViewModel` (doctor rail + booked/new-visit mode + type chips + patient search/pick + inline new-patient form, commands `SelectDoctor`/`SetMode`/`SetTypeFilter`/`SetType`/`SetPriority`/`PickPatient`/`ChangePatient`/`RegisterNewPatient`/`SaveNewPatient`/`StartFromTicket`/`StartNew`, both start paths showing the Phase-11 placeholder toast), and `VisitsTriagePageView.axaml(.cs)` (340px doctor rail + workspace with doc-lockup/tape/mode-split/booked-list/new-visit form/empty-state, all values transcribed from `visits.html`+`styles.css`). New theme icons `IconTools`/`IconScissors`/`IconPlay`/`IconBulb`. DI registers `IVisitsTriageService`/`VisitsTriagePageViewModel`; the sidebar `visits` item now targets `VisitsTriagePageViewModel`. **Build verification:** `scripts/sandbox/build.sh full` = **0 warnings / 0 errors**; `scripts/sandbox/run.sh` = **SMOKE RUN OK**.
 - **Repo state (Phase 08, build- & smoke-run verified):** Patients & Owners directory now has backend-ready contracts (`IPatientsQueryService`, `PetSummary`/`OwnerSummary` DTOs + `PetSpecies`/`PetStatus`/`PetGender`/`OwnerGender`/`PatientAvatarTone` enums in `Animora.Contracts/Patients/`), a deterministic in-memory `MockPatientsQueryService` (10 pets across cat/dog/bird/rabbit/rodent/other, 6 owners with tags/balances), presentation adapters (`PatientsPageEnums`, `PatientsPresentation`, `PatientsSpeciesChipViewModel`, `OwnerPetChipViewModel`, `OwnerCardViewModel`, `PetCardViewModel`), the `PatientsPageViewModel` (search + derived species-chips + pets/owners entity switch + list/grid layout + vaccine filter + sort, mirroring `petMatches`/`ownerMatches`/`sortPets`/`renderSpeciesChips`, with `OpenPet`/`OpenOwner` toast stubs for Phase 09), and `PatientsPageView.axaml(.cs)` (page header with «خروجی»/«مالک و بیمار جدید», unified `.pagebar` with two tiers, owner-grid/pets-grid cards, owners/pets tables, shared `pt-empty`). New shared helpers: `Localization/PersianText` (search normalization) and `Localization/RelativeDateFormatter` (since/until/age Jalali phrases). New theme additions: `IconPhone/Mobile/IdCard/Pin/Download/List/Grid/More2`, rose/mint + table/inset/hover surface tokens, and `ShadowSegment`/`ShadowChip`. DI registers `IPatientsQueryService`/`PatientsPageViewModel`; the sidebar `patients` item now targets `PatientsPageViewModel`. **Build verification (this session):** installed .NET 10.0.401 + Xvfb via `scripts/sandbox/install-prereqs.sh`; `scripts/sandbox/build.sh full` = **0 warnings / 0 errors** and `scripts/sandbox/run.sh` = **SMOKE RUN OK**. Five defects that the previously-unbuilt code had hidden were fixed during consolidation: (1) `OwnerCardViewModel.PetsPreviewText` was both assigned in the constructor and re-declared as a read-only computed property (CS0200) → kept the constructor's all-pets assignment as an auto-property and removed the duplicate; (2) `BoxShadow` set directly on `Button.cardlink` (Button has no such property) → moved to the template's `ContentPresenter#PART_ContentPresenter`; (3) `Padding` on a `Grid` → `Margin`; (4)+(5) `FontSize` on two table-row `Border`s → `TextElement.FontSize` attached property so the cascade is preserved.
 - **⚠️ Fidelity Protocol now in force (roadmap update, applies to Phase 07+).**
@@ -194,7 +194,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
   (`App.Services`). Central package pins live in `Directory.Packages.props`;
   shared build settings in `Directory.Build.props`. No theming/controls/
   navigation/screens yet.
-- **Roadmap status:** Phases 01–10 done and **build-verified** (0/0) + smoke-run verified. Phase 11 written but **not yet compiled** (no .NET SDK in the authoring session) — it must be built (0/0) and visually verified before it can be marked done; the pointer intentionally advances to 12 only after that gate passes.
+- **Roadmap status:** Phases 01–12 done and **build-verified** (0/0) + smoke-run verified. Phase 11 (Clinical Encounter Wizard) and Phase 12 (Vaccination) were both completed this session — Phase 11's pre-existing build defects (missing code-behind + invalid `Run Opacity`) were fixed first, then Phase 12 was implemented and Task-2 gaps closed.
 
 ## Phase checklist
 
@@ -210,8 +210,8 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
 | 08 | Patients & Owners — List/Grid | ✅ Done | Build-verified (0/0) + smoke run OK. Fixed 5 hidden defects on consolidation (CS0200 `PetsPreviewText`; `BoxShadow` on Button; `Padding` on Grid; 2× `FontSize` on Border); see log |
 | 09 | Patients & Owners — Pet File / Owner Sheet | ✅ Done | Build-verified (0/0) + smoke run OK. Records now open as centered sheets (matching the reference); fixed the empty wizard modal; see log |
 | 10 | Visits — Doctor Rail & Triage | ✅ Done | Build-verified (0/0) + smoke run OK; fidelity code-reviewed vs reference; see log |
-| 11 | Visits — Clinical Encounter Wizard | 🔄 In progress | Code complete (contracts + 2 mocks + VM + main view + 6 step sub-views + DI + Phase-10 handoff wired). **Not build-verified**: this session had no .NET SDK. See log |
-| 12 | Vaccination Screen | ⬜ Not started | |
+| 11 | Visits — Clinical Encounter Wizard | ✅ Done | Build-verified (0/0) + smoke run OK. Fixed missing `VisitEncounterView.axaml.cs` code-behind + invalid `Run Opacity` (Phase 11 build defects); see log |
+| 12 | Vaccination Screen | ✅ Done | Build-verified (0/0) + smoke run OK (Xvfb). Segmented filter, records table, catalog stock grid, SMS automation settings, compose drawer + record detail. Fixed `BoolToBrushConverter` gap; wired settings save + detail-drawer actions; see log |
 | 13 | Appointments — Calendar Views | ⬜ Not started | |
 | 14 | Appointments — Booking Panel | ⬜ Not started | |
 | 15 | Boarding — Board & List | ⬜ Not started | |
@@ -237,6 +237,44 @@ deviation (see log below).
 
 > Append one entry per deviation from the roadmap/conventions, newest on
 > top. If a phase followed the plan exactly, no entry is needed.
+
+### Phase 12 — Vaccination Screen
+
+- **STATUS: complete — build-verified (0/0) + smoke-run verified.** The
+  Vaccination screen was implemented and then its remaining gaps closed in a
+  second pass:
+  - **Contracts/mock (R-18):** `Animora.Contracts/Vaccination/` adds
+    `IVaccinationService` (`GetRecordsAsync`/`GetCatalogAsync`/
+    `GetSmsTemplatesAsync`/`MarkDoneAsync`/`BuildSmsPreviewAsync`/
+    `SendSmsAsync`) plus `VaccinationRecord`, `VaccineCatalogEntry`,
+    `SmsTemplate`, `SmsPreview` and the `VaccinationStatus`/`SmsState` enums.
+    `MockVaccinationService` (24 records / 8 catalog entries / 4 templates,
+    deterministic and anchored to today's Jalali date) is the single impl,
+    registered once in DI alongside `VaccinationPageViewModel`.
+  - **Fixed a latent runtime defect (Task-2):** the record-detail view bound
+    `Stroke="{Binding IsActive, Converter={StaticResource BoolToBrushConverter}}"`
+    but no such resource was registered — it would have thrown when the detail
+    modal opened. Added `BoolToBrushConverter` (violet `#6f57c9` for active vs
+    hairline `#e5eaee` for muted, the reference's `--vx-shot`/`--line`) and
+    registered it in `App.axaml` as `BoolToBrushConverter`.
+  - **Task-2 wiring:** the settings «ذخیره تنظیمات» button now shows the
+    reference's `تنظیمات پیامک ذخیره شد (نمونه طراحی)` toast; the four settings
+    switches each emit the reference's `{name} فعال/غیرفعال شد` toast (matching
+    JS `vaxToggle`); and the record-detail modal's «ارسال پیامک یادآور» /
+    «ثبت انجام» buttons now route through the page VM (open the compose drawer /
+    mark the record done), matching the reference drawer actions.
+  - **Fidelity:** segmented status filter (همه/نزدیک/عقب‌افتاده/آتی/انجام‌شده
+    with live counts), search, species select, records table (بیمار/مالک، واکسن،
+    سررسید بعدی، وضعیت، پیامک، اقدامات) with 8/page pager, catalog stock grid
+    (`vx-cat-grid.wide`, low-stock turns danger), SMS-automation settings card +
+    templates panel, compose drawer (chips/live preview/counter) and the record
+    detail sheet (KV grid + timeline) — all values transcribed from
+    `vaccination.css`. New theme tokens `ShotBrush`/`ShotBgBrush` (`#6f57c9`/`#efeafb`).
+  - **Build/verify:** `scripts/sandbox/build.sh full` = **0 warnings / 0 errors**;
+    `scripts/sandbox/run.sh` = **SMOKE RUN OK** (renders one frame under Xvfb
+    with no startup crash). Xvfb was installed this session
+    (`apt-get install xvfb` + ImageMagick) so the headless render check is
+    available for all remaining screen phases.
 
 ### Phase 11 — Visits — Clinical Encounter Wizard
 
@@ -366,89 +404,4 @@ deviation (see log below).
   with `IsVisible` bound to `IsManager`/`IsCashier`/`IsDoctor` is simpler than
   either alternative and needs no converter or template-selector plumbing;
   all three share the one injected `DashboardPageViewModel` as DataContext
-  exactly as the phase file asks.
-- **`IDashboardQueryService` resolved synchronously in the ViewModel
-  constructor**, not via an async `OnLoaded`. `PageViewModelBase` (Phase 05)
-  has no `OnLoaded` hook yet, and the mock's `Task.FromResult` is already
-  complete — `GetAwaiter().GetResult()` is safe here with no thread-pool
-  hazard. Documented inline as the seam a future real/async backend
-  implementation revisits (no ViewModel shape change needed, only the load
-  call site).
-- **`MockDashboardQueryService` registered as a singleton**, per the phase
-  file's explicit "scoped/singleton — decide and note in PROGRESS.md" ask:
-  it holds no state and returns fixed data per role, so a singleton avoids
-  pointless re-allocation with no behavioral difference from scoped.
-
-### Phase 05 — App Shell: Sidebar, Topbar, Navigation
-
-- **Notification bell reuses `IconClock`.** Phase 03's icon set (23 keys) has
-  no dedicated "bell" geometry, and CONVENTIONS.md §7 scopes this phase to
-  not re-open earlier phases. The topbar bell is a visual/inert stub anyway
-  (Task 7), so it borrows `IconClock` + the red dot for the visual demo. A
-  later phase that wires real notifications can add a proper bell icon.
-- **`NavItem.ViewModelType` is a `System.Type`, targets resolved via DI.**
-  Task 1 listed "Href/ViewModelType"; since this is a native MVVM client (no
-  URLs), the DTO carries the `PageViewModelBase`-derived `Type` and
-  `INavigationService.NavigateTo(Type)` resolves the instance from the
-  container — the idiomatic Avalonia navigation seam per CONVENTIONS.md §3.
-- **Single shared `PlaceholderPageViewModel` (registered singleton).** Every
-  nav item targets the same placeholder instance; the sidebar calls
-  `ConfigureFor(label)` on navigation so the topbar title/breadcrumb/content
-  reflect the clicked item. Each screen phase (06+) registers its own page VM
-  and swaps that one item's `NavigationMenu` target.
-- **View resolution via a convention `ViewLocator` `IDataTemplate`.** Instead
-  of per-VM `DataTemplate`s, an app-level `ViewLocator` maps `…ViewModel` →
-  `…View` by name and constructs the View parameterless (DataContext = the
-  injected VM). This is the standard Avalonia MVVM pattern and keeps Views
-  DI-free while ViewModels stay DI-injected.
-- **`MainWindowViewModel` mirrors `INavigationService.CurrentViewModel`.** The
-  content `ContentControl` binds to a `CurrentPage` observable on the shell VM
-  (updated from `CurrentViewModelChanged`) rather than to the interface
-  property directly, because compiled bindings observe change notification off
-  the concrete VM, not the notification-free service interface.
-- **Nav command binding uses `$parent[UserControl]`.** The nav `Button` lives
-  two `ItemsControl` levels deep (groups → entries); its `NavigateCommand`
-  binds through `$parent[UserControl]`'s `SidebarViewModel` DataContext, since
-  the nearest `ItemsControl` ancestor's DataContext is the `NavGroupViewModel`.
-- **Phase 03 control gallery left on disk, unreferenced.** `MainWindow` now
-  hosts the real shell; `Pages/_ControlGallery/*` is no longer registered in
-  DI or shown, but kept as a dev-only reference (deleting it was out of this
-  phase's scope).
-
-### Phase 04 — RTL & Localization Utilities
-
-- **Persian-digit codepoint follows the reference behavior, not the phase
-  text's example.** Task 2 wrote the target digits as "٠١٢٣٤٥٦٧٨٩"
-  (Arabic-Indic, U+0660..U+0669), but the actual `toFa` reference it points to
-  (`Animora-UI/assets/layout.js`) maps to "۰۱۲۳۴۵۶۷۸۹" (Persian / Extended
-  Arabic-Indic, U+06F0..U+06F9), and every other reference helper (`window.fa`,
-  `J.long`) uses the same U+06Fx set. Since the phase explicitly says "matching
-  `toFa`'s behavior," `PersianNumberFormatter.ToPersianDigits` emits U+06Fx —
-  the correct Persian digits users expect — rather than the example's
-  Arabic-Indic glyphs.
-- **Thousands separator = U+066C (٬), matching `group()`.** `FormatGrouped`
-  inserts U+066C exactly as the reference's `group()` regex does; grouping is
-  computed with plain .NET string math (modulo-3 first group), not a ported JS
-  regex.
-- **`JalaliDate.ToString` supports three formats.** Beyond the required
-  "long" shape ("۱۴ مهر ۱۴۰۴"), it also accepts "medium" ("۱۴ مهر") and
-  "short" ("۱۴۰۴/۰۷/۱۴"), mirroring the reference's `J.long`/`J.medium`
-  plus a numeric form later phases (e.g. Phase 13/23 pickers) will want.
-  Default (null/empty) = "long".
-- **Converters are one-way + also exposed as `.Instance` singletons.**
-  `PersianDigitsConverter`/`JalaliDateConverter` throw on `ConvertBack`
-  (display-only) and are registered both as `App.axaml` resource keys (for
-  `{StaticResource ...}` bindings, per Task 5) and as static `Instance`
-  fields (for `x:Static`/code use). `PersianDigitsConverter` honors a
-  `ConverterParameter=grouped` to switch integral values to the grouped form;
-  `JalaliDateConverter` takes the format name ("long"/"medium"/"short") as its
-  parameter.
-- **Gallery proof needed `x:DataType`.** Adding `{Binding}` proof `TextBlock`s
-  to `ControlGalleryView` triggered `AVLN2100` (compiled bindings require an
-  explicit data type); added `x:DataType="gallery:ControlGalleryView"` and set
-  `DataContext = this` in code-behind so the two proof bindings compile. This
-  is a temporary dev-only view (Phase 05 replaces MainWindow's content).
-
-### Phase 03 — Base Control Library
-
-- **RESOLVED — build now verified; two hidden defects fixed.** A
+  exactly as the phase f

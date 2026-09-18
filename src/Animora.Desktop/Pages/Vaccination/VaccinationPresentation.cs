@@ -73,6 +73,7 @@ public static class VaccinationPresentation
         SmsState.Sent => ("ارسال‌شده", "IconCheck", Tone.Ok),
         SmsState.Scheduled => ("زمان‌بندی‌شده", "IconClock", Tone.Info),
         SmsState.Failed => ("ناموفق", "IconAlert", Tone.Danger),
+        _ => ("ارسال‌نشده", "IconSms", Tone.Neutral),
     };
 
     /// <summary>

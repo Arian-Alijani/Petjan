@@ -137,6 +137,23 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
 
     public IReadOnlyList<string> OverdueRepeats { get; } = ["هر ۷ روز", "هر ۳ روز", "هر ۱۴ روز"];
 
+    // Mirror the reference's `vaxToggle(input, name)`: every switch reports
+    // «{name} فعال/غیرفعال شد (نمونه طراحی)» when flipped.
+    partial void OnRemindBeforeDueChanged(bool value) =>
+        ToggleToast("یادآوری پیش از نوبت", value);
+
+    partial void OnWarnOverdueChanged(bool value) =>
+        ToggleToast("اخطار عقب‌افتاده", value);
+
+    partial void OnConfirmAfterShotChanged(bool value) =>
+        ToggleToast("تأیید تزریق", value);
+
+    partial void OnSendOnHolidaysChanged(bool value) =>
+        ToggleToast("ارسال در تعطیلات", value);
+
+    private void ToggleToast(string name, bool enabled) =>
+        _toast.Show($"{name} {(enabled ? "فعال" : "غیرفعال")} شد (نمونه طراحی)");
+
     partial void OnSelectedSpeciesOptionChanged(SpeciesFilterOption? value)
     {
         _species = value?.Value ?? string.Empty;
@@ -298,8 +315,6 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         _ => "all",
     };
 
-    public bool IsPageActive(int page) => page == _page;
-
     [RelayCommand]
     private void SetSection(string? key)
     {
@@ -390,7 +405,32 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         }
 
         var vaccine = _catalog.FirstOrDefault(v => v.Id == row.Record.VaccineId);
-        _dialogs.ShowModal(new VaccinationRecordDetailViewModel(row.Record, vaccine, _dialogs));
+        _dialogs.ShowModal(new VaccinationRecordDetailViewModel(
+            row.Record,
+            vaccine,
+            _dialogs,
+            onSendSms: record => OpenSmsComposeById(record),
+            onMarkDone: record => _ = MarkDoneByIdAsync(record)));
+    }
+
+    // Re-opens the compose drawer for a record chosen from the detail sheet
+    // (mirrors the reference's `openSmsCompose` fired from inside the drawer).
+    private void OpenSmsComposeById(VaccinationRecord record) =>
+        _dialogs.ShowModal(new SmsComposeViewModel(_service, record, _templates, _dialogs, _toast, Refresh));
+
+    // Marks a record done when triggered from the detail sheet (mirrors the
+    // reference's `vaxMarkDone` fired from inside the drawer).
+    private async Task MarkDoneByIdAsync(VaccinationRecord record)
+    {
+        await _service.MarkDoneAsync(record.Id);
+        var index = _records.FindIndex(r => r.Id == record.Id);
+        if (index >= 0)
+        {
+            _records[index] = _records[index] with { Status = VaccinationStatus.Done };
+        }
+
+        Refresh();
+        _toast.Show("واکسن به‌عنوان انجام‌شده ثبت شد (نمونه طراحی)");
     }
 
     [RelayCommand]
@@ -417,4 +457,13 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
 
         _toast.Show($"قالب «{row.Name}» انتخاب شد (نمونه طراحی)");
     }
+
+    /// <summary>
+    /// Mirrors the reference settings panel's save button
+    /// (<c>vaxToast('تنظیمات پیامک ذخیره شد (نمونه طراحی)','check')</c>): the
+    /// automation values are design-only for now, so this just confirms.
+    /// </summary>
+    [RelayCommand]
+    private void SaveSettings() =>
+        _toast.Show("تنظیمات پیامک ذخیره شد (نمونه طراحی)");
 }

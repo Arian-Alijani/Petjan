@@ -3,6 +3,7 @@
              xmlns:loc="using:Animora.Desktop.Localization"
              xmlns:shell="using:Animora.Desktop.Shell"
              xmlns:dashboard="using:Animora.Desktop.Pages.Dashboard"
+             xmlns:vx="using:Animora.Desktop.Pages.Vaccination"
              x:Class="Animora.Desktop.App"
              RequestedThemeVariant="Default">
 
@@ -32,6 +33,10 @@
             <!-- Maps a Contracts DashboardTone to the Desktop Tone enum, so KPI
                  StatCards can colour their icon tile per tone (teal/lilac/info/danger). -->
             <dashboard:ToneConverter x:Key="ToneConverter" />
+
+            <!-- Phase 12: resolves the vaccination timeline dot's active flag to
+                 the vaccine-accent stroke vs the neutral hairline (vx-shot / line). -->
+            <vx:BoolToShotBrushConverter x:Key="BoolToBrushConverter" />
         </ResourceDictionary>
     </Application.Resources>
 

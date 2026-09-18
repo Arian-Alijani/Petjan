@@ -15,13 +15,19 @@ namespace Animora.Desktop.Pages.Vaccination;
 public sealed partial class VaccinationRecordDetailViewModel : ObservableObject
 {
     private readonly IDialogService _dialogs;
+    private readonly Action<VaccinationRecord>? _onSendSms;
+    private readonly Action<VaccinationRecord>? _onMarkDone;
 
     public VaccinationRecordDetailViewModel(
         VaccinationRecord record,
         VaccineCatalogEntry? vaccine,
-        IDialogService dialogs)
+        IDialogService dialogs,
+        Action<VaccinationRecord>? onSendSms = null,
+        Action<VaccinationRecord>? onMarkDone = null)
     {
         _dialogs = dialogs;
+        _onSendSms = onSendSms;
+        _onMarkDone = onMarkDone;
         Record = record;
 
         PetInitial = VaccinationPresentation.Initial(record.PetName);
@@ -95,6 +101,31 @@ public sealed partial class VaccinationRecordDetailViewModel : ObservableObject
 
     [RelayCommand]
     private void Close() => _dialogs.Close();
+
+    /// <summary>
+    /// Mirrors the reference's primary drawer action
+    /// (<c>onclick="openSmsCompose('@id')"</c>): swap this detail sheet for the
+    /// SMS-compose drawer by delegating to the page, which owns the service,
+    /// template list and the post-send refresh.
+    /// </summary>
+    [RelayCommand]
+    private void SendSms()
+    {
+        _dialogs.Close();
+        _onSendSms?.Invoke(Record);
+    }
+
+    /// <summary>
+    /// Mirrors the reference's outline drawer action
+    /// (<c>onclick="vaxMarkDone('@id');closeVaxDrawer()"</c>): mark the record
+    /// done through the page (which owns the service) and close the sheet.
+    /// </summary>
+    [RelayCommand]
+    private void MarkDone()
+    {
+        _dialogs.Close();
+        _onMarkDone?.Invoke(Record);
+    }
 }
 
 /// <summary>
