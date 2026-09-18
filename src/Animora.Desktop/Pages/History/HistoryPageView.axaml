@@ -1,0 +1,481 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hy="using:Animora.Desktop.Pages.History"
+             x:Class="Animora.Desktop.Pages.History.HistoryPageView"
+             x:Name="Root"
+             x:DataType="hy:HistoryPageViewModel"
+             FlowDirection="RightToLeft"
+             KeyDown="OnKeyDown">
+    <UserControl.Styles>
+        <!-- ═══ KPI card (.hy-kpi) ═══ -->
+        <Style Selector="Border.hy-kpi">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+            <Setter Property="Padding" Value="16,18" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+        </Style>
+
+        <!-- ═══ KPI icon tile (.hy-kpi-icon) ═══ -->
+        <Style Selector="Border.hy-kpi-icon">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+
+        <!-- ═══ Period chip (.hy-period-chips .chip) ═══ -->
+        <Style Selector="Button.hy-chip">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="13,5" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.hy-chip:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.hy-chip.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+
+        <!-- ═══ Category chip (.hy-cat-chip) ═══ -->
+        <Style Selector="Button.hy-cat-chip">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.hy-cat-chip:pointerover">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Button.hy-cat-chip.on">
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+
+        <!-- ═══ Summary bar (.hy-summary) ═══ -->
+        <Style Selector="Border.hy-summary">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1,1,1,0" />
+            <Setter Property="CornerRadius" Value="10,10,0,0" />
+            <Setter Property="Padding" Value="18,12" />
+        </Style>
+        <Style Selector="Border.hy-summary-sep">
+            <Setter Property="Width" Value="1" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Background" Value="{StaticResource LineBrush}" />
+        </Style>
+
+        <!-- ═══ Ledger shell (.hy-ledger) ═══ -->
+        <Style Selector="Border.hy-ledger">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="0,0,10,10" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+
+        <!-- ═══ Ledger head row (.hy-ledger-head) ═══ -->
+        <Style Selector="Border.hy-ledger-head">
+            <Setter Property="Background" Value="{StaticResource BgBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="16,10" />
+        </Style>
+        <Style Selector="TextBlock.hcol-head">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="LetterSpacing" Value="0.3" />
+            <Setter Property="Margin" Value="4,0" />
+        </Style>
+
+        <!-- ═══ Day group header (.hy-day-group) ═══ -->
+        <Style Selector="Border.hy-day-group">
+            <Setter Property="Background" Value="{StaticResource BgBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+            <Setter Property="Padding" Value="16,9" />
+        </Style>
+        <Style Selector="Border.hy-day-badge">
+            <Setter Property="Background" Value="{StaticResource Line2Brush}" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="8,1" />
+        </Style>
+
+        <!-- ═══ Event row (.hy-row) ═══ -->
+        <Style Selector="Border.hy-row">
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+            <Setter Property="Padding" Value="16,11" />
+        </Style>
+        <Style Selector="Border.hy-row:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+
+        <!-- ═══ Category icon badge (.hy-cat-badge) ═══ -->
+        <Style Selector="Border.hy-cat-badge">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+
+        <!-- ═══ Status chip (.hy-status) ═══ -->
+        <Style Selector="Border.hy-status">
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="9,3" />
+        </Style>
+        <Style Selector="Ellipse.hy-status-dot">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="Height" Value="6" />
+        </Style>
+
+        <!-- ═══ Empty state (.hy-empty) ═══ -->
+        <Style Selector="Border.hy-empty-icon">
+            <Setter Property="Width" Value="56" />
+            <Setter Property="Height" Value="56" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+
+        <!-- ═══ Load more (.hy-load-more button) ═══ -->
+        <Style Selector="Button.hy-load-more">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="24,8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.hy-load-more:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Margin="26,22,26,40">
+        <!-- ═══ Page header (.page-header) ═══ -->
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,0,0,18">
+            <StackPanel Grid.Column="0" VerticalAlignment="Bottom">
+                <TextBlock Text="{Binding PageEyebrow}" FontSize="12" FontWeight="Bold"
+                           Foreground="{StaticResource Brand600Brush}" Margin="0,0,0,6" />
+                <TextBlock Text="{Binding PageTitle}" FontSize="26" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" LetterSpacing="-0.4" />
+                <TextBlock Text="{Binding PageSubtitle}" FontSize="13"
+                           Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0" TextWrapping="Wrap" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Bottom">
+                <Button Classes="outline" Command="{Binding ExportCsvCommand}" ToolTip.Tip="خروجی CSV">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="16" Height="16"
+                              Stroke="{Binding $parent[Button].Foreground}"
+                              Data="{StaticResource IconDownload}" VerticalAlignment="Center" />
+                        <TextBlock Text="خروجی CSV" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- ═══ KPI bar (.hy-kpi-bar: 6 equal columns) ═══ -->
+        <ItemsControl ItemsSource="{Binding Kpis}" Margin="0,0,0,24">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="6" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemContainerTheme>
+                <ControlTheme TargetType="ContentPresenter">
+                    <Setter Property="Margin" Value="7" />
+                </ControlTheme>
+            </ItemsControl.ItemContainerTheme>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="hy:HistoryKpiViewModel">
+                    <Border Classes="hy-kpi">
+                        <StackPanel Spacing="6">
+                            <Border Classes="hy-kpi-icon" Background="{Binding IconTileBrush}"
+                                    HorizontalAlignment="Left">
+                                <Path Classes="icon" Width="18" Height="18"
+                                      Stroke="{Binding AccentBrush}"
+                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{StaticResource MutedBrush}" LetterSpacing="0.2" />
+                            <TextBlock Text="{Binding Value}" FontSize="22" FontWeight="ExtraBold"
+                                       Foreground="{StaticResource InkBrush}" LetterSpacing="-0.5" />
+                            <TextBlock Text="{Binding Sub}" FontSize="11"
+                                       Foreground="{StaticResource Muted2Brush}" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- ═══ Toolbar (.hy-toolbar): period chips + search ═══ -->
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,16">
+            <ItemsControl Grid.Column="0" ItemsSource="{Binding PeriodChips}" VerticalAlignment="Center">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="6" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="hy:HistoryPeriodChipViewModel">
+                        <Button Classes="hy-chip" Classes.on="{Binding IsActive}"
+                                Content="{Binding Label}"
+                                Command="{Binding #Root.((hy:HistoryPageViewModel)DataContext).SetPeriodCommand}"
+                                CommandParameter="{Binding Key}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- search (.pb-search) -->
+            <Border Grid.Column="1" HorizontalAlignment="Right" Width="340" VerticalAlignment="Center"
+                    Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource LineBrush}"
+                    BorderThickness="1" CornerRadius="12" Padding="12,8">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                    <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                          Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}"
+                          VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Name="SearchBox" Text="{Binding SearchText}"
+                             Background="Transparent" BorderThickness="0" FontSize="13"
+                             VerticalContentAlignment="Center"
+                             PlaceholderText="{Binding SearchPlaceholder}" />
+                    <Button Grid.Column="2" Width="20" Height="20" Padding="0"
+                            Background="{StaticResource Brand50Brush}" CornerRadius="50"
+                            IsVisible="{Binding HasSearchValue}" Command="{Binding ClearSearchCommand}"
+                            ToolTip.Tip="پاک کردن">
+                        <Path Classes="icon" Width="11" Height="11" StrokeThickness="2.5"
+                              Stroke="{StaticResource Brand700Brush}" Data="{StaticResource IconX}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ═══ Category chips (.hy-cat-row) ═══ -->
+        <ItemsControl ItemsSource="{Binding CategoryChips}" Margin="0,0,0,16">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="hy:HistoryCategoryChipViewModel">
+                    <Button Classes="hy-cat-chip" Classes.on="{Binding IsActive}"
+                            Margin="0,0,6,6" ToolTip.Tip="{Binding Label}"
+                            Command="{Binding #Root.((hy:HistoryPageViewModel)DataContext).ToggleCategoryCommand}"
+                            CommandParameter="{Binding Kind}">
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <Path Classes="icon" Width="14" Height="14"
+                                  Stroke="{Binding ColorBrush}"
+                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                  VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Label}" VerticalAlignment="Center"
+                                       Foreground="{Binding ColorBrush}" />
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- ═══ Ledger feed (summary bar + table) ═══ -->
+        <!-- Empty state -->
+        <Grid IsVisible="{Binding IsEmpty}">
+            <StackPanel>
+                <Border Classes="hy-summary" HorizontalAlignment="Stretch">
+                    <TextBlock Text="نتیجه‌ای یافت نشد" FontSize="13"
+                               Foreground="{StaticResource MutedBrush}" />
+                </Border>
+                <Border Classes="hy-ledger">
+                    <StackPanel Margin="0,64,0,64" HorizontalAlignment="Center" Spacing="10">
+                        <Border Classes="hy-empty-icon" HorizontalAlignment="Center">
+                            <Path Classes="icon" Width="26" Height="26"
+                                  Stroke="{StaticResource Muted2Brush}"
+                                  Data="{StaticResource IconReceipt}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="رویدادی در این بازه ثبت نشده است" FontSize="15"
+                                   FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="بازه زمانی یا فیلتر را تغییر دهید." FontSize="13"
+                                   Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <!-- Populated -->
+        <StackPanel IsVisible="{Binding HasEvents}">
+            <!-- Summary bar (.hy-summary) -->
+            <Border Classes="hy-summary">
+                <StackPanel Orientation="Horizontal" Spacing="24" VerticalAlignment="Center">
+                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
+                        <Run Text="{Binding SummaryCountText}" />
+                    </TextBlock>
+                    <Border Classes="hy-summary-sep" />
+                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
+                        <Run Text="درآمد: " />
+                        <Run Text="{Binding SummaryIncomeText}" FontWeight="Bold" Foreground="{StaticResource OkBrush}" />
+                    </TextBlock>
+                    <Border Classes="hy-summary-sep" />
+                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
+                        <Run Text="هزینه: " />
+                        <Run Text="{Binding SummaryExpenseText}" FontWeight="Bold" Foreground="{StaticResource DangerBrush}" />
+                    </TextBlock>
+                    <Border Classes="hy-summary-sep" />
+                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
+                        <Run Text="خالص: " />
+                        <Run Text="{Binding SummaryNetText}" FontWeight="Bold" Foreground="{Binding SummaryNetBrush}" />
+                    </TextBlock>
+                    <TextBlock Text="مرتب‌سازی: جدیدترین" FontSize="12"
+                               Foreground="{StaticResource Muted2Brush}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+
+            <!-- Ledger table (.hy-ledger) -->
+            <Border Classes="hy-ledger">
+                <StackPanel>
+                    <!-- header (.hy-ledger-head) -->
+                    <Border Classes="hy-ledger-head">
+                        <Grid ColumnDefinitions="36,80,*,140,130,130,120" ColumnSpacing="0">
+                            <TextBlock Grid.Column="0" Classes="hcol-head" />
+                            <TextBlock Grid.Column="1" Classes="hcol-head" Text="زمان" />
+                            <TextBlock Grid.Column="2" Classes="hcol-head" Text="رویداد" />
+                            <TextBlock Grid.Column="3" Classes="hcol-head" Text="موجودیت / پزشک" />
+                            <TextBlock Grid.Column="4" Classes="hcol-head" Text="مبلغ" />
+                            <TextBlock Grid.Column="5" Classes="hcol-head" Text="وضعیت" />
+                            <TextBlock Grid.Column="6" Classes="hcol-head" Text="دسته" />
+                        </Grid>
+                    </Border>
+
+                    <!-- day groups -->
+                    <ItemsControl ItemsSource="{Binding DayGroups}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="hy:HistoryDayGroupViewModel">
+                                <StackPanel>
+                                    <!-- day group header (.hy-day-group) -->
+                                    <Border Classes="hy-day-group">
+                                        <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
+                                            <TextBlock Grid.Column="0" FontSize="12.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource Ink2Brush}">
+                                                <Run Text="{Binding Label}" />
+                                                <Run Text=" – " />
+                                                <Run Text="{Binding DateText}" />
+                                            </TextBlock>
+                                            <Border Grid.Column="1" Classes="hy-day-badge" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding CountText}" FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </Border>
+                                            <TextBlock Grid.Column="2" Text="{Binding NetText}" FontSize="12"
+                                                       FontWeight="Bold" Foreground="{Binding NetBrush}"
+                                                       HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                       IsVisible="{Binding HasNet}" />
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- rows -->
+                                    <ItemsControl ItemsSource="{Binding Rows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="hy:HistoryEventRowViewModel">
+                                                <Border Classes="hy-row" ToolTip.Tip="{Binding Title}">
+                                                    <Grid ColumnDefinitions="36,80,*,140,130,130,120" ColumnSpacing="0">
+                                                        <Border Grid.Column="0" Classes="hy-cat-badge"
+                                                                Background="{Binding BadgeBrush}"
+                                                                HorizontalAlignment="Left"
+                                                                VerticalAlignment="Center">
+                                                            <Path Classes="icon" Width="15" Height="15"
+                                                                  Stroke="{Binding BadgeIconBrush}"
+                                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Time}"
+                                                                   FontSize="12" Margin="4,0"
+                                                                   Foreground="{StaticResource MutedBrush}"
+                                                                   VerticalAlignment="Center" />
+                                                        <StackPanel Grid.Column="2" Margin="4,0" Spacing="2"
+                                                                    VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Title}" FontSize="13"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="{StaticResource InkBrush}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{Binding Detail}" FontSize="11.5"
+                                                                       Foreground="{StaticResource MutedBrush}"
+                                                                       IsVisible="{Binding HasDetail}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="3" Text="{Binding Entity}" Margin="4,0"
+                                                                   FontSize="12"
+                                                                   Foreground="{StaticResource Ink2Brush}"
+                                                                   VerticalAlignment="Center"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Grid.Column="4" Text="{Binding AmountText}" Margin="4,0"
+                                                                   FontSize="13" FontWeight="Bold"
+                                                                   Foreground="{Binding AmountBrush}"
+                                                                   VerticalAlignment="Center" />
+                                                        <Border Grid.Column="5" Classes="hy-status"
+                                                                Background="{Binding StatusBgBrush}"
+                                                                HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                <Ellipse Classes="hy-status-dot"
+                                                                         Fill="{Binding StatusBrush}"
+                                                                         VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding StatusLabel}" FontSize="11.5"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="{Binding StatusBrush}" />
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <Border Grid.Column="6" CornerRadius="20" Padding="8,3"
+                                                                BorderThickness="1"
+                                                                BorderBrush="{Binding CategoryColorBrush}"
+                                                                Background="{Binding CategoryBgBrush}"
+                                                                HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding CategoryLabel}" FontSize="11"
+                                                                       FontWeight="Bold"
+                                                                       Foreground="{Binding CategoryColorBrush}" />
+                                                        </Border>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- load more (.hy-load-more) -->
+                    <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                            Padding="16" IsVisible="{Binding HasMore}">
+                        <Button Classes="hy-load-more" Content="{Binding LoadMoreText}"
+                                Command="{Binding LoadMoreCommand}" />
+                    </Border>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </StackPanel>
+</UserControl>
