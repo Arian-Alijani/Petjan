@@ -2,6 +2,7 @@ using Animora.Contracts.Appointments;
 using Animora.Contracts.Boarding;
 using Animora.Contracts.Cashier;
 using Animora.Contracts.Cheques;
+using Animora.Contracts.Finance;
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Inventory;
@@ -17,6 +18,7 @@ using Animora.Desktop.Pages.Boarding;
 using Animora.Desktop.Pages.Cashier;
 using Animora.Desktop.Pages.Cheques;
 using Animora.Desktop.Pages.Dashboard;
+using Animora.Desktop.Pages.Finance;
 using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Purchasing;
@@ -154,6 +156,13 @@ public partial class App : Application
         // (row-menu status changes / deletes mutate the list), so a singleton.
         services.AddSingleton<IChequesQueryService, MockChequesQueryService>();
         services.AddSingleton<ChequesPageViewModel>();
+
+        // Phase 25: shared Finance workspace (Overview + Income tabs). Stateless
+        // deterministic mock, so a singleton. One ViewModel backs both the
+        // «هزینه‌ها» and «آمار و گزارش فروش» sidebar entries — the sidebar passes
+        // a per-entry initial tab/range (mirrors the reference's two initFinancePage calls).
+        services.AddSingleton<IFinanceQueryService, MockFinanceQueryService>();
+        services.AddSingleton<FinancePageViewModel>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();

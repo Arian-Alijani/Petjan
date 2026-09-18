@@ -1,0 +1,350 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using Animora.Desktop.Localization;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media;
+
+namespace Animora.Desktop.Controls;
+
+/// <summary>One point of the Finance trend chart (label = short axis text, full = tooltip text).</summary>
+public sealed record TrendChartPoint(double Revenue, double Expense, double Profit, string Label, string Full);
+
+/// <summary>One segment of a Finance donut (value + HTML hex color).</summary>
+public sealed record DonutSlice(double Value, string Color);
+
+/// <summary>
+/// The Finance main trend chart, re-drawn from the reference's SVG
+/// <c>trendChart</c> (Animora-UI/assets/finance-page.js): 5 dashed horizontal
+/// gridlines with right-side short-money Y labels, soft gradient area fills for
+/// revenue &amp; expense, a crisp smooth profit spline on top and minimal
+/// first/mid/last X labels. RTL-aware (the series is plotted newest-at-left).
+/// Drawn with Avalonia drawing primitives (CONVENTIONS §4a rule 2), never
+/// embedded SVG. Motion (draw-in + hover crosshair) is rendered at its final
+/// static value per §4a rule 6.
+/// </summary>
+public sealed class TrendChart : Control
+{
+    public static readonly StyledProperty<IReadOnlyList<TrendChartPoint>?> PointsProperty =
+        AvaloniaProperty.Register<TrendChart, IReadOnlyList<TrendChartPoint>?>(nameof(Points));
+
+    public static readonly StyledProperty<IBrush> RevenueBrushProperty =
+        AvaloniaProperty.Register<TrendChart, IBrush>(nameof(RevenueBrush),
+            new SolidColorBrush(Color.Parse("#0d9488")));
+
+    public static readonly StyledProperty<IBrush> ExpenseBrushProperty =
+        AvaloniaProperty.Register<TrendChart, IBrush>(nameof(ExpenseBrush),
+            new SolidColorBrush(Color.Parse("#d92d20")));
+
+    public static readonly StyledProperty<IBrush> ProfitBrushProperty =
+        AvaloniaProperty.Register<TrendChart, IBrush>(nameof(ProfitBrush),
+            new SolidColorBrush(Color.Parse("#1570cd")));
+
+    static TrendChart() => AffectsRender<TrendChart>(
+        PointsProperty, RevenueBrushProperty, ExpenseBrushProperty, ProfitBrushProperty);
+
+    public IReadOnlyList<TrendChartPoint>? Points
+    {
+        get => GetValue(PointsProperty);
+        set => SetValue(PointsProperty, value);
+    }
+
+    public IBrush RevenueBrush
+    {
+        get => GetValue(RevenueBrushProperty);
+        set => SetValue(RevenueBrushProperty, value);
+    }
+
+    public IBrush ExpenseBrush
+    {
+        get => GetValue(ExpenseBrushProperty);
+        set => SetValue(ExpenseBrushProperty, value);
+    }
+
+    public IBrush ProfitBrush
+    {
+        get => GetValue(ProfitBrushProperty);
+        set => SetValue(ProfitBrushProperty, value);
+    }
+
+    public override void Render(DrawingContext ctx)
+    {
+        var w = Bounds.Width;
+        var h = Bounds.Height;
+        if (w <= 1 || h <= 1)
+        {
+            return;
+        }
+
+        // Pad mirrors the reference's SVG viewBox: { t:18, b:26, l:10, r:46 }.
+        const double padT = 18, padB = 26, padL = 10, padR = 46;
+        var iw = w - padL - padR;
+        var ih = h - padT - padB;
+        var baseY = padT + ih;
+
+        var gridPen = new Pen(new SolidColorBrush(Color.Parse("#eef2f0")), 1, new DashStyle([2, 6], 0));
+        var axisBrush = new SolidColorBrush(Color.Parse("#98a2b3"));
+        var typeface = Typeface.Default;
+        const double axisSize = 9.5;
+
+        var pts = Points;
+        if (pts is null || pts.Count == 0 || iw <= 1 || ih <= 1)
+        {
+            return;
+        }
+
+        var n = pts.Count;
+        var maxV = 1.0;
+        foreach (var p in pts)
+        {
+            maxV = Math.Max(maxV, Math.Max(p.Revenue, p.Expense));
+        }
+
+        maxV *= 1.14;
+
+        double X(int i) => padL + (n == 1 ? iw / 2 : iw * i / (n - 1));
+        double Y(double v) => padT + ih - (v / maxV * ih);
+
+        // gridlines + right-side value axis
+        for (var i = 0; i <= 4; i++)
+        {
+            var gy = padT + (ih * i / 4);
+            ctx.DrawLine(gridPen, new Point(padL, gy), new Point(w - padR, gy));
+            var val = maxV * (1 - (i / 4.0));
+            var label = new FormattedText(
+                ShortMoney(val), CultureInfo.InvariantCulture, FlowDirection.RightToLeft,
+                typeface, axisSize, axisBrush);
+            ctx.DrawText(label, new Point(w - padR + 8, gy + 3 - (label.Height / 2)));
+        }
+
+        var revPts = new Point[n];
+        var expPts = new Point[n];
+        var proPts = new Point[n];
+        for (var i = 0; i < n; i++)
+        {
+            revPts[i] = new Point(X(i), Y(pts[i].Revenue));
+            expPts[i] = new Point(X(i), Y(pts[i].Expense));
+            proPts[i] = new Point(X(i), Y(Math.Max(0, pts[i].Profit)));
+        }
+
+        // soft areas (expense first, revenue on top — as in the reference order)
+        DrawArea(ctx, expPts, baseY, FinanceChartBrushes.Area(ExpenseBrush, 0.16));
+        DrawArea(ctx, revPts, baseY, FinanceChartBrushes.Area(RevenueBrush, 0.26));
+
+        // lines
+        ctx.DrawGeometry(null, new Pen(ExpenseBrush, 2, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round),
+            Smooth(expPts));
+        ctx.DrawGeometry(null, new Pen(RevenueBrush, 2.6, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round),
+            Smooth(revPts));
+        ctx.DrawGeometry(null, new Pen(ProfitBrush, 2.4, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round),
+            Smooth(proPts));
+
+        // minimal X labels — newest (index 0), middle and oldest, each centred on its column
+        var keep = new HashSet<int> { 0, (n - 1) / 2, n - 1 };
+        foreach (var i in keep)
+        {
+            var text = pts[i].Label;
+            if (string.IsNullOrEmpty(text))
+            {
+                continue;
+            }
+
+            var t = new FormattedText(
+                text, CultureInfo.InvariantCulture, FlowDirection.RightToLeft, typeface, 10, axisBrush);
+            ctx.DrawText(t, new Point(X(i) - (t.Width / 2), h - padB + 6));
+        }
+    }
+
+    private static void DrawArea(DrawingContext ctx, Point[] pts, double baseY, IBrush fill)
+    {
+        var geo = new StreamGeometry();
+        using (var g = geo.Open())
+        {
+            g.BeginFigure(new Point(pts[0].X, baseY), true);
+            g.LineTo(pts[0]);
+            for (var i = 1; i < pts.Length; i++)
+            {
+                g.LineTo(pts[i]);
+            }
+
+            g.LineTo(new Point(pts[^1].X, baseY));
+            g.EndFigure(true);
+        }
+
+        ctx.DrawGeometry(fill, null, geo);
+    }
+
+    /// <summary>Catmull-Rom → cubic Bézier smoothing, mirroring the reference's <c>smoothPath</c>.</summary>
+    private static StreamGeometry Smooth(Point[] pts)
+    {
+        var geo = new StreamGeometry();
+        using var g = geo.Open();
+        g.BeginFigure(pts[0], false);
+        for (var i = 0; i < pts.Length - 1; i++)
+        {
+            var p0 = i > 0 ? pts[i - 1] : pts[i];
+            var p1 = pts[i];
+            var p2 = pts[i + 1];
+            var p3 = i + 2 < pts.Length ? pts[i + 2] : p2;
+            const double t = 0.16;
+            var c1x = p1.X + ((p2.X - p0.X) * t);
+            var c1y = p1.Y + ((p2.Y - p0.Y) * t);
+            var c2x = p2.X - ((p3.X - p1.X) * t);
+            var c2y = p2.Y - ((p3.Y - p1.Y) * t);
+            g.CubicBezierTo(new Point(c1x, c1y), new Point(c2x, c2y), p2);
+        }
+
+        g.EndFigure(false);
+        return geo;
+    }
+
+    private static string ShortMoney(double n)
+    {
+        if (n >= 1_000_000_000)
+        {
+            return PersianNumberFormatter.ToPersianDigits((n / 1_000_000_000d).ToString("0.#", CultureInfo.InvariantCulture)) + " میلیارد";
+        }
+
+        if (n >= 1_000_000)
+        {
+            return PersianNumberFormatter.ToPersianDigits((n / 1_000_000d).ToString("0.#", CultureInfo.InvariantCulture)) + " م";
+        }
+
+        if (n >= 1_000)
+        {
+            return PersianNumberFormatter.ToPersianDigits(Math.Round(n / 1_000d).ToString(CultureInfo.InvariantCulture)) + " هزار";
+        }
+
+        return PersianNumberFormatter.ToPersianDigits(n.ToString("0", CultureInfo.InvariantCulture));
+    }
+}
+
+/// <summary>Brush builders shared by the Finance chart controls.</summary>
+internal static class FinanceChartBrushes
+{
+    /// <summary>The vertical area gradient under a line (top color@alpha → transparent), matching the SVG linearGradient stops.</summary>
+    public static IBrush Area(IBrush line, double topOpacity)
+    {
+        var c = (line as SolidColorBrush)?.Color ?? Color.Parse("#0d9488");
+        return new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
+            GradientStops =
+            {
+                new GradientStop(Color.FromArgb((byte)Math.Round(255 * topOpacity), c.R, c.G, c.B), 0),
+                new GradientStop(Color.FromArgb(0, c.R, c.G, c.B), 1),
+            },
+        };
+    }
+}
+
+/// <summary>
+/// A gapped interactive donut ring, re-drawn from the reference's SVG <c>donut</c>
+/// (Animora-UI/assets/finance-page.js): a light track circle plus round-capped
+/// segments laid out clockwise from the top, matching the reference's
+/// <c>r=42</c>/<c>stroke-width=14</c>/<c>gap=3.2</c> geometry. The center value
+/// and legend are supplied by the View. Static render (animation final state).
+/// </summary>
+public sealed class DonutChart : Control
+{
+    public static readonly StyledProperty<IReadOnlyList<DonutSlice>?> SlicesProperty =
+        AvaloniaProperty.Register<DonutChart, IReadOnlyList<DonutSlice>?>(nameof(Slices));
+
+    public static readonly StyledProperty<IBrush> TrackBrushProperty =
+        AvaloniaProperty.Register<DonutChart, IBrush>(nameof(TrackBrush),
+            new SolidColorBrush(Color.Parse("#f0f4f2")));
+
+    static DonutChart() => AffectsRender<DonutChart>(SlicesProperty, TrackBrushProperty);
+
+    public IReadOnlyList<DonutSlice>? Slices
+    {
+        get => GetValue(SlicesProperty);
+        set => SetValue(SlicesProperty, value);
+    }
+
+    public IBrush TrackBrush
+    {
+        get => GetValue(TrackBrushProperty);
+        set => SetValue(TrackBrushProperty, value);
+    }
+
+    public override void Render(DrawingContext ctx)
+    {
+        var size = Math.Min(Bounds.Width, Bounds.Height);
+        if (size <= 1)
+        {
+            return;
+        }
+
+        var scale = size / 100.0;
+        var center = new Point(Bounds.Width / 2, Bounds.Height / 2);
+        var radius = 42 * scale;
+        var thickness = 14 * scale;
+
+        // track
+        ctx.DrawEllipse(null, new Pen(TrackBrush, thickness), center, radius, radius);
+
+        var slices = Slices;
+        if (slices is null || slices.Count == 0)
+        {
+            return;
+        }
+
+        var total = 0.0;
+        foreach (var s in slices)
+        {
+            total += s.Value;
+        }
+
+        if (total <= 0)
+        {
+            return;
+        }
+
+        // gap in degrees (GAP arc-length 3.2 over r=42)
+        var gapDeg = (3.2 / 42.0) * (180.0 / Math.PI);
+        var angle = -90.0; // start at the top, clockwise (reference rotate(-90deg))
+        for (var i = 0; i < slices.Count; i++)
+        {
+            var sweep = (slices[i].Value / total) * 360.0;
+            var a0 = angle + (gapDeg / 2);
+            var a1 = angle + sweep - (gapDeg / 2);
+            angle += sweep;
+
+            if (a1 <= a0)
+            {
+                a1 = Math.Min(a0 + 0.01, angle - (gapDeg / 2));
+            }
+
+            DrawArc(ctx, center, radius, a0, a1, new SolidColorBrush(Color.Parse(slices[i].Color)), thickness);
+        }
+    }
+
+    private static void DrawArc(
+        DrawingContext ctx, Point center, double radius, double startDeg, double endDeg, IBrush brush, double thickness)
+    {
+        var start = PointOnCircle(center, radius, startDeg);
+        var end = PointOnCircle(center, radius, endDeg);
+        var sweep = endDeg - startDeg;
+        var large = sweep >= 180;
+
+        var geo = new StreamGeometry();
+        using (var g = geo.Open())
+        {
+            g.BeginFigure(start, false);
+            // sweep-clockwise in screen space (y-down) → IsLargeArc + SweepDirection.Clockwise
+            g.ArcTo(end, new Size(radius, radius), 0, large, SweepDirection.Clockwise);
+            g.EndFigure(false);
+        }
+
+        ctx.DrawGeometry(null, new Pen(brush, thickness, lineCap: PenLineCap.Round), geo);
+    }
+
+    private static Point PointOnCircle(Point c, double r, double deg)
+    {
+        var rad = deg * Math.PI / 180.0;
+        return new Point(c.X + (r * Math.Cos(rad)), c.Y + (r * Math.Sin(rad)));
+    }
+}

@@ -64,6 +64,15 @@ public sealed partial class SidebarViewModel : ObservableObject
             placeholder.ConfigureFor(entry.Label);
         }
 
+        // Phase 25: the shared Finance screen backs two nav entries; pass each
+        // entry's initial tab/range (mirrors the reference's two
+        // initFinancePage({ tab, range }) calls from expense.html / reports.html).
+        if (viewModel is Pages.Finance.FinancePageViewModel finance
+            && (entry.Item.InitialTab is not null || entry.Item.InitialRange is not null))
+        {
+            finance.Configure(entry.Item.InitialTab ?? "overview", entry.Item.InitialRange ?? "30d");
+        }
+
         SetActive(entry.Key);
     }
 

@@ -1,0 +1,386 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Finance workspace styles (finance.css + the shared styles.css rules the
+         screen uses: .pagebar/.pb-seg toolbar, .card/.card-header, .chart-legend).
+         Values transcribed from the reference CSS; colors/radii/shadows reuse the
+         Phase 02 tokens where a value equals a token. Included by FinancePageView
+         and inherited by its tab sub-views. -->
+
+    <!-- ═══ Unified toolbar (.pagebar / .pb-seg) ═══ -->
+    <Style Selector="Border.pagebar">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+        <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+        <Setter Property="Padding" Value="14,12" />
+    </Style>
+
+    <Style Selector="Border.fin-seg">
+        <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="3" />
+    </Style>
+
+    <!-- .pb-seg > button -->
+    <Style Selector="Button.seg-btn">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="Padding" Value="8,15" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.seg-btn:pointerover">
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+    </Style>
+    <Style Selector="Button.seg-btn.is-active">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+    </Style>
+    <Style Selector="Button.seg-btn.is-active /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+    </Style>
+
+    <!-- .pb-seg.lg > button (the main tab switch) -->
+    <Style Selector="Button.seg-btn.lg">
+        <Setter Property="Padding" Value="9,20" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="FontSize" Value="13.5" />
+    </Style>
+
+    <!-- ═══ Card chrome (finance.css .fin-eyebrow / .fin-head-chip) ═══ -->
+    <Style Selector="TextBlock.fin-eyebrow">
+        <Setter Property="Foreground" Value="{StaticResource Brand600Brush}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="Margin" Value="0,0,0,2" />
+    </Style>
+
+    <Style Selector="Border.fin-head-chip">
+        <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="10,5" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.fin-chip-text">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+    </Style>
+
+    <!-- ═══ KPI hero strip (finance.css .fin-kpis / .fin-kpi) ═══ -->
+    <Style Selector="Border.kpi-card">
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+        <Setter Property="Padding" Value="18,16" />
+        <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Border.kpi-ic">
+        <Setter Property="Width" Value="38" />
+        <Setter Property="Height" Value="38" />
+        <Setter Property="CornerRadius" Value="11" />
+    </Style>
+    <Style Selector="Border.kpi-delta">
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="8,4" />
+    </Style>
+    <Style Selector="TextBlock.kpi-value">
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="LetterSpacing" Value="-0.4" />
+    </Style>
+    <Style Selector="TextBlock.kpi-unit">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Opacity" Value="0.7" />
+        <Setter Property="VerticalAlignment" Value="Bottom" />
+        <Setter Property="Margin" Value="0,0,3,2" />
+    </Style>
+    <Style Selector="TextBlock.kpi-label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Margin" Value="0,4,0,0" />
+    </Style>
+    <Style Selector="TextBlock.kpi-foot">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Margin" Value="0,8,0,0" />
+    </Style>
+
+    <!-- ═══ Mini stat strip (finance.css .fin-mini) ═══ -->
+    <Style Selector="Border.mini-card">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+        <Setter Property="Padding" Value="16,14" />
+        <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Border.mini-rail">
+        <Setter Property="Width" Value="3" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="CornerRadius" Value="0,2,2,0" />
+    </Style>
+    <Style Selector="Border.mini-ic">
+        <Setter Property="Width" Value="40" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.mini-label">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+    </Style>
+    <Style Selector="TextBlock.mini-value">
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="LetterSpacing" Value="-0.3" />
+        <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+    </Style>
+    <Style Selector="TextBlock.mini-unit">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+        <Setter Property="VerticalAlignment" Value="Bottom" />
+        <Setter Property="Margin" Value="0,0,3,3" />
+    </Style>
+    <Style Selector="Border.mini-delta">
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="7,3" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+
+    <!-- ═══ Highlight bar (finance.css .fin-highlight) ═══ -->
+    <Style Selector="Border.hl">
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+        <Setter Property="Padding" Value="18,14" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Border.hl-rail">
+        <Setter Property="Width" Value="4" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+    </Style>
+    <Style Selector="Border.hl-ic">
+        <Setter Property="Width" Value="40" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.hl-label">
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+        <Setter Property="Margin" Value="0,0,0,2" />
+    </Style>
+
+    <!-- ═══ Chart legend (styles.css .chart-legend / .fin-chart-legend) ═══ -->
+    <Style Selector="Border.swatch">
+        <Setter Property="Width" Value="10" />
+        <Setter Property="Height" Value="10" />
+        <Setter Property="CornerRadius" Value="3" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,6,0" />
+    </Style>
+    <Style Selector="TextBlock.legend-text">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ═══ List rows (finance.css .fin-list-row / .fin-list-ic / .fin-list-track) ═══ -->
+    <Style Selector="Border.list-row">
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="0,12" />
+    </Style>
+    <Style Selector="Border.list-ic">
+        <Setter Property="Width" Value="34" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="CornerRadius" Value="10" />
+    </Style>
+    <Style Selector="TextBlock.list-name">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+    </Style>
+    <Style Selector="TextBlock.list-meta">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        <Setter Property="Margin" Value="0,2,0,0" />
+    </Style>
+    <Style Selector="TextBlock.list-amt">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+    </Style>
+    <Style Selector="TextBlock.list-sub">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        <Setter Property="Margin" Value="0,2,0,0" />
+    </Style>
+    <Style Selector="Border.list-chip">
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="8,3" />
+    </Style>
+
+    <!-- product rank badge (.fin-rank) -->
+    <Style Selector="Border.rank">
+        <Setter Property="Width" Value="24" />
+        <Setter Property="Height" Value="24" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.rank-num">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.kind-tag">
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="7,1" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,5,0" />
+    </Style>
+    <Style Selector="TextBlock.kind-text">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+    </Style>
+
+    <!-- ═══ Service-vs-product card (finance.css .svp-*) ═══ -->
+    <Style Selector="Border.svp-item">
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="Padding" Value="14" />
+        <Setter Property="Background" Value="{StaticResource BgBrush}" />
+    </Style>
+    <Style Selector="Border.svp-ic">
+        <Setter Property="Width" Value="30" />
+        <Setter Property="Height" Value="30" />
+        <Setter Property="CornerRadius" Value="9" />
+    </Style>
+    <Style Selector="TextBlock.svp-name">
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+    </Style>
+    <Style Selector="TextBlock.svp-share">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+    </Style>
+    <Style Selector="TextBlock.svp-value">
+        <Setter Property="FontSize" Value="19" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="LetterSpacing" Value="-0.4" />
+        <Setter Property="Margin" Value="0,10,0,0" />
+        <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+    </Style>
+    <Style Selector="TextBlock.svp-metric">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ═══ Species horizontal bars (finance.css .fin-hbar) ═══ -->
+    <Style Selector="TextBlock.hbar-lbl">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="TextAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.hbar-val">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ═══ Heatmap (finance.css .fin-heatmap) ═══ -->
+    <Style Selector="TextBlock.heat-lbl">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.heat-cell">
+        <Setter Property="Height" Value="22" />
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Border.heat-scale-sw">
+        <Setter Property="Width" Value="14" />
+        <Setter Property="Height" Value="14" />
+        <Setter Property="CornerRadius" Value="3" />
+    </Style>
+
+    <!-- ═══ Insights (finance.css .fin-insight) ═══ -->
+    <Style Selector="Border.insight">
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+        <Setter Property="Padding" Value="16,14" />
+    </Style>
+    <Style Selector="Border.insight-ic">
+        <Setter Property="Width" Value="34" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="CornerRadius" Value="10" />
+    </Style>
+    <Style Selector="TextBlock.insight-text">
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="LineHeight" Value="22" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- ═══ Donut legend (finance.css .fin-leg-row) ═══ -->
+    <Style Selector="Border.leg-row">
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="11,8" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Border.leg-row.act">
+        <Setter Property="Background" Value="#f9fbfa" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+    </Style>
+    <Style Selector="TextBlock.leg-name">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.leg-val">
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        <Setter Property="TextAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.leg-pct">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        <Setter Property="TextAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="MinWidth" Value="34" />
+    </Style>
+
+    <!-- ═══ Placeholder (Phase 26) ═══ -->
+    <Style Selector="Border.phase-note">
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+        <Setter Property="Background" Value="{StaticResource BgBrush}" />
+        <Setter Property="Padding" Value="28" />
+    </Style>
+
+</Styles>

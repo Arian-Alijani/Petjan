@@ -481,4 +481,42 @@
         M21,15 L16,10 L5,21
     </StreamGeometry>
 
+    <!-- Finance (Phase 25): trendUp/trendDown/percent/target/pieChart/piggy/
+         spark/megaphone from icons.js, for the KPI deltas, the mini stat strip,
+         the donut head chip and the product/service cards. -->
+    <StreamGeometry x:Key="IconTrendUp">
+        M22,7 L13.5,15.5 L8.5,10.5 L2,17
+        M16,7 L22,7 L22,13
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconTrendDown">
+        M22,17 L13.5,8.5 L8.5,13.5 L2,7
+        M16,17 L22,17 L22,11
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconPercent">
+        M19,5 L5,19
+        M4,6.5 A2.5,2.5 0 1 0 9,6.5 A2.5,2.5 0 1 0 4,6.5 Z
+        M15,17.5 A2.5,2.5 0 1 0 20,17.5 A2.5,2.5 0 1 0 15,17.5 Z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconTarget">
+        M2,12 A10,10 0 1 0 22,12 A10,10 0 1 0 2,12 Z
+        M6,12 A6,6 0 1 0 18,12 A6,6 0 1 0 6,12 Z
+        M10,12 A2,2 0 1 0 14,12 A2,2 0 1 0 10,12 Z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconPieChart">
+        M21.21,15.89 A10,10 0 1 1 8,2.83
+        M22,12 A10,10 0 0 0 12,2 v10 z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconPiggy">
+        M19,5 c-1.5,0 -2.8,1.4 -3,2 c-3.5,-1.5 -11,-0.3 -11,5 c0,1.8 0,3 2,4.5 V20 h4 v-2 h3 v2 h4 v-4 c1,-0.5 1.7,-1 2,-2 h2 v-4 h-2 c0,-1 -0.5,-1.5 -1,-2 V5 z
+        M2,9 v1 c0,1.1 0.9,2 2,2 h1
+        M16,11 h0.01
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconSpark">
+        M12,3 v3 M12,18 v3 M5.6,5.6 l2.1,2.1 M16.3,16.3 l2.1,2.1 M3,12 h3 M18,12 h3 M5.6,18.4 l2.1,-2.1 M16.3,7.7 l2.1,-2.1
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconMegaphone">
+        m3,11 l18,-5 v12 L3,14 v-3 z
+        M11.6,16.8 a3,3 0 1 1 -5.8,-1.6
+    </StreamGeometry>
+
 </ResourceDictionary>
