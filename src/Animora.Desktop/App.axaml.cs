@@ -86,6 +86,13 @@ public partial class App : Application
         services.AddSingleton<IVisitsTriageService, MockVisitsTriageService>();
         services.AddSingleton<VisitsTriagePageViewModel>();
 
+        // Phase 11: clinical-encounter wizard. One shared encounter store backs
+        // both Visits mocks (triage creates the draft, the wizard mutates it);
+        // the wizard ViewModel is transient so each started visit loads fresh.
+        services.AddSingleton<VisitEncounterStore>();
+        services.AddSingleton<IVisitEncounterService, MockVisitEncounterService>();
+        services.AddTransient<VisitEncounterViewModel>();
+
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();
         services.AddSingleton<MainWindowViewModel>();

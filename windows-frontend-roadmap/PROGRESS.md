@@ -41,7 +41,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
 
 ## Current state
 
-- **Next phase to execute:** `11` — Visits — Clinical Encounter Wizard
+- **Next phase to execute:** `12` — Vaccination Screen (Phase 11 code is written but **NOT yet build-verified** — see the Phase 11 log entry; run `scripts/sandbox/build.sh full` and the §6.7 visual check before treating it as done).
 - **Repo state (Phase 10, build- & smoke-run verified):** the Visits placeholder is replaced with the real pre-encounter triage gate. `Animora.Contracts/Visits/` gained `VisitEntryMode`, `VisitTypeInfo`, `BookedAppointmentState`, `DoctorRailInfo`, `BookedAppointmentRef`, `VisitPatientRef`, `NewVisitRequest`, `EncounterDraft` and `IVisitsTriageService` (`GetDoctorsAsync`/`GetBookedForDoctorAsync`/`GetVisitTypes`/`GetPatientsAsync`/`StartFromTicketAsync`/`StartNewAsync`). `Animora.Desktop/Mocks/MockVisitsTriageService` returns the reference's 4-doctor roster with their today counts and booked tickets, the 6-type visit catalog and a 7-patient pick-list, and produces a fresh `EncounterDraft` per start. `Animora.Desktop/Pages/Visits/` adds `VisitsPresentation` (pet-icon keys + species avatar/picked-glyph palettes + gradient helper), `DoctorTileViewModel`, `BookedRowViewModel`, `VisitTypeOptionViewModel`, `VisitTypeChipViewModel`, the `VisitsTriagePageViewModel` (doctor rail + booked/new-visit mode + type chips + patient search/pick + inline new-patient form, commands `SelectDoctor`/`SetMode`/`SetTypeFilter`/`SetType`/`SetPriority`/`PickPatient`/`ChangePatient`/`RegisterNewPatient`/`SaveNewPatient`/`StartFromTicket`/`StartNew`, both start paths showing the Phase-11 placeholder toast), and `VisitsTriagePageView.axaml(.cs)` (340px doctor rail + workspace with doc-lockup/tape/mode-split/booked-list/new-visit form/empty-state, all values transcribed from `visits.html`+`styles.css`). New theme icons `IconTools`/`IconScissors`/`IconPlay`/`IconBulb`. DI registers `IVisitsTriageService`/`VisitsTriagePageViewModel`; the sidebar `visits` item now targets `VisitsTriagePageViewModel`. **Build verification:** `scripts/sandbox/build.sh full` = **0 warnings / 0 errors**; `scripts/sandbox/run.sh` = **SMOKE RUN OK**.
 - **Repo state (Phase 08, build- & smoke-run verified):** Patients & Owners directory now has backend-ready contracts (`IPatientsQueryService`, `PetSummary`/`OwnerSummary` DTOs + `PetSpecies`/`PetStatus`/`PetGender`/`OwnerGender`/`PatientAvatarTone` enums in `Animora.Contracts/Patients/`), a deterministic in-memory `MockPatientsQueryService` (10 pets across cat/dog/bird/rabbit/rodent/other, 6 owners with tags/balances), presentation adapters (`PatientsPageEnums`, `PatientsPresentation`, `PatientsSpeciesChipViewModel`, `OwnerPetChipViewModel`, `OwnerCardViewModel`, `PetCardViewModel`), the `PatientsPageViewModel` (search + derived species-chips + pets/owners entity switch + list/grid layout + vaccine filter + sort, mirroring `petMatches`/`ownerMatches`/`sortPets`/`renderSpeciesChips`, with `OpenPet`/`OpenOwner` toast stubs for Phase 09), and `PatientsPageView.axaml(.cs)` (page header with «خروجی»/«مالک و بیمار جدید», unified `.pagebar` with two tiers, owner-grid/pets-grid cards, owners/pets tables, shared `pt-empty`). New shared helpers: `Localization/PersianText` (search normalization) and `Localization/RelativeDateFormatter` (since/until/age Jalali phrases). New theme additions: `IconPhone/Mobile/IdCard/Pin/Download/List/Grid/More2`, rose/mint + table/inset/hover surface tokens, and `ShadowSegment`/`ShadowChip`. DI registers `IPatientsQueryService`/`PatientsPageViewModel`; the sidebar `patients` item now targets `PatientsPageViewModel`. **Build verification (this session):** installed .NET 10.0.401 + Xvfb via `scripts/sandbox/install-prereqs.sh`; `scripts/sandbox/build.sh full` = **0 warnings / 0 errors** and `scripts/sandbox/run.sh` = **SMOKE RUN OK**. Five defects that the previously-unbuilt code had hidden were fixed during consolidation: (1) `OwnerCardViewModel.PetsPreviewText` was both assigned in the constructor and re-declared as a read-only computed property (CS0200) → kept the constructor's all-pets assignment as an auto-property and removed the duplicate; (2) `BoxShadow` set directly on `Button.cardlink` (Button has no such property) → moved to the template's `ContentPresenter#PART_ContentPresenter`; (3) `Padding` on a `Grid` → `Margin`; (4)+(5) `FontSize` on two table-row `Border`s → `TextElement.FontSize` attached property so the cascade is preserved.
 - **⚠️ Fidelity Protocol now in force (roadmap update, applies to Phase 07+).**
@@ -194,7 +194,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
   (`App.Services`). Central package pins live in `Directory.Packages.props`;
   shared build settings in `Directory.Build.props`. No theming/controls/
   navigation/screens yet.
-- **Roadmap status:** Phases 01–10 done and **build-verified** (0/0) + smoke-run verified; 8 of 29 phases are formally done.
+- **Roadmap status:** Phases 01–10 done and **build-verified** (0/0) + smoke-run verified. Phase 11 written but **not yet compiled** (no .NET SDK in the authoring session) — it must be built (0/0) and visually verified before it can be marked done; the pointer intentionally advances to 12 only after that gate passes.
 
 ## Phase checklist
 
@@ -210,7 +210,7 @@ session. When they seem to conflict, satisfy **both** — never sacrifice one.
 | 08 | Patients & Owners — List/Grid | ✅ Done | Build-verified (0/0) + smoke run OK. Fixed 5 hidden defects on consolidation (CS0200 `PetsPreviewText`; `BoxShadow` on Button; `Padding` on Grid; 2× `FontSize` on Border); see log |
 | 09 | Patients & Owners — Pet File / Owner Sheet | ✅ Done | Build-verified (0/0) + smoke run OK. Records now open as centered sheets (matching the reference); fixed the empty wizard modal; see log |
 | 10 | Visits — Doctor Rail & Triage | ✅ Done | Build-verified (0/0) + smoke run OK; fidelity code-reviewed vs reference; see log |
-| 11 | Visits — Clinical Encounter Wizard | ⬜ Not started | |
+| 11 | Visits — Clinical Encounter Wizard | 🔄 In progress | Code complete (contracts + 2 mocks + VM + main view + 6 step sub-views + DI + Phase-10 handoff wired). **Not build-verified**: this session had no .NET SDK. See log |
 | 12 | Vaccination Screen | ⬜ Not started | |
 | 13 | Appointments — Calendar Views | ⬜ Not started | |
 | 14 | Appointments — Booking Panel | ⬜ Not started | |
@@ -237,6 +237,49 @@ deviation (see log below).
 
 > Append one entry per deviation from the roadmap/conventions, newest on
 > top. If a phase followed the plan exactly, no entry is needed.
+
+### Phase 11 — Visits — Clinical Encounter Wizard
+
+- **STATUS: code written, build/visual verification OUTSTANDING.** The full
+  Phase 11 slice was authored in this session but the sandbox had **no .NET
+  SDK installed** (`~/.dotnet` absent), so `scripts/sandbox/build.sh full`
+  and the §7a render check could **not** be run. Per `CONVENTIONS.md` §6.7 a
+  screen phase is not done until it builds 0/0 *and* has been compared
+  element-by-element against the reference — so Phase 11 is recorded
+  `🔄 In progress`, not `✅ Done`. Next session: install the SDK
+  (`scripts/sandbox/install-prereqs.sh`), run `build.sh full`, fix any
+  compiler/XAML errors, then run the §7a visual verification and mark the
+  phase done (and only then advance the pointer to 12).
+- **Cashier-vs-Sale hand-off clarification (recorded per the phase file).**
+  The reference's done step ends with `window.toast('انتقال به صندوق…')` then
+  `location.href = 'cashier.html'`. The phase file directs this product flow
+  to target **Sale/POS (Phase 20)** rather than Cashier (phase file's own
+  note: `sale-page.js`'s `buildFromEncounter` is the actual
+  encounter-to-invoice function). Since Phase 20 does not exist yet, the
+  done step's «رفتن به صندوق» shows the toast and navigates to the shared
+  `PlaceholderPageViewModel` configured for «فروش و صندوق» — the same
+  placeholder-bridge pattern Phase 06 used for the Reception deep-link. Phase
+  20 replaces this with a real `NavigateTo<SalePageViewModel>` passing the
+  completed encounter id.
+- **`EncounterDraft` extended (Contracts) for the wizard's chrome.** The
+  draft handed over by Phase 10 now also carries the ribbon/patient-sidebar
+  context the wizard renders (doctor name/short-name/specialty/initials/accent,
+  patient icon key, owner phone, visit type label/accent, synthetic flag and
+  the queue slot `AtMinutes`/`DurationMinutes`). This keeps every rendered
+  value backend-ready (a real backend fills the same record) and avoids the
+  ViewModel reaching back into the triage service. `NewVisitRequest` gained a
+  `DoctorId` (the reference reads `S.docId` separately when building the
+  synthetic ticket).
+- **Step sub-view split.** The wizard's body is a `Panel` swapping five step
+  sub-views (`VitalsStepView`/`HistoryStepView`/`PlanStepView`/`RxStepView`/
+  `ReviewStepView`) plus the separate `DoneStepView` scene, matching the
+  reference's `renderBody` dispatch and its distinct `#scene-done`. Each
+  sub-view inherits the wizard ViewModel as its DataContext.
+- **Rx lines are a mutable class, not a record.** The reference mutates a
+  line's `qty` in place (its `.qty` input writes into the encounter draft),
+  so `RxLine.Quantity` is settable while the identity fields stay read-only;
+  the running subtotal (`computeSubtotal` + 9% tax) is re-derived in the mock
+  and recomputed in the ViewModel on every change.
 
 ### Phase 07 — Reception & Queue Screen
 

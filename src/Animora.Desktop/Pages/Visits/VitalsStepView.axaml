@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:visits="using:Animora.Desktop.Pages.Visits"
+             x:Class="Animora.Desktop.Pages.Visits.VitalsStepView"
+             x:Name="Root"
+             x:DataType="visits:VisitEncounterViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Step 1 — Vitals (assets/visit.js renderVitals + visits.html .vitals/.vital) -->
+    <StackPanel>
+        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <TextBlock Grid.Column="0" Classes="sec-title" Text="علائم حیاتی" />
+            <TextBlock Grid.Column="1" Classes="sec-hint" Text="اعداد بر اساس معاینهٔ اولیه ثبت می‌شوند" />
+        </Grid>
+
+        <UniformGrid Columns="4" Margin="0,0,0,16">
+            <Border Classes="vital" Margin="0,0,5,0">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="vital-lbl" Text="وزن" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <TextBox Grid.Column="0" Classes="vital-input" Text="{Binding WeightText}" PlaceholderText="0.0" />
+                        <TextBlock Grid.Column="1" Classes="vital-unit" Text="کیلوگرم" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+            <Border Classes="vital" Margin="0,0,5,0">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="vital-lbl" Text="دمای بدن" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <TextBox Grid.Column="0" Classes="vital-input" Text="{Binding TemperatureText}" PlaceholderText="0.0" />
+                        <TextBlock Grid.Column="1" Classes="vital-unit" Text="°C" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+            <Border Classes="vital" Margin="0,0,5,0">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="vital-lbl" Text="ضربان قلب" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <TextBox Grid.Column="0" Classes="vital-input" Text="{Binding PulseText}" PlaceholderText="0" />
+                        <TextBlock Grid.Column="1" Classes="vital-unit" Text="bpm" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+            <Border Classes="vital">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="vital-lbl" Text="تعداد تنفس" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                        <TextBox Grid.Column="0" Classes="vital-input" Text="{Binding RespirationText}" PlaceholderText="0" />
+                        <TextBlock Grid.Column="1" Classes="vital-unit" Text="/دقیقه" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <Grid ColumnDefinitions="*,Auto" Margin="0,20,0,16">
+            <TextBlock Grid.Column="0" Classes="sec-title" Text="یادداشت اولیهٔ معاینه" />
+            <TextBlock Grid.Column="1" Classes="sec-hint" Text="این نوشته در گام بعد توسط شرح‌حال کامل‌تر می‌شود" />
+        </Grid>
+        <TextBox Classes="fld-input" Text="{Binding VitalsNoteText}" AcceptsReturn="True" TextWrapping="Wrap"
+                 MinHeight="74" PlaceholderText="ظاهر عمومی، سطح انرژی، وضعیت مخاطات، نکات فوری…" />
+    </StackPanel>
+</UserControl>

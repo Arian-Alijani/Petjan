@@ -1,0 +1,128 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:visits="using:Animora.Desktop.Pages.Visits"
+             x:Class="Animora.Desktop.Pages.Visits.RxStepView"
+             x:Name="Root"
+             x:DataType="visits:VisitEncounterViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Step 4 — Services & items (assets/visit.js renderRx/rxLineHtml/computeSubtotal) -->
+    <StackPanel>
+        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <TextBlock Grid.Column="0" Classes="sec-title" Text="خدمات، اقلام و نسخه" />
+            <TextBlock Grid.Column="1" Classes="sec-hint" Text="اقلام انتخابی به‌طور خودکار وارد فاکتور می‌شوند" />
+        </Grid>
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <!-- Services column -->
+            <StackPanel Grid.Column="0">
+                <TextBlock Classes="panel-bold" Text="خدمات" Margin="0,0,0,8" />
+                <Border Classes="field-search" Margin="0,0,0,8" HorizontalAlignment="Stretch" MinWidth="0">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <Path Grid.Column="0" Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                              Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1" Classes="rx-add" ItemsSource="{Binding ServiceCatalog}"
+                                  SelectedItem="{Binding SelectedServiceToAdd}" PlaceholderText="افزودن خدمت…">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="visits:RxCatalogOptionViewModel">
+                                    <TextBlock Text="{Binding Display}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </Grid>
+                </Border>
+                <TextBlock Classes="rx-empty" IsVisible="{Binding IsServicesEmpty}" Text="هیچ خدمتی افزوده نشده" />
+                <ItemsControl ItemsSource="{Binding ServiceLines}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="visits:RxLineViewModel">
+                            <Border Classes="rx-line" Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="26,*,90,28" ColumnSpacing="8">
+                                    <Border Grid.Column="0" Classes="rx-badge" Background="{Binding BadgeBackground}">
+                                        <TextBlock Classes="rx-badge-text" Text="{Binding BadgeGlyph}"
+                                                   Foreground="{Binding BadgeForeground}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Classes="rx-title" Text="{Binding Title}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="4" Classes="rx-caption">
+                                            <TextBlock Text="{Binding PriceCaption}" />
+                                            <TextBlock Text="{Binding LineTotalText}" FontWeight="Bold"
+                                                       Foreground="{StaticResource Ink2Brush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <TextBox Grid.Column="2" Classes="rx-qty" Text="{Binding QuantityText}" />
+                                    <Button Grid.Column="3" Classes="rx-rm"
+                                            Command="{Binding #Root.((visits:VisitEncounterViewModel)DataContext).RemoveRxLineCommand}"
+                                            CommandParameter="{Binding}" ToolTip.Tip="حذف">
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                                              Data="{StaticResource IconX}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- Items column -->
+            <StackPanel Grid.Column="1">
+                <TextBlock Classes="panel-bold" Text="اقلام دارویی / کالا" Margin="0,0,0,8" />
+                <Border Classes="field-search" Margin="0,0,0,8" HorizontalAlignment="Stretch" MinWidth="0">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <Path Grid.Column="0" Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                              Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1" Classes="rx-add" ItemsSource="{Binding ItemCatalog}"
+                                  SelectedItem="{Binding SelectedItemToAdd}" PlaceholderText="افزودن کالا…">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="visits:RxCatalogOptionViewModel">
+                                    <TextBlock Text="{Binding Display}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </Grid>
+                </Border>
+                <TextBlock Classes="rx-empty" IsVisible="{Binding IsItemsEmpty}" Text="هیچ کالایی افزوده نشده" />
+                <ItemsControl ItemsSource="{Binding ItemLines}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="visits:RxLineViewModel">
+                            <Border Classes="rx-line" Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="26,*,90,28" ColumnSpacing="8">
+                                    <Border Grid.Column="0" Classes="rx-badge" Background="{Binding BadgeBackground}">
+                                        <TextBlock Classes="rx-badge-text" Text="{Binding BadgeGlyph}"
+                                                   Foreground="{Binding BadgeForeground}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Classes="rx-title" Text="{Binding Title}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="4" Classes="rx-caption">
+                                            <TextBlock Text="{Binding PriceCaption}" />
+                                            <TextBlock Text="{Binding LineTotalText}" FontWeight="Bold"
+                                                       Foreground="{StaticResource Ink2Brush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <TextBox Grid.Column="2" Classes="rx-qty" Text="{Binding QuantityText}" />
+                                    <Button Grid.Column="3" Classes="rx-rm"
+                                            Command="{Binding #Root.((visits:VisitEncounterViewModel)DataContext).RemoveRxLineCommand}"
+                                            CommandParameter="{Binding}" ToolTip.Tip="حذف">
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                                              Data="{StaticResource IconX}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Grid>
+
+        <!-- Running subtotal (visits.html renderRx bottom bar) -->
+        <Border Margin="0,18,0,0" Padding="18,14" CornerRadius="14"
+                BorderBrush="{StaticResource Brand100Brush}" BorderThickness="1"
+                Background="{StaticResource Brand50Brush}">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="جمع اولیهٔ اقلام" FontSize="13" FontWeight="ExtraBold"
+                           Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{Binding SubtotalText}" FontSize="20" FontWeight="ExtraBold"
+                           Foreground="{StaticResource Brand700Brush}" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+    </StackPanel>
+</UserControl>

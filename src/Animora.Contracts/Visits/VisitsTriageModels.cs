@@ -81,9 +81,12 @@ public sealed record VisitPatientRef(
 
 /// <summary>
 /// New-visit form payload, mirroring the reference's <c>S.nb</c> builder
-/// state (patient + type + priority + note).
+/// state (patient + type + priority + note) plus the doctor the visit is
+/// started under (the reference reads <c>S.docId</c> separately when building
+/// the synthetic ticket).
 /// </summary>
 public sealed record NewVisitRequest(
+    string DoctorId,
     string PatientName,
     string PatientKind,
     string OwnerName,
@@ -96,17 +99,35 @@ public sealed record NewVisitRequest(
 
 /// <summary>
 /// The clinical encounter draft handed to the wizard (Phase 11), mirroring
-/// the object <c>buildEncounter</c> produces (id, ticket, patient, type,
-/// priority and source ticket).
+/// the object <c>buildEncounter</c> produces plus the ticket/doctor context
+/// the wizard's ribbon and patient sidebar render (patient identity, owner
+/// contact, the doctor lock-up, the queue slot time/duration and whether the
+/// visit came from a booked ticket or a walk-in). The four vital readings,
+/// history/exam/diagnosis/plan text and the billable lines are held separately
+/// by <c>IVisitEncounterService</c> so this record stays the encounter's
+/// identity/context — the mock is the single swap point for a future backend
+/// (R-18).
 /// </summary>
 public sealed record EncounterDraft(
     string Id,
     string TicketId,
     string DoctorId,
+    string DoctorName,
+    string DoctorShortName,
+    string DoctorSpecialty,
+    string DoctorInitials,
+    string DoctorAccent,
     string PatientName,
     string PatientKind,
+    string PatientIconKey,
     string OwnerName,
+    string OwnerPhone,
     string TypeId,
+    string TypeLabel,
+    string TypeAccent,
     bool IsUrgent,
+    bool IsSynthetic,
+    int AtMinutes,
+    int DurationMinutes,
     string Note,
     string SourceTicketId);

@@ -1,3 +1,5 @@
+using System.Globalization;
+using Animora.Desktop.Localization;
 using Avalonia;
 using Avalonia.Media;
 
@@ -54,6 +56,20 @@ public static class VisitsPresentation
         _ => Fill("#0e7566"),
     };
 
+    /// <summary>
+    /// The wizard patient sidebar's large avatar tile fill + glyph color,
+    /// mirroring <c>.wz-patient .av-lg(.dog|.cat|.bird|.rabbit)</c>
+    /// (default is the brand wash with the brand-700 glyph).
+    /// </summary>
+    public static (IBrush Background, IBrush Foreground) WizardAvatar(string? ic) => ic switch
+    {
+        "dog" => (Fill("#e4edfa"), Fill("#3057a6")),
+        "cat" => (Fill("#fdf1e7"), Fill("#d47a3f")),
+        "bird" => (Fill("#d9f4ea"), Fill("#2a7f5f")),
+        "rabbit" => (Fill("#fde5f0"), Fill("#b6448a")),
+        _ => (Fill("#f0fdfa"), Fill("#0e7566")),
+    };
+
     /// <summary>A solid fill brush from a hex string.</summary>
     public static IBrush Fill(string hex) => new SolidColorBrush(Color.Parse(hex));
 
@@ -63,6 +79,15 @@ public static class VisitsPresentation
         var color = Color.Parse(hex);
         return new SolidColorBrush(Color.FromArgb(alpha, color.R, color.G, color.B));
     }
+
+    /// <summary>
+    /// Money formatter mirroring the reference's
+    /// <c>money = (n) => toFa(Number(n).toLocaleString('en-US')) + ' ریال'</c>
+    /// (comma-grouped digits, Persian digits, trailing «ریال»).
+    /// </summary>
+    public static string Money(long value) =>
+        PersianNumberFormatter.ToPersianDigits(value.ToString("N0", CultureInfo.InvariantCulture))
+        + " ریال";
 
     /// <summary>Top-to-bottom two-stop gradient, as the reference uses for cards/tabs.</summary>
     public static IBrush Vertical(string from, string to) => new LinearGradientBrush
