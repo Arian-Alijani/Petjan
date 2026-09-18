@@ -1,4 +1,5 @@
 using Animora.Contracts.Appointments;
+using Animora.Contracts.Boarding;
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Patients;
@@ -7,6 +8,7 @@ using Animora.Contracts.Visits;
 using Animora.Contracts.Vaccination;
 using Animora.Desktop.Mocks;
 using Animora.Desktop.Pages.Appointments;
+using Animora.Desktop.Pages.Boarding;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Reception;
@@ -111,6 +113,11 @@ public partial class App : Application
         services.AddSingleton<VisitEncounterStore>();
         services.AddSingleton<IVisitEncounterService, MockVisitEncounterService>();
         services.AddTransient<VisitEncounterViewModel>();
+
+        // Phase 15: Boarding board/list screen. Stateless deterministic mock,
+        // so a singleton suffices.
+        services.AddSingleton<IBoardingQueryService, MockBoardingQueryService>();
+        services.AddSingleton<BoardingPageViewModel>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();
