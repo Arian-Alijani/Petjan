@@ -125,7 +125,7 @@ public sealed partial class CashierInvoiceRowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isActive;
 
-    private static IBrush Resolve(string key, string fallback) => new SolidColorBrush(Color.Parse(fallback));
+    private static IBrush Resolve(string key, string fallback) => BrushCache.Solid(fallback);
 }
 
 /// <summary>

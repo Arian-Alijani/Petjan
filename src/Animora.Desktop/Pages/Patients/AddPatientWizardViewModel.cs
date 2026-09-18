@@ -66,9 +66,16 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
         _patients = patients;
         _dialogs = dialogs;
         _onCompleted = onCompleted;
-        _allOwners = _patients.GetOwnersAsync().GetAwaiter().GetResult();
-        _allPets = _patients.GetPetsAsync().GetAwaiter().GetResult();
         Referral = PatientsPresentation.Referrals[0];
+        // Non-blocking init (PERFORMANCE.md §4): load the owner/pet lookups
+        // asynchronously instead of blocking the UI thread in the constructor.
+        _ = LoadLookupsAsync();
+    }
+
+    private async Task LoadLookupsAsync()
+    {
+        _allOwners = await _patients.GetOwnersAsync();
+        _allPets = await _patients.GetPetsAsync();
         RenderOwnerList();
     }
 

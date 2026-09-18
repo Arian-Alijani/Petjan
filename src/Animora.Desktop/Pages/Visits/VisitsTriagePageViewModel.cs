@@ -86,7 +86,8 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         }
 
         SelectType(Types.FirstOrDefault());
-        LoadAsync().GetAwaiter().GetResult();
+        // Non-blocking init (PERFORMANCE.md §4).
+        _ = LoadAsync();
     }
 
     public ObservableCollection<DoctorTileViewModel> Doctors { get; } = [];

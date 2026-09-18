@@ -33,8 +33,8 @@ public static class ChequesPresentation
     /// </summary>
     public static string FaText(string? text) => PersianNumberFormatter.ToPersianDigits(text ?? string.Empty);
 
-    /// <summary>A solid fill brush from a hex string.</summary>
-    public static IBrush Fill(string hex) => new SolidColorBrush(Color.Parse(hex));
+    /// <summary>A solid fill brush from a hex string (shared via <see cref="BrushCache"/>).</summary>
+    public static IBrush Fill(string hex) => BrushCache.Solid(hex);
 
     /// <summary>
     /// The reference's <c>money(n)</c> — a Persian-grouped integer

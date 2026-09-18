@@ -38,7 +38,10 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
         Eyebrow = "مدیریت کلینیک";
         Breadcrumbs.Add("مدیریت کلینیک");
         Breadcrumbs.Add("پذیرش");
-        RefreshAsync().GetAwaiter().GetResult();
+        // Non-blocking init (PERFORMANCE.md §4): the mock resolves synchronously,
+        // so the queue is populated at construction while a real async service
+        // would no longer block the UI thread.
+        _ = RefreshAsync();
     }
 
     public ObservableCollection<QueueTicket> Queue { get; } = [];

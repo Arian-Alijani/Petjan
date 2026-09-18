@@ -129,18 +129,9 @@ public static class AppointmentsPresentation
     }
 
     // ── brush cache (hex → SolidColorBrush) ──────────────────────────────────
-    private static readonly Dictionary<string, IBrush> Brushes = new();
-
-    private static IBrush Brush(string hex)
-    {
-        if (!Brushes.TryGetValue(hex, out var brush))
-        {
-            brush = new SolidColorBrush(Color.Parse(hex));
-            Brushes[hex] = brush;
-        }
-
-        return brush;
-    }
+    // Delegates to the shared, process-wide BrushCache so callers that hit the
+    // hot path (grid/queue/history builds) never re-allocate a brush per item.
+    private static IBrush Brush(string hex) => BrushCache.Solid(hex);
 
     /// <summary>Minutes-from-midnight → "HH:mm" with Persian digits.</summary>
     public static string Time(int minutes)

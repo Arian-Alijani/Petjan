@@ -44,6 +44,11 @@ public sealed class TrendChart : Control
     static TrendChart() => AffectsRender<TrendChart>(
         PointsProperty, RevenueBrushProperty, ExpenseBrushProperty, ProfitBrushProperty);
 
+    // Hoisted render-time resources (charts re-render on every layout/resize).
+    private static readonly IBrush GridBrush = new SolidColorBrush(Color.Parse("#eef2f0"));
+    private static readonly IBrush AxisBrush = new SolidColorBrush(Color.Parse("#98a2b3"));
+    private static readonly Pen GridPen = new(GridBrush, 1, new DashStyle([2, 6], 0));
+
     public IReadOnlyList<TrendChartPoint>? Points
     {
         get => GetValue(PointsProperty);
@@ -83,8 +88,8 @@ public sealed class TrendChart : Control
         var ih = h - padT - padB;
         var baseY = padT + ih;
 
-        var gridPen = new Pen(new SolidColorBrush(Color.Parse("#eef2f0")), 1, new DashStyle([2, 6], 0));
-        var axisBrush = new SolidColorBrush(Color.Parse("#98a2b3"));
+        var gridPen = GridPen;
+        var axisBrush = AxisBrush;
         var typeface = Typeface.Default;
         const double axisSize = 9.5;
 

@@ -87,5 +87,5 @@ public static class CashierPresentation
     };
 
     private static IBrush Resolve(string key, string fallback) =>
-        new SolidColorBrush(Color.Parse(fallback));
+        BrushCache.Solid(fallback);
 }

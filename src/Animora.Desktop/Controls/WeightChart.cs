@@ -25,6 +25,17 @@ public sealed class WeightChart : Control
         AvaloniaProperty.Register<WeightChart, IBrush>(nameof(LineBrush),
             new SolidColorBrush(Color.Parse("#0d9488")));
 
+    // Hoisted render-time resources: a chart re-renders on every layout/resize,
+    // so allocating pens/brushes per Render() pass is avoidable allocation in a
+    // hot path (PERFORMANCE.md §10). These are immutable and shared.
+    private static readonly IBrush GridBrush = new SolidColorBrush(Color.Parse("#eef2f5"));
+    private static readonly IBrush AxisBrush = new SolidColorBrush(Color.Parse("#98a2b3"));
+    private static readonly IBrush EmptyTextBrush = new SolidColorBrush(Color.Parse("#667085"));
+    private static readonly IBrush DotFill = new SolidColorBrush(Colors.White);
+    private static readonly IBrush XLabelBrush = new SolidColorBrush(Color.Parse("#667085"));
+    private static readonly Pen GridPen = new(GridBrush, 1);
+    private static readonly Typeface ChartTypeface = new(FontFamily.Default);
+
     static WeightChart()
     {
         AffectsRender<WeightChart>(PointsProperty, LineBrushProperty);
@@ -54,16 +65,16 @@ public sealed class WeightChart : Control
             return;
         }
 
-        var gridPen = new Pen(new SolidColorBrush(Color.Parse("#eef2f5")), 1);
-        var axisBrush = new SolidColorBrush(Color.Parse("#98a2b3"));
-        var typeface = new Typeface(FontFamily.Default);
+        var gridPen = GridPen;
+        var axisBrush = AxisBrush;
+        var typeface = ChartTypeface;
         const double fontSize = 9;
 
         if (points is null || points.Count == 0)
         {
             var empty = new FormattedText(
                 "داده‌ای ثبت نشده است", CultureInfo.InvariantCulture, FlowDirection.RightToLeft,
-                typeface, 12, new SolidColorBrush(Color.Parse("#667085")));
+                typeface, 12, EmptyTextBrush);
             ctx.DrawText(empty, new Point((w - empty.Width) / 2, h / 2 - empty.Height / 2));
             return;
         }
@@ -146,7 +157,7 @@ public sealed class WeightChart : Control
         ctx.DrawGeometry(null, new Pen(LineBrush, 2.4), lineGeometry);
 
         // dots
-        var dotFill = new SolidColorBrush(Colors.White);
+        var dotFill = DotFill;
         var dotPen = new Pen(LineBrush, 2.2);
         for (var i = 0; i < points.Count; i++)
         {

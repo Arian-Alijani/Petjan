@@ -20,6 +20,7 @@ namespace Animora.Desktop.Pages.Dashboard;
 public sealed partial class DashboardPageViewModel : PageViewModelBase
 {
     private readonly INavigationService _navigation;
+    private readonly IDashboardQueryService _dashboard;
 
     [ObservableProperty]
     private string _heroTitle = string.Empty;
@@ -36,17 +37,32 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     public DashboardPageViewModel(IDashboardQueryService dashboard, ICurrentUserContext currentUser, INavigationService navigation)
     {
         _navigation = navigation;
+        _dashboard = dashboard;
         Role = currentUser.Role;
 
         Title = "داشبورد";
         Eyebrow = "مرکز فرمان";
         Breadcrumbs.Add("داشبورد");
 
-        // The mock resolves synchronously (Task.FromResult); a future
-        // Datasync-backed implementation would call this from an async
-        // OnLoaded hook instead — no ViewModel shape change needed then.
-        var snapshot = dashboard.GetSnapshotAsync(Role).GetAwaiter().GetResult();
-        Apply(snapshot);
+        // Non-blocking init: never call .Result/.GetAwaiter().GetResult() on the
+        // UI thread (PERFORMANCE.md §4). The mock resolves synchronously today; a
+        // future Datasync-backed service returns a real Task and this stays
+        // responsive. Set IsBusy until the snapshot lands so the shell reflects
+        // the in-flight state.
+        _ = LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        IsBusy = true;
+        try
+        {
+            Apply(await _dashboard.GetSnapshotAsync(Role));
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     public UserRole Role { get; }
