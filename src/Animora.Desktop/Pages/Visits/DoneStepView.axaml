@@ -15,7 +15,7 @@
         <TextBlock Classes="ok-title" Text="ویزیت با موفقیت ثبت شد" />
         <TextBlock Classes="ok-sub">
             <Run Text="پروندهٔ بیمار به‌روزرسانی شد و فاکتور به صندوق ارسال شد. " />
-            <Run Text="(نمونه طراحی)" Opacity="0.7" />
+            <Run Text="(نمونه طراحی)" Foreground="{StaticResource Muted2Brush}" />
         </TextBlock>
 
         <UniformGrid Columns="3" MaxWidth="520" HorizontalAlignment="Center" Margin="0,24,0,0">

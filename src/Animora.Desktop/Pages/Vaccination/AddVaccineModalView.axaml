@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vx="using:Animora.Desktop.Pages.Vaccination"
+             xmlns:c="using:Animora.Contracts.Vaccination"
+             x:Class="Animora.Desktop.Pages.Vaccination.AddVaccineModalView"
+             x:DataType="vx:AddVaccineModalViewModel"
+             Width="520" MaxWidth="520" FlowDirection="RightToLeft">
+    <StackPanel>
+        <Grid Margin="22,18,22,6" ColumnDefinitions="40,*,36" ColumnSpacing="12">
+            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12" Background="{StaticResource Brand50Brush}">
+                <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}" Data="{StaticResource IconSyringe}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="ثبت جدید" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Brand600Brush}" />
+                <TextBlock Text="ثبت واکسن بیمار" FontSize="18" FontWeight="ExtraBold" />
+            </StackPanel>
+            <Button Grid.Column="2" Classes="ghost" Width="36" Height="36" Padding="8" Command="{Binding CancelCommand}" ToolTip.Tip="بستن">
+                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconX}" />
+            </Button>
+        </Grid>
+        <StackPanel Margin="22,8,22,20" Spacing="12">
+            <StackPanel Spacing="6">
+                <TextBlock Text="بیمار" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                <TextBox Text="{Binding PatientQuery}" PlaceholderText="نام بیمار را جستجو کنید…" Padding="12,10" CornerRadius="10" />
+            </StackPanel>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12">
+                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">
+                    <TextBlock Text="نوع واکسن" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <ComboBox ItemsSource="{Binding Catalog}" SelectedItem="{Binding SelectedVaccine}" HorizontalAlignment="Stretch" Padding="12,8" CornerRadius="10">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="c:VaccineCatalogEntry">
+                                <TextBlock><Run Text="{Binding Name}" /><Run Text=" (" /><Run Text="{Binding Short}" /><Run Text=")" /></TextBlock>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6">
+                    <TextBlock Text="نوبت" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <ComboBox ItemsSource="{Binding Doses}" SelectedItem="{Binding SelectedDose}" HorizontalAlignment="Stretch" Padding="12,8" CornerRadius="10" />
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="6">
+                    <TextBlock Text="تاریخ تزریق" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding InjectionDate}" PlaceholderText="۱۴۰۴/۰۵/۱۱" Padding="12,10" CornerRadius="10" />
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6">
+                    <TextBlock Text="سررسید بعدی" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding NextDueDate}" PlaceholderText="۱۴۰۵/۰۵/۱۱" Padding="12,10" CornerRadius="10" />
+                </StackPanel>
+                <StackPanel Grid.Row="2" Grid.Column="0" Spacing="6">
+                    <TextBlock Text="دامپزشک" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <ComboBox ItemsSource="{Binding Vets}" SelectedItem="{Binding SelectedVet}" HorizontalAlignment="Stretch" Padding="12,8" CornerRadius="10" />
+                </StackPanel>
+                <StackPanel Grid.Row="2" Grid.Column="1" Spacing="6">
+                    <TextBlock Text="شماره سری (Lot)" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding Lot}" PlaceholderText="FV-8821" Padding="12,10" CornerRadius="10" FlowDirection="LeftToRight" />
+                </StackPanel>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="ارسال پیامک تأیید" FontSize="12.5" FontWeight="Bold" />
+                    <TextBlock Text="پس از ثبت به مالک ارسال شود" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding SendConfirmation}" OnContent="" OffContent="" />
+            </Grid>
+        </StackPanel>
+        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="22,14,22,20">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left">
+                <Button Classes="ghost" Content="انصراف" Command="{Binding CancelCommand}" />
+                <Button Classes="primary" Content="ثبت واکسن" Command="{Binding SubmitCommand}" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
