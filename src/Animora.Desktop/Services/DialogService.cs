@@ -1,4 +1,9 @@
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
 using Animora.Desktop.Controls;
+using Avalonia.Controls;
+using Avalonia.Platform.Storage;
 
 namespace Animora.Desktop.Services;
 
@@ -35,6 +40,40 @@ public sealed class DialogService : IDialogService
 
     public void ShowSheet(object content, double width = 680, double height = 760) =>
         _sheetHost?.SetContent(content, width, height);
+
+    public async Task<bool> SaveTextFileAsync(string suggestedName, string content, string extension = "csv")
+    {
+        var host = (Control?)_sheetHost ?? (Control?)_modalHost ?? (Control?)_drawerHost;
+        if (host is null || TopLevel.GetTopLevel(host)?.StorageProvider is not { } storage)
+        {
+            return false;
+        }
+
+        var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "ذخیره فایل",
+            SuggestedFileName = suggestedName,
+            DefaultExtension = extension,
+            FileTypeChoices =
+            [
+                new FilePickerFileType(extension.ToUpperInvariant())
+                {
+                    Patterns = ["*." + extension],
+                },
+            ],
+        });
+
+        if (file is null)
+        {
+            return false;
+        }
+
+        await using var stream = await file.OpenWriteAsync();
+        await using var writer = new StreamWriter(stream, new UTF8Encoding(true));
+        await writer.WriteAsync(content);
+        await writer.FlushAsync();
+        return true;
+    }
 
     public void Close()
     {

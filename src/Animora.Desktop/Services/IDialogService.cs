@@ -31,5 +31,14 @@ public interface IDialogService
     /// </summary>
     void ShowSheet(object content, double width = 680, double height = 760);
 
+    /// <summary>
+    /// Runs the OS save-file flow for a text file (the reference's browser
+    /// download in <c>HIST.exportCSV</c>, adapted to the desktop's standard
+    /// <c>IStorageProvider.SaveFilePickerAsync</c>). Returns true when the user
+    /// saved the file, false if they cancelled or no window is attached — the
+    /// platform call stays here, not inside a screen View or the data service.
+    /// </summary>
+    Task<bool> SaveTextFileAsync(string suggestedName, string content, string extension = "csv");
+
     void Close();
 }
