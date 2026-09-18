@@ -27,6 +27,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 {
     private readonly IAppointmentsQueryService _service;
     private readonly IToastService _toast;
+    private readonly IAppointmentBookingService _booking;
+    private readonly IDialogService _dialogs;
 
     private readonly List<AppointmentDoctor> _doctors = [];
     private readonly List<AppointmentType> _types = [];
@@ -57,10 +59,16 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private DateOnly _historyCalendarCursor;
     private bool _historyCalendarOpen;
 
-    public AppointmentsCalendarViewModel(IAppointmentsQueryService service, IToastService toast)
+    public AppointmentsCalendarViewModel(
+        IAppointmentsQueryService service,
+        IToastService toast,
+        IAppointmentBookingService booking,
+        IDialogService dialogs)
     {
         _service = service;
         _toast = toast;
+        _booking = booking;
+        _dialogs = dialogs;
 
         Title = "تقویم نوبت‌ها";
         Eyebrow = "برنامه‌ریزی هوشمند";
@@ -970,10 +978,65 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void OpenBooking(object? target)
+    private async Task OpenBooking(object? target)
     {
-        // Phase 14 replaces this with the real detail/booking panel.
-        _toast.Show("پنل ثبت نوبت — فاز ۱۴ (نمونه طراحی)", Tone.Info);
+        // An appointment event → open the detail drawer; anything else (the
+        // toolbar «ثبت نوبت جدید» button, a grid-cell click) → open the booking
+        // sheet in new mode, mirroring the reference's SCH.book().
+        AppointmentEvent? ev = target switch
+        {
+            AppointmentEvent e => e,
+            AppointmentEventViewModel vm => vm.Model,
+            QueueCardViewModel q => q.Model,
+            HistoryRowViewModel h => h.Model,
+            MonthEventViewModel m => m.Model,
+            _ => null,
+        };
+
+        if (ev is not null)
+        {
+            await ShowDetailAsync(ev);
+            return;
+        }
+
+        var panel = new BookingPanelViewModel(_booking, _service, _toast, _dialogs);
+        panel.Saved += () => _ = RefreshAfterChangeAsync();
+        await panel.LoadForNewAsync(null, null, null, null);
+        _dialogs.ShowDrawer(new BookingPanelView { DataContext = panel });
+    }
+
+    private async Task ShowDetailAsync(AppointmentEvent ev)
+    {
+        var detail = new BookingDetailViewModel(
+            _booking,
+            _service,
+            _toast,
+            _dialogs,
+            onChanged: () => _ = RefreshAfterChangeAsync(),
+            onEdit: editEv => _ = OpenEditAsync(editEv));
+        if (await detail.LoadAsync(ev.Id))
+        {
+            _dialogs.ShowDrawer(new BookingDetailView { DataContext = detail });
+        }
+    }
+
+    private async Task OpenEditAsync(AppointmentEvent ev)
+    {
+        var panel = new BookingPanelViewModel(_booking, _service, _toast, _dialogs);
+        panel.Saved += () => _ = RefreshAfterChangeAsync();
+        await panel.LoadForEditAsync(ev);
+        _dialogs.ShowDrawer(new BookingPanelView { DataContext = panel });
+    }
+
+    private async Task RefreshAfterChangeAsync()
+    {
+        _all.Clear();
+        _all.AddRange(await _service.GetForRangeAsync(
+            DateOnly.FromDateTime(DateTime.Today).AddDays(-40),
+            DateOnly.FromDateTime(DateTime.Today).AddDays(40)));
+        Render();
+        RenderQueue();
+        RenderHistory();
     }
 
     [RelayCommand]

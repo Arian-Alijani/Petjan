@@ -96,10 +96,14 @@ public partial class App : Application
         services.AddSingleton<IVaccinationService, MockVaccinationService>();
         services.AddSingleton<VaccinationPageViewModel>();
 
-        // Phase 13: Appointments calendar. Deterministic stateless mock (events
-        // are regenerated per process), so a singleton suffices.
+        // Phase 13/14: Appointments calendar + booking panel. One shared
+        // in-memory event store backs both mocks (the calendar sees events the
+        // panel creates/edits), so it is a singleton — as are both services.
+        services.AddSingleton<AppointmentStore>();
         services.AddSingleton<IAppointmentsQueryService, MockAppointmentsQueryService>();
+        services.AddSingleton<IAppointmentBookingService, MockAppointmentBookingService>();
         services.AddSingleton<AppointmentsCalendarViewModel>();
+        services.AddTransient<BookingPanelViewModel>();
 
         // Phase 11: clinical-encounter wizard. One shared encounter store backs
         // both Visits mocks (triage creates the draft, the wizard mutates it);

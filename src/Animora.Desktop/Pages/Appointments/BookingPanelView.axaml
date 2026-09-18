@@ -1,0 +1,797 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ap="using:Animora.Desktop.Pages.Appointments"
+             xmlns:shell="using:Animora.Desktop.Shell"
+             x:Class="Animora.Desktop.Pages.Appointments.BookingPanelView"
+             x:Name="Root"
+             x:DataType="ap:BookingPanelViewModel"
+             Width="1080"
+             MaxHeight="860"
+             FlowDirection="RightToLeft"
+             ClipToBounds="True">
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/BookingPanelStyles.axaml" />
+    </UserControl.Styles>
+
+    <Border Background="{StaticResource PanelBrush}" CornerRadius="22" ClipToBounds="True"
+            BoxShadow="0 32 80 0 #57123631">
+        <Grid RowDefinitions="Auto,*">
+
+            <!-- ═══ header (bk-head) ═══ -->
+            <Border Grid.Row="0" Padding="22,16" Background="#f7fbfa"
+                    BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="13">
+                    <Border Grid.Column="0" Width="42" Height="42" CornerRadius="14"
+                            Background="{StaticResource Brand50Brush}">
+                        <Path Classes="icon" Width="20" Height="20"
+                              Stroke="{StaticResource Brand700Brush}"
+                              Data="{StaticResource IconCalendar}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding EyebrowText}" FontSize="11" FontWeight="Bold"
+                                   Foreground="{StaticResource Brand600Brush}" />
+                        <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="ExtraBold"
+                                   Margin="0,1,0,0" />
+                    </StackPanel>
+
+                    <!-- head meta pills -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7"
+                                HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Border Classes="hm" Background="{StaticResource Bg2Brush}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                         Fill="{Binding SummaryTypeBackground}" />
+                                <TextBlock Text="{Binding HeadTypeLabel}" FontSize="11.5" FontWeight="Bold"
+                                           Foreground="{StaticResource Ink2Brush}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Classes="hm" Background="{StaticResource Bg2Brush}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="14" Height="14"
+                                      Stroke="{StaticResource MutedBrush}"
+                                      Data="{StaticResource IconCalendar}" />
+                                <TextBlock Text="{Binding HeadDateText}" FontSize="11.5" FontWeight="Bold"
+                                           Foreground="{StaticResource Ink2Brush}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Classes="hm" Background="{StaticResource Bg2Brush}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="14" Height="14"
+                                      Stroke="{StaticResource MutedBrush}"
+                                      Data="{StaticResource IconClock}" />
+                                <TextBlock Text="{Binding HeadRangeText}" FontSize="11.5" FontWeight="Bold"
+                                           Foreground="{StaticResource Ink2Brush}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <Button Grid.Column="3" Classes="icon-btn close" Width="36" Height="36"
+                            Command="{Binding CancelCloseCommand}" ToolTip.Tip="بستن (Esc)">
+                        <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                              Data="{StaticResource IconX}" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- ═══ body (bk-grid: main + side) ═══ -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,316">
+
+                <!-- ── main ── -->
+                <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+
+                        <!-- 1 · type -->
+                        <Border Classes="bk-sec">
+                            <StackPanel>
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
+                                    <Border Grid.Column="0" Classes="step"><TextBlock Text="۱" /></Border>
+                                    <TextBlock Grid.Column="1" Text="نوع نوبت" FontSize="13" FontWeight="ExtraBold"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="3" Text="{Binding TypeHint}" FontSize="11"
+                                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding TypeOptions}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><UniformGrid Columns="4" /></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="ap:BookingTypeOptionViewModel">
+                                            <Button Classes="type-opt" Classes.on="{Binding IsSelected}"
+                                                    Margin="0,0,8,8"
+                                                    Command="{Binding #Root.((ap:BookingPanelViewModel)DataContext).SelectTypeCommand}"
+                                                    CommandParameter="{Binding Id}">
+                                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9">
+                                                    <Border Grid.Column="0" Width="30" Height="30" CornerRadius="9"
+                                                            Background="{Binding BackgroundBrush}">
+                                                        <Path Classes="icon" Width="16" Height="16"
+                                                              Stroke="{Binding AccentBrush}"
+                                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Label}" FontSize="12.5" FontWeight="Bold" />
+                                                        <TextBlock Text="{Binding DurationText}" FontSize="10.5"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
+                                                    <Path Grid.Column="2" Classes="tick" Width="14" Height="14"
+                                                          Stroke="{Binding AccentBrush}"
+                                                          Data="{StaticResource IconCheck}" />
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 2 · patient & owner -->
+                        <Border Classes="bk-sec">
+                            <StackPanel>
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
+                                    <Border Grid.Column="0" Classes="step"><TextBlock Text="۲" /></Border>
+                                    <TextBlock Grid.Column="1" Text="بیمار و مالک" FontSize="13" FontWeight="ExtraBold"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="3" Text="جستجو بر اساس نام حیوان، مالک، نژاد یا شمارهٔ تماس"
+                                               FontSize="11" Foreground="{StaticResource MutedBrush}"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+
+                                <!-- selected patient card -->
+                                <Border IsVisible="{Binding IsPatientCardVisible}" Classes="pat-card">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                        <Border Grid.Column="0" Width="44" Height="44" CornerRadius="14"
+                                                Background="{Binding SelectedAvatarBrush}">
+                                            <Path Classes="icon" Width="24" Height="24" Stroke="White"
+                                                  Data="{Binding SelectedIconKey, Converter={StaticResource IconKeyConverter}}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                                <TextBlock Text="{Binding SelectedName}" FontSize="15" FontWeight="ExtraBold" />
+                                                <Border Background="{StaticResource Brand50Brush}" CornerRadius="99"
+                                                        Padding="8,2">
+                                                    <TextBlock Text="{Binding SelectedKind}" FontSize="10.5"
+                                                               FontWeight="Bold" Foreground="{StaticResource Brand700Brush}" />
+                                                </Border>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{StaticResource MutedBrush}"
+                                                          Data="{StaticResource IconUsers}" />
+                                                    <TextBlock Text="{Binding SelectedOwner}" FontSize="12"
+                                                               FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{StaticResource MutedBrush}"
+                                                          Data="{StaticResource IconPhone}" />
+                                                    <TextBlock Text="{Binding SelectedPhone}" FontSize="12"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7"
+                                                    VerticalAlignment="Center">
+                                            <Button Classes="sm" Height="32" Command="{Binding ChangePatientCommand}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{Binding $parent[Button].Foreground}"
+                                                          Data="{StaticResource IconSearch}" />
+                                                    <TextBlock Text="تغییر بیمار" />
+                                                </StackPanel>
+                                            </Button>
+                                            <Button Classes="ghost sm" Height="32">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{Binding $parent[Button].Foreground}"
+                                                          Data="{StaticResource IconFile}" />
+                                                    <TextBlock Text="پرونده" />
+                                                </StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- picker pane -->
+                                <StackPanel IsVisible="{Binding IsPatientSearchVisible}" Spacing="10">
+                                    <Panel>
+                                        <TextBox Classes="pat-search-input" Height="40"
+                                                 Padding="38,0,34,0" CornerRadius="12" FontSize="13"
+                                                 PlaceholderText="{Binding PatientSearchPlaceholder}"
+                                                 Text="{Binding QueryText, Mode=OneWay}"
+                                                 TextChanged="OnQueryChanged" />
+                                        <Path Classes="icon" Width="16" Height="16"
+                                              Margin="12,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                              IsHitTestVisible="False" Stroke="{StaticResource MutedBrush}"
+                                              Data="{StaticResource IconSearch}" />
+                                        <Button Width="20" Height="20" CornerRadius="10"
+                                                Padding="0" Margin="0,0,10,0"
+                                                HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                Background="{StaticResource Bg2Brush}" BorderThickness="0"
+                                                IsVisible="{Binding HasQuery}"
+                                                Command="{Binding ClearQueryCommand}" ToolTip.Tip="پاک کردن">
+                                            <Path Classes="icon" Width="11" Height="11"
+                                                  Stroke="{StaticResource MutedBrush}" StrokeThickness="3"
+                                                  Data="{StaticResource IconX}" />
+                                        </Button>
+                                    </Panel>
+
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                        <ItemsControl Grid.Column="0" ItemsSource="{Binding KindChips}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" /></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="ap:BookingKindChipViewModel">
+                                                    <Button Classes="mini-chip" Classes.on="{Binding IsSelected}"
+                                                            Command="{Binding #Root.((ap:BookingPanelViewModel)DataContext).SelectKindCommand}"
+                                                            CommandParameter="{Binding Id}">
+                                                        <TextBlock Text="{Binding Label}" />
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Grid.Column="2" Text="{Binding PatientResultCount}" FontSize="11"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                    </Grid>
+
+                                    <!-- result list -->
+                                    <ScrollViewer MaxHeight="208" VerticalScrollBarVisibility="Auto"
+                                                  IsVisible="{Binding HasPatientResults}">
+                                        <ItemsControl ItemsSource="{Binding PatientList}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="ap:BookingPatientOptionViewModel">
+                                                    <Button Classes="pat-opt"
+                                                            Classes.on="{Binding IsSelected}"
+                                                            Classes.hi="{Binding IsHighlighted}"
+                                                            Margin="0,0,0,6"
+                                                            Command="{Binding #Root.((ap:BookingPanelViewModel)DataContext).SelectPatientCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                                            <Border Grid.Column="0" Width="34" Height="34" CornerRadius="11"
+                                                                    Background="{Binding AvatarBrush}">
+                                                                <Path Classes="icon" Width="18" Height="18" Stroke="White"
+                                                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                                                    <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="Bold" />
+                                                                    <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
+                                                                            BorderThickness="1" CornerRadius="99" Padding="7,1">
+                                                                        <TextBlock Text="{Binding Kind}" FontSize="10"
+                                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                                    </Border>
+                                                                </StackPanel>
+                                                                <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2,0,0">
+                                                                    <Path Classes="icon" Width="13" Height="13"
+                                                                          Stroke="{StaticResource MutedBrush}"
+                                                                          Data="{StaticResource IconUsers}" />
+                                                                    <TextBlock Text="{Binding OwnerName}" FontSize="11"
+                                                                               Foreground="{StaticResource MutedBrush}" />
+                                                                    <TextBlock Text="·" FontSize="11" Opacity="0.5"
+                                                                               Foreground="{StaticResource MutedBrush}" />
+                                                                    <TextBlock Text="{Binding Phone}" FontSize="11"
+                                                                               Foreground="{StaticResource MutedBrush}" />
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                            <Path Grid.Column="2" Classes="tick" Width="16" Height="16"
+                                                                  Stroke="{StaticResource Brand600Brush}"
+                                                                  Data="{StaticResource IconCheck}"
+                                                                  VerticalAlignment="Center" />
+                                                        </Grid>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+
+                                    <!-- empty result -->
+                                    <Border Classes="pat-empty" IsVisible="{Binding !HasPatientResults}">
+                                        <StackPanel HorizontalAlignment="Center" Spacing="5">
+                                            <Path Classes="icon" Width="22" Height="22"
+                                                  Stroke="{StaticResource Muted2Brush}"
+                                                  Data="{StaticResource IconSearch}"
+                                                  HorizontalAlignment="Center" />
+                                            <TextBlock Text="بیماری با این مشخصات پیدا نشد" FontSize="13"
+                                                       FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
+                                                       HorizontalAlignment="Center" />
+                                            <TextBlock Text="می‌توانید همین‌جا پرونده جدیدی بسازید." FontSize="11.5"
+                                                       Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
+                                            <Button Classes="outline sm" Margin="0,7,0,0"
+                                                    Command="{Binding BeginAddPatientCommand}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{Binding $parent[Button].Foreground}"
+                                                          Data="{StaticResource IconPlus}" />
+                                                    <TextBlock Text="ثبت بیمار جدید" />
+                                                </StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- add form -->
+                                    <Border Classes="pat-add" IsVisible="{Binding IsAddFormVisible}">
+                                        <StackPanel>
+                                            <Border Padding="13,10" Background="White"
+                                                    BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <Path Classes="icon" Width="16" Height="16"
+                                                          Stroke="{StaticResource Brand600Brush}"
+                                                          Data="{StaticResource IconPaw}" />
+                                                    <TextBlock Text="ثبت سریع بیمار جدید" FontSize="12.5" FontWeight="ExtraBold" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto"
+                                                  ColumnSpacing="10" RowSpacing="10" Margin="13">
+                                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="5">
+                                                    <TextBlock Text="نام حیوان" FontSize="11.5" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                    <TextBox Text="{Binding NewName}" Height="38" Padding="12,0"
+                                                             CornerRadius="12" PlaceholderText="مثلاً میلو" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="5">
+                                                    <TextBlock Text="گونه / نژاد" FontSize="11.5" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                    <TextBox Text="{Binding NewKind}" Height="38" Padding="12,0"
+                                                             CornerRadius="12" PlaceholderText="مثلاً سگ پامرانین" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="5">
+                                                    <TextBlock Text="نام مالک" FontSize="11.5" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                    <TextBox Text="{Binding NewOwner}" Height="38" Padding="12,0"
+                                                             CornerRadius="12" PlaceholderText="نام و نام خانوادگی" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="1" Grid.Column="1" Spacing="5">
+                                                    <TextBlock Text="شماره تماس" FontSize="11.5" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                    <TextBox Text="{Binding NewPhone}" Height="38" Padding="12,0"
+                                                             CornerRadius="12" PlaceholderText="۰۹۱۲…" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="13,0,13,13">
+                                                <Button Classes="primary sm" Command="{Binding SavePatientCommand}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                                                              Data="{StaticResource IconCheck}" />
+                                                        <TextBlock Text="افزودن و انتخاب" />
+                                                    </StackPanel>
+                                                </Button>
+                                                <Button Classes="ghost sm" Command="{Binding CancelAddPatientCommand}">
+                                                    <TextBlock Text="انصراف" />
+                                                </Button>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Button Classes="pat-new" IsVisible="{Binding !IsAddFormVisible}"
+                                            Command="{Binding BeginAddPatientCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <Path Classes="icon" Width="15" Height="15"
+                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                  Data="{StaticResource IconPlus}" />
+                                            <TextBlock Text="بیمار جدیدی ثبت کنید" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 3 · doctor -->
+                        <Border Classes="bk-sec">
+                            <StackPanel>
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
+                                    <Border Grid.Column="0" Classes="step"><TextBlock Text="۳" /></Border>
+                                    <TextBlock Grid.Column="1" Text="پزشک معالج" FontSize="13" FontWeight="ExtraBold"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="3" Text="ظرفیت هر پزشک در تاریخ انتخاب‌شده نمایش داده می‌شود"
+                                               FontSize="11" Foreground="{StaticResource MutedBrush}"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding DoctorOptions}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="ap:BookingDoctorOptionViewModel">
+                                            <Button Classes="doc-opt" Classes.on="{Binding IsSelected}"
+                                                    Margin="0,0,8,8"
+                                                    Command="{Binding #Root.((ap:BookingPanelViewModel)DataContext).SelectDoctorCommand}"
+                                                    CommandParameter="{Binding Id}">
+                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+                                                    <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16"
+                                                            Background="{Binding AccentBrush}">
+                                                        <TextBlock Text="{Binding Initial}" FontSize="12" FontWeight="ExtraBold"
+                                                                   Foreground="White" HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding ShortName}" FontSize="12.5" FontWeight="Bold" />
+                                                        <TextBlock Text="{Binding Specialty}" FontSize="10.5"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center"
+                                                                HorizontalAlignment="Center">
+                                                        <TextBlock Text="{Binding BusyText}" FontSize="13" FontWeight="ExtraBold"
+                                                                   Foreground="{StaticResource Ink2Brush}"
+                                                                   HorizontalAlignment="Center" />
+                                                        <TextBlock Text="نوبت" FontSize="10"
+                                                                   Foreground="{StaticResource MutedBrush}"
+                                                                   HorizontalAlignment="Center" />
+                                                        <TextBlock Text="{Binding FreeText}" FontSize="10"
+                                                                   Foreground="{StaticResource OkBrush}"
+                                                                   HorizontalAlignment="Center" />
+                                                    </StackPanel>
+                                                    <Border Grid.Column="3" Classes="doc-tick"
+                                                            Background="{Binding AccentBrush}">
+                                                        <Path Classes="icon" Width="12" Height="12" Stroke="White"
+                                                              StrokeThickness="3" Data="{StaticResource IconCheck}" />
+                                                    </Border>
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 4 · date & time -->
+                        <Border Classes="bk-sec">
+                            <StackPanel>
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
+                                    <Border Grid.Column="0" Classes="step"><TextBlock Text="۴" /></Border>
+                                    <TextBlock Grid.Column="1" Text="تاریخ و ساعت" FontSize="13" FontWeight="ExtraBold"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="3" Text="ابتدا روز، سپس مدت و ساعت شروع را انتخاب کنید"
+                                               FontSize="11" Foreground="{StaticResource MutedBrush}"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+
+                                <Grid ColumnDefinitions="268,*" ColumnSpacing="16">
+                                    <!-- mini calendar -->
+                                    <Border Grid.Column="0" Classes="dt-cal" VerticalAlignment="Top">
+                                        <StackPanel>
+                                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,9">
+                                                <TextBlock Grid.Column="0" Text="{Binding CalendarLabel}"
+                                                           FontSize="13" FontWeight="ExtraBold" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3">
+                                                    <Button Classes="cal-nav-btn"
+                                                            Command="{Binding StepMonthCommand}" CommandParameter="-1"
+                                                            ToolTip.Tip="ماه قبل">
+                                                        <Path Classes="icon" Width="14" Height="14"
+                                                              Stroke="{Binding $parent[Button].Foreground}"
+                                                              Data="{StaticResource IconChevronRight}" />
+                                                    </Button>
+                                                    <Button Classes="cal-nav-btn"
+                                                            Command="{Binding StepMonthCommand}" CommandParameter="1"
+                                                            ToolTip.Tip="ماه بعد">
+                                                        <Path Classes="icon" Width="14" Height="14"
+                                                              Stroke="{Binding $parent[Button].Foreground}"
+                                                              Data="{StaticResource IconChevronLeft}" />
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                            <UniformGrid Columns="7">
+                                                <TextBlock Text="ش" Classes="cal-dow" />
+                                                <TextBlock Text="ی" Classes="cal-dow" />
+                                                <TextBlock Text="د" Classes="cal-dow" />
+                                                <TextBlock Text="س" Classes="cal-dow" />
+                                                <TextBlock Text="چ" Classes="cal-dow" />
+                                                <TextBlock Text="پ" Classes="cal-dow" />
+                                                <TextBlock Text="ج" Classes="cal-dow" />
+                                            </UniformGrid>
+                                            <ItemsControl ItemsSource="{Binding CalendarDays}" Margin="0,4,0,0">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><UniformGrid Columns="7" /></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="ap:BookingCalendarDayViewModel">
+                                                        <Button Classes="cal-d"
+                                                                Classes.out="{Binding IsOut}"
+                                                                Classes.today="{Binding IsToday}"
+                                                                Classes.on="{Binding IsSelected}"
+                                                                Classes.off="{Binding IsFriday}"
+                                                                ToolTip.Tip="{Binding TooltipText}"
+                                                                Command="{Binding #Root.((ap:BookingPanelViewModel)DataContext).SelectDateCommand}"
+                                                                CommandParameter="{Binding Day}">
+                                                            <Panel>
+                                                                <TextBlock Text="{Binding NumberText}" Classes="cal-n"
+                                                                           HorizontalAlignment="Center"
+                                                                           VerticalAlignment="Center" />
+                                                                <Ellipse Width="4" Height="4" Margin="0,0,0,5"
+                                                                         HorizontalAlignment="Center"
+                                                                         VerticalAlignment="Bottom"
+                                                                         IsVisible="{Binding HasDot}"
+                                                                         Fill="{StaticResource Brand400Brush}" />
+                                                            </Panel>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,11,0,0">
+                                                <Button Classes="mini-chip" HorizontalAlignment="Stretch"
+                                                        Command="{Binding GoTodayCommand}">
+                                                    <TextBlock Text="امروز" />
+                                                </Button>
+                                                <Button Classes="mini-chip" HorizontalAlignment="Stretch"
+                                                        Command="{Binding GoTomorrowCommand}">
+                                                    <TextBlock Text="فردا" />
+                                                </Button>
+                                                <Button Classes="mini-chip" HorizontalAlignment="Stretch"
+                                                        Command="{Binding GoNextWeekCommand}">
+                                                    <TextBlock Text="هفتهٔ بعد" />
+                                                </Button>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- slots -->
+                                    <StackPanel Grid.Column="1" Spacing="11">
+                                        <ItemsControl ItemsSource="{Binding DurationOptions}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" /></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="ap:BookingDurationOptionViewModel">
+                                                    <Button Classes="dur" Classes.on="{Binding IsSelected}"
+                                                            Command="{Binding #Root.((ap:BookingPanelViewModel)DataContext).SelectDurationCommand}"
+                                                            CommandParameter="{Binding Minutes}">
+                                                        <TextBlock Text="{Binding Label}" />
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" Text="ساعت شروع" FontSize="11.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding FreeSlotsText}" FontSize="11"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                                <TextBlock Text="·" FontSize="11" Foreground="{StaticResource MutedBrush}"
+                                                           IsVisible="{Binding HasFirstFree}" />
+                                                <Button Classes="linkbtn" IsVisible="{Binding HasFirstFree}"
+                                                        Command="{Binding SelectFirstFreeCommand}">
+                                                    <TextBlock Text="{Binding FirstFreeLinkText}" />
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <ItemsControl ItemsSource="{Binding SlotGroups}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="ap:BookingSlotGroupViewModel">
+                                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,6">
+                                                        <TextBlock Grid.Column="0" Text="{Binding Label}" Width="30"
+                                                                   Margin="0,8,0,0" FontSize="11" FontWeight="Bold"
+                                                                   Foreground="{StaticResource Muted2Brush}"
+                                                                   VerticalAlignment="Top" />
+                                                        <ItemsControl Grid.Column="1" ItemsSource="{Binding Slots}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" /></ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="ap:BookingSlotViewModel">
+                                                                    <Button Classes="slot" Classes.on="{Binding IsSelected}"
+                                                                            IsEnabled="{Binding IsFree}"
+                                                                            ToolTip.Tip="این ساعت رزرو شده است"
+                                                                            Command="{Binding #Root.((ap:BookingPanelViewModel)DataContext).SelectSlotCommand}"
+                                                                            CommandParameter="{Binding Minutes}">
+                                                                        <TextBlock Text="{Binding TimeText}" />
+                                                                    </Button>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 5 · extras -->
+                        <Border Classes="bk-sec">
+                            <StackPanel>
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
+                                    <Border Grid.Column="0" Classes="step"><TextBlock Text="۵" /></Border>
+                                    <TextBlock Grid.Column="1" Text="جزئیات تکمیلی" FontSize="13" FontWeight="ExtraBold"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="3" Text="اختیاری" FontSize="11"
+                                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                </Grid>
+                                <TextBox Text="{Binding NoteText, Mode=TwoWay}" MinHeight="74"
+                                         CornerRadius="12" Padding="12" AcceptsReturn="True" TextWrapping="Wrap"
+                                         PlaceholderText="علت مراجعه، علائم یا توضیح لازم برای پذیرش…" />
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,11,0,0">
+                                    <Border Grid.Column="0" Classes="switch-row">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
+                                            <ToggleButton Grid.Column="0" Classes="bk-switch"
+                                                          IsChecked="{Binding SendSms, Mode=TwoWay}">
+                                                <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                            </ToggleButton>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="پیامک تأیید" FontSize="12.5" FontWeight="Bold"
+                                                           Foreground="{StaticResource Ink2Brush}" />
+                                                <TextBlock Text="بلافاصله پس از ثبت برای مالک ارسال می‌شود" FontSize="11"
+                                                           Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <Border Grid.Column="1" Classes="switch-row">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
+                                            <ToggleButton Grid.Column="0" Classes="bk-switch"
+                                                          IsChecked="{Binding SendReminder, Mode=TwoWay}">
+                                                <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                            </ToggleButton>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="یادآور ۲۴ ساعت قبل" FontSize="12.5" FontWeight="Bold"
+                                                           Foreground="{StaticResource Ink2Brush}" />
+                                                <TextBlock Text="یادآوری خودکار پیش از زمان نوبت" FontSize="11"
+                                                           Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ── side summary (bk-side) ── -->
+                <Border Grid.Column="1" Classes="bk-side">
+                    <DockPanel LastChildFill="True">
+                        <!-- actions pinned to the bottom -->
+                        <StackPanel DockPanel.Dock="Bottom" Spacing="12">
+                            <StackPanel Spacing="8">
+                                <Button Classes="primary bk-submit" IsEnabled="{Binding CanSubmit}"
+                                        HorizontalContentAlignment="Center"
+                                        Command="{Binding SubmitCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                        <Path Classes="icon" Width="17" Height="17" Stroke="White"
+                                              Data="{StaticResource IconCheck}" />
+                                        <TextBlock Text="{Binding SubmitLabel}" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="ghost" HorizontalContentAlignment="Center"
+                                        Command="{Binding CancelCloseCommand}">
+                                    <TextBlock Text="انصراف" />
+                                </Button>
+                            </StackPanel>
+                            <Border Classes="bk-tip">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Path Classes="icon" Width="15" Height="15"
+                                          Stroke="{StaticResource Brand500Brush}"
+                                          Data="{StaticResource IconBulb}" VerticalAlignment="Top" />
+                                    <TextBlock Text="روی تقویم کلیک کنید یا بکشید تا بازهٔ دلخواه مستقیم انتخاب شود."
+                                               FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- summary card -->
+                        <Border Classes="bk-card" VerticalAlignment="Top">
+                            <StackPanel>
+                                <Border Classes="bk-card-h" Background="{Binding SummaryTypeBackground}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Ellipse Width="9" Height="9" VerticalAlignment="Center"
+                                                 Fill="{Binding SummaryTypeForeground}" />
+                                        <TextBlock Text="خلاصهٔ نوبت" FontSize="12" FontWeight="ExtraBold" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- pet block -->
+                                <Border Classes="sum-pet" IsVisible="{Binding HasSelectedPatient}">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                        <Border Grid.Column="0" Width="38" Height="38" CornerRadius="12"
+                                                Background="{Binding SummaryAvatarBrush}">
+                                            <Path Classes="icon" Width="21" Height="21" Stroke="White"
+                                                  Data="{Binding SummaryIconKey, Converter={StaticResource IconKeyConverter}}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding SummaryPetName}" FontSize="13.5" FontWeight="ExtraBold" />
+                                            <TextBlock Text="{Binding SummaryPetSub}" FontSize="11"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <Border Classes="sum-pet" IsVisible="{Binding !HasSelectedPatient}">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                        <Border Grid.Column="0" Width="38" Height="38" CornerRadius="12"
+                                                Background="{StaticResource Bg2Brush}">
+                                            <Path Classes="icon" Width="21" Height="21"
+                                                  Stroke="{StaticResource Muted2Brush}"
+                                                  Data="{StaticResource IconPaw}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="بیماری انتخاب نشده" FontSize="13.5" FontWeight="ExtraBold"
+                                                       Foreground="{StaticResource Muted2Brush}" />
+                                            <TextBlock Text="از بخش «بیمار و مالک» بیمار را انتخاب کنید" FontSize="11"
+                                                       Foreground="{StaticResource Muted2Brush}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- summary rows -->
+                                <StackPanel Margin="14,6,14,12">
+                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7">
+                                        <TextBlock Grid.Column="0" Text="نوع نوبت" FontSize="12"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        <Border Grid.Column="1" HorizontalAlignment="Right" CornerRadius="99"
+                                                Padding="10,2" Background="{Binding SummaryTypeBackground}">
+                                            <TextBlock Text="{Binding SummaryTypeLabel}" FontSize="11" FontWeight="Bold"
+                                                       Foreground="{Binding SummaryTypeForeground}" />
+                                        </Border>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7">
+                                        <TextBlock Grid.Column="0" Text="پزشک" FontSize="12"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding SummaryDoctorShort}" FontSize="12"
+                                                   FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7">
+                                        <TextBlock Grid.Column="0" Text="تاریخ" FontSize="12"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding SummaryDateText}" FontSize="12"
+                                                   FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7">
+                                        <TextBlock Grid.Column="0" Text="ساعت" FontSize="12"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding SummaryTimeText}" FontSize="12"
+                                                   FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7">
+                                        <TextBlock Grid.Column="0" Text="مدت" FontSize="12"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding SummaryDurationText}" FontSize="12"
+                                                   FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7">
+                                        <TextBlock Grid.Column="0" Text="هزینه تخمینی" FontSize="12"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding SummaryPriceText}" FontSize="12"
+                                                   FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- conflict / free ok -->
+                                <Border Classes="bk-warn" IsVisible="{Binding HasConflict}">
+                                    <StackPanel Orientation="Horizontal" Spacing="9">
+                                        <Path Classes="icon" Width="16" Height="16" Stroke="#8a5c14"
+                                              Data="{StaticResource IconAlert}" VerticalAlignment="Top" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding ConflictTitle}" FontSize="11.5" FontWeight="ExtraBold" />
+                                            <TextBlock Text="{Binding ConflictSub}" FontSize="11" Opacity="0.85"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="bk-ok" IsVisible="{Binding ShowFreeOk}">
+                                    <StackPanel Orientation="Horizontal" Spacing="9">
+                                        <Path Classes="icon" Width="16" Height="16"
+                                              Stroke="{StaticResource OkBrush}"
+                                              Data="{StaticResource IconCheck}" VerticalAlignment="Top" />
+                                        <TextBlock Text="{Binding FreeOkText}" FontSize="11.5" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

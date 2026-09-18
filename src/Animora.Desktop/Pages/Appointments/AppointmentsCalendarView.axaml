@@ -182,7 +182,7 @@
                         <!-- search -->
                         <Grid Grid.Column="1" VerticalAlignment="Center">
                             <TextBox x:Name="SearchBox" Classes="ap-search" MinWidth="220"
-                                     Watermark="جستجوی بیمار، مالک یا پزشک…"
+                                     PlaceholderText="جستجوی بیمار، مالک یا پزشک…"
                                      Text="{Binding SearchQueryText, Mode=TwoWay}"
                                      TextChanged="OnSearchTextChanged"
                                      KeyDown="OnSearchKeyDown" />

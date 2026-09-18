@@ -1,0 +1,411 @@
+﻿<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      Booking/detail sheet styles, transcribed from Animora-UI/assets/booking.css
+      (the .bk-* shell, .bk-sec sections, .type-opt / .doc-opt / .pat-* pickers,
+      the .dt-cal mini calendar + .slot grid, the .switch-row toggles and the
+      .bk-card side summary). Per-item colours are bound from the item
+      ViewModels; recurring shape/spacing values live here.
+    -->
+
+    <!-- ── header meta pill ── -->
+    <Style Selector="Border.hm">
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="11,0" />
+        <Setter Property="CornerRadius" Value="99" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ── sections ── -->
+    <Style Selector="Border.bk-sec">
+        <Setter Property="Padding" Value="22,16" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+    <Style Selector="Border.step">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="20" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.step > TextBlock">
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ── 1 · type option ── -->
+    <Style Selector="Button.type-opt">
+        <Setter Property="Padding" Value="10,11" />
+        <Setter Property="CornerRadius" Value="13" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="Background" Value="White" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.type-opt:pointerover">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+    </Style>
+    <Style Selector="Button.type-opt.on">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+    </Style>
+    <Style Selector="Button.type-opt Path.tick">
+        <Setter Property="Opacity" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="Margin" Value="0,8,8,0" />
+    </Style>
+    <Style Selector="Button.type-opt.on Path.tick">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <!-- ── 2 · patient picker ── -->
+    <Style Selector="Border.pat-card">
+        <Setter Property="Padding" Value="12,14" />
+        <Setter Property="CornerRadius" Value="15" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+    </Style>
+
+    <Style Selector="Button.pat-opt">
+        <Setter Property="Padding" Value="8,10" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="Background" Value="#fbfcfb" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.pat-opt:pointerover">
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+    </Style>
+    <Style Selector="Button.pat-opt.hi">
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+    </Style>
+    <Style Selector="Button.pat-opt.on">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+    </Style>
+    <Style Selector="Button.pat-opt Path.tick">
+        <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="Button.pat-opt.on Path.tick">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style Selector="Border.pat-empty">
+        <Setter Property="Padding" Value="16,22" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="Background" Value="#fbfcfb" />
+    </Style>
+
+    <Style Selector="Border.pat-add">
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="Background" Value="#fbfcfb" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Button.pat-new">
+        <Setter Property="Padding" Value="10" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="Background" Value="White" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.pat-new:pointerover">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+    </Style>
+
+    <Style Selector="Button.mini-chip">
+        <Setter Property="Height" Value="27" />
+        <Setter Property="Padding" Value="11,0" />
+        <Setter Property="CornerRadius" Value="99" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="Background" Value="White" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.mini-chip:pointerover">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+    </Style>
+    <Style Selector="Button.mini-chip.on">
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+
+    <Style Selector="TextBox.pat-search-input">
+        <Setter Property="Background" Value="White" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+    </Style>
+
+    <!-- ── 3 · doctor option ── -->
+    <Style Selector="Button.doc-opt">
+        <Setter Property="Padding" Value="10,12" />
+        <Setter Property="CornerRadius" Value="13" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="Background" Value="White" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.doc-opt:pointerover">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+    </Style>
+    <Style Selector="Button.doc-opt.on">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+    </Style>
+    <Style Selector="Border.doc-tick">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="20" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="Button.doc-opt.on Border.doc-tick">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <!-- ── 4 · mini calendar ── -->
+    <Style Selector="Border.dt-cal">
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="CornerRadius" Value="15" />
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="Background" Value="White" />
+    </Style>
+    <Style Selector="TextBlock.cal-dow">
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+    </Style>
+    <Style Selector="Button.cal-nav-btn">
+        <Setter Property="Width" Value="26" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.cal-nav-btn:pointerover">
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+    </Style>
+
+    <Style Selector="Button.cal-d">
+        <Setter Property="Height" Value="34" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.cal-d:pointerover">
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+    </Style>
+    <Style Selector="Button.cal-d.today">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+    </Style>
+    <Style Selector="Button.cal-d.off">
+        <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+        <Setter Property="Opacity" Value="0.75" />
+    </Style>
+    <Style Selector="Button.cal-d.out">
+        <Setter Property="Opacity" Value="0.3" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <Style Selector="Button.cal-d.on">
+        <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+    </Style>
+    <Style Selector="TextBlock.cal-n">
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <!-- ── 4 · duration + slots ── -->
+    <Style Selector="Button.dur">
+        <Setter Property="Height" Value="30" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="CornerRadius" Value="99" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="Background" Value="White" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.dur:pointerover">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+    </Style>
+    <Style Selector="Button.dur.on">
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+
+    <Style Selector="Button.linkbtn">
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource Brand600Brush}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="TextBlock.TextDecorations" Value="Underline" />
+    </Style>
+
+    <Style Selector="Button.slot">
+        <Setter Property="Height" Value="33" />
+        <Setter Property="Width" Value="72" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="Background" Value="White" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.slot:pointerover:not(:disabled)">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+    </Style>
+    <Style Selector="Button.slot.on">
+        <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="Button.slot:disabled">
+        <Setter Property="Background" Value="#f6f8f7" />
+        <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+        <Setter Property="Opacity" Value="0.65" />
+    </Style>
+
+    <!-- ── 5 · extras switches ── -->
+    <Style Selector="Border.switch-row">
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="CornerRadius" Value="13" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="Background" Value="#fbfcfb" />
+    </Style>
+    <Style Selector="ToggleButton.bk-switch">
+        <Setter Property="Width" Value="38" />
+        <Setter Property="Height" Value="22" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="99" />
+        <Setter Property="Background" Value="#d7dedb" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ToggleButton.bk-switch:checked">
+        <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+    </Style>
+    <Style Selector="ToggleButton.bk-switch Ellipse.bk-knob">
+        <Setter Property="Fill" Value="White" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,2,0" />
+    </Style>
+    <Style Selector="ToggleButton.bk-switch:checked Ellipse.bk-knob">
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Margin" Value="2,0,0,0" />
+    </Style>
+
+    <!-- ── side summary ── -->
+    <Style Selector="Border.bk-side">
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1,0,0,0" />
+        <Setter Property="Background" Value="#fafcfb" />
+        <Setter Property="Padding" Value="16" />
+    </Style>
+    <Style Selector="Border.bk-card">
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Background" Value="White" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Border.bk-card-h">
+        <Setter Property="Padding" Value="14,11" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+    <Style Selector="Border.sum-pet">
+        <Setter Property="Padding" Value="14,13" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+    <Style Selector="Border.bk-warn">
+        <Setter Property="Margin" Value="14,0,14,14" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Background" Value="{StaticResource WarnBgBrush}" />
+    </Style>
+    <Style Selector="Border.bk-ok">
+        <Setter Property="Margin" Value="14,0,14,14" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Background" Value="{StaticResource OkBgBrush}" />
+    </Style>
+    <Style Selector="Border.bk-tip">
+        <Setter Property="Padding" Value="12,11" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Background" Value="#f1f6f4" />
+    </Style>
+    <Style Selector="Button.bk-submit">
+        <Setter Property="Padding" Value="16,13" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <!-- ── small buttons ── -->
+    <Style Selector="Button.sm">
+        <Setter Property="Padding" Value="11,7" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="CornerRadius" Value="10" />
+    </Style>
+</Styles>

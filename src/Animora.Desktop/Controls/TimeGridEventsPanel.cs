@@ -21,6 +21,7 @@ public sealed class TimeGridEventsPanel : Panel
     protected override Size MeasureOverride(Size availableSize)
     {
         var width = double.IsInfinity(availableSize.Width) ? 0 : availableSize.Width;
+        var height = double.IsInfinity(availableSize.Height) ? 0 : availableSize.Height;
         foreach (var child in Children)
         {
             if (child.DataContext is AppointmentEventViewModel vm && width > 0)
@@ -34,7 +35,13 @@ public sealed class TimeGridEventsPanel : Panel
             }
         }
 
-        return availableSize;
+        // A Panel's MeasureOverride MUST return a finite size: returning an
+        // unbounded (infinite) availableSize throws
+        // "InvalidOperationException: Invalid size returned for Measure".
+        // Constrain both axes to the panel's own explicit height (BodyHeight) /
+        // the finite available width, falling back to 0 when unbounded.
+        var ownHeight = double.IsNaN(Height) ? height : Height;
+        return new Size(width, ownHeight);
     }
 
     protected override Size ArrangeOverride(Size finalSize)
