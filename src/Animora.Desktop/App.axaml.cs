@@ -1,3 +1,4 @@
+using Animora.Contracts.Appointments;
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Patients;
@@ -5,6 +6,7 @@ using Animora.Contracts.Reception;
 using Animora.Contracts.Visits;
 using Animora.Contracts.Vaccination;
 using Animora.Desktop.Mocks;
+using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Reception;
@@ -93,6 +95,11 @@ public partial class App : Application
         // persist while navigating, so a singleton.
         services.AddSingleton<IVaccinationService, MockVaccinationService>();
         services.AddSingleton<VaccinationPageViewModel>();
+
+        // Phase 13: Appointments calendar. Deterministic stateless mock (events
+        // are regenerated per process), so a singleton suffices.
+        services.AddSingleton<IAppointmentsQueryService, MockAppointmentsQueryService>();
+        services.AddSingleton<AppointmentsCalendarViewModel>();
 
         // Phase 11: clinical-encounter wizard. One shared encounter store backs
         // both Visits mocks (triage creates the draft, the wizard mutates it);

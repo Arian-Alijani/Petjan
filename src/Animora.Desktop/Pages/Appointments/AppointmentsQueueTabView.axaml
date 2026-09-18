@@ -1,0 +1,289 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ap="using:Animora.Desktop.Pages.Appointments"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Name="Root"
+             x:Class="Animora.Desktop.Pages.Appointments.AppointmentsQueueTabView"
+             x:DataType="ap:AppointmentsCalendarViewModel"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <Style Selector="Button.qd">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="4,8,4,7" />
+            <Setter Property="MinWidth" Value="62" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.qd:pointerover">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="Button.qd.is-active">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.qp-card">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="MinHeight" Value="60" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.qp-card:pointerover">
+            <Setter Property="Background" Value="{StaticResource RowHoverBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+            BorderThickness="1" CornerRadius="{StaticResource RadiusLg}"
+            BoxShadow="{StaticResource ShadowCard}" ClipToBounds="True"
+            VerticalAlignment="Top">
+        <StackPanel>
+
+            <!-- day strip -->
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6" Margin="16,14">
+                <Button Grid.Column="0" Classes="ap-icon" Width="34" Height="34"
+                        Command="{Binding ShiftQueueWeekCommand}" CommandParameter="-1"
+                        ToolTip.Tip="هفتهٔ قبل">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Ink2Brush}"
+                          Data="{StaticResource IconChevronRight}" />
+                </Button>
+                <ItemsControl Grid.Column="1" ItemsSource="{Binding QueueDays}" HorizontalAlignment="Stretch">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="1" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="ap:QueueDayViewModel">
+                            <Button Classes="qd" Classes.is-active="{Binding IsActive}"
+                                    Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).SelectQueueDayCommand}"
+                                    CommandParameter="{Binding}">
+                                <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding DowText}" FontSize="10" FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               Foreground="{StaticResource Muted2Brush}" />
+                                    <TextBlock Text="{Binding DayText}" FontSize="15" FontWeight="ExtraBold"
+                                               HorizontalAlignment="Center"
+                                               Foreground="{StaticResource Ink2Brush}" />
+                                    <TextBlock Text="{Binding CountText}" FontSize="9.5" FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               Foreground="{StaticResource Brand700Brush}" />
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Grid.Column="2" Classes="ap-icon" Width="34" Height="34"
+                        Command="{Binding ShiftQueueWeekCommand}" CommandParameter="1"
+                        ToolTip.Tip="هفتهٔ بعد">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Ink2Brush}"
+                          Data="{StaticResource IconChevronLeft}" />
+                </Button>
+            </Grid>
+
+            <!-- header: date + KPIs + cancel toggle -->
+            <Border Background="#fbfcfb" BorderBrush="{StaticResource Line2Brush}"
+                    BorderThickness="0,1,0,1" Padding="16,14">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="9"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="{Binding QueueDateText}" FontSize="14" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                        <Border Background="{StaticResource Brand600Brush}" CornerRadius="99"
+                                Padding="9,3" IsVisible="{Binding QueueIsToday}">
+                            <TextBlock Text="امروز" FontSize="10.5" FontWeight="ExtraBold"
+                                       Foreground="White" />
+                        </Border>
+                        <Button Classes="ap-chip" IsVisible="{Binding !QueueIsToday}"
+                                Command="{Binding QueueGoTodayCommand}">
+                            <TextBlock Text="برو به امروز" />
+                        </Button>
+                    </StackPanel>
+
+                    <ItemsControl Grid.Column="1" ItemsSource="{Binding QueueStats}"
+                                  VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="6" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="ap:QueueStatViewModel">
+                                <Border Background="{StaticResource PanelBrush}"
+                                        BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                                        CornerRadius="99" Padding="11,4">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding Label}" FontSize="11"
+                                                   Foreground="{StaticResource MutedBrush}"
+                                                   VerticalAlignment="Center" />
+                                        <controls:Badge Text="{Binding ValueText}" Tone="{Binding Tone}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Button Grid.Column="2" Classes="ap-chip" Command="{Binding ToggleQueueCancelCommand}">
+                        <TextBlock Text="نمایش لغوشده‌ها" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- doctor columns -->
+            <ItemsControl ItemsSource="{Binding QueueColumns}" Margin="16">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="4" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="ap:QueueDoctorColumnViewModel">
+                        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                                BorderThickness="1,4,1,1" CornerRadius="16"
+                                BoxShadow="{StaticResource ShadowCard}" ClipToBounds="True"
+                                Margin="7" MinHeight="320">
+                            <StackPanel>
+                                <!-- doctor header -->
+                                <Border Padding="14,12" BorderBrush="{StaticResource Line2Brush}"
+                                        BorderThickness="0,0,0,1">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                        <Border Grid.Column="0" Width="30" Height="30" CornerRadius="10"
+                                                Background="{Binding Doctor.Accent, Converter={StaticResource HexBrushConverter}}"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Initial}" FontSize="12" FontWeight="ExtraBold"
+                                                       Foreground="White" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="0">
+                                            <TextBlock Text="{Binding ShortName}" FontSize="12.5" FontWeight="ExtraBold"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding Specialty}" FontSize="10"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding CountText}" FontSize="14" FontWeight="ExtraBold"
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource Brand600Brush}" />
+                                            <TextBlock Text="نوبت" FontSize="9" HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource Muted2Brush}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- cards -->
+                                <ItemsControl ItemsSource="{Binding Cards}"
+                                              IsVisible="{Binding !IsEmpty}" Margin="8,6">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="6" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="ap:QueueCardViewModel">
+                                            <Button Classes="qp-card"
+                                                    Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).OpenBookingCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="10">
+                                                    <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8"
+                                                            Background="{StaticResource Bg2Brush}"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding IndexText}" FontSize="11"
+                                                                   FontWeight="ExtraBold" HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="{StaticResource Brand600Brush}" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Width="47" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding StartText}" FontSize="12"
+                                                                   FontWeight="ExtraBold" HorizontalAlignment="Center"
+                                                                   Foreground="{StaticResource InkBrush}" />
+                                                        <TextBlock Text="{Binding EndText}" FontSize="9.5"
+                                                                   HorizontalAlignment="Center"
+                                                                   Foreground="{StaticResource Muted2Brush}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="2">
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <TextBlock Text="{Binding PetName}" FontSize="12.5"
+                                                                       FontWeight="ExtraBold"
+                                                                       Foreground="{StaticResource InkBrush}" />
+                                                            <Border Background="{StaticResource Bg2Brush}" CornerRadius="6"
+                                                                    Padding="6,2">
+                                                                <TextBlock Text="{Binding TypeLabel}" FontSize="9.5"
+                                                                           FontWeight="Bold"
+                                                                           Foreground="{StaticResource MutedBrush}" />
+                                                            </Border>
+                                                            <Border IsVisible="{Binding IsLiveNow}"
+                                                                    Background="{StaticResource DangerBgBrush}"
+                                                                    CornerRadius="99" Padding="7,2">
+                                                                <TextBlock Text="در حال پذیرش" FontSize="9"
+                                                                           FontWeight="ExtraBold"
+                                                                           Foreground="{StaticResource DangerBrush}" />
+                                                            </Border>
+                                                            <Border IsVisible="{Binding IsLiveNext}"
+                                                                    Background="{StaticResource InfoBgBrush}"
+                                                                    CornerRadius="99" Padding="7,2">
+                                                                <TextBlock Text="نوبت بعدی" FontSize="9"
+                                                                           FontWeight="ExtraBold"
+                                                                           Foreground="{StaticResource InfoBrush}" />
+                                                            </Border>
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding Line2}" FontSize="10.5"
+                                                                   Foreground="{StaticResource MutedBrush}"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                    <controls:Badge Grid.Column="4" Text="{Binding StatusLabel}"
+                                                                    Tone="{Binding StatusTone}"
+                                                                    VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- empty state -->
+                                <StackPanel IsVisible="{Binding IsEmpty}" Spacing="6" Margin="16,32"
+                                            HorizontalAlignment="Center">
+                                    <Border Width="48" Height="48" CornerRadius="14"
+                                            Background="{StaticResource Bg2Brush}"
+                                            HorizontalAlignment="Center">
+                                        <Path Classes="icon" Width="22" Height="22"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Stroke="{StaticResource Muted2Brush}"
+                                              Data="{StaticResource IconCalendar}" />
+                                    </Border>
+                                    <TextBlock Text="نوبتی ثبت نشده است" FontSize="13" FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="{Binding EmptyText}" FontSize="11.5"
+                                               HorizontalAlignment="Center" TextWrapping="Wrap"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+
+                                <!-- footer CTA -->
+                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                                        Padding="12,10">
+                                    <Button Background="{StaticResource Bg2Brush}" BorderThickness="0"
+                                            CornerRadius="10" Height="36" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
+                                            Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).OpenBookingCommand}"
+                                            CommandParameter="{Binding}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Path Classes="icon" Width="14" Height="14"
+                                                  Stroke="{StaticResource Brand700Brush}"
+                                                  Data="{StaticResource IconPlus}" />
+                                            <TextBlock Text="افزودن نوبت" FontSize="12" FontWeight="Bold"
+                                                       Foreground="{StaticResource Brand700Brush}" />
+                                        </StackPanel>
+                                    </Button>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Border>
+</UserControl>

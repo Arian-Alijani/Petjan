@@ -1,0 +1,10 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ap="using:Animora.Desktop.Pages.Appointments"
+             x:Class="Animora.Desktop.Pages.Appointments.WeekGridView"
+             x:DataType="ap:AppointmentsCalendarViewModel">
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/AppointmentsGridStyles.axaml" />
+    </UserControl.Styles>
+    <Grid x:Name="Host" />
+</UserControl>

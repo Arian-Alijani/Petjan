@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Animora.Contracts.Navigation;
+using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Vaccination;
@@ -22,7 +23,7 @@ public static class NavigationMenu
     public static IReadOnlyList<NavItem> Items { get; } = new NavItem[]
     {
         new("dashboard", "داشبورد", "IconDashboard", typeof(DashboardPageViewModel), "مرکز فرمان"),
-        new("appointments", "نوبت‌ها", "IconCalendar", typeof(PlaceholderPageViewModel), "مرکز فرمان", BadgeCount: 4),
+        new("appointments", "نوبت‌ها", "IconCalendar", typeof(AppointmentsCalendarViewModel), "مرکز فرمان", BadgeCount: 4),
 
         new("patients", "بیماران و مالکین", "IconUsers", typeof(PatientsPageViewModel), "مدیریت کلینیک"),
         new("visits", "ویزیت و پرونده", "IconClipboard", typeof(VisitsTriagePageViewModel), "مدیریت کلینیک"),
