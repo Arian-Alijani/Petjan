@@ -462,4 +462,11 @@
         M17,5 H9.5 a3.5,3.5 0 0 0 0,7 h5 a3.5,3.5 0 0 1 0,7 H6
     </StreamGeometry>
 
+    <!-- Sale/POS: image (سونوگرافی/رادیولوژی line tags), from icons.js. -->
+    <StreamGeometry x:Key="IconImage">
+        M5,3 h14 a2.5,2.5 0 0 1 2.5,2.5 v13 a2.5,2.5 0 0 1 -2.5,2.5 h-14 a2.5,2.5 0 0 1 -2.5,-2.5 v-13 a2.5,2.5 0 0 1 2.5,-2.5 Z
+        M8.5,8.5 m-1.5,0 a1.5,1.5 0 1 0 3,0 a1.5,1.5 0 1 0 -3,0
+        M21,15 L16,10 L5,21
+    </StreamGeometry>
+
 </ResourceDictionary>

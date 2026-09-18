@@ -1,0 +1,138 @@
+using System.Collections.Generic;
+using Animora.Contracts.Sales;
+using Avalonia.Media;
+
+namespace Animora.Desktop.Pages.Sales;
+
+/// <summary>
+/// The selected invoice's display shape for the work surface — wraps an
+/// <see cref="InvoiceDetail"/> and pre-formats the header/customer/summary
+/// values the reference's <c>renderInvoiceContent</c> renders (state pill,
+/// guest customer chip, visit context, totals, paid/due chips and the
+/// editability flags that gate the add/pay/void/refund actions).
+/// </summary>
+public sealed class SaleInvoiceViewModel
+{
+    public SaleInvoiceViewModel(InvoiceDetail detail)
+    {
+        Detail = detail;
+        Id = detail.Id;
+        State = detail.State;
+        StateLabel = detail.StateLabel;
+        StateBrush = SalePresentation.StateDotBrush(detail.State);
+        StateBgBrush = ResolveStateBg(detail.State);
+
+        IsLocked = detail.IsLocked;
+        CanEdit = !detail.IsLocked;
+        IsTerminalVoid = detail.State == InvoiceState.Void;
+        IsRefunded = detail.State == InvoiceState.Refunded;
+
+        AvatarBrush = SalePresentation.AvatarBrush(detail.AvatarTone);
+        PetInitial = detail.PetInitial;
+
+        IsGuest = detail.IsGuest;
+        CustomerName = detail.IsGuest
+            ? "مشتری گذری — انتخاب مشتری"
+            : detail.PetName.Length > 0 ? detail.OwnerName + " · " + detail.PetName : detail.OwnerName;
+        Phone = detail.IsGuest ? "بدون پرونده — برای انتخاب کلیک کنید" : detail.Phone;
+        IsVisitCustomer = detail.Kind == InvoiceKind.Visit;
+
+        HasVisitContext = detail.HasVisitContext;
+        VisitContextText = detail.HasVisitContext
+            ? $"فاکتور از ویزیت پایان‌یافته توسط {detail.VisitDoctorName}"
+              + (string.IsNullOrEmpty(detail.VisitCompletedAt) ? "" : $" — {detail.VisitCompletedAt}")
+            : string.Empty;
+
+        InsuranceLabel = detail.InsuranceLabel;
+        HasInsurance = detail.HasInsurance;
+        HasDiscount = detail.HasDiscount;
+        HasDue = detail.Due > 0;
+        ShowPaidInfo = detail.Paid > 0 || detail.State == InvoiceState.Partial;
+        ShowPayCta = !detail.IsLocked && detail.Lines.Count > 0;
+        ShowRefund = detail.State is InvoiceState.Partial or InvoiceState.Settled;
+
+        BaseText = SalePresentation.Money(detail.Base);
+        DiscountText = "− " + SalePresentation.Money(detail.DiscountAmount) + " تومان";
+        TaxPercentText = SalePresentation.Fa(detail.TaxPercent);
+        TaxText = SalePresentation.Money(detail.Tax);
+        InsuranceShareText = "− " + SalePresentation.Money(detail.InsuranceShare) + " تومان";
+        TotalText = SalePresentation.Money(detail.Total);
+        PaidText = SalePresentation.Money(detail.Paid);
+        DueText = SalePresentation.Money(detail.Due);
+    }
+
+    public InvoiceDetail Detail { get; }
+
+    public string Id { get; }
+
+    public InvoiceState State { get; }
+
+    public string StateLabel { get; }
+
+    public IBrush StateBrush { get; }
+
+    public IBrush StateBgBrush { get; }
+
+    public bool IsLocked { get; }
+
+    public bool CanEdit { get; }
+
+    public bool IsTerminalVoid { get; }
+
+    public bool IsRefunded { get; }
+
+    public IBrush AvatarBrush { get; }
+
+    public string PetInitial { get; }
+
+    public bool IsGuest { get; }
+
+    public string CustomerName { get; }
+
+    public string Phone { get; }
+
+    public bool IsVisitCustomer { get; }
+
+    public bool HasVisitContext { get; }
+
+    public string VisitContextText { get; }
+
+    public string InsuranceLabel { get; }
+
+    public bool HasInsurance { get; }
+
+    public bool HasDiscount { get; }
+
+    public bool HasDue { get; }
+
+    public bool ShowPaidInfo { get; }
+
+    public bool ShowPayCta { get; }
+
+    public bool ShowRefund { get; }
+
+    public string BaseText { get; }
+
+    public string DiscountText { get; }
+
+    public string TaxPercentText { get; }
+
+    public string TaxText { get; }
+
+    public string InsuranceShareText { get; }
+
+    public string TotalText { get; }
+
+    public string PaidText { get; }
+
+    public string DueText { get; }
+
+    private static IBrush ResolveStateBg(InvoiceState state) => state switch
+    {
+        InvoiceState.Draft => SalePresentation.StateDotBrush(InvoiceState.Draft),
+        InvoiceState.Partial => SalePresentation.StateDotBrush(InvoiceState.Partial),
+        InvoiceState.Settled => SalePresentation.StateDotBrush(InvoiceState.Settled),
+        InvoiceState.Void => SalePresentation.StateDotBrush(InvoiceState.Void),
+        _ => SalePresentation.StateDotBrush(InvoiceState.Refunded),
+    };
+}

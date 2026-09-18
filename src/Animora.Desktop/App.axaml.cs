@@ -6,6 +6,7 @@ using Animora.Contracts.Inventory;
 using Animora.Contracts.Patients;
 using Animora.Contracts.Purchasing;
 using Animora.Contracts.Reception;
+using Animora.Contracts.Sales;
 using Animora.Contracts.Visits;
 using Animora.Contracts.Vaccination;
 using Animora.Desktop.Mocks;
@@ -15,6 +16,7 @@ using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Purchasing;
+using Animora.Desktop.Pages.Sales;
 using Animora.Desktop.Pages.Reception;
 using Animora.Desktop.Pages.Vaccination;
 using Animora.Desktop.Pages.Visits;
@@ -132,6 +134,11 @@ public partial class App : Application
         // so a singleton suffices.
         services.AddSingleton<IPurchasingQueryService, MockPurchasingQueryService>();
         services.AddSingleton<PurchasingPageViewModel>();
+
+        // Phase 20: Sale/POS invoice workspace. Stateful in-memory mock (build/
+        // blank create invoices), so a singleton preserves mutations.
+        services.AddSingleton<ISalesQueryService, MockSalesQueryService>();
+        services.AddSingleton<SalePageViewModel>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();
