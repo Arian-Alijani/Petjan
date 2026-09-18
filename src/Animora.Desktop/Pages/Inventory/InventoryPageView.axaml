@@ -1,0 +1,599 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inv="using:Animora.Desktop.Pages.Inventory"
+             x:Class="Animora.Desktop.Pages.Inventory.InventoryPageView"
+             x:Name="Root"
+             x:DataType="inv:InventoryPageViewModel"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <!-- ═══ Unified toolbar (styles.css .pagebar) ═══ -->
+        <Style Selector="Border.pagebar">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="Padding" Value="14,12" />
+        </Style>
+
+        <!-- sub-nav shell (.pb-seg, full-width variant) -->
+        <Style Selector="Border.seg">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="3" />
+        </Style>
+
+        <!-- tier-1 sub-nav buttons (.inv-subnav > button — flex 1 1 0, centred) -->
+        <Style Selector="Button.inv-seg">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="8,15" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.inv-seg:pointerover">
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.inv-seg.is-active">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.inv-seg.is-active /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+        </Style>
+
+        <!-- count pill inside a sub-nav button (.seg-n) -->
+        <Style Selector="Border.seg-n">
+            <Setter Property="Background" Value="#0F000000" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="MinWidth" Value="20" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="Padding" Value="6,0" />
+        </Style>
+        <Style Selector="Button.inv-seg.is-active Border.seg-n">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.inv-seg TextBlock.seg-num">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Button.inv-seg.is-active TextBlock.seg-num">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
+        <!-- filter chip (.pb-chip) -->
+        <Style Selector="Button.chip">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="13,6" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.chip:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Background" Value="#f6faf8" />
+        </Style>
+        <Style Selector="Button.chip.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="Button.chip.on /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowChip}" />
+        </Style>
+
+        <!-- thin rule between chip groups (.pb-chip-sep) -->
+        <Style Selector="Border.chip-sep">
+            <Setter Property="Width" Value="1" />
+            <Setter Property="Background" Value="{StaticResource LineBrush}" />
+            <Setter Property="Margin" Value="4,2" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+        </Style>
+
+        <!-- product row shell (tbody tr) -->
+        <Style Selector="Button.prow">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        </Style>
+
+        <!-- row action icon button (.row-actions .icon-btn) -->
+        <Style Selector="Button.icon-btn">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.icon-btn:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+
+        <!-- expand toggle (.expand-btn) -->
+        <Style Selector="Button.expand-btn">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.expand-btn:pointerover">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+
+        <!-- status dot with halo (.status-dot::before) -->
+        <Style Selector="Border.status-halo">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="Height" Value="8" />
+            <Setter Property="CornerRadius" Value="50" />
+            <Setter Property="BoxShadow" Value="0 0 0 3 #262F8F6A" />
+        </Style>
+
+        <!-- stock progress track (.stockcell .bar) -->
+        <Style Selector="Border.stock-bar">
+            <Setter Property="Height" Value="4" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+        </Style>
+
+        <!-- settings card (.settings-card) -->
+        <Style Selector="Border.scard">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusLg}" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
+        <Style Selector="TextBlock.s-title">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.s-sub">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector="TextBlock.field-label">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="0,0,0,5" />
+        </Style>
+        <!-- tone swatch (.tone-dot) — swatch here, ink ring on its presenter -->
+        <Style Selector="Button.tone-dot">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="50" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BorderBrush" Value="White" />
+        </Style>
+        <Style Selector="Button.tone-dot /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="0 0 0 1 #e5eaee" />
+        </Style>
+        <Style Selector="Button.tone-dot.ontone /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="0 0 0 2 #101828" />
+        </Style>
+        <Style Selector="Border.cat-count">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="10,5" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Margin="26,22,26,40">
+        <!-- ═══ Page header (inventory.html .page-header) ═══ -->
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,0,0,18">
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="مرکز انبار" FontSize="12" FontWeight="Bold"
+                           Foreground="{StaticResource Brand600Brush}" Margin="0,0,0,6" />
+                <TextBlock Text="انبار و کالا" FontSize="26" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" LetterSpacing="-0.4" />
+                <TextBlock Text="کالاها و تنوع‌ها را مدیریت کنید و موجودی انبار را به‌روز نگه دارید."
+                           FontSize="13" Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0" TextWrapping="Wrap" />
+            </StackPanel>
+            <Button Grid.Column="1" Classes="primary" IsVisible="{Binding ShowHeaderNew}"
+                    Command="{Binding OpenNewProductCommand}" VerticalAlignment="Bottom">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                          Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                    <TextBlock Text="کالای جدید" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <!-- ═══ Unified toolbar (render()) ═══ -->
+        <Border Classes="pagebar">
+            <StackPanel Spacing="12">
+                <!-- tier 1 · sub-nav (renderSubnav) -->
+                <Border Classes="seg">
+                    <ItemsControl ItemsSource="{Binding Tabs}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="inv:InventorySubnavViewModel">
+                                <Button Classes="inv-seg" Classes.is-active="{Binding IsActive}"
+                                        Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).SetSubnavCommand}"
+                                        CommandParameter="{Binding Key}">
+                                    <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center">
+                                        <Path Classes="icon" Width="15" Height="15"
+                                              Stroke="{Binding $parent[Button].Foreground}" VerticalAlignment="Center"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                        <Border Classes="seg-n" VerticalAlignment="Center">
+                                            <TextBlock Classes="seg-num" Text="{Binding CountText}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
+                <!-- tier 2 · products controls (renderProducts) -->
+                <Grid IsVisible="{Binding IsProductsTab}" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <!-- filter chips -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                        <ItemsControl ItemsSource="{Binding CategoryChips}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="7" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="inv:InventoryCategoryChipViewModel">
+                                    <Button Classes="chip" Classes.on="{Binding IsActive}"
+                                            Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).SetCategoryFilterCommand}"
+                                            CommandParameter="{Binding Id}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="7" Height="7" CornerRadius="50" VerticalAlignment="Center"
+                                                    IsVisible="{Binding HasDot}" Background="{Binding DotBrush}" />
+                                            <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Border Classes="chip-sep" />
+                        <ItemsControl ItemsSource="{Binding StockChips}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="7" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="inv:InventoryStockChipViewModel">
+                                    <Button Classes="chip" Classes.on="{Binding IsActive}"
+                                            Content="{Binding Label}"
+                                            Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).SetStockFilterCommand}"
+                                            CommandParameter="{Binding Key}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- search (.pb-search) -->
+                    <Border Grid.Column="1" Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource LineBrush}"
+                            BorderThickness="1" CornerRadius="12" Padding="12,8" MaxWidth="320"
+                            HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                                  Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}" VerticalAlignment="Center" />
+                            <TextBox Grid.Column="1" Text="{Binding SearchText}" Background="Transparent"
+                                     BorderThickness="0" FontSize="13" VerticalContentAlignment="Center"
+                                     PlaceholderText="جستجو در نام، کد یا بارکد..."
+                                     TextChanged="OnSearchTextChanged" KeyDown="OnSearchKeyDown" />
+                            <Button Grid.Column="2" Classes="ghost" Width="28" Height="28" Padding="4"
+                                    IsVisible="{Binding HasSearchValue}" Command="{Binding ClearSearchCommand}"
+                                    ToolTip.Tip="پاک‌کردن">
+                                <Path Classes="icon" Width="12" Height="12"
+                                      Stroke="{StaticResource Brand700Brush}" Data="{StaticResource IconX}" />
+                            </Button>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- tier 2 · settings controls (renderSettings) -->
+                <Grid IsVisible="{Binding IsSettingsTab}" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <TextBlock Grid.Column="0" Text="{Binding SettingsCountText}" FontSize="12"
+                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"
+                               TextWrapping="Wrap" LineHeight="18" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Classes="primary" Command="{Binding AddCategoryCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                                      Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                                <TextBlock Text="دسته جدید" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ Products view (renderProducts) ═══ -->
+        <Border IsVisible="{Binding IsProductsTab}" Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                CornerRadius="{StaticResource RadiusLg}" ClipToBounds="True">
+            <StackPanel>
+                <!-- header row -->
+                <Grid ColumnDefinitions="34,3.5*,1*,1*,1*,1*,1*,1*,120" Background="{StaticResource TableHeadBrush}"
+                      IsVisible="{Binding HasProducts}">
+                    <TextBlock Grid.Column="1" Text="کالا" FontSize="11.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource MutedBrush}" Margin="16,12" />
+                    <TextBlock Grid.Column="2" Text="کد کالا" FontSize="11.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource MutedBrush}" Margin="16,12" />
+                    <TextBlock Grid.Column="3" Text="دسته" FontSize="11.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource MutedBrush}" Margin="16,12" />
+                    <TextBlock Grid.Column="4" Text="تنوع" FontSize="11.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource MutedBrush}" Margin="16,12" />
+                    <TextBlock Grid.Column="5" Text="موجودی کل" FontSize="11.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource MutedBrush}" Margin="16,12" />
+                    <TextBlock Grid.Column="6" Text="محدوده قیمت" FontSize="11.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource MutedBrush}" Margin="16,12" />
+                    <TextBlock Grid.Column="7" Text="وضعیت" FontSize="11.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource MutedBrush}" Margin="16,12" />
+                </Grid>
+
+                <!-- empty state (emptyState) -->
+                <StackPanel IsVisible="{Binding !HasProducts}" Margin="20,60">
+                    <Border Width="64" Height="64" CornerRadius="20" Background="{StaticResource Brand50Brush}"
+                            HorizontalAlignment="Center">
+                        <Path Classes="icon" Width="28" Height="28" Stroke="{StaticResource Brand700Brush}"
+                              Data="{StaticResource IconBox}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="کالایی پیدا نشد" FontSize="15" FontWeight="Bold"
+                               Foreground="{StaticResource InkBrush}" HorizontalAlignment="Center" Margin="0,14,0,0" />
+                    <TextBlock Text="با تغییر فیلترها یا افزودن کالای جدید امتحان کنید." FontSize="12.5"
+                               Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                </StackPanel>
+
+                <!-- rows -->
+                <ItemsControl ItemsSource="{Binding FilteredProducts}" IsVisible="{Binding HasProducts}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="inv:InventoryProductRowViewModel">
+                            <StackPanel>
+                                <Button Classes="prow"
+                                        Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).OpenProductCommand}"
+                                        CommandParameter="{Binding}">
+                                    <Grid ColumnDefinitions="34,3.5*,1*,1*,1*,1*,1*,1*,120" Background="{Binding RowBackground}">
+                                        <!-- expand toggle -->
+                                        <Border Grid.Column="0" Padding="6,14" HorizontalAlignment="Stretch">
+                                            <Button Classes="expand-btn" HorizontalAlignment="Center"
+                                                    IsVisible="{Binding HasVariants}"
+                                                    ToolTip.Tip="مشاهده تنوع‌ها"
+                                                    Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).ToggleExpandCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <Path Classes="icon" Width="15" Height="15"
+                                                      Stroke="{Binding $parent[Button].Foreground}"
+                                                      Data="{StaticResource IconChevronDown}" />
+                                            </Button>
+                                        </Border>
+
+                                        <!-- product cell -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" Margin="16,14">
+                                            <Border Width="42" Height="42" CornerRadius="12" Background="{Binding ThumbBrush}">
+                                                <TextBlock Text="{Binding Glyph}" FontSize="20"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="{Binding Name}" FontSize="13.5" FontWeight="Bold"
+                                                           Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding Brand}" FontSize="11"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- code chip -->
+                                        <StackPanel Grid.Column="2" Margin="16,14" VerticalAlignment="Center">
+                                            <Border Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource Line2Brush}"
+                                                    BorderThickness="1" CornerRadius="8" Padding="10,4"
+                                                    HorizontalAlignment="Left">
+                                                <TextBlock Text="{Binding Code}" FontSize="11.5" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Ink2Brush}" />
+                                            </Border>
+                                        </StackPanel>
+
+                                        <!-- category tag -->
+                                        <StackPanel Grid.Column="3" Margin="16,14" VerticalAlignment="Center">
+                                            <Border Background="{Binding CategoryBackground}" CornerRadius="8" Padding="10,4"
+                                                    HorizontalAlignment="Left">
+                                                <TextBlock Text="{Binding CategoryLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                                           Foreground="{Binding CategoryForeground}" />
+                                            </Border>
+                                        </StackPanel>
+
+                                        <!-- variant pill / single-unit -->
+                                        <StackPanel Grid.Column="4" Margin="16,14" VerticalAlignment="Center">
+                                            <Button IsVisible="{Binding HasVariants}"
+                                                    Background="{StaticResource Bg2Brush}"
+                                                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                                    CornerRadius="999" Padding="10,5" Cursor="Hand"
+                                                    HorizontalContentAlignment="Center"
+                                                    Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).ToggleExpandCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{StaticResource Ink2Brush}"
+                                                          Data="{StaticResource IconRows}" VerticalAlignment="Center" />
+                                                    <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding VariantCountText}" FontSize="11.5"
+                                                                   FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+                                                        <TextBlock Text="نوع" FontSize="11.5" FontWeight="Bold"
+                                                                   Foreground="{StaticResource Ink2Brush}" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Button>
+                                            <TextBlock Text="تک واحد" FontSize="11.5" Foreground="{StaticResource MutedBrush}"
+                                                       IsVisible="{Binding !HasVariants}" VerticalAlignment="Center" />
+                                        </StackPanel>
+
+                                        <!-- stock -->
+                                        <StackPanel Grid.Column="5" Margin="16,14" MinWidth="130" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding StockText}" FontSize="13" FontWeight="Bold"
+                                                       Foreground="{Binding StockNumberForeground}" />
+                                            <Border Classes="stock-bar" Background="{Binding StockBar}" />
+                                        </StackPanel>
+
+                                        <!-- price range -->
+                                        <StackPanel Grid.Column="6" Orientation="Horizontal" Margin="16,14"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding PriceMin}" FontSize="13" FontWeight="Bold"
+                                                       Foreground="{Binding PriceForeground}" />
+                                            <TextBlock Text="–" FontSize="13" FontWeight="Bold"
+                                                       Foreground="{StaticResource Muted2Brush}" Margin="4,0"
+                                                       IsVisible="{Binding HasPriceRange}" />
+                                            <TextBlock Text="{Binding PriceMax}" FontSize="13" FontWeight="Bold"
+                                                       Foreground="{Binding PriceForeground}"
+                                                       IsVisible="{Binding HasPriceRange}" />
+                                            <TextBlock Text="تومان" FontSize="11" FontWeight="Medium"
+                                                       Foreground="{StaticResource MutedBrush}" Margin="3,0,0,0"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+
+                                        <!-- status -->
+                                        <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="6" Margin="16,14"
+                                                    VerticalAlignment="Center">
+                                            <Border Classes="status-halo" Background="{Binding StatusDot}"
+                                                    VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding StatusLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                                       Foreground="{Binding StatusForeground}" VerticalAlignment="Center" />
+                                        </StackPanel>
+
+                                        <!-- row actions -->
+                                        <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="6" Margin="16,14"
+                                                    HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Button Background="{StaticResource PanelBrush}" Foreground="{StaticResource InkBrush}"
+                                                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                                    CornerRadius="10" Padding="12,6" FontSize="12" FontWeight="Bold"
+                                                    ToolTip.Tip="تغییر موجودی"
+                                                    Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).OpenStockAdjustCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{StaticResource InkBrush}" Data="{StaticResource IconRefresh}"
+                                                          VerticalAlignment="Center" />
+                                                    <TextBlock Text="موجودی" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+                                            <Button Classes="icon-btn" ToolTip.Tip="مشاهده و ویرایش"
+                                                    Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).OpenProductCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <Path Classes="icon" Width="14" Height="14"
+                                                      Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconEdit}" />
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+
+                                <!-- inline variant sub-rows (.subrow-wrap / .subrow) -->
+                                <Border IsVisible="{Binding IsExpanded}" Background="#f7fbfa"
+                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1">
+                                    <StackPanel Margin="46,6,16,12" Spacing="6">
+                                        <!-- sub-row head -->
+                                        <Grid ColumnDefinitions="1.2*,1.1*,1.1*,0.9*,0.9*,0.9*,40" ColumnSpacing="10"
+                                              Margin="12,8,12,6">
+                                            <TextBlock Grid.Column="0" FontSize="10.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource MutedBrush}" LetterSpacing="0.4">
+                                                <Run Text="دوز" />
+                                            </TextBlock>
+                                            <TextBlock Grid.Column="1" Text="کد / بارکد" FontSize="10.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource MutedBrush}" LetterSpacing="0.4" />
+                                            <TextBlock Grid.Column="2" Text="موجودی" FontSize="10.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource MutedBrush}" LetterSpacing="0.4" />
+                                            <TextBlock Grid.Column="3" Text="قیمت خرید" FontSize="10.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource MutedBrush}" LetterSpacing="0.4" />
+                                            <TextBlock Grid.Column="4" Text="قیمت فروش" FontSize="10.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource MutedBrush}" LetterSpacing="0.4" />
+                                            <TextBlock Grid.Column="5" Text="انقضا" FontSize="10.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource MutedBrush}" LetterSpacing="0.4" />
+                                        </Grid>
+                                        <!-- variant sub-rows -->
+                                        <ItemsControl ItemsSource="{Binding Variants}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="inv:InventoryVariantRowViewModel">
+                                                    <Border Background="{StaticResource PanelBrush}"
+                                                            BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                                                            CornerRadius="10" Padding="12,9" Margin="0,0,0,6">
+                                                        <Grid ColumnDefinitions="1.2*,1.1*,1.1*,0.9*,0.9*,0.9*,40" ColumnSpacing="10">
+                                                            <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="12.5"
+                                                                       FontWeight="Bold" Foreground="{StaticResource InkBrush}"
+                                                                       VerticalAlignment="Center" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding Sku}" FontSize="12.5"
+                                                                       Foreground="{StaticResource Ink2Brush}"
+                                                                       VerticalAlignment="Center" />
+                                                            <TextBlock Grid.Column="2" Text="{Binding StockText}" FontSize="12.5"
+                                                                       Foreground="{StaticResource Ink2Brush}"
+                                                                       VerticalAlignment="Center" />
+                                                            <TextBlock Grid.Column="3" Text="{Binding CostText}" FontSize="12.5"
+                                                                       Foreground="{StaticResource Ink2Brush}"
+                                                                       VerticalAlignment="Center" />
+                                                            <TextBlock Grid.Column="4" Text="{Binding PriceText}" FontSize="12.5"
+                                                                       FontWeight="Bold" Foreground="{StaticResource InkBrush}"
+                                                                       VerticalAlignment="Center" />
+                                                            <TextBlock Grid.Column="5" Text="{Binding ExpiryText}" FontSize="12.5"
+                                                                       Foreground="{StaticResource MutedBrush}"
+                                                                       VerticalAlignment="Center" />
+                                                            <Button Grid.Column="6" Classes="icon-btn" Width="28" Height="28"
+                                                                    ToolTip.Tip="ویرایش این تنوع"
+                                                                    Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).EditVariantCommand}"
+                                                                    CommandParameter="{Binding}">
+                                                                <Path Classes="icon" Width="14" Height="14"
+                                                                      Stroke="{Binding $parent[Button].Foreground}"
+                                                                      Data="{StaticResource IconEdit}" />
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ Settings sub-view (renderSettings) ═══ -->
+        <inv:InventorySettingsView IsVisible="{Binding IsSettingsTab}" />
+    </StackPanel>
+</UserControl>
