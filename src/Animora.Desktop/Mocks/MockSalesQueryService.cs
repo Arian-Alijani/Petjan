@@ -31,6 +31,46 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
     private static readonly string[] AvatarTones = ["a", "b", "c", "d", "e", "f"];
 
+    // Catalog, mirroring the reference's SERVICES (sv-1..sv-12) + ITEMS
+    // (it-1..it-10) with their SVC_GROUPS / ITEM_GROUPS labels + CAT_ICON keys.
+    private static readonly CatalogItem[] Catalog =
+    [
+        new("sv-1",  "svc",  "ویزیت عمومی",              "ویزیت",          "consult", 250_000,  "IconClipboard"),
+        new("sv-2",  "svc",  "واکسن چهارگانه برونشیت",   "واکسن",          "vaccine", 380_000,  "IconSyringe"),
+        new("sv-3",  "svc",  "جراحی عقیم‌سازی",           "جراحی",          "surgery", 2_800_000, "IconTools"),
+        new("sv-4",  "svc",  "دندان‌پزشکی و جرم‌گیری",     "دندان",          "dental",  1_200_000, "IconScissors"),
+        new("sv-5",  "svc",  "آرایش و پیرایش",           "گرومینگ",        "groom",   650_000,  "IconBath"),
+        new("sv-6",  "svc",  "آزمایش خون کامل",          "آزمایشگاه",       "lab",     800_000,  "IconFlask"),
+        new("sv-7",  "svc",  "سونوگرافی شکمی",           "تصویربرداری",     "img",     1_500_000, "IconImage"),
+        new("sv-8",  "svc",  "رادیولوژی",                "تصویربرداری",     "img",     900_000,  "IconImage"),
+        new("sv-9",  "svc",  "ویزیت تخصصی پوست",         "ویزیت",          "consult", 350_000,  "IconClipboard"),
+        new("sv-10", "svc",  "تزریق و سرم‌تراپی",          "تزریق",          "inject",  450_000,  "IconSyringe"),
+        new("sv-11", "svc",  "بستری شبانه‌روزی",          "بستری",          "stay",    1_000_000, "IconHome"),
+        new("sv-12", "svc",  "معاینه پیگیری",            "ویزیت",          "consult", 180_000,  "IconClipboard"),
+        new("it-1",  "item", "قرص ضد انگل",              "دارو",           "drug",    160_000,  "IconBone"),
+        new("it-2",  "item", "غذای کنسرو مرغ",           "غذا",            "food",    85_000,   "IconBone"),
+        new("it-3",  "item", "غذای خشک بالغ سگ (۵ کیلو)", "غذا",            "food",    850_000,  "IconBone"),
+        new("it-4",  "item", "شامپوی مخصوص حیوانات",     "بهداشتی",         "hygiene", 220_000,  "IconBath"),
+        new("it-5",  "item", "مکمل تقویت مفصل",          "مکمل",           "suppl",   450_000,  "IconShield"),
+        new("it-6",  "item", "آنتی‌بیوتیک خوراکی",         "دارو",           "drug",    320_000,  "IconBone"),
+        new("it-7",  "item", "برس و شانه پاکسازی",       "بهداشتی",         "hygiene", 125_000,  "IconScissors"),
+        new("it-8",  "item", "خاک مخصوص گربه",           "مصرفی",          "consum",  280_000,  "IconBox"),
+        new("it-9",  "item", "ویتامین مایع",             "دارو",           "drug",    150_000,  "IconFlask"),
+        new("it-10", "item", "قلاده ضدکک",               "ضدانگل",          "antip",   390_000,  "IconShield"),
+    ];
+
+    // Owner directory for «انتخاب مشتری» (mirrors window.OWNERS + first pet).
+    private static readonly OwnerRef[] Owners =
+    [
+        new("ow-1", "نگار", "محمدی",  "۷۲-۱۰۱۲", "۰۹۱۲۱۲۳۴۵۶۷", "a", 0,        "پشمک"),
+        new("ow-2", "امیر", "رستگار", "۷۲-۱۰۳۴", "۰۹۱۲۴۴۴۵۵۶۶", "b", 1_250_000, "لئو"),
+        new("ow-3", "سارا", "یوسفی",  "۷۲-۱۰۵۸", "۰۹۳۵۷۷۷۸۸۹۹", "c", 0,        "آبی"),
+        new("ow-4", "علی",  "نوروزی", "۷۲-۱۰۷۷", "۰۹۱۹۲۲۲۳۳۴۴", "d", 0,        ""),
+        new("ow-5", "آرمان", "توسلی", "۷۲-۱۰۹۱", "۰۹۳۳۳۳۳۴۴۵۵", "e", 0,        ""),
+        new("ow-6", "مهسا", "کریمی",  "۷۲-۱۱۰۴", "۰۹۰۲۵۵۵۶۶۷۷", "f", 0,        ""),
+    ];
+
+
     public MockSalesQueryService()
     {
         _encounters =
@@ -88,6 +128,190 @@ public sealed class MockSalesQueryService : ISalesQueryService
         _invoices.AddRange([inv1, inv2, inv3, inv4, inv5]);
         RecalcAll();
     }
+
+    // ── Phase 21 — catalog picker ───────────────────────────────────────
+
+    // Recent strip seed (mirrors the reference's `state.recent` — most-recent-first).
+    private readonly List<RecentItemRef> _recent =
+    [
+        new("svc", "sv-1"),
+        new("item", "it-1"),
+        new("svc", "sv-2"),
+    ];
+
+    public Task<CatalogSnapshot> GetCatalogAsync()
+    {
+        var filters = BuildFilters();
+        IReadOnlyList<RecentItemRef> recent = _recent.ToList();
+        IReadOnlyList<CatalogItem> items = Catalog.ToList();
+        return Task.FromResult(new CatalogSnapshot(items, filters, recent));
+    }
+
+    public Task<InvoiceDetail> AddLineAsync(string invoiceId, CatalogItem item, int quantity)
+    {
+        var inv = Find(invoiceId) ?? throw new InvalidOperationException($"Unknown invoice: {invoiceId}");
+        var kind = item.Kind == "svc" ? InvoiceLineKind.Service : InvoiceLineKind.Item;
+        var existing = inv.Lines.FirstOrDefault(l => l.Ref == item.Id && l.Kind == kind);
+        var qty = Math.Max(1, quantity);
+
+        if (existing is not null)
+        {
+            var idx = inv.Lines.IndexOf(existing);
+            inv.Lines[idx] = existing with { Quantity = existing.Quantity + qty };
+        }
+        else
+        {
+            inv.Lines.Add(new LineRecord(item.Id, kind, item.Title, qty, item.Price));
+        }
+
+        PushRecent(item.Kind, item.Id);
+        Calc(inv);
+        return Task.FromResult(MapDetail(inv));
+    }
+
+    public Task<InvoiceDetail> AddCustomLineAsync(string invoiceId, CustomLineRequest request)
+    {
+        var inv = Find(invoiceId) ?? throw new InvalidOperationException($"Unknown invoice: {invoiceId}");
+        inv.Lines.Add(new LineRecord(
+            string.Empty, InvoiceLineKind.Service, request.Title,
+            Math.Max(1, request.Quantity), Math.Max(0, request.UnitPrice),
+            IsCustom: true));
+
+        Calc(inv);
+        return Task.FromResult(MapDetail(inv));
+    }
+
+    public Task<PaymentResult> TakePaymentAsync(string invoiceId, PaymentRequest request)
+    {
+        var inv = Find(invoiceId);
+        if (inv is null)
+        {
+            return Task.FromResult(new PaymentResult(false, "فاکتور یافت نشد.", 0, false, null!));
+        }
+
+        if (inv.State is InvoiceState.Void or InvoiceState.Refunded)
+        {
+            return Task.FromResult(new PaymentResult(false, "این فاکتور قابلیت پرداخت ندارد.", 0, false, MapDetail(inv)));
+        }
+
+        if (inv.State == InvoiceState.Settled)
+        {
+            return Task.FromResult(new PaymentResult(false, "این فاکتور قبلاً تسویه شده است.", 0, false, MapDetail(inv)));
+        }
+
+        var amount = Math.Max(0, request.Amount);
+        if (amount <= 0)
+        {
+            return Task.FromResult(new PaymentResult(false, "مبلغ پرداخت باید بزرگ‌تر از صفر باشد.", 0, false, MapDetail(inv)));
+        }
+
+        var capped = Math.Min(amount, inv.Due);
+        inv.Paid += capped;
+        inv.Payments.Add(new PaymentRecord(
+            request.Method,
+            string.IsNullOrEmpty(request.Note) ? "پرداخت از صندوق" : request.Note,
+            NowStamp(), capped));
+
+        Calc(inv);
+        inv.State = inv.Paid >= inv.Total ? InvoiceState.Settled : InvoiceState.Partial;
+
+        return Task.FromResult(new PaymentResult(true, null, capped, inv.State == InvoiceState.Settled, MapDetail(inv)));
+    }
+
+    public Task<InvoiceDetail?> VoidAsync(string invoiceId)
+    {
+        var inv = Find(invoiceId);
+        if (inv is null || inv.State is InvoiceState.Settled or InvoiceState.Refunded)
+        {
+            return Task.FromResult<InvoiceDetail?>(null);
+        }
+
+        inv.State = InvoiceState.Void;
+        return Task.FromResult<InvoiceDetail?>(MapDetail(inv));
+    }
+
+    public Task<RefundResult> RefundAsync(string invoiceId, RefundRequest request)
+    {
+        var inv = Find(invoiceId);
+        if (inv is null)
+        {
+            return Task.FromResult(new RefundResult(false, "فاکتور یافت نشد.", null!));
+        }
+
+        if (inv.State is not (InvoiceState.Partial or InvoiceState.Settled))
+        {
+            return Task.FromResult(new RefundResult(false, "عودت فقط روی فاکتور پرداخت‌شده (جزئی یا کامل) ممکن است.", MapDetail(inv)));
+        }
+
+        var amount = Math.Max(0, request.Amount);
+        if (amount <= 0 || amount > inv.Paid)
+        {
+            return Task.FromResult(new RefundResult(false, "مبلغ عودت باید بین ۱ ریال و کل مبلغ پرداخت‌شده باشد.", MapDetail(inv)));
+        }
+
+        inv.Paid = Math.Max(0, inv.Paid - amount);
+        inv.Payments.Add(new PaymentRecord(PaymentMethod.Cash, "عودت وجه", NowStamp(), -amount));
+        inv.State = InvoiceState.Refunded;
+        Calc(inv);
+
+        return Task.FromResult(new RefundResult(true, null, MapDetail(inv)));
+    }
+
+    public Task<IReadOnlyList<OwnerRef>> GetOwnersAsync(string query)
+    {
+        var q = PersianText.Normalize(query);
+        IReadOnlyList<OwnerRef> list = Owners
+            .Where(o => q.Length == 0 || PersianText.Contains(
+                PersianText.Normalize($"{o.FirstName} {o.LastName} {o.FileCode} {o.Mobile} {o.PetName}"), q))
+            .Take(20)
+            .ToList();
+
+        return Task.FromResult(list);
+    }
+
+    public Task<InvoiceDetail> PickOwnerAsync(string invoiceId, OwnerPickResult pick)
+    {
+        var inv = Find(invoiceId) ?? throw new InvalidOperationException($"Unknown invoice: {invoiceId}");
+        inv.OwnerName = pick.IsGuest ? string.Empty : pick.OwnerName;
+        inv.PetName = pick.IsGuest ? string.Empty : pick.PetName;
+        inv.Phone = pick.IsGuest ? string.Empty : pick.Phone;
+
+        return Task.FromResult(MapDetail(inv));
+    }
+
+    private void PushRecent(string kind, string refId)
+    {
+        _recent.RemoveAll(r => r.Kind == kind && r.Ref == refId);
+        _recent.Insert(0, new RecentItemRef(kind, refId));
+        while (_recent.Count > 6)
+        {
+            _recent.RemoveAt(_recent.Count - 1);
+        }
+    }
+
+    private static IReadOnlyList<CatalogFilterRef> BuildFilters()
+    {
+        var svcCt = Catalog.Count(x => x.Kind == "svc");
+        var itemCt = Catalog.Count(x => x.Kind == "item");
+
+        var filters = new List<CatalogFilterRef>
+        {
+            new("all", "همه", Catalog.Length),
+            new("svc", "خدمات", svcCt),
+            new("item", "دارو و کالا", itemCt),
+        };
+
+        var groups = Catalog
+            .GroupBy(x => (x.GroupKey, x.GroupLabel))
+            .Select(g => new CatalogFilterRef(g.Key.GroupKey, g.Key.GroupLabel, g.Count()))
+            .OrderByDescending(g => g.Count);
+
+        filters.AddRange(groups);
+        return filters;
+    }
+
+    private static string NowStamp() =>
+        PersianNumberFormatter.ToPersianDigits($"{DateTime.Now.Hour:D2}:{DateTime.Now.Minute:D2}");
 
     public Task<IReadOnlyList<ReadyEncounterRef>> GetReadyEncountersAsync()
     {
@@ -373,11 +597,11 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
         public string? EncounterId { get; init; }
 
-        public required string OwnerName { get; init; }
+        public required string OwnerName { get; set; }
 
-        public required string PetName { get; init; }
+        public required string PetName { get; set; }
 
-        public required string Phone { get; init; }
+        public required string Phone { get; set; }
 
         public required List<LineRecord> Lines { get; init; }
 
@@ -387,9 +611,9 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
         public string? InsuranceOrgId { get; init; }
 
-        public required InvoiceState State { get; init; }
+        public required InvoiceState State { get; set; }
 
-        public required long Paid { get; init; }
+        public required long Paid { get; set; }
 
         public required List<PaymentRecord> Payments { get; init; }
 

@@ -195,6 +195,120 @@ public sealed record InvoiceDetail(
     bool HasDiscount);
 
 /// <summary>
+/// One catalog entry offered by the picker, mirroring the reference's
+/// <c>catalogAllItems()</c> rows: a service or physical item with its kind,
+/// category group (label + key) and price. The icon is resolved by the mock
+/// (mirrors the reference's <c>CAT_ICON</c> map) so the View stays free of
+/// catalog literals.
+/// </summary>
+public sealed record CatalogItem(
+    string Id,
+    string Kind,
+    string Title,
+    string GroupLabel,
+    string GroupKey,
+    long Price,
+    string IconKey);
+
+/// <summary>
+/// The catalog's category filter chips, mirroring <c>renderCatFilters</c>:
+/// «همه» / «خدمات» / «دارو و کالا» plus the top groups, each with its count.
+/// </summary>
+public sealed record CatalogFilterRef(
+    string Key,
+    string Label,
+    int Count);
+
+/// <summary>
+/// A recently-used catalog item chip (mirrors <c>renderCatRecent</c> / the
+/// reference's <c>state.recent</c> strip).
+/// </summary>
+public sealed record RecentItemRef(
+    string Kind,
+    string Ref);
+
+/// <summary>
+/// The full catalog snapshot for the picker: every item, the filter chips and
+/// the recent-items strip. Bundled so the modal opens in one round-trip.
+/// </summary>
+public sealed record CatalogSnapshot(
+    IReadOnlyList<CatalogItem> Items,
+    IReadOnlyList<CatalogFilterRef> Filters,
+    IReadOnlyList<RecentItemRef> Recent);
+
+/// <summary>
+/// A custom (non-catalog) line-item request, mirroring the reference's
+/// <c>addCustomLine(title, price, qty)</c> — goods/services not in the ready
+/// list.
+/// </summary>
+public sealed record CustomLineRequest(
+    string Title,
+    long UnitPrice,
+    int Quantity);
+
+/// <summary>
+/// A payment request, mirroring <c>doPayment</c>'s payload: the chosen method,
+/// the amount and an optional note.
+/// </summary>
+public sealed record PaymentRequest(
+    PaymentMethod Method,
+    long Amount,
+    string Note);
+
+/// <summary>
+/// The result of <see cref="ISalesQueryService.TakePaymentAsync"/>, mirroring
+/// <c>FLOW.applyPayment</c>'s <c>{ ok, error, entity }</c> return: whether it
+/// applied, an optional error, the capped amount actually recorded and the
+/// updated invoice detail.
+/// </summary>
+public sealed record PaymentResult(
+    bool Ok,
+    string? Error,
+    long Applied,
+    bool Settled,
+    InvoiceDetail Invoice);
+
+/// <summary>
+/// A refund request, mirroring <c>openRefundModal</c>/<c>FLOW.refund</c>: the
+/// amount to return.
+/// </summary>
+public sealed record RefundRequest(long Amount);
+
+/// <summary>
+/// The result of <see cref="ISalesQueryService.RefundAsync"/>, mirroring
+/// <c>FLOW.refund</c>'s <c>{ ok, error, entity }</c> return.
+/// </summary>
+public sealed record RefundResult(
+    bool Ok,
+    string? Error,
+    InvoiceDetail Invoice);
+
+/// <summary>
+/// One owner of the «انتخاب مشتری» picker directory, mirroring the reference's
+/// <c>window.OWNERS</c> rows: name, file code, mobile, avatar tone and balance.
+/// </summary>
+public sealed record OwnerRef(
+    string Id,
+    string FirstName,
+    string LastName,
+    string FileCode,
+    string Mobile,
+    string Tone,
+    long Balance,
+    string PetName);
+
+/// <summary>
+/// The result of <see cref="ISalesQueryService.PickOwnerAsync"/>: either a
+/// chosen owner (with an id) or a guest selection (empty id).
+/// </summary>
+public sealed record OwnerPickResult(
+    bool IsGuest,
+    string OwnerId,
+    string OwnerName,
+    string PetName,
+    string Phone);
+
+/// <summary>
 /// A snapshot of the three inline mini-KPIs above the invoice workspace,
 /// mirroring <c>renderKPIs()</c>: settled-today sum, open receivables sum + open
 /// count and the ready-visit count. Numeric values stay raw; the View formats

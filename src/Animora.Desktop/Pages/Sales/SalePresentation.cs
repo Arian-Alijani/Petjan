@@ -128,6 +128,66 @@ public static class SalePresentation
         _ => Tone.Neutral,
     };
 
+    /// <summary>
+    /// The confirm-dialog icon tile tone, mirroring the reference's
+    /// <c>.sw-confirm-ico.(danger|warn|brand|neutral)</c> palette.
+    /// </summary>
+    public static (IBrush Background, IBrush Foreground) ConfirmIco(string tone) => tone switch
+    {
+        "danger" => (Resolve("DangerBgBrush", "#fef3f2"), Resolve("DangerBrush", "#d92d20")),
+        "warn" => (Resolve("WarnBgBrush", "#fffaeb"), Resolve("WarnBrush", "#b54708")),
+        "brand" => (Resolve("Brand50Brush", "#f0fdfa"), Resolve("Brand700Brush", "#0e7566")),
+        _ => (Resolve("Bg2Brush", "#f1f5f6"), Resolve("MutedBrush", "#667085")),
+    };
+
+    /// <summary>The payment-method → catalog icon key (mirrors <c>renderPayment</c>'s <c>ic</c>).</summary>
+    public static string MethodIconKey(PaymentMethod method) => method switch
+    {
+        PaymentMethod.Cash => "IconWallet",
+        PaymentMethod.Card => "IconCreditCard",
+        PaymentMethod.Cheque => "IconCheque",
+        PaymentMethod.Credit => "IconClock",
+        _ => "IconCopy",
+    };
+
+    /// <summary>The reference's <c>M[method]</c> Persian label map.</summary>
+    public static string MethodLabel(PaymentMethod method) => method switch
+    {
+        PaymentMethod.Cash => "نقدی",
+        PaymentMethod.Card => "کارت",
+        PaymentMethod.Cheque => "چک",
+        PaymentMethod.Credit => "نسیه",
+        PaymentMethod.Mixed => "ترکیبی",
+        _ => "—",
+    };
+
+    /// <summary>
+    /// The smart payment-preview band palette, mirroring the reference's
+    /// <c>.sw-pay-preview.(neutral|success|warn|partial)</c> surfaces + icon tiles
+    /// (sale.css). Returns (background, foreground, ico-background, ico-foreground).
+    /// </summary>
+    public static (IBrush Background, IBrush Foreground, IBrush IcoBackground, IBrush IcoForeground)
+        PreviewBrushes(string tone) => tone switch
+    {
+        "success" => (Resolve("OkBgBrush", "#ecfdf3"), Resolve("OkBrush", "#027a48"),
+                      Resolve("OkBrush", "#027a48"), Brushes.White),
+        "warn" => (Resolve("DangerBgBrush", "#fef3f2"), Resolve("Ink2Brush", "#344054"),
+                   Resolve("DangerBrush", "#d92d20"), Brushes.White),
+        "partial" => (Resolve("WarnBgBrush", "#fffaeb"), Resolve("Ink2Brush", "#344054"),
+                      Resolve("WarnBrush", "#b54708"), Brushes.White),
+        _ => (Resolve("Bg2Brush", "#f1f5f6"), Resolve("Ink2Brush", "#344054"),
+              Resolve("InfoBgBrush", "#eff8ff"), Resolve("InfoBrush", "#1570cd")),
+    };
+
+    /// <summary>The preview band icon, mirroring the reference's per-tone glyph.</summary>
+    public static string PreviewIconKey(string tone) => tone switch
+    {
+        "success" => "IconCheck",
+        "warn" => "IconAlert",
+        "partial" => "IconClock",
+        _ => "IconInfo",
+    };
+
     private static IBrush Resolve(string key, string fallback) =>
         new SolidColorBrush(Color.Parse(fallback));
 }

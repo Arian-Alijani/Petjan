@@ -50,4 +50,57 @@ public interface ISalesQueryService
     /// the ready-visit count.
     /// </summary>
     Task<SaleKpiSnapshot> GetKpisAsync();
+
+    // ── Phase 21 — catalog picker, payment, void/refund, owner picker ──────
+
+    /// <summary>
+    /// The full catalog snapshot for the picker (mirrors
+    /// <c>catalogAllItems()</c> + <c>renderCatFilters</c> + <c>renderCatRecent</c>):
+    /// every service/item with its group, the filter chips and the recent strip.
+    /// </summary>
+    Task<CatalogSnapshot> GetCatalogAsync();
+
+    /// <summary>
+    /// Adds a catalog item to an invoice (mirrors <c>addToInvoice</c>): an
+    /// existing matching line's quantity is incremented, otherwise a new line is
+    /// appended; the item is pushed onto the recent strip. Returns the updated
+    /// detail.
+    /// </summary>
+    Task<InvoiceDetail> AddLineAsync(string invoiceId, CatalogItem item, int quantity);
+
+    /// <summary>
+    /// Adds a custom (non-catalog) line (mirrors <c>addCustomLine</c>). Returns
+    /// the updated detail.
+    /// </summary>
+    Task<InvoiceDetail> AddCustomLineAsync(string invoiceId, CustomLineRequest request);
+
+    /// <summary>
+    /// Records a payment (mirrors <c>FLOW.applyPayment</c>): caps at the due,
+    /// appends a payment row, advances the state to partial/settled.
+    /// </summary>
+    Task<PaymentResult> TakePaymentAsync(string invoiceId, PaymentRequest request);
+
+    /// <summary>
+    /// Voids an invoice (mirrors <c>FLOW.voidInvoice</c>). Returns the updated
+    /// detail, or <c>null</c> when the state forbids it.
+    /// </summary>
+    Task<InvoiceDetail?> VoidAsync(string invoiceId);
+
+    /// <summary>
+    /// Refunds a paid invoice (mirrors <c>FLOW.refund</c>): subtracts from paid,
+    /// appends a negative payment row and moves the state to refunded.
+    /// </summary>
+    Task<RefundResult> RefundAsync(string invoiceId, RefundRequest request);
+
+    /// <summary>
+    /// The owner directory for «انتخاب مشتری» (mirrors <c>openPicker</c>'s
+    /// <c>window.OWNERS</c>), optionally filtered by <paramref name="query"/>.
+    /// </summary>
+    Task<IReadOnlyList<OwnerRef>> GetOwnersAsync(string query);
+
+    /// <summary>
+    /// Assigns an owner (or a guest) to an invoice (mirrors
+    /// <c>selectOwner</c>/<c>selectGuest</c>). Returns the updated detail.
+    /// </summary>
+    Task<InvoiceDetail> PickOwnerAsync(string invoiceId, OwnerPickResult pick);
 }

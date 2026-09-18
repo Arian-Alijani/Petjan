@@ -1,0 +1,76 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:shared="using:Animora.Desktop.Pages.Sales.Shared"
+             x:Class="Animora.Desktop.Pages.Sales.Shared.ConfirmDialogView"
+             x:Name="Root"
+             x:DataType="shared:ConfirmDialogViewModel"
+             Width="480"
+             MaxWidth="480"
+             FlowDirection="RightToLeft">
+
+    <!-- Themed confirm dialog — re-draws Animora-UI/assets/sale-page.js
+         openConfirm (.sw-modal.sw-confirm). Values from sale.css
+         (.sw-confirm-head/-ico/-body/-foot). -->
+    <UserControl.Styles>
+        <Style Selector="Button.cf-btn">
+            <Setter Property="Padding" Value="16,9" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel>
+        <!-- head -->
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" Margin="22,20,22,12">
+            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="13"
+                    Background="{Binding IcoBackground}">
+                <Path Classes="icon" Width="20" Height="20"
+                      Stroke="{Binding IcoForeground}"
+                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="17" FontWeight="ExtraBold"
+                       Foreground="{StaticResource InkBrush}" VerticalAlignment="Center"
+                       TextWrapping="Wrap" />
+        </Grid>
+
+        <!-- body -->
+        <StackPanel Margin="22,4,22,12" Spacing="10">
+            <WrapPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding BodyLead}" FontSize="13.5"
+                           Foreground="{StaticResource Ink2Brush}"
+                           TextWrapping="Wrap" />
+                <TextBlock Text="{Binding BodyStrong}" FontSize="13.5" FontWeight="ExtraBold"
+                           Foreground="{StaticResource Brand700Brush}" />
+                <TextBlock Text="{Binding BodyTrail}" FontSize="13.5"
+                           Foreground="{StaticResource Ink2Brush}"
+                           TextWrapping="Wrap" />
+            </WrapPanel>
+            <TextBlock Text="{Binding BodyNote}" FontSize="13.5"
+                       Foreground="{StaticResource Ink2Brush}"
+                       TextWrapping="Wrap" IsVisible="{Binding HasBodyNote}" />
+        </StackPanel>
+
+        <!-- foot -->
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
+                    Margin="20,12,20,18">
+            <Button Classes="outline cf-btn" Content="{Binding CancelLabel}"
+                    Command="{Binding CancelCommand}" />
+            <Button Classes="cf-btn" Content="{Binding ConfirmLabel}"
+                    Command="{Binding ConfirmCommand}">
+                <Button.Styles>
+                    <Style Selector="Button">
+                        <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+                        <Setter Property="Foreground" Value="White" />
+                        <Setter Property="BorderThickness" Value="0" />
+                    </Style>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="{StaticResource Brand700Brush}" />
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

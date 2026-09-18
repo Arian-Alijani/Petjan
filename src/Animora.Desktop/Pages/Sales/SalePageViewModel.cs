@@ -26,6 +26,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 {
     private readonly ISalesQueryService _service;
     private readonly IToastService _toast;
+    private readonly IDialogService _dialogs;
     private readonly List<ReadyEncounterRef> _readyEncounters = [];
     private readonly List<InvoiceSummary> _invoices = [];
 
@@ -59,10 +60,11 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     [ObservableProperty]
     private bool _hasReadyVisitBadge;
 
-    public SalePageViewModel(ISalesQueryService service, IToastService toast)
+    public SalePageViewModel(ISalesQueryService service, IToastService toast, IDialogService dialogs)
     {
         _service = service;
         _toast = toast;
+        _dialogs = dialogs;
 
         Title = "فروش و صندوق";
         Eyebrow = "مدیریت کلینیک";
@@ -222,7 +224,11 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         RenderSidebar();
         ShowInvoice(detail);
         await RefreshKpisAsync();
-        _toast.Show($"فاکتور «{detail.Id}» ایجاد شد — آیتم اضافه کنید", Tone.Ok);
+
+        // A blank sale needs an owner/guest before items are added (mirrors the
+        // reference's picker-first flow for walk-in sales).
+        _dialogs.ShowModal(new OwnerPickerModalViewModel(
+            _service, _toast, _dialogs, detail.Id, RefreshAfterMutation), 560);
     }
 
     [RelayCommand]
@@ -237,13 +243,116 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void AddItem() => _toast.Show("کاتالوگ — فاز ۲۱", Tone.Info);
+    private void AddItem()
+    {
+        if (SelectedInvoice is null)
+        {
+            return;
+        }
+
+        _dialogs.ShowModal(
+            new CatalogModalViewModel(_service, _toast, _dialogs, SelectedInvoice.Id, RefreshAfterMutation),
+            500);
+    }
 
     [RelayCommand]
-    private void AddCustomItem() => _toast.Show("آیتم دلخواه — فاز ۲۱", Tone.Info);
+    private void AddCustomItem()
+    {
+        if (SelectedInvoice is null)
+        {
+            return;
+        }
+
+        _dialogs.ShowModal(
+            new CustomItemModalViewModel(_service, _toast, _dialogs, SelectedInvoice.Id, false, RefreshAfterMutation),
+            520);
+    }
 
     [RelayCommand]
-    private void TakePayment() => _toast.Show("پرداخت — فاز ۲۱", Tone.Info);
+    private void TakePayment()
+    {
+        if (SelectedInvoice is null)
+        {
+            return;
+        }
+
+        _dialogs.ShowModal(
+            new PaymentModalViewModel(_service, _toast, _dialogs, SelectedInvoice.Id, RefreshAfterMutation),
+            520);
+    }
+
+    [RelayCommand]
+    private void VoidInvoice()
+    {
+        if (SelectedInvoice is null)
+        {
+            return;
+        }
+
+        _dialogs.ShowModal(new Shared.ConfirmDialogViewModel(
+            _dialogs,
+            "danger",
+            "IconTrash",
+            "ابطال فاکتور",
+            "آیا از ابطال فاکتور ",
+            $"«{SelectedInvoice.Id}»",
+            " اطمینان دارید؟",
+            "این عمل غیرقابل بازگشت است و فاکتور از لیست فعال حذف می‌شود.",
+            "بله، فاکتور را باطل کن",
+            "انصراف",
+            void () => _ = VoidAsync()), 480);
+    }
+
+    private async Task VoidAsync()
+    {
+        if (SelectedInvoice is null)
+        {
+            return;
+        }
+
+        var detail = await _service.VoidAsync(SelectedInvoice.Id);
+        if (detail is null)
+        {
+            _toast.Show("خطا در ابطال", Tone.Danger);
+            return;
+        }
+
+        _toast.Show($"فاکتور «{detail.Id}» ابطال شد", Tone.Ok);
+        await RefreshAfterMutationAsync();
+    }
+
+    [RelayCommand]
+    private void Refund()
+    {
+        if (SelectedInvoice is null)
+        {
+            return;
+        }
+
+        _dialogs.ShowModal(new RefundModalViewModel(
+            _service, _toast, _dialogs, SelectedInvoice.Id,
+            SelectedInvoice.Detail.Paid, RefreshAfterMutation), 480);
+    }
+
+    /// <summary>Reloads the lists/KPIs re-renders sidebar and refreshes the open invoice.</summary>
+    private void RefreshAfterMutation() => _ = RefreshAfterMutationAsync();
+
+    private async Task RefreshAfterMutationAsync()
+    {
+        var currentId = SelectedInvoice?.Id;
+        await ReloadListsAsync();
+        RenderSidebar();
+        await RefreshKpisAsync();
+
+        if (currentId is not null)
+        {
+            var detail = await _service.GetInvoiceAsync(currentId);
+            if (detail is not null)
+            {
+                ShowInvoice(detail);
+            }
+        }
+    }
 
     [RelayCommand]
     private void PrintDay() => _toast.Show("گزارش روز به چاپگر ارسال شد (نمونه طراحی)", Tone.Ok);

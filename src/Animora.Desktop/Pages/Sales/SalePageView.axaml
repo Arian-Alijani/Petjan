@@ -796,6 +796,7 @@
                                         </Button>
                                         <Button Classes="outline" Padding="14,9"
                                                 Foreground="{StaticResource DangerBrush}"
+                                                Command="{Binding VoidInvoiceCommand}"
                                                 IsVisible="{Binding SelectedInvoice.CanEdit}">
                                             <StackPanel Orientation="Horizontal" Spacing="7">
                                                 <Path Classes="icon" Width="15" Height="15"
@@ -805,6 +806,7 @@
                                             </StackPanel>
                                         </Button>
                                         <Button Classes="outline" Padding="14,9"
+                                                Command="{Binding RefundCommand}"
                                                 IsVisible="{Binding SelectedInvoice.ShowRefund}">
                                             <StackPanel Orientation="Horizontal" Spacing="7">
                                                 <Path Classes="icon" Width="15" Height="15"
