@@ -419,4 +419,23 @@
         M15.09,14 c.18,-.98 .65,-1.74 1.41,-2.5 A4.65,4.65 0 0 0 18,8 A6,6 0 0 0 6,8 c0,1 .23,2.23 1.5,3.5 A4.61,4.61 0 0 1 8.91,14
     </StreamGeometry>
 
+    <!-- Inventory (Phase 17): bone/bath/refresh from icons.js — the category
+         glyphs «پت‌شاپ»/«غذا»/«بهداشتی» and the row «تغییر موجودی» action. -->
+    <StreamGeometry x:Key="IconBone">
+        M17,10 c.7,-.7 1.69,0 2.5,0 a2.5,2.5 0 1 0 0,-5 a.5,.5 0 0 1 -.5,-.5 a2.5,2.5 0 1 0 -5,0 c0,.81 .7,1.8 0,2.5 l-7,7 c-.7,.7 -1.69,0 -2.5,0 a2.5,2.5 0 0 0 0,5 c.28,0 .5,.22 .5,.5 a2.5,2.5 0 1 0 5,0 c0,-.81 -.7,-1.8 0,-2.5 Z
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconBath">
+        M9,6 L6.5,3.5 a1.5,1.5 0 0 0 -1,-.5 C4.68,3 4,3.68 4,4.5 V17 a2,2 0 0 0 2,2 h12 a2,2 0 0 0 2,-2 v-5
+        M10,5 L8,7
+        M2,12 L22,12
+        M7,19 L7,21
+        M17,19 L17,21
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconRefresh">
+        M3,12 a9,9 0 0 1 15,-6.7 L21,8
+        M21,3 v5 h-5
+        M21,12 a9,9 0 0 1 -15,6.7 L3,16
+        M3,21 v-5 h5
+    </StreamGeometry>
+
 </ResourceDictionary>

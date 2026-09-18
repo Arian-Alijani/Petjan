@@ -1,0 +1,189 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inv="using:Animora.Desktop.Pages.Inventory"
+             x:Class="Animora.Desktop.Pages.Inventory.InventorySettingsView"
+             x:Name="Root"
+             x:DataType="inv:InventoryPageViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Settings sub-view — re-draws Animora-UI/assets/inventory.js
+         renderSettings(): the «دسته‌بندی کالاها» category-management card and
+         the «تنظیمات موجودی» toggles card. Values transcribed from
+         inventory.css (.settings-wrap/.settings-card/.settings-hd/
+         .cat-settings-list/.cat-setting-row/.tone-picker/.switch-row/
+         .settings-foot). -->
+    <UserControl.Styles>
+        <Style Selector="Border.scard">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusLg}" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
+        <Style Selector="TextBlock.s-title">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.s-sub">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector="TextBlock.field-label">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="0,0,0,5" />
+        </Style>
+        <Style Selector="Button.tone-dot">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="50" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BorderBrush" Value="White" />
+        </Style>
+        <Style Selector="Button.tone-dot /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="0 0 0 1 #e5eaee" />
+        </Style>
+        <Style Selector="Button.tone-dot.ontone /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="0 0 0 2 #101828" />
+        </Style>
+        <Style Selector="Border.cat-count">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="10,5" />
+        </Style>
+        <Style Selector="Border.del-btn">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <Style Selector="Button.del-btn">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.del-btn:pointerover">
+            <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="1.3*,1*" ColumnSpacing="16" RowDefinitions="Auto,Auto" VerticalAlignment="Top">
+
+        <!-- ═══ card · دسته‌بندی کالاها ═══ -->
+        <Border Grid.Row="0" Grid.Column="0" Classes="scard">
+            <StackPanel>
+                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="20,18">
+                    <StackPanel>
+                        <TextBlock Classes="s-title" Text="دسته‌بندی کالاها" />
+                        <TextBlock Classes="s-sub" TextWrapping="Wrap"
+                                   Text="نام، رنگ و نماد هر دسته را ویرایش کنید. تعداد کالاهای هر دسته نمایش داده می‌شود." />
+                    </StackPanel>
+                </Border>
+                <ItemsControl ItemsSource="{Binding CategoryRows}" Margin="20,8,20,16">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="inv:InventoryCategoryRowViewModel">
+                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,14">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                                    <Border Grid.Column="0" Width="44" Height="44" CornerRadius="14"
+                                            Background="{Binding IconBackground}" VerticalAlignment="Center">
+                                        <Path Classes="icon" Width="21" Height="21"
+                                              Stroke="{Binding IconForeground}" VerticalAlignment="Center"
+                                              HorizontalAlignment="Center"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                    </Border>
+                                    <Grid Grid.Column="1" ColumnDefinitions="1.2*,Auto" ColumnSpacing="16"
+                                          VerticalAlignment="Center">
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Classes="field-label" Text="نام دسته" />
+                                            <TextBox Text="{Binding Label}" Padding="10,8" FontSize="13" CornerRadius="10" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Top" MinWidth="180">
+                                            <TextBlock Classes="field-label" Text="رنگ برچسب" />
+                                            <ItemsControl ItemsSource="{Binding ToneOptions}" Margin="0,4,0,0">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Orientation="Horizontal" Spacing="7" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="inv:InventoryToneOptionViewModel">
+                                                        <Button Classes="tone-dot" Classes.ontone="{Binding IsOn}"
+                                                                Background="{Binding Brush}"
+                                                                Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).PickToneCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Grid>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10"
+                                                VerticalAlignment="Center">
+                                        <Border Classes="cat-count">
+                                            <TextBlock Text="{Binding CountText}" FontSize="12" FontWeight="Bold"
+                                                       Foreground="{StaticResource Ink2Brush}" />
+                                        </Border>
+                                        <Button Classes="del-btn" ToolTip.Tip="حذف دسته"
+                                                Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).DeleteCategoryCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{StaticResource DangerBrush}" Data="{StaticResource IconTrash}" />
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ card · تنظیمات موجودی ═══ -->
+        <Border Grid.Row="0" Grid.Column="1" Classes="scard">
+            <StackPanel>
+                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="20,18">
+                    <StackPanel>
+                        <TextBlock Classes="s-title" Text="تنظیمات موجودی" />
+                        <TextBlock Classes="s-sub" TextWrapping="Wrap"
+                                   Text="رفتار پیش‌فرض کالاها در انبار را تنظیم کنید (نمونه طراحی)." />
+                    </StackPanel>
+                </Border>
+                <ItemsControl ItemsSource="{Binding SettingToggles}" Margin="20,6,20,6">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="inv:InventorySettingToggleViewModel">
+                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,14">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontSize="13.5" FontWeight="Bold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="{Binding Sub}" FontSize="11.5" Margin="0,3,0,0"
+                                                   Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsOn}"
+                                                  OnContent="" OffContent="" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="20,14">
+                    <Button Classes="primary" HorizontalAlignment="Right" Command="{Binding SaveSettingsCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                                  Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                            <TextBlock Text="ذخیره تنظیمات" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </Border>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
