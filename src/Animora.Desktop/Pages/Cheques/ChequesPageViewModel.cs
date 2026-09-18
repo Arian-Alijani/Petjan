@@ -32,6 +32,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
 
     private readonly IChequesQueryService _service;
     private readonly IToastService _toast;
+    private readonly IDialogService _dialogs;
 
     private readonly List<Cheque> _cheques = [];
     private readonly Dictionary<string, ChequeBank> _banks = new(StringComparer.Ordinal);
@@ -45,10 +46,11 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     private int _page = 1;
     private string _today = string.Empty;
 
-    public ChequesPageViewModel(IChequesQueryService service, IToastService toast)
+    public ChequesPageViewModel(IChequesQueryService service, IToastService toast, IDialogService dialogs)
     {
         _service = service;
         _toast = toast;
+        _dialogs = dialogs;
 
         Title = "مدیریت چک";
         Eyebrow = "خزانه‌داری و اسناد دریافتنی";
@@ -872,8 +874,15 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void ChangeMonth(int delta)
+    private void ChangeMonth(string? param)
     {
+        // The XAML passes string literals ("-1"/"0"/"1"); a RelayCommand<int>
+        // would reject them at runtime (ArgumentException during layout).
+        if (!int.TryParse(PersianNumberFormatter.ToAsciiDigits(param), out var delta))
+        {
+            delta = 0;
+        }
+
         if (delta == 0)
         {
             var t = JalaliCalendar.Parse(_today);
@@ -912,11 +921,61 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     private void Export() => _toast.Show("خروجی اکسل چک‌ها آماده شد (نمونه طراحی)", Tone.Info);
 
     [RelayCommand]
-    private void NewCheque() => _toast.Show("ثبت چک جدید — مرحلهٔ بعد (Phase 24)", Tone.Info);
+    private void NewCheque() => ShowForm(null);
 
-    /// <summary>Card-click placeholder (details drawer is Phase 24).</summary>
+    /// <summary>Opens the add/edit form for <paramref name="editing"/> (null = create).</summary>
+    private void ShowForm(Cheque? editing)
+    {
+        var banks = _banks.Values.ToList();
+        var vm = new ChequeDrawerViewModel(
+            _service, _toast, _dialogs, banks, editing,
+            onSaved: () => _ = ReloadAsync());
+
+        // The reference's `.ch-modal` is a centred 720px dialog (cheques.css
+        // .ch-modal), not a side drawer — so it opens through ShowModal.
+        _dialogs.ShowModal(vm, 720);
+    }
+
+    /// <summary>Opens the details drawer for a cheque (the reference's <c>openCheque</c>).</summary>
     [RelayCommand]
-    private void Placeholder() => _toast.Show("جزئیات چک در مرحلهٔ بعد (Phase 24)", Tone.Info);
+    private void OpenDetail(string? id)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            return;
+        }
+
+        var c = _cheques.FirstOrDefault(x => x.Id == id);
+        if (c is null)
+        {
+            return;
+        }
+
+        OpenDetailFor(c);
+    }
+
+    private void OpenDetailFor(Cheque c)
+    {
+        var vm = new ChequeDetailViewModel(
+            _service, _toast, _dialogs, c, BankOf(c.BankKey),
+            onChanged: () => _ = ReloadAsync(),
+            onEdit: edit =>
+            {
+                _dialogs.Close();
+                ShowForm(edit);
+            });
+        _dialogs.ShowDrawer(vm, 480);
+    }
+
+    /// <summary>Reloads the whole screen from the service (after any mutation).</summary>
+    private async Task ReloadAsync()
+    {
+        _cheques.Clear();
+        _cheques.AddRange(await _service.GetAllAsync());
+        await RefreshAlertsAsync();
+        RenderKpis();
+        RenderAll();
+    }
 
     // ── Selection (bulk) ─────────────────────────────────────────────────
 
@@ -980,24 +1039,29 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void BulkAction(string? action)
+    private async Task BulkActionAsync(string? action)
     {
-        var message = action switch
+        var ids = _selectedIds.ToList();
+        switch (action)
         {
-            "bank" => "دسته چک انتخابی به بانک واگذار شد (نمونه طراحی)",
-            "clear" => "وصول چک‌های انتخابی ثبت شد (نمونه طراحی)",
-            "sms" => "پیامک یادآوری برای طرف‌حساب‌ها ارسال شد (نمونه طراحی)",
-            "print" => "فایل چاپ فهرست آماده شد (نمونه طراحی)",
-            _ => string.Empty,
-        };
-
-        if (message.Length > 0)
-        {
-            _toast.Show(message, Tone.Ok);
+            case "bank":
+                await _service.BulkUpdateStatusAsync(ids, ChequeStatus.AtBank);
+                _toast.Show("دسته چک انتخابی به بانک واگذار شد (نمونه طراحی)", Tone.Ok);
+                break;
+            case "clear":
+                await _service.BulkUpdateStatusAsync(ids, ChequeStatus.Cleared);
+                _toast.Show("وصول چک‌های انتخابی ثبت شد (نمونه طراحی)", Tone.Ok);
+                break;
+            case "sms":
+                _toast.Show("پیامک یادآوری برای طرف‌حساب‌ها ارسال شد (نمونه طراحی)", Tone.Ok);
+                break;
+            case "print":
+                _toast.Show("فایل چاپ فهرست آماده شد (نمونه طراحی)", Tone.Ok);
+                break;
         }
 
         _selectedIds.Clear();
-        RenderAll();
+        await ReloadAsync();
     }
 
     // ── Row menu (openRowMenu) ───────────────────────────────────────────
@@ -1029,7 +1093,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void RunRowAction(ChequeMenuActionViewModel? action)
+    private async Task RunRowActionAsync(ChequeMenuActionViewModel? action)
     {
         CloseRowMenu();
         if (action is null)
@@ -1047,10 +1111,10 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
         switch (action.ActionKey)
         {
             case "open":
-                _toast.Show("جزئیات چک در مرحلهٔ بعد (Phase 24)", Tone.Info);
+                OpenDetailFor(c);
                 return;
             case "edit":
-                _toast.Show("ویرایش — مرحلهٔ بعد (Phase 24)", Tone.Info);
+                ShowForm(c);
                 return;
             case "copy":
                 _toast.Show("شناسه صیادی کپی شد", Tone.Ok);
@@ -1062,11 +1126,10 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
                 _toast.Show($"پیامک یادآوری برای {c.Party} ارسال شد", Tone.Ok);
                 return;
             case "del":
-                _cheques.Remove(c);
+                await _service.DeleteAsync(id);
                 _selectedIds.Remove(id);
                 _toast.Show("چک حذف شد (نمونه طراحی)", Tone.Danger);
-                RenderKpis();
-                RenderAll();
+                await ReloadAsync();
                 return;
         }
 
@@ -1080,11 +1143,9 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
             _ => c.Status,
         };
 
-        var index = _cheques.IndexOf(c);
-        _cheques[index] = c with { Status = st };
+        await _service.BulkUpdateStatusAsync([id], st);
         _toast.Show($"وضعیت چک {ChequesPresentation.FaText(c.Number)} به «{ChequesPresentation.StatusLabel(st)}» تغییر کرد", Tone.Ok);
-        RenderKpis();
-        RenderAll();
+        await ReloadAsync();
     }
 }
 

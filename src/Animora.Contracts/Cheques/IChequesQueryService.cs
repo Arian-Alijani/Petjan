@@ -40,4 +40,25 @@ public interface IChequesQueryService
     /// over the whole set.
     /// </summary>
     Task<IReadOnlyList<ChequeAlert>> GetAlertsAsync();
+
+    /// <summary>
+    /// Registers a new cheque (mirrors <c>saveCheque</c>'s insert path) and
+    /// returns it. New cheques always start in the «در جریان» state.
+    /// </summary>
+    Task<Cheque> CreateAsync(NewChequeRequest request);
+
+    /// <summary>
+    /// Overwrites an existing cheque's editable fields (mirrors <c>saveCheque</c>'s
+    /// edit path). The lifecycle status is preserved.
+    /// </summary>
+    Task UpdateAsync(string chequeId, UpdateChequeRequest request);
+
+    /// <summary>Deletes a cheque (mirrors the row menu's «حذف چک»).</summary>
+    Task DeleteAsync(string chequeId);
+
+    /// <summary>
+    /// Sets the lifecycle status of every cheque in <paramref name="ids"/>
+    /// (mirrors the reference's bulk «واگذاری به بانک» / «ثبت وصول» actions).
+    /// </summary>
+    Task BulkUpdateStatusAsync(IReadOnlyList<string> ids, ChequeStatus newStatus);
 }

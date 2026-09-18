@@ -31,7 +31,7 @@ public sealed class DialogService : IDialogService
     public void ShowModal(object content, double maxWidth = 520) =>
         _modalHost?.SetContent(content, maxWidth);
 
-    public void ShowDrawer(object content) => _drawerHost?.SetContent(content);
+    public void ShowDrawer(object content, double width = 420) => _drawerHost?.SetContent(content, width);
 
     public void ShowSheet(object content, double width = 680, double height = 760) =>
         _sheetHost?.SetContent(content, width, height);

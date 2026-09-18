@@ -96,7 +96,8 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="ch:ChequeTimelineItemViewModel">
                                         <Button Classes="tl-item"
-                                                Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).PlaceholderCommand}">
+                                                Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).OpenDetailCommand}"
+                                                CommandParameter="{Binding Id}">
                                             <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="11">
                                                 <Border Grid.Column="0" Width="{Binding BankMark.Size}"
                                                         Height="{Binding BankMark.Size}"

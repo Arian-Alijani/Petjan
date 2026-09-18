@@ -188,8 +188,8 @@
                         <DataTemplate x:DataType="ch:ChequeRowViewModel">
                             <Grid>
                                 <Button Classes="ch-row"
-                                        Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).ToggleRowMenuCommand}"
-                                        CommandParameter="{Binding}">
+                                        Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).OpenDetailCommand}"
+                                        CommandParameter="{Binding Id}">
                                     <Grid ColumnDefinitions="38,1.15*,1.35*,1.35*,1*,1*,1.15*,44"
                                           Background="{StaticResource PanelBrush}">
                                         <Border Grid.ColumnSpan="8" Height="1" VerticalAlignment="Bottom"

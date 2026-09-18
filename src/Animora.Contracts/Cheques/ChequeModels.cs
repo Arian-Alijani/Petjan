@@ -134,3 +134,50 @@ public sealed record BankSummary(
 /// filter.
 /// </summary>
 public sealed record ChequeAlert(ChequeAlertKind Kind, string Title, string Detail);
+
+/// <summary>
+/// The payload the add drawer submits (mirrors <c>readForm</c>'s field set in
+/// Animora-UI/assets/cheques-ui.js). A newly registered cheque always starts in
+/// the «در جریان» state, exactly as the reference's <c>saveCheque</c> forces
+/// <c>status: 'inhand'</c> — so no status is carried here. The fields the
+/// reference fills with placeholders when empty (sayad/branch/phone/subject/
+/// reference) are optional and defaulted by the implementation.
+/// </summary>
+public sealed record NewChequeRequest(
+    ChequeDirection Direction,
+    string BankKey,
+    string Number,
+    string Sayad,
+    string Party,
+    string Role,
+    string Phone,
+    long Amount,
+    string IssueDate,
+    string DueDate,
+    string Branch,
+    string Subject,
+    string Reference,
+    string Note,
+    string Account);
+
+/// <summary>
+/// The payload the edit drawer submits (mirrors <c>readForm</c>). Unlike creation
+/// the lifecycle status is preserved: the reference's edit form never edits it
+/// (the row menu / drawer footer status buttons do).
+/// </summary>
+public sealed record UpdateChequeRequest(
+    ChequeDirection Direction,
+    string BankKey,
+    string Number,
+    string Sayad,
+    string Party,
+    string Role,
+    string Phone,
+    long Amount,
+    string IssueDate,
+    string DueDate,
+    string Branch,
+    string Subject,
+    string Reference,
+    string Note,
+    string Account);
