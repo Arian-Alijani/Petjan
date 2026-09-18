@@ -438,4 +438,16 @@
         M3,21 v-5 h5
     </StreamGeometry>
 
+    <!-- Inventory modals (Phase 18): layers (تنوع‌ها tab + variant KPIs) and
+         arrowDownLeft (history «افزایش» tile), from icons.js. -->
+    <StreamGeometry x:Key="IconLayers">
+        M12,2 L2,7 L12,12 L22,7 Z
+        M2,17 L12,22 L22,17
+        M2,12 L12,17 L22,12
+    </StreamGeometry>
+    <StreamGeometry x:Key="IconArrowDownLeft">
+        M17,7 L7,17
+        M17,17 H7 V7
+    </StreamGeometry>
+
 </ResourceDictionary>

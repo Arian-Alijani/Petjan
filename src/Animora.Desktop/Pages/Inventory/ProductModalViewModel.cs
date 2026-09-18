@@ -1,0 +1,557 @@
+using System.Collections.ObjectModel;
+using Animora.Contracts.Inventory;
+using Animora.Desktop.Controls;
+using Animora.Desktop.Localization;
+using Animora.Desktop.Services;
+using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace Animora.Desktop.Pages.Inventory;
+
+/// <summary>
+/// Backs the Inventory product detail/edit modal (Animora-UI/assets/inventory.js
+/// <c>openProductModal</c>/<c>renderProductModal</c>): the toned header
+/// (thumbnail, «category · code» eyebrow, name, «brand · description» sub), the
+/// Info|Variants|History tab strip (mirroring <c>renderInfoTab</c>/
+/// <c>renderVariantsTab</c>/<c>renderHistoryTab</c>) and the footer actions
+/// (ذخیره تغییرات / انصراف / حذف کالا). All data flows through
+/// <see cref="IInventoryQueryService"/> (R-18).
+/// </summary>
+public sealed partial class ProductModalViewModel : ObservableObject
+{
+    private readonly IInventoryQueryService _service;
+    private readonly IToastService _toast;
+    private readonly IDialogService _dialogs;
+    private readonly Action? _onChanged;
+
+    private Product _product = null!;
+    private UnitInfo? _attribute;
+    private readonly List<StockMovement> _movements = [];
+    private readonly List<InventoryHistoryItemViewModel> _allHistory = [];
+
+    public ProductModalViewModel(
+        IInventoryQueryService service,
+        IToastService toast,
+        IDialogService dialogs,
+        string productId,
+        Action? onChanged = null)
+    {
+        _service = service;
+        _toast = toast;
+        _dialogs = dialogs;
+        _onChanged = onChanged;
+        _ = LoadAsync(productId);
+    }
+
+    // ── header ──────────────────────────────────────────────────────────────
+    [ObservableProperty] private string _categoryLabel = string.Empty;
+    [ObservableProperty] private string _code = string.Empty;
+    [ObservableProperty] private string _brand = string.Empty;
+    [ObservableProperty] private string _description = string.Empty;
+    [ObservableProperty] private string _glyph = "📦";
+    [ObservableProperty] private IBrush _thumbBrush = InventoryPresentation.ThumbBrush("a");
+
+    [ObservableProperty] private string _name = string.Empty;
+
+    /// <summary>The header sub-line: «brand · description» (reference <c>p.brand + ' · ' + p.description</c>).</summary>
+    public string SubLine => string.IsNullOrWhiteSpace(Description) ? Brand : $"{Brand} · {Description}";
+
+    /// <summary>The eyebrow line: «category · code» (reference <c>${cat.label} · ${p.code}</c>).</summary>
+    public string EyebrowLine => $"{CategoryLabel} · {Code}";
+
+    partial void OnBrandChanged(string value) => OnPropertyChanged(nameof(SubLine));
+    partial void OnDescriptionChanged(string value) => OnPropertyChanged(nameof(SubLine));
+    partial void OnCategoryLabelChanged(string value) => OnPropertyChanged(nameof(EyebrowLine));
+    partial void OnCodeChanged(string value) => OnPropertyChanged(nameof(EyebrowLine));
+
+    // ── tab strip ───────────────────────────────────────────────────────────
+    [ObservableProperty] private string _activeTab = "info";
+
+    public bool IsInfoTab => ActiveTab == "info";
+    public bool IsVariantsTab => ActiveTab == "variants";
+    public bool IsHistoryTab => ActiveTab == "history";
+
+    partial void OnActiveTabChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsInfoTab));
+        OnPropertyChanged(nameof(IsVariantsTab));
+        OnPropertyChanged(nameof(IsHistoryTab));
+    }
+
+    [RelayCommand]
+    private void SetTab(string? key)
+    {
+        if (!string.IsNullOrEmpty(key))
+        {
+            ActiveTab = key;
+        }
+    }
+
+    /// <summary>«افزودن تنوع» jump from the single-unit hint (reference <c>data-mtab-jump</c>).</summary>
+    [RelayCommand]
+    private void JumpToVariants() => ActiveTab = "variants";
+
+    // ── Info tab: KPIs + base fields + single-unit price/stock ───────────────
+    [ObservableProperty] private string _totalStockText = "۰";
+    [ObservableProperty] private string _totalValueText = "۰";
+    [ObservableProperty] private string _unitCountText = "۱";
+    [ObservableProperty] private string _unitCountLabel = "تک واحد";
+
+    public ObservableCollection<CategoryOptionViewModel> CategoryOptions { get; } = [];
+
+    [ObservableProperty] private CategoryOptionViewModel? _selectedCategory;
+
+    /// <summary>A product is "multi-variant" when it carries an attribute or more than one variant.</summary>
+    public bool HasVariants => _attribute is not null || _variantCards.Count > 1;
+    public bool IsSingleUnit => !HasVariants;
+
+    public bool ShowSingleBlock => IsSingleUnit;
+
+    [ObservableProperty] private string _singleStockText = "۰";
+    [ObservableProperty] private string _singleReorderText = "۰";
+    [ObservableProperty] private string _singleCostText = "۰";
+    [ObservableProperty] private string _singlePriceText = "۰";
+    [ObservableProperty] private string _singleExpiryText = string.Empty;
+
+    [RelayCommand]
+    private void DecrementSingle()
+    {
+        var stock = Math.Max(0, ParseSingleStock() - 1);
+        SingleStockText = PersianNumberFormatter.ToPersianDigits(stock);
+    }
+
+    [RelayCommand]
+    private void IncrementSingle()
+    {
+        var stock = ParseSingleStock() + 1;
+        SingleStockText = PersianNumberFormatter.ToPersianDigits(stock);
+    }
+
+    private int ParseSingleStock() =>
+        int.TryParse(PersianNumberFormatter.ToAsciiDigits(SingleStockText), out var v) ? v : 0;
+
+    // ── Variants tab ────────────────────────────────────────────────────────
+    private readonly ObservableCollection<InventoryVariantCardViewModel> _variantCards = [];
+    public ObservableCollection<InventoryVariantCardViewModel> VariantCards => _variantCards;
+
+    public ObservableCollection<InventoryOptionChipViewModel> AttributeOptions { get; } = [];
+
+    [ObservableProperty] private string _newAttributeName = string.Empty;
+    [ObservableProperty] private string _newOptionText = string.Empty;
+
+    public bool HasAttribute => _attribute is not null;
+    public bool ShowVariantIntro => !HasAttribute && _variantCards.Count <= 1;
+    public bool ShowVariantBuilder => HasAttribute;
+
+    /// <summary>«گزینه‌ها (N)» label count.</summary>
+    public string AttributeOptionsCount =>
+        $"({PersianNumberFormatter.ToPersianDigits(AttributeOptions.Count)})";
+
+    /// <summary>«تنوع‌ها (N)» heading count.</summary>
+    public string VariantCountHeading =>
+        $"({PersianNumberFormatter.ToPersianDigits(_variantCards.Count)})";
+
+    public ObservableCollection<string> QuickAttributeSuggestions { get; } =
+        new(["وزن", "حجم", "سایز", "دوز"]);
+
+    [RelayCommand]
+    private void EnableAttribute(string? name)
+    {
+        var nm = string.IsNullOrWhiteSpace(name) ? "ویژگی" : name.Trim();
+        _attribute = new UnitInfo(nm, []);
+        NewAttributeName = nm;
+        SyncVariantsToOptions();
+        RaiseVariantState();
+    }
+
+    [RelayCommand]
+    private void DisableAttribute()
+    {
+        _attribute = null;
+        if (_variantCards.Count > 1)
+        {
+            var keep = _variantCards[0];
+            _variantCards.Clear();
+            _variantCards.Add(keep);
+        }
+
+        if (_variantCards.Count == 0)
+        {
+            AddCard(new ProductVariant(
+                "v_" + Guid.NewGuid().ToString("N")[..6], "تک واحد", Code, 0, 5, 0, 0, null));
+        }
+        else if (string.IsNullOrWhiteSpace(_variantCards[0].Label))
+        {
+            _variantCards[0].Label = "تک واحد";
+        }
+
+        RebuildAttributeOptions();
+        RaiseVariantState();
+    }
+
+    partial void OnNewAttributeNameChanged(string value)
+    {
+        if (_attribute is not null)
+        {
+            _attribute = _attribute with { Name = value };
+        }
+    }
+
+    [RelayCommand]
+    private void AddOption()
+    {
+        if (_attribute is null)
+        {
+            return;
+        }
+
+        var value = NewOptionText.Trim();
+        NewOptionText = string.Empty;
+        if (value.Length == 0)
+        {
+            return;
+        }
+
+        var options = _attribute.Options.ToList();
+        if (!options.Contains(value))
+        {
+            options.Add(value);
+            _attribute = _attribute with { Options = options };
+            SyncVariantsToOptions();
+            RaiseVariantState();
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveOption(InventoryOptionChipViewModel? chip)
+    {
+        if (chip is null || _attribute is null)
+        {
+            return;
+        }
+
+        _attribute = _attribute with { Options = _attribute.Options.Where(o => o != chip.Label).ToList() };
+        SyncVariantsToOptions();
+        RaiseVariantState();
+    }
+
+    [RelayCommand]
+    private void AddManualVariant()
+    {
+        var variant = MakeVariant("تنوع جدید", _variantCards.Count);
+        AddCard(variant);
+        if (_attribute is not null && !_attribute.Options.Contains(variant.Label))
+        {
+            _attribute = _attribute with { Options = _attribute.Options.Append(variant.Label).ToList() };
+            RebuildAttributeOptions();
+        }
+
+        RaiseVariantState();
+    }
+
+    [RelayCommand]
+    private void DeleteVariant(InventoryVariantCardViewModel? card)
+    {
+        if (card is null)
+        {
+            return;
+        }
+
+        if (_variantCards.Count <= 1)
+        {
+            _toast.Show("حداقل یک تنوع لازم است", Tone.Warn);
+            return;
+        }
+
+        _variantCards.Remove(card);
+        if (_attribute is not null)
+        {
+            _attribute = _attribute with { Options = _attribute.Options.Where(o => o != card.Label).ToList() };
+            RebuildAttributeOptions();
+        }
+
+        RaiseVariantState();
+    }
+
+    // Keep existing variants whose label matches an option; create new ones for the rest.
+    private void SyncVariantsToOptions()
+    {
+        if (_attribute is null)
+        {
+            return;
+        }
+
+        var byLabel = _variantCards.ToDictionary(v => v.Label, v => v);
+        var rebuilt = new List<InventoryVariantCardViewModel>();
+        var index = 0;
+        foreach (var option in _attribute.Options)
+        {
+            rebuilt.Add(byLabel.TryGetValue(option, out var existing)
+                ? existing
+                : MakeCard(MakeVariant(option, index)));
+            index++;
+        }
+
+        if (rebuilt.Count == 0)
+        {
+            rebuilt.Add(MakeCard(MakeVariant(_attribute.Name.Length > 0 ? _attribute.Name : "تنوع ۱", 0)));
+        }
+
+        _variantCards.Clear();
+        foreach (var card in rebuilt)
+        {
+            _variantCards.Add(card);
+        }
+    }
+
+    private void RebuildAttributeOptions()
+    {
+        AttributeOptions.Clear();
+        foreach (var option in _attribute?.Options ?? [])
+        {
+            AttributeOptions.Add(new InventoryOptionChipViewModel(option));
+        }
+
+        OnPropertyChanged(nameof(AttributeOptionsCount));
+    }
+
+    private ProductVariant MakeVariant(string label, int index) => new(
+        "v_" + Guid.NewGuid().ToString("N")[..6],
+        label,
+        $"{Code}-{(index + 1).ToString().PadLeft(2, '0')}",
+        0, 5, 0, 0, null);
+
+    private InventoryVariantCardViewModel MakeCard(ProductVariant variant)
+    {
+        var card = new InventoryVariantCardViewModel(variant, RaiseVariantState);
+        return card;
+    }
+
+    private void AddCard(ProductVariant variant) => _variantCards.Add(MakeCard(variant));
+
+    private void RaiseVariantState()
+    {
+        OnPropertyChanged(nameof(HasVariants));
+        OnPropertyChanged(nameof(IsSingleUnit));
+        OnPropertyChanged(nameof(ShowSingleBlock));
+        OnPropertyChanged(nameof(ShowVariantIntro));
+        OnPropertyChanged(nameof(ShowVariantBuilder));
+        OnPropertyChanged(nameof(VariantCountHeading));
+    }
+
+    // ── History tab ─────────────────────────────────────────────────────────
+    public ObservableCollection<InventoryHistoryItemViewModel> HistoryItems { get; } = [];
+
+    [ObservableProperty] private string _activeHistoryFilter = "all";
+
+    [ObservableProperty] private string _historyTotalInText = "+۰";
+    [ObservableProperty] private string _historyTotalOutText = "−۰";
+    [ObservableProperty] private string _historyAdjustCountText = "۰";
+
+    [ObservableProperty] private bool _hasHistory;
+
+    public bool HistoryFilterAll => ActiveHistoryFilter == "all";
+    public bool HistoryFilterIn => ActiveHistoryFilter == "in";
+    public bool HistoryFilterOut => ActiveHistoryFilter == "out";
+    public bool HistoryFilterAdjust => ActiveHistoryFilter == "adjust";
+
+    partial void OnActiveHistoryFilterChanged(string value)
+    {
+        OnPropertyChanged(nameof(HistoryFilterAll));
+        OnPropertyChanged(nameof(HistoryFilterIn));
+        OnPropertyChanged(nameof(HistoryFilterOut));
+        OnPropertyChanged(nameof(HistoryFilterAdjust));
+        ApplyHistoryFilter();
+    }
+
+    [RelayCommand]
+    private void SetHistoryFilter(string? key)
+    {
+        if (!string.IsNullOrEmpty(key))
+        {
+            ActiveHistoryFilter = key;
+        }
+    }
+
+    private void ApplyHistoryFilter()
+    {
+        HistoryItems.Clear();
+        foreach (var item in _allHistory)
+        {
+            if (ActiveHistoryFilter == "all" || item.Kind == ActiveHistoryFilter)
+            {
+                HistoryItems.Add(item);
+            }
+        }
+
+        HasHistory = HistoryItems.Count > 0;
+    }
+
+    // ── load / save / delete ────────────────────────────────────────────────
+    private async Task LoadAsync(string productId)
+    {
+        var detail = await _service.GetDetailAsync(productId);
+        if (detail is null)
+        {
+            _dialogs.Close();
+            return;
+        }
+
+        _product = detail.Product;
+        _attribute = _product.Attribute;
+        _movements.Clear();
+        _movements.AddRange(detail.Movements);
+
+        foreach (var category in await _service.GetCategoriesAsync())
+        {
+            CategoryOptions.Add(new CategoryOptionViewModel(category));
+        }
+
+        // header
+        CategoryLabel = CategoryOptions.FirstOrDefault(c => c.Id == _product.CategoryId)?.Label ?? string.Empty;
+        Code = _product.Code;
+        Name = _product.Name;
+        Brand = _product.Brand;
+        Description = _product.Description;
+        Glyph = _product.Glyph;
+        ThumbBrush = InventoryPresentation.ThumbBrush(_product.Tone);
+        SelectedCategory = CategoryOptions.FirstOrDefault(c => c.Id == _product.CategoryId);
+
+        // variant cards
+        _variantCards.Clear();
+        foreach (var variant in _product.Variants)
+        {
+            AddCard(variant);
+        }
+
+        NewAttributeName = _attribute?.Name ?? string.Empty;
+        RebuildAttributeOptions();
+
+        // single-unit block
+        var single = IsSingleUnit ? _variantCards.FirstOrDefault() : null;
+        if (single is not null)
+        {
+            SingleStockText = single.StockText;
+            SingleReorderText = single.ReorderText;
+            SingleCostText = single.CostText;
+            SinglePriceText = single.PriceText;
+            SingleExpiryText = single.ExpiryText;
+        }
+
+        RebuildKpis();
+        BuildHistory();
+        RaiseVariantState();
+    }
+
+    private void RebuildKpis()
+    {
+        var variants = CurrentVariants();
+        var stock = variants.Sum(v => v.Stock);
+        var value = variants.Sum(v => v.Stock * v.Cost);
+
+        TotalStockText = InventoryPresentation.Money(stock);
+        TotalValueText = $"{InventoryPresentation.Money(value)} ت";
+        UnitCountText = PersianNumberFormatter.ToPersianDigits(HasVariants ? variants.Count : 1);
+        UnitCountLabel = HasVariants ? "تنوع فعال" : "تک واحد";
+    }
+
+    private void BuildHistory()
+    {
+        _allHistory.Clear();
+        var variantLabels = _product.Variants.ToDictionary(v => v.Id, v => v.Label);
+        foreach (var movement in _movements)
+        {
+            var label = movement.VariantId is not null && variantLabels.TryGetValue(movement.VariantId, out var l)
+                ? l
+                : string.Empty;
+            _allHistory.Add(new InventoryHistoryItemViewModel(movement, label));
+        }
+
+        var totalIn = _movements.Where(m => m.Kind == "in").Sum(m => m.Qty);
+        var totalOut = _movements.Where(m => m.Kind == "out").Sum(m => m.Qty);
+        var adjustCount = _movements.Count(m => m.Kind == "adjust");
+        HistoryTotalInText = "+" + InventoryPresentation.Money(totalIn);
+        HistoryTotalOutText = "−" + InventoryPresentation.Money(totalOut);
+        HistoryAdjustCountText = PersianNumberFormatter.ToPersianDigits(adjustCount);
+
+        ApplyHistoryFilter();
+    }
+
+    /// <summary>The edited variants projected from the current fields (single block on a single product).</summary>
+    private List<ProductVariant> CurrentVariants()
+    {
+        if (IsSingleUnit)
+        {
+            var card = _variantCards.FirstOrDefault();
+            var id = card?.Id ?? "v_" + Guid.NewGuid().ToString("N")[..6];
+            var label = string.IsNullOrWhiteSpace(card?.Label) ? "تک واحد" : card!.Label;
+            var sku = card?.Sku ?? Code;
+            return
+            [
+                new ProductVariant(
+                    id, label, sku,
+                    ParseSingleStock(),
+                    ParseInt(SingleReorderText),
+                    ParseLong(SingleCostText),
+                    ParseLong(SinglePriceText),
+                    string.IsNullOrWhiteSpace(SingleExpiryText) ? null : SingleExpiryText.Trim()),
+            ];
+        }
+
+        return _variantCards.Select(v => v.ToVariant()).ToList();
+    }
+
+    private static int ParseInt(string text) =>
+        int.TryParse(PersianNumberFormatter.ToAsciiDigits(text), out var v) ? v : 0;
+
+    private static long ParseLong(string text) =>
+        long.TryParse(PersianNumberFormatter.ToAsciiDigits(text), out var v) ? v : 0;
+
+    [RelayCommand]
+    private async Task SaveAsync()
+    {
+        var update = new ProductInfoUpdate(
+            Name.Trim(),
+            Code.Trim(),
+            Brand.Trim(),
+            SelectedCategory?.Id ?? _product.CategoryId,
+            string.IsNullOrWhiteSpace(Glyph) ? "📦" : Glyph.Trim(),
+            Description.Trim(),
+            HasAttribute ? _attribute?.Name : null,
+            CurrentVariants());
+
+        await _service.SaveProductInfoAsync(_product.Id, update);
+        _dialogs.Close();
+        _toast.Show("تغییرات ذخیره شد (نمونه طراحی)");
+        _onChanged?.Invoke();
+    }
+
+    [RelayCommand]
+    private async Task DeleteAsync()
+    {
+        await _service.DeleteProductAsync(_product.Id);
+        _dialogs.Close();
+        _toast.Show("کالا حذف شد (نمونه طراحی)");
+        _onChanged?.Invoke();
+    }
+
+    [RelayCommand]
+    private void Cancel() => _dialogs.Close();
+}
+
+/// <summary>
+/// One option of the product modal's category dropdown, mirroring the reference's
+/// <c>&lt;option&gt;${c.label}&lt;/option&gt;</c> list (inventory.js renderInfoTab).
+/// </summary>
+public sealed class CategoryOptionViewModel
+{
+    public CategoryOptionViewModel(CategoryInfo category)
+    {
+        Id = category.Id;
+        Label = category.Label;
+    }
+
+    public string Id { get; }
+    public string Label { get; }
+}

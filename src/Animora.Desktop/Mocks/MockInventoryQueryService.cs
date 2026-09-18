@@ -3,14 +3,16 @@ using Animora.Contracts.Inventory;
 namespace Animora.Desktop.Mocks;
 
 /// <summary>
-/// Deterministic in-memory implementation of <see cref="IInventoryQueryService"/>.
-/// The catalog is re-derived from what the reference screen visually needs
-/// (Animora-UI/assets/inventory-data.js <c>CATS</c>/<c>PRODUCTS</c>) so the
-/// rebuilt product table renders the same rows, category tags, variant chips,
-/// stock bars and Persian text — six categories and eight products, each with
-/// one to four variants. Category/variant figures are the source of truth;
-/// every derived total (stock, price range, status) is computed here, never
-/// stored twice. This is the single swap point a future backend replaces
+/// Deterministic, stateful in-memory implementation of
+/// <see cref="IInventoryQueryService"/>. The catalog is re-derived from what the
+/// reference screen visually needs (Animora-UI/assets/inventory-data.js
+/// <c>CATS</c>/<c>PRODUCTS</c>/<c>MOVES</c>) so the rebuilt product table and the
+/// product / new-product / stock-adjust modals render the same rows, category
+/// tags, variant chips, stock bars, history ledger and Persian text — six
+/// categories, eight products each with one to four variants, and the
+/// reference's per-product movement ledger. Category/variant figures are the
+/// source of truth; every derived total (stock, value, status) is computed here,
+/// never stored twice. This is the single swap point a future backend replaces
 /// (R-18) — no ViewModel or View change is required to do so.
 /// </summary>
 public sealed class MockInventoryQueryService : IInventoryQueryService
@@ -26,7 +28,8 @@ public sealed class MockInventoryQueryService : IInventoryQueryService
         new("care", "بهداشتی", "green", "IconBath"),
     ];
 
-    private static readonly IReadOnlyList<Product> Products =
+    // Reference PRODUCTS (inventory-data.js) — the live, mutable store.
+    private readonly List<Product> _products =
     [
         new Product(
             "p1", "AN-1082", "قرص ضد انگل دورامکتین", "BioVet", "med",
@@ -114,7 +117,188 @@ public sealed class MockInventoryQueryService : IInventoryQueryService
             ]),
     ];
 
-    public Task<IReadOnlyList<Product>> GetProductsAsync() => Task.FromResult(Products);
+    // Reference MOVES (inventory-data.js) — seeded ledger, newest first.
+    private readonly List<StockMovement> _moves =
+    [
+        new("m1", "p1", "v1b", "in", 20, "خرید PO-14052001", "انبار مرکزی", "۱۴۰۵/۰۸/۰۲", "۰۹:۱۲", null),
+        new("m2", "p1", "v1a", "out", 3, "فروش صندوق INV-1058", "صندوق‌دار", "۱۴۰۵/۰۸/۰۵", "۱۱:۴۰", null),
+        new("m3", "p1", "v1a", "out", 2, "مصرف در ویزیت #۲۲۰۴", "دکتر مرادی", "۱۴۰۵/۰۸/۰۷", "۱۶:۰۵", null),
+        new("m4", "p1", "v1b", "adjust", -4, "اصلاح شمارش انبار", "مدیر انبار", "۱۴۰۵/۰۸/۱۰", "۱۸:۳۰", "مغایرت در انبارگردانی"),
+        new("m5", "p1", "v1c", "in", 12, "خرید PO-14052033", "انبار مرکزی", "۱۴۰۵/۰۸/۱۴", "۱۰:۲۰", null),
+        new("m6", "p2", "v2b", "in", 30, "خرید PO-14052008", "انبار مرکزی", "۱۴۰۵/۰۸/۰۹", "۱۳:۱۵", null),
+        new("m7", "p2", "v2a", "out", 6, "فروش صندوق INV-1071", "صندوق‌دار", "۱۴۰۵/۰۸/۱۱", "۰۹:۵۰", null),
+        new("m8", "p2", "v2d", "out", 1, "فروش صندوق INV-1080", "صندوق‌دار", "۱۴۰۵/۰۸/۱۲", "۱۷:۲۵", null),
+        new("m9", "p3", "v3a", "in", 15, "خرید PO-14052001", "انبار مرکزی", "۱۴۰۵/۰۸/۰۲", "۰۹:۱۲", null),
+        new("m10", "p3", "v3a", "out", 8, "واکسیناسیون گروهی", "دکتر رحیمی", "۱۴۰۵/۰۸/۰۶", "۱۴:۰۰", null),
+        new("m11", "p3", "v3a", "out", 3, "مصرف در ویزیت #۲۲۳۰", "دکتر مرادی", "۱۴۰۵/۰۸/۱۳", "۱۰:۳۰", null),
+        new("m12", "p5", "v5b", "in", 10, "خرید PO-14052001", "انبار مرکزی", "۱۴۰۵/۰۸/۰۲", "۰۹:۱۲", null),
+        new("m13", "p5", "v5a", "out", 4, "فروش صندوق INV-1065", "صندوق‌دار", "۱۴۰۵/۰۸/۰۸", "۱۲:۱۰", null),
+        new("m14", "p7", "v7a", "in", 500, "خرید PO-14052012", "انبار مرکزی", "۱۴۰۵/۰۸/۱۳", "۰۸:۳۰", null),
+        new("m15", "p7", "v7c", "in", 200, "خرید PO-14052012", "انبار مرکزی", "۱۴۰۵/۰۸/۱۳", "۰۸:۳۰", null),
+        new("m16", "p7", "v7a", "out", 40, "مصرف درمانگاه", "پرستار", "۱۴۰۵/۰۸/۱۵", "۱۹:۰۰", null),
+        new("m17", "p8", "v8a", "in", 20, "خرید PO-14052015", "انبار مرکزی", "۱۴۰۵/۰۸/۱۶", "۱۱:۰۰", null),
+        new("m18", "p8", "v8a", "out", 5, "فروش صندوق INV-1090", "صندوق‌دار", "۱۴۰۵/۰۸/۱۸", "۱۵:۴۵", null),
+    ];
 
-    public Task<IReadOnlyList<CategoryInfo>> GetCategoriesAsync() => Task.FromResult<IReadOnlyList<CategoryInfo>>(Categories);
+    // Reference tones cycle for a freshly-created product (inventory.js tones[]).
+    private static readonly string[] Tones = ["a", "b", "c", "d", "e", "f"];
+
+    public Task<IReadOnlyList<Product>> GetProductsAsync() =>
+        Task.FromResult<IReadOnlyList<Product>>(_products.ToList());
+
+    public Task<IReadOnlyList<CategoryInfo>> GetCategoriesAsync() =>
+        Task.FromResult<IReadOnlyList<CategoryInfo>>(Categories);
+
+    public Task<ProductDetail?> GetDetailAsync(string productId)
+    {
+        var product = _products.FirstOrDefault(p => p.Id == productId);
+        if (product is null)
+        {
+            return Task.FromResult<ProductDetail?>(null);
+        }
+
+        var movements = _moves.Where(m => m.ProductId == productId).ToList();
+        return Task.FromResult<ProductDetail?>(new ProductDetail(product, movements));
+    }
+
+    public Task SaveProductInfoAsync(string productId, ProductInfoUpdate update)
+    {
+        var index = _products.FindIndex(p => p.Id == productId);
+        if (index < 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        var existing = _products[index];
+        var attribute = string.IsNullOrWhiteSpace(update.AttributeName)
+            ? null
+            : new UnitInfo(update.AttributeName!, update.Variants.Select(v => v.Label).ToList());
+
+        _products[index] = existing with
+        {
+            Name = update.Name,
+            Code = update.Code,
+            Brand = update.Brand,
+            CategoryId = update.CategoryId,
+            Glyph = update.Glyph,
+            Description = update.Description,
+            Attribute = attribute,
+            Variants = update.Variants.ToList(),
+        };
+
+        return Task.CompletedTask;
+    }
+
+    public Task<ProductVariant> AddVariantAsync(string productId, NewVariantRequest request)
+    {
+        var index = _products.FindIndex(p => p.Id == productId);
+        if (index < 0)
+        {
+            return Task.FromResult(new ProductVariant(
+                "v_" + Guid.NewGuid().ToString("N")[..6], request.Label, request.Label, 0, 5, 0, 0, null));
+        }
+
+        var product = _products[index];
+        var variant = MakeVariant(product, request.Label, product.Variants.Count);
+        var variants = product.Variants.ToList();
+        variants.Add(variant);
+
+        var attribute = product.Attribute;
+        if (attribute is not null && !attribute.Options.Contains(request.Label))
+        {
+            var options = attribute.Options.ToList();
+            options.Add(request.Label);
+            attribute = attribute with { Options = options };
+        }
+
+        _products[index] = product with { Variants = variants, Attribute = attribute };
+        return Task.FromResult(variant);
+    }
+
+    public Task<IReadOnlyList<StockMovement>> GetHistoryAsync(string productId) =>
+        Task.FromResult<IReadOnlyList<StockMovement>>(
+            _moves.Where(m => m.ProductId == productId).ToList());
+
+    public Task<Product> CreateProductAsync(NewProductRequest request)
+    {
+        var id = "p_" + Guid.NewGuid().ToString("N")[..5];
+        var code = string.IsNullOrWhiteSpace(request.Code) ? GenerateCode() : request.Code.Trim();
+
+        UnitInfo? attribute = null;
+        var variants = request.Variants.ToList();
+
+        if (!string.IsNullOrWhiteSpace(request.AttributeName))
+        {
+            var options = request.AttributeOptions.Count > 0 ? request.AttributeOptions : ["گزینه ۱"];
+            attribute = new UnitInfo(request.AttributeName!, options);
+            var seed = new Product(id, code, request.Name, request.Brand, request.CategoryId,
+                request.Glyph, "a", request.Description, null, []);
+            variants = options.Select((o, i) => MakeVariant(seed, o, i)).ToList();
+        }
+
+        var product = new Product(
+            id, code, request.Name,
+            string.IsNullOrWhiteSpace(request.Brand) ? "—" : request.Brand,
+            request.CategoryId,
+            string.IsNullOrWhiteSpace(request.Glyph) ? "📦" : request.Glyph,
+            Tones[_products.Count % Tones.Length],
+            request.Description,
+            attribute,
+            variants);
+
+        _products.Insert(0, product);
+        return Task.FromResult(product);
+    }
+
+    public Task DeleteProductAsync(string productId)
+    {
+        _products.RemoveAll(p => p.Id == productId);
+        _moves.RemoveAll(m => m.ProductId == productId);
+        return Task.CompletedTask;
+    }
+
+    public Task AdjustStockAsync(string productId, string variantId, StockAdjustRequest request)
+    {
+        var index = _products.FindIndex(p => p.Id == productId);
+        if (index < 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        var product = _products[index];
+        var vIndex = product.Variants.ToList().FindIndex(v => v.Id == variantId);
+        if (vIndex < 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        var variants = product.Variants.ToList();
+        var variant = variants[vIndex];
+        var stock = Math.Max(0, request.Stock);
+        var delta = stock - variant.Stock;
+
+        variants[vIndex] = variant with { Stock = stock };
+        _products[index] = product with { Variants = variants };
+
+        if (delta != 0)
+        {
+            _moves.Insert(0, new StockMovement(
+                "m_" + Guid.NewGuid().ToString("N")[..6],
+                productId, variantId, "adjust", delta,
+                "اصلاح موجودی دستی", "شما", "۱۴۰۵/۰۸/۲۰", "—",
+                "ثبت از طریق «تغییر موجودی»"));
+        }
+
+        return Task.CompletedTask;
+    }
+
+    // Reference makeVariant(p, label, idx): SKU derives from the product code.
+    private static ProductVariant MakeVariant(Product product, string label, int index) =>
+        new(
+            "v_" + Guid.NewGuid().ToString("N")[..6],
+            label,
+            $"{product.Code}-{(index + 1).ToString().PadLeft(2, '0')}",
+            0, 5, 0, 0, null);
+
+    private static string GenerateCode() => "NP-" + Random.Shared.Next(1000, 10_000);
 }

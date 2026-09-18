@@ -1,0 +1,131 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inv="using:Animora.Desktop.Pages.Inventory"
+             x:Class="Animora.Desktop.Pages.Inventory.StockAdjustModalView"
+             x:Name="Root"
+             x:DataType="inv:StockAdjustModalViewModel"
+             Width="480"
+             MaxWidth="480"
+             MaxHeight="720"
+             FlowDirection="RightToLeft">
+
+    <!-- Stock-adjust modal — re-draws Animora-UI/assets/inventory.js
+         openStockAdjustModal/renderStockAdjustModal (.inv-modal). Values from
+         inventory.css (.inv-modal-head/.adjust-list/.adjust-row/.qty-stepper) +
+         styles.css (.btn). -->
+    <UserControl.Styles>
+        <Style Selector="Border.stepper">
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        </Style>
+        <Style Selector="Button.step">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Button.step:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="TextBox.step-in">
+            <Setter Property="Width" Value="64" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="4,0" />
+            <Setter Property="BorderThickness" Value="1,0,1,0" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- ═══ header ═══ -->
+        <Border Grid.Row="0" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1"
+                Padding="22,20,22,16">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Color="#ffffff" Offset="0" />
+                    <GradientStop Color="#fafcfb" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                <Border Grid.Column="0" Width="50" Height="50" CornerRadius="12" Background="{Binding ThumbBrush}">
+                    <TextBlock Text="{Binding Glyph}" FontSize="24" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding EyebrowLine}" FontSize="11" FontWeight="Bold"
+                               Foreground="{StaticResource Brand600Brush}" LetterSpacing="1" Margin="0,0,0,4" />
+                    <TextBlock Text="تغییر موجودی" FontSize="18" FontWeight="ExtraBold"
+                               LetterSpacing="-0.3" Foreground="{StaticResource InkBrush}" />
+                    <TextBlock Text="{Binding ProductName}" FontSize="12.5" Margin="0,4,0,0"
+                               Foreground="{StaticResource MutedBrush}" />
+                </StackPanel>
+                <Button Grid.Column="2" Width="36" Height="36" Padding="0" CornerRadius="10"
+                        Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                        BorderThickness="1" VerticalAlignment="Top" Command="{Binding CancelCommand}"
+                        ToolTip.Tip="بستن">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                          Data="{StaticResource IconX}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- ═══ body (.adjust-list) ═══ -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="22,18,22,18" Spacing="10">
+                <ItemsControl ItemsSource="{Binding Rows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="inv:InventoryAdjustRowViewModel">
+                            <Border Background="{Binding RowBackground}" BorderBrush="{Binding RowBorder}"
+                                    BorderThickness="1" CornerRadius="14" Padding="14,12">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Label}" FontSize="14" FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="{Binding SubText}" FontSize="11" Margin="0,3,0,0"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Classes="stepper" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Classes="step" Content="−" Command="{Binding DecrementCommand}" />
+                                            <TextBox Classes="step-in" Text="{Binding StockText}" />
+                                            <Button Classes="step" Content="+" Command="{Binding IncrementCommand}" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ═══ footer ═══ -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                Padding="22,14" Background="{StaticResource PanelBrush}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="primary" Command="{Binding SaveCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                              Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                        <TextBlock Text="ثبت موجودی" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="ghost" Content="انصراف" Command="{Binding CancelCommand}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
