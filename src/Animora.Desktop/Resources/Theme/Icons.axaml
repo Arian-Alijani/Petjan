@@ -420,6 +420,12 @@
         M15.09,14 c.18,-.98 .65,-1.74 1.41,-2.5 A4.65,4.65 0 0 0 18,8 A6,6 0 0 0 6,8 c0,1 .23,2.23 1.5,3.5 A4.61,4.61 0 0 1 8.91,14
     </StreamGeometry>
 
+    <!-- Cashier (Phase 22): bank from icons.js — the «جریان نقدی روز» stat tile. -->
+    <StreamGeometry x:Key="IconBank">
+        M12,2 L22,8 L2,8 Z
+        M4,8 v10 M20,8 v10 M8,8 v10 M16,8 v10 M2,22 h20
+    </StreamGeometry>
+
     <!-- Inventory (Phase 17): bone/bath/refresh from icons.js — the category
          glyphs «پت‌شاپ»/«غذا»/«بهداشتی» and the row «تغییر موجودی» action. -->
     <StreamGeometry x:Key="IconBone">

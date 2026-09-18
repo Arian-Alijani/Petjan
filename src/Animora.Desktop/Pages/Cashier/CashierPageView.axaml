@@ -1,0 +1,881 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cash="using:Animora.Desktop.Pages.Cashier"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Cashier.CashierPageView"
+             x:Name="Root"
+             x:DataType="cash:CashierPageViewModel"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <!-- .stat: white card, hairline border, radius 16, 18 padding, the
+             brand-50 decorative circle ::after. -->
+        <Style Selector="Border.cs-stat">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="18" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+        <!-- .stat-icon: 38x38 tile, radius 12. -->
+        <Style Selector="Border.cs-stat-icon">
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+        </Style>
+        <!-- .stat-value: 26px / 800 / -.4px; .stat-label 12px muted. -->
+        <Style Selector="TextBlock.cs-stat-value">
+            <Setter Property="FontSize" Value="26" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.cs-stat-label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <!-- .stat-delta: 11px / 700, bg-2 pill, 3/8 padding, radius 10. -->
+        <Style Selector="Border.cs-stat-delta">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="8,3" />
+        </Style>
+        <Style Selector="TextBlock.cs-stat-delta">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+
+        <!-- .cs-tabs: inline-flex, 4 gap/padding, bg-2, radius 10. -->
+        <Style Selector="Border.cs-tabs">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="4" />
+        </Style>
+        <!-- .cs-tabs button: 12px/700 ink-2, 7/12 padding, radius 8. -->
+        <Style Selector="Button.cs-tab">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="Button.cs-tab:pointerover">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <!-- .cs-tabs button.on: white pill + soft shadow + brand-700. -->
+        <Style Selector="Button.cs-tab.on">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.cs-tab.on /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowChip}" />
+        </Style>
+        <!-- .cs-tabs button .ct: 11px count pill. -->
+        <Style Selector="Border.cs-ct">
+            <Setter Property="Background" Value="{StaticResource Line2Brush}" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="Margin" Value="6,0,0,0" />
+        </Style>
+        <Style Selector="TextBlock.cs-ct">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+
+        <!-- .cs-searchbox: white pill, min-width 240, radius 10, 8/12 padding. -->
+        <Style Selector="Border.cs-searchbox">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="MinWidth" Value="240" />
+        </Style>
+        <Style Selector="Border.cs-searchbox:focus-within">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        </Style>
+        <Style Selector="TextBox.cs-search">
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <!-- .cs-inv-row: grid 38 / 1.2fr / 1fr / auto / auto, 12 gap, 12/16. -->
+        <Style Selector="Border.cs-inv-row">
+            <Setter Property="Padding" Value="16,12" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.cs-inv-row:pointerover">
+            <Setter Property="Background" Value="{StaticResource RowHoverBrush}" />
+        </Style>
+        <Style Selector="Border.cs-inv-row.on">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+
+        <!-- .cs-line: grid 26 / 1fr / 90 / 90 / 100 / 28, 8 gap, 10/12, radius 10. -->
+        <Style Selector="Border.cs-line">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        <!-- .cs-line .tag: 26x26 tile, radius 8, 11px/800. -->
+        <Style Selector="Border.cs-tag">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="TextBlock.cs-tag">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+        </Style>
+        <!-- .cs-line input: 8 radius, 6/8, centered, tabular. -->
+        <Style Selector="TextBox.cs-line-input">
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="MinHeight" Value="0" />
+        </Style>
+        <!-- .cs-line .rm: 28x28 ghost square. -->
+        <Style Selector="Button.cs-rm">
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Button.cs-rm:pointerover">
+            <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+        </Style>
+
+        <!-- .cs-totals: brand-50 gradient panel, radius 14, 14/16. -->
+        <Style Selector="Border.cs-totals">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="16,14" />
+        </Style>
+        <Style Selector="TextBlock.cs-tot-lbl">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="TextBlock.cs-tot-val">
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+
+        <!-- .cs-pay-presets button: brand-50 pill, 12px/800. -->
+        <Style Selector="Button.cs-preset">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+        </Style>
+        <Style Selector="Button.cs-preset:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand100Brush}" />
+        </Style>
+
+        <!-- .cs-method-row .chip: bg-2 pill, 12px/800. -->
+        <Style Selector="Button.cs-chip">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+        </Style>
+        <Style Selector="Button.cs-chip:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.cs-chip.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Button.cs-chip.on /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+        </Style>
+
+        <!-- .cs-payment label: 12px/700 ink-2. -->
+        <Style Selector="TextBlock.cs-pay-lbl">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+        <Style Selector="TextBox.cs-pay-input">
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="0" />
+        </Style>
+        <Style Selector="ComboBox.cs-select">
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="0" />
+        </Style>
+
+        <!-- .cs-footbar action buttons. -->
+        <Style Selector="Button.cs-act">
+            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Margin="26,22,26,40">
+
+        <!-- ═══════════ PAGE HEADER (.page-header) ═══════════ -->
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,0,0,18">
+            <StackPanel Grid.Column="0" Spacing="4">
+                <TextBlock Text="صندوق و مالی" FontSize="12" FontWeight="Bold"
+                           Foreground="{StaticResource Brand600Brush}" Margin="0,0,0,2" />
+                <TextBlock Text="مدیریت فاکتور و پرداخت" FontSize="26" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" />
+                <TextBlock Text="صورت‌حساب‌ها را ببندید، مالیات و تخفیف را تنظیم کنید، پرداخت‌ها را ثبت و در صورت نیاز عودت دهید."
+                           FontSize="13" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+                <Button Classes="outline cs-act" Command="{Binding PrintInvoiceCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="14" Height="14"
+                              Stroke="{Binding $parent[Button].Foreground}"
+                              Data="{StaticResource IconPrinter}" />
+                        <TextBlock Text="چاپ فاکتور" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="primary cs-act" Command="{Binding ExportCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                              Data="{StaticResource IconDownload}" />
+                        <TextBlock Text="خروجی اکسل" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- ═══════════ KPIs (.stats-grid: 4 columns, 16 gap) ═══════════ -->
+        <ItemsControl ItemsSource="{Binding Stats}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="4" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.Styles>
+                <Style Selector="ContentPresenter">
+                    <Setter Property="Margin" Value="8" />
+                </Style>
+            </ItemsControl.Styles>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="cash:CashierStatViewModel">
+                    <Border Classes="cs-stat">
+                        <Panel>
+                            <!-- .stat::after decorative circle -->
+                            <Ellipse Width="100" Height="100" Fill="{StaticResource Brand50Brush}"
+                                     Opacity="0.45" HorizontalAlignment="Left"
+                                     VerticalAlignment="Bottom" Margin="-30,0,0,-40" />
+                            <StackPanel Spacing="0">
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,20">
+                                    <!-- .stat-delta chip (leading in RTL) -->
+                                    <Border Grid.Column="0" Classes="cs-stat-delta"
+                                            VerticalAlignment="Top" HorizontalAlignment="Left">
+                                        <TextBlock Classes="cs-stat-delta" Text="{Binding Foot}"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="150" />
+                                    </Border>
+                                    <!-- .stat-icon (trailing in RTL) -->
+                                    <Border Grid.Column="2" Classes="cs-stat-icon"
+                                            Background="{Binding IconBackground}">
+                                        <Path Classes="icon" Width="18" Height="18"
+                                              Stroke="{Binding IconForeground}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock Classes="cs-stat-value" Text="{Binding ValueText}" />
+                                <TextBlock Classes="cs-stat-label" Text="{Binding Label}" />
+                            </StackPanel>
+                        </Panel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- ═══════════ TWO-PANE (.cs-grid: 1.05fr 1fr, 18 gap) ═══════════ -->
+        <Grid ColumnDefinitions="1.05*,1*" ColumnSpacing="18" Margin="0,18,0,0">
+
+            <!-- ─────────── LEFT: invoice list card ─────────── -->
+            <Border Grid.Column="0" Classes="card">
+                <StackPanel>
+                    <!-- .cs-list-toolbar: 14/16 padding, hairline bottom. -->
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="16,14"
+                          RowDefinitions="Auto">
+                        <Border Grid.Column="0" Classes="cs-tabs">
+                            <ItemsControl ItemsSource="{Binding Tabs}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="cash:CashierTabViewModel">
+                                        <Button Classes="cs-tab" Classes.on="{Binding IsActive}"
+                                                Command="{Binding $parent[ItemsControl].((cash:CashierPageViewModel)DataContext).SetTabCommand}"
+                                                CommandParameter="{Binding Key}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Label}" />
+                                                <Border Classes="cs-ct">
+                                                    <TextBlock Classes="cs-ct" Text="{Binding CountText}" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                        <Border Grid.Column="2" Classes="cs-searchbox">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Classes="icon" Width="16" Height="16"
+                                      Stroke="{StaticResource MutedBrush}"
+                                      Data="{StaticResource IconSearch}" VerticalAlignment="Center" />
+                                <TextBox Classes="cs-search" Width="220" Text="{Binding SearchText, Mode=TwoWay}"
+                                         PlaceholderText="{Binding SearchPlaceholder}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                    <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" />
+
+                    <!-- Invoice rows. -->
+                    <ItemsControl ItemsSource="{Binding InvoiceRows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="cash:CashierInvoiceRowViewModel">
+                                <Button Classes="cs-inv-row-btn" Background="Transparent"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                        Padding="0" CornerRadius="0"
+                                        Command="{Binding $parent[ItemsControl].((cash:CashierPageViewModel)DataContext).SelectInvoiceCommand}"
+                                        CommandParameter="{Binding Id}">
+                                    <Border Classes="cs-inv-row" Classes.on="{Binding IsActive}">
+                                        <Grid ColumnDefinitions="38,1.2*,1*,Auto,Auto" ColumnSpacing="12">
+                                            <Path Grid.Column="0" Classes="icon" Width="18" Height="18"
+                                                  Stroke="{StaticResource MutedBrush}"
+                                                  Data="{StaticResource IconReceipt}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <TextBlock Text="{Binding PetName}" FontSize="13"
+                                                               FontWeight="ExtraBold"
+                                                               Foreground="{StaticResource InkBrush}" />
+                                                    <TextBlock FontSize="11" FontWeight="Bold"
+                                                               Foreground="{StaticResource Muted2Brush}">
+                                                        <Run Text="·" />
+                                                        <Run Text="{Binding OwnerName}" />
+                                                    </TextBlock>
+                                                </StackPanel>
+                                                <TextBlock FontSize="12" Foreground="{StaticResource MutedBrush}">
+                                                    <Run Text="{Binding IdDateText}" />
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <controls:Badge HorizontalAlignment="Left" Text="{Binding StateLabel}"
+                                                                Tone="{Binding StateTone}" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="3" Spacing="2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding TotalText}" FontWeight="ExtraBold"
+                                                           FontSize="13" Foreground="{StaticResource InkBrush}"
+                                                           HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding DueStatusText}" FontSize="12"
+                                                           Foreground="{Binding DueStatusBrush}"
+                                                           HorizontalAlignment="Right" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="4" Spacing="2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding RemainingText}" FontWeight="ExtraBold"
+                                                           FontSize="13" Foreground="{StaticResource InkBrush}"
+                                                           HorizontalAlignment="Right" />
+                                                <TextBlock Text="مانده" FontSize="11"
+                                                           Foreground="{StaticResource MutedBrush}"
+                                                           HorizontalAlignment="Right" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- .cs-empty: 40/24, centered, 56 ico tile. -->
+                    <StackPanel IsVisible="{Binding IsEmpty}" Spacing="10" Margin="24,40"
+                                HorizontalAlignment="Center">
+                        <Border Width="56" Height="56" CornerRadius="14"
+                                Background="{StaticResource Bg2Brush}" HorizontalAlignment="Center">
+                            <Path Classes="icon" Width="24" Height="24"
+                                  Stroke="{StaticResource Muted2Brush}"
+                                  Data="{StaticResource IconReceipt}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="هیچ فاکتوری در این تب یافت نشد." FontSize="13"
+                                   Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ─────────── RIGHT: invoice detail card ─────────── -->
+            <Border Grid.Column="1" Classes="card">
+                <StackPanel>
+
+                    <!-- ===== PLACEHOLDER (no selection) ===== -->
+                    <StackPanel IsVisible="{Binding ShowDetailPlaceholder}">
+                        <!-- .cs-detail-head -->
+                        <Border Padding="20,18" BorderBrush="{StaticResource Line2Brush}"
+                                BorderThickness="0,0,0,1" CornerRadius="16,16,0,0"
+                                Background="{StaticResource Brand50Brush}">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                                <Border Grid.Column="0" Width="48" Height="48" CornerRadius="14"
+                                        Background="{StaticResource Brand50Brush}">
+                                    <Path Classes="icon" Width="22" Height="22"
+                                          Stroke="{StaticResource Brand700Brush}"
+                                          Data="{StaticResource IconReceipt}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                                    <TextBlock Text="یک فاکتور انتخاب کنید" FontSize="18" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="از فهرست سمت چپ، فاکتور مورد نظر را برای مشاهده و پرداخت انتخاب کنید."
+                                               FontSize="13" Foreground="{StaticResource MutedBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Border Grid.Column="2" VerticalAlignment="Center"
+                                        Background="{StaticResource OkBgBrush}" CornerRadius="999"
+                                        Padding="12,6">
+                                    <TextBlock Text="صندوق فعال" FontSize="12" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource OkBrush}" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                        <StackPanel Spacing="10" Margin="24,40" HorizontalAlignment="Center">
+                            <Border Width="56" Height="56" CornerRadius="14"
+                                    Background="{StaticResource Bg2Brush}" HorizontalAlignment="Center">
+                                <Path Classes="icon" Width="24" Height="24"
+                                      Stroke="{StaticResource Muted2Brush}"
+                                      Data="{StaticResource IconFile}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="هنوز فاکتوری باز نشده است." FontSize="13"
+                                       Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
+                        </StackPanel>
+                        <Border Padding="20,14" BorderBrush="{StaticResource Line2Brush}"
+                                BorderThickness="0,1,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="میان‌برها:" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                                <Border Background="{StaticResource Bg2Brush}" CornerRadius="6" Padding="6,1">
+                                    <TextBlock Text="f" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                                </Border>
+                                <TextBlock Text="جستجو ·" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                                <Border Background="{StaticResource Bg2Brush}" CornerRadius="6" Padding="6,1">
+                                    <TextBlock Text="p" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                                </Border>
+                                <TextBlock Text="چاپ" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ===== DETAIL (selected) ===== -->
+                    <StackPanel IsVisible="{Binding HasDetail}">
+                        <!-- .cs-detail-head -->
+                        <Border Padding="20,18" BorderBrush="{StaticResource Line2Brush}"
+                                BorderThickness="0,0,0,1" CornerRadius="16,16,0,0"
+                                Background="{StaticResource Brand50Brush}">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12"
+                                            VerticalAlignment="Center">
+                                    <Border Width="48" Height="48" CornerRadius="14"
+                                            Background="{StaticResource Brand600Brush}">
+                                        <Path Classes="icon" Width="22" Height="22" Stroke="White"
+                                              Data="{StaticResource IconReceipt}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Spacing="3" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding Detail.PetTitle}" FontSize="18"
+                                                       FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding Detail.Id}" FontSize="18"
+                                                       FontWeight="ExtraBold" Foreground="{StaticResource Brand700Brush}" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Detail.CustomerLine}" FontSize="13"
+                                                   Foreground="{StaticResource Ink2Brush}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                            VerticalAlignment="Center">
+                                    <controls:Badge Text="{Binding Detail.StateLabel}" Tone="{Binding Detail.StateTone}" />
+                                    <controls:Badge Text="{Binding Detail.LineCountText}" Tone="Neutral" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- ── LINES (.cs-lines: 6 gap, 16/20 padding) ── -->
+                        <StackPanel Spacing="6" Margin="20,16">
+                            <ItemsControl ItemsSource="{Binding Lines}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="cash:CashierLineViewModel">
+                                        <Border Classes="cs-line">
+                                            <Grid ColumnDefinitions="26,*,90,90,100,28" ColumnSpacing="8">
+                                                <Border Grid.Column="0" Classes="cs-tag"
+                                                        Background="{Binding TagBackground}">
+                                                    <TextBlock Classes="cs-tag" Text="{Binding KindLabel}"
+                                                               Foreground="{Binding TagForeground}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center" />
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                                           FontWeight="Bold" FontSize="13"
+                                                           Foreground="{StaticResource InkBrush}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           VerticalAlignment="Center" />
+                                                <TextBox Grid.Column="2" Classes="cs-line-input"
+                                                         Text="{Binding QuantityText, Mode=TwoWay}"
+                                                         IsEnabled="{Binding IsEditable}"
+                                                         LostFocus="OnLineFieldCommit" />
+                                                <TextBox Grid.Column="3" Classes="cs-line-input"
+                                                         Text="{Binding DiscountText, Mode=TwoWay}"
+                                                         IsEnabled="{Binding IsEditable}"
+                                                         LostFocus="OnLineFieldCommit" />
+                                                <TextBlock Grid.Column="4" Text="{Binding SubtotalText}"
+                                                           FontSize="11" Foreground="{StaticResource MutedBrush}"
+                                                           HorizontalAlignment="Right"
+                                                           VerticalAlignment="Center" />
+                                                <Button Grid.Column="5" Classes="cs-rm"
+                                                        IsVisible="{Binding IsEditable}"
+                                                        Click="OnRemoveLineClick">
+                                                    <Path Classes="icon" Width="16" Height="16"
+                                                          Stroke="{Binding $parent[Button].Foreground}"
+                                                          Data="{StaticResource IconX}" />
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- add-line row (editable only) -->
+                            <Border Classes="cs-line" IsVisible="{Binding Detail.IsEditable}"
+                                    Background="{StaticResource Bg2Brush}">
+                                <Border.BorderBrush>
+                                    <SolidColorBrush Color="{StaticResource LineColor}" />
+                                </Border.BorderBrush>
+                                <Grid ColumnDefinitions="26,*,Auto" ColumnSpacing="8">
+                                    <Border Grid.Column="0" Classes="cs-tag"
+                                            Background="{StaticResource PanelBrush}">
+                                        <TextBlock Classes="cs-tag" Text="+"
+                                                   Foreground="{StaticResource Ink2Brush}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <ComboBox Grid.Column="1" Classes="cs-select"
+                                              ItemsSource="{Binding CatalogOptions}"
+                                              SelectedItem="{Binding SelectedCatalogOption, Mode=TwoWay}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="cash:CashierCatalogOptionViewModel">
+                                                <TextBlock Text="{Binding Label}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <Button Grid.Column="2" Classes="outline cs-act"
+                                            Command="{Binding AddLineCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                  Data="{StaticResource IconPlus}" />
+                                            <TextBlock Text="افزودن" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- ── DISCOUNT + INSURANCE (.cs-discount: 2 cols, 12 gap) ── -->
+                        <Grid ColumnDefinitions="1*,1*" ColumnSpacing="12" Margin="20,0,20,16"
+                              IsVisible="{Binding Detail.IsEditable}">
+                            <StackPanel Grid.Column="0" Spacing="6">
+                                <TextBlock Text="تخفیف سراسری" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                    <ComboBox Grid.Column="0" Classes="cs-select" MinWidth="120"
+                                              ItemsSource="{Binding DiscountOptions}"
+                                              SelectedItem="{Binding SelectedDiscountOption, Mode=TwoWay}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="cash:CashierDiscountOptionViewModel">
+                                                <TextBlock Text="{Binding Label}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBox Grid.Column="1" Classes="cs-pay-input"
+                                             Text="{Binding DiscountValueText, Mode=TwoWay}"
+                                             LostFocus="OnDiscountCommit" />
+                                </Grid>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="6">
+                                <TextBlock Text="بیمه" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                                <ComboBox Classes="cs-select"
+                                          ItemsSource="{Binding InsurerOptions}"
+                                          SelectedItem="{Binding SelectedInsurerOption, Mode=TwoWay}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="cash:CashierInsurerOptionViewModel">
+                                            <TextBlock Text="{Binding Label}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- ── TOTALS (.cs-totals) ── -->
+                        <Border Classes="cs-totals" Margin="20,0,20,16">
+                            <StackPanel>
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                                    <TextBlock Grid.Column="0" Classes="cs-tot-lbl" Text="جمع اقلام" />
+                                    <TextBlock Grid.Column="1" Classes="cs-tot-val" FontSize="13"
+                                               Text="{Binding Detail.BaseText}" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                                    <TextBlock Grid.Column="0" Classes="cs-tot-lbl" Text="تخفیف" />
+                                    <TextBlock Grid.Column="1" Classes="cs-tot-val" FontSize="13"
+                                               Text="{Binding Detail.DiscountText}" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                                    <TextBlock Grid.Column="0" Classes="cs-tot-lbl" Text="پس از تخفیف" />
+                                    <TextBlock Grid.Column="1" Classes="cs-tot-val" FontSize="13"
+                                               Text="{Binding Detail.AfterDiscountText}" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                                    <TextBlock Grid.Column="0" Classes="cs-tot-lbl" Text="{Binding Detail.TaxLabel}" />
+                                    <TextBlock Grid.Column="1" Classes="cs-tot-val" FontSize="13"
+                                               Text="{Binding Detail.TaxText}" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                                    <TextBlock Grid.Column="0" Classes="cs-tot-lbl" Text="سهم بیمه" />
+                                    <TextBlock Grid.Column="1" Classes="cs-tot-val" FontSize="13"
+                                               Text="{Binding Detail.InsuranceShareText}" />
+                                </Grid>
+                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                                        Margin="0,6,0,0" Padding="0,10,0,0">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Classes="cs-tot-lbl" FontSize="15"
+                                                   Text="قابل پرداخت" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Classes="cs-tot-val" FontSize="24"
+                                                   Foreground="{StaticResource Brand700Brush}"
+                                                   Text="{Binding Detail.TotalText}" />
+                                    </Grid>
+                                </Border>
+                                <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0"
+                                        Margin="0,6,0,0" Padding="0,10,0,0">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Classes="cs-tot-lbl" Text="پرداخت‌شده" />
+                                        <TextBlock Grid.Column="1" Classes="cs-tot-val"
+                                                   Foreground="{StaticResource OkBrush}"
+                                                   Text="{Binding Detail.PaidText}" />
+                                    </Grid>
+                                </Border>
+                                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding Detail.HasDue}" Margin="0,4,0,0">
+                                    <TextBlock Grid.Column="0" FontSize="13" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource DangerBrush}" Text="مانده" />
+                                    <TextBlock Grid.Column="1" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource DangerBrush}"
+                                               Text="{Binding Detail.DueText}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ── PAYMENT PANEL (.cs-payment: 2 cols, 10 gap) ── -->
+                        <Grid ColumnDefinitions="1*,1*" ColumnSpacing="10" Margin="20,0,20,20"
+                              IsVisible="{Binding ShowPaymentPanel}">
+                            <StackPanel Grid.Column="0" Spacing="0">
+                                <StackPanel Orientation="Horizontal" Spacing="0">
+                                    <ItemsControl ItemsSource="{Binding Methods}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="cash:CashierMethodViewModel">
+                                                <Button Classes="cs-chip" Classes.on="{Binding IsOn}"
+                                                        Command="{Binding $parent[ItemsControl].((cash:CashierPageViewModel)DataContext).PickMethodCommand}"
+                                                        CommandParameter="{Binding Method}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <Path Classes="icon" Width="14" Height="14"
+                                                              Stroke="{Binding $parent[Button].Foreground}"
+                                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                        <TextBlock Text="{Binding Label}" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="0">
+                                <TextBlock Classes="cs-pay-lbl" Text="مبلغ پرداخت (ریال)" />
+                                <TextBox Classes="cs-pay-input" Text="{Binding PayAmountText, Mode=TwoWay}"
+                                         PlaceholderText="{Binding PayAmountWatermark}" TextAlignment="Right" />
+                                <WrapPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <ItemsControl ItemsSource="{Binding Presets}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="cash:CashierPresetViewModel">
+                                                <Button Classes="cs-preset"
+                                                        Command="{Binding $parent[ItemsControl].((cash:CashierPageViewModel)DataContext).UsePresetCommand}"
+                                                        CommandParameter="{Binding Value}"
+                                                        Content="{Binding Text}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Button Classes="cs-preset" Command="{Binding UseFullAmountCommand}"
+                                            Content="پرداخت کامل" />
+                                </WrapPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="0" Spacing="0" Margin="0,10,0,0">
+                                <TextBlock Classes="cs-pay-lbl" Text="شمارهٔ مرجع (اختیاری)" />
+                                <TextBox Classes="cs-pay-input" Text="{Binding PayReferenceText, Mode=TwoWay}"
+                                         PlaceholderText="مثلاً: شماره چک / تراکنش" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="0" Margin="0,10,0,0">
+                                <TextBlock Classes="cs-pay-lbl" Text="یادداشت" />
+                                <TextBox Classes="cs-pay-input" Text="{Binding PayNoteText, Mode=TwoWay}"
+                                         PlaceholderText="مثلاً: پیش‌پرداخت، ضمانت…" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- ── PAYMENT HISTORY (.cs-pay-history) ── -->
+                        <StackPanel Margin="20,0,20,16" Spacing="4" IsVisible="{Binding Detail.HasPayments}">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                <TextBlock Grid.Column="0" Text="سابقهٔ پرداخت" FontSize="13"
+                                           FontWeight="ExtraBold" Foreground="{StaticResource Ink2Brush}"
+                                           VerticalAlignment="Center" />
+                                <controls:Badge Grid.Column="1" Text="{Binding Detail.PaymentCountText}"
+                                                Tone="Neutral" />
+                            </Grid>
+                            <ItemsControl ItemsSource="{Binding Payments}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="cash:CashierPaymentViewModel">
+                                        <Border Background="{StaticResource Bg2Brush}" CornerRadius="8"
+                                                Padding="12,8" Margin="0,0,0,4">
+                                            <Grid ColumnDefinitions="90,*,Auto" ColumnSpacing="8">
+                                                <Border Grid.Column="0" CornerRadius="6"
+                                                        Background="{Binding MethodBackground}" Padding="8,2">
+                                                    <TextBlock Text="{Binding MethodLabel}" FontSize="12"
+                                                               FontWeight="ExtraBold"
+                                                               Foreground="{Binding MethodForeground}"
+                                                               HorizontalAlignment="Center" />
+                                                </Border>
+                                                <StackPanel Grid.Column="1" Spacing="1">
+                                                    <TextBlock Text="{Binding MetaText}" FontSize="12"
+                                                               Foreground="{StaticResource Ink2Brush}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding AtText}" FontSize="12"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding AmountText}"
+                                                           FontSize="12" FontWeight="ExtraBold"
+                                                           Foreground="{StaticResource InkBrush}"
+                                                           VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <!-- ── FOOTBAR (.cs-footbar actions) ── -->
+                        <Border Padding="20,14" BorderBrush="{StaticResource Line2Brush}"
+                                BorderThickness="0,1,0,0">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                    <Button Classes="ghost cs-act" Command="{Binding RecalculateCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                  Data="{StaticResource IconRefresh}" />
+                                            <TextBlock Text="باز محاسبه" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="outline cs-act" IsVisible="{Binding Detail.ShowVoid}"
+                                            Command="{Binding VoidCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                  Data="{StaticResource IconTrash}" />
+                                            <TextBlock Text="ابطال فاکتور" />
+                                        </StackPanel>
+                                    </Button>
+                                    <StackPanel Orientation="Horizontal" Spacing="6"
+                                                IsVisible="{Binding Detail.ShowRefund}">
+                                        <Button Classes="danger-ghost cs-act" Command="{Binding RefundCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Path Classes="icon" Width="16" Height="16"
+                                                      Stroke="{Binding $parent[Button].Foreground}"
+                                                      Data="{StaticResource IconArrowDownLeft}" />
+                                                <TextBlock Text="عودت" />
+                                            </StackPanel>
+                                        </Button>
+                                        <TextBox Classes="cs-pay-input" Width="140"
+                                                 Text="{Binding RefundAmountText, Mode=TwoWay}"
+                                                 PlaceholderText="مبلغ عودت" TextAlignment="Right" />
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                    <Button Classes="primary cs-act" IsVisible="{Binding Detail.CanPay}"
+                                            Command="{Binding PayCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Path Classes="icon" Width="16" Height="16" Stroke="White"
+                                                  Data="{StaticResource IconWallet}" />
+                                            <TextBlock Text="ثبت پرداخت" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="outline cs-act" Command="{Binding PrintCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                  Data="{StaticResource IconPrinter}" />
+                                            <TextBlock Text="چاپ" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </StackPanel>
+</UserControl>

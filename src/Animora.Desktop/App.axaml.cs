@@ -1,5 +1,6 @@
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Boarding;
+using Animora.Contracts.Cashier;
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Inventory;
@@ -12,6 +13,7 @@ using Animora.Contracts.Vaccination;
 using Animora.Desktop.Mocks;
 using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Boarding;
+using Animora.Desktop.Pages.Cashier;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Patients;
@@ -139,6 +141,12 @@ public partial class App : Application
         // blank create invoices), so a singleton preserves mutations.
         services.AddSingleton<ISalesQueryService, MockSalesQueryService>();
         services.AddSingleton<SalePageViewModel>();
+
+        // Phase 22: Cashier (invoice & payment management). Stateful in-memory
+        // mock (pay/void/refund/edit mutate invoices), so a singleton preserves
+        // mutations while navigating.
+        services.AddSingleton<ICashierService, MockCashierService>();
+        services.AddSingleton<CashierPageViewModel>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();
