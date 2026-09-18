@@ -17,8 +17,13 @@ public partial class DrawerHost : UserControl
         InitializeComponent();
     }
 
-    public void SetContent(object? content)
+    public void SetContent(object? content, double width = 420)
     {
+        if (content is not null)
+        {
+            Panel.Width = width;
+        }
+
         ContentHost.Content = content;
         IsVisible = content is not null;
     }

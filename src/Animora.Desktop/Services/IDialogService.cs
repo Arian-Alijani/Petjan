@@ -15,7 +15,13 @@ public interface IDialogService
     /// </summary>
     void ShowModal(object content, double maxWidth = 520);
 
-    void ShowDrawer(object content);
+    /// <summary>
+    /// Shows <paramref name="content"/> in a right-anchored sliding drawer.
+    /// <paramref name="width"/> defaults to the appointments booking panel's
+    /// 420px; screens with a wider panel (e.g. the cheques details drawer =
+    /// 480px) pass their transcribed width.
+    /// </summary>
+    void ShowDrawer(object content, double width = 420);
 
     /// <summary>
     /// Shows <paramref name="content"/> in a large, centered record "sheet"

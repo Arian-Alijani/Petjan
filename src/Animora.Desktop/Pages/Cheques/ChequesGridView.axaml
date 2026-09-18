@@ -109,7 +109,8 @@
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="ch:ChequeLeafViewModel">
                     <Button Classes="leaf"
-                            Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).PlaceholderCommand}">
+                            Command="{Binding #Root.((ch:ChequesPageViewModel)DataContext).OpenDetailCommand}"
+                            CommandParameter="{Binding Id}">
                         <StackPanel>
                             <!-- leaf top (gradient header) -->
                             <Panel>

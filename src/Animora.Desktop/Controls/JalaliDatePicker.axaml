@@ -1,0 +1,158 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Controls.JalaliDatePicker"
+             x:Name="Root"
+             x:DataType="controls:JalaliDatePicker"
+             FlowDirection="RightToLeft">
+
+    <!-- Mini Persian date picker — re-draws Animora-UI/assets/cheques-ui.js
+         dpHtml/bindDp (.dp / .dp-pop / .dp-head / .dp-grid). Every measurable
+         value is transcribed from cheques.css lines 638–661. -->
+    <UserControl.Styles>
+        <Style Selector="Button.dp-input">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="Height" Value="42" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Background" Value="#FDFEFD" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.dp-input:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        </Style>
+        <Style Selector="TextBlock.dp-val">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.dp-nav">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.dp-nav:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        </Style>
+        <Style Selector="TextBlock.dw">
+            <Setter Property="FontSize" Value="9.5" />
+            <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Padding" Value="0,4" />
+        </Style>
+        <Style Selector="Button.dpc">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.dpc:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.dpc.today:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.dpc.today">
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        </Style>
+        <Style Selector="Button.dpc.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+        </Style>
+        <Style Selector="Button.dpc.on:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </UserControl.Styles>
+
+    <Panel>
+        <Button Classes="dp-input"
+                Click="OnInputClick">
+            <TextBlock Classes="dp-val" Text="{Binding #Root.DateText}" />
+        </Button>
+
+        <Popup IsOpen="{Binding #Root.IsOpen, Mode=TwoWay}"
+               PlacementTarget="{Binding #Root}"
+               Placement="BottomEdgeAlignedLeft"
+               VerticalOffset="6"
+               IsLightDismissEnabled="True">
+            <Border Width="262"
+                    Background="White"
+                    BorderBrush="{StaticResource LineBrush}"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    BoxShadow="{StaticResource ShadowPop}"
+                    Padding="12">
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Button Grid.Column="0" Classes="dp-nav" Click="OnPrevMonthClick">
+                            <Path Classes="icon" Width="13" Height="13"
+                                  Stroke="{StaticResource MutedBrush}"
+                                  Data="{StaticResource IconChevronRight}" />
+                        </Button>
+                        <TextBlock Grid.Column="1" Text="{Binding #Root.HeaderText}"
+                                   FontSize="12.5" FontWeight="ExtraBold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <Button Grid.Column="2" Classes="dp-nav" Click="OnNextMonthClick">
+                            <Path Classes="icon" Width="13" Height="13"
+                                  Stroke="{StaticResource MutedBrush}"
+                                  Data="{StaticResource IconChevronLeft}" />
+                        </Button>
+                    </Grid>
+
+                    <StackPanel>
+                        <UniformGrid Columns="7">
+                            <TextBlock Classes="dw" Text="ش" />
+                            <TextBlock Classes="dw" Text="ی" />
+                            <TextBlock Classes="dw" Text="د" />
+                            <TextBlock Classes="dw" Text="س" />
+                            <TextBlock Classes="dw" Text="چ" />
+                            <TextBlock Classes="dw" Text="پ" />
+                            <TextBlock Classes="dw" Text="ج" />
+                        </UniformGrid>
+
+                        <ItemsControl ItemsSource="{Binding #Root.Days}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="7" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="controls:JalaliDayCell">
+                                    <Button Classes="dpc"
+                                            Classes.on="{Binding IsSelected}"
+                                            Classes.today="{Binding IsToday}"
+                                            IsEnabled="{Binding !IsBlank}"
+                                            Content="{Binding Text}"
+                                            Command="{Binding #Root.SelectDayCommand}"
+                                            CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Popup>
+    </Panel>
+
+</UserControl>

@@ -1,0 +1,491 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ch="using:Animora.Desktop.Pages.Cheques"
+             x:Class="Animora.Desktop.Pages.Cheques.ChequeDetailView"
+             x:Name="Root"
+             x:DataType="ch:ChequeDetailViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- Cheque details drawer — re-draws Animora-UI/assets/cheques-ui.js openCheque
+         (the .ch-drawer / .ch-dh / .ch-db / .ch-df scaffold + .big-leaf / .dsec /
+         .kv / .due-meter / .dtl / .att-row widgets). Every measurable value traces
+         to cheques.css lines 446–550. Shown via IDialogService.ShowDrawer at the
+         reference's 480px width. -->
+    <UserControl.Styles>
+        <!-- status pill (.st) -->
+        <Style Selector="Border.st">
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="10,4" />
+        </Style>
+        <!-- small icon button (.ch-mini / .icon-btn) -->
+        <Style Selector="Button.ch-mini">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.ch-mini:pointerover">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        </Style>
+        <!-- drawer footer action (.ch-df .btn) -->
+        <Style Selector="Button.ch-dbtn">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <!-- attachment tile (.att) -->
+        <Style Selector="Button.att">
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="#FDFEFD" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.att:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <!-- note textarea (.f-ta) -->
+        <Style Selector="TextBox.f-ta">
+            <Setter Property="MinHeight" Value="70" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Background" Value="#FDFEFD" />
+            <Setter Property="Padding" Value="10,12" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="AcceptsReturn" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="VerticalContentAlignment" Value="Top" />
+        </Style>
+        <Style Selector="TextBox.f-ta:focus">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <!-- section header (.dsec > .h) -->
+        <Style Selector="TextBlock.dh">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <!-- kv key/value (.kv .k / .kv .v) -->
+        <Style Selector="TextBlock.kvk">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
+        <Style Selector="TextBlock.kvv">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <!-- big-leaf key/value (.bl-grid .k / .v) -->
+        <Style Selector="TextBlock.blk">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Foreground" Value="#B8FFFFFF" />
+        </Style>
+        <Style Selector="TextBlock.blv">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Margin" Value="0,3,0,0" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Background="{StaticResource BgBrush}"
+          Width="480" MaxWidth="480">
+
+        <!-- ═══ head (.ch-dh) ═══ -->
+        <Border Grid.Row="0" Background="White" Padding="18,16" BorderThickness="0,0,0,1"
+                BorderBrush="{StaticResource Line2Brush}">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                <Border Grid.Column="0" Width="38" Height="38" CornerRadius="12"
+                        Background="{Binding HeaderBrush}">
+                    <TextBlock Text="{Binding BankMarkLabel}" FontSize="10" FontWeight="ExtraBold"
+                               Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                    <TextBlock Text="{Binding HeaderEyebrow}" FontSize="11" FontWeight="Bold"
+                               Foreground="{StaticResource Brand600Brush}" />
+                    <TextBlock Text="{Binding HeaderTitle}" FontSize="15.5" FontWeight="ExtraBold"
+                               Foreground="{StaticResource InkBrush}" />
+                </StackPanel>
+                <Button Grid.Column="2" Classes="ch-mini" ToolTip.Tip="بستن"
+                        Command="{Binding CloseCommand}">
+                    <Path Classes="icon" Width="16" Height="16" StrokeThickness="2"
+                          Stroke="{Binding $parent[Button].Foreground}"
+                          Data="{StaticResource IconX}" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- ═══ body (.ch-db) ═══ -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="18,16,18,20">
+
+                <!-- big leaf (.big-leaf) ═══ -->
+                <Border CornerRadius="18" Padding="16" ClipToBounds="True"
+                        BoxShadow="0 14 34 0 #33101828">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="{Binding LeafGradientFrom}" Offset="0" />
+                            <GradientStop Color="{Binding LeafGradientTo}" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Panel>
+                        <!-- decorative circle (::after) -->
+                        <Ellipse Width="180" Height="180" Fill="#14FFFFFF"
+                                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                 Margin="0,0,0,0" IsHitTestVisible="False">
+                            <Ellipse.RenderTransform>
+                                <TranslateTransform X="40" Y="60" />
+                            </Ellipse.RenderTransform>
+                        </Ellipse>
+
+                        <StackPanel>
+                            <!-- bl-top -->
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                <Border Grid.Column="0" Width="34" Height="34" CornerRadius="11"
+                                        Background="#29FFFFFF" BorderBrush="#3DFFFFFF" BorderThickness="1">
+                                    <TextBlock Text="{Binding BankMarkLabel}" FontSize="10" FontWeight="ExtraBold"
+                                               Foreground="White" HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                    <TextBlock Text="{Binding LeafBankName}" FontSize="13" FontWeight="ExtraBold"
+                                               Foreground="White" />
+                                    <TextBlock Text="{Binding LeafBranch}" FontSize="10.5"
+                                               Foreground="#D2FFFFFF" />
+                                </StackPanel>
+                                <Border Grid.Column="2" VerticalAlignment="Center"
+                                        Background="#2EFFFFFF" BorderBrush="#42FFFFFF" BorderThickness="1"
+                                        CornerRadius="20" Padding="10,4">
+                                    <TextBlock Text="{Binding LeafDirectionTag}" FontSize="10.5" FontWeight="Bold"
+                                               Foreground="White" />
+                                </Border>
+                            </Grid>
+
+                            <!-- bl-amt -->
+                            <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,16,0,0">
+                                <TextBlock Text="{Binding LeafAmount}" FontSize="30" FontWeight="ExtraBold"
+                                           Foreground="White" LetterSpacing="-0.8" />
+                                <TextBlock Text="تومان" FontSize="12" FontWeight="SemiBold" Opacity="0.8"
+                                           Foreground="White" VerticalAlignment="Bottom" Margin="0,0,0,5" />
+                            </StackPanel>
+
+                            <!-- bl-words -->
+                            <TextBlock Text="{Binding LeafWords}" FontSize="11" Foreground="#D6FFFFFF"
+                                       Margin="0,5,0,0" TextWrapping="Wrap" LineHeight="20" />
+
+                            <!-- bl-grid -->
+                            <Border BorderBrush="#47FFFFFF" BorderThickness="0,1,0,0"
+                                    Margin="0,16,0,0" Padding="0,14,0,0" />
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12"
+                                  RowSpacing="12" Margin="0,0,0,0">
+                                <StackPanel Grid.Row="0" Grid.Column="0">
+                                    <TextBlock Classes="blk" Text="{Binding LeafPartyLabel}" />
+                                    <TextBlock Classes="blv" Text="{Binding LeafParty}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="1">
+                                    <TextBlock Classes="blk" Text="تاریخ سررسید" />
+                                    <TextBlock Classes="blv" Text="{Binding LeafDue}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="0">
+                                    <TextBlock Classes="blk" Text="تاریخ صدور" />
+                                    <TextBlock Classes="blv" Text="{Binding LeafIssue}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="1">
+                                    <TextBlock Classes="blk" Text="حساب کلینیک" />
+                                    <TextBlock Classes="blv" Text="{Binding LeafAccount}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- bl-micr -->
+                            <Border Background="#24000000" CornerRadius="9" Padding="7" Margin="0,14,0,0">
+                                <TextBlock Text="{Binding LeafMicr}" FontSize="12" Foreground="#E6FFFFFF"
+                                           LetterSpacing="3" TextAlignment="Center" FlowDirection="LeftToRight"
+                                           FontFamily="{StaticResource AppFontFamily}" />
+                            </Border>
+                        </StackPanel>
+                    </Panel>
+                </Border>
+
+                <!-- ═══ section · status & due (وضعیت و سررسید) ═══ -->
+                <Border Background="White" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                        CornerRadius="16" Margin="0,16,0,0" ClipToBounds="True">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7" Margin="14,12,14,8">
+                            <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+                                  Stroke="{StaticResource Brand600Brush}"
+                                  Data="{StaticResource IconHourglass}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="dh" Text="وضعیت و سررسید"
+                                       VerticalAlignment="Center" />
+                            <Border Grid.Column="2" Classes="st" Background="{Binding Status.Background}"
+                                    VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="icon" Width="12" Height="12"
+                                          Stroke="{Binding Status.Foreground}"
+                                          Data="{Binding Status.IconKey, Converter={StaticResource IconKeyConverter}}"
+                                          VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Status.Label}" FontSize="11" FontWeight="Bold"
+                                               Foreground="{Binding Status.Foreground}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <StackPanel Margin="14,4,14,14">
+                            <!-- due-meter -->
+                            <Grid ColumnDefinitions="*,Auto,*" Margin="0,6,0,6">
+                                <TextBlock Grid.Column="0" Text="{Binding LeafIssue}" FontSize="11"
+                                           Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Left" />
+                                <TextBlock Grid.Column="1" Text="{Binding DueMeterText}" FontSize="11"
+                                           Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding LeafDue}" FontSize="11"
+                                           Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Right" />
+                            </Grid>
+                            <Border Height="8" CornerRadius="20" Background="{StaticResource Bg2Brush}"
+                                    ClipToBounds="True">
+                                <Border HorizontalAlignment="Left" Width="{Binding DueMeterWidth}"
+                                        CornerRadius="20" Background="{Binding DueMeterFill}" />
+                            </Border>
+
+                            <TextBlock Text="{Binding DueMeterStatusDesc}" FontSize="11.5"
+                                       Foreground="{StaticResource MutedBrush}" Margin="0,10,0,0"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ section · cheque info (اطلاعات چک) ═══ -->
+                <Border Background="White" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                        CornerRadius="16" Margin="0,16,0,0" ClipToBounds="True">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="7" Margin="14,12,14,8">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{StaticResource Brand600Brush}"
+                                  Data="{StaticResource IconFile}" VerticalAlignment="Center" />
+                            <TextBlock Classes="dh" Text="اطلاعات چک" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="96,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                              ColumnSpacing="10" RowSpacing="6" Margin="14,4,14,14">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="kvk" Text="شناسه صیادی" />
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                <TextBlock Classes="kvv" Text="{Binding InfoSayad}" LetterSpacing="0.5"
+                                           VerticalAlignment="Center" />
+                                <Button Classes="ch-mini" Width="22" Height="22" CornerRadius="7"
+                                        ToolTip.Tip="کپی شناسه صیادی" Command="{Binding CopySayadCommand}">
+                                    <Path Classes="icon" Width="13" Height="13" StrokeThickness="2"
+                                          Stroke="{Binding $parent[Button].Foreground}"
+                                          Data="{StaticResource IconCopy}" />
+                                </Button>
+                            </StackPanel>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="kvk" Text="بانک / شعبه" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Classes="kvv" Text="{Binding InfoBankBranch}" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="kvk" Text="طرف حساب" />
+                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                <TextBlock Classes="kvv" Text="{Binding InfoParty}" />
+                                <TextBlock FontSize="11.5" FontWeight="Medium"
+                                           Foreground="{StaticResource MutedBrush}"
+                                           VerticalAlignment="Bottom">
+                                    <Run Text="(" /><Run Text="{Binding InfoPartyRole}" /><Run Text=")" />
+                                </TextBlock>
+                            </StackPanel>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="kvk" Text="شماره تماس" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Classes="kvv" Text="{Binding InfoPhone}"
+                                       LetterSpacing="0.5" />
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Classes="kvk" Text="بابت" />
+                            <TextBlock Grid.Row="4" Grid.Column="1" Classes="kvv" Text="{Binding InfoSubject}" />
+
+                            <TextBlock Grid.Row="5" Grid.Column="0" Classes="kvk" Text="سند مرتبط" />
+                            <TextBlock Grid.Row="5" Grid.Column="1" Classes="kvv" Text="{Binding InfoReference}"
+                                       LetterSpacing="0.5" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ section · lifecycle (چرخه عمر چک) ═══ -->
+                <Border Background="White" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                        CornerRadius="16" Margin="0,16,0,0" ClipToBounds="True">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="7" Margin="14,12,14,8">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{StaticResource Brand600Brush}"
+                                  Data="{StaticResource IconTimeline}" VerticalAlignment="Center" />
+                            <TextBlock Classes="dh" Text="چرخه عمر چک" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <Grid Margin="14,4,14,14" RowDefinitions="Auto,Auto">
+                            <!-- vertical rail (::before) -->
+                            <Border Grid.Row="0" Width="2" Margin="5,6,0,10" HorizontalAlignment="Left"
+                                    Background="{StaticResource LineBrush}" />
+                            <ItemsControl Grid.Row="0" ItemsSource="{Binding Timeline}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="ch:ChequeDetailEventViewModel">
+                                        <Grid ColumnDefinitions="20,*" Margin="0,0,0,14">
+                                            <Ellipse Grid.Column="0" Width="12" Height="12"
+                                                     Fill="White" StrokeThickness="2.5" VerticalAlignment="Top"
+                                                     Margin="0,3,0,0" HorizontalAlignment="Left"
+                                                     Stroke="{Binding DotBrush}" />
+                                            <StackPanel Grid.Column="1" Margin="0,0,0,0">
+                                                <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="Bold"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                                                    <TextBlock Text="{Binding Date}" FontSize="10.5"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                    <TextBlock Text="·" FontSize="10.5"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                    <TextBlock Text="{Binding By}" FontSize="10.5"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ section · attachments (تصاویر و پیوست‌ها) ═══ -->
+                <Border Background="White" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                        CornerRadius="16" Margin="0,16,0,0" ClipToBounds="True">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="7" Margin="14,12,14,8">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{StaticResource Brand600Brush}"
+                                  Data="{StaticResource IconImage}" VerticalAlignment="Center" />
+                            <TextBlock Classes="dh" Text="تصاویر و پیوست‌ها" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="14,4,14,14">
+                            <Button Grid.Column="0" Classes="att" Command="{Binding PreviewImageCommand}">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <Path Classes="icon" Width="20" Height="20"
+                                          Stroke="{StaticResource MutedBrush}"
+                                          Data="{StaticResource IconImage}"
+                                          HorizontalAlignment="Center" />
+                                    <TextBlock Text="روی چک" FontSize="11" FontWeight="Bold"
+                                               Foreground="{StaticResource Ink2Brush}" Margin="0,5,0,0"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="{Binding AttachmentCaption}" FontSize="9.5"
+                                               Foreground="{StaticResource Muted2Brush}"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Column="1" Classes="att" Command="{Binding AddAttachmentCommand}">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <Path Classes="icon" Width="20" Height="20"
+                                          Stroke="{StaticResource MutedBrush}"
+                                          Data="{StaticResource IconPlus}"
+                                          HorizontalAlignment="Center" />
+                                    <TextBlock Text="افزودن پیوست" FontSize="11" FontWeight="Bold"
+                                               Foreground="{StaticResource Ink2Brush}" Margin="0,5,0,0"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="تصویر یا PDF" FontSize="9.5"
+                                               Foreground="{StaticResource Muted2Brush}"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ section · internal note (یادداشت داخلی) ═══ -->
+                <Border Background="White" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                        CornerRadius="16" Margin="0,16,0,0" ClipToBounds="True">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="7" Margin="14,12,14,8">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{StaticResource Brand600Brush}"
+                                  Data="{StaticResource IconEdit}" VerticalAlignment="Center" />
+                            <TextBlock Classes="dh" Text="یادداشت داخلی" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <StackPanel Margin="14,4,14,14">
+                            <TextBox Classes="f-ta" Text="{Binding NoteText, Mode=TwoWay}"
+                                     PlaceholderText="یادداشتی برای همکاران بنویسید…" />
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                                <Button Classes="outline" Height="34" FontSize="12"
+                                        Command="{Binding SaveNoteCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="14" Height="14"
+                                              Stroke="{Binding $parent[Button].Foreground}"
+                                              Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                                        <TextBlock Text="ذخیره یادداشت" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="ghost" Height="34" FontSize="12"
+                                        Command="{Binding ContactCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="14" Height="14"
+                                              Stroke="{Binding $parent[Button].Foreground}"
+                                              Data="{StaticResource IconPhone}" VerticalAlignment="Center" />
+                                        <TextBlock Text="تماس" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ═══ footer (.ch-df) ═══ -->
+        <Border Grid.Row="2" Background="White" Padding="18,12" BorderThickness="0,1,0,0"
+                BorderBrush="{StaticResource Line2Brush}">
+            <ItemsControl ItemsSource="{Binding Actions}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemContainerTheme>
+                    <ControlTheme TargetType="ContentPresenter">
+                        <Setter Property="Margin" Value="4,0" />
+                    </ControlTheme>
+                </ItemsControl.ItemContainerTheme>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="ch:ChequeDrawerActionViewModel">
+                        <Button Classes="ch-dbtn" Classes.outline="{Binding IsOutline}"
+                                Classes.primary="{Binding IsPrimary}"
+                                Classes.ghost="{Binding IsGhost}"
+                                Command="{Binding #Root.((ch:ChequeDetailViewModel)DataContext).RunActionCommand}"
+                                CommandParameter="{Binding}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="15" Height="15"
+                                      Stroke="{Binding $parent[Button].Foreground}"
+                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                      VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+    </Grid>
+
+</UserControl>

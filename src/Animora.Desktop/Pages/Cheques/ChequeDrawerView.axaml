@@ -1,0 +1,362 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ch="using:Animora.Desktop.Pages.Cheques"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Cheques.ChequeDrawerView"
+             x:Name="Root"
+             x:DataType="ch:ChequeDrawerViewModel"
+             Width="720"
+             MaxWidth="720"
+             FlowDirection="RightToLeft">
+
+    <!-- Add/edit cheque drawer — re-draws Animora-UI/assets/cheques-ui.js
+         openChequeModal / paintForm (the .ch-modal scaffold + .dir-pick /
+         .bank-pick / .frm / .quick-dates / .dp widgets). Every measurable value
+         traces to cheques.css lines 552–661. Shown via IDialogService.ShowModal
+         (the reference centres a 720px modal; the app's ShowModal caps width at
+         720). -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.f-lbl">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style Selector="TextBlock.req">
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+        </Style>
+        <Style Selector="TextBox.f-in">
+            <Setter Property="Height" Value="42" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Background" Value="#FDFEFD" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBox.f-in:focus">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="ComboBox.f-sel">
+            <Setter Property="Height" Value="42" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Background" Value="#FDFEFD" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.dir-opt">
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="CornerRadius" Value="15" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Padding" Value="13" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.dir-opt.on">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="Button.bank-opt">
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Padding" Value="4,8" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.bank-opt.on">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="Button.quick">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.quick:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="TextBlock.f-hint">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+            <Setter Property="Margin" Value="0,5,0,0" />
+        </Style>
+        <Style Selector="TextBlock.f-hint.words">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel>
+        <!-- head (.ch-mh) -->
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="22,18">
+            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="13"
+                    Background="{StaticResource Brand50Brush}">
+                <Path Classes="icon" Width="20" Height="20"
+                      Stroke="{StaticResource Brand700Brush}"
+                      Data="{StaticResource IconCheque}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                <TextBlock Text="{Binding Eyebrow}" FontSize="11" FontWeight="Bold"
+                           Foreground="{StaticResource Brand600Brush}" />
+                <TextBlock Text="{Binding Title}" FontSize="17" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" />
+            </StackPanel>
+            <Button Grid.Column="2" Classes="ghost" Padding="8" VerticalAlignment="Top"
+                    Command="{Binding CancelCommand}" ToolTip.Tip="بستن">
+                <Path Classes="icon" Width="16" Height="16"
+                      Stroke="{StaticResource MutedBrush}"
+                      Data="{StaticResource IconX}" />
+            </Button>
+        </Grid>
+        <Border Height="1" Background="{StaticResource Line2Brush}" />
+
+        <!-- body (.ch-mb) -->
+        <ScrollViewer MaxHeight="600" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="22,18" Spacing="0">
+
+                <!-- direction picker (.dir-pick) -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,0,0,18">
+                    <Button Grid.Column="0" Classes="dir-opt" Classes.on="{Binding IsInSelected}"
+                            Command="{Binding SetDirectionCommand}" CommandParameter="in">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                            <Border Grid.Column="0" Width="38" Height="38" CornerRadius="12"
+                                    Background="{Binding InIconBackground}">
+                                <Path Classes="icon" Width="18" Height="18"
+                                      Stroke="{Binding InIconForeground}"
+                                      Data="{StaticResource IconArrowDownLeft}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                <TextBlock Text="چک دریافتی" FontSize="13.5" FontWeight="ExtraBold"
+                                           Foreground="{StaticResource InkBrush}" />
+                                <TextBlock Text="چکی که از مشتری گرفته‌ایم" FontSize="10.5"
+                                           Foreground="{StaticResource MutedBrush}" />
+                            </StackPanel>
+                            <Border Grid.Column="2" Width="20" Height="20" CornerRadius="10"
+                                    BorderThickness="1.5" BorderBrush="{StaticResource LineBrush}"
+                                    Background="{Binding InAccent}"
+                                    IsVisible="{Binding IsInSelected}">
+                                <Path Classes="icon" Width="12" Height="12" Stroke="White"
+                                      Data="{StaticResource IconCheck}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                    </Button>
+
+                    <Button Grid.Column="1" Classes="dir-opt" Classes.on="{Binding IsOutSelected}"
+                            Command="{Binding SetDirectionCommand}" CommandParameter="out">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                            <Border Grid.Column="0" Width="38" Height="38" CornerRadius="12"
+                                    Background="{Binding OutIconBackground}">
+                                <Path Classes="icon" Width="18" Height="18"
+                                      Stroke="{Binding OutIconForeground}"
+                                      Data="{StaticResource IconArrowUpRight}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                <TextBlock Text="چک پرداختی" FontSize="13.5" FontWeight="ExtraBold"
+                                           Foreground="{StaticResource InkBrush}" />
+                                <TextBlock Text="چکی که ما صادر کرده‌ایم" FontSize="10.5"
+                                           Foreground="{StaticResource MutedBrush}" />
+                            </StackPanel>
+                            <Border Grid.Column="2" Width="20" Height="20" CornerRadius="10"
+                                    BorderThickness="1.5" BorderBrush="{StaticResource LineBrush}"
+                                    Background="{Binding OutAccent}"
+                                    IsVisible="{Binding IsOutSelected}">
+                                <Path Classes="icon" Width="12" Height="12" Stroke="White"
+                                      Data="{StaticResource IconCheck}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                    </Button>
+                </Grid>
+
+                <!-- bank picker (.bank-pick) -->
+                <TextBlock FontSize="11.5" FontWeight="ExtraBold" Foreground="{StaticResource Ink2Brush}"
+                           Margin="0,0,0,8">
+                    <Run Text="بانک صادرکننده " /><Run Text="*" Foreground="{StaticResource DangerBrush}" />
+                </TextBlock>
+                <ItemsControl ItemsSource="{Binding Banks}" Margin="0,0,0,16">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="6" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemContainerTheme>
+                        <ControlTheme TargetType="ContentPresenter">
+                            <Setter Property="Margin" Value="3.5" />
+                        </ControlTheme>
+                    </ItemsControl.ItemContainerTheme>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="ch:ChequeDrawerBankViewModel">
+                            <Button Classes="bank-opt" Classes.on="{Binding IsSelected}"
+                                    Command="{Binding #Root.((ch:ChequeDrawerViewModel)DataContext).SetBankCommand}"
+                                    CommandParameter="{Binding Key}"
+                                    ToolTip.Tip="{Binding Name}">
+                                <StackPanel>
+                                    <Border Width="26" Height="26" CornerRadius="9"
+                                            Background="{Binding Brush}" Margin="0,0,0,5">
+                                        <TextBlock Text="{Binding MarkLabel}" FontSize="8.5" FontWeight="ExtraBold"
+                                                   Foreground="White" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Text="{Binding Short}" FontSize="9.5" FontWeight="Bold"
+                                               Foreground="{StaticResource MutedBrush}"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- form (.frm) -->
+                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                      ColumnSpacing="14" RowSpacing="12">
+
+                    <!-- party -->
+                    <StackPanel Grid.Row="0" Grid.Column="0">
+                        <TextBlock Classes="f-lbl">
+                            <Run Text="طرف حساب " /><Run Classes="req" Text="*" />
+                        </TextBlock>
+                        <TextBox Classes="f-in" Text="{Binding Party, Mode=TwoWay}"
+                                 PlaceholderText="نام شخص یا شرکت" />
+                    </StackPanel>
+
+                    <!-- role -->
+                    <StackPanel Grid.Row="0" Grid.Column="1">
+                        <TextBlock Classes="f-lbl" Text="نوع طرف حساب" />
+                        <ComboBox Classes="f-sel" HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding RoleOptions}"
+                                  SelectedItem="{Binding SelectedRole, Mode=TwoWay}" />
+                    </StackPanel>
+
+                    <!-- number -->
+                    <StackPanel Grid.Row="1" Grid.Column="0">
+                        <TextBlock Classes="f-lbl">
+                            <Run Text="شماره چک " /><Run Classes="req" Text="*" />
+                        </TextBlock>
+                        <TextBox Classes="f-in" Text="{Binding NumberText, Mode=TwoWay}"
+                                 PlaceholderText="۶ رقم روی برگ چک" />
+                    </StackPanel>
+
+                    <!-- sayad -->
+                    <StackPanel Grid.Row="1" Grid.Column="1">
+                        <TextBlock Classes="f-lbl" Text="شناسه صیادی (۱۶ رقم)" />
+                        <TextBox Classes="f-in" Text="{Binding SayadText, Mode=TwoWay}"
+                                 PlaceholderText="۰۰۰۰-۰۰۰۰-۰۰۰۰-۰۰۰۰" />
+                    </StackPanel>
+
+                    <!-- amount (full) -->
+                    <StackPanel Grid.Row="2" Grid.ColumnSpan="2">
+                        <TextBlock Classes="f-lbl">
+                            <Run Text="مبلغ چک " /><Run Classes="req" Text="*" />
+                        </TextBlock>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Classes="f-in" Padding="12,0,52,0"
+                                     Text="{Binding AmountText, Mode=TwoWay}" PlaceholderText="۰" />
+                            <TextBlock Grid.Column="1" Text="تومان" FontSize="11"
+                                       Foreground="{StaticResource Muted2Brush}"
+                                       VerticalAlignment="Center" Margin="0,0,12,0" />
+                        </Grid>
+                        <TextBlock Classes="f-hint words" Text="{Binding WordsHint}" />
+                    </StackPanel>
+
+                    <!-- issue date -->
+                    <StackPanel Grid.Row="3" Grid.Column="0">
+                        <TextBlock Classes="f-lbl" Text="تاریخ صدور" />
+                        <controls:JalaliDatePicker DateValue="{Binding IssueDate, Mode=TwoWay}" />
+                    </StackPanel>
+
+                    <!-- due date -->
+                    <StackPanel Grid.Row="3" Grid.Column="1">
+                        <TextBlock Classes="f-lbl">
+                            <Run Text="تاریخ سررسید " /><Run Classes="req" Text="*" />
+                        </TextBlock>
+                        <controls:JalaliDatePicker DateValue="{Binding DueDate, Mode=TwoWay}" />
+                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,7,0,0">
+                            <Button Classes="quick" Content="۱ هفته"
+                                    Command="{Binding QuickDateCommand}" CommandParameter="7" />
+                            <Button Classes="quick" Content="۱ ماه"
+                                    Command="{Binding QuickDateCommand}" CommandParameter="30" />
+                            <Button Classes="quick" Content="۲ ماه"
+                                    Command="{Binding QuickDateCommand}" CommandParameter="60" />
+                            <Button Classes="quick" Content="۳ ماه"
+                                    Command="{Binding QuickDateCommand}" CommandParameter="90" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- branch -->
+                    <StackPanel Grid.Row="4" Grid.Column="0">
+                        <TextBlock Classes="f-lbl" Text="شعبه" />
+                        <TextBox Classes="f-in" Text="{Binding Branch, Mode=TwoWay}"
+                                 PlaceholderText="مثلاً شعبه ونک" />
+                    </StackPanel>
+
+                    <!-- reference -->
+                    <StackPanel Grid.Row="4" Grid.Column="1">
+                        <TextBlock Classes="f-lbl" Text="سند مرتبط" />
+                        <TextBox Classes="f-in" Text="{Binding Reference, Mode=TwoWay}"
+                                 PlaceholderText="INV-… / PO-…" />
+                    </StackPanel>
+
+                    <!-- subject (full) -->
+                    <StackPanel Grid.Row="5" Grid.ColumnSpan="2">
+                        <TextBlock Classes="f-lbl" Text="بابت" />
+                        <TextBox Classes="f-in" Text="{Binding Subject, Mode=TwoWay}"
+                                 PlaceholderText="شرح کوتاه بابت چک" />
+                    </StackPanel>
+
+                    <!-- note (full) -->
+                    <StackPanel Grid.Row="6" Grid.ColumnSpan="2">
+                        <TextBlock Classes="f-lbl" Text="یادداشت" />
+                        <TextBox Classes="f-in" Height="70" AcceptsReturn="True" TextWrapping="Wrap"
+                                 Padding="12,10" VerticalContentAlignment="Top"
+                                 Text="{Binding Note, Mode=TwoWay}"
+                                 PlaceholderText="توضیحات تکمیلی…" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- foot (.ch-mf) -->
+        <Border Height="1" Background="{StaticResource Line2Brush}" />
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10" Margin="22,14"
+              Background="#FBFCFB">
+            <Button Grid.Column="0" Classes="ghost" Content="انصراف"
+                    Command="{Binding CancelCommand}" />
+            <Button Grid.Column="2" Classes="outline" IsVisible="{Binding ShowSaveAndNew}"
+                    Command="{Binding SaveAndNewCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Classes="icon" Width="15" Height="15"
+                          Stroke="{StaticResource InkBrush}"
+                          Data="{StaticResource IconPlus}" />
+                    <TextBlock Text="ثبت و جدید" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Grid.Column="3" Classes="primary" Command="{Binding SaveCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                          Data="{StaticResource IconCheck}" />
+                    <TextBlock Text="{Binding SaveText}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
+    </StackPanel>
+
+</UserControl>

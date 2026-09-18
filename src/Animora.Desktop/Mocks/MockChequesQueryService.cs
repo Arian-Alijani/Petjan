@@ -141,6 +141,83 @@ public sealed class MockChequesQueryService : IChequesQueryService
         return Task.FromResult<IReadOnlyList<BankSummary>>(rows);
     }
 
+    public Task<Cheque> CreateAsync(NewChequeRequest request)
+    {
+        // Mirrors saveCheque's insert path: id = "CH-" + (1100 + count), status
+        // forced to inhand, and the demo fields filled with the same placeholders.
+        var id = $"CH-{(1100 + _cheques.Count).ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        var cheque = new Cheque(
+            id,
+            request.Direction,
+            request.Number,
+            string.IsNullOrWhiteSpace(request.Sayad) ? "0000-0000-0000-0000" : request.Sayad,
+            request.BankKey,
+            string.IsNullOrWhiteSpace(request.Branch) ? "شعبه مرکزی" : request.Branch,
+            request.Party,
+            request.Role,
+            string.IsNullOrWhiteSpace(request.Phone) ? "09120000000" : request.Phone,
+            request.Amount,
+            request.IssueDate,
+            request.DueDate,
+            ChequeStatus.InHand,
+            string.IsNullOrWhiteSpace(request.Subject) ? "—" : request.Subject,
+            string.IsNullOrWhiteSpace(request.Reference) ? "—" : request.Reference,
+            request.Account,
+            request.Note);
+
+        _cheques.Insert(0, cheque);
+        return Task.FromResult(cheque);
+    }
+
+    public Task UpdateAsync(string chequeId, UpdateChequeRequest request)
+    {
+        var index = _cheques.FindIndex(c => c.Id == chequeId);
+        if (index >= 0)
+        {
+            var existing = _cheques[index];
+            _cheques[index] = existing with
+            {
+                Direction = request.Direction,
+                BankKey = request.BankKey,
+                Number = request.Number,
+                Sayad = request.Sayad,
+                Party = request.Party,
+                Role = request.Role,
+                Phone = request.Phone,
+                Amount = request.Amount,
+                IssueDate = request.IssueDate,
+                DueDate = request.DueDate,
+                Branch = request.Branch,
+                Subject = request.Subject,
+                Reference = request.Reference,
+                Note = request.Note,
+                Account = request.Account,
+            };
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(string chequeId)
+    {
+        _cheques.RemoveAll(c => c.Id == chequeId);
+        return Task.CompletedTask;
+    }
+
+    public Task BulkUpdateStatusAsync(IReadOnlyList<string> ids, ChequeStatus newStatus)
+    {
+        var set = new HashSet<string>(ids, StringComparer.Ordinal);
+        for (var i = 0; i < _cheques.Count; i++)
+        {
+            if (set.Contains(_cheques[i].Id))
+            {
+                _cheques[i] = _cheques[i] with { Status = newStatus };
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
     public Task<IReadOnlyList<ChequeAlert>> GetAlertsAsync()
     {
         var today = JalaliCalendar.Today;

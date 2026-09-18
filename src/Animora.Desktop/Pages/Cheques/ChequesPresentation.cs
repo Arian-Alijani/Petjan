@@ -362,4 +362,95 @@ public static class ChequesPresentation
         ChequeAlertKind.Bounced => "IconShield",
         _ => "IconSms",
     };
+
+    // ── Details drawer (openCheque) ──────────────────────────────────────
+
+    /// <summary>
+    /// The reference's <c>toneColor</c>: maps a lifecycle-event tone to its dot
+    /// colour (used by the drawer's «چرخه عمر چک» timeline).
+    /// </summary>
+    public static IBrush ToneColor(string tone) => Fill(tone switch
+    {
+        "ok" => "#027a48",
+        "info" => "#1570cd",
+        "warn" => "#b54708",
+        "danger" => "#d92d20",
+        "lilac" => "#7b5cc4",
+        "mute" => "#9aa8a5",
+        "peach" => "#e08a5c",
+        _ => "#0d9488",
+    });
+
+    /// <summary>
+    /// Builds the drawer's cheque lifecycle timeline (mirrors <c>chequeTimeline</c>
+    /// in Animora-UI/assets/cheques-data.js): always a registration entry, then a
+    /// direction-specific entry at issue, then the status-dependent events.
+    /// </summary>
+    public static IReadOnlyList<ChequeTimelineEvent> TimelineEvents(Cheque c)
+    {
+        var today = JalaliCalendar.Today;
+        var events = new List<ChequeTimelineEvent>
+        {
+            new("ثبت چک در سامانه", c.IssueDate, "دکتر آریا نیک", "brand"),
+            c.Direction == ChequeDirection.In
+                ? new ChequeTimelineEvent($"دریافت از {c.Party}", c.IssueDate, "پریسا صداری", "info")
+                : new ChequeTimelineEvent($"صدور و تحویل به {c.Party}", c.IssueDate, "پریسا صداری", "peach"),
+        };
+
+        var mid = JalaliCalendar.AddDays(c.DueDate, -3);
+        if (c.Status is ChequeStatus.AtBank or ChequeStatus.Cleared)
+        {
+            events.Add(new ChequeTimelineEvent("واگذاری به بانک", mid, "واحد مالی", "warn"));
+        }
+
+        switch (c.Status)
+        {
+            case ChequeStatus.Cleared:
+                events.Add(new ChequeTimelineEvent("وصول شد", c.DueDate, "سامانه بانکی", "ok"));
+                break;
+            case ChequeStatus.Bounced:
+                events.Add(new ChequeTimelineEvent("برگشت خورد", c.DueDate, "سامانه بانکی", "danger"));
+                break;
+            case ChequeStatus.Spent:
+                events.Add(new ChequeTimelineEvent("خرج (واگذاری به شخص ثالث)", mid, "دکتر آریا نیک", "lilac"));
+                break;
+            case ChequeStatus.Void:
+                events.Add(new ChequeTimelineEvent("ابطال چک", mid, "دکتر آریا نیک", "mute"));
+                break;
+        }
+
+        _ = today;
+        return events;
+    }
+
+    /// <summary>
+    /// The drawer's due-meter geometry (mirrors the <c>due-meter</c> computation
+    /// in <c>openCheque</c>): the progress percent from issue→due and the
+    /// tone class (<c>danger</c> if overdue, <c>warn</c> within a week).
+    /// </summary>
+    public static (double Percent, string ToneClass) DueMeter(Cheque c)
+    {
+        var today = JalaliCalendar.Today;
+        var total = Math.Max(1, JalaliCalendar.Diff(c.DueDate, c.IssueDate));
+        var passed = Math.Min(total, Math.Max(0, JalaliCalendar.Diff(today, c.IssueDate)));
+        var pct = Math.Round((double)passed / total * 100);
+        var d = JalaliCalendar.Diff(c.DueDate, today);
+        var tone = d < 0 ? "danger" : d <= 7 ? "warn" : string.Empty;
+        return (pct, tone);
+    }
+
+    /// <summary>The drawer's due-meter caption (mirrors the <c>due-meter .lbl</c> text).</summary>
+    public static string DueMeterText(Cheque c)
+    {
+        var d = JalaliCalendar.Diff(c.DueDate, JalaliCalendar.Today);
+        return d < 0 ? $"{Fa(Math.Abs(d))} روز از سررسید گذشته"
+            : d == 0 ? "سررسید امروز"
+            : $"{Fa(d)} روز تا سررسید";
+    }
 }
+
+/// <summary>
+/// One entry of the details drawer's «چرخه عمر چک» timeline (the reference's
+/// <c>chequeTimeline</c> item): title, Jalali date, actor and tone.
+/// </summary>
+public sealed record ChequeTimelineEvent(string Title, string Date, string By, string Tone);
