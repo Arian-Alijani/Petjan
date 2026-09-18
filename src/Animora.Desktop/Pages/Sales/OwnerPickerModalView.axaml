@@ -1,0 +1,116 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sales="using:Animora.Desktop.Pages.Sales"
+             x:Class="Animora.Desktop.Pages.Sales.OwnerPickerModalView"
+             x:Name="Root"
+             x:DataType="sales:OwnerPickerModalViewModel"
+             Width="560"
+             MaxWidth="560"
+             MaxHeight="640"
+             FlowDirection="RightToLeft">
+
+    <!-- Customer picker — re-draws sale-page.js openPicker (.sw-modal +
+         .sw-owner-row/.sw-owner-none). Values from sale.css
+         (.sw-modal-head/-search/-body, .sw-owner-row, .sw-owner-none). -->
+    <UserControl.Styles>
+        <Style Selector="Button.own-row">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="Margin" Value="6,2" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.own-row:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <!-- head -->
+        <Border Grid.Row="0" Padding="22,18,22,12"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
+            <StackPanel Spacing="3">
+                <TextBlock Text="انتخاب مشتری" FontSize="16" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" />
+                <TextBlock Text="مشتری با پرونده را انتخاب کنید یا مشتری گذری ثبت نمایید."
+                           FontSize="12" Foreground="{StaticResource MutedBrush}" />
+            </StackPanel>
+        </Border>
+
+        <!-- search -->
+        <Grid Grid.Row="1" Margin="14,10,14,6">
+            <TextBox Text="{Binding Query}" MinHeight="0" Padding="14,10" FontSize="13"
+                     BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                     CornerRadius="10" Background="{StaticResource PanelBrush}"
+                     Watermark="جستجو در نام، شمارهٔ پرونده یا موبایل..."
+                     VerticalContentAlignment="Center" />
+        </Grid>
+
+        <!-- body -->
+        <ScrollViewer Grid.Row="2" Padding="8,0,8,12" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- guest option -->
+                <Button Background="{StaticResource PanelBrush}" Cursor="Hand" Margin="6,4"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                        CornerRadius="10" Padding="14,12"
+                        Command="{Binding SelectGuestCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                        <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                              StrokeThickness="2.5" Data="{StaticResource IconPlus}" />
+                        <TextBlock Text="ثبت به عنوان مشتری گذری (بدون پرونده)" FontSize="12"
+                                   Foreground="{StaticResource MutedBrush}" />
+                    </StackPanel>
+                </Button>
+
+                <!-- owner rows -->
+                <ItemsControl ItemsSource="{Binding Rows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="sales:OwnerRowViewModel">
+                            <Button Classes="own-row"
+                                    Command="{Binding $parent[UserControl].((sales:OwnerPickerModalViewModel)DataContext).SelectOwnerCommand}"
+                                    CommandParameter="{Binding Id}">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                    <Border Grid.Column="0" Width="36" Height="36" CornerRadius="10"
+                                            Background="{Binding AvatarBrush}">
+                                        <TextBlock Text="{Binding Initial}" FontSize="14" FontWeight="ExtraBold"
+                                                   Foreground="White" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock Text="{Binding FullName}" FontSize="13" FontWeight="Bold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding FileCode}" FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Foreground="{StaticResource Brand700Brush}" />
+                                            <TextBlock Text="{Binding Mobile}" FontSize="11"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       IsVisible="{Binding HasMobile}" />
+                                            <TextBlock Text="{Binding BalanceText}" FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Foreground="{StaticResource DangerBrush}"
+                                                       IsVisible="{Binding HasBalance}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Path Grid.Column="2" Classes="icon" Width="14" Height="14"
+                                          Stroke="{StaticResource MutedBrush}"
+                                          Data="{StaticResource IconChevronLeft}"
+                                          VerticalAlignment="Center" />
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- no result -->
+                <TextBlock IsVisible="{Binding ShowNoResult}" Text="موردی یافت نشد"
+                           FontSize="12.5" Foreground="{StaticResource MutedBrush}"
+                           HorizontalAlignment="Center" Margin="20" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

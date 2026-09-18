@@ -1,0 +1,310 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sales="using:Animora.Desktop.Pages.Sales"
+             x:Class="Animora.Desktop.Pages.Sales.PaymentModalView"
+             x:Name="Root"
+             x:DataType="sales:PaymentModalViewModel"
+             Width="520"
+             MaxWidth="520"
+             FlowDirection="RightToLeft">
+
+    <!-- Payment surface + settlement success — re-draws sale-page.js
+         renderPayment/doPayment/showSettlementSuccess. Values from sale.css
+         (.sw-pay/-head/.sw-methods/.sw-method/.sw-pay-amount-row/.sw-pay-presets/
+          .sw-pay-preview/.sw-success*/.m-chip). -->
+    <UserControl.Styles>
+        <Style Selector="Button.pm-method">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="8,9" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.pm-method:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.pm-method.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Button.pm-preset">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.pm-preset.wide">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.pm-preset:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand100Brush}" />
+        </Style>
+        <Style Selector="Button.ps-foot">
+            <Setter Property="Padding" Value="14,11" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </UserControl.Styles>
+
+    <Panel>
+        <!-- ═══════════ PAYMENT FORM ═══════════ -->
+        <StackPanel IsVisible="{Binding !ShowSuccess}">
+            <Border Background="{StaticResource PanelBrush}" CornerRadius="20" Padding="20,16">
+                <!-- head -->
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{StaticResource Brand600Brush}"
+                                  Data="{StaticResource IconWallet}" VerticalAlignment="Center" />
+                            <TextBlock Text="روش پرداخت" FontSize="13" FontWeight="ExtraBold"
+                                       Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="مانده:" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{StaticResource MutedBrush}" />
+                            <TextBlock Text="{Binding DueText}" FontSize="12" FontWeight="ExtraBold"
+                                       Foreground="{StaticResource Brand700Brush}" />
+                            <TextBlock Text="تومان" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{StaticResource MutedBrush}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- methods -->
+                    <ItemsControl ItemsSource="{Binding Methods}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="5" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sales:PaymentMethodOptionViewModel">
+                                <Button Classes="pm-method" Classes.on="{Binding IsActive}" Margin="3,0"
+                                        Command="{Binding $parent[UserControl].((sales:PaymentModalViewModel)DataContext).ChooseMethodCommand}"
+                                        CommandParameter="{Binding Key}">
+                                    <StackPanel Spacing="5" HorizontalAlignment="Center">
+                                        <Path Classes="icon" Width="16" Height="16"
+                                              Stroke="{Binding $parent[Button].Foreground}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                              HorizontalAlignment="Center" />
+                                        <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="Bold"
+                                                   HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- amount row -->
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Border Grid.Column="0" BorderBrush="{StaticResource LineBrush}"
+                                BorderThickness="1.5" CornerRadius="12"
+                                Background="{StaticResource PanelBrush}">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <TextBlock Grid.Column="0" Text="تومان" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}"
+                                           VerticalAlignment="Center" Margin="16,0" />
+                                <TextBox Grid.Column="1" Text="{Binding AmountText}" MinHeight="0"
+                                         Padding="8,12,16,12" FontSize="17" FontWeight="ExtraBold"
+                                         BorderThickness="0" Background="Transparent"
+                                         TextAlignment="Right" VerticalContentAlignment="Center" />
+                            </Grid>
+                        </Border>
+                        <Grid Grid.Column="1" Width="130" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto"
+                              ColumnSpacing="4" RowSpacing="4">
+                            <Button Grid.Row="0" Grid.ColumnSpan="2" Classes="pm-preset wide"
+                                    Content="مانده کامل" Command="{Binding SetDueCommand}" />
+                            <Button Grid.Row="1" Grid.Column="0" Classes="pm-preset"
+                                    Content="٪۵۰" Command="{Binding SetHalfCommand}" />
+                            <Button Grid.Row="1" Grid.Column="1" Classes="pm-preset"
+                                    Content="صفر" Command="{Binding SetClearCommand}" />
+                        </Grid>
+                    </Grid>
+
+                    <!-- preview -->
+                    <Border CornerRadius="10" Padding="12,9"
+                            Background="{Binding PreviewBackground}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Border Width="20" Height="20" CornerRadius="50"
+                                    Background="{Binding PreviewIcoBackground}">
+                                <Path Classes="icon" Width="12" Height="12"
+                                      Stroke="{Binding PreviewIcoForeground}"
+                                      Data="{Binding PreviewIconKey, Converter={StaticResource IconKeyConverter}}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="{Binding PreviewText}" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{Binding PreviewForeground}"
+                                       VerticalAlignment="Center" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- foot -->
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
+                        Margin="0,14,0,0">
+                <Button Classes="outline ps-foot" Content="انصراف" Command="{Binding CloseCommand}" />
+                <Button Classes="ps-foot" Command="{Binding PayCommand}">
+                    <Button.Styles>
+                        <Style Selector="Button">
+                            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderThickness" Value="0" />
+                        </Style>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="{StaticResource Brand700Brush}" />
+                        </Style>
+                    </Button.Styles>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Path Classes="icon" Width="16" Height="16" Stroke="White"
+                              StrokeThickness="2.5" Data="{StaticResource IconCheck}" />
+                        <TextBlock Text="{Binding PayCtaLabel}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- ═══════════ SETTLEMENT SUCCESS ═══════════ -->
+        <Border IsVisible="{Binding ShowSuccess}" Background="{StaticResource PanelBrush}"
+                CornerRadius="24" ClipToBounds="True">
+            <StackPanel>
+                <!-- hero -->
+                <Border Height="150"
+                        Background="{StaticResource Brand50Brush}">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10">
+                        <Border Width="84" Height="84" CornerRadius="50"
+                                Background="{StaticResource OkBgBrush}"
+                                HorizontalAlignment="Center">
+                            <Path Classes="icon" Width="48" Height="48" Stroke="{StaticResource OkBrush}"
+                                  StrokeThickness="3" Data="{StaticResource IconCheck}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- body -->
+                <StackPanel Margin="26,12,26,20" Spacing="6">
+                    <TextBlock Text="فاکتور با موفقیت تسویه شد" FontSize="20" FontWeight="ExtraBold"
+                               Foreground="{StaticResource OkBrush}" HorizontalAlignment="Center" />
+                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}"
+                               HorizontalAlignment="Center" TextWrapping="Wrap"
+                               Text="پرداخت ثبت و فاکتور بسته شد." />
+                    <Border Background="{StaticResource BgBrush}" CornerRadius="12" Padding="12,4"
+                            Margin="0,12,0,0">
+                        <StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" Margin="4,9">
+                                <TextBlock Text="شمارهٔ رسید" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}" />
+                                <TextBlock Grid.Column="1" Text="{Binding ReceiptNo}" FontSize="12.5"
+                                           FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto" Margin="4,9">
+                                <TextBlock Text="مشتری" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}" />
+                                <TextBlock Grid.Column="1" Text="{Binding SuccessCustomer}" FontSize="12.5"
+                                           FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto" Margin="4,9">
+                                <TextBlock Text="روش پرداخت این تراکنش" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}" />
+                                <Border Grid.Column="1" Background="{StaticResource OkBgBrush}"
+                                        CornerRadius="20" Padding="10,3">
+                                    <TextBlock Text="{Binding SuccessMethodLabel}" FontSize="11"
+                                               FontWeight="ExtraBold" Foreground="{StaticResource OkBrush}" />
+                                </Border>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto" Margin="4,9">
+                                <TextBlock Text="مبلغ این پرداخت" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3">
+                                    <TextBlock Text="{Binding SuccessThisPayment}" FontSize="12.5"
+                                               FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="تومان" FontSize="10.5" FontWeight="SemiBold"
+                                               Foreground="{StaticResource MutedBrush}"
+                                               VerticalAlignment="Bottom" Margin="0,0,0,1" />
+                                </StackPanel>
+                            </Grid>
+                            <Border Background="{StaticResource PanelBrush}" CornerRadius="0,0,12,12"
+                                    BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                                    Margin="-12,4,-12,-4" Padding="16,12">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="جمع کل تسویه‌شده" FontSize="12.5" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource Ink2Brush}" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3">
+                                        <TextBlock Text="{Binding SuccessTotal}" FontSize="16"
+                                                   FontWeight="ExtraBold" Foreground="{StaticResource OkBrush}" />
+                                        <TextBlock Text="تومان" FontSize="10.5" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource MutedBrush}"
+                                                   VerticalAlignment="Bottom" Margin="0,0,0,2" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- foot -->
+                <StackPanel Margin="20,0,20,20" Spacing="8">
+                    <UniformGrid Columns="3">
+                        <Button Classes="outline ps-foot" Margin="0,0,8,0" Command="{Binding RefundFromSuccessCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="15" Height="15"
+                                      Stroke="{StaticResource MutedBrush}"
+                                      Data="{StaticResource IconArrowDownLeft}" />
+                                <TextBlock Text="عودت وجه" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="outline ps-foot" Margin="0,0,8,0" Command="{Binding PrintCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="15" Height="15"
+                                      Stroke="{StaticResource MutedBrush}"
+                                      Data="{StaticResource IconPrinter}" />
+                                <TextBlock Text="چاپ رسید" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="outline ps-foot" Command="{Binding CloseCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="15" Height="15"
+                                      Stroke="{StaticResource MutedBrush}"
+                                      Data="{StaticResource IconX}" />
+                                <TextBlock Text="بستن" />
+                            </StackPanel>
+                        </Button>
+                    </UniformGrid>
+                    <Button Classes="ps-foot" HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center" Command="{Binding NextCommand}">
+                        <Button.Styles>
+                            <Style Selector="Button">
+                                <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+                                <Setter Property="Foreground" Value="White" />
+                                <Setter Property="BorderThickness" Value="0" />
+                            </Style>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="Background" Value="{StaticResource Brand700Brush}" />
+                            </Style>
+                        </Button.Styles>
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                            <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                                  StrokeThickness="2.5" Data="{StaticResource IconArrowUpRight}" />
+                            <TextBlock Text="{Binding SuccessNextLabel}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Panel>
+</UserControl>
