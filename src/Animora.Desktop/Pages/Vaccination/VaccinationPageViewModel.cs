@@ -1,0 +1,420 @@
+using System.Collections.ObjectModel;
+using Animora.Contracts.Vaccination;
+using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.Vaccination;
+using Animora.Desktop.Services;
+using Animora.Desktop.Shell;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace Animora.Desktop.Pages.Vaccination;
+
+/// <summary>
+/// ViewModel for the Vaccination screen. Mirrors the reference's page
+/// controller (Animora-UI/assets/vaccination.js): the three primary section
+/// tabs (نوبت / انبار واکسن / تنظیمات), the status-segment filter + search +
+/// species filter toolbar, the records table with pager and per-row actions,
+/// the vaccine catalog grid and the SMS-template panel. All data flows through
+/// <see cref="IVaccinationService"/> (the single backend swap point, R-18) —
+/// no sample data or mock branching leaks into this public shape.
+/// </summary>
+public sealed partial class VaccinationPageViewModel : PageViewModelBase
+{
+    private const int PageSize = 8;
+
+    private readonly IVaccinationService _service;
+    private readonly IDialogService _dialogs;
+    private readonly IToastService _toast;
+
+    private readonly List<VaccinationRecord> _records = [];
+    private readonly List<VaccineCatalogEntry> _catalog = [];
+    private readonly List<SmsTemplate> _templates = [];
+
+    // Reference page state: S.seg, S.q, S.species, S.page.
+    private string _segment = "all";
+    private string _searchQuery = string.Empty;
+    private string _species = string.Empty;
+    private int _page = 1;
+    private int _pageCount = 1;
+
+    public VaccinationPageViewModel(IVaccinationService service, IDialogService dialogs, IToastService toast)
+    {
+        _service = service;
+        _dialogs = dialogs;
+        _toast = toast;
+
+        Title = "واکسیناسیون";
+        Eyebrow = "مراقبت";
+        Breadcrumbs.Add("مراقبت");
+        Breadcrumbs.Add("واکسیناسیون");
+
+        foreach (var option in new[]
+                 {
+                     new SpeciesFilterOption(string.Empty, "همه گونه‌ها"),
+                     new SpeciesFilterOption("cat", "گربه"),
+                     new SpeciesFilterOption("dog", "سگ"),
+                     new SpeciesFilterOption("bird", "پرنده"),
+                     new SpeciesFilterOption("rabbit", "خرگوش"),
+                     new SpeciesFilterOption("rodent", "جونده"),
+                 })
+        {
+            SpeciesOptions.Add(option);
+        }
+
+        SelectedSpeciesOption = SpeciesOptions[0];
+
+        _ = LoadAsync();
+    }
+
+    /// <summary>visits | stock | settings — the reference's <c>#vxMainSeg</c> keys.</summary>
+    [ObservableProperty]
+    private string _activeSection = "visits";
+
+    public bool IsVisitsSection => ActiveSection == "visits";
+    public bool IsStockSection => ActiveSection == "stock";
+    public bool IsSettingsSection => ActiveSection == "settings";
+    public bool ShowVisitsTools => ActiveSection == "visits";
+
+    public ObservableCollection<VaccinationSegmentViewModel> Segments { get; } = [];
+    public ObservableCollection<VaccinationRecordRowViewModel> FilteredRecords { get; } = [];
+    public ObservableCollection<VaccineCatalogCardViewModel> Catalog { get; } = [];
+    public ObservableCollection<SmsTemplateRowViewModel> Templates { get; } = [];
+    public ObservableCollection<SpeciesFilterOption> SpeciesOptions { get; } = [];
+    public ObservableCollection<PagerButtonViewModel> Pages { get; } = [];
+
+    [ObservableProperty]
+    private SpeciesFilterOption? _selectedSpeciesOption;
+
+    [ObservableProperty]
+    private string _searchQueryText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasSearchValue;
+
+    [ObservableProperty]
+    private bool _hasRecords;
+
+    [ObservableProperty]
+    private bool _hasPages;
+
+    [ObservableProperty]
+    private string _pagerShownText = string.Empty;
+
+    [ObservableProperty]
+    private string _pagerTotalText = string.Empty;
+
+    [ObservableProperty]
+    private string _catalogCountText = string.Empty;
+
+    // ── «تنظیمات» panel state (reference's SMS automation card) ──────────────
+    [ObservableProperty]
+    private string _senderNumber = "۵۰۰۰۲۱۰۰۰۰";
+
+    [ObservableProperty]
+    private string _dailyTime = "۰۹:۰۰ صبح";
+
+    [ObservableProperty]
+    private string _reminderGap = "۳ روز پیش از نوبت";
+
+    [ObservableProperty]
+    private string _overdueRepeat = "هر ۷ روز";
+
+    [ObservableProperty]
+    private bool _remindBeforeDue = true;
+
+    [ObservableProperty]
+    private bool _warnOverdue = true;
+
+    [ObservableProperty]
+    private bool _confirmAfterShot;
+
+    [ObservableProperty]
+    private bool _sendOnHolidays;
+
+    public IReadOnlyList<string> DailyTimes { get; } = ["۰۹:۰۰ صبح", "۱۱:۰۰ صبح", "۱۷:۰۰ عصر"];
+
+    public IReadOnlyList<string> ReminderGaps { get; } = ["۳ روز پیش از نوبت", "۷ روز پیش از نوبت", "۱ روز پیش از نوبت"];
+
+    public IReadOnlyList<string> OverdueRepeats { get; } = ["هر ۷ روز", "هر ۳ روز", "هر ۱۴ روز"];
+
+    partial void OnSelectedSpeciesOptionChanged(SpeciesFilterOption? value)
+    {
+        _species = value?.Value ?? string.Empty;
+        _page = 1;
+        RefreshRows();
+    }
+
+    partial void OnActiveSectionChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsVisitsSection));
+        OnPropertyChanged(nameof(IsStockSection));
+        OnPropertyChanged(nameof(IsSettingsSection));
+        OnPropertyChanged(nameof(ShowVisitsTools));
+    }
+
+    private async Task LoadAsync()
+    {
+        IsBusy = true;
+
+        _records.Clear();
+        _records.AddRange(await _service.GetRecordsAsync());
+        _catalog.Clear();
+        _catalog.AddRange(await _service.GetCatalogAsync());
+        _templates.Clear();
+        _templates.AddRange(await _service.GetSmsTemplatesAsync());
+
+        Catalog.Clear();
+        foreach (var entry in _catalog)
+        {
+            Catalog.Add(new VaccineCatalogCardViewModel(entry));
+        }
+
+        CatalogCountText = $"{VaccinationPresentation.Fa(_catalog.Count)} قلم";
+
+        Templates.Clear();
+        foreach (var template in _templates)
+        {
+            Templates.Add(new SmsTemplateRowViewModel(template));
+        }
+
+        IsBusy = false;
+        Refresh();
+    }
+
+    private void Refresh()
+    {
+        RefreshSegments();
+        RefreshRows();
+    }
+
+    // Reference renderSeg: counts derive from ALL records (vaxCounts()).
+    private void RefreshSegments()
+    {
+        var counts = new Dictionary<string, int>
+        {
+            ["all"] = _records.Count,
+            ["due"] = 0,
+            ["overdue"] = 0,
+            ["scheduled"] = 0,
+            ["done"] = 0,
+        };
+
+        foreach (var record in _records)
+        {
+            var key = Key(record.Status);
+            counts[key] = counts.GetValueOrDefault(key) + 1;
+        }
+
+        var defs = new (string Key, string Label)[]
+        {
+            ("all", "همه"),
+            ("due", "نزدیک"),
+            ("overdue", "عقب‌افتاده"),
+            ("scheduled", "آتی"),
+            ("done", "انجام‌شده"),
+        };
+
+        Segments.Clear();
+        foreach (var (key, label) in defs)
+        {
+            Segments.Add(new VaccinationSegmentViewModel(key, label, counts[key])
+            {
+                IsActive = _segment == key,
+            });
+        }
+    }
+
+    private List<VaccinationRecord> Filtered()
+    {
+        var query = PersianText.Normalize(_searchQuery);
+        return _records.Where(record =>
+        {
+            if (_segment != "all" && Key(record.Status) != _segment)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(_species) && record.Species != _species)
+            {
+                return false;
+            }
+
+            if (query.Length > 0)
+            {
+                var vaccine = _catalog.FirstOrDefault(v => v.Id == record.VaccineId);
+                var hay = PersianText.Normalize(
+                    $"{record.PetName} {record.OwnerName} {vaccine?.Name} {vaccine?.Short} {record.Dose}");
+                if (!hay.Contains(query, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }).ToList();
+    }
+
+    // Reference renderRows: 8 rows per page, page clamped to the last page.
+    private void RefreshRows()
+    {
+        var list = Filtered();
+        _pageCount = Math.Max(1, (int)Math.Ceiling(list.Count / (double)PageSize));
+        if (_page > _pageCount)
+        {
+            _page = _pageCount;
+        }
+
+        var slice = list.Skip((_page - 1) * PageSize).Take(PageSize).ToList();
+
+        FilteredRecords.Clear();
+        foreach (var record in slice)
+        {
+            var vaccine = _catalog.FirstOrDefault(v => v.Id == record.VaccineId);
+            FilteredRecords.Add(new VaccinationRecordRowViewModel(record, vaccine));
+        }
+
+        HasRecords = list.Count > 0;
+
+        Pages.Clear();
+        for (var i = 1; i <= _pageCount; i++)
+        {
+            Pages.Add(new PagerButtonViewModel(i, VaccinationPresentation.Fa(i))
+            {
+                IsActive = i == _page,
+            });
+        }
+
+        HasPages = _pageCount > 1;
+        PagerShownText = VaccinationPresentation.Fa(slice.Count);
+        PagerTotalText = VaccinationPresentation.Fa(list.Count);
+    }
+
+    private static string Key(VaccinationStatus status) => status switch
+    {
+        VaccinationStatus.Due => "due",
+        VaccinationStatus.Overdue => "overdue",
+        VaccinationStatus.Scheduled => "scheduled",
+        VaccinationStatus.Done => "done",
+        _ => "all",
+    };
+
+    public bool IsPageActive(int page) => page == _page;
+
+    [RelayCommand]
+    private void SetSection(string? key)
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            return;
+        }
+
+        ActiveSection = key;
+    }
+
+    [RelayCommand]
+    private void SetSegment(string? key)
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            return;
+        }
+
+        _segment = key;
+        _page = 1;
+        Refresh();
+    }
+
+    [RelayCommand]
+    private void SetSpecies(SpeciesFilterOption? option)
+    {
+        _species = option?.Value ?? string.Empty;
+        _page = 1;
+        RefreshRows();
+    }
+
+    [RelayCommand]
+    private void SetPage(int page)
+    {
+        _page = page;
+        RefreshRows();
+    }
+
+    // Debounced search is driven by the View; this just re-applies the filter.
+    public void ApplySearch(string? text)
+    {
+        _searchQuery = text?.Trim() ?? string.Empty;
+        _page = 1;
+        RefreshRows();
+    }
+
+    [RelayCommand]
+    private void ClearSearch()
+    {
+        SearchQueryText = string.Empty;
+        ApplySearch(string.Empty);
+    }
+
+    [RelayCommand]
+    private async Task MarkDoneAsync(VaccinationRecordRowViewModel? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        await _service.MarkDoneAsync(row.Record.Id);
+        _records[_records.FindIndex(r => r.Id == row.Record.Id)] =
+            _records.First(r => r.Id == row.Record.Id) with { Status = VaccinationStatus.Done };
+
+        Refresh();
+        _toast.Show("واکسن به‌عنوان انجام‌شده ثبت شد (نمونه طراحی)");
+    }
+
+    [RelayCommand]
+    private void OpenSmsCompose(VaccinationRecordRowViewModel? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        _dialogs.ShowModal(new SmsComposeViewModel(_service, row.Record, _templates, _dialogs, _toast, Refresh));
+    }
+
+    [RelayCommand]
+    private void OpenRecordDetail(VaccinationRecordRowViewModel? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        var vaccine = _catalog.FirstOrDefault(v => v.Id == row.Record.VaccineId);
+        _dialogs.ShowModal(new VaccinationRecordDetailViewModel(row.Record, vaccine, _dialogs));
+    }
+
+    [RelayCommand]
+    private void OpenAddVaccine()
+    {
+        _dialogs.ShowModal(new AddVaccineModalViewModel(_catalog, _dialogs, _toast));
+    }
+
+    [RelayCommand]
+    private void BulkSms()
+    {
+        var count = Filtered().Count(r =>
+            r.Status is VaccinationStatus.Due or VaccinationStatus.Overdue);
+        _toast.Show($"یادآور برای {VaccinationPresentation.Fa(count)} نوبت زمان‌بندی شد (نمونه طراحی)");
+    }
+
+    [RelayCommand]
+    private void UseTemplate(SmsTemplateRowViewModel? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        _toast.Show($"قالب «{row.Name}» انتخاب شد (نمونه طراحی)");
+    }
+}

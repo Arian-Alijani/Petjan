@@ -3,10 +3,12 @@ using Animora.Contracts.Identity;
 using Animora.Contracts.Patients;
 using Animora.Contracts.Reception;
 using Animora.Contracts.Visits;
+using Animora.Contracts.Vaccination;
 using Animora.Desktop.Mocks;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Reception;
+using Animora.Desktop.Pages.Vaccination;
 using Animora.Desktop.Pages.Visits;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
@@ -85,6 +87,12 @@ public partial class App : Application
         // Stateless deterministic mock, so a singleton suffices.
         services.AddSingleton<IVisitsTriageService, MockVisitsTriageService>();
         services.AddSingleton<VisitsTriagePageViewModel>();
+
+        // Phase 12: Vaccination screen (due/overdue list + catalog + SMS
+        // reminders). Stateful in-memory mock — its send/mark-done mutations
+        // persist while navigating, so a singleton.
+        services.AddSingleton<IVaccinationService, MockVaccinationService>();
+        services.AddSingleton<VaccinationPageViewModel>();
 
         // Phase 11: clinical-encounter wizard. One shared encounter store backs
         // both Visits mocks (triage creates the draft, the wizard mutates it);
