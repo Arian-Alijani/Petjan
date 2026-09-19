@@ -783,7 +783,8 @@
                                     CommandParameter="{Binding Owner}">
                                 <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" TextElement.FontSize="13">
                                     <Grid ColumnDefinitions="2*,1.6*,1*,1.6*,1.2*,0.9*,1.2*,Auto">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="16,12">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="16,12"
+                                                    VerticalAlignment="Center">
                                             <Border Width="36" Height="36" CornerRadius="12" Background="{Binding ToneBrush}">
                                                 <TextBlock Text="{Binding Initials}" FontSize="12" FontWeight="ExtraBold"
                                                            Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
