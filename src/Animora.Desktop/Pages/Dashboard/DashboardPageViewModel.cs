@@ -119,8 +119,12 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     /// <summary>Geometry describing the donut ring's coloured slices.</summary>
     [ObservableProperty]
-    private System.Collections.Generic.IReadOnlyList<DonutSliceViewModel> _speciesSlices =
-        System.Array.Empty<DonutSliceViewModel>();
+    private System.Collections.Generic.IReadOnlyList<Animora.Desktop.Controls.DonutSlice> _speciesSlices =
+        System.Array.Empty<Animora.Desktop.Controls.DonutSlice>();
+
+    /// <summary>Index of the hovered slice (-1 = none), for the ring's focus state.</summary>
+    [ObservableProperty]
+    private int _speciesActiveIndex = -1;
 
     /// <summary>The species donut's default center readout, restored on blur.</summary>
     private string _speciesBaseTotal = string.Empty;
@@ -157,15 +161,10 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         }
 
         IsSpeciesDimmed = true;
+        SpeciesActiveIndex = index;
         for (var i = 0; i < Species.Count; i++)
         {
             Species[i].IsActive = i == index;
-        }
-
-        foreach (var slice in SpeciesSlices)
-        {
-            slice.IsActive = slice.Index == index;
-            slice.IsDimmed = true;
         }
 
         var row = Species[index];
@@ -180,15 +179,10 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private void BlurSpecies()
     {
         IsSpeciesDimmed = false;
+        SpeciesActiveIndex = -1;
         foreach (var row in Species)
         {
             row.IsActive = false;
-        }
-
-        foreach (var slice in SpeciesSlices)
-        {
-            slice.IsActive = false;
-            slice.IsDimmed = false;
         }
 
         SpeciesTotal = _speciesBaseTotal;
@@ -315,6 +309,21 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         SpeciesTotalSub = _speciesBaseSub;
         SpeciesCenterBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#101828"));
         IsSpeciesDimmed = false;
-        SpeciesSlices = DonutSliceViewModel.Build(species);
+        SpeciesActiveIndex = -1;
+        SpeciesSlices = BuildSpeciesSlices(species);
+    }
+
+    // Maps the species snapshot to the immutable slice records the ring control
+    // consumes (value + HTML hex colour), preserving the snapshot order.
+    private static System.Collections.Generic.IReadOnlyList<Animora.Desktop.Controls.DonutSlice> BuildSpeciesSlices(
+        IReadOnlyList<DashboardSpecies> species)
+    {
+        var slices = new System.Collections.Generic.List<Animora.Desktop.Controls.DonutSlice>(species.Count);
+        foreach (var s in species)
+        {
+            slices.Add(new Animora.Desktop.Controls.DonutSlice(s.Count, s.ColorHex));
+        }
+
+        return slices;
     }
 }

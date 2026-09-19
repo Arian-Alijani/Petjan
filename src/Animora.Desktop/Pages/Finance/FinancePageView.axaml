@@ -11,9 +11,21 @@
         <!-- ═══ Interactive donut body (finance.css .fin-donut-body + .fin-legend) ═══ -->
         <DataTemplate x:Key="DonutTemplate" x:DataType="fm:FinanceDonutViewModel">
             <StackPanel Margin="20,18,20,20">
-                <Grid HorizontalAlignment="Center" Width="176" Height="176">
-                    <ui:DonutChart Slices="{Binding Slices}" />
-                    <Border CornerRadius="999" Margin="30" ClipToBounds="True">
+                <Grid HorizontalAlignment="Center" Width="196" Height="196">
+                    <!-- The ring is a single custom control drawn on the
+                         DrawingContext (finance.css .fin-donut-wrap: r=42,
+                         SW=14, gap 3.2, round caps). A transparent hit-testable
+                         border wraps it so the whole disc drives the
+                         cross-highlight, mirroring bindDonuts' seg mouseenter. -->
+                    <Border Background="Transparent" Cursor="Hand"
+                            PointerMoved="OnDonutPointerMoved"
+                            PointerExited="OnDonutPointerExited">
+                        <ui:DonutRing Slices="{Binding Slices}"
+                                      ActiveIndex="{Binding ActiveIndex}"
+                                      ViewBox="100" Radius="42" StrokeWidth="14"
+                                      GapArc="3.2" ActiveGrow="4" RoundCaps="True" />
+                    </Border>
+                    <Border CornerRadius="999" Margin="34" IsHitTestVisible="False">
                         <Border.Background>
                             <RadialGradientBrush Center="50%,40%" GradientOrigin="50%,40%" RadiusX="0.7" RadiusY="0.7">
                                 <GradientStop Color="#ffffff" Offset="0.55" />
@@ -21,7 +33,7 @@
                             </RadialGradientBrush>
                         </Border.Background>
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3">
-                            <TextBlock Text="{Binding CenterValue}" FontSize="22" FontWeight="ExtraBold"
+                            <TextBlock Text="{Binding CenterValue}" FontSize="24" FontWeight="ExtraBold"
                                        Foreground="{Binding CenterBrush}" HorizontalAlignment="Center"
                                        LetterSpacing="-0.5" />
                             <TextBlock Text="{Binding CenterLabel}" FontSize="10.5" FontWeight="SemiBold"
