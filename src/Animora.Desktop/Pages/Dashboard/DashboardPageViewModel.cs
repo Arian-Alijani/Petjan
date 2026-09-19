@@ -4,6 +4,7 @@ using System.Linq;
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Navigation;
+using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -96,14 +97,35 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueLineGeometry;
 
-    /// <summary>Center label of the species donut — total active patients.</summary>
+    /// <summary>Center value of the species donut — total active patients.</summary>
     [ObservableProperty]
     private string _speciesTotal = string.Empty;
+
+    /// <summary>Center caption of the species donut — "کل بیماران فعال" by default.</summary>
+    [ObservableProperty]
+    private string _speciesTotalLabel = "کل بیماران فعال";
+
+    /// <summary>Center sub-caption of the species donut — the registered species count.</summary>
+    [ObservableProperty]
+    private string _speciesTotalSub = string.Empty;
+
+    /// <summary>Accent colour of the center value; reverts to ink on blur.</summary>
+    [ObservableProperty]
+    private Avalonia.Media.IBrush? _speciesCenterBrush;
+
+    /// <summary>Dims the ring/legend while a slice is focused (reference .donut-wrap.dim).</summary>
+    [ObservableProperty]
+    private bool _isSpeciesDimmed;
 
     /// <summary>Geometry describing the donut ring's coloured slices.</summary>
     [ObservableProperty]
     private System.Collections.Generic.IReadOnlyList<DonutSliceViewModel> _speciesSlices =
         System.Array.Empty<DonutSliceViewModel>();
+
+    /// <summary>The species donut's default center readout, restored on blur.</summary>
+    private string _speciesBaseTotal = string.Empty;
+
+    private string _speciesBaseSub = string.Empty;
 
     public IReadOnlyList<DashboardQuickAction> QuickActions { get; } = DashboardQuickAction.All;
 
@@ -120,6 +142,64 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
         _navigation.NavigateTo(action.Target);
     }
+
+    /// <summary>
+    /// Focus a species slice (hover over the ring or its legend row): dims the
+    /// other slices and swaps the center readout, mirroring the reference's
+    /// <c>focus()</c> in Animora-UI/assets/dashboard.js.
+    /// </summary>
+    [RelayCommand]
+    private void FocusSpecies(int index)
+    {
+        if (index < 0 || index >= Species.Count)
+        {
+            return;
+        }
+
+        IsSpeciesDimmed = true;
+        for (var i = 0; i < Species.Count; i++)
+        {
+            Species[i].IsActive = i == index;
+        }
+
+        foreach (var slice in SpeciesSlices)
+        {
+            slice.IsActive = slice.Index == index;
+            slice.IsDimmed = true;
+        }
+
+        var row = Species[index];
+        SpeciesTotal = row.CountText;
+        SpeciesTotalLabel = row.Name;
+        SpeciesTotalSub = row.PercentText + " از کل بیماران";
+        SpeciesCenterBrush = row.SwatchBrush;
+    }
+
+    /// <summary>Restore the donut's default readout when hover leaves.</summary>
+    [RelayCommand]
+    private void BlurSpecies()
+    {
+        IsSpeciesDimmed = false;
+        foreach (var row in Species)
+        {
+            row.IsActive = false;
+        }
+
+        foreach (var slice in SpeciesSlices)
+        {
+            slice.IsActive = false;
+            slice.IsDimmed = false;
+        }
+
+        SpeciesTotal = _speciesBaseTotal;
+        SpeciesTotalLabel = "کل بیماران فعال";
+        SpeciesTotalSub = _speciesBaseSub;
+        SpeciesCenterBrush = null;
+    }
+
+    /// <summary>Navigate to the patients directory (donut drill-in).</summary>
+    [RelayCommand]
+    private void OpenSpeciesPatients() => _navigation.NavigateTo<PatientsPageViewModel>();
 
     private void Apply(DashboardSnapshot snapshot)
     {
@@ -219,13 +299,22 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     {
         Species.Clear();
         var total = species.Sum(s => s.Count);
-        foreach (var s in species)
+        for (var i = 0; i < species.Count; i++)
         {
+            var s = species[i];
             var pct = total <= 0 ? 0 : (double)s.Count / total;
-            Species.Add(new DashboardSpeciesViewModel(s, pct));
+            Species.Add(new DashboardSpeciesViewModel(i, s, pct));
         }
 
-        SpeciesTotal = Localization.PersianNumberFormatter.FormatGrouped(total);
+        _speciesBaseTotal = Localization.PersianNumberFormatter.FormatGrouped(total);
+        _speciesBaseSub = Localization.PersianNumberFormatter.ToPersianDigits(
+            species.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)) + " گونه ثبت‌شده";
+
+        SpeciesTotal = _speciesBaseTotal;
+        SpeciesTotalLabel = "کل بیماران فعال";
+        SpeciesTotalSub = _speciesBaseSub;
+        SpeciesCenterBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#101828"));
+        IsSpeciesDimmed = false;
         SpeciesSlices = DonutSliceViewModel.Build(species);
     }
 }

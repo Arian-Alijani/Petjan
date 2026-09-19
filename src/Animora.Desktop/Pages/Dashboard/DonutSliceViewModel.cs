@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Animora.Contracts.Dashboard;
 using Avalonia;
 using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Animora.Desktop.Pages.Dashboard;
 
@@ -11,29 +12,55 @@ namespace Animora.Desktop.Pages.Dashboard;
 /// segment. Mirrors the SVG donut segments built in
 /// Animora-UI/assets/dashboard.js (a 120×120 viewBox, r=48, 13px ring), but
 /// expressed as an Avalonia <see cref="Geometry"/> so it binds to a Path.
+/// Carries its slice <see cref="Index"/> so the ring and the legend can
+/// cross-highlight, plus the hover dim/focus state (reference
+/// <c>.donut-wrap.dim</c>/<c>.seg.on</c>).
 /// </summary>
-public sealed class DonutSliceViewModel
+public sealed partial class DonutSliceViewModel : ObservableObject
 {
     private const double Center = 60;
     private const double Radius = 48;
     private const double StrokeWidth = 13;
 
-    // A tiny gap (in degrees) between slices, matching the reference's subtle
-    // segment separation.
-    private const double GapDegrees = 2.5;
+    // Hovered/active slice grows to SW + 4, matching the reference's
+    // `.donut-wrap .seg.on { stroke-width: SW + 4 }` growth on the ring.
+    private const double ActiveStrokeWidth = StrokeWidth + 4;
 
-    private DonutSliceViewModel(Geometry geometry, IBrush brush)
+    // The reference separates slices by a GAP arc-length of 3.4 on an r=48
+    // ring; convert that to degrees so the gap is identical in size.
+    private const double GapDegrees = 3.4 / Radius * (180.0 / Math.PI);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StrokeThickness))]
+    [NotifyPropertyChangedFor(nameof(Opacity))]
+    private bool _isActive;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Opacity))]
+    private bool _isDimmed;
+
+    private DonutSliceViewModel(int index, string colorHex, Geometry geometry, IBrush brush)
     {
+        Index = index;
+        ColorHex = colorHex;
         Geometry = geometry;
         Brush = brush;
-        StrokeThickness = StrokeWidth;
     }
+
+    /// <summary>Position of this slice in the ring (matches the legend row).</summary>
+    public int Index { get; }
+
+    public string ColorHex { get; }
 
     public Geometry Geometry { get; }
 
     public IBrush Brush { get; }
 
-    public double StrokeThickness { get; }
+    /// <summary>Ring stroke width — grows on the active/hovered slice.</summary>
+    public double StrokeThickness => IsActive ? ActiveStrokeWidth : StrokeWidth;
+
+    /// <summary>Dims the slice while another is focused (reference <c>.dim .seg</c>).</summary>
+    public double Opacity => IsDimmed && !IsActive ? 0.22 : 1;
 
     public static IReadOnlyList<DonutSliceViewModel> Build(IReadOnlyList<DashboardSpecies> species)
     {
@@ -52,14 +79,15 @@ public sealed class DonutSliceViewModel
         // Start at the top (12 o'clock) and sweep clockwise, matching the
         // reference donut's orientation.
         var angle = -90.0;
-        foreach (var s in species)
+        for (var i = 0; i < species.Count; i++)
         {
+            var s = species[i];
             var sweep = s.Count / (double)total * 360.0;
             var start = angle + GapDegrees / 2.0;
             var end = angle + sweep - GapDegrees / 2.0;
             if (end > start)
             {
-                slices.Add(new DonutSliceViewModel(BuildArc(start, end), ParseBrush(s.ColorHex)));
+                slices.Add(new DonutSliceViewModel(i, s.ColorHex, BuildArc(start, end), ParseBrush(s.ColorHex)));
             }
 
             angle += sweep;
