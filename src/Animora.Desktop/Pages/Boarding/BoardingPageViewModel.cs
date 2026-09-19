@@ -25,6 +25,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private readonly IBoardingQueryService _service;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
+    private readonly INavigationService _navigation;
 
     private readonly List<BoardingStay> _stays = [];
     private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Today);
@@ -38,11 +39,12 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private string _historyQuery = string.Empty;
     private BoardingSpecies? _historySpecies;
 
-    public BoardingPageViewModel(IBoardingQueryService service, IToastService toast, IDialogService dialogs)
+    public BoardingPageViewModel(IBoardingQueryService service, IToastService toast, IDialogService dialogs, INavigationService navigation)
     {
         _service = service;
         _toast = toast;
         _dialogs = dialogs;
+        _navigation = navigation;
 
         Title = "پانسیون";
         Eyebrow = "مدیریت کلینیک";
@@ -415,8 +417,21 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
                 _service, _toast, _dialogs, stayId,
                 onChanged: () => _ = RefreshAfterChangeAsync(),
                 onTransfer: stay => ShowTransfer(stay),
-                onCheckout: stay => ShowCheckout(stay)),
+                onCheckout: stay => ShowCheckout(stay),
+                onGotoCashier: GotoCashier),
             maxWidth: 680);
+
+    /// <summary>
+    /// Reference (boarding.js <c>goto-cashier</c>): close the detail modal and
+    /// navigate to the cashier/treasury screen. Phase 29 wires this to the real
+    /// <see cref="Pages.Cashier.CashierPageViewModel"/> (the reference's target
+    /// is <c>cashier.html</c>) instead of the old placeholder toast.
+    /// </summary>
+    private void GotoCashier()
+    {
+        _dialogs.Close();
+        _navigation.NavigateTo<Animora.Desktop.Pages.Cashier.CashierPageViewModel>();
+    }
 
     private void ShowTransfer(BoardingStay stay)
     {

@@ -27,6 +27,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     private readonly Action? _onChanged;
     private readonly Action<BoardingStay>? _onTransfer;
     private readonly Action<BoardingStay>? _onCheckout;
+    private readonly Action? _onGotoCashier;
 
     private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Today);
 
@@ -37,7 +38,8 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         string stayId,
         Action? onChanged = null,
         Action<BoardingStay>? onTransfer = null,
-        Action<BoardingStay>? onCheckout = null)
+        Action<BoardingStay>? onCheckout = null,
+        Action? onGotoCashier = null)
     {
         _service = service;
         _toast = toast;
@@ -45,6 +47,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         _onChanged = onChanged;
         _onTransfer = onTransfer;
         _onCheckout = onCheckout;
+        _onGotoCashier = onGotoCashier;
         StayId = stayId;
 
         _ = LoadAsync();
@@ -351,8 +354,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void GotoCashier() =>
-        _toast.Show("انتقال به صندوق در فاز ۲۲ (Phase 22) ساخته می‌شود", Tone.Info);
+    private void GotoCashier() => _onGotoCashier?.Invoke();
 
     [RelayCommand]
     private void Close() => _dialogs.Close();

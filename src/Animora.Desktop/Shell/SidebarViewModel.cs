@@ -57,13 +57,6 @@ public sealed partial class SidebarViewModel : ObservableObject
 
         var viewModel = _navigation.NavigateTo(entry.Item.ViewModelType);
 
-        // Placeholder pages are a single shared instance reused across items;
-        // retarget it so the topbar/content reflect the clicked label.
-        if (viewModel is PlaceholderPageViewModel placeholder)
-        {
-            placeholder.ConfigureFor(entry.Label);
-        }
-
         // Phase 25: the shared Finance screen backs two nav entries; pass each
         // entry's initial tab/range (mirrors the reference's two
         // initFinancePage({ tab, range }) calls from expense.html / reports.html).

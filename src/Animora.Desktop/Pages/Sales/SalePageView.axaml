@@ -866,7 +866,7 @@
                             BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
                         <Grid>
                             <TextBox Classes="sw-search" Text="{Binding SearchText}"
-                                     Watermark="{Binding SearchPlaceholder}" />
+                                     PlaceholderText="{Binding SearchPlaceholder}" />
                             <Path Classes="icon" Width="14" Height="14"
                                   Stroke="{StaticResource Muted2Brush}"
                                   Data="{StaticResource IconSearch}"

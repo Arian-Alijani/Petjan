@@ -20,9 +20,9 @@ namespace Animora.Desktop.Shell;
 /// (Animora-UI/assets/layout.js) exactly — same groups, order, labels,
 /// icons and badge counts. This is layout/config (it changes only when the
 /// sidebar itself changes), so hardcoding it here matches the reference's
-/// own hardcoded NAV_ITEMS. Every item currently targets
-/// <see cref="PlaceholderPageViewModel"/>; each screen phase (06+) swaps one
-/// item's target for its real ViewModel.
+/// own hardcoded NAV_ITEMS. Every item targets its real
+/// <see cref="PageViewModelBase"/>-derived screen (final wiring pass, Phase
+/// 29) — none constructs <see cref="PlaceholderPageViewModel"/>.
 /// </summary>
 public static class NavigationMenu
 {
