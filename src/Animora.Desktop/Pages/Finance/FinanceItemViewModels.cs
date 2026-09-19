@@ -291,10 +291,20 @@ public sealed partial class FinanceDonutViewModel : ObservableObject
     [ObservableProperty]
     private IBrush _centerBrush;
 
+    /// <summary>
+    /// Focused slice index (-1 = none). Drives the shared
+    /// <see cref="Controls.DonutRing.ActiveIndex"/> so the ring grows/dims the
+    /// same way the legend rows do (reference <c>.fin-donut-wrap.dim</c> +
+    /// <c>.fin-seg.on</c>).
+    /// </summary>
+    [ObservableProperty]
+    private int _activeIndex = -1;
+
     /// <summary>Focus a segment (hover) — dims the rest and shows its readout, mirroring the reference.</summary>
     [RelayCommand]
     private void Focus(int index)
     {
+        ActiveIndex = index;
         for (var i = 0; i < Legend.Count; i++)
         {
             Legend[i].IsActive = i == index;
@@ -312,6 +322,7 @@ public sealed partial class FinanceDonutViewModel : ObservableObject
     [RelayCommand]
     private void Blur()
     {
+        ActiveIndex = -1;
         foreach (var row in Legend)
         {
             row.IsActive = false;

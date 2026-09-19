@@ -32,9 +32,11 @@ internal static class AppointmentsGridHost
         host.RowDefinitions = new RowDefinitions("Auto,*");
 
         var header = new Grid();
+        // The reference grid fills all available height rather than capping at a
+        // fixed height (the old 640px cap left the calendar visually compressed
+        // with dead space below). Let it stretch to the host's full height.
         var body = new ScrollViewer
         {
-            MaxHeight = 640,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
         };

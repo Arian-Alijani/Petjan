@@ -287,38 +287,28 @@
                     <Border Classes="card-header-rule" />
 
                     <StackPanel Margin="18,14,18,18">
-                        <!-- Donut + centre readout (.species-body donut + .donut-center) -->
-                        <Grid Width="186" Height="186" HorizontalAlignment="Center" Margin="0,0,0,14">
-                            <Viewbox Stretch="Uniform">
-                                <Canvas Width="120" Height="120">
-                                    <!-- track ring (.donut-track) -->
-                                    <Ellipse Canvas.Left="12" Canvas.Top="12"
-                                             Width="96" Height="96"
-                                             Stroke="#f0f4f2"
-                                             StrokeThickness="13"
-                                             Fill="Transparent" />
-                                    <!-- coloured slices (.seg), cross-highlighted on hover -->
-                                    <ItemsControl ItemsSource="{Binding SpeciesSlices}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <Canvas />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="dashboard:DonutSliceViewModel">
-                                                <Path Data="{Binding Geometry}"
-                                                      Stroke="{Binding Brush}"
-                                                      StrokeThickness="{Binding StrokeThickness}"
-                                                      Opacity="{Binding Opacity}"
-                                                      StrokeLineCap="Flat" />
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </Canvas>
-                            </Viewbox>
+                        <!-- Donut + centre readout (.species-body donut + .donut-center).
+                             The ring is a single custom control (DonutRing) drawn
+                             directly on the DrawingContext — the previous
+                             ItemsControl-of-Paths measured its Canvas panel to zero
+                             so the coloured segments never rendered. A transparent,
+                             hit-testable border wraps it so the whole disc responds
+                             to the pointer for the cross-highlight. -->
+                        <Grid Width="200" Height="200" HorizontalAlignment="Center" Margin="0,0,0,14">
+                            <Border Background="Transparent"
+                                    Cursor="Hand"
+                                    PointerMoved="OnDonutPointerMoved"
+                                    PointerExited="OnDonutPointerExited"
+                                    PointerPressed="OnDonutPointerPressed">
+                                <controls:DonutRing x:Name="DonutRing"
+                                                       Slices="{Binding SpeciesSlices}"
+                                                       ActiveIndex="{Binding SpeciesActiveIndex}"
+                                                       TrackBrush="#f0f4f2" />
+                            </Border>
 
-                            <!-- glossy center medallion (.donut-center) -->
-                            <Border Margin="34" CornerRadius="999"
+                            <!-- glossy center medallion (.donut-center; inset 34/186 ≈ 36/200) -->
+                            <Border Margin="36" CornerRadius="999"
+                                    IsHitTestVisible="False"
                                     BorderBrush="#e7ecea" BorderThickness="1"
                                     BoxShadow="0 6 18 0 #0D101828">
                                 <Border.Background>

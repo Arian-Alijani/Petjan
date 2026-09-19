@@ -100,6 +100,33 @@
             <Setter Property="FontFamily" Value="{StaticResource AppFontFamilyBlack}" />
         </Style>
 
+        <!-- Global TextBox focus treatment. The default Fluent accent paints an
+             off-brand dark state on focus (the "black box" the user spotted when
+             clicking a search field). Force every TextBox — search boxes and
+             inputs alike — to the Animora brand focus look: panel background,
+             brand border, brand caret/selection. Page-level styles that set a
+             custom background (e.g. transparent inner search inputs) still win
+             because they are applied closer to the control. -->
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="CaretBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="SelectionBrush" Value="{StaticResource Brand400Brush}" />
+        </Style>
+        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="{StaticResource InputHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="TextBox:focus-within /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+
         <!-- Phase 03: shared selector-based styles (icon Path look, card). -->
         <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/IconStyle.axaml" />
         <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/Card.axaml" />
