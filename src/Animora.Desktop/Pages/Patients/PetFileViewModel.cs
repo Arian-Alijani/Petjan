@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Patients;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
@@ -170,7 +171,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     public string MicrochipVendor { get; private set; } = "—";
     public string MicrochipLocation { get; private set; } = "—";
     public bool HasSurgeries => Surgeries.Count > 0;
-    public ObservableCollection<SurgeryRowViewModel> Surgeries { get; } = [];
+    public RangeObservableCollection<SurgeryRowViewModel> Surgeries { get; } = [];
     public bool HasWeightData => WeightMiniPoints.Count > 0;
 
     // ---- info tab ----
@@ -178,24 +179,24 @@ public sealed partial class PetFileViewModel : PageViewModelBase
 
     // ---- visits tab ----
     public bool HasVisits => Visits.Count > 0;
-    public ObservableCollection<VisitRowViewModel> Visits { get; } = [];
+    public RangeObservableCollection<VisitRowViewModel> Visits { get; } = [];
     public string VisitsEmptyText { get; } = "ویزیتی برای این بیمار ثبت نشده است";
 
     // ---- weight tab ----
     public ObservableCollection<Controls.WeightChartPoint> WeightPoints { get; } = [];
-    public ObservableCollection<WeightRowViewModel> WeightRows { get; } = [];
+    public RangeObservableCollection<WeightRowViewModel> WeightRows { get; } = [];
     public string WeightRecordCountText => $"{Fa(WeightRows.Count.ToString())} رکورد";
     public string DefaultWeightDate => JalaliDate.Today.ToString("short");
 
     // ---- vax tab ----
     public bool HasVaccinations => Vaccinations.Count > 0;
-    public ObservableCollection<VaxRowViewModel> Vaccinations { get; } = [];
+    public RangeObservableCollection<VaxRowViewModel> Vaccinations { get; } = [];
     public string VaxEmptyText { get; } = "واکسنى برای این بیمار ثبت نشده است".Replace('ى', 'ی');
 
     // ---- docs tab ----
     public bool HasLabs => Labs.Count > 0;
-    public ObservableCollection<LabRowViewModel> Labs { get; } = [];
-    public ObservableCollection<DocRowViewModel> Documents { get; } = [];
+    public RangeObservableCollection<LabRowViewModel> Labs { get; } = [];
+    public RangeObservableCollection<DocRowViewModel> Documents { get; } = [];
     public bool HasDocuments => Documents.Count > 0;
     public string DocsEmptyText { get; } = "مدرکی بارگذاری نشده است";
 
@@ -361,11 +362,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
 
         // newest first (reference reverses the rows)
         var reversed = WeightRows.Reverse().ToArray();
-        WeightRows.Clear();
-        foreach (var row in reversed)
-        {
-            WeightRows.Add(row);
-        }
+        WeightRows.ReplaceAll(reversed);
 
         OnPropertyChanged(nameof(HasWeightData));
         OnPropertyChanged(nameof(WeightRecordCountText));
@@ -430,13 +427,12 @@ public sealed partial class PetFileViewModel : PageViewModelBase
 
     private void BuildSurgeries(PetDetail pet)
     {
-        Surgeries.Clear();
-        foreach (var s in pet.Surgeries)
+        Surgeries.ReplaceAll(pet.Surgeries.Select(s =>
         {
             var note = string.IsNullOrWhiteSpace(s.Note) || s.Note == "—" ? string.Empty : $" — {s.Note}";
-            Surgeries.Add(new SurgeryRowViewModel(
-                $"{s.Title} · {JalaliDate.FromDateTime(s.Date).ToString("short")}", $"{s.Surgeon}{note}"));
-        }
+            return new SurgeryRowViewModel(
+                $"{s.Title} · {JalaliDate.FromDateTime(s.Date).ToString("short")}", $"{s.Surgeon}{note}");
+        }));
 
         OnPropertyChanged(nameof(HasSurgeries));
     }
@@ -457,37 +453,32 @@ public sealed partial class PetFileViewModel : PageViewModelBase
 
     private void BuildVaccinations(PetDetail pet)
     {
-        Vaccinations.Clear();
-        foreach (var v in pet.Vaccinations)
+        Vaccinations.ReplaceAll(pet.Vaccinations.Select(v =>
         {
             var (days, _) = RelativeDateFormatter.Until(v.NextDate);
             var cls = days < 0 ? "over" : days < 30 ? "due" : string.Empty;
             var badge = days < 0 ? "عقب‌افتاده" : days < 30 ? "نزدیک" : "به‌روز";
             var tone = days < 0 ? Controls.Tone.Danger : days < 30 ? Controls.Tone.Warn : Controls.Tone.Ok;
             var sub = $"تزریق {JalaliDate.FromDateTime(v.Date).ToString("short")} · {v.Vet} · سری {v.Lot} · {v.Site}";
-            Vaccinations.Add(new VaxRowViewModel(
+            return new VaxRowViewModel(
                 v.Name, sub, $"یادآور بعدی: {JalaliDate.FromDateTime(v.NextDate).ToString("short")}",
-                badge, tone, cls));
-        }
+                badge, tone, cls);
+        }));
 
         OnPropertyChanged(nameof(HasVaccinations));
     }
 
     private void BuildDocuments(PetDetail pet)
     {
-        Labs.Clear();
-        foreach (var l in pet.Labs)
+        Labs.ReplaceAll(pet.Labs.Select(l =>
         {
             var (bg, border, fg) = AlertPalette(ToneClass(PatientsPresentation.LabTone(l.Status)));
-            Labs.Add(new LabRowViewModel(l.Name, l.Result,
-                JalaliDate.FromDateTime(l.Date).ToString("short"), bg, border, fg));
-        }
+            return new LabRowViewModel(l.Name, l.Result,
+                JalaliDate.FromDateTime(l.Date).ToString("short"), bg, border, fg);
+        }));
 
-        Documents.Clear();
-        foreach (var d in pet.Documents)
-        {
-            Documents.Add(new DocRowViewModel(d.Name, $"{d.Size} · {JalaliDate.FromDateTime(d.Date).ToString("short")}"));
-        }
+        Documents.ReplaceAll(pet.Documents.Select(d =>
+            new DocRowViewModel(d.Name, $"{d.Size} · {JalaliDate.FromDateTime(d.Date).ToString("short")}")));
 
         OnPropertyChanged(nameof(HasLabs));
         OnPropertyChanged(nameof(HasDocuments));

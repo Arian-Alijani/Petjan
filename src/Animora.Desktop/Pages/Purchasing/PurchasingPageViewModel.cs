@@ -47,7 +47,7 @@ public sealed partial class PurchasingPageViewModel : PageViewModelBase
     }
 
     /// <summary>The purchase-orders table rows (the reference's tbody).</summary>
-    public ObservableCollection<PurchaseOrderRowViewModel> Orders { get; } = [];
+    public RangeObservableCollection<PurchaseOrderRowViewModel> Orders { get; } = [];
 
     private async Task LoadAsync()
     {
@@ -57,11 +57,7 @@ public sealed partial class PurchasingPageViewModel : PageViewModelBase
         MonthlyPurchases = new PurchaseKpiViewModel(snapshot.MonthlyPurchases);
         SupplierDebt = new PurchaseKpiViewModel(snapshot.SupplierDebt);
 
-        Orders.Clear();
-        foreach (var order in snapshot.Orders)
-        {
-            Orders.Add(new PurchaseOrderRowViewModel(order));
-        }
+        Orders.ReplaceAll(snapshot.Orders.Select(order => new PurchaseOrderRowViewModel(order)));
     }
 
     /// <summary>

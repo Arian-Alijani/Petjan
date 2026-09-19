@@ -65,9 +65,9 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         _ = LoadAsync();
     }
 
-    public ObservableCollection<OwnerCardViewModel> FilteredOwners { get; } = [];
-    public ObservableCollection<PetCardViewModel> FilteredPets { get; } = [];
-    public ObservableCollection<PatientsSpeciesChipViewModel> SpeciesChips { get; } = [];
+    public RangeObservableCollection<OwnerCardViewModel> FilteredOwners { get; } = [];
+    public RangeObservableCollection<PetCardViewModel> FilteredPets { get; } = [];
+    public RangeObservableCollection<PatientsSpeciesChipViewModel> SpeciesChips { get; } = [];
 
     public bool IsOwnersView => ViewMode == PatientViewMode.Owners;
     public bool IsPetsView => ViewMode == PatientViewMode.Pets;
@@ -266,18 +266,14 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             .Where(owner => OwnerMatches(owner, needle, matchedPets))
             .ToArray();
 
-        FilteredPets.Clear();
-        foreach (var pet in SortPets(matchedPets))
-        {
-            FilteredPets.Add(new PetCardViewModel(pet, OwnerById(pet.OwnerId)));
-        }
+        FilteredPets.ReplaceAll(
+            SortPets(matchedPets).Select(pet => new PetCardViewModel(pet, OwnerById(pet.OwnerId))));
 
-        FilteredOwners.Clear();
-        foreach (var owner in matchedOwners)
-        {
-            var pets = PetsOfOwner(owner.Id);
-            FilteredOwners.Add(new OwnerCardViewModel(owner, pets, matchedPets.Where(p => p.OwnerId == owner.Id).ToArray()));
-        }
+        FilteredOwners.ReplaceAll(
+            matchedOwners.Select(owner => new OwnerCardViewModel(
+                owner,
+                PetsOfOwner(owner.Id),
+                matchedPets.Where(p => p.OwnerId == owner.Id).ToArray())));
 
         BuildSpeciesChips();
         NotifyDerived();

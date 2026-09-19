@@ -67,7 +67,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
 
     public ObservableCollection<HistoryPeriodChipViewModel> PeriodChips { get; } = [];
 
-    public ObservableCollection<HistoryCategoryChipViewModel> CategoryChips { get; } = [];
+    public RangeObservableCollection<HistoryCategoryChipViewModel> CategoryChips { get; } = [];
 
     public ObservableCollection<HistoryDayGroupViewModel> DayGroups { get; } = [];
 
@@ -247,11 +247,8 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
 
     private void BuildCategoryChips()
     {
-        CategoryChips.Clear();
-        foreach (var kind in HistoryPresentation.AllKinds)
-        {
-            CategoryChips.Add(new HistoryCategoryChipViewModel(kind) { IsActive = _selectedKinds.Contains(kind) });
-        }
+        CategoryChips.ReplaceAll(HistoryPresentation.AllKinds.Select(kind =>
+            new HistoryCategoryChipViewModel(kind) { IsActive = _selectedKinds.Contains(kind) }));
 
         SyncCategoryChips();
     }

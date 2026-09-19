@@ -47,11 +47,11 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         _ = LoadAsync();
     }
 
-    public ObservableCollection<CashierStatViewModel> Stats { get; } = [];
+    public RangeObservableCollection<CashierStatViewModel> Stats { get; } = [];
 
-    public ObservableCollection<CashierTabViewModel> Tabs { get; } = [];
+    public RangeObservableCollection<CashierTabViewModel> Tabs { get; } = [];
 
-    public ObservableCollection<CashierInvoiceRowViewModel> InvoiceRows { get; } = [];
+    public RangeObservableCollection<CashierInvoiceRowViewModel> InvoiceRows { get; } = [];
 
     public ObservableCollection<CashierLineViewModel> Lines { get; } = [];
 
@@ -61,7 +61,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     public ObservableCollection<CashierPresetViewModel> Presets { get; } = [];
 
-    public ObservableCollection<CashierCatalogOptionViewModel> CatalogOptions { get; } = [];
+    public RangeObservableCollection<CashierCatalogOptionViewModel> CatalogOptions { get; } = [];
 
     public ObservableCollection<CashierInsurerOptionViewModel> InsurerOptions { get; } = [];
 
@@ -156,11 +156,8 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         BuildPresets();
         BuildDiscountOptions();
 
-        CatalogOptions.Clear();
-        foreach (var item in await _service.GetCatalogItemsAsync())
-        {
-            CatalogOptions.Add(new CashierCatalogOptionViewModel(item));
-        }
+        CatalogOptions.ReplaceAll(
+            (await _service.GetCatalogItemsAsync()).Select(item => new CashierCatalogOptionViewModel(item)));
 
         InsurerOptions.Clear();
         InsurerOptions.Add(new CashierInsurerOptionViewModel(new CashierInsurer(string.Empty, string.Empty, 0), true));
@@ -265,15 +262,10 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
             .ThenByDescending(i => i.Id, System.StringComparer.Ordinal)
             .ToList();
 
-        InvoiceRows.Clear();
-        foreach (var inv in sorted)
+        InvoiceRows.ReplaceAll(sorted.Select(inv => new CashierInvoiceRowViewModel(inv)
         {
-            var row = new CashierInvoiceRowViewModel(inv)
-            {
-                IsActive = Detail is not null && Detail.Id == inv.Id,
-            };
-            InvoiceRows.Add(row);
-        }
+            IsActive = Detail is not null && Detail.Id == inv.Id,
+        }));
 
         RaiseDerived();
     }
@@ -568,17 +560,11 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     private async Task ReloadStatsAsync()
     {
-        Stats.Clear();
-        foreach (var stat in await _service.GetStatsAsync())
-        {
-            Stats.Add(new CashierStatViewModel(stat));
-        }
+        Stats.ReplaceAll(
+            (await _service.GetStatsAsync()).Select(stat => new CashierStatViewModel(stat)));
 
-        Tabs.Clear();
-        foreach (var count in await _service.GetTabCountsAsync())
-        {
-            Tabs.Add(new CashierTabViewModel(count));
-        }
+        Tabs.ReplaceAll(
+            (await _service.GetTabCountsAsync()).Select(count => new CashierTabViewModel(count)));
 
         _invoices.Clear();
         _invoices.AddRange(await _service.GetInvoicesAsync());

@@ -66,7 +66,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     public ObservableCollection<InventorySubnavViewModel> Tabs { get; } = [];
     public ObservableCollection<InventoryCategoryChipViewModel> CategoryChips { get; } = [];
     public ObservableCollection<InventoryStockChipViewModel> StockChips { get; } = [];
-    public ObservableCollection<InventoryProductRowViewModel> FilteredProducts { get; } = [];
+    public RangeObservableCollection<InventoryProductRowViewModel> FilteredProducts { get; } = [];
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -181,13 +181,12 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
             });
         }
 
-        FilteredProducts.Clear();
-        foreach (var product in items)
+        FilteredProducts.ReplaceAll(items.Select(product =>
         {
             var category = _categories.FirstOrDefault(c => c.Id == product.CategoryId) ?? _categories[0];
             var hasVariants = product.Variants.Count > 1;
-            FilteredProducts.Add(new InventoryProductRowViewModel(product, category, hasVariants));
-        }
+            return new InventoryProductRowViewModel(product, category, hasVariants);
+        }));
 
         // Preserve any previously-expanded row state across a re-render.
         HasProducts = FilteredProducts.Count > 0;

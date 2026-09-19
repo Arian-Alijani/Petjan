@@ -4,6 +4,7 @@ using System.Linq;
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Navigation;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
@@ -74,17 +75,17 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     public bool IsDoctor => Role == UserRole.Doctor;
 
-    public ObservableCollection<DashboardStat> Stats { get; } = new();
+    public RangeObservableCollection<DashboardStat> Stats { get; } = new();
 
-    public ObservableCollection<DashboardRowViewModel> PrimaryList { get; } = new();
+    public RangeObservableCollection<DashboardRowViewModel> PrimaryList { get; } = new();
 
-    public ObservableCollection<DashboardRowViewModel> SecondaryList { get; } = new();
+    public RangeObservableCollection<DashboardRowViewModel> SecondaryList { get; } = new();
 
     /// <summary>Manager-only: the doctor-workload rows.</summary>
-    public ObservableCollection<DashboardDoctorLoadViewModel> DoctorLoads { get; } = new();
+    public RangeObservableCollection<DashboardDoctorLoadViewModel> DoctorLoads { get; } = new();
 
     /// <summary>Manager-only: the species donut legend rows.</summary>
-    public ObservableCollection<DashboardSpeciesViewModel> Species { get; } = new();
+    public RangeObservableCollection<DashboardSpeciesViewModel> Species { get; } = new();
 
     [ObservableProperty]
     private DashboardRevenuePulse? _revenuePulse;
@@ -202,32 +203,20 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         PrimaryListTitle = snapshot.PrimaryListTitle;
         SecondaryListTitle = snapshot.SecondaryListTitle;
 
-        Stats.Clear();
-        foreach (var stat in snapshot.Stats)
-        {
-            Stats.Add(stat);
-        }
+        Stats.ReplaceAll(snapshot.Stats);
 
-        PrimaryList.Clear();
-        foreach (var item in snapshot.PrimaryList.Select(x => new DashboardRowViewModel(x)))
-        {
-            PrimaryList.Add(item);
-        }
+        PrimaryList.ReplaceAll(
+            snapshot.PrimaryList.Select(x => new DashboardRowViewModel(x)));
 
-        SecondaryList.Clear();
-        foreach (var item in snapshot.SecondaryList.Select(x => new DashboardRowViewModel(x)))
-        {
-            SecondaryList.Add(item);
-        }
+        SecondaryList.ReplaceAll(
+            snapshot.SecondaryList.Select(x => new DashboardRowViewModel(x)));
 
         RevenuePulse = snapshot.RevenuePulse;
         BuildRevenueChart(snapshot.RevenuePulse?.Points);
 
-        DoctorLoads.Clear();
-        foreach (var doc in snapshot.DoctorLoads ?? System.Array.Empty<DashboardDoctorLoad>())
-        {
-            DoctorLoads.Add(new DashboardDoctorLoadViewModel(doc));
-        }
+        DoctorLoads.ReplaceAll(
+            (snapshot.DoctorLoads ?? System.Array.Empty<DashboardDoctorLoad>())
+                .Select(doc => new DashboardDoctorLoadViewModel(doc)));
 
         ApplySpecies(snapshot.Species ?? System.Array.Empty<DashboardSpecies>());
     }

@@ -79,7 +79,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     [ObservableProperty]
     private string _lastLoginLine = string.Empty;
 
-    public ObservableCollection<ProfileKpiViewModel> Kpis { get; } = [];
+    public RangeObservableCollection<ProfileKpiViewModel> Kpis { get; } = [];
 
     // ── Sub-nav rail + panels ────────────────────────────────────────────
 
@@ -112,7 +112,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     [ObservableProperty]
     private string _nationalCodeLine = string.Empty;
 
-    public ObservableCollection<ProfileTeamMemberViewModel> Team { get; } = [];
+    public RangeObservableCollection<ProfileTeamMemberViewModel> Team { get; } = [];
 
     // ── Scheduling tab ───────────────────────────────────────────────────
 
@@ -162,7 +162,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
 
     public ObservableCollection<ProfileToggleViewModel> SecurityToggles { get; } = [];
 
-    public ObservableCollection<ProfileSessionViewModel> Sessions { get; } = [];
+    public RangeObservableCollection<ProfileSessionViewModel> Sessions { get; } = [];
 
     // ── Loading ──────────────────────────────────────────────────────────
 
@@ -199,24 +199,14 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         ProfilePhone = ProfilePresentation.Fa(profile.Phone);
         ProfileEmail = profile.Email;
 
-        Kpis.Clear();
-        foreach (var stat in profile.Stats)
-        {
-            Kpis.Add(new ProfileKpiViewModel(stat.IconKey, stat.Value, stat.Suffix, stat.Label, stat.Tone));
-        }
+        Kpis.ReplaceAll(profile.Stats.Select(stat =>
+            new ProfileKpiViewModel(stat.IconKey, stat.Value, stat.Suffix, stat.Label, stat.Tone)));
 
-        Team.Clear();
-        foreach (var member in profile.Team)
-        {
-            Team.Add(new ProfileTeamMemberViewModel(
-                member.Name, member.Subtitle, member.Initials, member.AccentHex, member.RoleLabel, member.RoleTone));
-        }
+        Team.ReplaceAll(profile.Team.Select(member => new ProfileTeamMemberViewModel(
+            member.Name, member.Subtitle, member.Initials, member.AccentHex, member.RoleLabel, member.RoleTone)));
 
-        Sessions.Clear();
-        foreach (var session in profile.Sessions)
-        {
-            Sessions.Add(new ProfileSessionViewModel(session.Name, session.Detail, session.IsCurrent));
-        }
+        Sessions.ReplaceAll(profile.Sessions.Select(session =>
+            new ProfileSessionViewModel(session.Name, session.Detail, session.IsCurrent)));
     }
 
     private void ApplySettings(AppSettings settings)

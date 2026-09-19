@@ -1,0 +1,54 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Animora.Desktop.Pages.Appointments.CalendarEmptyState">
+    <!--
+      Shared "no appointments" placeholder for the day/week and month grids,
+      transcribed from the reference's emptyState() (Animora-UI/assets/
+      appointments.css .sc-empty). Previously built imperatively by
+      AppointmentsGridHost.BuildEmptyState on every grid rebuild; now a single
+      declarative control whose visibility is bound by the host (IsVisible on
+      !HasGridEvents / !HasMonthEvents). Visual output is unchanged.
+    -->
+    <StackPanel Spacing="4"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Margin="20,70">
+        <Border Width="54" Height="54"
+                CornerRadius="16"
+                Background="{StaticResource Bg2Brush}"
+                HorizontalAlignment="Center"
+                Margin="0,0,0,12">
+            <Panel>
+                <Path Width="24" Height="24"
+                      Stretch="Uniform"
+                      Stroke="{StaticResource Muted2Brush}"
+                      StrokeThickness="2"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      Data="{StaticResource IconCalendar}" />
+            </Panel>
+        </Border>
+        <Panel>
+            <TextBlock Text="نوبتی برای نمایش نیست"
+                       FontSize="14" FontWeight="Bold"
+                       Foreground="{StaticResource Ink2Brush}"
+                       VerticalAlignment="Center" />
+        </Panel>
+        <Panel>
+            <TextBlock Text="فیلترها را تغییر دهید یا برای این بازه نوبت جدیدی ثبت کنید."
+                       FontSize="12" FontWeight="Normal"
+                       Foreground="{StaticResource MutedBrush}"
+                       VerticalAlignment="Center" />
+        </Panel>
+        <Border Background="{StaticResource Bg2Brush}"
+                CornerRadius="99"
+                Padding="12,5"
+                Margin="0,10,0,0"
+                HorizontalAlignment="Center">
+            <TextBlock Text="می‌توانید روی تقویم کلیک کنید یا در بازه دلخواه بکشید تا مستقیم نوبت‌دهی کنید."
+                       FontSize="11.5" FontWeight="Normal"
+                       Foreground="{StaticResource Muted2Brush}"
+                       VerticalAlignment="Center" />
+        </Border>
+    </StackPanel>
+</UserControl>

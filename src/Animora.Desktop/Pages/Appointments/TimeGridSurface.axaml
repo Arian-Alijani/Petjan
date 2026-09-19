@@ -1,0 +1,313 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ap="using:Animora.Desktop.Pages.Appointments"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Appointments.TimeGridSurface"
+             x:Name="Root"
+             x:DataType="ap:AppointmentsCalendarViewModel">
+    <!--
+      Declarative day/week time grid, shared by DayGridView and WeekGridView.
+      Replaces the imperative AppointmentsGridHost.BuildTimeGrid tree: the column
+      count is now data-driven through ItemsControl + a horizontal UniformGrid
+      (one equal-width column per AppointmentColumnViewModel), so a DataContext
+      change no longer tears down and rebuilds dozens of controls — the bound
+      collection simply updates in place.
+
+      Every class/colour/measure is unchanged from the code-built version; the
+      recurring classes live in AppointmentsGridStyles.axaml (tg-*, ev-card).
+      The fixed chrome — the 56px hour gutter (07:00…21:00), the 15 hour rows
+      and the 15 header separators — is declared once here instead of being
+      re-created on every render.
+    -->
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/AppointmentsGridStyles.axaml" />
+    </UserControl.Styles>
+
+    <!-- host: full-width single column, Auto header row + scrolling * body row -->
+    <Grid ColumnDefinitions="*" RowDefinitions="Auto,*">
+
+        <!-- ═══ header row — empty gutter cell + one header per column ═══ -->
+        <Grid Grid.Row="0" ColumnDefinitions="56,*">
+            <Border Grid.Column="0" Classes="tg-hcell first" />
+            <ItemsControl Grid.Column="1" ItemsSource="{Binding Columns}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="ap:AppointmentColumnViewModel">
+                        <Border Classes="tg-hcell"
+                                Classes.first="{Binding IsFirst}"
+                                Classes.today="{Binding Header.IsToday}"
+                                Classes.off="{Binding Header.IsFriday}">
+                          <Panel>
+                            <!-- doctor header (day view) -->
+                            <StackPanel Orientation="Horizontal" Spacing="7"
+                                        HorizontalAlignment="Center"
+                                        IsVisible="{Binding Header.IsDoctor}">
+                                <Border Width="24" Height="24" CornerRadius="12"
+                                        Background="{Binding Header.AvatarBrush}">
+                                    <Panel>
+                                        <TextBlock Text="{Binding Header.Initial}"
+                                                   FontSize="10" FontWeight="ExtraBold"
+                                                   Foreground="White"
+                                                   VerticalAlignment="Center" />
+                                    </Panel>
+                                </Border>
+                                <StackPanel Spacing="0" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding Header.ShortName}"
+                                               FontSize="12.5" FontWeight="Bold"
+                                               Foreground="{StaticResource InkBrush}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               TextWrapping="NoWrap" />
+                                    <TextBlock Text="{Binding Header.CountText}"
+                                               FontSize="10.5" FontWeight="Normal"
+                                               Foreground="{StaticResource MutedBrush}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- day header (week view) -->
+                            <StackPanel Spacing="1" HorizontalAlignment="Center"
+                                        IsVisible="{Binding Header.IsDay}">
+                                <TextBlock Text="{Binding Header.WeekdayText}"
+                                           FontSize="10.5" FontWeight="Normal"
+                                           Foreground="{StaticResource MutedBrush}"
+                                           VerticalAlignment="Center" />
+                                <Border Width="28" Height="28" CornerRadius="14"
+                                        Background="{StaticResource Brand600Brush}"
+                                        HorizontalAlignment="Center"
+                                        IsVisible="{Binding Header.IsToday}">
+                                    <Panel>
+                                        <TextBlock Text="{Binding Header.DayNumberText}"
+                                                   FontSize="14" FontWeight="ExtraBold"
+                                                   Foreground="White"
+                                                   VerticalAlignment="Center" />
+                                    </Panel>
+                                </Border>
+                                <TextBlock Text="{Binding Header.DayNumberText}"
+                                           FontSize="16" FontWeight="ExtraBold"
+                                           Foreground="{StaticResource InkBrush}"
+                                           VerticalAlignment="Center"
+                                           IsVisible="{Binding Header.IsNotToday}" />
+                            </StackPanel>
+                          </Panel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+
+        <!-- ═══ body (scrolls vertically) — gutter + one column per doctor/day ═══ -->
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <Grid ColumnDefinitions="56,*">
+
+                <!-- hour gutter (07:00 … 21:00) — fixed, declared once -->
+                <Border Grid.Column="0" Classes="tg-gutter">
+                    <ItemsControl ItemsSource="{Binding HourLabels}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Border Classes="tg-gutter-hour" Height="78">
+                                    <TextBlock Text="{Binding}"
+                                               FontSize="10.5" FontWeight="Normal"
+                                               Foreground="{StaticResource Muted2Brush}"
+                                               HorizontalAlignment="Left"
+                                               VerticalAlignment="Top"
+                                               Margin="8,0,0,0" />
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
+                <!-- one column per doctor (day) / day (week) -->
+                <ItemsControl Grid.Column="1" ItemsSource="{Binding Columns}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="1" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="ap:AppointmentColumnViewModel">
+                            <Border Classes="tg-col"
+                                    Classes.first="{Binding IsFirst}"
+                                    Classes.off="{Binding IsClosed}"
+                                    MinWidth="0">
+                                <Panel Height="1170">
+                                    <!-- hour separators (first row suppresses its top border) -->
+                                    <StackPanel>
+                                        <Border Classes="tg-hour first" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                        <Border Classes="tg-hour" Height="78" />
+                                    </StackPanel>
+
+                                    <!-- click-to-create layer (beneath the cards) -->
+                                    <Button Background="Transparent"
+                                            BorderThickness="0"
+                                            Padding="0"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch"
+                                            Cursor="Cross"
+                                            Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).OpenBookingCommand}" />
+
+                                    <!-- packed event cards (lane geometry via the custom panel) -->
+                                    <ItemsControl ItemsSource="{Binding Events}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <controls:TimeGridEventsPanel Height="1170" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="ap:AppointmentEventViewModel">
+                                                <Button Classes="ev-card"
+                                                        Classes.tier-xs="{Binding IsExtraSmall}"
+                                                        Classes.tier-sm="{Binding IsSmall}"
+                                                        Classes.tier-md="{Binding IsMedium}"
+                                                        Classes.cancelled="{Binding IsCancelled}"
+                                                        MinHeight="{Binding Height}"
+                                                        Background="{Binding BackgroundBrush}"
+                                                        BorderBrush="{Binding AccentBrush}"
+                                                        BorderThickness="0,0,0,0"
+                                                        CommandParameter="{Binding}"
+                                                        Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).OpenBookingCommand}"
+                                                        ToolTip.Tip="{Binding TooltipText}">
+                                                    <Grid ColumnDefinitions="*,3">
+                                                        <StackPanel Grid.Column="0" Spacing="1"
+                                                                    VerticalAlignment="Center"
+                                                                    Margin="6,0,6,0">
+                                                            <!-- tier · xs -->
+                                                            <StackPanel Orientation="Horizontal" Spacing="5"
+                                                                        IsVisible="{Binding IsExtraSmall}">
+                                                                <Ellipse Width="5" Height="5"
+                                                                         Fill="{Binding AccentBrush}"
+                                                                         VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding PetName}"
+                                                                           FontSize="11.5" FontWeight="ExtraBold"
+                                                                           Foreground="{Binding ForegroundBrush}"
+                                                                           VerticalAlignment="Center"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           TextWrapping="NoWrap" />
+                                                                <TextBlock Text="{Binding StartText}"
+                                                                           FontSize="10" FontWeight="Normal"
+                                                                           Foreground="{Binding ForegroundBrush}"
+                                                                           Opacity="0.9"
+                                                                           VerticalAlignment="Center" />
+                                                            </StackPanel>
+
+                                                            <!-- tier · sm (line 1) -->
+                                                            <StackPanel Orientation="Horizontal" Spacing="5"
+                                                                        IsVisible="{Binding IsSmall}">
+                                                                <TextBlock Text="{Binding PetName}"
+                                                                           FontSize="12" FontWeight="ExtraBold"
+                                                                           Foreground="{Binding ForegroundBrush}"
+                                                                           VerticalAlignment="Center"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           TextWrapping="NoWrap" />
+                                                                <Ellipse Width="7" Height="7"
+                                                                         Fill="{Binding FlagBrush}"
+                                                                         VerticalAlignment="Center"
+                                                                         IsVisible="{Binding ShowFlag}" />
+                                                            </StackPanel>
+
+                                                            <!-- tier · sm (line 2) -->
+                                                            <StackPanel Orientation="Horizontal" Spacing="4"
+                                                                        IsVisible="{Binding IsSmall}">
+                                                                <TextBlock Text="{Binding RangeText}"
+                                                                           FontSize="10.5" FontWeight="SemiBold"
+                                                                           Foreground="{Binding ForegroundBrush}"
+                                                                           Opacity="0.82"
+                                                                           VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding SmallTypeText}"
+                                                                           FontSize="10.5" FontWeight="Normal"
+                                                                           Foreground="{Binding ForegroundBrush}"
+                                                                           Opacity="0.72"
+                                                                           VerticalAlignment="Center" />
+                                                            </StackPanel>
+
+                                                            <!-- tier · md (line 1) -->
+                                                            <StackPanel Orientation="Horizontal" Spacing="5"
+                                                                        IsVisible="{Binding IsMedium}">
+                                                                <TextBlock Text="{Binding PetName}"
+                                                                           FontSize="12" FontWeight="ExtraBold"
+                                                                           Foreground="{Binding ForegroundBrush}"
+                                                                           VerticalAlignment="Center"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           TextWrapping="NoWrap" />
+                                                                <Ellipse Width="7" Height="7"
+                                                                         Fill="{Binding FlagBrush}"
+                                                                         VerticalAlignment="Center"
+                                                                         IsVisible="{Binding ShowFlag}" />
+                                                            </StackPanel>
+
+                                                            <!-- tier · md (line 2 + 3) -->
+                                                            <TextBlock Text="{Binding RangeText}"
+                                                                       FontSize="10.5" FontWeight="SemiBold"
+                                                                       Foreground="{Binding ForegroundBrush}"
+                                                                       Opacity="0.82"
+                                                                       VerticalAlignment="Center"
+                                                                       IsVisible="{Binding IsMedium}" />
+                                                            <TextBlock Text="{Binding MediumMetaText}"
+                                                                       FontSize="10.5" FontWeight="Normal"
+                                                                       Foreground="{Binding ForegroundBrush}"
+                                                                       Opacity="0.72"
+                                                                       VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       TextWrapping="NoWrap"
+                                                                       IsVisible="{Binding IsMedium}" />
+                                                        </StackPanel>
+
+                                                        <Border Grid.Column="1" Width="3"
+                                                                Background="{Binding AccentBrush}" />
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!-- live "now" line -->
+                                    <Panel Height="0" VerticalAlignment="Top"
+                                           Margin="{Binding NowMargin}"
+                                           IsVisible="{Binding HasNow}">
+                                        <Border Height="2"
+                                                Background="{Binding NowBrush}"
+                                                VerticalAlignment="Top" />
+                                        <Ellipse Width="8" Height="8"
+                                                 Fill="{Binding NowBrush}"
+                                                 HorizontalAlignment="Right"
+                                                 VerticalAlignment="Center"
+                                                 Margin="0,-3,-4,0" />
+                                    </Panel>
+                                </Panel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- empty state (overlays the body when there are no events) -->
+        <ap:CalendarEmptyState Grid.Row="1"
+                               IsVisible="{Binding !HasGridEvents}" />
+    </Grid>
+</UserControl>

@@ -109,7 +109,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     public ObservableCollection<BoardingSectionViewModel> Sections { get; } = [];
     public ObservableCollection<BoardingTabViewModel> Tabs { get; } = [];
     public ObservableCollection<BoardingSpeciesOption> SpeciesOptions { get; } = [];
-    public ObservableCollection<BoardingStayCardViewModel> FilteredStays { get; } = [];
+    public RangeObservableCollection<BoardingStayCardViewModel> FilteredStays { get; } = [];
 
     [ObservableProperty]
     private BoardingSpeciesOption _selectedSpeciesOption;
@@ -129,7 +129,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private bool _hasStays;
 
     // ── History tab ─────────────────────────────────────────────────────────
-    public ObservableCollection<BoardingHistoryCardViewModel> HistoryCards { get; } = [];
+    public RangeObservableCollection<BoardingHistoryCardViewModel> HistoryCards { get; } = [];
 
     [ObservableProperty]
     private string _historyQueryText = string.Empty;
@@ -148,8 +148,8 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     // ── Settings tab ────────────────────────────────────────────────────────
     public ObservableCollection<BoardingRateRowViewModel> RateRows { get; } = [];
-    public ObservableCollection<BoardingRoomTileViewModel> RoomTiles { get; } = [];
-    public ObservableCollection<BoardingServiceRowViewModel> ServiceRows { get; } = [];
+    public RangeObservableCollection<BoardingRoomTileViewModel> RoomTiles { get; } = [];
+    public RangeObservableCollection<BoardingServiceRowViewModel> ServiceRows { get; } = [];
     public ObservableCollection<BoardingSettingToggleViewModel> SettingToggles { get; } = [];
 
     partial void OnActiveSectionChanged(string value)
@@ -250,11 +250,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private void RefreshCards()
     {
         var rows = Filtered();
-        FilteredStays.Clear();
-        foreach (var stay in rows)
-        {
-            FilteredStays.Add(new BoardingStayCardViewModel(stay, _today));
-        }
+        FilteredStays.ReplaceAll(rows.Select(stay => new BoardingStayCardViewModel(stay, _today)));
         HasStays = rows.Count > 0;
     }
 
@@ -279,8 +275,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
         HistoryCountText = $"{PersianNumberFormatter.ToPersianDigits(rows.Count)} اقامت";
 
-        HistoryCards.Clear();
-        foreach (var stay in rows)
+        HistoryCards.ReplaceAll(rows.Select(stay =>
         {
             var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
             var elapsed = Math.Min(Math.Max(0, _today.DayNumber - stay.CheckIn.DayNumber), nights);
@@ -289,9 +284,9 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
             var remaining = stay.Status == BoardingStatus.Done ? 0 : Math.Max(0, stay.CheckOut.DayNumber - _today.DayNumber);
             var status = BoardingStayCardViewModel.StatusMeta(stay, overdue, remaining);
             var total = (long)nights * stay.DailyRate + stay.ExtraItemsCost;
-            HistoryCards.Add(new BoardingHistoryCardViewModel(
-                stay, nights, percent, status.Label, status.Tone, BoardingPresentation.Money(total)));
-        }
+            return new BoardingHistoryCardViewModel(
+                stay, nights, percent, status.Label, status.Tone, BoardingPresentation.Money(total));
+        }));
 
         HasHistoryCards = rows.Count > 0;
     }
@@ -317,17 +312,11 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     private async Task RefreshRoomsAsync()
     {
-        RoomTiles.Clear();
-        foreach (var room in await _service.GetRoomsAsync())
-        {
-            RoomTiles.Add(new BoardingRoomTileViewModel(room));
-        }
+        RoomTiles.ReplaceAll(
+            (await _service.GetRoomsAsync()).Select(room => new BoardingRoomTileViewModel(room)));
 
-        ServiceRows.Clear();
-        foreach (var service in await _service.GetServicesAsync())
-        {
-            ServiceRows.Add(new BoardingServiceRowViewModel(service));
-        }
+        ServiceRows.ReplaceAll(
+            (await _service.GetServicesAsync()).Select(service => new BoardingServiceRowViewModel(service)));
     }
 
     private async Task RefreshAfterChangeAsync()
