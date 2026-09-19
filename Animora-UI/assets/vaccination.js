@@ -55,15 +55,15 @@
   function renderSeg() {
     const c = window.vaxCounts();
     const segs = [
-      { k: 'all', label: 'همه', n: c.total },
-      { k: 'due', label: 'نزدیک', n: c.due },
-      { k: 'overdue', label: 'عقب‌افتاده', n: c.overdue },
-      { k: 'scheduled', label: 'آتی', n: c.scheduled },
-      { k: 'done', label: 'انجام‌شده', n: c.done },
+      { k: 'all', label: 'همه', n: c.total, tone: 'teal' },
+      { k: 'due', label: 'نزدیک', n: c.due, tone: 'blue' },
+      { k: 'overdue', label: 'عقب‌افتاده', n: c.overdue, tone: 'peach' },
+      { k: 'scheduled', label: 'آتی', n: c.scheduled, tone: 'lilac' },
+      { k: 'done', label: 'انجام‌شده', n: c.done, tone: 'green' },
     ];
     el('vxSeg').innerHTML = segs.map((s) => `
-      <button class="vx-status-chip ${S.seg === s.k ? 'active' : ''}" data-seg="${s.k}" role="tab" aria-selected="${S.seg === s.k}">
-        <span class="lbl">${s.label}</span><span class="seg-n num-fa">${fa(s.n)}</span>
+      <button class="pb-chip tone-${s.tone} ${S.seg === s.k ? 'on' : ''}" data-seg="${s.k}" role="tab" aria-selected="${S.seg === s.k}">
+        <span class="dot"></span><span>${s.label}</span><span class="cnt num-fa">${fa(s.n)}</span>
       </button>`).join('');
   }
 
