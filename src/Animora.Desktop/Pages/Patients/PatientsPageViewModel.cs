@@ -58,7 +58,11 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         Eyebrow = "مدیریت کلینیک";
         Breadcrumbs.Add("مدیریت کلینیک");
         Breadcrumbs.Add("بیماران");
-        LoadAsync().GetAwaiter().GetResult();
+        // Non-blocking init (PERFORMANCE.md §4): never .GetAwaiter().GetResult()
+        // on the UI thread. The mock completes synchronously, so this still fills
+        // the directory before the constructor returns, while a real async
+        // backend keeps the shell responsive.
+        _ = LoadAsync();
     }
 
     public ObservableCollection<OwnerCardViewModel> FilteredOwners { get; } = [];

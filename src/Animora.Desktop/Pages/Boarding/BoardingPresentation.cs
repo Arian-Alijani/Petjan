@@ -1,5 +1,6 @@
 using System.Globalization;
 using Animora.Contracts.Boarding;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Avalonia;
 using Avalonia.Media;
@@ -81,8 +82,8 @@ public static class BoardingPresentation
     public static IBrush AvatarGlyphBrush(string? tone) =>
         tone == "c" ? Fill("#101828") : Fill("#ffffff");
 
-    /// <summary>A solid fill brush from a hex string.</summary>
-    public static IBrush Fill(string hex) => new SolidColorBrush(Color.Parse(hex));
+    /// <summary>A solid fill brush from a hex string (shared via <see cref="BrushCache"/>).</summary>
+    public static IBrush Fill(string hex) => BrushCache.Solid(hex);
 
     /// <summary>
     /// The status/detail pill brushes for a semantic tone, mirroring the

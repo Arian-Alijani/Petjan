@@ -104,6 +104,9 @@ public sealed class SegmentedBar : Control
 
     static SegmentedBar() => AffectsRender<SegmentedBar>(SegmentsProperty, GapProperty);
 
+    // Hoisted render-time track brush (re-rendered on every layout pass).
+    private static readonly IBrush TrackBackdrop = new SolidColorBrush(Color.Parse("#f1f5f6"));
+
     public IReadOnlyList<BarSegment>? Segments
     {
         get => GetValue(SegmentsProperty);
@@ -127,7 +130,7 @@ public sealed class SegmentedBar : Control
         }
 
         var radius = h / 2;
-        ctx.DrawRectangle(new SolidColorBrush(Color.Parse("#f1f5f6")), null,
+        ctx.DrawRectangle(TrackBackdrop, null,
             new RoundedRect(new Rect(0, 0, w, h), radius));
 
         var x = w; // walk right → left (RTL: first segment at the right edge)

@@ -40,9 +40,29 @@ public static class PersianNumberFormatter
             return string.Empty;
         }
 
-        var buffer = new StringBuilder(text.Length);
-        foreach (var ch in text)
+        // Fast path: most values already contain no ASCII digit to convert
+        // (Persian-formatted strings, labels, symbols). Returning the original
+        // text avoids allocating a StringBuilder + a copy for that common case
+        // (PERFORMANCE.md §10: no needless allocation in a hot formatting path).
+        var index = 0;
+        for (; index < text.Length; index++)
         {
+            if (text[index] is >= '0' and <= '9')
+            {
+                break;
+            }
+        }
+
+        if (index == text.Length)
+        {
+            return text.ToString();
+        }
+
+        var buffer = new StringBuilder(text.Length);
+        buffer.Append(text[..index]);
+        for (; index < text.Length; index++)
+        {
+            var ch = text[index];
             buffer.Append(ch is >= '0' and <= '9' ? (char)(PersianZero + (ch - '0')) : ch);
         }
 

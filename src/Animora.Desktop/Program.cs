@@ -10,9 +10,20 @@ internal static class Program
     public static void Main(string[] args) =>
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
 
-    public static AppBuilder BuildAvaloniaApp() =>
-        AppBuilder.Configure<App>()
+    public static AppBuilder BuildAvaloniaApp()
+    {
+        var builder = AppBuilder.Configure<App>()
             .UsePlatformDetect()
-            .WithInterFont()
-            .LogToTrace();
+            .WithInterFont();
+
+        // Trace logging is a debug aid; enabling it in Release adds per-log
+        // formatting/IO overhead to the startup and render hot paths
+        // (PERFORMANCE.md §16: no heavy logging in hot paths). Keep it for
+        // Debug only so Release startup stays minimal (§3).
+#if DEBUG
+        builder = builder.LogToTrace();
+#endif
+
+        return builder;
+    }
 }

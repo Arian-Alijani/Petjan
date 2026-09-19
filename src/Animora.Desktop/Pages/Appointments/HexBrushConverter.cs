@@ -20,14 +20,9 @@ public sealed class HexBrushConverter : IValueConverter
     {
         if (value is string hex && !string.IsNullOrWhiteSpace(hex))
         {
-            try
-            {
-                return new SolidColorBrush(Color.Parse(hex));
-            }
-            catch (FormatException)
-            {
-                return null;
-            }
+            // Shared, cached brush — this converter runs once per bound chip /
+            // accent dot, so allocating per call is avoidable GC churn.
+            return Animora.Desktop.Controls.BrushCache.Solid(hex);
         }
 
         return null;
