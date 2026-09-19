@@ -7,54 +7,115 @@
              x:DataType="vx:VaccinationPageViewModel"
              FlowDirection="RightToLeft">
     <UserControl.Styles>
-        <Style Selector="Button.vx-tab">
+        <!-- Segmented switch (.pb-seg): a soft track with pill buttons; the
+             active pill gets the reference's white fill + 2/8 shadow.
+             Mirrors PatientsPageView so both toolbars are identical. -->
+        <Style Selector="Border.seg">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="3" />
+        </Style>
+        <Style Selector="Border.segitem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="9" />
+        </Style>
+        <Style Selector="Border.segitem.on">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+        </Style>
+        <Style Selector="Button.segtap">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="CornerRadius" Value="9" />
-            <Setter Property="Padding" Value="20,9" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FontSize" Value="13.5" />
             <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="15,8" />
+            <Setter Property="Cursor" Value="Hand" />
         </Style>
-        <Style Selector="Button.vx-tab:pointerover">
-            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Style Selector="Button.segtap.lg">
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="20,9" />
         </Style>
-        <Style Selector="Button.vx-tab.is-active">
-            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Style Selector="Button.segtap:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.segitem Path">
+            <Setter Property="Stroke" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Border.segitem.on Path">
+            <Setter Property="Stroke" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Border.segitem.on TextBlock">
             <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
         </Style>
-        <!-- Status filter chip — same tokens as the standard .pb-chip used on
-             Patients/Cheques/Inventory toolbars (brand active, teal hover). -->
-        <Style Selector="Button.vx-status-chip">
+
+        <!-- Filter chips (.pb-chip): pill outline; active = brand fill + white
+             text + 2/8 brand shadow. Status filters use the SAME component as
+             the Patients species chips (همه گونه‌ها / سگ / گربه …). -->
+        <Style Selector="Border.chip">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="999" />
-            <Setter Property="Padding" Value="13,6" />
-            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.chip:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Background" Value="#f6faf8" />
+        </Style>
+        <Style Selector="Border.chip.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowChip}" />
+        </Style>
+        <Style Selector="Button.chiptap">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
             <Setter Property="FontSize" Value="12.5" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Padding" Value="13,6" />
+            <Setter Property="Cursor" Value="Hand" />
         </Style>
-        <Style Selector="Button.vx-status-chip:pointerover">
-            <Setter Property="BorderBrush" Value="{StaticResource ShotBrush}" />
-            <Setter Property="Foreground" Value="{StaticResource ShotBrush}" />
-            <Setter Property="Background" Value="{StaticResource ShotBgBrush}" />
+        <Style Selector="Button.chiptap:pointerover">
+            <Setter Property="Background" Value="Transparent" />
         </Style>
-        <Style Selector="Button.vx-status-chip.is-active">
-            <Setter Property="Background" Value="{StaticResource ShotBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource ShotBrush}" />
+        <Style Selector="Border.chip:pointerover TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Border.chip.on TextBlock">
             <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Border.chip.on Button.chiptap">
             <Setter Property="FontWeight" Value="Bold" />
         </Style>
-        <Style Selector="Button.vx-status-chip /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="BoxShadow" Value="none" />
+        <!-- Chip count pill (.pb-chip .cnt). -->
+        <Style Selector="Border.cnt">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="MinWidth" Value="18" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="Padding" Value="5,0" />
         </Style>
-        <Style Selector="Button.vx-status-chip.is-active /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="BoxShadow" Value="{StaticResource ShadowChip}" />
+        <Style Selector="Border.cnt TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Border.chip.on Border.cnt">
+            <Setter Property="Background" Value="#38FFFFFF" />
+        </Style>
+        <Style Selector="Border.chip.on Border.cnt TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <!-- Compact toolbar select (.pb-select). -->
+        <Style Selector="ComboBox.pbselect">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
         </Style>
         <Style Selector="TextBlock.th">
             <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
@@ -113,83 +174,106 @@
                 BorderThickness="1" CornerRadius="{StaticResource Radius}"
                 BoxShadow="{StaticResource ShadowCard}" Padding="14,12" Margin="0,0,0,16">
             <StackPanel Spacing="12">
-                <!-- tier 1 · section tabs -->
-                <Border Background="{StaticResource Bg2Brush}" CornerRadius="12" Padding="3">
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="2">
-                        <Button Grid.Column="0" Classes="vx-tab" Classes.is-active="{Binding IsVisitsSection}"
-                                Command="{Binding SetSectionCommand}" CommandParameter="visits">
-                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                <Path Classes="icon" Width="17" Height="17" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSyringe}" />
-                                <TextBlock Text="نوبت" FontWeight="Bold" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Button Grid.Column="1" Classes="vx-tab" Classes.is-active="{Binding IsStockSection}"
-                                Command="{Binding SetSectionCommand}" CommandParameter="stock">
-                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                <Path Classes="icon" Width="17" Height="17" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconBox}" />
-                                <TextBlock Text="انبار واکسن" FontWeight="Bold" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Button Grid.Column="2" Classes="vx-tab" Classes.is-active="{Binding IsSettingsSection}"
-                                Command="{Binding SetSectionCommand}" CommandParameter="settings">
-                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                <Path Classes="icon" Width="17" Height="17" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconTools}" />
-                                <TextBlock Text="تنظیمات" FontWeight="Bold" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                    </Grid>
-                </Border>
-                <Border Height="1" Background="{StaticResource Line2Brush}" />
-                <!-- tier 2 · status filters + search -->
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                    <ItemsControl Grid.Column="0" ItemsSource="{Binding Segments}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="8" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vx:VaccinationSegmentViewModel">
-                                <Button Classes="vx-status-chip" Classes.is-active="{Binding IsActive}"
-                                        Command="{Binding #Root.((vx:VaccinationPageViewModel)DataContext).SetSegmentCommand}"
-                                        CommandParameter="{Binding Key}">
+                <!-- tier 1 · section tabs (start) + search (end/left) -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <Border Grid.Column="0" Classes="seg" HorizontalAlignment="Stretch">
+                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="2">
+                            <Border Grid.Column="0" Classes="segitem" Classes.on="{Binding IsVisitsSection}">
+                                <Button Classes="segtap lg" HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Command="{Binding SetSectionCommand}" CommandParameter="visits">
                                     <StackPanel Orientation="Horizontal" Spacing="7">
-                                        <TextBlock Text="{Binding Label}" />
-                                        <Border Background="{StaticResource Bg2Brush}" CornerRadius="999" Padding="6,0" MinWidth="20" Height="20">
-                                            <TextBlock Text="{Binding Count}" FontSize="11" FontWeight="ExtraBold"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
+                                        <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconSyringe}" />
+                                        <TextBlock Text="نوبت" FontSize="13.5" FontWeight="Bold" />
                                     </StackPanel>
                                 </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <Border Grid.Column="1" Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource LineBrush}"
-                            BorderThickness="1" CornerRadius="12" Padding="12,8" MaxWidth="420" HorizontalAlignment="Left">
+                            </Border>
+                            <Border Grid.Column="1" Classes="segitem" Classes.on="{Binding IsStockSection}">
+                                <Button Classes="segtap lg" HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Command="{Binding SetSectionCommand}" CommandParameter="stock">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconBox}" />
+                                        <TextBlock Text="انبار واکسن" FontSize="13.5" FontWeight="Bold" />
+                                    </StackPanel>
+                                </Button>
+                            </Border>
+                            <Border Grid.Column="2" Classes="segitem" Classes.on="{Binding IsSettingsSection}">
+                                <Button Classes="segtap lg" HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Command="{Binding SetSectionCommand}" CommandParameter="settings">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconTools}" />
+                                        <TextBlock Text="تنظیمات" FontSize="13.5" FontWeight="Bold" />
+                                    </StackPanel>
+                                </Button>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- search field (.pb-search) -->
+                    <Border Grid.Column="1" Width="420" MinWidth="200"
+                            Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource LineBrush}"
+                            BorderThickness="1" CornerRadius="12" Padding="13,0">
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                            <Path Grid.Column="0" Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}" />
-                            <TextBox Grid.Column="1" Text="{Binding SearchQueryText}" Background="Transparent" BorderThickness="0"
-                                     FontSize="13" VerticalContentAlignment="Center"
+                            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                                  VerticalAlignment="Center" Stroke="{StaticResource MutedBrush}"
+                                  Data="{StaticResource IconSearch}" IsHitTestVisible="False" />
+                            <TextBox Grid.Column="1" Text="{Binding SearchQueryText}" Background="Transparent"
+                                     BorderThickness="0" FontSize="13" VerticalContentAlignment="Center" Padding="0,10"
                                      PlaceholderText="جستجوی بیمار، مالک یا واکسن…"
                                      TextChanged="OnSearchTextChanged" KeyDown="OnSearchKeyDown" />
-                            <Button Grid.Column="2" Classes="ghost" Width="28" Height="28" Padding="4"
+                            <Button Grid.Column="2" Width="20" Height="20" Padding="0" CornerRadius="999"
+                                    Background="{StaticResource Brand50Brush}" BorderThickness="0"
+                                    VerticalAlignment="Center"
                                     IsVisible="{Binding HasSearchValue}" Command="{Binding ClearSearchCommand}" ToolTip.Tip="پاک کردن">
-                                <Path Classes="icon" Width="12" Height="12" Stroke="{StaticResource Brand700Brush}" Data="{StaticResource IconX}" />
+                                <Path Classes="icon" Width="11" Height="11" Stroke="{StaticResource Brand700Brush}" Data="{StaticResource IconX}" />
                             </Button>
                         </Grid>
                     </Border>
                 </Grid>
-                <!-- tier 3 · species filter + actions -->
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                    <ComboBox Grid.Column="0" ItemsSource="{Binding SpeciesOptions}" SelectedItem="{Binding SelectedSpeciesOption}"
-                              MinWidth="150" Padding="12,8" CornerRadius="10" Background="{StaticResource PanelBrush}">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="vx:SpeciesFilterOption">
-                                <TextBlock Text="{Binding Label}" />
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+
+                <!-- tier 2 · status chips (start) + species & actions (end/left) -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,12,0,0">
+                    <Border Grid.Column="0" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                            Padding="0,12,0,0" Margin="0,-12,0,0">
+                        <ItemsControl ItemsSource="{Binding Segments}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vx:VaccinationSegmentViewModel">
+                                    <Border Classes="chip" Classes.on="{Binding IsActive}" Margin="0,0,7,0">
+                                        <Button Classes="chiptap"
+                                                Command="{Binding #Root.((vx:VaccinationPageViewModel)DataContext).SetSegmentCommand}"
+                                                CommandParameter="{Binding Key}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding Label}" />
+                                                <Border Classes="cnt">
+                                                    <TextBlock Text="{Binding Count}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Button>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+
+                    <!-- trailing control cluster (.pb-tools) -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <ComboBox Classes="pbselect" ItemsSource="{Binding SpeciesOptions}"
+                                  SelectedItem="{Binding SelectedSpeciesOption}" MinWidth="150">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vx:SpeciesFilterOption">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Border Width="1" Height="22" Background="{StaticResource LineBrush}" />
                         <Button Classes="outline" Command="{Binding BulkSmsCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource InkBrush}" Data="{StaticResource IconSms}" />
