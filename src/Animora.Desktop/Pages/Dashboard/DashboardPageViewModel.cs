@@ -118,11 +118,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
             return;
         }
 
-        var page = _navigation.NavigateTo(action.Target);
-        if (page is PlaceholderPageViewModel placeholder)
-        {
-            placeholder.ConfigureFor(action.Label);
-        }
+        _navigation.NavigateTo(action.Target);
     }
 
     private void Apply(DashboardSnapshot snapshot)

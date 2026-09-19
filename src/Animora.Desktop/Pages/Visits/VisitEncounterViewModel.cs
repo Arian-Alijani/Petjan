@@ -350,9 +350,14 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     [RelayCommand]
     private void HandoffToCashier()
     {
+        // Reference (visit.js #doneToCashierBtn): toast then navigate to the
+        // cashier/sale screen. Per the roadmap's decision log this product flow
+        // targets Sale/POS (sale-page.js buildFromEncounter is the real
+        // encounter→invoice function), so the completed encounter id is handed
+        // to SalePageViewModel which issues the invoice from it (Phase 29 wiring).
         _toast.Show("انتقال به صندوق (نمونه طراحی).", Tone.Ok);
-        var placeholder = _navigation.NavigateTo<PlaceholderPageViewModel>();
-        placeholder.ConfigureFor("فروش و صندوق");
+        _navigation.NavigateTo<Animora.Desktop.Pages.Sales.SalePageViewModel>(
+            vm => vm.BuildFromEncounterCommand.Execute(_encounterId));
     }
 
     private async Task CompleteAsync()

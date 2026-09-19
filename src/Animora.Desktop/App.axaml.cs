@@ -72,11 +72,6 @@ public partial class App : Application
         services.AddSingleton<ICurrentUserContext, MockCurrentUserContext>();
         services.AddSingleton<INavigationService, NavigationService>();
 
-        // A single shared placeholder instance backs every not-yet-built nav
-        // item; the sidebar retargets it per click. Screen phases (06+)
-        // register their own page ViewModels here.
-        services.AddSingleton<PlaceholderPageViewModel>();
-
         // Phase 06: Dashboard screen — query service is stateless/pure mock
         // data, so a singleton is sufficient (no per-navigation reload needed
         // until a real backend adds freshness semantics).

@@ -135,7 +135,7 @@
                      Padding="44,11,44,11" FontSize="14" FontWeight="Medium"
                      BorderBrush="{StaticResource Brand400Brush}" BorderThickness="1.5"
                      CornerRadius="12" Background="{StaticResource PanelBrush}"
-                     Watermark="جستجوی نام، دستهٔ خدمت یا کالا…"
+                     PlaceholderText="جستجوی نام، دستهٔ خدمت یا کالا…"
                      VerticalContentAlignment="Center" />
             <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Muted2Brush}"
                   Data="{StaticResource IconSearch}" HorizontalAlignment="Right"
