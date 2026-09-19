@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:fm="using:Animora.Desktop.Pages.Finance"
              xmlns:ui="using:Animora.Desktop.Controls"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Finance.FinancePageView"
              x:Name="Root"
              x:DataType="fm:FinancePageViewModel"
@@ -285,8 +286,11 @@
                 </Grid>
             </Border>
 
-            <!-- ═══════════════ OVERVIEW TAB ═══════════════ -->
-            <StackPanel IsVisible="{Binding IsOverview}">
+            <!-- ═══ Tab panels — lazily instantiated: only the active tab is realised ═══ -->
+            <controls:LazyTabHost ActiveKey="{Binding ActiveTab}">
+                <controls:LazyTab Key="overview">
+                    <DataTemplate x:DataType="fm:FinancePageViewModel">
+            <StackPanel>
                 <ContentControl Content="{Binding Highlight}">
                     <ContentControl.ContentTemplate>
                         <DataTemplate x:DataType="fm:FinanceHighlightViewModel">
@@ -445,9 +449,11 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>
-
-            <!-- ═══════════════ INCOME TAB ═══════════════ -->
-            <StackPanel IsVisible="{Binding IsIncome}">
+                    </DataTemplate>
+                </controls:LazyTab>
+                <controls:LazyTab Key="income">
+                    <DataTemplate x:DataType="fm:FinancePageViewModel">
+            <StackPanel>
                 <ContentControl Content="{Binding Highlight}">
                     <ContentControl.ContentTemplate>
                         <DataTemplate x:DataType="fm:FinanceHighlightViewModel">
@@ -764,12 +770,19 @@
                 </Border>
 
             </StackPanel>
-
-            <!-- ═══════════════ EXPENSE TAB ═══════════════ -->
-            <fm:FinanceExpenseTabView IsVisible="{Binding IsExpense}" />
-
-            <!-- ═══════════════ PROFIT TAB ═══════════════ -->
-            <fm:FinanceProfitTabView IsVisible="{Binding IsProfit}" />
+                    </DataTemplate>
+                </controls:LazyTab>
+                <controls:LazyTab Key="expense">
+                    <DataTemplate x:DataType="fm:FinancePageViewModel">
+                        <fm:FinanceExpenseTabView />
+                    </DataTemplate>
+                </controls:LazyTab>
+                <controls:LazyTab Key="profit">
+                    <DataTemplate x:DataType="fm:FinancePageViewModel">
+                        <fm:FinanceProfitTabView />
+                    </DataTemplate>
+                </controls:LazyTab>
+            </controls:LazyTabHost>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

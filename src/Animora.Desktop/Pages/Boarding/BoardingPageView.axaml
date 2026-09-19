@@ -1,6 +1,7 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:boarding="using:Animora.Desktop.Pages.Boarding"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Boarding.BoardingPageView"
              x:Name="Root"
              x:DataType="boarding:BoardingPageViewModel"
@@ -311,8 +312,11 @@
             </StackPanel>
         </Border>
 
-        <!-- ═══ SECTION: مدیریت اقامت ═══ -->
-        <StackPanel IsVisible="{Binding IsBoardSection}">
+        <!-- ═══ Sections — lazily instantiated: only the active section is realised ═══ -->
+        <controls:LazyTabHost ActiveKey="{Binding ActiveSection}">
+            <controls:LazyTab Key="board">
+                <DataTemplate x:DataType="boarding:BoardingPageViewModel">
+        <StackPanel>
             <!-- Virtualized stay cards. UniformGrid/WrapPanel do NOT virtualize
                  and ItemsRepeater is gone in Avalonia 12, so the former 3-column
                  card grid renders as a single-column virtualized ListBox of the
@@ -440,11 +444,18 @@
                            Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
             </StackPanel>
         </StackPanel>
-
-        <!-- ═══ SECTION: تاریخچه (Phase 16 — real content) ═══ -->
-        <boarding:BoardingHistoryTabView IsVisible="{Binding IsHistorySection}" />
-
-        <!-- ═══ SECTION: تنظیمات (Phase 16 — real content) ═══ -->
-        <boarding:BoardingSettingsTabView IsVisible="{Binding IsSettingsSection}" />
+                </DataTemplate>
+            </controls:LazyTab>
+            <controls:LazyTab Key="history">
+                <DataTemplate x:DataType="boarding:BoardingPageViewModel">
+                    <boarding:BoardingHistoryTabView />
+                </DataTemplate>
+            </controls:LazyTab>
+            <controls:LazyTab Key="settings">
+                <DataTemplate x:DataType="boarding:BoardingPageViewModel">
+                    <boarding:BoardingSettingsTabView />
+                </DataTemplate>
+            </controls:LazyTab>
+        </controls:LazyTabHost>
     </StackPanel>
 </UserControl>

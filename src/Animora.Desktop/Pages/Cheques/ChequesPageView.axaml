@@ -1,6 +1,7 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ch="using:Animora.Desktop.Pages.Cheques"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Cheques.ChequesPageView"
              x:Name="Root"
              x:DataType="ch:ChequesPageViewModel"
@@ -560,10 +561,29 @@
                 </Border>
 
                 <!-- render-mode sub-views -->
-                <ch:ChequesTableView IsVisible="{Binding IsTableView}" />
-                <ch:ChequesGridView IsVisible="{Binding IsGridView}" />
-                <ch:ChequesCalendarView IsVisible="{Binding IsCalendarView}" />
-                <ch:ChequesTimelineView IsVisible="{Binding IsTimelineView}" />
+                <!-- render-mode sub-views — lazily instantiated: only the active mode is realised -->
+                <controls:LazyTabHost ActiveKey="{Binding ViewMode}">
+                    <controls:LazyTab Key="Table">
+                        <DataTemplate x:DataType="ch:ChequesPageViewModel">
+                            <ch:ChequesTableView />
+                        </DataTemplate>
+                    </controls:LazyTab>
+                    <controls:LazyTab Key="Grid">
+                        <DataTemplate x:DataType="ch:ChequesPageViewModel">
+                            <ch:ChequesGridView />
+                        </DataTemplate>
+                    </controls:LazyTab>
+                    <controls:LazyTab Key="Calendar">
+                        <DataTemplate x:DataType="ch:ChequesPageViewModel">
+                            <ch:ChequesCalendarView />
+                        </DataTemplate>
+                    </controls:LazyTab>
+                    <controls:LazyTab Key="Timeline">
+                        <DataTemplate x:DataType="ch:ChequesPageViewModel">
+                            <ch:ChequesTimelineView />
+                        </DataTemplate>
+                    </controls:LazyTab>
+                </controls:LazyTabHost>
             </StackPanel>
 
             <ch:ChequesSideView Grid.Column="1" />
