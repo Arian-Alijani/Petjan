@@ -645,13 +645,34 @@
 
                             <!-- Body (renderBody → step sub-view) -->
                             <Border Classes="wz-body">
-                                <Panel>
-                                    <visits:VitalsStepView IsVisible="{Binding IsVitalsStep}" />
-                                    <visits:HistoryStepView IsVisible="{Binding IsHistoryStep}" />
-                                    <visits:PlanStepView IsVisible="{Binding IsPlanStep}" />
-                                    <visits:RxStepView IsVisible="{Binding IsRxStep}" />
-                                    <visits:ReviewStepView IsVisible="{Binding IsReviewStep}" />
-                                </Panel>
+                                <!-- steps — lazily instantiated: only the active step is realised -->
+                                <controls:LazyTabHost ActiveKey="{Binding CurrentStep}">
+                                    <controls:LazyTab Key="Vitals">
+                                        <DataTemplate x:DataType="visits:VisitEncounterViewModel">
+                                            <visits:VitalsStepView />
+                                        </DataTemplate>
+                                    </controls:LazyTab>
+                                    <controls:LazyTab Key="History">
+                                        <DataTemplate x:DataType="visits:VisitEncounterViewModel">
+                                            <visits:HistoryStepView />
+                                        </DataTemplate>
+                                    </controls:LazyTab>
+                                    <controls:LazyTab Key="Plan">
+                                        <DataTemplate x:DataType="visits:VisitEncounterViewModel">
+                                            <visits:PlanStepView />
+                                        </DataTemplate>
+                                    </controls:LazyTab>
+                                    <controls:LazyTab Key="Rx">
+                                        <DataTemplate x:DataType="visits:VisitEncounterViewModel">
+                                            <visits:RxStepView />
+                                        </DataTemplate>
+                                    </controls:LazyTab>
+                                    <controls:LazyTab Key="Review">
+                                        <DataTemplate x:DataType="visits:VisitEncounterViewModel">
+                                            <visits:ReviewStepView />
+                                        </DataTemplate>
+                                    </controls:LazyTab>
+                                </controls:LazyTabHost>
                             </Border>
 
                             <!-- Footer (renderFoot) -->
@@ -765,9 +786,16 @@
             </StackPanel>
 
             <!-- ===================== Done scene ===================== -->
-            <Border Classes="wz-card" IsVisible="{Binding IsDoneStep}">
-                <visits:DoneStepView />
-            </Border>
+            <!-- Done scene — lazily instantiated only at the final step -->
+            <controls:LazyTabHost ActiveKey="{Binding CurrentStep}">
+                <controls:LazyTab Key="Done">
+                    <DataTemplate x:DataType="visits:VisitEncounterViewModel">
+                        <Border Classes="wz-card">
+                            <visits:DoneStepView />
+                        </Border>
+                    </DataTemplate>
+                </controls:LazyTab>
+            </controls:LazyTabHost>
         </StackPanel>
     </ScrollViewer>
 </UserControl>
