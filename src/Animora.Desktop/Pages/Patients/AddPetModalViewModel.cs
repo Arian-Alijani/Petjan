@@ -12,12 +12,12 @@ namespace Animora.Desktop.Pages.Patients;
 /// </summary>
 public sealed partial class AddPetModalViewModel : ObservableObject
 {
-    private readonly Action<NewPetRequest> _submit;
+    private readonly Func<NewPetRequest, Task> _submit;
     private readonly IDialogService _dialogs;
 
     public AddPetModalViewModel(
         OwnerDetail owner,
-        Action<NewPetRequest> submit,
+        Func<NewPetRequest, Task> submit,
         IDialogService dialogs)
     {
         _submit = submit;
@@ -47,14 +47,14 @@ public sealed partial class AddPetModalViewModel : ObservableObject
     private void Cancel() => _dialogs.Close();
 
     [RelayCommand]
-    private void Save()
+    private async Task SaveAsync()
     {
         if (!Pet.IsValid)
         {
             return;
         }
 
-        _submit(Pet.BuildRequest());
+        await _submit(Pet.BuildRequest());
         _dialogs.Close();
     }
 }

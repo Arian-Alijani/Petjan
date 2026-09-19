@@ -234,16 +234,19 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         }
     }
 
-    /// <summary>Loads a pet file and its owner; called by the caller before navigation.</summary>
-    public void Load(string petId)
+    /// <summary>
+    /// Loads a pet file and its owner; awaited by the caller before the sheet is
+    /// shown. Never blocks the UI thread (PERFORMANCE.md §4).
+    /// </summary>
+    public async Task LoadAsync(string petId)
     {
-        var detail = _patients.GetPetAsync(petId).GetAwaiter().GetResult();
+        var detail = await _patients.GetPetAsync(petId);
         if (detail is null)
         {
             return;
         }
 
-        _owner = _patients.GetOwnersAsync().GetAwaiter().GetResult()
+        _owner = (await _patients.GetOwnersAsync())
             .FirstOrDefault(o => o.Id == detail.OwnerId);
         Apply(detail);
         SelectTab("summary");
@@ -570,7 +573,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void SaveInfo()
+    private async Task SaveInfoAsync()
     {
         if (_pet is null)
         {
@@ -594,14 +597,14 @@ public sealed partial class PetFileViewModel : PageViewModelBase
             Diet = Trim(EditDiet),
         };
 
-        var saved = _patients.SavePetInfoAsync(updated).GetAwaiter().GetResult();
+        var saved = await _patients.SavePetInfoAsync(updated);
         Apply(saved);
         IsEditingInfo = false;
         _toast.Show("مشخصات بیمار به‌روزرسانی شد", Controls.Tone.Ok);
     }
 
     [RelayCommand]
-    private void AddWeight()
+    private async Task AddWeightAsync()
     {
         if (_pet is null)
         {
@@ -624,8 +627,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
             }
         }
 
-        var saved = _patients.AddWeightEntryAsync(_pet.Id, new WeightEntry(date, weight))
-            .GetAwaiter().GetResult();
+        var saved = await _patients.AddWeightEntryAsync(_pet.Id, new WeightEntry(date, weight));
         Apply(saved);
         NewWeightValue = string.Empty;
         NewWeightDate = string.Empty;
@@ -667,18 +669,18 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     private void Print() => _toast.Show("چاپ پرونده (نمونه طراحی)", Controls.Tone.Info);
 
     [RelayCommand]
-    private void BackToOwner()
+    private Task BackToOwner()
     {
         var ownerId = _pet?.OwnerId;
         if (ownerId is null)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         // The reference closes the pet sheet then reopens the owner sheet
         // (closePetFile(); openOwnerDrawer(...)) so the record surface stays a
         // centered overlay rather than a page navigation.
-        _presenter.OpenOwnerSheet(ownerId);
+        return _presenter.OpenOwnerSheetAsync(ownerId);
     }
 
     [RelayCommand]

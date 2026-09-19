@@ -10,6 +10,10 @@ namespace Animora.Desktop.Services;
 /// reference: owner file 680×760 (<c>.owner-sheet</c>), patient file 1120×880
 /// (<c>.pet-sheet</c>). Registered as a singleton; the ViewModels are transient
 /// so each opened record is a fresh, fully-loaded instance.
+///
+/// The load is awaited — never blocked on the UI thread (PERFORMANCE.md §4) — so
+/// a Datasync/SQLite-backed <c>IPatientsQueryService</c> keeps the shell
+/// responsive while the record sheet is being fetched.
 /// </summary>
 public sealed class RecordSheetPresenter : IRecordSheetPresenter
 {
@@ -22,17 +26,17 @@ public sealed class RecordSheetPresenter : IRecordSheetPresenter
         _dialogs = dialogs;
     }
 
-    public void OpenOwnerSheet(string ownerId)
+    public async Task OpenOwnerSheetAsync(string ownerId)
     {
         var viewModel = _services.GetRequiredService<OwnerSheetViewModel>();
-        viewModel.Load(ownerId);
+        await viewModel.LoadAsync(ownerId);
         _dialogs.ShowSheet(viewModel, width: 680, height: 760);
     }
 
-    public void OpenPetSheet(string petId)
+    public async Task OpenPetSheetAsync(string petId)
     {
         var viewModel = _services.GetRequiredService<PetFileViewModel>();
-        viewModel.Load(petId);
+        await viewModel.LoadAsync(petId);
         _dialogs.ShowSheet(viewModel, width: 1120, height: 880);
     }
 }

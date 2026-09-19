@@ -7,12 +7,16 @@ namespace Animora.Desktop.Services;
 /// present a record instead of navigating away. Keeping the resolve-and-show
 /// step behind a service means the ViewModels never construct a View and the
 /// shell stays the only owner of overlay plumbing (CONVENTIONS.md §3).
+///
+/// Both operations are asynchronous because the sheet ViewModel loads its record
+/// through an <c>async</c> data seam before the overlay is shown; the caller
+/// awaits this so it never blocks the UI thread (PERFORMANCE.md §4).
 /// </summary>
 public interface IRecordSheetPresenter
 {
     /// <summary>Opens the Owner File sheet (reference <c>.owner-sheet</c>, 680×760) for the given owner id.</summary>
-    void OpenOwnerSheet(string ownerId);
+    Task OpenOwnerSheetAsync(string ownerId);
 
     /// <summary>Opens the Patient File sheet (reference <c>.pet-sheet</c>, 1120×880) for the given pet id.</summary>
-    void OpenPetSheet(string petId);
+    Task OpenPetSheetAsync(string petId);
 }

@@ -280,7 +280,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 
         var draft = await _service.StartFromTicketAsync(row.TicketId);
         _toast.Show($"ویزیت « {draft.PatientName} » آغاز شد (نمونه طراحی)", Tone.Ok);
-        _navigation.NavigateTo<VisitEncounterViewModel>(vm => vm.Load(draft));
+        await _navigation.NavigateToAsync<VisitEncounterViewModel>(vm => vm.LoadAsync(draft));
     }
 
     [RelayCommand]
@@ -306,7 +306,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 
         var draft = await _service.StartNewAsync(request);
         _toast.Show($"ویزیت جدید بدون نوبت برای « {PickedPatient.Name} » آغاز شد (نمونه طراحی)", Tone.Ok);
-        _navigation.NavigateTo<VisitEncounterViewModel>(vm => vm.Load(draft));
+        await _navigation.NavigateToAsync<VisitEncounterViewModel>(vm => vm.LoadAsync(draft));
     }
 
     private void SelectType(VisitTypeOptionViewModel? option)

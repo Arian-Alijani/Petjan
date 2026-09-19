@@ -219,21 +219,22 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     /// <summary>
     /// Loads the wizard for the encounter Phase 10 just started, hydrating the
-    /// context draft and the billable catalog through the service seam. Called
-    /// by the navigation configure callback before the page becomes current.
+    /// context draft and the billable catalog through the service seam. Awaited
+    /// by the navigation callback before the page becomes current — never
+    /// blocked on the UI thread (PERFORMANCE.md §4).
     /// </summary>
-    public void Load(EncounterDraft draft)
+    public async Task LoadAsync(EncounterDraft draft)
     {
         ArgumentNullException.ThrowIfNull(draft);
 
-        _draft = _service.GetAsync(draft.Id).GetAwaiter().GetResult();
+        _draft = await _service.GetAsync(draft.Id);
         _encounterId = _draft.Id;
 
         // Reference buildEncounter seeds history from the ticket note; every
         // other editable field starts empty.
         HistoryText = _draft.Note;
 
-        var catalog = _service.GetCatalogAsync().GetAwaiter().GetResult();
+        var catalog = await _service.GetCatalogAsync();
         ServiceCatalog.Clear();
         ItemCatalog.Clear();
         foreach (var item in catalog.Where(c => c.Kind == RxCatalogKind.Service))
@@ -266,7 +267,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     {
         if (value is not null)
         {
-            AddLine(value.Item);
+            AddPickedLine(value.Item);
             SelectedServiceToAdd = null;
         }
     }
@@ -275,8 +276,32 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     {
         if (value is not null)
         {
-            AddLine(value.Item);
+            AddPickedLine(value.Item);
             SelectedItemToAdd = null;
+        }
+    }
+
+    /// <summary>
+    /// Adds the line a catalog picker just chose. The <c>[ObservableProperty]</c>
+    /// change hook is a synchronous UI event and cannot itself be <c>async</c>, so
+    /// the async add is started here and faults are observed + surfaced instead of
+    /// escaping on the fire-and-forget path (PERFORMANCE.md §4: never block the UI
+    /// thread).
+    /// </summary>
+    private void AddPickedLine(RxCatalogItem item)
+    {
+        _ = AddPickedLineAsync(item);
+    }
+
+    private async Task AddPickedLineAsync(RxCatalogItem item)
+    {
+        try
+        {
+            await AddLineAsync(item);
+        }
+        catch (Exception ex)
+        {
+            _toast.Show($"افزودن «{item.Title}» ناموفق بود: {ex.Message}", Tone.Danger);
         }
     }
 
@@ -324,14 +349,14 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private void BackToGate() => _navigation.NavigateTo<VisitsTriagePageViewModel>();
 
     [RelayCommand]
-    private void RemoveRxLine(RxLineViewModel? line)
+    private async Task RemoveRxLineAsync(RxLineViewModel? line)
     {
         if (line is null)
         {
             return;
         }
 
-        _service.RemoveRxLineAsync(_encounterId, line.Id).GetAwaiter().GetResult();
+        await _service.RemoveRxLineAsync(_encounterId, line.Id);
         if (line.IsService)
         {
             ServiceLines.Remove(line);
@@ -372,7 +397,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         CurrentStep = EncounterStep.Done;
     }
 
-    private void AddLine(RxCatalogItem item)
+    private async Task AddLineAsync(RxCatalogItem item)
     {
         var line = new RxLine(
             id: $"ln-{Guid.NewGuid():N}"[..10],
@@ -383,7 +408,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
             quantity: 1,
             note: string.Empty);
 
-        _service.AddRxLineAsync(_encounterId, line).GetAwaiter().GetResult();
+        await _service.AddRxLineAsync(_encounterId, line);
 
         var viewModel = new RxLineViewModel(line, RecomputeSubtotal);
         if (item.Kind == RxCatalogKind.Service)

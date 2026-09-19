@@ -26,6 +26,14 @@ public interface INavigationService
     /// </summary>
     TViewModel NavigateTo<TViewModel>(Action<TViewModel> configure) where TViewModel : PageViewModelBase;
 
+    /// <summary>
+    /// Resolve <typeparamref name="TViewModel"/> from DI, <c>await</c>
+    /// <paramref name="configure"/> (to asynchronously load a drill-in record before
+    /// it is shown — never blocking the UI thread, PERFORMANCE.md §4), then make it
+    /// current. The shell stays on the previous page until the load completes.
+    /// </summary>
+    Task<TViewModel> NavigateToAsync<TViewModel>(Func<TViewModel, Task> configure) where TViewModel : PageViewModelBase;
+
     /// <summary>Resolve <paramref name="viewModelType"/> from DI and make it current.</summary>
     PageViewModelBase NavigateTo(Type viewModelType);
 }

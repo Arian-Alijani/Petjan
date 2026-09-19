@@ -144,7 +144,7 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Next()
+    private async Task NextAsync()
     {
         if (Step == 1)
         {
@@ -157,17 +157,17 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
             return;
         }
 
-        Commit();
+        await CommitAsync();
     }
 
     [RelayCommand]
     private void Cancel() => _dialogs.Close();
 
-    private void Commit()
+    private async Task CommitAsync()
     {
         if (IsExistingMode && SelectedOwner is not null)
         {
-            _patients.CreatePetAsync(SelectedOwner.Owner.Id, Pet.BuildRequest()).GetAwaiter().GetResult();
+            await _patients.CreatePetAsync(SelectedOwner.Owner.Id, Pet.BuildRequest());
         }
         else
         {
@@ -176,7 +176,7 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
                 OwnerIsFemale ? OwnerGender.Female : OwnerGender.Male,
                 NationalId.Trim(), Mobile1.Trim(), Blank(Mobile2), Blank(Phone), Blank(Address),
                 Blank(Referral), Pet.BuildRequest());
-            _patients.CreateOwnerAsync(owner).GetAwaiter().GetResult();
+            await _patients.CreateOwnerAsync(owner);
         }
 
         _dialogs.Close();
