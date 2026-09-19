@@ -2,9 +2,153 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ap="using:Animora.Desktop.Pages.Appointments"
              x:Class="Animora.Desktop.Pages.Appointments.MonthGridView"
+             x:Name="Root"
              x:DataType="ap:AppointmentsCalendarViewModel">
+    <!--
+      Declarative Jalali month grid (mirrors the reference's viewMonth()).
+      Replaces AppointmentsGridHost.BuildMonthGrid: the 7 weekday headers are
+      declared once here and the 6×7 day cells are data-bound through an
+      ItemsControl over MonthCells with a 7-column UniformGrid, so a DataContext
+      change updates the bound collection instead of rebuilding the whole tree.
+
+      Classes/colours/measures are unchanged from the code-built version; the
+      chip class (mv-chip) lives in AppointmentsGridStyles.axaml.
+    -->
     <UserControl.Styles>
         <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/AppointmentsGridStyles.axaml" />
     </UserControl.Styles>
-    <Grid x:Name="Host" />
+
+    <Grid ColumnDefinitions="*,*,*,*,*,*,*" RowDefinitions="Auto,*">
+
+        <!-- ═══ weekday header row (Jalali, Saturday-first) ═══ -->
+        <Border Grid.Row="0" Grid.Column="0" Padding="6,11"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
+            <TextBlock Text="شنبه" FontSize="12" FontWeight="Bold"
+                       Foreground="{StaticResource Ink2Brush}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <Border Grid.Row="0" Grid.Column="1" Padding="6,11"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1,0,0,1">
+            <TextBlock Text="یکشنبه" FontSize="12" FontWeight="Bold"
+                       Foreground="{StaticResource Ink2Brush}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <Border Grid.Row="0" Grid.Column="2" Padding="6,11"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1,0,0,1">
+            <TextBlock Text="دوشنبه" FontSize="12" FontWeight="Bold"
+                       Foreground="{StaticResource Ink2Brush}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <Border Grid.Row="0" Grid.Column="3" Padding="6,11"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1,0,0,1">
+            <TextBlock Text="سه‌شنبه" FontSize="12" FontWeight="Bold"
+                       Foreground="{StaticResource Ink2Brush}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <Border Grid.Row="0" Grid.Column="4" Padding="6,11"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1,0,0,1">
+            <TextBlock Text="چهارشنبه" FontSize="12" FontWeight="Bold"
+                       Foreground="{StaticResource Ink2Brush}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <Border Grid.Row="0" Grid.Column="5" Padding="6,11"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1,0,0,1">
+            <TextBlock Text="پنجشنبه" FontSize="12" FontWeight="Bold"
+                       Foreground="{StaticResource Ink2Brush}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <Border Grid.Row="0" Grid.Column="6" Padding="6,11"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1,0,0,1">
+            <TextBlock Text="جمعه" FontSize="12" FontWeight="Bold"
+                       Foreground="{StaticResource Ink2Brush}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+
+        <!-- ═══ day cells (6×7) ═══ -->
+        <ItemsControl Grid.Row="1" Grid.ColumnSpan="7"
+                      ItemsSource="{Binding MonthCells}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="7" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ap:MonthCellViewModel">
+                    <Border MinHeight="132" Padding="8,8,8,7"
+                            BorderBrush="{StaticResource Line2Brush}"
+                            BorderThickness="{Binding CellBorderThickness}"
+                            Background="{Binding CellBackground}">
+                        <StackPanel Spacing="4">
+                            <!-- today badge -->
+                            <Border Padding="6,2" CornerRadius="7"
+                                    Background="{StaticResource Brand600Brush}"
+                                    HorizontalAlignment="Left"
+                                    IsVisible="{Binding IsToday}">
+                                <TextBlock Text="{Binding DayNumberText}"
+                                           FontSize="13" FontWeight="ExtraBold"
+                                           Foreground="White"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <!-- plain day number -->
+                            <TextBlock Text="{Binding DayNumberText}"
+                                       FontSize="13" FontWeight="ExtraBold"
+                                       Foreground="{Binding DayBrush}"
+                                       Opacity="{Binding DayOpacity}"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Center"
+                                       IsVisible="{Binding !IsToday}" />
+
+                            <!-- event chips -->
+                            <ItemsControl ItemsSource="{Binding Events}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Spacing="4" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="ap:MonthEventViewModel">
+                                        <Button Classes="mv-chip"
+                                                Background="{Binding BackgroundBrush}"
+                                                CommandParameter="{Binding}"
+                                                Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).OpenBookingCommand}">
+                                            <Grid ColumnDefinitions="*,3" Opacity="{Binding ChipOpacity}">
+                                                <StackPanel Grid.Column="0"
+                                                            Orientation="Horizontal" Spacing="6"
+                                                            Margin="0,0,4,0">
+                                                    <TextBlock Text="{Binding TimeText}"
+                                                               FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{Binding ForegroundBrush}"
+                                                               Opacity="0.78"
+                                                               VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding PetName}"
+                                                               FontSize="11.5" FontWeight="ExtraBold"
+                                                               Foreground="{Binding ForegroundBrush}"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               TextWrapping="NoWrap" />
+                                                </StackPanel>
+                                                <Border Grid.Column="1" Width="3"
+                                                        Background="{Binding AccentBrush}" />
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- overflow note -->
+                            <TextBlock Text="{Binding MoreText}"
+                                       FontSize="11" FontWeight="Bold"
+                                       Foreground="{StaticResource Brand700Brush}"
+                                       Margin="6,1,6,1"
+                                       IsVisible="{Binding HasMore}" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- empty state (overlays the cell area when the month has no events) -->
+        <ap:CalendarEmptyState Grid.Row="1" Grid.ColumnSpan="7"
+                               IsVisible="{Binding !HasMonthEvents}" />
+    </Grid>
 </UserControl>

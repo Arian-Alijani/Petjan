@@ -3,8 +3,7 @@
              xmlns:ap="using:Animora.Desktop.Pages.Appointments"
              x:Class="Animora.Desktop.Pages.Appointments.DayGridView"
              x:DataType="ap:AppointmentsCalendarViewModel">
-    <UserControl.Styles>
-        <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/AppointmentsGridStyles.axaml" />
-    </UserControl.Styles>
-    <Grid x:Name="Host" />
+    <!-- Day view: the shared, fully data-bound time grid (one column per
+         active doctor). No code-behind rebuild. -->
+    <ap:TimeGridSurface />
 </UserControl>

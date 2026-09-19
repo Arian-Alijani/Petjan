@@ -87,10 +87,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     public ObservableCollection<AppointmentTypeChipViewModel> TypeChips { get; } = [];
     public ObservableCollection<AppointmentDoctorChipViewModel> DoctorChips { get; } = [];
 
-    /// <summary>Header cells above the time grid (doctors in day view, days in week).</summary>
-    public ObservableCollection<AppointmentColumnHeaderViewModel> GridHeaders { get; } = [];
-
-    /// <summary>Grid columns (day/week).</summary>
+    /// <summary>Grid columns (day/week). Each column carries its own header.</summary>
     public ObservableCollection<AppointmentColumnViewModel> Columns { get; } = [];
 
     /// <summary>Month-grid cells (6×7).</summary>
@@ -99,11 +96,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     /// <summary>The 7-month-grid weekday header labels.</summary>
     public IReadOnlyList<string> MonthWeekdayHeaders { get; } = AppointmentsCalendarMath.DayNames;
 
-    /// <summary>Hour labels for the time-grid gutter (07:00 … 21:00).</summary>
+    /// <summary>Hour labels for the time-grid gutter (07:00 … 21:00). Populated
+    /// once during load; the gutter binds it declaratively.</summary>
     public ObservableCollection<string> HourLabels { get; } = [];
-
-    /// <summary>Row templates for the hour lines (15 rows of 78px).</summary>
-    public IReadOnlyList<int> HourRows { get; } = Enumerable.Range(0, AppointmentsLayout.HourCount).ToArray();
 
     // Queue tab
     public ObservableCollection<QueueDayViewModel> QueueDays { get; } = [];
@@ -172,6 +167,16 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private bool _hasHistoryRows;
 
     partial void OnIsMonthViewChanged(bool value) => OnPropertyChanged(nameof(IsTimeGridView));
+
+    partial void OnHasGridEventsChanged(bool value) => OnPropertyChanged(nameof(ShowGridEmptyState));
+
+    partial void OnHasMonthEventsChanged(bool value) => OnPropertyChanged(nameof(ShowMonthEmptyState));
+
+    /// <summary>Show the time-grid empty state when there are no visible events.</summary>
+    public bool ShowGridEmptyState => !HasGridEvents;
+
+    /// <summary>Show the month-grid empty state when there are no visible events.</summary>
+    public bool ShowMonthEmptyState => !HasMonthEvents;
 
     // ── derived view flags ───────────────────────────────────────────────────
     public bool IsCalendarTab => _activeTab == "cal";
@@ -377,7 +382,6 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var today = DateOnly.FromDateTime(DateTime.Today);
         var nowMinutes = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
 
-        GridHeaders.Clear();
         Columns.Clear();
 
         if (_viewMode == "day")
@@ -389,19 +393,14 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
             foreach (var c in cols)
             {
-                var n = list.Count(a => a.DoctorId == c.Id);
-                GridHeaders.Add(new AppointmentColumnHeaderViewModel(c, n));
-            }
-
-            foreach (var c in cols)
-            {
                 var evs = Pack(list.Where(a => a.DoctorId == c.Id).ToList());
                 total += evs.Count;
                 Columns.Add(new AppointmentColumnViewModel(
                     new AppointmentColumnHeaderViewModel(c, evs.Count),
                     evs,
                     isClosed: false,
-                    nowTop: _cursor == today ? NowTop(nowMinutes) : null));
+                    nowTop: _cursor == today ? NowTop(nowMinutes) : null,
+                    isFirst: Columns.Count == 0));
             }
 
             HasGridEvents = total > 0;
@@ -414,14 +413,6 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
             foreach (var d in days)
             {
-                GridHeaders.Add(new AppointmentColumnHeaderViewModel(
-                    d,
-                    isToday: d == today,
-                    isFriday: AppointmentsCalendarMath.IsFriday(d)));
-            }
-
-            foreach (var d in days)
-            {
                 var list = OnDate(d);
                 total += list.Count;
                 Columns.Add(new AppointmentColumnViewModel(
@@ -431,7 +422,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                         isFriday: AppointmentsCalendarMath.IsFriday(d)),
                     Pack(list),
                     isClosed: AppointmentsCalendarMath.IsFriday(d),
-                    nowTop: d == today ? NowTop(nowMinutes) : null));
+                    nowTop: d == today ? NowTop(nowMinutes) : null,
+                    isFirst: Columns.Count == 0));
             }
 
             HasGridEvents = total > 0;
@@ -481,7 +473,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 isToday: d == today,
                 isFriday: AppointmentsCalendarMath.IsFriday(d),
                 shown,
-                hiddenCount: Math.Max(0, list.Count - 3)));
+                hiddenCount: Math.Max(0, list.Count - 3),
+                isFirstInRow: i % 7 == 0));
         }
 
         HasMonthEvents = total > 0;

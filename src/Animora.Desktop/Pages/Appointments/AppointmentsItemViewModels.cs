@@ -2,6 +2,7 @@ using System;
 using Animora.Contracts.Appointments;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Avalonia;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -92,6 +93,18 @@ public sealed class AppointmentEventViewModel
         EventTier.Small => "tier-sm",
         _ => "tier-md",
     };
+
+    /// <summary>The small-tier secondary text ("· type").</summary>
+    public string SmallTypeText => "· " + TypeLabel;
+
+    /// <summary>The medium-tier third line ("type · doctor").</summary>
+    public string MediumMetaText => TypeLabel + " · " + DoctorShort;
+
+    /// <summary>The hover tooltip text (pet · type · doctor · start-end · status).</summary>
+    public string TooltipText =>
+        $"{PetName} · {TypeLabel} · {DoctorName} · " +
+        $"{AppointmentsPresentation.Time(Model.StartMinutes)}-" +
+        $"{AppointmentsPresentation.Time(Model.EndMinutes)} · {StatusLabel}";
 }
 
 /// <summary>Event card density tier, mirroring the reference's tier-* classes.</summary>
@@ -121,6 +134,18 @@ public sealed class MonthEventViewModel
     public string TimeText => AppointmentsPresentation.Time(Model.StartMinutes);
     public bool IsCancelled => Model.Status == AppointmentStatus.Cancelled;
     public string EventClass => Type.ClassKey;
+
+    /// <summary>Chip background brush for the event type.</summary>
+    public IBrush BackgroundBrush => AppointmentsPresentation.TypeBackground(Type.ClassKey);
+
+    /// <summary>Chip foreground (text) brush for the event type.</summary>
+    public IBrush ForegroundBrush => AppointmentsPresentation.TypeForeground(Type.ClassKey);
+
+    /// <summary>Chip start-border accent brush for the event type.</summary>
+    public IBrush AccentBrush => AppointmentsPresentation.TypeAccent(Type.ClassKey);
+
+    /// <summary>Cancelled month chips dim to 0.55 opacity (reference's <c>.st-cancel</c>).</summary>
+    public double ChipOpacity => IsCancelled ? 0.55 : 1;
 }
 
 /// <summary>
@@ -153,11 +178,27 @@ public sealed class AppointmentColumnHeaderViewModel
     public AppointmentDoctor? Doctor { get; }
     public string CountText { get; } = string.Empty;
 
+    /// <summary>The doctor avatar's accent brush (hex → cached brush).</summary>
+    public IBrush AvatarBrush =>
+        Doctor is { } d ? AppointmentsPresentation.Accent(d.Accent) : AppointmentsPresentation.Accent("#98a2b3");
+
+    /// <summary>The avatar initial (doctor) or empty (day header).</summary>
+    public string Initial => Doctor?.Initial ?? string.Empty;
+
+    /// <summary>The doctor's short display name (empty for a day header).</summary>
+    public string ShortName => Doctor?.ShortName ?? string.Empty;
+
     public DateOnly Day { get; }
     public bool IsToday { get; }
     public bool IsFriday { get; }
     public string WeekdayText { get; } = string.Empty;
     public string DayNumberText { get; } = string.Empty;
+
+    /// <summary>True for the first (right-most, RTL) column's header — suppresses its start border.</summary>
+    public bool IsFirst { get; set; }
+
+    /// <summary>Inverse of <see cref="IsToday"/> (drives the plain vs badge day number).</summary>
+    public bool IsNotToday => !IsToday;
 }
 
 /// <summary>
@@ -171,13 +212,16 @@ public sealed class AppointmentColumnViewModel
         AppointmentColumnHeaderViewModel header,
         IReadOnlyList<AppointmentEventViewModel> events,
         bool isClosed,
-        double? nowTop)
+        double? nowTop,
+        bool isFirst = false)
     {
         Header = header;
         Events = events;
         IsClosed = isClosed;
         NowTop = nowTop;
         HasNow = nowTop.HasValue;
+        IsFirst = isFirst;
+        NowMargin = new Thickness(0, nowTop ?? 0, 0, 0);
     }
 
     public AppointmentColumnHeaderViewModel Header { get; }
@@ -185,6 +229,15 @@ public sealed class AppointmentColumnViewModel
     public bool IsClosed { get; }
     public double? NowTop { get; }
     public bool HasNow { get; }
+
+    /// <summary>True for the first (right-most, in RTL) column — suppresses its start border.</summary>
+    public bool IsFirst { get; }
+
+    /// <summary>The "now" line's top margin (0 when the column has no now line).</summary>
+    public Thickness NowMargin { get; }
+
+    /// <summary>The shared "now" line accent brush (#e0564a).</summary>
+    public IBrush NowBrush => AppointmentsPresentation.Accent("#e0564a");
 }
 
 /// <summary>
@@ -200,7 +253,8 @@ public sealed class MonthCellViewModel
         bool isToday,
         bool isFriday,
         IReadOnlyList<MonthEventViewModel> events,
-        int hiddenCount)
+        int hiddenCount,
+        bool isFirstInRow = false)
     {
         Day = day;
         IsOut = isOut;
@@ -209,6 +263,7 @@ public sealed class MonthCellViewModel
         Events = events;
         HiddenCount = hiddenCount;
         HasMore = hiddenCount > 0;
+        IsFirstInRow = isFirstInRow;
     }
 
     public DateOnly Day { get; }
@@ -220,6 +275,24 @@ public sealed class MonthCellViewModel
     public bool HasMore { get; }
     public string DayNumberText => AppointmentsCalendarMath.DayNumber(Day);
     public string MoreText => "+ " + AppointmentsPresentation.Fa(HiddenCount) + " نوبت دیگر";
+
+    /// <summary>True for the first (right-most, RTL) cell in a month row — suppresses its start border.</summary>
+    public bool IsFirstInRow { get; }
+
+    /// <summary>Cell border: start separator (0 on the row-leading cell) + bottom rule.</summary>
+    public Thickness CellBorderThickness => new(IsFirstInRow ? 0 : 1, 0, 0, 1);
+
+    /// <summary>The out/friday cell background (transparent otherwise), matching the reference.</summary>
+    public IBrush CellBackground =>
+        IsOut ? AppointmentsPresentation.Accent("#fafbfa")
+        : IsFriday ? AppointmentsPresentation.Accent("#fbfcfb")
+        : Brushes.Transparent;
+
+    /// <summary>The day-number text brush (muted ink on out-of-month days).</summary>
+    public IBrush DayBrush => AppointmentsPresentation.Accent("#344054");
+
+    /// <summary>The out-of-month day number dims to 0.55 opacity.</summary>
+    public double DayOpacity => IsOut ? 0.55 : 1;
 }
 
 /// <summary>A type filter chip, mirroring the reference's <c>chip t-*</c>.</summary>
