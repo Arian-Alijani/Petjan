@@ -136,7 +136,7 @@
                     <ItemsControl Grid.ColumnSpan="2" ItemsSource="{Binding TypeOptions}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="10" />
+                                <UniformGrid Rows="1" Columns="2" />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>

@@ -231,7 +231,7 @@
                         <ItemsControl ItemsSource="{Binding Tabs}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="2" />
+                                    <UniformGrid Rows="1" />
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
