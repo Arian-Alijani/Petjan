@@ -23,6 +23,47 @@
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
   </PropertyGroup>
 
+  <!-- ===================================================================== -->
+  <!-- Release-only performance knobs.                                       -->
+  <!--                                                                        -->
+  <!-- PublishReadyToRun precompiles IL to native code, removing most of the -->
+  <!-- JIT cost during startup (the single biggest startup win for a desktop -->
+  <!-- client). It is only consumed by the publish pipeline — a plain        -->
+  <!-- `dotnet build` ignores it, so Debug/Release builds stay green — and   -->
+  <!-- on publish it needs a RuntimeIdentifier, which is why publish is     -->
+  <!-- expected to pass one (via the -r runtime option).                     -->
+  <!--                                                                        -->
+  <!-- TieredCompilation + TieredPGO: tier-0 quick start, then re-JIT the    -->
+  <!-- hot paths with profile-guided optimization for throughput after       -->
+  <!-- warm-up.                                                              -->
+  <!--                                                                        -->
+  <!-- Native AOT is intentionally NOT enabled: STACK.md §435 forbids it      -->
+  <!-- because the app targets the EF Core / reflection-based road map,       -->
+  <!-- which is not AOT-safe.                                                -->
+  <!-- ===================================================================== -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <TieredCompilation>true</TieredCompilation>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+
+  <!-- ===================================================================== -->
+  <!-- runtimeconfig.json knobs (written into Animora.Desktop.runtimeconfig. -->
+  <!-- json as System.GC.Server / System.GC.Concurrent).                     -->
+  <!--                                                                        -->
+  <!-- A desktop client is a small, latency-sensitive UI process: Workstation -->
+  <!-- GC is correct (server GC's per-core heaps buy nothing here and cost    -->
+  <!-- memory + startup). The concurrent (background) GC stays on so         -->
+  <!-- collections don't stall the UI thread.                                -->
+  <!--                                                                        -->
+  <!-- InvariantGlobalization is deliberately left at its default (false):    -->
+  <!-- the Persian/Jalali UI needs ICU (see PR notes / STACK.md).            -->
+  <!-- ===================================================================== -->
+  <PropertyGroup>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
