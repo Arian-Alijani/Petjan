@@ -308,9 +308,47 @@
         <Style Selector="Button.rowlink:pointerover Border">
             <Setter Property="Background" Value="{StaticResource RowHoverBrush}" />
         </Style>
+
+        <!-- Virtualized record lists (ListBox). The ListBox supplies the
+             VirtualizingStackPanel + its own ScrollViewer so only visible rows
+             are realized; these styles strip its default selection/hover chrome
+             so the existing card/row visuals render unchanged. -->
+        <Style Selector="ListBox.records">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <!-- Bounded height is REQUIRED: the shell wraps every page in a
+                 page-level ScrollViewer that measures content with infinite
+                 height, which would otherwise defeat virtualization. Capping
+                 the list makes it measure its own viewport and only realize
+                 the visible rows (it scrolls internally via its ScrollViewer). -->
+            <Setter Property="MaxHeight" Value="600" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
     </UserControl.Styles>
 
-    <StackPanel Margin="26,22,26,40">
+    <!-- Root is a Grid with a `*` records row so the virtualized record lists
+         below get a BOUNDED height and scroll internally. Inside the shell's
+         page-level ScrollViewer an unbounded StackPanel would hand the inner
+         VirtualizingStackPanel infinite height and defeat virtualization
+         entirely (it would measure every row). Header/toolbar stay in row 0. -->
+    <Grid RowDefinitions="Auto,*" Margin="26,22,26,40">
+
+        <!-- Header + toolbar occupy the Auto row; the records list below gets
+             the `*` row (bounded height) so its VirtualizingStackPanel works. -->
+        <StackPanel Grid.Row="0">
 
         <!-- ── page header (.pt-head) ─────────────────────────────── -->
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,0,0,18">
@@ -489,18 +527,23 @@
             </StackPanel>
         </Border>
 
-        <!-- ── content ──────────────────────────────────────────────
+        </StackPanel>
+
+        <!-- ── content (bounded row: only this area scrolls) ────────
              Four render combinations + a shared empty state, mirroring the
              reference's render(): owners/pets × list(rows)/grid(boxes).
-             RTL: "start" = Right, "end" = Left. -->
+             RTL: "start" = Right, "end" = Left.
+             All four lists are ListBoxes (VirtualizingStackPanel + own
+             ScrollViewer) so only visible rows are realized. -->
+        <Grid Grid.Row="1">
 
-        <!-- owner grid (.owner-grid): 4 stretch cards per row (fills the row
-             width fully — no leftover gap on the leading/left edge). -->
-        <ItemsControl ItemsSource="{Binding FilteredOwners}" IsVisible="{Binding ShowOwnersGrid}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate><UniformGrid Columns="4" /></ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
+        <!-- owner grid (.owner-grid): grid mode. VirtualizingStackPanel is
+             single-axis, so the 4-column card grid is rendered as a virtualized
+             single-column list of the same full-width cards (Option 1). -->
+        <ListBox Classes="records" ItemsSource="{Binding FilteredOwners}"
+                 IsVisible="{Binding ShowOwnersGrid}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="patients:OwnerCardViewModel">
                     <Button Classes="cardlink" HorizontalAlignment="Stretch" Margin="0,0,14,14"
                             Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
@@ -662,16 +705,15 @@
                         </StackPanel>
                     </Button>
                 </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+            </ListBox.ItemTemplate>
+        </ListBox>
 
-        <!-- pets grid (.pets-grid): 5 stretch cards per row (fills the row
-             width fully — no leftover gap on the leading/left edge). -->
-        <ItemsControl ItemsSource="{Binding FilteredPets}" IsVisible="{Binding ShowPetsGrid}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate><UniformGrid Columns="5" /></ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
+        <!-- pets grid (.pets-grid): grid mode. Same Option-1 approach — the
+             5-column card grid renders as a virtualized single-column list. -->
+        <ListBox Classes="records" ItemsSource="{Binding FilteredPets}"
+                 IsVisible="{Binding ShowPetsGrid}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="patients:PetCardViewModel">
                     <Button Classes="cardlink" HorizontalAlignment="Stretch" Margin="0,0,14,14"
                             Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenPetCommand}"
@@ -754,15 +796,16 @@
                         </StackPanel>
                     </Button>
                 </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+            </ListBox.ItemTemplate>
+        </ListBox>
 
         <!-- owners table (list mode) -->
         <Border IsVisible="{Binding ShowOwnersTable}" Background="{StaticResource PanelBrush}"
                 BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
                 CornerRadius="18" BoxShadow="{StaticResource ShadowCard}" ClipToBounds="True">
-            <StackPanel>
-                <Border Background="{StaticResource TableHeadBrush}"
+            <!-- Grid (Auto header / * rows) so the ListBox gets a bounded height. -->
+            <Grid RowDefinitions="Auto,*">
+                <Border Grid.Row="0" Background="{StaticResource TableHeadBrush}"
                         BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
                     <Grid ColumnDefinitions="2*,1.6*,1*,1.6*,1.2*,1*,1.2*,44" ColumnSpacing="0">
                         <TextBlock Grid.Column="0" Classes="th" Margin="16,12" Text="مالک" />
@@ -775,8 +818,9 @@
                         <TextBlock Grid.Column="7" Classes="th" Margin="16,12" Text="" />
                     </Grid>
                 </Border>
-                <ItemsControl ItemsSource="{Binding FilteredOwners}">
-                    <ItemsControl.ItemTemplate>
+                <ListBox Grid.Row="1" Classes="records" ItemsSource="{Binding FilteredOwners}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="patients:OwnerCardViewModel">
                             <Button Classes="rowlink" HorizontalContentAlignment="Stretch"
                                     Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
@@ -821,17 +865,17 @@
                                 </Border>
                             </Button>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
         </Border>
 
         <!-- pets table (list mode) -->
         <Border IsVisible="{Binding ShowPetsTable}" Background="{StaticResource PanelBrush}"
                 BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
                 CornerRadius="18" BoxShadow="{StaticResource ShadowCard}" ClipToBounds="True">
-            <StackPanel>
-                <Border Background="{StaticResource TableHeadBrush}"
+            <Grid RowDefinitions="Auto,*">
+                <Border Grid.Row="0" Background="{StaticResource TableHeadBrush}"
                         BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
                     <Grid ColumnDefinitions="2*,1.6*,1.4*,1*,0.9*,1.3*,1.4*,Auto,Auto">
                         <TextBlock Grid.Column="0" Classes="th" Margin="16,12" Text="بیمار" />
@@ -845,8 +889,9 @@
                         <TextBlock Grid.Column="8" Classes="th" Margin="16,12" Text="" />
                     </Grid>
                 </Border>
-                <ItemsControl ItemsSource="{Binding FilteredPets}">
-                    <ItemsControl.ItemTemplate>
+                <ListBox Grid.Row="1" Classes="records" ItemsSource="{Binding FilteredPets}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="patients:PetCardViewModel">
                             <Button Classes="rowlink" HorizontalContentAlignment="Stretch"
                                     Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenPetCommand}"
@@ -902,9 +947,9 @@
                                 </Border>
                             </Button>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
         </Border>
 
         <!-- empty state (.pt-empty) -->
@@ -931,5 +976,7 @@
                 </Button>
             </StackPanel>
         </Border>
-    </StackPanel>
+
+        </Grid>
+    </Grid>
 </UserControl>
