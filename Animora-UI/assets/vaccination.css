@@ -15,11 +15,12 @@
 .modal-header .icon-box svg { width: 20px; height: 20px; }
 
 /* ---------------- Primary section bar (نوبت · انبار واکسن · تنظیمات) ----------------
-   Now a segmented control living inside a `.pagebar` toolbar shell. */
+   A segmented control living inside a `.pagebar` toolbar shell. The row pairs
+   it with the search field (`.pb-search`) on the same line, matching the
+   Patients · Owners/Bیماران toolbar. */
 .vx-mainbar { margin-bottom: 16px; }
-.vx-mainseg { width: 100%; }
 .vx-mainseg > button {
-  flex: 1 1 0; justify-content: center;
+  justify-content: center;
   display: inline-flex; align-items: center; gap: 8px;
 }
 .vx-mainseg .vx-mainseg-ic { display: inline-flex; }
@@ -46,42 +47,18 @@
   .vx-panel { animation: none; }
 }
 
-/* ---------------- Status filter chips (همه · نزدیک · عقب‌افتاده · آتی · انجام‌شده) ---------------- */
-.vx-status-seg { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.vx-status-chip {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 7px 13px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel);
-  color: var(--muted);
-  font-family: inherit;
-  font-size: 12.5px; font-weight: 700;
-  cursor: pointer;
-  transition: border-color .18s ease, background .18s ease, color .18s ease, box-shadow .18s ease, transform .18s ease;
-}
-.vx-status-chip:hover { border-color: var(--vx-shot); color: var(--vx-shot); background: var(--vx-shot-bg); transform: translateY(-1px); }
-.vx-status-chip .seg-n {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 20px; height: 20px; padding: 0 6px;
-  border-radius: 999px;
-  background: var(--bg-2); color: var(--muted);
-  font-size: 11px; font-weight: 800;
-  transition: background .18s ease, color .18s ease;
-}
-.vx-status-chip.active {
-  border-color: var(--vx-shot);
-  background: var(--vx-shot);
-  color: #fff;
-  box-shadow: 0 8px 20px -12px rgba(111,87,201,.85);
-}
-.vx-status-chip.active .seg-n { background: rgba(255,255,255,.24); color: #fff; }
-@media (prefers-reduced-motion: reduce) { .vx-status-chip { transition: none; } }
+/* ---------------- Status filter chips (همه · نزدیک · عقب‌افتاده · آتی · انجام‌شده) ----------------
+   Rendered with the shared `.pb-chip` component (see styles.css) so they match
+   the Patients "همه گونه‌ها / سگ / گربه …" filters exactly — same size,
+   radius, colors, count pill and hover treatment. The rail lives in a
+   `.pb-chips` container inside the toolbar's second tier. */
+.vx-visits-tools .pb-chips { flex: 1 1 auto; }
 
 /* ---------------- Toolbar ----------------
    The control bar uses the shared unified `.pagebar` shell defined in
-   styles.css — matching the Inventory hub. The status filter chips live in
-   `#vxSeg.vx-status-seg` (styled above) at the start of the first row. */
+   styles.css — matching the Patients hub. The primary section tabs
+   (#vxMainSeg.pb-seg--fill) share the first row with the search field, and
+   the status chips (#vxSeg.pb-chips) open the second tier. */
 
 /* ---------------- Records table ---------------- */
 .vx-pet-cell { display: flex; align-items: center; gap: 10px; }

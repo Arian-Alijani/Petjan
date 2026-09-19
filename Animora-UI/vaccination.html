@@ -16,9 +16,9 @@
 
       <!-- ═══════════════ UNIFIED TOOLBAR (one piece) ═══════════════ -->
       <div class="pagebar vx-mainbar reveal">
-        <!-- tier 1 · section tabs: نوبت / انبار واکسن / تنظیمات -->
+        <!-- tier 1 · section tabs (start) + search (end/left) -->
         <div class="pagebar-row">
-          <div class="pb-seg lg vx-mainseg" id="vxMainSeg" role="tablist" aria-label="بخش‌های واکسیناسیون">
+          <div class="pb-seg lg pb-seg--fill vx-mainseg" id="vxMainSeg" role="tablist" aria-label="بخش‌های واکسیناسیون">
             <button class="active" data-tab="visits" role="tab" aria-selected="true">
               <span class="vx-mainseg-ic" data-ic="syringe"></span><span>نوبت</span>
             </button>
@@ -29,35 +29,35 @@
               <span class="vx-mainseg-ic" data-ic="tools"></span><span>تنظیمات</span>
             </button>
           </div>
-        </div>
-        <!-- tier 2 · status filters (start) + search (end/left) — only on نوبت -->
-        <div class="pagebar-row tier2 vx-visits-tools">
-          <div class="vx-status-seg" id="vxSeg" role="tablist" aria-label="فیلتر وضعیت نوبت"></div>
-          <div class="pb-search" id="vxSearchWrap" style="margin-inline-start:auto">
+          <div class="pb-search" id="vxSearchWrap">
             <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
             <input id="vxSearch" type="text" placeholder="جستجوی بیمار، مالک یا واکسن…" autocomplete="off"/>
             <button class="clear" id="vxSearchClear" title="پاک کردن"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
           </div>
         </div>
-        <!-- tier 3 · species filter (start) + actions (end/left) — only on نوبت -->
+        <!-- tier 2 · status filters (start) + species & actions (end/left) — only on نوبت -->
         <div class="pagebar-row tier2 vx-visits-tools">
-          <select class="pb-select" id="vxSpecies" title="فیلتر بر اساس گونه">
-            <option value="">همه گونه‌ها</option>
-            <option value="cat">گربه</option>
-            <option value="dog">سگ</option>
-            <option value="bird">پرنده</option>
-            <option value="rabbit">خرگوش</option>
-            <option value="rodent">جونده</option>
-          </select>
-          <div class="pb-actions" style="margin-inline-start:auto">
-            <button class="btn btn-outline" onclick="vaxBulkSms()">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
-              ارسال گروهی یادآور
-            </button>
-            <button class="btn btn-primary" onclick="openVaxModal()">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              ثبت واکسن جدید
-            </button>
+          <div class="pb-chips" id="vxSeg" role="tablist" aria-label="فیلتر وضعیت نوبت"></div>
+          <div class="pb-tools">
+            <select class="pb-select" id="vxSpecies" title="فیلتر بر اساس گونه">
+              <option value="">همه گونه‌ها</option>
+              <option value="cat">گربه</option>
+              <option value="dog">سگ</option>
+              <option value="bird">پرنده</option>
+              <option value="rabbit">خرگوش</option>
+              <option value="rodent">جونده</option>
+            </select>
+            <span class="pb-sep"></span>
+            <div class="pb-actions">
+              <button class="btn btn-outline" onclick="vaxBulkSms()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+                ارسال گروهی یادآور
+              </button>
+              <button class="btn btn-primary" onclick="openVaxModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                ثبت واکسن جدید
+              </button>
+            </div>
           </div>
         </div>
       </div>
