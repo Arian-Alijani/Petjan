@@ -323,7 +323,7 @@ public sealed class DonutChart : Control
                 a1 = Math.Min(a0 + 0.01, angle - (gapDeg / 2));
             }
 
-            DrawArc(ctx, center, radius, a0, a1, new SolidColorBrush(Color.Parse(slices[i].Color)), thickness);
+            DrawArc(ctx, center, radius, a0, a1, BrushCache.Solid(slices[i].Color), thickness);
         }
     }
 
