@@ -133,6 +133,34 @@ public sealed class DonutRing : Control
         set => SetValue(RoundCapsProperty, value);
     }
 
+    // ---- hot-path allocation cache ------------------------------------------
+    // Render runs on every hover (ActiveIndexProperty is an AffectsRender prop),
+    // so building brushes/pens/geometries per slice per frame is pure GC pressure
+    // and frame jank (PERFORMANCE.md §10). Everything below is rebuilt only when
+    // its real inputs change — the layout (bounds/scale/angles), the slice list,
+    // or the focused index. A plain hover that only flips ActiveIndex therefore
+    // allocates at most one new Pen and reuses everything else. Slice colours come
+    // from the shared, immutable BrushCache, so no brush is ever re-created here.
+    private StreamGeometry?[] _arcGeometries = Array.Empty<StreamGeometry?>();
+    private Pen?[] _arcPens = Array.Empty<Pen?>();
+    private IReadOnlyList<DonutSlice>? _arcSource;
+    private int _arcCount = -1;
+    private Point _arcCenter;
+    private double _arcRadius;
+    private double _arcGap;
+    private double _arcTotal;
+    private double _arcThickness;
+    private PenLineCap _arcCap;
+    private int _arcVersion;
+
+    private Pen? _activePen;
+    private int _activePenIndex = -1;
+    private int _activePenVersion = -1;
+
+    private Pen? _trackPen;
+    private double _trackPenThickness;
+    private IBrush? _trackPenBrush;
+
     public override void Render(DrawingContext ctx)
     {
         var view = ViewBox <= 0 ? 120.0 : ViewBox;
@@ -148,13 +176,23 @@ public sealed class DonutRing : Control
         var thickness = StrokeWidth * scale;
         var active = ActiveIndex >= 0;
         var gapDegrees = GapArc / Math.Max(Radius, 1.0) * (180.0 / Math.PI);
+        var cap = RoundCaps ? PenLineCap.Round : PenLineCap.Flat;
 
-        // track — fades slightly while a slice is focused (.dim .donut-track)
-        var trackPen = new Pen(TrackBrush, thickness)
+        // track — fades slightly while a slice is focused (.dim .donut-track).
+        // The pen is cached (one per layout, never per slice); the dim is an
+        // opacity push, so no second "dimmed" brush is ever allocated.
+        var trackPen = TrackPen(thickness);
+        if (active && TrackBrush is ISolidColorBrush)
         {
-            Brush = active ? WithOpacity(TrackBrush, 0.5) : TrackBrush,
-        };
-        ctx.DrawEllipse(null, trackPen, center, radius, radius);
+            using (ctx.PushOpacity(0.5))
+            {
+                ctx.DrawEllipse(null, trackPen, center, radius, radius);
+            }
+        }
+        else
+        {
+            ctx.DrawEllipse(null, trackPen, center, radius, radius);
+        }
 
         var slices = Slices;
         if (slices is null || slices.Count == 0)
@@ -173,7 +211,73 @@ public sealed class DonutRing : Control
             return;
         }
 
-        var cap = RoundCaps ? PenLineCap.Round : PenLineCap.Flat;
+        EnsureArcCache(slices, total, center, radius, gapDegrees, thickness, cap);
+
+        var activeThickness = (StrokeWidth + ActiveGrow) * scale;
+        for (var i = 0; i < slices.Count; i++)
+        {
+            var geo = _arcGeometries[i];
+            if (geo is null)
+            {
+                continue;
+            }
+
+            var isActive = i == ActiveIndex;
+            var pen = isActive
+                ? ActivePen(slices, i, activeThickness, cap)
+                : _arcPens[i];
+            if (pen is null)
+            {
+                continue;
+            }
+
+            var opacity = active && !isActive ? DimOpacity : 1.0;
+            if (opacity < 0.999 && pen.Brush is ISolidColorBrush)
+            {
+                using (ctx.PushOpacity(opacity))
+                {
+                    ctx.DrawGeometry(null, pen, geo);
+                }
+            }
+            else
+            {
+                ctx.DrawGeometry(null, pen, geo);
+            }
+        }
+    }
+
+    /// <summary>
+    /// (Re)builds the per-slice arc geometries and pens — but only when the
+    /// layout, slice list or stroke parameters actually changed. On a hover that
+    /// merely moves <see cref="ActiveIndex"/> this is a no-op.
+    /// </summary>
+    private void EnsureArcCache(
+        IReadOnlyList<DonutSlice> slices, double total, Point center, double radius,
+        double gapDegrees, double thickness, PenLineCap cap)
+    {
+        if (ReferenceEquals(_arcSource, slices) && _arcCount == slices.Count &&
+            _arcCenter == center && _arcRadius == radius && _arcGap == gapDegrees &&
+            _arcTotal == total && _arcThickness == thickness && _arcCap == cap)
+        {
+            return;
+        }
+
+        _arcSource = slices;
+        _arcCount = slices.Count;
+        _arcCenter = center;
+        _arcRadius = radius;
+        _arcGap = gapDegrees;
+        _arcTotal = total;
+        _arcThickness = thickness;
+        _arcCap = cap;
+        _arcVersion++;
+
+        if (_arcGeometries.Length != slices.Count)
+        {
+            _arcGeometries = new StreamGeometry?[slices.Count];
+            _arcPens = new Pen?[slices.Count];
+        }
+
         var angle = -90.0;
         for (var i = 0; i < slices.Count; i++)
         {
@@ -184,16 +288,43 @@ public sealed class DonutRing : Control
 
             if (a1 <= a0)
             {
+                _arcGeometries[i] = null;
+                _arcPens[i] = null;
                 continue;
             }
 
-            var isActive = i == ActiveIndex;
-            var brush = ParseBrush(slices[i].Color);
-            var opacity = active && !isActive ? DimOpacity : 1.0;
-            var stroke = isActive ? (StrokeWidth + ActiveGrow) * scale : thickness;
-
-            DrawArc(ctx, center, radius, a0, a1, WithOpacity(brush, opacity), stroke, cap);
+            _arcGeometries[i] = BuildArc(center, radius, a0, a1);
+            _arcPens[i] = new Pen(ParseBrush(slices[i].Color), thickness, lineCap: cap);
         }
+    }
+
+    /// <summary>
+    /// Returns the grown-stroke pen for the focused slice, rebuilding it only when
+    /// the focus moved or the underlying layout (scale/cap) changed.
+    /// </summary>
+    private Pen ActivePen(IReadOnlyList<DonutSlice> slices, int index, double thickness, PenLineCap cap)
+    {
+        if (_activePen is not null && _activePenIndex == index && _activePenVersion == _arcVersion)
+        {
+            return _activePen;
+        }
+
+        _activePen = new Pen(ParseBrush(slices[index].Color), thickness, lineCap: cap);
+        _activePenIndex = index;
+        _activePenVersion = _arcVersion;
+        return _activePen;
+    }
+
+    private Pen TrackPen(double thickness)
+    {
+        if (_trackPen is null || !ReferenceEquals(_trackPenBrush, TrackBrush) || _trackPenThickness != thickness)
+        {
+            _trackPen = new Pen(TrackBrush, thickness);
+            _trackPenBrush = TrackBrush;
+            _trackPenThickness = thickness;
+        }
+
+        return _trackPen;
     }
 
     /// <summary>
@@ -256,9 +387,7 @@ public sealed class DonutRing : Control
         return -1;
     }
 
-    private static void DrawArc(
-        DrawingContext ctx, Point center, double radius, double startDeg, double endDeg,
-        IBrush brush, double thickness, PenLineCap cap)
+    private static StreamGeometry BuildArc(Point center, double radius, double startDeg, double endDeg)
     {
         var start = PointOnCircle(center, radius, startDeg);
         var end = PointOnCircle(center, radius, endDeg);
@@ -273,7 +402,7 @@ public sealed class DonutRing : Control
             g.EndFigure(false);
         }
 
-        ctx.DrawGeometry(null, new Pen(brush, thickness, lineCap: cap), geo);
+        return geo;
     }
 
     private static Point PointOnCircle(Point c, double r, double deg)
@@ -282,30 +411,12 @@ public sealed class DonutRing : Control
         return new Point(c.X + (r * Math.Cos(rad)), c.Y + (r * Math.Sin(rad)));
     }
 
-    private static IBrush WithOpacity(IBrush brush, double opacity)
-    {
-        if (opacity >= 0.999)
-        {
-            return brush;
-        }
-
-        if (brush is ISolidColorBrush { Color: var c })
-        {
-            return new SolidColorBrush(Color.FromArgb((byte)Math.Round(c.A * opacity), c.R, c.G, c.B));
-        }
-
-        return brush;
-    }
-
     private static IBrush ParseBrush(string hex)
     {
-        try
-        {
-            return new SolidColorBrush(Color.Parse(hex));
-        }
-        catch (FormatException)
-        {
-            return Brushes.Gray;
-        }
+        // A brush is immutable and freely shareable, so reuse the process-wide
+        // BrushCache instead of allocating a fresh SolidColorBrush per slice per
+        // frame. Unparseable input keeps the previous Gray fallback (BrushCache
+        // would otherwise hand back Transparent for it).
+        return Color.TryParse(hex, out _) ? BrushCache.Solid(hex) : Brushes.Gray;
     }
 }
