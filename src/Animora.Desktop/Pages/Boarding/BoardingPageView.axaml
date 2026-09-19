@@ -150,6 +150,31 @@
             <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
             <Setter Property="FontWeight" Value="ExtraBold" />
         </Style>
+
+        <!-- Virtualized stays list (ListBox). MaxHeight is REQUIRED because the
+             shell's page-level ScrollViewer measures content with infinite
+             height; without a cap the inner VirtualizingStackPanel would realize
+             every card. These styles strip ListBox selection/hover chrome so the
+             existing .bd-card visuals are unchanged. -->
+        <Style Selector="ListBox.records">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MaxHeight" Value="600" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
     </UserControl.Styles>
 
     <StackPanel Margin="26,22,26,40">
@@ -288,15 +313,16 @@
 
         <!-- ═══ SECTION: مدیریت اقامت ═══ -->
         <StackPanel IsVisible="{Binding IsBoardSection}">
-            <!-- cards grid (.bd-cards-grid: repeat(auto-fill, minmax(340px,1fr)); gap 14px) —
-                 the target window resolves to three 1fr tracks, so a 3-column grid. -->
-            <ItemsControl ItemsSource="{Binding FilteredStays}" IsVisible="{Binding HasStays}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <UniformGrid Columns="3" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
+            <!-- Virtualized stay cards. UniformGrid/WrapPanel do NOT virtualize
+                 and ItemsRepeater is gone in Avalonia 12, so the former 3-column
+                 card grid renders as a single-column virtualized ListBox of the
+                 same .bd-card visuals (Option 1). Bounded via ListBox.records
+                 MaxHeight so it scrolls internally and only realizes visible
+                 cards. -->
+            <ListBox Classes="records" ItemsSource="{Binding FilteredStays}"
+                     IsVisible="{Binding HasStays}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="boarding:BoardingStayCardViewModel">
                         <Button Classes="bd-card" Margin="0,0,14,14"
                                 Background="{Binding CardBackground}" BorderBrush="{Binding CardBorderBrush}"
@@ -398,8 +424,8 @@
                             </StackPanel>
                         </Button>
                     </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                </ListBox.ItemTemplate>
+            </ListBox>
 
             <!-- empty state (.bd-empty-state) -->
             <StackPanel IsVisible="{Binding !HasStays}" HorizontalAlignment="Center" Margin="0,48,0,48" Spacing="6">

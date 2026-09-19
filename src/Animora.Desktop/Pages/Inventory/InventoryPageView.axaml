@@ -212,6 +212,33 @@
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="10,5" />
         </Style>
+
+        <!-- Virtualized product rows (ListBox). MaxHeight is REQUIRED: the
+             shell's page-level ScrollViewer measures content with infinite
+             height, so without a cap the inner VirtualizingStackPanel would
+             realize every row. Expand/variant sub-rows live inside the item
+             template (the inner variants ItemsControl is left non-virtualized).
+             These styles strip ListBox selection/hover chrome so the existing
+             table-row visuals render unchanged. -->
+        <Style Selector="ListBox.records">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MaxHeight" Value="600" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
     </UserControl.Styles>
 
     <StackPanel Margin="26,22,26,40">
@@ -385,9 +412,11 @@
                                Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" Margin="0,6,0,0" />
                 </StackPanel>
 
-                <!-- rows -->
-                <ItemsControl ItemsSource="{Binding FilteredProducts}" IsVisible="{Binding HasProducts}">
-                    <ItemsControl.ItemTemplate>
+                <!-- rows (virtualized) -->
+                <ListBox Classes="records" ItemsSource="{Binding FilteredProducts}"
+                         IsVisible="{Binding HasProducts}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="inv:InventoryProductRowViewModel">
                             <StackPanel>
                                 <Button Classes="prow"
@@ -588,8 +617,8 @@
                                 </Border>
                             </StackPanel>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </StackPanel>
         </Border>
 

@@ -174,6 +174,33 @@
             <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
             <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
         </Style>
+
+        <!-- Virtualized day-group feed (ListBox). MaxHeight is REQUIRED: the
+             shell's page-level ScrollViewer measures content with infinite
+             height, so without a cap the inner VirtualizingStackPanel would
+             realize every day group (and all their nested rows). The nested
+             Rows ItemsControl stays a normal panel — only the outer day-group
+             list is virtualized. These styles strip ListBox selection/hover
+             chrome so the existing ledger visuals render unchanged. -->
+        <Style Selector="ListBox.hy-ledger-body">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MaxHeight" Value="600" />
+        </Style>
+        <Style Selector="ListBox.hy-ledger-body ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.hy-ledger-body ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.hy-ledger-body ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
     </UserControl.Styles>
 
     <StackPanel Margin="26,22,26,40">
@@ -372,9 +399,11 @@
                         </Grid>
                     </Border>
 
-                    <!-- day groups -->
-                    <ItemsControl ItemsSource="{Binding DayGroups}">
-                        <ItemsControl.ItemTemplate>
+                    <!-- day groups (virtualized outer list; nested Rows stay a
+                         normal panel) -->
+                    <ListBox Classes="hy-ledger-body" ItemsSource="{Binding DayGroups}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="hy:HistoryDayGroupViewModel">
                                 <StackPanel>
                                     <!-- day group header (.hy-day-group) -->
@@ -465,8 +494,8 @@
                                     </ItemsControl>
                                 </StackPanel>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
 
                     <!-- load more (.hy-load-more) -->
                     <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
