@@ -74,7 +74,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         Segments.Add(new SaleSegmentViewModel("ready", "صف ویزیت"));
         Segments.Add(new SaleSegmentViewModel("invoices", "فاکتورها"));
 
-        LoadAsync();
+        _ = LoadAsync();
     }
 
     public ObservableCollection<SaleSegmentViewModel> Segments { get; } = [];
@@ -361,14 +361,20 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     // ── Loading ─────────────────────────────────────────────────────────
 
-    private async void LoadAsync()
+    private async Task LoadAsync()
     {
         IsBusy = true;
-        await ReloadListsAsync();
-        RenderSidebar();
-        await RefreshKpisAsync();
-        ShowEmptyWork();
-        IsBusy = false;
+        try
+        {
+            await ReloadListsAsync();
+            RenderSidebar();
+            await RefreshKpisAsync();
+            ShowEmptyWork();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task ReloadListsAsync()

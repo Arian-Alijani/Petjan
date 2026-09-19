@@ -80,7 +80,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
 
     public ObservableCollection<ChequeStatusChipViewModel> StatusChips { get; } = [];
 
-    public ObservableCollection<ChequeRowViewModel> TableRows { get; } = [];
+    public RangeObservableCollection<ChequeRowViewModel> TableRows { get; } = [];
 
     public ObservableCollection<ChequeLeafViewModel> GridLeaves { get; } = [];
 
@@ -471,14 +471,10 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
 
         ListHeadSummary = $"{ChequesPresentation.Fa(list.Count)} فقره · مجموع {ChequesPresentation.MoneyShort(Sum(list))} تومان";
 
-        TableRows.Clear();
-        foreach (var c in rows)
+        TableRows.ReplaceAll(rows.Select(c => new ChequeRowViewModel(c, BankOf(c.BankKey), DaysLeft(c))
         {
-            TableRows.Add(new ChequeRowViewModel(c, BankOf(c.BankKey), DaysLeft(c))
-            {
-                IsSelected = SelectedCheques.Any(r => r.Id == c.Id),
-            });
-        }
+            IsSelected = SelectedCheques.Any(r => r.Id == c.Id),
+        }));
 
         HasRows = TableRows.Count > 0;
         Pager = BuildPager(list.Count, PageSize);

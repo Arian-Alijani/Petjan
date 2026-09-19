@@ -112,7 +112,7 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 
     public ObservableCollection<FinanceServiceSplitViewModel> ServiceSplits { get; } = [];
 
-    public ObservableCollection<FinanceInsightViewModel> Insights { get; } = [];
+    public RangeObservableCollection<FinanceInsightViewModel> Insights { get; } = [];
 
     public ObservableCollection<FinanceSpeciesViewModel> Species { get; } = [];
 
@@ -121,10 +121,10 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
     public ObservableCollection<FinanceHeatRowViewModel> HeatRows { get; } = [];
 
     /// <summary>Expense tab ledger rows (finance.js <c>expenseTableCard</c>).</summary>
-    public ObservableCollection<FinanceExpenseRowViewModel> ExpenseRows { get; } = [];
+    public RangeObservableCollection<FinanceExpenseRowViewModel> ExpenseRows { get; } = [];
 
     /// <summary>Profit tab «سودآورترین‌ها» rows (finance.js <c>marginLeadersCard</c>).</summary>
-    public ObservableCollection<FinanceMarginLeaderViewModel> MarginLeaders { get; } = [];
+    public RangeObservableCollection<FinanceMarginLeaderViewModel> MarginLeaders { get; } = [];
 
     /// <summary>The heatmap's 12 hour header labels (۹..۲۰).</summary>
     public IReadOnlyList<string> HeatHours { get; } =
@@ -310,14 +310,10 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 
     private void BuildExpenseRows(IReadOnlyList<FinanceExpenseRow> rows)
     {
-        ExpenseRows.Clear();
-        foreach (var r in rows)
-        {
-            ExpenseRows.Add(new FinanceExpenseRowViewModel(
-                r.Id, r.Description, r.CategoryLabel, r.CategoryColor,
-                PersianNumberFormatter.ToPersianDigits(r.Date), r.MethodLabel,
-                FinancePresentation.Money(r.Amount), r.By));
-        }
+        ExpenseRows.ReplaceAll(rows.Select(r => new FinanceExpenseRowViewModel(
+            r.Id, r.Description, r.CategoryLabel, r.CategoryColor,
+            PersianNumberFormatter.ToPersianDigits(r.Date), r.MethodLabel,
+            FinancePresentation.Money(r.Amount), r.By)));
     }
 
     private void BuildExpenseMiniStrip(FinanceExpense data)
@@ -401,15 +397,12 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 
     private void BuildMarginLeaders(IReadOnlyList<FinanceProduct> products)
     {
-        MarginLeaders.Clear();
-        foreach (var p in products.OrderByDescending(p => p.Margin))
-        {
-            MarginLeaders.Add(new FinanceMarginLeaderViewModel(
+        MarginLeaders.ReplaceAll(products.OrderByDescending(p => p.Margin).Select(p =>
+            new FinanceMarginLeaderViewModel(
                 p.Icon, p.Tone, p.Name,
                 FinancePresentation.MoneyShort(p.Profit),
                 p.Margin / 100.0,
-                FinancePresentation.FaPercent(p.Margin)));
-        }
+                FinancePresentation.FaPercent(p.Margin))));
     }
 
     private void BuildProfitMiniStrip(FinanceProfit data)
@@ -639,11 +632,8 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 
     private void BuildInsights(IReadOnlyList<FinanceInsight> insights)
     {
-        Insights.Clear();
-        foreach (var i in insights)
-        {
-            Insights.Add(new FinanceInsightViewModel(FinancePresentation.InsightIcon(i.Icon), i.Tone, i.Text));
-        }
+        Insights.ReplaceAll(insights.Select(i =>
+            new FinanceInsightViewModel(FinancePresentation.InsightIcon(i.Icon), i.Tone, i.Text)));
     }
 
     private void BuildChart(string eyebrow, string title)
