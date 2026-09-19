@@ -422,8 +422,8 @@ public sealed class MarginGauge : Control
             return;
         }
 
-        // Value arc: the half ring spans 180°, sweep proportional to the percent.
-        DrawArc(ctx, cx, cy, r, 180, 180 - (pct * 1.8), Fill, thickness);
+        // Value arc: from the left end (180°) clockwise over the top, sweep ∝ percent.
+        DrawArc(ctx, cx, cy, r, 180, 180 + (pct * 1.8), Fill, thickness);
     }
 
     private static void DrawArc(
@@ -438,10 +438,10 @@ public sealed class MarginGauge : Control
         using (var g = geo.Open())
         {
             g.BeginFigure(start, false);
-            // y-down screen space: draw from 180° (left) to 0° (right) over the top
-            // means decreasing the angle, i.e. counter-clockwise in math terms but
-            // clockwise on screen — use CounterClockwise for the 180°→0° sweep.
-            g.ArcTo(end, new Size(r, r), 0, large, SweepDirection.CounterClockwise);
+            // The reference path (M14,74 A52,52 0 0 1 126,74) sweeps clockwise
+            // over the top (SVG sweep-flag 1), which maps to Avalonia's Clockwise
+            // in this y-down space — CounterClockwise would draw the bottom half.
+            g.ArcTo(end, new Size(r, r), 0, large, SweepDirection.Clockwise);
             g.EndFigure(false);
         }
 

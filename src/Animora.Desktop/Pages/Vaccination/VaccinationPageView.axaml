@@ -26,26 +26,35 @@
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
         </Style>
+        <!-- Status filter chip — same tokens as the standard .pb-chip used on
+             Patients/Cheques/Inventory toolbars (brand active, teal hover). -->
         <Style Selector="Button.vx-status-chip">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="999" />
-            <Setter Property="Padding" Value="13,7" />
+            <Setter Property="Padding" Value="13,6" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FontSize" Value="12.5" />
-            <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
         </Style>
         <Style Selector="Button.vx-status-chip:pointerover">
-            <Setter Property="BorderBrush" Value="{StaticResource ShotBrush}" />
-            <Setter Property="Foreground" Value="{StaticResource ShotBrush}" />
-            <Setter Property="Background" Value="{StaticResource ShotBgBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Background" Value="#f6faf8" />
         </Style>
         <Style Selector="Button.vx-status-chip.is-active">
-            <Setter Property="Background" Value="{StaticResource ShotBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource ShotBrush}" />
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
             <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="Button.vx-status-chip /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="none" />
+        </Style>
+        <Style Selector="Button.vx-status-chip.is-active /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowChip}" />
         </Style>
         <Style Selector="TextBlock.th">
             <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
@@ -225,7 +234,8 @@
                         <DataTemplate x:DataType="vx:VaccinationRecordRowViewModel">
                             <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" TextElement.FontSize="13">
                                 <Grid ColumnDefinitions="2.2*,1.5*,1.4*,1*,1.2*,1.6*">
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="16,14">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="16,12"
+                                                VerticalAlignment="Center">
                                         <Border Width="34" Height="34" CornerRadius="10" Background="{Binding AvatarBrush}">
                                             <TextBlock Text="{Binding PetInitial}" FontWeight="ExtraBold" Foreground="White"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -240,7 +250,7 @@
                                             </TextBlock>
                                         </StackPanel>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1" Margin="16,14" Spacing="3" VerticalAlignment="Center">
+                                    <StackPanel Grid.Column="1" Margin="16,12" Spacing="3" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding VaccineName}" FontWeight="Bold" FontSize="12.5" />
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <Border IsVisible="{Binding HasVaccineShort}" Background="{StaticResource ShotBgBrush}"
@@ -252,7 +262,7 @@
                                                        VerticalAlignment="Center" />
                                         </StackPanel>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="2" Margin="16,14" Spacing="2" VerticalAlignment="Center">
+                                    <StackPanel Grid.Column="2" Margin="16,12" Spacing="2" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding DueDateText}" FontWeight="Bold" FontSize="12.5" />
                                         <TextBlock Text="{Binding RelativeText}" FontSize="11" Foreground="{StaticResource MutedBrush}"
                                                    IsVisible="{Binding IsFar}" />

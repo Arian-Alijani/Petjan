@@ -4,6 +4,72 @@
              xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Dashboard.ManagerDashboardView"
              x:DataType="dashboard:DashboardPageViewModel">
+    <UserControl.Styles>
+        <!-- ═══ Species donut (styles.css .species-body / .donut-* / .legend-row) ═══ -->
+        <!-- Legend row: a soft, self-sized share fill painted behind the content;
+             the active row lifts toward the track with a hairline border
+             (reference .legend-row:hover/.on). -->
+        <Style Selector="Border.legend-row">
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="9,11" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.legend-row.on">
+            <Setter Property="Background" Value="#f9fbfa" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        </Style>
+        <Style Selector="Border.legend-row.on TextBlock.lg-name">
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <!-- Swatch: small dot that grows on the active row. -->
+        <Style Selector="Ellipse.swatch">
+            <Setter Property="Width" Value="9" />
+            <Setter Property="Height" Value="9" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.lg-name">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style Selector="TextBlock.lg-count">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextAlignment" Value="Right" />
+        </Style>
+        <Style Selector="TextBlock.lg-pct">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextAlignment" Value="Right" />
+            <Setter Property="MinWidth" Value="30" />
+        </Style>
+        <!-- Center disc: the glossy gradient medallion inside the ring. -->
+        <Style Selector="TextBlock.dc-val">
+            <Setter Property="FontSize" Value="25" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="LetterSpacing" Value="-0.6" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.dc-lbl">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.dc-sub">
+            <Setter Property="FontSize" Value="9.5" />
+            <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+
 
     <!-- Mirrors DASH_VIEW_MANAGER (Animora-UI/assets/dashboard-views.js):
          Row 1 — revenue pulse chart (1.3fr) + doctor workload (1fr).
@@ -221,17 +287,17 @@
                     <Border Classes="card-header-rule" />
 
                     <StackPanel Margin="18,14,18,18">
-                        <!-- Donut + centre total -->
-                        <Grid Width="170" Height="170" HorizontalAlignment="Center" Margin="0,0,0,14">
+                        <!-- Donut + centre readout (.species-body donut + .donut-center) -->
+                        <Grid Width="186" Height="186" HorizontalAlignment="Center" Margin="0,0,0,14">
                             <Viewbox Stretch="Uniform">
                                 <Canvas Width="120" Height="120">
-                                    <!-- track ring -->
+                                    <!-- track ring (.donut-track) -->
                                     <Ellipse Canvas.Left="12" Canvas.Top="12"
                                              Width="96" Height="96"
-                                             Stroke="{StaticResource Line2Brush}"
+                                             Stroke="#f0f4f2"
                                              StrokeThickness="13"
                                              Fill="Transparent" />
-                                    <!-- coloured slices -->
+                                    <!-- coloured slices (.seg), cross-highlighted on hover -->
                                     <ItemsControl ItemsSource="{Binding SpeciesSlices}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -243,64 +309,66 @@
                                                 <Path Data="{Binding Geometry}"
                                                       Stroke="{Binding Brush}"
                                                       StrokeThickness="{Binding StrokeThickness}"
+                                                      Opacity="{Binding Opacity}"
                                                       StrokeLineCap="Flat" />
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </Canvas>
                             </Viewbox>
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="1">
-                                <TextBlock Text="{Binding SpeciesTotal}"
-                                           HorizontalAlignment="Center"
-                                           FontSize="{StaticResource FontSizeLg}"
-                                           FontWeight="ExtraBold"
-                                           Foreground="{StaticResource InkBrush}" />
-                                <TextBlock Text="کل بیماران فعال"
-                                           HorizontalAlignment="Center"
-                                           FontSize="{StaticResource FontSizeXs}"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource MutedBrush}" />
-                            </StackPanel>
+
+                            <!-- glossy center medallion (.donut-center) -->
+                            <Border Margin="34" CornerRadius="999"
+                                    BorderBrush="#e7ecea" BorderThickness="1"
+                                    BoxShadow="0 6 18 0 #0D101828">
+                                <Border.Background>
+                                    <RadialGradientBrush Center="50%,40%" GradientOrigin="50%,40%"
+                                                         RadiusX="0.75" RadiusY="0.75">
+                                        <GradientStop Color="#ffffff" Offset="0.55" />
+                                        <GradientStop Color="#fbfdfc" Offset="1" />
+                                    </RadialGradientBrush>
+                                </Border.Background>
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="3">
+                                    <TextBlock Classes="dc-val"
+                                               Text="{Binding SpeciesTotal}"
+                                               Foreground="{Binding SpeciesCenterBrush}" />
+                                    <TextBlock Classes="dc-lbl" Text="{Binding SpeciesTotalLabel}" />
+                                    <TextBlock Classes="dc-sub" Text="{Binding SpeciesTotalSub}" />
+                                </StackPanel>
+                            </Border>
                         </Grid>
 
-                        <!-- Legend rows -->
+                        <!-- Legend rows (.species-legend / .legend-row) -->
                         <ItemsControl ItemsSource="{Binding Species}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="dashboard:DashboardSpeciesViewModel">
-                                    <Grid Margin="0,0,0,6" ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="9">
-                                        <Ellipse Grid.Column="0"
-                                                 Width="9"
-                                                 Height="9"
-                                                 VerticalAlignment="Center"
-                                                 Fill="{Binding SwatchBrush}" />
-                                        <Path Grid.Column="1"
-                                              Classes="icon"
-                                              Width="15"
-                                              Height="15"
-                                              VerticalAlignment="Center"
-                                              Stroke="{Binding SwatchBrush}"
-                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
-                                        <TextBlock Grid.Column="2"
-                                                   Text="{Binding Name}"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="{StaticResource FontSizeXs}"
-                                                   FontWeight="Bold"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   Foreground="{StaticResource Ink2Brush}" />
-                                        <TextBlock Grid.Column="3"
-                                                   Text="{Binding CountText}"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="{StaticResource FontSizeXs}"
-                                                   Foreground="{StaticResource MutedBrush}" />
-                                        <TextBlock Grid.Column="4"
-                                                   Text="{Binding PercentText}"
-                                                   VerticalAlignment="Center"
-                                                   MinWidth="32"
-                                                   TextAlignment="End"
-                                                   FontSize="{StaticResource FontSizeXs}"
-                                                   FontWeight="Bold"
-                                                   Foreground="{StaticResource InkBrush}" />
-                                    </Grid>
+                                    <Button Background="Transparent" BorderThickness="0" Padding="0"
+                                            HorizontalContentAlignment="Stretch" Cursor="Hand"
+                                            Command="{Binding $parent[UserControl].((dashboard:DashboardPageViewModel)DataContext).FocusSpeciesCommand}"
+                                            CommandParameter="{Binding Index}">
+                                    <Border Classes="legend-row" Classes.on="{Binding IsActive}"
+                                            PointerEntered="OnLegendEnter" PointerExited="OnLegendLeave">
+                                        <Panel>
+                                            <!-- soft share fill painted behind the content (.legend-fill) -->
+                                            <controls:MetricBar HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                                Fraction="{Binding FillFraction}"
+                                                                Fill="{Binding SwatchBrush}" TrackBrush="Transparent"
+                                                                Radius="12" Opacity="0.16" IsHitTestVisible="False" />
+                                            <Grid ColumnDefinitions="9,*,Auto,Auto" ColumnSpacing="9">
+                                                <Ellipse Grid.Column="0" Classes="swatch" Fill="{Binding SwatchBrush}" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                                            VerticalAlignment="Center">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{StaticResource Muted2Brush}" VerticalAlignment="Center"
+                                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                    <TextBlock Classes="lg-name" Text="{Binding Name}" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Classes="lg-count" Text="{Binding CountText}" />
+                                                <TextBlock Grid.Column="3" Classes="lg-pct" Text="{Binding PercentText}" />
+                                            </Grid>
+                                        </Panel>
+                                    </Border>
+                                    </Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
