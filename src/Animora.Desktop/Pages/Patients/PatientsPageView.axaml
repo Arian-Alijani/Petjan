@@ -764,7 +764,7 @@
             <StackPanel>
                 <Border Background="{StaticResource TableHeadBrush}"
                         BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
-                    <Grid ColumnDefinitions="2*,1.6*,1*,1.6*,1.2*,0.9*,1.2*,Auto" ColumnSpacing="0">
+                    <Grid ColumnDefinitions="2*,1.6*,1*,1.6*,1.2*,1*,1.2*,44" ColumnSpacing="0">
                         <TextBlock Grid.Column="0" Classes="th" Margin="16,12" Text="مالک" />
                         <TextBlock Grid.Column="1" Classes="th" Margin="16,12" Text="تماس" />
                         <TextBlock Grid.Column="2" Classes="th" Margin="16,12" Text="پرونده" />
