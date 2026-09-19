@@ -44,7 +44,7 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
         _ = RefreshAsync();
     }
 
-    public ObservableCollection<QueueTicket> Queue { get; } = [];
+    public RangeObservableCollection<QueueTicket> Queue { get; } = [];
     public ObservableCollection<ReceptionQueueRowViewModel> VisibleQueue { get; } = [];
 
     public string TodayText => JalaliDate.FromDateTime(DateTime.Today).ToString("long");
@@ -97,11 +97,7 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
         try
         {
             var tickets = await _queueService.GetQueueAsync();
-            Queue.Clear();
-            foreach (var ticket in tickets)
-            {
-                Queue.Add(ticket);
-            }
+            Queue.ReplaceAll(tickets);
 
             LastRefreshText = PersianNumberFormatter.ToPersianDigits(DateTime.Now.ToString("HH:mm"));
             ApplyFilter();
