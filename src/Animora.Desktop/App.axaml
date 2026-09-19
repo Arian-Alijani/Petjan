@@ -46,10 +46,11 @@
     </Application.Resources>
 
     <!-- Phase 05: convention-based ViewModel -> View resolution, used by the
-         shell's ContentControl to render the current page. -->
-    <Application.DataTemplates>
-        <shell:ViewLocator />
-    </Application.DataTemplates>
+         shell's ContentControl to render the current page. The ViewLocator is
+         NOT declared here: it takes an injected ViewCache, so it is resolved
+         from DI and added to App.DataTemplates in code (App.axaml.cs,
+         OnFrameworkInitializationCompleted) — a XAML-instantiated template
+         cannot receive that dependency. -->
 
     <Application.Styles>
         <FluentTheme />

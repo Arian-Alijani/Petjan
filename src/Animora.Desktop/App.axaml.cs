@@ -50,6 +50,13 @@ public partial class App : Application
     {
         Services = ConfigureServices();
 
+        // Convention-based ViewModel → View resolution is a single app-wide
+        // IDataTemplate. It is resolved from DI (it owns the ViewCache) and
+        // added here rather than declared in App.axaml, because a
+        // XAML-instantiated template cannot receive the injected dependency.
+        // It must be in place before the shell window builds.
+        DataTemplates.Add(Services.GetRequiredService<ViewLocator>());
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = Services.GetRequiredService<MainWindow>();
@@ -61,6 +68,14 @@ public partial class App : Application
     private static IServiceProvider ConfigureServices()
     {
         var services = new ServiceCollection();
+
+        // View resolution: the reflection-free View-type registry is static (no
+        // DI), but the per-ViewModel View cache and the locator that consumes it
+        // are composed here and added to App.DataTemplates in
+        // OnFrameworkInitializationCompleted. Singletons: one cache and one
+        // locator for the whole app's lifetime.
+        services.AddSingleton<ViewCache>();
+        services.AddSingleton<ViewLocator>();
 
         // Phase 03: shared control-library services.
         services.AddSingleton<ToastService>();
