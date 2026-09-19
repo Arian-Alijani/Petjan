@@ -28,7 +28,13 @@ internal static class AppointmentsGridHost
     internal static void BuildTimeGrid(Grid host, AppointmentsCalendarViewModel vm)
     {
         host.Children.Clear();
-        host.ColumnDefinitions = new ColumnDefinitions("Auto");
+        // The host must own the panel's full width ("*"): an "Auto" column would
+        // measure to the content's natural width, so the inner per-column star
+        // definitions collapsed and the whole grid shrank to the right edge —
+        // leaving dead space on the leading side. "*" lets the time columns
+        // stretch to fill the calendar panel exactly like the reference
+        // (.tg-wrap / grid-template-columns: 56px repeat(n, minmax(0,1fr))).
+        host.ColumnDefinitions = new ColumnDefinitions("*");
         host.RowDefinitions = new RowDefinitions("Auto,*");
 
         var header = new Grid();
