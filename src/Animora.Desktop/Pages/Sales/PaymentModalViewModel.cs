@@ -220,7 +220,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
 
         if (result.Settled)
         {
-            ShowSettlementSuccess(result);
+            await ShowSettlementSuccessAsync(result);
         }
         else
         {
@@ -231,9 +231,10 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         }
     }
 
-    private void ShowSettlementSuccess(PaymentResult result)
+    private async Task ShowSettlementSuccessAsync(PaymentResult result)
     {
         var detail = result.Invoice;
+        var readyCount = await GetReadyCountAsync();
         ReceiptNo = "RCP-" + PersianNumberFormatter.ToPersianDigits(
             (DateTime.Now.Ticks % 1_000_000).ToString());
         SuccessCustomer = detail.IsGuest || detail.OwnerName.Length == 0
@@ -243,18 +244,18 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         SuccessMethodTone = SelectedMethod.ToString().ToLowerInvariant();
         SuccessThisPayment = SalePresentation.Money(result.Applied);
         SuccessTotal = SalePresentation.Money(detail.Paid);
-        SuccessNextLabel = _readyCount() > 0
-            ? $"ویزیت بعدی ({SalePresentation.Fa(_readyCount())})"
+        SuccessNextLabel = readyCount > 0
+            ? $"ویزیت بعدی ({SalePresentation.Fa(readyCount)})"
             : "فاکتور جدید";
 
         ShowSuccess = true;
     }
 
-    private int _readyCount()
+    private async Task<int> GetReadyCountAsync()
     {
         try
         {
-            var list = _service.GetReadyEncountersAsync().GetAwaiter().GetResult();
+            var list = await _service.GetReadyEncountersAsync();
             return list.Count;
         }
         catch

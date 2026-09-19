@@ -119,10 +119,14 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     public bool HasPets => Pets.Count > 0;
     public bool IsViewing => !IsEditing;
 
-    /// <summary>Loads the owner for the sheet; called by the caller before navigation.</summary>
-    public void Load(string ownerId)
+    /// <summary>
+    /// Loads the owner for the sheet; awaited by the caller before the sheet is
+    /// shown. Never blocks the UI thread (PERFORMANCE.md §4): a Datasync/SQLite-
+    /// backed service keeps the shell responsive while the record is fetched.
+    /// </summary>
+    public async Task LoadAsync(string ownerId)
     {
-        var detail = _patients.GetOwnerAsync(ownerId).GetAwaiter().GetResult();
+        var detail = await _patients.GetOwnerAsync(ownerId);
         if (detail is null)
         {
             return;
@@ -220,7 +224,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void Save()
+    private async Task SaveAsync()
     {
         if (_owner is null)
         {
@@ -240,7 +244,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
             Referral = NullIfBlank(EditReferral),
         };
 
-        var saved = _patients.SaveOwnerAsync(updated).GetAwaiter().GetResult();
+        var saved = await _patients.SaveOwnerAsync(updated);
         Apply(saved);
         IsEditing = false;
         _toast.Show("اطلاعات مالک به‌روزرسانی شد", Tone.Ok);
@@ -275,26 +279,18 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         var owner = _owner;
         _dialogs.ShowModal(new AddPetModalViewModel(
             owner,
-            req =>
+            async req =>
             {
-                _patients.CreatePetAsync(owner.Id, req).GetAwaiter().GetResult();
-                Load(owner.Id);
+                await _patients.CreatePetAsync(owner.Id, req);
+                await LoadAsync(owner.Id);
                 _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
             },
             _dialogs));
     }
 
     [RelayCommand]
-    private void OpenPet(OwnerSheetPetRowViewModel? row)
-    {
-        if (row is null)
-        {
-            return;
-        }
-
-        var petId = row.Pet.Id;
-        _presenter.OpenPetSheet(petId);
-    }
+    private Task OpenPet(OwnerSheetPetRowViewModel? row) =>
+        row is not null ? _presenter.OpenPetSheetAsync(row.Pet.Id) : Task.CompletedTask;
 
     private static string OrRecorded(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "ثبت نشده" : value;

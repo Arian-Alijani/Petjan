@@ -32,6 +32,18 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         return viewModel;
     }
 
+    public async Task<TViewModel> NavigateToAsync<TViewModel>(Func<TViewModel, Task> configure)
+        where TViewModel : PageViewModelBase
+    {
+        var viewModel = (TViewModel)_services.GetRequiredService(typeof(TViewModel));
+        // Await the configure step (the drill-in record load) before switching the
+        // shell, so the page is fully hydrated on first paint and the UI thread is
+        // never blocked (PERFORMANCE.md §4).
+        await configure(viewModel);
+        CurrentViewModel = viewModel;
+        return viewModel;
+    }
+
     public PageViewModelBase NavigateTo(Type viewModelType)
     {
         ArgumentNullException.ThrowIfNull(viewModelType);

@@ -183,26 +183,16 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     /// not a separate page).
     /// </summary>
     [RelayCommand]
-    private void OpenPet(PetSummary? pet)
-    {
-        if (pet is not null)
-        {
-            _presenter.OpenPetSheet(pet.Id);
-        }
-    }
+    private Task OpenPet(PetSummary? pet) =>
+        pet is not null ? _presenter.OpenPetSheetAsync(pet.Id) : Task.CompletedTask;
 
     /// <summary>
     /// Drill-in: opens the owner file in the centered record sheet (reference
     /// <c>.sheet.owner-sheet</c>).
     /// </summary>
     [RelayCommand]
-    private void OpenOwner(OwnerSummary? owner)
-    {
-        if (owner is not null)
-        {
-            _presenter.OpenOwnerSheet(owner.Id);
-        }
-    }
+    private Task OpenOwner(OwnerSummary? owner) =>
+        owner is not null ? _presenter.OpenOwnerSheetAsync(owner.Id) : Task.CompletedTask;
 
     [RelayCommand]
     private void ExportExcel() =>
@@ -225,14 +215,14 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
     /// <summary>Opens the add-pet modal for an existing owner (Phase 09, 760-wide).</summary>
     [RelayCommand]
-    private void AddPet(OwnerSummary? owner)
+    private async Task AddPetAsync(OwnerSummary? owner)
     {
         if (owner is null)
         {
             return;
         }
 
-        var detail = _patientsQueryService.GetOwnerAsync(owner.Id).GetAwaiter().GetResult();
+        var detail = await _patientsQueryService.GetOwnerAsync(owner.Id);
         if (detail is null)
         {
             return;
@@ -240,10 +230,10 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
         _dialogs.ShowModal(new AddPetModalViewModel(
             detail,
-            req =>
+            async req =>
             {
-                _patientsQueryService.CreatePetAsync(detail.Id, req).GetAwaiter().GetResult();
-                LoadAsync().GetAwaiter().GetResult();
+                await _patientsQueryService.CreatePetAsync(detail.Id, req);
+                await LoadAsync();
                 _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
             },
             _dialogs), maxWidth: 760);
