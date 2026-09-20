@@ -39,6 +39,13 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     private readonly Dictionary<string, ChequeBank> _banks = new(StringComparer.Ordinal);
     private readonly HashSet<ChequeStatus> _statuses = [];
 
+    // Fast id lookup rebuilt whenever _cheques is repopulated. Replaces
+    // repeated O(n) FirstOrDefault(x => x.Id == id) scans (RenderBulk,
+    // OpenDetail, RunRowActionAsync) with an O(1) dictionary lookup. Mirrors
+    // the reference pattern in PatientsPageViewModel.RebuildIndexes() /
+    // AppointmentsCalendarViewModel.RebuildIndexes() (PERFORMANCE.md §2).
+    private readonly Dictionary<string, Cheque> _chequeById = new(StringComparer.Ordinal);
+
     private string _tab = "all";
     private string _bank = string.Empty;
     private string _range = "all";
@@ -205,6 +212,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
 
         _cheques.Clear();
         _cheques.AddRange(await _service.GetAllAsync());
+        RebuildChequeIndex();
 
         foreach (var bank in await _service.GetBanksAsync())
         {
@@ -253,6 +261,23 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
         RangeOptions.Add(new ChequeRangeOptionViewModel("quarter", "۹۰ روز آینده"));
         SelectedRangeOption = RangeOptions[0];
     }
+
+    /// <summary>
+    /// Rebuilds the id lookup index. Call once whenever <see cref="_cheques"/>
+    /// is repopulated — never inside a render/filter loop. Mirrors the
+    /// reference pattern in PatientsPageViewModel.RebuildIndexes()
+    /// (PERFORMANCE.md §2).
+    /// </summary>
+    private void RebuildChequeIndex()
+    {
+        _chequeById.Clear();
+        foreach (var c in _cheques)
+        {
+            _chequeById[c.Id] = c;
+        }
+    }
+
+    private Cheque? ChequeById(string id) => _chequeById.GetValueOrDefault(id);
 
     private ChequeBank BankOf(string key) =>
         _banks.TryGetValue(key, out var bank)
@@ -441,9 +466,16 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
 
     // ── Render all (renderAll) ───────────────────────────────────────────
 
+    // Cache of the last Filtered() result, refreshed on every RenderAll (i.e.
+    // whenever the tab/status/bank/range/search/sort inputs change). SelectAll
+    // reuses this instead of re-running the Where/OrderBy pipeline a second
+    // time on the same inputs (PERFORMANCE.md §13).
+    private List<Cheque> _lastFiltered = [];
+
     private void RenderAll()
     {
         var list = Filtered();
+        _lastFiltered = list;
         RenderChips();
         RenderBulk();
 
@@ -660,8 +692,10 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     private void RenderBulk()
     {
         // Preserve selections that still exist in the current data set.
+        // O(1) per id via _chequeById instead of an O(n) FirstOrDefault scan
+        // (PERFORMANCE.md §2).
         SelectedCheques.ReplaceAll(_selectedIds.OrderBy(x => x)
-            .Select(id => _cheques.FirstOrDefault(x => x.Id == id))
+            .Select(ChequeById)
             .Where(c => c is not null)
             .Select(c => new ChequeRowViewModel(c!, BankOf(c!.BankKey), DaysLeft(c!))));
 
@@ -937,7 +971,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
             return;
         }
 
-        var c = _cheques.FirstOrDefault(x => x.Id == id);
+        var c = ChequeById(id);
         if (c is null)
         {
             return;
@@ -964,6 +998,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     {
         _cheques.Clear();
         _cheques.AddRange(await _service.GetAllAsync());
+        RebuildChequeIndex();
         await RefreshAlertsAsync();
         RenderKpis();
         RenderAll();
@@ -991,7 +1026,11 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     [RelayCommand]
     private void SelectAll()
     {
-        var list = Filtered().Skip((_page - 1) * PageSize).Take(PageSize).ToList();
+        // Reuse the cache from the last RenderAll instead of re-running the
+        // Where/OrderBy pipeline (PERFORMANCE.md §13); _lastFiltered is
+        // always up to date because every filter/tab/search/sort mutation
+        // ends by calling RenderAll before this command can run.
+        var list = _lastFiltered.Skip((_page - 1) * PageSize).Take(PageSize).ToList();
         var allSelected = list.All(c => _selectedIds.Contains(c.Id));
         foreach (var c in list)
         {
@@ -1094,7 +1133,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
         }
 
         var id = action.ChequeId;
-        var c = _cheques.FirstOrDefault(x => x.Id == id);
+        var c = ChequeById(id);
         if (c is null)
         {
             return;
