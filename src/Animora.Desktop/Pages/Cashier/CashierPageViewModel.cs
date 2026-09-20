@@ -53,9 +53,9 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     public RangeObservableCollection<CashierInvoiceRowViewModel> InvoiceRows { get; } = [];
 
-    public ObservableCollection<CashierLineViewModel> Lines { get; } = [];
+    public RangeObservableCollection<CashierLineViewModel> Lines { get; } = [];
 
-    public ObservableCollection<CashierPaymentViewModel> Payments { get; } = [];
+    public RangeObservableCollection<CashierPaymentViewModel> Payments { get; } = [];
 
     public ObservableCollection<CashierMethodViewModel> Methods { get; } = [];
 
@@ -340,20 +340,18 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     private void BuildLines(CashierInvoiceDetail detail)
     {
-        Lines.Clear();
-        foreach (var line in detail.Lines)
-        {
-            Lines.Add(new CashierLineViewModel(line, detail.IsEditable, OnLineEdited, OnLineRemoved));
-        }
+        // Batched rebuild (PERFORMANCE.md §5): a single Reset, not one
+        // notification per invoice line.
+        Lines.ReplaceAll(detail.Lines.Select(line =>
+            new CashierLineViewModel(line, detail.IsEditable, OnLineEdited, OnLineRemoved)));
     }
 
     private void BuildPayments(CashierInvoiceDetail detail)
     {
-        Payments.Clear();
-        foreach (var payment in detail.Payments)
-        {
-            Payments.Add(new CashierPaymentViewModel(payment));
-        }
+        // Batched rebuild (PERFORMANCE.md §5): a single Reset, not one
+        // notification per payment.
+        Payments.ReplaceAll(detail.Payments.Select(payment =>
+            new CashierPaymentViewModel(payment)));
     }
 
     private void OnLineEdited(int index, int quantity, int discountPercent) =>
