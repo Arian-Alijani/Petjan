@@ -312,9 +312,9 @@
                                             </Border>
                                         </Grid>
                                     </Button>
-                                    <Border Width="26" Height="26" CornerRadius="999" Background="{StaticResource Brand600Brush}"
+                                    <Border Width="24" Height="24" CornerRadius="999" Background="{StaticResource Brand600Brush}"
                                             BoxShadow="0 4 12 0 #590D9488" HorizontalAlignment="Left" VerticalAlignment="Top"
-                                            Margin="-8,-8,0,0" IsVisible="{Binding IsSelected}">
+                                            Margin="6,6,0,0" IsVisible="{Binding IsSelected}">
                                         <Path Classes="icon" Width="14" Height="14" Stroke="White"
                                               Data="{StaticResource IconCheck}"
                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -590,7 +590,7 @@
                                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                                         <TextBlock Text="شروع ویزیت" VerticalAlignment="Center" />
                                                         <Path Classes="icon" Width="14" Height="14" Stroke="White"
-                                                              Data="{StaticResource IconChevronLeft}" VerticalAlignment="Center" />
+                                                              Data="{StaticResource IconChevronRight}" VerticalAlignment="Center" />
                                                     </StackPanel>
                                                 </Button>
                                             </Grid>

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Globalization;
 using Animora.Contracts.Boarding;
 using Animora.Desktop.Localization;
@@ -5,6 +6,24 @@ using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Animora.Desktop.Pages.Boarding;
+
+/// <summary>
+/// One virtualized row of the board grid: holds up to three
+/// <see cref="BoardingStayCardViewModel"/> cards. The stay grid stays a
+/// single-column virtualized ListBox (VirtualizingStackPanel realizes only the
+/// visible rows), but each realized item now lays its cards out three-per-row
+/// via a UniformGrid — so the 3-column look is restored without giving up the
+/// row-level virtualization the earlier perf pass introduced.
+/// </summary>
+public sealed class BoardingStayRowViewModel
+{
+    public BoardingStayRowViewModel(IReadOnlyList<BoardingStayCardViewModel> cards)
+    {
+        Cards = cards;
+    }
+
+    public IReadOnlyList<BoardingStayCardViewModel> Cards { get; }
+}
 
 /// <summary>
 /// One entry of the page-chrome section switcher, mirroring the reference's

@@ -323,11 +323,19 @@
                  same .bd-card visuals (Option 1). Bounded via ListBox.records
                  MaxHeight so it scrolls internally and only realizes visible
                  cards. -->
-            <ListBox Classes="records" ItemsSource="{Binding FilteredStays}"
+            <ListBox Classes="records" ItemsSource="{Binding StayRows}"
                      IsVisible="{Binding HasStays}"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="boarding:BoardingStayCardViewModel">
+                    <DataTemplate x:DataType="boarding:BoardingStayRowViewModel">
+                        <ItemsControl ItemsSource="{Binding Cards}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="3" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="boarding:BoardingStayCardViewModel">
                         <Button Classes="bd-card" Margin="0,0,14,14"
                                 Background="{Binding CardBackground}" BorderBrush="{Binding CardBorderBrush}"
                                 Command="{Binding #Root.((boarding:BoardingPageViewModel)DataContext).OpenStayDetailCommand}"
@@ -427,6 +435,9 @@
                                 </StackPanel>
                             </StackPanel>
                         </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>

@@ -5,16 +5,13 @@
              x:Class="Animora.Desktop.Pages.Appointments.BookingPanelView"
              x:Name="Root"
              x:DataType="ap:BookingPanelViewModel"
-             Width="1080"
-             MaxHeight="860"
              FlowDirection="RightToLeft"
              ClipToBounds="True">
     <UserControl.Styles>
         <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/BookingPanelStyles.axaml" />
     </UserControl.Styles>
 
-    <Border Background="{StaticResource PanelBrush}" CornerRadius="22" ClipToBounds="True"
-            BoxShadow="0 32 80 0 #57123631">
+    <Border Background="{StaticResource PanelBrush}" CornerRadius="28" ClipToBounds="True">
         <Grid RowDefinitions="Auto,*">
 
             <!-- ═══ header (bk-head) ═══ -->
