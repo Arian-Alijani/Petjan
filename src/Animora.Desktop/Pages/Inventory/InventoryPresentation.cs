@@ -1,3 +1,4 @@
+using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Avalonia;
 using Avalonia.Media;
@@ -15,8 +16,8 @@ namespace Animora.Desktop.Pages.Inventory;
 /// </summary>
 public static class InventoryPresentation
 {
-    /// <summary>A solid fill brush from a hex string.</summary>
-    public static IBrush Fill(string hex) => new SolidColorBrush(Color.Parse(hex));
+    /// <summary>A solid fill brush from a hex string (shared via <see cref="BrushCache"/>).</summary>
+    public static IBrush Fill(string hex) => BrushCache.Solid(hex);
 
     /// <summary>
     /// Mirrors the reference's <c>formatFull(n)</c> — a Persian-grouped integer
@@ -43,16 +44,9 @@ public static class InventoryPresentation
             _ => ("#ece5fb", "#b8a2e6"),
         };
 
-        return new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(Color.Parse(from), 0),
-                new GradientStop(Color.Parse(to), 1),
-            },
-        };
+        // Shared via GradientBrushCache — six fixed tone pairs, so this never
+        // allocates a brush per product item (PERFORMANCE.md §10).
+        return GradientBrushCache.LinearGradient(from, to, 0, 0, 1, 1);
     }
 
     /// <summary>
@@ -156,25 +150,13 @@ public static class InventoryPresentation
             _ => ("#14b8a6", "#14b8a6"),       // --brand-500
         };
 
-        var frac = Math.Clamp(percent / 100d, 0d, 1d);
-        var fill = Color.Parse(from);
-        // The reference has a single-colour fill (no gradient); the second
-        // stop just repeats it so the bar reads as one solid band.
-        var fillEnd = Color.Parse(to);
-        var track = Color.Parse("#f1f5f6");
-
-        return new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(fill, 0),
-                new GradientStop(fillEnd, frac),
-                new GradientStop(track, frac),
-                new GradientStop(track, 1),
-            },
-        };
+        // Shared via GradientBrushCache. The reference has a single-colour fill
+        // (no gradient); the second stop just repeats it so the bar reads as
+        // one solid band. The tone pairs and track are fixed, and the only
+        // continuous input, `percent`, is quantised to a whole percent inside
+        // the cache so the key space stays bounded (PERFORMANCE.md §10/§15).
+        return GradientBrushCache.ProgressBar(
+            from, to, "#f1f5f6", (int)Math.Round((double)percent, MidpointRounding.AwayFromZero));
     }
 
     /// <summary>
@@ -246,16 +228,9 @@ public static class InventoryPresentation
     /// </summary>
     public static IBrush NewProductThumbBrush()
     {
-        return new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(Color.Parse("#2dd4bf"), 0),
-                new GradientStop(Color.Parse("#0d9488"), 1),
-            },
-        };
+        // Shared via GradientBrushCache — a single fixed brand pair
+        // (PERFORMANCE.md §10).
+        return GradientBrushCache.LinearGradient("#2dd4bf", "#0d9488", 0, 0, 1, 1);
     }
 
     /// <summary>
@@ -264,15 +239,8 @@ public static class InventoryPresentation
     /// </summary>
     public static IBrush LowStockRowBackground()
     {
-        return new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(Color.Parse("#ffffff"), 0),
-                new GradientStop(Color.Parse("#fef7f6"), 1),
-            },
-        };
+        // Shared via GradientBrushCache — a single fixed white→warm pair
+        // (PERFORMANCE.md §10).
+        return GradientBrushCache.LinearGradient("#ffffff", "#fef7f6", 0, 0, 0, 1);
     }
 }

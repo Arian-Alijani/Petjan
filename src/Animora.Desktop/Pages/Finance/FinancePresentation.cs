@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Avalonia;
 using Avalonia.Media;
@@ -112,18 +113,17 @@ public static class FinancePresentation
 
     // ── brushes ─────────────────────────────────────────────────────────
 
-    /// <summary>A solid fill brush from a hex string.</summary>
-    public static IBrush Fill(string hex) => new SolidColorBrush(Color.Parse(hex));
+    /// <summary>A solid fill brush from a hex string (shared via <see cref="BrushCache"/>).</summary>
+    public static IBrush Fill(string hex) => BrushCache.Solid(hex);
 
     /// <summary>
     /// A translucent fill from a hex color + an 8-bit alpha, mirroring the
-    /// reference's inline <c>background:${color}1a</c> (10%) pattern.
+    /// reference's inline <c>background:${color}1a</c> (10%) pattern. The
+    /// (colour, alpha) pair is shared via <see cref="BrushCache"/> — both come
+    /// from the fixed palette, so the key space stays bounded
+    /// (PERFORMANCE.md §15).
     /// </summary>
-    public static SolidColorBrush FillAlpha(string hex, byte alpha)
-    {
-        var c = Color.Parse(hex);
-        return new SolidColorBrush(Color.FromArgb(alpha, c.R, c.G, c.B));
-    }
+    public static IBrush FillAlpha(string hex, byte alpha) => BrushCache.Solid(hex, alpha);
 
     /// <summary>Blends <paramref name="hexA"/> with <paramref name="hexB"/> by weight (0..1) — mirrors <c>color-mix</c>.</summary>
     public static string Mix(string hexA, string hexB, double weightA)
@@ -135,44 +135,29 @@ public static class FinancePresentation
     }
 
     /// <summary>The 135° hero gradient (linear-gradient(135deg, #1a5c56, #104a43)).</summary>
-    public static IBrush HeroGradient() => new LinearGradientBrush
-    {
-        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-        EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
-        GradientStops =
-        {
-            new GradientStop(Color.Parse("#1a5c56"), 0),
-            new GradientStop(Color.Parse("#104a43"), 1),
-        },
-    };
+    public static IBrush HeroGradient() =>
+        // Shared via GradientBrushCache — one fixed pair (PERFORMANCE.md §10).
+        GradientBrushCache.LinearGradient("#1a5c56", "#104a43", 0, 0, 1, 1);
 
     /// <summary>
     /// The legend-row fill gradient (<c>linear-gradient(to left, c, c@25%)</c>),
     /// drawn at 15% opacity from the inline-start edge.
     /// </summary>
-    public static IBrush LegendFill(string hex) => new LinearGradientBrush
-    {
-        StartPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
-        EndPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-        GradientStops =
-        {
-            new GradientStop(Color.Parse(hex), 0),
-            new GradientStop(FillAlpha(hex, 0x40).Color, 1),
-        },
-    };
+    public static IBrush LegendFill(string hex) =>
+        // Shared via GradientBrushCache's alpha-aware overload: opaque `hex`
+        // fading to `hex`@0x40. Both colours come from the fixed palette and
+        // the alpha is 8-bit, so the key space stays bounded (§10/§15).
+        GradientBrushCache.LinearGradient(hex, 0xFF, hex, 0x40, 1, 0, 0, 0);
 
     /// <summary>The donut area gradient (<c>var(--fin-income)</c> 26% → 0) filled under the revenue line.</summary>
-    public static IBrush AreaGradient(string hex, double topOpacity) => new LinearGradientBrush
+    public static IBrush AreaGradient(string hex, double topOpacity)
     {
-        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-        EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
-        GradientStops =
-        {
-            new GradientStop(Color.FromArgb((byte)Math.Round(255 * topOpacity), Color.Parse(hex).R,
-                Color.Parse(hex).G, Color.Parse(hex).B), 0),
-            new GradientStop(Color.FromArgb(0, Color.Parse(hex).R, Color.Parse(hex).G, Color.Parse(hex).B), 1),
-        },
-    };
+        // The top stop's alpha is derived from the (design-fixed) opacity; bake
+        // it to an 8-bit value and let the alpha-aware gradient cache own the
+        // instance (bounded keys: fixed palette × 8-bit alpha, §10/§15).
+        var topAlpha = (byte)Math.Round(255 * Math.Clamp(topOpacity, 0d, 1d));
+        return GradientBrushCache.LinearGradient(hex, topAlpha, hex, 0x00, 0, 0, 0, 1);
+    }
 
     // ── tone maps ───────────────────────────────────────────────────────
 
@@ -365,9 +350,14 @@ public static class FinancePresentation
     public static IBrush HeatFill(int intensity) =>
         Fill(HeatShades[Math.Clamp(intensity, 0, HeatShades.Length - 1)]);
 
-    /// <summary>The six legend swatches of the heatmap scale (کم → زیاد).</summary>
-    public static IReadOnlyList<IBrush> HeatScale() =>
+    // The heatmap scale is a fixed, six-entry palette; resolve its brushes once
+    // (each shared via BrushCache) instead of rebuilding the list per call
+    // (PERFORMANCE.md §2/§10).
+    private static readonly IReadOnlyList<IBrush> HeatShadesBrushes =
         Array.ConvertAll(HeatShades, Fill);
+
+    /// <summary>The six legend swatches of the heatmap scale (کم → زیاد).</summary>
+    public static IReadOnlyList<IBrush> HeatScale() => HeatShadesBrushes;
 
     /// <summary>Saturday-first weekday headers of the heatmap rows.</summary>
     public static IReadOnlyList<string> HeatDays { get; } =

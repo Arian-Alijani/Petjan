@@ -70,7 +70,7 @@ public sealed class BookedRowViewModel
     /// <summary>Row border/background, mirroring <c>.appt-row(.urgent)</c>.</summary>
     public IBrush RowBackground => IsUrgent
         ? VisitsPresentation.Vertical("#fef4f2", "#ffffff")
-        : new SolidColorBrush(Colors.White);
+        : BrushCache.Solid("#ffffff");
 
     public IBrush RowBorder => IsUrgent
         ? VisitsPresentation.FillAlpha("#d0463a", 0x59)

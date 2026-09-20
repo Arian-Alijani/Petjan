@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using Animora.Contracts.Dashboard;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Avalonia;
 using Avalonia.Media;
@@ -32,23 +33,18 @@ public sealed partial class DashboardSpeciesViewModel : ObservableObject
         Name = species.Name;
         IconKey = ResolveIconKey(species.Name);
         ColorHex = species.ColorHex;
-        SwatchBrush = ParseBrush(species.ColorHex);
+        // Shared process-wide (PERFORMANCE.md §10): the swatch is a fixed palette
+        // colour, so bindings never allocate a new solid brush per render.
+        SwatchBrush = BrushCache.Solid(species.ColorHex);
         CountText = PersianNumberFormatter.FormatGrouped(species.Count);
 
         // The reference `.legend-fill` gradient:
         //   linear-gradient(to left, var(--c) 0%, color-mix(in srgb, var(--c) 25%, transparent) 100%)
-        // built once here so bindings never allocate a new brush per render.
-        var solid = ParseColor(species.ColorHex);
-        _fillBrush = new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(solid, 0),
-                new GradientStop(Color.FromArgb(0x40, solid.R, solid.G, solid.B), 1),
-            },
-        };
+        // The species colours come from a small fixed palette and the trailing
+        // stop is the 8-bit alpha 0x40, so the alpha-aware GradientBrushCache
+        // owns one frozen instance (bounded keys — PERFORMANCE.md §10/§15).
+        _fillBrush = GradientBrushCache.LinearGradient(
+            species.ColorHex, 0xFF, species.ColorHex, 0x40, 1, 0, 0, 0);
 
         // Round to a whole percent, then render as an integer so the string
         // form is culture-invariant and never carries a decimal point.
@@ -97,17 +93,4 @@ public sealed partial class DashboardSpeciesViewModel : ObservableObject
         _ => "IconPaw",
     };
 
-    private static Color ParseColor(string hex)
-    {
-        try
-        {
-            return Color.Parse(hex);
-        }
-        catch (FormatException)
-        {
-            return Colors.Gray;
-        }
-    }
-
-    private static IBrush ParseBrush(string hex) => new SolidColorBrush(ParseColor(hex));
 }

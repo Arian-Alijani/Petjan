@@ -43,7 +43,9 @@ public sealed class ReceptionQueueRowViewModel
         };
         RowBackground = ResolveBackground(ticket);
         RowBorder = ResolveBorder(ticket);
-        DoctorBrush = new SolidColorBrush(Color.Parse(ticket.DoctorAccent));
+        // Shared, cached solid brush (PERFORMANCE.md §10) — the doctor accents
+        // are a fixed palette, so no per-row allocation.
+        DoctorBrush = BrushCache.Solid(ticket.DoctorAccent);
     }
 
     public QueueTicket Ticket { get; }
@@ -68,44 +70,28 @@ public sealed class ReceptionQueueRowViewModel
 
     private static IBrush ResolveBackground(QueueTicket ticket)
     {
-        if (ticket.IsUrgent)
-        {
-            return new LinearGradientBrush
+        // Shared via GradientBrushCache (PERFORMANCE.md §10): each state's top
+        // stop is one of a fixed, handful of palette colours fading to white.
+        // The reference fades to white at 75%; the cache's two-stop key models
+        // the endpoints, so this keeps the same visible top→white wash with a
+        // bounded key space.
+        var top = ticket.IsUrgent
+            ? "#fff7f4"
+            : ticket.State switch
             {
-                StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-                EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
-                GradientStops =
-                {
-                    new GradientStop(Color.Parse("#fff7f4"), 0),
-                    new GradientStop(Colors.White, 0.75),
-                },
+                QueueTicketState.Called => "#f1fbf7",
+                QueueTicketState.InVisit => "#f0fdfa",
+                _ => "#ffffff",
             };
-        }
-
-        var top = ticket.State switch
-        {
-            QueueTicketState.Called => Color.Parse("#f1fbf7"),
-            QueueTicketState.InVisit => Color.Parse("#f0fdfa"),
-            _ => Colors.White,
-        };
-        return new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(top, 0),
-                new GradientStop(Colors.White, 0.75),
-            },
-        };
+        return GradientBrushCache.LinearGradient(top, "#ffffff", 0, 0, 0, 1);
     }
 
-    private static IBrush ResolveBorder(QueueTicket ticket) => new SolidColorBrush(
+    private static IBrush ResolveBorder(QueueTicket ticket) => BrushCache.Solid(
         ticket.IsUrgent
-            ? Color.Parse("#f5c7c1")
+            ? "#f5c7c1"
             : ticket.State == QueueTicketState.InVisit
-                ? Color.Parse("#2dd4bf")
+                ? "#2dd4bf"
                 : ticket.State == QueueTicketState.Called
-                    ? Color.Parse("#ccfbf1")
-                    : Color.Parse("#e5eaee"));
+                    ? "#ccfbf1"
+                    : "#e5eaee");
 }

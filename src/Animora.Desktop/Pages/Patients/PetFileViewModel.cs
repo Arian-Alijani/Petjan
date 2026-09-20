@@ -131,7 +131,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     public string Name { get; private set; } = string.Empty;
     public string CodeText { get; private set; } = string.Empty;
     public string SpeciesIconKey { get; private set; } = "IconPaw";
-    public IBrush ToneBrush { get; private set; } = new SolidColorBrush(Colors.Gray);
+    public IBrush ToneBrush { get; private set; } = Controls.BrushCache.Solid("#808080");
     public string SexGlyph { get; private set; } = "?";
     public string HeroStatusText { get; private set; } = string.Empty;
     public string HeroStatusClass { get; private set; } = "ok";
@@ -143,7 +143,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
 
     // ---- owner ribbon ----
     public string OwnerInitials { get; private set; } = "؟";
-    public IBrush OwnerToneBrush { get; private set; } = new SolidColorBrush(Colors.Gray);
+    public IBrush OwnerToneBrush { get; private set; } = Controls.BrushCache.Solid("#808080");
     public string OwnerName { get; private set; } = string.Empty;
     public string OwnerFileText { get; private set; } = string.Empty;
     public string OwnerMobile { get; private set; } = string.Empty;
@@ -682,12 +682,13 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     // Alert/status palette, transcribed from patients.css .alert-row.{danger,warn,
     // info,ok} (background, border, foreground). Pre-resolved here so the View
     // binds a brush, never a converter/string.
+    // Shared via BrushCache (PERFORMANCE.md §10) — three fixed semantic colours.
     private static readonly Avalonia.Media.IBrush DeltaUp =
-        new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#027a48"));
+        Controls.BrushCache.Solid("#027a48");
     private static readonly Avalonia.Media.IBrush DeltaDown =
-        new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#d92d20"));
+        Controls.BrushCache.Solid("#d92d20");
     private static readonly Avalonia.Media.IBrush DeltaFlat =
-        new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#667085"));
+        Controls.BrushCache.Solid("#667085");
 
     private static (Avalonia.Media.IBrush Bg, Avalonia.Media.IBrush Border, Avalonia.Media.IBrush Fg) AlertPalette(string cls) => cls switch
     {
@@ -698,7 +699,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     };
 
     private static Avalonia.Media.IBrush Brush(string hex) =>
-        new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(hex));
+        Controls.BrushCache.Solid(hex);
 
     private static string ToneClass(Controls.Tone tone) => tone switch
     {

@@ -296,7 +296,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         SpeciesTotal = _speciesBaseTotal;
         SpeciesTotalLabel = "کل بیماران فعال";
         SpeciesTotalSub = _speciesBaseSub;
-        SpeciesCenterBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#101828"));
+        SpeciesCenterBrush = Controls.BrushCache.Solid("#101828");
         IsSpeciesDimmed = false;
         SpeciesActiveIndex = -1;
         SpeciesSlices = BuildSpeciesSlices(species);

@@ -198,16 +198,11 @@ public static class PatientsPresentation
             value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture))
         : "—";
 
-    private static IBrush Brush(string hex) => new SolidColorBrush(Color.Parse(hex));
+    // Delegates to the shared, process-wide caches so callers that hit the hot
+    // path (card/row builds) never re-allocate a brush per item
+    // (PERFORMANCE.md §10).
+    private static IBrush Brush(string hex) => BrushCache.Solid(hex);
 
-    private static IBrush Diagonal(string from, string to) => new LinearGradientBrush
-    {
-        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-        EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
-        GradientStops =
-        {
-            new GradientStop(Color.Parse(from), 0),
-            new GradientStop(Color.Parse(to), 1),
-        },
-    };
+    private static IBrush Diagonal(string from, string to) =>
+        GradientBrushCache.LinearGradient(from, to, 0, 0, 1, 1);
 }

@@ -71,16 +71,9 @@ public static class SalePresentation
             _ => ("#f1f5f6", "#f1f5f6"),
         };
 
-        return new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(Color.Parse(from), 0),
-                new GradientStop(Color.Parse(to), 1),
-            },
-        };
+        // Shared via GradientBrushCache — six fixed tone pairs, so this never
+        // allocates a brush per item (PERFORMANCE.md §10).
+        return GradientBrushCache.LinearGradient(from, to, 0, 0, 1, 1);
     }
 
     /// <summary>The placeholder-avatar glyph colour (guest / no pet).</summary>
@@ -189,5 +182,5 @@ public static class SalePresentation
     };
 
     private static IBrush Resolve(string key, string fallback) =>
-        new SolidColorBrush(Color.Parse(fallback));
+        BrushCache.Solid(fallback);
 }
