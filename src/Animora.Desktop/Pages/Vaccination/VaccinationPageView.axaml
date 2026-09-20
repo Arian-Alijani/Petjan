@@ -372,12 +372,12 @@
                                         <Button Classes="mini" ToolTip.Tip="ثبت انجام واکسن"
                                                 Command="{Binding #Root.((vx:VaccinationPageViewModel)DataContext).MarkDoneCommand}"
                                                 CommandParameter="{Binding}">
-                                            <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource OkBrush}" Data="{StaticResource IconCheck}" />
+                                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource OkBrush}" Data="{StaticResource IconCheckCircle}" />
                                         </Button>
-                                        <Button Classes="mini" ToolTip.Tip="جزئیات"
+                                        <Button Classes="mini" ToolTip.Tip="مشاهده جزئیات"
                                                 Command="{Binding #Root.((vx:VaccinationPageViewModel)DataContext).OpenRecordDetailCommand}"
                                                 CommandParameter="{Binding}">
-                                            <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconChevronLeft}" />
+                                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconEye}" />
                                         </Button>
                                     </StackPanel>
                                 </Grid>

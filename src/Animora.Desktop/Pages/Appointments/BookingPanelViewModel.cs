@@ -564,25 +564,22 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task SelectDuration(string? minutes)
+    private async Task SelectDuration(int minutes)
     {
-        if (!int.TryParse(minutes, out var m))
+        if (minutes <= 0)
         {
             return;
         }
 
-        _dur = m;
+        _dur = minutes;
         await ReloadAvailableAsync();
     }
 
     [RelayCommand]
-    private async Task SelectSlot(string? minutes)
+    private async Task SelectSlot(int minutes)
     {
-        if (int.TryParse(minutes, out var m))
-        {
-            _start = m;
-            await ReloadAvailableAsync();
-        }
+        _start = minutes;
+        await ReloadAvailableAsync();
     }
 
     [RelayCommand]
