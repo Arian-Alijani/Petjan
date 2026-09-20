@@ -35,7 +35,7 @@
         <!-- Keep the ink foreground stable across pointer-over / focus template
              states so the text never flips to a theme-default light colour. -->
         <Style Selector="TextBox.field /template/ TextPresenter#PART_TextPresenter">
-            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="TextElement.Foreground" Value="{StaticResource InkBrush}" />
         </Style>
         <Style Selector="TextBlock.label">
             <Setter Property="FontSize" Value="{StaticResource FontSizeXs}" />

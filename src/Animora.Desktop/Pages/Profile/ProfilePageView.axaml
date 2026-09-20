@@ -299,6 +299,58 @@
             <Setter Property="Margin" Value="0,4,0,0" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
+
+        <!-- ═══ access management (.pf-staff / .pf-perm) ═══ -->
+        <!-- staff roster row (clickable) -->
+        <Style Selector="Button.pf-staff">
+            <Setter Property="Background" Value="#fbfcfb" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="13" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.pf-staff:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Button.pf-staff.on">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Border.pf-staff-av">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="CornerRadius" Value="11" />
+        </Style>
+        <!-- permission row -->
+        <Style Selector="Border.pf-perm">
+            <Setter Property="Background" Value="#fbfcfb" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="13" />
+            <Setter Property="Padding" Value="12,9" />
+        </Style>
+        <Style Selector="Border.pf-perm-ic">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <!-- role summary card -->
+        <Style Selector="Border.pf-role">
+            <Setter Property="Background" Value="#fbfcfb" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="13" />
+            <Setter Property="Padding" Value="12,11" />
+        </Style>
+        <Style Selector="Border.pf-role-ic">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
     </UserControl.Styles>
 
     <StackPanel Margin="26,22,26,40">
@@ -990,6 +1042,243 @@
                 </StackPanel>
             </Border>
         </Grid>
+
+        <!-- ═══════════ TAB · مدیریت دسترسی‌ها ═══════════ -->
+        <StackPanel IsVisible="{Binding IsAccessTab}" Spacing="14">
+
+            <!-- role-template summary strip -->
+            <ItemsControl ItemsSource="{Binding RoleCards}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="3" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="pf:StaffRoleCardViewModel">
+                        <Border Classes="ps-card" Padding="14" Margin="0,0,12,0">
+                            <StackPanel Orientation="Horizontal" Spacing="11">
+                                <Border Classes="pf-role-ic" Background="{Binding AccentBackground}">
+                                    <Path Classes="icon" Width="17" Height="17" Stroke="{Binding AccentBrush}"
+                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <TextBlock Text="{Binding Label}" FontSize="13.5" FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                                        <Border Background="{Binding AccentBackground}" CornerRadius="20" Padding="8,2"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding MemberCountLine}" FontSize="10.5" FontWeight="Bold"
+                                                       Foreground="{Binding AccentBrush}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Sub}" FontSize="11" Margin="0,2,0,0"
+                                               Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- two-column: roster (+add form) · permission editor -->
+            <Grid ColumnDefinitions="380,*" ColumnSpacing="14" VerticalAlignment="Top">
+
+                <!-- ── left · کاربران + افزودن ── -->
+                <StackPanel Grid.Column="0" Spacing="14">
+
+                    <!-- card · افزودن کاربر جدید -->
+                    <Border Classes="ps-card">
+                        <StackPanel Spacing="11">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="9">
+                                    <Border Classes="ps-card-ic">
+                                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                              Data="{StaticResource IconPlus}" HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Classes="ps-title" Text="افزودن کاربر جدید" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                           Text="دکتر، منشی یا کاربر جدید را با نقش دلخواه اضافه کنید." />
+                            </StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <TextBlock Grid.Column="1" Classes="ps-label" Text="نام و نام خانوادگی"
+                                           VerticalAlignment="Center" />
+                                <TextBox Grid.Column="0" Classes="ps-input" Text="{Binding NewMemberName}"
+                                         PlaceholderText="مثلاً دکتر مریم نادری" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <TextBlock Grid.Column="1" Classes="ps-label" Text="شمارهٔ تماس" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="0" Classes="ps-input" Text="{Binding NewMemberPhone}"
+                                         PlaceholderText="اختیاری" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <TextBlock Grid.Column="1" Classes="ps-label" Text="نقش" VerticalAlignment="Center" />
+                                <ComboBox Grid.Column="0" Classes="ps-select" ItemsSource="{Binding NewMemberRoleOptions.Options}"
+                                          SelectedIndex="{Binding NewMemberRoleOptions.SelectedIndex}"
+                                          HorizontalAlignment="Left" />
+                            </Grid>
+                            <Button Classes="primary" HorizontalAlignment="Stretch" Command="{Binding AddStaffCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                                          Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                                    <TextBlock Text="افزودن به تیم" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- card · کاربران کلینیک -->
+                    <Border Classes="ps-card">
+                        <StackPanel Spacing="11">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="9">
+                                    <Border Classes="ps-card-ic">
+                                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                              Data="{StaticResource IconUsers}" HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Classes="ps-title" Text="کاربران کلینیک" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                           Text="برای مدیریت دسترسی، روی هر کاربر بزنید." />
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{Binding Staff}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Spacing="8" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="pf:StaffMemberViewModel">
+                                        <Button Classes="pf-staff" Classes.on="{Binding IsSelected}"
+                                                Command="{Binding #Root.((pf:ProfilePageViewModel)DataContext).SelectStaffCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                                                <Border Grid.Column="0" Classes="pf-staff-av" Background="{Binding AvatarBrush}">
+                                                    <TextBlock Text="{Binding Initials}" FontSize="12.5" FontWeight="ExtraBold"
+                                                               Foreground="White" HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center" />
+                                                </Border>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Classes="pf-member-name" Text="{Binding Name}"
+                                                                   VerticalAlignment="Center" />
+                                                        <Border Background="{StaticResource OkBgBrush}" CornerRadius="20"
+                                                                Padding="7,2" VerticalAlignment="Center"
+                                                                IsVisible="{Binding IsActive}">
+                                                            <TextBlock Text="فعال" FontSize="9.5" FontWeight="Bold"
+                                                                       Foreground="{StaticResource OkBrush}" />
+                                                        </Border>
+                                                        <Border Background="{StaticResource Bg2Brush}" CornerRadius="20"
+                                                                Padding="7,2" VerticalAlignment="Center">
+                                                            <TextBlock Text="غیرفعال" FontSize="9.5" FontWeight="Bold"
+                                                                       Foreground="{StaticResource MutedBrush}"
+                                                                       IsVisible="{Binding !IsActive}" />
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <TextBlock Classes="pf-member-sub" Text="{Binding Subtitle}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <Border Grid.Column="2" VerticalAlignment="Center" CornerRadius="20" Padding="9,3"
+                                                        Background="{Binding RoleBackground}">
+                                                    <TextBlock Text="{Binding RoleLabel}" FontSize="10.5" FontWeight="Bold"
+                                                               Foreground="{Binding RoleForeground}" />
+                                                </Border>
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ── right · ویرایش دسترسی کاربر انتخاب‌شده ── -->
+                <Border Grid.Column="1" Classes="ps-card">
+                    <StackPanel Spacing="13">
+                        <!-- header -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel Grid.Column="0">
+                                <StackPanel Orientation="Horizontal" Spacing="9">
+                                    <Border Classes="ps-card-ic">
+                                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                              Data="{StaticResource IconShield}" HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Classes="ps-title" VerticalAlignment="Center"
+                                               Text="{Binding SelectedStaff.Name, FallbackValue='دسترسی‌ها'}" />
+                                    <Border VerticalAlignment="Center" CornerRadius="20" Padding="9,3"
+                                            Background="{Binding SelectedStaff.RoleBackground}"
+                                            IsVisible="{Binding SelectedStaff, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                        <TextBlock Text="{Binding SelectedStaff.RoleLabel}" FontSize="10.5" FontWeight="Bold"
+                                                   Foreground="{Binding SelectedStaff.RoleForeground}" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
+                                           Text="بخش‌هایی که این کاربر می‌تواند باز کند را روشن یا خاموش کنید." />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                                <Button Classes="outline" Padding="11,6" FontSize="12"
+                                        Command="{Binding ResetPermissionsCommand}" Content="پیش‌فرض نقش" />
+                                <Button Classes="outline" Padding="11,6" FontSize="12"
+                                        Command="{Binding GrantAllPermissionsCommand}" Content="همه" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- permission grid (2 columns) -->
+                        <ItemsControl ItemsSource="{Binding SelectedStaff.Permissions}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="pf:StaffPermissionViewModel">
+                                    <Border Classes="pf-perm" Width="330" Margin="0,0,10,10">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                                            <Border Grid.Column="0" Classes="pf-perm-ic">
+                                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Muted2Brush}"
+                                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Classes="pf-mn-t" Text="{Binding Label}" />
+                                                <TextBlock Classes="pf-mn-s" Text="{Binding Sub}" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <ToggleSwitch Grid.Column="2" IsChecked="{Binding IsGranted}"
+                                                          OnContent="" OffContent="" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- footer actions -->
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10"
+                              IsVisible="{Binding SelectedStaff, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <Button Grid.Column="0" Classes="outline" Command="{Binding RemoveStaffCommand}"
+                                    CommandParameter="{Binding SelectedStaff}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource DangerBrush}"
+                                          Data="{StaticResource IconTrash}" VerticalAlignment="Center" />
+                                    <TextBlock Text="حذف کاربر" Foreground="{StaticResource DangerBrush}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Column="2" Classes="primary" Command="{Binding SaveAccessCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                                          Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                                    <TextBlock Text="ذخیرهٔ دسترسی‌ها" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </StackPanel>
 
     </StackPanel>
 </UserControl>
