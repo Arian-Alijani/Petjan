@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
@@ -243,4 +244,127 @@ public sealed partial class ProfileToggleViewModel : ObservableObject
     public string Label { get; }
 
     public string Sub { get; }
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+//  Access-management tab (مدیریت دسترسی‌ها) — design-only item ViewModels.
+//  Lets the clinic manager add staff (doctor / secretary / …), assign a
+//  role, and toggle each staff member's access to the app's sections.
+// ═════════════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// One staff member of the «کاربران و دسترسی‌ها» roster. Selecting a member
+/// loads their per-section permission grid on the right.
+/// </summary>
+public sealed partial class StaffMemberViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isSelected;
+
+    [ObservableProperty]
+    private bool _isActive;
+
+    public StaffMemberViewModel(
+        string id, string name, string roleId, string roleLabel,
+        string subtitle, string initials, string accentHex, bool isActive)
+    {
+        Id = id;
+        Name = name;
+        RoleId = roleId;
+        RoleLabel = roleLabel;
+        Subtitle = subtitle;
+        Initials = initials;
+        AvatarBrush = ProfilePresentation.Fill(accentHex);
+        _isActive = isActive;
+
+        (RoleBackground, RoleForeground) = roleId switch
+        {
+            "manager" => (ProfilePresentation.Fill("#f4f3ff"), ProfilePresentation.Fill("#7b5cc4")),
+            "doctor" => (ProfilePresentation.Fill("#eff8ff"), ProfilePresentation.Fill("#1570cd")),
+            "secretary" => (ProfilePresentation.Fill("#f0fdfa"), ProfilePresentation.Fill("#0e7566")),
+            _ => (ProfilePresentation.Fill("#eef2f0"), ProfilePresentation.Fill("#536b68")),
+        };
+    }
+
+    public string Id { get; }
+
+    public string Name { get; }
+
+    /// <summary>"manager" | "doctor" | "secretary" | custom.</summary>
+    public string RoleId { get; }
+
+    public string RoleLabel { get; }
+
+    public string Subtitle { get; }
+
+    public string Initials { get; }
+
+    public IBrush AvatarBrush { get; }
+
+    public IBrush RoleBackground { get; }
+
+    public IBrush RoleForeground { get; }
+
+    /// <summary>Per-section access toggles shown when this member is selected.</summary>
+    public ObservableCollection<StaffPermissionViewModel> Permissions { get; } = [];
+}
+
+/// <summary>
+/// One access-permission row in the selected staff member's grid — maps a
+/// single app section to whether this member may open it.
+/// </summary>
+public sealed partial class StaffPermissionViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isGranted;
+
+    public StaffPermissionViewModel(string sectionId, string label, string sub, string iconKey, bool isGranted)
+    {
+        SectionId = sectionId;
+        Label = label;
+        Sub = sub;
+        IconKey = iconKey;
+        _isGranted = isGranted;
+    }
+
+    public string SectionId { get; }
+
+    public string Label { get; }
+
+    public string Sub { get; }
+
+    public string IconKey { get; }
+}
+
+/// <summary>
+/// A role-template card in the «نقش‌ها» summary column (manager / doctor /
+/// secretary). Purely informational in this design pass.
+/// </summary>
+public sealed class StaffRoleCardViewModel
+{
+    public StaffRoleCardViewModel(
+        string id, string label, string sub, string iconKey, int memberCount, string accentHex, string tintHex)
+    {
+        Id = id;
+        Label = label;
+        Sub = sub;
+        IconKey = iconKey;
+        MemberCountLine = ProfilePresentation.Fa(memberCount.ToString()) + " کاربر";
+        AccentBrush = ProfilePresentation.Fill(accentHex);
+        AccentBackground = ProfilePresentation.Fill(tintHex);
+    }
+
+    public string Id { get; }
+
+    public string Label { get; }
+
+    public string Sub { get; }
+
+    public string IconKey { get; }
+
+    public string MemberCountLine { get; }
+
+    public IBrush AccentBrush { get; }
+
+    public IBrush AccentBackground { get; }
 }

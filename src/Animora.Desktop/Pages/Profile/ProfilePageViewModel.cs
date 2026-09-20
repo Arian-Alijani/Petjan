@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -43,6 +44,8 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         {
             Tabs.Add(new ProfileTabViewModel(id, label, iconKey) { IsActive = id == ActiveTab });
         }
+
+        SeedAccessManagement();
 
         _ = LoadAsync();
     }
@@ -97,6 +100,8 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     public bool IsLookTab => ActiveTab == "look";
 
     public bool IsSecurityTab => ActiveTab == "sec";
+
+    public bool IsAccessTab => ActiveTab == "access";
 
     // ── Profile tab: personal info + team ────────────────────────────────
 
@@ -163,6 +168,35 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     public ObservableCollection<ProfileToggleViewModel> SecurityToggles { get; } = [];
 
     public RangeObservableCollection<ProfileSessionViewModel> Sessions { get; } = [];
+
+    // ── Access-management tab (مدیریت دسترسی‌ها) ──────────────────────────
+
+    /// <summary>The clinic staff roster (design-only sample data).</summary>
+    public ObservableCollection<StaffMemberViewModel> Staff { get; } = [];
+
+    /// <summary>Role-template summary cards (manager / doctor / secretary).</summary>
+    public ObservableCollection<StaffRoleCardViewModel> RoleCards { get; } = [];
+
+    /// <summary>Role choices for the «افزودن کاربر» form.</summary>
+    public ProfileSelectViewModel NewMemberRoleOptions { get; } =
+        new(["پزشک", "منشی", "مدیر", "دستیار"], "پزشک");
+
+    [ObservableProperty]
+    private StaffMemberViewModel? _selectedStaff;
+
+    [ObservableProperty]
+    private string _newMemberName = string.Empty;
+
+    [ObservableProperty]
+    private string _newMemberPhone = string.Empty;
+
+    partial void OnSelectedStaffChanged(StaffMemberViewModel? value)
+    {
+        foreach (var member in Staff)
+        {
+            member.IsSelected = ReferenceEquals(member, value);
+        }
+    }
 
     // ── Loading ──────────────────────────────────────────────────────────
 
@@ -271,7 +305,33 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         ("alerts", "اعلان‌ها", "IconBell"),
         ("look", "ظاهر و تم", "IconMoon"),
         ("sec", "امنیت و نشست‌ها", "IconShield"),
+        ("access", "مدیریت دسترسی‌ها", "IconIdCard"),
     ];
+
+    // ── Access-management catalogs (design-only sample data) ─────────────
+
+    /// <summary>App sections a staff member's access can be toggled for.</summary>
+    private static readonly (string Id, string Label, string Sub, string IconKey)[] SectionCatalog =
+    [
+        ("dashboard", "داشبورد", "نمای کلی و شاخص‌های کلینیک", "IconDashboard"),
+        ("reception", "پذیرش", "صف انتظار و پذیرش مراجعین", "IconClipboard"),
+        ("patients", "پرونده‌ها", "پرونده مالکان و حیوانات", "IconPaw"),
+        ("visits", "ویزیت", "معاینه و ثبت نسخه", "IconStetho"),
+        ("appointments", "نوبت‌دهی", "تقویم و رزرو نوبت", "IconCalendar"),
+        ("sales", "فروش و صندوق", "صدور فاکتور و دریافت وجه", "IconReceipt"),
+        ("inventory", "انبار", "موجودی کالا و دارو", "IconBox"),
+        ("finance", "مالی و حسابداری", "هزینه‌ها، سود و چک‌ها", "IconChart"),
+        ("settings", "تنظیمات و مدیریت", "دسترسی به این صفحه و مدیریت کاربران", "IconTools"),
+    ];
+
+    /// <summary>Which sections each role gets by default (design template).</summary>
+    private static HashSet<string> DefaultSections(string roleId) => roleId switch
+    {
+        "manager" => ["dashboard", "reception", "patients", "visits", "appointments", "sales", "inventory", "finance", "settings"],
+        "doctor" => ["dashboard", "patients", "visits", "appointments"],
+        "secretary" => ["dashboard", "reception", "patients", "appointments", "sales"],
+        _ => ["dashboard", "patients"],
+    };
 
     // ── Notification matrix catalog (reference NMAT) ─────────────────────
 
@@ -305,6 +365,172 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsAlertsTab));
         OnPropertyChanged(nameof(IsLookTab));
         OnPropertyChanged(nameof(IsSecurityTab));
+        OnPropertyChanged(nameof(IsAccessTab));
+    }
+
+    // ── Access-management: seed + commands (design-only) ─────────────────
+
+    private void SeedAccessManagement()
+    {
+        RoleCards.Add(new StaffRoleCardViewModel(
+            "manager", "مدیر", "دسترسی کامل به همهٔ بخش‌ها", "IconShield", 1, "#7b5cc4", "#f4f3ff"));
+        RoleCards.Add(new StaffRoleCardViewModel(
+            "doctor", "پزشک", "ویزیت، پرونده و نوبت‌دهی", "IconStetho", 2, "#1570cd", "#eff8ff"));
+        RoleCards.Add(new StaffRoleCardViewModel(
+            "secretary", "منشی", "پذیرش، نوبت و صندوق", "IconClipboard", 2, "#0e7566", "#f0fdfa"));
+
+        AddStaffMember("مدیر کلینیک", "manager", "مدیر", "دسترسی کامل · آخرین ورود: امروز", "م ک", "#7b5cc4", true, select: true);
+        AddStaffMember("دکتر آرمان رضایی", "doctor", "پزشک", "دامپزشک · شیفت صبح", "آ ر", "#1570cd", true);
+        AddStaffMember("دکتر سارا محمدی", "doctor", "پزشک", "دامپزشک · شیفت عصر", "س م", "#0d9488", true);
+        AddStaffMember("نگار احمدی", "secretary", "منشی", "پذیرش · شیفت صبح", "ن ا", "#0e7566", true);
+        AddStaffMember("رضا کریمی", "secretary", "منشی", "پذیرش · شیفت عصر", "ر ک", "#b54708", false);
+    }
+
+    private void AddStaffMember(
+        string name, string roleId, string roleLabel, string subtitle,
+        string initials, string accentHex, bool isActive, bool select = false)
+    {
+        var member = new StaffMemberViewModel(
+            "u" + (Staff.Count + 1), name, roleId, roleLabel, subtitle, initials, accentHex, isActive);
+
+        var granted = DefaultSections(roleId);
+        foreach (var (id, label, sub, iconKey) in SectionCatalog)
+        {
+            member.Permissions.Add(new StaffPermissionViewModel(id, label, sub, iconKey, granted.Contains(id)));
+        }
+
+        Staff.Add(member);
+
+        if (select)
+        {
+            SelectedStaff = member;
+        }
+    }
+
+    private static string RoleIdFromLabel(string label) => label switch
+    {
+        "پزشک" => "doctor",
+        "منشی" => "secretary",
+        "مدیر" => "manager",
+        _ => "assistant",
+    };
+
+    private static string InitialsOf(string name)
+    {
+        var parts = name.Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][..1]} {parts[1][..1]}"
+            : (name.Length > 0 ? name[..1] : "؟");
+    }
+
+    /// <summary>«افزودن کاربر جدید» — adds a staff member from the mini form.</summary>
+    [RelayCommand]
+    private void AddStaff()
+    {
+        var name = NewMemberName.Trim();
+        if (string.IsNullOrEmpty(name))
+        {
+            _toast.Show("نام کاربر را وارد کنید.", Tone.Warn);
+            return;
+        }
+
+        var roleLabel = NewMemberRoleOptions.Value;
+        var roleId = RoleIdFromLabel(roleLabel);
+        var accents = new[] { "#1570cd", "#0d9488", "#0e7566", "#b54708", "#7b5cc4" };
+        var accent = accents[Staff.Count % accents.Length];
+
+        var subtitle = string.IsNullOrWhiteSpace(NewMemberPhone)
+            ? $"{roleLabel} · تازه اضافه‌شده"
+            : $"{roleLabel} · {ProfilePresentation.Fa(NewMemberPhone.Trim())}";
+
+        AddStaffMember(name, roleId, roleLabel, subtitle, InitialsOf(name), accent, true, select: true);
+
+        NewMemberName = string.Empty;
+        NewMemberPhone = string.Empty;
+
+        _toast.Show($"«{name}» به تیم اضافه شد (نمونه طراحی).", Tone.Ok);
+    }
+
+    /// <summary>Loads the tapped member's permission grid into the editor panel.</summary>
+    [RelayCommand]
+    private void SelectStaff(StaffMemberViewModel? member)
+    {
+        if (member is not null)
+        {
+            SelectedStaff = member;
+        }
+    }
+
+    /// <summary>«حذف کاربر» — removes the selected member from the roster.</summary>
+    [RelayCommand]
+    private void RemoveStaff(StaffMemberViewModel? member)
+    {
+        member ??= SelectedStaff;
+        if (member is null)
+        {
+            return;
+        }
+
+        if (member.RoleId == "manager")
+        {
+            _toast.Show("حساب مدیر اصلی قابل حذف نیست.", Tone.Warn);
+            return;
+        }
+
+        var index = Staff.IndexOf(member);
+        Staff.Remove(member);
+
+        if (ReferenceEquals(SelectedStaff, member))
+        {
+            SelectedStaff = Staff.Count > 0 ? Staff[System.Math.Max(0, index - 1)] : null;
+        }
+
+        _toast.Show($"«{member.Name}» حذف شد (نمونه طراحی).", Tone.Info);
+    }
+
+    /// <summary>Grants the selected member every section at once.</summary>
+    [RelayCommand]
+    private void GrantAllPermissions()
+    {
+        if (SelectedStaff is null)
+        {
+            return;
+        }
+
+        foreach (var permission in SelectedStaff.Permissions)
+        {
+            permission.IsGranted = true;
+        }
+    }
+
+    /// <summary>Resets the selected member to their role's default sections.</summary>
+    [RelayCommand]
+    private void ResetPermissions()
+    {
+        if (SelectedStaff is null)
+        {
+            return;
+        }
+
+        var granted = DefaultSections(SelectedStaff.RoleId);
+        foreach (var permission in SelectedStaff.Permissions)
+        {
+            permission.IsGranted = granted.Contains(permission.SectionId);
+        }
+
+        _toast.Show("دسترسی‌ها به حالت پیش‌فرض نقش بازگشت.", Tone.Info);
+    }
+
+    /// <summary>Persists the selected member's access grid (design-only toast).</summary>
+    [RelayCommand]
+    private void SaveAccess()
+    {
+        if (SelectedStaff is null)
+        {
+            return;
+        }
+
+        _toast.Show($"دسترسی‌های «{SelectedStaff.Name}» ذخیره شد (نمونه طراحی).", Tone.Ok);
     }
 
     [RelayCommand]
