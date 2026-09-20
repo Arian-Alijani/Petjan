@@ -6,3 +6,10 @@
 *.otf binary
 *.woff binary
 *.woff2 binary
+
+# Image / icon brand assets are binary too
+*.png binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.webp binary

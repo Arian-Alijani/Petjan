@@ -10,41 +10,65 @@
             Padding="24,12">
         <Grid ColumnDefinitions="Auto,*,Auto">
 
-            <!-- Animated menu toggle. This is now the SINGLE sidebar fold
-                 control for the whole shell (the duplicate in-sidebar toggle
-                 was removed). It uses the fold (double-chevron ») glyph so the
-                 former in-sidebar icon now lives here, in the topbar's leading
-                 slot, and smoothly rotates to flip direction as the sidebar
-                 collapses/expands. -->
-            <Button Grid.Column="0"
-                    Classes="ghost"
-                    Command="{Binding ToggleSidebarCommand}"
-                    Width="36"
-                    Height="36"
-                    Padding="0"
-                    VerticalAlignment="Center"
-                    ToolTip.Tip="{Binding SidebarToggleToolTip}">
-                <Path Classes="icon"
-                      Width="18"
-                      Height="18"
-                      HorizontalAlignment="Center"
-                      VerticalAlignment="Center"
-                      RenderTransformOrigin="50%,50%"
-                      Stroke="{StaticResource Ink2Brush}"
-                      Data="{StaticResource IconFold}">
-                    <Path.RenderTransform>
-                        <RotateTransform Angle="{Binding ToggleIconRotation}">
-                            <RotateTransform.Transitions>
-                                <Transitions>
-                                    <DoubleTransition Property="Angle"
-                                                      Duration="0:0:0.28"
-                                                      Easing="CubicEaseInOut" />
-                                </Transitions>
-                            </RotateTransform.Transitions>
-                        </RotateTransform>
-                    </Path.RenderTransform>
-                </Path>
-            </Button>
+            <!-- Leading cluster: sidebar fold toggle + brand logo mark. The
+                 small VetPlus logo sits at the top of the app at all times
+                 (independent of the sidebar's expand/collapse state), so the
+                 brand identity is always present in the app chrome. -->
+            <StackPanel Grid.Column="0"
+                        Orientation="Horizontal"
+                        Spacing="12"
+                        VerticalAlignment="Center">
+
+                <!-- Animated menu toggle. This is now the SINGLE sidebar fold
+                     control for the whole shell (the duplicate in-sidebar toggle
+                     was removed). It uses the fold (double-chevron ») glyph so the
+                     former in-sidebar icon now lives here, in the topbar's leading
+                     slot, and smoothly rotates to flip direction as the sidebar
+                     collapses/expands. -->
+                <Button Classes="ghost"
+                        Command="{Binding ToggleSidebarCommand}"
+                        Width="36"
+                        Height="36"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        ToolTip.Tip="{Binding SidebarToggleToolTip}">
+                    <Path Classes="icon"
+                          Width="18"
+                          Height="18"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          RenderTransformOrigin="50%,50%"
+                          Stroke="{StaticResource Ink2Brush}"
+                          Data="{StaticResource IconFold}">
+                        <Path.RenderTransform>
+                            <RotateTransform Angle="{Binding ToggleIconRotation}">
+                                <RotateTransform.Transitions>
+                                    <Transitions>
+                                        <DoubleTransition Property="Angle"
+                                                          Duration="0:0:0.28"
+                                                          Easing="CubicEaseInOut" />
+                                    </Transitions>
+                                </RotateTransform.Transitions>
+                            </RotateTransform>
+                        </Path.RenderTransform>
+                    </Path>
+                </Button>
+
+                <!-- Brand logo mark + wordmark, always visible at the top. -->
+                <StackPanel Orientation="Horizontal"
+                            Spacing="9"
+                            VerticalAlignment="Center">
+                    <Image Width="30"
+                           Height="30"
+                           Stretch="Uniform"
+                           Source="avares://Animora.Desktop/Assets/Brand/vetplus-mark-128.png" />
+                    <TextBlock Text="وت‌پلاس"
+                               VerticalAlignment="Center"
+                               FontSize="16"
+                               FontWeight="ExtraBold"
+                               Foreground="{StaticResource InkBrush}" />
+                </StackPanel>
+            </StackPanel>
 
             <!-- Title block: accent rail + breadcrumbs + heading -->
             <Grid Grid.Column="1"

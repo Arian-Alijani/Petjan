@@ -106,48 +106,26 @@
                                            FontSize="11"
                                            Foreground="{StaticResource Muted2Brush}" />
                             </StackPanel>
-                            <Border Grid.Column="1"
-                                    Width="40"
-                                    Height="40"
-                                    CornerRadius="12"
-                                    VerticalAlignment="Center">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                        <GradientStop Offset="0" Color="{StaticResource Brand500Color}" />
-                                        <GradientStop Offset="1" Color="{StaticResource Brand600Color}" />
-                                    </LinearGradientBrush>
-                                </Border.Background>
-                                <Path Classes="icon"
-                                      Width="22"
-                                      Height="22"
-                                      HorizontalAlignment="Center"
-                                      VerticalAlignment="Center"
-                                      Stroke="White"
-                                      Data="{StaticResource IconPaw}" />
-                            </Border>
+                            <!-- Brand logo mark (expanded rail). The VetPlus
+                                 guardian-shield paw already carries the teal
+                                 identity, so it stands on its own — no wrapper
+                                 gradient box. -->
+                            <Image Grid.Column="1"
+                                   Width="40"
+                                   Height="40"
+                                   VerticalAlignment="Center"
+                                   Stretch="Uniform"
+                                   Source="avares://Animora.Desktop/Assets/Brand/vetplus-mark-128.png" />
                         </Grid>
 
-                        <!-- Collapsed layer: centred logo -->
-                        <Border IsVisible="{Binding IsExpanded, Converter={x:Static shell:SidebarView.InverseBoolConverter}}"
-                                Width="40"
-                                Height="40"
-                                CornerRadius="12"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                    <GradientStop Offset="0" Color="{StaticResource Brand500Color}" />
-                                    <GradientStop Offset="1" Color="{StaticResource Brand600Color}" />
-                                </LinearGradientBrush>
-                            </Border.Background>
-                            <Path Classes="icon"
-                                  Width="22"
-                                  Height="22"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Stroke="White"
-                                  Data="{StaticResource IconPaw}" />
-                        </Border>
+                        <!-- Collapsed layer: centred brand logo mark -->
+                        <Image IsVisible="{Binding IsExpanded, Converter={x:Static shell:SidebarView.InverseBoolConverter}}"
+                               Width="40"
+                               Height="40"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Stretch="Uniform"
+                               Source="avares://Animora.Desktop/Assets/Brand/vetplus-mark-128.png" />
                     </Panel>
                 </StackPanel>
             </Border>

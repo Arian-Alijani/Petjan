@@ -5,6 +5,7 @@
         x:Class="Animora.Desktop.Shell.MainWindow"
         x:Name="Root"
         x:DataType="shell:MainWindowViewModel"
+        Icon="avares://Animora.Desktop/Assets/Brand/vetplus.ico"
         Title="وت‌پلاس — کلینیک هوشمند"
         Width="1440"
         Height="900"
