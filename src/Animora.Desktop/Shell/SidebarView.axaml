@@ -86,24 +86,39 @@
                     Margin="0,0,0,10">
                 <StackPanel Spacing="10">
 
-                    <!-- Brand identity. Two mutually-exclusive layers so
-                         each state is laid out cleanly:
+                    <!-- Brand identity. Two layers that cross-fade (Opacity
+                         transitions) rather than snapping via IsVisible, so the
+                         header dissolves between states in step with the width
+                         tween — no hard cut:
                          • Expanded  → [brand text ... paw logo] hugging the
                            leading (right) edge under RTL.
-                         • Collapsed → the paw logo alone, centred in the rail. -->
+                         • Collapsed → the paw logo alone, centred in the rail.
+                         The logo sits at the same 40px size / vertical centre in
+                         both layers, so the cross-fade reads as one continuous
+                         mark, not a jump. -->
                     <Panel>
                         <!-- Expanded layer -->
-                        <Grid IsVisible="{Binding IsExpanded}"
-                              ColumnDefinitions="*,Auto">
+                        <Grid ColumnDefinitions="*,Auto"
+                              IsHitTestVisible="{Binding IsExpanded}"
+                              Opacity="{Binding IsExpanded, Converter={x:Static shell:SidebarView.ExpandedOpacityConverter}}">
+                            <Grid.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity"
+                                                      Duration="0:0:0.18"
+                                                      Easing="LinearEasing" />
+                                </Transitions>
+                            </Grid.Transitions>
                             <StackPanel Grid.Column="0"
                                         VerticalAlignment="Center"
                                         Spacing="2">
                                 <TextBlock Text="وت‌پلاس"
                                            FontSize="19"
                                            FontWeight="ExtraBold"
+                                           TextWrapping="NoWrap"
                                            Foreground="{StaticResource InkBrush}" />
                                 <TextBlock Text="کلینیک هوشمند"
                                            FontSize="11"
+                                           TextWrapping="NoWrap"
                                            Foreground="{StaticResource Muted2Brush}" />
                             </StackPanel>
                             <!-- Brand logo mark (expanded rail). The VetPlus
@@ -118,14 +133,23 @@
                                    Source="avares://Animora.Desktop/Assets/Brand/vetplus-mark-128.png" />
                         </Grid>
 
-                        <!-- Collapsed layer: centred brand logo mark -->
-                        <Image IsVisible="{Binding IsExpanded, Converter={x:Static shell:SidebarView.InverseBoolConverter}}"
-                               Width="40"
+                        <!-- Collapsed layer: centred brand logo mark, cross-faded -->
+                        <Image Width="40"
                                Height="40"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"
                                Stretch="Uniform"
-                               Source="avares://Animora.Desktop/Assets/Brand/vetplus-mark-128.png" />
+                               IsHitTestVisible="{Binding IsExpanded, Converter={x:Static shell:SidebarView.InverseBoolConverter}}"
+                               Opacity="{Binding IsExpanded, Converter={x:Static shell:SidebarView.CollapsedOpacityConverter}}"
+                               Source="avares://Animora.Desktop/Assets/Brand/vetplus-mark-128.png">
+                            <Image.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity"
+                                                      Duration="0:0:0.18"
+                                                      Easing="LinearEasing" />
+                                </Transitions>
+                            </Image.Transitions>
+                        </Image>
                     </Panel>
                 </StackPanel>
             </Border>
@@ -293,20 +317,28 @@
                                                             VerticalAlignment="Stretch"
                                                             Background="{StaticResource Brand600Brush}" />
 
-                                                    <!-- Badge (far left, RTL trailing edge) -->
+                                                    <!-- Badge (far left, RTL trailing edge). Stays present in
+                                                         the layout but fades via an Opacity transition so it
+                                                         dissolves in lock-step with the width tween instead of
+                                                         snapping out. IsHitTestVisible is dropped while
+                                                         collapsed via the zero opacity + it never overlaps the
+                                                         icon since the icon is a separate overlaid layer. -->
                                                     <Border Grid.Column="0"
                                                             Classes="nav-badge"
                                                             CornerRadius="20"
                                                             Padding="7,1"
                                                             MinWidth="20"
                                                             Margin="0,0,8,0"
-                                                            VerticalAlignment="Center">
-                                                        <Border.IsVisible>
-                                                            <MultiBinding Converter="{x:Static shell:SidebarView.AllTrueConverter}">
-                                                                <Binding Path="HasBadge" />
-                                                                <Binding Path="$parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded" />
-                                                            </MultiBinding>
-                                                        </Border.IsVisible>
+                                                            VerticalAlignment="Center"
+                                                            IsVisible="{Binding HasBadge}"
+                                                            Opacity="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded, Converter={x:Static shell:SidebarView.ExpandedOpacityConverter}}">
+                                                        <Border.Transitions>
+                                                            <Transitions>
+                                                                <DoubleTransition Property="Opacity"
+                                                                                  Duration="0:0:0.18"
+                                                                                  Easing="LinearEasing" />
+                                                            </Transitions>
+                                                        </Border.Transitions>
                                                         <TextBlock Classes="nav-badge-text"
                                                                    Text="{Binding BadgeText}"
                                                                    HorizontalAlignment="Center"
@@ -316,18 +348,29 @@
 
                                                     <!-- Label: fills the middle column, right-aligned so it
                                                          hugs the icon on the right. FlowDirection is RTL here
-                                                         so the Persian text shapes/flows correctly. Hidden in
-                                                         the compact rail. -->
+                                                         so the Persian text shapes/flows correctly. In the
+                                                         compact rail it fades out (Opacity transition) while
+                                                         the surrounding column is squeezed away by the width
+                                                         tween + ClipToBounds — no abrupt disappearance. -->
                                                     <TextBlock Grid.Column="1"
                                                                Classes="nav-label"
                                                                FlowDirection="RightToLeft"
-                                                               IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}"
                                                                VerticalAlignment="Center"
                                                                HorizontalAlignment="Right"
                                                                TextAlignment="Right"
                                                                Margin="0,0,12,0"
                                                                TextWrapping="NoWrap"
-                                                               Text="{Binding Label}" />
+                                                               ClipToBounds="False"
+                                                               Text="{Binding Label}"
+                                                               Opacity="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded, Converter={x:Static shell:SidebarView.ExpandedOpacityConverter}}">
+                                                        <TextBlock.Transitions>
+                                                            <Transitions>
+                                                                <DoubleTransition Property="Opacity"
+                                                                                  Duration="0:0:0.18"
+                                                                                  Easing="LinearEasing" />
+                                                            </Transitions>
+                                                        </TextBlock.Transitions>
+                                                    </TextBlock>
 
                                                     <!-- Icon-column spacer: reserves the fixed 18px far-right
                                                          column so the label can never slide underneath the
@@ -337,17 +380,28 @@
                                                             Width="18"
                                                             IsHitTestVisible="False" />
 
-                                                    <!-- Icon: overlaid across all columns. Expanded → pinned
-                                                         Right, so it sits in the fixed far-right column and
-                                                         every row's icon aligns vertically on the right edge.
-                                                         Compact → the label + badge collapse and the icon
-                                                         re-centers across the whole pill via the converter. -->
+                                                    <!-- Icon: overlaid across all columns and ALWAYS anchored
+                                                         to the fixed far-right column, so every row's icon
+                                                         shares one vertical line in both states (no alignment
+                                                         swap = no jump). To visually centre it in the compact
+                                                         rail we glide it inward with a TranslateTransform whose
+                                                         X is tweened by a transform Transition — the icon
+                                                         slides smoothly to the rail centre in step with the
+                                                         width tween rather than snapping between alignments. -->
                                                     <Panel Grid.Column="0"
                                                            Grid.ColumnSpan="3"
                                                            Width="18"
                                                            Height="18"
                                                            VerticalAlignment="Center"
-                                                           HorizontalAlignment="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded, Converter={x:Static shell:SidebarView.RailAlignmentConverter}}">
+                                                           HorizontalAlignment="Right"
+                                                           RenderTransform="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded, Converter={x:Static shell:SidebarView.RailIconShiftConverter}}">
+                                                        <Panel.Transitions>
+                                                            <Transitions>
+                                                                <TransformOperationsTransition Property="RenderTransform"
+                                                                                               Duration="0:0:0.30"
+                                                                                               Easing="CubicEaseOut" />
+                                                            </Transitions>
+                                                        </Panel.Transitions>
                                                         <Path Classes="icon nav-icon"
                                                               Width="18"
                                                               Height="18"
