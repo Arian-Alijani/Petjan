@@ -96,33 +96,36 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     }
 
     // ── bindable collections ─────────────────────────────────────────────────
-    public ObservableCollection<AppointmentTypeChipViewModel> TypeChips { get; } = [];
-    public ObservableCollection<AppointmentDoctorChipViewModel> DoctorChips { get; } = [];
+    // Every bound collection here is rebuilt wholesale on tab/view/filter/date
+    // changes, so they use RangeObservableCollection and commit via ReplaceAll:
+    // one Reset per rebuild instead of an O(n) notification storm (PERFORMANCE.md §5).
+    public RangeObservableCollection<AppointmentTypeChipViewModel> TypeChips { get; } = [];
+    public RangeObservableCollection<AppointmentDoctorChipViewModel> DoctorChips { get; } = [];
 
     /// <summary>Grid columns (day/week). Each column carries its own header.</summary>
-    public ObservableCollection<AppointmentColumnViewModel> Columns { get; } = [];
+    public RangeObservableCollection<AppointmentColumnViewModel> Columns { get; } = [];
 
     /// <summary>Month-grid cells (6×7).</summary>
-    public ObservableCollection<MonthCellViewModel> MonthCells { get; } = [];
+    public RangeObservableCollection<MonthCellViewModel> MonthCells { get; } = [];
 
     /// <summary>The 7-month-grid weekday header labels.</summary>
     public IReadOnlyList<string> MonthWeekdayHeaders { get; } = AppointmentsCalendarMath.DayNames;
 
     /// <summary>Hour labels for the time-grid gutter (07:00 … 21:00). Populated
     /// once during load; the gutter binds it declaratively.</summary>
-    public ObservableCollection<string> HourLabels { get; } = [];
+    public RangeObservableCollection<string> HourLabels { get; } = [];
 
     // Queue tab
-    public ObservableCollection<QueueDayViewModel> QueueDays { get; } = [];
-    public ObservableCollection<QueueDoctorColumnViewModel> QueueColumns { get; } = [];
-    public ObservableCollection<QueueStatViewModel> QueueStats { get; } = [];
+    public RangeObservableCollection<QueueDayViewModel> QueueDays { get; } = [];
+    public RangeObservableCollection<QueueDoctorColumnViewModel> QueueColumns { get; } = [];
+    public RangeObservableCollection<QueueStatViewModel> QueueStats { get; } = [];
 
     // History tab
-    public ObservableCollection<HistoryScopeChipViewModel> HistoryScopeChips { get; } = [];
-    public ObservableCollection<HistoryStatusChipViewModel> HistoryStatusChips { get; } = [];
-    public ObservableCollection<HistoryStatViewModel> HistoryStats { get; } = [];
-    public ObservableCollection<HistoryDayGroupViewModel> HistoryGroups { get; } = [];
-    public ObservableCollection<HistoryCalendarCellViewModel> HistoryCalendarDays { get; } = [];
+    public RangeObservableCollection<HistoryScopeChipViewModel> HistoryScopeChips { get; } = [];
+    public RangeObservableCollection<HistoryStatusChipViewModel> HistoryStatusChips { get; } = [];
+    public RangeObservableCollection<HistoryStatViewModel> HistoryStats { get; } = [];
+    public RangeObservableCollection<HistoryDayGroupViewModel> HistoryGroups { get; } = [];
+    public RangeObservableCollection<HistoryCalendarCellViewModel> HistoryCalendarDays { get; } = [];
 
     public IReadOnlyList<HistorySelectOption> HistoryDoctorOptions { get; private set; } = [];
     public IReadOnlyList<HistorySelectOption> HistoryTypeOptions { get; private set; } = [];
@@ -239,10 +242,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             _activeDoctorIds.Add(d.Id);
         }
 
-        for (var h = 7; h < 22; h++)
-        {
-            HourLabels.Add(AppointmentsPresentation.HourLabel(h * 60));
-        }
+        HourLabels.ReplaceAll(
+            Enumerable.Range(7, 15).Select(h => AppointmentsPresentation.HourLabel(h * 60)));
 
         HistoryDoctorOptions = BuildSelectOptions("همه پزشکان", _doctors.Select(d => (d.Id, d.ShortName)));
         HistoryTypeOptions = BuildSelectOptions("همه انواع نوبت", _types.Select(t => (t.Id, t.Label)));
@@ -428,23 +429,17 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             }
         }
 
-        TypeChips.Clear();
-        foreach (var t in _types)
-        {
-            TypeChips.Add(new AppointmentTypeChipViewModel(t, typeCounts.GetValueOrDefault(t.Id))
+        TypeChips.ReplaceAll(_types.Select(t =>
+            new AppointmentTypeChipViewModel(t, typeCounts.GetValueOrDefault(t.Id))
             {
                 IsActive = _activeTypeIds.Contains(t.Id),
-            });
-        }
+            }));
 
-        DoctorChips.Clear();
-        foreach (var d in _doctors)
-        {
-            DoctorChips.Add(new AppointmentDoctorChipViewModel(d, doctorCounts.GetValueOrDefault(d.Id))
+        DoctorChips.ReplaceAll(_doctors.Select(d =>
+            new AppointmentDoctorChipViewModel(d, doctorCounts.GetValueOrDefault(d.Id))
             {
                 IsActive = _activeDoctorIds.Contains(d.Id),
-            });
-        }
+            }));
     }
 
     private HashSet<DateOnly> ScopeDates()
@@ -484,40 +479,40 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var today = DateOnly.FromDateTime(DateTime.Today);
         var nowMinutes = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
 
-        Columns.Clear();
+        // Build the whole column set first, then commit in a single Reset
+        // (PERFORMANCE.md §5). The packing/lane logic is unchanged — only the
+        // way the result lands in the bound collection differs.
+        var built = new List<AppointmentColumnViewModel>();
+        var total = 0;
 
         if (_viewMode == "day")
         {
             var docs = _doctors.Where(d => _activeDoctorIds.Contains(d.Id)).ToList();
             var cols = docs.Count > 0 ? docs : _doctors.ToList();
             var list = OnDate(_cursor);
-            var total = 0;
 
             foreach (var c in cols)
             {
                 var evs = Pack(list.Where(a => a.DoctorId == c.Id).ToList());
                 total += evs.Count;
-                Columns.Add(new AppointmentColumnViewModel(
+                built.Add(new AppointmentColumnViewModel(
                     new AppointmentColumnHeaderViewModel(c, evs.Count),
                     evs,
                     isClosed: false,
                     nowTop: _cursor == today ? NowTop(nowMinutes) : null,
-                    isFirst: Columns.Count == 0));
+                    isFirst: built.Count == 0));
             }
-
-            HasGridEvents = total > 0;
         }
         else
         {
             var ws = AppointmentsCalendarMath.WeekStart(_cursor);
             var days = Enumerable.Range(0, 7).Select(i => ws.AddDays(i)).ToList();
-            var total = 0;
 
             foreach (var d in days)
             {
                 var list = OnDate(d);
                 total += list.Count;
-                Columns.Add(new AppointmentColumnViewModel(
+                built.Add(new AppointmentColumnViewModel(
                     new AppointmentColumnHeaderViewModel(
                         d,
                         isToday: d == today,
@@ -525,11 +520,12 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                     Pack(list),
                     isClosed: AppointmentsCalendarMath.IsFriday(d),
                     nowTop: d == today ? NowTop(nowMinutes) : null,
-                    isFirst: Columns.Count == 0));
+                    isFirst: built.Count == 0));
             }
-
-            HasGridEvents = total > 0;
         }
+
+        Columns.ReplaceAll(built);
+        HasGridEvents = total > 0;
     }
 
     private static double? NowTop(int nowMinutes)
@@ -552,7 +548,10 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var mNum = AppointmentsCalendarMath.Month(ms);
         var total = 0;
 
-        MonthCells.Clear();
+        // Build the cell list first (with the same early-break behaviour), then
+        // commit in a single Reset (PERFORMANCE.md §5). Cell computation is
+        // unchanged.
+        var cells = new List<MonthCellViewModel>();
         for (var i = 0; i < 42; i++)
         {
             var d = first.AddDays(i);
@@ -569,7 +568,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             }
 
             var shown = list.Take(3).Select(a => new MonthEventViewModel(a, TypeOf(a.TypeId))).ToList();
-            MonthCells.Add(new MonthCellViewModel(
+            cells.Add(new MonthCellViewModel(
                 d,
                 isOut,
                 isToday: d == today,
@@ -579,6 +578,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 isFirstInRow: i % 7 == 0));
         }
 
+        MonthCells.ReplaceAll(cells);
         HasMonthEvents = total > 0;
     }
 
@@ -653,39 +653,40 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var nowMinutes = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
         var tk = today;
 
-        QueueDays.Clear();
         var days = Enumerable.Range(0, 14).Select(i => today.AddDays(_queueOffset * 7 + i)).ToList();
-        foreach (var d in days)
+        QueueDays.ReplaceAll(days.Select(d =>
         {
             var n = _byDate.TryGetValue(d, out var dayBucket)
                 ? dayBucket.Count(a => a.Status != AppointmentStatus.Cancelled)
                 : 0;
-            QueueDays.Add(new QueueDayViewModel(
+            return new QueueDayViewModel(
                 d,
                 isToday: d == tk,
                 isClosed: AppointmentsCalendarMath.IsFriday(d),
                 count: n)
             {
                 IsActive = d == _queueDay,
-            });
-        }
+            };
+        }));
 
         var list = _all.Where(a => a.Date == _queueDay && Visible(a) && Matches(a)).ToList();
-        QueueStats.Clear();
-        QueueStats.Add(new QueueStatViewModel("کل", AppointmentsPresentation.Fa(list.Count), Tone.Neutral));
-        QueueStats.Add(new QueueStatViewModel(
-            "در انتظار تأیید", AppointmentsPresentation.Fa(list.Count(a => a.Status == AppointmentStatus.Pending)), Tone.Warn));
-        QueueStats.Add(new QueueStatViewModel(
-            "پذیرش‌شده", AppointmentsPresentation.Fa(list.Count(a => a.Status == AppointmentStatus.Done)), Tone.Ok));
-        QueueStats.Add(new QueueStatViewModel(
-            "لغوشده", AppointmentsPresentation.Fa(list.Count(a => a.Status == AppointmentStatus.Cancelled)), Tone.Danger));
+        QueueStats.ReplaceAll(
+        [
+            new QueueStatViewModel("کل", AppointmentsPresentation.Fa(list.Count), Tone.Neutral),
+            new QueueStatViewModel(
+                "در انتظار تأیید", AppointmentsPresentation.Fa(list.Count(a => a.Status == AppointmentStatus.Pending)), Tone.Warn),
+            new QueueStatViewModel(
+                "پذیرش‌شده", AppointmentsPresentation.Fa(list.Count(a => a.Status == AppointmentStatus.Done)), Tone.Ok),
+            new QueueStatViewModel(
+                "لغوشده", AppointmentsPresentation.Fa(list.Count(a => a.Status == AppointmentStatus.Cancelled)), Tone.Danger),
+        ]);
 
         var isToday = _queueDay == tk;
         QueueIsToday = isToday;
         QueueDateText = AppointmentsCalendarMath.DayNames[AppointmentsCalendarMath.WeekIndex(_queueDay)] +
                         "، " + AppointmentsCalendarMath.Full(_queueDay);
 
-        QueueColumns.Clear();
+        var columns = new List<QueueDoctorColumnViewModel>();
         foreach (var d in _doctors)
         {
             var items = list
@@ -714,8 +715,10 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 i + 1,
                 a.Id == nowId ? QueueLiveBadge.Now : a.Id == nextId ? QueueLiveBadge.Next : QueueLiveBadge.None)).ToList();
 
-            QueueColumns.Add(new QueueDoctorColumnViewModel(d, cards));
+            columns.Add(new QueueDoctorColumnViewModel(d, cards));
         }
+
+        QueueColumns.ReplaceAll(columns);
     }
 
     // ── history tab ──────────────────────────────────────────────────────────
@@ -733,40 +736,36 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var revOwed = list.Where(a => a.Invoice == AppointmentInvoiceState.Unpaid).Sum(a => (long)a.Total)
                       + list.Where(a => a.Invoice == AppointmentInvoiceState.Partial).Sum(a => (long)Math.Round(a.Total / 2.0));
 
-        HistoryScopeChips.Clear();
         var scopes = new (string Id, string Label)[]
         {
             ("today", "امروز"), ("7", "۷ روز اخیر"), ("30", "۳۰ روز اخیر"), ("month", "ماه جاری"), ("all", "همه"),
         };
-        foreach (var s in scopes)
-        {
-            HistoryScopeChips.Add(new HistoryScopeChipViewModel(s.Id, s.Label) { IsActive = _historyScope == s.Id });
-        }
+        HistoryScopeChips.ReplaceAll(scopes.Select(s =>
+            new HistoryScopeChipViewModel(s.Id, s.Label) { IsActive = _historyScope == s.Id }));
 
-        HistoryStatusChips.Clear();
         var statuses = new (string Id, string Label)[]
         {
             ("all", "همه وضعیت‌ها"), ("done", "پذیرش شده"), ("cancel", "لغو شده"),
         };
-        foreach (var s in statuses)
-        {
-            HistoryStatusChips.Add(new HistoryStatusChipViewModel(s.Id, s.Label) { IsActive = _historyStatus == s.Id });
-        }
+        HistoryStatusChips.ReplaceAll(statuses.Select(s =>
+            new HistoryStatusChipViewModel(s.Id, s.Label) { IsActive = _historyStatus == s.Id }));
 
-        HistoryStats.Clear();
-        HistoryStats.Add(new HistoryStatViewModel("IconRows", AppointmentsPresentation.Fa(list.Count), "کل نوبت‌ها", Tone.Neutral));
-        HistoryStats.Add(new HistoryStatViewModel("IconCheck", AppointmentsPresentation.Fa(done), "پذیرش شده", Tone.Ok));
-        HistoryStats.Add(new HistoryStatViewModel("IconX", AppointmentsPresentation.Fa(cancel), "لغو شده", Tone.Danger));
-        HistoryStats.Add(new HistoryStatViewModel("IconAlert", AppointmentsPresentation.Fa(noShow), "عدم مراجعه", Tone.Warn));
-        HistoryStats.Add(new HistoryStatViewModel(
-            "IconWallet", PersianNumberFormatter.FormatGrouped(revPaid), "درآمد وصولی (تومان)", Tone.Ok));
-        HistoryStats.Add(new HistoryStatViewModel(
-            "IconAlert", PersianNumberFormatter.FormatGrouped(revOwed), "مطالبات معوق (تومان)", Tone.Danger));
+        HistoryStats.ReplaceAll(
+        [
+            new HistoryStatViewModel("IconRows", AppointmentsPresentation.Fa(list.Count), "کل نوبت‌ها", Tone.Neutral),
+            new HistoryStatViewModel("IconCheck", AppointmentsPresentation.Fa(done), "پذیرش شده", Tone.Ok),
+            new HistoryStatViewModel("IconX", AppointmentsPresentation.Fa(cancel), "لغو شده", Tone.Danger),
+            new HistoryStatViewModel("IconAlert", AppointmentsPresentation.Fa(noShow), "عدم مراجعه", Tone.Warn),
+            new HistoryStatViewModel(
+                "IconWallet", PersianNumberFormatter.FormatGrouped(revPaid), "درآمد وصولی (تومان)", Tone.Ok),
+            new HistoryStatViewModel(
+                "IconAlert", PersianNumberFormatter.FormatGrouped(revOwed), "مطالبات معوق (تومان)", Tone.Danger),
+        ]);
 
         HistoryTotalText = AppointmentsPresentation.Fa(list.Count) + " نوبت" +
                            (string.IsNullOrEmpty(_searchQuery) ? string.Empty : $" · نتیجهٔ «{_searchQuery}»");
 
-        HistoryGroups.Clear();
+        var groups = new List<HistoryDayGroupViewModel>();
         HistoryDayGroupViewModel? current = null;
         var rows = new List<HistoryRowViewModel>();
         DateOnly lastDay = default;
@@ -778,7 +777,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             {
                 if (current is not null)
                 {
-                    HistoryGroups.Add(current);
+                    groups.Add(current);
                 }
 
                 lastDay = a.Date;
@@ -796,9 +795,10 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         if (current is not null)
         {
-            HistoryGroups.Add(current);
+            groups.Add(current);
         }
 
+        HistoryGroups.ReplaceAll(groups);
         HasHistoryRows = list.Count > 0;
 
         RenderHistoryCalendar();
@@ -874,7 +874,6 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private void RenderHistoryCalendar()
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
-        HistoryCalendarDays.Clear();
 
         var monthStart = AppointmentsCalendarMath.MonthStart(_historyCalendarCursor);
         var mNum = AppointmentsCalendarMath.Month(monthStart);
@@ -887,6 +886,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var hi = _historyRangeStart is not null && _historyRangeEnd is not null
             ? (_historyRangeStart.Value <= _historyRangeEnd.Value ? _historyRangeEnd.Value : _historyRangeStart.Value) : (DateOnly?)null;
 
+        var calendarCells = new List<HistoryCalendarCellViewModel>(42);
         for (var i = 0; i < 42; i++)
         {
             var d = gridStart.AddDays(i);
@@ -896,7 +896,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 : _historyRangeStart is not null && _historyRangeEnd is null && d == _historyRangeStart;
             var edge = d == _historyRangeStart || d == _historyRangeEnd;
 
-            HistoryCalendarDays.Add(new HistoryCalendarCellViewModel(
+            calendarCells.Add(new HistoryCalendarCellViewModel(
                 d,
                 isOut,
                 isToday: d == today,
@@ -906,6 +906,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 inRange,
                 edge));
         }
+
+        HistoryCalendarDays.ReplaceAll(calendarCells);
 
         HistoryCalendarLabel = AppointmentsCalendarMath.MonthName(monthStart) + " " +
                                PersianNumberFormatter.ToPersianDigits(yNum);

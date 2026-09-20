@@ -34,6 +34,9 @@ public sealed class WeightChart : Control
     private static readonly IBrush DotFill = new SolidColorBrush(Colors.White);
     private static readonly IBrush XLabelBrush = new SolidColorBrush(Color.Parse("#667085"));
     private static readonly Pen GridPen = new(GridBrush, 1);
+    // Dashed gridline pen for ticks 1..4 (tick 0 uses the solid GridPen). Constant,
+    // so hoist it instead of allocating a fresh dashed pen per tick per frame (§10).
+    private static readonly Pen GridDashPen = new(GridBrush, 1, new DashStyle([3, 4], 0));
     private static readonly Typeface ChartTypeface = new(FontFamily.Default);
 
     static WeightChart()
@@ -54,6 +57,22 @@ public sealed class WeightChart : Control
         get => GetValue(LineBrushProperty);
         set => SetValue(LineBrushProperty, value);
     }
+
+    // ---- render-pass geometry cache (PERFORMANCE.md §11/§10) ----------------
+    // The area fill geometry + its gradient, the line geometry and the line/dot
+    // pens are derived purely from the layout (bounds), the Points list and the
+    // line brush. Render runs on every resize/redraw, so they are rebuilt only
+    // when a real input changes and reused otherwise. Point coordinates
+    // (X/Y math) are unchanged; only their timing moved off the per-frame path.
+    private StreamGeometry? _areaGeometry, _lineGeometry;
+    private IBrush? _areaBrush;
+    private Pen? _linePen, _dotPen;
+    private double _cacheW, _cacheH;
+    private IReadOnlyList<WeightChartPoint>? _cacheSource;
+    private IBrush? _cacheLineBrush;
+    // Cached scaling for the current layout so the axis/label loops reuse the
+    // same X/Y mapping the geometry was built with.
+    private double _pMin, _pRange, _pIw, _pIh;
 
     public override void Render(DrawingContext ctx)
     {
@@ -80,6 +99,92 @@ public sealed class WeightChart : Control
         }
 
         // pad mirrors the reference: { t:14, r:10, b:26, l:40 }
+        // (padB is applied inside EnsureCache when computing the inner height.)
+        const double padT = 14, padR = 10, padL = 40;
+
+        EnsureCache(points, w, h);
+
+        var iw = _pIw;
+        var ih = _pIh;
+        var min = _pMin;
+        var range = _pRange;
+
+        double X(int i) => padL + (points.Count <= 1 ? iw / 2 : (iw * i) / (points.Count - 1));
+        double Y(double v) => padT + ih - (((v - min) / range) * ih);
+
+        // gridlines + Y axis labels
+        const int ticks = 4;
+        for (var i = 0; i <= ticks; i++)
+        {
+            var v = min + (range * i / ticks);
+            var y = Y(v);
+            var pen = i == 0 ? gridPen : GridDashPen;
+            ctx.DrawLine(pen, new Point(padL, y), new Point(w - padR, y));
+
+            var label = new FormattedText(
+                PersianLabel(v), CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                typeface, fontSize, axisBrush);
+            ctx.DrawText(label, new Point(padL - 6 - label.Width, y - (label.Height / 2)));
+        }
+
+        // area under the line (brand gradient) — cached geometry + gradient
+        if (_areaGeometry is not null && _areaBrush is not null)
+        {
+            ctx.DrawGeometry(_areaBrush, null, _areaGeometry);
+        }
+
+        // line — cached geometry + pen
+        if (_lineGeometry is not null && _linePen is not null)
+        {
+            ctx.DrawGeometry(null, _linePen, _lineGeometry);
+        }
+
+        // dots — cached pen
+        var dotFill = DotFill;
+        var dotPen = _dotPen;
+        if (dotPen is not null)
+        {
+            for (var i = 0; i < points.Count; i++)
+            {
+                ctx.DrawEllipse(dotFill, dotPen, new Point(X(i), Y(points[i].Value)), 4, 4);
+            }
+        }
+
+        // X axis labels (thin out when crowded, like the reference)
+        var step = points.Count > 6 ? (int)System.Math.Ceiling(points.Count / 6.0) : 1;
+        for (var i = 0; i < points.Count; i++)
+        {
+            if (points.Count > 6 && i % step != 0 && i != points.Count - 1)
+            {
+                continue;
+            }
+
+            var t = new FormattedText(
+                points[i].ShortLabel, CultureInfo.InvariantCulture, FlowDirection.RightToLeft,
+                typeface, fontSize, axisBrush);
+            ctx.DrawText(t, new Point(X(i) - (t.Width / 2), h - 6 - t.Height));
+        }
+    }
+
+    /// <summary>
+    /// (Re)builds the cached area/line geometries, the area gradient and the
+    /// line/dot pens — only when the layout, the point list or the line brush
+    /// actually changed. The min/max/range and X/Y math are unchanged; only their
+    /// timing moved off the per-frame path.
+    /// </summary>
+    private void EnsureCache(IReadOnlyList<WeightChartPoint> points, double w, double h)
+    {
+        if (ReferenceEquals(_cacheSource, points) && _cacheW == w && _cacheH == h &&
+            ReferenceEquals(_cacheLineBrush, LineBrush))
+        {
+            return;
+        }
+
+        _cacheSource = points;
+        _cacheW = w;
+        _cacheH = h;
+        _cacheLineBrush = LineBrush;
+
         const double padT = 14, padR = 10, padB = 26, padL = 40;
         var iw = w - padL - padR;
         var ih = h - padT - padB;
@@ -97,25 +202,15 @@ public sealed class WeightChart : Control
         max += span * 0.22;
         var range = max - min;
 
+        _pMin = min;
+        _pRange = range;
+        _pIw = iw;
+        _pIh = ih;
+
         double X(int i) => padL + (points.Count <= 1 ? iw / 2 : (iw * i) / (points.Count - 1));
         double Y(double v) => padT + ih - (((v - min) / range) * ih);
 
-        // gridlines + Y axis labels
-        const int ticks = 4;
-        for (var i = 0; i <= ticks; i++)
-        {
-            var v = min + (range * i / ticks);
-            var y = Y(v);
-            var pen = i == 0 ? gridPen : new Pen(gridPen.Brush, 1, new DashStyle([3, 4], 0));
-            ctx.DrawLine(pen, new Point(padL, y), new Point(w - padR, y));
-
-            var label = new FormattedText(
-                PersianLabel(v), CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-                typeface, fontSize, axisBrush);
-            ctx.DrawText(label, new Point(padL - 6 - label.Width, y - (label.Height / 2)));
-        }
-
-        // area under the line (brand gradient)
+        // area geometry
         var areaGeometry = new StreamGeometry();
         using (var g = areaGeometry.Open())
         {
@@ -129,19 +224,21 @@ public sealed class WeightChart : Control
             g.EndFigure(true);
         }
 
-        var areaBrush = new LinearGradientBrush
+        _areaGeometry = areaGeometry;
+
+        var areaColor = ((SolidColorBrush)LineBrush).Color;
+        _areaBrush = new LinearGradientBrush
         {
             StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
             EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
             GradientStops =
             {
-                new GradientStop(((SolidColorBrush)LineBrush).Color, 0.20),
-                new GradientStop(((SolidColorBrush)LineBrush).Color, 0),
+                new GradientStop(areaColor, 0.20),
+                new GradientStop(areaColor, 0),
             },
         };
-        ctx.DrawGeometry(areaBrush, null, areaGeometry);
 
-        // line
+        // line geometry
         var lineGeometry = new StreamGeometry();
         using (var g = lineGeometry.Open())
         {
@@ -154,30 +251,10 @@ public sealed class WeightChart : Control
             g.EndFigure(false);
         }
 
-        ctx.DrawGeometry(null, new Pen(LineBrush, 2.4), lineGeometry);
+        _lineGeometry = lineGeometry;
 
-        // dots
-        var dotFill = DotFill;
-        var dotPen = new Pen(LineBrush, 2.2);
-        for (var i = 0; i < points.Count; i++)
-        {
-            ctx.DrawEllipse(dotFill, dotPen, new Point(X(i), Y(points[i].Value)), 4, 4);
-        }
-
-        // X axis labels (thin out when crowded, like the reference)
-        var step = points.Count > 6 ? (int)System.Math.Ceiling(points.Count / 6.0) : 1;
-        for (var i = 0; i < points.Count; i++)
-        {
-            if (points.Count > 6 && i % step != 0 && i != points.Count - 1)
-            {
-                continue;
-            }
-
-            var t = new FormattedText(
-                points[i].ShortLabel, CultureInfo.InvariantCulture, FlowDirection.RightToLeft,
-                typeface, fontSize, axisBrush);
-            ctx.DrawText(t, new Point(X(i) - (t.Width / 2), h - 6 - t.Height));
-        }
+        _linePen = new Pen(LineBrush, 2.4);
+        _dotPen = new Pen(LineBrush, 2.2);
     }
 
     private static string PersianLabel(double v)
