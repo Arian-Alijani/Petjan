@@ -3,6 +3,7 @@
         xmlns:login="using:Animora.Desktop.Pages.Login"
         x:Class="Animora.Desktop.Pages.Login.LoginWindow"
         x:DataType="login:LoginViewModel"
+        Icon="avares://Animora.Desktop/Assets/Brand/vetplus.ico"
         Title="ورود — وت‌پلاس"
         Width="960"
         Height="620"
@@ -61,14 +62,17 @@
                             VerticalAlignment="Center"
                             Margin="48,0"
                             Spacing="18">
-                    <Border Width="60" Height="60"
-                            CornerRadius="16"
-                            Background="#33FFFFFF"
-                            HorizontalAlignment="Right">
-                        <Path Width="30" Height="30"
-                              Stretch="Uniform"
-                              Fill="White"
-                              Data="{StaticResource IconPaw}" />
+                    <!-- Brand logo: the VetPlus guardian-shield paw mark. The
+                         transparent PNG reads cleanly over the teal panel; a
+                         soft frosted plate behind it lifts it off the gradient. -->
+                    <Border Width="76" Height="76"
+                            CornerRadius="20"
+                            Background="#26FFFFFF"
+                            HorizontalAlignment="Right"
+                            Padding="10">
+                        <Image Width="56" Height="56"
+                               Stretch="Uniform"
+                               Source="avares://Animora.Desktop/Assets/Brand/vetplus-mark-256.png" />
                     </Border>
                     <TextBlock Text="وت‌پلاس"
                                FontSize="34"

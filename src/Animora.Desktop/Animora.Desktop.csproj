@@ -93,6 +93,22 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Brand assets: the VetPlus (وت‌پلاس) logo mark — a modern, minimal teal
+         "guardian shield" enclosing a paw whose central pad is a negative-space
+         medical cross. The transparent mark works on any surface (white sidebar
+         or teal login panel). Bundled as Avalonia resources so it loads via
+         avares:// with zero external-Internet dependency (STACK hard rule). -->
+    <!-- 1024px master (vetplus-mark.png) is tracked in the repo as the source
+         of truth for regenerating sizes, but intentionally NOT bundled as an
+         Avalonia resource — the app only ever displays the 512/256/128 sizes. -->
+    <AvaloniaResource Include="Assets\Brand\vetplus-mark-512.png" />
+    <AvaloniaResource Include="Assets\Brand\vetplus-mark-256.png" />
+    <AvaloniaResource Include="Assets\Brand\vetplus-mark-128.png" />
+    <AvaloniaResource Include="Assets\Brand\vetplus-logo-white-512.png" />
+    <AvaloniaResource Include="Assets\Brand\vetplus.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Animora.Contracts\Animora.Contracts.csproj" />
   </ItemGroup>
 
