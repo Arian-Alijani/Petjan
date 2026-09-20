@@ -105,6 +105,11 @@
     <AvaloniaResource Include="Assets\Brand\vetplus-mark-256.png" />
     <AvaloniaResource Include="Assets\Brand\vetplus-mark-128.png" />
     <AvaloniaResource Include="Assets\Brand\vetplus-logo-white-512.png" />
+    <!-- Clean paw-shield mark, derived from the undamaged vetplus-logo-white-512
+         source. The vetplus-mark-* variants carry background-removal artefacts
+         (cracks across the centre paw pad); the login uses these clean marks. -->
+    <AvaloniaResource Include="Assets\Brand\vetplus-mark-clean-512.png" />
+    <AvaloniaResource Include="Assets\Brand\vetplus-mark-clean-256.png" />
     <AvaloniaResource Include="Assets\Brand\vetplus.ico" />
   </ItemGroup>
 
