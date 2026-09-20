@@ -23,8 +23,19 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FontSize" Value="{StaticResource FontSizeSm}" />
             <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <!-- Explicit dark ink so typed text is readable. The LoginWindow is a
+                 standalone Window and does not always inherit App.axaml's global
+                 TextBox foreground, which left the entered text white/invisible. -->
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="CaretBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="SelectionBrush" Value="{StaticResource Brand400Brush}" />
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
             <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <!-- Keep the ink foreground stable across pointer-over / focus template
+             states so the text never flips to a theme-default light colour. -->
+        <Style Selector="TextBox.field /template/ TextPresenter#PART_TextPresenter">
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
         </Style>
         <Style Selector="TextBlock.label">
             <Setter Property="FontSize" Value="{StaticResource FontSizeXs}" />
@@ -72,7 +83,7 @@
                             Padding="10">
                         <Image Width="56" Height="56"
                                Stretch="Uniform"
-                               Source="avares://Animora.Desktop/Assets/Brand/vetplus-mark-256.png" />
+                               Source="avares://Animora.Desktop/Assets/Brand/vetplus-mark-clean-256.png" />
                     </Border>
                     <TextBlock Text="وت‌پلاس"
                                FontSize="34"
