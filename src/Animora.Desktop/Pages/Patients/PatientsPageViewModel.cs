@@ -26,6 +26,18 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     private IReadOnlyList<PetSummary> _allPets = [];
     private IReadOnlyList<OwnerSummary> _allOwners = [];
 
+    // O(1) lookup indexes (PERFORMANCE.md §2/§13): rebuilt once per data load in
+    // RebuildIndexes(), never inside ApplyFilter. Mirrors the reference pattern in
+    // AppointmentsCalendarViewModel.RebuildIndexes(). These turn the previous
+    // O(owners × pets) filter into O(owners + pets).
+    private readonly Dictionary<string, OwnerSummary> _ownersById = [];
+    private readonly Dictionary<string, List<PetSummary>> _petsByOwnerId = [];
+
+    // Pre-normalized per-item search haystacks: computed once at load time so the
+    // per-keystroke ApplyFilter never rebuilds a StringBuilder/string per item.
+    private readonly Dictionary<string, string> _petHaystack = [];
+    private readonly Dictionary<string, string> _ownerHaystack = [];
+
     [ObservableProperty]
     private string _searchText = string.Empty;
 
@@ -202,7 +214,9 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     [RelayCommand]
     private void AddNewOwnerPet() =>
         _dialogs.ShowModal(new AddPatientWizardViewModel(
-            _patientsQueryService, _dialogs, () => ApplyFilter()), maxWidth: 760);
+            // The wizard persists a new owner/pet, so reload (which rebuilds the
+            // lookup/haystack indexes) rather than re-filtering stale data.
+            _patientsQueryService, _dialogs, () => _ = LoadAsync()), maxWidth: 760);
 
     [RelayCommand]
     private void CallOwner(OwnerSummary? owner)
@@ -246,6 +260,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         {
             _allPets = await _patientsQueryService.GetPetsAsync();
             _allOwners = await _patientsQueryService.GetOwnersAsync();
+            RebuildIndexes();
             ApplyFilter();
         }
         finally
@@ -301,12 +316,10 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             return true;
         }
 
-        var owner = OwnerById(pet.OwnerId);
-        var haystack = PersianText.Normalize(string.Join(' ',
-            pet.Name, pet.Code, pet.Breed, PatientsPresentation.SpeciesLabel(pet.Species),
-            pet.Color, owner?.FirstName, owner?.LastName, owner?.File,
-            owner?.Mobile1, owner?.Mobile2, owner?.Phone, owner?.NationalId, pet.MicrochipCode));
-        return PersianText.Contains(haystack, needle);
+        // Text match uses the pre-normalized haystack built in RebuildIndexes()
+        // instead of re-joining/normalizing per keystroke (PERFORMANCE.md §2).
+        return _petHaystack.TryGetValue(pet.Id, out var haystack)
+            && PersianText.Contains(haystack, needle);
     }
 
     private bool OwnerMatches(OwnerSummary owner, string needle, IReadOnlyList<PetSummary> matchedPets)
@@ -324,10 +337,10 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             return true;
         }
 
-        var haystack = PersianText.Normalize(string.Join(' ',
-            owner.FirstName, owner.LastName, owner.File, owner.Mobile1, owner.Mobile2,
-            owner.Phone, owner.NationalId, owner.Address, owner.Referral));
-        return PersianText.Contains(haystack, needle) || hasPet;
+        // Text match uses the pre-normalized haystack built in RebuildIndexes()
+        // instead of re-joining/normalizing per keystroke (PERFORMANCE.md §2).
+        return (_ownerHaystack.TryGetValue(owner.Id, out var haystack)
+            && PersianText.Contains(haystack, needle)) || hasPet;
     }
 
     /// <summary>
@@ -414,8 +427,47 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     }
 
     private OwnerSummary? OwnerById(string ownerId) =>
-        _allOwners.FirstOrDefault(o => o.Id == ownerId);
+        _ownersById.GetValueOrDefault(ownerId);
 
     private IReadOnlyList<PetSummary> PetsOfOwner(string ownerId) =>
-        _allPets.Where(p => p.OwnerId == ownerId).ToArray();
+        _petsByOwnerId.GetValueOrDefault(ownerId) ?? [];
+
+    /// <summary>
+    /// Rebuilds the owner/pet id indexes and the per-item search haystacks.
+    /// Call once whenever <see cref="_allPets"/>/<see cref="_allOwners"/> change
+    /// (i.e. after every <see cref="LoadAsync"/>) — never inside the filter loop.
+    /// Mirrors <c>AppointmentsCalendarViewModel.RebuildIndexes()</c>. This is what
+    /// keeps <see cref="ApplyFilter"/> at O(owners + pets) instead of O(owners × pets).
+    /// </summary>
+    private void RebuildIndexes()
+    {
+        _ownersById.Clear();
+        _ownerHaystack.Clear();
+        foreach (var owner in _allOwners)
+        {
+            _ownersById[owner.Id] = owner;
+            _ownerHaystack[owner.Id] = PersianText.Normalize(string.Join(' ',
+                owner.FirstName, owner.LastName, owner.File, owner.Mobile1, owner.Mobile2,
+                owner.Phone, owner.NationalId, owner.Address, owner.Referral));
+        }
+
+        _petsByOwnerId.Clear();
+        _petHaystack.Clear();
+        foreach (var pet in _allPets)
+        {
+            if (!_petsByOwnerId.TryGetValue(pet.OwnerId, out var bucket))
+            {
+                bucket = [];
+                _petsByOwnerId[pet.OwnerId] = bucket;
+            }
+
+            bucket.Add(pet);
+
+            var owner = _ownersById.GetValueOrDefault(pet.OwnerId);
+            _petHaystack[pet.Id] = PersianText.Normalize(string.Join(' ',
+                pet.Name, pet.Code, pet.Breed, PatientsPresentation.SpeciesLabel(pet.Species),
+                pet.Color, owner?.FirstName, owner?.LastName, owner?.File,
+                owner?.Mobile1, owner?.Mobile2, owner?.Phone, owner?.NationalId, pet.MicrochipCode));
+        }
+    }
 }
