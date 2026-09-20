@@ -184,7 +184,6 @@
                             <TextBox x:Name="SearchBox" Classes="ap-search" MinWidth="220"
                                      PlaceholderText="جستجوی بیمار، مالک یا پزشک…"
                                      Text="{Binding SearchQueryText, Mode=TwoWay}"
-                                     TextChanged="OnSearchTextChanged"
                                      KeyDown="OnSearchKeyDown" />
                             <Path Classes="icon" Width="16" Height="16" Margin="13,0,0,0"
                                   HorizontalAlignment="Left" VerticalAlignment="Center"

@@ -158,7 +158,9 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 
     partial void OnModeChanged(VisitEntryMode value) => NotifyState();
 
-    partial void OnSearchTextChanged(string value) => BuildBookedRows();
+    private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
+
+    partial void OnSearchTextChanged(string value) => _searchDebounce.Debounce(BuildBookedRows);
 
     partial void OnActiveTypeFilterChanged(string value)
     {

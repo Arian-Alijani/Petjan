@@ -77,10 +77,12 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
     public bool CanGoPrevious => PageNumber > 1;
     public bool CanGoNext => PageNumber * PageSize < FilterQueue().Count();
 
+    private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
+
     partial void OnSearchTextChanged(string value)
     {
         PageNumber = 1;
-        ApplyFilter();
+        _searchDebounce.Debounce(ApplyFilter);
     }
 
     partial void OnPageNumberChanged(int value) => NotifyPageState();

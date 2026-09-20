@@ -246,10 +246,10 @@
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                                 <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
                                       Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}" />
-                                <TextBox Grid.Column="1" Text="{Binding SearchQueryText}" Background="Transparent"
+                                <TextBox Grid.Column="1" Text="{Binding SearchQueryText, Mode=TwoWay}" Background="Transparent"
                                          BorderThickness="0" FontSize="13" VerticalContentAlignment="Center"
                                          PlaceholderText="جستجوی حیوان، مالک، اتاق…"
-                                         TextChanged="OnSearchTextChanged" KeyDown="OnSearchKeyDown" />
+                                         KeyDown="OnSearchKeyDown" />
                                 <Button Grid.Column="2" Classes="ghost" Width="28" Height="28" Padding="4"
                                         IsVisible="{Binding HasSearchValue}" Command="{Binding ClearSearchCommand}"
                                         ToolTip.Tip="پاک‌کردن">

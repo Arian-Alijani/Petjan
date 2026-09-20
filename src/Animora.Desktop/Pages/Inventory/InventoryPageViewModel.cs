@@ -37,6 +37,9 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private string _catFilter = "all";
     private string _stockFilter = "all";
 
+    // Debounced search (~160ms after typing stops), moved out of the code-behind.
+    private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
+
     public InventoryPageViewModel(IInventoryQueryService service, IToastService toast, IDialogService dialogs)
     {
         _service = service;
@@ -269,6 +272,14 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         _stockFilter = key;
         BuildFilterChips();
         RefreshProducts();
+    }
+
+    // The bound search box drives the filter through the ViewModel: update the
+    // clear-chip flag immediately, then debounce the (heavier) product refresh.
+    partial void OnSearchTextChanged(string value)
+    {
+        HasSearchValue = value.Trim().Length > 0;
+        _searchDebounce.Debounce(() => ApplySearch(SearchText));
     }
 
     public void ApplySearch(string? text)

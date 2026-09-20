@@ -372,6 +372,22 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         IsSpeciesDropdownOpen = false;
     }
 
+    // Search debounce (~160ms), moved out of the code-behind into the VM.
+    private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
+    private readonly Debouncer _historyDebounce = new(System.TimeSpan.FromMilliseconds(160));
+
+    partial void OnSearchQueryTextChanged(string value)
+    {
+        HasSearchValue = value.Trim().Length > 0;
+        _searchDebounce.Debounce(() => ApplySearch(SearchQueryText));
+    }
+
+    partial void OnHistoryQueryTextChanged(string value)
+    {
+        HasHistoryQuery = value.Trim().Length > 0;
+        _historyDebounce.Debounce(() => ApplyHistorySearch(HistoryQueryText));
+    }
+
     public void ApplySearch(string? text)
     {
         _searchQuery = text?.Trim() ?? string.Empty;

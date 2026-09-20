@@ -219,10 +219,10 @@
                             <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
                                   VerticalAlignment="Center" Stroke="{StaticResource MutedBrush}"
                                   Data="{StaticResource IconSearch}" IsHitTestVisible="False" />
-                            <TextBox Grid.Column="1" Text="{Binding SearchQueryText}" Background="Transparent"
+                            <TextBox Grid.Column="1" Text="{Binding SearchQueryText, Mode=TwoWay}" Background="Transparent"
                                      BorderThickness="0" FontSize="13" VerticalContentAlignment="Center" Padding="0,10"
                                      PlaceholderText="جستجوی بیمار، مالک یا واکسن…"
-                                     TextChanged="OnSearchTextChanged" KeyDown="OnSearchKeyDown" />
+                                     KeyDown="OnSearchKeyDown" />
                             <Button Grid.Column="2" Width="20" Height="20" Padding="0" CornerRadius="999"
                                     Background="{StaticResource Brand50Brush}" BorderThickness="0"
                                     VerticalAlignment="Center"
