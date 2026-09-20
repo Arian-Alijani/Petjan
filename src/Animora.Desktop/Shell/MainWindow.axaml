@@ -33,9 +33,14 @@
                            DataContext="{Binding Sidebar}">
             <shell:SidebarView.Transitions>
                 <Transitions>
+                    <!-- Smooth, single-authority width tween. A slightly longer
+                         duration + CubicEaseOut (fast start, gentle settle)
+                         reads as a natural fold rather than a snap, and matches
+                         the inner label/badge opacity fades so the whole rail
+                         collapses/expands as one motion. -->
                     <DoubleTransition Property="Width"
-                                      Duration="0:0:0.24"
-                                      Easing="CubicEaseInOut" />
+                                      Duration="0:0:0.30"
+                                      Easing="CubicEaseOut" />
                 </Transitions>
             </shell:SidebarView.Transitions>
         </shell:SidebarView>
