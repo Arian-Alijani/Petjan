@@ -24,6 +24,13 @@ public sealed class MockVaccinationService : IVaccinationService
     private readonly IReadOnlyList<VaccineCatalogEntry> _catalog;
     private readonly IReadOnlyList<SmsTemplate> _templates;
 
+    // O(1) id -> list-index lookup (PERFORMANCE.md §2/§13): records are only
+    // ever mutated in place (never inserted/removed), so this index never
+    // needs a rebuild after construction.
+    private readonly Dictionary<string, int> _recordIndexById = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, VaccineCatalogEntry> _catalogById;
+    private readonly Dictionary<string, SmsTemplate> _templatesById;
+
     public MockVaccinationService()
     {
         _catalog =
@@ -59,6 +66,19 @@ public sealed class MockVaccinationService : IVaccinationService
         ];
 
         _records = BuildRecords();
+
+        _catalogById = _catalog.ToDictionary(c => c.Id, StringComparer.Ordinal);
+        _templatesById = _templates.ToDictionary(t => t.Id, StringComparer.Ordinal);
+        RebuildRecordIndex();
+    }
+
+    private void RebuildRecordIndex()
+    {
+        _recordIndexById.Clear();
+        for (var i = 0; i < _records.Count; i++)
+        {
+            _recordIndexById[_records[i].Id] = i;
+        }
     }
 
     public Task<IReadOnlyList<VaccinationRecord>> GetRecordsAsync() =>
@@ -72,7 +92,7 @@ public sealed class MockVaccinationService : IVaccinationService
 
     public Task<VaccinationRecord> MarkDoneAsync(string recordId)
     {
-        var index = _records.FindIndex(r => r.Id == recordId);
+        var index = _recordIndexById.GetValueOrDefault(recordId, -1);
         if (index < 0)
         {
             throw new KeyNotFoundException($"Vaccination record '{recordId}' was not found.");
@@ -85,10 +105,14 @@ public sealed class MockVaccinationService : IVaccinationService
 
     public Task<SmsPreview> BuildSmsPreviewAsync(string recordId, string templateId)
     {
-        var record = _records.Find(r => r.Id == recordId)
-            ?? throw new KeyNotFoundException($"Vaccination record '{recordId}' was not found.");
-        var template = _templates.FirstOrDefault(t => t.Id == templateId) ?? _templates[0];
-        var vaccine = _catalog.FirstOrDefault(v => v.Id == record.VaccineId);
+        var record = _recordIndexById.TryGetValue(recordId, out var rIndex) ? _records[rIndex] : null;
+        if (record is null)
+        {
+            throw new KeyNotFoundException($"Vaccination record '{recordId}' was not found.");
+        }
+
+        var template = _templatesById.GetValueOrDefault(templateId) ?? _templates[0];
+        var vaccine = _catalogById.GetValueOrDefault(record.VaccineId);
 
         var body = template.Body
             .Replace("{owner}", record.OwnerName)
@@ -105,7 +129,7 @@ public sealed class MockVaccinationService : IVaccinationService
 
     public Task<VaccinationRecord> SendSmsAsync(string recordId, string message)
     {
-        var index = _records.FindIndex(r => r.Id == recordId);
+        var index = _recordIndexById.GetValueOrDefault(recordId, -1);
         if (index < 0)
         {
             throw new KeyNotFoundException($"Vaccination record '{recordId}' was not found.");

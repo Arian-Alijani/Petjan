@@ -58,6 +58,19 @@ public sealed class MockCashierService : ICashierService
 
     private readonly List<InvoiceRecord> _invoices = [];
 
+    // O(1) id -> list-index lookups (PERFORMANCE.md §2/§13). Invoices are only
+    // ever appended in this mock (never inserted/removed), so the index is
+    // built once at construction and simply extended on append.
+    private readonly Dictionary<string, int> _invoiceIndexById = new(StringComparer.Ordinal);
+
+    // Static lookups for the fixed catalog/insurer arrays, avoiding a
+    // FirstOrDefault scan on every add-line / insurance-share calculation.
+    private static readonly Dictionary<string, CashierCatalogItem> CatalogById =
+        Catalog.ToDictionary(c => c.Id, StringComparer.Ordinal);
+
+    private static readonly Dictionary<string, CashierInsurer> InsurersById =
+        Insurers.ToDictionary(i => i.Id, StringComparer.Ordinal);
+
     public MockCashierService()
     {
         var today = JalaliDate.Today.ToString("short");
@@ -117,12 +130,22 @@ public sealed class MockCashierService : ICashierService
             CashierDiscountKind.Percent, 0, null, CashierInvoiceState.Draft, 0, []);
 
         _invoices.AddRange([inv1, inv2, inv3, inv4, inv5, inv6, inv7, inv8]);
+        RebuildInvoiceIndex();
         RecalcAll();
 
         // Settled invoices need their paid to equal the recomputed total.
         inv3.Paid = inv3.Total;
         inv7.Paid = inv7.Total;
         RecalcAll();
+    }
+
+    private void RebuildInvoiceIndex()
+    {
+        _invoiceIndexById.Clear();
+        for (var i = 0; i < _invoices.Count; i++)
+        {
+            _invoiceIndexById[_invoices[i].Id] = i;
+        }
     }
 
     public Task<IReadOnlyList<CashierInvoice>> GetInvoicesAsync()
@@ -301,7 +324,7 @@ public sealed class MockCashierService : ICashierService
     public Task<CashierInvoiceDetail> AddLineAsync(string invoiceId, string catalogItemId)
     {
         var inv = Find(invoiceId) ?? throw new InvalidOperationException($"Unknown invoice: {invoiceId}");
-        var cat = Catalog.FirstOrDefault(c => c.Id == catalogItemId);
+        var cat = CatalogById.GetValueOrDefault(catalogItemId);
         if (cat is not null)
         {
             var existing = inv.Lines.FirstOrDefault(l => l.Ref == cat.Id);
@@ -345,7 +368,7 @@ public sealed class MockCashierService : ICashierService
     }
 
     private InvoiceRecord? Find(string invoiceId) =>
-        _invoices.FirstOrDefault(i => i.Id == invoiceId);
+        _invoiceIndexById.TryGetValue(invoiceId, out var index) ? _invoices[index] : null;
 
     private InvoiceRecord NewRecord(
         string id, string owner, string pet, string phone, string date,
@@ -407,7 +430,7 @@ public sealed class MockCashierService : ICashierService
         long insShare = 0;
         if (inv.InsuranceOrgId is not null)
         {
-            var org = Insurers.FirstOrDefault(o => o.Id == inv.InsuranceOrgId);
+            var org = InsurersById.GetValueOrDefault(inv.InsuranceOrgId);
             if (org is not null)
             {
                 insShare = (long)Math.Round(afterDiscount * org.Percent / 100.0);

@@ -75,6 +75,19 @@ public sealed class AppointmentStore
     private readonly DateOnly _today;
     private int _uid = 1;
 
+    // O(1) id -> list-index lookups (PERFORMANCE.md §2/§13), guarded by _gate
+    // alongside _events. Kept in sync incrementally: Create appends (new index
+    // == Count-1 before the add), Update/SetStatus replace in place (index
+    // unchanged) — no rebuild is ever needed after the initial seed.
+    private readonly Dictionary<string, int> _eventIndexById = new(StringComparer.Ordinal);
+
+    // Static type catalog is a fixed, tiny array — but Total()/seeding look it
+    // up by id on every appointment, so a static id -> array-index map avoids
+    // Array.FindIndex's O(n) scan (still O(1) either way given the array size,
+    // but this keeps the lookup style consistent and cheap under §2).
+    private static readonly Dictionary<string, int> TypeIndexById =
+        BuildTypeIndex();
+
     public AppointmentStore()
     {
         _today = DateOnly.FromDateTime(DateTime.Today);
@@ -83,6 +96,22 @@ public sealed class AppointmentStore
             .Select((p, i) => new BookingPatient("pt-" + (i + 1), p.Name, p.Kind, p.Owner, p.Phone, p.Av, p.Species, p.Ic))
             .ToList();
         _uid = _events.Count + 1;
+
+        for (var i = 0; i < _events.Count; i++)
+        {
+            _eventIndexById[_events[i].Id] = i;
+        }
+    }
+
+    private static Dictionary<string, int> BuildTypeIndex()
+    {
+        var map = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < TypeCatalog.Length; i++)
+        {
+            map[TypeCatalog[i].Id] = i;
+        }
+
+        return map;
     }
 
     public static IReadOnlyList<AppointmentDoctor> Doctors => DoctorRoster;
@@ -111,7 +140,7 @@ public sealed class AppointmentStore
     {
         lock (_gate)
         {
-            return _events.FirstOrDefault(a => a.Id == id);
+            return _eventIndexById.TryGetValue(id, out var index) ? _events[index] : null;
         }
     }
 
@@ -244,6 +273,7 @@ public sealed class AppointmentStore
                 Invoice: AppointmentInvoiceState.None,
                 Payment: AppointmentPaymentMethod.None,
                 Visit: AppointmentVisitOutcome.None);
+            _eventIndexById[id] = _events.Count;
             _events.Add(ev);
             return ev;
         }
@@ -253,7 +283,7 @@ public sealed class AppointmentStore
     {
         lock (_gate)
         {
-            var index = _events.FindIndex(a => a.Id == appointmentId);
+            var index = _eventIndexById.GetValueOrDefault(appointmentId, -1);
             if (index < 0)
             {
                 throw new KeyNotFoundException($"Appointment '{appointmentId}' was not found.");
@@ -285,7 +315,7 @@ public sealed class AppointmentStore
     {
         lock (_gate)
         {
-            var index = _events.FindIndex(a => a.Id == appointmentId);
+            var index = _eventIndexById.GetValueOrDefault(appointmentId, -1);
             if (index < 0)
             {
                 throw new KeyNotFoundException($"Appointment '{appointmentId}' was not found.");
@@ -299,7 +329,7 @@ public sealed class AppointmentStore
 
     private static int Total(string typeId, int durationMinutes)
     {
-        var index = Array.FindIndex(TypeCatalog, t => t.Id == typeId);
+        var index = TypeIndexById.GetValueOrDefault(typeId, -1);
         var rate = index >= 0 ? BaseRate[index] : 12000;
         return durationMinutes * rate;
     }
@@ -346,7 +376,8 @@ public sealed class AppointmentStore
 
             for (var i = 0; i < count; i++)
             {
-                var t = TypeCatalog[(int)(r.Next() * TypeCatalog.Length)];
+                var tIndex = (int)(r.Next() * TypeCatalog.Length);
+                var t = TypeCatalog[tIndex];
                 var doc = DoctorRoster[(int)(r.Next() * DoctorRoster.Length)];
                 var pet = PetSeed[(int)(r.Next() * PetSeed.Length)];
                 var hour = 7 + (int)(r.Next() * 15);
@@ -378,9 +409,8 @@ public sealed class AppointmentStore
                     status = rr > 0.72 ? AppointmentStatus.Pending : AppointmentStatus.Confirmed;
                 }
 
-                var typeIndex = Array.FindIndex(TypeCatalog, x => x.Id == t.Id);
                 var extras = (int)Math.Round(r.Next() * 3) * 5000;
-                var total = t.DurationMinutes * BaseRate[typeIndex] + extras;
+                var total = t.DurationMinutes * BaseRate[tIndex] + extras;
 
                 var invoice = AppointmentInvoiceState.None;
                 var pay = AppointmentPaymentMethod.None;

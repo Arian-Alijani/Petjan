@@ -67,8 +67,39 @@ public sealed class MockChequesQueryService : IChequesQueryService
 
     private readonly List<Cheque> _cheques = [.. ChequesSource];
 
-    private static ChequeBank ResolveBank(IEnumerable<ChequeBank> banks, string key) =>
-        banks.FirstOrDefault(b => b.Key == key)
+    // O(1) id -> list-index lookup (PERFORMANCE.md §2/§13). Cheques are only
+    // ever inserted at the front (CreateAsync) or removed (DeleteAsync), both
+    // of which shift every later index, so the index is rebuilt on those
+    // mutations rather than patched in place — cheaper than a per-item shift
+    // loop and still O(n) only on the rare mutating call, not on every lookup.
+    private readonly Dictionary<string, int> _chequeIndexById = BuildChequeIndex(ChequesSource);
+
+    // Static bank catalog keyed once instead of a FirstOrDefault scan per call.
+    private static readonly Dictionary<string, ChequeBank> BanksByKey =
+        BanksSource.ToDictionary(b => b.Key, StringComparer.Ordinal);
+
+    private static Dictionary<string, int> BuildChequeIndex(IReadOnlyList<Cheque> source)
+    {
+        var map = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < source.Count; i++)
+        {
+            map[source[i].Id] = i;
+        }
+
+        return map;
+    }
+
+    private void RebuildChequeIndex()
+    {
+        _chequeIndexById.Clear();
+        for (var i = 0; i < _cheques.Count; i++)
+        {
+            _chequeIndexById[_cheques[i].Id] = i;
+        }
+    }
+
+    private static ChequeBank ResolveBank(string key) =>
+        BanksByKey.GetValueOrDefault(key)
         ?? new ChequeBank(key, "—", "—", "#7a8b89", "#9aa8a5");
 
     /// <summary>Whether a status is still open (mirrors the reference's <c>isOpen</c>).</summary>
@@ -129,7 +160,7 @@ public sealed class MockChequesQueryService : IChequesQueryService
             .GroupBy(c => c.BankKey)
             .Select(g =>
             {
-                var b = ResolveBank(BanksSource, g.Key);
+                var b = ResolveBank(g.Key);
                 return new BankSummary(
                     g.Key, b.Name, b.Short, b.ColorFrom, b.ColorTo,
                     g.Sum(c => c.Amount), g.Count());
@@ -166,13 +197,13 @@ public sealed class MockChequesQueryService : IChequesQueryService
             request.Note);
 
         _cheques.Insert(0, cheque);
+        RebuildChequeIndex();
         return Task.FromResult(cheque);
     }
 
     public Task UpdateAsync(string chequeId, UpdateChequeRequest request)
     {
-        var index = _cheques.FindIndex(c => c.Id == chequeId);
-        if (index >= 0)
+        if (_chequeIndexById.TryGetValue(chequeId, out var index))
         {
             var existing = _cheques[index];
             _cheques[index] = existing with
@@ -201,6 +232,7 @@ public sealed class MockChequesQueryService : IChequesQueryService
     public Task DeleteAsync(string chequeId)
     {
         _cheques.RemoveAll(c => c.Id == chequeId);
+        RebuildChequeIndex();
         return Task.CompletedTask;
     }
 

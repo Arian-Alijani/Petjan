@@ -24,6 +24,21 @@ public sealed class MockPatientsQueryService : IPatientsQueryService
     private readonly List<OwnerSummary> _owners;
     private readonly Dictionary<string, PetDetail> _petDetails = new();
 
+    // O(1) id -> list-index lookups (mirrors PatientsPageViewModel.RebuildIndexes,
+    // PERFORMANCE.md §2/§13): every mutation here either replaces an entry
+    // in-place (index unchanged) or appends (new index == Count-1 before the
+    // add), so these never need a full rebuild — only FirstOrDefault/FindIndex
+    // scans are replaced with O(1) dictionary lookups.
+    private readonly Dictionary<string, int> _ownerIndexById = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _petIndexById = new(StringComparer.Ordinal);
+
+    // O(1) owner -> pet-id bucket (insertion order preserved), the sibling of
+    // PatientsPageViewModel's _petsByOwnerId. A pet's OwnerId never changes
+    // after creation in this mock, so appending on create/seed is sufficient —
+    // no rebuild needed. BuildOwnerDetail resolves ids through _petIndexById so
+    // it always sees the current (possibly edited) PetSummary, never a stale copy.
+    private readonly Dictionary<string, List<string>> _petIdsByOwnerId = new(StringComparer.Ordinal);
+
     private int _petSeq;
     private int _ownerSeq;
 
@@ -93,6 +108,9 @@ public sealed class MockPatientsQueryService : IPatientsQueryService
         ];
         _petSeq = _pets.Count;
 
+        RebuildOwnerIndex();
+        RebuildPetIndex();
+
         SeedDetails();
     }
 
@@ -104,7 +122,7 @@ public sealed class MockPatientsQueryService : IPatientsQueryService
 
     public Task<OwnerDetail?> GetOwnerAsync(string id)
     {
-        var owner = _owners.FirstOrDefault(o => o.Id == id);
+        var owner = _ownerIndexById.TryGetValue(id, out var index) ? _owners[index] : null;
         return Task.FromResult(owner is null ? null : BuildOwnerDetail(owner));
     }
 
@@ -113,13 +131,15 @@ public sealed class MockPatientsQueryService : IPatientsQueryService
 
     public Task<OwnerDetail> SaveOwnerAsync(OwnerDetail owner)
     {
-        var index = _owners.FindIndex(o => o.Id == owner.Id);
+        var index = _ownerIndexById.GetValueOrDefault(owner.Id, -1);
         var summary = new OwnerSummary(
             owner.Id, owner.File, owner.FirstName, owner.LastName, owner.Gender,
             owner.Mobile1, owner.Mobile2, owner.Phone, owner.NationalId, owner.Address,
             owner.Referral, owner.Since, owner.Tone, owner.Balance, owner.Tags);
         if (index >= 0)
         {
+            // In-place replace: the id (and therefore the index) is unchanged,
+            // so the index entry stays valid.
             _owners[index] = summary;
         }
 
@@ -131,7 +151,7 @@ public sealed class MockPatientsQueryService : IPatientsQueryService
         _petDetails[pet.Id] = pet;
 
         // Keep the directory summary (used by Phase 08's cards/table) in sync.
-        var index = _pets.FindIndex(p => p.Id == pet.Id);
+        var index = _petIndexById.GetValueOrDefault(pet.Id, -1);
         if (index >= 0)
         {
             _pets[index] = _pets[index] with
@@ -159,7 +179,7 @@ public sealed class MockPatientsQueryService : IPatientsQueryService
         var updated = detail with { Weights = weights };
         _petDetails[petId] = updated;
 
-        var index = _pets.FindIndex(p => p.Id == petId);
+        var index = _petIndexById.GetValueOrDefault(petId, -1);
         if (index >= 0)
         {
             _pets[index] = _pets[index] with { CurrentWeightKg = weights.Last().WeightKg };
@@ -174,7 +194,7 @@ public sealed class MockPatientsQueryService : IPatientsQueryService
         var tone = (PatientAvatarTone)(_pets.Count % 6);
         var detail = BuildNewPetDetail(id, ownerId, request, tone);
         _petDetails[id] = detail;
-        _pets.Add(ToSummary(detail));
+        AddPet(ToSummary(detail));
         return Task.FromResult(detail);
     }
 
@@ -187,24 +207,82 @@ public sealed class MockPatientsQueryService : IPatientsQueryService
             id, file, request.FirstName, request.LastName, request.Gender,
             request.Mobile1, request.Mobile2, request.Phone, request.NationalId,
             request.Address, request.Referral, Today, tone, 0, []);
-        _owners.Add(owner);
+        AddOwner(owner);
 
         if (request.Pet is { } newPet)
         {
             var petId = $"pt-{++_petSeq + 100}";
             var detail = BuildNewPetDetail(petId, id, newPet, tone);
             _petDetails[petId] = detail;
-            _pets.Add(ToSummary(detail));
+            AddPet(ToSummary(detail));
         }
 
         return Task.FromResult(BuildOwnerDetail(owner));
     }
 
-    private OwnerDetail BuildOwnerDetail(OwnerSummary owner) =>
-        new(owner.Id, owner.File, owner.FirstName, owner.LastName, owner.Gender, owner.Mobile1,
+    // ---- O(1) id indexes (PERFORMANCE.md §2/§13) ----
+    // Built once at construction and kept in sync incrementally on every
+    // append (Add*) rather than rebuilt on every read, so GetOwnerAsync /
+    // GetPetAsync / Save*Async / BuildOwnerDetail never do a linear scan even
+    // as the seed data grows.
+
+    private void RebuildOwnerIndex()
+    {
+        _ownerIndexById.Clear();
+        for (var i = 0; i < _owners.Count; i++)
+        {
+            _ownerIndexById[_owners[i].Id] = i;
+        }
+    }
+
+    private void RebuildPetIndex()
+    {
+        _petIndexById.Clear();
+        _petIdsByOwnerId.Clear();
+        for (var i = 0; i < _pets.Count; i++)
+        {
+            var pet = _pets[i];
+            _petIndexById[pet.Id] = i;
+            AddToOwnerBucket(pet.OwnerId, pet.Id);
+        }
+    }
+
+    private void AddOwner(OwnerSummary owner)
+    {
+        _ownerIndexById[owner.Id] = _owners.Count;
+        _owners.Add(owner);
+    }
+
+    private void AddPet(PetSummary pet)
+    {
+        _petIndexById[pet.Id] = _pets.Count;
+        _pets.Add(pet);
+        AddToOwnerBucket(pet.OwnerId, pet.Id);
+    }
+
+    private void AddToOwnerBucket(string ownerId, string petId)
+    {
+        if (!_petIdsByOwnerId.TryGetValue(ownerId, out var bucket))
+        {
+            bucket = [];
+            _petIdsByOwnerId[ownerId] = bucket;
+        }
+
+        bucket.Add(petId);
+    }
+
+    private OwnerDetail BuildOwnerDetail(OwnerSummary owner)
+    {
+        var petIds = _petIdsByOwnerId.GetValueOrDefault(owner.Id);
+        var pets = petIds is null
+            ? []
+            : petIds.Select(id => _pets[_petIndexById[id]]).ToArray();
+
+        return new(owner.Id, owner.File, owner.FirstName, owner.LastName, owner.Gender, owner.Mobile1,
             owner.Mobile2, owner.Phone, owner.NationalId, owner.Address, owner.Referral,
             owner.Since, owner.Tone, owner.Balance, owner.Tags,
-            _pets.Where(p => p.OwnerId == owner.Id).ToArray());
+            pets);
+    }
 
     private static PetSummary ToSummary(PetDetail d) =>
         new(d.Id, d.Code, d.Name, d.Species, d.Breed, d.Color, d.Gender, d.Tone, d.Status,
