@@ -102,23 +102,23 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 
     public ObservableCollection<FinanceSortViewModel> Sorts { get; } = [];
 
-    public ObservableCollection<FinanceKpiViewModel> Kpis { get; } = [];
+    public RangeObservableCollection<FinanceKpiViewModel> Kpis { get; } = [];
 
-    public ObservableCollection<FinanceMiniStatViewModel> MiniStats { get; } = [];
+    public RangeObservableCollection<FinanceMiniStatViewModel> MiniStats { get; } = [];
 
-    public ObservableCollection<FinanceCategoryRowViewModel> CategoryRows { get; } = [];
+    public RangeObservableCollection<FinanceCategoryRowViewModel> CategoryRows { get; } = [];
 
-    public ObservableCollection<FinanceProductRowViewModel> ProductRows { get; } = [];
+    public RangeObservableCollection<FinanceProductRowViewModel> ProductRows { get; } = [];
 
-    public ObservableCollection<FinanceServiceSplitViewModel> ServiceSplits { get; } = [];
+    public RangeObservableCollection<FinanceServiceSplitViewModel> ServiceSplits { get; } = [];
 
     public RangeObservableCollection<FinanceInsightViewModel> Insights { get; } = [];
 
-    public ObservableCollection<FinanceSpeciesViewModel> Species { get; } = [];
+    public RangeObservableCollection<FinanceSpeciesViewModel> Species { get; } = [];
 
-    public ObservableCollection<FinanceChannelBarViewModel> ChannelBars { get; } = [];
+    public RangeObservableCollection<FinanceChannelBarViewModel> ChannelBars { get; } = [];
 
-    public ObservableCollection<FinanceHeatRowViewModel> HeatRows { get; } = [];
+    public RangeObservableCollection<FinanceHeatRowViewModel> HeatRows { get; } = [];
 
     /// <summary>Expense tab ledger rows (finance.js <c>expenseTableCard</c>).</summary>
     public RangeObservableCollection<FinanceExpenseRowViewModel> ExpenseRows { get; } = [];
@@ -318,19 +318,21 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 
     private void BuildExpenseMiniStrip(FinanceExpense data)
     {
-        MiniStats.Clear();
         var topCat = data.ByCategory.FirstOrDefault();
-        MiniStats.Add(new FinanceMiniStatViewModel("expense", "IconReceipt", "هزینه کل",
-            FinancePresentation.FaDec(data.ExpTotal / 1e6, 1), "م تومان",
-            FinancePresentation.SignPct(data.Delta.Expense),
-            data.Delta.Expense > 0 ? "bad" : "good"));
-        MiniStats.Add(new FinanceMiniStatViewModel("expense", "IconCoins", "میانگین روزانه",
-            FinancePresentation.FaDec(data.ExpTotal / (double)data.DayCount / 1e6, 1), "م تومان"));
-        MiniStats.Add(new FinanceMiniStatViewModel("expense", "IconScale", "نسبت هزینه به درآمد",
-            FinancePresentation.Fa(data.RevTotal == 0 ? 0 : (long)Math.Round(data.ExpTotal / (double)data.RevTotal * 100)),
-            "٪"));
-        MiniStats.Add(new FinanceMiniStatViewModel("expense", "IconTag", "بزرگ‌ترین دسته",
-            topCat?.Label ?? "—", null));
+        MiniStats.ReplaceAll(
+        [
+            new FinanceMiniStatViewModel("expense", "IconReceipt", "هزینه کل",
+                FinancePresentation.FaDec(data.ExpTotal / 1e6, 1), "م تومان",
+                FinancePresentation.SignPct(data.Delta.Expense),
+                data.Delta.Expense > 0 ? "bad" : "good"),
+            new FinanceMiniStatViewModel("expense", "IconCoins", "میانگین روزانه",
+                FinancePresentation.FaDec(data.ExpTotal / (double)data.DayCount / 1e6, 1), "م تومان"),
+            new FinanceMiniStatViewModel("expense", "IconScale", "نسبت هزینه به درآمد",
+                FinancePresentation.Fa(data.RevTotal == 0 ? 0 : (long)Math.Round(data.ExpTotal / (double)data.RevTotal * 100)),
+                "٪"),
+            new FinanceMiniStatViewModel("expense", "IconTag", "بزرگ‌ترین دسته",
+                topCat?.Label ?? "—", null),
+        ]);
     }
 
     private void BuildExpenseHighlight(FinanceExpense data)
@@ -407,19 +409,21 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 
     private void BuildProfitMiniStrip(FinanceProfit data)
     {
-        MiniStats.Clear();
-        MiniStats.Add(new FinanceMiniStatViewModel("profit", "IconPiggy", "سود خالص",
-            FinancePresentation.FaDec(data.Profit / 1e6, 1), "م تومان",
-            FinancePresentation.SignPct(data.Delta.Profit), data.Delta.Profit >= 0 ? "good" : "bad",
-            data.Delta.Profit >= 0 ? "IconArrowUpRight" : "IconTrendDown"));
-        MiniStats.Add(new FinanceMiniStatViewModel("profit", "IconPercent", "حاشیه سود",
-            FinancePresentation.FaDec(data.Margin, 1), "٪",
-            FinancePresentation.SignPct(data.Delta.Margin), data.Delta.Margin >= 0 ? "good" : "bad",
-            data.Delta.Margin >= 0 ? "IconArrowUpRight" : "IconTrendDown"));
-        MiniStats.Add(new FinanceMiniStatViewModel("profit", "IconCoins", "سود روزانه",
-            FinancePresentation.FaDec(data.AvgDailyProfit / 1e6, 1), "م تومان"));
-        MiniStats.Add(new FinanceMiniStatViewModel("profit", "IconWallet", "بازده هر تومان هزینه",
-            FinancePresentation.FaDec(data.ExpTotal == 0 ? 0 : (double)data.Profit / data.ExpTotal, 2), "تومان"));
+        MiniStats.ReplaceAll(
+        [
+            new FinanceMiniStatViewModel("profit", "IconPiggy", "سود خالص",
+                FinancePresentation.FaDec(data.Profit / 1e6, 1), "م تومان",
+                FinancePresentation.SignPct(data.Delta.Profit), data.Delta.Profit >= 0 ? "good" : "bad",
+                data.Delta.Profit >= 0 ? "IconArrowUpRight" : "IconTrendDown"),
+            new FinanceMiniStatViewModel("profit", "IconPercent", "حاشیه سود",
+                FinancePresentation.FaDec(data.Margin, 1), "٪",
+                FinancePresentation.SignPct(data.Delta.Margin), data.Delta.Margin >= 0 ? "good" : "bad",
+                data.Delta.Margin >= 0 ? "IconArrowUpRight" : "IconTrendDown"),
+            new FinanceMiniStatViewModel("profit", "IconCoins", "سود روزانه",
+                FinancePresentation.FaDec(data.AvgDailyProfit / 1e6, 1), "م تومان"),
+            new FinanceMiniStatViewModel("profit", "IconWallet", "بازده هر تومان هزینه",
+                FinancePresentation.FaDec(data.ExpTotal == 0 ? 0 : (double)data.Profit / data.ExpTotal, 2), "تومان"),
+        ]);
     }
 
     private void BuildProfitHighlight(FinanceProfit data)
@@ -471,50 +475,45 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 
     private void BuildKpis(FinanceOverview agg)
     {
-        Kpis.Clear();
         var d = agg.Delta;
 
-        Kpis.Add(new FinanceKpiViewModel(
-            true, "income", "IconTrendUp",
-            d.Revenue >= 0 ? "IconArrowUpRight" : "IconTrendDown", FinancePresentation.SignPct(d.Revenue), "good",
-            FinancePresentation.FaDec(agg.RevTotal / 1e6, 1), "م تومان", null,
-            "درآمد کل", "نسبت به بازه قبل"));
-
-        Kpis.Add(new FinanceKpiViewModel(
-            false, "expense", "IconReceipt",
-            d.Expense >= 0 ? "IconArrowUpRight" : "IconTrendDown", FinancePresentation.SignPct(d.Expense),
-            d.Expense > 0 ? "bad" : "good",
-            FinancePresentation.FaDec(agg.ExpTotal / 1e6, 1), "م تومان", null,
-            "هزینه کل", "نسبت به بازه قبل"));
-
-        Kpis.Add(new FinanceKpiViewModel(
-            false, "profit", "IconPiggy",
-            d.Profit >= 0 ? "IconArrowUpRight" : "IconTrendDown", FinancePresentation.SignPct(d.Profit),
-            d.Profit >= 0 ? "good" : "bad",
-            FinancePresentation.FaDec(agg.Profit / 1e6, 1), "م تومان", FinancePresentation.ProfitColor,
-            "سود خالص", "درآمد منهای هزینه"));
-
-        Kpis.Add(new FinanceKpiViewModel(
-            false, "income", "IconPercent",
-            d.Margin >= 0 ? "IconArrowUpRight" : "IconTrendDown",
-            FinancePresentation.FaDec(Math.Abs(d.Margin), 1) + " واحد",
-            d.Margin >= 0 ? "good" : "bad",
-            FinancePresentation.FaDec(agg.Margin, 1), "٪", null,
-            "حاشیه سود", "سهم سود از درآمد"));
+        Kpis.ReplaceAll(
+        [
+            new FinanceKpiViewModel(
+                true, "income", "IconTrendUp",
+                d.Revenue >= 0 ? "IconArrowUpRight" : "IconTrendDown", FinancePresentation.SignPct(d.Revenue), "good",
+                FinancePresentation.FaDec(agg.RevTotal / 1e6, 1), "م تومان", null,
+                "درآمد کل", "نسبت به بازه قبل"),
+            new FinanceKpiViewModel(
+                false, "expense", "IconReceipt",
+                d.Expense >= 0 ? "IconArrowUpRight" : "IconTrendDown", FinancePresentation.SignPct(d.Expense),
+                d.Expense > 0 ? "bad" : "good",
+                FinancePresentation.FaDec(agg.ExpTotal / 1e6, 1), "م تومان", null,
+                "هزینه کل", "نسبت به بازه قبل"),
+            new FinanceKpiViewModel(
+                false, "profit", "IconPiggy",
+                d.Profit >= 0 ? "IconArrowUpRight" : "IconTrendDown", FinancePresentation.SignPct(d.Profit),
+                d.Profit >= 0 ? "good" : "bad",
+                FinancePresentation.FaDec(agg.Profit / 1e6, 1), "م تومان", FinancePresentation.ProfitColor,
+                "سود خالص", "درآمد منهای هزینه"),
+            new FinanceKpiViewModel(
+                false, "income", "IconPercent",
+                d.Margin >= 0 ? "IconArrowUpRight" : "IconTrendDown",
+                FinancePresentation.FaDec(Math.Abs(d.Margin), 1) + " واحد",
+                d.Margin >= 0 ? "good" : "bad",
+                FinancePresentation.FaDec(agg.Margin, 1), "٪", null,
+                "حاشیه سود", "سهم سود از درآمد"),
+        ]);
     }
 
     private void BuildCategoryRows(IReadOnlyList<FinanceCategory> cats)
     {
-        CategoryRows.Clear();
         var max = cats.Count == 0 ? 1d : cats.Max(c => (double)c.Value);
-        foreach (var c in cats)
-        {
-            CategoryRows.Add(new FinanceCategoryRowViewModel(
-                c.Icon, c.Tone, c.Label, FinancePresentation.MoneyShort(c.Value), c.Color,
-                max == 0 ? 0 : c.Value / max,
-                FinancePresentation.SignPct(c.Delta),
-                c.Delta > 0 ? "bad" : "good"));
-        }
+        CategoryRows.ReplaceAll(cats.Select(c => new FinanceCategoryRowViewModel(
+            c.Icon, c.Tone, c.Label, FinancePresentation.MoneyShort(c.Value), c.Color,
+            max == 0 ? 0 : c.Value / max,
+            FinancePresentation.SignPct(c.Delta),
+            c.Delta > 0 ? "bad" : "good")));
     }
 
     private void BuildProducts(IReadOnlyList<FinanceProduct> products)
@@ -530,16 +529,14 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
         var sorted = products.OrderByDescending(Key).ToArray();
         var max = sorted.Length == 0 ? 1d : sorted.Max(Key);
 
-        ProductRows.Clear();
-        for (var i = 0; i < sorted.Length; i++)
+        ProductRows.ReplaceAll(sorted.Select((p, i) =>
         {
-            var p = sorted[i];
             var pr = Primary(p, sort);
-            ProductRows.Add(new FinanceProductRowViewModel(
+            return new FinanceProductRowViewModel(
                 i + 1, p.Icon, p.Tone, p.Name, p.Kind == "service",
                 $"{FinancePresentation.Fa(p.Qty)} فروش · حاشیه سود {FinancePresentation.FaPercent(p.Margin)}",
-                max == 0 ? 0 : Key(p) / max, pr.color, pr.main, pr.sub));
-        }
+                max == 0 ? 0 : Key(p) / max, pr.color, pr.main, pr.sub);
+        }));
 
         HasProducts = ProductRows.Count > 0;
     }
@@ -590,23 +587,20 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 
     private void BuildServiceSplit(IReadOnlyList<FinanceServiceSplit> parts)
     {
-        ServiceSplits.Clear();
         var total = parts.Sum(p => (double)p.Revenue);
         if (total == 0)
         {
+            ServiceSplits.ReplaceAll([]);
             return;
         }
 
-        foreach (var p in parts)
-        {
-            ServiceSplits.Add(new FinanceServiceSplitViewModel(
-                p.Label, p.Icon, p.Color,
-                FinancePresentation.FaPercent(p.Revenue / total * 100),
-                FinancePresentation.MoneyShort(p.Revenue),
-                FinancePresentation.Fa(p.Qty),
-                FinancePresentation.FaPercent(p.Margin),
-                p.Revenue / total));
-        }
+        ServiceSplits.ReplaceAll(parts.Select(p => new FinanceServiceSplitViewModel(
+            p.Label, p.Icon, p.Color,
+            FinancePresentation.FaPercent(p.Revenue / total * 100),
+            FinancePresentation.MoneyShort(p.Revenue),
+            FinancePresentation.Fa(p.Qty),
+            FinancePresentation.FaPercent(p.Margin),
+            p.Revenue / total)));
 
         SplitSegments = ServiceSplits
             .Select(s => new BarSegment(s.Fraction, s.ShareBrush))
@@ -619,13 +613,9 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
 
     private void BuildSpecies(IReadOnlyList<FinanceSpecies> species)
     {
-        Species.Clear();
         var max = species.Count == 0 ? 1d : species.Max(s => (double)s.Value);
-        foreach (var s in species)
-        {
-            Species.Add(new FinanceSpeciesViewModel(
-                s.Label, FinancePresentation.Fa(s.Value), s.Color, max == 0 ? 0 : s.Value / max));
-        }
+        Species.ReplaceAll(species.Select(s => new FinanceSpeciesViewModel(
+            s.Label, FinancePresentation.Fa(s.Value), s.Color, max == 0 ? 0 : s.Value / max)));
 
         SpeciesTotalText = FinancePresentation.Fa((long)species.Sum(s => s.Value));
     }
@@ -670,29 +660,27 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
     private void BuildIncomeExtras(FinanceIncome inc)
     {
         // Income mini strip
-        MiniStats.Clear();
         var topChannel = inc.ByChannel.OrderByDescending(c => c.Value).FirstOrDefault();
-        MiniStats.Add(new FinanceMiniStatViewModel("income", "IconTrendUp", "درآمد کل",
-            FinancePresentation.FaDec(inc.RevTotal / 1e6, 1), "م تومان",
-            FinancePresentation.SignPct(inc.Delta.Revenue), inc.Delta.Revenue >= 0 ? "good" : "bad"));
-        MiniStats.Add(new FinanceMiniStatViewModel("income", "IconCoins", "میانگین روزانه",
-            FinancePresentation.FaDec(inc.RevTotal / (double)inc.DayCount / 1e6, 1), "م تومان"));
-        MiniStats.Add(new FinanceMiniStatViewModel("income", "IconCart", "تراکنش‌های فروش",
-            FinancePresentation.Fa(inc.Products.Sum(p => (long)p.Qty)), "مورد"));
-        MiniStats.Add(new FinanceMiniStatViewModel("income", "IconTarget", "کانال برتر",
-            topChannel?.Label ?? "—", null));
+        MiniStats.ReplaceAll(
+        [
+            new FinanceMiniStatViewModel("income", "IconTrendUp", "درآمد کل",
+                FinancePresentation.FaDec(inc.RevTotal / 1e6, 1), "م تومان",
+                FinancePresentation.SignPct(inc.Delta.Revenue), inc.Delta.Revenue >= 0 ? "good" : "bad"),
+            new FinanceMiniStatViewModel("income", "IconCoins", "میانگین روزانه",
+                FinancePresentation.FaDec(inc.RevTotal / (double)inc.DayCount / 1e6, 1), "م تومان"),
+            new FinanceMiniStatViewModel("income", "IconCart", "تراکنش‌های فروش",
+                FinancePresentation.Fa(inc.Products.Sum(p => (long)p.Qty)), "مورد"),
+            new FinanceMiniStatViewModel("income", "IconTarget", "کانال برتر",
+                topChannel?.Label ?? "—", null),
+        ]);
 
         // Channel bars
-        ChannelBars.Clear();
         var max = inc.ChannelBars.Count == 0 ? 1d : inc.ChannelBars.Max(c => (double)c.Value);
-        foreach (var c in inc.ChannelBars)
-        {
-            ChannelBars.Add(new FinanceChannelBarViewModel(
-                c.Icon, c.Color, c.Label,
-                FinancePresentation.FaPercent(c.SharePercent) + " از درآمد کل",
-                max == 0 ? 0 : c.Value / max,
-                FinancePresentation.MoneyShort(c.Value)));
-        }
+        ChannelBars.ReplaceAll(inc.ChannelBars.Select(c => new FinanceChannelBarViewModel(
+            c.Icon, c.Color, c.Label,
+            FinancePresentation.FaPercent(c.SharePercent) + " از درآمد کل",
+            max == 0 ? 0 : c.Value / max,
+            FinancePresentation.MoneyShort(c.Value))));
 
         // Income highlight
         var parts = inc.Services;
@@ -717,7 +705,7 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
         }
 
         // Heatmap rows
-        HeatRows.Clear();
+        var heatRows = new List<FinanceHeatRowViewModel>(inc.Heatmap.Count);
         for (var d = 0; d < inc.Heatmap.Count; d++)
         {
             var cells = new List<FinanceHeatCellViewModel>();
@@ -729,8 +717,10 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
                     $"{FinancePresentation.HeatDays[d]} — شدت مراجعه {FinancePresentation.Fa(row[h])} ساعت {FinancePresentation.Fa(hour)}"));
             }
 
-            HeatRows.Add(new FinanceHeatRowViewModel(FinancePresentation.HeatDays[d], cells));
+            heatRows.Add(new FinanceHeatRowViewModel(FinancePresentation.HeatDays[d], cells));
         }
+
+        HeatRows.ReplaceAll(heatRows);
     }
 
     private static string OrderPersian(int value) => FinancePresentation.Fa(value);

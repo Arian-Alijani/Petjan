@@ -81,12 +81,12 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     public bool IsSettingsSection => ActiveSection == "settings";
     public bool ShowVisitsTools => ActiveSection == "visits";
 
-    public ObservableCollection<VaccinationSegmentViewModel> Segments { get; } = [];
+    public RangeObservableCollection<VaccinationSegmentViewModel> Segments { get; } = [];
     public RangeObservableCollection<VaccinationRecordRowViewModel> FilteredRecords { get; } = [];
-    public ObservableCollection<VaccineCatalogCardViewModel> Catalog { get; } = [];
-    public ObservableCollection<SmsTemplateRowViewModel> Templates { get; } = [];
+    public RangeObservableCollection<VaccineCatalogCardViewModel> Catalog { get; } = [];
+    public RangeObservableCollection<SmsTemplateRowViewModel> Templates { get; } = [];
     public ObservableCollection<SpeciesFilterOption> SpeciesOptions { get; } = [];
-    public ObservableCollection<PagerButtonViewModel> Pages { get; } = [];
+    public RangeObservableCollection<PagerButtonViewModel> Pages { get; } = [];
 
     [ObservableProperty]
     private SpeciesFilterOption? _selectedSpeciesOption;
@@ -192,19 +192,11 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         _templates.Clear();
         _templates.AddRange(await _service.GetSmsTemplatesAsync());
 
-        Catalog.Clear();
-        foreach (var entry in _catalog)
-        {
-            Catalog.Add(new VaccineCatalogCardViewModel(entry));
-        }
+        Catalog.ReplaceAll(_catalog.Select(entry => new VaccineCatalogCardViewModel(entry)));
 
         CatalogCountText = $"{VaccinationPresentation.Fa(_catalog.Count)} قلم";
 
-        Templates.Clear();
-        foreach (var template in _templates)
-        {
-            Templates.Add(new SmsTemplateRowViewModel(template));
-        }
+        Templates.ReplaceAll(_templates.Select(template => new SmsTemplateRowViewModel(template)));
 
         IsBusy = false;
         Refresh();
@@ -243,14 +235,10 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
             ("done", "انجام‌شده"),
         };
 
-        Segments.Clear();
-        foreach (var (key, label) in defs)
+        Segments.ReplaceAll(defs.Select(d => new VaccinationSegmentViewModel(d.Key, d.Label, counts[d.Key])
         {
-            Segments.Add(new VaccinationSegmentViewModel(key, label, counts[key])
-            {
-                IsActive = _segment == key,
-            });
-        }
+            IsActive = _segment == d.Key,
+        }));
     }
 
     private List<VaccinationRecord> Filtered()
@@ -304,14 +292,10 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
 
         HasRecords = list.Count > 0;
 
-        Pages.Clear();
-        for (var i = 1; i <= _pageCount; i++)
+        Pages.ReplaceAll(Enumerable.Range(1, _pageCount).Select(i => new PagerButtonViewModel(i, VaccinationPresentation.Fa(i))
         {
-            Pages.Add(new PagerButtonViewModel(i, VaccinationPresentation.Fa(i))
-            {
-                IsActive = i == _page,
-            });
-        }
+            IsActive = i == _page,
+        }));
 
         HasPages = _pageCount > 1;
         PagerShownText = VaccinationPresentation.Fa(slice.Count);
