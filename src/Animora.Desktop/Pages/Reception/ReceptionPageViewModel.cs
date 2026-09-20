@@ -17,6 +17,13 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
     private readonly IToastService _toast;
     private string _activeFilter = "all";
 
+    // Cached result of the last FilterQueue() run, set at the end of
+    // ApplyFilter(). TotalCount/CanGoNext read this instead of re-running the
+    // Where/OrderBy pipeline on every binding evaluation — recomputed only
+    // when the filter's actual inputs (queue, filter, search) change
+    // (PERFORMANCE.md §13).
+    private int _filteredCount;
+
     [ObservableProperty]
     private string _searchText = string.Empty;
 
@@ -45,7 +52,7 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
     }
 
     public RangeObservableCollection<QueueTicket> Queue { get; } = [];
-    public ObservableCollection<ReceptionQueueRowViewModel> VisibleQueue { get; } = [];
+    public RangeObservableCollection<ReceptionQueueRowViewModel> VisibleQueue { get; } = [];
 
     public string TodayText => JalaliDate.FromDateTime(DateTime.Today).ToString("long");
     public string WaitingCount => Count(QueueTicketState.Waiting);
@@ -53,7 +60,10 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
     public string InVisitCount => Count(QueueTicketState.InVisit);
     public string DoneCount => Count(QueueTicketState.Done);
     public string UrgentCount => PersianNumberFormatter.ToPersianDigits(Queue.Count(x => x.IsUrgent && IsActive(x.State)));
-    public string TotalCount => PersianNumberFormatter.ToPersianDigits(FilterQueue().Count());
+    // Reads the cache populated by ApplyFilter() instead of re-running
+    // FilterQueue() (PERFORMANCE.md §13); ApplyFilter always runs at least
+    // once before this is read (constructor → RefreshAsync → ApplyFilter).
+    public string TotalCount => PersianNumberFormatter.ToPersianDigits(_filteredCount);
     public string PageNumberText => PersianNumberFormatter.ToPersianDigits(PageNumber);
     public string AverageWaitText => PersianNumberFormatter.ToPersianDigits(CalculateAverageWait());
     public string NextPatientText
@@ -75,7 +85,9 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
     public bool IsUrgentFilter => _activeFilter == "urgent";
     public bool IsDoneFilter => _activeFilter == "done";
     public bool CanGoPrevious => PageNumber > 1;
-    public bool CanGoNext => PageNumber * PageSize < FilterQueue().Count();
+    // Same cache as TotalCount — avoids a second redundant FilterQueue() run
+    // per binding evaluation (PERFORMANCE.md §13).
+    public bool CanGoNext => PageNumber * PageSize < _filteredCount;
 
     private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
 
@@ -249,18 +261,22 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
     private void ApplyFilter()
     {
         var filtered = FilterQueue();
+        _filteredCount = filtered.Count;
+
         var maxPage = Math.Max(1, (int)Math.Ceiling(filtered.Count / (double)PageSize));
         if (PageNumber > maxPage)
         {
             PageNumber = maxPage;
         }
 
-        VisibleQueue.Clear();
         var start = (PageNumber - 1) * PageSize;
-        foreach (var entry in filtered.Skip(start).Take(PageSize).Select((ticket, index) => new ReceptionQueueRowViewModel(ticket, start + index + 1)))
-        {
-            VisibleQueue.Add(entry);
-        }
+
+        // Batched rebuild (PERFORMANCE.md §5): a single Reset via
+        // RangeObservableCollection.ReplaceAll instead of Clear()+Add in a
+        // loop, which raised one CollectionChanged per row. Row numbering
+        // (start + index + 1) is unchanged.
+        VisibleQueue.ReplaceAll(filtered.Skip(start).Take(PageSize)
+            .Select((ticket, index) => new ReceptionQueueRowViewModel(ticket, start + index + 1)));
 
         OnPropertyChanged(nameof(HasRows));
         OnPropertyChanged(nameof(IsEmpty));
