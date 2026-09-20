@@ -588,7 +588,8 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     [RelayCommand]
     private async Task SelectDate(string? dayKey)
     {
-        if (DateOnly.TryParse(dayKey, out var d))
+        if (DateOnly.TryParseExact(dayKey, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d)
+            || DateOnly.TryParse(dayKey, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out d))
         {
             _date = d;
             await ReloadAvailableAsync();
