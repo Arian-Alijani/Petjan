@@ -107,6 +107,15 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     private Avalonia.Media.IBrush _summaryNetBrush = HistoryPresentation.Fill("#027a48");
 
     [ObservableProperty]
+    private string _summaryIncomeLine = string.Empty;
+
+    [ObservableProperty]
+    private string _summaryExpenseLine = string.Empty;
+
+    [ObservableProperty]
+    private string _summaryNetLine = string.Empty;
+
+    [ObservableProperty]
     private string _loadMoreText = string.Empty;
 
     private readonly HashSet<HistoryEventKind> _selectedKinds = [];
@@ -193,6 +202,13 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         SummaryIncomeText = "+" + HistoryPresentation.Money(income) + " ت";
         SummaryExpenseText = "−" + HistoryPresentation.Money(expense) + " ت";
         SummaryNetText = (net >= 0 ? "+" : "−") + HistoryPresentation.Money(Math.Abs(net)) + " ت";
+
+        // Precomposed summary lines: the label + value form one final string so
+        // the View needs a single TextBlock.Text assignment instead of a
+        // concatenation-only <Run> chain (Avalonia perf guidance).
+        SummaryIncomeLine = "درآمد: " + SummaryIncomeText;
+        SummaryExpenseLine = "هزینه: " + SummaryExpenseText;
+        SummaryNetLine = "خالص: " + SummaryNetText;
         SummaryNetBrush = HistoryPresentation.Fill(net >= 0 ? "#027a48" : "#d92d20");
     }
 

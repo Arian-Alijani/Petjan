@@ -360,24 +360,17 @@
             <!-- Summary bar (.hy-summary) -->
             <Border Classes="hy-summary">
                 <StackPanel Orientation="Horizontal" Spacing="24" VerticalAlignment="Center">
-                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
-                        <Run Text="{Binding SummaryCountText}" />
-                    </TextBlock>
+                    <TextBlock Text="{Binding SummaryCountText}" FontSize="13"
+                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                     <Border Classes="hy-summary-sep" />
-                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
-                        <Run Text="درآمد: " />
-                        <Run Text="{Binding SummaryIncomeText}" FontWeight="Bold" Foreground="{StaticResource OkBrush}" />
-                    </TextBlock>
+                    <TextBlock Text="{Binding SummaryIncomeLine}" FontSize="13"
+                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                     <Border Classes="hy-summary-sep" />
-                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
-                        <Run Text="هزینه: " />
-                        <Run Text="{Binding SummaryExpenseText}" FontWeight="Bold" Foreground="{StaticResource DangerBrush}" />
-                    </TextBlock>
+                    <TextBlock Text="{Binding SummaryExpenseLine}" FontSize="13"
+                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                     <Border Classes="hy-summary-sep" />
-                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
-                        <Run Text="خالص: " />
-                        <Run Text="{Binding SummaryNetText}" FontWeight="Bold" Foreground="{Binding SummaryNetBrush}" />
-                    </TextBlock>
+                    <TextBlock Text="{Binding SummaryNetLine}" FontSize="13"
+                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                     <TextBlock Text="مرتب‌سازی: جدیدترین" FontSize="12"
                                Foreground="{StaticResource Muted2Brush}" VerticalAlignment="Center" />
                 </StackPanel>
@@ -409,12 +402,9 @@
                                     <!-- day group header (.hy-day-group) -->
                                     <Border Classes="hy-day-group">
                                         <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
-                                            <TextBlock Grid.Column="0" FontSize="12.5" FontWeight="Bold"
-                                                       Foreground="{StaticResource Ink2Brush}">
-                                                <Run Text="{Binding Label}" />
-                                                <Run Text=" – " />
-                                                <Run Text="{Binding DateText}" />
-                                            </TextBlock>
+                                            <TextBlock Grid.Column="0" Text="{Binding HeaderText}"
+                                                       FontSize="12.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource Ink2Brush}" />
                                             <Border Grid.Column="1" Classes="hy-day-badge" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding CountText}" FontSize="11"
                                                            FontWeight="SemiBold"
