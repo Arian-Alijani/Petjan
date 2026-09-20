@@ -72,13 +72,13 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
 
     // ── Collections ──────────────────────────────────────────────────────
 
-    public ObservableCollection<ChequeKpiViewModel> Kpis { get; } = [];
+    public RangeObservableCollection<ChequeKpiViewModel> Kpis { get; } = [];
 
     public ObservableCollection<ChequeTabViewModel> Tabs { get; } = [];
 
     public ObservableCollection<ChequeViewModeViewModel> ViewModes { get; } = [];
 
-    public ObservableCollection<ChequeStatusChipViewModel> StatusChips { get; } = [];
+    public RangeObservableCollection<ChequeStatusChipViewModel> StatusChips { get; } = [];
 
     public RangeObservableCollection<ChequeRowViewModel> TableRows { get; } = [];
 
@@ -90,11 +90,11 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
 
     public RangeObservableCollection<ChequeBankRowViewModel> BankRows { get; } = [];
 
-    public ObservableCollection<ChequeAlertViewModel> Alerts { get; } = [];
+    public RangeObservableCollection<ChequeAlertViewModel> Alerts { get; } = [];
 
-    public ObservableCollection<ChequeRowViewModel> SelectedCheques { get; } = [];
+    public RangeObservableCollection<ChequeRowViewModel> SelectedCheques { get; } = [];
 
-    public ObservableCollection<ChequeBankOptionViewModel> BankFilterOptions { get; } = [];
+    public RangeObservableCollection<ChequeBankOptionViewModel> BankFilterOptions { get; } = [];
 
     public ObservableCollection<ChequeRangeOptionViewModel> RangeOptions { get; } = [];
 
@@ -210,12 +210,9 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
             _banks[bank.Key] = bank;
         }
 
-        BankFilterOptions.Clear();
-        BankFilterOptions.Add(new ChequeBankOptionViewModel(string.Empty, "همه بانک‌ها"));
-        foreach (var bank in _banks.Values)
-        {
-            BankFilterOptions.Add(new ChequeBankOptionViewModel(bank.Key, bank.Name));
-        }
+        BankFilterOptions.ReplaceAll(
+            new[] { new ChequeBankOptionViewModel(string.Empty, "همه بانک‌ها") }
+                .Concat(_banks.Values.Select(bank => new ChequeBankOptionViewModel(bank.Key, bank.Name))));
 
         SelectedBankFilter = BankFilterOptions[0];
 
@@ -353,41 +350,37 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
         var cleared = all.Where(c => c.Status == ChequeStatus.Cleared).ToList();
         var overdue = all.Where(c => IsOpen(c) && DaysLeft(c) < 0).ToList();
 
-        Kpis.Clear();
-
-        Kpis.Add(new ChequeKpiViewModel(
-            0, "IconArrowDownLeft", "چک‌های دریافتی در جریان", inOpen.Count, Sum(inOpen),
-            "", "+۱۲٪", " نسبت به ماه گذشته", "#027a48",
-            [12, 18, 15, 22, 19, 26, 24, 31]));
-
         var sixty = JalaliCalendar.Medium(JalaliCalendar.FromDay(JalaliCalendar.ToDay(_today) + 60));
-        Kpis.Add(new ChequeKpiViewModel(
-            1, "IconArrowUpRight", "چک‌های پرداختی در جریان", outOpen.Count, Sum(outOpen),
-            "تعهد پیش‌رو تا " + sixty, string.Empty, string.Empty, "#d98032",
-            [22, 19, 24, 20, 26, 23, 28, 25]));
-
-        if (overdue.Count > 0)
-        {
-            Kpis.Add(new ChequeKpiViewModel(
+        var overdueKpi = overdue.Count > 0
+            ? new ChequeKpiViewModel(
                 2, "IconHourglass", "سررسید ۷ روز آینده", soon.Count, Sum(soon),
                 string.Empty, ChequesPresentation.Fa(overdue.Count) + " فقره", " سررسید گذشته", "#b54708",
-                [8, 12, 10, 16, 14, 20, 18, 22]));
-        }
-        else
-        {
-            Kpis.Add(new ChequeKpiViewModel(
+                [8, 12, 10, 16, 14, 20, 18, 22])
+            : new ChequeKpiViewModel(
                 2, "IconHourglass", "سررسید ۷ روز آینده", soon.Count, Sum(soon),
                 "بدون سررسید عقب‌افتاده", string.Empty, string.Empty, "#b54708",
-                [8, 12, 10, 16, 14, 20, 18, 22]));
-        }
+                [8, 12, 10, 16, 14, 20, 18, 22]);
 
         var rate = cleared.Count + bounced.Count == 0
             ? 0
             : (int)Math.Round(cleared.Count / (double)(cleared.Count + bounced.Count) * 100);
-        Kpis.Add(new ChequeKpiViewModel(
-            3, "IconAlert", "چک‌های برگشتی", bounced.Count, Sum(bounced),
-            "نرخ وصول ", ChequesPresentation.Fa(rate) + "٪", string.Empty, "#027a48",
-            [6, 5, 7, 4, 6, 3, 5, 2]));
+
+        Kpis.ReplaceAll(
+        [
+            new ChequeKpiViewModel(
+                0, "IconArrowDownLeft", "چک‌های دریافتی در جریان", inOpen.Count, Sum(inOpen),
+                "", "+۱۲٪", " نسبت به ماه گذشته", "#027a48",
+                [12, 18, 15, 22, 19, 26, 24, 31]),
+            new ChequeKpiViewModel(
+                1, "IconArrowUpRight", "چک‌های پرداختی در جریان", outOpen.Count, Sum(outOpen),
+                "تعهد پیش‌رو تا " + sixty, string.Empty, string.Empty, "#d98032",
+                [22, 19, 24, 20, 26, 23, 28, 25]),
+            overdueKpi,
+            new ChequeKpiViewModel(
+                3, "IconAlert", "چک‌های برگشتی", bounced.Count, Sum(bounced),
+                "نرخ وصول ", ChequesPresentation.Fa(rate) + "٪", string.Empty, "#027a48",
+                [6, 5, 7, 4, 6, 3, 5, 2]),
+        ]);
     }
 
     private void RenderChips()
@@ -401,24 +394,24 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
             tab.CountText = ChequesPresentation.Fa(n);
         }
 
-        StatusChips.Clear();
-        foreach (var status in new[]
-                 {
-                     ChequeStatus.InHand, ChequeStatus.AtBank, ChequeStatus.Cleared,
-                     ChequeStatus.Bounced, ChequeStatus.Spent, ChequeStatus.Void,
-                 })
-        {
-            var n = baseList.Count(c => c.Status == status);
-            StatusChips.Add(new ChequeStatusChipViewModel(
-                status,
-                ChequesPresentation.StatusLabel(status),
-                ChequesPresentation.StatusDesc(status),
-                ChequesPresentation.StatusColor(status))
+        StatusChips.ReplaceAll(new[]
             {
-                IsActive = _statuses.Contains(status),
-                CountText = ChequesPresentation.Fa(n),
-            });
-        }
+                ChequeStatus.InHand, ChequeStatus.AtBank, ChequeStatus.Cleared,
+                ChequeStatus.Bounced, ChequeStatus.Spent, ChequeStatus.Void,
+            }
+            .Select(status =>
+            {
+                var n = baseList.Count(c => c.Status == status);
+                return new ChequeStatusChipViewModel(
+                    status,
+                    ChequesPresentation.StatusLabel(status),
+                    ChequesPresentation.StatusDesc(status),
+                    ChequesPresentation.StatusColor(status))
+                {
+                    IsActive = _statuses.Contains(status),
+                    CountText = ChequesPresentation.Fa(n),
+                };
+            }));
 
         foreach (var mode in ViewModes)
         {
@@ -644,27 +637,18 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
 
     private async Task RefreshAlertsAsync()
     {
-        Alerts.Clear();
-        foreach (var alert in await _service.GetAlertsAsync())
-        {
-            Alerts.Add(new ChequeAlertViewModel(alert));
-        }
+        Alerts.ReplaceAll((await _service.GetAlertsAsync()).Select(alert => new ChequeAlertViewModel(alert)));
     }
 
     // ── Bulk bar (renderBulk) ────────────────────────────────────────────
 
     private void RenderBulk()
     {
-        SelectedCheques.Clear();
         // Preserve selections that still exist in the current data set.
-        foreach (var id in _selectedIds.OrderBy(x => x))
-        {
-            var c = _cheques.FirstOrDefault(x => x.Id == id);
-            if (c is not null)
-            {
-                SelectedCheques.Add(new ChequeRowViewModel(c, BankOf(c.BankKey), DaysLeft(c)));
-            }
-        }
+        SelectedCheques.ReplaceAll(_selectedIds.OrderBy(x => x)
+            .Select(id => _cheques.FirstOrDefault(x => x.Id == id))
+            .Where(c => c is not null)
+            .Select(c => new ChequeRowViewModel(c!, BankOf(c!.BankKey), DaysLeft(c!))));
 
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(BulkCountText));

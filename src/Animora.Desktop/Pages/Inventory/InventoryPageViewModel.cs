@@ -67,7 +67,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     public bool ShowHeaderNew => IsProductsTab;
 
     public ObservableCollection<InventorySubnavViewModel> Tabs { get; } = [];
-    public ObservableCollection<InventoryCategoryChipViewModel> CategoryChips { get; } = [];
+    public RangeObservableCollection<InventoryCategoryChipViewModel> CategoryChips { get; } = [];
     public ObservableCollection<InventoryStockChipViewModel> StockChips { get; } = [];
     public RangeObservableCollection<InventoryProductRowViewModel> FilteredProducts { get; } = [];
 
@@ -81,7 +81,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private bool _hasProducts;
 
     // ── Settings sub-view ───────────────────────────────────────────────────
-    public ObservableCollection<InventoryCategoryRowViewModel> CategoryRows { get; } = [];
+    public RangeObservableCollection<InventoryCategoryRowViewModel> CategoryRows { get; } = [];
     public ObservableCollection<InventorySettingToggleViewModel> SettingToggles { get; } = [];
 
     [ObservableProperty]
@@ -124,18 +124,17 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
     private void BuildFilterChips()
     {
-        CategoryChips.Clear();
-        CategoryChips.Add(new InventoryCategoryChipViewModel("all", "همه دسته‌ها", null)
-        {
-            IsActive = _catFilter == "all",
-        });
-        foreach (var category in _categories)
-        {
-            CategoryChips.Add(new InventoryCategoryChipViewModel(category.Id, category.Label, category.Tone)
+        CategoryChips.ReplaceAll(new[]
+            {
+                new InventoryCategoryChipViewModel("all", "همه دسته‌ها", null)
+                {
+                    IsActive = _catFilter == "all",
+                },
+            }
+            .Concat(_categories.Select(category => new InventoryCategoryChipViewModel(category.Id, category.Label, category.Tone)
             {
                 IsActive = _catFilter == category.Id,
-            });
-        }
+            })));
 
         if (StockChips.Count == 0)
         {
@@ -205,13 +204,12 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
     private void BuildSettings()
     {
-        CategoryRows.Clear();
-        foreach (var category in _categories)
+        CategoryRows.ReplaceAll(_categories.Select(category =>
         {
             var count = _products.Count(p => p.CategoryId == category.Id);
-            CategoryRows.Add(new InventoryCategoryRowViewModel(
-                category.Id, category.Label, category.Tone, category.IconKey, count));
-        }
+            return new InventoryCategoryRowViewModel(
+                category.Id, category.Label, category.Tone, category.IconKey, count);
+        }));
 
         SettingsCountText =
             $"{PersianNumberFormatter.ToPersianDigits(_categories.Count)} دسته فعال · تنظیمات دسته‌بندی و برچسب کالاها را اینجا مدیریت کنید.";
