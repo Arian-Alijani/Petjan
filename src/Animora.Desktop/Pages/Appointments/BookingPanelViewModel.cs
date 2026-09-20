@@ -147,11 +147,14 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     [ObservableProperty]
     private string _queryText = string.Empty;
 
+    // Search debounce (~160ms), moved out of the code-behind into the VM.
+    private readonly Debouncer _queryDebounce = new(TimeSpan.FromMilliseconds(160));
+
     partial void OnQueryTextChanged(string value)
     {
         _query = value ?? string.Empty;
         _highlightIndex = 0;
-        RenderPatient();
+        _queryDebounce.Debounce(RenderPatient);
     }
 
     // selected patient card fields

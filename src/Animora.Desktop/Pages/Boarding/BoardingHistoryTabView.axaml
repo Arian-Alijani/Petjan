@@ -56,9 +56,9 @@
                         <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
                               Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}"
                               VerticalAlignment="Center" />
-                        <TextBox Grid.Column="1" Text="{Binding HistoryQueryText}" Background="Transparent"
+                        <TextBox Grid.Column="1" Text="{Binding HistoryQueryText, Mode=TwoWay}" Background="Transparent"
                                  BorderThickness="0" FontSize="13" VerticalContentAlignment="Center"
-                                 PlaceholderText="جستجوی حیوان، مالک…" TextChanged="OnHistorySearchChanged" />
+                                 PlaceholderText="جستجوی حیوان، مالک…" />
                         <Button Grid.Column="2" Classes="ghost" Width="28" Height="28" Padding="4"
                                 IsVisible="{Binding HasHistoryQuery}" Command="{Binding ClearHistorySearchCommand}"
                                 ToolTip.Tip="پاک‌کردن">

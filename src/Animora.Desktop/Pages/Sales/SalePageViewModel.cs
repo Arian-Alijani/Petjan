@@ -357,7 +357,9 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     [RelayCommand]
     private void PrintDay() => _toast.Show("گزارش روز به چاپگر ارسال شد (نمونه طراحی)", Tone.Ok);
 
-    partial void OnSearchTextChanged(string value) => RenderSidebar();
+    private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
+
+    partial void OnSearchTextChanged(string value) => _searchDebounce.Debounce(RenderSidebar);
 
     // ── Loading ─────────────────────────────────────────────────────────
 

@@ -121,7 +121,9 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(PayAmountWatermark));
     }
 
-    partial void OnSearchTextChanged(string value) => RenderList();
+    private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
+
+    partial void OnSearchTextChanged(string value) => _searchDebounce.Debounce(RenderList);
 
     partial void OnSelectedDiscountOptionChanged(CashierDiscountOptionViewModel? value)
     {

@@ -174,11 +174,13 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
         RenderAll();
     }
 
+    private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(160));
+
     partial void OnSearchTextChanged(string value)
     {
         HasSearchValue = value.Trim().Length > 0;
         _page = 1;
-        RenderAll();
+        _searchDebounce.Debounce(RenderAll);
     }
 
     partial void OnCalendarYearChanged(int value) => OnPropertyChanged(nameof(CalendarTitle));

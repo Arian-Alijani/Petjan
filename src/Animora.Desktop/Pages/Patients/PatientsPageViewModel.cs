@@ -118,7 +118,9 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         set => Sort = (PatientSort)Math.Clamp(value, 0, 2);
     }
 
-    partial void OnSearchTextChanged(string value) => ApplyFilter();
+    private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
+
+    partial void OnSearchTextChanged(string value) => _searchDebounce.Debounce(ApplyFilter);
 
     partial void OnViewModeChanged(PatientViewMode value) => ApplyFilter();
 
