@@ -73,6 +73,20 @@ public sealed class TrendChart : Control
         set => SetValue(ProfitBrushProperty, value);
     }
 
+    // ---- render-pass geometry cache (PERFORMANCE.md §11/§10) ----------------
+    // The three area fills, three smooth line splines, the two area gradients and
+    // the three line pens are derived purely from the layout (bounds), the Points
+    // list and the three series brushes. They are expensive to rebuild
+    // (StreamGeometry + Bézier smoothing) yet Render runs on every resize/redraw,
+    // so they are rebuilt only when a real input changes and reused otherwise.
+    private StreamGeometry? _expArea, _revArea;
+    private StreamGeometry? _expLine, _revLine, _proLine;
+    private IBrush? _expAreaFill, _revAreaFill;
+    private Pen? _expPen, _revPen, _proPen;
+    private double _cacheW, _cacheH, _cacheBaseY;
+    private IReadOnlyList<TrendChartPoint>? _cacheSource;
+    private IBrush? _cacheRevBrush, _cacheExpBrush, _cacheProBrush;
+
     public override void Render(DrawingContext ctx)
     {
         var w = Bounds.Width;
@@ -123,27 +137,34 @@ public sealed class TrendChart : Control
             ctx.DrawText(label, new Point(w - padR + 8, gy + 3 - (label.Height / 2)));
         }
 
-        var revPts = new Point[n];
-        var expPts = new Point[n];
-        var proPts = new Point[n];
-        for (var i = 0; i < n; i++)
-        {
-            revPts[i] = new Point(X(i), Y(pts[i].Revenue));
-            expPts[i] = new Point(X(i), Y(pts[i].Expense));
-            proPts[i] = new Point(X(i), Y(Math.Max(0, pts[i].Profit)));
-        }
+        EnsureCache(pts, w, h, baseY, X, Y);
 
         // soft areas (expense first, revenue on top — as in the reference order)
-        DrawArea(ctx, expPts, baseY, FinanceChartBrushes.Area(ExpenseBrush, 0.16));
-        DrawArea(ctx, revPts, baseY, FinanceChartBrushes.Area(RevenueBrush, 0.26));
+        if (_expArea is not null && _expAreaFill is not null)
+        {
+            ctx.DrawGeometry(_expAreaFill, null, _expArea);
+        }
+
+        if (_revArea is not null && _revAreaFill is not null)
+        {
+            ctx.DrawGeometry(_revAreaFill, null, _revArea);
+        }
 
         // lines
-        ctx.DrawGeometry(null, new Pen(ExpenseBrush, 2, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round),
-            Smooth(expPts));
-        ctx.DrawGeometry(null, new Pen(RevenueBrush, 2.6, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round),
-            Smooth(revPts));
-        ctx.DrawGeometry(null, new Pen(ProfitBrush, 2.4, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round),
-            Smooth(proPts));
+        if (_expLine is not null && _expPen is not null)
+        {
+            ctx.DrawGeometry(null, _expPen, _expLine);
+        }
+
+        if (_revLine is not null && _revPen is not null)
+        {
+            ctx.DrawGeometry(null, _revPen, _revLine);
+        }
+
+        if (_proLine is not null && _proPen is not null)
+        {
+            ctx.DrawGeometry(null, _proPen, _proLine);
+        }
 
         // minimal X labels — newest (index 0), middle and oldest, each centred on its column
         var keep = new HashSet<int> { 0, (n - 1) / 2, n - 1 };
@@ -161,7 +182,58 @@ public sealed class TrendChart : Control
         }
     }
 
-    private static void DrawArea(DrawingContext ctx, Point[] pts, double baseY, IBrush fill)
+    /// <summary>
+    /// (Re)builds the cached area/line geometries, area gradient fills and line
+    /// pens — but only when the layout, the point list or a series brush actually
+    /// changed. A bare re-render (same inputs) is a no-op. The point/geometry
+    /// math is identical to the previous per-frame code; only its timing moved.
+    /// </summary>
+    private void EnsureCache(
+        IReadOnlyList<TrendChartPoint> pts, double w, double h, double baseY,
+        Func<int, double> x, Func<double, double> y)
+    {
+        if (ReferenceEquals(_cacheSource, pts) &&
+            _cacheW == w && _cacheH == h && _cacheBaseY == baseY &&
+            ReferenceEquals(_cacheRevBrush, RevenueBrush) &&
+            ReferenceEquals(_cacheExpBrush, ExpenseBrush) &&
+            ReferenceEquals(_cacheProBrush, ProfitBrush))
+        {
+            return;
+        }
+
+        _cacheSource = pts;
+        _cacheW = w;
+        _cacheH = h;
+        _cacheBaseY = baseY;
+        _cacheRevBrush = RevenueBrush;
+        _cacheExpBrush = ExpenseBrush;
+        _cacheProBrush = ProfitBrush;
+
+        var n = pts.Count;
+        var revPts = new Point[n];
+        var expPts = new Point[n];
+        var proPts = new Point[n];
+        for (var i = 0; i < n; i++)
+        {
+            revPts[i] = new Point(x(i), y(pts[i].Revenue));
+            expPts[i] = new Point(x(i), y(pts[i].Expense));
+            proPts[i] = new Point(x(i), y(Math.Max(0, pts[i].Profit)));
+        }
+
+        _expArea = BuildArea(expPts, baseY);
+        _revArea = BuildArea(revPts, baseY);
+        _expAreaFill = FinanceChartBrushes.Area(ExpenseBrush, 0.16);
+        _revAreaFill = FinanceChartBrushes.Area(RevenueBrush, 0.26);
+
+        _expLine = Smooth(expPts);
+        _revLine = Smooth(revPts);
+        _proLine = Smooth(proPts);
+        _expPen = new Pen(ExpenseBrush, 2, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+        _revPen = new Pen(RevenueBrush, 2.6, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+        _proPen = new Pen(ProfitBrush, 2.4, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+    }
+
+    private static StreamGeometry BuildArea(Point[] pts, double baseY)
     {
         var geo = new StreamGeometry();
         using (var g = geo.Open())
@@ -177,7 +249,7 @@ public sealed class TrendChart : Control
             g.EndFigure(true);
         }
 
-        ctx.DrawGeometry(fill, null, geo);
+        return geo;
     }
 
     /// <summary>Catmull-Rom → cubic Bézier smoothing, mirroring the reference's <c>smoothPath</c>.</summary>
@@ -275,6 +347,20 @@ public sealed class DonutChart : Control
         set => SetValue(TrackBrushProperty, value);
     }
 
+    // ---- render-pass geometry cache (PERFORMANCE.md §11/§10) ----------------
+    // The per-slice arc geometries + pens and the track pen are derived purely
+    // from the layout (bounds), the slice list and the track brush. Render runs
+    // on every resize/redraw, so they are rebuilt only when a real input changes.
+    private StreamGeometry?[] _arcGeometries = Array.Empty<StreamGeometry?>();
+    private Pen?[] _arcPens = Array.Empty<Pen?>();
+    private Pen? _trackPen;
+    private double _cacheSize;
+    private double _cacheRadius;
+    private Point _cacheCenter;
+    private IReadOnlyList<DonutSlice>? _cacheSource;
+    private IBrush? _cacheTrackBrush;
+    private double _cacheTotal;
+
     public override void Render(DrawingContext ctx)
     {
         var size = Math.Min(Bounds.Width, Bounds.Height);
@@ -288,30 +374,89 @@ public sealed class DonutChart : Control
         var radius = 42 * scale;
         var thickness = 14 * scale;
 
-        // track
-        ctx.DrawEllipse(null, new Pen(TrackBrush, thickness), center, radius, radius);
-
         var slices = Slices;
-        if (slices is null || slices.Count == 0)
+        var total = 0.0;
+        if (slices is not null)
+        {
+            foreach (var s in slices)
+            {
+                total += s.Value;
+            }
+        }
+
+        EnsureCache(slices, total, center, radius, thickness);
+
+        // track
+        if (_trackPen is not null)
+        {
+            ctx.DrawEllipse(null, _trackPen, center, radius, radius);
+        }
+
+        if (slices is null || slices.Count == 0 || total <= 0)
         {
             return;
         }
 
-        var total = 0.0;
-        foreach (var s in slices)
+        for (var i = 0; i < _arcGeometries.Length; i++)
         {
-            total += s.Value;
+            var geo = _arcGeometries[i];
+            var pen = _arcPens[i];
+            if (geo is not null && pen is not null)
+            {
+                ctx.DrawGeometry(null, pen, geo);
+            }
+        }
+    }
+
+    /// <summary>
+    /// (Re)builds the cached track pen and per-slice arc geometries/pens — only
+    /// when the layout, slice list or track brush actually changed. The arc math
+    /// is unchanged; only its timing moved off the per-frame path.
+    /// </summary>
+    private void EnsureCache(
+        IReadOnlyList<DonutSlice>? slices, double total, Point center, double radius, double thickness)
+    {
+        var count = slices?.Count ?? 0;
+        if (ReferenceEquals(_cacheSource, slices) && _cacheSize == thickness &&
+            _cacheRadius == radius && _cacheCenter == center && _cacheTotal == total &&
+            ReferenceEquals(_cacheTrackBrush, TrackBrush))
+        {
+            return;
         }
 
-        if (total <= 0)
+        _cacheSource = slices;
+        _cacheSize = thickness;
+        _cacheRadius = radius;
+        _cacheCenter = center;
+        _cacheTotal = total;
+        _cacheTrackBrush = TrackBrush;
+
+        if (_trackPen is null || !ReferenceEquals(_trackPen.Brush, TrackBrush) || _trackPen.Thickness != thickness)
         {
+            _trackPen = new Pen(TrackBrush, thickness);
+        }
+
+        if (_arcGeometries.Length != count)
+        {
+            _arcGeometries = new StreamGeometry?[count];
+            _arcPens = new Pen?[count];
+        }
+
+        if (slices is null || count == 0 || total <= 0)
+        {
+            for (var i = 0; i < _arcGeometries.Length; i++)
+            {
+                _arcGeometries[i] = null;
+                _arcPens[i] = null;
+            }
+
             return;
         }
 
         // gap in degrees (GAP arc-length 3.2 over r=42)
         var gapDeg = (3.2 / 42.0) * (180.0 / Math.PI);
         var angle = -90.0; // start at the top, clockwise (reference rotate(-90deg))
-        for (var i = 0; i < slices.Count; i++)
+        for (var i = 0; i < count; i++)
         {
             var sweep = (slices[i].Value / total) * 360.0;
             var a0 = angle + (gapDeg / 2);
@@ -323,12 +468,13 @@ public sealed class DonutChart : Control
                 a1 = Math.Min(a0 + 0.01, angle - (gapDeg / 2));
             }
 
-            DrawArc(ctx, center, radius, a0, a1, BrushCache.Solid(slices[i].Color), thickness);
+            _arcGeometries[i] = BuildArc(center, radius, a0, a1);
+            _arcPens[i] = new Pen(BrushCache.Solid(slices[i].Color), thickness, lineCap: PenLineCap.Round);
         }
     }
 
-    private static void DrawArc(
-        DrawingContext ctx, Point center, double radius, double startDeg, double endDeg, IBrush brush, double thickness)
+    private static StreamGeometry BuildArc(
+        Point center, double radius, double startDeg, double endDeg)
     {
         var start = PointOnCircle(center, radius, startDeg);
         var end = PointOnCircle(center, radius, endDeg);
@@ -344,7 +490,7 @@ public sealed class DonutChart : Control
             g.EndFigure(false);
         }
 
-        ctx.DrawGeometry(null, new Pen(brush, thickness, lineCap: PenLineCap.Round), geo);
+        return geo;
     }
 
     private static Point PointOnCircle(Point c, double r, double deg)
@@ -397,6 +543,15 @@ public sealed class MarginGauge : Control
         set => SetValue(TrackBrushProperty, value);
     }
 
+    // ---- render-pass geometry cache (PERFORMANCE.md §11/§10) ----------------
+    // The track arc, value arc and their pens are derived purely from the layout
+    // (bounds), the percent and the two brushes. Render runs on every
+    // resize/redraw, so they are rebuilt only when a real input changes.
+    private StreamGeometry? _trackArc, _valueArc;
+    private Pen? _trackPen, _valuePen;
+    private double _cacheW, _cacheH, _cachePct;
+    private IBrush? _cacheFill, _cacheTrackBrush;
+
     public override void Render(DrawingContext ctx)
     {
         var w = Bounds.Width;
@@ -406,28 +561,63 @@ public sealed class MarginGauge : Control
             return;
         }
 
+        EnsureCache(w, h);
+
+        // Track (full half ring, left→right over the top).
+        if (_trackArc is not null && _trackPen is not null)
+        {
+            ctx.DrawGeometry(null, _trackPen, _trackArc);
+        }
+
+        // Value arc: from the left end (180°) clockwise over the top, sweep ∝ percent.
+        if (_valueArc is not null && _valuePen is not null)
+        {
+            ctx.DrawGeometry(null, _valuePen, _valueArc);
+        }
+    }
+
+    /// <summary>
+    /// (Re)builds the cached track/value arcs and pens — only when the layout,
+    /// percent or a brush actually changed. Geometry math is unchanged.
+    /// </summary>
+    private void EnsureCache(double w, double h)
+    {
+        var pct = Math.Clamp(Percent, 0, 100);
+        if (_cacheW == w && _cacheH == h && _cachePct == pct &&
+            ReferenceEquals(_cacheFill, Fill) && ReferenceEquals(_cacheTrackBrush, TrackBrush))
+        {
+            return;
+        }
+
+        _cacheW = w;
+        _cacheH = h;
+        _cachePct = pct;
+        _cacheFill = Fill;
+        _cacheTrackBrush = TrackBrush;
+
         // Reference viewBox is 140×82 with r=52, arc ends at (14,74) and (126,74).
         var scale = Math.Min(w / 140.0, h / 82.0);
         var r = 52 * scale;
         var cx = w / 2;
         var cy = 74 * scale;
         var thickness = 12 * scale;
-        var pct = Math.Clamp(Percent, 0, 100);
 
-        // Track (full half ring, left→right over the top).
-        DrawArc(ctx, cx, cy, r, 180, 0, TrackBrush, thickness);
+        _trackArc = BuildArc(cx, cy, r, 180, 0);
+        _trackPen = new Pen(TrackBrush, thickness, lineCap: PenLineCap.Round);
 
         if (pct <= 0)
         {
+            _valueArc = null;
+            _valuePen = null;
             return;
         }
 
-        // Value arc: from the left end (180°) clockwise over the top, sweep ∝ percent.
-        DrawArc(ctx, cx, cy, r, 180, 180 + (pct * 1.8), Fill, thickness);
+        _valueArc = BuildArc(cx, cy, r, 180, 180 + (pct * 1.8));
+        _valuePen = new Pen(Fill, thickness, lineCap: PenLineCap.Round);
     }
 
-    private static void DrawArc(
-        DrawingContext ctx, double cx, double cy, double r, double startDeg, double endDeg, IBrush brush, double thickness)
+    private static StreamGeometry BuildArc(
+        double cx, double cy, double r, double startDeg, double endDeg)
     {
         var start = new Point(cx + (r * Math.Cos(startDeg * Math.PI / 180.0)), cy + (r * Math.Sin(startDeg * Math.PI / 180.0)));
         var end = new Point(cx + (r * Math.Cos(endDeg * Math.PI / 180.0)), cy + (r * Math.Sin(endDeg * Math.PI / 180.0)));
@@ -445,6 +635,6 @@ public sealed class MarginGauge : Control
             g.EndFigure(false);
         }
 
-        ctx.DrawGeometry(null, new Pen(brush, thickness, lineCap: PenLineCap.Round), geo);
+        return geo;
     }
 }
