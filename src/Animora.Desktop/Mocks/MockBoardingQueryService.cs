@@ -22,6 +22,16 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
     private readonly List<BoardingStay> _stays;
     private readonly Dictionary<string, List<BoardingStayItem>> _items = new(StringComparer.Ordinal);
 
+    // O(1) id -> list-index lookup (PERFORMANCE.md §2/§13): kept in sync
+    // incrementally (CreateStayAsync inserts at 0 and shifts every existing
+    // index, so it rebuilds; UpdateStay replaces in place, index unchanged).
+    private readonly Dictionary<string, int> _stayIndexById = new(StringComparer.Ordinal);
+
+    // Static selectable catalog (bx-*/sv-*/it-* combined) is looked up by ref
+    // in AddItemAsync; index it once instead of re-flattening + scanning per call.
+    private static readonly Dictionary<string, BoardingSelectableItem> SelectablesByRef =
+        AllSelectables().ToDictionary(x => x.Ref, StringComparer.Ordinal);
+
     // Reference ROOMS (Animora-UI/assets/boarding.js) — id/label/type/species/cap.
     private static readonly (string Id, string Label, BoardingRoomType Type, BoardingSpecies Species, int Cap)[] RoomSeed =
     [
@@ -176,6 +186,17 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
             new("bx-3", BoardingItemKind.Service, "آراستگی و کوتاهی مو", 1, 550_000, Day(-9)),
             new("bx-2", BoardingItemKind.Service, "حمام و خشک‌کردن", 2, 400_000, Day(-6)),
         ];
+
+        RebuildStayIndex();
+    }
+
+    private void RebuildStayIndex()
+    {
+        _stayIndexById.Clear();
+        for (var i = 0; i < _stays.Count; i++)
+        {
+            _stayIndexById[_stays[i].Id] = i;
+        }
     }
 
     public Task<IReadOnlyList<BoardingStay>> GetStaysAsync() =>
@@ -183,7 +204,7 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
 
     public Task<StayDetail?> GetDetailAsync(string stayId)
     {
-        var stay = _stays.FirstOrDefault(s => s.Id == stayId);
+        var stay = _stayIndexById.TryGetValue(stayId, out var index) ? _stays[index] : null;
         if (stay is null)
         {
             return Task.FromResult<StayDetail?>(null);
@@ -204,7 +225,7 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
             _items[stayId] = list;
         }
 
-        var catalog = AllSelectables().FirstOrDefault(x => x.Ref == itemRef);
+        var catalog = SelectablesByRef.GetValueOrDefault(itemRef);
         if (catalog is null)
         {
             return Task.CompletedTask;
@@ -270,8 +291,12 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
             Note: request.Note,
             ExtraItemsCost: 0);
 
+        // Inserting at the front shifts every existing index, so the id index
+        // is rebuilt here rather than patched — cheap relative to the insert
+        // itself and keeps the lookup correct without an O(n) shift loop.
         _stays.Insert(0, stay);
         _items[stay.Id] = [];
+        RebuildStayIndex();
 
         return Task.FromResult(stay);
     }
@@ -326,8 +351,7 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
 
     private void UpdateStay(string stayId, Func<BoardingStay, BoardingStay> mutate)
     {
-        var index = _stays.FindIndex(s => s.Id == stayId);
-        if (index >= 0)
+        if (_stayIndexById.TryGetValue(stayId, out var index))
         {
             _stays[index] = mutate(_stays[index]);
         }

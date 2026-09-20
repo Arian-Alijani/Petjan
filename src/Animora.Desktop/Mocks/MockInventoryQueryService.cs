@@ -143,6 +143,38 @@ public sealed class MockInventoryQueryService : IInventoryQueryService
     // Reference tones cycle for a freshly-created product (inventory.js tones[]).
     private static readonly string[] Tones = ["a", "b", "c", "d", "e", "f"];
 
+    // O(1) id -> list-index lookups (PERFORMANCE.md §2/§13). Products/moves are
+    // only ever inserted at the front or removed, both of which shift every
+    // later index, so the index is rebuilt on those (rare) mutations rather
+    // than patched — cheap relative to the mutation itself and keeps every
+    // read O(1) instead of an O(n) FirstOrDefault/FindIndex scan.
+    private readonly Dictionary<string, int> _productIndexById;
+
+    public MockInventoryQueryService()
+    {
+        _productIndexById = BuildIndex(_products);
+    }
+
+    private static Dictionary<string, int> BuildIndex(List<Product> products)
+    {
+        var map = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < products.Count; i++)
+        {
+            map[products[i].Id] = i;
+        }
+
+        return map;
+    }
+
+    private void SyncProductIndex()
+    {
+        _productIndexById.Clear();
+        for (var i = 0; i < _products.Count; i++)
+        {
+            _productIndexById[_products[i].Id] = i;
+        }
+    }
+
     public Task<IReadOnlyList<Product>> GetProductsAsync() =>
         Task.FromResult<IReadOnlyList<Product>>(_products.ToList());
 
@@ -151,7 +183,7 @@ public sealed class MockInventoryQueryService : IInventoryQueryService
 
     public Task<ProductDetail?> GetDetailAsync(string productId)
     {
-        var product = _products.FirstOrDefault(p => p.Id == productId);
+        var product = _productIndexById.TryGetValue(productId, out var pIndex) ? _products[pIndex] : null;
         if (product is null)
         {
             return Task.FromResult<ProductDetail?>(null);
@@ -163,7 +195,7 @@ public sealed class MockInventoryQueryService : IInventoryQueryService
 
     public Task SaveProductInfoAsync(string productId, ProductInfoUpdate update)
     {
-        var index = _products.FindIndex(p => p.Id == productId);
+        var index = _productIndexById.GetValueOrDefault(productId, -1);
         if (index < 0)
         {
             return Task.CompletedTask;
@@ -191,7 +223,7 @@ public sealed class MockInventoryQueryService : IInventoryQueryService
 
     public Task<ProductVariant> AddVariantAsync(string productId, NewVariantRequest request)
     {
-        var index = _products.FindIndex(p => p.Id == productId);
+        var index = _productIndexById.GetValueOrDefault(productId, -1);
         if (index < 0)
         {
             return Task.FromResult(new ProductVariant(
@@ -247,6 +279,7 @@ public sealed class MockInventoryQueryService : IInventoryQueryService
             variants);
 
         _products.Insert(0, product);
+        SyncProductIndex();
         return Task.FromResult(product);
     }
 
@@ -254,12 +287,13 @@ public sealed class MockInventoryQueryService : IInventoryQueryService
     {
         _products.RemoveAll(p => p.Id == productId);
         _moves.RemoveAll(m => m.ProductId == productId);
+        SyncProductIndex();
         return Task.CompletedTask;
     }
 
     public Task AdjustStockAsync(string productId, string variantId, StockAdjustRequest request)
     {
-        var index = _products.FindIndex(p => p.Id == productId);
+        var index = _productIndexById.GetValueOrDefault(productId, -1);
         if (index < 0)
         {
             return Task.CompletedTask;

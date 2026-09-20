@@ -68,22 +68,45 @@ public sealed class ReceptionQueueRowViewModel
     public bool CanRemove => true;
     public string UrgencyActionText => Ticket.IsUrgent ? "عادی" : "اورژانس";
 
+    // Exactly four possible backgrounds for a row (urgent / called / inVisit /
+    // normal), each a vertical top-colour→white wash with the white stop at
+    // 75% (matching the original design). GradientBrushCache's two-stop helper
+    // always places the second stop at offset 1, so it cannot model this 0.75
+    // stop; per PERFORMANCE.md §10/§15 these four combinations are built once
+    // as static, immutable, shared instances instead of per-row allocation.
+    private static readonly IBrush UrgentBackground = BuildBackground("#fff7f4");
+    private static readonly IBrush CalledBackground = BuildBackground("#f1fbf7");
+    private static readonly IBrush InVisitBackground = BuildBackground("#f0fdfa");
+    private static readonly IBrush NormalBackground = BuildBackground("#ffffff");
+
+    private static IBrush BuildBackground(string topHex)
+    {
+        var brush = new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
+            GradientStops =
+            {
+                new GradientStop(Color.TryParse(topHex, out var top) ? top : Colors.Transparent, 0),
+                new GradientStop(Colors.White, 0.75),
+            },
+        };
+        return brush.ToImmutable();
+    }
+
     private static IBrush ResolveBackground(QueueTicket ticket)
     {
-        // Shared via GradientBrushCache (PERFORMANCE.md §10): each state's top
-        // stop is one of a fixed, handful of palette colours fading to white.
-        // The reference fades to white at 75%; the cache's two-stop key models
-        // the endpoints, so this keeps the same visible top→white wash with a
-        // bounded key space.
-        var top = ticket.IsUrgent
-            ? "#fff7f4"
-            : ticket.State switch
-            {
-                QueueTicketState.Called => "#f1fbf7",
-                QueueTicketState.InVisit => "#f0fdfa",
-                _ => "#ffffff",
-            };
-        return GradientBrushCache.LinearGradient(top, "#ffffff", 0, 0, 0, 1);
+        if (ticket.IsUrgent)
+        {
+            return UrgentBackground;
+        }
+
+        return ticket.State switch
+        {
+            QueueTicketState.Called => CalledBackground,
+            QueueTicketState.InVisit => InVisitBackground,
+            _ => NormalBackground,
+        };
     }
 
     private static IBrush ResolveBorder(QueueTicket ticket) => BrushCache.Solid(
