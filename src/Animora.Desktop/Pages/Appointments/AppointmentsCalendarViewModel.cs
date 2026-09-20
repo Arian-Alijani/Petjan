@@ -1104,7 +1104,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var panel = new BookingPanelViewModel(_booking, _service, _toast, _dialogs);
         panel.Saved += () => _ = RefreshAfterChangeAsync();
         await panel.LoadForNewAsync(null, null, null, null);
-        _dialogs.ShowDrawer(new BookingPanelView { DataContext = panel });
+        _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
     }
 
     private async Task ShowDetailAsync(AppointmentEvent ev)
@@ -1127,7 +1127,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var panel = new BookingPanelViewModel(_booking, _service, _toast, _dialogs);
         panel.Saved += () => _ = RefreshAfterChangeAsync();
         await panel.LoadForEditAsync(ev);
-        _dialogs.ShowDrawer(new BookingPanelView { DataContext = panel });
+        _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
     }
 
     private async Task RefreshAfterChangeAsync()

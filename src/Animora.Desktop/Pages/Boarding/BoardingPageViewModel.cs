@@ -111,6 +111,13 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     public ObservableCollection<BoardingSpeciesOption> SpeciesOptions { get; } = [];
     public RangeObservableCollection<BoardingStayCardViewModel> FilteredStays { get; } = [];
 
+    /// <summary>
+    /// <see cref="FilteredStays"/> chunked into rows of three cards each. The
+    /// stay grid binds to this so a single-column virtualized ListBox still
+    /// renders three cards per visible row (see <see cref="BoardingStayRowViewModel"/>).
+    /// </summary>
+    public RangeObservableCollection<BoardingStayRowViewModel> StayRows { get; } = [];
+
     [ObservableProperty]
     private BoardingSpeciesOption _selectedSpeciesOption;
 
@@ -250,7 +257,16 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private void RefreshCards()
     {
         var rows = Filtered();
-        FilteredStays.ReplaceAll(rows.Select(stay => new BoardingStayCardViewModel(stay, _today)));
+        var cards = rows.Select(stay => new BoardingStayCardViewModel(stay, _today)).ToList();
+        FilteredStays.ReplaceAll(cards);
+
+        var grouped = new List<BoardingStayRowViewModel>();
+        for (var i = 0; i < cards.Count; i += 3)
+        {
+            grouped.Add(new BoardingStayRowViewModel(cards.GetRange(i, Math.Min(3, cards.Count - i))));
+        }
+        StayRows.ReplaceAll(grouped);
+
         HasStays = rows.Count > 0;
     }
 

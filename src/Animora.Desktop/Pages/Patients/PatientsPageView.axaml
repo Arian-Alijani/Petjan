@@ -643,7 +643,8 @@
                                         VerticalAlignment="Top" ToolTip.Tip="مشاهده پرونده"
                                         Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
                                         CommandParameter="{Binding Owner}">
-                                    <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconEye}" />
+                                    <Path Classes="icon" Width="17" Height="17" Data="{StaticResource IconEye}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Button>
                             </Grid>
 
@@ -914,9 +915,10 @@
                                                         Tone="{Binding VaccineStateTone}" />
                                         <TextBlock Grid.Column="6" Margin="16,12" Text="{Binding BalanceText}"
                                                    Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
-                                        <Path Grid.Column="7" Margin="16,0" Classes="icon" Width="16" Height="16"
-                                              VerticalAlignment="Center" Stroke="{StaticResource Muted2Brush}"
-                                              Data="{StaticResource IconChevronLeft}" />
+                                        <Path Grid.Column="7" Margin="16,0" Classes="icon" Width="17" Height="17"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Stroke="{StaticResource Muted2Brush}"
+                                              Data="{StaticResource IconEye}" />
                                     </Grid>
                                 </Border>
                             </Button>
@@ -996,9 +998,10 @@
                                         </StackPanel>
                                         <controls:Badge Grid.Column="7" Margin="16,0" VerticalAlignment="Center"
                                                         Text="{Binding StatusText}" Tone="{Binding StatusTone}" />
-                                        <Path Grid.Column="8" Margin="16,0" Classes="icon" Width="16" Height="16"
-                                              VerticalAlignment="Center" Stroke="{StaticResource Muted2Brush}"
-                                              Data="{StaticResource IconChevronLeft}" />
+                                        <Path Grid.Column="8" Margin="16,0" Classes="icon" Width="17" Height="17"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Stroke="{StaticResource Muted2Brush}"
+                                              Data="{StaticResource IconEye}" />
                                     </Grid>
                                 </Border>
                             </Button>
