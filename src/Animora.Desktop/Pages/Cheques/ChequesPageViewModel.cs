@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Cheques;
@@ -331,9 +332,23 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
             "status" => (sign == 1
                 ? list.OrderBy(c => c.Status.ToString(), StringComparer.Ordinal)
                 : list.OrderByDescending(c => c.Status.ToString(), StringComparer.Ordinal)).ToList(),
-            "no" => list.OrderBy(c => double.Parse(c.Number) * sign).ToList(),
+            "no" => list.OrderBy(c => ParseChequeNumber(c.Number) * sign).ToList(),
             _ => list.OrderBy(c => JalaliCalendar.ToDay(c.DueDate) * sign).ToList(),
         };
+    }
+
+    /// <summary>
+    /// Safely converts a cheque number (which may contain Persian/Arabic digits,
+    /// dashes, spaces or other non-numeric noise) to a <see cref="long"/> for
+    /// sorting. Never throws — unparsable input sorts to the end
+    /// (<see cref="long.MaxValue"/>) instead of crashing the UI.
+    /// </summary>
+    private static long ParseChequeNumber(string number)
+    {
+        var ascii = PersianNumberFormatter.ToAsciiDigits(number);
+        return long.TryParse(ascii, NumberStyles.None, CultureInfo.InvariantCulture, out var n)
+            ? n
+            : long.MaxValue;
     }
 
     private static long Sum(IEnumerable<Cheque> list) => list.Sum(c => c.Amount);
