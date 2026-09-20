@@ -112,8 +112,12 @@
         M5,12 L19,12
     </StreamGeometry>
 
+    <!-- Standard checkmark. The app root is FlowDirection=RightToLeft, which
+         horizontally mirrors Path geometry; this geometry is authored as the
+         mirror image of a conventional tick (short arm bottom-left, long arm
+         top-right) so it renders correctly (not reversed) inside the RTL UI. -->
     <StreamGeometry x:Key="IconCheck">
-        M4,12 L9,17 L20,6
+        M20,6.5 L10,17 L5,12
     </StreamGeometry>
 
     <StreamGeometry x:Key="IconX">
