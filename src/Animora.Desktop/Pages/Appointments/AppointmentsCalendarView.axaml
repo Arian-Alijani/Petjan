@@ -329,23 +329,57 @@
                 </StackPanel>
             </Border>
 
-            <!-- ═══ calendar panel ═══ -->
-            <Border IsVisible="{Binding IsCalendarTab}" Background="{StaticResource PanelBrush}"
-                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                    CornerRadius="{StaticResource RadiusLg}"
-                    BoxShadow="{StaticResource ShadowCard}" ClipToBounds="True">
-                <Panel>
-                    <ap:DayGridView IsVisible="{Binding IsDayView}" />
-                    <ap:WeekGridView IsVisible="{Binding IsWeekView}" />
-                    <ap:MonthGridView IsVisible="{Binding IsMonthViewMode}" />
-                </Panel>
-            </Border>
+            <!-- ═══ tab bodies — lazily instantiated: only the active tab is realised.
+                 Previously all three (calendar + queue + history) were stacked in the
+                 visual tree and toggled with IsVisible, so every tab was built,
+                 measured and arranged (and kept its full subtree in memory) even
+                 while hidden. LazyTabHost builds only the active tab and caches it,
+                 so heavy tabs no longer inflate the first-open cost. ═══ -->
+            <controls:LazyTabHost ActiveKey="{Binding ActiveTab}">
+                <!-- ── calendar ── -->
+                <controls:LazyTab Key="cal">
+                    <DataTemplate x:DataType="ap:AppointmentsCalendarViewModel">
+                        <Border Background="{StaticResource PanelBrush}"
+                                BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                CornerRadius="{StaticResource RadiusLg}"
+                                BoxShadow="{StaticResource ShadowCard}" ClipToBounds="True">
+                            <!-- Inner day/week/month grids are also lazily hosted: only the
+                                 selected grid is built instead of all three at once. -->
+                            <controls:LazyTabHost ActiveKey="{Binding ViewMode}">
+                                <controls:LazyTab Key="day">
+                                    <DataTemplate x:DataType="ap:AppointmentsCalendarViewModel">
+                                        <ap:DayGridView />
+                                    </DataTemplate>
+                                </controls:LazyTab>
+                                <controls:LazyTab Key="week">
+                                    <DataTemplate x:DataType="ap:AppointmentsCalendarViewModel">
+                                        <ap:WeekGridView />
+                                    </DataTemplate>
+                                </controls:LazyTab>
+                                <controls:LazyTab Key="month">
+                                    <DataTemplate x:DataType="ap:AppointmentsCalendarViewModel">
+                                        <ap:MonthGridView />
+                                    </DataTemplate>
+                                </controls:LazyTab>
+                            </controls:LazyTabHost>
+                        </Border>
+                    </DataTemplate>
+                </controls:LazyTab>
 
-            <!-- ═══ queue panel ═══ -->
-            <ap:AppointmentsQueueTabView IsVisible="{Binding IsQueueTab}" />
+                <!-- ── queue ── -->
+                <controls:LazyTab Key="queue">
+                    <DataTemplate x:DataType="ap:AppointmentsCalendarViewModel">
+                        <ap:AppointmentsQueueTabView />
+                    </DataTemplate>
+                </controls:LazyTab>
 
-            <!-- ═══ history panel ═══ -->
-            <ap:AppointmentsHistoryTabView IsVisible="{Binding IsHistoryTab}" />
+                <!-- ── history ── -->
+                <controls:LazyTab Key="hist">
+                    <DataTemplate x:DataType="ap:AppointmentsCalendarViewModel">
+                        <ap:AppointmentsHistoryTabView />
+                    </DataTemplate>
+                </controls:LazyTab>
+            </controls:LazyTabHost>
 
         </StackPanel>
     </ScrollViewer>

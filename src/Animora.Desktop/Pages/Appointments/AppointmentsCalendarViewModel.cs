@@ -189,6 +189,16 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     public bool IsWeekView => _viewMode == "week";
     public bool IsMonthViewMode => _viewMode == "month";
 
+    /// <summary>Active top-level tab key ("cal"/"queue"/"hist"), bound to the
+    /// <see cref="Controls.LazyTabHost.ActiveKey"/> so only the selected tab's
+    /// subtree is realised instead of building all three behind IsVisible.</summary>
+    public string ActiveTab => _activeTab;
+
+    /// <summary>Active calendar view key ("day"/"week"/"month"), bound to the
+    /// inner calendar <see cref="Controls.LazyTabHost"/> so only the visible
+    /// grid is realised.</summary>
+    public string ViewMode => _viewMode;
+
     public bool IsQueueCancelledShown => _queueShowCancelled;
 
     // ── load ─────────────────────────────────────────────────────────────────
@@ -829,6 +839,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         _activeTab = key;
+        OnPropertyChanged(nameof(ActiveTab));
         OnPropertyChanged(nameof(IsCalendarTab));
         OnPropertyChanged(nameof(IsQueueTab));
         OnPropertyChanged(nameof(IsHistoryTab));
@@ -853,6 +864,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         _viewMode = key;
+        OnPropertyChanged(nameof(ViewMode));
         OnPropertyChanged(nameof(IsDayView));
         OnPropertyChanged(nameof(IsWeekView));
         OnPropertyChanged(nameof(IsMonthViewMode));
@@ -1192,10 +1204,12 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         _cursor = group.Day;
         _viewMode = "day";
+        OnPropertyChanged(nameof(ViewMode));
         OnPropertyChanged(nameof(IsDayView));
         OnPropertyChanged(nameof(IsWeekView));
         OnPropertyChanged(nameof(IsMonthViewMode));
         _activeTab = "cal";
+        OnPropertyChanged(nameof(ActiveTab));
         OnPropertyChanged(nameof(IsCalendarTab));
         OnPropertyChanged(nameof(IsQueueTab));
         OnPropertyChanged(nameof(IsHistoryTab));
