@@ -63,16 +63,9 @@ public static class BoardingPresentation
             _ => ("#b8a2e6", "#8f74d1"),
         };
 
-        return new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(Color.Parse(from), 0),
-                new GradientStop(Color.Parse(to), 1),
-            },
-        };
+        // Shared via GradientBrushCache — the six tone pairs are a fixed set,
+        // so this never allocates a brush per stay card (PERFORMANCE.md §10).
+        return GradientBrushCache.LinearGradient(from, to, 0, 0, 1, 1);
     }
 
     /// <summary>
@@ -130,16 +123,8 @@ public static class BoardingPresentation
                 ? ("#b54708", "#d9980f")
                 : ("#2dd4bf", "#0d9488");
 
-        return new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(Color.Parse(from), 0),
-                new GradientStop(Color.Parse(to), 1),
-            },
-        };
+        // Shared via GradientBrushCache — three fixed tone pairs (PERFORMANCE.md §10).
+        return GradientBrushCache.LinearGradient(from, to, 0, 0, 1, 0);
     }
 
     /// <summary>
@@ -157,23 +142,11 @@ public static class BoardingPresentation
                 ? ("#b54708", "#d9980f")
                 : ("#2dd4bf", "#0d9488");
 
-        var frac = Math.Clamp(percent / 100d, 0d, 1d);
-        var fillStart = Color.Parse(from);
-        var fillEnd = Color.Parse(to);
-        var track = Color.Parse("#f1f5f6");
-
-        return new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(fillStart, 0),
-                new GradientStop(fillEnd, frac),
-                new GradientStop(track, frac),
-                new GradientStop(track, 1),
-            },
-        };
+        // Shared via GradientBrushCache. The three tone pairs and the single
+        // track colour are fixed; the only continuous input, `percent`, is
+        // quantised to a whole percent (0..100) inside the cache so the key
+        // space stays bounded to 101 values per tone (PERFORMANCE.md §10/§15).
+        return GradientBrushCache.ProgressBar(from, to, "#f1f5f6", percent);
     }
 
     /// <summary>

@@ -238,28 +238,17 @@ public static class ChequesPresentation
     // ── Bank marks + avatars ─────────────────────────────────────────────
 
     /// <summary>The bank mark's 135° gradient (the reference's inline bank colours).</summary>
-    public static IBrush BankGradient(string colorFrom, string colorTo) => new LinearGradientBrush
-    {
-        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-        EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
-        GradientStops =
-        {
-            new GradientStop(Color.Parse(colorFrom), 0),
-            new GradientStop(Color.Parse(colorTo), 1),
-        },
-    };
+    /// <remarks>
+    /// Shared via <see cref="GradientBrushCache"/> — the bank colours come from
+    /// a small fixed palette, so this never allocates per row (PERFORMANCE.md §10).
+    /// </remarks>
+    public static IBrush BankGradient(string colorFrom, string colorTo) =>
+        GradientBrushCache.LinearGradient(colorFrom, colorTo, 0, 0, 1, 1);
 
     /// <summary>The bank distribution track fill (<c>linear-gradient(90deg, c2, c)</c>).</summary>
-    public static IBrush BankTrackGradient(string colorFrom, string colorTo) => new LinearGradientBrush
-    {
-        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-        EndPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
-        GradientStops =
-        {
-            new GradientStop(Color.Parse(colorTo), 0),
-            new GradientStop(Color.Parse(colorFrom), 1),
-        },
-    };
+    /// <remarks>Shared via <see cref="GradientBrushCache"/> (PERFORMANCE.md §10).</remarks>
+    public static IBrush BankTrackGradient(string colorFrom, string colorTo) =>
+        GradientBrushCache.LinearGradient(colorTo, colorFrom, 0, 0, 1, 0);
 
     private static readonly string[] AvatarColors =
     [

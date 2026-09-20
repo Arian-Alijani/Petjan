@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Vaccination;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.Vaccination;
 using Animora.Desktop.Services;
@@ -76,7 +77,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     public bool ShowVisitsTools => ActiveSection == "visits";
 
     public ObservableCollection<VaccinationSegmentViewModel> Segments { get; } = [];
-    public ObservableCollection<VaccinationRecordRowViewModel> FilteredRecords { get; } = [];
+    public RangeObservableCollection<VaccinationRecordRowViewModel> FilteredRecords { get; } = [];
     public ObservableCollection<VaccineCatalogCardViewModel> Catalog { get; } = [];
     public ObservableCollection<SmsTemplateRowViewModel> Templates { get; } = [];
     public ObservableCollection<SpeciesFilterOption> SpeciesOptions { get; } = [];
@@ -283,12 +284,12 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
 
         var slice = list.Skip((_page - 1) * PageSize).Take(PageSize).ToList();
 
-        FilteredRecords.Clear();
-        foreach (var record in slice)
-        {
-            var vaccine = _catalog.FirstOrDefault(v => v.Id == record.VaccineId);
-            FilteredRecords.Add(new VaccinationRecordRowViewModel(record, vaccine));
-        }
+        // Batched rebuild (PERFORMANCE.md §5): one Reset instead of one
+        // CollectionChanged (and layout pass) per row.
+        FilteredRecords.ReplaceAll(slice.Select(record =>
+            new VaccinationRecordRowViewModel(
+                record,
+                _catalog.FirstOrDefault(v => v.Id == record.VaccineId))));
 
         HasRecords = list.Count > 0;
 

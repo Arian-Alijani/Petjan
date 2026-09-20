@@ -82,13 +82,13 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
 
     public RangeObservableCollection<ChequeRowViewModel> TableRows { get; } = [];
 
-    public ObservableCollection<ChequeLeafViewModel> GridLeaves { get; } = [];
+    public RangeObservableCollection<ChequeLeafViewModel> GridLeaves { get; } = [];
 
-    public ObservableCollection<ChequeCalendarCellViewModel> CalendarCells { get; } = [];
+    public RangeObservableCollection<ChequeCalendarCellViewModel> CalendarCells { get; } = [];
 
-    public ObservableCollection<ChequeTimelineGroupViewModel> TimelineGroups { get; } = [];
+    public RangeObservableCollection<ChequeTimelineGroupViewModel> TimelineGroups { get; } = [];
 
-    public ObservableCollection<ChequeBankRowViewModel> BankRows { get; } = [];
+    public RangeObservableCollection<ChequeBankRowViewModel> BankRows { get; } = [];
 
     public ObservableCollection<ChequeAlertViewModel> Alerts { get; } = [];
 
@@ -520,11 +520,10 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
         var start = (_page - 1) * GridPageSize;
         var rows = list.Skip(start).Take(GridPageSize).ToList();
 
-        GridLeaves.Clear();
-        foreach (var c in rows)
-        {
-            GridLeaves.Add(new ChequeLeafViewModel(c, BankOf(c.BankKey), DaysLeft(c)));
-        }
+        // Batched rebuild (PERFORMANCE.md §5): a single Reset, not one
+        // notification per leaf.
+        GridLeaves.ReplaceAll(rows.Select(c =>
+            new ChequeLeafViewModel(c, BankOf(c.BankKey), DaysLeft(c))));
 
         Pager = list.Count == 0 ? null : BuildPager(list.Count, GridPageSize);
     }
@@ -581,16 +580,17 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
             cells.Add((cells.Count - len - startDow + 1, true));
         }
 
-        CalendarCells.Clear();
-        for (var i = 0; i < cells.Count; i++)
+        // Batched rebuild (PERFORMANCE.md §5): a single Reset, not one
+        // notification per calendar cell. Same cell order as the index loop.
+        CalendarCells.ReplaceAll(cells.Select((cell, i) =>
         {
-            var (day, off) = cells[i];
-            var evs = off ? [] : byDay.TryGetValue(day, out var b) ? b : [];
+            var (day, off) = cell;
+            List<Cheque> evs = off ? [] : byDay.TryGetValue(day, out var b) ? b : [];
             var dayTotal = Sum(evs);
             var events = evs.Select(e => new ChequeCalendarEventViewModel(e)).ToList();
-            CalendarCells.Add(new ChequeCalendarCellViewModel(
-                day, off, !off && isThis && day == today.Day, i % 7 == 6, dayTotal, events));
-        }
+            return new ChequeCalendarCellViewModel(
+                day, off, !off && isThis && day == today.Day, i % 7 == 6, dayTotal, events);
+        }));
     }
 
     // ── Timeline (renderTimeline) ────────────────────────────────────────
@@ -607,18 +607,16 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
             ("done", "بسته‌شده (وصول/برگشت/ابطال)", "", c => !IsOpen(c) && DaysLeft(c) <= 0),
         ];
 
-        TimelineGroups.Clear();
-        foreach (var b in buckets)
-        {
-            var items = list.Where(b.Pred).ToList();
-            if (items.Count == 0)
-            {
-                continue;
-            }
-
-            var mapped = items.Select(c => new ChequeTimelineItemViewModel(c, BankOf(c.BankKey), DaysLeft(c))).ToList();
-            TimelineGroups.Add(new ChequeTimelineGroupViewModel(b.Title, b.Tone, Sum(items), mapped));
-        }
+        // Batched rebuild (PERFORMANCE.md §5): a single Reset, not one
+        // notification per group. Empty buckets are skipped exactly as before.
+        TimelineGroups.ReplaceAll(buckets
+            .Select(b => (b.Title, b.Tone, Items: list.Where(b.Pred).ToList()))
+            .Where(x => x.Items.Count > 0)
+            .Select(x => new ChequeTimelineGroupViewModel(
+                x.Title,
+                x.Tone,
+                Sum(x.Items),
+                x.Items.Select(c => new ChequeTimelineItemViewModel(c, BankOf(c.BankKey), DaysLeft(c))).ToList())));
     }
 
     // ── Side column (renderSide) ─────────────────────────────────────────
@@ -635,16 +633,13 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
         var rows = map.OrderByDescending(kv => kv.Value).Take(5).ToList();
         var max = rows.Count > 0 ? rows[0].Value : 1;
 
-        BankRows.Clear();
-        foreach (var (key, value) in rows)
-        {
-            var bank = BankOf(key);
-            var count = list.Count(c => c.BankKey == key);
-            BankRows.Add(new ChequeBankRowViewModel(bank, value, count, max)
+        // Batched rebuild (PERFORMANCE.md §5): a single Reset, not one
+        // notification per bank row.
+        BankRows.ReplaceAll(rows.Select(kv =>
+            new ChequeBankRowViewModel(BankOf(kv.Key), kv.Value, list.Count(c => c.BankKey == kv.Key), max)
             {
-                IsActive = _bank == key,
-            });
-        }
+                IsActive = _bank == kv.Key,
+            }));
     }
 
     private async Task RefreshAlertsAsync()

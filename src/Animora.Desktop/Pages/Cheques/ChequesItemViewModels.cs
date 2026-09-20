@@ -215,16 +215,12 @@ public sealed class ChequeKpiViewModel
         return (line, area);
     }
 
-    private static IBrush BuildSparkFill(string color) => new LinearGradientBrush
-    {
-        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-        EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
-        GradientStops =
-        {
-            new GradientStop(Avalonia.Media.Color.Parse(color), 0),
-            new GradientStop(Avalonia.Media.Color.Parse("#00FFFFFF"), 1),
-        },
-    };
+    // Shared via GradientBrushCache — a top→bottom fade from the sparkline's
+    // accent colour to transparent. The accent comes from the small fixed KPI
+    // palette and the bottom stop is a constant, so this never allocates a
+    // brush per sparkline (PERFORMANCE.md §10).
+    private static IBrush BuildSparkFill(string color) =>
+        GradientBrushCache.LinearGradient(color, "#00FFFFFF", 0, 0, 0, 1);
 }
 
 /// <summary>

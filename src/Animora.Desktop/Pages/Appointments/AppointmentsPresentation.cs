@@ -116,16 +116,9 @@ public static class AppointmentsPresentation
             t = AvatarTones["a"];
         }
 
-        return new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(Color.Parse(t.From), 0),
-                new GradientStop(Color.Parse(t.To), 1),
-            },
-        };
+        // Shared via GradientBrushCache — the six avatar tone pairs are a fixed
+        // set, so this never allocates a brush per item (PERFORMANCE.md §10).
+        return GradientBrushCache.LinearGradient(t.From, t.To, 0, 0, 1, 1);
     }
 
     // ── brush cache (hex → SolidColorBrush) ──────────────────────────────────
