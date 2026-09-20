@@ -221,6 +221,16 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     {
         IsBusy = true;
 
+        // Yield once before the (currently synchronous, mock-backed) fetch +
+        // render pipeline runs. The mocks resolve via Task.FromResult, so
+        // without this the whole load — including the render pass below —
+        // would execute inline on the UI thread inside the DI constructor
+        // call that triggers navigation, making the very click that opens
+        // this page block until everything finishes. Yielding lets the
+        // dispatcher process the pending navigation/layout work first, so the
+        // shell paints before the heavier work runs.
+        await Task.Yield();
+
         _doctors.Clear();
         _doctors.AddRange(await _service.GetDoctorsAsync());
         _types.Clear();
@@ -257,9 +267,31 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         ];
 
         IsBusy = false;
-        Render();
-        RenderQueue();
-        RenderHistory();
+
+        // Render only the active tab (mirrors ApplySearch/SelectTab): Queue
+        // and History are behind a LazyTabHost and rebuilt on first activation
+        // via SelectTab, so eagerly rendering all three tabs here tripled the
+        // work of every initial load/reload for no visible benefit — the
+        // calendar tab is the only one on screen at first paint.
+        RenderActiveTab();
+    }
+
+    /// <summary>Renders whichever of the three tabs is currently active, so
+    /// load/refresh/search never do more work than what is on screen.</summary>
+    private void RenderActiveTab()
+    {
+        switch (_activeTab)
+        {
+            case "queue":
+                RenderQueue();
+                break;
+            case "hist":
+                RenderHistory();
+                break;
+            default:
+                Render();
+                break;
+        }
     }
 
     private static IReadOnlyList<HistorySelectOption> BuildSelectOptions(
@@ -1071,15 +1103,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _normalizedQuery = _searchQuery.Length == 0
             ? string.Empty
             : PersianText.Normalize(_searchQuery);
-        Render();
-        if (_activeTab == "queue")
-        {
-            RenderQueue();
-        }
-        else if (_activeTab == "hist")
-        {
-            RenderHistory();
-        }
+        RenderActiveTab();
     }
 
     [RelayCommand]
@@ -1148,9 +1172,11 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             DateOnly.FromDateTime(DateTime.Today).AddDays(-40),
             DateOnly.FromDateTime(DateTime.Today).AddDays(40)));
         RebuildIndexes();
-        Render();
-        RenderQueue();
-        RenderHistory();
+
+        // Only the active tab needs to re-render immediately; the other two
+        // are behind a LazyTabHost and re-render from the fresh _all/_byDate
+        // data the moment SelectTab activates them (same as ApplySearch).
+        RenderActiveTab();
     }
 
     [RelayCommand]
