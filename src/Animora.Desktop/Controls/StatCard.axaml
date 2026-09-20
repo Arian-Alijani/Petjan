@@ -1,11 +1,15 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Animora.Desktop.Controls.StatCard">
+             x:Class="Animora.Desktop.Controls.StatCard"
+             FlowDirection="RightToLeft">
 
-    <!-- KPI stat card, Material-Design-3 outlined style, RTL-aware.
-         Header row: delta chip in the leading (right) column, tinted icon tile
-         in the trailing (left) column. Value/label block is right-aligned,
-         matching the target reference. -->
+    <!-- KPI stat card, Material-Design-3 outlined style, fully RTL.
+         The card is authored RightToLeft so every "Start/leading" edge is the
+         RIGHT and every "End/trailing" edge is the LEFT — matching the Persian
+         reference (dashboard-views.js .stat-head, justify-content:space-between).
+         Header row: delta chip on the leading (right) side, tinted icon tile on
+         the trailing (left) side. Value / label / foot are a leading-aligned
+         (right) block. -->
     <Border Classes="card" Padding="20,18">
         <StackPanel Spacing="16">
 
@@ -16,7 +20,7 @@
                         CornerRadius="10"
                         Padding="8,3"
                         Background="{StaticResource OkBgBrush}"
-                        VerticalAlignment="Top"
+                        VerticalAlignment="Center"
                         HorizontalAlignment="Left">
                     <TextBlock x:Name="DeltaText"
                                FontSize="{StaticResource FontSizeXs}"
@@ -31,32 +35,35 @@
                         Height="40"
                         CornerRadius="12"
                         BorderThickness="1"
+                        VerticalAlignment="Center"
                         Background="{StaticResource Brand50Brush}"
                         BorderBrush="{StaticResource Brand100Brush}">
                     <Path x:Name="IconPath"
                           Classes="icon"
                           Width="19"
                           Height="19"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
                           Stroke="{StaticResource Brand600Brush}" />
                 </Border>
             </Grid>
 
-            <StackPanel Spacing="3" HorizontalAlignment="Right">
+            <StackPanel Spacing="3" HorizontalAlignment="Stretch">
                 <TextBlock x:Name="ValueText"
                            FontSize="{StaticResource FontSizeXl}"
                            FontWeight="Bold"
-                           TextAlignment="Right"
-                           HorizontalAlignment="Right"
+                           TextAlignment="Start"
+                           HorizontalAlignment="Left"
                            Foreground="{StaticResource InkBrush}" />
                 <TextBlock x:Name="LabelText"
                            FontSize="{StaticResource FontSizeSm}"
-                           TextAlignment="Right"
-                           HorizontalAlignment="Right"
+                           TextAlignment="Start"
+                           HorizontalAlignment="Left"
                            Foreground="{StaticResource MutedBrush}" />
                 <TextBlock x:Name="FootText"
                            FontSize="{StaticResource FontSizeXs}"
-                           TextAlignment="Right"
-                           HorizontalAlignment="Right"
+                           TextAlignment="Start"
+                           HorizontalAlignment="Left"
                            Foreground="{StaticResource Muted2Brush}"
                            IsVisible="False" />
             </StackPanel>

@@ -316,7 +316,8 @@
                 <ItemsControl ItemsSource="{Binding FilteredRecords}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vx:VaccinationRecordRowViewModel">
-                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" TextElement.FontSize="13">
+                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1"
+                                    TextElement.FontSize="13" TextElement.Foreground="{StaticResource InkBrush}">
                                 <Grid ColumnDefinitions="2.2*,1.5*,1.4*,1*,1.2*,1.6*">
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="16,14"
                                                 VerticalAlignment="Center">
