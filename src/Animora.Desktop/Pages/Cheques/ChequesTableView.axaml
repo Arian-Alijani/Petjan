@@ -112,6 +112,35 @@
             <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
+
+        <!-- Virtualized cheque rows (ListBox). MaxHeight is REQUIRED: this view is
+             hosted inside the page-level ScrollViewer in ChequesPageView, which
+             measures content with infinite height, so without a cap the inner
+             VirtualizingStackPanel would realize every row (hundreds of cheques)
+             and defeat virtualization. The table header Grid stays outside/above
+             the ListBox; each row keeps the identical ColumnDefinitions so the
+             columns stay aligned with the header. These styles strip ListBox
+             selection/hover chrome so the existing .ch-row visuals are unchanged
+             (row open is driven by the row's own Button, not ListBox selection). -->
+        <Style Selector="ListBox.records">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MaxHeight" Value="600" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
     </UserControl.Styles>
 
     <Border Classes="ch-card" Background="{StaticResource PanelBrush}"
@@ -182,9 +211,11 @@
                     <TextBlock Grid.Column="7" Text=" " />
                 </Grid>
 
-                <!-- rows -->
-                <ItemsControl ItemsSource="{Binding TableRows}">
-                    <ItemsControl.ItemTemplate>
+                <!-- rows (virtualized) -->
+                <ListBox Classes="records" ItemsSource="{Binding TableRows}"
+                         SelectionMode="Single"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="ch:ChequeRowViewModel">
                             <Grid>
                                 <Button Classes="ch-row"
@@ -358,8 +389,8 @@
                                 </Popup>
                             </Grid>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </ListBox.ItemTemplate>
+                </ListBox>
 
                 <!-- pager (.ch-pager) -->
                 <Grid ColumnDefinitions="Auto,*" Margin="16,12" DataContext="{Binding Pager}"
