@@ -23,6 +23,7 @@ using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.Finance;
 using Animora.Desktop.Pages.History;
 using Animora.Desktop.Pages.Inventory;
+using Animora.Desktop.Pages.Login;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Profile;
 using Animora.Desktop.Pages.Purchasing;
@@ -59,7 +60,24 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = Services.GetRequiredService<MainWindow>();
+            // Startup gate: show the sign-in window first. Once credentials are
+            // accepted, swap in the main shell (resolved lazily so no page/mock
+            // is built until the user is in). The shell then owns the app
+            // lifetime and the login window is closed.
+            var login = Services.GetRequiredService<LoginWindow>();
+
+            if (login.DataContext is LoginViewModel loginViewModel)
+            {
+                loginViewModel.LoginSucceeded += (_, _) =>
+                {
+                    var shell = Services.GetRequiredService<MainWindow>();
+                    desktop.MainWindow = shell;
+                    shell.Show();
+                    login.Close();
+                };
+            }
+
+            desktop.MainWindow = login;
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -189,6 +207,12 @@ public partial class App : Application
         // edits while navigating away and back.
         services.AddSingleton<IUserProfileService, MockUserProfileService>();
         services.AddSingleton<ProfilePageViewModel>();
+
+        // Startup sign-in gate (front-end only for now; admin/admin demo
+        // credentials, mock-authenticated in LoginViewModel). Transient so a
+        // fresh form is built each time the window opens.
+        services.AddTransient<LoginViewModel>();
+        services.AddTransient<LoginWindow>();
 
         services.AddSingleton<SidebarViewModel>();
         services.AddSingleton<TopbarViewModel>();
