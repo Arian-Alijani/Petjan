@@ -34,6 +34,18 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private readonly List<AppointmentType> _types = [];
     private readonly List<AppointmentEvent> _all = [];
 
+    // Fast lookup indexes rebuilt whenever the underlying collections change.
+    // These replace repeated O(n) LINQ scans (First/Where) that made every
+    // render pass scale with the total number of appointments.
+    private readonly Dictionary<string, AppointmentType> _typeById = [];
+    private readonly Dictionary<string, AppointmentDoctor> _doctorById = [];
+    private readonly Dictionary<DateOnly, List<AppointmentEvent>> _byDate = [];
+
+    // Precomputed haystack for search, keyed by appointment id, so Matches()
+    // does not rebuild + re-normalize strings for every event on every render.
+    private readonly Dictionary<string, string> _searchHaystack = [];
+    private string _normalizedQuery = string.Empty;
+
     // Reference page state: S.tab / S.view / S.cursor / S.types / S.docs / S.hideCancel / S.q.
     private string _activeTab = "cal";
     private string _viewMode = "week";
@@ -215,6 +227,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             DateOnly.FromDateTime(DateTime.Today).AddDays(-40),
             DateOnly.FromDateTime(DateTime.Today).AddDays(40)));
 
+        RebuildIndexes();
+
         foreach (var t in _types)
         {
             _activeTypeIds.Add(t.Id);
@@ -256,20 +270,65 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     }
 
     // ── lookup helpers (typeOf / docOf) ──────────────────────────────────────
-    private AppointmentType TypeOf(string id) => _types.First(t => t.Id == id);
-    private AppointmentDoctor DocOf(string id) => _doctors.First(d => d.Id == id);
+    private AppointmentType TypeOf(string id) =>
+        _typeById.TryGetValue(id, out var t) ? t : _types.First(x => x.Id == id);
+
+    private AppointmentDoctor DocOf(string id) =>
+        _doctorById.TryGetValue(id, out var d) ? d : _doctors.First(x => x.Id == id);
+
+    /// <summary>
+    /// Rebuilds the id/date lookup indexes and the per-event search haystack.
+    /// Call once whenever <see cref="_all"/>, <see cref="_types"/> or
+    /// <see cref="_doctors"/> change — never inside the render loop.
+    /// </summary>
+    private void RebuildIndexes()
+    {
+        _typeById.Clear();
+        foreach (var t in _types)
+        {
+            _typeById[t.Id] = t;
+        }
+
+        _doctorById.Clear();
+        foreach (var d in _doctors)
+        {
+            _doctorById[d.Id] = d;
+        }
+
+        _byDate.Clear();
+        _searchHaystack.Clear();
+        foreach (var a in _all)
+        {
+            if (!_byDate.TryGetValue(a.Date, out var bucket))
+            {
+                bucket = [];
+                _byDate[a.Date] = bucket;
+            }
+
+            bucket.Add(a);
+
+            var doc = _doctorById.TryGetValue(a.DoctorId, out var dd) ? dd.Name : string.Empty;
+            var type = _typeById.TryGetValue(a.TypeId, out var tt) ? tt.Label : string.Empty;
+            _searchHaystack[a.Id] =
+                PersianText.Normalize($"{a.PetName} {a.OwnerName} {a.PetKind} {doc} {type}");
+        }
+
+        // Keep each day's bucket pre-sorted so OnDate() can skip re-sorting.
+        foreach (var bucket in _byDate.Values)
+        {
+            bucket.Sort((x, y) => x.StartMinutes.CompareTo(y.StartMinutes));
+        }
+    }
 
     private bool Matches(AppointmentEvent a)
     {
-        if (string.IsNullOrWhiteSpace(_searchQuery))
+        if (_normalizedQuery.Length == 0)
         {
             return true;
         }
 
-        var q = PersianText.Normalize(_searchQuery.Trim());
-        var hay = PersianText.Normalize(
-            $"{a.PetName} {a.OwnerName} {a.PetKind} {DocOf(a.DoctorId).Name} {TypeOf(a.TypeId).Label}");
-        return hay.Contains(q, StringComparison.Ordinal);
+        return _searchHaystack.TryGetValue(a.Id, out var hay)
+            && hay.Contains(_normalizedQuery, StringComparison.Ordinal);
     }
 
     private bool Visible(AppointmentEvent a)
@@ -287,8 +346,25 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         return true;
     }
 
-    private List<AppointmentEvent> OnDate(DateOnly d) =>
-        _all.Where(a => a.Date == d && Visible(a)).OrderBy(a => a.StartMinutes).ToList();
+    private List<AppointmentEvent> OnDate(DateOnly d)
+    {
+        // Buckets are already sorted by StartMinutes in RebuildIndexes.
+        if (!_byDate.TryGetValue(d, out var bucket))
+        {
+            return [];
+        }
+
+        var result = new List<AppointmentEvent>(bucket.Count);
+        foreach (var a in bucket)
+        {
+            if (Visible(a))
+            {
+                result.Add(a);
+            }
+        }
+
+        return result;
+    }
 
     // ── render dispatcher ────────────────────────────────────────────────────
     private void Render()
@@ -332,14 +408,30 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             RangeSubText = "نمای ماهانه";
         }
 
-        // counters over the visible scope
+        // counters over the visible scope — single pass over the scoped days
+        // (via the date index) tallying per-type and per-doctor counts, instead
+        // of one full O(events) scan per type and per doctor.
         var scope = ScopeDates();
-        var inScope = _all.Where(a => scope.Contains(a.Date)).ToList();
+        var typeCounts = new Dictionary<string, int>();
+        var doctorCounts = new Dictionary<string, int>();
+        foreach (var day in scope)
+        {
+            if (!_byDate.TryGetValue(day, out var bucket))
+            {
+                continue;
+            }
+
+            foreach (var a in bucket)
+            {
+                typeCounts[a.TypeId] = typeCounts.GetValueOrDefault(a.TypeId) + 1;
+                doctorCounts[a.DoctorId] = doctorCounts.GetValueOrDefault(a.DoctorId) + 1;
+            }
+        }
 
         TypeChips.Clear();
         foreach (var t in _types)
         {
-            TypeChips.Add(new AppointmentTypeChipViewModel(t, inScope.Count(a => a.TypeId == t.Id))
+            TypeChips.Add(new AppointmentTypeChipViewModel(t, typeCounts.GetValueOrDefault(t.Id))
             {
                 IsActive = _activeTypeIds.Contains(t.Id),
             });
@@ -348,7 +440,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         DoctorChips.Clear();
         foreach (var d in _doctors)
         {
-            DoctorChips.Add(new AppointmentDoctorChipViewModel(d, inScope.Count(a => a.DoctorId == d.Id))
+            DoctorChips.Add(new AppointmentDoctorChipViewModel(d, doctorCounts.GetValueOrDefault(d.Id))
             {
                 IsActive = _activeDoctorIds.Contains(d.Id),
             });
@@ -565,7 +657,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var days = Enumerable.Range(0, 14).Select(i => today.AddDays(_queueOffset * 7 + i)).ToList();
         foreach (var d in days)
         {
-            var n = _all.Count(a => a.Date == d && a.Status != AppointmentStatus.Cancelled);
+            var n = _byDate.TryGetValue(d, out var dayBucket)
+                ? dayBucket.Count(a => a.Status != AppointmentStatus.Cancelled)
+                : 0;
             QueueDays.Add(new QueueDayViewModel(
                 d,
                 isToday: d == tk,
@@ -963,6 +1057,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     public void ApplySearch(string? text)
     {
         _searchQuery = text?.Trim() ?? string.Empty;
+        _normalizedQuery = _searchQuery.Length == 0
+            ? string.Empty
+            : PersianText.Normalize(_searchQuery);
         Render();
         if (_activeTab == "queue")
         {
@@ -1039,6 +1136,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _all.AddRange(await _service.GetForRangeAsync(
             DateOnly.FromDateTime(DateTime.Today).AddDays(-40),
             DateOnly.FromDateTime(DateTime.Today).AddDays(40)));
+        RebuildIndexes();
         Render();
         RenderQueue();
         RenderHistory();

@@ -152,6 +152,24 @@
             <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
             <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
         </Style>
+        <!-- Chevron rotates to point up when the product's variants are shown,
+             giving a clear open/closed affordance with a smooth transition. -->
+        <Style Selector="Path.expand-chevron">
+            <Setter Property="RenderTransform" Value="rotate(0deg)" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.expand-btn.expanded Path.expand-chevron">
+            <Setter Property="RenderTransform" Value="rotate(180deg)" />
+        </Style>
+        <Style Selector="Button.expand-btn.expanded">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
 
         <!-- status dot with halo (.status-dot::before) -->
         <Style Selector="Border.status-halo">
@@ -426,12 +444,14 @@
                                         <!-- expand toggle -->
                                         <Border Grid.Column="0" Padding="6,14" HorizontalAlignment="Stretch">
                                             <Button Classes="expand-btn" HorizontalAlignment="Center"
+                                                    Classes.expanded="{Binding IsExpanded}"
                                                     IsVisible="{Binding HasVariants}"
                                                     ToolTip.Tip="مشاهده تنوع‌ها"
                                                     Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).ToggleExpandCommand}"
                                                     CommandParameter="{Binding}">
-                                                <Path Classes="icon" Width="15" Height="15"
+                                                <Path Classes="icon expand-chevron" Width="15" Height="15"
                                                       Stroke="{Binding $parent[Button].Foreground}"
+                                                      RenderTransformOrigin="0.5,0.5"
                                                       Data="{StaticResource IconChevronDown}" />
                                             </Button>
                                         </Border>
@@ -545,8 +565,8 @@
                                             <Button Classes="icon-btn" ToolTip.Tip="مشاهده و ویرایش"
                                                     Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).OpenProductCommand}"
                                                     CommandParameter="{Binding}">
-                                                <Path Classes="icon" Width="14" Height="14"
-                                                      Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconEdit}" />
+                                                <Path Classes="icon" Width="15" Height="15"
+                                                      Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconEye}" />
                                             </Button>
                                         </StackPanel>
                                     </Grid>

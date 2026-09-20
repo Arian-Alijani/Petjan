@@ -640,10 +640,10 @@
                                 </StackPanel>
                                 <Button Grid.Column="2" Width="36" Height="36" Padding="0" CornerRadius="10"
                                         Background="{StaticResource PanelBrush}" BorderThickness="0"
-                                        VerticalAlignment="Top"
+                                        VerticalAlignment="Top" ToolTip.Tip="مشاهده پرونده"
                                         Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
                                         CommandParameter="{Binding Owner}">
-                                    <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconMore}" />
+                                    <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconEye}" />
                                 </Button>
                             </Grid>
 
