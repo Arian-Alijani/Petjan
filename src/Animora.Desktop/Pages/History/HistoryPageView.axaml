@@ -363,14 +363,24 @@
                     <TextBlock Text="{Binding SummaryCountText}" FontSize="13"
                                Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                     <Border Classes="hy-summary-sep" />
-                    <TextBlock Text="{Binding SummaryIncomeLine}" FontSize="13"
-                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                    <!-- «درآمد/هزینه/خالص»: the value piece is intentionally a
+                         bold run in an accent colour distinct from the muted
+                         label — a genuine styled-inline case (not string
+                         concatenation), so the <Run>s stay. -->
+                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
+                        <Run Text="درآمد: " />
+                        <Run Text="{Binding SummaryIncomeText}" FontWeight="Bold" Foreground="{StaticResource OkBrush}" />
+                    </TextBlock>
                     <Border Classes="hy-summary-sep" />
-                    <TextBlock Text="{Binding SummaryExpenseLine}" FontSize="13"
-                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
+                        <Run Text="هزینه: " />
+                        <Run Text="{Binding SummaryExpenseText}" FontWeight="Bold" Foreground="{StaticResource DangerBrush}" />
+                    </TextBlock>
                     <Border Classes="hy-summary-sep" />
-                    <TextBlock Text="{Binding SummaryNetLine}" FontSize="13"
-                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
+                        <Run Text="خالص: " />
+                        <Run Text="{Binding SummaryNetText}" FontWeight="Bold" Foreground="{Binding SummaryNetBrush}" />
+                    </TextBlock>
                     <TextBlock Text="مرتب‌سازی: جدیدترین" FontSize="12"
                                Foreground="{StaticResource Muted2Brush}" VerticalAlignment="Center" />
                 </StackPanel>
