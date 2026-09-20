@@ -496,7 +496,7 @@
                                                                 Classes.off="{Binding IsFriday}"
                                                                 ToolTip.Tip="{Binding TooltipText}"
                                                                 Command="{Binding #Root.((ap:BookingPanelViewModel)DataContext).SelectDateCommand}"
-                                                                CommandParameter="{Binding Day}">
+                                                                CommandParameter="{Binding DayKey}">
                                                             <Panel>
                                                                 <TextBlock Text="{Binding NumberText}" Classes="cal-n"
                                                                            HorizontalAlignment="Center"

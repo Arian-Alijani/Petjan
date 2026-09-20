@@ -151,6 +151,7 @@ public sealed class BookingCalendarDayViewModel
         DateOnly day, bool isOut, bool isSelected, bool isToday, bool isFriday, int count)
     {
         Day = day;
+        DayKey = day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         IsOut = isOut;
         IsSelected = isSelected;
         IsToday = isToday;
@@ -164,6 +165,7 @@ public sealed class BookingCalendarDayViewModel
     }
 
     public DateOnly Day { get; }
+    public string DayKey { get; }
     public bool IsOut { get; }
     public bool IsSelected { get; }
     public bool IsToday { get; }
