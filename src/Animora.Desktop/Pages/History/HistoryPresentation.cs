@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using Animora.Contracts.History;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Avalonia.Media;
 
@@ -30,8 +31,8 @@ public static class HistoryPresentation
     /// <summary>The reference's <c>money(n)</c> — a Persian-grouped integer.</summary>
     public static string Money(long value) => PersianNumberFormatter.FormatGrouped(value);
 
-    /// <summary>A solid fill brush from a hex string.</summary>
-    public static IBrush Fill(string hex) => new SolidColorBrush(Color.Parse(hex));
+    /// <summary>A solid fill brush from a hex string (shared via <see cref="BrushCache"/>).</summary>
+    public static IBrush Fill(string hex) => BrushCache.Solid(hex);
 
     // ── Module-kind registry (the reference's CATEGORIES) ────────────────
 

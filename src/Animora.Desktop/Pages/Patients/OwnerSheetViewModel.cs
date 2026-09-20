@@ -97,7 +97,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
     public string Initials { get; private set; } = "؟";
-    public IBrush ToneBrush { get; private set; } = new SolidColorBrush(Colors.Gray);
+    public IBrush ToneBrush { get; private set; } = BrushCache.Solid("#808080");
     public string File { get; private set; } = string.Empty;
     public string FileText { get; private set; } = string.Empty;
     public string GenderLabel { get; private set; } = string.Empty;

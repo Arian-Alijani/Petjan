@@ -151,25 +151,22 @@ public static class VaccinationPresentation
     /// <summary>Persian digits for an arbitrary string (mobile, lot, …).</summary>
     public static string FaString(string? value) => PersianNumberFormatter.ToPersianDigits(value ?? string.Empty);
 
-    /// <summary>Top-to-bottom two-stop gradient.</summary>
-    public static IBrush Vertical(string from, string to) => new LinearGradientBrush
-    {
-        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-        EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
-        GradientStops =
-        {
-            new GradientStop(Color.Parse(from), 0),
-            new GradientStop(Color.Parse(to), 1),
-        },
-    };
+    /// <summary>
+    /// Top-to-bottom two-stop gradient, shared via <see cref="GradientBrushCache"/>
+    /// — callers pass the fixed avatar tone pairs, so this never allocates a
+    /// brush per record (PERFORMANCE.md §10).
+    /// </summary>
+    public static IBrush Vertical(string from, string to) =>
+        GradientBrushCache.LinearGradient(from, to, 0, 0, 0, 1);
 
-    /// <summary>A solid fill brush from a hex string.</summary>
-    public static IBrush Fill(string hex) => new SolidColorBrush(Color.Parse(hex));
+    /// <summary>A solid fill brush from a hex string (shared via <see cref="BrushCache"/>).</summary>
+    public static IBrush Fill(string hex) => BrushCache.Solid(hex);
 
-    /// <summary>A fill brush with an alpha channel over a hex color (reference's <c>col + '22'</c>).</summary>
-    public static IBrush FillAlpha(string hex, byte alpha)
-    {
-        var color = Color.Parse(hex);
-        return new SolidColorBrush(Color.FromArgb(alpha, color.R, color.G, color.B));
-    }
+    /// <summary>
+    /// A fill brush with an alpha channel over a hex color (reference's
+    /// <c>col + '22'</c>), shared via <see cref="BrushCache"/> — the (colour,
+    /// alpha) pair comes from the fixed palette, so the key space stays bounded
+    /// (PERFORMANCE.md §15).
+    /// </summary>
+    public static IBrush FillAlpha(string hex, byte alpha) => BrushCache.Solid(hex, alpha);
 }

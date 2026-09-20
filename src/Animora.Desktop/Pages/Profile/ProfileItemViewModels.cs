@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -16,7 +17,8 @@ public static class ProfilePresentation
     public static string Fa(string? text) =>
         PersianNumberFormatter.ToPersianDigits(text ?? string.Empty);
 
-    public static IBrush Fill(string hex) => new SolidColorBrush(Color.Parse(hex));
+    /// <summary>A solid fill brush from a hex string (shared via <see cref="BrushCache"/>).</summary>
+    public static IBrush Fill(string hex) => BrushCache.Solid(hex);
 
     /// <summary>The four KPI-strip accent tones (reference profile.css .pf-kpi[.t-*]).</summary>
     public static (IBrush Background, IBrush Foreground) KpiTone(string tone) => tone switch

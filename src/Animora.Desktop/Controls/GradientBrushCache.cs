@@ -123,6 +123,58 @@ public static class GradientBrushCache
         return ProgressCache.GetOrAdd(key, brush.ToImmutable());
     }
 
+    /// <summary>
+    /// Returns a shared, immutable two-stop <see cref="LinearGradientBrush"/>
+    /// between two <em>translucent</em> endpoints — the alpha-aware sibling of
+    /// <see cref="LinearGradient(string,string,double,double,double,double)"/>.
+    /// <para>
+    /// Each endpoint is a real colour plus an 8-bit <paramref name="alpha1"/> /
+    /// <paramref name="alpha2"/>, mirroring the reference's
+    /// <c>linear-gradient(c, c@NN%)</c> pattern (an opaque stop fading to a
+    /// translucent one, e.g. the Finance legend fill and the Dashboard
+    /// species-share fill).
+    /// </para>
+    /// <para>
+    /// <b>Bounded key space (PERFORMANCE.md §15).</b> The colour arguments come
+    /// from the fixed design-system palette and the only other inputs are the
+    /// direction (a fixed geometry) and a pair of 8-bit alpha values (≤256
+    /// each), so the number of distinct keys is finite and tiny. The alpha value
+    /// is baked into the key, so two callers with different transparency still
+    /// share the right instance.
+    /// </para>
+    /// </summary>
+    public static IBrush LinearGradient(
+        string from,
+        byte alpha1,
+        string to,
+        byte alpha2,
+        double x1,
+        double y1,
+        double x2,
+        double y2)
+    {
+        var key = Key(from, alpha1, to, alpha2, x1, y1, x2, y2);
+        if (TwoStopCache.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        var brush = new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(x1, y1, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(x2, y2, RelativeUnit.Relative),
+            GradientStops =
+            {
+                new GradientStop(Parse(from, alpha1), 0),
+                new GradientStop(Parse(to, alpha2), 1),
+            },
+        };
+
+        // Freeze so the shared instance can never be mutated by a caller and is
+        // safe to hand to any number of visuals (immutability = shareable).
+        return TwoStopCache.GetOrAdd(key, brush.ToImmutable());
+    }
+
     private static string Key(string from, string to, double x1, double y1, double x2, double y2) =>
         string.Concat(
             from, "|", to, "|",
@@ -131,6 +183,25 @@ public static class GradientBrushCache
             x2.ToString(CultureInfo.InvariantCulture), ",",
             y2.ToString(CultureInfo.InvariantCulture));
 
+    // Alpha-bearing sibling of the 6-arg Key; the 8-bit alphas are part of the
+    // key so two callers with different transparency never share a brush.
+    private static string Key(
+        string from, byte alpha1, string to, byte alpha2,
+        double x1, double y1, double x2, double y2) =>
+        string.Concat(
+            from, "|", alpha1.ToString(CultureInfo.InvariantCulture), "|",
+            to, "|", alpha2.ToString(CultureInfo.InvariantCulture), "|",
+            x1.ToString(CultureInfo.InvariantCulture), ",",
+            y1.ToString(CultureInfo.InvariantCulture), ",",
+            x2.ToString(CultureInfo.InvariantCulture), ",",
+            y2.ToString(CultureInfo.InvariantCulture));
+
     private static Color Parse(string hex) =>
         Color.TryParse(hex, out var color) ? color : Colors.Transparent;
+
+    private static Color Parse(string hex, byte alpha)
+    {
+        var c = Parse(hex);
+        return Color.FromArgb(alpha, c.R, c.G, c.B);
+    }
 }

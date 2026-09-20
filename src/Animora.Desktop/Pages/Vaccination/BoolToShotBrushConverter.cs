@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using Animora.Desktop.Controls;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 
@@ -16,10 +17,10 @@ namespace Animora.Desktop.Pages.Vaccination;
 public sealed class BoolToShotBrushConverter : IValueConverter
 {
     /// <summary>The active dot stroke — the reference's <c>--vx-shot</c> violet.</summary>
-    private static readonly IBrush ActiveBrush = new SolidColorBrush(Color.Parse("#6f57c9"));
+    private static readonly IBrush ActiveBrush = BrushCache.Solid("#6f57c9");
 
     /// <summary>The muted dot stroke — the reference's <c>--line</c> hairline.</summary>
-    private static readonly IBrush MutedBrush = new SolidColorBrush(Color.Parse("#e5eaee"));
+    private static readonly IBrush MutedBrush = BrushCache.Solid("#e5eaee");
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         value is true ? ActiveBrush : MutedBrush;

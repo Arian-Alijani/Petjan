@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Animora.Contracts.Dashboard;
+using Animora.Desktop.Controls;
 using Avalonia;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -130,15 +131,9 @@ public sealed partial class DonutSliceViewModel : ObservableObject
             Center + Radius * Math.Sin(rad));
     }
 
-    private static IBrush ParseBrush(string hex)
-    {
-        try
-        {
-            return new SolidColorBrush(Color.Parse(hex));
-        }
-        catch (FormatException)
-        {
-            return Brushes.Gray;
-        }
-    }
+    private static IBrush ParseBrush(string hex) =>
+        // Shared, cached solid brush (PERFORMANCE.md §10); the species colours
+        // are a fixed palette, so this never allocates per slice. Preserves the
+        // previous invalid-input fallback to Gray.
+        Color.TryParse(hex, out _) ? BrushCache.Solid(hex) : Brushes.Gray;
 }

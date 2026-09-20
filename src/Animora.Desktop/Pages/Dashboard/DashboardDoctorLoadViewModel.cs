@@ -1,5 +1,6 @@
 using System;
 using Animora.Contracts.Dashboard;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Avalonia.Media;
 
@@ -19,11 +20,11 @@ public sealed class DashboardDoctorLoadViewModel
         Name = load.Name;
         Specialty = load.Specialty;
 
-        var accent = ParseColor(load.ColorHex);
-        AccentBrush = new SolidColorBrush(accent);
-        // Soft ~10% tint of the accent for the avatar tile (matches the
-        // reference's `${c}1a` background).
-        TintBrush = new SolidColorBrush(Color.FromArgb(0x1A, accent.R, accent.G, accent.B));
+        // Shared process-wide (PERFORMANCE.md §10): the accent is a fixed palette
+        // colour and the soft tint is the same colour at the reference's `${c}1a`
+        // (~10%) alpha, so both resolve from the bounded BrushCache.
+        AccentBrush = BrushCache.Solid(load.ColorHex);
+        TintBrush = BrushCache.Solid(load.ColorHex, 0x1A);
 
         // GridLength star weights: a tiny epsilon keeps both columns valid when
         // a doctor is at 0% or 100%.
