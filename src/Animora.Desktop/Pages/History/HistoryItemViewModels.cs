@@ -175,6 +175,7 @@ public sealed class HistoryDayGroupViewModel
         DateText = HistoryPresentation.FaText(jdate);
         Label = label;
         CountText = HistoryPresentation.Fa(count) + " رویداد";
+        HeaderText = label + " – " + DateText;
         Rows = rows;
 
         HasNet = net != 0;
@@ -193,6 +194,9 @@ public sealed class HistoryDayGroupViewModel
     public string Label { get; }
 
     public string DateText { get; }
+
+    /// <summary>The sticky day header's single composed line («امروز – ۱۴۰۵/...»).</summary>
+    public string HeaderText { get; }
 
     public string CountText { get; }
 

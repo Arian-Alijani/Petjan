@@ -65,12 +65,8 @@
                         <Path Classes="icon" Width="22" Height="22" Stroke="White" Data="{StaticResource IconCalendar}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                        <TextBlock FontSize="16" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}">
-                            <Run Text="امروز، " /><Run Text="{Binding TodayText}" />
-                        </TextBlock>
-                        <TextBlock FontSize="12" Foreground="{StaticResource MutedBrush}">
-                            <Run Text="آخرین بازخوانی: " /><Run Text="{Binding LastRefreshText}" /><Run Text=" · داده‌ها نمونه هستند" />
-                        </TextBlock>
+                        <TextBlock Text="{Binding TodayLine}" FontSize="16" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="{Binding RefreshLine}" FontSize="12" Foreground="{StaticResource MutedBrush}" />
                     </StackPanel>
                     <Border Grid.Column="2" Padding="12,6" CornerRadius="999" Background="{StaticResource OkBgBrush}" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -81,16 +77,16 @@
                 </Grid>
                 <UniformGrid Columns="4">
                     <Border Margin="0,0,7,0" Padding="14,10" CornerRadius="12" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1">
-                        <StackPanel Spacing="4"><TextBlock Text="میانگین انتظار" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" /><TextBlock FontSize="16" FontWeight="ExtraBold"><Run Text="{Binding AverageWaitText}" /><Run Text=" دقیقه" /></TextBlock></StackPanel>
+                        <StackPanel Spacing="4"><TextBlock Text="میانگین انتظار" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" /><TextBlock Text="{Binding AverageWaitLine}" FontSize="16" FontWeight="ExtraBold" /></StackPanel>
                     </Border>
                     <Border Margin="7,0" Padding="14,10" CornerRadius="12" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1">
                         <StackPanel Spacing="4"><TextBlock Text="نوبت بعدی" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" /><TextBlock Text="{Binding NextPatientText}" FontSize="16" FontWeight="ExtraBold" /></StackPanel>
                     </Border>
                     <Border Margin="7,0" Padding="14,10" CornerRadius="12" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1">
-                        <StackPanel Spacing="4"><TextBlock Text="اورژانس‌های فعال" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" /><TextBlock FontSize="16" FontWeight="ExtraBold"><Run Text="{Binding UrgentCount}" /><Run Text=" مورد" /></TextBlock></StackPanel>
+                        <StackPanel Spacing="4"><TextBlock Text="اورژانس‌های فعال" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" /><TextBlock Text="{Binding UrgentCountLine}" FontSize="16" FontWeight="ExtraBold" /></StackPanel>
                     </Border>
                     <Border Margin="7,0,0,0" Padding="14,10" CornerRadius="12" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource Line2Brush}" BorderThickness="1">
-                        <StackPanel Spacing="4"><TextBlock Text="تکمیل‌شده امروز" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" /><TextBlock FontSize="16" FontWeight="ExtraBold"><Run Text="{Binding DoneCount}" /><Run Text=" مورد" /></TextBlock></StackPanel>
+                        <StackPanel Spacing="4"><TextBlock Text="تکمیل‌شده امروز" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" /><TextBlock Text="{Binding DoneCountLine}" FontSize="16" FontWeight="ExtraBold" /></StackPanel>
                     </Border>
                 </UniformGrid>
             </StackPanel>

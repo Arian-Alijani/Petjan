@@ -60,6 +60,17 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
     public string InVisitCount => Count(QueueTicketState.InVisit);
     public string DoneCount => Count(QueueTicketState.Done);
     public string UrgentCount => PersianNumberFormatter.ToPersianDigits(Queue.Count(x => x.IsUrgent && IsActive(x.State)));
+
+    // ── Precomposed lines (Avalonia perf: avoid concatenation-only <Run>) ──
+    // Each string below is the exact final text the matching TextBlock showed
+    // when it was assembled from several <Run>s; composing it here means the
+    // View sets Text once. Raised alongside their source props (see NotifyStats
+    // / OnLastRefreshTextChanged) so the bound TextBlock refreshes in step.
+    public string TodayLine => "امروز، " + TodayText;
+    public string RefreshLine => "آخرین بازخوانی: " + LastRefreshText + " · داده‌ها نمونه هستند";
+    public string AverageWaitLine => AverageWaitText + " دقیقه";
+    public string UrgentCountLine => UrgentCount + " مورد";
+    public string DoneCountLine => DoneCount + " مورد";
     // Reads the cache populated by ApplyFilter() instead of re-running
     // FilterQueue() (PERFORMANCE.md §13); ApplyFilter always runs at least
     // once before this is read (constructor → RefreshAsync → ApplyFilter).
@@ -96,6 +107,8 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
         PageNumber = 1;
         _searchDebounce.Debounce(ApplyFilter);
     }
+
+    partial void OnLastRefreshTextChanged(string value) => OnPropertyChanged(nameof(RefreshLine));
 
     partial void OnPageNumberChanged(int value) => NotifyPageState();
 
@@ -326,6 +339,9 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(DoneCount));
         OnPropertyChanged(nameof(UrgentCount));
         OnPropertyChanged(nameof(AverageWaitText));
+        OnPropertyChanged(nameof(DoneCountLine));
+        OnPropertyChanged(nameof(UrgentCountLine));
+        OnPropertyChanged(nameof(AverageWaitLine));
         OnPropertyChanged(nameof(NextPatientText));
     }
 
