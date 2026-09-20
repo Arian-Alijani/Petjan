@@ -82,6 +82,35 @@ for the real implementation — no Desktop/View code changes.
 - Dialogs/drawers/toasts: via `IDialogService` / `IToastService` (Phase 6/7)
   — a screen ViewModel never instantiates a `Window` directly.
 
+### 3a. Bound collections: `ObservableCollection<T>` vs `RangeObservableCollection<T>`
+
+This is the single, binding rule for choosing a bound collection type — it
+makes `PERFORMANCE.md §5` mechanical so nobody has to re-derive it per screen.
+Pick by **how the collection changes after it is first populated**:
+
+- **Rebuilt / filtered / sorted after initial creation → `RangeObservableCollection<T>`.**
+  Any bound collection whose *contents are recomputed* (a `Clear()` + repopulate,
+  a re-filter, a re-sort, a segment/tab switch, a search, a paged slice) must be
+  `RangeObservableCollection<T>` and must be updated with `ReplaceAll(...)` (clear
+  + repopulate) or `AddRange(...)` (append) — **never** `Clear()` followed by a
+  per-item `Add(...)` loop, which raises one `CollectionChanged` + one layout
+  pass per item. Rule of thumb: if the `.Clear()` lives in a `Render*`,
+  `Apply*Filter`, `Rebuild*`, `Search*`, `Show*`, or paging method that runs
+  again on user interaction, it is dynamic → Range.
+- **Populated once and then fixed (menus, tabs, segment/option lists) → `ObservableCollection<T>` is fine.**
+  Collections filled a single time (typically inside `LoadAsync` / a one-shot
+  `Build*` called once) and never recomputed do not benefit from Range; keep them
+  `ObservableCollection<T>`.
+- **Mutated only by single-item `Add` / `Remove` / `Insert` → `ObservableCollection<T>` is fine.**
+  These already raise one granular notification per operation, which is exactly
+  what Avalonia item binding wants. Range is only for *batch* rebuilds; do not use
+  it to wrap single-item edits.
+
+`Reset` (raised by `ReplaceAll` / `AddRange`) is fully supported by Avalonia item
+binding and CommunityToolkit.Mvvm, so the rendered content is identical — only the
+notification count changes. A plain `List<T>` used as an internal, non-bound
+buffer is unaffected by this rule and needs neither type.
+
 ## 4. Theming & visual fidelity rules (per `Animora-UI/assets/styles.css`)
 
 - All colors, radii, shadows, spacing are **resources**, defined once in

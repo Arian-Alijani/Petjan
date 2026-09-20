@@ -29,6 +29,11 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
 
     private readonly List<VaccinationRecord> _records = [];
     private readonly List<VaccineCatalogEntry> _catalog = [];
+
+    // Vaccine lookup by id, rebuilt whenever _catalog is repopulated. Avoids the
+    // per-row O(catalog) linear scan (PERFORMANCE.md §2): row builds and filters
+    // resolve the vaccine via a single O(1) dictionary hit instead.
+    private readonly Dictionary<string, VaccineCatalogEntry> _catalogById = new();
     private readonly List<SmsTemplate> _templates = [];
 
     // Reference page state: S.seg, S.q, S.species, S.page.
@@ -178,6 +183,12 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         _records.AddRange(await _service.GetRecordsAsync());
         _catalog.Clear();
         _catalog.AddRange(await _service.GetCatalogAsync());
+        _catalogById.Clear();
+        foreach (var entry in _catalog)
+        {
+            _catalogById[entry.Id] = entry;
+        }
+
         _templates.Clear();
         _templates.AddRange(await _service.GetSmsTemplatesAsync());
 
@@ -259,7 +270,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
 
             if (query.Length > 0)
             {
-                var vaccine = _catalog.FirstOrDefault(v => v.Id == record.VaccineId);
+                var vaccine = _catalogById.GetValueOrDefault(record.VaccineId);
                 var hay = PersianText.Normalize(
                     $"{record.PetName} {record.OwnerName} {vaccine?.Name} {vaccine?.Short} {record.Dose}");
                 if (!hay.Contains(query, StringComparison.Ordinal))
@@ -289,7 +300,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         FilteredRecords.ReplaceAll(slice.Select(record =>
             new VaccinationRecordRowViewModel(
                 record,
-                _catalog.FirstOrDefault(v => v.Id == record.VaccineId))));
+                _catalogById.GetValueOrDefault(record.VaccineId))));
 
         HasRecords = list.Count > 0;
 
@@ -413,7 +424,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
             return;
         }
 
-        var vaccine = _catalog.FirstOrDefault(v => v.Id == row.Record.VaccineId);
+        var vaccine = _catalogById.GetValueOrDefault(row.Record.VaccineId);
         _dialogs.ShowModal(new VaccinationRecordDetailViewModel(
             row.Record,
             vaccine,
