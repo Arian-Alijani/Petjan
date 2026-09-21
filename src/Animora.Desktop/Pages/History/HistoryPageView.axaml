@@ -7,24 +7,6 @@
              FlowDirection="RightToLeft"
              KeyDown="OnKeyDown">
     <UserControl.Styles>
-        <!-- ═══ KPI card (.hy-kpi) ═══ -->
-        <Style Selector="Border.hy-kpi">
-            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
-            <Setter Property="Padding" Value="16,18" />
-            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
-        </Style>
-
-        <!-- ═══ KPI icon tile (.hy-kpi-icon) ═══ -->
-        <Style Selector="Border.hy-kpi-icon">
-            <Setter Property="Width" Value="36" />
-            <Setter Property="Height" Value="36" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Margin" Value="0,0,0,4" />
-        </Style>
-
         <!-- ═══ Period chip (.hy-period-chips .chip) ═══ -->
         <Style Selector="Button.hy-chip">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
@@ -225,41 +207,6 @@
                 </Button>
             </StackPanel>
         </Grid>
-
-        <!-- ═══ KPI bar (.hy-kpi-bar: 6 equal columns) ═══ -->
-        <ItemsControl ItemsSource="{Binding Kpis}" Margin="0,0,0,24">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <UniformGrid Columns="6" />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemContainerTheme>
-                <ControlTheme TargetType="ContentPresenter">
-                    <Setter Property="Margin" Value="7" />
-                </ControlTheme>
-            </ItemsControl.ItemContainerTheme>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="hy:HistoryKpiViewModel">
-                    <Border Classes="hy-kpi">
-                        <StackPanel Spacing="6">
-                            <Border Classes="hy-kpi-icon" Background="{Binding IconTileBrush}"
-                                    HorizontalAlignment="Left">
-                                <Path Classes="icon" Width="18" Height="18"
-                                      Stroke="{Binding AccentBrush}"
-                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
-                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            </Border>
-                            <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="SemiBold"
-                                       Foreground="{StaticResource MutedBrush}" LetterSpacing="0.2" />
-                            <TextBlock Text="{Binding Value}" FontSize="22" FontWeight="ExtraBold"
-                                       Foreground="{StaticResource InkBrush}" LetterSpacing="-0.5" />
-                            <TextBlock Text="{Binding Sub}" FontSize="11"
-                                       Foreground="{StaticResource Muted2Brush}" />
-                        </StackPanel>
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
 
         <!-- ═══ Toolbar (.hy-toolbar): period chips + search ═══ -->
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,16">

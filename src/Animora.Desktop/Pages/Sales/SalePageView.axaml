@@ -377,11 +377,12 @@
              toolbar's segmented switch (.seg/.segitem/.segtap). On the history
              tab the row sits flush against the history toolbar below (no bottom
              gap) so the two read as one connected surface. -->
-        <Border Classes="wt-seg" HorizontalAlignment="Left"
+        <Border Classes="wt-seg" HorizontalAlignment="Stretch"
+                CornerRadius="{Binding IsHistoryTab, Converter={x:Static sales:SalePageView.TabRowCornerConverter}}"
                 Margin="{Binding IsHistoryTab, Converter={x:Static sales:SalePageView.TabRowMarginConverter}}">
-            <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="2">
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="2">
                 <Border Grid.Column="0" Classes="wt-item" Classes.on="{Binding IsCashierTab}">
-                    <Button Classes="wt-tap"
+                    <Button Classes="wt-tap" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                             Command="{Binding SetWorkspaceCommand}" CommandParameter="cashier">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <Path Classes="icon" Width="16" Height="16"
@@ -391,7 +392,7 @@
                     </Button>
                 </Border>
                 <Border Grid.Column="1" Classes="wt-item" Classes.on="{Binding IsHistoryTab}">
-                    <Button Classes="wt-tap"
+                    <Button Classes="wt-tap" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                             Command="{Binding SetWorkspaceCommand}" CommandParameter="history">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <Path Classes="icon" Width="16" Height="16"

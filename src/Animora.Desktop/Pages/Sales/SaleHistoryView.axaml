@@ -229,7 +229,7 @@
         <!-- ═══ Toolbar (.pagebar) — mirrors the Patients/Sales toolbar ═══ -->
         <Border Background="{StaticResource PanelBrush}"
                 BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
-                CornerRadius="{StaticResource Radius}"
+                CornerRadius="0,0,16,16"
                 BoxShadow="{StaticResource ShadowCard}"
                 Padding="14,12" Margin="0,0,0,16">
             <StackPanel Spacing="12">

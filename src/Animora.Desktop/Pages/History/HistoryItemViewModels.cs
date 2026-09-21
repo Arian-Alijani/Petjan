@@ -5,36 +5,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Animora.Desktop.Pages.History;
 
-/// <summary>
-/// One KPI card of the ledger's KPI bar (the reference's <c>renderKpi</c>
-/// cards): icon, accent tones, label, value and sub-caption.
-/// </summary>
-public sealed class HistoryKpiViewModel
-{
-    public HistoryKpiViewModel(
-        string label, string value, string sub, string iconKey, string iconBg, string iconColor)
-    {
-        Label = label;
-        Value = value;
-        Sub = sub;
-        IconKey = iconKey;
-        IconTileBrush = HistoryPresentation.Fill(iconBg);
-        AccentBrush = HistoryPresentation.Fill(iconColor);
-    }
-
-    public string Label { get; }
-
-    public string Value { get; }
-
-    public string Sub { get; }
-
-    public string IconKey { get; }
-
-    public IBrush IconTileBrush { get; }
-
-    public IBrush AccentBrush { get; }
-}
-
 /// <summary>One period chip of the toolbar's period rail (the reference's <c>renderPeriodChips</c>).</summary>
 public sealed partial class HistoryPeriodChipViewModel : ObservableObject
 {

@@ -63,8 +63,6 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
 
     // ── Collections ──────────────────────────────────────────────────────
 
-    public ObservableCollection<HistoryKpiViewModel> Kpis { get; } = [];
-
     public ObservableCollection<HistoryPeriodChipViewModel> PeriodChips { get; } = [];
 
     public RangeObservableCollection<HistoryCategoryChipViewModel> CategoryChips { get; } = [];
@@ -124,9 +122,6 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
 
             _totalCount = events.Count;
 
-            // KPI bar is computed over the full filtered set (not just the visible page).
-            RenderKpi(events);
-
             var visible = events.Take(PageSize).ToList();
 
             RenderSummary(visible, _totalCount);
@@ -141,44 +136,6 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         {
             IsBusy = false;
         }
-    }
-
-    // ── KPI bar (the reference's computeKpi + renderKpi) ─────────────────
-
-    private void RenderKpi(IReadOnlyList<HistoryEvent> events)
-    {
-        long income = 0, expense = 0;
-        var apt = 0;
-        var pat = 0;
-
-        foreach (var ev in events)
-        {
-            if (ev.AmountSign == 1)
-            {
-                income += ev.Amount;
-            }
-            else if (ev.AmountSign == -1)
-            {
-                expense += ev.Amount;
-            }
-
-            if (ev.Kind == HistoryEventKind.Appointment)
-            {
-                apt++;
-            }
-            else if (ev.Kind == HistoryEventKind.Patient)
-            {
-                pat++;
-            }
-        }
-
-        Kpis.Clear();
-        Kpis.Add(new HistoryKpiViewModel("جمع رویدادها", HistoryPresentation.Fa(events.Count), "در بازه انتخاب‌شده", "IconReceipt", "#eff8ff", "#1570cd"));
-        Kpis.Add(new HistoryKpiViewModel("درآمد کل", HistoryPresentation.Money(income) + " ت", "نوبت + فروش + واکسن + …", "IconWallet", "#ecfdf3", "#027a48"));
-        Kpis.Add(new HistoryKpiViewModel("هزینه‌ها", HistoryPresentation.Money(expense) + " ت", "هزینه + خرید + …", "IconReceipt", "#fef3f2", "#d92d20"));
-        Kpis.Add(new HistoryKpiViewModel("خالص", HistoryPresentation.Money(income - expense) + " ت", "درآمد − هزینه", "IconChart", "#f0fdfa", "#0d9488"));
-        Kpis.Add(new HistoryKpiViewModel("نوبت‌ها", HistoryPresentation.Fa(apt), "در بازه", "IconCalendar", "#eff8ff", "#1570cd"));
-        Kpis.Add(new HistoryKpiViewModel("بیمار جدید", HistoryPresentation.Fa(pat), "ثبت‌شده", "IconPaw", "#f4f3ff", "#a48afb"));
     }
 
     // ── Summary bar (the reference's summaryHtml) ────────────────────────
