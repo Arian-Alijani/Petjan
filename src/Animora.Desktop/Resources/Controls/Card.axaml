@@ -7,15 +7,16 @@
          </Border> — plain style selectors on Border, not a full ControlTheme,
          since "card" composes an existing element rather than a new control. -->
 
+    <!-- Border.card fills its Grid row (VerticalAlignment/HorizontalAlignment
+         Stretch) so cards sharing a row line up their top and bottom edges on a
+         single horizontal line instead of each sizing to its own content height
+         (fixes the staggered card-edge bug). -->
     <Style Selector="Border.card">
         <Setter Property="Background" Value="{StaticResource PanelBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
         <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
-        <!-- Cards sharing a Grid row must fill the row so their top and bottom
-             edges line up on a single horizontal line instead of each sizing to
-             its own content height (fixes the staggered card-edge bug). -->
         <Setter Property="VerticalAlignment" Value="Stretch" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
     </Style>

@@ -15,7 +15,11 @@
         Background="{StaticResource BgBrush}">
 
     <Window.Styles>
-        <!-- Minimal, brand-aligned input field for the login form. -->
+        <!-- Minimal, brand-aligned input field for the login form.
+             Explicit dark ink (Foreground) is set so typed text is readable:
+             the LoginWindow is a standalone Window and does not always inherit
+             App.axaml's global TextBox foreground, which left the entered text
+             white/invisible. -->
         <Style Selector="TextBox.field">
             <Setter Property="Height" Value="46" />
             <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
@@ -23,9 +27,6 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FontSize" Value="{StaticResource FontSizeSm}" />
             <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
-            <!-- Explicit dark ink so typed text is readable. The LoginWindow is a
-                 standalone Window and does not always inherit App.axaml's global
-                 TextBox foreground, which left the entered text white/invisible. -->
             <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
             <Setter Property="CaretBrush" Value="{StaticResource Brand600Brush}" />
             <Setter Property="SelectionBrush" Value="{StaticResource Brand400Brush}" />
