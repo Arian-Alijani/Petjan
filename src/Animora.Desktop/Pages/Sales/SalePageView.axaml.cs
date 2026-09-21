@@ -17,5 +17,16 @@ public partial class SalePageView : UserControl
     /// </summary>
     public static readonly IValueConverter TabRowMarginConverter =
         new FuncValueConverter<bool, Thickness>(isHistory =>
-            isHistory ? new Thickness(2, 0, 2, 0) : new Thickness(2, 0, 2, 14));
+            isHistory ? new Thickness(0) : new Thickness(0, 0, 0, 14));
+
+    /// <summary>
+    /// Corner radius of the workspace tab row. On the history tab the row's
+    /// bottom corners go flat (0) so it fuses seamlessly with the flat top
+    /// corners of the history toolbar directly beneath it (see
+    /// SaleHistoryView.axaml); on the cashier tab it keeps the normal fully
+    /// rounded pill look, matching the Patients/Owners segmented switch.
+    /// </summary>
+    public static readonly IValueConverter TabRowCornerConverter =
+        new FuncValueConverter<bool, CornerRadius>(isHistory =>
+            isHistory ? new CornerRadius(12, 12, 0, 0) : new CornerRadius(12));
 }
