@@ -61,6 +61,45 @@
         <Style Selector="Button.sw-seg-btn.is-active /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
         </Style>
+
+        <!-- Workspace tab switcher (صندوق / تاریخچه) — mirrors the Patients
+             toolbar's segmented switch exactly: a soft Bg2 track with a white
+             active pill (Panel fill + 2/8 shadow) and brand-tinted content. -->
+        <Style Selector="Border.wt-seg">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="3" />
+        </Style>
+        <Style Selector="Border.wt-item">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="9" />
+        </Style>
+        <Style Selector="Border.wt-item.on">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+        </Style>
+        <Style Selector="Button.wt-tap">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="20,9" />
+        </Style>
+        <Style Selector="Button.wt-tap:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.wt-item Path">
+            <Setter Property="Stroke" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Border.wt-item.on Path">
+            <Setter Property="Stroke" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Border.wt-item.on TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
         <Style Selector="Border.seg-ct">
             <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
             <Setter Property="CornerRadius" Value="10" />
@@ -334,27 +373,34 @@
         </Grid>
 
         <!-- ═══════════ WORKSPACE TABS ═══════════ -->
-        <!-- Two tabs («صندوق» / «تاریخچه»), mirroring the Patients toolbar's
-             segmented switch: a soft track with a white active pill. -->
-        <Border Classes="sw-seg" HorizontalAlignment="Left" Margin="2,0,2,14">
-            <StackPanel Orientation="Horizontal" Spacing="2">
-                <Button Classes="sw-seg-btn" Classes.is-active="{Binding IsCashierTab}"
-                        Command="{Binding SetWorkspaceCommand}" CommandParameter="cashier">
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                        <Path Classes="icon" Width="15" Height="15"
-                              Data="{StaticResource IconCart}" />
-                        <TextBlock Text="صندوق" />
-                    </StackPanel>
-                </Button>
-                <Button Classes="sw-seg-btn" Classes.is-active="{Binding IsHistoryTab}"
-                        Command="{Binding SetWorkspaceCommand}" CommandParameter="history">
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                        <Path Classes="icon" Width="15" Height="15"
-                              Data="{StaticResource IconHistory}" />
-                        <TextBlock Text="تاریخچه" />
-                    </StackPanel>
-                </Button>
-            </StackPanel>
+        <!-- Two tabs («صندوق» / «تاریخچه»), styled identically to the Patients
+             toolbar's segmented switch (.seg/.segitem/.segtap). On the history
+             tab the row sits flush against the history toolbar below (no bottom
+             gap) so the two read as one connected surface. -->
+        <Border Classes="wt-seg" HorizontalAlignment="Left"
+                Margin="{Binding IsHistoryTab, Converter={x:Static sales:SalePageView.TabRowMarginConverter}}">
+            <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="2">
+                <Border Grid.Column="0" Classes="wt-item" Classes.on="{Binding IsCashierTab}">
+                    <Button Classes="wt-tap"
+                            Command="{Binding SetWorkspaceCommand}" CommandParameter="cashier">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Path Classes="icon" Width="16" Height="16"
+                                  Data="{StaticResource IconCart}" />
+                            <TextBlock Text="صندوق" FontSize="13.5" FontWeight="Bold" />
+                        </StackPanel>
+                    </Button>
+                </Border>
+                <Border Grid.Column="1" Classes="wt-item" Classes.on="{Binding IsHistoryTab}">
+                    <Button Classes="wt-tap"
+                            Command="{Binding SetWorkspaceCommand}" CommandParameter="history">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Path Classes="icon" Width="16" Height="16"
+                                  Data="{StaticResource IconHistory}" />
+                            <TextBlock Text="تاریخچه" FontSize="13.5" FontWeight="Bold" />
+                        </StackPanel>
+                    </Button>
+                </Border>
+            </Grid>
         </Border>
 
         <!-- ═══════════ WORKSPACE ═══════════ -->

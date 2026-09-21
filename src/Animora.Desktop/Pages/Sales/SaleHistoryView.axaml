@@ -31,7 +31,10 @@
             <Setter Property="FontWeight" Value="Bold" />
         </Style>
 
-        <!-- ═══ Kind chip (.sh-kind): icon + label; active = tinted surface. ═══ -->
+        <!-- ═══ Kind chip (.sh-kind): icon + label. Inactive = muted outline
+             (dimmed accent icon, no fill); active = the kind's tinted surface
+             (BackgroundBrush) with an accent border + bold label, so the two
+             states are clearly distinguishable at a glance. ═══ -->
         <Style Selector="Button.sh-kind">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
@@ -42,13 +45,45 @@
             <Setter Property="FontWeight" Value="Medium" />
             <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Opacity" Value="0.72" />
         </Style>
         <Style Selector="Button.sh-kind:pointerover">
             <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Muted2Brush}" />
+            <Setter Property="Opacity" Value="1" />
         </Style>
+        <!-- Active: full opacity, bold, accent border + tinted fill supplied by
+             the item template (KindActiveBackground / accent brush). -->
         <Style Selector="Button.sh-kind.on">
             <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="Button.sh-kind.on TextBlock">
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+
+        <!-- ═══ "همه" (select-all) chip: brand pill, filled when every kind is
+             active. ═══ -->
+        <Style Selector="Button.sh-all">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="13,5" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.sh-all:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.sh-all.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
         </Style>
 
         <!-- ═══ Compact toolbar select (.sh-select) ═══ -->
@@ -246,30 +281,47 @@
                     <StackPanel Grid.Column="0">
                         <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
                                 Padding="0,12,0,0" Margin="0,-12,0,0">
-                            <ItemsControl ItemsSource="{Binding KindChips}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="sales:SaleHistoryKindChipViewModel">
-                                        <Button Classes="sh-kind" Classes.on="{Binding IsActive}"
-                                                Margin="0,0,7,0" ToolTip.Tip="{Binding Label}"
-                                                Command="{Binding #Root.((sales:SaleHistoryViewModel)DataContext).ToggleKindCommand}"
-                                                CommandParameter="{Binding Kind}">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <Path Classes="icon" Width="14" Height="14"
-                                                      Stroke="{Binding ColorBrush}"
-                                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
-                                                      VerticalAlignment="Center" />
-                                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center"
-                                                           Foreground="{Binding ColorBrush}" />
-                                            </StackPanel>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <StackPanel Orientation="Horizontal">
+                                <!-- «همه» — activate every kind filter at once. -->
+                                <Button Classes="sh-all" Classes.on="{Binding AreAllKindsActive}"
+                                        Margin="0,0,7,0" ToolTip.Tip="فعال‌سازی همهٔ فیلترها"
+                                        Command="{Binding SelectAllKindsCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="14" Height="14"
+                                              Stroke="{Binding $parent[Button].Foreground}"
+                                              Data="{StaticResource IconCheck}"
+                                              VerticalAlignment="Center" />
+                                        <TextBlock Text="همه" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <ItemsControl ItemsSource="{Binding KindChips}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="sales:SaleHistoryKindChipViewModel">
+                                            <Button Classes="sh-kind" Classes.on="{Binding IsActive}"
+                                                    Margin="0,0,7,0" ToolTip.Tip="{Binding Label}"
+                                                    Background="{Binding ChipBackground}"
+                                                    BorderBrush="{Binding ChipBorder}"
+                                                    Command="{Binding #Root.((sales:SaleHistoryViewModel)DataContext).ToggleKindCommand}"
+                                                    CommandParameter="{Binding Kind}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{Binding ColorBrush}"
+                                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                          VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center"
+                                                               Foreground="{Binding LabelBrush}" />
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </Border>
                     </StackPanel>
 
