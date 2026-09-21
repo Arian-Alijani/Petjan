@@ -76,6 +76,34 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     [ObservableProperty]
     private string _dateText = string.Empty;
 
+    // Header meta strip (time / customer / context).
+    [ObservableProperty]
+    private string _ownerName = string.Empty;
+
+    [ObservableProperty]
+    private string _phoneText = string.Empty;
+
+    [ObservableProperty]
+    private string _timeText = "—";
+
+    [ObservableProperty]
+    private bool _hasTime;
+
+    [ObservableProperty]
+    private string _doctorText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasDoctor;
+
+    [ObservableProperty]
+    private string _insuranceLabel = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasInsuranceLabel;
+
+    [ObservableProperty]
+    private string _itemCountText = "۰";
+
     // Totals.
     [ObservableProperty]
     private string _baseText = "۰";
@@ -215,6 +243,16 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         StateTone = SalePresentation.StateTone(detail.State);
         SourceLabel = detail.SourceLabel;
         DateText = detail.HasVisitContext ? detail.VisitCompletedAt : string.Empty;
+
+        OwnerName = detail.IsGuest ? "مشتری گذری" : detail.OwnerName;
+        PhoneText = string.IsNullOrWhiteSpace(detail.Phone) ? "بدون شماره" : detail.Phone;
+        TimeText = string.IsNullOrWhiteSpace(detail.VisitCompletedAt) ? "—" : detail.VisitCompletedAt;
+        HasTime = !string.IsNullOrWhiteSpace(detail.VisitCompletedAt);
+        DoctorText = detail.VisitDoctorName;
+        HasDoctor = detail.HasVisitContext && !string.IsNullOrWhiteSpace(detail.VisitDoctorName);
+        InsuranceLabel = detail.InsuranceLabel;
+        HasInsuranceLabel = detail.HasInsurance && !string.IsNullOrWhiteSpace(detail.InsuranceLabel);
+        ItemCountText = SalePresentation.Fa(detail.Lines.Count);
 
         BaseText = SalePresentation.Money(detail.Base);
         DiscountText = "− " + SalePresentation.Money(detail.DiscountAmount);
