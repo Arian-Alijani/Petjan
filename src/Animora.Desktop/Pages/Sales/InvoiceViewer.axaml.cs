@@ -29,4 +29,12 @@ public partial class InvoiceViewerView : UserControl
             line.Remove();
         }
     }
+
+    private void OnReturnLineClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: InvoiceViewerLineViewModel line })
+        {
+            line.Return();
+        }
+    }
 }

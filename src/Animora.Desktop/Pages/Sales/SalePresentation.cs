@@ -52,6 +52,7 @@ public static class SalePresentation
         InvoiceState.Partial => Resolve("WarnBrush", "#b54708"),
         InvoiceState.Settled => Resolve("OkBrush", "#027a48"),
         InvoiceState.Void => Resolve("DangerBrush", "#d92d20"),
+        InvoiceState.Refunded => Resolve("LilacBrush", "#a48afb"),
         InvoiceState.Deleted => Resolve("Muted2Brush", "#98a2b3"),
         _ => Resolve("Muted2Brush", "#98a2b3"),
     };
@@ -120,6 +121,8 @@ public static class SalePresentation
         InvoiceState.Partial => Tone.Warn,
         InvoiceState.Settled => Tone.Ok,
         InvoiceState.Void => Tone.Danger,
+        InvoiceState.Refunded => Tone.Lilac,
+        InvoiceState.Deleted => Tone.Neutral,
         _ => Tone.Neutral,
     };
 

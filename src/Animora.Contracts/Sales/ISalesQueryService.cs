@@ -118,6 +118,15 @@ public interface ISalesQueryService
     /// </summary>
     Task<RefundResult> RefundAsync(string invoiceId, RefundRequest request);
 
+    /// <summary>Returns a single line (or part of it) from a paid invoice, refunding its share.</summary>
+    Task<LineReturnResult> ReturnLineAsync(string invoiceId, LineReturnRequest request);
+
+    /// <summary>Changes an editable invoice's invoice-level discount (records «تغییر تخفیف»).</summary>
+    Task<InvoiceDetail?> SetDiscountAsync(string invoiceId, DiscountChangeRequest request);
+
+    /// <summary>Changes an editable invoice's insurance org, or clears it (records «تغییر بیمه»).</summary>
+    Task<InvoiceDetail?> SetInsuranceAsync(string invoiceId, string? insurerId);
+
     /// <summary>
     /// The owner directory for «انتخاب مشتری» (mirrors <c>openPicker</c>'s
     /// <c>window.OWNERS</c>), optionally filtered by <paramref name="query"/>.

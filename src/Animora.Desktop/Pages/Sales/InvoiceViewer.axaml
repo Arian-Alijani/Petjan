@@ -108,6 +108,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6"
                             VerticalAlignment="Center">
+                    <controls:Badge Text="{Binding ReceiptText}" Tone="Ok" IsVisible="{Binding HasReceipt}" />
                     <controls:Badge Text="{Binding StateLabel}" Tone="{Binding StateTone}" />
                     <controls:Badge Text="{Binding SourceLabel}" Tone="Neutral" />
                     <Button Width="32" Height="32" Padding="0" CornerRadius="999"
@@ -151,7 +152,7 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="sales:InvoiceViewerLineViewModel">
                                 <Border Classes="iv-line">
-                                    <Grid ColumnDefinitions="34,*,80,80,110,28" ColumnSpacing="10">
+                                    <Grid ColumnDefinitions="34,*,80,80,110,32,28" ColumnSpacing="10">
                                         <Border Grid.Column="0" Classes="iv-tag"
                                                 Background="{Binding TagBackground}">
                                             <Path Classes="icon" Width="16" Height="16"
@@ -178,7 +179,16 @@
                                                    FontSize="13" FontWeight="ExtraBold"
                                                    Foreground="{StaticResource InkBrush}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                        <Button Grid.Column="5" Width="28" Height="28" Padding="0"
+                                        <Button Grid.Column="5" Classes="outline" Padding="6,5"
+                                                FontSize="11" CornerRadius="8"
+                                                IsVisible="{Binding CanReturn}"
+                                                Click="OnReturnLineClick"
+                                                ToolTip.Tip="برگشت این کالا">
+                                            <Path Classes="icon" Width="14" Height="14"
+                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                  Data="{StaticResource IconArrowDownLeft}" />
+                                        </Button>
+                                        <Button Grid.Column="6" Width="28" Height="28" Padding="0"
                                                 CornerRadius="8" Background="Transparent"
                                                 IsVisible="{Binding IsEditable}"
                                                 Click="OnRemoveLineClick">
@@ -249,6 +259,41 @@
                                        FontWeight="ExtraBold" Foreground="White" />
                         </Grid>
                     </Border>
+                </StackPanel>
+
+                <!-- discount / insurance editors (draft/partial only) -->
+                <StackPanel Spacing="8" IsVisible="{Binding CanEditMeta}">
+                    <TextBlock Classes="iv-sec" Text="تخفیف و بیمه" />
+                    <Grid ColumnDefinitions="1*,1*" ColumnSpacing="12">
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <TextBlock Classes="iv-lbl" Text="تخفیف سراسری" />
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                <ComboBox Grid.Column="0" MinWidth="90"
+                                          SelectedIndex="{Binding DiscountKindIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="درصد" />
+                                    <ComboBoxItem Content="مبلغ" />
+                                </ComboBox>
+                                <TextBox Grid.Column="1" Classes="iv-in"
+                                         Text="{Binding DiscountValueText, Mode=TwoWay}" />
+                                <Button Grid.Column="2" Classes="outline" Padding="10,6"
+                                        Command="{Binding ApplyDiscountCommand}">
+                                    <TextBlock Text="اعمال" FontSize="12" />
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <TextBlock Classes="iv-lbl" Text="پوشش بیمه" />
+                            <ComboBox HorizontalAlignment="Stretch"
+                                      ItemsSource="{Binding Insurers}"
+                                      SelectedItem="{Binding SelectedInsurer, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="sales:InsurerOptionViewModel">
+                                        <TextBlock Text="{Binding Label}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
 
                 <!-- payment history -->

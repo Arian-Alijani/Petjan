@@ -135,6 +135,42 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     [ObservableProperty]
     private bool _isDeleted;
 
+    [ObservableProperty]
+    private bool _showReturn;
+
+    [ObservableProperty]
+    private bool _canEditMeta;
+
+    [ObservableProperty]
+    private string _receiptText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasReceipt;
+
+    // ── Discount / insurance editors (draft/partial only) ──────────────────
+
+    public ObservableCollection<InsurerOptionViewModel> Insurers { get; } = [];
+
+    [ObservableProperty]
+    private int _discountKindIndex;
+
+    [ObservableProperty]
+    private string _discountValueText = "۰";
+
+    [ObservableProperty]
+    private InsurerOptionViewModel? _selectedInsurer;
+
+    private bool _insurersLoaded;
+    private bool _suppressInsuranceApply;
+
+    partial void OnSelectedInsurerChanged(InsurerOptionViewModel? value)
+    {
+        if (!_suppressInsuranceApply)
+        {
+            _ = ApplyInsuranceAsync(value?.Id ?? string.Empty);
+        }
+    }
+
     public string DeletedBannerText => "این فاکتور حذف شده است — رکورد آن برای پیگیری در تاریخچه باقی می‌ماند.";
 
     private async Task LoadAsync()
@@ -146,7 +182,27 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             return;
         }
 
+        await EnsureInsurersLoadedAsync();
         Apply(detail);
+    }
+
+    private async Task EnsureInsurersLoadedAsync()
+    {
+        if (_insurersLoaded)
+        {
+            return;
+        }
+
+        _insurersLoaded = true;
+        _suppressInsuranceApply = true;
+        Insurers.Clear();
+        Insurers.Add(new InsurerOptionViewModel(string.Empty, "بدون بیمه"));
+        foreach (var insurer in await _service.GetInsurersAsync())
+        {
+            Insurers.Add(new InsurerOptionViewModel(insurer.Id, insurer.Name));
+        }
+
+        _suppressInsuranceApply = false;
     }
 
     private void Apply(InvoiceDetail detail)
@@ -179,8 +235,14 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         CanPay = editable && detail.Lines.Count > 0 && detail.Paid < detail.Total;
         IsDeleted = detail.State == InvoiceState.Deleted;
 
+        var canReturn = detail.State is InvoiceState.Partial or InvoiceState.Settled && detail.Paid > 0;
+        ShowReturn = canReturn && detail.Lines.Count > 0;
+        CanEditMeta = editable;
+        ReceiptText = detail.ReceiptNo;
+        HasReceipt = !string.IsNullOrEmpty(detail.ReceiptNo);
+
         Lines.ReplaceAll(detail.Lines.Select(line =>
-            new InvoiceViewerLineViewModel(line, editable, OnLineEdited, OnLineRemoved)));
+            new InvoiceViewerLineViewModel(line, editable, canReturn, OnLineEdited, OnLineRemoved, OnLineReturned)));
 
         Payments.ReplaceAll(detail.Payments.Select(p => new InvoicePaymentViewModel(p)));
         HasPayments = Payments.Count > 0;
@@ -189,6 +251,12 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         Audit.ReplaceAll(detail.Audit.Select(a => new InvoiceAuditRowViewModel(a)));
         HasAudit = Audit.Count > 0;
         AuditHeader = $"تاریخچه تغییرات ({SalePresentation.Fa(Audit.Count)})";
+
+        _suppressInsuranceApply = true;
+        DiscountKindIndex = detail.DiscountKind == DiscountKind.Amount ? 1 : 0;
+        DiscountValueText = SalePresentation.Fa(detail.DiscountValue);
+        SelectedInsurer = Insurers.FirstOrDefault(o => o.Id == detail.InsuranceOrgId) ?? Insurers.FirstOrDefault();
+        _suppressInsuranceApply = false;
     }
 
     private void OnLineEdited(int index, int quantity, int discountPercent) =>
@@ -196,6 +264,25 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
 
     private void OnLineRemoved(int index) =>
         _ = MutateAsync(() => _service.RemoveLineAsync(_invoiceId, index));
+
+    private void OnLineReturned(int index, int quantity) =>
+        _ = ReturnLineAsync(index, quantity);
+
+    private async Task ReturnLineAsync(int index, int quantity)
+    {
+        var result = await _service.ReturnLineAsync(_invoiceId, new LineReturnRequest(index, quantity));
+        if (!result.Ok)
+        {
+            _toast.Show(result.Error ?? "خطا در برگشت کالا", Tone.Danger);
+            return;
+        }
+
+        Apply(result.Invoice);
+        _toast.Show(result.Refunded > 0
+            ? $"کالا برگشت خورد و {SalePresentation.Money(result.Refunded)} تومان عودت شد"
+            : "کالا از فاکتور برگشت خورد", Tone.Ok);
+        OnChanged();
+    }
 
     private async Task MutateAsync(Func<Task<InvoiceDetail?>> mutation)
     {
@@ -206,6 +293,35 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         }
 
         _onChanged?.Invoke();
+    }
+
+    [RelayCommand]
+    private async Task ApplyDiscount()
+    {
+        var kind = DiscountKindIndex == 1 ? DiscountKind.Amount : DiscountKind.Percent;
+        var value = ParseIntStatic(DiscountValueText, 0);
+        var updated = await _service.SetDiscountAsync(_invoiceId, new DiscountChangeRequest(kind, value));
+        if (updated is not null)
+        {
+            Apply(updated);
+            _onChanged?.Invoke();
+        }
+    }
+
+    private async Task ApplyInsuranceAsync(string? insurerId)
+    {
+        var updated = await _service.SetInsuranceAsync(_invoiceId, insurerId);
+        if (updated is not null)
+        {
+            Apply(updated);
+            _onChanged?.Invoke();
+        }
+    }
+
+    private static int ParseIntStatic(string? text, int fallback)
+    {
+        var ascii = PersianNumberFormatter.ToAsciiDigits(text).Trim();
+        return int.TryParse(ascii, out var v) ? v : fallback;
     }
 
     // ── Footer actions ────────────────────────────────────────────────────
@@ -317,18 +433,24 @@ public sealed partial class InvoiceViewerLineViewModel : ObservableObject
 {
     private readonly Action<int, int, int> _onEdited;
     private readonly Action<int> _onRemove;
+    private readonly Action<int, int> _onReturn;
+    private readonly int _quantity;
 
     public InvoiceViewerLineViewModel(
-        InvoiceLine line, bool editable, Action<int, int, int> onEdited, Action<int> onRemove)
+        InvoiceLine line, bool editable, bool canReturn,
+        Action<int, int, int> onEdited, Action<int> onRemove, Action<int, int> onReturn)
     {
         _onEdited = onEdited;
         _onRemove = onRemove;
+        _onReturn = onReturn;
+        _quantity = line.Quantity;
         Index = line.Index;
         Title = line.Title;
         IconKey = line.IconKey;
         KindLabel = line.KindLabel;
         UnitText = SalePresentation.Money(line.UnitPrice) + " تومان × " + SalePresentation.Fa(line.Quantity);
         IsEditable = editable;
+        CanReturn = canReturn;
         _quantityText = SalePresentation.Fa(line.Quantity);
         _discountText = SalePresentation.Fa(line.DiscountPercent);
         (TagBackground, TagForeground) = SalePresentation.LineTagBrushes(line.Kind, line.IsCustom);
@@ -347,6 +469,9 @@ public sealed partial class InvoiceViewerLineViewModel : ObservableObject
 
     public bool IsEditable { get; }
 
+    /// <summary>Whether the one-tap «برگشت» button is offered (the invoice is in a paid state).</summary>
+    public bool CanReturn { get; }
+
     public IBrush TagBackground { get; }
 
     public IBrush TagForeground { get; }
@@ -363,6 +488,9 @@ public sealed partial class InvoiceViewerLineViewModel : ObservableObject
     public void SubmitEdit() => _onEdited(Index, ParseInt(QuantityText, 1), ParseInt(DiscountText, 0));
 
     public void Remove() => _onRemove(Index);
+
+    /// <summary>Returns the whole line quantity in one tap (mirrors «برگشت زدن فقط یک جنس»).</summary>
+    public void Return() => _onReturn(Index, _quantity);
 
     private static long Subtotal(InvoiceLine line) =>
         (long)Math.Round(line.UnitPrice * line.Quantity * (100 - line.DiscountPercent) / 100.0);
@@ -416,6 +544,9 @@ public static class InvoiceAuditPresentation
         InvoiceAuditKind.InsuranceChanged => "IconShield",
         InvoiceAuditKind.Voided => "IconX",
         InvoiceAuditKind.Deleted => "IconTrash",
+        InvoiceAuditKind.LineReturned => "IconArrowDownLeft",
+        InvoiceAuditKind.PaymentTaken => "IconWallet",
+        InvoiceAuditKind.Refunded => "IconArrowDownLeft",
         _ => "IconHistory",
     };
 
@@ -429,6 +560,9 @@ public static class InvoiceAuditPresentation
         InvoiceAuditKind.InsuranceChanged => "#0e7566",
         InvoiceAuditKind.Voided => "#d92d20",
         InvoiceAuditKind.Deleted => "#d92d20",
+        InvoiceAuditKind.LineReturned => "#7b5cc4",
+        InvoiceAuditKind.PaymentTaken => "#027a48",
+        InvoiceAuditKind.Refunded => "#7b5cc4",
         _ => "#667085",
     };
 
@@ -442,6 +576,23 @@ public static class InvoiceAuditPresentation
         InvoiceAuditKind.InsuranceChanged => "#f0fdfa",
         InvoiceAuditKind.Voided => "#fef3f2",
         InvoiceAuditKind.Deleted => "#fef3f2",
+        InvoiceAuditKind.LineReturned => "#f4f3ff",
+        InvoiceAuditKind.PaymentTaken => "#ecfdf3",
+        InvoiceAuditKind.Refunded => "#f4f3ff",
         _ => "#f1f5f6",
     };
+}
+
+/// <summary>One insurer option of the viewer's «پوشش بیمه» select (mirrors the Cashier's option VM).</summary>
+public sealed class InsurerOptionViewModel
+{
+    public InsurerOptionViewModel(string id, string name)
+    {
+        Id = id;
+        Label = string.IsNullOrEmpty(id) ? "بدون بیمه" : name;
+    }
+
+    public string Id { get; }
+
+    public string Label { get; }
 }

@@ -73,6 +73,15 @@ public enum InvoiceAuditKind
 
     /// <summary>«حذف فاکتور» — the invoice was soft-deleted.</summary>
     Deleted,
+
+    /// <summary>«برگشت کالا» — a single line was returned/refunded from a settled invoice.</summary>
+    LineReturned,
+
+    /// <summary>«پرداخت» — a payment was recorded (money-moving; also in Payments).</summary>
+    PaymentTaken,
+
+    /// <summary>«عودت» — a refund was paid out (money-moving; also in Payments).</summary>
+    Refunded,
 }
 
 /// <summary>
@@ -213,9 +222,12 @@ public sealed record InsurerRef(
 /// base → discount → tax-on-services → insurance share → total → due). Numeric
 /// values are pre-formatted Persian strings so the View renders them verbatim;
 /// the raw lengths feed layout decisions only.
+/// <paramref name="ReceiptNo"/> is a stable receipt number assigned once the
+/// invoice first reaches <see cref="InvoiceState.Settled"/>, empty until then.
 /// </summary>
 public sealed record InvoiceDetail(
     string Id,
+    string ReceiptNo,
     InvoiceKind Kind,
     InvoiceState State,
     string StateLabel,
@@ -336,6 +348,22 @@ public sealed record RefundResult(
     bool Ok,
     string? Error,
     InvoiceDetail Invoice);
+
+/// <summary>
+/// A single-line return request: the line to return and how many units of it
+/// (mirrors «برگشت زدن فقط یک جنس از کل فاکتور»). The service caps the quantity
+/// at the line's quantity and refunds the matching share of the paid amount.
+/// </summary>
+public sealed record LineReturnRequest(int LineIndex, int Quantity);
+
+/// <summary>
+/// The result of <see cref="ISalesQueryService.ReturnLineAsync"/>: whether it
+/// applied, an optional error, the refunded amount and the updated detail.
+/// </summary>
+public sealed record LineReturnResult(bool Ok, string? Error, long Refunded, InvoiceDetail Invoice);
+
+/// <summary>An invoice-level discount change (mirrors «تغییر تخفیف»).</summary>
+public sealed record DiscountChangeRequest(DiscountKind Kind, int Value);
 
 /// <summary>
 /// One owner of the «انتخاب مشتری» picker directory, mirroring the reference's
