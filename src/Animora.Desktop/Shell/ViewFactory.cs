@@ -111,6 +111,7 @@ public static class ViewFactory
         // Sales (POS) + its shared dialogs.
         Register<global::Animora.Desktop.Pages.Sales.CatalogModalViewModel, global::Animora.Desktop.Pages.Sales.CatalogModalView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.CustomItemModalViewModel, global::Animora.Desktop.Pages.Sales.CustomItemModalView>(factories);
+        Register<global::Animora.Desktop.Pages.Sales.InvoiceViewerViewModel, global::Animora.Desktop.Pages.Sales.InvoiceViewerView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.OwnerPickerModalViewModel, global::Animora.Desktop.Pages.Sales.OwnerPickerModalView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.PaymentModalViewModel, global::Animora.Desktop.Pages.Sales.PaymentModalView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.RefundModalViewModel, global::Animora.Desktop.Pages.Sales.RefundModalView>(factories);

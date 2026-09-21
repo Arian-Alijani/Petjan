@@ -1,0 +1,447 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
+using Animora.Contracts.Sales;
+using Animora.Desktop.Controls;
+using Animora.Desktop.Localization;
+using Animora.Desktop.Services;
+using Animora.Desktop.Pages.Sales.Shared;
+using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace Animora.Desktop.Pages.Sales;
+
+/// <summary>
+/// Backs the center-screen «مشاهدهٔ فاکتور» viewer: it opens an invoice over the
+/// page (via <see cref="IDialogService.ShowSheet"/>), shows its full detail —
+/// header, lines, totals, payment history and the «تاریخچه تغییرات» audit trail —
+/// and offers the edit / delete / void / refund / pay actions. Every mutation is
+/// routed through <see cref="ISalesQueryService"/> so the mock records the change
+/// (with its full detail) in the audit trail and the cashier ledger, then the
+/// viewer reloads and notifies the caller so the page/ledger refresh too.
+/// </summary>
+public sealed partial class InvoiceViewerViewModel : ObservableObject
+{
+    private readonly ISalesQueryService _service;
+    private readonly IToastService _toast;
+    private readonly IDialogService _dialogs;
+    private readonly string _invoiceId;
+    private readonly Action? _onChanged;
+
+    private InvoiceDetail _detail = null!;
+
+    public InvoiceViewerViewModel(
+        ISalesQueryService service,
+        IToastService toast,
+        IDialogService dialogs,
+        string invoiceId,
+        Action? onChanged = null)
+    {
+        _service = service;
+        _toast = toast;
+        _dialogs = dialogs;
+        _invoiceId = invoiceId;
+        _onChanged = onChanged;
+
+        _ = LoadAsync();
+    }
+
+    public RangeObservableCollection<InvoiceViewerLineViewModel> Lines { get; } = [];
+
+    public RangeObservableCollection<InvoicePaymentViewModel> Payments { get; } = [];
+
+    public RangeObservableCollection<InvoiceAuditRowViewModel> Audit { get; } = [];
+
+    [ObservableProperty]
+    private string _invoiceId2 = string.Empty;
+
+    [ObservableProperty]
+    private string _title = "فاکتور";
+
+    [ObservableProperty]
+    private string _subtitle = string.Empty;
+
+    [ObservableProperty]
+    private string _stateLabel = string.Empty;
+
+    [ObservableProperty]
+    private Tone _stateTone = Tone.Neutral;
+
+    [ObservableProperty]
+    private string _sourceLabel = string.Empty;
+
+    [ObservableProperty]
+    private string _dateText = string.Empty;
+
+    // Totals.
+    [ObservableProperty]
+    private string _baseText = "۰";
+
+    [ObservableProperty]
+    private string _discountText = "۰";
+
+    [ObservableProperty]
+    private string _taxText = "۰";
+
+    [ObservableProperty]
+    private string _insuranceShareText = "۰";
+
+    [ObservableProperty]
+    private string _totalText = "۰";
+
+    [ObservableProperty]
+    private string _paidText = "۰";
+
+    [ObservableProperty]
+    private string _dueText = "۰";
+
+    [ObservableProperty]
+    private bool _hasInsurance;
+
+    [ObservableProperty]
+    private bool _hasDiscount;
+
+    [ObservableProperty]
+    private bool _hasDue;
+
+    [ObservableProperty]
+    private bool _hasPayments;
+
+    [ObservableProperty]
+    private bool _hasAudit;
+
+    [ObservableProperty]
+    private string _paymentsHeader = "تاریخچهٔ پرداخت‌ها";
+
+    [ObservableProperty]
+    private string _auditHeader = "تاریخچه تغییرات";
+
+    // Action visibility.
+    [ObservableProperty]
+    private bool _canEdit;
+
+    [ObservableProperty]
+    private bool _showVoid;
+
+    [ObservableProperty]
+    private bool _showRefund;
+
+    [ObservableProperty]
+    private bool _canPay;
+
+    [ObservableProperty]
+    private bool _isDeleted;
+
+    public string DeletedBannerText => "این فاکتور حذف شده است — رکورد آن برای پیگیری در تاریخچه باقی می‌ماند.";
+
+    private async Task LoadAsync()
+    {
+        var detail = await _service.GetInvoiceAsync(_invoiceId);
+        if (detail is null)
+        {
+            _dialogs.Close();
+            return;
+        }
+
+        Apply(detail);
+    }
+
+    private void Apply(InvoiceDetail detail)
+    {
+        _detail = detail;
+        InvoiceId2 = detail.Id;
+        Title = detail.PetName.Length > 0 ? detail.PetName : "فاکتور";
+        Subtitle = $"{detail.OwnerName} · {detail.Phone}";
+        StateLabel = detail.StateLabel;
+        StateTone = SalePresentation.StateTone(detail.State);
+        SourceLabel = detail.SourceLabel;
+        DateText = detail.HasVisitContext ? detail.VisitCompletedAt : string.Empty;
+
+        BaseText = SalePresentation.Money(detail.Base);
+        DiscountText = "− " + SalePresentation.Money(detail.DiscountAmount);
+        TaxText = "+ " + SalePresentation.Money(detail.Tax);
+        InsuranceShareText = "− " + SalePresentation.Money(detail.InsuranceShare);
+        TotalText = SalePresentation.Money(detail.Total);
+        PaidText = SalePresentation.Money(detail.Paid);
+        DueText = SalePresentation.Money(detail.Due);
+
+        HasInsurance = detail.HasInsurance;
+        HasDiscount = detail.HasDiscount;
+        HasDue = detail.Due > 0;
+
+        var editable = !detail.IsLocked;
+        CanEdit = editable;
+        ShowVoid = editable;
+        ShowRefund = detail.State is InvoiceState.Partial or InvoiceState.Settled;
+        CanPay = editable && detail.Lines.Count > 0 && detail.Paid < detail.Total;
+        IsDeleted = detail.State == InvoiceState.Deleted;
+
+        Lines.ReplaceAll(detail.Lines.Select(line =>
+            new InvoiceViewerLineViewModel(line, editable, OnLineEdited, OnLineRemoved)));
+
+        Payments.ReplaceAll(detail.Payments.Select(p => new InvoicePaymentViewModel(p)));
+        HasPayments = Payments.Count > 0;
+        PaymentsHeader = $"تاریخچهٔ پرداخت‌ها ({SalePresentation.Fa(Payments.Count)})";
+
+        Audit.ReplaceAll(detail.Audit.Select(a => new InvoiceAuditRowViewModel(a)));
+        HasAudit = Audit.Count > 0;
+        AuditHeader = $"تاریخچه تغییرات ({SalePresentation.Fa(Audit.Count)})";
+    }
+
+    private void OnLineEdited(int index, int quantity, int discountPercent) =>
+        _ = MutateAsync(() => _service.EditLineAsync(_invoiceId, index, quantity, discountPercent));
+
+    private void OnLineRemoved(int index) =>
+        _ = MutateAsync(() => _service.RemoveLineAsync(_invoiceId, index));
+
+    private async Task MutateAsync(Func<Task<InvoiceDetail?>> mutation)
+    {
+        var updated = await mutation();
+        if (updated is not null)
+        {
+            Apply(updated);
+        }
+
+        _onChanged?.Invoke();
+    }
+
+    // ── Footer actions ────────────────────────────────────────────────────
+
+    [RelayCommand]
+    private void TakePayment()
+    {
+        _dialogs.Close();
+        _dialogs.ShowModal(new PaymentModalViewModel(_service, _toast, _dialogs, _invoiceId, OnChanged), 520);
+    }
+
+    [RelayCommand]
+    private void Refund()
+    {
+        _dialogs.Close();
+        _dialogs.ShowModal(new RefundModalViewModel(_service, _toast, _dialogs, _invoiceId, _detail.Paid, OnChanged), 480);
+    }
+
+    [RelayCommand]
+    private void VoidInvoice()
+    {
+        _dialogs.ShowModal(new ConfirmDialogViewModel(
+            _dialogs,
+            "danger",
+            "IconX",
+            "ابطال فاکتور",
+            "آیا از ابطال فاکتور ",
+            $"«{_detail.Id}»",
+            " اطمینان دارید؟",
+            "این عمل غیرقابل بازگشت است و در تاریخچه تغییرات ثبت می‌شود.",
+            "بله، ابطال کن",
+            "انصراف",
+            VoidConfirmed), 480);
+    }
+
+    private async void VoidConfirmed()
+    {
+        var detail = await _service.VoidAsync(_invoiceId);
+        if (detail is null)
+        {
+            _toast.Show("خطا در ابطال", Tone.Danger);
+            return;
+        }
+
+        Apply(detail);
+        _toast.Show($"فاکتور «{detail.Id}» ابطال شد", Tone.Ok);
+        OnChanged();
+    }
+
+    [RelayCommand]
+    private void DeleteInvoice()
+    {
+        _dialogs.ShowModal(new ConfirmDialogViewModel(
+            _dialogs,
+            "danger",
+            "IconTrash",
+            "حذف فاکتور",
+            "آیا از حذف فاکتور ",
+            $"«{_detail.Id}»",
+            " اطمینان دارید؟",
+            "فاکتور از لیست فعال حذف می‌شود، اما با تمام جزئیات در تاریخچه ثبت و قابل پیگیری می‌ماند.",
+            "بله، حذف کن",
+            "انصراف",
+            DeleteConfirmed), 480);
+    }
+
+    private async void DeleteConfirmed()
+    {
+        var detail = await _service.DeleteInvoiceAsync(_invoiceId);
+        if (detail is null)
+        {
+            _toast.Show("خطا در حذف فاکتور", Tone.Danger);
+            return;
+        }
+
+        Apply(detail);
+        _toast.Show($"فاکتور «{detail.Id}» حذف شد و در تاریخچه ثبت گردید", Tone.Ok);
+        OnChanged();
+    }
+
+    [RelayCommand]
+    private void Print() => _toast.Show("فاکتور به چاپگر ارسال شد (نمونه طراحی)", Tone.Ok);
+
+    [RelayCommand]
+    private void Close() => _dialogs.Close();
+
+    private void OnChanged()
+    {
+        _onChanged?.Invoke();
+        _ = ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        var detail = await _service.GetInvoiceAsync(_invoiceId);
+        if (detail is not null)
+        {
+            Apply(detail);
+        }
+    }
+}
+
+/// <summary>
+/// One line row of the invoice viewer: the kind tag, title/unit price, editable
+/// quantity + discount boxes (writes back through the supplied callbacks) and the
+/// derived subtotal.
+/// </summary>
+public sealed partial class InvoiceViewerLineViewModel : ObservableObject
+{
+    private readonly Action<int, int, int> _onEdited;
+    private readonly Action<int> _onRemove;
+
+    public InvoiceViewerLineViewModel(
+        InvoiceLine line, bool editable, Action<int, int, int> onEdited, Action<int> onRemove)
+    {
+        _onEdited = onEdited;
+        _onRemove = onRemove;
+        Index = line.Index;
+        Title = line.Title;
+        IconKey = line.IconKey;
+        KindLabel = line.KindLabel;
+        UnitText = SalePresentation.Money(line.UnitPrice) + " تومان × " + SalePresentation.Fa(line.Quantity);
+        IsEditable = editable;
+        _quantityText = SalePresentation.Fa(line.Quantity);
+        _discountText = SalePresentation.Fa(line.DiscountPercent);
+        (TagBackground, TagForeground) = SalePresentation.LineTagBrushes(line.Kind, line.IsCustom);
+        SubtotalText = SalePresentation.Money(Subtotal(line));
+    }
+
+    public int Index { get; }
+
+    public string Title { get; }
+
+    public string IconKey { get; }
+
+    public string KindLabel { get; }
+
+    public string UnitText { get; }
+
+    public bool IsEditable { get; }
+
+    public IBrush TagBackground { get; }
+
+    public IBrush TagForeground { get; }
+
+    [ObservableProperty]
+    private string _quantityText;
+
+    [ObservableProperty]
+    private string _discountText;
+
+    [ObservableProperty]
+    private string _subtotalText;
+
+    public void SubmitEdit() => _onEdited(Index, ParseInt(QuantityText, 1), ParseInt(DiscountText, 0));
+
+    public void Remove() => _onRemove(Index);
+
+    private static long Subtotal(InvoiceLine line) =>
+        (long)Math.Round(line.UnitPrice * line.Quantity * (100 - line.DiscountPercent) / 100.0);
+
+    private static int ParseInt(string? text, int fallback)
+    {
+        var ascii = PersianNumberFormatter.ToAsciiDigits(text).Trim();
+        return int.TryParse(ascii, out var v) ? v : fallback;
+    }
+}
+
+/// <summary>One audit-trail row of the invoice viewer («تاریخچه تغییرات»).</summary>
+public sealed class InvoiceAuditRowViewModel
+{
+    public InvoiceAuditRowViewModel(InvoiceAuditEntry entry)
+    {
+        IconKey = InvoiceAuditPresentation.KindIcon(entry.Kind);
+        BadgeBrush = SaleHistoryPresentation.Fill(InvoiceAuditPresentation.KindBg(entry.Kind));
+        BadgeIconBrush = SaleHistoryPresentation.Fill(InvoiceAuditPresentation.KindColor(entry.Kind));
+        Action = entry.Action;
+        Detail = entry.Detail;
+        HasDetail = !string.IsNullOrEmpty(entry.Detail);
+        Time = SaleHistoryPresentation.FaText(entry.At);
+    }
+
+    public string IconKey { get; }
+
+    public IBrush BadgeBrush { get; }
+
+    public IBrush BadgeIconBrush { get; }
+
+    public string Action { get; }
+
+    public string Detail { get; }
+
+    public bool HasDetail { get; }
+
+    public string Time { get; }
+}
+
+/// <summary>The audit-kind → icon/tone registry for the viewer's change log.</summary>
+public static class InvoiceAuditPresentation
+{
+    public static string KindIcon(InvoiceAuditKind kind) => kind switch
+    {
+        InvoiceAuditKind.Created => "IconReceipt",
+        InvoiceAuditKind.ItemAdded => "IconPlus",
+        InvoiceAuditKind.ItemEdited => "IconEdit",
+        InvoiceAuditKind.ItemRemoved => "IconTrash",
+        InvoiceAuditKind.DiscountChanged => "IconEdit",
+        InvoiceAuditKind.InsuranceChanged => "IconShield",
+        InvoiceAuditKind.Voided => "IconX",
+        InvoiceAuditKind.Deleted => "IconTrash",
+        _ => "IconHistory",
+    };
+
+    public static string KindColor(InvoiceAuditKind kind) => kind switch
+    {
+        InvoiceAuditKind.Created => "#1570cd",
+        InvoiceAuditKind.ItemAdded => "#027a48",
+        InvoiceAuditKind.ItemEdited => "#6f57c9",
+        InvoiceAuditKind.ItemRemoved => "#b54708",
+        InvoiceAuditKind.DiscountChanged => "#6f57c9",
+        InvoiceAuditKind.InsuranceChanged => "#0e7566",
+        InvoiceAuditKind.Voided => "#d92d20",
+        InvoiceAuditKind.Deleted => "#d92d20",
+        _ => "#667085",
+    };
+
+    public static string KindBg(InvoiceAuditKind kind) => kind switch
+    {
+        InvoiceAuditKind.Created => "#eff8ff",
+        InvoiceAuditKind.ItemAdded => "#ecfdf3",
+        InvoiceAuditKind.ItemEdited => "#efeafb",
+        InvoiceAuditKind.ItemRemoved => "#fffaeb",
+        InvoiceAuditKind.DiscountChanged => "#efeafb",
+        InvoiceAuditKind.InsuranceChanged => "#f0fdfa",
+        InvoiceAuditKind.Voided => "#fef3f2",
+        InvoiceAuditKind.Deleted => "#fef3f2",
+        _ => "#f1f5f6",
+    };
+}

@@ -37,6 +37,7 @@ public static class SalePresentation
         InvoiceState.Settled => "تسویه کامل",
         InvoiceState.Void => "ابطال شده",
         InvoiceState.Refunded => "مسترد شده",
+        InvoiceState.Deleted => "حذف شده",
         _ => "—",
     };
 
@@ -51,6 +52,7 @@ public static class SalePresentation
         InvoiceState.Partial => Resolve("WarnBrush", "#b54708"),
         InvoiceState.Settled => Resolve("OkBrush", "#027a48"),
         InvoiceState.Void => Resolve("DangerBrush", "#d92d20"),
+        InvoiceState.Deleted => Resolve("Muted2Brush", "#98a2b3"),
         _ => Resolve("Muted2Brush", "#98a2b3"),
     };
 

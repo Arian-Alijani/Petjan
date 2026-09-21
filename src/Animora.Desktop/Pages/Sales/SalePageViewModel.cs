@@ -77,7 +77,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         Segments.Add(new SaleSegmentViewModel("ready", "صف ویزیت"));
         Segments.Add(new SaleSegmentViewModel("invoices", "فاکتورها"));
 
-        History = new SaleHistoryViewModel(service);
+        History = new SaleHistoryViewModel(service, toast, dialogs);
 
         _ = LoadAsync();
     }

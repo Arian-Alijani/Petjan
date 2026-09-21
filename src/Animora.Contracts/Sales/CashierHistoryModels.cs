@@ -24,6 +24,12 @@ public enum CashierHistoryKind
 
     /// <summary>«عودت» — a refund was paid back out.</summary>
     Refunded,
+
+    /// <summary>«ویرایش» — the invoice's lines/discount/insurance were edited.</summary>
+    Edited,
+
+    /// <summary>«حذف» — the invoice was soft-deleted.</summary>
+    Deleted,
 }
 
 /// <summary>

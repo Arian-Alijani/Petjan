@@ -36,7 +36,60 @@ public enum InvoiceState
 
     /// <summary>«مسترد شده» — refunded (muted tone).</summary>
     Refunded,
+
+    /// <summary>«حذف شده» — soft-deleted / cancelled record (muted-danger tone).</summary>
+    Deleted,
 }
+
+/// <summary>
+/// The kind of one invoice audit event — the non-payment lifecycle/editing
+/// operations recorded against an invoice. Mirrors the «پذیرش / ویرایش ردیف /
+/// تخفیف / بیمه / ابطال / حذف» vocabulary the cashier ledger + the invoice
+/// viewer must surface with full detail. The View maps each value 1:1 to a
+/// Phase 02 semantic tone + icon — this contract stays free of UI resources.
+/// </summary>
+public enum InvoiceAuditKind
+{
+    /// <summary>«ایجاد» — the invoice was created / accepted into the till.</summary>
+    Created,
+
+    /// <summary>«افزودن ردیف» — a line was added.</summary>
+    ItemAdded,
+
+    /// <summary>«ویرایش ردیف» — a line's quantity/discount was edited.</summary>
+    ItemEdited,
+
+    /// <summary>«حذف ردیف» — a line was removed.</summary>
+    ItemRemoved,
+
+    /// <summary>«تغییر تخفیف» — the invoice-level discount was changed.</summary>
+    DiscountChanged,
+
+    /// <summary>«تغییر بیمه» — the invoice's insurance org was changed.</summary>
+    InsuranceChanged,
+
+    /// <summary>«ابطال» — the invoice was voided.</summary>
+    Voided,
+
+    /// <summary>«حذف فاکتور» — the invoice was soft-deleted.</summary>
+    Deleted,
+}
+
+/// <summary>
+/// One row of an invoice's audit trail (shown in the invoice viewer's
+/// «تاریخچه تغییرات» and folded into the cashier ledger): a timestamp, the
+/// event kind, a short Persian action label and a Persian detail describing
+/// exactly what changed (so edits/deletes are recorded with their full detail).
+/// </summary>
+/// <param name="Kind">The audit event kind.</param>
+/// <param name="At">Event time as an ASCII <c>HH:mm</c> string (rendered through Phase 04).</param>
+/// <param name="Action">The short Persian action label (resolved by the service).</param>
+/// <param name="Detail">The Persian description of exactly what changed.</param>
+public sealed record InvoiceAuditEntry(
+    InvoiceAuditKind Kind,
+    string At,
+    string Action,
+    string Detail);
 
 /// <summary>
 /// A line item's kind — a clinic service or a physical item, mirroring the
@@ -192,7 +245,8 @@ public sealed record InvoiceDetail(
     long Paid,
     long Due,
     bool HasInsurance,
-    bool HasDiscount);
+    bool HasDiscount,
+    IReadOnlyList<InvoiceAuditEntry> Audit);
 
 /// <summary>
 /// One catalog entry offered by the picker, mirroring the reference's
