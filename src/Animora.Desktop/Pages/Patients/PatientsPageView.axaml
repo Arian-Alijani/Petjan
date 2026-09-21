@@ -369,15 +369,15 @@
              VirtualizingStackPanel + its own ScrollViewer so only visible rows
              are realized; these styles strip its default selection/hover chrome
              so the existing card/row visuals render unchanged. -->
+        <!-- ListBox.records MaxHeight is REQUIRED: the shell wraps every page in
+             a page-level ScrollViewer that measures content with infinite
+             height, which would otherwise defeat virtualization. Capping the
+             list makes it measure its own viewport and only realize the visible
+             rows (it scrolls internally via its ScrollViewer). -->
         <Style Selector="ListBox.records">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="0" />
-            <!-- Bounded height is REQUIRED: the shell wraps every page in a
-                 page-level ScrollViewer that measures content with infinite
-                 height, which would otherwise defeat virtualization. Capping
-                 the list makes it measure its own viewport and only realize
-                 the visible rows (it scrolls internally via its ScrollViewer). -->
             <Setter Property="MaxHeight" Value="600" />
         </Style>
         <Style Selector="ListBox.records ListBoxItem">

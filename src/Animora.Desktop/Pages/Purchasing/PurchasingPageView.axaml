@@ -49,13 +49,13 @@
         <!-- Virtualized orders list (ListBox): the VirtualizingStackPanel +
              its own ScrollViewer only build visible rows. These styles strip
              the ListBox selection/hover chrome so the table rows render as-is. -->
+        <!-- ListBox.records MaxHeight (bounded height): the shell's page-level
+             ScrollViewer measures content with infinite height, so without this
+             cap the inner VirtualizingStackPanel would realize every row. -->
         <Style Selector="ListBox.records">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="0" />
-            <!-- Bounded height: the shell's page-level ScrollViewer measures
-                 content with infinite height, so without this cap the inner
-                 VirtualizingStackPanel would realize every row. -->
             <Setter Property="MaxHeight" Value="600" />
         </Style>
         <Style Selector="ListBox.records ListBoxItem">
