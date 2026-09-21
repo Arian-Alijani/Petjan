@@ -388,6 +388,12 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="sales:SaleHistoryRowViewModel">
+                                <Button Background="Transparent" BorderThickness="0" Padding="0"
+                                        CornerRadius="0" HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch"
+                                        Cursor="Hand" ToolTip.Tip="مشاهده و ویرایش فاکتور"
+                                        Command="{Binding #Root.((sales:SaleHistoryViewModel)DataContext).OpenInvoiceCommand}"
+                                        CommandParameter="{Binding InvoiceId}">
                                 <Border Classes="sh-row" ToolTip.Tip="{Binding Note}">
                                     <Grid ColumnDefinitions="36,96,*,1.4*,104,72,140,118" ColumnSpacing="0">
                                         <Border Grid.Column="0" Classes="sh-badge"
@@ -433,6 +439,7 @@
                                                         Tone="{Binding StateTone}" />
                                     </Grid>
                                 </Border>
+                                </Button>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>

@@ -36,6 +36,8 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     private static readonly int[] PageSizes = [25, 50, 100];
 
     private readonly ISalesQueryService _service;
+    private readonly IToastService _toast;
+    private readonly IDialogService _dialogs;
     private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
 
     private readonly HashSet<CashierHistoryKind> _selectedKinds = [];
@@ -54,11 +56,33 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     // longer matches is discarded (a newer query has superseded it).
     private int _generation;
 
-    public SaleHistoryViewModel(ISalesQueryService service)
+    public SaleHistoryViewModel(ISalesQueryService service, IToastService toast, IDialogService dialogs)
     {
         _service = service;
+        _toast = toast;
+        _dialogs = dialogs;
         BuildRangeChips();
         BuildKindChips();
+    }
+
+    /// <summary>
+    /// Opens the center-screen invoice viewer for a ledger row's invoice, over
+    /// the page. The viewer can edit/void/delete the invoice; each mutation is
+    /// recorded in the audit trail, so refreshing the ledger afterwards shows
+    /// the new «ویرایش»/«حذف» rows with their full detail.
+    /// </summary>
+    [RelayCommand]
+    private void OpenInvoice(string? invoiceId)
+    {
+        if (string.IsNullOrEmpty(invoiceId))
+        {
+            return;
+        }
+
+        _dialogs.ShowSheet(
+            new InvoiceViewerViewModel(_service, _toast, _dialogs, invoiceId, Refresh),
+            760,
+            720);
     }
 
     public RangeObservableCollection<SaleHistoryRowViewModel> Rows { get; } = [];

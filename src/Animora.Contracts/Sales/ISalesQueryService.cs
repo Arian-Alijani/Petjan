@@ -86,6 +86,32 @@ public interface ISalesQueryService
     /// </summary>
     Task<InvoiceDetail?> VoidAsync(string invoiceId);
 
+    // ── Invoice viewer — line editing + soft delete ───────────────────────
+
+    /// <summary>
+    /// Edits an editable invoice line's quantity and per-line discount
+    /// (mirrors the reference's inline line editors). Records a full
+    /// «ویرایش ردیف» audit entry so the change appears in the invoice's change
+    /// log and the cashier ledger. Returns the recomputed detail, or
+    /// <c>null</c> when the invoice is unknown or not editable.
+    /// </summary>
+    Task<InvoiceDetail?> EditLineAsync(string invoiceId, int lineIndex, int quantity, int discountPercent);
+
+    /// <summary>
+    /// Removes a line from an editable invoice and records a «حذف ردیف» audit
+    /// entry. Returns the recomputed detail, or <c>null</c> when the invoice is
+    /// unknown or not editable.
+    /// </summary>
+    Task<InvoiceDetail?> RemoveLineAsync(string invoiceId, int lineIndex);
+
+    /// <summary>
+    /// Soft-deletes an invoice (records a «حذف فاکتور» audit entry and moves the
+    /// state to <see cref="InvoiceState.Deleted"/>) without discarding its data,
+    /// so the history ledger keeps the full record. Returns the updated detail,
+    /// or <c>null</c> when the invoice is unknown.
+    /// </summary>
+    Task<InvoiceDetail?> DeleteInvoiceAsync(string invoiceId);
+
     /// <summary>
     /// Refunds a paid invoice (mirrors <c>FLOW.refund</c>): subtracts from paid,
     /// appends a negative payment row and moves the state to refunded.

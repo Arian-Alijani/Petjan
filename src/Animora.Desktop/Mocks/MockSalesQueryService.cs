@@ -182,6 +182,8 @@ public sealed class MockSalesQueryService : ISalesQueryService
         }
 
         PushRecent(item.Kind, item.Id);
+        Log(inv, InvoiceAuditKind.ItemAdded, "افزودن ردیف",
+            $"{item.Title} × {PersianNumberFormatter.ToPersianDigits(qty)}");
         Calc(inv);
         MarkHistoryDirty();
         return Task.FromResult(MapDetail(inv));
@@ -190,11 +192,14 @@ public sealed class MockSalesQueryService : ISalesQueryService
     public Task<InvoiceDetail> AddCustomLineAsync(string invoiceId, CustomLineRequest request)
     {
         var inv = Find(invoiceId) ?? throw new InvalidOperationException($"Unknown invoice: {invoiceId}");
+        var qty = Math.Max(1, request.Quantity);
         inv.Lines.Add(new LineRecord(
             string.Empty, InvoiceLineKind.Service, request.Title,
-            Math.Max(1, request.Quantity), Math.Max(0, request.UnitPrice),
+            qty, Math.Max(0, request.UnitPrice),
             IsCustom: true));
 
+        Log(inv, InvoiceAuditKind.ItemAdded, "افزودن ردیف دلخواه",
+            $"{request.Title} × {PersianNumberFormatter.ToPersianDigits(qty)}");
         Calc(inv);
         MarkHistoryDirty();
         return Task.FromResult(MapDetail(inv));
@@ -208,7 +213,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
             return Task.FromResult(new PaymentResult(false, "فاکتور یافت نشد.", 0, false, null!));
         }
 
-        if (inv.State is InvoiceState.Void or InvoiceState.Refunded)
+        if (inv.State is InvoiceState.Void or InvoiceState.Refunded or InvoiceState.Deleted)
         {
             return Task.FromResult(new PaymentResult(false, "این فاکتور قابلیت پرداخت ندارد.", 0, false, MapDetail(inv)));
         }
@@ -241,12 +246,13 @@ public sealed class MockSalesQueryService : ISalesQueryService
     public Task<InvoiceDetail?> VoidAsync(string invoiceId)
     {
         var inv = Find(invoiceId);
-        if (inv is null || inv.State is InvoiceState.Settled or InvoiceState.Refunded)
+        if (inv is null || inv.State is InvoiceState.Settled or InvoiceState.Refunded or InvoiceState.Deleted)
         {
             return Task.FromResult<InvoiceDetail?>(null);
         }
 
         inv.State = InvoiceState.Void;
+        Log(inv, InvoiceAuditKind.Voided, "ابطال فاکتور", "فاکتور از لیست فعال خارج شد");
         MarkHistoryDirty();
         return Task.FromResult<InvoiceDetail?>(MapDetail(inv));
     }
@@ -277,6 +283,82 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
         return Task.FromResult(new RefundResult(true, null, MapDetail(inv)));
     }
+
+    // ── Invoice viewer — line editing + soft delete ────────────────────────
+
+    public Task<InvoiceDetail?> EditLineAsync(string invoiceId, int lineIndex, int quantity, int discountPercent)
+    {
+        var inv = Find(invoiceId);
+        if (inv is null || !IsEditable(inv) || lineIndex < 0 || lineIndex >= inv.Lines.Count)
+        {
+            return Task.FromResult<InvoiceDetail?>(null);
+        }
+
+        var before = inv.Lines[lineIndex];
+        var nextQty = Math.Max(1, quantity);
+        var nextDisc = Math.Clamp(discountPercent, 0, 100);
+
+        if (before.Quantity == nextQty && before.DiscountPercent == nextDisc)
+        {
+            return Task.FromResult<InvoiceDetail?>(MapDetail(inv));
+        }
+
+        inv.Lines[lineIndex] = before with { Quantity = nextQty, DiscountPercent = nextDisc };
+
+        var changes = new List<string>(2);
+        if (before.Quantity != nextQty)
+        {
+            changes.Add($"تعداد {before.Quantity} → {nextQty}");
+        }
+
+        if (before.DiscountPercent != nextDisc)
+        {
+            changes.Add($"تخفیف {before.DiscountPercent}٪ → {nextDisc}٪");
+        }
+
+        Log(inv, InvoiceAuditKind.ItemEdited, "ویرایش ردیف",
+            $"{before.Title} — {string.Join("، ", changes)}");
+
+        Calc(inv);
+        MarkHistoryDirty();
+        return Task.FromResult<InvoiceDetail?>(MapDetail(inv));
+    }
+
+    public Task<InvoiceDetail?> RemoveLineAsync(string invoiceId, int lineIndex)
+    {
+        var inv = Find(invoiceId);
+        if (inv is null || !IsEditable(inv) || lineIndex < 0 || lineIndex >= inv.Lines.Count)
+        {
+            return Task.FromResult<InvoiceDetail?>(null);
+        }
+
+        var removed = inv.Lines[lineIndex];
+        inv.Lines.RemoveAt(lineIndex);
+        Log(inv, InvoiceAuditKind.ItemRemoved, "حذف ردیف", removed.Title);
+
+        Calc(inv);
+        MarkHistoryDirty();
+        return Task.FromResult<InvoiceDetail?>(MapDetail(inv));
+    }
+
+    public Task<InvoiceDetail?> DeleteInvoiceAsync(string invoiceId)
+    {
+        var inv = Find(invoiceId);
+        if (inv is null || inv.State == InvoiceState.Deleted)
+        {
+            return Task.FromResult<InvoiceDetail?>(null);
+        }
+
+        inv.State = InvoiceState.Deleted;
+        Log(inv, InvoiceAuditKind.Deleted, "حذف فاکتور",
+            $"فاکتور {inv.Id} حذف شد" + (inv.Paid > 0 ? $" (پرداخت‌شده: {inv.Paid:N0})" : string.Empty));
+
+        MarkHistoryDirty();
+        return Task.FromResult<InvoiceDetail?>(MapDetail(inv));
+    }
+
+    private static bool IsEditable(InvoiceRecord inv) =>
+        inv.State is InvoiceState.Draft or InvoiceState.Partial;
 
     public Task<IReadOnlyList<OwnerRef>> GetOwnersAsync(string query)
     {
@@ -435,6 +517,30 @@ public sealed class MockSalesQueryService : ISalesQueryService
                     inv.State, inv, inv.Date, "", 0, 0,
                     isVoid ? "ابطال فاکتور" : "عودت فاکتور"));
             }
+
+            // Fold the invoice's non-payment audit trail into the ledger so line
+            // edits, discount/insurance changes and soft deletes are all recorded
+            // in the history with their detail. «ایجاد» is skipped (already the
+            // «پذیرش» row above) and «ابطال» is skipped (already the terminal row).
+            for (var a = 0; a < inv.Audit.Count; a++)
+            {
+                var entry = inv.Audit[a];
+                var kind = entry.Kind switch
+                {
+                    InvoiceAuditKind.Deleted => CashierHistoryKind.Deleted,
+                    InvoiceAuditKind.Created or InvoiceAuditKind.Voided => (CashierHistoryKind?)null,
+                    _ => CashierHistoryKind.Edited,
+                };
+
+                if (kind is null)
+                {
+                    continue;
+                }
+
+                rows.Add(MapRow(
+                    $"aud-{inv.Id}-{a}", kind.Value, inv.State, inv,
+                    inv.Date, entry.At, 0, 0, entry.Action + " — " + entry.Detail));
+            }
         }
 
         return rows;
@@ -489,6 +595,8 @@ public sealed class MockSalesQueryService : ISalesQueryService
         CashierHistoryKind.Settled => "تسویه",
         CashierHistoryKind.Cancelled => "کنسل",
         CashierHistoryKind.Refunded => "عودت",
+        CashierHistoryKind.Edited => "ویرایش",
+        CashierHistoryKind.Deleted => "حذف",
         _ => "رویداد",
     };
 
@@ -499,6 +607,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
         InvoiceState.Settled => "تسویه کامل",
         InvoiceState.Void => "ابطال شده",
         InvoiceState.Refunded => "مسترد شده",
+        InvoiceState.Deleted => "حذف شده",
         _ => "—",
     };
 
@@ -630,7 +739,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
         List<LineRecord> lines, DiscountKind discountKind, int discountValue,
         string? insuranceOrgId, InvoiceState state, long paid, List<PaymentRecord> payments)
     {
-        return new InvoiceRecord
+        var record = new InvoiceRecord
         {
             Id = id,
             Kind = kind,
@@ -646,7 +755,16 @@ public sealed class MockSalesQueryService : ISalesQueryService
             Paid = paid,
             Payments = payments,
         };
+
+        Log(record, InvoiceAuditKind.Created, "ایجاد فاکتور",
+            $"{lines.Count} ردیف — {SideLabel(kind)}");
+        return record;
     }
+
+    private static void Log(InvoiceRecord inv, InvoiceAuditKind kind, string action, string detail) =>
+        inv.Audit.Add(new AuditRecord(kind, NowStamp(), action, detail));
+
+    private static string SideLabel(InvoiceKind kind) => kind == InvoiceKind.Visit ? "از ویزیت" : "فروش";
 
     private void RecalcAll()
     {
@@ -703,7 +821,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
     private static InvoiceDetail MapDetail(InvoiceRecord inv)
     {
-        var isLocked = inv.State is InvoiceState.Settled or InvoiceState.Void or InvoiceState.Refunded;
+        var isLocked = inv.State is InvoiceState.Settled or InvoiceState.Void or InvoiceState.Refunded or InvoiceState.Deleted;
         var stateLabel = inv.State switch
         {
             InvoiceState.Draft => "پیش‌نویس",
@@ -727,6 +845,10 @@ public sealed class MockSalesQueryService : ISalesQueryService
             .Select(p => new InvoicePayment(p.Method, MethodLabel(p.Method), p.Note, p.At, p.Amount))
             .ToList();
 
+        var audit = inv.Audit
+            .Select(a => new InvoiceAuditEntry(a.Kind, a.At, a.Action, a.Detail))
+            .ToList();
+
         var insuranceOrg = inv.InsuranceOrgId is null
             ? null
             : Insurers.FirstOrDefault(o => o.Id == inv.InsuranceOrgId);
@@ -745,7 +867,8 @@ public sealed class MockSalesQueryService : ISalesQueryService
             lines, inv.DiscountKind, inv.DiscountValue, payments,
             inv.Base, inv.DiscountAmount, inv.TaxPercent, inv.Tax, inv.InsuranceShare,
             inv.Total, inv.Paid, inv.Due,
-            inv.InsuranceShare > 0, inv.DiscountAmount > 0);
+            inv.InsuranceShare > 0, inv.DiscountAmount > 0,
+            audit);
     }
 
     private static string IconFor(LineRecord ln)
@@ -814,6 +937,9 @@ public sealed class MockSalesQueryService : ISalesQueryService
     private sealed record PaymentRecord(
         PaymentMethod Method, string Note, string At, long Amount);
 
+    private sealed record AuditRecord(
+        InvoiceAuditKind Kind, string At, string Action, string Detail);
+
     /// <summary>
     /// One flattened cashier-history row held in the cached ledger. Carries the
     /// pre-normalized <see cref="Haystack"/> so the per-query text filter never
@@ -865,6 +991,14 @@ public sealed class MockSalesQueryService : ISalesQueryService
         public required long Paid { get; set; }
 
         public required List<PaymentRecord> Payments { get; init; }
+
+        /// <summary>
+        /// The invoice's non-payment audit trail (create / line edits / discount /
+        /// insurance / void / delete), shown in the viewer's «تاریخچه تغییرات» and
+        /// folded into the cashier ledger so edits and deletes are recorded with
+        /// their full detail.
+        /// </summary>
+        public List<AuditRecord> Audit { get; } = [];
 
         public string DoctorName { get; set; } = string.Empty;
 

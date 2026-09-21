@@ -1,0 +1,376 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sales="using:Animora.Desktop.Pages.Sales"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Sales.InvoiceViewerView"
+             x:Name="Root"
+             x:DataType="sales:InvoiceViewerViewModel"
+             Width="760" MaxWidth="760"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <!-- Header band -->
+        <Style Selector="Border.iv-head">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="Padding" Value="24,20" />
+        </Style>
+        <!-- Section title -->
+        <Style Selector="TextBlock.iv-sec">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <!-- A line row -->
+        <Style Selector="Border.iv-line">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style Selector="Border.iv-tag">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <Style Selector="TextBox.iv-in">
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="MinHeight" Value="0" />
+        </Style>
+        <!-- Totals cell -->
+        <Style Selector="Border.iv-tot">
+            <Setter Property="Background" Value="{StaticResource BgBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="14,10" />
+        </Style>
+        <Style Selector="TextBlock.iv-lbl">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="TextBlock.iv-val">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <!-- Audit row -->
+        <Style Selector="Border.iv-audit">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,9" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+        <Style Selector="Border.iv-audit-badge">
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <!-- Payment row -->
+        <Style Selector="Border.iv-pay">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- ═══ HEADER ═══ -->
+        <Border Grid.Row="0" Classes="iv-head"
+                BorderBrush="{StaticResource Brand100Brush}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                <Border Grid.Column="0" Width="52" Height="52" CornerRadius="14"
+                        Background="{StaticResource Brand600Brush}">
+                    <Path Classes="icon" Width="24" Height="24" Stroke="White"
+                          Data="{StaticResource IconReceipt}"
+                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="{Binding InvoiceId2}" FontSize="20" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource Brand700Brush}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Subtitle}" FontSize="13"
+                               Foreground="{StaticResource Ink2Brush}" TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6"
+                            VerticalAlignment="Center">
+                    <controls:Badge Text="{Binding StateLabel}" Tone="{Binding StateTone}" />
+                    <controls:Badge Text="{Binding SourceLabel}" Tone="Neutral" />
+                    <Button Width="32" Height="32" Padding="0" CornerRadius="999"
+                            Background="Transparent" BorderThickness="0"
+                            Command="{Binding CloseCommand}" ToolTip.Tip="بستن">
+                        <Path Classes="icon" Width="15" Height="15"
+                              Stroke="{StaticResource MutedBrush}"
+                              Data="{StaticResource IconX}" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══ BODY (scroll) ═══ -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,18,24,20" Spacing="16">
+
+                <!-- deleted banner -->
+                <Border IsVisible="{Binding IsDeleted}" CornerRadius="12" Padding="14,10"
+                        Background="{StaticResource DangerBgBrush}"
+                        BorderBrush="{StaticResource DangerBrush}" BorderThickness="1">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="16" Height="16"
+                              Stroke="{StaticResource DangerBrush}"
+                              Data="{StaticResource IconAlert}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding DeletedBannerText}" FontSize="12.5"
+                                   Foreground="{StaticResource DangerBrush}"
+                                   TextWrapping="Wrap" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <!-- lines -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Classes="iv-sec" Text="آیتم‌های فاکتور" />
+                        <TextBlock Grid.Column="1" FontSize="11.5"
+                                   Foreground="{StaticResource MutedBrush}"
+                                   Text="تعداد و تخفیف هر ردیف قابل ویرایش است" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding Lines}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sales:InvoiceViewerLineViewModel">
+                                <Border Classes="iv-line">
+                                    <Grid ColumnDefinitions="34,*,80,80,110,28" ColumnSpacing="10">
+                                        <Border Grid.Column="0" Classes="iv-tag"
+                                                Background="{Binding TagBackground}">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{Binding TagForeground}"
+                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold"
+                                                       Foreground="{StaticResource InkBrush}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding UnitText}" FontSize="11"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                        <TextBox Grid.Column="2" Classes="iv-in"
+                                                 Text="{Binding QuantityText, Mode=TwoWay}"
+                                                 IsEnabled="{Binding IsEditable}"
+                                                 LostFocus="OnLineFieldCommit" />
+                                        <TextBox Grid.Column="3" Classes="iv-in"
+                                                 Text="{Binding DiscountText, Mode=TwoWay}"
+                                                 IsEnabled="{Binding IsEditable}"
+                                                 LostFocus="OnLineFieldCommit" />
+                                        <TextBlock Grid.Column="4" Text="{Binding SubtotalText}"
+                                                   FontSize="13" FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource InkBrush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        <Button Grid.Column="5" Width="28" Height="28" Padding="0"
+                                                CornerRadius="8" Background="Transparent"
+                                                IsVisible="{Binding IsEditable}"
+                                                Click="OnRemoveLineClick">
+                                            <Path Classes="icon" Width="15" Height="15"
+                                                  Stroke="{StaticResource MutedBrush}"
+                                                  Data="{StaticResource IconTrash}" />
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- totals -->
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="iv-sec" Text="مبالغ فاکتور" />
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8" RowDefinitions="Auto,Auto">
+                        <Border Grid.Row="0" Grid.Column="0" Classes="iv-tot">
+                            <StackPanel Spacing="3">
+                                <TextBlock Classes="iv-lbl" Text="جمع اقلام" />
+                                <TextBlock Classes="iv-val" Text="{Binding BaseText}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Row="0" Grid.Column="1" Classes="iv-tot"
+                                IsVisible="{Binding HasDiscount}">
+                            <StackPanel Spacing="3">
+                                <TextBlock Classes="iv-lbl" Text="تخفیف" />
+                                <TextBlock Classes="iv-val" Foreground="{StaticResource DangerBrush}"
+                                           Text="{Binding DiscountText}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Row="0" Grid.Column="2" Classes="iv-tot">
+                            <StackPanel Spacing="3">
+                                <TextBlock Classes="iv-lbl" Text="مالیات" />
+                                <TextBlock Classes="iv-val" Text="{Binding TaxText}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Row="1" Grid.Column="0" Classes="iv-tot" Margin="0,8,0,0"
+                                IsVisible="{Binding HasInsurance}">
+                            <StackPanel Spacing="3">
+                                <TextBlock Classes="iv-lbl" Text="سهم بیمه" />
+                                <TextBlock Classes="iv-val" Foreground="{StaticResource OkBrush}"
+                                           Text="{Binding InsuranceShareText}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Row="1" Grid.Column="1" Classes="iv-tot" Margin="0,8,0,0">
+                            <StackPanel Spacing="3">
+                                <TextBlock Classes="iv-lbl" Text="پرداخت‌شده" />
+                                <TextBlock Classes="iv-val" Foreground="{StaticResource OkBrush}"
+                                           Text="{Binding PaidText}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Row="1" Grid.Column="2" Classes="iv-tot" Margin="0,8,0,0"
+                                IsVisible="{Binding HasDue}">
+                            <StackPanel Spacing="3">
+                                <TextBlock Classes="iv-lbl" Text="مانده" />
+                                <TextBlock Classes="iv-val" Foreground="{StaticResource DangerBrush}"
+                                           Text="{Binding DueText}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                    <Border CornerRadius="12" Padding="16,12" Background="{StaticResource Brand600Brush}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Text="مبلغ نهایی" FontSize="13" FontWeight="Bold"
+                                       Foreground="#d9ffffff" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding TotalText}" FontSize="20"
+                                       FontWeight="ExtraBold" Foreground="White" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <!-- payment history -->
+                <StackPanel Spacing="8" IsVisible="{Binding HasPayments}">
+                    <TextBlock Classes="iv-sec" Text="{Binding PaymentsHeader}" />
+                    <ItemsControl ItemsSource="{Binding Payments}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sales:InvoicePaymentViewModel">
+                                <Border Classes="iv-pay">
+                                    <Grid ColumnDefinitions="70,*,Auto" ColumnSpacing="10">
+                                        <Border Grid.Column="0" CornerRadius="6" Padding="8,3"
+                                                Background="{Binding MethodBackground}">
+                                            <TextBlock Text="{Binding MethodLabel}" FontSize="11"
+                                                       FontWeight="ExtraBold"
+                                                       Foreground="{Binding MethodForeground}"
+                                                       HorizontalAlignment="Center" />
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{Binding NoteText}" FontSize="11.5"
+                                                   Foreground="{StaticResource MutedBrush}"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="2" Text="{Binding AmountText}" FontSize="12"
+                                                   FontWeight="ExtraBold"
+                                                   Foreground="{Binding AmountBrush}"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- audit trail -->
+                <StackPanel Spacing="8" IsVisible="{Binding HasAudit}">
+                    <TextBlock Classes="iv-sec" Text="{Binding AuditHeader}" />
+                    <ItemsControl ItemsSource="{Binding Audit}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sales:InvoiceAuditRowViewModel">
+                                <Border Classes="iv-audit">
+                                    <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="10">
+                                        <Border Grid.Column="0" Classes="iv-audit-badge"
+                                                Background="{Binding BadgeBrush}">
+                                            <Path Classes="icon" Width="14" Height="14"
+                                                  Stroke="{Binding BadgeIconBrush}"
+                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Action}" FontSize="12.5"
+                                                       FontWeight="Bold"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding Detail}" FontSize="11.5"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       IsVisible="{Binding HasDetail}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Text="{Binding Time}" FontSize="11.5"
+                                                   Foreground="{StaticResource Muted2Brush}"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ═══ FOOTER ACTIONS ═══ -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                Padding="20,14">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                    <Button Classes="outline" Padding="14,9" Command="{Binding PrintCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconPrinter}" />
+                            <TextBlock Text="چاپ" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="outline" Padding="14,9"
+                            Foreground="{StaticResource DangerBrush}"
+                            IsVisible="{Binding ShowVoid}"
+                            Command="{Binding VoidInvoiceCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{StaticResource DangerBrush}"
+                                  Data="{StaticResource IconX}" />
+                            <TextBlock Text="ابطال" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="outline" Padding="14,9"
+                            IsVisible="{Binding ShowRefund}"
+                            Command="{Binding RefundCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconArrowDownLeft}" />
+                            <TextBlock Text="عودت وجه" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="danger-ghost" Padding="14,9"
+                            IsVisible="{Binding CanEdit}"
+                            Command="{Binding DeleteInvoiceCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Stroke="{StaticResource DangerBrush}"
+                                  Data="{StaticResource IconTrash}" />
+                            <TextBlock Text="حذف فاکتور" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <Button Grid.Column="1" Classes="primary" Padding="18,10"
+                        IsVisible="{Binding CanPay}"
+                        Command="{Binding TakePaymentCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Path Classes="icon" Width="16" Height="16" Stroke="White"
+                              Data="{StaticResource IconWallet}" />
+                        <TextBlock Text="ثبت پرداخت" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

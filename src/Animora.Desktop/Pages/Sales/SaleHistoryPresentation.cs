@@ -40,6 +40,8 @@ public static class SaleHistoryPresentation
         CashierHistoryKind.Settled => "IconCheck",
         CashierHistoryKind.Cancelled => "IconX",
         CashierHistoryKind.Refunded => "IconArrowDownLeft",
+        CashierHistoryKind.Edited => "IconEdit",
+        CashierHistoryKind.Deleted => "IconTrash",
         _ => "IconReceipt",
     };
 
@@ -51,6 +53,8 @@ public static class SaleHistoryPresentation
         CashierHistoryKind.Settled => "#027a48",
         CashierHistoryKind.Cancelled => "#d92d20",
         CashierHistoryKind.Refunded => "#7b5cc4",
+        CashierHistoryKind.Edited => "#6f57c9",
+        CashierHistoryKind.Deleted => "#d92d20",
         _ => "#667085",
     };
 
@@ -62,6 +66,8 @@ public static class SaleHistoryPresentation
         CashierHistoryKind.Settled => "#ecfdf3",
         CashierHistoryKind.Cancelled => "#fef3f2",
         CashierHistoryKind.Refunded => "#f4f3ff",
+        CashierHistoryKind.Edited => "#efeafb",
+        CashierHistoryKind.Deleted => "#fef3f2",
         _ => "#f1f5f6",
     };
 
@@ -72,20 +78,24 @@ public static class SaleHistoryPresentation
         CashierHistoryKind.Paid => Tone.Warn,
         CashierHistoryKind.Settled => Tone.Ok,
         CashierHistoryKind.Cancelled => Tone.Danger,
+        CashierHistoryKind.Edited => Tone.Lilac,
+        CashierHistoryKind.Deleted => Tone.Danger,
         _ => Tone.Neutral,
     };
 
     /// <summary>
-    /// All kinds in the chip row's declared order — accepts, payments/settlement
-    /// and the terminal cancel/refund.
+    /// All kinds in the chip row's declared order — accepts, payments/settlement,
+    /// the audit edits and the terminal cancel/refund/delete.
     /// </summary>
     public static IReadOnlyList<CashierHistoryKind> AllKinds { get; } =
     [
         CashierHistoryKind.Accepted,
         CashierHistoryKind.Paid,
         CashierHistoryKind.Settled,
+        CashierHistoryKind.Edited,
         CashierHistoryKind.Cancelled,
         CashierHistoryKind.Refunded,
+        CashierHistoryKind.Deleted,
     ];
 
     /// <summary>The signed-amount brush (inflow = ok, outflow = danger).</summary>
