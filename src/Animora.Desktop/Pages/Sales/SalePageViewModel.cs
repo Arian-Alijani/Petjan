@@ -32,6 +32,9 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     private string _segment = "ready";
 
+    /// <summary>The active workspace tab: <c>cashier</c> (the POS surface) or <c>history</c>.</summary>
+    private string _workspace = "cashier";
+
     [ObservableProperty]
     private string _searchText = string.Empty;
 
@@ -74,8 +77,21 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         Segments.Add(new SaleSegmentViewModel("ready", "صف ویزیت"));
         Segments.Add(new SaleSegmentViewModel("invoices", "فاکتورها"));
 
+        History = new SaleHistoryViewModel(service);
+
         _ = LoadAsync();
     }
+
+    /// <summary>
+    /// The «تاریخچه صندوق» tab's ViewModel (accepted / paid / settled / cancelled
+    /// / refunded ledger). Owned here so the workspace tab strip can swap the whole
+    /// surface; its own data loads lazily on first activation.
+    /// </summary>
+    public SaleHistoryViewModel History { get; }
+
+    public bool IsCashierTab => _workspace == "cashier";
+
+    public bool IsHistoryTab => _workspace == "history";
 
     public ObservableCollection<SaleSegmentViewModel> Segments { get; } = [];
 
@@ -151,6 +167,29 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     }
 
     // ── Commands ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Switches the top-level workspace tab — «صندوق» (the POS surface) or
+    /// «تاریخچه» (the cashier ledger). The history tab loads lazily on first
+    /// activation (PERFORMANCE.md §12).
+    /// </summary>
+    [RelayCommand]
+    private void SetWorkspace(string? key)
+    {
+        if (string.IsNullOrEmpty(key) || key == _workspace)
+        {
+            return;
+        }
+
+        _workspace = key;
+        OnPropertyChanged(nameof(IsCashierTab));
+        OnPropertyChanged(nameof(IsHistoryTab));
+
+        if (IsHistoryTab)
+        {
+            History.EnsureLoaded();
+        }
+    }
 
     [RelayCommand]
     private void SetSegment(string? key)
