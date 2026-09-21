@@ -333,8 +333,33 @@
             </StackPanel>
         </Grid>
 
+        <!-- ═══════════ WORKSPACE TABS ═══════════ -->
+        <!-- Two tabs («صندوق» / «تاریخچه»), mirroring the Patients toolbar's
+             segmented switch: a soft track with a white active pill. -->
+        <Border Classes="sw-seg" HorizontalAlignment="Left" Margin="2,0,2,14">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+                <Button Classes="sw-seg-btn" Classes.is-active="{Binding IsCashierTab}"
+                        Command="{Binding SetWorkspaceCommand}" CommandParameter="cashier">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Path Classes="icon" Width="15" Height="15"
+                              Data="{StaticResource IconCart}" />
+                        <TextBlock Text="صندوق" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="sw-seg-btn" Classes.is-active="{Binding IsHistoryTab}"
+                        Command="{Binding SetWorkspaceCommand}" CommandParameter="history">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Path Classes="icon" Width="15" Height="15"
+                              Data="{StaticResource IconHistory}" />
+                        <TextBlock Text="تاریخچه" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+
         <!-- ═══════════ WORKSPACE ═══════════ -->
-        <Grid ColumnDefinitions="*,340" ColumnSpacing="16" MinHeight="560">
+        <Grid ColumnDefinitions="*,340" ColumnSpacing="16" MinHeight="560"
+              IsVisible="{Binding IsCashierTab}">
 
             <!-- ───── WORK (invoice surface) ───── -->
             <Border Grid.Column="0" Classes="sw-panel" ClipToBounds="True">
@@ -1057,5 +1082,11 @@
                 </Grid>
             </Border>
         </Grid>
+
+        <!-- ═══════════ HISTORY TAB (lazy) ═══════════ -->
+        <!-- The cashier ledger. Only its container is realised on the POS tab;
+             the ledger's data loads on first activation (PERFORMANCE.md §12). -->
+        <sales:SaleHistoryView DataContext="{Binding History}"
+                               IsVisible="{Binding $parent[UserControl].((sales:SalePageViewModel)DataContext).IsHistoryTab}" />
     </StackPanel>
 </UserControl>

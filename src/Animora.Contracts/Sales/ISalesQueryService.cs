@@ -103,4 +103,17 @@ public interface ISalesQueryService
     /// <c>selectOwner</c>/<c>selectGuest</c>). Returns the updated detail.
     /// </summary>
     Task<InvoiceDetail> PickOwnerAsync(string invoiceId, OwnerPickResult pick);
+
+    // ── Cashier history — the «تاریخچه صندوق» ledger ───────────────────────
+
+    /// <summary>
+    /// One page of the cashier-sales ledger (accepted / paid / settled /
+    /// cancelled / refunded events). The filter carries the date range, search,
+    /// kind selection, sort and page window; the <b>service</b> applies all of
+    /// them — including the sort and the paging — so the UI only ever receives
+    /// one bounded page while the total count and the inflow/outflow sums stay
+    /// computed over the whole filtered set (PERFORMANCE.md §6). This keeps the
+    /// history tab fast even when the ledger grows to tens of thousands of rows.
+    /// </summary>
+    Task<CashierHistoryPage> GetHistoryAsync(CashierHistoryFilter filter);
 }

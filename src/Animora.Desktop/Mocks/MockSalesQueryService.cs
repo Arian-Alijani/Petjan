@@ -21,6 +21,12 @@ public sealed class MockSalesQueryService : ISalesQueryService
     private readonly List<InvoiceRecord> _invoices = [];
     private int _invoiceCounter = 5;
 
+    // Cashier-history ledger cache. Built lazily on the first query and rebuilt
+    // only after a mutation (MarkHistoryDirty), so repeated paging/sorting does
+    // not re-derive the rows (PERFORMANCE.md §13).
+    private IReadOnlyList<LedgerRow>? _ledgerRows;
+    private bool _historyDirty = true;
+
     private static readonly InsurerRef[] Insurers =
     [
         new("organ-1", "بیمه آسیا — پوشش حیوانات خانگی", 15),
@@ -126,6 +132,17 @@ public sealed class MockSalesQueryService : ISalesQueryService
              new(PaymentMethod.Cash, "عودت وجه", "13:35", -926_500)]);
 
         _invoices.AddRange([inv1, inv2, inv3, inv4, inv5]);
+
+        // Spread the seed invoices across recent days so the cashier-history
+        // ledger's date-range filter and day grouping have something to show
+        // (the reference's synthetic ledger is similarly spread).
+        string DaysAgo(int days) => JalaliCalendar.AddDays(JalaliCalendar.Today, -days);
+        inv1.Date = DaysAgo(0);
+        inv2.Date = DaysAgo(0);
+        inv3.Date = DaysAgo(1);
+        inv4.Date = DaysAgo(3);
+        inv5.Date = DaysAgo(6);
+
         RecalcAll();
     }
 
@@ -166,6 +183,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
         PushRecent(item.Kind, item.Id);
         Calc(inv);
+        MarkHistoryDirty();
         return Task.FromResult(MapDetail(inv));
     }
 
@@ -178,6 +196,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
             IsCustom: true));
 
         Calc(inv);
+        MarkHistoryDirty();
         return Task.FromResult(MapDetail(inv));
     }
 
@@ -214,6 +233,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
         Calc(inv);
         inv.State = inv.Paid >= inv.Total ? InvoiceState.Settled : InvoiceState.Partial;
+        MarkHistoryDirty();
 
         return Task.FromResult(new PaymentResult(true, null, capped, inv.State == InvoiceState.Settled, MapDetail(inv)));
     }
@@ -227,6 +247,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
         }
 
         inv.State = InvoiceState.Void;
+        MarkHistoryDirty();
         return Task.FromResult<InvoiceDetail?>(MapDetail(inv));
     }
 
@@ -276,8 +297,210 @@ public sealed class MockSalesQueryService : ISalesQueryService
         inv.PetName = pick.IsGuest ? string.Empty : pick.PetName;
         inv.Phone = pick.IsGuest ? string.Empty : pick.Phone;
 
+        MarkHistoryDirty();
         return Task.FromResult(MapDetail(inv));
     }
+
+    // ── Cashier history — the «تاریخچه صندوق» ledger ───────────────────────
+
+    /// <summary>
+    /// The cached ledger (rebuilt only after a mutation, PERFORMANCE.md §13).
+    /// </summary>
+    private IReadOnlyList<LedgerRow> EnsureLedger()
+    {
+        if (_historyDirty || _ledgerRows is null)
+        {
+            _ledgerRows = BuildLedger();
+            _historyDirty = false;
+        }
+
+        return _ledgerRows;
+    }
+
+    private void MarkHistoryDirty() => _historyDirty = true;
+
+    public Task<CashierHistoryPage> GetHistoryAsync(CashierHistoryFilter filter)
+    {
+        var rows = EnsureLedger();
+        var kinds = filter.Kinds ?? [];
+
+        var from = string.IsNullOrWhiteSpace(filter.FromDate) ? null : filter.FromDate;
+        var to = string.IsNullOrWhiteSpace(filter.ToDate) ? null : filter.ToDate;
+        var q = PersianText.Normalize(filter.Search);
+
+        // Filter (over the cached ledger) → sort → page. The total + inflow/
+        // outflow sums are computed over the FULL filtered set, so the summary
+        // bar stays accurate while only a single page is materialised on the UI
+        // thread (PERFORMANCE.md §6). Ordinal compares are correct because the
+        // Jalali dates are fixed-width "yyyy/MM/dd" strings.
+        var matched = new List<LedgerRow>(rows.Count);
+        long inflow = 0, outflow = 0;
+        foreach (var row in rows)
+        {
+            if (from is not null && string.CompareOrdinal(row.Date, from) < 0)
+            {
+                continue;
+            }
+
+            if (to is not null && string.CompareOrdinal(row.Date, to) > 0)
+            {
+                continue;
+            }
+
+            if (kinds.Count > 0 && !kinds.Contains(row.Kind))
+            {
+                continue;
+            }
+
+            if (q.Length > 0 && !PersianText.Contains(row.Haystack, q))
+            {
+                continue;
+            }
+
+            matched.Add(row);
+            if (row.AmountSign > 0)
+            {
+                inflow += row.Amount;
+            }
+            else if (row.AmountSign < 0)
+            {
+                outflow += row.Amount;
+            }
+        }
+
+        matched.Sort(filter.Sort switch
+        {
+            CashierHistorySort.Oldest => OldestComparer,
+            CashierHistorySort.AmountDesc => AmountDescComparer,
+            CashierHistorySort.AmountAsc => AmountAscComparer,
+            CashierHistorySort.Owner => OwnerComparer,
+            _ => NewestComparer,
+        });
+
+        var pageSize = Math.Max(1, filter.PageSize);
+        var skip = (Math.Max(1, filter.Page) - 1) * pageSize;
+        var take = Math.Min(pageSize, Math.Max(0, matched.Count - skip));
+
+        IReadOnlyList<CashierHistoryEntry> items = take <= 0
+            ? []
+            : matched.GetRange(skip, take).Select(MapEntry).ToList();
+
+        return Task.FromResult(new CashierHistoryPage(items, matched.Count, inflow, outflow));
+    }
+
+    /// <summary>
+    /// Flattens every invoice into the ledger's rows: one «پذیرش» per invoice,
+    /// one row per payment (پرداخت / تسویه / عودت by state + sign) and a terminal
+    /// «کنسل/عودت» row for void/refunded invoices that carry no payment rows.
+    /// The per-row search haystack is normalized once here, never per keystroke
+    /// (PERFORMANCE.md §2/§9).
+    /// </summary>
+    private IReadOnlyList<LedgerRow> BuildLedger()
+    {
+        var rows = new List<LedgerRow>();
+
+        foreach (var inv in _invoices)
+        {
+            if (inv.Date.Length == 0)
+            {
+                continue; // un-picked-up drafts carry no date yet — not ledger events
+            }
+
+            rows.Add(MapRow(
+                $"acc-{inv.Id}", CashierHistoryKind.Accepted, inv.State, inv,
+                inv.Date, "", 0, 0, "پذیرش فاکتور در صندوق"));
+
+            for (var p = 0; p < inv.Payments.Count; p++)
+            {
+                var pay = inv.Payments[p];
+                var isRefund = pay.Amount < 0;
+                var kind = isRefund
+                    ? CashierHistoryKind.Refunded
+                    : inv.State == InvoiceState.Settled ? CashierHistoryKind.Settled : CashierHistoryKind.Paid;
+                var note = isRefund
+                    ? "عودت وجه به مشتری"
+                    : pay.Note.Length > 0 ? pay.Note : "ثبت پرداخت";
+
+                rows.Add(MapRow(
+                    $"pay-{inv.Id}-{p}", kind, inv.State, inv,
+                    inv.Date, pay.At, Math.Abs(pay.Amount), Math.Sign(pay.Amount), note));
+            }
+
+            if (inv.Payments.Count == 0 && inv.State is InvoiceState.Void or InvoiceState.Refunded)
+            {
+                var isVoid = inv.State == InvoiceState.Void;
+                rows.Add(MapRow(
+                    $"term-{inv.Id}",
+                    isVoid ? CashierHistoryKind.Cancelled : CashierHistoryKind.Refunded,
+                    inv.State, inv, inv.Date, "", 0, 0,
+                    isVoid ? "ابطال فاکتور" : "عودت فاکتور"));
+            }
+        }
+
+        return rows;
+    }
+
+    private static LedgerRow MapRow(
+        string id, CashierHistoryKind kind, InvoiceState state,
+        InvoiceRecord inv, string date, string time, long amount, int sign, string note)
+    {
+        var owner = string.IsNullOrEmpty(inv.OwnerName) ? "مهمان" : inv.OwnerName;
+        return new LedgerRow(id, kind, state, inv.Id, owner, inv.PetName, date, time, amount, sign, note)
+        {
+            Haystack = PersianText.Normalize($"{inv.Id} {owner} {inv.PetName} {note}"),
+        };
+    }
+
+    private static CashierHistoryEntry MapEntry(LedgerRow row) => new(
+        row.Id, row.Kind, KindLabel(row.Kind), row.InvoiceId, row.OwnerName, row.PetName,
+        row.Date, row.Time, row.Amount, row.AmountSign, row.State, StateLabel(row.State), row.Note);
+
+    private static int CompareDate(LedgerRow a, LedgerRow b, bool ascending)
+    {
+        var byDate = string.CompareOrdinal(a.Date, b.Date);
+        if (byDate == 0)
+        {
+            byDate = string.CompareOrdinal(a.Time, b.Time);
+        }
+
+        if (byDate == 0)
+        {
+            byDate = string.CompareOrdinal(a.Id, b.Id);
+        }
+
+        return ascending ? byDate : -byDate;
+    }
+
+    // Static comparers (allocated once, not per query — PERFORMANCE.md §2).
+    private static readonly Comparison<LedgerRow> NewestComparer = static (a, b) => CompareDate(a, b, ascending: false);
+    private static readonly Comparison<LedgerRow> OldestComparer = static (a, b) => CompareDate(a, b, ascending: true);
+    private static readonly Comparison<LedgerRow> AmountDescComparer = static (a, b) => b.Amount.CompareTo(a.Amount);
+    private static readonly Comparison<LedgerRow> AmountAscComparer = static (a, b) => a.Amount.CompareTo(b.Amount);
+    private static readonly Comparison<LedgerRow> OwnerComparer = static (a, b) =>
+    {
+        var byName = string.Compare(a.OwnerName, b.OwnerName, StringComparison.CurrentCulture);
+        return byName != 0 ? byName : CompareDate(a, b, ascending: false);
+    };
+
+    private static string KindLabel(CashierHistoryKind kind) => kind switch
+    {
+        CashierHistoryKind.Accepted => "پذیرش",
+        CashierHistoryKind.Paid => "پرداخت",
+        CashierHistoryKind.Settled => "تسویه",
+        CashierHistoryKind.Cancelled => "کنسل",
+        CashierHistoryKind.Refunded => "عودت",
+        _ => "رویداد",
+    };
+
+    private static string StateLabel(InvoiceState state) => state switch
+    {
+        InvoiceState.Draft => "پیش‌نویس",
+        InvoiceState.Partial => "تسویه جزئی",
+        InvoiceState.Settled => "تسویه کامل",
+        InvoiceState.Void => "ابطال شده",
+        InvoiceState.Refunded => "مسترد شده",
+        _ => "—",
+    };
 
     private void PushRecent(string kind, string refId)
     {
@@ -365,6 +588,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
         _invoices.Insert(0, record);
         RecalcAll();
+        MarkHistoryDirty();
         return Task.FromResult(MapDetail(record));
     }
 
@@ -376,6 +600,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
         _invoices.Insert(0, record);
         RecalcAll();
+        MarkHistoryDirty();
         return Task.FromResult(MapDetail(record));
     }
 
@@ -589,11 +814,35 @@ public sealed class MockSalesQueryService : ISalesQueryService
     private sealed record PaymentRecord(
         PaymentMethod Method, string Note, string At, long Amount);
 
+    /// <summary>
+    /// One flattened cashier-history row held in the cached ledger. Carries the
+    /// pre-normalized <see cref="Haystack"/> so the per-query text filter never
+    /// rebuilds a string per row (PERFORMANCE.md §2/§9).
+    /// </summary>
+    private sealed record LedgerRow(
+        string Id,
+        CashierHistoryKind Kind,
+        InvoiceState State,
+        string InvoiceId,
+        string OwnerName,
+        string PetName,
+        string Date,
+        string Time,
+        long Amount,
+        int AmountSign,
+        string Note)
+    {
+        public string Haystack { get; init; } = string.Empty;
+    }
+
     private sealed class InvoiceRecord
     {
         public required string Id { get; init; }
 
         public required InvoiceKind Kind { get; init; }
+
+        /// <summary>ASCII Jalali <c>yyyy/MM/dd</c> issue date (drives the cashier-history ledger).</summary>
+        public string Date { get; set; } = JalaliCalendar.Today;
 
         public string? EncounterId { get; init; }
 
