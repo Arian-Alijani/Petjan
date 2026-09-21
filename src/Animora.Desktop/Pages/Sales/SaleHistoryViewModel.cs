@@ -91,6 +91,10 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
 
     public ObservableCollection<SaleHistoryKindChipViewModel> KindChips { get; } = [];
 
+    /// <summary>True when every kind filter is active — drives the «همه» chip's filled state.</summary>
+    [ObservableProperty]
+    private bool _areAllKindsActive;
+
     // ── Filter state ─────────────────────────────────────────────────────
 
     [ObservableProperty]
@@ -244,7 +248,13 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
         {
             KindChips.Add(new SaleHistoryKindChipViewModel(kind) { IsActive = _selectedKinds.Contains(kind) });
         }
+
+        SyncAllKindsFlag();
     }
+
+    /// <summary>Recomputes whether every kind is currently selected.</summary>
+    private void SyncAllKindsFlag() =>
+        AreAllKindsActive = KindChips.Count > 0 && _selectedKinds.Count == KindChips.Count;
 
     // ── Commands ─────────────────────────────────────────────────────────
 
@@ -292,6 +302,27 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
             chip.IsActive = _selectedKinds.Contains(chip.Kind);
         }
 
+        SyncAllKindsFlag();
+        _ = ReloadAsync(resetPage: true);
+    }
+
+    /// <summary>«همه» — activate every kind filter at once (or clear them when all are already on).</summary>
+    [RelayCommand]
+    private void SelectAllKinds()
+    {
+        var selectAll = !AreAllKindsActive;
+
+        _selectedKinds.Clear();
+        foreach (var chip in KindChips)
+        {
+            chip.IsActive = selectAll;
+            if (selectAll)
+            {
+                _selectedKinds.Add(chip.Kind);
+            }
+        }
+
+        SyncAllKindsFlag();
         _ = ReloadAsync(resetPage: true);
     }
 
@@ -316,6 +347,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
             chip.IsActive = false;
         }
 
+        SyncAllKindsFlag();
         SyncRangeChips();
         _ = ReloadAsync(resetPage: true);
     }

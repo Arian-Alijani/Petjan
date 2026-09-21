@@ -13,6 +13,12 @@ namespace Animora.Desktop.Pages.Sales;
 /// </summary>
 public sealed partial class SaleHistoryKindChipViewModel : ObservableObject
 {
+    private static readonly IBrush s_inactiveBackground = Brushes.Transparent;
+    private static readonly IBrush s_inactiveBorder =
+        SaleHistoryPresentation.Fill("#e4e7ec");
+    private static readonly IBrush s_mutedLabel =
+        SaleHistoryPresentation.Fill("#475467");
+
     public SaleHistoryKindChipViewModel(CashierHistoryKind kind)
     {
         Kind = kind;
@@ -28,11 +34,25 @@ public sealed partial class SaleHistoryKindChipViewModel : ObservableObject
 
     public string IconKey { get; }
 
+    /// <summary>The kind's accent colour — always shown on the icon so chips stay identifiable.</summary>
     public IBrush ColorBrush { get; }
 
+    /// <summary>The kind's tinted surface, used as the fill when the chip is active.</summary>
     public IBrush BackgroundBrush { get; }
 
+    /// <summary>Chip fill: the kind's tinted surface when active, transparent otherwise.</summary>
+    public IBrush ChipBackground => IsActive ? BackgroundBrush : s_inactiveBackground;
+
+    /// <summary>Chip border: the kind's accent colour when active, a muted line otherwise.</summary>
+    public IBrush ChipBorder => IsActive ? ColorBrush : s_inactiveBorder;
+
+    /// <summary>Label colour: the kind's accent when active, a muted ink otherwise.</summary>
+    public IBrush LabelBrush => IsActive ? ColorBrush : s_mutedLabel;
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ChipBackground))]
+    [NotifyPropertyChangedFor(nameof(ChipBorder))]
+    [NotifyPropertyChangedFor(nameof(LabelBrush))]
     private bool _isActive;
 
     /// <summary>The kind's Persian label (kept in the ViewModel layer, not Contracts).</summary>
