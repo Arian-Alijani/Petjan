@@ -235,8 +235,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     {
         var detail = result.Invoice;
         var readyCount = await GetReadyCountAsync();
-        ReceiptNo = "RCP-" + PersianNumberFormatter.ToPersianDigits(
-            (DateTime.Now.Ticks % 1_000_000).ToString());
+        ReceiptNo = string.IsNullOrEmpty(detail.ReceiptNo) ? "—" : detail.ReceiptNo;
         SuccessCustomer = detail.IsGuest || detail.OwnerName.Length == 0
             ? "مشتری گذری"
             : detail.OwnerName + (detail.PetName.Length > 0 ? " · " + detail.PetName : string.Empty);

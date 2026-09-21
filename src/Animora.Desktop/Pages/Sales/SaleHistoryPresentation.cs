@@ -78,6 +78,7 @@ public static class SaleHistoryPresentation
         CashierHistoryKind.Paid => Tone.Warn,
         CashierHistoryKind.Settled => Tone.Ok,
         CashierHistoryKind.Cancelled => Tone.Danger,
+        CashierHistoryKind.Refunded => Tone.Lilac,
         CashierHistoryKind.Edited => Tone.Lilac,
         CashierHistoryKind.Deleted => Tone.Danger,
         _ => Tone.Neutral,

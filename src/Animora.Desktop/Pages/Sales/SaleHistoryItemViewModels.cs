@@ -63,6 +63,8 @@ public sealed partial class SaleHistoryKindChipViewModel : ObservableObject
         CashierHistoryKind.Settled => "تسویه",
         CashierHistoryKind.Cancelled => "کنسل",
         CashierHistoryKind.Refunded => "عودت",
+        CashierHistoryKind.Edited => "ویرایش",
+        CashierHistoryKind.Deleted => "حذف",
         _ => "رویداد",
     };
 }

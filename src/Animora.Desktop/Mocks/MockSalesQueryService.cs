@@ -20,6 +20,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
     private readonly List<ReadyEncounter> _encounters;
     private readonly List<InvoiceRecord> _invoices = [];
     private int _invoiceCounter = 5;
+    private int _receiptCounter = 1000;
 
     // Cashier-history ledger cache. Built lazily on the first query and rebuilt
     // only after a mutation (MarkHistoryDirty), so repeated paging/sorting does
@@ -238,6 +239,17 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
         Calc(inv);
         inv.State = inv.Paid >= inv.Total ? InvoiceState.Settled : InvoiceState.Partial;
+
+        var settled = inv.State == InvoiceState.Settled;
+        if (settled && string.IsNullOrEmpty(inv.ReceiptNo))
+        {
+            inv.ReceiptNo = NextReceiptNo();
+        }
+
+        Log(inv, InvoiceAuditKind.PaymentTaken,
+            settled ? "تسویه کامل" : "ثبت پرداخت",
+            $"{MethodLabel(request.Method)} — {PersianNumberFormatter.FormatGrouped(capped)} تومان");
+
         MarkHistoryDirty();
 
         return Task.FromResult(new PaymentResult(true, null, capped, inv.State == InvoiceState.Settled, MapDetail(inv)));
@@ -251,8 +263,16 @@ public sealed class MockSalesQueryService : ISalesQueryService
             return Task.FromResult<InvoiceDetail?>(null);
         }
 
+        if (inv.Paid > 0)
+        {
+            var back = inv.Paid;
+            inv.Payments.Add(new PaymentRecord(PaymentMethod.Cash, "بازگشت وجه به‌دلیل ابطال", NowStamp(), -back));
+            inv.Paid = 0;
+        }
+
         inv.State = InvoiceState.Void;
-        Log(inv, InvoiceAuditKind.Voided, "ابطال فاکتور", "فاکتور از لیست فعال خارج شد");
+        Calc(inv);
+        Log(inv, InvoiceAuditKind.Voided, "ابطال فاکتور", "فاکتور باطل و از لیست فعال خارج شد");
         MarkHistoryDirty();
         return Task.FromResult<InvoiceDetail?>(MapDetail(inv));
     }
@@ -278,10 +298,121 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
         inv.Paid = Math.Max(0, inv.Paid - amount);
         inv.Payments.Add(new PaymentRecord(PaymentMethod.Cash, "عودت وجه", NowStamp(), -amount));
-        inv.State = InvoiceState.Refunded;
+
+        // Full refund (nothing paid remains) → Refunded terminal state; otherwise the
+        // invoice stays where it was (Partial/Settled) with a reduced paid amount.
+        inv.State = inv.Paid <= 0
+            ? InvoiceState.Refunded
+            : (inv.Paid >= inv.Total ? InvoiceState.Settled : InvoiceState.Partial);
+
         Calc(inv);
+        Log(inv, InvoiceAuditKind.Refunded, "عودت وجه",
+            $"{PersianNumberFormatter.FormatGrouped(amount)} تومان" +
+            (inv.State == InvoiceState.Refunded ? " — عودت کامل" : " — عودت جزئی"));
+        MarkHistoryDirty();
 
         return Task.FromResult(new RefundResult(true, null, MapDetail(inv)));
+    }
+
+    public Task<LineReturnResult> ReturnLineAsync(string invoiceId, LineReturnRequest request)
+    {
+        var inv = Find(invoiceId);
+        if (inv is null)
+        {
+            return Task.FromResult(new LineReturnResult(false, "فاکتور یافت نشد.", 0, null!));
+        }
+
+        if (inv.State is not (InvoiceState.Partial or InvoiceState.Settled))
+        {
+            return Task.FromResult(new LineReturnResult(false, "برگشت کالا فقط روی فاکتور پرداخت‌شده ممکن است.", 0, MapDetail(inv)));
+        }
+
+        if (request.LineIndex < 0 || request.LineIndex >= inv.Lines.Count)
+        {
+            return Task.FromResult(new LineReturnResult(false, "ردیف نامعتبر است.", 0, MapDetail(inv)));
+        }
+
+        var line = inv.Lines[request.LineIndex];
+        var qty = Math.Clamp(request.Quantity, 1, line.Quantity);
+
+        if (qty >= line.Quantity)
+        {
+            inv.Lines.RemoveAt(request.LineIndex);
+        }
+        else
+        {
+            inv.Lines[request.LineIndex] = line with { Quantity = line.Quantity - qty };
+        }
+
+        Calc(inv); // recompute Total/Due against the reduced line set
+
+        // Refund the amount now over-paid (paid beyond the new total), capped at paid.
+        long refund = 0;
+        if (inv.Paid > inv.Total)
+        {
+            refund = inv.Paid - inv.Total;
+            inv.Paid -= refund;
+            inv.Payments.Add(new PaymentRecord(PaymentMethod.Cash, $"برگشت کالا: {line.Title}", NowStamp(), -refund));
+        }
+
+        // Re-derive state after the return.
+        inv.State = inv.Paid <= 0 && inv.Total <= 0
+            ? InvoiceState.Refunded
+            : (inv.Paid >= inv.Total ? InvoiceState.Settled : InvoiceState.Partial);
+        Calc(inv);
+
+        Log(inv, InvoiceAuditKind.LineReturned, "برگشت کالا",
+            $"{line.Title} × {PersianNumberFormatter.ToPersianDigits(qty)}" +
+            (refund > 0 ? $" — عودت {PersianNumberFormatter.FormatGrouped(refund)} تومان" : string.Empty));
+        MarkHistoryDirty();
+        return Task.FromResult(new LineReturnResult(true, null, refund, MapDetail(inv)));
+    }
+
+    public Task<InvoiceDetail?> SetDiscountAsync(string invoiceId, DiscountChangeRequest request)
+    {
+        var inv = Find(invoiceId);
+        if (inv is null || !IsEditable(inv))
+        {
+            return Task.FromResult<InvoiceDetail?>(null);
+        }
+
+        var value = request.Kind == DiscountKind.Percent ? Math.Clamp(request.Value, 0, 100) : Math.Max(0, request.Value);
+        if (inv.DiscountKind == request.Kind && inv.DiscountValue == value)
+        {
+            return Task.FromResult<InvoiceDetail?>(MapDetail(inv));
+        }
+
+        inv.DiscountKind = request.Kind;
+        inv.DiscountValue = value;
+        Calc(inv);
+        Log(inv, InvoiceAuditKind.DiscountChanged, "تغییر تخفیف",
+            request.Kind == DiscountKind.Percent
+                ? $"{PersianNumberFormatter.ToPersianDigits(value)}٪"
+                : $"{PersianNumberFormatter.FormatGrouped(value)} تومان");
+        MarkHistoryDirty();
+        return Task.FromResult<InvoiceDetail?>(MapDetail(inv));
+    }
+
+    public Task<InvoiceDetail?> SetInsuranceAsync(string invoiceId, string? insurerId)
+    {
+        var inv = Find(invoiceId);
+        if (inv is null || !IsEditable(inv))
+        {
+            return Task.FromResult<InvoiceDetail?>(null);
+        }
+
+        var id = string.IsNullOrEmpty(insurerId) ? null : insurerId;
+        if (inv.InsuranceOrgId == id)
+        {
+            return Task.FromResult<InvoiceDetail?>(MapDetail(inv));
+        }
+
+        inv.InsuranceOrgId = id;
+        Calc(inv);
+        var label = id is null ? "بدون بیمه" : Insurers.FirstOrDefault(o => o.Id == id)?.Name ?? "بیمه";
+        Log(inv, InvoiceAuditKind.InsuranceChanged, "تغییر بیمه", label);
+        MarkHistoryDirty();
+        return Task.FromResult<InvoiceDetail?>(MapDetail(inv));
     }
 
     // ── Invoice viewer — line editing + soft delete ────────────────────────
@@ -528,7 +659,9 @@ public sealed class MockSalesQueryService : ISalesQueryService
                 var kind = entry.Kind switch
                 {
                     InvoiceAuditKind.Deleted => CashierHistoryKind.Deleted,
-                    InvoiceAuditKind.Created or InvoiceAuditKind.Voided => (CashierHistoryKind?)null,
+                    InvoiceAuditKind.LineReturned => CashierHistoryKind.Edited,
+                    InvoiceAuditKind.Created or InvoiceAuditKind.Voided
+                        or InvoiceAuditKind.PaymentTaken or InvoiceAuditKind.Refunded => (CashierHistoryKind?)null,
                     _ => CashierHistoryKind.Edited,
                 };
 
@@ -644,6 +777,9 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
     private static string NowStamp() =>
         PersianNumberFormatter.ToPersianDigits($"{DateTime.Now.Hour:D2}:{DateTime.Now.Minute:D2}");
+
+    private string NextReceiptNo() =>
+        "RCP-" + PersianNumberFormatter.ToPersianDigits((++_receiptCounter).ToString());
 
     public Task<IReadOnlyList<ReadyEncounterRef>> GetReadyEncountersAsync()
     {
@@ -857,7 +993,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
             : $"{insuranceOrg.Name} ({PersianNumberFormatter.ToPersianDigits(insuranceOrg.Percent)})";
 
         return new InvoiceDetail(
-            inv.Id, inv.Kind, inv.State, stateLabel, sourceLabel,
+            inv.Id, inv.ReceiptNo, inv.Kind, inv.State, stateLabel, sourceLabel,
             inv.OwnerName, inv.PetName, inv.Phone, isGuest, isLocked,
             AvatarTones[Math.Abs((inv.PetName ?? "x").GetHashCode()) % AvatarTones.Length],
             FirstChar(inv.OwnerName),
@@ -980,15 +1116,18 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
         public required List<LineRecord> Lines { get; init; }
 
-        public required DiscountKind DiscountKind { get; init; }
+        public required DiscountKind DiscountKind { get; set; }
 
-        public required int DiscountValue { get; init; }
+        public required int DiscountValue { get; set; }
 
-        public string? InsuranceOrgId { get; init; }
+        public string? InsuranceOrgId { get; set; }
 
         public required InvoiceState State { get; set; }
 
         public required long Paid { get; set; }
+
+        /// <summary>Stable receipt number, assigned once the invoice first reaches <see cref="InvoiceState.Settled"/>.</summary>
+        public string ReceiptNo { get; set; } = string.Empty;
 
         public required List<PaymentRecord> Payments { get; init; }
 
