@@ -436,7 +436,14 @@
                     </StackPanel>
 
                     <!-- ===== INVOICE SELECTED ===== -->
-                    <Grid IsVisible="{Binding HasSelectedInvoice}" RowDefinitions="Auto,*,Auto">
+                    <!-- Body row is Auto (not *) so the invoice surface hugs its
+                         content: with a short invoice (e.g. an open visit with
+                         one or two lines) the * body used to stretch to the
+                         Panel's 560 min-height, leaving a white gap between the
+                         item list and the footer. Top alignment keeps head+body
+                         together and lets the footer follow the content. -->
+                    <Grid IsVisible="{Binding HasSelectedInvoice}" VerticalAlignment="Top"
+                          RowDefinitions="Auto,Auto,Auto">
 
                         <!-- ── HEAD ── -->
                         <Border Grid.Row="0" Padding="28,22,28,18"
