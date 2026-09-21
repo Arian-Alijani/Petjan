@@ -185,7 +185,7 @@
         </Style>
         <Style Selector="Button.sh-pager:disabled">
             <Setter Property="Opacity" Value="0.45" />
-            <Setter Property="Cursor" Value="Default" />
+            <Setter Property="Cursor" Value="Arrow" />
         </Style>
     </UserControl.Styles>
 
