@@ -122,6 +122,9 @@
 
                                     <!-- .qt-badge pulse -->
                                     <Style Selector="Border.qt-badge">
+                                        <!-- Seed a TransformOperations-based RenderTransform so the
+                                             pulse animation below has a matching animator (scale). -->
+                                        <Setter Property="RenderTransform" Value="scale(1)" />
                                         <Style.Animations>
                                             <Animation Duration="0:0:2.4"
                                                        IterationCount="INFINITE"
@@ -190,7 +193,8 @@
                                                           Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                                 </Border>
                                                 <!-- .qt-badge: red circular count (tile 6 only). -->
-                                                <Border MinWidth="18"
+                                                <Border Classes="qt-badge"
+                                                        MinWidth="18"
                                                         Height="18"
                                                         HorizontalAlignment="Left"
                                                         VerticalAlignment="Top"
