@@ -544,4 +544,19 @@
         M11.6,16.8 a3,3 0 1 1 -5.8,-1.6
     </StreamGeometry>
 
+    <!-- Sync (topbar sync box): two opposing circular arrows — the canonical
+         "syncing / refresh" glyph, distinct from the single-arc IconRefresh.
+         Feather-style, stroke-only, drawn in the same 24×24 language. -->
+    <StreamGeometry x:Key="IconSync">
+        M21,12 a9,9 0 0 1 -9,9 a9,9 0 0 1 -7.2,-3.6
+        M3,12 a9,9 0 0 1 9,-9 a9,9 0 0 1 7.2,3.6
+        M18.5,2.4 L19.2,6 L15.6,6.7
+        M5.5,21.6 L4.8,18 L8.4,17.3
+    </StreamGeometry>
+
+    <!-- Cloud (sync glyphs / offline states): a simple rounded cloud outline. -->
+    <StreamGeometry x:Key="IconCloud">
+        M17.5,19 H7 a5,5 0 0 1 -1,-9.9 a6,6 0 0 1 11.6,1.6 A4,4 0 0 1 17.5,19 Z
+    </StreamGeometry>
+
 </ResourceDictionary>

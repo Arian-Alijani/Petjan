@@ -1,14 +1,18 @@
 using System;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Services;
+using Animora.Desktop.Shell.Search;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Desktop.Shell;
 
 /// <summary>
 /// Root shell ViewModel: composes the sidebar and topbar, mirrors the
-/// navigation service's current page for the content host to bind to, and
-/// chooses/highlights the startup page.
+/// navigation service's current page for the content host to bind to, chooses
+/// the startup page, and owns the app-wide page-switch hotkeys (Alt+1..8,
+/// Ctrl+Shift+D, Ctrl+K) so they work from any screen.
 /// </summary>
 public sealed partial class MainWindowViewModel : ObservableObject
 {
@@ -21,6 +25,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private const double CollapsedSidebarWidth = 76;
 
     private readonly INavigationService _navigation;
+    private readonly IDialogService _dialogs;
+    private readonly IServiceProvider _services;
 
     [ObservableProperty]
     private PageViewModelBase? _currentPage;
@@ -38,10 +44,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public MainWindowViewModel(
         INavigationService navigation,
+        IDialogService dialogs,
+        IServiceProvider services,
         SidebarViewModel sidebar,
         TopbarViewModel topbar)
     {
         _navigation = navigation;
+        _dialogs = dialogs;
+        _services = services;
         Sidebar = sidebar;
         Topbar = topbar;
 
@@ -71,4 +81,52 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private void OnCurrentViewModelChanged(object? sender, EventArgs e) =>
         CurrentPage = _navigation.CurrentViewModel;
+
+    // ---- Global page-switch hotkeys -----------------------------------------
+
+    /// <summary>
+    /// Navigate to the quick-access section at 1-based <paramref name="index"/>
+    /// (Alt+1..8). Uses <see cref="DashboardQuickAction.All"/> as the single
+    /// source of truth so the tiles and the hotkeys can never drift, and updates
+    /// the sidebar highlight to follow.
+    /// </summary>
+    [RelayCommand]
+    private void NavigateToSection(int index)
+    {
+        var actions = DashboardQuickAction.All;
+        if (index < 1 || index > actions.Count)
+        {
+            return;
+        }
+
+        NavigateTo(actions[index - 1].Target);
+    }
+
+    /// <summary>Navigate to the Dashboard («خانه»). Bound to Ctrl+Shift+D.</summary>
+    [RelayCommand]
+    private void NavigateHome() => NavigateTo(typeof(DashboardPageViewModel));
+
+    /// <summary>Open the Ctrl+K command palette from anywhere in the app.</summary>
+    [RelayCommand]
+    private void OpenPalette()
+    {
+        var palette = _services.GetRequiredService<CommandPaletteViewModel>();
+        _dialogs.ShowModal(palette, maxWidth: 660);
+    }
+
+    private void NavigateTo(Type target)
+    {
+        _navigation.NavigateTo(target);
+
+        // Mirror the sidebar highlight from the navigation catalog so the active
+        // item stays correct no matter which entry point was used.
+        foreach (var item in NavigationMenu.Items)
+        {
+            if (item.ViewModelType == target)
+            {
+                Sidebar.SetActive(item.Key);
+                break;
+            }
+        }
+    }
 }
