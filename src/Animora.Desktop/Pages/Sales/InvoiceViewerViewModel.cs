@@ -193,10 +193,35 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
 
     partial void OnSelectedInsurerChanged(InsurerOptionViewModel? value)
     {
-        if (!_suppressInsuranceApply)
+        if (_suppressInsuranceApply)
         {
-            _ = ApplyInsuranceAsync(value?.Id ?? string.Empty);
+            return;
         }
+
+        // Remember the value the user just picked, and roll the selection back to
+        // the currently-applied insurer so the change only "sticks" after they
+        // confirm. If they cancel, the ComboBox stays on the applied option.
+        var appliedId = _detail?.InsuranceOrgId ?? string.Empty;
+        var chosen = value;
+        var chosenId = chosen?.Id ?? string.Empty;
+        var chosenLabel = string.IsNullOrEmpty(chosenId) ? "بدون بیمه" : chosen?.Label ?? "بیمه";
+
+        _suppressInsuranceApply = true;
+        SelectedInsurer = Insurers.FirstOrDefault(o => o.Id == appliedId) ?? Insurers.FirstOrDefault();
+        _suppressInsuranceApply = false;
+
+        _dialogs.ShowModal(new ConfirmDialogViewModel(
+            _dialogs,
+            "brand",
+            "IconShield",
+            "تغییر پوشش بیمه",
+            "پوشش بیمهٔ این فاکتور به ",
+            $"«{chosenLabel}»",
+            " تغییر کند؟",
+            "سهم بیمه و مبلغ نهایی فاکتور بازمحاسبه و در تاریخچه تغییرات ثبت می‌شود.",
+            "بله، اعمال کن",
+            "انصراف",
+            () => _ = ApplyInsuranceAsync(chosenId)), 480);
     }
 
     public string DeletedBannerText => "این فاکتور حذف شده است — رکورد آن برای پیگیری در تاریخچه باقی می‌ماند.";
@@ -297,14 +322,78 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         _suppressInsuranceApply = false;
     }
 
-    private void OnLineEdited(int index, int quantity, int discountPercent) =>
-        _ = MutateAsync(() => _service.EditLineAsync(_invoiceId, index, quantity, discountPercent));
+    private void OnLineEdited(int index, int quantity, int discountPercent)
+    {
+        var title = LineTitle(index);
 
-    private void OnLineRemoved(int index) =>
-        _ = MutateAsync(() => _service.RemoveLineAsync(_invoiceId, index));
+        // Ask before applying. If the user cancels, we snap the row's editable
+        // fields back to the invoice's canonical values so the sheet never shows
+        // an un-applied edit; the mutation only runs on confirm.
+        Action revert = () =>
+        {
+            var line = _detail?.Lines.FirstOrDefault(l => l.Index == index);
+            var row = Lines.FirstOrDefault(r => r.Index == index);
+            if (line is not null && row is not null)
+            {
+                row.ResetEditFields(line.Quantity, line.DiscountPercent);
+            }
+        };
 
-    private void OnLineReturned(int index, int quantity) =>
-        _ = ReturnLineAsync(index, quantity);
+        _dialogs.ShowModal(new ConfirmDialogViewModel(
+            _dialogs,
+            "brand",
+            "IconEdit",
+            "ویرایش ردیف",
+            "تعداد و تخفیف ",
+            $"«{title}»",
+            $" به {SalePresentation.Fa(quantity)} عدد و {SalePresentation.Fa(discountPercent)}٪ تخفیف تغییر کند؟",
+            "مبلغ ردیف و جمع فاکتور بازمحاسبه و در تاریخچه تغییرات ثبت می‌شود.",
+            "بله، اعمال کن",
+            "انصراف",
+            () => _ = MutateAsync(() => _service.EditLineAsync(_invoiceId, index, quantity, discountPercent))), 480);
+
+        // Snap the editable fields back to canonical values immediately: if the
+        // user cancels, the sheet shows no un-applied edit; if they confirm, the
+        // mutation's Apply(...) re-applies the confirmed value.
+        revert();
+    }
+
+    private void OnLineRemoved(int index)
+    {
+        var title = LineTitle(index);
+        _dialogs.ShowModal(new ConfirmDialogViewModel(
+            _dialogs,
+            "danger",
+            "IconTrash",
+            "حذف ردیف",
+            "ردیف ",
+            $"«{title}»",
+            " از فاکتور حذف شود؟",
+            "این تغییر در تاریخچه تغییرات ثبت می‌شود.",
+            "بله، حذف کن",
+            "انصراف",
+            () => _ = MutateAsync(() => _service.RemoveLineAsync(_invoiceId, index))), 480);
+    }
+
+    private void OnLineReturned(int index, int quantity)
+    {
+        var title = LineTitle(index);
+        _dialogs.ShowModal(new ConfirmDialogViewModel(
+            _dialogs,
+            "warn",
+            "IconArrowDownLeft",
+            "برگشت کالا",
+            "کالای ",
+            $"«{title}»",
+            $" ({SalePresentation.Fa(quantity)} عدد) برگشت داده شود؟",
+            "در صورت پرداخت، مبلغ متناظر عودت و این تغییر در تاریخچه تغییرات ثبت می‌شود.",
+            "بله، برگشت بزن",
+            "انصراف",
+            () => _ = ReturnLineAsync(index, quantity)), 480);
+    }
+
+    private string LineTitle(int index) =>
+        _detail?.Lines.FirstOrDefault(l => l.Index == index)?.Title ?? "ردیف";
 
     private async Task ReturnLineAsync(int index, int quantity)
     {
@@ -334,10 +423,30 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ApplyDiscount()
+    private void ApplyDiscount()
     {
         var kind = DiscountKindIndex == 1 ? DiscountKind.Amount : DiscountKind.Percent;
         var value = ParseIntStatic(DiscountValueText, 0);
+        var valueLabel = kind == DiscountKind.Amount
+            ? SalePresentation.Money(value) + " تومان"
+            : SalePresentation.Fa(value) + "٪";
+
+        _dialogs.ShowModal(new ConfirmDialogViewModel(
+            _dialogs,
+            "brand",
+            "IconEdit",
+            "اعمال تخفیف سراسری",
+            "تخفیف سراسری ",
+            $"«{valueLabel}»",
+            " روی کل فاکتور اعمال شود؟",
+            "مبلغ نهایی فاکتور بازمحاسبه و این تغییر در تاریخچه تغییرات ثبت می‌شود.",
+            "بله، اعمال کن",
+            "انصراف",
+            () => _ = ApplyDiscountAsync(kind, value)), 480);
+    }
+
+    private async Task ApplyDiscountAsync(DiscountKind kind, int value)
+    {
         var updated = await _service.SetDiscountAsync(_invoiceId, new DiscountChangeRequest(kind, value));
         if (updated is not null)
         {
@@ -473,6 +582,7 @@ public sealed partial class InvoiceViewerLineViewModel : ObservableObject
     private readonly Action<int> _onRemove;
     private readonly Action<int, int> _onReturn;
     private readonly int _quantity;
+    private readonly int _discountPercent;
 
     public InvoiceViewerLineViewModel(
         InvoiceLine line, bool editable, bool canReturn,
@@ -482,6 +592,7 @@ public sealed partial class InvoiceViewerLineViewModel : ObservableObject
         _onRemove = onRemove;
         _onReturn = onReturn;
         _quantity = line.Quantity;
+        _discountPercent = line.DiscountPercent;
         Index = line.Index;
         Title = line.Title;
         IconKey = line.IconKey;
@@ -523,7 +634,27 @@ public sealed partial class InvoiceViewerLineViewModel : ObservableObject
     [ObservableProperty]
     private string _subtotalText;
 
-    public void SubmitEdit() => _onEdited(Index, ParseInt(QuantityText, 1), ParseInt(DiscountText, 0));
+    public void SubmitEdit()
+    {
+        var quantity = ParseInt(QuantityText, 1);
+        var discount = ParseInt(DiscountText, 0);
+
+        // Only prompt/mutate when the value actually changed on blur — otherwise a
+        // confirm would pop up every time focus leaves an untouched field.
+        if (quantity == _quantity && discount == _discountPercent)
+        {
+            return;
+        }
+
+        _onEdited(Index, quantity, discount);
+    }
+
+    /// <summary>Snaps the editable quantity/discount fields back to canonical values (used when an edit confirm is cancelled).</summary>
+    public void ResetEditFields(int quantity, int discountPercent)
+    {
+        QuantityText = SalePresentation.Fa(quantity);
+        DiscountText = SalePresentation.Fa(discountPercent);
+    }
 
     public void Remove() => _onRemove(Index);
 
