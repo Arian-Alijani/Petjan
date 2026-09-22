@@ -122,16 +122,31 @@
 
                                     <!-- .qt-badge pulse -->
                                     <Style Selector="Border.qt-badge">
-                                        <!-- Seed a TransformOperations-based RenderTransform so the
-                                             pulse animation below has a matching animator (scale). -->
-                                        <Setter Property="RenderTransform" Value="scale(1)" />
+                                        <!-- Keyframe <Animation> has no animator for the
+                                             RenderTransform property, so the pulse is driven
+                                             through an explicit ScaleTransform whose ScaleX/ScaleY
+                                             doubles do have default animators. RenderTransformOrigin
+                                             keeps the scale centred on the badge. -->
+                                        <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+                                        <Setter Property="RenderTransform">
+                                            <ScaleTransform ScaleX="1" ScaleY="1" />
+                                        </Setter>
                                         <Style.Animations>
                                             <Animation Duration="0:0:2.4"
                                                        IterationCount="INFINITE"
                                                        Easing="SineEaseInOut">
-                                                <KeyFrame Cue="0%"><Setter Property="RenderTransform" Value="scale(1)" /></KeyFrame>
-                                                <KeyFrame Cue="50%"><Setter Property="RenderTransform" Value="scale(1.12)" /></KeyFrame>
-                                                <KeyFrame Cue="100%"><Setter Property="RenderTransform" Value="scale(1)" /></KeyFrame>
+                                                <KeyFrame Cue="0%">
+                                                    <Setter Property="ScaleTransform.ScaleX" Value="1" />
+                                                    <Setter Property="ScaleTransform.ScaleY" Value="1" />
+                                                </KeyFrame>
+                                                <KeyFrame Cue="50%">
+                                                    <Setter Property="ScaleTransform.ScaleX" Value="1.12" />
+                                                    <Setter Property="ScaleTransform.ScaleY" Value="1.12" />
+                                                </KeyFrame>
+                                                <KeyFrame Cue="100%">
+                                                    <Setter Property="ScaleTransform.ScaleX" Value="1" />
+                                                    <Setter Property="ScaleTransform.ScaleY" Value="1" />
+                                                </KeyFrame>
                                             </Animation>
                                         </Style.Animations>
                                     </Style>
