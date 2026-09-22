@@ -4,309 +4,290 @@
 **Runnable after this phase:** desktop offline yes · server required no
 
 ## Read before starting
-- `backend-roadmap/CONVENTIONS.md` §1, §2, §3, §4, §5, §7, §9, §12
-- `backend-roadmap/PROGRESS.md` (D10 entry — `TenantSubscription`, `SubscriptionViewV1`, `Plan.FeatureFlagsJson`,
-  `SubscriptionStatus`; D04 entry — `EntitlementMiddleware` placeholder, `AnimoraPolicies`,
-  `HttpTenantContext`; D03 entry — `Device` registry, `InstallationFingerprint`, `IServerAuditWriter`;
-  D01 entry — Data Protection key ring, `SecretGuard`; A11 entry — `InstallationIdentity`,
-  `MachineFingerprintHash`, `ClockHighWater`, `IMonotonicClock`; A02 entry — `IMonotonicClock`)
-- `ARCHITECTURE.md` §13.1, §13.2, §10.1, §10.6, §17.3 · `STACK.md` §8, §11
-- `A-RULE 006`, `A-RULE 011`, `A-RULE 016`, `A-RULE 023`, `A-RULE 027`, `A-RULE 030`
-- `src/Animora.Server/Security/EntitlementMiddleware.cs`, `src/Animora.Persistence.SqlServer/Subscription/**`
+- `backend-roadmap/CONVENTIONS.md` §1, §2, §3, §4, §7, §9, §12
+- `backend-roadmap/PROGRESS.md` (D10 entry — `Subscription`, `Plan`, `PlanFeatures`,
+  `SubscriptionEventTypes`, `subscription.plan.changed`, `ISubscriptionOperations`,
+  `RequireOperator`; D09 entry — `IOutboxConsumer`, `ConsumedMessages`, `OperatorAlert`; D04 entry —
+  `EntitlementMiddleware` (no-op placeholder); D03 entry — `IServerAuditWriter`,
+  `InstallationFingerprint` on `Device`; D01 entry — `SecurityOptions`, Data Protection key ring;
+  A11 entry — `InstallationIdentity`, `MachineFingerprintHash`, `MonotonicClock.HighWaterUtc`,
+  `ClockHighWater`, `ISecretStore`; B01 entry — `IEntitlementGate`/`AllowAllEntitlementGate`)
+- `ARCHITECTURE.md` §13.1, §13.2, §10.6, §19 gate U · `STACK.md` §8, §8.1
+- `A-RULE 011`, `A-RULE 023`, `A-RULE 027`, `A-RULE 030`, `A-RULE 016`
+- `src/Animora.Infrastructure.Local/Security/InstallationIdentity.cs`,
+  `src/Animora.Application/Security/IEntitlementGate.cs`
 
 ## Goal
-A real **Licensing** context: a new `Animora.Server.Licensing` project that issues and verifies
-**signed, installation-bound, rotation-aware** license artifacts, a server-side entitlement plane
-that replaces D04's no-op middleware, and the anti-piracy controls — tamper detection, clock-rollback
-resistance and fail-closed behavior — that make a copied license useless on a second installation.
+A real licensing mechanism: a signed licence artifact issued from subscription state, verified
+**entirely offline** against a rotation-aware key set, bound to one sealed installation identity,
+checked against a monotonic high-water clock, with a fail-closed policy matrix. The verification half
+is a standalone library the desktop consumes in E07 without pulling in any server type.
 
 ## Design decisions (pre-made — implement, do not re-derive)
-- **New project `src/Animora.Server.Licensing/`** (class library, `net10.0`, added to `Animora.sln`
-  in the `server` folder). References `Animora.Domain`, `Animora.Application`,
-  `Animora.Contracts.Wire` — and **nothing else** (no EF Core, no ASP.NET Core, no persistence).
-  It is pure crypto + policy, so the **same verifier compiles into the desktop in E07** without
-  dragging the server in. `LayeringRulesTests` gains a fact asserting exactly that reference set.
-  Storage of issued licenses lives in `Animora.Persistence.SqlServer/Licensing/`, not here.
-- **Artifact format — plain, versioned, signed JSON** (no JWT library, no custom crypto;
-  `CONVENTIONS.md` §7): a `LicenseArtifactV1` is
-  `{ "payload": <base64url(canonical-json)>, "keyId": "<ulid>", "alg": "ES256", "signature": "<base64url>" }`.
-  The payload (`LicensePayloadV1`, in `Animora.Contracts.Wire/Licensing/`) carries, and only carries:
-  | Field | Purpose |
-  |---|---|
-  | `LicenseId` (ULID) | anti-replay identity; a reissue always gets a new id |
-  | `ContractVersion` | `WireContract.Version` at issue time |
-  | `Audience` (`"animora.desktop"`) + `Product` + `ProductMajorVersion` | wrong-audience artifacts are rejected outright |
-  | `TenantId`, `TenantName` | which clinic |
-  | `PlanCode`, `Features` (`IReadOnlyList<string>`) | the entitlement set — copied from `Plan.FeatureFlagsJson` at issue time, **never** read live |
-  | `MaxSeats`, `MaxDevices` | enforced limits |
-  | `InstallationBindingHash` | SHA-256 of the **sealed installation identity** (see below) — the anti-cloning anchor |
-  | `IssuedAtUtc`, `NotBeforeUtc`, `ExpiresAtUtc` | validity window |
-  | `GraceDays` | how long a just-expired license still grants read-only continuity |
-  | `IssuerInstance` | D01's `ServerOptions.InstanceName`, for support triage |
-  Canonical JSON = the **same** canonicalizer B02 defined for `CommandFingerprint` (sorted property
-  names, no indentation, invariant culture) — reused, never re-implemented, so signing and
-  verification cannot disagree about bytes.
-- **Signature algorithm — binding decision: `ECDsa` over NIST P-256 with SHA-256 (`"ES256"`)**, using
-  in-box `System.Security.Cryptography` only (`ECDsa.SignData` / `VerifyData`,
-  `DSASignatureFormat.Rfc3279DerSequence`). It is first-party, offline, FIPS-available on both
-  target OSes, and needs **no package outside `STACK.md` §11** (no BouncyCastle, no NSec, no JWT
-  library). Do not substitute Ed25519 or a JWT: the artifact carries `alg` precisely so a future
-  algorithm change is a *data* change, not a format change.
-- **Key management, rotation-aware** (`ARCHITECTURE.md` §13.2 step 2, §10.6, A-RULE 027):
-  - Private signing keys live **only** on the server, in
-    `src/Animora.Persistence.SqlServer/Licensing/LicenseSigningKey.cs` (table `LicenseSigningKeys`,
-    migration `109_Licensing`): `KeyId` (ULID PK), `PublicKeyPem`, `EncryptedPrivateKey` (protected
-    with D01's **Data Protection key ring**, purpose string `"Animora.Licensing.SigningKey.v1"` —
-    so a restore that omits the key ring cannot sign, §17.3), `Algorithm`, `CreatedAtUtc`,
-    `ActivatedAtUtc`, `RetiredAtUtc`, `Status` (`Pending | Active | Retired | Revoked`).
-    Exactly **one** `Active` key at a time (a filtered unique index enforces it).
-  - `LicenseKeyRing` (`Animora.Server.Licensing/LicenseKeyRing.cs`) is the **verifier-side** type: an
-    immutable `IReadOnlyDictionary<string /*keyId*/, VerifyingKey>` plus `Rotate` semantics. A
-    verifier accepts a signature from any **non-revoked** key in its ring, which is exactly what
-    makes rotation survivable across a staggered fleet; `Revoked` keys are rejected even inside the
-    validity window.
-  - Rotation is an **operator action** (`POST /api/operator/licensing/keys/rotate`): generate a new
-    key pair, mark it `Active`, move the previous to `Retired` (still verifying, no longer signing),
-    and enqueue `license.reissue.required` onto D09's outbox for every active tenant. Retired keys
-    are kept for `LicensingOptions.RetiredKeyRetentionDays` (default 400 — longer than the longest
-    license) and then `Revoked`.
-- **Installation binding — the control that actually prevents cloning** (A-RULE 030, §13.2 step 3):
-  - The desktop's **sealed installation identity** is A11's `InstallationIdentity`
-    (`MachineFingerprintHash`, sealed at install time, never leaves the device as raw material).
-    D03's device registration already stores `InstallationFingerprint` per `Device`.
-  - `InstallationBindingHash = SHA-256( tenantId ‖ 0x1f ‖ installationFingerprint ‖ 0x1f ‖ licensePurposeSalt )`
-    where `licensePurposeSalt` is a per-deployment random value stored beside the signing key
-    (`ServerBootstrapState`). Verification recomputes it from the **local** identity and compares in
-    constant time (`CryptographicOperations.FixedTimeEquals`). A byte-for-byte copied license on a
-    second machine fails here, which is stated in a code comment citing A-RULE 030 so nobody
-    "optimizes" the check away.
-  - **A signature proves authenticity, not non-cloning** — the verifier returns a distinct
-    `LICENSE_INSTALLATION_MISMATCH` code, never a generic "invalid signature", so support can tell
-    the two apart.
-- **Clock-rollback resistance** (A-RULE 011, §13.2 step 5): verification uses
-  `max(wallClockUtc, IMonotonicClock.HighWaterUtc)` — A11's persisted high-water value, which can
-  only advance. Every successful verification **advances** the high-water mark to `now`. A wound-back
-  system clock therefore cannot resurrect an expired license, and the verifier returns
-  `LICENSE_CLOCK_ROLLBACK` when `wallClockUtc` is more than `LicensingOptions.ClockSkewToleranceMinutes`
-  (default 10) **behind** the high-water mark. Client wall-clock time is never the authority.
-- **`LicenseVerifier`** (`Animora.Server.Licensing/LicenseVerifier.cs`) — one `sealed class`, one
-  method, the **exact order of §13.2** (each step its own error code, all returning `Result<EntitlementSnapshot>`,
-  never throwing for an expected outcome):
+- **One new project, split by direction, not by layer:** `src/Animora.Server.Licensing/`
+  (class library, `net10.0`, added to `Animora.sln`): `Verification/` references only
+  `Animora.Domain` + `Animora.Contracts.Wire` (the half E07 consumes from the client);
+  `Issuance/` references `Animora.Application` + `Animora.Domain` and is consumed only by
+  `Animora.Server`. `LayeringRulesTests` gains a fact asserting `Verification/` types transitively
+  reference neither `Animora.Persistence.SqlServer` nor ASP.NET Core — that is what makes client
+  reuse safe.
+- **Licence artifact = a detached-signature envelope, not a JWT.** JWT would drag in a token stack
+  and a clock model this product does not want. Format
+  (`src/Animora.Server.Licensing/Verification/LicenseArtifact.cs`):
   ```
-  1 parse + contract-version window        -> LICENSE_MALFORMED / CONTRACT_VERSION_UNSUPPORTED
-  2 keyId resolves in the ring, not Revoked-> LICENSE_KEY_UNKNOWN
-  3 signature verifies over canonical bytes-> LICENSE_SIGNATURE_INVALID
-  4 audience + product + major version     -> LICENSE_AUDIENCE_MISMATCH
-  5 installation binding hash              -> LICENSE_INSTALLATION_MISMATCH
-  6 NotBefore <= effectiveNow              -> LICENSE_NOT_YET_VALID
-  7 effectiveNow <= Expires (+ grace)      -> LICENSE_EXPIRED  (grace -> Degraded, not Invalid)
-  8 monotonic clock check                  -> LICENSE_CLOCK_ROLLBACK
+  LicenseArtifact = Base64Url(payloadJson) + "." + Base64Url(signature) + "." + KeyId
   ```
-  Result: `sealed record EntitlementSnapshot(string TenantId, string PlanCode,
-  IReadOnlySet<string> Features, int MaxSeats, int MaxDevices, EntitlementState State,
-  DateTimeOffset ExpiresAtUtc, DateTimeOffset EvaluatedAtUtc, string LicenseId)` with
-  `enum EntitlementState { Valid, Grace, Expired, Invalid }`. The **same** verifier and the **same**
-  snapshot type are what E07 runs on the desktop — one implementation, two hosts, zero drift.
-- **`LicenseIssuer`** (`Animora.Server.Licensing/LicenseIssuer.cs`) builds a payload from a
-  `LicenseIssueRequest` (tenant, plan code + features, seats/devices, period, installation
-  fingerprint) and signs it with the `Active` key. It is **called only** by
-  `src/Animora.Server/Licensing/LicenseService.cs`, which supplies the subscription data by reading
-  D10's `TenantSubscription` + `Plan` — the **only** legitimate coupling between Subscription and
-  Licensing, and it is **snapshot-at-issue**, not a live lookup (R-B30: the runtime depends on the
-  license, never on the subscription row).
-- **Issued-license ledger** (`Animora.Persistence.SqlServer/Licensing/IssuedLicense.cs`, table
-  `IssuedLicenses`, migration `109_Licensing`): `LicenseId` PK, `TenantId`, `DeviceId`,
-  `InstallationBindingHash`, `KeyId`, `PlanCode`, `IssuedAtUtc`, `NotBeforeUtc`, `ExpiresAtUtc`,
-  `SupersededByLicenseId`, `RevokedAtUtc`, `RevokeReason`, `ArtifactJson`. **Append-only**: the
-  D07 `ServerAppendOnlyGuard` is extended with this table so a row is never updated except through
-  the two allow-listed columns (`SupersededByLicenseId`, `RevokedAtUtc`/`RevokeReason`), which the
-  guard permits explicitly. Reissue writes a **new** row and links the old one.
-- **No online revocation channel — stated, not faked** (§13.2 invariant): `RevokedAtUtc` only affects
-  **future issuance and the next contact**; there is no push. The honest mechanism is a **short
-  validity window plus reissuance**, so `LicensingOptions.DefaultValidityDays` defaults to **45**
-  with `GraceDays` **14**, and the reissue endpoint is cheap and idempotent. A comment in
-  `LicenseService` states this limitation verbatim; `LicensingDocsTests` asserts the XML doc of
-  `LicenseVerifier` contains the words "not a revocation channel" so the property survives refactors.
-- **Server entitlement plane — D04's placeholder is replaced, not bypassed** (A-RULE 023, §10.1):
-  `src/Animora.Server/Security/EntitlementMiddleware.cs` is **rewritten in place** (same type name,
-  same pipeline position, immediately after tenant resolution and authorization) to:
-  1. resolve the tenant's current `EntitlementSnapshot` from `IEntitlementProvider`
-     (`src/Animora.Server/Licensing/ServerEntitlementProvider.cs`) — a **bounded, tenant-safe cache**
-     keyed `("entitlement", tenantId, licenseId, WireContract.Version)` with a 5-minute TTL and a
-     `MaximumSize` of 512 entries (A-RULE 033, CONVENTIONS §8);
-  2. attach it to `HttpContext.Items` for handlers;
-  3. **fail closed**: `Invalid` → `403 ENTITLEMENT_INVALID`; `Expired` beyond grace → `403 ENTITLEMENT_EXPIRED`;
-     `Grace` → allowed but the response carries an `X-Animora-Entitlement: grace` header and
-     write commands with a `RequiresEntitlement` feature are refused.
-  4. **Always allowed regardless of entitlement** (an explicit allow-list, because locking a clinic
-     out of its own data is not an anti-piracy feature): `/health/*`, `/api/identity/**`,
-     `/api/operator/**`, `GET /tables/*` (read replication), `GET /api/commands/{operationId}`, and
-     every **read** query endpoint. Writes and settlement are what an invalid entitlement blocks.
-  A `RequiresFeatureAttribute`/`AnimoraPolicies.RequireFeature(name)` pair lets a specific endpoint
-  demand a named feature; D06/D07 handlers are **not** edited in this phase — the plane is generic.
-- **`IEntitlementGate` (B01's port) is now implemented server-side** by
-  `LicensingEntitlementGate`, so the application pipeline's entitlement behavior stops being
-  allow-all **on the server** while staying allow-all on the desktop until E07 swaps it there. The
-  two hosts therefore never diverge in *order* of checks, only in *implementation*.
-- **Tamper resistance, honestly scoped** (R-B06): the controls shipped are (a) signature over
-  canonical bytes, (b) installation binding, (c) monotonic clock, (d) append-only issuance ledger
-  with audit, (e) fail-closed defaults, (f) the verifier refusing an artifact whose `payload`
-  re-serializes to different bytes than it was signed over (`LICENSE_MALFORMED`). Binary/assembly
-  tamper-proofing, obfuscation and anti-debugging are **explicitly not** claimed — a
-  `docs`-level note in the phase's PROGRESS entry records this so no later session pretends otherwise.
-- **Operator + tenant endpoints** (`src/Animora.Server/Endpoints/LicensingEndpoints.cs`):
-  | Route | Verb | Auth | Purpose |
-  |---|---|---|---|
-  | `/api/operator/licensing/keys` | GET | `RequireOperator` | key ring status (public material only) |
-  | `/api/operator/licensing/keys/rotate` | POST | `RequireOperator` | rotate signing key + enqueue reissue |
-  | `/api/operator/licensing/issue` | POST | `RequireOperator` | issue for a tenant+installation |
-  | `/api/operator/licensing/{licenseId}/revoke` | POST | `RequireOperator` | mark revoked (+ reason, audited) |
-  | `/api/licensing/current` | GET | authenticated tenant user | the caller's `EntitlementSnapshotV1` |
-  | `/api/licensing/renew` | POST | authenticated + device | reissue for **this** installation; idempotent per `(tenant, installationFingerprint, currentPeriod)` |
-  `/api/licensing/renew` is the desktop's only licensing write, and E07 calls exactly it.
-- **Every licensing action is audited** (R-B29): issue, reissue, rotate, revoke, and **every failed
-  verification** write a `ServerAuditEntry` with `TenantId`, `LicenseId`, `KeyId`, `DeviceId`,
-  `RequestId` and the failing step's error code. A verification failure is a security event, not a
-  debug log line.
+  `payloadJson` is canonical JSON (the same `CommandFingerprint` canonicalizer settings from B02 —
+  sorted properties, no indentation, invariant culture) of
+  `sealed record LicensePayload(int Version, string LicenseId, string TenantId, string Product,
+  string Audience, string PlanCode, IReadOnlyList<string> Features, int Seats,
+  DateTimeOffset NotBefore, DateTimeOffset NotAfter, DateTimeOffset IssuedAtUtc,
+  string InstallationBindingHash, string KeyId, string IssuerName)`.
+  `Version = LicenseContract.Version` (`= 1`, a constant in `Verification/LicenseContract.cs`,
+  deliberately **separate** from `WireContract.Version`: the licence outlives wire shapes).
+  `Product = "animora.clinic"`, `Audience = "desktop"`.
+- **Signing algorithm: Ed25519 is not in .NET 10's BCL surface for this use; use ECDSA P-256 with
+  SHA-256** (`ECDsa.SignData(..., HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence)`)
+  — first-party crypto only, no new package (CONVENTIONS §7: no custom crypto). Keys are stored as
+  PKCS#8 (private) / SubjectPublicKeyInfo (public) DER.
+- **Rotation-aware key set, both sides.** Server: `LicenseSigningKey` table (migration
+  `109_Licensing`) — `KeyId` (ULID), `PublicKeyDer` (`byte[]`), `PrivateKeyProtected` (`byte[]`,
+  wrapped by the D01 Data Protection ring, purpose `"Animora.Licensing.SigningKey.v1"`),
+  `Algorithm` (`"ECDSA_P256_SHA256"`), `CreatedAtUtc`, `NotAfterUtc`,
+  `KeyStatus { Active, Retiring, Retired }`, `IsPrimary` (exactly one, filtered unique index).
+  Losing the ring means no private key can be unwrapped → the server refuses to issue and raises an
+  `OperatorAlert` (A-RULE 027, fail closed). Verifier: `Verification/LicenseKeyRing.cs` — an
+  immutable set of
+  `sealed record LicenseVerificationKey(string KeyId, byte[] PublicKeyDer, DateTimeOffset NotAfterUtc)`
+  loaded from a **signed key-set bundle** (`LicenseKeySetBundle` = the key list plus a signature by
+  the previous primary key, so a new key chains from the shipped root). The installer ships
+  `keyset.animora` in the app content directory; a newer bundle may arrive with a licence. `KeyId`
+  selects the verifying key (§13.2 step 2); an unknown one fails closed with `LICENSE_KEY_UNKNOWN`.
+- **Installation binding (the actual anti-cloning control, A-RULE 030):**
+  `InstallationBindingHash = SHA-256( InstallationId + '\u001f' + MachineFingerprintHash )`, both
+  inputs from A11's `LocalInstallation` row and `InstallationIdentity`. The client sends them at
+  licence-request time (E07); the server stores the pair on the `LicenseIssuance` row and stamps the
+  hash into the payload. Verification recomputes and compares — a byte-for-byte copied licence fails
+  on another machine before expiry is even considered. `Verification/InstallationBinding.cs` holds
+  the single hash function used by **both** sides, so they can never drift.
+- **Verifier, exact order, fail closed at every step**
+  (`Verification/LicenseVerifier.cs`, `sealed class`, no I/O, no clock of its own):
+  `Result<LicenseVerdict> Verify(LicenseArtifact artifact, LicenseVerificationContext ctx)` where
+  `sealed record LicenseVerificationContext(string ExpectedProduct, string ExpectedAudience,
+  string ExpectedTenantId, string InstallationBindingHash, DateTimeOffset WallClockUtc,
+  DateTimeOffset MonotonicHighWaterUtc, LicenseKeyRing KeyRing)`:
+  ```
+  1 parse/shape        -> LICENSE_MALFORMED
+  2 KeyId -> key       -> LICENSE_KEY_UNKNOWN            (retired key = fail, retiring = warn)
+  3 signature          -> LICENSE_SIGNATURE_INVALID
+  4 contract version   -> LICENSE_VERSION_UNSUPPORTED    (payload.Version > LicenseContract.Version)
+  5 product/audience   -> LICENSE_AUDIENCE_MISMATCH
+  6 tenant             -> LICENSE_TENANT_MISMATCH
+  7 installation bind  -> LICENSE_INSTALLATION_MISMATCH  (the anti-cloning step)
+  8 effective-now      -> LICENSE_NOT_YET_VALID | LICENSE_EXPIRED
+       effectiveNow = max(WallClockUtc, MonotonicHighWaterUtc)   <-- clock rollback cannot help
+  9 verdict            -> Valid | Expiring(within ExpiringWithinDays) | Invalid(code)
+  ```
+  `sealed record LicenseVerdict(LicenseStatus Status, LicensePayload? Payload, ErrorCode? Error,
+  DateTimeOffset? ExpiresAtUtc, IReadOnlySet<string> Features, int Seats)`;
+  `enum LicenseStatus { Valid, Expiring, Expired, Invalid }`.
+  Step 8 using `max(wall, highWater)` is the whole clock-rollback defense (A-RULE 011) and is
+  asserted by a test that winds the wall clock back a year.
+- **Fail-closed policy matrix — declared data, not scattered `if`s**
+  (`Verification/EntitlementPolicy.cs`):
+  | Verdict | Read clinical data | Create/modify clinical | Money commands (invoice/payment/period) | Sync | Admin/settings |
+  |---|---|---|---|---|---|
+  | `Valid` | allow | allow | allow | allow | allow |
+  | `Expiring` | allow | allow | allow | allow | allow (+ warning surfaced) |
+  | `Expired` | allow | **deny** | **deny** | allow (pull only) | allow |
+  | `Invalid` | allow | **deny** | **deny** | **deny** | allow (so the licence can be replaced) |
+  Encoded as `static EntitlementDecision Evaluate(LicenseStatus status, string capabilityGroup)` over
+  `CapabilityGroups { ClinicalRead, ClinicalWrite, Money, Sync, Admin }`. **Never** "deny everything"
+  (a clinic must always read its own records) and **never** "allow money without a licence".
+  A missing/unreadable licence is `Invalid`, not `Valid` — the default is deny.
+  `Features` gate feature flags; `Seats` is informational only (enforcement stays server-side in
+  D10's `SeatGuard`) so the desktop can explain a limit it never enforces.
+- **Issuance (server half), driven by subscription state, never by a request body:**
+  `Issuance/ILicenseIssuer.cs` →
+  `Task<Result<IssuedLicense>> IssueAsync(LicenseIssueRequest request, CancellationToken ct)`,
+  `Task<Result<IssuedLicense>> ReissueAsync(string licenseId, string reason, CancellationToken ct)`,
+  `Task<Result<LicenseKeySetBundle>> GetKeySetAsync(CancellationToken ct)`,
+  `Task<Result> RotateSigningKeyAsync(TimeSpan retireAfter, CancellationToken ct)`.
+  `LicenseIssuer` reads `Subscription` + `Plan` (D10) for `PlanCode`, `Features`, `Seats`, and
+  computes `NotAfter = min(period end, now + LicensePolicy.MaxValidityDays)` with
+  `LicensePolicy.MaxValidityDays = 45`, `ExpiringWithinDays = 10`. **Short validity is the
+  revocation mechanism** — there is no online revocation channel (`ARCHITECTURE.md` §13.2
+  invariant); the policy comment states this explicitly.
+- **`LicenseIssuance` table** (migration `109_Licensing`): `Id`, `LicenseId` (ULID, unique),
+  `TenantId`, `InstallationId`, `MachineFingerprintHash`, `InstallationBindingHash`, `KeyId`,
+  `PlanCode`, `SeatsAtIssue`, `FeaturesJson`, `NotBefore`, `NotAfter`, `IssuedAtUtc`,
+  `SupersededByLicenseId?`, `ReissueReason?`, `ArtifactHash`. Append-only via
+  `ServerAppendOnlyGuard`; a reissue writes a **new** row and sets the old row's
+  `SupersededByLicenseId` through the one column whitelisted by name in the guard. Indexes:
+  `UX_LicenseIssuances_LicenseId`, `IX_LicenseIssuances_TenantId_NotAfter`,
+  `IX_LicenseIssuances_InstallationBindingHash`. Both tables are non-tenant-scoped and
+  non-replicated (`ServerModel` updated).
+- **Endpoints** (`src/Animora.Server/Endpoints/LicenseEndpoints.cs`):
+  | Route | Auth | Purpose |
+  |---|---|---|
+  | `POST /api/license/request` | authenticated device (tenant token) | body `LicenseRequestV1(InstallationId, MachineFingerprintHash)` → `LicenseResponseV1(Artifact, KeySetBundle, ExpiresAtUtc)`; idempotent per `(TenantId, InstallationBindingHash)` while the current licence is still valid (returns the same artifact) |
+  | `GET /api/license/keyset` | anonymous | the signed key-set bundle (public keys only) |
+  | `POST /api/operator/licenses/{tenantId}/reissue` | `RequireOperator` | operator-forced reissue with a reason |
+  | `POST /api/operator/licenses/rotate-key` | `RequireOperator` | creates a new primary key, marks the old `Retiring` for `LicensePolicy.KeyRetireDays` (30), returns the new bundle |
+  Wire records go in `src/Animora.Contracts.Wire/Licensing/`. `WireContract.Version` stays `1`.
+- **`subscription.plan.changed` triggers a reissue, through the outbox** — not a direct call:
+  `src/Animora.Server/Consumers/LicenseReissueConsumer.cs` implements D09's `IOutboxConsumer`
+  (`MessageType = "subscription.plan.changed"`), reissues the tenant's current licence with reason
+  `plan-changed`, and relies on D09's `ConsumedMessages` guard for idempotency. This is the only
+  coupling between Subscription and Licensing, and it is **asynchronous and one-way**
+  (`ARCHITECTURE.md` §13.1).
+- **`EntitlementMiddleware` becomes real (server side).** D04's no-op is replaced by an
+  implementation that, for `/api/commands*` and `/tables/*`, resolves the tenant's current
+  `LicenseIssuance` (cached per tenant for 60 s with a tenant-scoped key per A-RULE 033),
+  evaluates `EntitlementPolicy` for the request's capability group, and returns `403`
+  `ENTITLEMENT_REQUIRED` (existing code from B01) with the verdict code in `WireApiError.Detail`.
+  Authentication and authorization still run first and separately (A-RULE 023).
+- **Every licence action is audited** (R-B29): issue, reissue, rotate, and every **failed**
+  verification reported by a client (E07 posts failures to `POST /api/license/request` implicitly —
+  no new endpoint) writes an `IServerAuditWriter` entry with the licence id, installation binding
+  hash and error code. Three failed verifications for one installation within 24 h raise an
+  `OperatorAlert` of type `license.verification.failing` (tamper signal, never an auto-block).
+- **Anti-tamper of the local entitlement cache is specified here, implemented client-side in E07:**
+  the cached verdict file is `entitlement.cache` = canonical JSON + HMAC-SHA256 using a key from
+  A11's `ISecretStore`; a broken HMAC = `Invalid` (deny), never "assume valid". The HMAC helper is
+  `Verification/EntitlementCacheSeal.cs` so both sides share one implementation.
+- **Zero-Internet:** nothing in `Verification/` performs I/O or network access — it is pure
+  functions over inputs (A-RULE 016); a test asserts the assembly references no networking type.
 - **New error codes:** `LICENSE_MALFORMED`, `LICENSE_KEY_UNKNOWN`, `LICENSE_SIGNATURE_INVALID`,
-  `LICENSE_AUDIENCE_MISMATCH`, `LICENSE_INSTALLATION_MISMATCH`, `LICENSE_NOT_YET_VALID`,
-  `LICENSE_EXPIRED`, `LICENSE_CLOCK_ROLLBACK`, `LICENSE_REVOKED`, `ENTITLEMENT_INVALID`,
-  `ENTITLEMENT_EXPIRED`, `FEATURE_NOT_LICENSED`
-  (`ENTITLEMENT_REQUIRED` exists from B01 — reuse; `CONTRACT_VERSION_UNSUPPORTED` from D05 — reuse).
+  `LICENSE_VERSION_UNSUPPORTED`, `LICENSE_AUDIENCE_MISMATCH`, `LICENSE_TENANT_MISMATCH`,
+  `LICENSE_INSTALLATION_MISMATCH`, `LICENSE_NOT_YET_VALID`, `LICENSE_EXPIRED`,
+  `LICENSE_ISSUANCE_UNAVAILABLE`, `LICENSE_KEY_ROTATION_FAILED`
+  (`ENTITLEMENT_REQUIRED` exists from B01 — reuse).
 
 ## Files to create / modify
 | Path | Action | Contents (one line) |
 |---|---|---|
-| `src/Animora.Server.Licensing/Animora.Server.Licensing.csproj` | create | new project, 3 project refs only |
-| `src/Animora.Server.Licensing/LicensePayloadCanonicalizer.cs` | create | reuse of B02's canonical JSON for signing bytes |
-| `src/Animora.Server.Licensing/LicenseSigner.cs` | create | ES256 sign over canonical payload |
-| `src/Animora.Server.Licensing/LicenseVerifier.cs` | create | the 8 ordered checks → `EntitlementSnapshot` |
-| `src/Animora.Server.Licensing/LicenseKeyRing.cs` | create | rotation-aware verifying key set |
-| `src/Animora.Server.Licensing/LicenseIssuer.cs` | create | payload build + sign |
-| `src/Animora.Server.Licensing/InstallationBinding.cs` | create | binding-hash computation + fixed-time compare |
-| `src/Animora.Server.Licensing/EntitlementSnapshot.cs` | create | snapshot record + `EntitlementState` |
-| `src/Animora.Contracts.Wire/Licensing/*.cs` | create | `LicenseArtifactV1`, `LicensePayloadV1`, `EntitlementSnapshotV1`, `LicenseIssueRequestV1`, `KeyRingStatusV1` |
-| `src/Animora.Persistence.SqlServer/Licensing/LicenseSigningKey.cs` | create | signing key row (DP-protected private key) |
-| `src/Animora.Persistence.SqlServer/Licensing/IssuedLicense.cs` | create | append-only issuance ledger |
-| `src/Animora.Persistence.SqlServer/Licensing/LicensingConfigurations.cs` | create | 2 configurations + filtered unique index |
+| `src/Animora.Server.Licensing/Animora.Server.Licensing.csproj` | create | new project, added to `Animora.sln` |
+| `src/Animora.Server.Licensing/Verification/LicenseContract.cs` | create | `Version = 1` + constants |
+| `src/Animora.Server.Licensing/Verification/LicensePayload.cs` | create | the signed payload record |
+| `src/Animora.Server.Licensing/Verification/LicenseArtifact.cs` | create | parse/format the 3-part envelope |
+| `src/Animora.Server.Licensing/Verification/LicenseKeyRing.cs` | create | rotation-aware key set + bundle |
+| `src/Animora.Server.Licensing/Verification/InstallationBinding.cs` | create | the one binding-hash function |
+| `src/Animora.Server.Licensing/Verification/LicenseVerifier.cs` | create | the 9-step offline verifier |
+| `src/Animora.Server.Licensing/Verification/EntitlementPolicy.cs` | create | fail-closed matrix |
+| `src/Animora.Server.Licensing/Verification/EntitlementCacheSeal.cs` | create | HMAC seal (E07 uses it) |
+| `src/Animora.Server.Licensing/Issuance/ILicenseIssuer.cs` | create | issuance port + requests |
+| `src/Animora.Server.Licensing/Issuance/LicenseIssuer.cs` | create | issue/reissue/rotate over subscription state |
+| `src/Animora.Server.Licensing/Issuance/LicensePolicy.cs` | create | validity/expiring/retire numbers |
+| `src/Animora.Contracts.Wire/Licensing/*.cs` | create | `LicenseRequestV1`, `LicenseResponseV1`, `LicenseKeySetBundleV1` |
+| `src/Animora.Persistence.SqlServer/Licensing/LicenseSigningKey.cs` | create | key table entity |
+| `src/Animora.Persistence.SqlServer/Licensing/LicenseIssuance.cs` | create | issuance ledger entity |
 | `src/Animora.Persistence.SqlServer/Migrations/109_Licensing*` | create | 2 tables + indexes |
-| `src/Animora.Persistence.SqlServer/Context/ServerAppendOnlyGuard.cs` | modify | add `IssuedLicenses` + its 3 allowed columns |
-| `src/Animora.Server/Configuration/LicensingOptions.cs` | create | validity/grace/skew/retention options |
-| `src/Animora.Server/Licensing/LicenseService.cs` | create | issue/reissue/rotate/revoke, transactional + audited |
-| `src/Animora.Server/Licensing/ServerEntitlementProvider.cs` | create | bounded tenant-safe entitlement cache |
-| `src/Animora.Server/Licensing/LicensingEntitlementGate.cs` | create | real `IEntitlementGate` (server side) |
-| `src/Animora.Server/Security/EntitlementMiddleware.cs` | modify | replace the no-op with the real plane + allow-list |
-| `src/Animora.Server/Security/AnimoraPolicies.cs` | modify | `RequireFeature(name)` + `RequiresFeatureAttribute` |
-| `src/Animora.Server/Endpoints/LicensingEndpoints.cs` | create | 6 routes |
-| `src/Animora.Server/Program.cs` | modify | options, key ring load, gate, endpoints, `licensing` readiness check |
-| `src/Animora.Application/Results/ErrorCodes.cs` | modify | += 12 codes |
-| `tests/Animora.Server.Tests/LicenseVerificationTests.cs` | create | the 8 checks, each failing independently |
-| `tests/Animora.Server.Tests/LicenseAntiCloningTests.cs` | create | copied artifact fails on a 2nd installation |
-| `tests/Animora.Server.Tests/LicenseClockRollbackTests.cs` | create | wound-back clock cannot extend expiry |
-| `tests/Animora.Server.Tests/KeyRotationTests.cs` | create | retired key still verifies, revoked does not |
-| `tests/Animora.Server.Tests/EntitlementPlaneTests.cs` | create | fail-closed, grace header, allow-list, cache key |
+| `src/Animora.Persistence.SqlServer/Context/ServerModel.cs` | modify | non-tenant-scoped + non-replicated entries |
+| `src/Animora.Persistence.SqlServer/Context/ServerAppendOnlyGuard.cs` | modify | protect `LicenseIssuances` (+ the one whitelisted column) |
+| `src/Animora.Server/Endpoints/LicenseEndpoints.cs` | create | 4 routes |
+| `src/Animora.Server/Consumers/LicenseReissueConsumer.cs` | create | `subscription.plan.changed` → reissue |
+| `src/Animora.Server/Security/EntitlementMiddleware.cs` | modify | real evaluation, replaces the no-op |
+| `src/Animora.Server/Program.cs` | modify | register issuer, consumer, endpoints, middleware order |
+| `tests/Animora.Server.Tests/LicenseVerifierTests.cs` | create | the 9 failure paths + valid path |
+| `tests/Animora.Server.Tests/LicenseAntiCloningTests.cs` | create | copied licence + clock rollback (gate U) |
+| `tests/Animora.Server.Tests/LicenseIssuanceTests.cs` | create | issue/reissue/rotate, append-only ledger |
+| `tests/Animora.Server.Tests/EntitlementPolicyTests.cs` | create | the matrix, incl. money denied when expired |
 
 ## Implementation steps
-1. Create `Animora.Server.Licensing` with its three project references; add the layering fact.
-2. Add the wire licensing DTOs; write the canonicalizer wrapper, `LicenseSigner`, `LicenseKeyRing`,
-   `InstallationBinding`, `EntitlementSnapshot`.
-3. Write `LicenseVerifier` with the eight ordered checks and one error code each.
-4. Add `LicenseSigningKey` + `IssuedLicense` + configurations + migration `109_Licensing`; extend
-   `ServerAppendOnlyGuard`.
-5. Write `LicenseService` (issue / reissue / rotate / revoke), reading D10's subscription **once**
-   at issue time; every path audited and transactional.
-6. Write `ServerEntitlementProvider` (bounded, tenant-safe cache) and `LicensingEntitlementGate`.
-7. **Replace** the body of `EntitlementMiddleware`; add the allow-list and the grace header;
-   add `RequireFeature`.
-8. Write `LicensingEndpoints`; register options, the key-ring loader and a `licensing` readiness
-   check (key ring present and one `Active` key, or explicitly "unlicensed-dev" when
-   `LicensingOptions.DevelopmentUnlicensed == true`, which `ValidateOnStart` forbids outside
-   Development).
-9. Write the five test classes; the anti-cloning test issues for installation A and verifies against
-   installation B's identity; the rollback test drives `IMonotonicClock` and a wound-back wall clock.
-10. Verify: a valid license passes all eight checks; each check fails alone with its own code; a
-    rotated key ring still verifies yesterday's license; a revoked key does not; the middleware
-    blocks a write and allows `/api/identity` and `GET /tables/*`; two tenants never share a cached
-    snapshot.
-11. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; desktop `run.sh` = `SMOKE RUN OK`.
+1. Create `Animora.Server.Licensing` with the two folders and the layering fact in
+   `LayeringRulesTests`.
+2. Write `Verification/` in this order: `LicenseContract`, `LicensePayload`, `LicenseArtifact`,
+   `InstallationBinding`, `LicenseKeyRing`, `LicenseVerifier`, `EntitlementPolicy`,
+   `EntitlementCacheSeal`. No I/O anywhere in this folder.
+3. Add the wire records; add the two tables, `ServerModel`/guard updates and migration
+   `109_Licensing`.
+4. Write `LicensePolicy` and `LicenseIssuer` (wrap the private key with Data Protection; refuse to
+   issue when unwrapping fails and raise the alert).
+5. Implement key rotation: create a new `Active`+`IsPrimary` key, demote the old to `Retiring` with
+   `NotAfterUtc = now + KeyRetireDays`, and build a new bundle signed by the **previous** primary.
+6. Map `LicenseEndpoints`; make `/api/license/request` idempotent per binding hash.
+7. Write `LicenseReissueConsumer` against D09's `IOutboxConsumer`.
+8. Replace `EntitlementMiddleware`'s body; keep it after authentication/authorization in the
+   pipeline; add the 60 s tenant-scoped cache.
+9. Add the audit writes and the failing-verification alert rule.
+10. Write the four test classes; `LicenseAntiCloningTests` **is** `ARCHITECTURE.md` §19 gate U.
+11. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; `run.sh` = `SMOKE RUN OK`.
 
 ## Contracts / schema added
-- New project `Animora.Server.Licensing` with `LicenseSigner`, `LicenseVerifier`, `LicenseKeyRing`,
-  `LicenseIssuer`, `InstallationBinding`, `LicensePayloadCanonicalizer`, `EntitlementSnapshot`,
-  `EntitlementState`.
-- Wire: `LicenseArtifactV1`, `LicensePayloadV1`, `EntitlementSnapshotV1`, `LicenseIssueRequestV1`,
-  `KeyRingStatusV1`. `WireContract.Version` stays `1`.
-- Persistence.SqlServer: `LicenseSigningKey`, `IssuedLicense`, `LicensingConfigurations`,
-  migration `109_Licensing`, `ServerAppendOnlyGuard` += `IssuedLicenses`.
-- Server: `LicensingOptions`, `LicenseService`, `ServerEntitlementProvider`,
-  `LicensingEntitlementGate`, the **real** `EntitlementMiddleware`, `RequireFeature`,
-  `LicensingEndpoints` (6 routes), the `licensing` readiness check.
-- `ErrorCodes` += the 12 codes listed above.
-- DI: `IEntitlementGate` → `LicensingEntitlementGate` (**server container only**; `App.axaml.cs`
-  unchanged — E07 owns the desktop swap).
-- No `Animora.Contracts` change, no `CommandTypes` entry.
+- Project `Animora.Server.Licensing` (`Verification/` + `Issuance/`).
+- Verification: `LicenseContract`, `LicensePayload`, `LicenseArtifact`, `LicenseKeyRing`,
+  `LicenseVerificationKey`, `LicenseKeySetBundle`, `InstallationBinding`, `LicenseVerifier`,
+  `LicenseVerificationContext`, `LicenseVerdict`, `LicenseStatus`, `EntitlementPolicy`,
+  `EntitlementDecision`, `CapabilityGroups`, `EntitlementCacheSeal`.
+- Issuance: `ILicenseIssuer`, `LicenseIssuer`, `LicenseIssueRequest`, `IssuedLicense`,
+  `LicensePolicy` (`MaxValidityDays 45`, `ExpiringWithinDays 10`, `KeyRetireDays 30`).
+- Wire: `LicenseRequestV1`, `LicenseResponseV1`, `LicenseKeySetBundleV1`.
+  `WireContract.Version` stays `1`; `LicenseContract.Version = 1` is introduced here.
+- Persistence.SqlServer: `LicenseSigningKey`, `KeyStatus`, `LicenseIssuance`, migration
+  `109_Licensing`, `ServerModel` + `ServerAppendOnlyGuard` extended.
+- Server: `LicenseEndpoints` (4 routes), `LicenseReissueConsumer`, the real
+  `EntitlementMiddleware`.
+- `ErrorCodes` += 11. No `Animora.Contracts` change, no `CommandTypes` entry, no DI change in
+  `App.axaml.cs`.
 
 ## Rules that apply here
-- **A-RULE 030 / §13.2** — the signature proves authenticity; the **installation binding** is what
-  prevents cloning, and it has its own distinct error code and its own test.
-- **A-RULE 011 / §13.2 step 5** — verification uses the monotonic high-water clock; a wound-back
-  wall clock cannot extend a license and is reported as `LICENSE_CLOCK_ROLLBACK`.
-- **R-B30 / §13.1** — Licensing reads Subscription **once, at issue time**, and the runtime path
-  depends only on the signed artifact. No request-time subscription lookup exists.
-- **A-RULE 023 / R-B20** — entitlement is the **third** plane, evaluated after authentication and
-  authorization, never merged with either; the middleware order is asserted by a test.
-- **A-RULE 016** — no online license server, no revocation service, no outbound call anywhere in
-  the licensing path; the limitation is documented instead of faked.
-- **A-RULE 027 / §10.6** — private key material is Data-Protection-protected and part of the backup
-  set; without the key ring the server can verify but **refuses to sign** (fail closed).
-- **A-RULE 033** — the entitlement cache key is `(tenant, licenseId, contract version)` and bounded.
-- **R-B29** — every issuance, rotation, revocation and **failed verification** is audited.
+- **A-RULE 030 / R-B06** — the signature is authenticity only; `InstallationBindingHash`
+  verification (step 7) is the mandatory anti-cloning control and runs before expiry.
+- **A-RULE 011** — `effectiveNow = max(wallClock, monotonicHighWater)`; a wound-back clock can never
+  extend validity.
+- **A-RULE 027 / §10.6** — the private key is wrapped by the persisted Data Protection ring; without
+  the ring the server refuses to issue (never falls back to an unprotected key).
+- **R-B30 / §13.1** — Licensing reads Subscription **only** at issuance, asynchronously via the
+  outbox consumer; the runtime entitlement path touches no subscription table.
+- **A-RULE 023** — authentication → authorization → entitlement, three separate middleware stages,
+  in that order.
+- **R-B29** — issue/reissue/rotate and every reported verification failure are audited; repeated
+  failures raise an operator alert, never an automatic block.
+- **A-RULE 016 / 032** — `Verification/` performs no I/O and no network call; revocation is
+  approximated by short validity, stated in the code comment, never claimed as instant.
+- **CONVENTIONS §7** — first-party crypto primitives only (`ECDsa`, `HMACSHA256`); no custom
+  algorithm, no third-party crypto package.
 
 ## Out of scope
-- The desktop-side verifier wiring, offline entitlement UX, and license renewal on reconnect → E07
-  (it consumes `Animora.Server.Licensing` and `/api/licensing/renew` unchanged).
-- Operator **UI** for keys/licenses → E01.
-- Binary obfuscation / anti-debugging / packer-level protection → **never** claimed by this product.
-- Feature gating of specific business endpoints → the plane exists here; individual
-  `RequireFeature` attributes are applied when a plan actually differentiates a feature.
-- Rate limiting on licensing endpoints → D13.
-- Gate U (`ARCHITECTURE.md` §19) as a *recorded* validation gate → E08; this phase ships the
-  behavior and its unit-level proof.
+- Client-side verification, local entitlement caching, expiry/grace UX and feature gating in the
+  desktop → E07 (which references only `Verification/`).
+- The operator UI for licence issue/reissue/rotate → E01.
+- Gate U's formal recording alongside the other gates → E08 (the test lands here; the recorded
+  verdict table is E08's).
+- Any online revocation channel — architecturally excluded (`ARCHITECTURE.md` §13.2).
+- Billing/payment for a plan → out of product scope (`STACK.md` §17).
 
 ## Acceptance criteria
-- Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors, and `Animora.Server.Licensing`
-  references only `Animora.Domain`, `Animora.Application`, `Animora.Contracts.Wire` (layering fact).
-- `LicenseVerificationTests` green: a correctly issued license returns `EntitlementState.Valid`; each
-  of the eight checks can be made to fail **in isolation** and returns its own error code, in the
-  documented order (a malformed artifact never reaches the binding check, etc.).
-- `LicenseAntiCloningTests` green: an artifact issued for installation A, verified byte-for-byte on
-  installation B, returns `LICENSE_INSTALLATION_MISMATCH` — never `Valid`, never a generic signature
-  error.
-- `LicenseClockRollbackTests` green: with the wall clock wound back one year past an expiry, the
-  verifier returns `LICENSE_CLOCK_ROLLBACK`/`LICENSE_EXPIRED` using the high-water mark, and a
-  successful verification advances the high-water mark.
-- `KeyRotationTests` green: after a rotation, a license signed by the retired key still verifies;
-  after the retired key is revoked it does not; only one key is ever `Active`; rotation enqueues one
-  `license.reissue.required` message per active tenant.
-- `EntitlementPlaneTests` green: an invalid/expired entitlement blocks `POST /api/commands` with
-  `403` and the correct code; `Grace` allows it and emits `X-Animora-Entitlement: grace`; every
-  allow-listed route still works with **no** license at all; the cache never serves tenant A's
-  snapshot to tenant B (gate L shape).
-- `/health/ready` reports `licensing: healthy | unlicensed | key-ring-missing`, and the server
-  **refuses to start** in non-Development with `DevelopmentUnlicensed == true`.
+- Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- `LicenseVerifierTests` green: each of the nine steps fails with its own error code, in order (a
+  malformed artifact never reaches the signature check; a wrong tenant never reaches expiry); a
+  well-formed licence verifies to `Valid`, and to `Expiring` inside `ExpiringWithinDays`.
+- `LicenseAntiCloningTests` green — **gate U**: (a) a licence issued for installation A fails with
+  `LICENSE_INSTALLATION_MISMATCH` when verified with installation B's binding hash, even though the
+  signature is valid; (b) setting `WallClockUtc` one year back while `MonotonicHighWaterUtc` stays
+  current still yields `LICENSE_EXPIRED` for an expired licence; (c) a licence signed by a `Retired`
+  key fails `LICENSE_KEY_UNKNOWN`, one signed by a `Retiring` key still verifies.
+- `LicenseIssuanceTests` green (or skipped with reason): issuance derives `Features`/`Seats` from the
+  subscription's plan; a repeat request for the same binding hash returns the identical artifact; a
+  reissue writes a new row and supersedes the old one; any `Update`/`Delete` on
+  `LicenseIssuances` other than the whitelisted column throws; rotation keeps exactly one
+  `IsPrimary` row and the new bundle verifies against the previous key.
+- `EntitlementPolicyTests` green: the matrix matches the table cell-for-cell; `Expired` denies
+  clinical writes **and** money but still allows clinical reads; `Invalid` denies sync; a missing
+  licence evaluates as `Invalid`, never `Valid`.
+- `EntitlementMiddleware` returns `403` `ENTITLEMENT_REQUIRED` for a money command under an expired
+  licence, and lets a read through; authentication failures still return `401` (planes not merged).
 - Desktop unaffected: `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
 
 ## PROGRESS.md update
 Mark D11 done; advance "Next phase" to `D12`; append a "Repo state" entry listing: the
-`Animora.Server.Licensing` project and its **deliberately EF/ASP-free** reference set (**E07
-compiles the same verifier into the desktop**), the `LicenseArtifactV1` format + `ES256` decision +
-canonical-JSON reuse, `LicensePayloadV1`'s field set, the `LicenseSigningKeys` ring + one-`Active`-key
-rule + rotation semantics + `RetiredKeyRetentionDays`, `InstallationBinding`'s hash formula (**the
-anti-cloning anchor, A-RULE 030**), the monotonic-clock rule, `LicenseVerifier`'s **eight ordered
-checks and their error codes** (**E07 depends on this exact order**), `EntitlementSnapshot` +
-`EntitlementState` (**E07's client cache shape**), the `IssuedLicenses` append-only ledger + the 3
-allow-listed mutable columns, the **replaced** `EntitlementMiddleware` + its allow-list + grace
-header, `LicensingEntitlementGate` (server-only DI swap), the 6 licensing routes (**E07 calls
-`/api/licensing/renew`; E01 renders the key ring**), `LicensingOptions` defaults (validity 45 /
-grace 14 / skew 10 / retention 400), the explicit "no online revocation channel" limitation, the
-explicit "no binary tamper-proofing claimed" limitation, the 12 new error codes, deviations.
+`Animora.Server.Licensing` project and the **`Verification/` has no server dependency** rule
+(**E07 references only that folder**), `LicenseArtifact` format + `LicenseContract.Version = 1`,
+the ECDSA P-256/SHA-256 choice, `LicenseSigningKey` + `LicenseIssuance` (migration `109_Licensing`,
+append-only + the one whitelisted column), `InstallationBinding`'s shared hash function,
+`LicenseVerifier`'s 9-step order and the `max(wall, highWater)` rule, `EntitlementPolicy`'s
+fail-closed matrix (**E07 enforces it client-side**), `EntitlementCacheSeal` (**E07 uses it**),
+`LicensePolicy` numbers and the "short validity = revocation" decision, the 4 routes,
+`LicenseReissueConsumer` as the only Subscription→Licensing coupling, the real
+`EntitlementMiddleware`, the gate U test name, the 11 new error codes, deviations.
