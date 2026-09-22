@@ -81,7 +81,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
 
         _dialogs.ShowSheet(
             new InvoiceViewerViewModel(_service, _toast, _dialogs, invoiceId, Refresh),
-            760,
+            1040,
             720);
     }
 
