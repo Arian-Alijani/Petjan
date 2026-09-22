@@ -41,11 +41,6 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
     // index, so it rebuilds; UpdateStay replaces in place, index unchanged).
     private readonly Dictionary<string, int> _stayIndexById = new(StringComparer.Ordinal);
 
-    // Static selectable catalog (bx-*/sv-*/it-* combined) is looked up by ref
-    // in AddItemAsync; index it once instead of re-flattening + scanning per call.
-    private static readonly Dictionary<string, BoardingSelectableItem> SelectablesByRef =
-        AllSelectables().ToDictionary(x => x.Ref, StringComparer.Ordinal);
-
     // The audit identity seam (R1/R3): every recorded mutation is stamped from it.
     private readonly ICurrentUserContext _user;
 
@@ -117,6 +112,14 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
         ("it-9", "ویتامین مایع", 150_000),
         ("it-10", "قلاده ضدکک", 390_000),
     ];
+
+    // Static selectable catalog (bx-*/sv-*/it-* combined) is looked up by ref
+    // in AddItemAsync; index it once instead of re-flattening + scanning per call.
+    // Declared AFTER the seed arrays it flattens: static field initializers run in
+    // textual order, so AllSelectables() must not run before ExtraServiceSeed/
+    // ClinicServiceSeed/ClinicItemSeed are assigned (else they are still null).
+    private static readonly Dictionary<string, BoardingSelectableItem> SelectablesByRef =
+        AllSelectables().ToDictionary(x => x.Ref, StringComparer.Ordinal);
 
     // Reference knownPets (boarding.js openNewStayModal) — patient suggestions.
     private static readonly BoardingKnownPet[] KnownPetSeed =
