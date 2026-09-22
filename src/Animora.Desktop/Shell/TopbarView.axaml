@@ -4,6 +4,31 @@
              x:Class="Animora.Desktop.Shell.TopbarView"
              x:DataType="shell:TopbarViewModel">
 
+    <UserControl.Styles>
+        <!-- Sync glyph spin: a continuous 360° rotation while a sync is running
+             (mirrors the fold-rotation pattern above, driven by a class so the
+             animation only runs in the syncing state). -->
+        <Style Selector="Path.sync-glyph">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Path.sync-glyph.spinning">
+            <Style.Animations>
+                <Animation Duration="0:0:1.1" IterationCount="INFINITE" Easing="LinearEasing">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="RotateTransform.Angle" Value="0" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="RotateTransform.Angle" Value="360" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+    </UserControl.Styles>
+
     <Border Background="{StaticResource PanelBrush}"
             BorderBrush="{StaticResource Line2Brush}"
             BorderThickness="0,0,0,1"
@@ -151,18 +176,52 @@
                     </Grid>
                 </Button>
 
-                <!-- Quick-create -->
-                <Button Classes="primary"
-                        Command="{Binding CreateNewCommand}"
-                        ToolTip.Tip="ایجاد جدید">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Path Classes="icon"
-                              Width="15"
-                              Height="15"
-                              Stroke="White"
-                              Data="{StaticResource IconPlus}" />
-                        <TextBlock Text="ایجاد جدید" VerticalAlignment="Center" />
-                    </StackPanel>
+                <!-- Sync status box (design-only widget; driven by ISyncStatusService
+                     so a future sync engine can update it with zero view changes). -->
+                <Button Command="{Binding SyncNowCommand}"
+                        Padding="0"
+                        Background="{StaticResource Bg2Brush}"
+                        BorderBrush="{StaticResource LineBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Cursor="Hand"
+                        ToolTip.Tip="{Binding SyncToolTip}">
+                    <Grid ColumnDefinitions="Auto,Auto,*" Margin="12,8">
+                        <Ellipse Grid.Column="0"
+                                 Width="8"
+                                 Height="8"
+                                 VerticalAlignment="Center"
+                                 Fill="{Binding SyncStateBrush}" />
+
+                        <!-- Sync glyph: rotates continuously while a sync is running. -->
+                        <Path Grid.Column="1"
+                              Classes="icon sync-glyph"
+                              Classes.spinning="{Binding IsSyncing}"
+                              Width="16"
+                              Height="16"
+                              Margin="8,0,0,0"
+                              VerticalAlignment="Center"
+                              RenderTransformOrigin="50%,50%"
+                              Stroke="{StaticResource Ink2Brush}"
+                              Data="{StaticResource IconSync}">
+                            <Path.RenderTransform>
+                                <RotateTransform />
+                            </Path.RenderTransform>
+                        </Path>
+
+                        <StackPanel Grid.Column="2"
+                                    Margin="8,0,0,0"
+                                    VerticalAlignment="Center"
+                                    Spacing="1">
+                            <TextBlock Text="{Binding SyncStatusText}"
+                                       FontSize="12.5"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource InkBrush}" />
+                            <TextBlock Text="{Binding SyncRelativeText}"
+                                       FontSize="10"
+                                       Foreground="{StaticResource MutedBrush}" />
+                        </StackPanel>
+                    </Grid>
                 </Button>
 
                 <!-- Theme toggle (moon) — inert stub, matching the reference. -->

@@ -12,9 +12,12 @@ using Animora.Contracts.Profile;
 using Animora.Contracts.Purchasing;
 using Animora.Contracts.Reception;
 using Animora.Contracts.Sales;
+using Animora.Contracts.Search;
+using Animora.Contracts.Sync;
 using Animora.Contracts.Visits;
 using Animora.Contracts.Vaccination;
 using Animora.Desktop.Mocks;
+using Animora.Desktop.Shell.Search;
 using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Boarding;
 using Animora.Desktop.Pages.Cashier;
@@ -207,6 +210,16 @@ public partial class App : Application
         // edits while navigating away and back.
         services.AddSingleton<IUserProfileService, MockUserProfileService>();
         services.AddSingleton<ProfilePageViewModel>();
+
+        // Sync status seam (topbar sync box). Mock now; a future ISyncEngine
+        // implementation swaps in behind the same ISyncStatusService contract.
+        services.AddSingleton<ISyncStatusService, MockSyncStatusService>();
+
+        // Global command palette (Ctrl+K) search seam. Depends on the patients
+        // directory so a query also returns live patient/owner matches. The
+        // palette ViewModel is transient so each open starts fresh.
+        services.AddSingleton<ISearchService, MockSearchService>();
+        services.AddTransient<CommandPaletteViewModel>();
 
         // Startup sign-in gate (front-end only for now; admin/admin demo
         // credentials, mock-authenticated in LoginViewModel). Transient so a

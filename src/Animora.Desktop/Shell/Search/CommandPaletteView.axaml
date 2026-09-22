@@ -1,0 +1,204 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:search="using:Animora.Desktop.Shell.Search"
+             x:Class="Animora.Desktop.Shell.Search.CommandPaletteView"
+             x:DataType="search:CommandPaletteViewModel"
+             FlowDirection="RightToLeft">
+
+    <UserControl.Styles>
+        <Style Selector="Border.kbd">
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Padding" Value="5,1" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.kbd > TextBlock">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Command palette panel (Ctrl+K). Mirrors Animora-UI/assets/styles.css
+         .cmdk-panel: rounded, elevated, input row + scrollable body + footer. -->
+    <Border Background="{StaticResource PanelBrush}"
+            BorderBrush="{StaticResource Line2Brush}"
+            BorderThickness="1"
+            CornerRadius="16"
+            ClipToBounds="True">
+        <Grid RowDefinitions="Auto,*,Auto">
+
+            <!-- Input row: search icon + autofocused input + Esc chip. -->
+            <Grid Grid.Row="0"
+                  ColumnDefinitions="Auto,*,Auto"
+                  Margin="20,16">
+                <Path Grid.Column="0"
+                      Classes="icon"
+                      Width="19"
+                      Height="19"
+                      VerticalAlignment="Center"
+                      Stroke="{StaticResource MutedBrush}"
+                      Data="{StaticResource IconSearch}" />
+                <TextBox x:Name="Input"
+                         Grid.Column="1"
+                         Margin="12,0,0,0"
+                         FontSize="15"
+                         FontWeight="SemiBold"
+                         VerticalContentAlignment="Center"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         PlaceholderText="چه کاری می‌خواهید انجام دهید؟"
+                         Text="{Binding SearchText, Mode=TwoWay}" />                <Button Grid.Column="2"
+                        Classes="ghost"
+                        Padding="9,3"
+                        FontSize="11"
+                        FontWeight="SemiBold"
+                        VerticalAlignment="Center"
+                        Foreground="{StaticResource MutedBrush}"
+                        BorderBrush="{StaticResource LineBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Content="Esc"
+                        Command="{Binding CloseCommand}"
+                        ToolTip.Tip="بستن" />
+            </Grid>
+
+            <Border Grid.Row="0"
+                    VerticalAlignment="Bottom"
+                    BorderBrush="{StaticResource Line2Brush}"
+                    BorderThickness="0,0,0,1" />
+
+            <!-- Body: section header + results list, or the empty state. -->
+            <ScrollViewer Grid.Row="1"
+                          MaxHeight="420"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <Panel Margin="12,10,12,12">
+
+                    <StackPanel IsVisible="{Binding !IsEmpty}">
+                        <TextBlock Text="{Binding ResultsHeader}"
+                                   Margin="10,0,0,6"
+                                   FontSize="10.5"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource Muted2Brush}" />
+
+                        <ItemsControl ItemsSource="{Binding Results}">
+                            <ItemsControl.Styles>
+                                <Style Selector="Border.cmdk-row">
+                                    <Setter Property="CornerRadius" Value="14" />
+                                    <Setter Property="Padding" Value="9,10" />
+                                    <Setter Property="BorderThickness" Value="1" />
+                                    <Setter Property="BorderBrush" Value="Transparent" />
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="Cursor" Value="Hand" />
+                                </Style>
+                                <Style Selector="Border.cmdk-row.selected">
+                                    <Setter Property="Background" Value="{StaticResource BgBrush}" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+                                </Style>
+                            </ItemsControl.Styles>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="search:CommandPaletteItemViewModel">
+                                    <Border Classes="cmdk-row"
+                                            Classes.selected="{Binding IsSelected}"
+                                            PointerMoved="OnRowPointerMoved"
+                                            PointerPressed="OnRowPointerPressed">
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <Border Grid.Column="0"
+                                                    Width="38"
+                                                    Height="38"
+                                                    CornerRadius="12"
+                                                    Background="{Binding IconBackground}">
+                                                <Path Classes="icon"
+                                                      Width="18"
+                                                      Height="18"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Stroke="{Binding IconForeground}"
+                                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1"
+                                                        Margin="12,0"
+                                                        VerticalAlignment="Center"
+                                                        Spacing="1">
+                                                <TextBlock Text="{Binding Title}"
+                                                           FontSize="13.5"
+                                                           FontWeight="Bold"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                                <TextBlock Text="{Binding Subtitle}"
+                                                           FontSize="11"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </StackPanel>
+                                            <Path Grid.Column="2"
+                                                  Classes="icon"
+                                                  Width="16"
+                                                  Height="16"
+                                                  VerticalAlignment="Center"
+                                                  IsVisible="{Binding IsSelected}"
+                                                  Stroke="{StaticResource Muted2Brush}"
+                                                  Data="{StaticResource IconChevronLeft}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- Empty state. -->
+                    <StackPanel IsVisible="{Binding IsEmpty}"
+                                Margin="10,34"
+                                HorizontalAlignment="Center"
+                                Spacing="8">
+                        <Path Classes="icon"
+                              Width="26"
+                              Height="26"
+                              HorizontalAlignment="Center"
+                              Opacity="0.5"
+                              Stroke="{StaticResource Muted2Brush}"
+                              Data="{StaticResource IconSearch}" />
+                        <TextBlock HorizontalAlignment="Center"
+                                   FontSize="12.5"
+                                   Foreground="{StaticResource Muted2Brush}">
+                            <Run Text="نتیجه‌ای برای «" />
+                            <Run Text="{Binding EmptyQuery}" />
+                            <Run Text="» پیدا نشد" />
+                        </TextBlock>
+                    </StackPanel>
+                </Panel>
+            </ScrollViewer>
+
+            <!-- Footer hints. -->
+            <Border Grid.Row="2"
+                    Background="#fbfcfb"
+                    BorderBrush="{StaticResource Line2Brush}"
+                    BorderThickness="0,1,0,0"
+                    Padding="18,10">
+                <Grid ColumnDefinitions="Auto,Auto,Auto,*">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Border Classes="kbd"><TextBlock Text="↑" /></Border>
+                        <Border Classes="kbd"><TextBlock Text="↓" /></Border>
+                        <TextBlock Text="جابجایی" FontSize="10.5" Foreground="{StaticResource Muted2Brush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" Margin="14,0,0,0" VerticalAlignment="Center">
+                        <Border Classes="kbd"><TextBlock Text="↵" /></Border>
+                        <TextBlock Text="انتخاب" FontSize="10.5" Foreground="{StaticResource Muted2Brush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" Margin="14,0,0,0" VerticalAlignment="Center">
+                        <Border Classes="kbd"><TextBlock Text="Esc" /></Border>
+                        <TextBlock Text="بستن" FontSize="10.5" Foreground="{StaticResource Muted2Brush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="3"
+                               Text="وت‌پلاس"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"
+                               FontWeight="ExtraBold"
+                               FontSize="11"
+                               Foreground="{StaticResource Brand600Brush}"
+                               Opacity="0.75" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+
+</UserControl>

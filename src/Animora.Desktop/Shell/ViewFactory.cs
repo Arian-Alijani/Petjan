@@ -53,6 +53,7 @@ public static class ViewFactory
         // Shell chrome.
         Register<global::Animora.Desktop.Shell.SidebarViewModel, global::Animora.Desktop.Shell.SidebarView>(factories);
         Register<global::Animora.Desktop.Shell.TopbarViewModel, global::Animora.Desktop.Shell.TopbarView>(factories);
+        Register<global::Animora.Desktop.Shell.Search.CommandPaletteViewModel, global::Animora.Desktop.Shell.Search.CommandPaletteView>(factories);
 
         // Appointments.
         Register<global::Animora.Desktop.Pages.Appointments.AppointmentsCalendarViewModel, global::Animora.Desktop.Pages.Appointments.AppointmentsCalendarView>(factories);
