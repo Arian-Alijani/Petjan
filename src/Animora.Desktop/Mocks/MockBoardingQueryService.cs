@@ -1,4 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Threading.Tasks;
 using Animora.Contracts.Boarding;
+using Animora.Contracts.Identity;
+using Animora.Desktop.Localization;
 
 namespace Animora.Desktop.Mocks;
 
@@ -14,8 +21,15 @@ namespace Animora.Desktop.Mocks;
 /// catalogs all live here (the reference's <c>STAYS</c>/<c>ROOMS</c>/
 /// <c>EXTRA_SVCS</c>/<c>CLINIC.SERVICES</c>/<c>CLINIC.ITEMS</c>), and every
 /// mutation the detail/transfer/checkout/new-stay modals perform mutates this
-/// one in-memory store. This is the single swap point a future backend replaces
-/// (R-18) — no ViewModel or View change is required to do so.
+/// one in-memory store.
+/// <para>
+/// <b>History (R3).</b> Each mutation also appends a
+/// <see cref="BoardingHistoryEntry"/> to a self-contained ledger (stamped with
+/// the audit <see cref="ActorRef"/> from the injected identity), so
+/// <see cref="GetHistoryAsync"/> can serve a paged, filtered, sorted view over
+/// the <b>whole</b> set without the UI ever materialising it (PERFORMANCE.md §6).
+/// This is the single swap point a future backend replaces (R-18).
+/// </para>
 /// </summary>
 public sealed class MockBoardingQueryService : IBoardingQueryService
 {
@@ -31,6 +45,25 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
     // in AddItemAsync; index it once instead of re-flattening + scanning per call.
     private static readonly Dictionary<string, BoardingSelectableItem> SelectablesByRef =
         AllSelectables().ToDictionary(x => x.Ref, StringComparer.Ordinal);
+
+    // The audit identity seam (R1/R3): every recorded mutation is stamped from it.
+    private readonly ICurrentUserContext _user;
+
+    // Boarding-history ledger (R3). Built lazily into a cached row list and
+    // rebuilt only after a mutation, so repeated paging/sorting does not
+    // re-derive the rows (PERFORMANCE.md §13).
+    private readonly List<BoardingHistoryEntry> _history = [];
+    private IReadOnlyList<HistoryRow>? _historyRows;
+    private bool _historyDirty = true;
+
+    private static readonly ActorRef[] SeedActors =
+    [
+        new("u-aria", "دکتر آریا نیک", "مدیر کلینیک", "آ"),
+        new("u-mina", "دکتر مینا همتی", "دکتر دامپزشک", "م"),
+        new("u-soheil", "دکتر سهیل کاویانی", "دکتر دامپزشک", "س"),
+        new("u-sara", "منشی سارا", "پذیرش", "س"),
+        new("u-negar", "منشی نگار", "پذیرش", "ن"),
+    ];
 
     // Reference ROOMS (Animora-UI/assets/boarding.js) — id/label/type/species/cap.
     private static readonly (string Id, string Label, BoardingRoomType Type, BoardingSpecies Species, int Cap)[] RoomSeed =
@@ -96,8 +129,10 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
 
     private static readonly string[] Tones = ["a", "b", "c", "d", "e", "f"];
 
-    public MockBoardingQueryService()
+    public MockBoardingQueryService(ICurrentUserContext user)
     {
+        _user = user;
+
         // The reference pins "today" (1404/05/11); re-anchor to the live date so
         // the relative check-in/out offsets keep their reference distribution.
         var today = DateOnly.FromDateTime(DateTime.Today);
@@ -112,7 +147,7 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
                 PaymentMode: BoardingPaymentMode.Postpaid, Status: BoardingStatus.Active,
                 Tone: "b", Transferred: false,
                 Note: "پیاده‌روی هر صبح؛ حساسیت غذایی به مرغ — فقط غذای ماهی.",
-                ExtraItemsCost: 1_300_000), // it-3 (۱×۸۵۰٬۰۰۰) + bx-1 (۳×۱۵۰٬۰۰۰)
+                ExtraItemsCost: 1_300_000),
 
             new BoardingStay(
                 Id: "bd-2", PetName: "میشا", Species: BoardingSpecies.Cat, Breed: "پرشین",
@@ -121,7 +156,7 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
                 PaymentMode: BoardingPaymentMode.Prepaid, Status: BoardingStatus.Active,
                 Tone: "a", Transferred: false,
                 Note: "داروی قطره چشم روزی دو بار — توسط پرسنل.",
-                ExtraItemsCost: 1_020_000), // it-2 (۴×۸۵٬۰۰۰) + it-8 (۱×۲۸۰٬۰۰۰) + bx-2 (۱×۴۰۰٬۰۰۰)
+                ExtraItemsCost: 1_020_000),
 
             new BoardingStay(
                 Id: "bd-3", PetName: "گلچین", Species: BoardingSpecies.Bird, Breed: "کاسکو",
@@ -130,7 +165,7 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
                 PaymentMode: BoardingPaymentMode.Postpaid, Status: BoardingStatus.Active,
                 Tone: "e", Transferred: false,
                 Note: "",
-                ExtraItemsCost: 150_000), // it-9 (۱×۱۵۰٬۰۰۰)
+                ExtraItemsCost: 150_000),
 
             new BoardingStay(
                 Id: "bd-4", PetName: "کوکو", Species: BoardingSpecies.Rabbit, Breed: "خرگوش لوپ",
@@ -139,7 +174,7 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
                 PaymentMode: BoardingPaymentMode.Prepaid, Status: BoardingStatus.Done,
                 Tone: "f", Transferred: true,
                 Note: "تحویل با رضایت کامل.",
-                ExtraItemsCost: 450_000), // it-5 (۱×۴۵۰٬۰۰۰)
+                ExtraItemsCost: 450_000),
 
             new BoardingStay(
                 Id: "bd-5", PetName: "هاپو", Species: BoardingSpecies.Dog, Breed: "گلدن رتریور",
@@ -157,10 +192,9 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
                 PaymentMode: BoardingPaymentMode.Prepaid, Status: BoardingStatus.Done,
                 Tone: "d", Transferred: false,
                 Note: "",
-                ExtraItemsCost: 1_350_000), // bx-3 (۱×۵۵۰٬۰۰۰) + bx-2 (۲×۴۰۰٬۰۰۰)
+                ExtraItemsCost: 1_350_000),
         ];
 
-        // Reference items[] per stay, in the same insertion order.
         _items["bd-1"] =
         [
             new("it-3", BoardingItemKind.Item, "غذای خشک بالغ سگ (۵ کیلو)", 1, 850_000, Day(-3)),
@@ -188,7 +222,219 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
         ];
 
         RebuildStayIndex();
+        SeedHistory();
     }
+
+    // ── History (R3) ────────────────────────────────────────────────────────
+
+    private ActorRef CurrentActor() =>
+        new(_user.UserId, _user.Name, _user.RoleLabel, _user.Initials);
+
+    private static string Jalali(DateOnly date) =>
+        JalaliCalendar.ToIso(JalaliDate.FromDateTime(date.ToDateTime(TimeOnly.MinValue)));
+
+    private static string NowTime() =>
+        PersianNumberFormatter.ToPersianDigits($"{DateTime.Now.Hour:D2}:{DateTime.Now.Minute:D2}");
+
+    /// <summary>Seeds a realistic historic backlog (spread over ~60 days, varied actors).</summary>
+    private void SeedHistory()
+    {
+        var n = 0;
+        foreach (var stay in _stays)
+        {
+            var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
+            var actor = SeedActors[n % SeedActors.Length];
+
+            AddHistory(new BoardingHistoryEntry(
+                $"bh-seed-in-{stay.Id}", BoardingHistoryKind.CheckIn, KindLabel(BoardingHistoryKind.CheckIn),
+                stay.Id, stay.PetName, stay.Species, stay.OwnerName, stay.Room,
+                Jalali(stay.CheckIn), "۰۹:۳۰", nights, 0, 0, "ثبت پذیرش و ورود به اتاق", actor));
+
+            foreach (var item in _items[stay.Id])
+            {
+                n++;
+                var a = SeedActors[n % SeedActors.Length];
+                AddHistory(new BoardingHistoryEntry(
+                    $"bh-seed-item-{stay.Id}-{item.Ref}", BoardingHistoryKind.ItemAdded, KindLabel(BoardingHistoryKind.ItemAdded),
+                    stay.Id, stay.PetName, stay.Species, stay.OwnerName, stay.Room,
+                    Jalali(item.Date), "۱۱:۰۰", nights, (long)item.Quantity * item.Price, 1, item.Title, a));
+            }
+
+            if (stay.Transferred)
+            {
+                n++;
+                AddHistory(new BoardingHistoryEntry(
+                    $"bh-seed-tr-{stay.Id}", BoardingHistoryKind.Transferred, KindLabel(BoardingHistoryKind.Transferred),
+                    stay.Id, stay.PetName, stay.Species, stay.OwnerName, stay.Room,
+                    Jalali(stay.CheckOut), "۱۲:۰۰", nights, 0, 0, "انتقال فاکتور به صندوق", SeedActors[n % SeedActors.Length]));
+            }
+
+            if (stay.Status == BoardingStatus.Done)
+            {
+                n++;
+                var total = (long)nights * stay.DailyRate + stay.ExtraItemsCost;
+                AddHistory(new BoardingHistoryEntry(
+                    $"bh-seed-out-{stay.Id}", BoardingHistoryKind.CheckOut, KindLabel(BoardingHistoryKind.CheckOut),
+                    stay.Id, stay.PetName, stay.Species, stay.OwnerName, stay.Room,
+                    Jalali(stay.CheckOut), "۱۶:۰۰", nights, total, 1, "تخلیه و تسویه اقامت", SeedActors[n % SeedActors.Length]));
+            }
+
+            n++;
+        }
+
+        // Extra backlog so paging/sort/date-range are demonstrable (dozens+ rows).
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        for (var i = 0; i < 40; i++)
+        {
+            var stay = _stays[i % _stays.Count];
+            var date = today.AddDays(-(5 + (i % 60)));
+            var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
+            var kind = (i % 3) switch
+            {
+                0 => BoardingHistoryKind.ItemAdded,
+                1 => BoardingHistoryKind.CheckIn,
+                _ => BoardingHistoryKind.ItemRemoved,
+            };
+            var amount = kind == BoardingHistoryKind.ItemAdded ? 150_000 + (i % 5) * 60_000 : 0;
+            var sign = kind == BoardingHistoryKind.ItemAdded ? 1 : 0;
+            var note = kind switch
+            {
+                BoardingHistoryKind.ItemAdded => "افزودن مورد مصرفی",
+                BoardingHistoryKind.ItemRemoved => "حذف مورد اشتباه",
+                _ => "ثبت پذیرش و ورود به اتاق",
+            };
+
+            AddHistory(new BoardingHistoryEntry(
+                $"bh-extra-{i}", kind, KindLabel(kind), stay.Id, stay.PetName, stay.Species, stay.OwnerName, stay.Room,
+                Jalali(date), $"{8 + (i % 11):D2}:{(i % 6) * 10:D2}", nights, amount, sign, note,
+                SeedActors[i % SeedActors.Length]));
+        }
+
+        _historyDirty = true;
+    }
+
+    private void AddHistory(BoardingHistoryEntry entry)
+    {
+        _history.Add(entry);
+        _historyDirty = true;
+    }
+
+    private static string KindLabel(BoardingHistoryKind kind) => kind switch
+    {
+        BoardingHistoryKind.CheckIn => "پذیرش",
+        BoardingHistoryKind.ItemAdded => "افزودن مورد",
+        BoardingHistoryKind.ItemRemoved => "حذف مورد",
+        BoardingHistoryKind.Transferred => "انتقال به صندوق",
+        BoardingHistoryKind.CheckOut => "تخلیه",
+        _ => "رویداد",
+    };
+
+    private IReadOnlyList<HistoryRow> EnsureHistory()
+    {
+        if (_historyDirty || _historyRows is null)
+        {
+            _historyRows = _history
+                .Select(e => new HistoryRow(e, PersianText.Normalize(
+                    $"{e.PetName} {e.OwnerName} {e.RoomLabel} {e.Note} {e.Actor.Name} {e.StayId}")))
+                .ToList();
+            _historyDirty = false;
+        }
+
+        return _historyRows;
+    }
+
+    public Task<BoardingHistoryPage> GetHistoryAsync(BoardingHistoryFilter filter)
+    {
+        var rows = EnsureHistory();
+        var kinds = filter.Kinds ?? [];
+
+        var from = string.IsNullOrWhiteSpace(filter.FromDate) ? null : filter.FromDate;
+        var to = string.IsNullOrWhiteSpace(filter.ToDate) ? null : filter.ToDate;
+        var q = PersianText.Normalize(filter.Search);
+
+        // Filter → sort → page. Totals are computed over the FULL filtered set
+        // so the summary bar stays accurate while only a single page is
+        // materialised on the UI thread (PERFORMANCE.md §6).
+        var matched = new List<HistoryRow>(rows.Count);
+        long inflow = 0, outflow = 0;
+        foreach (var row in rows)
+        {
+            var e = row.Entry;
+            if (from is not null && string.CompareOrdinal(e.Date, from) < 0)
+            {
+                continue;
+            }
+
+            if (to is not null && string.CompareOrdinal(e.Date, to) > 0)
+            {
+                continue;
+            }
+
+            if (kinds.Count > 0 && !kinds.Contains(e.Kind))
+            {
+                continue;
+            }
+
+            if (filter.Species is { } species && e.Species != species)
+            {
+                continue;
+            }
+
+            if (q.Length > 0 && !PersianText.Contains(row.Haystack, q))
+            {
+                continue;
+            }
+
+            matched.Add(row);
+            if (e.AmountSign > 0)
+            {
+                inflow += e.Amount;
+            }
+            else if (e.AmountSign < 0)
+            {
+                outflow += e.Amount;
+            }
+        }
+
+        matched.Sort(filter.Sort switch
+        {
+            BoardingHistorySort.Oldest => OldestComparer,
+            BoardingHistorySort.AmountDesc => AmountDescComparer,
+            BoardingHistorySort.AmountAsc => AmountAscComparer,
+            _ => NewestComparer,
+        });
+
+        var pageSize = Math.Max(1, filter.PageSize);
+        var skip = (Math.Max(1, filter.Page) - 1) * pageSize;
+        var take = Math.Min(pageSize, Math.Max(0, matched.Count - skip));
+
+        IReadOnlyList<BoardingHistoryEntry> items = take <= 0
+            ? []
+            : matched.GetRange(skip, take).Select(r => r.Entry).ToList();
+
+        return Task.FromResult(new BoardingHistoryPage(items, matched.Count, inflow, outflow));
+    }
+
+    private static int CompareDate(HistoryRow a, HistoryRow b, bool ascending)
+    {
+        var byDate = string.CompareOrdinal(a.Entry.Date, b.Entry.Date);
+        if (byDate == 0)
+        {
+            byDate = string.CompareOrdinal(a.Entry.Time, b.Entry.Time);
+        }
+
+        if (byDate == 0)
+        {
+            byDate = string.CompareOrdinal(a.Entry.Id, b.Entry.Id);
+        }
+
+        return ascending ? byDate : -byDate;
+    }
+
+    private static readonly Comparison<HistoryRow> NewestComparer = static (a, b) => CompareDate(a, b, ascending: false);
+    private static readonly Comparison<HistoryRow> OldestComparer = static (a, b) => CompareDate(a, b, ascending: true);
+    private static readonly Comparison<HistoryRow> AmountDescComparer = static (a, b) => b.Entry.Amount.CompareTo(a.Entry.Amount);
+    private static readonly Comparison<HistoryRow> AmountAscComparer = static (a, b) => a.Entry.Amount.CompareTo(b.Entry.Amount);
 
     private void RebuildStayIndex()
     {
@@ -231,17 +477,27 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
             return Task.CompletedTask;
         }
 
-        // Reference: a boarding-service ('bx') reference is stored as a service
-        // line (kind 'svc'); clinic services stay 'svc', clinic goods 'item'.
         var kind = catalog.Source == BoardingItemSource.ClinicItem
             ? BoardingItemKind.Item
             : BoardingItemKind.Service;
 
+        var qty = Math.Max(1, quantity);
         list.Add(new BoardingStayItem(
-            catalog.Ref, kind, catalog.Title, Math.Max(1, quantity), catalog.Price,
+            catalog.Ref, kind, catalog.Title, qty, catalog.Price,
             DateOnly.FromDateTime(DateTime.Today)));
 
         RefreshExtraCost(stayId);
+
+        var stay = _stayIndexById.TryGetValue(stayId, out var i) ? _stays[i] : null;
+        if (stay is not null)
+        {
+            var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
+            AddHistory(new BoardingHistoryEntry(
+                $"bh-add-{stayId}-{_history.Count}", BoardingHistoryKind.ItemAdded, KindLabel(BoardingHistoryKind.ItemAdded),
+                stayId, stay.PetName, stay.Species, stay.OwnerName, stay.Room,
+                JalaliCalendar.Today, NowTime(), nights, (long)qty * catalog.Price, 1, catalog.Title, CurrentActor()));
+        }
+
         return Task.CompletedTask;
     }
 
@@ -249,8 +505,19 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
     {
         if (_items.TryGetValue(stayId, out var list) && index >= 0 && index < list.Count)
         {
+            var removed = list[index];
             list.RemoveAt(index);
             RefreshExtraCost(stayId);
+
+            var stay = _stayIndexById.TryGetValue(stayId, out var i) ? _stays[i] : null;
+            if (stay is not null)
+            {
+                var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
+                AddHistory(new BoardingHistoryEntry(
+                    $"bh-rm-{stayId}-{_history.Count}", BoardingHistoryKind.ItemRemoved, KindLabel(BoardingHistoryKind.ItemRemoved),
+                    stayId, stay.PetName, stay.Species, stay.OwnerName, stay.Room,
+                    JalaliCalendar.Today, NowTime(), nights, (long)removed.Quantity * removed.Price, -1, removed.Title, CurrentActor()));
+            }
         }
 
         return Task.CompletedTask;
@@ -259,12 +526,35 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
     public Task TransferAsync(string stayId)
     {
         UpdateStay(stayId, stay => stay with { Transferred = true });
+
+        var stay = _stayIndexById.TryGetValue(stayId, out var i) ? _stays[i] : null;
+        if (stay is not null)
+        {
+            var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
+            AddHistory(new BoardingHistoryEntry(
+                $"bh-tr-{stayId}-{_history.Count}", BoardingHistoryKind.Transferred, KindLabel(BoardingHistoryKind.Transferred),
+                stayId, stay.PetName, stay.Species, stay.OwnerName, stay.Room,
+                JalaliCalendar.Today, NowTime(), nights, 0, 0, "انتقال فاکتور به صندوق", CurrentActor()));
+        }
+
         return Task.CompletedTask;
     }
 
     public Task CheckoutAsync(string stayId, CheckoutRequest request)
     {
         UpdateStay(stayId, stay => stay with { Status = BoardingStatus.Done });
+
+        var stay = _stayIndexById.TryGetValue(stayId, out var i) ? _stays[i] : null;
+        if (stay is not null)
+        {
+            var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
+            var total = (long)nights * stay.DailyRate + stay.ExtraItemsCost;
+            AddHistory(new BoardingHistoryEntry(
+                $"bh-out-{stayId}-{_history.Count}", BoardingHistoryKind.CheckOut, KindLabel(BoardingHistoryKind.CheckOut),
+                stayId, stay.PetName, stay.Species, stay.OwnerName, stay.Room,
+                JalaliCalendar.Today, NowTime(), nights, total, 1, "تخلیه و تسویه اقامت", CurrentActor()));
+        }
+
         return Task.CompletedTask;
     }
 
@@ -285,18 +575,20 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
             DailyRate: request.DailyRate,
             PaymentMode: request.PaymentMode,
             Status: BoardingStatus.Active,
-            // Reference TONES[(uid - 1) % TONES.length].
             Tone: Tones[(uid - 1) % Tones.Length],
             Transferred: false,
             Note: request.Note,
             ExtraItemsCost: 0);
 
-        // Inserting at the front shifts every existing index, so the id index
-        // is rebuilt here rather than patched — cheap relative to the insert
-        // itself and keeps the lookup correct without an O(n) shift loop.
         _stays.Insert(0, stay);
         _items[stay.Id] = [];
         RebuildStayIndex();
+
+        var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
+        AddHistory(new BoardingHistoryEntry(
+            $"bh-in-{stay.Id}", BoardingHistoryKind.CheckIn, KindLabel(BoardingHistoryKind.CheckIn),
+            stay.Id, stay.PetName, stay.Species, stay.OwnerName, stay.Room,
+            JalaliCalendar.Today, NowTime(), nights, 0, 0, "ثبت پذیرش و ورود به اتاق", CurrentActor()));
 
         return Task.FromResult(stay);
     }
@@ -338,8 +630,6 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
         .. ClinicItemSeed.Select(s => new BoardingSelectableItem(s.Id, BoardingItemSource.ClinicItem, s.Title, s.Price)),
     ];
 
-    // Keeps the pre-aggregated ExtraItemsCost in sync so the board card's total
-    // (nights × rate + extra cost) matches the detail modal's line sum.
     private void RefreshExtraCost(string stayId)
     {
         var cost = _items.TryGetValue(stayId, out var list)
@@ -356,4 +646,7 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
             _stays[index] = mutate(_stays[index]);
         }
     }
+
+    /// <summary>One cached boarding-history row with its pre-normalized search haystack.</summary>
+    private sealed record HistoryRow(BoardingHistoryEntry Entry, string Haystack);
 }

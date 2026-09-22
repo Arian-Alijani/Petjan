@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Animora.Contracts.Identity;
 
 namespace Animora.Contracts.History;
 
@@ -111,6 +112,7 @@ public enum HistoryEventStatus
 /// <param name="Amount">The absolute amount (toman); 0 when the event carries no money.</param>
 /// <param name="AmountSign">+1 = income, -1 = expense, 0 = no amount (the reference's <c>amtSign</c>).</param>
 /// <param name="Status">The status chip value.</param>
+/// <param name="Actor">The user who performed the recorded action (audit "who").</param>
 public sealed record HistoryEvent(
     string Id,
     HistoryEventKind Kind,
@@ -121,17 +123,64 @@ public sealed record HistoryEvent(
     string Entity,
     long Amount,
     int AmountSign,
-    HistoryEventStatus Status);
+    HistoryEventStatus Status,
+    ActorRef Actor);
 
 /// <summary>
-/// The filter applied to the ledger, mirroring the reference's toolbar state
-/// (<c>HS</c> in Animora-UI/assets/history.js): a period / date range, a
-/// module-kind multi-select and a free-text search.
+/// The unified-ledger result ordering, mirroring the toolbar's «مرتب‌سازی»
+/// select. The service applies it before paging so the UI only ever receives one
+/// ordered page (PERFORMANCE.md §6).
 /// </summary>
-/// <param name="Period">Period id: <c>today</c> | <c>7</c> | <c>30</c> | <c>all</c> (the reference's chip keys).</param>
+public enum HistorySort
+{
+    /// <summary>«جدیدترین» — newest date/time first (default).</summary>
+    Newest,
+
+    /// <summary>«قدیمی‌ترین» — oldest date/time first.</summary>
+    Oldest,
+
+    /// <summary>«بیشترین مبلغ» — largest amount first.</summary>
+    AmountDesc,
+
+    /// <summary>«کمترین مبلغ» — smallest amount first.</summary>
+    AmountAsc,
+}
+
+/// <summary>
+/// The filter applied to the ledger, mirroring the toolbar state: a date range
+/// (the «رجوع با تاریخ خاص» pair + preset chips), a module-kind multi-select, a
+/// free-text search, a sort and a page window. The service filters/sorts/pages
+/// this on the caller's behalf so no unbounded result set ever crosses the seam
+/// (PERFORMANCE.md §6).
+/// </summary>
+/// <param name="FromDate">Inclusive lower bound as an ASCII <c>yyyy/MM/dd</c> Jalali string; empty = unbounded.</param>
+/// <param name="ToDate">Inclusive upper bound as an ASCII <c>yyyy/MM/dd</c> Jalali string; empty = unbounded.</param>
 /// <param name="Kinds">Selected module kinds; empty = all (the reference's <c>cats</c> set).</param>
-/// <param name="Search">Free-text query, matched against title/detail/entity.</param>
+/// <param name="Search">Free-text query, matched against title/detail/entity/actor.</param>
+/// <param name="Sort">The result ordering.</param>
+/// <param name="Page">1-based page number.</param>
+/// <param name="PageSize">Rows per page.</param>
 public sealed record HistoryFilter(
-    string Period,
+    string FromDate,
+    string ToDate,
     IReadOnlyCollection<HistoryEventKind> Kinds,
-    string Search);
+    string Search,
+    HistorySort Sort,
+    int Page,
+    int PageSize);
+
+/// <summary>
+/// One page of the unified ledger. <paramref name="TotalCount"/> and the
+/// income/expense sums are computed over the <b>entire</b> filtered set (not just
+/// the visible page), so the summary bar stays meaningful while the UI only ever
+/// holds <paramref name="Items"/> (PERFORMANCE.md §6).
+/// </summary>
+/// <param name="Items">The requested page's rows, already ordered.</param>
+/// <param name="TotalCount">The number of rows matching the filter.</param>
+/// <param name="IncomeTotal">The sum of every matching income row (+).</param>
+/// <param name="ExpenseTotal">The sum of every matching expense row (returned as a positive magnitude).</param>
+public sealed record HistoryPage(
+    IReadOnlyList<HistoryEvent> Items,
+    int TotalCount,
+    long IncomeTotal,
+    long ExpenseTotal);

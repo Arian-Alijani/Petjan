@@ -48,4 +48,12 @@ public interface IVaccinationService
     /// the sent state is modeled here. Returns the updated record.
     /// </summary>
     Task<VaccinationRecord> SendSmsAsync(string recordId, string message);
+
+    /// <summary>
+    /// One ordered page of the vaccination history ledger (administered /
+    /// scheduled / SMS-sent / rescheduled) plus the total computed over the
+    /// <b>whole</b> filtered set. The service filters/sorts/pages on the caller's
+    /// behalf so no unbounded result set ever crosses the seam (PERFORMANCE.md §6).
+    /// </summary>
+    Task<VaccinationHistoryPage> GetHistoryAsync(VaccinationHistoryFilter filter);
 }

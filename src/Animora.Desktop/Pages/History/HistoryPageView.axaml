@@ -1,13 +1,13 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:hy="using:Animora.Desktop.Pages.History"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.History.HistoryPageView"
              x:Name="Root"
              x:DataType="hy:HistoryPageViewModel"
-             FlowDirection="RightToLeft"
-             KeyDown="OnKeyDown">
+             FlowDirection="RightToLeft">
     <UserControl.Styles>
-        <!-- ═══ Period chip (.hy-period-chips .chip) ═══ -->
+        <!-- ═══ Range chip (.hy-chip): pill outline; active = brand fill. ═══ -->
         <Style Selector="Button.hy-chip">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
@@ -42,13 +42,16 @@
             <Setter Property="FontWeight" Value="Medium" />
             <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Opacity" Value="0.72" />
         </Style>
         <Style Selector="Button.hy-cat-chip:pointerover">
             <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Muted2Brush}" />
+            <Setter Property="Opacity" Value="1" />
         </Style>
         <Style Selector="Button.hy-cat-chip.on">
             <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Opacity" Value="1" />
         </Style>
 
         <!-- ═══ Summary bar (.hy-summary) ═══ -->
@@ -73,8 +76,6 @@
             <Setter Property="CornerRadius" Value="0,0,10,10" />
             <Setter Property="ClipToBounds" Value="True" />
         </Style>
-
-        <!-- ═══ Ledger head row (.hy-ledger-head) ═══ -->
         <Style Selector="Border.hy-ledger-head">
             <Setter Property="Background" Value="{StaticResource BgBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
@@ -138,23 +139,46 @@
             <Setter Property="Margin" Value="0,0,0,6" />
         </Style>
 
-        <!-- ═══ Load more (.hy-load-more button) ═══ -->
-        <Style Selector="Button.hy-load-more">
-            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <!-- ═══ Compact toolbar select (.hy-select) ═══ -->
+        <Style Selector="ComboBox.hy-select">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="24,8" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
             <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
-            <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
-        <Style Selector="Button.hy-load-more:pointerover">
-            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        <Style Selector="ComboBox.hy-select /template/ Border#Background">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+
+        <!-- ═══ Pager buttons (.hy-pager) ═══ -->
+        <Style Selector="Button.hy-pager">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.hy-pager:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
             <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.hy-pager:disabled">
+            <Setter Property="Opacity" Value="0.45" />
+            <Setter Property="Cursor" Value="Arrow" />
         </Style>
 
         <!-- Virtualized day-group feed (ListBox). MaxHeight is REQUIRED: the
@@ -162,8 +186,7 @@
              height, so without a cap the inner VirtualizingStackPanel would
              realize every day group (and all their nested rows). The nested
              Rows ItemsControl stays a normal panel — only the outer day-group
-             list is virtualized. These styles strip ListBox selection/hover
-             chrome so the existing ledger visuals render unchanged. -->
+             list is virtualized. -->
         <Style Selector="ListBox.hy-ledger-body">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -208,76 +231,142 @@
             </StackPanel>
         </Grid>
 
-        <!-- ═══ Toolbar (.hy-toolbar): period chips + search ═══ -->
-        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,16">
-            <ItemsControl Grid.Column="0" ItemsSource="{Binding PeriodChips}" VerticalAlignment="Center">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" Spacing="6" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="hy:HistoryPeriodChipViewModel">
-                        <Button Classes="hy-chip" Classes.on="{Binding IsActive}"
-                                Content="{Binding Label}"
-                                Command="{Binding #Root.((hy:HistoryPageViewModel)DataContext).SetPeriodCommand}"
-                                CommandParameter="{Binding Key}" />
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+        <!-- ═══ Toolbar (.hy-toolbar): search + range presets ═══ -->
+        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource Line2Brush}"
+                BorderThickness="1" CornerRadius="0,0,16,16"
+                BoxShadow="{StaticResource ShadowCard}" Padding="14,12" Margin="0,0,0,16">
+            <StackPanel Spacing="12">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <Border Grid.Column="0" MinWidth="200" Background="{StaticResource Bg2Brush}"
+                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                            CornerRadius="12" Padding="13,0">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                                  VerticalAlignment="Center" Stroke="{StaticResource MutedBrush}"
+                                  Data="{StaticResource IconSearch}" IsHitTestVisible="False" />
+                            <TextBox Grid.Column="1" Text="{Binding SearchText}" Background="Transparent"
+                                     BorderThickness="0" FontSize="13" VerticalContentAlignment="Center"
+                                     PlaceholderText="{Binding SearchPlaceholder}" />
+                            <Button Grid.Column="2" Width="20" Height="20" Padding="0" CornerRadius="999"
+                                    Background="{StaticResource Brand50Brush}" BorderThickness="0"
+                                    VerticalAlignment="Center" IsVisible="{Binding HasSearchValue}"
+                                    Command="{Binding ClearSearchCommand}">
+                                <Path Classes="icon" Width="11" Height="11"
+                                      Stroke="{StaticResource Brand700Brush}" Data="{StaticResource IconX}" />
+                            </Button>
+                        </Grid>
+                    </Border>
 
-            <!-- search (.pb-search) -->
-            <Border Grid.Column="1" HorizontalAlignment="Right" Width="340" VerticalAlignment="Center"
-                    Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource LineBrush}"
-                    BorderThickness="1" CornerRadius="12" Padding="12,8">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                    <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
-                          Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}"
-                          VerticalAlignment="Center" />
-                    <TextBox Grid.Column="1" Name="SearchBox" Text="{Binding SearchText}"
-                             Background="Transparent" BorderThickness="0" FontSize="13"
-                             VerticalContentAlignment="Center"
-                             PlaceholderText="{Binding SearchPlaceholder}" />
-                    <Button Grid.Column="2" Width="20" Height="20" Padding="0"
-                            Background="{StaticResource Brand50Brush}" CornerRadius="50"
-                            IsVisible="{Binding HasSearchValue}" Command="{Binding ClearSearchCommand}"
-                            ToolTip.Tip="پاک کردن">
-                        <Path Classes="icon" Width="11" Height="11" StrokeThickness="2.5"
-                              Stroke="{StaticResource Brand700Brush}" Data="{StaticResource IconX}"
-                              HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Button>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <ItemsControl ItemsSource="{Binding RangeChips}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="hy:HistoryRangeViewModel">
+                                    <Button Classes="hy-chip" Classes.on="{Binding IsActive}"
+                                            Content="{Binding Label}"
+                                            Command="{Binding #Root.((hy:HistoryPageViewModel)DataContext).SetRangeCommand}"
+                                            CommandParameter="{Binding Key}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
                 </Grid>
-            </Border>
-        </Grid>
 
-        <!-- ═══ Category chips (.hy-cat-row) ═══ -->
-        <ItemsControl ItemsSource="{Binding CategoryChips}" Margin="0,0,0,16">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <WrapPanel Orientation="Horizontal" />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="hy:HistoryCategoryChipViewModel">
-                    <Button Classes="hy-cat-chip" Classes.on="{Binding IsActive}"
-                            Margin="0,0,6,6" ToolTip.Tip="{Binding Label}"
-                            Command="{Binding #Root.((hy:HistoryPageViewModel)DataContext).ToggleCategoryCommand}"
-                            CommandParameter="{Binding Kind}">
-                        <StackPanel Orientation="Horizontal" Spacing="5">
-                            <Path Classes="icon" Width="14" Height="14"
-                                  Stroke="{Binding ColorBrush}"
-                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
-                                  VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding Label}" VerticalAlignment="Center"
-                                       Foreground="{Binding ColorBrush}" />
-                        </StackPanel>
-                    </Button>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+                <!-- tier 2 · kind chips + date range + sort/page controls -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,12,0,0">
+                    <StackPanel Grid.Column="0">
+                        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                                Padding="0,12,0,0" Margin="0,-12,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Classes="hy-chip" Classes.on="{Binding AreAllKindsActive}"
+                                        Margin="0,0,7,0" ToolTip.Tip="فعال‌سازی همهٔ فیلترها"
+                                        Command="{Binding SelectAllKindsCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="14" Height="14"
+                                              Stroke="{Binding $parent[Button].Foreground}"
+                                              Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                                        <TextBlock Text="همه" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
 
-        <!-- ═══ Ledger feed (summary bar + table) ═══ -->
-        <!-- Empty state -->
+                                <ItemsControl ItemsSource="{Binding CategoryChips}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="hy:HistoryCategoryChipViewModel">
+                                            <Button Classes="hy-cat-chip" Classes.on="{Binding IsActive}"
+                                                    Margin="0,0,7,0" ToolTip.Tip="{Binding Label}"
+                                                    Background="{Binding ChipBackground}"
+                                                    BorderBrush="{Binding ChipBorder}"
+                                                    Command="{Binding #Root.((hy:HistoryPageViewModel)DataContext).ToggleCategoryCommand}"
+                                                    CommandParameter="{Binding Kind}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{Binding ColorBrush}"
+                                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                          VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center"
+                                                               Foreground="{Binding LabelBrush}" />
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <controls:JalaliDatePicker Width="140" DateValue="{Binding FromDate, Mode=TwoWay}"
+                                                   ToolTip.Tip="از تاریخ" />
+                        <TextBlock Text="تا" FontSize="12" Foreground="{StaticResource MutedBrush}"
+                                   VerticalAlignment="Center" />
+                        <controls:JalaliDatePicker Width="140" DateValue="{Binding ToDate, Mode=TwoWay}"
+                                                   ToolTip.Tip="تا تاریخ" />
+                        <Button Classes="hy-pager" Padding="10,7" Command="{Binding ClearRangeCommand}"
+                                ToolTip.Tip="حذف بازهٔ تاریخ">
+                            <Path Classes="icon" Width="12" Height="12"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconX}" />
+                        </Button>
+
+                        <Border Width="1" Height="22" Background="{StaticResource LineBrush}" />
+
+                        <ComboBox Classes="hy-select" MinWidth="150" SelectedIndex="{Binding SortIndex}"
+                                  ToolTip.Tip="مرتب‌سازی">
+                            <ComboBoxItem Content="جدیدترین" />
+                            <ComboBoxItem Content="قدیمی‌ترین" />
+                            <ComboBoxItem Content="بیشترین مبلغ" />
+                            <ComboBoxItem Content="کمترین مبلغ" />
+                        </ComboBox>
+                        <ComboBox Classes="hy-select" MinWidth="110" SelectedIndex="{Binding PageSizeIndex}"
+                                  ToolTip.Tip="تعداد رکورد در صفحه">
+                            <ComboBoxItem Content="۲۵ رکورد" />
+                            <ComboBoxItem Content="۵۰ رکورد" />
+                            <ComboBoxItem Content="۱۰۰ رکورد" />
+                        </ComboBox>
+
+                        <Button Classes="hy-pager" Command="{Binding ResetFiltersCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="13" Height="13"
+                                      Stroke="{Binding $parent[Button].Foreground}"
+                                      Data="{StaticResource IconRefresh}" />
+                                <TextBlock Text="بازنشانی" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ Empty state ═══ -->
         <Grid IsVisible="{Binding IsEmpty}">
             <StackPanel>
                 <Border Classes="hy-summary" HorizontalAlignment="Stretch">
@@ -302,18 +391,13 @@
             </StackPanel>
         </Grid>
 
-        <!-- Populated -->
+        <!-- ═══ Populated: summary bar + table + pager ═══ -->
         <StackPanel IsVisible="{Binding HasEvents}">
-            <!-- Summary bar (.hy-summary) -->
             <Border Classes="hy-summary">
                 <StackPanel Orientation="Horizontal" Spacing="24" VerticalAlignment="Center">
                     <TextBlock Text="{Binding SummaryCountText}" FontSize="13"
                                Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                     <Border Classes="hy-summary-sep" />
-                    <!-- «درآمد/هزینه/خالص»: the value piece is intentionally a
-                         bold run in an accent colour distinct from the muted
-                         label — a genuine styled-inline case (not string
-                         concatenation), so the <Run>s stay. -->
                     <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
                         <Run Text="درآمد: " />
                         <Run Text="{Binding SummaryIncomeText}" FontWeight="Bold" Foreground="{StaticResource OkBrush}" />
@@ -328,24 +412,22 @@
                         <Run Text="خالص: " />
                         <Run Text="{Binding SummaryNetText}" FontWeight="Bold" Foreground="{Binding SummaryNetBrush}" />
                     </TextBlock>
-                    <TextBlock Text="مرتب‌سازی: جدیدترین" FontSize="12"
-                               Foreground="{StaticResource Muted2Brush}" VerticalAlignment="Center" />
                 </StackPanel>
             </Border>
 
-            <!-- Ledger table (.hy-ledger) -->
             <Border Classes="hy-ledger">
                 <StackPanel>
                     <!-- header (.hy-ledger-head) -->
                     <Border Classes="hy-ledger-head">
-                        <Grid ColumnDefinitions="36,80,*,140,130,130,120" ColumnSpacing="0">
+                        <Grid ColumnDefinitions="36,80,*,150,130,120,120,110" ColumnSpacing="0">
                             <TextBlock Grid.Column="0" Classes="hcol-head" />
                             <TextBlock Grid.Column="1" Classes="hcol-head" Text="زمان" />
                             <TextBlock Grid.Column="2" Classes="hcol-head" Text="رویداد" />
-                            <TextBlock Grid.Column="3" Classes="hcol-head" Text="موجودیت / پزشک" />
-                            <TextBlock Grid.Column="4" Classes="hcol-head" Text="مبلغ" />
-                            <TextBlock Grid.Column="5" Classes="hcol-head" Text="وضعیت" />
-                            <TextBlock Grid.Column="6" Classes="hcol-head" Text="دسته" />
+                            <TextBlock Grid.Column="3" Classes="hcol-head" Text="موجودیت" />
+                            <TextBlock Grid.Column="4" Classes="hcol-head" Text="کاربر / انجام‌دهنده" />
+                            <TextBlock Grid.Column="5" Classes="hcol-head" Text="مبلغ" />
+                            <TextBlock Grid.Column="6" Classes="hcol-head" Text="وضعیت" />
+                            <TextBlock Grid.Column="7" Classes="hcol-head" Text="دسته" />
                         </Grid>
                     </Border>
 
@@ -356,7 +438,6 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="hy:HistoryDayGroupViewModel">
                                 <StackPanel>
-                                    <!-- day group header (.hy-day-group) -->
                                     <Border Classes="hy-day-group">
                                         <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
                                             <TextBlock Grid.Column="0" Text="{Binding HeaderText}"
@@ -374,16 +455,14 @@
                                         </Grid>
                                     </Border>
 
-                                    <!-- rows -->
                                     <ItemsControl ItemsSource="{Binding Rows}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="hy:HistoryEventRowViewModel">
                                                 <Border Classes="hy-row" ToolTip.Tip="{Binding Title}">
-                                                    <Grid ColumnDefinitions="36,80,*,140,130,130,120" ColumnSpacing="0">
+                                                    <Grid ColumnDefinitions="36,80,*,150,130,120,120,110" ColumnSpacing="0">
                                                         <Border Grid.Column="0" Classes="hy-cat-badge"
                                                                 Background="{Binding BadgeBrush}"
-                                                                HorizontalAlignment="Left"
-                                                                VerticalAlignment="Center">
+                                                                HorizontalAlignment="Left" VerticalAlignment="Center">
                                                             <Path Classes="icon" Width="15" Height="15"
                                                                   Stroke="{Binding BadgeIconBrush}"
                                                                   Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
@@ -409,11 +488,22 @@
                                                                    Foreground="{StaticResource Ink2Brush}"
                                                                    VerticalAlignment="Center"
                                                                    TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Grid.Column="4" Text="{Binding AmountText}" Margin="4,0"
+                                                        <!-- کاربر / انجام‌دهنده (actor) -->
+                                                        <StackPanel Grid.Column="4" Margin="4,0" Spacing="2"
+                                                                    VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding ActorName}" FontSize="12.5"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="{StaticResource Ink2Brush}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{Binding ActorRole}" FontSize="11"
+                                                                       Foreground="{StaticResource MutedBrush}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="5" Text="{Binding AmountText}" Margin="4,0"
                                                                    FontSize="13" FontWeight="Bold"
                                                                    Foreground="{Binding AmountBrush}"
                                                                    VerticalAlignment="Center" />
-                                                        <Border Grid.Column="5" Classes="hy-status"
+                                                        <Border Grid.Column="6" Classes="hy-status"
                                                                 Background="{Binding StatusBgBrush}"
                                                                 HorizontalAlignment="Left" VerticalAlignment="Center">
                                                             <StackPanel Orientation="Horizontal" Spacing="4">
@@ -425,7 +515,7 @@
                                                                            Foreground="{Binding StatusBrush}" />
                                                             </StackPanel>
                                                         </Border>
-                                                        <Border Grid.Column="6" CornerRadius="20" Padding="8,3"
+                                                        <Border Grid.Column="7" CornerRadius="20" Padding="8,3"
                                                                 BorderThickness="1"
                                                                 BorderBrush="{Binding CategoryColorBrush}"
                                                                 Background="{Binding CategoryBgBrush}"
@@ -444,11 +534,34 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
 
-                    <!-- load more (.hy-load-more) -->
+                    <!-- pager (.hy-pager) -->
                     <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
-                            Padding="16" IsVisible="{Binding HasMore}">
-                        <Button Classes="hy-load-more" Content="{Binding LoadMoreText}"
-                                Command="{Binding LoadMoreCommand}" />
+                            Padding="16,12">
+                        <Grid ColumnDefinitions="*,Auto,Auto,*" ColumnSpacing="10">
+                            <Button Grid.Column="1" Classes="hy-pager" Command="{Binding PrevPageCommand}"
+                                    IsEnabled="{Binding HasPrev}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="icon" Width="13" Height="13"
+                                          Stroke="{Binding $parent[Button].Foreground}"
+                                          Data="{StaticResource IconChevronRight}" />
+                                    <TextBlock Text="قبلی" />
+                                </StackPanel>
+                            </Button>
+                            <Border Grid.Column="2" MinWidth="88" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding PageText}" FontSize="12.5" FontWeight="Bold"
+                                           Foreground="{StaticResource Ink2Brush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <Button Grid.Column="3" Classes="hy-pager" HorizontalAlignment="Left"
+                                    Command="{Binding NextPageCommand}" IsEnabled="{Binding HasNext}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="بعدی" />
+                                    <Path Classes="icon" Width="13" Height="13"
+                                          Stroke="{Binding $parent[Button].Foreground}"
+                                          Data="{StaticResource IconChevronLeft}" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
                     </Border>
                 </StackPanel>
             </Border>

@@ -10,6 +10,9 @@ namespace Animora.Contracts.Identity;
 /// </summary>
 public interface ICurrentUserContext
 {
+    /// <summary>Stable user id, e.g. "u-aria". The audit/actor seam a future auth layer fills.</summary>
+    string UserId { get; }
+
     /// <summary>Full display name, e.g. "دکتر آریا نیک".</summary>
     string Name { get; }
 

@@ -1,3 +1,5 @@
+using Animora.Contracts.Identity;
+
 namespace Animora.Contracts.Sales;
 
 /// <summary>
@@ -94,11 +96,13 @@ public enum InvoiceAuditKind
 /// <param name="At">Event time as an ASCII <c>HH:mm</c> string (rendered through Phase 04).</param>
 /// <param name="Action">The short Persian action label (resolved by the service).</param>
 /// <param name="Detail">The Persian description of exactly what changed.</param>
+/// <param name="Actor">The user who performed the recorded action (audit "who").</param>
 public sealed record InvoiceAuditEntry(
     InvoiceAuditKind Kind,
     string At,
     string Action,
-    string Detail);
+    string Detail,
+    ActorRef Actor);
 
 /// <summary>
 /// A line item's kind — a clinic service or a physical item, mirroring the

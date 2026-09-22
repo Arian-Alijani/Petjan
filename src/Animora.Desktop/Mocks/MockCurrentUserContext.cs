@@ -11,6 +11,8 @@ namespace Animora.Desktop.Mocks;
 /// </summary>
 public sealed class MockCurrentUserContext : ICurrentUserContext
 {
+    public string UserId => "u-aria";
+
     public string Name => "دکتر آریا نیک";
 
     public string RoleLabel => "مدیر کلینیک";

@@ -1,3 +1,5 @@
+using Animora.Contracts.Identity;
+
 namespace Animora.Contracts.Sales;
 
 /// <summary>
@@ -73,6 +75,7 @@ public enum CashierHistorySort
 /// <param name="State">The invoice's resulting lifecycle state (drives the status chip).</param>
 /// <param name="StateLabel">The state's Persian label (resolved by the service).</param>
 /// <param name="Note">A short Persian description line, or empty.</param>
+/// <param name="Actor">The user who performed the recorded action (audit "who").</param>
 public sealed record CashierHistoryEntry(
     string Id,
     CashierHistoryKind Kind,
@@ -86,7 +89,8 @@ public sealed record CashierHistoryEntry(
     int AmountSign,
     InvoiceState State,
     string StateLabel,
-    string Note);
+    string Note,
+    ActorRef Actor);
 
 /// <summary>
 /// The cashier-history query: a date range (the «رجوع با تاریخ خاص» pair), a

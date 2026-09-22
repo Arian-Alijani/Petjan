@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Animora.Contracts.Identity;
 using Animora.Contracts.Sales;
 using Animora.Desktop.Localization;
 
@@ -37,6 +38,22 @@ public sealed class MockSalesQueryService : ISalesQueryService
     ];
 
     private static readonly string[] AvatarTones = ["a", "b", "c", "d", "e", "f"];
+
+    // Seed actors — a realistic mix of the three doctors, two receptionists and
+    // the manager, so the cashier ledger's «کاربر» column is demonstrably
+    // populated (R1). The current user is stamped on live mutations instead.
+    private static readonly ActorRef[] SeedActors =
+    [
+        new("u-aria", "دکتر آریا نیک", "مدیر کلینیک", "آ"),
+        new("u-mina", "دکتر مینا همتی", "دکتر دامپزشک", "م"),
+        new("u-soheil", "دکتر سهیل کاویانی", "دکتر دامپزشک", "س"),
+        new("u-sara", "منشی سارا", "پذیرش", "س"),
+        new("u-negar", "منشی نگار", "پذیرش", "ن"),
+    ];
+
+    // The identity seam a future auth layer fills: every recorded mutation is
+    // stamped with an ActorRef built from it (R1).
+    private readonly ICurrentUserContext _user;
 
     // Catalog, mirroring the reference's SERVICES (sv-1..sv-12) + ITEMS
     // (it-1..it-10) with their SVC_GROUPS / ITEM_GROUPS labels + CAT_ICON keys.
@@ -78,8 +95,9 @@ public sealed class MockSalesQueryService : ISalesQueryService
     ];
 
 
-    public MockSalesQueryService()
+    public MockSalesQueryService(ICurrentUserContext user)
     {
+        _user = user;
         _encounters =
         [
             new("enc-3", "qt-1", "نگار محمدی", "پشمک", "گربه پرشین", "آریا نیک", "دکتر آریا نیک",
@@ -110,14 +128,14 @@ public sealed class MockSalesQueryService : ISalesQueryService
             [new("sv-9", InvoiceLineKind.Service, "ویزیت تخصصی پوست", 1, 350_000),
              new("it-5", InvoiceLineKind.Item, "مکمل تقویت مفصل", 1, 450_000)],
             DiscountKind.Percent, 0, null, InvoiceState.Partial, 400_000,
-            [new(PaymentMethod.Cash, "پیش‌پرداخت نقدی", "11:20", 400_000)]);
+            [new(PaymentMethod.Cash, "پیش‌پرداخت نقدی", "11:20", 400_000, SeedActors[3])]);
 
         // INV-003 — settled visit invoice.
         var inv3 = NewRecord("INV-003", InvoiceKind.Visit, null, "رضا کریمی", "میلو", "۰۹۳۰۴۴۵۵۶۶۷",
             [new("sv-5", InvoiceLineKind.Service, "آرایش و پیرایش", 1, 650_000),
              new("it-2", InvoiceLineKind.Item, "غذای کنسرو مرغ", 2, 85_000)],
             DiscountKind.Percent, 0, null, InvoiceState.Settled, 921_000,
-            [new(PaymentMethod.Card, "پرداخت کارتی", "12:40", 921_000)]);
+            [new(PaymentMethod.Card, "پرداخت کارتی", "12:40", 921_000, SeedActors[4])]);
 
         // INV-004 — voided walk-in invoice.
         var inv4 = NewRecord("INV-004", InvoiceKind.Sale, null, "الهام صادقی", "نانا", "۰۹۱۲۷۷۸۸۹۹۰",
@@ -129,8 +147,8 @@ public sealed class MockSalesQueryService : ISalesQueryService
         var inv5 = NewRecord("INV-005", InvoiceKind.Sale, null, "مریم آذری", "کوکو", "۰۹۱۰۵۵۶۶۷۷۸",
             [new("it-3", InvoiceLineKind.Item, "غذای خشک بالغ سگ (۵ کیلو)", 1, 850_000)],
             DiscountKind.Percent, 0, null, InvoiceState.Refunded, 0,
-            [new(PaymentMethod.Cash, "پرداخت نقدی", "13:10", 926_500),
-             new(PaymentMethod.Cash, "عودت وجه", "13:35", -926_500)]);
+            [new(PaymentMethod.Cash, "پرداخت نقدی", "13:10", 926_500, SeedActors[3]),
+             new(PaymentMethod.Cash, "عودت وجه", "13:35", -926_500, SeedActors[0])]);
 
         _invoices.AddRange([inv1, inv2, inv3, inv4, inv5]);
 
@@ -235,7 +253,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
         inv.Payments.Add(new PaymentRecord(
             request.Method,
             string.IsNullOrEmpty(request.Note) ? "پرداخت از صندوق" : request.Note,
-            NowStamp(), capped));
+            NowStamp(), capped, CurrentActor()));
 
         Calc(inv);
         inv.State = inv.Paid >= inv.Total ? InvoiceState.Settled : InvoiceState.Partial;
@@ -266,7 +284,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
         if (inv.Paid > 0)
         {
             var back = inv.Paid;
-            inv.Payments.Add(new PaymentRecord(PaymentMethod.Cash, "بازگشت وجه به‌دلیل ابطال", NowStamp(), -back));
+            inv.Payments.Add(new PaymentRecord(PaymentMethod.Cash, "بازگشت وجه به‌دلیل ابطال", NowStamp(), -back, CurrentActor()));
             inv.Paid = 0;
         }
 
@@ -297,7 +315,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
         }
 
         inv.Paid = Math.Max(0, inv.Paid - amount);
-        inv.Payments.Add(new PaymentRecord(PaymentMethod.Cash, "عودت وجه", NowStamp(), -amount));
+        inv.Payments.Add(new PaymentRecord(PaymentMethod.Cash, "عودت وجه", NowStamp(), -amount, CurrentActor()));
 
         // Full refund (nothing paid remains) → Refunded terminal state; otherwise the
         // invoice stays where it was (Partial/Settled) with a reduced paid amount.
@@ -352,7 +370,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
         {
             refund = inv.Paid - inv.Total;
             inv.Paid -= refund;
-            inv.Payments.Add(new PaymentRecord(PaymentMethod.Cash, $"برگشت کالا: {line.Title}", NowStamp(), -refund));
+            inv.Payments.Add(new PaymentRecord(PaymentMethod.Cash, $"برگشت کالا: {line.Title}", NowStamp(), -refund, CurrentActor()));
         }
 
         // Re-derive state after the return.
@@ -621,7 +639,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
             rows.Add(MapRow(
                 $"acc-{inv.Id}", CashierHistoryKind.Accepted, inv.State, inv,
-                inv.Date, "", 0, 0, "پذیرش فاکتور در صندوق"));
+                inv.Date, "", 0, 0, "پذیرش فاکتور در صندوق", SeedActorFor($"acc-{inv.Id}")));
 
             for (var p = 0; p < inv.Payments.Count; p++)
             {
@@ -636,7 +654,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
                 rows.Add(MapRow(
                     $"pay-{inv.Id}-{p}", kind, inv.State, inv,
-                    inv.Date, pay.At, Math.Abs(pay.Amount), Math.Sign(pay.Amount), note));
+                    inv.Date, pay.At, Math.Abs(pay.Amount), Math.Sign(pay.Amount), note, pay.Actor));
             }
 
             if (inv.Payments.Count == 0 && inv.State is InvoiceState.Void or InvoiceState.Refunded)
@@ -646,7 +664,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
                     $"term-{inv.Id}",
                     isVoid ? CashierHistoryKind.Cancelled : CashierHistoryKind.Refunded,
                     inv.State, inv, inv.Date, "", 0, 0,
-                    isVoid ? "ابطال فاکتور" : "عودت فاکتور"));
+                    isVoid ? "ابطال فاکتور" : "عودت فاکتور", SeedActorFor($"term-{inv.Id}")));
             }
 
             // Fold the invoice's non-payment audit trail into the ledger so line
@@ -681,18 +699,27 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
     private static LedgerRow MapRow(
         string id, CashierHistoryKind kind, InvoiceState state,
-        InvoiceRecord inv, string date, string time, long amount, int sign, string note)
+        InvoiceRecord inv, string date, string time, long amount, int sign, string note,
+        ActorRef actor)
     {
         var owner = string.IsNullOrEmpty(inv.OwnerName) ? "مهمان" : inv.OwnerName;
-        return new LedgerRow(id, kind, state, inv.Id, owner, inv.PetName, date, time, amount, sign, note)
+        return new LedgerRow(id, kind, state, inv.Id, owner, inv.PetName, date, time, amount, sign, note, actor)
         {
-            Haystack = PersianText.Normalize($"{inv.Id} {owner} {inv.PetName} {note}"),
+            Haystack = PersianText.Normalize($"{inv.Id} {owner} {inv.PetName} {note} {actor.Name}"),
         };
     }
 
+    /// <summary>
+    /// A deterministic seed actor for rows that are not backed by a stored
+    /// audit/payment entry (the «پذیرش» and terminal rows of the seed invoices),
+    /// so the ledger's «کاربر» column is varied across the demo data (R1).
+    /// </summary>
+    private static ActorRef SeedActorFor(string key) =>
+        SeedActors[Math.Abs(key.GetHashCode(StringComparison.Ordinal)) % SeedActors.Length];
+
     private static CashierHistoryEntry MapEntry(LedgerRow row) => new(
         row.Id, row.Kind, KindLabel(row.Kind), row.InvoiceId, row.OwnerName, row.PetName,
-        row.Date, row.Time, row.Amount, row.AmountSign, row.State, StateLabel(row.State), row.Note);
+        row.Date, row.Time, row.Amount, row.AmountSign, row.State, StateLabel(row.State), row.Note, row.Actor);
 
     private static int CompareDate(LedgerRow a, LedgerRow b, bool ascending)
     {
@@ -897,8 +924,12 @@ public sealed class MockSalesQueryService : ISalesQueryService
         return record;
     }
 
-    private static void Log(InvoiceRecord inv, InvoiceAuditKind kind, string action, string detail) =>
-        inv.Audit.Add(new AuditRecord(kind, NowStamp(), action, detail));
+    private void Log(InvoiceRecord inv, InvoiceAuditKind kind, string action, string detail) =>
+        inv.Audit.Add(new AuditRecord(kind, NowStamp(), action, detail, CurrentActor()));
+
+    /// <summary>Builds the audit <see cref="ActorRef"/> from the injected identity (R1).</summary>
+    private ActorRef CurrentActor() =>
+        new(_user.UserId, _user.Name, _user.RoleLabel, _user.Initials);
 
     private static string SideLabel(InvoiceKind kind) => kind == InvoiceKind.Visit ? "از ویزیت" : "فروش";
 
@@ -982,7 +1013,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
             .ToList();
 
         var audit = inv.Audit
-            .Select(a => new InvoiceAuditEntry(a.Kind, a.At, a.Action, a.Detail))
+            .Select(a => new InvoiceAuditEntry(a.Kind, a.At, a.Action, a.Detail, a.Actor))
             .ToList();
 
         var insuranceOrg = inv.InsuranceOrgId is null
@@ -1071,10 +1102,10 @@ public sealed class MockSalesQueryService : ISalesQueryService
         int DiscountPercent = 0, bool IsCustom = false);
 
     private sealed record PaymentRecord(
-        PaymentMethod Method, string Note, string At, long Amount);
+        PaymentMethod Method, string Note, string At, long Amount, ActorRef Actor);
 
     private sealed record AuditRecord(
-        InvoiceAuditKind Kind, string At, string Action, string Detail);
+        InvoiceAuditKind Kind, string At, string Action, string Detail, ActorRef Actor);
 
     /// <summary>
     /// One flattened cashier-history row held in the cached ledger. Carries the
@@ -1092,7 +1123,8 @@ public sealed class MockSalesQueryService : ISalesQueryService
         string Time,
         long Amount,
         int AmountSign,
-        string Note)
+        string Note,
+        ActorRef Actor)
     {
         public string Haystack { get; init; } = string.Empty;
     }

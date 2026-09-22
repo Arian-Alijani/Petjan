@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.History;
 using Animora.Desktop.Controls;
+using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -15,24 +15,41 @@ namespace Animora.Desktop.Pages.History;
 
 /// <summary>
 /// ViewModel for the History (unified ledger) screen. Mirrors the reference's
-/// page controller (Animora-UI/assets/history.js): the KPI bar (<c>renderKpi</c>),
-/// the period chips (<c>renderPeriodChips</c>), the module-kind chips
-/// (<c>renderCatChips</c>), the summary bar + chronological ledger feed with day
-/// grouping and "load more" (<c>renderFeed</c>), and the CSV export
-/// (<c>exportCSV</c>). All data flows through <see cref="IHistoryQueryService"/>
-/// (the single backend swap point, R-18) — no sample data or mock branching
-/// leaks into this public shape.
+/// page controller (Animora-UI/assets/history.js): the period chips, the
+/// module-kind chips, the summary bar + chronological ledger feed with day
+/// grouping and the CSV export.
+/// <para>
+/// <b>Performance.</b> Every query is <b>server-side</b>: the filter + sort +
+/// page window go to <see cref="IHistoryQueryService.GetPageAsync"/>, which
+/// returns exactly one bounded page plus the totals computed over the whole
+/// filtered set. Keystrokes are debounced (220 ms), each reload carries a
+/// generation token so a slow response can never overwrite a newer one, and the
+/// day groups are rebuilt through a single <c>ReplaceAll</c> (PERFORMANCE.md §5/§6/§13).
+/// </para>
 /// </summary>
 public sealed partial class HistoryPageViewModel : PageViewModelBase
 {
-    private const int PageSize = 40;
+    /// <summary>The page-size choices offered by the toolbar select.</summary>
+    private static readonly int[] PageSizes = [25, 50, 100];
 
     private readonly IHistoryQueryService _service;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
+    private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
 
+    private readonly HashSet<HistoryEventKind> _selectedKinds = [];
+
+    private HistorySort _sort = HistorySort.Newest;
+    private int _pageSize = PageSizes[0];
     private int _page = 1;
-    private int _totalCount;
+
+    // Set while dates are assigned programmatically (range chips / reset), so the
+    // OnFromDateChanged/OnToDateChanged handlers do not fire a second reload.
+    private bool _suppressDateReload;
+
+    // Stale-response guard: bumped on every reload; a response whose token no
+    // longer matches is discarded (a newer query has superseded it).
+    private int _generation;
 
     public HistoryPageViewModel(IHistoryQueryService service, IToastService toast, IDialogService dialogs)
     {
@@ -45,9 +62,9 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         Breadcrumbs.Add("سیستم");
         Breadcrumbs.Add("تاریخچه");
 
-        BuildPeriodChips();
+        BuildRangeChips();
         BuildCategoryChips();
-        _ = ReloadAsync();
+        _ = ReloadAsync(resetPage: true);
     }
 
     // ── Chrome ───────────────────────────────────────────────────────────
@@ -63,16 +80,19 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
 
     // ── Collections ──────────────────────────────────────────────────────
 
-    public ObservableCollection<HistoryPeriodChipViewModel> PeriodChips { get; } = [];
+    public RangeObservableCollection<HistoryRangeViewModel> RangeChips { get; } = [];
 
     public RangeObservableCollection<HistoryCategoryChipViewModel> CategoryChips { get; } = [];
 
-    public ObservableCollection<HistoryDayGroupViewModel> DayGroups { get; } = [];
+    public RangeObservableCollection<HistoryDayGroupViewModel> DayGroups { get; } = [];
 
     // ── State ────────────────────────────────────────────────────────────
 
     [ObservableProperty]
-    private string _period = "30";
+    private string _fromDate = string.Empty;
+
+    [ObservableProperty]
+    private string _toDate = string.Empty;
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -81,13 +101,13 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     private bool _hasSearchValue;
 
     [ObservableProperty]
+    private bool _areAllKindsActive;
+
+    [ObservableProperty]
     private bool _hasEvents;
 
     [ObservableProperty]
     private bool _isEmpty;
-
-    [ObservableProperty]
-    private bool _hasMore;
 
     [ObservableProperty]
     private string _summaryCountText = string.Empty;
@@ -102,151 +122,140 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     private string _summaryNetText = string.Empty;
 
     [ObservableProperty]
-    private Avalonia.Media.IBrush _summaryNetBrush = HistoryPresentation.Fill("#027a48");
+    private IBrush _summaryNetBrush = HistoryPresentation.Fill("#027a48");
 
     [ObservableProperty]
-    private string _loadMoreText = string.Empty;
+    private string _pageText = "۰ / ۰";
 
-    private readonly HashSet<HistoryEventKind> _selectedKinds = [];
+    [ObservableProperty]
+    private bool _hasPrev;
 
-    // ── Loading / pipeline ───────────────────────────────────────────────
+    [ObservableProperty]
+    private bool _hasNext;
 
-    private async Task ReloadAsync()
+    /// <summary>Active sort select index (0..3), mirroring the toolbar's options.</summary>
+    public int SortIndex
     {
-        IsBusy = true;
-
-        try
+        get => (int)_sort;
+        set
         {
-            var filter = new HistoryFilter(Period, _selectedKinds.ToArray(), SearchText.Trim());
-            var events = await _service.GetEventsAsync(filter);
-
-            _totalCount = events.Count;
-
-            var visible = events.Take(PageSize).ToList();
-
-            RenderSummary(visible, _totalCount);
-            RenderFeed(visible);
-
-            HasMore = visible.Count < _totalCount;
-            LoadMoreText = HasMore
-                ? $"نمایش رویدادهای بیشتر ({HistoryPresentation.Fa(_totalCount - visible.Count)} رویداد دیگر)"
-                : string.Empty;
-        }
-        finally
-        {
-            IsBusy = false;
+            var clamped = Math.Clamp(value, 0, 3);
+            if ((int)_sort != clamped)
+            {
+                _sort = (HistorySort)clamped;
+                OnPropertyChanged();
+                _ = ReloadAsync(resetPage: true);
+            }
         }
     }
 
-    // ── Summary bar (the reference's summaryHtml) ────────────────────────
-
-    private void RenderSummary(IReadOnlyList<HistoryEvent> visible, int total)
+    /// <summary>Active page-size select index (0..2).</summary>
+    public int PageSizeIndex
     {
-        var income = visible.Where(e => e.AmountSign == 1).Sum(e => e.Amount);
-        var expense = visible.Where(e => e.AmountSign == -1).Sum(e => e.Amount);
-        var net = income - expense;
-
-        SummaryCountText = $"نمایش {HistoryPresentation.Fa(visible.Count)} از {HistoryPresentation.Fa(total)} رویداد";
-        SummaryIncomeText = "+" + HistoryPresentation.Money(income) + " ت";
-        SummaryExpenseText = "−" + HistoryPresentation.Money(expense) + " ت";
-        SummaryNetText = (net >= 0 ? "+" : "−") + HistoryPresentation.Money(Math.Abs(net)) + " ت";
-        SummaryNetBrush = HistoryPresentation.Fill(net >= 0 ? "#027a48" : "#d92d20");
+        get => Array.IndexOf(PageSizes, _pageSize);
+        set
+        {
+            var clamped = Math.Clamp(value, 0, PageSizes.Length - 1);
+            var size = PageSizes[clamped];
+            if (_pageSize != size)
+            {
+                _pageSize = size;
+                OnPropertyChanged();
+                _ = ReloadAsync(resetPage: true);
+            }
+        }
     }
 
-    // ── Ledger feed (the reference's renderFeed) ─────────────────────────
-
-    private void RenderFeed(IReadOnlyList<HistoryEvent> visible)
+    partial void OnSearchTextChanged(string value)
     {
-        DayGroups.Clear();
+        HasSearchValue = !string.IsNullOrWhiteSpace(value);
+        _searchDebounce.Debounce(() => _ = ReloadAsync(resetPage: true));
+    }
 
-        HasEvents = visible.Count > 0;
-        IsEmpty = visible.Count == 0;
+    partial void OnFromDateChanged(string value) => OnDateRangeEdited();
 
-        if (visible.Count == 0)
+    partial void OnToDateChanged(string value) => OnDateRangeEdited();
+
+    private void OnDateRangeEdited()
+    {
+        if (_suppressDateReload)
         {
             return;
         }
 
-        // Group by day (the reference's groupByDay), keeping the newest-first order.
-        foreach (var group in visible.GroupBy(e => e.Date))
-        {
-            var rows = group.Select(e => new HistoryEventRowViewModel(e)).ToList();
-            var net = group.Where(e => e.AmountSign == 1).Sum(e => e.Amount)
-                      - group.Where(e => e.AmountSign == -1).Sum(e => e.Amount);
-
-            DayGroups.Add(new HistoryDayGroupViewModel(
-                group.Key,
-                HistoryPresentation.DayLabel(group.Key),
-                rows.Count,
-                net,
-                rows));
-        }
+        SyncRangeChips();
+        _ = ReloadAsync(resetPage: true);
     }
 
-    // ── Filter chips ─────────────────────────────────────────────────────
+    // ── Chip builders ────────────────────────────────────────────────────
 
-    private void BuildPeriodChips()
+    private void BuildRangeChips()
     {
-        PeriodChips.Clear();
-        PeriodChips.Add(new HistoryPeriodChipViewModel("today", "امروز") { IsActive = Period == "today" });
-        PeriodChips.Add(new HistoryPeriodChipViewModel("7", "۷ روز اخیر") { IsActive = Period == "7" });
-        PeriodChips.Add(new HistoryPeriodChipViewModel("30", "۳۰ روز اخیر") { IsActive = Period == "30" });
-        PeriodChips.Add(new HistoryPeriodChipViewModel("all", "همه") { IsActive = Period == "all" });
-    }
+        var today = JalaliCalendar.Today;
+        RangeChips.ReplaceAll(
+        [
+            new HistoryRangeViewModel("today", "امروز", today, today),
+            new HistoryRangeViewModel("7", "۷ روز اخیر", JalaliCalendar.AddDays(today, -6), today),
+            new HistoryRangeViewModel("30", "۳۰ روز اخیر", JalaliCalendar.AddDays(today, -29), today),
+            new HistoryRangeViewModel("all", "همه", string.Empty, string.Empty),
+        ]);
 
-    private void SyncPeriodChips()
-    {
-        foreach (var chip in PeriodChips)
-        {
-            chip.IsActive = chip.Key == Period;
-        }
+        // Default to the last 30 days (mirrors the reference's initial period).
+        _suppressDateReload = true;
+        FromDate = JalaliCalendar.AddDays(today, -29);
+        ToDate = today;
+        _suppressDateReload = false;
+        SyncRangeChips();
     }
 
     private void BuildCategoryChips()
     {
         CategoryChips.ReplaceAll(HistoryPresentation.AllKinds.Select(kind =>
             new HistoryCategoryChipViewModel(kind) { IsActive = _selectedKinds.Contains(kind) }));
-
-        SyncCategoryChips();
+        SyncAllKindsFlag();
     }
 
-    private void SyncCategoryChips()
+    private void SyncAllKindsFlag() =>
+        AreAllKindsActive = CategoryChips.Count > 0 && _selectedKinds.Count == CategoryChips.Count;
+
+    private void SyncRangeChips()
     {
-        foreach (var chip in CategoryChips)
+        foreach (var chip in RangeChips)
         {
-            chip.IsActive = _selectedKinds.Contains(chip.Kind);
+            chip.IsActive = chip.From == FromDate && chip.To == ToDate;
         }
     }
 
     // ── Commands ─────────────────────────────────────────────────────────
 
     [RelayCommand]
-    private void SetPeriod(string? key)
+    private void SetRange(string? key)
     {
-        if (string.IsNullOrEmpty(key) || key == Period)
+        var chip = RangeChips.FirstOrDefault(c => c.Key == key);
+        if (chip is null)
         {
             return;
         }
 
-        Period = key;
-        SyncPeriodChips();
-        _page = 1;
-        _ = ReloadAsync();
+        _suppressDateReload = true;
+        FromDate = chip.From;
+        ToDate = chip.To;
+        _suppressDateReload = false;
+
+        SyncRangeChips();
+        _ = ReloadAsync(resetPage: true);
     }
 
-    /// <summary>«همه» chip — clears the kind selection (the reference's <c>setCat('all')</c>).</summary>
     [RelayCommand]
-    private void SetCategoryAll()
+    private void ClearRange()
     {
-        if (_selectedKinds.Count == 0)
-        {
-            return;
-        }
+        _suppressDateReload = true;
+        FromDate = string.Empty;
+        ToDate = string.Empty;
+        _suppressDateReload = false;
 
-        _selectedKinds.Clear();
-        SyncCategoryChips();
-        _page = 1;
-        _ = ReloadAsync();
+        SyncRangeChips();
+        _ = ReloadAsync(resetPage: true);
     }
 
     [RelayCommand]
@@ -257,68 +266,197 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
             _selectedKinds.Remove(kind);
         }
 
-        // Selecting every kind is equivalent to "all" (the reference's guard).
-        if (_selectedKinds.Count == HistoryPresentation.AllKinds.Count)
+        foreach (var chip in CategoryChips)
         {
-            _selectedKinds.Clear();
+            chip.IsActive = _selectedKinds.Contains(chip.Kind);
         }
 
-        SyncCategoryChips();
-        _page = 1;
-        _ = ReloadAsync();
+        SyncAllKindsFlag();
+        _ = ReloadAsync(resetPage: true);
+    }
+
+    /// <summary>«همه» — activate every kind filter at once (or clear them when all are already on).</summary>
+    [RelayCommand]
+    private void SelectAllKinds()
+    {
+        var selectAll = !AreAllKindsActive;
+
+        _selectedKinds.Clear();
+        foreach (var chip in CategoryChips)
+        {
+            chip.IsActive = selectAll;
+            if (selectAll)
+            {
+                _selectedKinds.Add(chip.Kind);
+            }
+        }
+
+        SyncAllKindsFlag();
+        _ = ReloadAsync(resetPage: true);
     }
 
     [RelayCommand]
-    private void ApplySearch()
-    {
-        _page = 1;
-        _ = ReloadAsync();
-    }
+    private void ClearSearch() => SearchText = string.Empty;
 
     [RelayCommand]
-    private void ClearSearch()
+    private void ResetFilters()
     {
+        _selectedKinds.Clear();
+        _searchDebounce.Cancel();
+
+        _suppressDateReload = true;
         SearchText = string.Empty;
+        FromDate = string.Empty;
+        ToDate = string.Empty;
+        _suppressDateReload = false;
+
         HasSearchValue = false;
-        _page = 1;
-        _ = ReloadAsync();
+        foreach (var chip in CategoryChips)
+        {
+            chip.IsActive = false;
+        }
+
+        SyncAllKindsFlag();
+        SyncRangeChips();
+        _ = ReloadAsync(resetPage: true);
     }
 
     [RelayCommand]
-    private void LoadMore()
+    private void PrevPage()
     {
+        if (_page <= 1)
+        {
+            return;
+        }
+
+        _page--;
+        _ = ReloadAsync(resetPage: false);
+    }
+
+    [RelayCommand]
+    private void NextPage()
+    {
+        if (!HasNext)
+        {
+            return;
+        }
+
         _page++;
-        _ = LoadMoreAsync();
+        _ = ReloadAsync(resetPage: false);
     }
 
-    private async Task LoadMoreAsync()
+    // ── Loading ──────────────────────────────────────────────────────────
+
+    private async Task ReloadAsync(bool resetPage)
     {
-        var filter = new HistoryFilter(Period, _selectedKinds.ToArray(), SearchText.Trim());
-        var events = await _service.GetEventsAsync(filter);
-        var visible = events.Take(_page * PageSize).ToList();
+        if (resetPage)
+        {
+            _page = 1;
+        }
 
-        RenderSummary(visible, _totalCount);
-        RenderFeed(visible);
+        var token = ++_generation;
+        IsBusy = true;
 
-        HasMore = visible.Count < _totalCount;
-        LoadMoreText = HasMore
-            ? $"نمایش رویدادهای بیشتر ({HistoryPresentation.Fa(_totalCount - visible.Count)} رویداد دیگر)"
-            : string.Empty;
+        try
+        {
+            var filter = new HistoryFilter(
+                FromDate, ToDate, _selectedKinds.ToArray(), SearchText.Trim(), _sort, _page, _pageSize);
+
+            var page = await _service.GetPageAsync(filter);
+
+            if (token != _generation)
+            {
+                return; // a newer reload superseded this one — drop the stale result
+            }
+
+            ApplyPage(page);
+        }
+        finally
+        {
+            if (token == _generation)
+            {
+                IsBusy = false;
+            }
+        }
     }
 
-    /// <summary>
-    /// The reference's <c>exportCSV</c>: build the filtered CSV through the
-    /// service, then hand it to the OS save dialog. The save flow is a thin
-    /// platform call here (View/command), never inside the service (per the
-    /// phase's contract note).
-    /// </summary>
+    private void ApplyPage(HistoryPage page)
+    {
+        var totalPages = Math.Max(1, (int)Math.Ceiling(page.TotalCount / (double)_pageSize));
+
+        if (_page > totalPages)
+        {
+            _page = totalPages;
+            _ = ReloadAsync(resetPage: false);
+            return;
+        }
+
+        RenderFeed(page.Items);
+
+        HasEvents = page.TotalCount > 0;
+        IsEmpty = page.TotalCount == 0;
+
+        var income = page.IncomeTotal;
+        var expense = page.ExpenseTotal;
+        var net = income - expense;
+
+        var first = page.TotalCount == 0 ? 0 : ((_page - 1) * _pageSize) + 1;
+        var last = (_page - 1) * _pageSize + page.Items.Count;
+
+        SummaryCountText = page.TotalCount == 0
+            ? "بدون نتیجه"
+            : $"نمایش {HistoryPresentation.Fa(first)}–{HistoryPresentation.Fa(last)} از {HistoryPresentation.Fa(page.TotalCount)} رویداد";
+        SummaryIncomeText = "+" + HistoryPresentation.Money(income) + " ت";
+        SummaryExpenseText = "−" + HistoryPresentation.Money(expense) + " ت";
+        SummaryNetText = (net >= 0 ? "+" : "−") + HistoryPresentation.Money(Math.Abs(net)) + " ت";
+        SummaryNetBrush = HistoryPresentation.Fill(net >= 0 ? "#027a48" : "#d92d20");
+
+        PageText = $"{HistoryPresentation.Fa(_page)} / {HistoryPresentation.Fa(totalPages)}";
+        HasPrev = _page > 1;
+        HasNext = _page < totalPages;
+
+        PrevPageCommand.NotifyCanExecuteChanged();
+        NextPageCommand.NotifyCanExecuteChanged();
+    }
+
+    // ── Ledger feed (day-grouped over the current page only) ─────────────
+
+    private void RenderFeed(IReadOnlyList<HistoryEvent> items)
+    {
+        if (items.Count == 0)
+        {
+            DayGroups.ReplaceAll([]);
+            return;
+        }
+
+        var groups = new List<HistoryDayGroupViewModel>();
+        foreach (var group in items.GroupBy(e => e.Date))
+        {
+            var rows = group.Select(e => new HistoryEventRowViewModel(e)).ToList();
+            var net = group.Where(e => e.AmountSign == 1).Sum(e => e.Amount)
+                      - group.Where(e => e.AmountSign == -1).Sum(e => e.Amount);
+
+            groups.Add(new HistoryDayGroupViewModel(
+                group.Key,
+                HistoryPresentation.DayLabel(group.Key),
+                rows.Count,
+                net,
+                rows));
+        }
+
+        DayGroups.ReplaceAll(groups);
+    }
+
+    // ── CSV export (over the whole filtered set) ─────────────────────────
+
     [RelayCommand]
     private async Task ExportCsvAsync()
     {
-        var filter = new HistoryFilter(Period, _selectedKinds.ToArray(), SearchText.Trim());
+        var filter = new HistoryFilter(
+            FromDate, ToDate, _selectedKinds.ToArray(), SearchText.Trim(), _sort, 1, _pageSize);
         var csv = await _service.ExportCsvAsync(filter);
 
-        var suggested = "history-" + Animora.Desktop.Localization.JalaliCalendar.Today.Replace('/', '-') + ".csv";
+        var suggested = "history-" + JalaliCalendar.Today.Replace('/', '-') + ".csv";
         var saved = await _dialogs.SaveTextFileAsync(suggested, csv, "csv");
 
         _toast.Show(saved ? "خروجی CSV ذخیره شد" : "خروجی CSV آماده شد", saved ? Tone.Ok : Tone.Info);

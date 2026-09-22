@@ -142,6 +142,11 @@ public sealed class SaleHistoryRowViewModel
         StateLabel = entry.StateLabel;
         StateTone = SalePresentation.StateTone(entry.State);
 
+        // The audit "who" (R1).
+        ActorName = entry.Actor.Name;
+        ActorInitials = entry.Actor.Initials;
+        ActorRole = entry.Actor.RoleLabel;
+
         // «مالک · پتیار» subtitle, or just the owner when there is no patient.
         Subtitle = string.IsNullOrEmpty(PetName) ? OwnerName : OwnerName + " · " + PetName;
     }
@@ -181,4 +186,11 @@ public sealed class SaleHistoryRowViewModel
     public string StateLabel { get; }
 
     public Tone StateTone { get; }
+
+    /// <summary>The audit "who" — the user who performed the recorded action (R1).</summary>
+    public string ActorName { get; }
+
+    public string ActorInitials { get; }
+
+    public string ActorRole { get; }
 }

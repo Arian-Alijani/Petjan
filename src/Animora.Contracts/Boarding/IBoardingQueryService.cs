@@ -82,6 +82,14 @@ public interface IBoardingQueryService
     /// reference's <c>knownPets</c> suggestion list.
     /// </summary>
     Task<IReadOnlyList<BoardingKnownPet>> GetKnownPetsAsync();
+
+    /// <summary>
+    /// One ordered page of the boarding history ledger (check-in / item added /
+    /// item removed / transferred / check-out) plus the totals computed over the
+    /// <b>whole</b> filtered set. The service filters/sorts/pages on the caller's
+    /// behalf so no unbounded result set ever crosses the seam (PERFORMANCE.md §6).
+    /// </summary>
+    Task<BoardingHistoryPage> GetHistoryAsync(BoardingHistoryFilter filter);
 }
 
 /// <summary>

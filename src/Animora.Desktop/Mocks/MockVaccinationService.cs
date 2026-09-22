@@ -1,4 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Animora.Contracts.Identity;
 using Animora.Contracts.Vaccination;
+using Animora.Desktop.Localization;
 
 namespace Animora.Desktop.Mocks;
 
@@ -24,6 +30,22 @@ public sealed class MockVaccinationService : IVaccinationService
     private readonly IReadOnlyList<VaccineCatalogEntry> _catalog;
     private readonly IReadOnlyList<SmsTemplate> _templates;
 
+    // The audit identity seam (R1/R4): every recorded mutation is stamped from it.
+    private readonly ICurrentUserContext _user;
+
+    // Vaccination-history ledger (R4). Built lazily into a cached row list and
+    // rebuilt only after a mutation (PERFORMANCE.md §13).
+    private readonly List<VaccinationHistoryEntry> _history = [];
+    private IReadOnlyList<HistoryRow>? _historyRows;
+    private bool _historyDirty = true;
+
+    private static readonly ActorRef[] SeedActors =
+    [
+        new("u-aria", "دکتر آریا نیک", "مدیر کلینیک", "آ"),
+        new("u-samaneh", "دکتر سمانه راد", "دکتر دامپزشک", "س"),
+        new("u-sara", "منشی سارا", "پذیرش", "س"),
+    ];
+
     // O(1) id -> list-index lookup (PERFORMANCE.md §2/§13): records are only
     // ever mutated in place (never inserted/removed), so this index never
     // needs a rebuild after construction.
@@ -31,8 +53,9 @@ public sealed class MockVaccinationService : IVaccinationService
     private readonly Dictionary<string, VaccineCatalogEntry> _catalogById;
     private readonly Dictionary<string, SmsTemplate> _templatesById;
 
-    public MockVaccinationService()
+    public MockVaccinationService(ICurrentUserContext user)
     {
+        _user = user;
         _catalog =
         [
             new("FVRCP", "واکسن سه‌گانه گربه", "FVRCP", "cat", "a",
@@ -70,7 +93,161 @@ public sealed class MockVaccinationService : IVaccinationService
         _catalogById = _catalog.ToDictionary(c => c.Id, StringComparer.Ordinal);
         _templatesById = _templates.ToDictionary(t => t.Id, StringComparer.Ordinal);
         RebuildRecordIndex();
+        SeedHistory();
     }
+
+    // ── History (R4) ────────────────────────────────────────────────────────
+
+    private ActorRef CurrentActor() =>
+        new(_user.UserId, _user.Name, _user.RoleLabel, _user.Initials);
+
+    private static string Jalali(DateOnly date) =>
+        JalaliCalendar.ToIso(JalaliDate.FromDateTime(date.ToDateTime(TimeOnly.MinValue)));
+
+    private static string NowTime() =>
+        PersianNumberFormatter.ToPersianDigits($"{DateTime.Now.Hour:D2}:{DateTime.Now.Minute:D2}");
+
+    private static string KindLabel(VaccinationHistoryKind kind) => kind switch
+    {
+        VaccinationHistoryKind.Administered => "تزریق شد",
+        VaccinationHistoryKind.Scheduled => "زمان‌بندی شد",
+        VaccinationHistoryKind.SmsSent => "پیامک ارسال شد",
+        VaccinationHistoryKind.Rescheduled => "باززمان‌بندی شد",
+        _ => "رویداد",
+    };
+
+    /// <summary>Seeds the history backlog: done records → Administered rows dated on their LastDate.</summary>
+    private void SeedHistory()
+    {
+        foreach (var record in _records)
+        {
+            var vaccine = _catalogById.GetValueOrDefault(record.VaccineId);
+            var actor = ActorFor(record.VetName);
+
+            if (record.Status == VaccinationStatus.Done && record.LastDate is { } last)
+            {
+                AddHistory(new VaccinationHistoryEntry(
+                    $"vh-done-{record.Id}", VaccinationHistoryKind.Administered, KindLabel(VaccinationHistoryKind.Administered),
+                    record.Id, record.PetName, record.Species, record.OwnerName,
+                    vaccine?.Name ?? "واکسن", record.Dose, Jalali(last), "۱۰:۳۰",
+                    $"تزریق {record.Dose} — نوبت بعدی {Jalali(record.DueDate)}", actor));
+            }
+            else
+            {
+                AddHistory(new VaccinationHistoryEntry(
+                    $"vh-sched-{record.Id}", VaccinationHistoryKind.Scheduled, KindLabel(VaccinationHistoryKind.Scheduled),
+                    record.Id, record.PetName, record.Species, record.OwnerName,
+                    vaccine?.Name ?? "واکسن", record.Dose, Jalali(record.DueDate), "۰۹:۰۰",
+                    "زمان‌بندی نوبت واکسن", actor));
+            }
+
+            if (record.SmsState == SmsState.Sent)
+            {
+                AddHistory(new VaccinationHistoryEntry(
+                    $"vh-sms-{record.Id}", VaccinationHistoryKind.SmsSent, KindLabel(VaccinationHistoryKind.SmsSent),
+                    record.Id, record.PetName, record.Species, record.OwnerName,
+                    vaccine?.Name ?? "واکسن", record.Dose, Jalali(record.DueDate), "۰۸:۱۵",
+                    "ارسال یادآور پیامکی به مالک", ActorFor("منشی سارا")));
+            }
+        }
+
+        _historyDirty = true;
+    }
+
+    private static ActorRef ActorFor(string vetName) =>
+        vetName.Contains("سمانه", StringComparison.Ordinal) ? SeedActors[1]
+        : vetName.Contains("آریا", StringComparison.Ordinal) ? SeedActors[0]
+        : SeedActors[2];
+
+    private void AddHistory(VaccinationHistoryEntry entry)
+    {
+        _history.Add(entry);
+        _historyDirty = true;
+    }
+
+    private IReadOnlyList<HistoryRow> EnsureHistory()
+    {
+        if (_historyDirty || _historyRows is null)
+        {
+            _historyRows = _history
+                .Select(e => new HistoryRow(e, PersianText.Normalize(
+                    $"{e.PetName} {e.OwnerName} {e.VaccineName} {e.Dose} {e.Note} {e.Actor.Name} {e.RecordId}")))
+                .ToList();
+            _historyDirty = false;
+        }
+
+        return _historyRows;
+    }
+
+    public Task<VaccinationHistoryPage> GetHistoryAsync(VaccinationHistoryFilter filter)
+    {
+        var rows = EnsureHistory();
+        var kinds = filter.Kinds ?? [];
+
+        var from = string.IsNullOrWhiteSpace(filter.FromDate) ? null : filter.FromDate;
+        var to = string.IsNullOrWhiteSpace(filter.ToDate) ? null : filter.ToDate;
+        var q = PersianText.Normalize(filter.Search);
+
+        var matched = new List<HistoryRow>(rows.Count);
+        foreach (var row in rows)
+        {
+            var e = row.Entry;
+            if (from is not null && string.CompareOrdinal(e.Date, from) < 0)
+            {
+                continue;
+            }
+
+            if (to is not null && string.CompareOrdinal(e.Date, to) > 0)
+            {
+                continue;
+            }
+
+            if (kinds.Count > 0 && !kinds.Contains(e.Kind))
+            {
+                continue;
+            }
+
+            if (q.Length > 0 && !PersianText.Contains(row.Haystack, q))
+            {
+                continue;
+            }
+
+            matched.Add(row);
+        }
+
+        matched.Sort(filter.Sort == VaccinationHistorySort.Oldest ? OldestComparer : NewestComparer);
+
+        var pageSize = Math.Max(1, filter.PageSize);
+        var skip = (Math.Max(1, filter.Page) - 1) * pageSize;
+        var take = Math.Min(pageSize, Math.Max(0, matched.Count - skip));
+
+        IReadOnlyList<VaccinationHistoryEntry> items = take <= 0
+            ? []
+            : matched.GetRange(skip, take).Select(r => r.Entry).ToList();
+
+        return Task.FromResult(new VaccinationHistoryPage(items, matched.Count));
+    }
+
+    private static int CompareDate(HistoryRow a, HistoryRow b, bool ascending)
+    {
+        var byDate = string.CompareOrdinal(a.Entry.Date, b.Entry.Date);
+        if (byDate == 0)
+        {
+            byDate = string.CompareOrdinal(a.Entry.Time, b.Entry.Time);
+        }
+
+        if (byDate == 0)
+        {
+            byDate = string.CompareOrdinal(a.Entry.Id, b.Entry.Id);
+        }
+
+        return ascending ? byDate : -byDate;
+    }
+
+    private static readonly Comparison<HistoryRow> NewestComparer = static (a, b) => CompareDate(a, b, ascending: false);
+    private static readonly Comparison<HistoryRow> OldestComparer = static (a, b) => CompareDate(a, b, ascending: true);
+
+    private sealed record HistoryRow(VaccinationHistoryEntry Entry, string Haystack);
 
     private void RebuildRecordIndex()
     {
@@ -98,8 +275,16 @@ public sealed class MockVaccinationService : IVaccinationService
             throw new KeyNotFoundException($"Vaccination record '{recordId}' was not found.");
         }
 
-        var updated = _records[index] with { Status = VaccinationStatus.Done };
+        var updated = _records[index] with { Status = VaccinationStatus.Done, LastDate = Today };
         _records[index] = updated;
+
+        var vaccine = _catalogById.GetValueOrDefault(updated.VaccineId);
+        AddHistory(new VaccinationHistoryEntry(
+            $"vh-done-{updated.Id}-{_history.Count}", VaccinationHistoryKind.Administered,
+            KindLabel(VaccinationHistoryKind.Administered), updated.Id, updated.PetName, updated.Species,
+            updated.OwnerName, vaccine?.Name ?? "واکسن", updated.Dose,
+            JalaliCalendar.Today, NowTime(), "ثبت انجام واکسن", CurrentActor()));
+
         return Task.FromResult(updated);
     }
 
@@ -140,6 +325,14 @@ public sealed class MockVaccinationService : IVaccinationService
         _ = message;
         var updated = _records[index] with { SmsState = SmsState.Sent };
         _records[index] = updated;
+
+        var vaccine = _catalogById.GetValueOrDefault(updated.VaccineId);
+        AddHistory(new VaccinationHistoryEntry(
+            $"vh-sms-{updated.Id}-{_history.Count}", VaccinationHistoryKind.SmsSent,
+            KindLabel(VaccinationHistoryKind.SmsSent), updated.Id, updated.PetName, updated.Species,
+            updated.OwnerName, vaccine?.Name ?? "واکسن", updated.Dose,
+            JalaliCalendar.Today, NowTime(), "ارسال یادآور پیامکی به مالک", CurrentActor()));
+
         return Task.FromResult(updated);
     }
 
