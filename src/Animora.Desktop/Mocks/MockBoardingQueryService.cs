@@ -257,7 +257,7 @@ public sealed class MockBoardingQueryService : IBoardingQueryService
                 AddHistory(new BoardingHistoryEntry(
                     $"bh-seed-item-{stay.Id}-{item.Ref}", BoardingHistoryKind.ItemAdded, KindLabel(BoardingHistoryKind.ItemAdded),
                     stay.Id, stay.PetName, stay.Species, stay.OwnerName, stay.Room,
-                    Jalali(item.Date), "۱۱:۰۰", nights, (long)item.Quantity * item.Price, 1, item.Title, a));
+                    Jalali(item.At), "۱۱:۰۰", nights, (long)item.Quantity * item.Price, 1, item.Title, a));
             }
 
             if (stay.Transferred)

@@ -161,49 +161,6 @@ public sealed class BoardingKnownPetViewModel
 }
 
 /// <summary>
-/// One history card of the History tab, mirroring the reference's
-/// <c>.bd-hcard</c> (boarding.js <c>renderHistory</c>).
-/// </summary>
-public sealed class BoardingHistoryCardViewModel
-{
-    public BoardingHistoryCardViewModel(BoardingStay stay, int nights, int progressPercent, string statusLabel, string statusTone, string totalCostText)
-    {
-        Stay = stay;
-        PetName = stay.PetName;
-        BreedLine = $"{BoardingPresentation.SpeciesLabel(stay.Species)} · {stay.Breed}";
-        SpeciesIconKey = BoardingPresentation.SpeciesIconKey(stay.Species);
-        AvatarBrush = BoardingPresentation.AvatarBrush(stay.Tone);
-        AvatarGlyphBrush = BoardingPresentation.AvatarGlyphBrush(stay.Tone);
-        StatusLabel = statusLabel;
-        (StatusPillBackground, StatusPillForeground) = BoardingPresentation.PillBrushes(statusTone);
-        CheckInText = BoardingPresentation.Long(stay.CheckIn);
-        CheckOutText = BoardingPresentation.Long(stay.CheckOut);
-        NightsText = $"{BoardingPresentation.Fa(nights)} شب";
-        ProgressBrush = BoardingPresentation.ProgressBarBrush(false, false, progressPercent);
-        OwnerName = stay.OwnerName;
-        RoomText = $"اتاق {stay.Room}";
-        TotalCostText = totalCostText;
-    }
-
-    public BoardingStay Stay { get; }
-    public string PetName { get; }
-    public string BreedLine { get; }
-    public string SpeciesIconKey { get; }
-    public IBrush AvatarBrush { get; }
-    public IBrush AvatarGlyphBrush { get; }
-    public string StatusLabel { get; }
-    public IBrush StatusPillBackground { get; }
-    public IBrush StatusPillForeground { get; }
-    public string CheckInText { get; }
-    public string CheckOutText { get; }
-    public string NightsText { get; }
-    public IBrush ProgressBrush { get; }
-    public string OwnerName { get; }
-    public string RoomText { get; }
-    public string TotalCostText { get; }
-}
-
-/// <summary>
 /// One room tile of the Settings tab, mirroring the reference's
 /// <c>.bd-room-tile</c> (boarding.js <c>renderSettingsRooms</c>).
 /// </summary>

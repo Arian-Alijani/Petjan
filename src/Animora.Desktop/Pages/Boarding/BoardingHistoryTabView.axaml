@@ -1,194 +1,547 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:boarding="using:Animora.Desktop.Pages.Boarding"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Boarding.BoardingHistoryTabView"
              x:Name="Root"
-             x:DataType="boarding:BoardingPageViewModel"
+             x:DataType="boarding:BoardingHistoryViewModel"
              FlowDirection="RightToLeft">
-
-    <!-- History tab — re-draws Animora-UI/boarding.html #bd-section-history +
-         boarding.js renderHistory (.bd-sub-bar toolbar + .bd-hist-grid/.bd-hcard).
-         Values transcribed from boarding.css. -->
     <UserControl.Styles>
-        <Style Selector="Button.hcard">
+        <!-- ═══ Filter chip (.sh-chip): pill outline; active = brand fill. ═══ -->
+        <Style Selector="Button.sh-chip">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="13,5" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.sh-chip:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.sh-chip.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+
+        <!-- ═══ Kind chip (.sh-kind): icon + label. Inactive = muted outline
+             (dimmed accent icon, no fill); active = the kind's tinted surface
+             (BackgroundBrush) with an accent border + bold label. ═══ -->
+        <Style Selector="Button.sh-kind">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Opacity" Value="0.72" />
+        </Style>
+        <Style Selector="Button.sh-kind:pointerover">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Muted2Brush}" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="Button.sh-kind.on">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="Button.sh-kind.on TextBlock">
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+
+        <!-- ═══ "همه" (select-all) chip: brand pill, filled when every kind is
+             active. ═══ -->
+        <Style Selector="Button.sh-all">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="13,5" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.sh-all:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.sh-all.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- ═══ Compact toolbar select (.sh-select) ═══ -->
+        <Style Selector="ComboBox.sh-select">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="ComboBox.sh-select /template/ Border#Background">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <Style Selector="ComboBox.sh-select:pointerover /template/ Border#Background">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="ComboBox.sh-select /template/ PathIcon">
+            <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+        </Style>
+
+        <!-- ═══ Search field (.sh-search) ═══ -->
+        <Style Selector="Border.sh-search">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="13,0" />
+        </Style>
+        <Style Selector="TextBox.sh-search">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0,10" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <!-- ═══ Summary bar (.sh-summary) ═══ -->
+        <Style Selector="Border.sh-summary">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
-            <Setter Property="BorderThickness" Value="1.5" />
-            <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
-            <Setter Property="Padding" Value="16,14" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="BorderThickness" Value="1,1,1,0" />
+            <Setter Property="CornerRadius" Value="10,10,0,0" />
+            <Setter Property="Padding" Value="18,12" />
         </Style>
-        <Style Selector="Button.hcard /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+        <Style Selector="Border.sh-sep">
+            <Setter Property="Width" Value="1" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Background" Value="{StaticResource LineBrush}" />
         </Style>
-        <Style Selector="Button.hcard:pointerover">
-            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
-        </Style>
-        <Style Selector="Border.room-chip">
-            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+
+        <!-- ═══ Ledger shell (.sh-ledger) ═══ -->
+        <Style Selector="Border.sh-ledger">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="0,0,10,10" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+        <Style Selector="Border.sh-ledger-head">
+            <Setter Property="Background" Value="{StaticResource TableHeadBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="16,10" />
+        </Style>
+        <Style Selector="TextBlock.sh-col">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+
+        <!-- ═══ Row (.sh-row) ═══ -->
+        <Style Selector="Border.sh-row">
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="16,11" />
+        </Style>
+        <Style Selector="Border.sh-row:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Border.sh-badge">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
             <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="8,2" />
+        </Style>
+
+        <!-- ═══ Virtualized ledger body (bounded height REQUIRED inside the
+             shell's page-level ScrollViewer — see PERFORMANCE.md §6). ═══ -->
+        <Style Selector="ListBox.sh-ledger-body">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MaxHeight" Value="560" />
+        </Style>
+        <Style Selector="ListBox.sh-ledger-body ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.sh-ledger-body ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.sh-ledger-body ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <!-- ═══ Pager buttons (.sh-pager) ═══ -->
+        <Style Selector="Button.sh-pager">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.sh-pager:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.sh-pager:disabled">
+            <Setter Property="Opacity" Value="0.45" />
+            <Setter Property="Cursor" Value="Arrow" />
         </Style>
     </UserControl.Styles>
 
     <StackPanel>
-        <!-- History toolbar (.pagebar.bd-sub-bar) -->
-        <Border Classes="pagebar" Padding="14,12" Margin="0,0,0,18">
-            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <TextBlock Text="تاریخچه اقامت" FontSize="11" FontWeight="Bold"
-                               Foreground="{StaticResource Brand600Brush}" VerticalAlignment="Center" />
-                    <Border Background="#eff8ff" CornerRadius="20" Padding="10,4">
-                        <TextBlock Text="{Binding HistoryCountText}" FontSize="11" FontWeight="Bold"
-                                   Foreground="#1570cd" />
-                    </Border>
-                </StackPanel>
 
-                <Border Grid.Column="1" Background="{StaticResource Bg2Brush}"
-                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12"
-                        Padding="12,8" MaxWidth="300" HorizontalAlignment="Left">
-                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                        <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
-                              Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}"
-                              VerticalAlignment="Center" />
-                        <TextBox Grid.Column="1" Text="{Binding HistoryQueryText, Mode=TwoWay}" Background="Transparent"
-                                 BorderThickness="0" FontSize="13" VerticalContentAlignment="Center"
-                                 PlaceholderText="جستجوی حیوان، مالک…" />
-                        <Button Grid.Column="2" Classes="ghost" Width="28" Height="28" Padding="4"
-                                IsVisible="{Binding HasHistoryQuery}" Command="{Binding ClearHistorySearchCommand}"
-                                ToolTip.Tip="پاک‌کردن">
-                            <Path Classes="icon" Width="12" Height="12" Stroke="{StaticResource Brand700Brush}"
+        <!-- ═══ Toolbar — mirrors the Sales/History ledger toolbar ═══ -->
+        <Border Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                CornerRadius="0,0,16,16"
+                BoxShadow="{StaticResource ShadowCard}"
+                Padding="14,12" Margin="0,0,0,16">
+            <StackPanel Spacing="12">
+
+                <!-- tier 1 · search (start) + range presets (end) -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <Border Grid.Column="0" Classes="sh-search" MinWidth="200">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                                  VerticalAlignment="Center"
+                                  Stroke="{StaticResource MutedBrush}"
+                                  Data="{StaticResource IconSearch}" IsHitTestVisible="False" />
+                            <TextBox Grid.Column="1" Classes="sh-search" Text="{Binding SearchText}"
+                                     PlaceholderText="{Binding SearchPlaceholder}" />
+                            <Button Grid.Column="2" Width="20" Height="20" Padding="0"
+                                    CornerRadius="999" Background="{StaticResource Brand50Brush}"
+                                    BorderThickness="0" VerticalAlignment="Center"
+                                    IsVisible="{Binding HasSearchValue}"
+                                    Command="{Binding ClearSearchCommand}">
+                                <Path Classes="icon" Width="11" Height="11"
+                                      Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconX}" />
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                VerticalAlignment="Center">
+                        <ItemsControl ItemsSource="{Binding RangeChips}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="boarding:BoardingHistoryRangeViewModel">
+                                    <Button Classes="sh-chip" Classes.on="{Binding IsActive}"
+                                            Content="{Binding Label}"
+                                            Command="{Binding #Root.((boarding:BoardingHistoryViewModel)DataContext).SetRangeCommand}"
+                                            CommandParameter="{Binding Key}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Grid>
+
+                <!-- tier 2 · kind chips (start) + date range + species/sort/page controls (end) -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,12,0,0">
+                    <StackPanel Grid.Column="0">
+                        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                                Padding="0,12,0,0" Margin="0,-12,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <!-- «همه» — activate every kind filter at once. -->
+                                <Button Classes="sh-all" Classes.on="{Binding AreAllKindsActive}"
+                                        Margin="0,0,7,0" ToolTip.Tip="فعال‌سازی همهٔ فیلترها"
+                                        Command="{Binding SelectAllKindsCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="14" Height="14"
+                                              Stroke="{Binding $parent[Button].Foreground}"
+                                              Data="{StaticResource IconCheck}"
+                                              VerticalAlignment="Center" />
+                                        <TextBlock Text="همه" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <ItemsControl ItemsSource="{Binding KindChips}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="boarding:BoardingHistoryKindChipViewModel">
+                                            <Button Classes="sh-kind" Classes.on="{Binding IsActive}"
+                                                    Margin="0,0,7,0" ToolTip.Tip="{Binding Label}"
+                                                    Background="{Binding ChipBackground}"
+                                                    BorderBrush="{Binding ChipBorder}"
+                                                    Command="{Binding #Root.((boarding:BoardingHistoryViewModel)DataContext).ToggleKindCommand}"
+                                                    CommandParameter="{Binding Kind}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Stroke="{Binding ColorBrush}"
+                                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                          VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center"
+                                                               Foreground="{Binding LabelBrush}" />
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                VerticalAlignment="Center">
+                        <!-- free date range -->
+                        <controls:JalaliDatePicker Width="140" DateValue="{Binding FromDate, Mode=TwoWay}"
+                                                   ToolTip.Tip="از تاریخ" />
+                        <TextBlock Text="تا" FontSize="12" Foreground="{StaticResource MutedBrush}"
+                                   VerticalAlignment="Center" />
+                        <controls:JalaliDatePicker Width="140" DateValue="{Binding ToDate, Mode=TwoWay}"
+                                                   ToolTip.Tip="تا تاریخ" />
+                        <Button Classes="sh-pager" Padding="10,7" Command="{Binding ClearRangeCommand}"
+                                ToolTip.Tip="حذف بازهٔ تاریخ">
+                            <Path Classes="icon" Width="12" Height="12"
+                                  Stroke="{Binding $parent[Button].Foreground}"
                                   Data="{StaticResource IconX}" />
                         </Button>
-                    </Grid>
-                </Border>
 
-                <ComboBox Grid.Column="2" MinWidth="150" SelectedIndex="{Binding HistorySpeciesIndex}">
-                    <ComboBoxItem Content="همه گونه‌ها" />
-                    <ComboBoxItem Content="سگ" />
-                    <ComboBoxItem Content="گربه" />
-                    <ComboBoxItem Content="پرنده" />
-                    <ComboBoxItem Content="خرگوش" />
-                </ComboBox>
-            </Grid>
+                        <Border Width="1" Height="22" Background="{StaticResource LineBrush}" />
+
+                        <!-- species filter (boarding-specific) -->
+                        <ComboBox Classes="sh-select" MinWidth="130" SelectedIndex="{Binding SpeciesIndex}"
+                                  ToolTip.Tip="فیلتر گونه">
+                            <ComboBoxItem Content="همه گونه‌ها" />
+                            <ComboBoxItem Content="سگ" />
+                            <ComboBoxItem Content="گربه" />
+                            <ComboBoxItem Content="پرنده" />
+                            <ComboBoxItem Content="خرگوش" />
+                        </ComboBox>
+
+                        <ComboBox Classes="sh-select" MinWidth="150" SelectedIndex="{Binding SortIndex}"
+                                  ToolTip.Tip="مرتب‌سازی">
+                            <ComboBoxItem Content="جدیدترین" />
+                            <ComboBoxItem Content="قدیمی‌ترین" />
+                            <ComboBoxItem Content="بیشترین مبلغ" />
+                            <ComboBoxItem Content="کمترین مبلغ" />
+                        </ComboBox>
+                        <ComboBox Classes="sh-select" MinWidth="110" SelectedIndex="{Binding PageSizeIndex}"
+                                  ToolTip.Tip="تعداد رکورد در صفحه">
+                            <ComboBoxItem Content="۲۵ رکورد" />
+                            <ComboBoxItem Content="۵۰ رکورد" />
+                            <ComboBoxItem Content="۱۰۰ رکورد" />
+                        </ComboBox>
+
+                        <Button Classes="sh-pager" Command="{Binding ResetFiltersCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="13" Height="13"
+                                      Stroke="{Binding $parent[Button].Foreground}"
+                                      Data="{StaticResource IconRefresh}" />
+                                <TextBlock Text="بازنشانی" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
         </Border>
 
-        <!-- History cards grid (.bd-hist-grid) -->
-        <ItemsControl ItemsSource="{Binding HistoryCards}" IsVisible="{Binding HasHistoryCards}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <UniformGrid Columns="4" />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="boarding:BoardingHistoryCardViewModel">
-                    <Button Classes="hcard" Margin="0,0,14,14"
-                            Command="{Binding #Root.((boarding:BoardingPageViewModel)DataContext).OpenHistoryDetailCommand}"
-                            CommandParameter="{Binding}">
-                        <StackPanel>
-                            <!-- top -->
-                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,0,0,12">
-                                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
-                                        Background="{Binding AvatarBrush}" VerticalAlignment="Top">
-                                    <Path Width="20" Height="20" Fill="Transparent" StrokeThickness="2"
-                                          StrokeLineCap="Round" StrokeJoin="Round" Stretch="Uniform"
-                                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          Stroke="{Binding AvatarGlyphBrush}"
-                                          Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}" />
-                                </Border>
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding PetName}" FontSize="14" FontWeight="ExtraBold"
-                                               Foreground="{StaticResource InkBrush}" />
-                                    <TextBlock Text="{Binding BreedLine}" FontSize="11.5" Margin="0,2,0,0"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                </StackPanel>
-                                <Border Grid.Column="2" Background="{Binding StatusPillBackground}"
-                                        CornerRadius="20" Padding="8,3" VerticalAlignment="Top">
-                                    <TextBlock Text="{Binding StatusLabel}" FontSize="10.5" FontWeight="Bold"
-                                               Foreground="{Binding StatusPillForeground}" />
-                                </Border>
-                            </Grid>
+        <!-- ═══ Empty state ═══ -->
+        <Grid IsVisible="{Binding IsEmpty}">
+            <StackPanel>
+                <Border Classes="sh-summary" HorizontalAlignment="Stretch">
+                    <TextBlock Text="نتیجه‌ای یافت نشد" FontSize="13"
+                               Foreground="{StaticResource MutedBrush}" />
+                </Border>
+                <Border Classes="sh-ledger">
+                    <StackPanel Margin="0,64,0,64" HorizontalAlignment="Center" Spacing="10">
+                        <Border Width="56" Height="56" CornerRadius="16"
+                                Background="{StaticResource Bg2Brush}" HorizontalAlignment="Center">
+                            <Path Classes="icon" Width="26" Height="26"
+                                  Stroke="{StaticResource Muted2Brush}"
+                                  Data="{StaticResource IconTimeline}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="هیچ رویدادی در این بازه یافت نشد" FontSize="15"
+                                   FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="بازهٔ تاریخ، نوع رویداد یا عبارت جستجو را تغییر دهید." FontSize="13"
+                                   Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
 
-                            <!-- dates -->
-                            <Grid ColumnDefinitions="*,Auto,*,Auto,*" ColumnSpacing="8" Margin="0,0,0,6">
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="ورود" FontSize="10" FontWeight="Bold"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                    <TextBlock Text="{Binding CheckInText}" FontSize="12" FontWeight="Bold"
-                                               Foreground="{StaticResource Ink2Brush}" />
-                                </StackPanel>
-                                <Path Grid.Column="1" Classes="icon" Width="13" Height="13"
-                                      Stroke="{StaticResource Muted2Brush}" Data="{StaticResource IconChevronLeft}"
-                                      VerticalAlignment="Center" />
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="خروج" FontSize="10" FontWeight="Bold"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                    <TextBlock Text="{Binding CheckOutText}" FontSize="12" FontWeight="Bold"
-                                               Foreground="{StaticResource Ink2Brush}" />
-                                </StackPanel>
-                                <Path Grid.Column="3" Classes="icon" Width="13" Height="13"
-                                      Stroke="{StaticResource Muted2Brush}" Data="{StaticResource IconChevronLeft}"
-                                      VerticalAlignment="Center" />
-                                <StackPanel Grid.Column="4">
-                                    <TextBlock Text="مدت" FontSize="10" FontWeight="Bold"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                    <TextBlock Text="{Binding NightsText}" FontSize="12" FontWeight="Bold"
-                                               Foreground="{StaticResource Brand700Brush}" />
-                                </StackPanel>
-                            </Grid>
+        <!-- ═══ Populated: summary bar + table + pager ═══ -->
+        <StackPanel IsVisible="{Binding HasRows}">
+            <Border Classes="sh-summary">
+                <StackPanel Orientation="Horizontal" Spacing="24" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding SummaryCountText}" FontSize="13"
+                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                    <Border Classes="sh-sep" />
+                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
+                        <Run Text="ورودی: " />
+                        <Run Text="{Binding SummaryInflowText}" FontWeight="Bold" Foreground="{StaticResource OkBrush}" />
+                    </TextBlock>
+                    <Border Classes="sh-sep" />
+                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
+                        <Run Text="خروجی: " />
+                        <Run Text="{Binding SummaryOutflowText}" FontWeight="Bold" Foreground="{StaticResource DangerBrush}" />
+                    </TextBlock>
+                    <Border Classes="sh-sep" />
+                    <TextBlock FontSize="13" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center">
+                        <Run Text="خالص: " />
+                        <Run Text="{Binding SummaryNetText}" FontWeight="Bold" Foreground="{Binding SummaryNetBrush}" />
+                    </TextBlock>
+                </StackPanel>
+            </Border>
 
-                            <!-- progress -->
-                            <Border Height="4" CornerRadius="4" Background="{Binding ProgressBrush}"
-                                    ClipToBounds="True" Margin="0,4,0,8" />
+            <Border Classes="sh-ledger">
+                <StackPanel>
+                    <Border Classes="sh-ledger-head">
+                        <Grid ColumnDefinitions="36,90,*,150,120,130,120,120,110" ColumnSpacing="0">
+                            <TextBlock Grid.Column="0" Classes="sh-col" />
+                            <TextBlock Grid.Column="1" Classes="sh-col" Text="زمان" />
+                            <TextBlock Grid.Column="2" Classes="sh-col" Text="رویداد" />
+                            <TextBlock Grid.Column="3" Classes="sh-col" Text="مالک" />
+                            <TextBlock Grid.Column="4" Classes="sh-col" Text="اتاق" />
+                            <TextBlock Grid.Column="5" Classes="sh-col" Text="کاربر" />
+                            <TextBlock Grid.Column="6" Classes="sh-col" Text="مبلغ" />
+                            <TextBlock Grid.Column="7" Classes="sh-col" Text="مدت" />
+                            <TextBlock Grid.Column="8" Classes="sh-col" Text="نوع" />
+                        </Grid>
+                    </Border>
 
-                            <!-- foot -->
-                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
-                                    Padding="0,8,0,0" Margin="0,2,0,0">
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5"
-                                                VerticalAlignment="Center">
-                                        <Path Classes="icon" Width="11" Height="11"
-                                              Stroke="{StaticResource Muted2Brush}" Data="{StaticResource IconUsers}"
-                                              VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding OwnerName}" FontSize="11.5"
-                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                                                HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <Border Classes="room-chip">
-                                            <TextBlock Text="{Binding RoomText}" FontSize="10.5"
+                    <ListBox Classes="sh-ledger-body" ItemsSource="{Binding Rows}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="boarding:BoardingHistoryRowViewModel">
+                                <Border Classes="sh-row" ToolTip.Tip="{Binding Note}">
+                                    <Grid ColumnDefinitions="36,90,*,150,120,130,120,120,110" ColumnSpacing="0">
+                                        <Border Grid.Column="0" Classes="sh-badge"
+                                                Background="{Binding BadgeBrush}"
+                                                HorizontalAlignment="Left" VerticalAlignment="Center">
+                                            <Path Classes="icon" Width="15" Height="15"
+                                                  Stroke="{Binding BadgeIconBrush}"
+                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Margin="4,0" Text="{Binding TimeText}" FontSize="12"
+                                                   Foreground="{StaticResource MutedBrush}"
+                                                   VerticalAlignment="Center" />
+                                        <StackPanel Grid.Column="2" Margin="4,0" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding PetName}" FontSize="12.5"
                                                        FontWeight="ExtraBold"
                                                        Foreground="{StaticResource Brand700Brush}" />
-                                        </Border>
-                                        <TextBlock Text="{Binding TotalCostText}" FontSize="11.5"
-                                                   FontWeight="ExtraBold"
-                                                   Foreground="{StaticResource Brand700Brush}" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-                    </Button>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+                                            <TextBlock Text="{Binding Subtitle}" FontSize="11.5"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="3" Margin="4,0" Text="{Binding OwnerName}" FontSize="12"
+                                                   Foreground="{StaticResource Ink2Brush}"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="4" Margin="4,0" Text="{Binding RoomText}" FontSize="12"
+                                                   Foreground="{StaticResource Ink2Brush}"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <!-- کاربر / انجام‌دهنده (actor) -->
+                                        <StackPanel Grid.Column="5" Margin="4,0" Orientation="Horizontal"
+                                                    Spacing="7" VerticalAlignment="Center">
+                                            <Border Width="26" Height="26" CornerRadius="13"
+                                                    Background="{StaticResource Brand50Brush}"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ActorInitials}" FontSize="11"
+                                                           FontWeight="Bold"
+                                                           Foreground="{StaticResource Brand700Brush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <TextBlock Text="{Binding ActorName}" FontSize="12.5"
+                                                       Foreground="{StaticResource Ink2Brush}"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding ActorRole}" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="6" Margin="4,0" Text="{Binding AmountText}"
+                                                   FontSize="13" FontWeight="Bold"
+                                                   Foreground="{Binding AmountBrush}"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="7" Margin="4,0" Text="{Binding NightsText}" FontSize="12"
+                                                   Foreground="{StaticResource Ink2Brush}"
+                                                   VerticalAlignment="Center" />
+                                        <controls:Badge Grid.Column="8" Margin="4,0"
+                                                        VerticalAlignment="Center"
+                                                        HorizontalAlignment="Left"
+                                                        Text="{Binding KindLabel}"
+                                                        Tone="{Binding KindTone}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
 
-        <!-- empty state -->
-        <StackPanel IsVisible="{Binding !HasHistoryCards}" HorizontalAlignment="Center" Margin="0,48,0,48"
-                    Spacing="6">
-            <Border Width="60" Height="60" CornerRadius="16" Background="{StaticResource Bg2Brush}"
-                    HorizontalAlignment="Center">
-                <Path Width="28" Height="28" Fill="Transparent" StrokeThickness="2" StrokeLineCap="Round"
-                      StrokeJoin="Round" Stretch="Uniform" Stroke="{StaticResource Muted2Brush}"
-                      Data="{StaticResource IconTimeline}" HorizontalAlignment="Center"
-                      VerticalAlignment="Center" />
+                    <!-- pager -->
+                    <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                            Padding="16,12">
+                        <Grid ColumnDefinitions="*,Auto,Auto,*" ColumnSpacing="10">
+                            <Button Grid.Column="1" Classes="sh-pager" Command="{Binding PrevPageCommand}"
+                                    IsEnabled="{Binding HasPrev}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="icon" Width="13" Height="13"
+                                          Stroke="{Binding $parent[Button].Foreground}"
+                                          Data="{StaticResource IconChevronRight}" />
+                                    <TextBlock Text="قبلی" />
+                                </StackPanel>
+                            </Button>
+                            <Border Grid.Column="2" MinWidth="88" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding PageText}" FontSize="12.5" FontWeight="Bold"
+                                           Foreground="{StaticResource Ink2Brush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <Button Grid.Column="3" Classes="sh-pager" HorizontalAlignment="Left"
+                                    Command="{Binding NextPageCommand}" IsEnabled="{Binding HasNext}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="بعدی" />
+                                    <Path Classes="icon" Width="13" Height="13"
+                                          Stroke="{Binding $parent[Button].Foreground}"
+                                          Data="{StaticResource IconChevronLeft}" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </StackPanel>
             </Border>
-            <TextBlock Text="هیچ اقامتی یافت نشد" FontSize="15" FontWeight="Bold"
-                       Foreground="{StaticResource Ink2Brush}" HorizontalAlignment="Center" Margin="0,6,0,0" />
         </StackPanel>
     </StackPanel>
 </UserControl>
