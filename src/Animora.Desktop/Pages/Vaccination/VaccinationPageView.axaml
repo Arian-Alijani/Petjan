@@ -177,7 +177,7 @@
                 <!-- tier 1 · section tabs (start) + search (end/left) -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <Border Grid.Column="0" Classes="seg" HorizontalAlignment="Stretch">
-                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="2">
+                        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="2">
                             <Border Grid.Column="0" Classes="segitem" Classes.on="{Binding IsVisitsSection}">
                                 <Button Classes="segtap lg" HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center"
@@ -205,6 +205,16 @@
                                     <StackPanel Orientation="Horizontal" Spacing="7">
                                         <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconTools}" />
                                         <TextBlock Text="تنظیمات" FontSize="13.5" FontWeight="Bold" />
+                                    </StackPanel>
+                                </Button>
+                            </Border>
+                            <Border Grid.Column="3" Classes="segitem" Classes.on="{Binding IsHistorySection}">
+                                <Button Classes="segtap lg" HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Command="{Binding SetSectionCommand}" CommandParameter="history">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconTimeline}" />
+                                        <TextBlock Text="تاریخچه" FontSize="13.5" FontWeight="Bold" />
                                     </StackPanel>
                                 </Button>
                             </Border>
@@ -561,5 +571,10 @@
                 </StackPanel>
             </Border>
         </Grid>
+
+        <!-- ═══ Panel · تاریخچه ═══ -->
+        <Panel IsVisible="{Binding IsHistorySection}">
+            <vx:VaccinationHistoryView DataContext="{Binding History}" />
+        </Panel>
     </StackPanel>
 </UserControl>

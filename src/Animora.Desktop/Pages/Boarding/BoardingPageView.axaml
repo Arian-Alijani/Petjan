@@ -459,7 +459,7 @@
             </controls:LazyTab>
             <controls:LazyTab Key="history">
                 <DataTemplate x:DataType="boarding:BoardingPageViewModel">
-                    <boarding:BoardingHistoryTabView />
+                    <boarding:BoardingHistoryTabView DataContext="{Binding History}" />
                 </DataTemplate>
             </controls:LazyTab>
             <controls:LazyTab Key="settings">

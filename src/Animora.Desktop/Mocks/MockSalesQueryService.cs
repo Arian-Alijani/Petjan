@@ -690,7 +690,7 @@ public sealed class MockSalesQueryService : ISalesQueryService
 
                 rows.Add(MapRow(
                     $"aud-{inv.Id}-{a}", kind.Value, inv.State, inv,
-                    inv.Date, entry.At, 0, 0, entry.Action + " — " + entry.Detail));
+                    inv.Date, entry.At, 0, 0, entry.Action + " — " + entry.Detail, entry.Actor));
             }
         }
 

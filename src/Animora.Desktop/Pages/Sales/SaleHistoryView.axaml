@@ -424,15 +424,16 @@
             <Border Classes="sh-ledger">
                 <StackPanel>
                     <Border Classes="sh-ledger-head">
-                        <Grid ColumnDefinitions="36,96,*,1.4*,104,72,140,118" ColumnSpacing="0">
+                        <Grid ColumnDefinitions="36,96,*,1.4*,130,104,72,140,118" ColumnSpacing="0">
                             <TextBlock Grid.Column="0" Classes="sh-col" />
                             <TextBlock Grid.Column="1" Classes="sh-col" Text="نوع" />
                             <TextBlock Grid.Column="2" Classes="sh-col" Text="فاکتور / مشتری" />
                             <TextBlock Grid.Column="3" Classes="sh-col" Text="توضیح" />
-                            <TextBlock Grid.Column="4" Classes="sh-col" Text="تاریخ" />
-                            <TextBlock Grid.Column="5" Classes="sh-col" Text="زمان" />
-                            <TextBlock Grid.Column="6" Classes="sh-col" Text="مبلغ" />
-                            <TextBlock Grid.Column="7" Classes="sh-col" Text="وضعیت" />
+                            <TextBlock Grid.Column="4" Classes="sh-col" Text="کاربر" />
+                            <TextBlock Grid.Column="5" Classes="sh-col" Text="تاریخ" />
+                            <TextBlock Grid.Column="6" Classes="sh-col" Text="زمان" />
+                            <TextBlock Grid.Column="7" Classes="sh-col" Text="مبلغ" />
+                            <TextBlock Grid.Column="8" Classes="sh-col" Text="وضعیت" />
                         </Grid>
                     </Border>
 
@@ -447,7 +448,7 @@
                                         Command="{Binding #Root.((sales:SaleHistoryViewModel)DataContext).OpenInvoiceCommand}"
                                         CommandParameter="{Binding InvoiceId}">
                                 <Border Classes="sh-row" ToolTip.Tip="{Binding Note}">
-                                    <Grid ColumnDefinitions="36,96,*,1.4*,104,72,140,118" ColumnSpacing="0">
+                                    <Grid ColumnDefinitions="36,96,*,1.4*,130,104,72,140,118" ColumnSpacing="0">
                                         <Border Grid.Column="0" Classes="sh-badge"
                                                 Background="{Binding BadgeBrush}"
                                                 HorizontalAlignment="Left" VerticalAlignment="Center">
@@ -474,17 +475,34 @@
                                                    Foreground="{StaticResource Ink2Brush}"
                                                    VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Grid.Column="4" Margin="4,0" Text="{Binding DateText}" FontSize="12"
+                                        <!-- کاربر / انجام‌دهنده (actor) -->
+                                        <StackPanel Grid.Column="4" Margin="4,0" Orientation="Horizontal"
+                                                    Spacing="7" VerticalAlignment="Center">
+                                            <Border Width="26" Height="26" CornerRadius="13"
+                                                    Background="{StaticResource Brand50Brush}"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ActorInitials}" FontSize="11"
+                                                           FontWeight="Bold"
+                                                           Foreground="{StaticResource Brand700Brush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <TextBlock Text="{Binding ActorName}" FontSize="12.5"
+                                                       Foreground="{StaticResource Ink2Brush}"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding ActorRole}" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="5" Margin="4,0" Text="{Binding DateText}" FontSize="12"
                                                    Foreground="{StaticResource Ink2Brush}"
                                                    VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="5" Margin="4,0" Text="{Binding TimeText}" FontSize="12"
+                                        <TextBlock Grid.Column="6" Margin="4,0" Text="{Binding TimeText}" FontSize="12"
                                                    Foreground="{StaticResource MutedBrush}"
                                                    VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="6" Margin="4,0" Text="{Binding AmountText}"
+                                        <TextBlock Grid.Column="7" Margin="4,0" Text="{Binding AmountText}"
                                                    FontSize="13" FontWeight="Bold"
                                                    Foreground="{Binding AmountBrush}"
                                                    VerticalAlignment="Center" />
-                                        <controls:Badge Grid.Column="7" Margin="4,0"
+                                        <controls:Badge Grid.Column="8" Margin="4,0"
                                                         VerticalAlignment="Center"
                                                         HorizontalAlignment="Left"
                                                         Text="{Binding StateLabel}"

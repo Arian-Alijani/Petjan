@@ -49,6 +49,8 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         _dialogs = dialogs;
         _toast = toast;
 
+        History = new VaccinationHistoryViewModel(service);
+
         Title = "واکسیناسیون";
         Eyebrow = "مراقبت";
         Breadcrumbs.Add("مراقبت");
@@ -72,14 +74,18 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         _ = LoadAsync();
     }
 
-    /// <summary>visits | stock | settings — the reference's <c>#vxMainSeg</c> keys.</summary>
+    /// <summary>visits | stock | history | settings — the reference's <c>#vxMainSeg</c> keys.</summary>
     [ObservableProperty]
     private string _activeSection = "visits";
 
     public bool IsVisitsSection => ActiveSection == "visits";
     public bool IsStockSection => ActiveSection == "stock";
+    public bool IsHistorySection => ActiveSection == "history";
     public bool IsSettingsSection => ActiveSection == "settings";
     public bool ShowVisitsTools => ActiveSection == "visits";
+
+    /// <summary>The «تاریخچه» ledger sub-VM (owned here, lazily loaded on section open).</summary>
+    public VaccinationHistoryViewModel History { get; }
 
     public RangeObservableCollection<VaccinationSegmentViewModel> Segments { get; } = [];
     public RangeObservableCollection<VaccinationRecordRowViewModel> FilteredRecords { get; } = [];
@@ -171,8 +177,14 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     {
         OnPropertyChanged(nameof(IsVisitsSection));
         OnPropertyChanged(nameof(IsStockSection));
+        OnPropertyChanged(nameof(IsHistorySection));
         OnPropertyChanged(nameof(IsSettingsSection));
         OnPropertyChanged(nameof(ShowVisitsTools));
+
+        if (value == "history")
+        {
+            History.EnsureLoaded();
+        }
     }
 
     private async Task LoadAsync()

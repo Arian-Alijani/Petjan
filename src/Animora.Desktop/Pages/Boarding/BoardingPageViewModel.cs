@@ -35,16 +35,14 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private string _searchQuery = string.Empty;
     private BoardingSpecies? _species;
 
-    // Reference history state: histQuery, histSpecies.
-    private string _historyQuery = string.Empty;
-    private BoardingSpecies? _historySpecies;
-
     public BoardingPageViewModel(IBoardingQueryService service, IToastService toast, IDialogService dialogs, INavigationService navigation)
     {
         _service = service;
         _toast = toast;
         _dialogs = dialogs;
         _navigation = navigation;
+
+        History = new BoardingHistoryViewModel(service);
 
         Title = "پانسیون";
         Eyebrow = "مدیریت کلینیک";
@@ -106,6 +104,9 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     /// <summary>Tier-2 board filters (status tabs + search + actions) are only on مدیریت اقامت.</summary>
     public bool ShowBoardTools => ActiveSection == "board";
 
+    /// <summary>The «تاریخچه» ledger sub-VM (owned here, lazily loaded on section open).</summary>
+    public BoardingHistoryViewModel History { get; }
+
     public ObservableCollection<BoardingSectionViewModel> Sections { get; } = [];
     public ObservableCollection<BoardingTabViewModel> Tabs { get; } = [];
     public ObservableCollection<BoardingSpeciesOption> SpeciesOptions { get; } = [];
@@ -135,24 +136,6 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     [ObservableProperty]
     private bool _hasStays;
 
-    // ── History tab ─────────────────────────────────────────────────────────
-    public RangeObservableCollection<BoardingHistoryCardViewModel> HistoryCards { get; } = [];
-
-    [ObservableProperty]
-    private string _historyQueryText = string.Empty;
-
-    [ObservableProperty]
-    private bool _hasHistoryQuery;
-
-    [ObservableProperty]
-    private int _historySpeciesIndex;
-
-    [ObservableProperty]
-    private string _historyCountText = string.Empty;
-
-    [ObservableProperty]
-    private bool _hasHistoryCards;
-
     // ── Settings tab ────────────────────────────────────────────────────────
     public ObservableCollection<BoardingRateRowViewModel> RateRows { get; } = [];
     public RangeObservableCollection<BoardingRoomTileViewModel> RoomTiles { get; } = [];
@@ -165,6 +148,11 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsHistorySection));
         OnPropertyChanged(nameof(IsSettingsSection));
         OnPropertyChanged(nameof(ShowBoardTools));
+
+        if (value == "history")
+        {
+            History.EnsureLoaded();
+        }
     }
 
     partial void OnSelectedSpeciesOptionChanged(BoardingSpeciesOption value)
@@ -172,19 +160,6 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         _species = value.Value;
         OnPropertyChanged(nameof(SpeciesLabelText));
         RefreshCards();
-    }
-
-    partial void OnHistorySpeciesIndexChanged(int value)
-    {
-        _historySpecies = value switch
-        {
-            1 => BoardingSpecies.Dog,
-            2 => BoardingSpecies.Cat,
-            3 => BoardingSpecies.Bird,
-            4 => BoardingSpecies.Rabbit,
-            _ => null,
-        };
-        RefreshHistory();
     }
 
     private async Task LoadAsync()
@@ -195,7 +170,6 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
         RefreshTabCounts();
         RefreshCards();
-        RefreshHistory();
         BuildSettings();
     }
 
@@ -270,43 +244,6 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         HasStays = rows.Count > 0;
     }
 
-    private void RefreshHistory()
-    {
-        var query = PersianText.Normalize(_historyQuery);
-
-        var rows = _stays
-            .Where(stay =>
-            {
-                if (_historySpecies is { } species && stay.Species != species) return false;
-                if (query.Length > 0)
-                {
-                    var hay = PersianText.Normalize(
-                        $"{stay.PetName} {stay.OwnerName} {stay.Breed} {stay.Room}");
-                    if (!hay.Contains(query, StringComparison.Ordinal)) return false;
-                }
-                return true;
-            })
-            .OrderByDescending(stay => stay.CheckIn)
-            .ToList();
-
-        HistoryCountText = $"{PersianNumberFormatter.ToPersianDigits(rows.Count)} اقامت";
-
-        HistoryCards.ReplaceAll(rows.Select(stay =>
-        {
-            var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
-            var elapsed = Math.Min(Math.Max(0, _today.DayNumber - stay.CheckIn.DayNumber), nights);
-            var percent = Math.Min(100, (int)Math.Round(elapsed / (double)nights * 100));
-            var overdue = BoardingStayCardViewModel.IsStayOverdue(stay, _today);
-            var remaining = stay.Status == BoardingStatus.Done ? 0 : Math.Max(0, stay.CheckOut.DayNumber - _today.DayNumber);
-            var status = BoardingStayCardViewModel.StatusMeta(stay, overdue, remaining);
-            var total = (long)nights * stay.DailyRate + stay.ExtraItemsCost;
-            return new BoardingHistoryCardViewModel(
-                stay, nights, percent, status.Label, status.Tone, BoardingPresentation.Money(total));
-        }));
-
-        HasHistoryCards = rows.Count > 0;
-    }
-
     private void BuildSettings()
     {
         if (RateRows.Count == 0)
@@ -340,7 +277,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         await ReloadStaysAsync();
         RefreshTabCounts();
         RefreshCards();
-        RefreshHistory();
+        History.Refresh();
         await RefreshRoomsAsync();
     }
 
@@ -374,18 +311,11 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     // Search debounce (~160ms), moved out of the code-behind into the VM.
     private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
-    private readonly Debouncer _historyDebounce = new(System.TimeSpan.FromMilliseconds(160));
 
     partial void OnSearchQueryTextChanged(string value)
     {
         HasSearchValue = value.Trim().Length > 0;
         _searchDebounce.Debounce(() => ApplySearch(SearchQueryText));
-    }
-
-    partial void OnHistoryQueryTextChanged(string value)
-    {
-        HasHistoryQuery = value.Trim().Length > 0;
-        _historyDebounce.Debounce(() => ApplyHistorySearch(HistoryQueryText));
     }
 
     public void ApplySearch(string? text)
@@ -402,31 +332,10 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         ApplySearch(string.Empty);
     }
 
-    public void ApplyHistorySearch(string? text)
-    {
-        _historyQuery = text?.Trim() ?? string.Empty;
-        RefreshHistory();
-    }
-
-    [RelayCommand]
-    private void ClearHistorySearch()
-    {
-        HistoryQueryText = string.Empty;
-        HasHistoryQuery = false;
-        ApplyHistorySearch(string.Empty);
-    }
-
     // ── modal flows ─────────────────────────────────────────────────────────
 
     [RelayCommand]
     private void OpenStayDetail(BoardingStayCardViewModel? card)
-    {
-        if (card is null) return;
-        ShowDetail(card.Stay.Id);
-    }
-
-    [RelayCommand]
-    private void OpenHistoryDetail(BoardingHistoryCardViewModel? card)
     {
         if (card is null) return;
         ShowDetail(card.Stay.Id);
