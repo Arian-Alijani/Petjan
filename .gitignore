@@ -2,6 +2,9 @@
 bin/
 obj/
 
+# Test output
+**/TestResults/
+
 # Visual Studio / Rider / VS Code
 .vs/
 .idea/
