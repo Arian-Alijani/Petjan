@@ -64,4 +64,38 @@ public static class ErrorCodes
         new("UNEXPECTED", ErrorCode.Infrastructure);
 
     #endregion
+
+    #region Identity (Phase A03)
+
+    /// <summary>The tenant is suspended or closed; writes are refused.</summary>
+    public static readonly ErrorCode TenantSuspended =
+        new("TENANT_SUSPENDED", ErrorCode.Forbidden);
+
+    /// <summary>The account exists but is administratively disabled.</summary>
+    public static readonly ErrorCode UserDisabled =
+        new("USER_DISABLED", ErrorCode.Forbidden);
+
+    /// <summary>Too many failed attempts; the account is locked until its lockout ends.</summary>
+    public static readonly ErrorCode UserLockedOut =
+        new("USER_LOCKED_OUT", ErrorCode.Forbidden);
+
+    /// <summary>
+    /// No active <c>StaffMembership</c> links this user to the tenant — the only source of a
+    /// <c>(User, Tenant)</c> link (A-RULE 012).
+    /// </summary>
+    public static readonly ErrorCode MembershipNotActive =
+        new("MEMBERSHIP_NOT_ACTIVE", ErrorCode.Forbidden);
+
+    /// <summary>The device the request came from has been revoked.</summary>
+    public static readonly ErrorCode DeviceRevoked =
+        new("DEVICE_REVOKED", ErrorCode.Forbidden);
+
+    /// <summary>
+    /// The capability is not present in the device's capability snapshot, or its own expiry has
+    /// passed. Fail closed (A-RULE 029).
+    /// </summary>
+    public static readonly ErrorCode CapabilityNotGranted =
+        new("CAPABILITY_NOT_GRANTED", ErrorCode.Forbidden);
+
+    #endregion
 }
