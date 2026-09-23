@@ -185,4 +185,64 @@ public static class ErrorCodes
         new("STAY_DATES_INVALID", ErrorCode.Validation);
 
     #endregion
+
+    #region Inventory & Purchasing (Phase A06)
+
+    /// <summary>
+    /// A service product was marked stock-tracked. Labour has no ledger, so a service never
+    /// carries stock.
+    /// </summary>
+    public static readonly ErrorCode ServiceNoStock =
+        new("SERVICE_NO_STOCK", ErrorCode.Integrity);
+
+    /// <summary>
+    /// The movement's quantity sign contradicts its kind: inbound kinds require a positive
+    /// quantity, outbound kinds a negative one, and zero is never a movement.
+    /// </summary>
+    public static readonly ErrorCode MovementSignInvalid =
+        new("MOVEMENT_SIGN_INVALID", ErrorCode.Integrity);
+
+    /// <summary>
+    /// The outbound quantity exceeds the derived on-hand and the tenant does not allow negative
+    /// stock.
+    /// </summary>
+    public static readonly ErrorCode InsufficientStock =
+        new("INSUFFICIENT_STOCK", ErrorCode.Conflict);
+
+    /// <summary>Two quantities in different units were combined. Units are never converted silently.</summary>
+    public static readonly ErrorCode UnitMismatch =
+        new("UNIT_MISMATCH", ErrorCode.Validation);
+
+    /// <summary>The category move would make the category its own ancestor.</summary>
+    public static readonly ErrorCode CategoryCycle =
+        new("CATEGORY_CYCLE", ErrorCode.Integrity);
+
+    /// <summary>
+    /// A stock-tracked product must keep at least one active variant — every movement references a
+    /// variant, never a bare product.
+    /// </summary>
+    public static readonly ErrorCode VariantRequired =
+        new("VARIANT_REQUIRED", ErrorCode.Integrity);
+
+    /// <summary>The requested purchase-order state change is not in the order state machine.</summary>
+    public static readonly ErrorCode PurchaseOrderInvalidTransition =
+        new("PO_INVALID_TRANSITION", ErrorCode.Conflict);
+
+    /// <summary>The purchase order has been submitted; its lines are final.</summary>
+    public static readonly ErrorCode PurchaseOrderLocked =
+        new("PO_LOCKED", ErrorCode.Conflict);
+
+    /// <summary>The stored order totals disagree with the sum of its lines.</summary>
+    public static readonly ErrorCode PurchaseOrderTotalMismatch =
+        new("PO_TOTAL_MISMATCH", ErrorCode.Integrity);
+
+    /// <summary>The goods receipt is posted; it is immutable and a correction is a reversing receipt.</summary>
+    public static readonly ErrorCode ReceiptLocked =
+        new("RECEIPT_LOCKED", ErrorCode.Conflict);
+
+    /// <summary>The SKU is already used by another product or variant of this tenant.</summary>
+    public static readonly ErrorCode ProductSkuDuplicate =
+        new("PRODUCT_SKU_DUPLICATE", ErrorCode.Conflict);
+
+    #endregion
 }
