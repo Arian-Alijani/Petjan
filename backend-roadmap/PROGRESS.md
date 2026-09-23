@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A07`** — `backend-roadmap/phases/PHASE-A07-*.md`
+**Next phase: `A08`** — `backend-roadmap/phases/PHASE-A08-*.md`
 
 ## Phase status
 
@@ -50,7 +50,7 @@
 | A04 | ✅ Done | 2026-09-23 | Owners/patients/clinical core: 12 files (`Domain/Patients` 4, `Domain/Clinical` 7, `Events/ClinicalEvents.cs`). Visit state machine + invoice-handoff lines, derived vaccination due dates, append-only medical history. ErrorCodes += 7 (→ 24). 4 test classes (+45 facts → 90). Build 0/0, TESTS OK, SMOKE RUN OK. |
 | A05 | ✅ Done | 2026-09-23 | Scheduling & boarding domain: 12 files (`Domain/Scheduling` 5, `Domain/Boarding` 5, `Events/SchedulingEvents.cs`, `Events/BoardingEvents.cs`). Appointment state machine + `SlotConflictPolicy` (pure, `for`-loop), reception derived-queue, boarding stay state machine + `BillableDays` + invoice-required checkout. ErrorCodes += 11 (→ 35). 8 events. **No tests (owed to A12).** Build: Domain 0/0 (solution-wide OOM only in Avalonia Desktop XAML AOT — sandbox RAM cap, not code). |
 | A06 | ✅ Done | 2026-09-23 | Inventory & purchasing domain: 13 files (`Domain/Inventory` 6, `Domain/Purchasing` 5, `Events/InventoryEvents.cs`, ErrorCodes). **Movement-based stock only** — `Product` has no on-hand property; `StockCalculator` is the single derivation (signed sum + moving weighted average); `StockMovement` is append-only with a factory-enforced sign rule; `StockLevel` is a rebuildable projection. PO state machine + `RecalculateTotals`/`ApplyReceipt`; posted `GoodsReceipt` immutable (A-RULE 002). ErrorCodes += 11 (→ 46). 4 events. **No tests (owed to A12).** Build full 0/0, SMOKE RUN OK. |
-| A07 | ⬜ Not started | | |
+| A07 | ✅ Done | 2026-09-23 | Sales & cashier domain: 9 new files (`Domain/Sales` 6, `Domain/Cashier` 2, `Events/SalesEvents.cs`) + ErrorCodes. `Invoice` aggregate with the 6-state machine and **immutability after posting** (all 5 mutators → `INVOICE_IMMUTABLE`, A-RULE 002); `InvoiceTotals` is the single totals algorithm (invoice discount pro-rated by weighted largest-remainder before tax, `Money.ApplyPercent` the only rounding); `Payment` append-only with factory-validated method references and `OperationId` idempotency (`PAYMENT_DUPLICATE_OPERATION`, A-RULE 006); `InvoiceAdjustment` the only post-posting economic change path; `SettlementStatus` (8 states, §8.3) defined once; `CashSession` open/close invariants + signed `CashMovement` factory. ErrorCodes += 14 (→ 60). 6 events. **No tests (owed to A12).** Build full 0/0, SMOKE RUN OK. |
 | A08 | ⬜ Not started | | |
 | A09 | ⬜ Not started | | |
 | A10 | ⬜ Not started | | |
@@ -101,6 +101,107 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > Append one entry per completed phase, newest first. Required fields:
 > **files added**, **contracts added**, **DI changes**, **mocks deleted**, **migrations created**,
 > **tests added**, **verification** (build/test/smoke results), **deviations**.
+
+### A07 — Domain: sales & cashier (2026-09-23)
+
+- **Files added (src, 9):**
+  - `Sales/SettlementStatus.cs` — `enum SettlementStatus { Draft, LocallyPosted, PendingSettlement,
+    Settled, Rejected, Conflict, Reversed, NeedsAttention }`, the exact `ARCHITECTURE.md` §8.3 list.
+    **Defined here once** and reused by B02 / D05 / E06 — never redefined. `Invoice` and `Payment` both
+    carry it so the UI can always show where a money command stands (never hidden).
+  - `Sales/InvoiceLine.cs` — `sealed record InvoiceLine(LineId, Kind, CatalogItemId?, ProductId?,
+    VariantId?, Title, Quantity, UnitPrice, DiscountPercent, TaxPercent, Source, SourceEntityId?)` +
+    `enum InvoiceLineKind { Service, Product, Boarding, Custom }`,
+    `enum InvoiceLineSource { Visit, Stay, Catalog, Manual }`; computed `LineGross`, `LineDiscount`,
+    `LineTax`, `LineNet`. Quantity extension is `unitPrice.ApplyPercent(q × 100)` — no inline rounding.
+    `LineTax` is documented as **line-local**; the authoritative tax is `InvoiceTotals`'.
+  - `Sales/InvoiceTotals.cs` — the **single** totals algorithm, pure static, indexed `for` loops, no
+    LINQ: `Compute(lines, discountKind, discountValue, insurancePercent, currency)` →
+    `InvoiceTotalsSnapshot(Subtotal, LineDiscountTotal, InvoiceDiscount, DiscountTotal, TaxTotal,
+    InsuranceCoverage, GrandTotal)` exactly as tabled in the phase file, plus
+    `ComputeDue(grandTotal, paidTotal, adjustments)`. The invoice discount is spread over the lines
+    **before** tax by weighted largest-remainder allocation (weights = post-line-discount nets;
+    degrades to `Money.Allocate` when all weights are zero), so the shares sum back to exactly the
+    invoice discount and no minor unit is lost. `Money.ApplyPercent` is the only rounding boundary.
+    Also hosts `enum DiscountKind { Percent, Amount }` (the Domain's own; `Animora.Contracts` keeps a
+    separate UI-facing copy — the Domain references no Contracts type).
+  - `Sales/Invoice.cs` — `sealed class Invoice : AggregateRoot` + `enum InvoiceKind { Visit, Boarding,
+    DirectSale, SalesReturn }`, `enum InvoiceState { Draft, Posted, PartiallyPaid, Paid, Void,
+    Refunded }`. One `Result Transition(...)` gate over `static bool IsTransitionAllowed(from, to)`
+    (exposed for A12) implementing the tabled machine exactly (`INVOICE_INVALID_TRANSITION`).
+    **[INVARIANT] Immutability after posting (A-RULE 002):** a single private `EnsureDraft()` guards
+    `AddLine`, `RemoveLine`, `EditLine`, `SetDiscount`, `SetInsurance` (plus `AttachVisit`,
+    `AttachStay`, `AssignOwner`) → `INVOICE_IMMUTABLE`. `RecalculateTotals()` (delegating to
+    `InvoiceTotals`) is the only writer of the totals and runs after every change; `Post(IClock)`
+    re-verifies stored vs recomputed totals (`INVOICE_TOTAL_MISMATCH`), refuses an empty invoice
+    (`INVOICE_EMPTY`) and a negative grand total (`INVOICE_NEGATIVE_TOTAL`), stamps `PostedUtc`, sets
+    `Settlement = LocallyPosted` and raises `InvoicePostedEvent`. `ApplyPayment(Payment)` rejects a
+    foreign invoice id, a duplicate `OperationId` (`PAYMENT_DUPLICATE_OPERATION`, `PaidTotal`
+    untouched — A-RULE 006) and an over-payment (`PAYMENT_EXCEEDS_DUE`), then advances
+    `PartiallyPaid`/`Paid` and raises `PaymentRegisteredEvent`. `ApplyRefund` (→ `Refunded`,
+    `ADJUSTMENT_EXCEEDS_PAID` guard, `Settlement = Reversed`, `InvoiceRefundedEvent`),
+    `AddCreditNote` (every non-refund adjustment kind), `Void(reason, IClock)` (only while
+    `PaidTotal == 0`, else `INVOICE_VOID_AFTER_PAYMENT`; raises `InvoiceVoidedEvent`),
+    `MarkSettlement(status, errorCode?)`. `InvoiceNumber` is assigned by the Application layer (B01),
+    never by the entity.
+  - `Sales/Payment.cs` — `sealed class Payment : SyncableEntity`, **append-only, zero mutators**
+    (every property `private init`), `enum PaymentMethod { Cash, Card, Transfer, Cheque, Credit,
+    Insurance, Wallet }`. `Create(...) → Result<Payment>` is the only way to obtain one: refuses a
+    zero amount and enforces the reference rule — cash needs `CashSessionId`, a cheque needs
+    `ChequeId` (`PAYMENT_METHOD_REFERENCE_REQUIRED`). A reversal is a **new** payment with a negative
+    `Amount` and `ReversesPaymentId` set (A-RULE 002/003); `OperationId` is the idempotency key.
+  - `Sales/InvoiceAdjustment.cs` — `sealed record InvoiceAdjustment(AdjustmentId, Kind, Amount,
+    Reason, CreatedUtc, CreatedByUserId, OperationId?, ReversesAdjustmentId?)` +
+    `enum AdjustmentKind { CreditNote, Refund, WriteOff, RoundingCorrection, LineReturn }`. The
+    **only** mechanism that changes a posted invoice's economics. Sign convention documented:
+    positive reduces the debt (credit note / write-off), negative re-opens it (refund, paired with a
+    negative `Payment`).
+  - `Cashier/CashMovement.cs` — `sealed record CashMovement(MovementId, Kind, Amount, InvoiceId?,
+    PaymentId?, Reason, OccurredUtc, RecordedByUserId, OperationId?)` + `enum CashMovementKind
+    { SalePayment, RefundOut, PettyCashOut, FloatIn, BankDropOut, CorrectionIn, CorrectionOut }`.
+    **Sign rule** (`SalePayment`/`FloatIn`/`CorrectionIn` positive, the other four negative, zero never
+    a movement) enforced in the `Create(...) → Result<CashMovement>` factory (`MOVEMENT_SIGN_INVALID`,
+    reusing A06's code — the same rule, one code).
+  - `Cashier/CashSession.cs` — `sealed class CashSession : AggregateRoot` + `enum CashSessionState
+    { Open, Closing, Closed, Reconciled }`, strictly forward machine via one `Transition(...)` gate
+    over `static IsTransitionAllowed`. `Open(...)` factory raises `CashSessionOpenedEvent`;
+    `static Result EnsureNoOpenSession(bool anyOpenExists)` → `CASH_SESSION_ALREADY_OPEN` (the unique
+    filtered index in A09 is the second line of defence); `AddMovement` refused unless `Open`
+    (`CASH_SESSION_CLOSED`); private `Recalculate()` is the only writer of
+    `ExpectedClosing = OpeningFloat + Σ movements` and `Variance = DeclaredClosing - ExpectedClosing`;
+    `BeginClose(declared, note, IClock, hasUnsettled)` refuses while a linked command is unsettled
+    (`CASH_SESSION_UNSETTLED_COMMANDS`) and requires a note for a non-zero variance
+    (`CASH_VARIANCE_NOTE_REQUIRED` — a variance itself is allowed); `Close(IClock)` raises
+    `CashSessionClosedEvent`; `Reconcile(userId, IClock)`.
+  - `Events/SalesEvents.cs` — `InvoicePostedEvent(InvoiceId, OwnerId, GrandTotalMinor, Currency,
+    VisitId, BoardingStayId)`, `PaymentRegisteredEvent(PaymentId, InvoiceId, AmountMinor, Currency,
+    Method)`, `InvoiceRefundedEvent(InvoiceId, AdjustmentId, AmountMinor, Currency)`,
+    `InvoiceVoidedEvent(InvoiceId, Reason)`, `CashSessionOpenedEvent(SessionId, CashierUserId)`,
+    `CashSessionClosedEvent(SessionId, VarianceMinor, Currency)` — all
+    `: DomainEvent(EventId, TenantId, OccurredAtUtc)`.
+- **Files modified (1):** `Results/ErrorCodes.cs` — new `#region Sales & Cashier (Phase A07)` with
+  **14** codes (→ 60 total): `INVOICE_IMMUTABLE`, `INVOICE_INVALID_TRANSITION`,
+  `INVOICE_TOTAL_MISMATCH`, `INVOICE_NEGATIVE_TOTAL`, `INVOICE_EMPTY`, `INVOICE_VOID_AFTER_PAYMENT`,
+  `PAYMENT_EXCEEDS_DUE`, `PAYMENT_DUPLICATE_OPERATION`, `PAYMENT_METHOD_REFERENCE_REQUIRED`,
+  `CASH_SESSION_ALREADY_OPEN`, `CASH_SESSION_CLOSED`, `CASH_VARIANCE_NOTE_REQUIRED`,
+  `CASH_SESSION_UNSETTLED_COMMANDS`, `ADJUSTMENT_EXCEEDS_PAID`. No existing code renamed or removed.
+- **Key decisions recorded:** (1) the totals algorithm lives **only** in `InvoiceTotals` — client
+  (C07) and server (D07) must both call it so they can never disagree; (2) the invoice discount is
+  pro-rated over lines *before* tax, by weight, with largest-remainder so the shares are exact;
+  (3) payments and adjustments are **facts**, never edited — a correction is a compensating entry
+  with a reason (A-RULE 002/003), which is also why offline conflict resolution here is additive and
+  never LWW (CONVENTIONS §6 item 9); (4) a negative payment (a refund's compensating entry) skips the
+  `PAYMENT_EXCEEDS_DUE` check because the paired `InvoiceAdjustment` already authorized it.
+- **Contracts added:** none (`Animora.Contracts` untouched). **DI changes:** none. **Mocks deleted:**
+  none. **Migrations created:** none. `Animora.Domain.csproj` still has zero references.
+- **Tests added:** **none — Track A phase (ROADMAP §3.10); all coverage is owed to A12**
+  (`InvoiceStateMachineTests`, `InvoiceImmutabilityTests`, `InvoiceTotalsTests`, `PaymentTests`,
+  `CashSessionTests` — exactly as listed in the phase file's "Test coverage owed to A12").
+- **Verification:** `scripts/sandbox/build.sh full` → **0 warnings / 0 errors** (14 projects);
+  `scripts/sandbox/run.sh` → **SMOKE RUN OK**. `test.sh` deliberately not invoked (A12 owns it).
+- **Deviations:** see D-A07-1 below (small additions inside the listed files: `DiscountKind` enum,
+  `InvoiceTotalsSnapshot`, `InvoiceTotals.ComputeDue`, `CashSession.Open`/`ReconciledByUserId`,
+  `Invoice.SettlementErrorCode`).
 
 ### A06 — Domain: inventory & purchasing (2026-09-23)
 
@@ -674,3 +775,31 @@ Rule check: CONVENTIONS §1 (no TFM/Nullable in the marker's project — inherit
 Impact:     A02 onward may keep or replace these markers when real Domain/Application types appear; the
             layering facts key off assembly reference sets, not the marker, so removing them later is safe
             as long as another loadable type exists in each assembly.
+
+### A07 — supporting types the phase table implied but did not name            (date: 2026-09-23)
+Context:    The phase file specifies `Invoice.DiscountKind DiscountKind`, an `InvoiceTotals` static that
+            returns "the totals", `Invoice.MarkSettlement(SettlementStatus, string? errorCode)` and a
+            `CashSession` aggregate, but the Domain layer owns no `DiscountKind` type (the existing one
+            lives in `Animora.Contracts`, which `Animora.Domain` may never reference — CONVENTIONS §2),
+            names no return type for the totals function, no storage for the settlement error code, and
+            no constructor for a cash session.
+Decision:   Added, all inside the nine files the phase table already lists and with no new file:
+            (1) `enum DiscountKind { Percent, Amount }` in `Sales/InvoiceTotals.cs` — the Domain's own
+            copy, member-for-member identical to the Contracts one, so no layering edge is created;
+            (2) `readonly record struct InvoiceTotalsSnapshot` as `InvoiceTotals.Compute`'s return type;
+            (3) `InvoiceTotals.ComputeDue(...)` so the documented `DueTotal` formula also lives in the
+            single totals module instead of being re-implemented on the aggregate;
+            (4) `Invoice.SettlementErrorCode` to actually hold `MarkSettlement`'s `errorCode` argument;
+            (5) `CashSession.Open(...)` factory (the phase lists the four mutators but no creator) and
+            `ReconciledByUserId` to hold `Reconcile`'s argument;
+            (6) `Invoice.Create(...)` factory, mirroring `PurchaseOrder.Create` from A06.
+            `CashMovement.Create` reuses A06's `MOVEMENT_SIGN_INVALID` rather than adding a 15th code —
+            it is literally the same rule (kind fixes sign), and §3 forbids duplicate codes for one
+            condition.
+Rule check: CONVENTIONS §2 (Domain still references nothing — verified: `Animora.Domain.csproj` is
+            empty), §3 (naming), §4 (sealed/record/`Result` returns/no ambient clock), A-RULE 002/003/006
+            unaffected (all additions are read-only or factory paths). ARCHITECTURE §8.3's state list is
+            reproduced exactly.
+Impact:     A09 maps `Invoice.SettlementErrorCode` as a plain nullable string column; C07/C08 map the
+            Domain `DiscountKind` to the Contracts one explicitly (a one-line switch, not a cast) —
+            the two enums are deliberately separate types.
