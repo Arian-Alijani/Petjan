@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A03`** — `backend-roadmap/phases/PHASE-A03-*.md`
+**Next phase: `A04`** — `backend-roadmap/phases/PHASE-A04-*.md`
 
 ## Phase status
 
@@ -46,7 +46,7 @@
 |---|---|---|---|
 | A01 | ✅ Done | 2026-09-23 | Backend track scaffold: 4 src + 5 test projects, 10 pins, WireContract v1, test.sh, LayeringRulesTests. Build 0/0, TESTS OK, SMOKE RUN OK. |
 | A02 | ✅ Done | 2026-09-23 | Domain kernel: 15 files (primitives, Money/Quantity, ULID IdGenerator, clock ports, Result/ErrorCodes seed 11). 4 test classes, 24 domain tests. Build 0/0, TESTS OK, SMOKE RUN OK. |
-| A03 | ⬜ Not started | | |
+| A03 | ✅ Done | 2026-09-23 | Identity spine: 11 files in `Domain/Identity` (Tenant, User, StaffRole, Permission, PermissionCodes 42, RoleDefinition, DefaultRolePermissions, StaffMembership, Device, CapabilitySnapshot, OfflineCapabilityPolicy). ErrorCodes += 6. 3 test classes (+21 facts → 45). Build 0/0, TESTS OK, SMOKE RUN OK. |
 | A04 | ⬜ Not started | | |
 | A05 | ⬜ Not started | | |
 | A06 | ⬜ Not started | | |
@@ -101,6 +101,103 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > Append one entry per completed phase, newest first. Required fields:
 > **files added**, **contracts added**, **DI changes**, **mocks deleted**, **migrations created**,
 > **tests added**, **verification** (build/test/smoke results), **deviations**.
+
+### A03 — Domain: identity, tenant, staff, device (2026-09-23)
+
+- **Files added (src, 11 — all in `src/Animora.Domain/Identity/`; the A02 `.gitkeep` placeholder removed):**
+  - `Tenant.cs` — `sealed class Tenant : AggregateRoot` + `enum TenantStatus { Active, Suspended, Closed }`.
+    `DisplayName`, `LegalName?`, `Timezone` (IANA, default `Asia/Tehran` via `DefaultTimezone` const),
+    `DefaultCurrency` (default `CurrencyScale.Irt` = `"IRT"`), `Status`. `Create(...)` sets
+    `TenantId == Id` so the tenant row is covered by the same uniform tenant filter; `SetStatus`, `Rename`.
+  - `User.cs` — `sealed class User : AggregateRoot` + `enum UserStatus { Active, Disabled, Locked }`.
+    `UserName` (lowercase invariant, unique per tenant), `DisplayName`, `PasswordHash?`, `SecurityStamp`
+    (ULID), `Status`, `LastLoginUtc?`, `FailedAttemptCount`, `LockoutEndUtc?`. Policy constants
+    `MaxFailedAttempts = 5`, `LockoutDuration = 15 min`, `DefaultFailureWindow = 15 min`. Methods
+    `RegisterFailedAttempt(IClock, threshold, window)` (returns whether it triggered the lockout; a streak
+    older than the window is discarded), `ClearFailures()` (never re-activates a `Disabled` account),
+    `IsLockedOut(nowUtc)` (fail-closed when `LockoutEndUtc` is null), `RegisterSuccessfulLogin(IClock)`,
+    `RotateSecurityStamp()`, `SetPasswordHash(string)` (rotates the stamp), `Disable()`, `Enable()`.
+  - `StaffRole.cs` — `enum StaffRole { Manager, Doctor, Receptionist, Cashier, Accountant }`.
+    Mapping to `Animora.Contracts.Navigation.UserRole` deferred to C10 (Contracts untouched).
+  - `Permission.cs` — `sealed class Permission` (`Code` PK, `Category`, `RiskLevel Risk`) +
+    `enum RiskLevel { Low, Normal, High, Critical }`; `Create(code, risk, category?)`, `CategoryOf(code)`
+    (first dotted segment).
+  - `PermissionCodes.cs` — **42 seed codes** as `const string` members in 5 regions (patients/reception,
+    clinical, appointments/boarding, inventory/purchasing, sales/payments, finance/reporting,
+    administration), exactly the strings listed in the phase file. `All` (ordered `IReadOnlyList<string>`),
+    `Exists(code)`, `RiskOf(code)` (Critical set of 7 → High set of 6 → `*.read` = Low → Normal),
+    `CreateCatalog()`.
+  - `RoleDefinition.cs` — `sealed class RoleDefinition : AggregateRoot`: `Role`, `DisplayKey`
+    (`role.<lowercase>`), `IsSystem`, `PermissionCodes` (`IReadOnlySet<string>` over a private ordinal
+    `HashSet`). `CreateSystem(tenantId, role, IClock)` seeds from `DefaultRolePermissions`;
+    `Grant`/`Revoke` throw `InvalidOperationException` for the system `Manager` definition and
+    `ArgumentException` for an undeclared code; `Has(code)`.
+  - `DefaultRolePermissions.cs` — the role→permission matrix exactly as tabled, built **only** from
+    `PermissionCodes` constants (`using P = ...` alias) so a rename is a compile error. Manager = all 42;
+    Doctor 16; Receptionist 14; Cashier 12; Accountant 14. `All`, `For(role)` (empty set = fail closed).
+  - `StaffMembership.cs` — `sealed class StaffMembership : AggregateRoot` + `enum MembershipStatus
+    { Active, Suspended, Ended }`: `UserId`, `Role`, `Status`, `JoinedUtc`, `EndedUtc?`,
+    `ExtraPermissionCodes`, `DeniedPermissionCodes`. `Create`, `IsActive`, `ChangeRole`, `Suspend`,
+    `Reinstate` (an ended membership is never reopened), `End(IClock)` (idempotent, keeps the first
+    instant), `GrantExtra`/`Deny` (mutually exclusive — deny wins), `ClearOverride`. Documented as the
+    **only** `(User, Tenant)` link; `TenantId` is resolved from it server-side (A-RULE 012).
+  - `Device.cs` — `sealed class Device : AggregateRoot` + `enum DeviceStatus { Pending, Active, Revoked }`:
+    `UserId`, `DeviceName`, `InstallationIdHash` (SHA-256 hex; the identity itself never leaves the device),
+    `Platform`, `Status`, `RegisteredUtc`, `LastContactUtc?`, `RevokedUtc?`, `RevocationReason?`.
+    `Register(...)` → `Pending`; `Approve()` (throws for a revoked device), `IsUsable`,
+    `RecordContact(IClock)`, `Revoke(reason, IClock)` **idempotent** — a second call keeps the first
+    instant and reason so the audit trail stays truthful.
+  - `CapabilitySnapshot.cs` — `sealed record CapabilitySnapshot(TenantId, UserId, DeviceId, Role,
+    CapabilityExpiry, IssuedUtc, SnapshotExpiryUtc, SecurityStamp, Signature)`. `Allows(code, nowUtc)`
+    **fails closed**: blank/unknown code → false, snapshot expired → false, capability expiry `<= nowUtc`
+    → false (so a zero window never grants). `IsExpired(nowUtc)`. Helper
+    `BuildExpiry(codes, issuedUtc)` applies `OfflineCapabilityPolicy` per code — signing/verification
+    stays server-side (D03/E07); `Signature` is an opaque base64 string here.
+  - `OfflineCapabilityPolicy.cs` — the authoritative windows: `Low = 30 d`, `Normal = 14 d`,
+    `High = 72 h`, `Critical = 0`; `WindowFor(RiskLevel)` (unknown level → `TimeSpan.Zero`),
+    `WindowForCode(code)`. Documented as ADR-gated values.
+- **Files modified (src, 1):** `Results/ErrorCodes.cs` — new `#region Identity (Phase A03)` **appended**
+  (no existing entry reordered) with 6 codes, all category `Forbidden`: `TENANT_SUSPENDED`,
+  `USER_DISABLED`, `USER_LOCKED_OUT`, `MEMBERSHIP_NOT_ACTIVE`, `DEVICE_REVOKED`,
+  `CAPABILITY_NOT_GRANTED`. Catalog total 11 → 17.
+- **Contracts added:** 6 entities (`Tenant`, `User`, `Permission`, `RoleDefinition`, `StaffMembership`,
+  `Device`), 6 enums (`TenantStatus`, `UserStatus`, `StaffRole`, `RiskLevel`, `MembershipStatus`,
+  `DeviceStatus`), 1 value object (`CapabilitySnapshot`), 3 statics (`PermissionCodes`,
+  `DefaultRolePermissions`, `OfflineCapabilityPolicy`). **No `Animora.Contracts` change**, no wire DTO,
+  no EF configuration, no persistence.
+- **DI changes:** none. **Mocks deleted:** none. **Migrations created:** none.
+- **Package/project references added:** **none** — `Animora.Domain.csproj` is still an empty
+  `Microsoft.NET.Sdk` project with zero `PackageReference`/`ProjectReference` (CONVENTIONS §2);
+  `LayeringRulesTests` still green.
+- **Tests added (3 classes, 21 facts; `Animora.Domain.Tests` 24 → 45):**
+  - `UserLockoutTests` (5) — the 5th failure sets `Locked` + `LockoutEndUtc = now + 15 min`; attempts
+    outside the window restart the streak; a successful login clears status/count/end and stamps
+    `LastLoginUtc`; `ClearFailures` does not revive a `Disabled` account; `SetPasswordHash` normalizes
+    the user name and rotates the stamp. Uses a local advancing `TestClock : IClock` — no wall clock.
+  - `RolePermissionMatrixTests` (8 methods / 10 cases) — every string in every role's set resolves to a declared code;
+    the catalog has no duplicates and `CreateCatalog` risk-matches `RiskOf`; the risk table is asserted
+    literally (7 Critical, 6 High, every `*.read` Low, `patients.write` Normal); Manager == `All`;
+    Doctor/Receptionist/Cashier hold **no** Critical code; Accountant's Critical subset is exactly
+    `{finance.period.close, payments.reverse}`; the system Manager definition rejects `Grant`/`Revoke`
+    and a non-Manager one accepts idempotent grant/revoke but rejects an unknown code; membership carries
+    the only `(User, Tenant)` link, deny beats extra, and `End` is idempotent.
+  - `CapabilitySnapshotTests` (6) — an expired snapshot denies even a `Low` read; an unknown/ungranted/
+    blank code is denied; a `Critical` code is denied at `IssuedUtc` because its window is zero;
+    a `High` code is allowed at +71 h and denied at +73 h while the snapshot itself is still valid
+    (capability expiry enforced independently); the four offline windows are the published numbers;
+    device revocation is idempotent and a revoked device cannot be re-approved.
+- **Verification:** `scripts/sandbox/build.sh full` = **0 warnings / 0 errors**;
+  `scripts/sandbox/test.sh` = **TESTS OK** (Domain 45/45, other 4 projects 1/1 each);
+  `scripts/sandbox/run.sh` = **SMOKE RUN OK**.
+- **Deviations:** none material. Additions beyond the literal file list, all inside phase scope and
+  needed to keep the types usable without re-deriving rules later: factory methods (`Create`/`Register`/
+  `CreateSystem`) because every aggregate has private setters and an `IClock`-supplied instant;
+  `User.IsLockedOut`/`RegisterSuccessfulLogin`/`Enable`/`Disable`; `Permission.CategoryOf`;
+  `PermissionCodes.Exists`/`RiskOf`/`CreateCatalog`; `DefaultRolePermissions.For`;
+  `StaffMembership` override/lifecycle helpers; `Device.Approve`/`RecordContact`/`IsUsable`;
+  `CapabilitySnapshot.BuildExpiry`; `OfflineCapabilityPolicy.WindowForCode`. `RoleDefinition.Grant`
+  additionally rejects undeclared codes (fail-closed, CONVENTIONS §7). No `IPermissionEvaluator`,
+  no hashing, no signing, no EF mapping — those stay in B03/B04/D03/A09 as scoped.
 
 ### A02 — Domain kernel (2026-09-23)
 
