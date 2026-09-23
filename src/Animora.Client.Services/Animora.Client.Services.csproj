@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Animora.Application\Animora.Application.csproj" />
+    <ProjectReference Include="..\Animora.Contracts\Animora.Contracts.csproj" />
+    <ProjectReference Include="..\Animora.Persistence.Sqlite\Animora.Persistence.Sqlite.csproj" />
+    <ProjectReference Include="..\Animora.Infrastructure.Local\Animora.Infrastructure.Local.csproj" />
+  </ItemGroup>
+
+</Project>
