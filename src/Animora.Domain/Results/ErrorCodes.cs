@@ -133,4 +133,56 @@ public static class ErrorCodes
         new("VACCINE_DOSE_INVALID", ErrorCode.Validation);
 
     #endregion
+
+    #region Scheduling & Boarding (Phase A05)
+
+    /// <summary>
+    /// The candidate slot overlaps an existing, non-terminal appointment for the same doctor.
+    /// Decided by <c>SlotConflictPolicy</c> (ARCHITECTURE.md §8.5) — reject, never last-write-wins.
+    /// <c>Detail</c> carries the conflicting appointment id.
+    /// </summary>
+    public static readonly ErrorCode AppointmentSlotConflict =
+        new("APPOINTMENT_SLOT_CONFLICT", ErrorCode.Conflict);
+
+    /// <summary>The requested appointment state change is not in the appointment state machine.</summary>
+    public static readonly ErrorCode AppointmentInvalidTransition =
+        new("APPOINTMENT_INVALID_TRANSITION", ErrorCode.Conflict);
+
+    /// <summary>The appointment is in visit or later; its slot is fixed and can no longer be moved.</summary>
+    public static readonly ErrorCode AppointmentNotMovable =
+        new("APPOINTMENT_NOT_MOVABLE", ErrorCode.Conflict);
+
+    /// <summary>The duration is outside [5, 480] minutes or is not a multiple of five.</summary>
+    public static readonly ErrorCode AppointmentDurationInvalid =
+        new("APPOINTMENT_DURATION_INVALID", ErrorCode.Validation);
+
+    /// <summary>The requested reception-queue state change is not in the queue state machine.</summary>
+    public static readonly ErrorCode QueueInvalidTransition =
+        new("QUEUE_INVALID_TRANSITION", ErrorCode.Conflict);
+
+    /// <summary>The room is retired or otherwise not available for the requested action.</summary>
+    public static readonly ErrorCode RoomUnavailable =
+        new("ROOM_UNAVAILABLE", ErrorCode.Conflict);
+
+    /// <summary>The room capacity is outside the plausible range [1, 10].</summary>
+    public static readonly ErrorCode RoomCapacityInvalid =
+        new("ROOM_CAPACITY_INVALID", ErrorCode.Validation);
+
+    /// <summary>The requested boarding-stay state change is not in the stay state machine.</summary>
+    public static readonly ErrorCode StayInvalidTransition =
+        new("STAY_INVALID_TRANSITION", ErrorCode.Conflict);
+
+    /// <summary>The stay has been invoiced; its items are final and can no longer change.</summary>
+    public static readonly ErrorCode StayLocked =
+        new("STAY_LOCKED", ErrorCode.Conflict);
+
+    /// <summary>A stay cannot be checked out without an attached invoice — never checked out unbilled.</summary>
+    public static readonly ErrorCode StayInvoiceRequired =
+        new("STAY_INVOICE_REQUIRED", ErrorCode.Conflict);
+
+    /// <summary>The planned check-out is not strictly after the check-in.</summary>
+    public static readonly ErrorCode StayDatesInvalid =
+        new("STAY_DATES_INVALID", ErrorCode.Validation);
+
+    #endregion
 }

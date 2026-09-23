@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A05`** — `backend-roadmap/phases/PHASE-A05-*.md`
+**Next phase: `A06`** — `backend-roadmap/phases/PHASE-A06-*.md`
 
 ## Phase status
 
@@ -48,7 +48,7 @@
 | A02 | ✅ Done | 2026-09-23 | Domain kernel: 15 files (primitives, Money/Quantity, ULID IdGenerator, clock ports, Result/ErrorCodes seed 11). 4 test classes, 24 domain tests. Build 0/0, TESTS OK, SMOKE RUN OK. |
 | A03 | ✅ Done | 2026-09-23 | Identity spine: 11 files in `Domain/Identity` (Tenant, User, StaffRole, Permission, PermissionCodes 42, RoleDefinition, DefaultRolePermissions, StaffMembership, Device, CapabilitySnapshot, OfflineCapabilityPolicy). ErrorCodes += 6. 3 test classes (+21 facts → 45). Build 0/0, TESTS OK, SMOKE RUN OK. |
 | A04 | ✅ Done | 2026-09-23 | Owners/patients/clinical core: 12 files (`Domain/Patients` 4, `Domain/Clinical` 7, `Events/ClinicalEvents.cs`). Visit state machine + invoice-handoff lines, derived vaccination due dates, append-only medical history. ErrorCodes += 7 (→ 24). 4 test classes (+45 facts → 90). Build 0/0, TESTS OK, SMOKE RUN OK. |
-| A05 | ⬜ Not started | | |
+| A05 | ✅ Done | 2026-09-23 | Scheduling & boarding domain: 12 files (`Domain/Scheduling` 5, `Domain/Boarding` 5, `Events/SchedulingEvents.cs`, `Events/BoardingEvents.cs`). Appointment state machine + `SlotConflictPolicy` (pure, `for`-loop), reception derived-queue, boarding stay state machine + `BillableDays` + invoice-required checkout. ErrorCodes += 11 (→ 35). 8 events. **No tests (owed to A12).** Build: Domain 0/0 (solution-wide OOM only in Avalonia Desktop XAML AOT — sandbox RAM cap, not code). |
 | A06 | ⬜ Not started | | |
 | A07 | ⬜ Not started | | |
 | A08 | ⬜ Not started | | |
@@ -101,6 +101,114 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > Append one entry per completed phase, newest first. Required fields:
 > **files added**, **contracts added**, **DI changes**, **mocks deleted**, **migrations created**,
 > **tests added**, **verification** (build/test/smoke results), **deviations**.
+
+### A05 — Domain: scheduling & boarding (2026-09-23)
+
+- **Files added (src, 12):**
+  - `Scheduling/AppointmentSlot.cs` — `readonly record struct AppointmentSlot(DateTimeOffset StartUtc,
+    int DurationMinutes)`; computed `EndUtc`; `bool Overlaps(other)` as a **half-open** interval
+    (`StartUtc < other.EndUtc && other.StartUtc < EndUtc`) so adjacent slots (`end == start`) never overlap.
+  - `Scheduling/AppointmentTypeCatalog.cs` — `readonly record struct AppointmentTypeDef(Code,
+    DefaultDurationMinutes, RequiresDoctor)` + static seed of **7** types (`CHECKUP 30 true`, `VACCINE 15
+    true`, `SURGERY 90 true`, `DENTAL 60 true`, `GROOMING 45 false`, `FOLLOWUP 20 true`, `CONSULT 20 true`)
+    exposed as `All` with an ordinal `TryGet`.
+  - `Scheduling/Appointment.cs` — `sealed class Appointment : AggregateRoot` + `enum AppointmentState
+    { Scheduled, Confirmed, CheckedIn, InVisit, Completed, NoShow, Cancelled }`, `enum AppointmentSource
+    { Phone, WalkIn, Online, Followup, Recall }`. `PetId`, `OwnerId`, `DoctorUserId?`,
+    `AppointmentTypeCode`, `StartUtc`, `DurationMinutes`, `State`, `Source`, `Note?`, `VisitId?`,
+    `CancelReason?`, `CheckedInUtc?`, `CreatedByUserId`, `RescheduleCount`; computed `EndUtc`, `Slot`.
+    One `Result Transition(AppointmentState)` gate over a `static bool IsTransitionAllowed(from, to)` table
+    (exposed for A12). `Book(...) → Result<Appointment>` (duration guard + `AppointmentBookedEvent`),
+    `Confirm`, `CheckIn(IClock)`, `StartVisit(visitId)` (requires `CheckedIn`), `Complete`,
+    `MarkNoShow(IClock)`, `Cancel(reason, IClock)` (`AppointmentCancelledEvent`), `Move(newStartUtc,
+    newDurationMinutes, IClock)` — forbidden once `State >= InVisit` (`APPOINTMENT_NOT_MOVABLE`),
+    increments `RescheduleCount`, raises `AppointmentMovedEvent`. Duration ∈ [5, 480] and a multiple of 5
+    else `APPOINTMENT_DURATION_INVALID`. Slot-conflict is **not** enforced here (needs the calendar) —
+    that is `SlotConflictPolicy`, called by the caller (ARCHITECTURE §8.5).
+  - `Scheduling/SlotConflictPolicy.cs` — static **authoritative** conflict rule + `readonly record struct
+    ExistingSlot(AppointmentId, DoctorUserId?, Slot, State)`. `EnsureFree(candidate, doctorUserId,
+    existing) → Result` applies four ordered rules: (1) terminal slots (`Cancelled`/`NoShow`/`Completed`)
+    never conflict; (2) conflict only on overlap **and** same non-null doctor; (3) a null-doctor candidate
+    never conflicts (triaged at reception); (4) on conflict `Fail(APPOINTMENT_SLOT_CONFLICT,
+    conflictingAppointmentId)`. Pure, no clock, `for`-loop, no LINQ, no per-candidate allocation
+    (PERFORMANCE §2). Candidate list supplied by A-layer from an indexed `(TenantId, DoctorUserId,
+    StartUtc)` range query (index owed to A09).
+  - `Scheduling/ReceptionQueueEntry.cs` — `sealed class ReceptionQueueEntry : AggregateRoot` + `enum
+    QueueState { Waiting, Called, InVisit, Done, Left }`, `enum QueueSource { Appointment, WalkIn }`.
+    `PetId`, `OwnerId`, `AppointmentId?`, `DoctorUserId?`, `State`, `Source`, `TicketNumber`,
+    `EnqueuedUtc`, `CalledUtc?`, `ClosedUtc?`, `Priority` (0/1/2), `Note?`, `VisitId?`. `Create(...)`
+    raises `QueueEntryCreatedEvent`; `Call(doctorUserId, IClock)`, `StartVisit(visitId)`, `Close(IClock)`,
+    `MarkLeft(IClock)`, `SetPriority(int)` (clamped 0–2). **Derived-queue decision** documented in XML:
+    an entry exists only for a *present* patient (check-in / walk-in); future appointments never create
+    queue rows (C02 relies on this). `TicketNumber` is a per-tenant, per-local-day counter set by the
+    A-layer (B01+), not by the entity.
+  - `Boarding/Room.cs` — `sealed class Room : AggregateRoot` + `enum RoomType { Standard, Vip, Isolation,
+    Cage, Suite }`, `enum RoomStatus { Available, Occupied, Maintenance, Retired }`. `Code`,
+    `DisplayName`, `Type`, `Capacity`, `Status`, `Notes?`. `Create(...) → Result<Room>` guards
+    `Capacity ∈ [1, 10]` (`ROOM_CAPACITY_INVALID`); `SetCapacity`, `SetStatus` (refuses `Retired →
+    Available` → `ROOM_UNAVAILABLE`), `Rename`.
+  - `Boarding/BoardingServiceDef.cs` — `sealed class BoardingServiceDef : AggregateRoot` + `enum
+    BoardingServiceBilling { PerStay, PerDay, PerUse }`. `Code`, `Title`, `Money UnitPrice`, `Billing`,
+    `IsActive`. `Create`, `Update`, `Deactivate`/`Activate`.
+  - `Boarding/StayItem.cs` — `sealed record StayItem(ItemId, StayItemKind Kind, CatalogItemId?, Title,
+    Quantity, Money UnitPrice, ConsumedUtc, RecordedByUserId)` + `enum StayItemKind { BoardingService,
+    ClinicService, Product, Custom }`. Part of the invoice-handoff payload Sales reads (A07).
+  - `Boarding/StayRoomAssignment.cs` — `sealed record StayRoomAssignment(RoomId, FromUtc, ToUtc?,
+    Reason?)`; open (`ToUtc == null`) while current.
+  - `Boarding/BoardingStay.cs` — `sealed class BoardingStay : AggregateRoot` + `enum StayState
+    { Reserved, Active, ReadyForInvoice, Invoiced, CheckedOut, Cancelled }`. `PetId`, `OwnerId`, `RoomId`,
+    `CheckInUtc`, `PlannedCheckOutUtc`, `ActualCheckOutUtc?`, `State`, `Money DailyRate`, `CareNote?`,
+    `DietNote?`, `InvoiceId?`, `IReadOnlyList<StayItem> Items`, `IReadOnlyList<StayRoomAssignment>
+    RoomHistory`. One `Result Transition(StayState)` gate over `static bool IsTransitionAllowed(from, to)`
+    (exposed for A12). `Reserve(...) → Result<BoardingStay>` guards `PlannedCheckOutUtc > CheckInUtc`
+    (`STAY_DATES_INVALID`); `Activate(IClock)` (opens room history, `StayActivatedEvent`), `AddItem`/
+    `RemoveItem` (frozen once `State >= Invoiced` → `STAY_LOCKED`), `TransferRoom(newRoomId, reason,
+    IClock)` (`Active` only, closes+appends `RoomHistory`, `StayRoomTransferredEvent`),
+    `RequestCheckout(IClock)` (→ `ReadyForInvoice`, `StayReadyForInvoiceEvent` carrying `BillableDays`),
+    `AttachInvoice(invoiceId)`, `CompleteCheckout(IClock)` (→ `CheckedOut`, sets `ActualCheckOutUtc`,
+    closes room history; **requires `InvoiceId != null`** → `STAY_INVOICE_REQUIRED`, `StayCheckedOutEvent`),
+    `Cancel`, `SetNotes`. **Billable-days rule (authoritative):** `BillableDays(endUtc) = Math.Max(1,
+    ceil((endUtc - CheckInUtc).TotalHours / 24))` — partial day = full day, same-day = 1 (1h→1, 24h→1,
+    25h→2).
+  - `Events/SchedulingEvents.cs` — `AppointmentBookedEvent`, `AppointmentMovedEvent`,
+    `AppointmentCancelledEvent`, `QueueEntryCreatedEvent`, all `sealed record : DomainEvent`.
+  - `Events/BoardingEvents.cs` — `StayActivatedEvent`, `StayReadyForInvoiceEvent`,
+    `StayRoomTransferredEvent`, `StayCheckedOutEvent`, all `sealed record : DomainEvent`.
+- **Files modified (src, 1):** `Results/ErrorCodes.cs` — new `#region Scheduling & Boarding (Phase A05)`
+  **appended** (nothing reordered) with **11** codes: `APPOINTMENT_SLOT_CONFLICT` (Conflict),
+  `APPOINTMENT_INVALID_TRANSITION` (Conflict), `APPOINTMENT_NOT_MOVABLE` (Conflict),
+  `APPOINTMENT_DURATION_INVALID` (Validation), `QUEUE_INVALID_TRANSITION` (Conflict), `ROOM_UNAVAILABLE`
+  (Conflict), `ROOM_CAPACITY_INVALID` (Validation), `STAY_INVALID_TRANSITION` (Conflict), `STAY_LOCKED`
+  (Conflict), `STAY_INVOICE_REQUIRED` (Conflict), `STAY_DATES_INVALID` (Validation). Catalog total 24 → 35.
+- **Contracts added:** 5 entities (`Appointment`, `ReceptionQueueEntry`, `Room`, `BoardingServiceDef`,
+  `BoardingStay`), 5 value objects (`AppointmentSlot`, `ExistingSlot`, `AppointmentTypeDef`, `StayItem`,
+  `StayRoomAssignment`), 9 enums (`AppointmentState`, `AppointmentSource`, `QueueState`, `QueueSource`,
+  `RoomType`, `RoomStatus`, `BoardingServiceBilling`, `StayState`, `StayItemKind`), 2 statics
+  (`SlotConflictPolicy`, `AppointmentTypeCatalog`), 8 domain events. **No `Animora.Contracts` change** —
+  domain enums are duplicated, never imported (CONVENTIONS §2); Track C maps between them.
+- **DI changes:** none. **Mocks deleted:** none. **Migrations created:** none (A09 maps these + adds the
+  `(TenantId, DoctorUserId, StartUtc)` slot index the conflict policy's range query needs, CONVENTIONS §5).
+- **Package/project references added:** **none** — `Animora.Domain.csproj` is still an empty
+  `Microsoft.NET.Sdk` project with zero references.
+- **Tests added:** **none — owed to A12** per the Track A test-deferral policy (ROADMAP §3.10). A12 must
+  cover: `SlotConflictPolicyTests` (exact/partial overlap, adjacent `end==start` no conflict, different
+  doctor no conflict, cancelled/no-show existing no conflict, null-doctor candidate no conflict);
+  `AppointmentStateMachineTests` (all state pairs — only tabled succeed; move guards; 7-minute duration →
+  `APPOINTMENT_DURATION_INVALID`); `BoardingStayTests` (transitions; billable-day boundaries 1h→1, 24h→1,
+  25h→2; `CompleteCheckout` without invoice → `STAY_INVOICE_REQUIRED`; transfer-history append);
+  `ReceptionQueueTests` (transitions, priority, derived-entry rule).
+- **Verification:** `Animora.Domain` builds **0 warnings / 0 errors** (standalone and inside the solution,
+  along with Application, Infrastructure.Local, Persistence, Client.Services and all 5 test projects). The
+  only solution-wide build failure is `AVLN9999 System.OutOfMemoryException` in the **Avalonia Desktop**
+  XAML AOT compiler — a sandbox RAM-cap limitation (workstation GC, ~448 MiB `GCHeapHardLimit` per
+  `_env.sh`), unrelated to A05 (Domain-only, UI untouched). `test.sh` not run (A12 owns it).
+- **Deviations:** none material — additions inside phase scope needed to make the aggregates usable
+  without re-deriving rules later: `Book`/`Reserve`/`Create` factories (private setters + `IClock`);
+  `Appointment.Slot`/`EndUtc` and `IsTransitionAllowed`, `ReceptionQueueEntry.VisitId`/`SetPriority`
+  clamp, `Room.SetCapacity`/`Rename`, `BoardingServiceDef.Update`/`Activate`/`Deactivate`,
+  `BoardingStay.SetNotes`/`IsTransitionAllowed`/`AreItemsLocked`. `AppointmentTypeCatalog.TryGet` added so
+  the seed is reachable. Some declared error codes (`ROOM_UNAVAILABLE` for retired-room reuse) are
+  enforced structurally and by the A-layer as documented.
 
 ### A04 — Domain: owners, patients, clinical (2026-09-23)
 
