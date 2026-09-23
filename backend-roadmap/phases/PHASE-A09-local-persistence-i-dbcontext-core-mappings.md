@@ -73,8 +73,9 @@ desktop consumes it yet.
 - **Configurations added in this phase** (one file each, `<Entity>Configuration`):
   - Identity: `Tenant`, `User`, `Permission`, `RoleDefinition`, `StaffMembership`, `Device`.
     Unique indexes `IX_Users_TenantId_Username`, `IX_StaffMemberships_TenantId_UserId_Role`,
-    `IX_Devices_TenantId_Fingerprint`. `CapabilitySnapshot` is an owned JSON column
-    (`ToJson()` on `Device.Capabilities`).
+    `IX_Devices_TenantId_InstallationIdHash` (unique — `Device.InstallationIdHash` from A03 is the
+    only per-device correlation key this phase maps; `CapabilitySnapshot`/`DeviceCapabilitySnapshot`
+    does not exist yet and is B04's migration `006_CapabilitySnapshot`, not this one).
   - Patients/Clinical: `Owner`, `Pet`, `WeightEntry`, `DocumentReference`, `Visit`,
     `VaccinationRecord`, `MedicalHistoryEntry`. `PetVitals` owned; `PrescriptionLine` and
     `VisitServiceLine` owned collections mapped `ToJson()` (they are never queried individually).
@@ -134,7 +135,7 @@ desktop consumes it yet.
 | `src/Animora.Persistence.Sqlite/Animora.Persistence.Sqlite.csproj` | modify | add `Microsoft.Extensions.Options`, `Microsoft.Extensions.DependencyInjection.Abstractions` |
 | `tests/Animora.Persistence.Tests/LocalMigrationTests.cs` | create | migration applies on a temp file DB; table/column/index assertions |
 | `tests/Animora.Persistence.Tests/ConverterTests.cs` | create | UTC ticks round-trip, Money two-column round-trip, enum-as-int |
-| `tests/Animora.Persistence.Tests/QueryFilterTests.cs` | create | both named filters + `IgnoreQueryFilters("SoftDelete")` keeps tenant filter |
+| `tests/Animora.Persistence.Tests/QueryFilterTests.cs` | create | both named filters + `IgnoreQueryFilters(["SoftDelete"])` keeps tenant filter |
 | `tests/Animora.Persistence.Tests/LocalStoreTestFixture.cs` | create | temp-file DB fixture (create/migrate/dispose/delete) |
 
 ## Implementation steps
@@ -193,7 +194,10 @@ desktop consumes it yet.
 - `ConverterTests` green: a `DateTimeOffset` with a non-zero offset round-trips as the same instant in
   UTC; `Money(12_500, "IRT")` round-trips through `<Prop>Minor`/`<Prop>Currency`.
 - `QueryFilterTests` green: a row of another tenant is invisible; a `Deleted` row is invisible;
-  `IgnoreQueryFilters("SoftDelete")` reveals deleted rows but still hides the other tenant.
+  `IgnoreQueryFilters(["SoftDelete"])` reveals deleted rows but still hides the other tenant
+  (EF Core 10's named-filter overload takes an `IReadOnlyCollection<string>` of filter keys — the
+  parameterless `IgnoreQueryFilters()` still disables **all** filters, so the selective form must be
+  used here or the tenant filter is silently dropped too).
 - `AnimoraLocalDbContext.SaveChangesAsync` throws when an entity carries a foreign `TenantId`.
 - Runnability (`CONVENTIONS.md` §11): `scripts/sandbox/run.sh` = `SMOKE RUN OK`; the desktop still
   runs entirely on mocks and never opens the database.
