@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A09`** — `backend-roadmap/phases/PHASE-A09-*.md`
+**Next phase: `A10`** — `backend-roadmap/phases/PHASE-A09-*.md`
 
 ## Phase status
 
@@ -52,7 +52,7 @@
 | A06 | ✅ Done | 2026-09-23 | Inventory & purchasing domain: 13 files (`Domain/Inventory` 6, `Domain/Purchasing` 5, `Events/InventoryEvents.cs`, ErrorCodes). **Movement-based stock only** — `Product` has no on-hand property; `StockCalculator` is the single derivation (signed sum + moving weighted average); `StockMovement` is append-only with a factory-enforced sign rule; `StockLevel` is a rebuildable projection. PO state machine + `RecalculateTotals`/`ApplyReceipt`; posted `GoodsReceipt` immutable (A-RULE 002). ErrorCodes += 11 (→ 46). 4 events. **No tests (owed to A12).** Build full 0/0, SMOKE RUN OK. |
 | A07 | ✅ Done | 2026-09-23 | Sales & cashier domain: 9 new files (`Domain/Sales` 6, `Domain/Cashier` 2, `Events/SalesEvents.cs`) + ErrorCodes. `Invoice` aggregate with the 6-state machine and **immutability after posting** (all 5 mutators → `INVOICE_IMMUTABLE`, A-RULE 002); `InvoiceTotals` is the single totals algorithm (invoice discount pro-rated by weighted largest-remainder before tax, `Money.ApplyPercent` the only rounding); `Payment` append-only with factory-validated method references and `OperationId` idempotency (`PAYMENT_DUPLICATE_OPERATION`, A-RULE 006); `InvoiceAdjustment` the only post-posting economic change path; `SettlementStatus` (8 states, §8.3) defined once; `CashSession` open/close invariants + signed `CashMovement` factory. ErrorCodes += 14 (→ 60). 6 events. **No tests (owed to A12).** Build full 0/0, SMOKE RUN OK. |
 | A08 | ✅ Done | 2026-09-23 | Finance domain: 11 new files (`Domain/Finance` 10, `Events/FinanceEvents.cs`) + ErrorCodes. Append-only balanced `JournalEntry` (**no mutator at all** — every property `private init`; corrections only via `CreateReversal`, A-RULE 002/003 · R-B22); `ChartOfAccounts` seeds the 20 authoritative accounts behind `AccountCodes` constants (no code literal anywhere else); `PostingRules` is the single event → journal translation (10 `For<Event>` methods covering all 14 tabled rows), every one delegating to `JournalEntry.Create` so balance is structural; `AccountingPeriod` forward-only `Open→Closing→Closed→Locked` with 3 close blockers + `EnsurePostable`; `Cheque` 8-state machine with append-only `ChequeEvent` history and the counterparty invariant; `Expense` one-way `Post` + 9 seeded categories → 6000/6100. ErrorCodes += 12 (→ 72). 6 events. **No tests (owed to A12).** Build full 0/0, SMOKE RUN OK. |
-| A09 | ⬜ Not started | | |
+| A09 | ✅ Done | 2026-09-23 | Local SQLite context, conventions, converters, 18 mappings + migration `001_LocalCoreSchema`; named filters; no tests (A12). |
 | A10 | ⬜ Not started | | |
 | A11 | ⬜ Not started | | |
 | B01 | ⬜ Not started | | |
@@ -97,6 +97,13 @@
 Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blocked (reason)`.
 
 ## Repo state log
+
+### A09 — Local persistence I: DbContext and core mappings (2026-09-23)
+
+- **Files:** `src/Animora.Persistence.Sqlite/{Options,Context,Converters,Conventions,Configurations/{Identity,Patients,Clinical,Scheduling,Boarding},Migrations}`; 18 entity configurations, the initial `001_LocalCoreSchema` migration and snapshot. Options, scoped DbContext, tenant/soft-delete named filters, UTC-ticks and invariant decimal converters, exact minor-unit Money columns, delta indexes, key-provider seam, and SQLite pragma interceptor are in place.
+- **No tests written or run** in A09: migration application, 18 tables/indexes, no REAL/NUMERIC, converter round-trips, named-filter isolation, and foreign-tenant SaveChanges guard are owed to A12. No desktop DI changes; no mock deleted.
+- **Deviation D-A09-1:** Immutable positional child records (`StayItem`, `VisitServiceLine`, etc.) have constructor parameters of complex value-object types (`Money`/`Quantity`), which EF Core cannot bind as owned JSON entities during model validation. They are instead persisted to the same aggregate JSON columns using field-backed converters and structural value comparers. A12 must verify child-collection materialization/change tracking. Role permission sets use JSON converters with structural comparers for the same reason. The `AppointmentSlot` property is derived and not stored separately; `StartUtc`/`DurationMinutes` are the persisted columns. Due-date index uses the domain's `NextDueUtc` column under the roadmap's requested `DueUtc` index name.
+
 
 > Append one entry per completed phase, newest first. Required fields:
 > **files added**, **contracts added**, **DI changes**, **mocks deleted**, **migrations created**,
