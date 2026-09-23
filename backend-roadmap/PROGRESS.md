@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A08`** — `backend-roadmap/phases/PHASE-A08-*.md`
+**Next phase: `A09`** — `backend-roadmap/phases/PHASE-A09-*.md`
 
 ## Phase status
 
@@ -51,7 +51,7 @@
 | A05 | ✅ Done | 2026-09-23 | Scheduling & boarding domain: 12 files (`Domain/Scheduling` 5, `Domain/Boarding` 5, `Events/SchedulingEvents.cs`, `Events/BoardingEvents.cs`). Appointment state machine + `SlotConflictPolicy` (pure, `for`-loop), reception derived-queue, boarding stay state machine + `BillableDays` + invoice-required checkout. ErrorCodes += 11 (→ 35). 8 events. **No tests (owed to A12).** Build: Domain 0/0 (solution-wide OOM only in Avalonia Desktop XAML AOT — sandbox RAM cap, not code). |
 | A06 | ✅ Done | 2026-09-23 | Inventory & purchasing domain: 13 files (`Domain/Inventory` 6, `Domain/Purchasing` 5, `Events/InventoryEvents.cs`, ErrorCodes). **Movement-based stock only** — `Product` has no on-hand property; `StockCalculator` is the single derivation (signed sum + moving weighted average); `StockMovement` is append-only with a factory-enforced sign rule; `StockLevel` is a rebuildable projection. PO state machine + `RecalculateTotals`/`ApplyReceipt`; posted `GoodsReceipt` immutable (A-RULE 002). ErrorCodes += 11 (→ 46). 4 events. **No tests (owed to A12).** Build full 0/0, SMOKE RUN OK. |
 | A07 | ✅ Done | 2026-09-23 | Sales & cashier domain: 9 new files (`Domain/Sales` 6, `Domain/Cashier` 2, `Events/SalesEvents.cs`) + ErrorCodes. `Invoice` aggregate with the 6-state machine and **immutability after posting** (all 5 mutators → `INVOICE_IMMUTABLE`, A-RULE 002); `InvoiceTotals` is the single totals algorithm (invoice discount pro-rated by weighted largest-remainder before tax, `Money.ApplyPercent` the only rounding); `Payment` append-only with factory-validated method references and `OperationId` idempotency (`PAYMENT_DUPLICATE_OPERATION`, A-RULE 006); `InvoiceAdjustment` the only post-posting economic change path; `SettlementStatus` (8 states, §8.3) defined once; `CashSession` open/close invariants + signed `CashMovement` factory. ErrorCodes += 14 (→ 60). 6 events. **No tests (owed to A12).** Build full 0/0, SMOKE RUN OK. |
-| A08 | ⬜ Not started | | |
+| A08 | ✅ Done | 2026-09-23 | Finance domain: 11 new files (`Domain/Finance` 10, `Events/FinanceEvents.cs`) + ErrorCodes. Append-only balanced `JournalEntry` (**no mutator at all** — every property `private init`; corrections only via `CreateReversal`, A-RULE 002/003 · R-B22); `ChartOfAccounts` seeds the 20 authoritative accounts behind `AccountCodes` constants (no code literal anywhere else); `PostingRules` is the single event → journal translation (10 `For<Event>` methods covering all 14 tabled rows), every one delegating to `JournalEntry.Create` so balance is structural; `AccountingPeriod` forward-only `Open→Closing→Closed→Locked` with 3 close blockers + `EnsurePostable`; `Cheque` 8-state machine with append-only `ChequeEvent` history and the counterparty invariant; `Expense` one-way `Post` + 9 seeded categories → 6000/6100. ErrorCodes += 12 (→ 72). 6 events. **No tests (owed to A12).** Build full 0/0, SMOKE RUN OK. |
 | A09 | ⬜ Not started | | |
 | A10 | ⬜ Not started | | |
 | A11 | ⬜ Not started | | |
@@ -101,6 +101,128 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > Append one entry per completed phase, newest first. Required fields:
 > **files added**, **contracts added**, **DI changes**, **mocks deleted**, **migrations created**,
 > **tests added**, **verification** (build/test/smoke results), **deviations**.
+
+### A08 — Domain: finance ledger, cheques, expenses (2026-09-23)
+
+- **Files added (src, 11):**
+  - `Finance/LedgerAccount.cs` — `sealed class LedgerAccount : AggregateRoot` (`Code`, `Name`,
+    `AccountType Type`, `ParentAccountId?`, `IsPostable`, `IsActive`, `Description?`) +
+    `enum AccountType { Asset, Liability, Equity, Revenue, Expense }`. `NormalBalance` is **derived**
+    from `Type` (`Asset`/`Expense` → Debit, else Credit) through `static EntrySide
+    NormalBalanceOf(AccountType)` — never a stored column that could drift. `Create` validates that
+    the code is a numeric string (indexed `for`, no regex/LINQ).
+  - `Finance/ChartOfAccounts.cs` — `static class AccountCodes` with the **20 `const string` codes**
+    exactly as tabled (1000/1010/1020/1100/1110/1200/1900 · 2000/2010/2100/2200 · 3000 ·
+    4000/4010/4020/4900 · 5000/6000/6100/6200) and `static class ChartOfAccounts` holding the
+    authoritative seed as `ChartOfAccountsEntry(Code, Name, Type, IsPostable)` rows with
+    `Default` / `Find` / `Contains` / `IsPostable` (ordinal dictionary lookup). Every later
+    reference uses an `AccountCodes` constant; a numeric literal appears nowhere else.
+  - `Finance/JournalLine.cs` — `sealed record JournalLine(LineId, AccountCode, EntrySide Side,
+    Money Amount, Memo?, CostCenter?)` + `enum EntrySide { Debit, Credit }`. Direction lives in
+    `Side`, **never** in the sign of `Amount`; `SignedMinor` and `Mirror(lineId)` are the balance
+    check and the reversal building block.
+  - `Finance/JournalEntry.cs` — `sealed class JournalEntry : AggregateRoot`, **append-only forever**:
+    every property is `private init`, there is **no mutator, no delete, no business soft-delete**
+    (A-RULE 002 / R-B22, ARCHITECTURE §8.5 — a ledger row therefore cannot produce a sync conflict
+    by construction). `Create(...)` is the only constructor path and validates the whole double
+    entry in **one `for` pass** (PERFORMANCE §2): `< 2` lines → `JOURNAL_TOO_FEW_LINES`, non-positive
+    amount → `JOURNAL_LINE_AMOUNT_INVALID`, second currency → `JOURNAL_CURRENCY_MIXED`, empty
+    account → `ACCOUNT_UNKNOWN`, default header account → `ACCOUNT_NOT_POSTABLE`, `Σ D ≠ Σ C` →
+    `JOURNAL_UNBALANCED`; on success it raises `JournalEntryPostedEvent` and caches `TotalDebit`.
+    `CreateReversal(original, reason, IClock, …)` is the **only** correction path: mirrored lines,
+    `Source = Reversal`, `ReversesEntryId` set and the mandatory reason folded into the memo
+    (A-RULE 003) — the original row is never touched.
+  - `Finance/PostingRules.cs` — the **authoritative** event → journal table as 10 pure
+    `For<EventName>` methods covering all 14 tabled rows, plus
+    `readonly record struct PostingContext(EntryNumber, PeriodId, PostedByUserId, OperationId?)`.
+    Each builds its lines and exits through `JournalEntry.Create`, so balance / positivity / single
+    currency / postability are **structurally guaranteed**; a zero-amount component emits no line.
+    Rows: `ForInvoicePosted` (D 1100+4900+1110 · C 4000/4010/4020 split by `InvoiceLineKind` + 2200),
+    `ForPaymentRegistered` (Cash→1000, Card/Transfer→1010, Cheque→1020, Insurance→1110,
+    Wallet→2100 · C 1100; `Credit` moves no money and is refused), `ForInvoiceRefunded`
+    (D 1100 · C 1000/1010 by original method), `ForInvoiceVoided` (= `CreateReversal` of the posting
+    entry), `ForGoodsReceiptPosted` (D 1200 · C 2000), `ForStockMovementRecorded`
+    (Sale/Consumption → D 5000, Loss/AdjustmentOut → D 6200 · C 1200, at the weighted-average cost
+    passed in — the rule never computes cost), `ForChequeCleared` (inbound D 1010/C 1020, outbound
+    D 2010/C 1010), `ForChequeBounced` (inbound D 1100/C 1020, outbound D 2010/C 2000),
+    `ForCashSessionClosed` (shortage D 1900/C 1000, overage swapped; zero variance posts nothing),
+    `ForExpensePosted` (D 6000/6100 by category · C 1000/1010/2010/2000 by settlement). Every entry
+    carries `SourceEntityType` + `SourceEntityId` + `OperationId`.
+  - `Finance/AccountingPeriod.cs` — `sealed class AccountingPeriod : AggregateRoot` with the opaque
+    `PeriodCode` (`"1405-07"` — **the Domain never computes or parses Jalali**; the Desktop formats
+    it, CONVENTIONS §2), UTC `StartUtc`/`EndUtc`, `PeriodState { Open, Closing, Closed, Locked }`,
+    close audit fields. Forward-only machine `Open → Closing → Closed → Locked` behind
+    `static bool IsTransitionAllowed` + one private `Transition` gate — **no reopen** (a post-close
+    correction is an entry in the next open period). `Close(hasUnsettledCommands,
+    hasOpenCashSessions, hasDraftInvoices, IClock, closingEntryId, closedByUserId, note?)` returns
+    `PERIOD_CLOSE_BLOCKED` with the blocker named in `Detail`, otherwise stamps the close and raises
+    `PeriodClosedEvent`; `static Result EnsurePostable(period)` returns `PERIOD_CLOSED` for
+    `Closed`/`Locked` (a `Closing` period still accepts the closing entry itself).
+  - `Finance/ChequeEvent.cs` — `sealed record ChequeEvent(EventId, FromState, ToState, OccurredUtc,
+    ActorUserId, Reason?)`: the append-only cheque history row.
+  - `Finance/Cheque.cs` — `sealed class Cheque : AggregateRoot` + `enum ChequeDirection { Inbound,
+    Outbound }`, `enum ChequeState { Registered, InPortfolio, Deposited, Cleared, Bounced, Returned,
+    Cancelled, Settled }`. The 10 legal transitions are declared once in
+    `static bool IsTransitionAllowed` and every mutator (`MoveToPortfolio`, `Deposit`, `MarkCleared`,
+    `MarkBounced`, `Return`, `Cancel`, `SettleInCash`) funnels through a single private `Transition`
+    that validates, appends **exactly one** `ChequeEvent` and raises `ChequeStateChangedEvent` — so
+    no transition can happen without a trace; illegal ones return `CHEQUE_INVALID_TRANSITION` and
+    change nothing. `MarkCleared`/`MarkBounced` additionally raise the ledger-facing
+    `ChequeClearedEvent` / `ChequeBouncedEvent` (bounce reason mandatory). `Register` enforces the
+    counterparty invariant (`Inbound` ⇒ `OwnerId`, `Outbound` ⇒ `SupplierId`) →
+    `CHEQUE_COUNTERPARTY_REQUIRED`, and a strictly positive face amount.
+  - `Finance/Expense.cs` — `sealed class Expense : AggregateRoot` + `enum ExpenseState { Draft,
+    Posted, Reversed }`. Editing is draft-only (`Edit`, `SetSettlement`, `AttachReceipt` →
+    `EXPENSE_IMMUTABLE` once posted); `Post(IClock)` is **one-way** and raises `ExpensePostedEvent`;
+    a correction is a new expense carrying `ReversesExpenseId` (+ `MarkReversed` on the original).
+    `DebitAccountCode` resolves through `ExpenseCategories`, so the expense never names an account.
+  - `Finance/ExpenseCategories.cs` — the 9 seeded codes (`RENT`, `UTILITIES`, `SALARY`, `SUPPLIES`,
+    `MAINTENANCE`, `MARKETING`, `TAX`, `TRANSPORT`, `OTHER`) + `AccountCodeFor(code)`:
+    `SALARY` → `6100`, everything else (including an unknown code — an uncategorized cost must still
+    post) → `6000`.
+  - `Events/FinanceEvents.cs` — the 6 events: `JournalEntryPostedEvent(EntryId, PeriodId, Source,
+    TotalDebitMinor, Currency)`, `ChequeStateChangedEvent(ChequeId, FromState, ToState)`,
+    `ChequeClearedEvent(ChequeId, Direction, AmountMinor, Currency)`, `ChequeBouncedEvent(ChequeId,
+    Direction, AmountMinor, Currency, Reason)`, `ExpensePostedEvent(ExpenseId, CategoryCode,
+    AmountMinor, Currency, SettledMethod)`, `PeriodClosedEvent(PeriodId, ClosingEntryId)` — all
+    `sealed record : DomainEvent(EventId, TenantId, OccurredAtUtc)`.
+- **Files modified (1):** `Results/ErrorCodes.cs` — new `#region Finance (Phase A08)` with the 12
+  codes: `JOURNAL_UNBALANCED`, `JOURNAL_TOO_FEW_LINES`, `JOURNAL_LINE_AMOUNT_INVALID`,
+  `JOURNAL_CURRENCY_MIXED`, `ACCOUNT_NOT_POSTABLE`, `ACCOUNT_UNKNOWN`, `PERIOD_CLOSED`,
+  `PERIOD_CLOSE_BLOCKED`, `PERIOD_INVALID_TRANSITION`, `CHEQUE_INVALID_TRANSITION`,
+  `CHEQUE_COUNTERPARTY_REQUIRED`, `EXPENSE_IMMUTABLE` (46 + 14 + 12 → **72** total). No existing
+  code renamed or removed.
+- **Chart-of-accounts codes (authoritative):** 1000 Cash on Hand · 1010 Bank · 1020 Cheques
+  Receivable · 1100 Accounts Receivable · 1110 Insurance Receivable · 1200 Inventory · 1900 Cash
+  Variance · 2000 Accounts Payable · 2010 Cheques Payable · 2100 Customer Prepayments · 2200 Tax
+  Payable · 3000 Owner Equity · 4000 Service Revenue · 4010 Product Revenue · 4020 Boarding Revenue ·
+  4900 Sales Discounts · 5000 COGS · 6000 Operating Expense · 6100 Salary Expense · 6200 Inventory
+  Loss. All 20 are postable; later phases reference them only as `AccountCodes.*`.
+- **State machines added:** period `Open → Closing → Closed → Locked` (no reopen); cheque
+  `Registered → InPortfolio|Cancelled`, `InPortfolio → Deposited|Returned|Cancelled`,
+  `Deposited → Cleared|Bounced`, `Bounced → InPortfolio|Returned|Settled`, with
+  `Cleared`/`Returned`/`Cancelled`/`Settled` terminal.
+- **Contracts added:** none. `Animora.Contracts` and `Animora.Contracts.Wire` untouched; the
+  Domain's `ChequeDirection`/`ChequeState` are deliberately separate types from the Contracts'
+  UI-facing `ChequeDirection`/`ChequeStatus` (the Domain references no Contracts type — CONVENTIONS
+  §2). C08 maps between them with an explicit switch, never a cast.
+- **DI changes:** none. **Mocks deleted:** none. **Migrations created:** none (A09 maps these
+  entities).
+- **Tests added:** **none — this is a Track A phase (ROADMAP §3.10 / CONVENTIONS §9).** The full
+  coverage is owed to **A12**: `JournalEntryTests` (unbalanced / 1-line / mixed-currency codes;
+  `CreateReversal` mirrors and nets to zero per account; **no public setter exists**, asserted by
+  reflection over `BindingFlags.DeclaredOnly` — the inherited `SyncableEntity` transport columns
+  (`TenantId`/`UpdatedAt`/`Version`/`Deleted`) are deliberately settable and out of that assertion's
+  scope), `PostingRulesTests` (all 14 rows balanced, only postable chart accounts, source
+  entity + `OperationId` carried), `ChequeLifecycleTests` (all 64 `ChequeState` pairs — only the 10
+  tabled ones succeed; exactly one `ChequeEvent` per success; counterparty guard),
+  `AccountingPeriodTests` (each of the 3 close blockers → `PERIOD_CLOSE_BLOCKED`; `EnsurePostable`
+  rejects `Closed`/`Locked`; no transition back to `Open`).
+- **Verification:** `scripts/sandbox/build.sh full` = **0 warnings / 0 errors** (14 projects);
+  `scripts/sandbox/run.sh` = **SMOKE RUN OK**; `test.sh` deliberately **not** invoked (A12 owns it);
+  `src/Animora.Domain/Animora.Domain.csproj` still contains **zero** `PackageReference` /
+  `ProjectReference` — the file is literally `<Project Sdk="Microsoft.NET.Sdk"></Project>`.
+- **Deviations:** see D-A08-1 below (supporting members the phase table implied but did not name).
 
 ### A07 — Domain: sales & cashier (2026-09-23)
 
@@ -775,6 +897,59 @@ Rule check: CONVENTIONS §1 (no TFM/Nullable in the marker's project — inherit
 Impact:     A02 onward may keep or replace these markers when real Domain/Application types appear; the
             layering facts key off assembly reference sets, not the marker, so removing them later is safe
             as long as another loadable type exists in each assembly.
+
+### A08 — supporting members the phase table implied but did not name            (date: 2026-09-23)
+Context:    The phase file specifies the posting rules as "pure functions taking the event payload +
+            an `IClock` + a `periodId`", but a `JournalEntry` also needs an `EntryNumber`, a
+            `PostedByUserId` and an `OperationId` — none of which any of the events carries, and all
+            of which `JournalEntry.Create` requires. Three rules additionally need data the event
+            payload does not carry at all: `InvoicePostedEvent` has only the grand total (not the
+            per-line-kind revenue split, the discount or the tax), `GoodsReceiptPostedEvent` has only
+            a `LineCount` (not the cost), and `StockMovementRecordedEvent` has only a quantity (the
+            weighted-average cost is `StockCalculator`'s, per R-B23). The file also names the cheque
+            mutators and `Expense.Post` but no actor parameter, no creator for `Cheque`/`Expense`,
+            and no way to record the `JournalEntryId` the two entities declare.
+Decision:   Added, all inside the eleven files the phase table already lists and with no new file:
+            (1) `readonly record struct PostingContext(EntryNumber, PeriodId, PostedByUserId,
+                OperationId?)` in `PostingRules.cs` — the bookkeeping the Application layer owns,
+                passed as one argument instead of four, so the rules stay pure;
+            (2) `ForInvoicePosted` additionally takes the read-only `Invoice`, `ForGoodsReceiptPosted`
+                the `GoodsReceipt` + currency, and `ForStockMovementRecorded` the already-derived
+                `Money cost`, and `ForInvoiceRefunded` the original `PaymentMethod` — the rules read
+                these, never compute or store them, so they remain pure translations;
+            (3) `ForInvoiceVoided` takes the original posting `JournalEntry` because the tabled rule
+                *is* "reversal of the posting entry" and a reversal needs the entry it mirrors;
+            (4) `Cheque.Register(...)` and `Expense.Create(...)` factories (the file lists mutators
+                but no creator), mirroring `GoodsReceipt.Create` from A06;
+            (5) an `actorUserId` parameter on every cheque transition — `ChequeEvent` declares an
+                `ActorUserId` field the phase file itself specifies, which nothing else could fill;
+            (6) `Cheque.LinkJournalEntry` / `Expense.LinkJournalEntry` and `Expense.MarkReversed`,
+                the only writers of the `JournalEntryId` / `Reversed` state both entities declare;
+            (7) `Expense.Edit` / `SetSettlement` / `AttachReceipt`, draft-only, so a `Draft` expense
+                is actually editable before the one-way `Post` (otherwise `ExpenseState.Draft` and
+                `EXPENSE_IMMUTABLE` would both be unreachable);
+            (8) `LedgerAccount.Create`/`Rename`/`Deactivate`/`Activate` and
+                `AccountingPeriod.Create`/`BeginClose`/`Lock`, without which the two entities could
+                never be instantiated or reach the states their own enums declare;
+            (9) `ForPaymentRegistered` maps the three methods the phase table does not list:
+                `Insurance` → 1110, `Wallet` → 2100, and `Credit` → refused (it moves no money, so
+                there is nothing to post) — the tabled Cash/Card/Transfer/Cheque rows are unchanged;
+            (10) `PostingRules.Add` skips a zero-amount component rather than emitting a zero line,
+                which is what keeps `ForInvoicePosted` valid for an invoice with no discount, no tax
+                or no insurance (a zero line would otherwise trip `JOURNAL_LINE_AMOUNT_INVALID`).
+Rule check: CONVENTIONS §2 (`Animora.Domain.csproj` still has zero references — verified), §3
+            (naming), §4 (`sealed`/`record`/`Result` returns/`IClock` injected, never ambient), §11
+            (build 0/0, smoke OK). A-RULE 002 is strengthened, not relaxed: none of these additions
+            is a mutator on `JournalEntry`, which still has no setter of any kind, and `Expense`'s
+            new mutators are all draft-only. A-RULE 003 holds: `MarkBounced`, `Return`, `Cancel` and
+            `CreateReversal` each require a reason. PERFORMANCE §2: the `Create` validation and the
+            `ForInvoicePosted` revenue split are single indexed `for` passes, no LINQ.
+Impact:     A10 constructs a `PostingContext` per dispatched event (entry-number allocator + resolved
+            period + actor + the envelope's `OperationId`) and loads the one aggregate the three
+            data-hungry rules need; it must call `AccountingPeriod.EnsurePostable` before every
+            `JournalEntry.Create`. A09 maps `Cheque.History` and `JournalEntry.Lines` as owned
+            collections and gives `JournalEntry` **no** update path. A12 asserts the reflection
+            "no public setter" fact against `JournalEntry` exactly as written above.
 
 ### A07 — supporting types the phase table implied but did not name            (date: 2026-09-23)
 Context:    The phase file specifies `Invoice.DiscountKind DiscountKind`, an `InvoiceTotals` static that

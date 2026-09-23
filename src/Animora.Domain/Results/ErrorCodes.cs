@@ -314,4 +314,71 @@ public static class ErrorCodes
         new("ADJUSTMENT_EXCEEDS_PAID", ErrorCode.Validation);
 
     #endregion
+
+    #region Finance (Phase A08)
+
+    /// <summary>The entry's debits and credits do not sum to the same amount.</summary>
+    public static readonly ErrorCode JournalUnbalanced =
+        new("JOURNAL_UNBALANCED", ErrorCode.Integrity);
+
+    /// <summary>A double entry needs at least two lines; one line is not an entry.</summary>
+    public static readonly ErrorCode JournalTooFewLines =
+        new("JOURNAL_TOO_FEW_LINES", ErrorCode.Validation);
+
+    /// <summary>
+    /// A journal line amount was zero or negative. Direction lives in the line's side, never in
+    /// the sign of its amount.
+    /// </summary>
+    public static readonly ErrorCode JournalLineAmountInvalid =
+        new("JOURNAL_LINE_AMOUNT_INVALID", ErrorCode.Validation);
+
+    /// <summary>
+    /// The entry mixes currencies. Multi-currency ledgers are out of scope for the product: one
+    /// entry is always one currency.
+    /// </summary>
+    public static readonly ErrorCode JournalCurrencyMixed =
+        new("JOURNAL_CURRENCY_MIXED", ErrorCode.Validation);
+
+    /// <summary>The line names a roll-up header account, which takes no direct posting.</summary>
+    public static readonly ErrorCode AccountNotPostable =
+        new("ACCOUNT_NOT_POSTABLE", ErrorCode.Integrity);
+
+    /// <summary>The line names an account that exists in neither the default chart nor the tenant's.</summary>
+    public static readonly ErrorCode AccountUnknown =
+        new("ACCOUNT_UNKNOWN", ErrorCode.NotFound);
+
+    /// <summary>
+    /// The accounting period is closed or locked. A post-close correction is an entry in the next
+    /// open period, never a retroactive edit of a closed book (A-RULE 003).
+    /// </summary>
+    public static readonly ErrorCode PeriodClosed =
+        new("PERIOD_CLOSED", ErrorCode.Conflict);
+
+    /// <summary>
+    /// The period cannot close yet: unsettled commands, an open cash session or a draft invoice is
+    /// still in flight. <c>Detail</c> names the blocker.
+    /// </summary>
+    public static readonly ErrorCode PeriodCloseBlocked =
+        new("PERIOD_CLOSE_BLOCKED", ErrorCode.Conflict);
+
+    /// <summary>The requested period state change is not in the period state machine (no reopen).</summary>
+    public static readonly ErrorCode PeriodInvalidTransition =
+        new("PERIOD_INVALID_TRANSITION", ErrorCode.Conflict);
+
+    /// <summary>The requested cheque state change is not in the cheque state machine.</summary>
+    public static readonly ErrorCode ChequeInvalidTransition =
+        new("CHEQUE_INVALID_TRANSITION", ErrorCode.Conflict);
+
+    /// <summary>
+    /// The cheque names no counterparty: an inbound cheque needs its owner, an outbound one its
+    /// supplier.
+    /// </summary>
+    public static readonly ErrorCode ChequeCounterpartyRequired =
+        new("CHEQUE_COUNTERPARTY_REQUIRED", ErrorCode.Validation);
+
+    /// <summary>The expense is posted; a correction is a reversing expense, never an edit.</summary>
+    public static readonly ErrorCode ExpenseImmutable =
+        new("EXPENSE_IMMUTABLE", ErrorCode.Conflict);
+
+    #endregion
 }
