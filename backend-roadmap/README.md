@@ -27,9 +27,13 @@ its phase file plus the four package files below. Nothing else may be assumed.
    lists. Nothing else. Do not browse the repo.
 5. Implement exactly the phase's scope — its "Files to create / modify" table and "Implementation
    steps". Its "Design decisions" are already made: implement them, never re-derive or improve them.
-6. Add the tests the phase's acceptance criteria require.
+6. Add the tests the phase's acceptance criteria require. **Exception — Track A phases A05–A11
+   (ROADMAP §3.10, CONVENTIONS §9):** write **no** tests; instead fill the phase's "Test coverage owed
+   to A12" section. All Track A tests are authored later, in phase **A12**.
 7. Verify every acceptance criterion: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors,
-   `scripts/sandbox/test.sh` green, and the runnability rule (`CONVENTIONS.md` §11).
+   `scripts/sandbox/test.sh` green, and the runnability rule (`CONVENTIONS.md` §11). **For A05–A11 the
+   only verification is a lightweight `build.sh full` (run if needed) plus the offline smoke run — do
+   not invoke `test.sh`; A12 runs the full suite.**
 8. Update `PROGRESS.md`: mark the phase done, advance "Next phase", append a "Repo state" entry, log any
    deviation in the decision log.
 9. Commit per the repo git workflow (branch `genspark_ai_developer`, conventional commit message).

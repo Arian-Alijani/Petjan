@@ -200,6 +200,13 @@ Rules: every phase adds tests for the behavior it introduces. Domain invariants 
 idempotency/ordering/conflict paths are **mandatory** test targets, not optional. A test never asserts on
 a Persian UI string. No test depends on wall-clock time — inject `IClock`.
 
+**Track A exception (ROADMAP §3.10).** Phases **A05–A11** are the one exception to "every phase adds
+tests": they write and run **no** tests (`scripts/sandbox/test.sh` is not invoked in them). Each records
+the assertions it would have made — unchanged in rigor — in its **"Test coverage owed to A12"** section,
+and **Phase A12** authors and runs the entire Track A suite in one pass. The mandatory targets above are
+not waived; they are simply written once, in A12. (A01–A04 already shipped with their tests.) This
+exception ends with Track A: from B01 onward every phase adds its own tests as normal.
+
 ## §10 Mock-retirement protocol (applies to every Track C phase, verbatim)
 
 ```
