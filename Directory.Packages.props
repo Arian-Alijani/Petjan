@@ -18,4 +18,21 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
   </ItemGroup>
 
+  <!-- Backend track (STACK.md §11). Exact versions, no floating ranges (T-RULE 003, T-RULE 010). -->
+  <ItemGroup>
+    <!-- EF Core 10 line only — EF Core 11 must never resolve (T-RULE 003). -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.12" />
+    <!-- Native SQLite >= 3.50.2 satisfiable (STACK.md §3.3); consumed only by Animora.Persistence.Sqlite. -->
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+    <PackageVersion Include="SourceGear.sqlite3" Version="3.50.4.5" />
+    <!-- Test stack (xUnit). -->
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+  </ItemGroup>
+
 </Project>

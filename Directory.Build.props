@@ -6,6 +6,11 @@
     <LangVersion>14.0</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Backend track (Phase A01). Build must stay 0 warnings; analyzers/audit on. -->
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
 
 </Project>
