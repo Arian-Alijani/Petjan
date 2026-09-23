@@ -98,4 +98,39 @@ public static class ErrorCodes
         new("CAPABILITY_NOT_GRANTED", ErrorCode.Forbidden);
 
     #endregion
+
+    #region Patients & Clinical (Phase A04)
+
+    /// <summary>
+    /// A species change was attempted. Species is fixed at registration — the whole clinical history
+    /// is interpreted through it, so a correction is a new patient record.
+    /// </summary>
+    public static readonly ErrorCode PetSpeciesImmutable =
+        new("PET_SPECIES_IMMUTABLE", ErrorCode.Integrity);
+
+    /// <summary>The requested visit state change is not in the encounter state machine.</summary>
+    public static readonly ErrorCode VisitInvalidTransition =
+        new("VISIT_INVALID_TRANSITION", ErrorCode.Conflict);
+
+    /// <summary>A visit cannot be completed without a diagnosis.</summary>
+    public static readonly ErrorCode VisitDiagnosisRequired =
+        new("VISIT_DIAGNOSIS_REQUIRED", ErrorCode.Validation);
+
+    /// <summary>The visit has been invoiced; its prescription and billable lines are final.</summary>
+    public static readonly ErrorCode VisitLocked =
+        new("VISIT_LOCKED", ErrorCode.Conflict);
+
+    /// <summary>The weight reading is outside the plausible range and is a data-entry error.</summary>
+    public static readonly ErrorCode WeightOutOfRange =
+        new("WEIGHT_OUT_OF_RANGE", ErrorCode.Validation);
+
+    /// <summary>A document must reference at least one of owner, pet or visit.</summary>
+    public static readonly ErrorCode DocumentTargetRequired =
+        new("DOCUMENT_TARGET_REQUIRED", ErrorCode.Validation);
+
+    /// <summary>The dose number is not valid for the vaccine series.</summary>
+    public static readonly ErrorCode VaccineDoseInvalid =
+        new("VACCINE_DOSE_INVALID", ErrorCode.Validation);
+
+    #endregion
 }

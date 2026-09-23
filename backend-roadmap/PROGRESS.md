@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A04`** — `backend-roadmap/phases/PHASE-A04-*.md`
+**Next phase: `A05`** — `backend-roadmap/phases/PHASE-A05-*.md`
 
 ## Phase status
 
@@ -47,7 +47,7 @@
 | A01 | ✅ Done | 2026-09-23 | Backend track scaffold: 4 src + 5 test projects, 10 pins, WireContract v1, test.sh, LayeringRulesTests. Build 0/0, TESTS OK, SMOKE RUN OK. |
 | A02 | ✅ Done | 2026-09-23 | Domain kernel: 15 files (primitives, Money/Quantity, ULID IdGenerator, clock ports, Result/ErrorCodes seed 11). 4 test classes, 24 domain tests. Build 0/0, TESTS OK, SMOKE RUN OK. |
 | A03 | ✅ Done | 2026-09-23 | Identity spine: 11 files in `Domain/Identity` (Tenant, User, StaffRole, Permission, PermissionCodes 42, RoleDefinition, DefaultRolePermissions, StaffMembership, Device, CapabilitySnapshot, OfflineCapabilityPolicy). ErrorCodes += 6. 3 test classes (+21 facts → 45). Build 0/0, TESTS OK, SMOKE RUN OK. |
-| A04 | ⬜ Not started | | |
+| A04 | ✅ Done | 2026-09-23 | Owners/patients/clinical core: 12 files (`Domain/Patients` 4, `Domain/Clinical` 7, `Events/ClinicalEvents.cs`). Visit state machine + invoice-handoff lines, derived vaccination due dates, append-only medical history. ErrorCodes += 7 (→ 24). 4 test classes (+45 facts → 90). Build 0/0, TESTS OK, SMOKE RUN OK. |
 | A05 | ⬜ Not started | | |
 | A06 | ⬜ Not started | | |
 | A07 | ⬜ Not started | | |
@@ -101,6 +101,120 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > Append one entry per completed phase, newest first. Required fields:
 > **files added**, **contracts added**, **DI changes**, **mocks deleted**, **migrations created**,
 > **tests added**, **verification** (build/test/smoke results), **deviations**.
+
+### A04 — Domain: owners, patients, clinical (2026-09-23)
+
+- **Files added (src, 12):**
+  - `Patients/Owner.cs` — `sealed class Owner : AggregateRoot` + `enum OwnerGender { Unspecified, Male,
+    Female }`. `FullName`, `PhonePrimary`, `PhoneSecondary?`, `NationalId?`, `Email?`, `Address?`,
+    `City?`, `Gender`, `Notes?`, `RegisteredUtc`, `IsBlocked`, `BlockReason?`. `Register(...)`,
+    `UpdateContactDetails(...)` (one funnel so the §8.5 explicit demographic merge has a single write
+    path), `Block` (idempotent — keeps the first reason) / `Unblock`. `static string NormalizePhone`
+    keeps digits only with the leading `0`, folding Persian (U+06F0–U+06F9) and Arabic-Indic digits to
+    ASCII so the same number typed on either keyboard compares equal.
+  - `Patients/Pet.cs` — `sealed class Pet : AggregateRoot` + `enum PetSpecies { Dog, Cat, Bird, Rodent,
+    Reptile, Other }`, `enum PetGender { Unknown, Male, Female }`, `enum PetStatus { Active, Inactive,
+    Deceased }`. `OwnerId`, `Name`, `Species` (**private setter, no mutator, no method anywhere takes a
+    `PetSpecies`** — a species change is a new record), `Breed?`, `Gender`, `BirthDateUtc?`,
+    `IsNeutered`, `Color?`, `MicrochipCode?`, `MicrochipImplantUtc?`, `Status`, `AllergyNotes?`,
+    `ChronicNotes?`, `RegisteredUtc`. `AgeMonthsAt(nowUtc)` computed (never stored), clamped at 0 for a
+    future birth date and `null` when unknown. `Register` raises `PetRegisteredEvent`;
+    `UpdateProfile`, `SetMicrochip`, `SetClinicalFlags`, `SetStatus`.
+  - `Patients/WeightEntry.cs` — `sealed class WeightEntry : SyncableEntity`, append-only (zero public
+    methods). `PetId`, `WeightKg`, `MeasuredUtc`, `Note?`, `RecordedByUserId`, `CorrectsEntryId?`.
+    `Record(...) → Result<WeightEntry>`; `MinWeightKg = 0` (exclusive) / `MaxWeightKg = 300` →
+    `WEIGHT_OUT_OF_RANGE`.
+  - `Patients/DocumentReference.cs` — `sealed class DocumentReference : SyncableEntity` + `enum
+    DocumentKind { Lab, Imaging, Prescription, Consent, Invoice, Other }`. `OwnerId?`/`PetId?`/`VisitId?`
+    (at least one required → `DOCUMENT_TARGET_REQUIRED`), `Title`, `Kind`, `FileId` (D12 metadata id —
+    **never a filesystem path**, A-RULE 020), `SizeBytes`, `ContentHashSha256`, `UploadedUtc`,
+    `UploadedByUserId`. `Attach(...) → Result<DocumentReference>`.
+  - `Clinical/PetVitals.cs` — `sealed record PetVitals(WeightKg?, TemperatureC?, HeartRateBpm?,
+    RespiratoryRate?, MucousMembrane?, Hydration?)`; every component optional so a missing measurement
+    is never read as zero.
+  - `Clinical/PrescriptionLine.cs` — `sealed record PrescriptionLine(LineId, ProductId?, DrugName,
+    Dosage, Frequency, DurationDays, Instructions?)`; `ProductId` links to A06 inventory only when the
+    drug is dispensed from stock.
+  - `Clinical/VisitServiceLine.cs` — `sealed record VisitServiceLine(LineId, CatalogItemId?, Title,
+    Quantity, Money UnitPrice, VisitLineSource Source)` + `enum VisitLineSource { Service, Product,
+    Custom }`. The **invoice-handoff payload** Sales reads (A07/C07); the visit never computes totals.
+  - `Clinical/Visit.cs` — `sealed class Visit : AggregateRoot` + `enum VisitState { Draft, InProgress,
+    Completed, ReadyForInvoice, Invoiced, Cancelled }`, `enum VisitReason { Checkup, Illness, Injury,
+    Vaccination, Surgery, Dental, Followup, Other }`. Private `List<T>` collections exposed as
+    `IReadOnlyList<PrescriptionLine>` / `IReadOnlyList<VisitServiceLine>`. One `Result
+    Transition(VisitState)` gate over a `static bool IsTransitionAllowed(from, to)` table (exposed so
+    the tests can enumerate all 36 pairs). `Open`, `Start`, `SetVitals`, `SetAssessment`,
+    `AddPrescription`/`RemovePrescription`, `AddServiceLine`/`RemoveServiceLine`, `Complete(IClock)`,
+    `MarkReadyForInvoice()`, `AttachInvoice(invoiceId)`, `Cancel(reason, IClock)` — all returning
+    `Result`. `Complete` requires a non-blank diagnosis (`VISIT_DIAGNOSIS_REQUIRED`) and raises
+    `VisitCompletedEvent`; `MarkReadyForInvoice` raises `VisitReadyForInvoiceEvent`; `AttachInvoice` is
+    legal only from `ReadyForInvoice`; lines freeze at `State >= Invoiced` (`AreLinesLocked` →
+    `VISIT_LOCKED`); clinical fields close after `InProgress`.
+  - `Clinical/VaccineSchedule.cs` — static `IReadOnlyDictionary<string, int[]> All` (ordinal-ignore-case):
+    `DHPP [21,21,365]`, `RABIES [365]`, `FVRCP [21,21,365]`, `FELV [21,365]`, `LEPTO [21,365]`,
+    `BORDETELLA [365]`. `IntervalFor(code, dose)` clamps past the series end and returns
+    `AnnualBoosterDays = 365` for an unknown code (never "no due date"); `TotalDosesFor(code)`.
+  - `Clinical/VaccinationRecord.cs` — `sealed class VaccinationRecord : AggregateRoot` + `enum
+    VaccinationState { Administered, DueSoon, Overdue, Skipped }`. `Administer(...) →
+    Result<VaccinationRecord>` derives `NextDueUtc = AdministeredUtc + IntervalFor(code, dose)`,
+    uppercases the code, defaults `TotalDoses` from the schedule, validates the dose
+    (`VACCINE_DOSE_INVALID`) and raises `VaccinationAdministeredEvent`. `StateAt(nowUtc)` is the derived
+    read (`DueSoonWindow = 30 d`; `Overdue` when `NextDueUtc < nowUtc`); the stored `State` only
+    separates a live series from a `Skip(...)`-ed one.
+  - `Clinical/MedicalHistoryEntry.cs` — `sealed class MedicalHistoryEntry : SyncableEntity` + `enum
+    MedicalHistoryKind { Visit, Vaccination, Surgery, Lab, Weight, Prescription, Boarding, Note }`.
+    Public constructor only — **zero methods, zero public setters** (ARCHITECTURE §8.5: history is
+    preserved in full; a correction is a new row). `PetId`, `Kind`, `Title`, `Detail?`, `OccurredUtc`,
+    `SourceEntityId?`, `SourceEntityType?`, `RecordedByUserId`.
+  - `Events/ClinicalEvents.cs` — `PetRegisteredEvent`, `VisitCompletedEvent`,
+    `VisitReadyForInvoiceEvent`, `VaccinationAdministeredEvent`, all `sealed record : DomainEvent`
+    (EventId/TenantId/OccurredAtUtc + payload). Dispatch to `MedicalHistoryEntry` stays in A10.
+- **Files modified (src, 1):** `Results/ErrorCodes.cs` — new `#region Patients & Clinical (Phase A04)`
+  **appended** (nothing reordered) with 7 codes: `PET_SPECIES_IMMUTABLE` (Integrity),
+  `VISIT_INVALID_TRANSITION` (Conflict), `VISIT_DIAGNOSIS_REQUIRED` (Validation), `VISIT_LOCKED`
+  (Conflict), `WEIGHT_OUT_OF_RANGE` (Validation), `DOCUMENT_TARGET_REQUIRED` (Validation),
+  `VACCINE_DOSE_INVALID` (Validation). Catalog total 17 → 24.
+- **Contracts added:** 7 entities (`Owner`, `Pet`, `WeightEntry`, `DocumentReference`, `Visit`,
+  `VaccinationRecord`, `MedicalHistoryEntry`), 3 value objects (`PetVitals`, `PrescriptionLine`,
+  `VisitServiceLine`), 10 enums (`OwnerGender`, `PetSpecies`, `PetGender`, `PetStatus`, `DocumentKind`,
+  `VisitState`, `VisitReason`, `VisitLineSource`, `VaccinationState`, `MedicalHistoryKind`), 1 static
+  (`VaccineSchedule`), 4 domain events. **No `Animora.Contracts` change** — domain enums are duplicated,
+  never imported (CONVENTIONS §2); Track C maps between them.
+- **DI changes:** none. **Mocks deleted:** none. **Migrations created:** none (A09 maps these).
+- **Package/project references added:** **none** — `Animora.Domain.csproj` is still an empty
+  `Microsoft.NET.Sdk` project with zero references; `LayeringRulesTests` still green.
+- **Tests added (4 classes, 45 facts; `Animora.Domain.Tests` 45 → 90):**
+  - `VisitStateMachineTests` (7) — all **36** `VisitState` pairs checked against a literal allowed-set
+    (only the 6 tabled ones pass); the full Draft→Invoiced happy path with both events in order; cancel
+    legal from `Draft` and `InProgress`; both terminal states refuse every further transition;
+    `AttachInvoice` before the handoff is refused. Hosts the shared advancing `TestClock : IClock`.
+  - `VisitInvariantTests` (4) — `Complete` without (and with a whitespace-only) diagnosis returns
+    `VISIT_DIAGNOSIS_REQUIRED` and raises nothing; after `Invoiced`, add/remove of service and
+    prescription lines all return `VISIT_LOCKED`; lines stay editable through `ReadyForInvoice` and a
+    removal of a missing line is `NOT_FOUND`; vitals/assessment are closed once the encounter ends.
+  - `VaccinationDueDateTests` (18 cases) — the per-dose interval and resulting `NextDueUtc` for all six
+    seeded codes; clamp past the series end and unknown code → 365 d; the event carries the derived due
+    date; `StateAt` boundaries exact to ±1 second (`due+1s` Overdue, `due` and `due−30 d` DueSoon,
+    `due−30 d−1 s` Administered); `Skip` clears the due date permanently; invalid dose numbers.
+  - `PatientInvariantTests` (16 cases) — species has no public setter and no method accepting a
+    `PetSpecies` (reflection) and registration raises `PetRegisteredEvent`; `AgeMonthsAt` boundaries and
+    the null case; weight range rejections and the append-only shape; document target requirement plus
+    all three single-target forms; `NormalizePhone` over spaced/`+`-prefixed/Persian-digit/parenthesised
+    input; owner trim + idempotent block/unblock; `MedicalHistoryEntry` asserted by reflection to have
+    **no declared public method and no public setter**.
+- **Verification:** `scripts/sandbox/build.sh full` = **0 warnings / 0 errors**;
+  `scripts/sandbox/test.sh` = **TESTS OK** (Domain 90/90, other 4 projects 1/1 each);
+  `scripts/sandbox/run.sh` = **SMOKE RUN OK**.
+- **Deviations:** none material. Additions inside phase scope, needed to make the aggregates usable
+  without re-deriving rules later: factories (`Owner.Register`, `Pet.Register`, `Visit.Open`) because
+  every aggregate has private setters and an `IClock`-supplied instant; `Visit.SetAssessment`
+  (diagnosis/plan/notes have to be writable for `Complete`'s invariant to be reachable),
+  `Visit.IsTransitionAllowed`/`AreLinesLocked`/`CancellationReason`; `Owner.UpdateContactDetails`/
+  `Block`/`Unblock`; `Pet.UpdateProfile`/`SetMicrochip`/`SetClinicalFlags`/`SetStatus`;
+  `VaccineSchedule.TotalDosesFor`; `VaccinationRecord.Skip` (the `Skipped` enum member is otherwise
+  unreachable). `PET_SPECIES_IMMUTABLE` is declared but not thrown by the domain: immutability is
+  enforced structurally (no mutator exists), so the code is reserved for the A-layer command that
+  rejects a species-change request — asserted by reflection instead of by a runtime guard.
 
 ### A03 — Domain: identity, tenant, staff, device (2026-09-23)
 
