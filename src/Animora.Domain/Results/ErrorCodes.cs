@@ -245,4 +245,73 @@ public static class ErrorCodes
         new("PRODUCT_SKU_DUPLICATE", ErrorCode.Conflict);
 
     #endregion
+
+    #region Sales & Cashier (Phase A07)
+
+    /// <summary>
+    /// The invoice is posted; its lines, discount and insurance are final. A change after posting
+    /// is an <c>InvoiceAdjustment</c>, never an edit (A-RULE 002).
+    /// </summary>
+    public static readonly ErrorCode InvoiceImmutable =
+        new("INVOICE_IMMUTABLE", ErrorCode.Conflict);
+
+    /// <summary>The requested invoice state change is not in the invoice state machine.</summary>
+    public static readonly ErrorCode InvoiceInvalidTransition =
+        new("INVOICE_INVALID_TRANSITION", ErrorCode.Conflict);
+
+    /// <summary>The stored invoice totals disagree with a recomputation from the lines.</summary>
+    public static readonly ErrorCode InvoiceTotalMismatch =
+        new("INVOICE_TOTAL_MISMATCH", ErrorCode.Integrity);
+
+    /// <summary>The invoice's grand total came out below zero; a claim is never negative.</summary>
+    public static readonly ErrorCode InvoiceNegativeTotal =
+        new("INVOICE_NEGATIVE_TOTAL", ErrorCode.Integrity);
+
+    /// <summary>The invoice has no lines, so there is nothing to post.</summary>
+    public static readonly ErrorCode InvoiceEmpty =
+        new("INVOICE_EMPTY", ErrorCode.Validation);
+
+    /// <summary>Money was already received, so the invoice must be refunded rather than voided.</summary>
+    public static readonly ErrorCode InvoiceVoidAfterPayment =
+        new("INVOICE_VOID_AFTER_PAYMENT", ErrorCode.Conflict);
+
+    /// <summary>The payment is larger than the amount still due on the invoice.</summary>
+    public static readonly ErrorCode PaymentExceedsDue =
+        new("PAYMENT_EXCEEDS_DUE", ErrorCode.Validation);
+
+    /// <summary>
+    /// A payment carrying an already-applied <c>OperationId</c> was replayed. The replay is a
+    /// no-op, not a second financial effect (A-RULE 006).
+    /// </summary>
+    public static readonly ErrorCode PaymentDuplicateOperation =
+        new("PAYMENT_DUPLICATE_OPERATION", ErrorCode.Conflict);
+
+    /// <summary>
+    /// The payment method needs a reference the caller did not supply: cash needs its cash
+    /// session, a cheque needs its cheque record.
+    /// </summary>
+    public static readonly ErrorCode PaymentMethodReferenceRequired =
+        new("PAYMENT_METHOD_REFERENCE_REQUIRED", ErrorCode.Validation);
+
+    /// <summary>This cashier already has an open session on this terminal.</summary>
+    public static readonly ErrorCode CashSessionAlreadyOpen =
+        new("CASH_SESSION_ALREADY_OPEN", ErrorCode.Conflict);
+
+    /// <summary>The cash session is closed; a correction belongs to the next session.</summary>
+    public static readonly ErrorCode CashSessionClosed =
+        new("CASH_SESSION_CLOSED", ErrorCode.Conflict);
+
+    /// <summary>The declared count differs from the expected one and no explanation was given.</summary>
+    public static readonly ErrorCode CashVarianceNoteRequired =
+        new("CASH_VARIANCE_NOTE_REQUIRED", ErrorCode.Validation);
+
+    /// <summary>The drawer still has commands awaiting settlement; it cannot be closed yet.</summary>
+    public static readonly ErrorCode CashSessionUnsettledCommands =
+        new("CASH_SESSION_UNSETTLED_COMMANDS", ErrorCode.Conflict);
+
+    /// <summary>The adjustment gives back more than was ever received on the invoice.</summary>
+    public static readonly ErrorCode AdjustmentExceedsPaid =
+        new("ADJUSTMENT_EXCEEDS_PAID", ErrorCode.Validation);
+
+    #endregion
 }
