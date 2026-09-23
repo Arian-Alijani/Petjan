@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A06`** — `backend-roadmap/phases/PHASE-A06-*.md`
+**Next phase: `A07`** — `backend-roadmap/phases/PHASE-A07-*.md`
 
 ## Phase status
 
@@ -49,7 +49,7 @@
 | A03 | ✅ Done | 2026-09-23 | Identity spine: 11 files in `Domain/Identity` (Tenant, User, StaffRole, Permission, PermissionCodes 42, RoleDefinition, DefaultRolePermissions, StaffMembership, Device, CapabilitySnapshot, OfflineCapabilityPolicy). ErrorCodes += 6. 3 test classes (+21 facts → 45). Build 0/0, TESTS OK, SMOKE RUN OK. |
 | A04 | ✅ Done | 2026-09-23 | Owners/patients/clinical core: 12 files (`Domain/Patients` 4, `Domain/Clinical` 7, `Events/ClinicalEvents.cs`). Visit state machine + invoice-handoff lines, derived vaccination due dates, append-only medical history. ErrorCodes += 7 (→ 24). 4 test classes (+45 facts → 90). Build 0/0, TESTS OK, SMOKE RUN OK. |
 | A05 | ✅ Done | 2026-09-23 | Scheduling & boarding domain: 12 files (`Domain/Scheduling` 5, `Domain/Boarding` 5, `Events/SchedulingEvents.cs`, `Events/BoardingEvents.cs`). Appointment state machine + `SlotConflictPolicy` (pure, `for`-loop), reception derived-queue, boarding stay state machine + `BillableDays` + invoice-required checkout. ErrorCodes += 11 (→ 35). 8 events. **No tests (owed to A12).** Build: Domain 0/0 (solution-wide OOM only in Avalonia Desktop XAML AOT — sandbox RAM cap, not code). |
-| A06 | ⬜ Not started | | |
+| A06 | ✅ Done | 2026-09-23 | Inventory & purchasing domain: 13 files (`Domain/Inventory` 6, `Domain/Purchasing` 5, `Events/InventoryEvents.cs`, ErrorCodes). **Movement-based stock only** — `Product` has no on-hand property; `StockCalculator` is the single derivation (signed sum + moving weighted average); `StockMovement` is append-only with a factory-enforced sign rule; `StockLevel` is a rebuildable projection. PO state machine + `RecalculateTotals`/`ApplyReceipt`; posted `GoodsReceipt` immutable (A-RULE 002). ErrorCodes += 11 (→ 46). 4 events. **No tests (owed to A12).** Build full 0/0, SMOKE RUN OK. |
 | A07 | ⬜ Not started | | |
 | A08 | ⬜ Not started | | |
 | A09 | ⬜ Not started | | |
@@ -101,6 +101,103 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > Append one entry per completed phase, newest first. Required fields:
 > **files added**, **contracts added**, **DI changes**, **mocks deleted**, **migrations created**,
 > **tests added**, **verification** (build/test/smoke results), **deviations**.
+
+### A06 — Domain: inventory & purchasing (2026-09-23)
+
+- **Files added (src, 13):**
+  - `Inventory/UnitOfMeasure.cs` — `sealed class UnitOfMeasure : AggregateRoot`: `Code`, `DisplayKey`,
+    `DecimalPlaces` ∈ [0, 3], `BaseUnitCode?`, `ConversionToBase?`. All-or-nothing conversion invariant
+    (both null or both set, factor > 0) enforced in `Create` and `SetConversion` (`VALIDATION_FAILED`).
+    Units are **never converted silently** anywhere in the domain — mixing them is `UNIT_MISMATCH`.
+  - `Inventory/ProductCategory.cs` — `sealed class ProductCategory : AggregateRoot`: `Code`,
+    `DisplayName`, `ParentCategoryId?`, `SortOrder`, `IsActive`. Cycle guard (`CATEGORY_CYCLE`) takes the
+    **supplied** ancestor chain of the candidate parent (the Domain has no repository) and walks it with a
+    `for` loop; `Create`, `MoveTo`, `Rename`, `Deactivate`, `Activate`.
+  - `Inventory/ProductVariant.cs` — `sealed record ProductVariant(VariantId, Sku, AttributeName,
+    AttributeValue, CostPrice, SalePrice, ReorderLevel, Barcode?, IsActive)` + `const DefaultAttributeName
+    = "DEFAULT"` and `IsDefault`. Every movement references a `VariantId`, never a bare `ProductId`.
+  - `Inventory/Product.cs` — `sealed class Product : AggregateRoot` + `enum ProductKind { Medicine,
+    Vaccine, Food, PetShop, Consumable, Equipment, Service }`. **No stock property of any kind (R-B23)** —
+    XML-doc states on-hand is always derived by `StockCalculator`; `grep -n "OnHand" Product.cs` returns
+    nothing. Invariants: `Service ⇒ !TrackStock` (`SERVICE_NO_STOCK`); a stock-tracked product is created
+    with, and always keeps, ≥ 1 active variant (`VARIANT_REQUIRED`); variant reorder levels use the
+    product unit (`UNIT_MISMATCH`); variant SKUs unique inside the product (`PRODUCT_SKU_DUPLICATE`).
+    `AddVariant`, `UpdateVariant`, `DeactivateVariant`, `SetPrices`, `SetReorderLevel`, `Describe`,
+    `Deactivate`, `Activate`.
+  - `Inventory/StockMovement.cs` — `sealed class StockMovement : SyncableEntity`, **append-only, zero
+    mutators** (every property `private init`). `enum MovementKind` with all 10 values. **Sign rule
+    (authoritative):** `Receipt/AdjustmentIn/TransferIn/ReturnIn` ⇒ `Quantity.Value > 0`, the other six
+    ⇒ `< 0`, zero is never a movement — enforced by the `Create(...) → Result<StockMovement>` factory
+    (`MOVEMENT_SIGN_INVALID`), the only way to obtain an instance. `static IsInboundKind`,
+    `static OppositeKind`, and `static Reverse(original, …)` building the offsetting movement with
+    `ReversesMovementId` set. Corrections are new rows; conflicts converge additively (§8.5).
+  - `Inventory/StockLevel.cs` — `sealed record StockLevel(ProductId, VariantId, OnHand, Reserved,
+    Available, AverageCost, EarliestExpiryUtc)` + `Empty(...)`, `IsOutOfStock`. Documented as a
+    **rebuildable projection, never an authority**; A10 may cache it `[LocalOnly]`, ledger wins on
+    disagreement.
+  - `Inventory/StockCalculator.cs` — the **single** on-hand algorithm, pure static, indexed `for` loops,
+    no LINQ, no temp collections (PERFORMANCE §2). `OnHand(movements)` = signed sum; `WeightedAverageCost`
+    = moving weighted average over inbound, outbound consuming at the running average (**the** costing
+    method — FIFO/LIFO need an ADR), accumulated in `decimal` and rounded once at the end;
+    `EnsureSufficient(onHand, requested, allowNegative)` → `UNIT_MISMATCH` / `INSUFFICIENT_STOCK`;
+    `IsBelowReorder`; `EarliestExpiry(inbound)`; plus `Project(...)` returning the full `StockLevel`.
+    A mixed-unit/currency ledger is a caller defect and throws (CONVENTIONS §4).
+  - `Purchasing/Supplier.cs` — `sealed class Supplier : AggregateRoot`: `Code`, `Name`, `ContactPerson?`,
+    `Phone?`, `Email?`, `Address?`, `NationalId?`, `PaymentTermDays` ∈ [0, 365], `IsActive`, `Notes?`.
+    Payables/cheques stay in A08.
+  - `Purchasing/PurchaseOrderLine.cs` — `sealed record PurchaseOrderLine(LineId, ProductId, VariantId,
+    OrderedQuantity, ReceivedQuantity, UnitCost, DiscountPercent, TaxPercent, LotNumber?, ExpiryUtc?)`
+    with computed `Gross`, `DiscountAmount`, `NetAmount`, `TaxAmount`, `LineTotal`,
+    `OutstandingQuantity`, `IsFullyReceived`. **All money goes through `Money.ApplyPercent`** — including
+    the quantity extension (`unitCost.ApplyPercent(q × 100)`); no inline `Math.Round` anywhere
+    (CONVENTIONS §4).
+  - `Purchasing/PurchaseOrder.cs` — `sealed class PurchaseOrder : AggregateRoot` + `enum
+    PurchaseOrderState { Draft, Submitted, PartiallyReceived, Received, Cancelled, Closed }`. One
+    `Result Transition(...)` gate over a `static bool IsTransitionAllowed(from, to)` table (exposed for
+    A12), matching the phase's machine exactly (`PO_INVALID_TRANSITION`). Lines frozen from `Submitted`
+    on (`PO_LOCKED`); `RecalculateTotals()` is the only writer of `Subtotal`/`DiscountTotal`/`TaxTotal`/
+    `GrandTotal` and runs after every line change; `Submit(IClock)` re-verifies stored totals against the
+    line sum (`PO_TOTAL_MISMATCH`) and raises `PurchaseOrderSubmittedEvent`; `ApplyReceipt(GoodsReceipt)`
+    adds the received quantity per matching (ProductId, VariantId) line and sets `PartiallyReceived` or
+    `Received` — it writes **no** stock; `AddLine`, `RemoveLine`, `Cancel`, `Close`, `SetExpectedDate`.
+  - `Purchasing/GoodsReceiptLine.cs` — `sealed record GoodsReceiptLine(LineId, ProductId, VariantId,
+    Quantity, UnitCost, LotNumber?, ExpiryUtc?)` + computed `LineCost`. `Quantity` is the **positive**
+    amount received; the movement factory owns the sign.
+  - `Purchasing/GoodsReceipt.cs` — `sealed class GoodsReceipt : AggregateRoot` + `enum GoodsReceiptState
+    { Draft, Posted, Reversed }`. `ReceiptNumber`, `PurchaseOrderId?` (null = direct receipt),
+    `SupplierId`, `ReceivedUtc`, `ReceivedByUserId`, `InvoiceReference?`, `ReversesReceiptId?`, `Lines`.
+    `Post(IClock)` → `Posted` + `GoodsReceiptPostedEvent`; posted is **immutable** (A-RULE 002) — every
+    line mutator and `SetInvoiceReference` return `RECEIPT_LOCKED`, a correction is a new receipt with
+    `ReversesReceiptId` + `ReturnOut` movements. `MarkReversed()` flags the offset original.
+  - `Events/InventoryEvents.cs` — `StockMovementRecordedEvent(MovementId, ProductId, VariantId, Kind,
+    QuantityValue)`, `StockBelowReorderEvent(ProductId, VariantId, OnHandValue, ReorderLevelValue)`,
+    `GoodsReceiptPostedEvent(ReceiptId, SupplierId, LineCount)`, `PurchaseOrderSubmittedEvent(OrderId,
+    SupplierId, GrandTotalMinor, Currency)` — all `: DomainEvent(EventId, TenantId, OccurredAtUtc)`.
+- **Files modified (1):** `Results/ErrorCodes.cs` — new `#region Inventory & Purchasing (Phase A06)`
+  with **11** codes (→ 46 total): `SERVICE_NO_STOCK`, `MOVEMENT_SIGN_INVALID`, `INSUFFICIENT_STOCK`,
+  `UNIT_MISMATCH`, `CATEGORY_CYCLE`, `VARIANT_REQUIRED`, `PO_INVALID_TRANSITION`, `PO_LOCKED`,
+  `PO_TOTAL_MISMATCH`, `RECEIPT_LOCKED`, `PRODUCT_SKU_DUPLICATE`. No existing code renamed or removed.
+- **Key decisions recorded:** (1) the movement **sign rule** above is authoritative and lives only in
+  `StockMovement.Create`; (2) costing is **moving weighted average**, product-wide — FIFO/LIFO are not
+  implemented and require an ADR; (3) on-hand is **never stored** — `Product` has no stock field and
+  `StockLevel` is a rebuildable projection; (4) `ApplyReceipt` never touches the ledger — the movement
+  writer (D07/C06) does, from `GoodsReceiptPostedEvent`.
+- **Contracts added:** none (`Animora.Contracts` untouched). **DI changes:** none. **Mocks deleted:**
+  none. **Migrations created:** none. `Animora.Domain.csproj` still has zero references.
+- **Tests added:** **none — this is a Track A phase (ROADMAP §3.10); all coverage is owed to A12**
+  (`StockCalculatorTests`, `StockMovementFactoryTests` over all 10 kinds, `ProductInvariantTests`,
+  `PurchaseOrderTests` — as listed in the phase file).
+- **Verification:** `scripts/sandbox/build.sh full` → **0 warnings / 0 errors** (whole solution,
+  12 projects incl. the 5 test projects); `scripts/sandbox/run.sh` → **SMOKE RUN OK**;
+  `grep -n "OnHand" src/Animora.Domain/Inventory/Product.cs` → **no match**. `test.sh` deliberately not
+  invoked (A12 owns it).
+- **Deviations:** (a) added three small conveniences beyond the file table, all inside the listed files
+  and consistent with the phase's rules: `StockMovement.Reverse`/`OppositeKind` (the reversal path the
+  phase mandates), `StockCalculator.Project` (assembles the documented `StockLevel` from the five
+  primitives) and `GoodsReceipt.MarkReversed` (flags the offset original). (b) `PurchaseOrder` also
+  allows `PartiallyReceived -> PartiallyReceived` so a second partial receipt is not an invalid
+  transition. (c) Scripts under `scripts/sandbox/` regained their executable bit (the sandbox checkout
+  had dropped it) — no content change.
 
 ### A05 — Domain: scheduling & boarding (2026-09-23)
 
