@@ -38,14 +38,14 @@
 
 ## Next phase
 
-**Next phase: `A02`** — `backend-roadmap/phases/PHASE-A02-*.md`
+**Next phase: `A03`** — `backend-roadmap/phases/PHASE-A03-*.md`
 
 ## Phase status
 
 | ID | Status | Date | Notes |
 |---|---|---|---|
 | A01 | ✅ Done | 2026-09-23 | Backend track scaffold: 4 src + 5 test projects, 10 pins, WireContract v1, test.sh, LayeringRulesTests. Build 0/0, TESTS OK, SMOKE RUN OK. |
-| A02 | ⬜ Not started | | |
+| A02 | ✅ Done | 2026-09-23 | Domain kernel: 15 files (primitives, Money/Quantity, ULID IdGenerator, clock ports, Result/ErrorCodes seed 11). 4 test classes, 24 domain tests. Build 0/0, TESTS OK, SMOKE RUN OK. |
 | A03 | ⬜ Not started | | |
 | A04 | ⬜ Not started | | |
 | A05 | ⬜ Not started | | |
@@ -101,6 +101,86 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > Append one entry per completed phase, newest first. Required fields:
 > **files added**, **contracts added**, **DI changes**, **mocks deleted**, **migrations created**,
 > **tests added**, **verification** (build/test/smoke results), **deviations**.
+
+### A02 — Domain kernel (2026-09-23)
+
+- **Files added (src, 15 — all in `src/Animora.Domain/`, all new folders):**
+  - `Primitives/SyncableEntity.cs` — syncable shape base: `Id` (init, ULID), `TenantId`,
+    `UpdatedAt`, `Version` (nullable, server-issued), `Deleted`; protected EF ctor; **no EF attribute**.
+    XML docs state `UpdatedAt`/`Version` are transport bookkeeping only (A-RULE 009/010).
+  - `Primitives/LocalOnlyEntity.cs` — `Id` + `CreatedAtUtc`; never replicated.
+  - `Primitives/LocalOnlyAttribute.cs` — `[LocalOnly]` class marker (consumed by A09 model builder, E03 scope).
+  - `Primitives/IHasDomainEvents.cs` — `IReadOnlyList<DomainEvent> DomainEvents` + `ClearDomainEvents()`.
+  - `Primitives/AggregateRoot.cs` — `SyncableEntity` + private `List<DomainEvent>` + `protected Raise(...)`;
+    buffer exposed read-only.
+  - `Primitives/IdGenerator.cs` — monotonic 26-char Crockford base32 ULID (48-bit ms + 80-bit
+    `RandomNumberGenerator` randomness), lock-guarded same-ms increment; `NewId()` additionally clamps a
+    backwards OS-clock jump to the last emitted ms so process-wide ordering holds; `NewId(DateTimeOffset)`
+    honours the caller's instant verbatim (tests).
+  - `Events/DomainEvent.cs` — `abstract record DomainEvent(string EventId, string TenantId,
+    DateTimeOffset OccurredAtUtc)`; no `INotification`, no MediatR.
+  - `ValueObjects/Money.cs` — `readonly record struct Money(long Minor, string Currency)`: `ZeroIrt`,
+    `Irt(long)`, `Of(long,string)` (3-letter uppercase validation), `Zero(string)`, `Scale`, `IsZero`,
+    `IsNegative`, `Abs`; `+ - unary- *` (int/long, both operand orders) with `checked` arithmetic and named
+    alternatives (`Add`/`Subtract`/`Negate`/`Multiply`); `IComparable<Money>`/`IComparable` + `< <= > >=`;
+    currency mismatch throws `InvalidOperationException` (defect, not control flow);
+    `Allocate(int)` largest-remainder (sign-aware, conserves every minor unit);
+    `ApplyPercent(decimal)` with `MidpointRounding.AwayFromZero` — the product's single rounding site.
+  - `ValueObjects/CurrencyScale.cs` — `Of(currency)`: `IRT` → 0, `USD`/`EUR` → 2, default 2; `Irt` const.
+  - `ValueObjects/Quantity.cs` — `readonly record struct Quantity(decimal Value, string UnitCode)`:
+    `Zero(unit)`, `IsZero`, `IsNegative`, `Abs`, `+ - unary-` with ordinal unit-code check (throws on
+    mismatch). Negative values intentionally legal (movements are signed).
+  - `Time/IClock.cs` — `DateTimeOffset UtcNow`. `Time/IMonotonicClock.cs` — `ElapsedTicks`,
+    `HighWaterUtc` (never decreases), `Observe(DateTimeOffset serverUtc)`; A-RULE 011 documented.
+    Implementations deferred to A11 as specified.
+  - `Results/ErrorCode.cs` — `readonly record struct ErrorCode(string Code, string Category)` + the 7
+    category consts (`Validation`, `NotFound`, `Conflict`, `Forbidden`, `Integrity`, `Infrastructure`,
+    `Entitlement`) + `None`/`IsNone`.
+  - `Results/ErrorCodes.cs` — central catalog seeded with the 11 cross-cutting codes:
+    `VALIDATION_FAILED`, `NOT_FOUND`, `CONCURRENCY_CONFLICT`, `PERMISSION_DENIED`, `TENANT_MISMATCH`,
+    `IDEMPOTENCY_FINGERPRINT_MISMATCH`, `DEPENDENCY_UNSETTLED`, `ENTITLEMENT_REQUIRED`,
+    `OFFLINE_CAPABILITY_EXPIRED`, `STORE_UNAVAILABLE`, `UNEXPECTED`. Append-only by contract.
+  - `Results/Result.cs` — `Result` and `Result<T>` (`IsSuccess`/`IsFailure`/`Value`/`Error`/`Detail`),
+    `Ok`/`Fail` factories, implicit `T → Result<T>` (+ named `FromValue`), `Map`, `Bind` (all arities),
+    `ToResult`, `OrElse`. `Detail` documented as a developer string, never localized text.
+  - `Identity/` created empty (`.gitkeep`) — filled by A03.
+- **Files modified (src, 1):** `src/Animora.Domain/README.md` — folder-layout table + the zero-dependency,
+  no-Guid, no-system-clock, no-decimal-money, append-only-ErrorCodes rules.
+- **Contracts added:** domain primitives + value objects + clock ports + results listed above.
+  No `Animora.Contracts` change, no `Animora.Contracts.Wire` change, no DbContext, no wire DTO.
+- **DI changes:** none (Domain has no composition root; clock implementations and registration are A11).
+- **Mocks deleted:** none (Track C protocol not yet in effect).
+- **Migrations created:** none.
+- **Package/project references added:** **none** — `Animora.Domain.csproj` remains an empty
+  `Microsoft.NET.Sdk` project with zero `PackageReference` and zero `ProjectReference` (CONVENTIONS §2).
+- **Tests added (4 classes, 24 facts total in `Animora.Domain.Tests`):**
+  - `MoneyTests` — exact minor-unit arithmetic/comparison; currency mismatch throws on `+`/`-`/`CompareTo`
+    and bad-code `Of` throws; `Allocate` conserves the sum and keeps shares within one unit (incl. a
+    negative-amount case); `Allocate(3)` of 100 IRT = `34/33/33`; `ApplyPercent` away-from-zero
+    (`105 × 50% → 53`, `-105 × 50% → -53`).
+  - `QuantityTests` — add/sub keep unit and allow negatives; unit mismatch throws.
+  - `IdGeneratorTests` — 26 chars, Crockford alphabet only, cross-ms sortability, same-ms strict
+    monotonicity with identical timestamp prefix, and the 10 000-id loop asserting zero duplicates and
+    strictly ascending ordinal order.
+  - `ResultTests` — Ok/Fail state + code/category/detail, implicit conversion + `FromValue`/`OrElse`,
+    `Map` transform/propagate, `Bind` chain/short-circuit, `ToResult`.
+  - `LayeringRulesTests` unchanged and still green (Domain still references no `Animora.*` assembly).
+- **Verification:** `scripts/sandbox/build.sh full` = **0 warnings / 0 errors**;
+  `scripts/sandbox/test.sh` = `TESTS OK` (Domain 24 passed, other 4 projects 1 placeholder each);
+  `scripts/sandbox/run.sh` = `SMOKE RUN OK` (desktop untouched);
+  `grep -rn "DateTime.Now\|DateTimeOffset.UtcNow\|Guid.NewGuid" src/Animora.Domain` returns nothing.
+- **Deviations:**
+  - **D-A02-1** — The phase file placed the category consts in `Results/ErrorCode.cs` without naming a
+    holder type. They are declared as consts **on `ErrorCode` itself** (`ErrorCode.Validation`, …) rather
+    than in a second public type, to keep one public type per file (CONVENTIONS §3). No file count change.
+  - **D-A02-2** — `IdGenerator.NewId()` obtains the instant from `TimeProvider.System`; `IClock` cannot be
+    injected into a static generator and lives in the same assembly. This is an id prefix only, never a
+    business sequence or licensing authority (A-RULE 011). The forbidden-call grep stays clean.
+  - **D-A02-3** — Added conveniences beyond the phase list, all additive and non-breaking: `Money.Of`,
+    `Money.Zero`, `Abs`, `IsZero`/`IsNegative`, named operator alternatives (CA2225 compliance),
+    `Quantity.Abs`/`Negate`, `Result<T>.FromValue`/`ToResult`/`OrElse`.
+  - **D-A02-4** — `src/Animora.Domain/Identity/` is tracked via a `.gitkeep` (git cannot store an empty
+    directory); A03 removes it when it adds the first identity entity.
 
 ### A01 — Backend track scaffold (2026-09-23)
 
