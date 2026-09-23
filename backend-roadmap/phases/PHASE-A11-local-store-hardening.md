@@ -3,8 +3,14 @@
 **Band:** M · **Track:** A · **Depends on:** A10 · **Satisfies:** R-B02, R-B09, R-B27, R-B28
 **Runnable after this phase:** desktop offline yes · server required no
 
+> **Track A testing policy (see ROADMAP §3.10).** This phase writes **no tests** and runs **no test
+> suite**. It ships hardening (keystore, encryption seam, native assertion, backup/quarantine, clocks,
+> migration) only. All tests are authored and executed once, in **Phase A12** — which immediately
+> follows this phase. The single verification here is a lightweight build (`scripts/sandbox/build.sh
+> full` = 0/0); run only if needed.
+
 ## Read before starting
-- `backend-roadmap/CONVENTIONS.md` §5, §7, §8, §9, §11, §12
+- `backend-roadmap/CONVENTIONS.md` §5, §7, §8, §11, §12
 - `backend-roadmap/PROGRESS.md`
 - `STACK.md` §3.3 (local store technology, native matrix, CVE-2025-6965), §12 (gate K2, native
   assertion), §15 (T-RULE 004, T-RULE 015)
@@ -143,11 +149,9 @@ backup/restore + corrupt-database quarantine-and-rebuild path.
 | `src/Animora.Domain/Results/ErrorCodes.cs` | modify | append the 6 codes |
 | `src/Animora.Application/Ports/ILocalFileStore.cs` | create | file-store port |
 | `src/Animora.Persistence.Sqlite/Context/LocalStoreServiceCollectionExtensions.cs` | modify | register keystore/clocks/startup/maintenance/providers |
-| `tests/Animora.Persistence.Tests/NativeSqliteVersionTests.cs` | create | asserts the runtime version ≥ 3.50.2 |
-| `tests/Animora.Persistence.Tests/StoreStartupTests.cs` | create | 8-step order, fail-closed key path, WAL pragma state |
-| `tests/Animora.Persistence.Tests/BackupRestoreTests.cs` | create | backup → corrupt → restore → data intact; retention pruning |
-| `tests/Animora.Persistence.Tests/QuarantineRebuildTests.cs` | create | corrupt file quarantined, fresh DB seeded, nothing deleted |
-| `tests/Animora.Persistence.Tests/MonotonicClockTests.cs` | create | high-water never decreases across restart |
+
+**No test files in this phase.** All tests are authored in **A12**; the "Test coverage owed to A12"
+section below records exactly what A12 must cover.
 
 ## Implementation steps
 1. Add `ISecretStore` + the three implementations + `LocalDbKeyService` + `InstallationIdentity`.
@@ -165,12 +169,24 @@ backup/restore + corrupt-database quarantine-and-rebuild path.
 9. Extend `AddAnimoraLocalStore` with every new registration; the OS-specific `ISecretStore` is chosen
    at registration time.
 10. Append the 6 error codes.
-11. Write the five test classes. `QuarantineRebuildTests` corrupts a copy by overwriting the header
-    bytes; `BackupRestoreTests` asserts the restored DB passes `quick_check` and contains the pre-
-    corruption row set; `StoreStartupTests` asserts `journal_mode=wal` and `busy_timeout=5000` after
-    initialization and that a missing key with no fallback returns `STORE_KEY_UNAVAILABLE` without
-    creating a database file.
-12. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; `run.sh` = `SMOKE RUN OK`.
+11. **No tests here.** Record the coverage owed to A12 (below).
+12. Lightweight build check only, if needed: `build.sh full` = 0/0. Do **not** run `test.sh`.
+    `run.sh` = `SMOKE RUN OK`.
+
+## Test coverage owed to A12 (author + run in A12, not here)
+- `NativeSqliteVersionTests`: `SELECT sqlite_version()` returns ≥ 3.50.2 in the test host;
+  `NativeSqliteAssertion.Assert` returns `NATIVE_SQLITE_TOO_OLD` for a stubbed lower version.
+- `StoreStartupTests`: the eight steps execute in order (step log); after init `journal_mode=wal`,
+  `synchronous=NORMAL`, `busy_timeout=5000`, `foreign_keys=ON`; `EncryptionEnabled=true` + no key + no
+  fallback → `STORE_KEY_UNAVAILABLE` and no `animora.db` created; `EncryptionEnabled=true` +
+  `K2Approved=false` → `Validate()` returns `STORE_ENCRYPTION_NOT_APPROVED`.
+- `BackupRestoreTests`: backup → `quick_check` OK → restore → pre-backup row set intact; retention
+  keeps exactly `BackupRetentionCount` files; a `StoreMaintenanceLog` row per action.
+- `QuarantineRebuildTests`: a corrupt DB (header bytes overwritten) is moved (not deleted) into
+  `quarantine/<timestamp>/` with its `-wal`/`-shm`; a fresh migrated+seeded DB is created; diagnostics
+  report `Quarantined = true`.
+- `MonotonicClockTests`: `Observe` with an earlier timestamp does not lower `HighWaterUtc`; the value
+  survives a context restart.
 
 ## Contracts / schema added
 - Ports: `ISecretStore`, `IStoreEncryptionProvider`, `ILocalStoreMaintenance`, `ILocalFileStore`.
@@ -180,7 +196,7 @@ backup/restore + corrupt-database quarantine-and-rebuild path.
 - Startup: `NativeSqliteAssertion`, `LocalStoreStartup`, `LocalStoreDiagnostics`, `KeySource`.
 - Entities: `LocalInstallation`, `ClockHighWater`, `StoreMaintenanceLog` (all `[LocalOnly]`).
 - Migration `003_LocalHardening`. `ErrorCodes` += 6. `LocalStoreOptions` += 5 options + `Validate()`.
-- No `Animora.Contracts` change, no DI change in `App.axaml.cs`.
+- No `Animora.Contracts` change, no DI change in `App.axaml.cs`. **No test files** (owed to A12).
 
 ## Rules that apply here
 - **T-RULE 004 / STACK.md §12** — the native SQLite version is asserted at runtime; a managed package
@@ -197,6 +213,8 @@ backup/restore + corrupt-database quarantine-and-rebuild path.
   justified and owned; never permanent.
 
 ## Out of scope
+- **All tests for this phase's behavior → A12** (this phase writes and runs none). A12 is the next
+  phase and consolidates every Track A test.
 - Recording the K2 verdict and pinning the encrypted bundle → E08 (gates) and its follow-up.
 - Server-side key material and Data Protection → D01.
 - License/entitlement use of `HighWaterUtc` and `MachineFingerprintHash` → D11, E07.
@@ -205,28 +223,17 @@ backup/restore + corrupt-database quarantine-and-rebuild path.
 - Showing diagnostics in the UI → C10 (Profile) and B05 (diagnostics bundle).
 
 ## Acceptance criteria
-- Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
-- `NativeSqliteVersionTests` green: `SELECT sqlite_version()` returns ≥ 3.50.2 in the test host, and
-  `NativeSqliteAssertion.Assert` returns `NATIVE_SQLITE_TOO_OLD` for a stubbed lower version.
-- `StoreStartupTests` green: the eight steps execute in order (recorded in a step log); after
-  initialization `journal_mode=wal`, `synchronous=NORMAL`, `busy_timeout=5000`, `foreign_keys=ON`;
-  with `EncryptionEnabled=true` and no key and no fallback, initialization returns
-  `STORE_KEY_UNAVAILABLE` and no `animora.db` is created; with `EncryptionEnabled=true` and
-  `K2Approved=false`, `Validate()` returns `STORE_ENCRYPTION_NOT_APPROVED`.
-- `BackupRestoreTests` green: backup → `quick_check` OK → restore → the pre-backup row set is intact;
-  retention keeps exactly `BackupRetentionCount` files; a `StoreMaintenanceLog` row exists per action.
-- `QuarantineRebuildTests` green: a corrupt database is moved (not deleted) into
-  `quarantine/<timestamp>/` with its `-wal`/`-shm`, a fresh migrated+seeded DB is created, and
-  diagnostics report `Quarantined = true`.
-- `MonotonicClockTests` green: `Observe` with an earlier timestamp does not lower `HighWaterUtc`;
-  the value survives a context restart.
+- Build (lightweight, only if run): `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **No test suite is run in this phase** (`test.sh` is A12's; do not invoke it here).
+- The "Test coverage owed to A12" section is present and names every behavior A12 must assert.
 - `grep -rn "Http\|Socket\|WebClient" src/Animora.Infrastructure.Local` returns nothing.
 - Runnability (`CONVENTIONS.md` §11): `scripts/sandbox/run.sh` = `SMOKE RUN OK`; the desktop still runs
   on mocks.
 
 ## PROGRESS.md update
-Mark A11 done; advance "Next phase" to `B01`; append a "Repo state" entry listing: the keystore
+Mark A11 done; advance "Next phase" to `A12`; append a "Repo state" entry listing: the keystore
 implementations, `LocalDbKeyService`, the encryption seam + `K2Approved` gate, the native-SQLite
 assertion, `LocalStoreStartup`'s 8 steps, `LocalStoreDiagnostics`, maintenance/backup/quarantine paths,
 `MonotonicClock` high-water, `LocalFileStore`, the 3 local-only entities, migration
-`003_LocalHardening`, `ErrorCodes` += 6, the 5 test classes, no DI change, no mock deleted, deviations.
+`003_LocalHardening`, `ErrorCodes` += 6, **no tests written (owed to A12)**, no DI change, no mock
+deleted, deviations.

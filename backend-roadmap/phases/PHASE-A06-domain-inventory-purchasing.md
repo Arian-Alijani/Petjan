@@ -3,8 +3,13 @@
 **Band:** M · **Track:** A · **Depends on:** A02 · **Satisfies:** R-B01, R-B23
 **Runnable after this phase:** desktop offline yes · server required no
 
+> **Track A testing policy (see ROADMAP §3.10).** This phase writes **no tests** and runs **no test
+> suite**. It ships domain behavior only. All tests for every Track A behavior are authored and executed
+> once, in **Phase A12**. The single verification here is a lightweight build (`scripts/sandbox/build.sh
+> full` = 0/0), run only if you need to confirm the new code compiles.
+
 ## Read before starting
-- `backend-roadmap/CONVENTIONS.md` §3, §4, §6 (item 9), §9, §11, §12
+- `backend-roadmap/CONVENTIONS.md` §3, §4, §6 (item 9), §11, §12
 - `backend-roadmap/PROGRESS.md`
 - `ARCHITECTURE.md` §11.2 (movement-based stock), §8.5 (inventory = movement-based, never absolute)
 - `src/Animora.Domain/Primitives/*`, `src/Animora.Domain/ValueObjects/Money.cs`,
@@ -134,10 +139,9 @@ movements.
 | `src/Animora.Domain/Purchasing/GoodsReceiptLine.cs` | create | receipt line |
 | `src/Animora.Domain/Events/InventoryEvents.cs` | create | 4 inventory/purchasing events |
 | `src/Animora.Domain/Results/ErrorCodes.cs` | modify | append the 11 codes |
-| `tests/Animora.Domain.Tests/StockCalculatorTests.cs` | create | on-hand sum, sign rule, avg cost, sufficiency, expiry |
-| `tests/Animora.Domain.Tests/StockMovementFactoryTests.cs` | create | every kind's sign enforced; reversal linkage |
-| `tests/Animora.Domain.Tests/ProductInvariantTests.cs` | create | service-no-stock, variant requirement, price setters |
-| `tests/Animora.Domain.Tests/PurchaseOrderTests.cs` | create | transitions, line lock, total match, partial receipt |
+
+**No test files in this phase.** Tests for this phase's behavior are authored in **A12**; the
+"Test coverage owed to A12" section below records exactly what A12 must cover.
 
 ## Implementation steps
 1. Create `Inventory/` and add `UnitOfMeasure`, `ProductCategory` (cycle guard takes the ancestor list).
@@ -149,12 +153,19 @@ movements.
 5. Create `Purchasing/` and add `Supplier`, `PurchaseOrderLine`, `PurchaseOrder` (transition helper +
    `RecalculateTotals` + `ApplyReceipt`), `GoodsReceiptLine`, `GoodsReceipt`.
 6. Add `Events/InventoryEvents.cs` and append the 11 error codes.
-7. Write the four test classes. `StockCalculatorTests` must include: a 5-movement sequence whose on-hand
-   matches the signed sum; weighted-average cost after two receipts at different costs plus one sale;
-   `EnsureSufficient` allowing negative when `allowNegative = true`; a unit-code mismatch returning
-   `UNIT_MISMATCH`. `StockMovementFactoryTests` iterates **all 10** `MovementKind` values and asserts
-   the required sign.
-8. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; `run.sh` = `SMOKE RUN OK`.
+7. **No tests here.** Record the coverage owed to A12 (below).
+8. Lightweight build check only, if needed: `build.sh full` = 0/0. Do **not** run `test.sh`.
+   `run.sh` = `SMOKE RUN OK`.
+
+## Test coverage owed to A12 (author + run in A12, not here)
+- `StockCalculatorTests`: a 5-movement sequence whose on-hand matches the signed sum;
+  weighted-average cost after two receipts at different costs plus one sale; `EnsureSufficient`
+  allowing negative when `allowNegative = true`; a unit-code mismatch returning `UNIT_MISMATCH`.
+- `StockMovementFactoryTests`: iterate **all 10** `MovementKind` values, asserting the required sign
+  (a valid and an invalid sign each) and reversal linkage.
+- `ProductInvariantTests`: service-no-stock, variant requirement, price setters.
+- `PurchaseOrderTests`: transitions, line lock after `Submit` (`PO_LOCKED`), total match
+  (`PO_TOTAL_MISMATCH`), partial receipt → `PartiallyReceived`.
 
 ## Contracts / schema added
 - Entities: `UnitOfMeasure`, `ProductCategory`, `Product`, `StockMovement`, `Supplier`,
@@ -162,7 +173,7 @@ movements.
 - Value objects: `ProductVariant`, `StockLevel`, `PurchaseOrderLine`, `GoodsReceiptLine`.
 - Enums: `ProductKind`, `MovementKind`, `PurchaseOrderState`, `GoodsReceiptState`.
 - Statics: `StockCalculator`. Events: 4 new records.
-- `ErrorCodes` += 11. No migration, no `Animora.Contracts` change.
+- `ErrorCodes` += 11. No migration, no `Animora.Contracts` change. **No test files** (owed to A12).
 
 ## Rules that apply here
 - **ARCHITECTURE.md §11.2 / R-B23** — on-hand is derived from movements. `Product` has no stock
@@ -175,22 +186,22 @@ movements.
 - **CONVENTIONS §2** — `Animora.Domain` gains no reference.
 
 ## Out of scope
+- **All tests for this phase's behavior → A12** (this phase writes and runs none).
 - Sales invoices consuming stock → A07 (domain) / C07 (wiring) / D07 (server settlement).
 - Ledger postings from receipts → A08. EF mappings, indexes, `StockLevel` caching table → A09/A10.
 - Supplier payables and cheque linkage → A08. Reorder alerts surfaced in the UI → C06.
 - FIFO/LIFO costing → not implemented; requires an ADR.
 
 ## Acceptance criteria
-- Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- Build (lightweight, only if run): `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **No test suite is run in this phase** (`test.sh` is A12's; do not invoke it here).
 - `grep -n "OnHand" src/Animora.Domain/Inventory/Product.cs` returns nothing (no stored on-hand).
-- `StockMovementFactoryTests` covers all 10 `MovementKind` values with both a valid and an invalid sign.
-- `StockCalculatorTests` green, including weighted-average cost and the `UNIT_MISMATCH` case.
-- `PurchaseOrderTests` green: a line added after `Submit` returns `PO_LOCKED`; a hand-tampered total
-  returns `PO_TOTAL_MISMATCH`; a partial receipt yields `PartiallyReceived`.
+- The "Test coverage owed to A12" section is present and names every invariant A12 must assert.
 - `Animora.Domain.csproj` still has zero references.
 - Runnability (`CONVENTIONS.md` §11): `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
 
 ## PROGRESS.md update
 Mark A06 done; advance "Next phase" to `A07`; append a "Repo state" entry listing: the 13 new files, the
 entities/enums/events added, the movement sign rule + weighted-average costing decision,
-`ErrorCodes` += 11, the 4 test classes, no DI change, no mock deleted, no migration, deviations.
+`ErrorCodes` += 11, **no tests written (owed to A12)**, no DI change, no mock deleted, no migration,
+deviations.

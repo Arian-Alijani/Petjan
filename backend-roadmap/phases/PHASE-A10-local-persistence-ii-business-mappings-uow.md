@@ -3,8 +3,14 @@
 **Band:** M · **Track:** A · **Depends on:** A08, A09 · **Satisfies:** R-B02, R-B08
 **Runnable after this phase:** desktop offline yes · server required no
 
+> **Track A testing policy (see ROADMAP §3.10).** This phase writes **no tests** and runs **no test
+> suite**. It ships the business mappings, repositories, unit of work, derived queries, seeding and
+> migration only. All tests are authored and executed once, in **Phase A12**. The single verification
+> here is a lightweight build (`scripts/sandbox/build.sh full` = 0/0) plus the non-test
+> `dotnet ef migrations list` check; run only if needed.
+
 ## Read before starting
-- `backend-roadmap/CONVENTIONS.md` §1, §2, §4, §5, §8, §9, §11, §12
+- `backend-roadmap/CONVENTIONS.md` §1, §2, §4, §5, §8, §11, §12
 - `backend-roadmap/PROGRESS.md`
 - `ARCHITECTURE.md` §11.2 (movement-based stock), §11.3 (read vs write models), §12.1 (outbox intent)
 - `PERFORMANCE.md` §4, §6, §12, §15
@@ -145,11 +151,9 @@ complete, writable business store.
 | `src/Animora.Persistence.Sqlite/Seed/SeedMarker.cs` | create | local-only seed marker entity |
 | `src/Animora.Persistence.Sqlite/Migrations/*` | create | `002_LocalBusinessSchema` + snapshot |
 | `src/Animora.Persistence.Sqlite/Context/LocalStoreServiceCollectionExtensions.cs` | modify | register repos/UoW/dispatcher/seeder/context factory |
-| `tests/Animora.Persistence.Tests/BusinessMappingTests.cs` | create | every new table/index exists; owned-as-rows shapes |
-| `tests/Animora.Persistence.Tests/AppendOnlyGuardTests.cs` | create | update/delete of each protected type throws |
-| `tests/Animora.Persistence.Tests/UnitOfWorkTests.cs` | create | rollback on failure, event dispatch, concurrency → `Result` |
-| `tests/Animora.Persistence.Tests/DerivedQueryTests.cs` | create | on-hand/balance/ledger correctness incl. negative movements |
-| `tests/Animora.Persistence.Tests/SeedingTests.cs` | create | seeding is idempotent and complete |
+
+**No test files in this phase.** All tests are authored in **A12**; the "Test coverage owed to A12"
+section below records exactly what A12 must cover.
 
 ## Implementation steps
 1. Write the 15 new configurations; keep every amount a `Money` complex property and every owned
@@ -165,9 +169,27 @@ complete, writable business store.
 7. Implement `SeedMarker`, `LocalSeeder` and every seed block; each block is guarded by its marker.
 8. Generate `002_LocalBusinessSchema`; commit the migration and the snapshot.
 9. Extend `AddAnimoraLocalStore` with the new registrations plus `AddDbContextFactory`.
-10. Write the five test classes; `DerivedQueryTests` must include a negative/adjustment movement and a
-    partially-paid invoice.
-11. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; `run.sh` = `SMOKE RUN OK`.
+10. **No tests here.** Record the coverage owed to A12 (below). Note that the derived-query helpers must
+    each still produce exactly **one** SQL statement — A12 asserts this via `ToQueryString()`; design
+    them so that property holds.
+11. Lightweight verification only, if needed: `build.sh full` = 0/0; `dotnet ef migrations list` shows
+    `001_LocalCoreSchema`, `002_LocalBusinessSchema` in order (design-time, not a test). Do **not** run
+    `test.sh`. `run.sh` = `SMOKE RUN OK`.
+
+## Test coverage owed to A12 (author + run in A12, not here)
+- `BusinessMappingTests`: every new table and named index exists; `ProductVariants`, `InvoiceLines`,
+  `JournalLines`, `ChequeEvents`, `CashMovements`, `PurchaseOrderLines`, `GoodsReceiptLines` are real
+  tables (not JSON columns).
+- `AppendOnlyGuardTests`: an update **and** a delete on each protected type throws and leaves the
+  database unchanged.
+- `UnitOfWorkTests`: a failing `Result` inside `ExecuteAsync` rolls everything back; a raised domain
+  event reaches its handler exactly once inside the transaction; a simulated concurrency failure
+  returns `CONCURRENCY_CONFLICT` as a `Result`, never an exception.
+- `DerivedQueryTests`: on-hand equals the signed movement sum (incl. a negative adjustment);
+  `InvoiceBalanceQuery` due for a partially-paid invoice; `LedgerBalanceQuery` debit − credit per
+  account; each helper's `ToQueryString()` contains exactly one `SELECT`.
+- `SeedingTests`: a second `SeedAsync` adds zero rows; all 20 ledger accounts, every permission, every
+  role, 7 units, 5 categories, 8 rooms and one open period exist.
 
 ## Contracts / schema added
 - Ports: the 18 `I*Repository` interfaces, `IUnitOfWork`, `IDomainEventDispatcher`,
@@ -176,6 +198,7 @@ complete, writable business store.
   `DomainEventDispatcher`, `QueryPaging.ToPagedAsync`, `StockOnHandQuery`, `InvoiceBalanceQuery`,
   `LedgerBalanceQuery`, `LocalSeeder`, `SeedMarker`.
 - Migration `002_LocalBusinessSchema`. No `Animora.Contracts` change, no DI change in `App.axaml.cs`.
+- **No test files** (owed to A12).
 
 ## Rules that apply here
 - **A-RULE 002 / R-B22** — `AppendOnlyGuard` makes mutation of ledger/movement/payment rows
@@ -191,6 +214,7 @@ complete, writable business store.
   inside the business transaction, which is what makes B02's atomic enqueue possible.
 
 ## Out of scope
+- **All tests for this phase's behavior → A12** (this phase writes and runs none).
 - Encryption/keystore/version assertion/backup → A11.
 - Command pipeline, `PendingCommand`, settlement states, outbox table → B02.
 - Any command/query handler and the dispatcher pipeline → B01.
@@ -198,23 +222,12 @@ complete, writable business store.
 - Business/demo data seeding per screen → the relevant Track C phase.
 
 ## Acceptance criteria
-- Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
-- `dotnet ef migrations list` shows `001_LocalCoreSchema`, `002_LocalBusinessSchema` in that order;
-  `001` is byte-identical to A09's output.
-- `BusinessMappingTests` green: every table and named index above exists; `ProductVariants`,
-  `InvoiceLines`, `JournalLines`, `ChequeEvents`, `CashMovements`, `PurchaseOrderLines`,
-  `GoodsReceiptLines` are real tables (not JSON columns).
-- `AppendOnlyGuardTests` green: an update **and** a delete attempt on each of the protected types
-  throws, and the transaction leaves the database unchanged.
-- `UnitOfWorkTests` green: a failing `Result` inside `ExecuteAsync` rolls everything back; a raised
-  domain event reaches its handler exactly once inside the transaction; a simulated concurrency
-  failure returns `CONCURRENCY_CONFLICT` as a `Result`, never an exception.
-- `DerivedQueryTests` green: on-hand equals the signed movement sum (including a negative
-  adjustment); `InvoiceBalanceQuery` reports the correct due for a partially paid invoice;
-  `LedgerBalanceQuery` totals debit − credit per account; each helper's `ToQueryString()` contains
-  exactly one `SELECT` statement.
-- `SeedingTests` green: a second `SeedAsync` adds zero rows; all 20 ledger accounts, every permission,
-  every role, 7 units, 5 categories, 8 rooms and one open period exist.
+- Build (lightweight, only if run): `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **No test suite is run in this phase** (`test.sh` is A12's; do not invoke it here).
+- `dotnet ef migrations list` (design-time, not a test) shows `001_LocalCoreSchema`,
+  `002_LocalBusinessSchema` in that order; `001` is byte-identical to A09's output.
+- The "Test coverage owed to A12" section is present and names every behavior A12 must assert,
+  including the one-`SELECT` property of the derived queries.
 - Runnability (`CONVENTIONS.md` §11): `scripts/sandbox/run.sh` = `SMOKE RUN OK`; the desktop still runs
   on mocks and never opens the database.
 
@@ -222,4 +235,5 @@ complete, writable business store.
 Mark A10 done; advance "Next phase" to `A11`; append a "Repo state" entry listing: the 15
 configurations, `AppendOnlyGuard.ProtectedTypes`, the 18 repository ports + implementations,
 `IUnitOfWork`/`LocalUnitOfWork`, the dispatcher, the 4 derived queries, `LocalSeeder` contents,
-migration `002_LocalBusinessSchema`, the 5 test classes, no DI change, no mock deleted, deviations.
+migration `002_LocalBusinessSchema`, **no tests written (owed to A12)**, no DI change, no mock deleted,
+deviations.

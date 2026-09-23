@@ -24,14 +24,15 @@ must be split before implementation, not absorbed.
 
 | Track | Purpose | Phases | Runnable offline at end of each phase |
 |---|---|---|---|
-| **A — Local core foundation** | Real projects, domain model and encrypted local SQLite store. The desktop keeps running offline on mocks while the foundation appears beneath it. | A01–A11 (11) | yes |
+| **A — Local core foundation** | Real projects, domain model and encrypted local SQLite store. The desktop keeps running offline on mocks while the foundation appears beneath it. A01–A11 ship behavior with **no tests**; **A12** is the single consolidation phase that authors and runs every Track A test. | A01–A12 (12) | yes |
 | **B — Application layer & local platform** | Command/query pipeline, durable local command outbox, real login, authorization + offline capability, audit/logging/crash safety. | B01–B05 (5) | yes |
 | **C — Mock retirement** | One bounded context per phase: real `Animora.Contracts` implementation over the local DB, mock deleted, screen verified. | C01–C11 (11) | yes |
 | **D — Server** | ASP.NET Core 10 host, SQL Server store, tenancy, identity, command intake, handlers, Datasync replication surface, outbox/workers, subscription, licensing, files, observability. | D01–D13 (13) | desktop still starts offline |
 | **E — Admin web, integration, release** | Operator admin site, `ISyncEngine` + Datasync adapter, sync orchestration, conflict resolution, command transport, online auth/entitlement, validation gates, release engineering. | E01–E09 (9) | desktop still starts offline |
 
-**Total: 49 phases.** (A 11 + B 5 + C 11 + D 13 + E 9 = 49; within the hard cap of 50.
-Deviation from the §7 mandate of 40–48 is a consequence of three mandated splits — see §6.)
+**Total: 50 phases.** (A 12 + B 5 + C 11 + D 13 + E 9 = 50; at the hard cap of 50.
+Deviation from the §7 mandate of 40–48 is a consequence of three mandated splits plus the Track A
+test-consolidation phase A12 — see §6.)
 
 ## §2 Phase index
 
@@ -48,7 +49,8 @@ Deviation from the §7 mandate of 40–48 is a consequence of three mandated spl
 | A09 | Local persistence I — DbContext + core mappings | M | A | A03, A05 | R-B02, R-B24 | yes |
 | A10 | Local persistence II — business mappings + UoW | M | A | A08, A09 | R-B02, R-B08 | yes |
 | A11 | Local store hardening | M | A | A10 | R-B02, R-B09, R-B27, R-B28 | yes |
-| B01 | Application layer skeleton | M | B | A11 | R-B08, R-B10 | yes |
+| A12 | Track A test consolidation (write + build + test) | M | A | A11 | R-B01, R-B02, R-B24 (verification) | yes |
+| B01 | Application layer skeleton | M | B | A12 | R-B08, R-B10 | yes |
 | B02 | Local command pipeline & outbox | M | B | B01 | R-B02, R-B09, R-B13, R-B14, R-B15, R-B16, R-B25 | yes |
 | B03 | Local identity & real login | M | B | B02 | R-B04, R-B09 | yes |
 | B04 | Authorization & offline capability | M | B | B03 | R-B04, R-B20, R-B21 | yes |
@@ -87,7 +89,7 @@ Deviation from the §7 mandate of 40–48 is a consequence of three mandated spl
 | E08 | Validation gates & performance proof | M | E | E07, D13, E02 | R-B07, R-B08, R-B10, R-B19, R-B32 | desktop offline ok |
 | E09 | Release engineering | M | E | E08 | R-B27, R-B31, R-B33 | desktop offline ok |
 
-Band tally: **S = 3** (A01, A02, A03) · **M = 46** · **XL = 0**.
+Band tally: **S = 3** (A01, A02, A03) · **M = 47** · **XL = 0**.
 
 ## §3 Dependency & ordering rules
 
@@ -110,6 +112,18 @@ Band tally: **S = 3** (A01, A02, A03) · **M = 46** · **XL = 0**.
    phase that actually changes a wire shape (D08, E03 are the only expected bumps).
 9. No phase may leave the solution non-building; Tracks A–C additionally may not leave the desktop
    non-runnable offline (CONVENTIONS §11).
+10. **Track A test-deferral rule (binding on A05–A12; A01–A04 already shipped with their tests).**
+    Phases A05–A11 write **no test** and run **no test suite** (`scripts/sandbox/test.sh` is not invoked
+    in them). Each ships behavior only, and its per-phase verification is at most a *lightweight* build
+    (`scripts/sandbox/build.sh full` = 0/0) — run only when needed to confirm the new code compiles —
+    plus the offline smoke run. Every assertion a phase would have made is recorded, unchanged in rigor,
+    in that phase's **"Test coverage owed to A12"** section. **A12** is the single phase that authors all
+    those tests, runs the full suite to green, and fixes any defect the tests reveal. This trades no
+    coverage and no quality — it only relocates *when* the tests are written and run, so the A05–A11
+    sessions stay lean. Non-test correctness gates that are not a test (e.g. `dotnet ef migrations list`
+    at design time, `grep` guards) remain in their originating phase. The Global Definition of Done's
+    "tests green" clause (§4, CONVENTIONS §12.2) is satisfied for A05–A11 *collectively* by A12; it is
+    **not** waived for the track. From Track B onward the normal per-phase testing policy resumes.
 
 ## §4 Global Definition of Done
 
@@ -134,6 +148,7 @@ runnability held, no forbidden dependency, no rule violated, every acceptance cr
 
 | Deviation | Justification |
 |---|---|
-| Track D has 13 phases (D01–D13) as mandated; Track C has 11 (C01–C11) as mandated; total is **49**, one above the 48 soft ceiling but within the hard cap 50. | The mandated row set itself sums to 49 (A 11 + B 5 + C 11 + D 13 + E 9). No row was merged or dropped, per the "you may not merge rows" rule; the soft ceiling yields to the mandated structure. |
+| Track D has 13 phases (D01–D13) as mandated; Track C has 11 (C01–C11) as mandated; the mandated row set sums to **49** (A 11 + B 5 + C 11 + D 13 + E 9). | No row was merged or dropped, per the "you may not merge rows" rule; the soft ceiling yields to the mandated structure. |
+| **Track A gains a 12th phase, A12 (test consolidation), taking the total to 50 — exactly the hard cap.** | A deliberate restructuring of Track A: A01–A11 ship behavior with no tests so each session stays low-weight, and A12 authors + runs the whole Track A test suite in one focused pass. It adds coverage rigor (the "owed to A12" sections are exhaustive), not scope creep; A12 itself writes only test files plus any minimal bug-fix, so it holds band M. The hard cap 50 is respected; no further phase may be added to Track A without an ADR. |
 | No row was split with a letter suffix. | Each mandated row's scope fits band M once its "Design decisions" are pre-made; splitting would have pushed the total past the hard cap of 50. |
 | `D06`/`D07` titles refined to "clinical & scheduling" / "money & stock". | Clarifies the boundary between the two handler phases; scope unchanged from the mandate. |

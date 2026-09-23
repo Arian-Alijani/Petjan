@@ -3,8 +3,13 @@
 **Band:** M · **Track:** A · **Depends on:** A04, A06 · **Satisfies:** R-B01, R-B17
 **Runnable after this phase:** desktop offline yes · server required no
 
+> **Track A testing policy (see ROADMAP §3.10).** This phase writes **no tests** and runs **no test
+> suite**. It ships domain behavior only. All tests for every Track A behavior are authored and executed
+> once, in **Phase A12**. The single verification here is a lightweight build (`scripts/sandbox/build.sh
+> full` = 0/0), run only if you need to confirm the new code compiles.
+
 ## Read before starting
-- `backend-roadmap/CONVENTIONS.md` §3, §4, §6 (items 7, 9), §9, §11, §12
+- `backend-roadmap/CONVENTIONS.md` §3, §4, §6 (items 7, 9), §11, §12
 - `backend-roadmap/PROGRESS.md`
 - `ARCHITECTURE.md` §8.3 (settlement states), §8.5 (posted invoice immutable; payment idempotent),
   §11.1 (money), §21 (A-RULE 002, 003, 006)
@@ -148,11 +153,9 @@ cash session with its open/close invariants.
 | `src/Animora.Domain/Cashier/CashMovement.cs` | create | signed cash movement + factory |
 | `src/Animora.Domain/Events/SalesEvents.cs` | create | 6 sales/cashier events |
 | `src/Animora.Domain/Results/ErrorCodes.cs` | modify | append the 14 codes |
-| `tests/Animora.Domain.Tests/InvoiceStateMachineTests.cs` | create | all transitions + void-after-payment guard |
-| `tests/Animora.Domain.Tests/InvoiceImmutabilityTests.cs` | create | every mutator rejected after Post |
-| `tests/Animora.Domain.Tests/InvoiceTotalsTests.cs` | create | discount/tax/insurance math, allocation, no lost minor unit |
-| `tests/Animora.Domain.Tests/PaymentTests.cs` | create | over-payment, duplicate OperationId, reversal, method references |
-| `tests/Animora.Domain.Tests/CashSessionTests.cs` | create | expected/variance math, note requirement, unsettled guard, closed immutability |
+
+**No test files in this phase.** Tests for this phase's behavior are authored in **A12**; the
+"Test coverage owed to A12" section below records exactly what A12 must cover.
 
 ## Implementation steps
 1. Create `Sales/` and add `SettlementStatus`, `InvoiceLineKind`/`InvoiceLineSource`, `InvoiceLine`.
@@ -167,11 +170,23 @@ cash session with its open/close invariants.
 5. Create `Cashier/` and add `CashMovement` (sign factory) and `CashSession` with the expected/variance
    computation and the four guards.
 6. Add `Events/SalesEvents.cs` and append the 14 error codes.
-7. Write the five test classes. `InvoiceTotalsTests` must include a case where a 7% invoice discount on
-   three lines is allocated with no lost minor unit (sum of allocations == total discount), and a case
-   with insurance coverage at 30%. `InvoiceImmutabilityTests` calls **every** mutator after `Post` and
-   asserts `INVOICE_IMMUTABLE`.
-8. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; `run.sh` = `SMOKE RUN OK`.
+7. **No tests here.** Record the coverage owed to A12 (below).
+8. Lightweight build check only, if needed: `build.sh full` = 0/0. Do **not** run `test.sh`.
+   `run.sh` = `SMOKE RUN OK`.
+
+## Test coverage owed to A12 (author + run in A12, not here)
+- `InvoiceStateMachineTests`: all `InvoiceState` pairs (only the tabled transitions succeed); `Void`
+  after a partial payment → `INVOICE_VOID_AFTER_PAYMENT`.
+- `InvoiceImmutabilityTests`: **every** mutator after `Post` returns `INVOICE_IMMUTABLE` (all 5).
+- `InvoiceTotalsTests`: a 7% invoice discount on three lines allocated with no lost minor unit (sum of
+  allocations == total discount); an insurance-coverage-at-30% case; a recomputation mismatch detected
+  by `Post` as `INVOICE_TOTAL_MISMATCH`.
+- `PaymentTests`: over-payment → `PAYMENT_EXCEEDS_DUE`; duplicate `OperationId` →
+  `PAYMENT_DUPLICATE_OPERATION` with `PaidTotal` unchanged; reversal; method references;
+  `Payment`/`InvoiceAdjustment` expose no setter (reflection).
+- `CashSessionTests`: expected/variance math; variance with an empty note →
+  `CASH_VARIANCE_NOTE_REQUIRED`; close with unsettled commands → `CASH_SESSION_UNSETTLED_COMMANDS`;
+  closed-session immutability.
 
 ## Contracts / schema added
 - Entities: `Invoice`, `Payment`, `CashSession`.
@@ -179,7 +194,7 @@ cash session with its open/close invariants.
 - Enums: `InvoiceKind`, `InvoiceState`, `InvoiceLineKind`, `InvoiceLineSource`, `PaymentMethod`,
   `AdjustmentKind`, `SettlementStatus`, `CashSessionState`, `CashMovementKind`.
 - Statics: `InvoiceTotals`. Events: 6 new records.
-- `ErrorCodes` += 14. No migration, no `Animora.Contracts` change.
+- `ErrorCodes` += 14. No migration, no `Animora.Contracts` change. **No test files** (owed to A12).
 
 ## Rules that apply here
 - **A-RULE 002** — a posted invoice is immutable; `InvoiceAdjustment` is the only economic change path.
@@ -193,6 +208,7 @@ cash session with its open/close invariants.
 - **CONVENTIONS §6 item 9** — invoice/payment conflicts are domain-decided, never LWW.
 
 ## Out of scope
+- **All tests for this phase's behavior → A12** (this phase writes and runs none).
 - Ledger journal entries produced by posting → A08. Cheque lifecycle → A08.
 - Invoice-number sequence assignment → B01. Stock movements on sale → C07/D07.
 - Command envelope, `PendingCommand`, local settlement pipeline → B02.
@@ -200,20 +216,14 @@ cash session with its open/close invariants.
 - Server-side posting handler → D07.
 
 ## Acceptance criteria
-- Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
-- `InvoiceStateMachineTests` covers all `InvoiceState` pairs; only the tabled transitions succeed;
-  `Void` after a partial payment returns `INVOICE_VOID_AFTER_PAYMENT`.
-- `InvoiceImmutabilityTests` proves all 5 mutators return `INVOICE_IMMUTABLE` once posted.
-- `InvoiceTotalsTests` green: allocation loses no minor unit; a recomputation mismatch is detected by
-  `Post` as `INVOICE_TOTAL_MISMATCH`.
-- `PaymentTests` green: same `OperationId` twice → `PAYMENT_DUPLICATE_OPERATION` and `PaidTotal`
-  unchanged; amount above due → `PAYMENT_EXCEEDS_DUE`.
-- `CashSessionTests` green: variance with an empty note → `CASH_VARIANCE_NOTE_REQUIRED`;
-  close with unsettled commands → `CASH_SESSION_UNSETTLED_COMMANDS`.
-- `Payment` and `InvoiceAdjustment` expose no setter (reflection assertion in `PaymentTests`).
+- Build (lightweight, only if run): `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **No test suite is run in this phase** (`test.sh` is A12's; do not invoke it here).
+- The "Test coverage owed to A12" section is present and names every invariant A12 must assert.
+- `Animora.Domain.csproj` still has zero references.
 - Runnability (`CONVENTIONS.md` §11): `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
 
 ## PROGRESS.md update
 Mark A07 done; advance "Next phase" to `A08`; append a "Repo state" entry listing: the 9 new files, the
 entities/enums/events added, the `InvoiceTotals` algorithm and `SettlementStatus` definition,
-`ErrorCodes` += 14, the 5 test classes, no DI change, no mock deleted, no migration, deviations.
+`ErrorCodes` += 14, **no tests written (owed to A12)**, no DI change, no mock deleted, no migration,
+deviations.

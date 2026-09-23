@@ -3,8 +3,13 @@
 **Band:** M · **Track:** A · **Depends on:** A07 · **Satisfies:** R-B01, R-B17, R-B22
 **Runnable after this phase:** desktop offline yes · server required no
 
+> **Track A testing policy (see ROADMAP §3.10).** This phase writes **no tests** and runs **no test
+> suite**. It ships domain behavior only. All tests for every Track A behavior are authored and executed
+> once, in **Phase A12**. The single verification here is a lightweight build (`scripts/sandbox/build.sh
+> full` = 0/0), run only if you need to confirm the new code compiles.
+
 ## Read before starting
-- `backend-roadmap/CONVENTIONS.md` §3, §4, §6 (item 9), §9, §11, §12
+- `backend-roadmap/CONVENTIONS.md` §3, §4, §6 (item 9), §11, §12
 - `backend-roadmap/PROGRESS.md`
 - `ARCHITECTURE.md` §11.1 (append-only ledger), §8.5 (ledger = append-only forever), §21 (A-RULE 002/003)
 - `src/Animora.Domain/ValueObjects/Money.cs`, `src/Animora.Domain/Sales/*`,
@@ -158,10 +163,9 @@ expenses, and the accounting-period close rule with reversal/credit-note mechani
 | `src/Animora.Domain/Finance/ExpenseCategories.cs` | create | category → account mapping |
 | `src/Animora.Domain/Events/FinanceEvents.cs` | create | 6 finance events |
 | `src/Animora.Domain/Results/ErrorCodes.cs` | modify | append the 12 codes |
-| `tests/Animora.Domain.Tests/JournalEntryTests.cs` | create | balance/line/currency validation + reversal symmetry |
-| `tests/Animora.Domain.Tests/PostingRulesTests.cs` | create | one balanced-entry assertion per rule in the table |
-| `tests/Animora.Domain.Tests/ChequeLifecycleTests.cs` | create | all transitions + history append + counterparty guard |
-| `tests/Animora.Domain.Tests/AccountingPeriodTests.cs` | create | close blockers, `EnsurePostable`, no-reopen |
+
+**No test files in this phase.** Tests for this phase's behavior are authored in **A12**; the
+"Test coverage owed to A12" section below records exactly what A12 must cover.
 
 ## Implementation steps
 1. Create `Finance/` and add `LedgerAccount`, `AccountType`, then `ChartOfAccounts` with an
@@ -174,10 +178,21 @@ expenses, and the accounting-period close rule with reversal/credit-note mechani
 5. Add `ChequeEvent`, then `Cheque` with the state machine, history append and counterparty invariant.
 6. Add `ExpenseCategories`, then `Expense` with the one-way `Post`.
 7. Add `Events/FinanceEvents.cs` and append the 12 error codes.
-8. Write the four test classes. `PostingRulesTests` must assert, for **every** rule in the table, that
-   the produced entry is balanced, uses only postable accounts from `ChartOfAccounts`, and carries the
-   source entity + `OperationId`. `ChequeLifecycleTests` enumerates all `ChequeState` pairs.
-9. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; `run.sh` = `SMOKE RUN OK`.
+8. **No tests here.** Record the coverage owed to A12 (below).
+9. Lightweight build check only, if needed: `build.sh full` = 0/0. Do **not** run `test.sh`.
+   `run.sh` = `SMOKE RUN OK`.
+
+## Test coverage owed to A12 (author + run in A12, not here)
+- `JournalEntryTests`: unbalanced → `JOURNAL_UNBALANCED`; 1-line → `JOURNAL_TOO_FEW_LINES`; currency
+  mix → `JOURNAL_CURRENCY_MIXED`; `CreateReversal` produces a mirrored, balanced entry whose combined
+  effect with the original nets to zero per account; `JournalEntry` exposes no public setter
+  (reflection).
+- `PostingRulesTests`: for **every** rule in the table (all 14 rows), the produced entry is balanced,
+  uses only postable accounts from `ChartOfAccounts`, and carries the source entity + `OperationId`.
+- `ChequeLifecycleTests`: enumerate all `ChequeState` pairs (only the tabled transitions succeed); each
+  successful transition appends exactly one `ChequeEvent`; counterparty guard.
+- `AccountingPeriodTests`: each of the three close blockers → `PERIOD_CLOSE_BLOCKED`; `EnsurePostable`
+  rejects `Closed`/`Locked`; no transition back to `Open`.
 
 ## Contracts / schema added
 - Entities: `LedgerAccount`, `JournalEntry`, `AccountingPeriod`, `Cheque`, `Expense`.
@@ -186,6 +201,7 @@ expenses, and the accounting-period close rule with reversal/credit-note mechani
   `ExpenseState`.
 - Statics: `ChartOfAccounts` + `AccountCodes`, `PostingRules`, `ExpenseCategories`.
 - Events: 6 new records. `ErrorCodes` += 12. No migration, no `Animora.Contracts` change.
+- **No test files** (owed to A12).
 
 ## Rules that apply here
 - **A-RULE 002 / R-B22** — `JournalEntry` is append-only with no mutator; corrections are reversals.
@@ -199,6 +215,7 @@ expenses, and the accounting-period close rule with reversal/credit-note mechani
 - **PERFORMANCE.md §2** — `JournalEntry.Create` validates with a single `for` pass over the lines.
 
 ## Out of scope
+- **All tests for this phase's behavior → A12** (this phase writes and runs none).
 - Persisting journal entries and the read-model projections → A10, C09.
 - Dispatching domain events into `PostingRules` → A10 (local) and D07/D09 (server).
 - Period-close command + UI → C09. Cheque UI wiring → C08. Expense UI wiring → C09.
@@ -206,19 +223,13 @@ expenses, and the accounting-period close rule with reversal/credit-note mechani
 - Financial reports/aggregates → C09.
 
 ## Acceptance criteria
-- Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
-- `JournalEntryTests` green: an unbalanced entry returns `JOURNAL_UNBALANCED`; a 1-line entry returns
-  `JOURNAL_TOO_FEW_LINES`; `CreateReversal` produces a mirrored, balanced entry whose combined effect
-  with the original nets to zero per account.
-- `PostingRulesTests` green for all 14 table rows; each entry is balanced and uses postable accounts.
-- `ChequeLifecycleTests` covers all `ChequeState` pairs; only the tabled transitions succeed; each
-  successful transition appends exactly one `ChequeEvent`.
-- `AccountingPeriodTests` green: each of the three close blockers returns `PERIOD_CLOSE_BLOCKED`;
-  `EnsurePostable` rejects `Closed` and `Locked`; no transition back to `Open` exists.
-- `JournalEntry` exposes no public setter (reflection assertion).
+- Build (lightweight, only if run): `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **No test suite is run in this phase** (`test.sh` is A12's; do not invoke it here).
+- The "Test coverage owed to A12" section is present and names every invariant A12 must assert.
+- `Animora.Domain.csproj` still has zero references.
 - Runnability (`CONVENTIONS.md` §11): `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
 
 ## PROGRESS.md update
 Mark A08 done; advance "Next phase" to `A09`; append a "Repo state" entry listing: the 11 new files, the
 chart-of-accounts codes, the posting-rule table, the cheque/period state machines, `ErrorCodes` += 12,
-the 4 test classes, no DI change, no mock deleted, no migration, deviations.
+**no tests written (owed to A12)**, no DI change, no mock deleted, no migration, deviations.

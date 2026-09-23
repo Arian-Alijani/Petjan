@@ -3,8 +3,13 @@
 **Band:** M · **Track:** A · **Depends on:** A04 · **Satisfies:** R-B01, R-B17
 **Runnable after this phase:** desktop offline yes · server required no
 
+> **Track A testing policy (see ROADMAP §3.10).** This phase writes **no tests** and runs **no test
+> suite**. It ships domain behavior only. All tests for every Track A behavior are authored and executed
+> once, in **Phase A12**. The single verification here is a lightweight build (`scripts/sandbox/build.sh
+> full` = 0/0), run only if you need to confirm the new code compiles.
+
 ## Read before starting
-- `backend-roadmap/CONVENTIONS.md` §3, §4, §6 (item 9), §9, §11, §12
+- `backend-roadmap/CONVENTIONS.md` §3, §4, §6 (item 9), §11, §12
 - `backend-roadmap/PROGRESS.md`
 - `ARCHITECTURE.md` §8.5 (appointment slot = domain validation, reject on conflict)
 - `src/Animora.Domain/Primitives/*`, `src/Animora.Domain/ValueObjects/*`,
@@ -144,10 +149,9 @@ and the transfer/checkout invariants that hand off to invoicing.
 | `src/Animora.Domain/Events/SchedulingEvents.cs` | create | 4 scheduling events |
 | `src/Animora.Domain/Events/BoardingEvents.cs` | create | 4 boarding events |
 | `src/Animora.Domain/Results/ErrorCodes.cs` | modify | append the 11 codes |
-| `tests/Animora.Domain.Tests/SlotConflictPolicyTests.cs` | create | overlap matrix, terminal states, null doctor, adjacency |
-| `tests/Animora.Domain.Tests/AppointmentStateMachineTests.cs` | create | all transitions + move guards + duration validation |
-| `tests/Animora.Domain.Tests/BoardingStayTests.cs` | create | transitions, billable days, unbilled-checkout rejection, transfer history |
-| `tests/Animora.Domain.Tests/ReceptionQueueTests.cs` | create | transitions + priority + derived-entry rule |
+
+**No test files in this phase.** Tests for this phase's behavior are authored in **A12**; the
+"Test coverage owed to A12" section below records exactly what A12 must cover.
 
 ## Implementation steps
 1. Create `Scheduling/` and add `AppointmentSlot` (half-open overlap) and `AppointmentTypeCatalog`.
@@ -159,12 +163,20 @@ and the transfer/checkout invariants that hand off to invoicing.
 6. Implement `BoardingStay` with the state machine, `BillableDays`, `TransferRoom` appending to
    `RoomHistory`, and the `CompleteCheckout` invoice guard.
 7. Add the two event files and append the 11 error codes.
-8. Write the four test classes. `SlotConflictPolicyTests` must include: exact overlap, partial overlap,
-   **adjacent slots (end == start) do NOT conflict**, different doctor no conflict, cancelled/no-show
-   existing slot no conflict, null-doctor candidate no conflict.
-   `BoardingStayTests` must include: same-day stay = 1 billable day, 25 hours = 2 days,
-   `CompleteCheckout` without an invoice → `STAY_INVOICE_REQUIRED`.
-9. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; `run.sh` = `SMOKE RUN OK`.
+8. **No tests here.** Record the coverage owed to A12 (below) so the invariants stay pinned even though
+   the assertions are written later.
+9. Lightweight build check only, if needed: `build.sh full` = 0/0. Do **not** run `test.sh`.
+   `run.sh` = `SMOKE RUN OK` (desktop unchanged).
+
+## Test coverage owed to A12 (author + run in A12, not here)
+- `SlotConflictPolicyTests`: exact overlap, partial overlap, **adjacent slots (end == start) do NOT
+  conflict**, different doctor no conflict, cancelled/no-show existing slot no conflict, null-doctor
+  candidate no conflict.
+- `AppointmentStateMachineTests`: all `AppointmentState` pairs (only the tabled transitions succeed),
+  move guards, 7-minute duration → `APPOINTMENT_DURATION_INVALID`.
+- `BoardingStayTests`: transitions, billable-day boundaries (1h → 1, 24h → 1, 25h → 2),
+  `CompleteCheckout` without an invoice → `STAY_INVOICE_REQUIRED`, transfer history append.
+- `ReceptionQueueTests`: transitions, priority, derived-entry rule.
 
 ## Contracts / schema added
 - Entities: `Appointment`, `ReceptionQueueEntry`, `Room`, `BoardingServiceDef`, `BoardingStay`.
@@ -173,7 +185,7 @@ and the transfer/checkout invariants that hand off to invoicing.
 - Enums: `AppointmentState`, `AppointmentSource`, `QueueState`, `QueueSource`, `RoomType`,
   `RoomStatus`, `BoardingServiceBilling`, `StayState`, `StayItemKind`.
 - Statics: `SlotConflictPolicy`, `AppointmentTypeCatalog`. Events: 8 new records.
-- `ErrorCodes` += 11. No migration, no `Animora.Contracts` change.
+- `ErrorCodes` += 11. No migration, no `Animora.Contracts` change. **No test files** (owed to A12).
 
 ## Rules that apply here
 - **ARCHITECTURE.md §8.5** — an appointment slot conflict is decided by `SlotConflictPolicy`
@@ -187,6 +199,7 @@ and the transfer/checkout invariants that hand off to invoicing.
   list, no LINQ chain, no allocation per candidate.
 
 ## Out of scope
+- **All tests for this phase's behavior → A12** (this phase writes and runs none).
 - Inventory/product catalog entities → A06. Invoice/payment/cash session → A07.
 - Ledger postings from a boarding invoice → A08. EF mappings + indexes + migration → A09.
 - Ticket-number assignment and queue projection → B01/C02.
@@ -195,17 +208,14 @@ and the transfer/checkout invariants that hand off to invoicing.
 - Jalali date handling — presentation only, stays in `Animora.Desktop/Localization`.
 
 ## Acceptance criteria
-- Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
-- `SlotConflictPolicyTests` green, including the adjacency case (`end == start` is free) and the
-  terminal-state exclusions.
-- `AppointmentStateMachineTests` covers all `AppointmentState` pairs; only the tabled transitions
-  succeed; a 7-minute duration returns `APPOINTMENT_DURATION_INVALID`.
-- `BoardingStayTests` green: billable-day boundaries (1h → 1, 24h → 1, 25h → 2) and
-  `STAY_INVOICE_REQUIRED` on an unbilled checkout.
+- Build (lightweight, only if run): `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **No test suite is run in this phase** (`test.sh` is A12's; do not invoke it here).
+- The "Test coverage owed to A12" section is present and names every invariant A12 must assert.
 - `Animora.Domain.csproj` still has zero references.
 - Runnability (`CONVENTIONS.md` §11): `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
 
 ## PROGRESS.md update
 Mark A05 done; advance "Next phase" to `A06`; append a "Repo state" entry listing: the 12 new files, the
-entities/enums/events added, the slot-conflict and billable-days rules, `ErrorCodes` += 11, the 4 test
-classes, the index requirement noted for A09, no DI change, no mock deleted, no migration, deviations.
+entities/enums/events added, the slot-conflict and billable-days rules, `ErrorCodes` += 11, the index
+requirement noted for A09, **no tests written (owed to A12)**, no DI change, no mock deleted, no
+migration, deviations.

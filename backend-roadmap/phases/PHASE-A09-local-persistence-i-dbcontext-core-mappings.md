@@ -3,8 +3,14 @@
 **Band:** M · **Track:** A · **Depends on:** A03, A05 · **Satisfies:** R-B02, R-B24
 **Runnable after this phase:** desktop offline yes · server required no
 
+> **Track A testing policy (see ROADMAP §3.10).** This phase writes **no tests** and runs **no test
+> suite**. It ships the store, mappings and migration only. All persistence tests (migration, converter,
+> query-filter round-trips, the fixture) are authored and executed once, in **Phase A12**. The single
+> verification here is a lightweight build (`scripts/sandbox/build.sh full` = 0/0) plus the
+> non-test design-time check `dotnet ef migrations list` (see below); run only if needed.
+
 ## Read before starting
-- `backend-roadmap/CONVENTIONS.md` §1, §2, §4, §5, §9, §11, §12
+- `backend-roadmap/CONVENTIONS.md` §1, §2, §4, §5, §11, §12
 - `backend-roadmap/PROGRESS.md`
 - `STACK.md` §3.3 (local store, money/time storage), §6.4 (named filters), §15 (T-RULE 003/004/013)
 - `ARCHITECTURE.md` §11.3 (read vs write models), §11.4 (concurrency)
@@ -133,10 +139,9 @@ desktop consumes it yet.
 | `src/Animora.Persistence.Sqlite/Configurations/Boarding/*.cs` | create | 3 configurations (Room, BoardingServiceDef, BoardingStay) |
 | `src/Animora.Persistence.Sqlite/Migrations/*` | create | `001_LocalCoreSchema` + model snapshot |
 | `src/Animora.Persistence.Sqlite/Animora.Persistence.Sqlite.csproj` | modify | add `Microsoft.Extensions.Options`, `Microsoft.Extensions.DependencyInjection.Abstractions` |
-| `tests/Animora.Persistence.Tests/LocalMigrationTests.cs` | create | migration applies on a temp file DB; table/column/index assertions |
-| `tests/Animora.Persistence.Tests/ConverterTests.cs` | create | UTC ticks round-trip, Money two-column round-trip, enum-as-int |
-| `tests/Animora.Persistence.Tests/QueryFilterTests.cs` | create | both named filters + `IgnoreQueryFilters(["SoftDelete"])` keeps tenant filter |
-| `tests/Animora.Persistence.Tests/LocalStoreTestFixture.cs` | create | temp-file DB fixture (create/migrate/dispose/delete) |
+
+**No test files in this phase** (including the `LocalStoreTestFixture`). All persistence tests are
+authored in **A12**; the "Test coverage owed to A12" section below records exactly what A12 must cover.
 
 ## Implementation steps
 1. Add `LocalStoreOptions`, `FieldLengths`, the two converters and the `IStoreKeyProvider` seam.
@@ -149,12 +154,24 @@ desktop consumes it yet.
 5. Add `SqliteConnectionInterceptor` + `LocalStoreServiceCollectionExtensions` +
    `LocalDbContextFactory`.
 6. Generate `001_LocalCoreSchema` and commit the generated migration **and** the model snapshot.
-7. Write `LocalStoreTestFixture` (temp directory, unique file name, `MigrateAsync`, delete on dispose)
-   and the three test classes.
-8. `LocalMigrationTests` asserts: migration applies from empty; re-applying is a no-op; every expected
-   table exists; each named index exists (`PRAGMA index_list`); no column has SQLite type `REAL` or
-   `NUMERIC` (proves no decimal/float money or time leaked).
-9. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; `run.sh` = `SMOKE RUN OK` (desktop untouched).
+7. **No tests here** — do not create the fixture or any test class. Record the coverage owed to A12
+   (below).
+8. Lightweight verification only, if needed: `build.sh full` = 0/0; `dotnet ef migrations list
+   --project src/Animora.Persistence.Sqlite` shows exactly `001_LocalCoreSchema` (design-time, not a
+   test). Do **not** run `test.sh`. `run.sh` = `SMOKE RUN OK` (desktop untouched).
+
+## Test coverage owed to A12 (author + run in A12, not here)
+- `LocalStoreTestFixture`: temp directory, unique file name, `MigrateAsync`, delete on dispose — the
+  shared fixture the persistence tests build on.
+- `LocalMigrationTests`: migration applies from empty; re-applying is a no-op; all 18 tables exist;
+  each named index from the design decisions exists (`PRAGMA index_list`); no column has SQLite type
+  `REAL` or `NUMERIC` (no decimal/float money or time leaked).
+- `ConverterTests`: a `DateTimeOffset` with a non-zero offset round-trips as the same UTC instant;
+  `Money(12_500, "IRT")` round-trips through `<Prop>Minor`/`<Prop>Currency`; enum-as-int.
+- `QueryFilterTests`: both named filters hide the right rows; `IgnoreQueryFilters(["SoftDelete"])`
+  reveals deleted rows but still hides another tenant.
+- `SaveChangesAsync` tenant guard: writing a `SyncableEntity` with a foreign `TenantId` throws
+  `InvalidOperationException`.
 
 ## Contracts / schema added
 - `AnimoraLocalDbContext`, `ILocalTenantContext`, `SingleTenantContext`, `LocalStoreOptions`,
@@ -163,7 +180,7 @@ desktop consumes it yet.
   `UtcTicksConverter`, `NullableUtcTicksConverter`, `DecimalStringConverter`.
 - 18 `<Entity>Configuration` classes. Migration `001_LocalCoreSchema`.
 - Named query filters `"Tenant"` and `"SoftDelete"`. No `Animora.Contracts` change, no DI change in
-  `App.axaml.cs`.
+  `App.axaml.cs`. **No test files** (owed to A12).
 
 ## Rules that apply here
 - **CONVENTIONS §5 / STACK.md §3.3** — no `decimal` or `REAL` money column; `Money` is two columns;
@@ -179,6 +196,8 @@ desktop consumes it yet.
 - **PERFORMANCE.md §3** — assembly scanning happens once at model build, never per query.
 
 ## Out of scope
+- **All tests for this phase's behavior (incl. `LocalStoreTestFixture`) → A12** (this phase writes and
+  runs none).
 - Repositories, unit of work, domain-event dispatch, seeding → A10.
 - Encryption, keystore, `sqlite_version()` assertion, backup/restore → A11.
 - Mappings for Inventory/Purchasing/Sales/Cashier/Finance entities → A10 (migration `002`).
@@ -186,24 +205,17 @@ desktop consumes it yet.
 - Local-only tables (`PendingCommand`, outbox, audit) → B02, B05.
 
 ## Acceptance criteria
-- Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
-- `dotnet ef migrations list --project src/Animora.Persistence.Sqlite` shows exactly
-  `001_LocalCoreSchema`.
-- `LocalMigrationTests` green: migration applies to an empty temp file DB; all 18 tables and every
-  named index from the design decisions exist; no `REAL`/`NUMERIC` column exists.
-- `ConverterTests` green: a `DateTimeOffset` with a non-zero offset round-trips as the same instant in
-  UTC; `Money(12_500, "IRT")` round-trips through `<Prop>Minor`/`<Prop>Currency`.
-- `QueryFilterTests` green: a row of another tenant is invisible; a `Deleted` row is invisible;
-  `IgnoreQueryFilters(["SoftDelete"])` reveals deleted rows but still hides the other tenant
-  (EF Core 10's named-filter overload takes an `IReadOnlyCollection<string>` of filter keys — the
-  parameterless `IgnoreQueryFilters()` still disables **all** filters, so the selective form must be
-  used here or the tenant filter is silently dropped too).
-- `AnimoraLocalDbContext.SaveChangesAsync` throws when an entity carries a foreign `TenantId`.
+- Build (lightweight, only if run): `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **No test suite is run in this phase** (`test.sh` is A12's; do not invoke it here).
+- `dotnet ef migrations list --project src/Animora.Persistence.Sqlite` (design-time, not a test) shows
+  exactly `001_LocalCoreSchema`.
+- The "Test coverage owed to A12" section is present, including the note that A12 asserts the named
+  filters, the converter round-trips and the `SaveChangesAsync` foreign-`TenantId` guard.
 - Runnability (`CONVENTIONS.md` §11): `scripts/sandbox/run.sh` = `SMOKE RUN OK`; the desktop still
   runs entirely on mocks and never opens the database.
 
 ## PROGRESS.md update
 Mark A09 done; advance "Next phase" to `A10`; append a "Repo state" entry listing: the persistence
 project's new files, `AnimoraLocalDbContext` + conventions + converters, the 18 configurations, the
-named filters, migration `001_LocalCoreSchema`, the 4 test classes, no DI change, no mock deleted,
-deviations.
+named filters, migration `001_LocalCoreSchema`, **no tests written (owed to A12)**, no DI change, no
+mock deleted, deviations.
