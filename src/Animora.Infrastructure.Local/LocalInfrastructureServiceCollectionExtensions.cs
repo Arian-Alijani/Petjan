@@ -28,6 +28,7 @@ public static class LocalInfrastructureServiceCollectionExtensions
         services.TryAddSingleton<LocalDbKeyService>();
         services.Replace(ServiceDescriptor.Singleton<IStoreKeyProvider>(p => p.GetRequiredService<LocalDbKeyService>()));
         services.TryAddSingleton<InstallationIdentity>();
+        services.TryAddSingleton<ILocalInstallationIdentity, LocalInstallationIdentity>(); // B01 — read by SingleUserProvider.
 
         // A11c — content-addressed local file store.
         services.TryAddSingleton<ILocalFileStore, LocalFileStore>();
