@@ -2,6 +2,7 @@ using Animora.Application.Abstractions;
 using Animora.Application.Ports;
 using Animora.Domain.Events;
 using Animora.Persistence.Sqlite.Options;
+using Animora.Persistence.Sqlite.Queries;
 using Animora.Persistence.Sqlite.Repositories;
 using Animora.Persistence.Sqlite.Seed;
 using Microsoft.Data.Sqlite;
@@ -64,6 +65,11 @@ public static class LocalStoreServiceCollectionExtensions
         // First-run reference seeding (A10c); invoked by the startup path, never by the desktop directly.
         services.AddSingleton<ISeedPeriodCodeProvider, PersianMonthPeriodCodeProvider>();
         services.AddScoped<LocalSeeder>();
+
+        // Read helpers (A10d): one SQL aggregate each, no tracking, tenant-filtered.
+        services.TryAddScoped<StockOnHandQuery>();
+        services.TryAddScoped<InvoiceBalanceQuery>();
+        services.TryAddScoped<LedgerBalanceQuery>();
         return services;
     }
 
