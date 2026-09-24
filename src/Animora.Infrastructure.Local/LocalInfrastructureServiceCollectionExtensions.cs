@@ -1,8 +1,12 @@
 using Animora.Application.Ports;
 using Animora.Domain.Results;
+using Animora.Domain.Time;
+using Animora.Infrastructure.Local.Startup;
+using Animora.Infrastructure.Local.Time;
 using Animora.Infrastructure.Local.Storage;
 using Animora.Infrastructure.Local.Security;
 using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Persistence.Sqlite.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -27,6 +31,12 @@ public static class LocalInfrastructureServiceCollectionExtensions
 
         // A11c — content-addressed local file store.
         services.TryAddSingleton<ILocalFileStore, LocalFileStore>();
+
+        // A11d — clocks (TryAdd: tests may override) and the 8-step startup.
+        services.TryAddSingleton<IClock>(_ => new SystemClock());
+        services.TryAddSingleton<IMonotonicClock, MonotonicClock>();
+        services.TryAddScoped<LocalStoreStartup>();
+        services.TryAddScoped<ILocalStoreInitializer>(p => p.GetRequiredService<LocalStoreStartup>());
         return services;
     }
 
