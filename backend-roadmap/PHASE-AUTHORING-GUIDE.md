@@ -117,5 +117,6 @@ added`, `Rules that apply here`, `Out of scope` (with owning phase IDs), `Accept
 Authoring a phase this way is a one-time cost paid by someone who already has the tree open. It is
 repaid every execution session by: (a) far fewer exploration turns, (b) far less input-token spend
 re-reading source, (c) no wrong guesses from stale/mismatched names, and (d) a session that starts
-*implementing* almost immediately instead of *investigating*. `PHASE-B03-local-identity-real-login.md`
-is the worked reference example of this format.
+*implementing* almost immediately instead of *investigating*.
+`PHASE-B03a-identity-foundation-tables-hashing-session.md` is the worked reference example of this
+format (the un-lettered `PHASE-B03-*.md` is now an index over its B03a–B03c sub-sessions).

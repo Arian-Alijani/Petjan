@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `B03`** — `backend-roadmap/phases/PHASE-B03-*.md`
+**Next phase: `B03a`** — `backend-roadmap/phases/PHASE-B03a-*.md` (B03 is split into B03a→B03c; the parent `PHASE-B03-*.md` is an index only)
 
 ## Phase status
 
@@ -66,9 +66,18 @@
 | A12 | ✅ Done | 2026-09-24 | Track A test consolidation: 18 Domain + 16 Persistence test files (incl. `FakeClock`, `LocalStoreTestFixture`, `TestSupport`) covering A05–A11. One A02 defect fixed (IdGenerator shared high-water, see Repo state log "A12"). Expected 321 tests green (259+2 Domain, 57 Persistence, 3 others); final build/test.sh/run.sh re-verification not run in the finishing session (user directive: no long builds/tests) — run once before B01. |
 | B01 | ✅ Done | 2026-09-24 | Application layer skeleton: abstractions, frozen reflection-free dispatcher, fixed 6-behavior chain, validation primitives, 3 security-plane ports + temporary defaults, correlation + `OperationIdFactory`, `AddAnimoraApplication()`, `ErrorCodes` += 2. `build.sh full` 0/0; `test.sh` TESTS OK (353: 261 Domain, 33 Application, 57 Persistence, 1 Sync, 1 Server). `run.sh` not re-run (Xvfb not installed; desktop untouched). |
 | B02 | ✅ Done | 2026-09-24 | Local command pipeline + transactional outbox. Wire contracts (`CommandEnvelope`, `SettlementResult`, `CommandTypes` 16, `WireApiError`/`WireFieldError`), Domain `SettlementState` + `SettlementTransitions` allow-table, Application ports (`ICommandJournal`, `IOutbox`, `ICommandTransport`, `ILocalSequenceAllocator`, `IIntegrityAlertSink`, `RetryPolicy`, `CommandFingerprint` SHA-256), `CommandJournalBehavior` in the fixed chain, `LocalCommandProcessor` pass loop, Persistence (`PendingCommand`, `OutboxMessage`, `LocalSequenceCounter`, `PipelineSql` atomic claim, `CommandJournal`, `LocalOutbox`, `OutboxClaim`, `OutboxRelayHandler`), migration `004_CommandPipeline`. Build 0/0; Application 49/49 + Persistence 68/68 green. Not re-run `test.sh`/`run.sh` (user directive: no heavy tests). |
-| B03 | ⬜ Not started | | |
-| B04 | ⬜ Not started | | |
-| B05 | ⬜ Not started | | |
+| B03 | ⬜ Not started | | Split into B03a–B03c (index: `PHASE-B03-*.md`); done when B03c is done. |
+| B03a | ⬜ Not started | | Identity foundation: package pin, `User.MustChangePassword`, 4 error codes, `LocalSession`/`LoginAttemptLog` + migration `005_LocalIdentity`, hashing/policy/session infra + DI. |
+| B03b | ⬜ Not started | | Identity application layer: 7 use cases, `SessionCurrentUserProvider` (deletes `SingleUserProvider`), `FindByUsernameAsync` + 3 repos, application DI. |
+| B03c | ⬜ Not started | | Identity contracts/desktop/tests: auth seam, `Client.Services`, login + first-run rewrite, mock deletion, seeding change, all B03 tests + build/test/run gate. |
+| B04 | ⬜ Not started | | Split into B04a–B04c (index: `PHASE-B04-*.md`); done when B04c is done. |
+| B04a | ⬜ Not started | | Authorization plane: `PermissionEvaluator` + 5 policies + resource rules, `RequiresPermissionAttribute`, `PermissionAuthorizationGate` (replaces allow-all), `ErrorCodes` += `PERMISSION_UNKNOWN`. |
+| B04b | ⬜ Not started | | Offline capability: `DeviceCapabilitySnapshot` + migration `006_CapabilitySnapshot`, signer/evaluator/issuer/store, sign-in integration, `ErrorCodes` += 2. |
+| B04c | ⬜ Not started | | Gate seam: `ICapabilityGate` + `CapabilityGateService` (bounded cache), `NavPermissions`, shell ViewModels, DI, all B04 tests + build/test/run gate. |
+| B05 | ⬜ Not started | | Split into B05a–B05c (index: `PHASE-B05-*.md`); done when B05c is done. |
+| B05a | ⬜ Not started | | Audit plane: `AuditEntries` + migration `007_AuditDiagnostics` (AuditEntries only), `IAuditWriter`/`AuditWriter`, `AuditableAttribute`/`AuditBehavior`, `IntegrityAlertSink`, `ErrorCodes` += `AUDIT_WRITE_FAILED`. |
+| B05b | ⬜ Not started | | Observability: Serilog file logging + redaction, `AmbientCorrelation`/`UiCorrelationScope`, diagnostics bundle, `ErrorCodes` += `DIAGNOSTICS_BUNDLE_FAILED`. |
+| B05c | ⬜ Not started | | Crash safety + wiring: `IUserNotificationPort`/`ToastNotificationAdapter`, `GlobalExceptionHandler`/`CrashRecoveryService`, `UiDraftState` + migration `008_UiDraftState`, `MaintenanceScheduler`, `App.axaml.cs` wiring, `ErrorCodes` += `CRASH_RECOVERY_REQUIRED`, all B05 tests + build/test/run gate. |
 | C01 | ⬜ Not started | | |
 | C02 | ⬜ Not started | | |
 | C03 | ⬜ Not started | | |

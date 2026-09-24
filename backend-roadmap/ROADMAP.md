@@ -25,7 +25,7 @@ must be split before implementation, not absorbed.
 | Track | Purpose | Phases | Runnable offline at end of each phase |
 |---|---|---|---|
 | **A — Local core foundation** | Real projects, domain model and encrypted local SQLite store. The desktop keeps running offline on mocks while the foundation appears beneath it. A01–A11 ship behavior with **no tests**; **A12** is the single consolidation phase that authors and runs every Track A test. | A01–A12 (12) | yes |
-| **B — Application layer & local platform** | Command/query pipeline, durable local command outbox, real login, authorization + offline capability, audit/logging/crash safety. | B01–B05 (5) | yes |
+| **B — Application layer & local platform** | Command/query pipeline, durable local command outbox, real login, authorization + offline capability, audit/logging/crash safety. B03–B05 are each executed as 3 self-contained sessions (a–c) for low per-session weight; each trio counts as one phase. | B01–B05 (5) | yes |
 | **C — Mock retirement** | One bounded context per phase: real `Animora.Contracts` implementation over the local DB, mock deleted, screen verified. | C01–C11 (11) | yes |
 | **D — Server** | ASP.NET Core 10 host, SQL Server store, tenancy, identity, command intake, handlers, Datasync replication surface, outbox/workers, subscription, licensing, files, observability. | D01–D13 (13) | desktop still starts offline |
 | **E — Admin web, integration, release** | Operator admin site, `ISyncEngine` + Datasync adapter, sync orchestration, conflict resolution, command transport, online auth/entitlement, validation gates, release engineering. | E01–E09 (9) | desktop still starts offline |
@@ -52,9 +52,9 @@ test-consolidation phase A12 — see §6.)
 | A12 | Track A test consolidation (write + build + test) | M | A | A11 | R-B01, R-B02, R-B24 (verification) | yes |
 | B01 | Application layer skeleton | M | B | A12 | R-B08, R-B10 | yes |
 | B02 | Local command pipeline & outbox | M | B | B01 | R-B02, R-B09, R-B13, R-B14, R-B15, R-B16, R-B25 | yes |
-| B03 | Local identity & real login | M | B | B02 | R-B04, R-B09 | yes |
-| B04 | Authorization & offline capability | M | B | B03 | R-B04, R-B20, R-B21 | yes |
-| B05 | Audit, logging, diagnostics, crash safety | M | B | B04 | R-B09, R-B29 | yes |
+| B03 (a–c) | Local identity & real login (3 sessions) | M | B | B02 | R-B04, R-B09 | yes |
+| B04 (a–c) | Authorization & offline capability (3 sessions) | M | B | B03 | R-B04, R-B20, R-B21 | yes |
+| B05 (a–c) | Audit, logging, diagnostics, crash safety (3 sessions) | M | B | B04 | R-B09, R-B29 | yes |
 | C01 | Patients & Owners | M | C | B05 | R-B01, R-B02 | yes |
 | C02 | Reception & Visits triage | M | C | C01 | R-B01, R-B02 | yes |
 | C03 | Visit encounter & Vaccination | M | C | C02 | R-B01, R-B02 | yes |
@@ -150,5 +150,5 @@ runnability held, no forbidden dependency, no rule violated, every acceptance cr
 |---|---|
 | Track D has 13 phases (D01–D13) as mandated; Track C has 11 (C01–C11) as mandated; the mandated row set sums to **49** (A 11 + B 5 + C 11 + D 13 + E 9). | No row was merged or dropped, per the "you may not merge rows" rule; the soft ceiling yields to the mandated structure. |
 | **Track A gains a 12th phase, A12 (test consolidation), taking the total to 50 — exactly the hard cap.** | A deliberate restructuring of Track A: A01–A11 ship behavior with no tests so each session stays low-weight, and A12 authors + runs the whole Track A test suite in one focused pass. It adds coverage rigor (the "owed to A12" sections are exhaustive), not scope creep; A12 itself writes only test files plus any minimal bug-fix, so it holds band M. The hard cap 50 is respected; no further phase may be added to Track A without an ADR. |
-| No row was split with a letter suffix. | Each mandated row's scope fits band M once its "Design decisions" are pre-made; splitting would have pushed the total past the hard cap of 50. |
+| Some rows are executed as lettered sub-sessions (A10 a–d, A11 a–d, B03 a–c, B04 a–c, B05 a–c) but **no row was added to the count** — each lettered trio/quartet is one phase, split only to keep per-session token/code weight low (§0 LOCKED RULE — PHASE WEIGHT). The parent `PHASE-<ID>-*.md` is an index pointing at the self-contained sub-session files; no scope is added or removed by the split. | Splitting execution sessions holds band weight without inflating the phase count; the total stays at the hard cap of 50. Quality and acceptance rigor are unchanged — every original acceptance criterion is preserved and assigned to a sub-session (tests + the runnable gate land in the final letter). |
 | `D06`/`D07` titles refined to "clinical & scheduling" / "money & stock". | Clarifies the boundary between the two handler phases; scope unchanged from the mandate. |
