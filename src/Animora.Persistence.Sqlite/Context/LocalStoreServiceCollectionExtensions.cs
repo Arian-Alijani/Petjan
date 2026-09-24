@@ -22,15 +22,31 @@ public static class LocalStoreServiceCollectionExtensions
         if (configure is not null) services.Configure(configure);
         if (services.Any(d => d.ServiceType == typeof(IDbContextFactory<AnimoraLocalDbContext>))) return services;
 
+        // Tenant comes from the cached LocalInstallation row (singleton state, no DB call in the getter).
+        services.AddSingleton<LocalInstallationState>();
         services.AddScoped<ILocalTenantContext, SingleTenantContext>();
-        services.AddSingleton<IStoreKeyProvider, NullStoreKeyProvider>();
-        services.AddScoped<SqliteConnectionInterceptor>();
-        // Single configuration source. Scoped factory: the interceptor and tenant come from the caller's
-        // scope; background/query work creates a scope and uses IDbContextFactory for short-lived contexts.
+        services.AddScoped<LocalInstallationBootstrap>();
+        services.TryAddSingleton<IStoreKeyProvider, NullStoreKeyProvider>();
+        // Cipher seam: the real provider is reachable only when EncryptionEnabled && K2Approved (STACK.md §12 K2).
+        services.AddSingleton<IStoreEncryptionProvider>(provider =>
+        {
+            var store = provider.GetRequiredService<IOptions<LocalStoreOptions>>().Value;
+            return store is { EncryptionEnabled: true, K2Approved: true }
+                ? new MultipleCiphersEncryptionProvider()
+                : new NoEncryptionProvider();
+        });
+        // Singleton-safe: options, key provider and encryption provider are all singletons.
+        services.AddSingleton<SqliteConnectionInterceptor>();
+        // Single configuration source. Scoped factory: the tenant comes from the caller's scope;
+        // background/query work creates a scope and uses IDbContextFactory for short-lived contexts.
         // AddDbContextFactory also registers AnimoraLocalDbContext itself as scoped.
         services.AddDbContextFactory<AnimoraLocalDbContext>((provider, builder) =>
         {
             var store = provider.GetRequiredService<IOptions<LocalStoreOptions>>().Value;
+            // Fail before any open: e.g. EncryptionEnabled && !K2Approved can never reach a connection.
+            var valid = store.Validate();
+            if (valid.IsFailure)
+                throw new InvalidOperationException($"{valid.Error.Code}: {valid.Detail ?? "invalid local store options"}");
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(store.DatabasePath))!);
             var connection = new SqliteConnectionStringBuilder { DataSource = store.DatabasePath }.ToString();
             builder.UseSqlite(connection)

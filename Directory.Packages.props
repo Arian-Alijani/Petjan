@@ -26,6 +26,8 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.12" />
+    <!-- DPAPI for the Windows OS keystore (A11a); consumed only by Animora.Infrastructure.Local. -->
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
     <!-- Native SQLite >= 3.50.2 satisfiable (STACK.md §3.3); consumed only by Animora.Persistence.Sqlite. -->
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <PackageVersion Include="SourceGear.sqlite3" Version="3.50.4.5" />

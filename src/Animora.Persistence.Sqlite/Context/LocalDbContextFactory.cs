@@ -11,7 +11,7 @@ public sealed class LocalDbContextFactory : IDesignTimeDbContextFactory<AnimoraL
         var path = Path.Combine(Path.GetTempPath(), "animora-design-time.db");
         var options = new DbContextOptionsBuilder<AnimoraLocalDbContext>()
             .UseSqlite($"Data Source={path}").Options;
-        return new AnimoraLocalDbContext(options, new SingleTenantContext(), new DesignTimeClock());
+        return new AnimoraLocalDbContext(options, new SingleTenantContext(new LocalInstallationState()), new DesignTimeClock());
     }
 
     private sealed class DesignTimeClock : IClock

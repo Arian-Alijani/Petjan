@@ -381,4 +381,32 @@ public static class ErrorCodes
         new("EXPENSE_IMMUTABLE", ErrorCode.Conflict);
 
     #endregion
+
+    #region Local store / keystore (A11)
+
+    /// <summary>The local store key could not be read from the OS keystore; the store must not open (fail closed).</summary>
+    public static readonly ErrorCode StoreKeyUnavailable =
+        new("STORE_KEY_UNAVAILABLE", ErrorCode.Infrastructure);
+
+    /// <summary>The native SQLite library is older than the minimum supported version.</summary>
+    public static readonly ErrorCode NativeSqliteTooOld =
+        new("NATIVE_SQLITE_TOO_OLD", ErrorCode.Infrastructure);
+
+    /// <summary>The local store failed its integrity check.</summary>
+    public static readonly ErrorCode StoreCorrupt =
+        new("STORE_CORRUPT", ErrorCode.Infrastructure);
+
+    /// <summary>A local store backup could not be created or verified.</summary>
+    public static readonly ErrorCode StoreBackupFailed =
+        new("STORE_BACKUP_FAILED", ErrorCode.Infrastructure);
+
+    /// <summary>A local store restore could not be completed; the previous store is kept.</summary>
+    public static readonly ErrorCode StoreRestoreFailed =
+        new("STORE_RESTORE_FAILED", ErrorCode.Infrastructure);
+
+    /// <summary>Store encryption was requested but the encryption provider (K2) is not approved.</summary>
+    public static readonly ErrorCode StoreEncryptionNotApproved =
+        new("STORE_ENCRYPTION_NOT_APPROVED", ErrorCode.Infrastructure);
+
+    #endregion
 }

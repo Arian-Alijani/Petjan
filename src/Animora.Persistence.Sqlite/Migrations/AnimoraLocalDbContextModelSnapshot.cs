@@ -3217,6 +3217,73 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("ReceptionQueueEntries", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.ClockHighWater", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("HighWaterUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("UpdatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ClockHighWaters", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.LocalInstallation", b =>
+                {
+                    b.Property<string>("InstallationId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MachineFingerprintHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("InstallationId");
+
+                    b.ToTable("LocalInstallations", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.StoreMaintenanceLog", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("OccurredAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAtUtc")
+                        .HasDatabaseName("IX_StoreMaintenanceLogs_OccurredAtUtc");
+
+                    b.ToTable("StoreMaintenanceLogs", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Persistence.Sqlite.Seed.SeedMarker", b =>
                 {
                     b.Property<string>("Id")
