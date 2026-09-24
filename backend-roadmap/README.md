@@ -16,7 +16,8 @@ its phase file plus the four package files below. Nothing else may be assumed.
 | `ROADMAP.md` | Locked phase-weight rule, track overview, full phase index, dependency rules, global DoD, deferred list. |
 | `CONVENTIONS.md` | Every shared engineering rule. Read once per session. Phases cite it by `§`. |
 | `00-REQUIREMENTS-LOCK.md` | Locked requirements `R-B01`–`R-B35`; each phase traces to IDs here. |
-| `phases/PHASE-<ID>-<slug>.md` | One file per phase — the only implementation instruction a session follows. |
+| `PHASE-AUTHORING-GUIDE.md` | **How to write a phase file that executes fast and cheap** (self-contained Reference pack, no re-exploration). Read before authoring/refining any phase file. |
+| `phases/PHASE-<ID>-<slug>.md` | One file per phase — the only implementation instruction a session follows. `PHASE-B03-*` is the worked reference for the ready-to-implement format. |
 
 ## Execution-session protocol (9 steps)
 
