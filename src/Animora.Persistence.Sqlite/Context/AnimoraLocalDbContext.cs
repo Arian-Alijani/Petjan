@@ -28,7 +28,17 @@ public sealed class AnimoraLocalDbContext(
         // Conventions assign generic string bounds; this column is a fixed-width hex SHA-256.
         modelBuilder.Entity<LocalInstallation>().Property(e => e.MachineFingerprintHash)
             .HasMaxLength(LocalInstallation.FingerprintHashLength);
+        // Command-pipeline payloads are arbitrary command/event JSON, far larger than the generic short-text
+        // bound the conventions would otherwise assign (B02). SQLite does not enforce length, but the model
+        // must state the truth for the server store and any future provider.
+        modelBuilder.Entity<PendingCommand>().Property(e => e.PayloadJson).HasMaxLength(PayloadMaxLength);
+        modelBuilder.Entity<PendingCommand>().Property(e => e.CommandFingerprint)
+            .HasMaxLength(PendingCommand.FingerprintLength);
+        modelBuilder.Entity<OutboxMessage>().Property(e => e.PayloadJson).HasMaxLength(PayloadMaxLength);
     }
+
+    /// <summary>Max length of a stored command/event JSON payload column.</summary>
+    internal const int PayloadMaxLength = 65536;
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {

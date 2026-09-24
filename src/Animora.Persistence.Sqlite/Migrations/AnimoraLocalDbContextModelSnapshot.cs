@@ -3260,6 +3260,211 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("LocalInstallations", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.LocalSequenceCounter", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Value")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Name");
+
+                    b.ToTable("LocalSequenceCounters", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.OutboxMessage", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ClaimToken")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ClaimedUntilUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("NextAttemptUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasMaxLength(65536)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ProcessedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageType")
+                        .HasDatabaseName("IX_OutboxMessages_MessageType");
+
+                    b.HasIndex("Status", "NextAttemptUtc")
+                        .HasDatabaseName("IX_OutboxMessages_Status_NextAttemptUtc");
+
+                    b.ToTable("OutboxMessages", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.PendingCommand", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AggregateId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AggregateType")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CausationId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClaimToken")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ClaimedUntilUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CommandFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CommandType")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DependsOnOperationId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ExpectedAggregateVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FinancialEffect")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("LastAttemptUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastErrorDetail")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("LocalSequence")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("NextAttemptUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OperationId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasMaxLength(65536)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResponsibleRole")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ServerEntityId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ServerVersion")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("SettledAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DependsOnOperationId")
+                        .HasDatabaseName("IX_PendingCommands_DependsOnOperationId");
+
+                    b.HasIndex("LocalSequence")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PendingCommands_LocalSequence");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PendingCommands_OperationId");
+
+                    b.HasIndex("AggregateType", "AggregateId")
+                        .HasDatabaseName("IX_PendingCommands_AggregateType_AggregateId");
+
+                    b.HasIndex("Status", "NextAttemptUtc")
+                        .HasDatabaseName("IX_PendingCommands_Status_NextAttemptUtc");
+
+                    b.ToTable("PendingCommands", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.StoreMaintenanceLog", b =>
                 {
                     b.Property<string>("Id")

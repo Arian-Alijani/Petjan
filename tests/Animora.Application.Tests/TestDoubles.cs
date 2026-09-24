@@ -129,6 +129,12 @@ internal static class TestHost
         if (withUnitOfWork) services.AddSingleton<IUnitOfWork>(new RecordingUnitOfWork(log));
         services.AddSingleton<IClock, FixedClock>();
         services.AddSingleton<ILocalInstallationIdentity, FixedInstallation>();
+        // B02: the two sync UI-seam query handlers require the command journal; supply the in-memory double so
+        // ValidateOnBuild succeeds.
+        services.AddSingleton<Animora.Application.Commands.IIntegrityAlertSink, RecordingIntegritySink>();
+        services.AddSingleton<Animora.Application.Commands.ICommandJournal>(sp =>
+            new FakeCommandJournal(sp.GetRequiredService<Animora.Application.Commands.IIntegrityAlertSink>()));
+        services.AddSingleton<Animora.Application.Commands.ILocalSequenceAllocator>(new CountingSequenceAllocator());
         services.AddAnimoraApplication(b =>
         {
             b.AddCommand<EchoCommand, string, EchoCommandHandler>()

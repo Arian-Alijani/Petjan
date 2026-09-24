@@ -15,4 +15,9 @@
     <PackageReference Include="SourceGear.sqlite3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- B02: the persistence tests exercise the internal command-pipeline entity factories. -->
+    <InternalsVisibleTo Include="Animora.Persistence.Tests" />
+  </ItemGroup>
+
 </Project>

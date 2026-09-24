@@ -39,10 +39,16 @@ public sealed class DomainEventDispatcher(IServiceProvider services, DomainEvent
     public async Task<Result> DispatchAsync(DomainEvent domainEvent, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(domainEvent);
-        foreach (var handler in map.HandlersFor(domainEvent.GetType()))
+        // Walk the concrete type up to DomainEvent so a handler registered for the base event type (e.g. the
+        // outbox relay, B02) also receives every derived event. Base handlers run after the exact-type ones.
+        for (var type = domainEvent.GetType(); type is not null && typeof(DomainEvent).IsAssignableFrom(type);
+             type = type.BaseType)
         {
-            var result = await handler(services, domainEvent, ct);
-            if (result.IsFailure) return result;
+            foreach (var handler in map.HandlersFor(type))
+            {
+                var result = await handler(services, domainEvent, ct);
+                if (result.IsFailure) return result;
+            }
         }
         return Result.Ok();
     }

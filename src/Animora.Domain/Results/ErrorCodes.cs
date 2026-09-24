@@ -424,4 +424,29 @@ public static class ErrorCodes
         new("DISPATCH_FAILED", ErrorCode.Infrastructure);
 
     #endregion
+
+    #region Command pipeline (B02)
+
+    /// <summary>
+    /// A settlement-state change is not in <c>SettlementTransitions</c>. <c>Detail</c> names the pair.
+    /// </summary>
+    public static readonly ErrorCode SettlementInvalidTransition =
+        new("SETTLEMENT_INVALID_TRANSITION", ErrorCode.Integrity);
+
+    /// <summary>A settlement was applied to a command that is already in a terminal settled state.</summary>
+    public static readonly ErrorCode CommandAlreadySettled =
+        new("COMMAND_ALREADY_SETTLED", ErrorCode.Conflict);
+
+    /// <summary>
+    /// A processor tried to settle a claim whose lease has expired and been taken by another processor —
+    /// the first processor must abandon its (now stale) work (A-RULE 026).
+    /// </summary>
+    public static readonly ErrorCode CommandClaimLost =
+        new("COMMAND_CLAIM_LOST", ErrorCode.Conflict);
+
+    /// <summary>An outbox message exhausted its retries and was dead-lettered with its last error preserved.</summary>
+    public static readonly ErrorCode OutboxDeadLettered =
+        new("OUTBOX_DEAD_LETTERED", ErrorCode.Conflict);
+
+    #endregion
 }

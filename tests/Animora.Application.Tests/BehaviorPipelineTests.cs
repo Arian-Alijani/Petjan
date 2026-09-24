@@ -13,7 +13,8 @@ public sealed class BehaviorPipelineTests
     public void Chain_IsFixedInDocumentedOrder()
     {
         Assert.Equal(
-            ["Correlation", "ExceptionMapping", "Validation", "Authorization", "Entitlement", "Transaction"],
+            ["Correlation", "ExceptionMapping", "Validation", "Authorization", "Entitlement", "Transaction",
+                "CommandJournal"],
             Dispatcher.Chain.Select(b => b.Name).ToArray());
     }
 

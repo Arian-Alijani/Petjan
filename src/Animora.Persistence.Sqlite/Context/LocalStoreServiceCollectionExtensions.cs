@@ -1,8 +1,13 @@
 using Animora.Application.Abstractions;
+using Animora.Application.Commands;
+using Animora.Application.Correlation;
+using Animora.Application.Outbox;
 using Animora.Application.Ports;
 using Animora.Domain.Events;
+using Animora.Persistence.Sqlite.Commands;
 using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Persistence.Sqlite.Options;
+using Animora.Persistence.Sqlite.Outbox;
 using Animora.Persistence.Sqlite.Queries;
 using Animora.Persistence.Sqlite.Repositories;
 using Animora.Persistence.Sqlite.Seed;
@@ -78,6 +83,21 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IUnitOfWork, LocalUnitOfWork>();
         services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
         services.AddSingleton<DomainEventHandlerMap>();
+
+        // Command pipeline (B02): durable journal, atomic sequence, outbox and the domain-event relay.
+        // The pipeline's ambient/default dependencies are TryAdd so the local store is resolvable standalone
+        // (background/query work builds a scope without the full application layer) and a real registration
+        // elsewhere (AddAnimoraApplication, or E06/B05) still wins.
+        services.TryAddSingleton<ICorrelationContext, CorrelationContext>();
+        services.TryAddSingleton<IIntegrityAlertSink, NullIntegrityAlertSink>();
+        services.TryAddSingleton<ICommandTransport, NullCommandTransport>();
+        services.TryAddScoped<ICommandJournal, CommandJournal>();
+        services.TryAddScoped<ILocalSequenceAllocator, LocalSequenceAllocator>();
+        services.TryAddScoped<IOutbox, LocalOutbox>();
+        services.TryAddScoped<OutboxClaim>();
+        services.TryAddScoped<LocalCommandProcessor>();
+        // Every raised domain event is relayed to the outbox (idempotent: duplicate (event, handler) pairs are ignored).
+        services.AddDomainEventHandler<DomainEvent, OutboxRelayHandler>();
 
         // First-run reference seeding (A10c); invoked by the startup path, never by the desktop directly.
         services.AddSingleton<ISeedPeriodCodeProvider, PersianMonthPeriodCodeProvider>();

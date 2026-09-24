@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `B02`** — `backend-roadmap/phases/PHASE-B02-*.md`
+**Next phase: `B03`** — `backend-roadmap/phases/PHASE-B03-*.md`
 
 ## Phase status
 
@@ -65,7 +65,7 @@
 | A11d | ✅ Done | 2026-09-24 | `Infrastructure.Local/Time/SystemClock` (over `TimeProvider`, default System) + `MonotonicClock` (singleton; `Stopwatch.GetTimestamp`; lazy high-water from `ClockHighWaters` via own scope + `IDbContextFactory`; `Observe` under lock, memory + single-statement upsert `ON CONFLICT … WHERE HighWaterUtc < excluded` — never lowers; store-not-ready tolerated, retried). `Startup/LocalStoreStartup : ILocalStoreInitializer` (scoped) — 8 steps with internal `Steps` log (`InternalsVisibleTo Animora.Persistence.Tests`): dir 0700 / Windows current-user protected ACL + crash flag; `Validate` + passphrase before any file; open + `NativeSqliteAssertion`; `quick_check`/SqliteException 11/26 → `QuarantineAndRebuildAsync` (AsyncLocal re-entry guard → `STORE_CORRUPT`); `MigrateAsync`; WAL TRUNCATE when pages > `WalCheckpointPages` (log `Checkpoint`) + `CrashRecovery` log; bootstrap + seed; diagnostics. DI: `IClock`→`SystemClock`, `IMonotonicClock`, `LocalStoreStartup` + `ILocalStoreInitializer` (all TryAdd). Gate: build full 0/0, SMOKE RUN OK, network grep clean, ef list 001/002/003 + no pending changes; throwaway ValidateScopes/ValidateOnBuild provider + real init OK (native 3.50.4, dir mode 700, high-water not lowered). |
 | A12 | ✅ Done | 2026-09-24 | Track A test consolidation: 18 Domain + 16 Persistence test files (incl. `FakeClock`, `LocalStoreTestFixture`, `TestSupport`) covering A05–A11. One A02 defect fixed (IdGenerator shared high-water, see Repo state log "A12"). Expected 321 tests green (259+2 Domain, 57 Persistence, 3 others); final build/test.sh/run.sh re-verification not run in the finishing session (user directive: no long builds/tests) — run once before B01. |
 | B01 | ✅ Done | 2026-09-24 | Application layer skeleton: abstractions, frozen reflection-free dispatcher, fixed 6-behavior chain, validation primitives, 3 security-plane ports + temporary defaults, correlation + `OperationIdFactory`, `AddAnimoraApplication()`, `ErrorCodes` += 2. `build.sh full` 0/0; `test.sh` TESTS OK (353: 261 Domain, 33 Application, 57 Persistence, 1 Sync, 1 Server). `run.sh` not re-run (Xvfb not installed; desktop untouched). |
-| B02 | ⬜ Not started | | |
+| B02 | ✅ Done | 2026-09-24 | Local command pipeline + transactional outbox. Wire contracts (`CommandEnvelope`, `SettlementResult`, `CommandTypes` 16, `WireApiError`/`WireFieldError`), Domain `SettlementState` + `SettlementTransitions` allow-table, Application ports (`ICommandJournal`, `IOutbox`, `ICommandTransport`, `ILocalSequenceAllocator`, `IIntegrityAlertSink`, `RetryPolicy`, `CommandFingerprint` SHA-256), `CommandJournalBehavior` in the fixed chain, `LocalCommandProcessor` pass loop, Persistence (`PendingCommand`, `OutboxMessage`, `LocalSequenceCounter`, `PipelineSql` atomic claim, `CommandJournal`, `LocalOutbox`, `OutboxClaim`, `OutboxRelayHandler`), migration `004_CommandPipeline`. Build 0/0; Application 49/49 + Persistence 68/68 green. Not re-run `test.sh`/`run.sh` (user directive: no heavy tests). |
 | B03 | ⬜ Not started | | |
 | B04 | ⬜ Not started | | |
 | B05 | ⬜ Not started | | |
@@ -140,6 +140,54 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
   `PlaceholderTests` removed.
 - No desktop DI change (`App.axaml.cs` untouched — C01), no mock deleted, no migration, no Contracts change.
 - Deviations: see Decision log "B01".
+
+### B02 — Local command pipeline & transactional outbox (2026-09-24)
+- **Wire contracts** (`Animora.Contracts.Wire`, no dependency outward): `Commands/CommandEnvelope`
+  (28-field sealed record + `Create` factory that defaults `ContractVersion = WireContract.Version`),
+  `SettlementOutcome` (`Accepted`/`Rejected`/`Conflict`/`Deferred`), `FinancialEffect`
+  (`None`/`Applied`/`NotApplied`/`Unknown`), `SettlementResult`, `CommandTypes` (16 op-type consts + `All`),
+  `Errors/WireFieldError`, `Errors/WireApiError`.
+- **Domain**: `Primitives/SettlementState` (8 states) + `Primitives/SettlementTransitions` — the allow-table
+  (`EnsureAllowed` → `SETTLEMENT_INVALID_TRANSITION`; `IsAllowed` for callers that want a boolean, 64-pair
+  exhaustive test). `Reversed` is terminal; `PendingSettlement → PendingSettlement` allowed (retry).
+  `Results/ErrorCodes` += `SETTLEMENT_INVALID_TRANSITION`, `COMMAND_ALREADY_SETTLED`, `COMMAND_CLAIM_LOST`,
+  `OUTBOX_DEAD_LETTERED` (region "Command pipeline (B02)").
+- **Application** (`Commands/`): `PendingCommandRecord` (28-field projection), `ICommandJournal` port
+  (`EnqueueAsync`, `FindByOperationIdAsync`, `ApplySettlementAsync`, `ClaimBatchAsync`, `ReleaseAsync`,
+  `GetUnsettledForAggregateAsync`, `GetSummaryAsync`, `GetUnsettledPageAsync`), `IJournaledCommand` marker,
+  `CommandFingerprint` (SHA-256 hex over `CommandType + \u001f + canonical sorted-key payload JSON`; A-RULE 019),
+  `RetryPolicy` (`MaxAttempts = 10`, `NextDelay` capped 15 min ± 20 % jitter, `IsExhausted => attempts >= MaxAttempts`),
+  `ICommandTransport` + `NullCommandTransport` (returns `Deferred`), `IIntegrityAlertSink` + null default,
+  `ILocalSequenceAllocator`, `LocalCommandProcessor` (`RunPassAsync`; claim → dependency check → transport →
+  settle/release; `NullCommandTransport` keeps rows provisional). `Outbox/IOutbox` port.
+  `Behaviors/CommandJournalBehavior` (only fires for `IJournaledCommand`; builds envelope, allocates sequence,
+  enqueues) appended to the frozen chain as the innermost link before Handler → chain is now
+  `Correlation → ExceptionMapping → Validation → Authorization → Entitlement → Transaction → CommandJournal → Handler`.
+  Queries `UseCases/Sync/PendingCommandSummaryQuery` + `UnsettledCommandListQuery`. DI defaults registered with
+  `TryAdd`.
+- **Persistence.Sqlite**: entities `PendingCommand` (`[LocalOnly]`, 28 props, `Create`/`ApplySettlement`/`Release`),
+  `OutboxMessage` (+ `OutboxStatus`), `LocalSequenceCounter`; configs in `Configurations/Pipeline/`
+  (unique OperationId & LocalSequence; `(Status, NextAttemptUtc)`, `(AggregateType, AggregateId)`,
+  `DependsOnOperationId`, `MessageType`); `Commands/PipelineSql` (`NextSequenceAsync` upsert-increment RETURNING,
+  `ClaimPendingCommandsAsync` / `ClaimOutboxAsync` = single conditional UPDATE with UTC-ticks lease — A-RULE 025/026),
+  `Commands/LocalSequenceAllocator`, `Commands/CommandJournal` (replay-safe `EnqueueAsync` without SaveChanges,
+  `ApplySettlementAsync` gone through `SettlementTransitions.EnsureAllowed`), `Outbox/LocalOutbox`, `Outbox/OutboxClaim`
+  (claim/complete/fail, 60 s lease), `Outbox/OutboxRelayHandler` (writes every `DomainEvent` to the outbox).
+  Mutating queries use explicit `.AsTracking()` (NoTracking is the default).
+  `DomainEventDispatcher` now walks the concrete type up to `DomainEvent` so base-type handlers (the relay) receive
+  derived events. `AnimoraLocalDbContext` pins payload max length 65536 / fingerprint 64. `InternalsVisibleTo`
+  `Animora.Persistence.Tests` added for the internal entity factories.
+- **DI**: `AddAnimoraLocalStore` registers `ICommandJournal`, `ILocalSequenceAllocator`, `IOutbox`, `OutboxClaim`,
+  `LocalCommandProcessor`, the relay handler, and `TryAdd` defaults for `ICorrelationContext`, `IIntegrityAlertSink`,
+  `ICommandTransport` so the local store is self-sufficient.
+- **Migration** `20260924142221_004_CommandPipeline` — additive only (creates `LocalSequenceCounters`,
+  `OutboxMessages`, `PendingCommands` + indexes); 001–003 byte-identical.
+- **Tests**: Application `IdempotencyTests` (6), `SettlementTransitionTests` (3, all 64 pairs),
+  `CommandProcessorTests` (7) + `CommandPipelineTestDoubles`; Persistence `CommandJournalTests` (7),
+  `OutboxClaimTests` (4). Updated `BehaviorPipelineTests` (7-link chain ending `CommandJournal`),
+  `TestDoubles` (pipeline doubles), `LocalMigrationTests` (count 4), `StoreStartupTests` ("004").
+- Gate: focused Application 49/49 + Persistence 68/68 green; `build.sh full` 0/0. `test.sh`/`run.sh` not re-run
+  in the finishing session (user directive: no heavy tests).
 
 ### A12 — Track A test consolidation (2026-09-24)
 
