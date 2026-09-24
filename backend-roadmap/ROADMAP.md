@@ -47,8 +47,8 @@ test-consolidation phase A12 — see §6.)
 | A07 | Domain — Sales & Cashier | M | A | A04, A06 | R-B01, R-B17 | yes |
 | A08 | Domain — Finance ledger, Cheques, Expenses | M | A | A07 | R-B01, R-B17, R-B22 | yes |
 | A09 | Local persistence I — DbContext + core mappings | M | A | A03, A05 | R-B02, R-B24 | yes |
-| A10 | Local persistence II — business mappings + UoW | M | A | A08, A09 | R-B02, R-B08 | yes |
-| A11 | Local store hardening | M | A | A10 | R-B02, R-B09, R-B27, R-B28 | yes |
+| A10 (a–d) | Local persistence II — business mappings + UoW (4 sessions) | M | A | A08, A09 | R-B02, R-B08 | yes |
+| A11 (a–d) | Local store hardening (4 sessions) | M | A | A10 | R-B02, R-B09, R-B27, R-B28 | yes |
 | A12 | Track A test consolidation (write + build + test) | M | A | A11 | R-B01, R-B02, R-B24 (verification) | yes |
 | B01 | Application layer skeleton | M | B | A12 | R-B08, R-B10 | yes |
 | B02 | Local command pipeline & outbox | M | B | B01 | R-B02, R-B09, R-B13, R-B14, R-B15, R-B16, R-B25 | yes |

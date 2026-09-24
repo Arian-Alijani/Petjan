@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A10`** — `backend-roadmap/phases/PHASE-A09-*.md`
+**Next phase: `A10a`** — `backend-roadmap/phases/PHASE-A10a-*.md` (A10 and A11 are each split into 4 one-session sub-phases a→d; run them in order)
 
 ## Phase status
 
@@ -53,8 +53,16 @@
 | A07 | ✅ Done | 2026-09-23 | Sales & cashier domain: 9 new files (`Domain/Sales` 6, `Domain/Cashier` 2, `Events/SalesEvents.cs`) + ErrorCodes. `Invoice` aggregate with the 6-state machine and **immutability after posting** (all 5 mutators → `INVOICE_IMMUTABLE`, A-RULE 002); `InvoiceTotals` is the single totals algorithm (invoice discount pro-rated by weighted largest-remainder before tax, `Money.ApplyPercent` the only rounding); `Payment` append-only with factory-validated method references and `OperationId` idempotency (`PAYMENT_DUPLICATE_OPERATION`, A-RULE 006); `InvoiceAdjustment` the only post-posting economic change path; `SettlementStatus` (8 states, §8.3) defined once; `CashSession` open/close invariants + signed `CashMovement` factory. ErrorCodes += 14 (→ 60). 6 events. **No tests (owed to A12).** Build full 0/0, SMOKE RUN OK. |
 | A08 | ✅ Done | 2026-09-23 | Finance domain: 11 new files (`Domain/Finance` 10, `Events/FinanceEvents.cs`) + ErrorCodes. Append-only balanced `JournalEntry` (**no mutator at all** — every property `private init`; corrections only via `CreateReversal`, A-RULE 002/003 · R-B22); `ChartOfAccounts` seeds the 20 authoritative accounts behind `AccountCodes` constants (no code literal anywhere else); `PostingRules` is the single event → journal translation (10 `For<Event>` methods covering all 14 tabled rows), every one delegating to `JournalEntry.Create` so balance is structural; `AccountingPeriod` forward-only `Open→Closing→Closed→Locked` with 3 close blockers + `EnsurePostable`; `Cheque` 8-state machine with append-only `ChequeEvent` history and the counterparty invariant; `Expense` one-way `Post` + 9 seeded categories → 6000/6100. ErrorCodes += 12 (→ 72). 6 events. **No tests (owed to A12).** Build full 0/0, SMOKE RUN OK. |
 | A09 | ✅ Done | 2026-09-23 | Local SQLite context, conventions, converters, 18 mappings + migration `001_LocalCoreSchema`; named filters; no tests (A12). |
-| A10 | ⬜ Not started | | |
-| A11 | ⬜ Not started | | |
+| A10 | ⬜ Not started | | Split: A10a–A10d; ✅ when A10d done. PR #123 work is partial (see A10a). |
+| A10a | ⬜ Not started | | |
+| A10b | ⬜ Not started | | |
+| A10c | ⬜ Not started | | |
+| A10d | ⬜ Not started | | |
+| A11 | ⬜ Not started | | Split: A11a–A11d; ✅ when A11d done. |
+| A11a | ⬜ Not started | | |
+| A11b | ⬜ Not started | | |
+| A11c | ⬜ Not started | | |
+| A11d | ⬜ Not started | | |
 | B01 | ⬜ Not started | | |
 | B02 | ⬜ Not started | | |
 | B03 | ⬜ Not started | | |
