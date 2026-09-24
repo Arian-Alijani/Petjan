@@ -37,6 +37,12 @@ public sealed record ProductVariant(
     string? Barcode,
     bool IsActive)
 {
+    /// <summary>Materialization-only constructor for the persistence store; all values are then set from columns.</summary>
+    private ProductVariant()
+        : this(string.Empty, string.Empty, string.Empty, string.Empty, default, default, default, null, false)
+    {
+    }
+
     /// <summary>The attribute name of the implicit single variant of a product without variants.</summary>
     public const string DefaultAttributeName = "DEFAULT";
 

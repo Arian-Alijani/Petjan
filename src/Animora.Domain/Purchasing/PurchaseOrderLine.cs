@@ -34,6 +34,12 @@ public sealed record PurchaseOrderLine(
     string? LotNumber,
     DateTimeOffset? ExpiryUtc)
 {
+    /// <summary>Materialization-only constructor for the persistence store; all values are then set from columns.</summary>
+    private PurchaseOrderLine()
+        : this(string.Empty, string.Empty, string.Empty, default, default, default, 0m, 0m, null, null)
+    {
+    }
+
     /// <summary><c>OrderedQuantity × UnitCost</c>, before discount and tax.</summary>
     public Money Gross => UnitCost.ApplyPercent(OrderedQuantity.Value * 100m);
 

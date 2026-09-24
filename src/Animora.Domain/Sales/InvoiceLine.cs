@@ -77,6 +77,12 @@ public sealed record InvoiceLine(
     InvoiceLineSource Source,
     string? SourceEntityId)
 {
+    /// <summary>Materialization-only constructor for the persistence store; all values are then set from columns.</summary>
+    private InvoiceLine()
+        : this(string.Empty, default, null, null, null, string.Empty, default, default, 0m, 0m, default, null)
+    {
+    }
+
     /// <summary><c>Quantity × UnitPrice</c>, before any discount or tax.</summary>
     public Money LineGross => UnitPrice.ApplyPercent(Quantity.Value * 100m);
 

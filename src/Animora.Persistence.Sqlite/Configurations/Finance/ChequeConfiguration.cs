@@ -11,6 +11,15 @@ public sealed class ChequeConfiguration : IEntityTypeConfiguration<Cheque>
     {
         builder.HasKey(e => e.Id);
         builder.HasIndex(e => new { e.TenantId, e.State, e.DueUtc }).HasDatabaseName("IX_Cheques_TenantId_State_DueUtc");
-        OwnedRows.Map(builder, e => e.History, "_history", "ChequeEvents", "EventId");
+        OwnedRows.Map(builder, e => e.History);
+    }
+}
+
+/// <summary>Child rows of <see cref="ChequeEvent"/>'s aggregate, table <c>ChequeEvents</c>.</summary>
+public sealed class ChequeEventConfiguration : IEntityTypeConfiguration<ChequeEvent>
+{
+    public void Configure(EntityTypeBuilder<ChequeEvent> builder)
+    {
+        OwnedRows.Row(builder, "ChequeEvents", e => e.EventId);
     }
 }

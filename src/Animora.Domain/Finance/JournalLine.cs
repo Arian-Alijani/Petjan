@@ -35,6 +35,12 @@ public sealed record JournalLine(
     string? Memo,
     string? CostCenter)
 {
+    /// <summary>Materialization-only constructor for the persistence store; all values are then set from columns.</summary>
+    private JournalLine()
+        : this(string.Empty, string.Empty, default, default, null, null)
+    {
+    }
+
     /// <summary><see langword="true"/> when the line posts to the debit side.</summary>
     public bool IsDebit => Side == EntrySide.Debit;
 

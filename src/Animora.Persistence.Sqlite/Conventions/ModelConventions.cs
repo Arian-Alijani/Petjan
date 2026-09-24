@@ -15,7 +15,7 @@ public static class ModelConventions
 
     public static void Apply(ModelBuilder modelBuilder, AnimoraLocalDbContext context)
     {
-        // Only roots are processed here: JSON-owned children have their own shape and table name.
+        // Only roots are processed here: owned rows get the same scalar rules via OwnedRows.ApplyOwnedScalarConventions.
         foreach (var type in modelBuilder.Model.GetEntityTypes().Where(t => !t.IsOwned()).ToArray())
         {
             var clr = type.ClrType;
@@ -31,50 +31,41 @@ public static class ModelConventions
                     .MakeGenericMethod(clr).Invoke(null, [modelBuilder, context, table]);
             }
             foreach (var property in type.GetProperties().ToArray())
-            {
-                var builder = entity.Property(property.ClrType, property.Name);
-                var name = property.Name;
-                if (property.ClrType == typeof(string))
-                {
-                    var id = name == "Id" || name == "TenantId" || name.EndsWith("Id", StringComparison.Ordinal);
-                    var length = id ? FieldLengths.Id : name.Contains("Phone", StringComparison.Ordinal) ? FieldLengths.Phone
-                        : name == "NationalId" ? FieldLengths.NationalId : name.EndsWith("Currency", StringComparison.Ordinal) ? FieldLengths.Currency
-                        : name.EndsWith("Code", StringComparison.Ordinal) ? FieldLengths.Code
-                        : name.EndsWith("Name", StringComparison.Ordinal) ? FieldLengths.Name
-                        : name.EndsWith("Title", StringComparison.Ordinal) ? FieldLengths.Title
-                        : name.EndsWith("Note", StringComparison.Ordinal) || name.EndsWith("Notes", StringComparison.Ordinal)
-                          || name.EndsWith("Memo", StringComparison.Ordinal) || name.EndsWith("Description", StringComparison.Ordinal)
-                          ? FieldLengths.LongText : FieldLengths.ShortText;
-                    builder.HasColumnType("TEXT").HasMaxLength(length);
-                    if (id && !property.IsNullable) builder.IsRequired();
-                }
-                else if (property.ClrType.IsEnum) builder.HasConversion(typeof(int));
-                else if (property.ClrType == typeof(DateTimeOffset)) builder.HasConversion(new UtcTicksConverter()).HasColumnType("INTEGER");
-                else if (property.ClrType == typeof(DateTimeOffset?)) builder.HasConversion(new NullableUtcTicksConverter()).HasColumnType("INTEGER");
-                else if (property.ClrType == typeof(decimal)) builder.HasConversion(new DecimalStringConverter()).HasColumnType("TEXT");
-            }
-            // Complex value objects are stored as exact INTEGER + TEXT, not SQLite NUMERIC.
+                ApplyScalar(entity.Property(property.ClrType, property.Name), property.ClrType, property.Name, property.IsNullable);
+            // Complex value objects are stored as exact INTEGER + TEXT, not SQLite NUMERIC. Configs may pre-map
+            // a value explicitly (e.g. summable fixed-scale quantity); those are left untouched here.
             foreach (var property in clr.GetProperties(BindingFlags.Instance | BindingFlags.Public))
             {
+                if (!property.CanWrite || type.FindComplexProperty(property.Name) is not null) continue; // computed values are not stored
                 if (property.PropertyType == typeof(Money))
-                    entity.ComplexProperty<Money>(property.Name, value =>
-                    {
-                        value.Property(v => v.Minor).HasColumnName(property.Name + "Minor").HasColumnType("INTEGER");
-                        value.Property(v => v.Currency).HasColumnName(property.Name + "Currency").HasColumnType("TEXT").HasMaxLength(FieldLengths.Currency);
-                        value.Ignore(v => v.Scale);
-                        value.Ignore(v => v.IsZero);
-                        value.Ignore(v => v.IsNegative);
-                    });
+                    entity.ComplexProperty<Money>(property.Name, value => OwnedRows.ConfigureMoney(value, property.Name));
                 else if (property.PropertyType == typeof(Quantity))
-                    entity.ComplexProperty<Quantity>(property.Name, value =>
-                    {
-                        value.Property(v => v.Value).HasColumnName(property.Name + "Value").HasConversion(new DecimalStringConverter()).HasColumnType("TEXT");
-                        value.Property(v => v.UnitCode).HasColumnName(property.Name + "Unit").HasColumnType("TEXT").HasMaxLength(FieldLengths.UnitCode);
-                        value.Ignore(v => v.IsZero);
-                        value.Ignore(v => v.IsNegative);
-                    });
+                    entity.ComplexProperty<Quantity>(property.Name, value => OwnedRows.ConfigureQuantity(value, property.Name, summable: false));
             }
         }
+    }
+
+    /// <summary>Scalar storage rules shared by roots and owned rows: bounded TEXT, int enums, UTC ticks, exact decimal TEXT.</summary>
+    internal static void ApplyScalar(PropertyBuilder builder, Type clrType, string name, bool isNullable)
+    {
+        if (clrType == typeof(string))
+        {
+            var id = name == "Id" || name == "TenantId" || name.EndsWith("Id", StringComparison.Ordinal);
+            var length = id ? FieldLengths.Id : name.Contains("Phone", StringComparison.Ordinal) ? FieldLengths.Phone
+                : name == "NationalId" ? FieldLengths.NationalId : name.EndsWith("Currency", StringComparison.Ordinal) ? FieldLengths.Currency
+                : name.EndsWith("Code", StringComparison.Ordinal) ? FieldLengths.Code
+                : name.EndsWith("Name", StringComparison.Ordinal) ? FieldLengths.Name
+                : name.EndsWith("Title", StringComparison.Ordinal) ? FieldLengths.Title
+                : name.EndsWith("Note", StringComparison.Ordinal) || name.EndsWith("Notes", StringComparison.Ordinal)
+                  || name.EndsWith("Memo", StringComparison.Ordinal) || name.EndsWith("Description", StringComparison.Ordinal)
+                  ? FieldLengths.LongText : FieldLengths.ShortText;
+            builder.HasColumnType("TEXT").HasMaxLength(length);
+            if (id && !isNullable) builder.IsRequired();
+        }
+        else if (clrType.IsEnum) builder.HasConversion(typeof(int));
+        else if (clrType == typeof(DateTimeOffset)) builder.HasConversion(new UtcTicksConverter()).HasColumnType("INTEGER");
+        else if (clrType == typeof(DateTimeOffset?)) builder.HasConversion(new NullableUtcTicksConverter()).HasColumnType("INTEGER");
+        else if (clrType == typeof(decimal)) builder.HasConversion(new DecimalStringConverter()).HasColumnType("TEXT");
     }
 
     private static void ConfigureFilters<TEntity>(ModelBuilder modelBuilder, AnimoraLocalDbContext context, string table)

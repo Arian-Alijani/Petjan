@@ -11,6 +11,17 @@ public sealed class GoodsReceiptConfiguration : IEntityTypeConfiguration<GoodsRe
     {
         builder.HasKey(e => e.Id);
         builder.HasIndex(e => new { e.TenantId, e.PurchaseOrderId }).HasDatabaseName("IX_GoodsReceipts_TenantId_PurchaseOrderId");
-        OwnedRows.Map(builder, e => e.Lines, "_lines", "GoodsReceiptLines", "LineId");
+        OwnedRows.Map(builder, e => e.Lines);
+    }
+}
+
+/// <summary>Child rows of <see cref="GoodsReceiptLine"/>'s aggregate, table <c>GoodsReceiptLines</c>.</summary>
+public sealed class GoodsReceiptLineConfiguration : IEntityTypeConfiguration<GoodsReceiptLine>
+{
+    public void Configure(EntityTypeBuilder<GoodsReceiptLine> builder)
+    {
+        OwnedRows.Row(builder, "GoodsReceiptLines", e => e.LineId);
+        OwnedRows.Quantity(builder, e => e.Quantity, summable: true);
+        OwnedRows.Money(builder, e => e.UnitCost);
     }
 }
