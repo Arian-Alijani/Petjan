@@ -4,6 +4,7 @@ using Animora.Domain.Events;
 using Animora.Domain.Primitives;
 using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Conventions;
+using Animora.Persistence.Sqlite.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Persistence.Sqlite.Context;
@@ -24,6 +25,9 @@ public sealed class AnimoraLocalDbContext(
         modelBuilder.Ignore<VisitServiceLine>();
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AnimoraLocalDbContext).Assembly);
         ModelConventions.Apply(modelBuilder, this);
+        // Conventions assign generic string bounds; this column is a fixed-width hex SHA-256.
+        modelBuilder.Entity<LocalInstallation>().Property(e => e.MachineFingerprintHash)
+            .HasMaxLength(LocalInstallation.FingerprintHashLength);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

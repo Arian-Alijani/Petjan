@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A11b`** — `backend-roadmap/phases/PHASE-A11b-*.md` (A11 is split into 4 one-session sub-phases a→d; run them in order)
+**Next phase: `A11c`** — `backend-roadmap/phases/PHASE-A11c-*.md` (A11 is split into 4 one-session sub-phases a→d; run them in order)
 
 ## Phase status
 
@@ -60,7 +60,7 @@
 | A10d | ✅ Done | 2026-09-24 | `Queries/`: `QueryPaging.ToPagedAsync` (page≥1, size clamped `[1,min(MaxPageSize,200)]`, requires OrderBy, COUNT + bounded select; skips select past end), `StockOnHandQuery` (GROUP BY ProductId,VariantId SUM `QuantityScaled`), `InvoiceBalanceQuery` (one SELECT: invoice + correlated SUM payments/adjustments + currency-mismatch counts → throws), `LedgerBalanceQuery` (Entries⨝Lines GROUP BY PeriodId,AccountCode,Currency; debit/credit by `Side`). Bounded id inputs (500/500/60), AsNoTracking, tenant filter kept; 3 queries scoped in DI. Migration `20260924054447_002_LocalBusinessSchema` (24 CreateTable, 39 CreateIndex, no Alter/Drop in Up); 001 untouched. |
 | A11 | ⬜ Not started | | Split: A11a–A11d; ✅ when A11d done. |
 | A11a | ✅ Done | 2026-09-24 | `Infrastructure.Local/Security`: `ISecretStore` + DPAPI (win) / Keychain via `/usr/bin/security` (mac) / dev `FileFallbackSecretStore` (opt-in, warns every read); no OS store + no fallback → fail-closed store. Pin `System.Security.Cryptography.ProtectedData` 10.0.12. `LocalDbKeyService` (fail-closed: non-NotFound read failure → `STORE_KEY_UNAVAILABLE`; `GetKey()` throws) replaces `NullStoreKeyProvider`. `KeySource` in `Persistence.Sqlite/Maintenance`. `InstallationIdentity`. 6 store error codes; `LocalStoreOptions` += fallback/K2/WAL/backup + `Validate()`/`DataDirectory`. DI: `AddAnimoraLocalInfrastructure`. build full 0/0; no tests (A12). |
-| A11b | ⬜ Not started | | |
+| A11b | ✅ Done | 2026-09-24 | Cipher seam `IStoreEncryptionProvider`: `NoEncryptionProvider` (default) / `MultipleCiphersEncryptionProvider` (`PRAGMA key` escaped, `cipher_page_size=4096`, `sqlite_master` verify → `STORE_KEY_UNAVAILABLE`), selected only when `EncryptionEnabled && K2Approved`; no cipher package pin (E08). `SqliteConnectionInterceptor` rewritten sync+async: (a) key via `IStoreKeyProvider` → `Apply` when encryption on, missing key → throw (fail closed); (b) WAL/NORMAL/clamped busy_timeout/foreign_keys. Interceptor + deps now singletons. `AddAnimoraLocalStore`: `options.Validate()` at context-options build → throw; `IStoreKeyProvider` Null via TryAdd. Entities (`Entities/`, `[LocalOnly]`, not tenant-filtered — installation-level, commented): `LocalInstallation` (PK InstallationId ULID, fingerprint hash TEXT 64), `ClockHighWater` (fixed Id=1), `StoreMaintenanceLog` (Kind int enum, Detail ≤400; added to `AppendOnlyGuard`). `LocalInstallationBootstrap.EnsureAsync` creates row (TenantId `T-LOCAL-DEFAULT`) → singleton `LocalInstallationState`; `SingleTenantContext` reads cache, sentinel fallback, no DB call. Migration `003_LocalHardening` (3 tables + IX_StoreMaintenanceLogs_OccurredAtUtc); 001/002 byte-identical. Gate: ef list 001/002/003, no pending changes, build full 0/0. |
 | A11c | ⬜ Not started | | |
 | A11d | ⬜ Not started | | |
 | B01 | ⬜ Not started | | |
