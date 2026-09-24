@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A11a`** — `backend-roadmap/phases/PHASE-A11a-*.md` (A11 is split into 4 one-session sub-phases a→d; run them in order)
+**Next phase: `A11b`** — `backend-roadmap/phases/PHASE-A11b-*.md` (A11 is split into 4 one-session sub-phases a→d; run them in order)
 
 ## Phase status
 
@@ -59,7 +59,7 @@
 | A10c | ✅ Done | 2026-09-24 | `Seed/`: `[LocalOnly] SeedMarker` (SeedKey unique `IX_SeedMarkers_SeedKey`, SchemaVersion=1) + `LocalSeeder.SeedAsync` — per block: indexed marker check → rows + marker in one `IUnitOfWork.ExecuteAsync` tx; concurrent loser rolls back and succeeds if the winner's marker exists; failed factory `Result`s propagate (all-or-nothing per block). Marker keys/blocks: `identity.tenant` (T-LOCAL-DEFAULT), `identity.permissions` (full `PermissionCodes.CreateCatalog()`), `identity.roles` (5 `RoleDefinition.CreateSystem` from `DefaultRolePermissions`), `finance.chart` (20 `ChartOfAccounts.Default`), `finance.period.initial` (1 open period), `inventory.units` (PCS BOX ML MG G KG DOSE), `inventory.categories` (root MED VAC FOOD ACC SRV), `boarding.rooms` (R-01…R-08, cap 1; R-07 Isolation, R-08 Vip). Tenant bootstrap: new narrow `Tenant.CreateLocalDefault(displayName)` + `Tenant.LocalDefaultId` (reserved exception: Id=TenantId=sentinel); seeder refuses unless tenant context = sentinel. Catalog decision: `ExpenseCategories`/`AppointmentTypeCatalog`/`VaccineSchedule` stay **static** (domain is sole authority, referenced by opaque code, no FK) — no DB rows. Period code: `ISeedPeriodCodeProvider` → `PersianMonthPeriodCodeProvider` (singleton; `PersianCalendar` month in Asia/Tehran, code `yyyy-MM` Jalali, real UTC bounds from injected `IClock`; fallback fixed +03:30 zone). `LocalSeeder` scoped in `AddAnimoraLocalStore`; not called from desktop. Gate: build 0/0, `dotnet ef dbcontext info` OK (SeedMarkers in model). No migration (A10d), no tests. |
 | A10d | ✅ Done | 2026-09-24 | `Queries/`: `QueryPaging.ToPagedAsync` (page≥1, size clamped `[1,min(MaxPageSize,200)]`, requires OrderBy, COUNT + bounded select; skips select past end), `StockOnHandQuery` (GROUP BY ProductId,VariantId SUM `QuantityScaled`), `InvoiceBalanceQuery` (one SELECT: invoice + correlated SUM payments/adjustments + currency-mismatch counts → throws), `LedgerBalanceQuery` (Entries⨝Lines GROUP BY PeriodId,AccountCode,Currency; debit/credit by `Side`). Bounded id inputs (500/500/60), AsNoTracking, tenant filter kept; 3 queries scoped in DI. Migration `20260924054447_002_LocalBusinessSchema` (24 CreateTable, 39 CreateIndex, no Alter/Drop in Up); 001 untouched. |
 | A11 | ⬜ Not started | | Split: A11a–A11d; ✅ when A11d done. |
-| A11a | ⬜ Not started | | |
+| A11a | ✅ Done | 2026-09-24 | `Infrastructure.Local/Security`: `ISecretStore` + DPAPI (win) / Keychain via `/usr/bin/security` (mac) / dev `FileFallbackSecretStore` (opt-in, warns every read); no OS store + no fallback → fail-closed store. Pin `System.Security.Cryptography.ProtectedData` 10.0.12. `LocalDbKeyService` (fail-closed: non-NotFound read failure → `STORE_KEY_UNAVAILABLE`; `GetKey()` throws) replaces `NullStoreKeyProvider`. `KeySource` in `Persistence.Sqlite/Maintenance`. `InstallationIdentity`. 6 store error codes; `LocalStoreOptions` += fallback/K2/WAL/backup + `Validate()`/`DataDirectory`. DI: `AddAnimoraLocalInfrastructure`. build full 0/0; no tests (A12). |
 | A11b | ⬜ Not started | | |
 | A11c | ⬜ Not started | | |
 | A11d | ⬜ Not started | | |
