@@ -1,6 +1,7 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Ports;
 using Animora.Domain.Events;
+using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Persistence.Sqlite.Options;
 using Animora.Persistence.Sqlite.Queries;
 using Animora.Persistence.Sqlite.Repositories;
@@ -86,6 +87,9 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<StockOnHandQuery>();
         services.TryAddScoped<InvoiceBalanceQuery>();
         services.TryAddScoped<LedgerBalanceQuery>();
+
+        // Maintenance paths (A11c); the initializer (A11d) is resolved lazily inside.
+        services.TryAddScoped<ILocalStoreMaintenance, LocalStoreMaintenance>();
         return services;
     }
 

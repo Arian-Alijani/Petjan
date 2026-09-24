@@ -38,6 +38,21 @@ public sealed class SqliteConnectionInterceptor(
         }
     }
 
+    /// <summary>
+    /// Same key + pragma path for connections opened outside EF (maintenance). Call right after <c>Open()</c>.
+    /// </summary>
+    public void Prepare(DbConnection connection, bool sessionPragmas = true)
+    {
+        ApplyKey(connection);
+        if (!sessionPragmas) return;
+        foreach (var pragma in Pragmas())
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = pragma;
+            command.ExecuteNonQuery();
+        }
+    }
+
     private void ApplyKey(DbConnection connection)
     {
         if (!options.Value.EncryptionEnabled) return;

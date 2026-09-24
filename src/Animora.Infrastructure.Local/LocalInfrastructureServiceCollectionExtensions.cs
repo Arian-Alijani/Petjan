@@ -1,4 +1,6 @@
+using Animora.Application.Ports;
 using Animora.Domain.Results;
+using Animora.Infrastructure.Local.Storage;
 using Animora.Infrastructure.Local.Security;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Options;
@@ -22,6 +24,9 @@ public static class LocalInfrastructureServiceCollectionExtensions
         services.TryAddSingleton<LocalDbKeyService>();
         services.Replace(ServiceDescriptor.Singleton<IStoreKeyProvider>(p => p.GetRequiredService<LocalDbKeyService>()));
         services.TryAddSingleton<InstallationIdentity>();
+
+        // A11c — content-addressed local file store.
+        services.TryAddSingleton<ILocalFileStore, LocalFileStore>();
         return services;
     }
 
