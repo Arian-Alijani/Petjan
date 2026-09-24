@@ -78,6 +78,31 @@ public sealed class Tenant : AggregateRoot
         };
     }
 
+    /// <summary>
+    /// Reserved sentinel id of the single local tenant of an offline desktop store. Only the
+    /// local first-run seed may create a tenant with this id (see <see cref="CreateLocalDefault"/>).
+    /// </summary>
+    public const string LocalDefaultId = "T-LOCAL-DEFAULT";
+
+    /// <summary>
+    /// Bootstrap path, reserved exception to the ULID rule: creates the local default tenant whose
+    /// <c>Id</c> and <c>TenantId</c> are both <see cref="LocalDefaultId"/>, so it is visible under the
+    /// local store's single-tenant filter. Used only by the persistence first-run seed.
+    /// </summary>
+    public static Tenant CreateLocalDefault(string displayName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        return new Tenant
+        {
+            Id = LocalDefaultId,
+            TenantId = LocalDefaultId,
+            DisplayName = displayName.Trim(),
+            Timezone = DefaultTimezone,
+            DefaultCurrency = CurrencyScale.Irt,
+            Status = TenantStatus.Active,
+        };
+    }
+
     /// <summary>Moves the tenant to <paramref name="status"/>. Idempotent.</summary>
     public void SetStatus(TenantStatus status) => Status = status;
 
