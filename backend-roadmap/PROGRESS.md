@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A12`** — `backend-roadmap/phases/PHASE-A12-*.md`
+**Next phase: `B01`** — `backend-roadmap/phases/PHASE-B01-*.md`
 
 ## Phase status
 
@@ -63,6 +63,7 @@
 | A11b | ✅ Done | 2026-09-24 | Cipher seam `IStoreEncryptionProvider`: `NoEncryptionProvider` (default) / `MultipleCiphersEncryptionProvider` (`PRAGMA key` escaped, `cipher_page_size=4096`, `sqlite_master` verify → `STORE_KEY_UNAVAILABLE`), selected only when `EncryptionEnabled && K2Approved`; no cipher package pin (E08). `SqliteConnectionInterceptor` rewritten sync+async: (a) key via `IStoreKeyProvider` → `Apply` when encryption on, missing key → throw (fail closed); (b) WAL/NORMAL/clamped busy_timeout/foreign_keys. Interceptor + deps now singletons. `AddAnimoraLocalStore`: `options.Validate()` at context-options build → throw; `IStoreKeyProvider` Null via TryAdd. Entities (`Entities/`, `[LocalOnly]`, not tenant-filtered — installation-level, commented): `LocalInstallation` (PK InstallationId ULID, fingerprint hash TEXT 64), `ClockHighWater` (fixed Id=1), `StoreMaintenanceLog` (Kind int enum, Detail ≤400; added to `AppendOnlyGuard`). `LocalInstallationBootstrap.EnsureAsync` creates row (TenantId `T-LOCAL-DEFAULT`) → singleton `LocalInstallationState`; `SingleTenantContext` reads cache, sentinel fallback, no DB call. Migration `003_LocalHardening` (3 tables + IX_StoreMaintenanceLogs_OccurredAtUtc); 001/002 byte-identical. Gate: ef list 001/002/003, no pending changes, build full 0/0. |
 | A11c | ✅ Done | 2026-09-24 | `Infrastructure.Local/Startup/NativeSqliteAssertion`: `Assert(open)` runs `SELECT sqlite_version()`, `Parse` (strict `major.minor.patch`) — < 3.50.2 or unparsable → `NATIVE_SQLITE_TOO_OLD` (detail = actual version); T-RULE 004. `LocalStoreDiagnostics` record + `ILocalStoreInitializer` live in `Persistence.Sqlite/Maintenance/` (avoid Persistence↔Infrastructure cycle; initializer implemented in A11d, resolved lazily via `IServiceProvider`). `ILocalStoreMaintenance`/`LocalStoreMaintenance` (scoped, `AddAnimoraLocalStore`): fresh unpooled connections through new `SqliteConnectionInterceptor.Prepare` (same key + pragma path). Backup → `<BackupDirectory>/animora-<yyyyMMdd-HHmmss>[-n].db` via `BackupDatabase` (destination keyed ⇒ stays encrypted), `quick_check` (bad copy deleted → `STORE_BACKUP_FAILED`), prune to `BackupRetentionCount`; Restore validates exists+quick_check, quarantines current, copies, `InitializeAsync` → `STORE_RESTORE_FAILED` with original kept; QuarantineAndRebuild: `ClearAllPools`, move db/-wal/-shm to `<data>/quarantine/<stamp>/` (**never deletes**), re-entry flag (second corrupt → `STORE_CORRUPT`, no loop), `Quarantined=true`; Vacuum: `VACUUM` + `wal_checkpoint(TRUNCATE)`, returns page_count delta. Log kinds written: Backup/Restore/Quarantine/Vacuum. SqliteException(11/26)→`STORE_CORRUPT`, key failure→`STORE_KEY_UNAVAILABLE`, else op code; cancellation propagates. `Application/Ports/ILocalFileStore` + `Infrastructure.Local/Storage/LocalFileStore` (singleton): `<data>/files/<sha[0..2]>/<sha256>`, stream-to-temp (`files/.tmp`) while hashing, atomic move, dedupe; hash `^[0-9a-f]{64}$` else `VALIDATION_FAILED`; missing → `NOT_FOUND`. Gate: build full 0/0; network grep clean in sources (only implicit `System.Net.Http` global using in `obj/`). |
 | A11d | ✅ Done | 2026-09-24 | `Infrastructure.Local/Time/SystemClock` (over `TimeProvider`, default System) + `MonotonicClock` (singleton; `Stopwatch.GetTimestamp`; lazy high-water from `ClockHighWaters` via own scope + `IDbContextFactory`; `Observe` under lock, memory + single-statement upsert `ON CONFLICT … WHERE HighWaterUtc < excluded` — never lowers; store-not-ready tolerated, retried). `Startup/LocalStoreStartup : ILocalStoreInitializer` (scoped) — 8 steps with internal `Steps` log (`InternalsVisibleTo Animora.Persistence.Tests`): dir 0700 / Windows current-user protected ACL + crash flag; `Validate` + passphrase before any file; open + `NativeSqliteAssertion`; `quick_check`/SqliteException 11/26 → `QuarantineAndRebuildAsync` (AsyncLocal re-entry guard → `STORE_CORRUPT`); `MigrateAsync`; WAL TRUNCATE when pages > `WalCheckpointPages` (log `Checkpoint`) + `CrashRecovery` log; bootstrap + seed; diagnostics. DI: `IClock`→`SystemClock`, `IMonotonicClock`, `LocalStoreStartup` + `ILocalStoreInitializer` (all TryAdd). Gate: build full 0/0, SMOKE RUN OK, network grep clean, ef list 001/002/003 + no pending changes; throwaway ValidateScopes/ValidateOnBuild provider + real init OK (native 3.50.4, dir mode 700, high-water not lowered). |
+| A12 | ✅ Done | 2026-09-24 | Track A test consolidation: 18 Domain + 16 Persistence test files (incl. `FakeClock`, `LocalStoreTestFixture`, `TestSupport`) covering A05–A11. One A02 defect fixed (IdGenerator shared high-water, see Repo state log "A12"). Expected 321 tests green (259+2 Domain, 57 Persistence, 3 others); final build/test.sh/run.sh re-verification not run in the finishing session (user directive: no long builds/tests) — run once before B01. |
 | B01 | ⬜ Not started | | |
 | B02 | ⬜ Not started | | |
 | B03 | ⬜ Not started | | |
@@ -105,6 +106,42 @@
 Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blocked (reason)`.
 
 ## Repo state log
+
+### A12 — Track A test consolidation (2026-09-24)
+
+- **Test classes added — Domain (`tests/Animora.Domain.Tests`, A05–A08):** `SlotConflictPolicyTests`,
+  `AppointmentStateMachineTests`, `BoardingStayTests`, `ReceptionQueueTests`, `StockCalculatorTests`,
+  `StockMovementFactoryTests`, `ProductInvariantTests`, `PurchaseOrderTests`, `InvoiceStateMachineTests`,
+  `InvoiceImmutabilityTests`, `InvoiceTotalsTests`, `PaymentTests`, `CashSessionTests`, `JournalEntryTests`,
+  `PostingRulesTests`, `ChequeLifecycleTests`, `AccountingPeriodTests` (+ helper `FakeClock`).
+- **Test classes added — Persistence (`tests/Animora.Persistence.Tests`, A09–A11):** `LocalMigrationTests`,
+  `ConverterTests`, `QueryFilterTests`, `BusinessMappingTests`, `AppendOnlyGuardTests`, `UnitOfWorkTests`,
+  `DerivedQueryTests`, `SeedingTests`, `NativeSqliteVersionTests`, `StoreStartupTests`, `BackupRestoreTests`,
+  `QuarantineRebuildTests`, `MonotonicClockTests`, `LocalFileStoreTests` (+ helper `TestSupport` with the
+  `CommandCounter` interceptor).
+- **Fixture:** `LocalStoreTestFixture` added — shared temp **file** SQLite db per test (never `:memory:`).
+- **Test count:** 321 total (Domain 261, Persistence 57, Application/Sync/Server 1 each). Before the finishing
+  fixes the run was Domain 259/261 (2 red, below); both are fixed so the expected result is 321/321 green.
+- **Bug-fix (A02 defect, minimal):** `IdGenerator` — `NewId()` (monotonic) and `NewId(DateTimeOffset)`
+  (explicit) shared one static high-water (`LastRandom`/`_lastMs`). An explicit call with a past instant reset
+  it, so the next parameterless id in the same real millisecond drew fresh randomness and could sort *below*
+  the previous one (flaky `IdGeneratorTests.TenThousandIds_AreUniqueAndStrictlyAscending`, ~1/15 in the full
+  parallel run). Fix: the explicit path now keeps its own `LastRandomExplicit`/`_lastExplicitMs`, under the
+  same lock. Public signatures and the "explicit earlier instant is honoured as given" contract are unchanged.
+- **Test-side fixes (no production change):** `PaymentTests` reversal scenario (pay 40k then reverse −40k);
+  `CashSessionTests` variance-note amounts (declared 710000 vs expected 700000); reflection assertions (below).
+- **No production type/migration/DI/mock change otherwise.** No committed migration edited.
+- **Deviations:**
+  - `tests/Animora.Persistence.Tests/Animora.Persistence.Tests.csproj` gained a `ProjectReference` to
+    `src/Animora.Infrastructure.Local` (A11 store-hardening types are under test).
+  - `PaymentTests.PaymentAndAdjustment_ExposeNoPublicSetter` and `JournalEntryTests.JournalEntry_ExposesNoPublicSetter`
+    assert **no mutable public setter**: a public setter, if present, must be init-only (`IsExternalInit`
+    modreq). `InvoiceAdjustment` is a positional record whose `init` setters are construction-only, which
+    satisfies A-RULE 002/003 ("never edited"). Inherited `SyncableEntity` transport properties stay skipped.
+- **Gate:** this is the first phase whose entry records test.sh = TESTS OK for the full Track A suite.
+  Note: the finishing session (reflection + IdGenerator fixes) did not re-run the full build, `test.sh` or
+  `run.sh` (explicit user directive to skip long-running scripts); the first session to run them must confirm
+  `Build 0/0`, `TESTS OK` and `SMOKE RUN OK` before starting B01, and amend this line if anything is red.
 
 ### A11 — Local hardening: keystore, encryption seam, native assertion, startup, maintenance, clocks (2026-09-24)
 

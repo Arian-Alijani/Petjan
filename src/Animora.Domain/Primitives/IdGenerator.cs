@@ -31,6 +31,11 @@ public static class IdGenerator
     private static readonly byte[] LastRandom = new byte[RandomBytes];
     private static long _lastMs = -1;
 
+    // The explicit-instant overload keeps its own high-water state so a caller-supplied
+    // (possibly past) instant can never reset the parameterless path's monotonic state.
+    private static readonly byte[] LastRandomExplicit = new byte[RandomBytes];
+    private static long _lastExplicitMs = -1;
+
     /// <summary>
     /// Creates a new ULID stamped with the current UTC time. Strictly greater than every
     /// id this process produced before it, even if the OS clock jumps backwards.
@@ -55,22 +60,32 @@ public static class IdGenerator
         Span<byte> random = stackalloc byte[RandomBytes];
         lock (Gate)
         {
-            if (enforceMonotonic && ms < _lastMs)
+            var lastRandom = enforceMonotonic ? LastRandom : LastRandomExplicit;
+            var lastMs = enforceMonotonic ? _lastMs : _lastExplicitMs;
+
+            if (enforceMonotonic && ms < lastMs)
             {
-                ms = _lastMs;
+                ms = lastMs;
             }
 
-            if (ms == _lastMs)
+            if (ms == lastMs)
             {
-                IncrementInPlace(LastRandom);
+                IncrementInPlace(lastRandom);
             }
             else
             {
-                RandomNumberGenerator.Fill(LastRandom);
-                _lastMs = ms;
+                RandomNumberGenerator.Fill(lastRandom);
+                if (enforceMonotonic)
+                {
+                    _lastMs = ms;
+                }
+                else
+                {
+                    _lastExplicitMs = ms;
+                }
             }
 
-            LastRandom.CopyTo(random);
+            lastRandom.CopyTo(random);
         }
 
         return Encode(ms, random);
