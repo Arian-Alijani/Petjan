@@ -97,6 +97,22 @@ public static class ErrorCodes
     public static readonly ErrorCode CapabilityNotGranted =
         new("CAPABILITY_NOT_GRANTED", ErrorCode.Forbidden);
 
+    /// <summary>Unknown user name or wrong password (deliberately indistinguishable) (B03).</summary>
+    public static readonly ErrorCode CredentialsInvalid =
+        new("CREDENTIALS_INVALID", ErrorCode.Forbidden);
+
+    /// <summary>The local session passed its absolute lifetime; sign in again (B03).</summary>
+    public static readonly ErrorCode SessionExpired =
+        new("SESSION_EXPIRED", ErrorCode.Forbidden);
+
+    /// <summary>The password does not meet the fixed policy (≥ 8 chars, a letter and a digit) (B03).</summary>
+    public static readonly ErrorCode PasswordPolicyViolation =
+        new("PASSWORD_POLICY_VIOLATION", ErrorCode.Validation);
+
+    /// <summary>First-run owner setup was requested but a user already exists (B03).</summary>
+    public static readonly ErrorCode FirstRunAlreadyCompleted =
+        new("FIRST_RUN_ALREADY_COMPLETED", ErrorCode.Conflict);
+
     #endregion
 
     #region Patients & Clinical (Phase A04)

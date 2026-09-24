@@ -1432,6 +1432,9 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.Property<long?>("LockoutEndUtc")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("PasswordHash")
                         .HasMaxLength(400)
                         .HasColumnType("TEXT");
@@ -3272,6 +3275,83 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.HasKey("Name");
 
                     b.ToTable("LocalSequenceCounters", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.LocalSession", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EndReason")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("EndedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("ExpiresAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("LastActivityUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("StartedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_LocalSessions_DeviceId_Active")
+                        .HasFilter("\"EndedAtUtc\" IS NULL");
+
+                    b.ToTable("LocalSessions", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.LoginAttemptLog", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("OccurredAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UsernameAttempted")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAtUtc")
+                        .HasDatabaseName("IX_LoginAttemptLogs_OccurredAtUtc");
+
+                    b.ToTable("LoginAttemptLogs", (string)null);
                 });
 
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.OutboxMessage", b =>

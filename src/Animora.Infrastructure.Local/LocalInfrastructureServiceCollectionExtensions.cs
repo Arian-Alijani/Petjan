@@ -1,4 +1,5 @@
 using Animora.Application.Ports;
+using Animora.Infrastructure.Local.Options;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Infrastructure.Local.Startup;
@@ -38,6 +39,11 @@ public static class LocalInfrastructureServiceCollectionExtensions
         services.TryAddSingleton<IMonotonicClock, MonotonicClock>();
         services.TryAddScoped<LocalStoreStartup>();
         services.TryAddScoped<ILocalStoreInitializer>(p => p.GetRequiredService<LocalStoreStartup>());
+
+        // B03a — password hashing and the durable local session (app-wide; scoped DB access inside).
+        services.AddOptions<LocalSessionOptions>();
+        services.TryAddSingleton<Application.Security.IPasswordHasher, PasswordHashingService>();
+        services.TryAddSingleton<Application.Security.ISessionService, LocalSessionService>();
         return services;
     }
 

@@ -72,6 +72,9 @@ public sealed class User : AggregateRoot
     /// <summary>When the current lockout ends, UTC; <see langword="null"/> when not locked.</summary>
     public DateTimeOffset? LockoutEndUtc { get; private set; }
 
+    /// <summary>The user must set a new password before any other action (B03).</summary>
+    public bool MustChangePassword { get; private set; }
+
     /// <summary>Creates an active user with a fresh security stamp and no credential.</summary>
     public static User Create(string tenantId, string userName, string displayName, IClock clock)
     {
@@ -164,8 +167,12 @@ public sealed class User : AggregateRoot
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
         PasswordHash = passwordHash;
+        MustChangePassword = false;
         RotateSecurityStamp();
     }
+
+    /// <summary>Forces a password change on the next sign-in.</summary>
+    public void RequirePasswordChange() => MustChangePassword = true;
 
     /// <summary>Administratively disables the account and rotates the security stamp.</summary>
     public void Disable()
