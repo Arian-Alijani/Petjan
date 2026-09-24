@@ -409,4 +409,19 @@ public static class ErrorCodes
         new("STORE_ENCRYPTION_NOT_APPROVED", ErrorCode.Infrastructure);
 
     #endregion
+
+    #region Application dispatch (B01)
+
+    /// <summary>No handler is registered for the dispatched command/query type. <c>Detail</c> names the type.</summary>
+    public static readonly ErrorCode HandlerNotRegistered =
+        new("HANDLER_NOT_REGISTERED", ErrorCode.Infrastructure);
+
+    /// <summary>
+    /// The dispatch pipeline could not run the request (kind/result-type mismatch or a missing pipeline
+    /// dependency such as the unit of work). A wiring defect, never a business outcome.
+    /// </summary>
+    public static readonly ErrorCode DispatchFailed =
+        new("DISPATCH_FAILED", ErrorCode.Infrastructure);
+
+    #endregion
 }

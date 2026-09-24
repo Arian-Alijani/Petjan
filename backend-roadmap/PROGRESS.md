@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `B01`** — `backend-roadmap/phases/PHASE-B01-*.md`
+**Next phase: `B02`** — `backend-roadmap/phases/PHASE-B02-*.md`
 
 ## Phase status
 
@@ -64,7 +64,7 @@
 | A11c | ✅ Done | 2026-09-24 | `Infrastructure.Local/Startup/NativeSqliteAssertion`: `Assert(open)` runs `SELECT sqlite_version()`, `Parse` (strict `major.minor.patch`) — < 3.50.2 or unparsable → `NATIVE_SQLITE_TOO_OLD` (detail = actual version); T-RULE 004. `LocalStoreDiagnostics` record + `ILocalStoreInitializer` live in `Persistence.Sqlite/Maintenance/` (avoid Persistence↔Infrastructure cycle; initializer implemented in A11d, resolved lazily via `IServiceProvider`). `ILocalStoreMaintenance`/`LocalStoreMaintenance` (scoped, `AddAnimoraLocalStore`): fresh unpooled connections through new `SqliteConnectionInterceptor.Prepare` (same key + pragma path). Backup → `<BackupDirectory>/animora-<yyyyMMdd-HHmmss>[-n].db` via `BackupDatabase` (destination keyed ⇒ stays encrypted), `quick_check` (bad copy deleted → `STORE_BACKUP_FAILED`), prune to `BackupRetentionCount`; Restore validates exists+quick_check, quarantines current, copies, `InitializeAsync` → `STORE_RESTORE_FAILED` with original kept; QuarantineAndRebuild: `ClearAllPools`, move db/-wal/-shm to `<data>/quarantine/<stamp>/` (**never deletes**), re-entry flag (second corrupt → `STORE_CORRUPT`, no loop), `Quarantined=true`; Vacuum: `VACUUM` + `wal_checkpoint(TRUNCATE)`, returns page_count delta. Log kinds written: Backup/Restore/Quarantine/Vacuum. SqliteException(11/26)→`STORE_CORRUPT`, key failure→`STORE_KEY_UNAVAILABLE`, else op code; cancellation propagates. `Application/Ports/ILocalFileStore` + `Infrastructure.Local/Storage/LocalFileStore` (singleton): `<data>/files/<sha[0..2]>/<sha256>`, stream-to-temp (`files/.tmp`) while hashing, atomic move, dedupe; hash `^[0-9a-f]{64}$` else `VALIDATION_FAILED`; missing → `NOT_FOUND`. Gate: build full 0/0; network grep clean in sources (only implicit `System.Net.Http` global using in `obj/`). |
 | A11d | ✅ Done | 2026-09-24 | `Infrastructure.Local/Time/SystemClock` (over `TimeProvider`, default System) + `MonotonicClock` (singleton; `Stopwatch.GetTimestamp`; lazy high-water from `ClockHighWaters` via own scope + `IDbContextFactory`; `Observe` under lock, memory + single-statement upsert `ON CONFLICT … WHERE HighWaterUtc < excluded` — never lowers; store-not-ready tolerated, retried). `Startup/LocalStoreStartup : ILocalStoreInitializer` (scoped) — 8 steps with internal `Steps` log (`InternalsVisibleTo Animora.Persistence.Tests`): dir 0700 / Windows current-user protected ACL + crash flag; `Validate` + passphrase before any file; open + `NativeSqliteAssertion`; `quick_check`/SqliteException 11/26 → `QuarantineAndRebuildAsync` (AsyncLocal re-entry guard → `STORE_CORRUPT`); `MigrateAsync`; WAL TRUNCATE when pages > `WalCheckpointPages` (log `Checkpoint`) + `CrashRecovery` log; bootstrap + seed; diagnostics. DI: `IClock`→`SystemClock`, `IMonotonicClock`, `LocalStoreStartup` + `ILocalStoreInitializer` (all TryAdd). Gate: build full 0/0, SMOKE RUN OK, network grep clean, ef list 001/002/003 + no pending changes; throwaway ValidateScopes/ValidateOnBuild provider + real init OK (native 3.50.4, dir mode 700, high-water not lowered). |
 | A12 | ✅ Done | 2026-09-24 | Track A test consolidation: 18 Domain + 16 Persistence test files (incl. `FakeClock`, `LocalStoreTestFixture`, `TestSupport`) covering A05–A11. One A02 defect fixed (IdGenerator shared high-water, see Repo state log "A12"). Expected 321 tests green (259+2 Domain, 57 Persistence, 3 others); final build/test.sh/run.sh re-verification not run in the finishing session (user directive: no long builds/tests) — run once before B01. |
-| B01 | ⬜ Not started | | |
+| B01 | ✅ Done | 2026-09-24 | Application layer skeleton: abstractions, frozen reflection-free dispatcher, fixed 6-behavior chain, validation primitives, 3 security-plane ports + temporary defaults, correlation + `OperationIdFactory`, `AddAnimoraApplication()`, `ErrorCodes` += 2. `build.sh full` 0/0; `test.sh` TESTS OK (353: 261 Domain, 33 Application, 57 Persistence, 1 Sync, 1 Server). `run.sh` not re-run (Xvfb not installed; desktop untouched). |
 | B02 | ⬜ Not started | | |
 | B03 | ⬜ Not started | | |
 | B04 | ⬜ Not started | | |
@@ -106,6 +106,40 @@
 Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blocked (reason)`.
 
 ## Repo state log
+
+### B01 — Application layer skeleton (2026-09-24)
+- **Abstractions** (`Animora.Application.Abstractions`): `ICommand<TResult>`, `IQuery<TResult>` (markers),
+  `ICommandHandler<TCommand,TResult>`, `IQueryHandler<TQuery,TResult>`
+  (`Task<Result<TResult>> HandleAsync(req, ctx, ct)`), `CommandContext` / `QueryContext` (the only carriers
+  of ambient identity), `IDispatcher` (`SendAsync` / `QueryAsync`), `ErrorMapping.FromException` (the single
+  exception → `ErrorCode` table).
+- **Dispatch** (`Animora.Application.Dispatch`): `HandlerRegistry` (readonly `FrozenDictionary<Type, HandlerEntry>`),
+  `HandlerEntry` (typed `PipelineStep<TResult>` + untyped `Invoker` closure, both compiled once),
+  `ApplicationRegistrationBuilder` — `AddCommand<TCommand,TResult,THandler>()`, `AddQuery<TQuery,TResult,THandler>()`,
+  `AddValidator<T,TValidator>()`, `RequireCommand<,>()` / `RequireQuery<,>()`; handlers are scoped.
+  `RegistryValidation.Validate` throws at startup on duplicate handler, abstract handler, required request
+  without handler/wrong kind, or validator without handler. `Dispatcher` returns `HANDLER_NOT_REGISTERED` for an
+  unknown type and `DISPATCH_FAILED` on kind/result mismatch. Supporting types: `IPipelineBehavior`,
+  `PipelineStep<TResult>`, `PipelineDescriptor`, `RequestKind`.
+- **Fixed chain** (`Dispatcher.Chain`, composed once per entry at registration, outer → inner):
+  `Correlation → ExceptionMapping → Validation → Authorization → Entitlement → Transaction → Handler`.
+  Validation link is omitted for entries without validators; Transaction link is omitted for queries; a command
+  with no `IUnitOfWork` registered fails closed with `DISPATCH_FAILED`. Failures get a `[corr:<id>] ` Detail prefix.
+- **Validation**: `IValidator<T>`, `ValidationFailure(Field, Code)` (+ `FormatDetail`/`ParseDetail`), `Rules`
+  (`Required`, `MaxLength`, `Range`, `PositiveMoney`, `NonNegativeQuantity`, `UlidFormat`, `NotFutureUtc`,
+  `ValidEnum<TEnum>`; return `null` on success). No FluentValidation.
+- **Security planes**: `IAuthorizationGate` (default `AllowAllAuthorizationGate` → **replaced by B04**),
+  `IEntitlementGate` (default `AllowAllEntitlementGate` → **replaced by E07**), `ICurrentUserProvider`
+  (default `SingleUserProvider`, user `U-LOCAL-OWNER` → **replaced by B03**). All registered with `TryAdd`.
+- **Correlation**: `ICorrelationContext` / `CorrelationContext` (`AsyncLocal`), `OperationIdFactory` (the only
+  client-side `OperationId` source).
+- **Reference pair**: `UseCases/Diagnostics/PingQuery` + `PingQueryHandler` (returns `"PONG"`), always registered.
+- `AddAnimoraApplication(configure?)` in `ApplicationServiceCollectionExtensions`.
+- `ErrorCodes` += `HANDLER_NOT_REGISTERED`, `DISPATCH_FAILED` (region "Application dispatch (B01)").
+- Tests: `DispatcherTests`, `BehaviorPipelineTests`, `ValidationRulesTests`, `NoReflectionTests` (+ `TestDoubles`);
+  `PlaceholderTests` removed.
+- No desktop DI change (`App.axaml.cs` untouched — C01), no mock deleted, no migration, no Contracts change.
+- Deviations: see Decision log "B01".
 
 ### A12 — Track A test consolidation (2026-09-24)
 
@@ -963,6 +997,32 @@ Decision:   what was done instead
 Rule check: which A-RULE / T-RULE / CONVENTIONS § was consulted and why this complies
 Impact:     phases affected + what a later session must know
 ```
+
+### B01 — pipeline/wiring details the phase file left open            (date: 2026-09-24)
+Context:    The phase lists 6 behaviors "in this exact order" with ExceptionMapping last yet calls it "the
+            outermost catch"; `ValidationBehavior` must return a `ValidationFailure[]` payload but `Result<T>`
+            carries none; `SingleUserProvider` must read `LocalInstallation`/`InstallationIdentity`, which live
+            in Persistence.Sqlite / Infrastructure.Local (Application may not reference them); the mapping
+            table names EF/Sqlite exception types that Application may not reference.
+Decision:   (1) Composition order is Correlation → ExceptionMapping → Validation → Authorization →
+            Entitlement → Transaction → Handler: the catch wraps every inner stage and sits inside Correlation
+            so mapped failures still get the correlation prefix; the recorded execution order of the other
+            stages is exactly the specified one. (2) Validation failures travel in `Detail` as
+            `validation: Field=CODE; ...` (`ValidationFailure.FormatDetail`/`ParseDetail`). (3) New port
+            `Ports/ILocalInstallationIdentity` (TenantId, DeviceId), implemented by
+            `Infrastructure.Local/Security/LocalInstallationIdentity` (tenant from `LocalInstallationState`,
+            device = installation id, or the machine-fingerprint hash before bootstrap) and registered in
+            `AddAnimoraLocalInfrastructure`. (4) `ErrorMapping` matches `DbUpdateConcurrencyException` /
+            `SqliteException` by full type name along the base chain, plus `DbException`/`IOException` by type
+            (failure path only). (5) Extra: `RequireCommand/RequireQuery` declare required handlers so a
+            "command with no handler" is a startup failure; a command with no `IUnitOfWork` fails closed
+            with `DISPATCH_FAILED`. (6) Application now references `Microsoft.Extensions.DependencyInjection`
+            (already pinned); the test project references `Microsoft.EntityFrameworkCore.Sqlite` to throw the
+            real provider exceptions.
+Rule check: CONVENTIONS §2 (Application still has no EF/Datasync reference — `LayeringRulesTests` green),
+            PERFORMANCE §3 (frozen map, closures built once; `NoReflectionTests`), A-RULE 005/023.
+Impact:     B02 can replay stored commands through `HandlerEntry.Invoker`; B03/B04/E07 replace the defaults by
+            registering before (or `Replace`-ing) the `TryAdd` defaults; C01 calls `AddAnimoraApplication()`.
 
 ### A01 — anchor AssemblyMarker types in Domain & Application            (date: 2026-09-23)
 Context:    `Animora.Domain` and `Animora.Application` are still empty placeholders (no types). The phase
