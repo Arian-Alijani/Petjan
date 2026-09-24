@@ -3,6 +3,7 @@ using Animora.Application.Ports;
 using Animora.Domain.Events;
 using Animora.Persistence.Sqlite.Options;
 using Animora.Persistence.Sqlite.Repositories;
+using Animora.Persistence.Sqlite.Seed;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -59,6 +60,10 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IUnitOfWork, LocalUnitOfWork>();
         services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
         services.AddSingleton<DomainEventHandlerMap>();
+
+        // First-run reference seeding (A10c); invoked by the startup path, never by the desktop directly.
+        services.AddSingleton<ISeedPeriodCodeProvider, PersianMonthPeriodCodeProvider>();
+        services.AddScoped<LocalSeeder>();
         return services;
     }
 
