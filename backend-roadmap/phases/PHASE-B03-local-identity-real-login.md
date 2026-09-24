@@ -3,309 +3,565 @@
 **Band:** M · **Track:** B · **Depends on:** B02 · **Satisfies:** R-B04, R-B09
 **Runnable after this phase:** desktop offline yes · server required no
 
-## Read before starting
-- `backend-roadmap/CONVENTIONS.md` §4, §7, §9, §11, §12
-- `backend-roadmap/PROGRESS.md`
-- `ARCHITECTURE.md` §10.2 (authentication architecture), §10.4 (offline session)
-- `STACK.md` §5.3 (Identity technology — password hashing primitives only on the client)
-- `src/Animora.Domain/Identity/*` (`User`, `RoleDefinition`, `StaffMembership`, `Device`)
-- `src/Animora.Application/Security/ICurrentUserProvider.cs`,
-  `src/Animora.Application/Security/SingleUserProvider.cs`
-- `src/Animora.Desktop/Pages/Login/LoginViewModel.cs`,
-  `src/Animora.Desktop/Pages/Login/LoginWindow.axaml.cs`, `src/Animora.Desktop/App.axaml.cs`
-- `src/Animora.Contracts/Identity/ICurrentUserContext.cs`,
-  `src/Animora.Contracts/Navigation/UserRole.cs`
+---
+
+## ⚡ Zero-exploration contract (read this first — it changes how you work)
+
+> **This phase file is self-contained and pre-verified against the current tree.** Every existing
+> type, signature, constant, file path and command you need is reproduced verbatim in the
+> **§Reference pack** below. **Do not re-open the repository to "understand" it, and do not
+> re-derive anything.** Implement top-to-bottom from §Implementation plan. The only reads you may
+> need are the exact files listed under **§Files to modify** (because you are editing them), and
+> only when you edit them.
+>
+> If — and only if — a compile error proves a snippet here diverges from the tree, fix the smallest
+> thing and record it in the `PROGRESS.md` deviation log. Do **not** pre-emptively audit.
+>
+> **Method names in this file are the REAL ones already in the code.** Where an older draft proposed
+> a different name (e.g. `RecordFailedLogin`), the real member is used and the alias is noted inline.
+> There is no naming ambiguity left to resolve by reading source.
+
+### Environment (already true in the sandbox — do not probe these)
+- **Run `scripts/sandbox/install-prereqs.sh` once at the start** (idempotent): it installs the SDK,
+  restores packages, and installs **`dotnet-ef 10.0.12` to `.sandbox/tools`** (per PROGRESS.md/A10a).
+  There is **no** `.config/dotnet-tools.json`; the tool binary is `.sandbox/tools/dotnet-ef`. Do
+  **not** `dotnet tool install` it yourself and do **not** hunt for it — after install-prereqs it is
+  at that path. If a later invocation reports it missing, that only means install-prereqs has not run
+  yet; run it, then retry. Add migrations with the exact command in step 2 below.
+- Build/test/run are **only** these three scripts (memory-capped; do not invoke raw `dotnet build`):
+  - `scripts/sandbox/build.sh full` → expect `0 warnings / 0 errors`
+  - `scripts/sandbox/test.sh` → expect `TESTS OK`
+  - `scripts/sandbox/run.sh` → expect `SMOKE RUN OK`
+- Sandbox RAM ≈ 985 MiB. Do not add parallel/server-GC flags.
+
+### Rules to obey (condensed — do not open `CONVENTIONS.md` for these)
+- **§2 layering:** `Animora.Domain` references nothing; `Animora.Application` references only Domain;
+  `Persistence.Sqlite`/`Infrastructure.Local` may reference Application+Domain; `Animora.Contracts`
+  references no `Animora.*`; `Animora.Client.Services` references Application+Contracts+Persistence+
+  Infrastructure. **`Microsoft.AspNetCore.Identity` may be referenced by `Infrastructure.Local` ONLY.**
+- **§4 style:** `sealed` classes; `sealed record` for DTOs/VOs; nullable honored (no `!` without a
+  reason comment); async-all-the-way with `CancellationToken ct = default`; library projects use
+  `ConfigureAwait(false)` (but `Animora.Client.Services` methods returning to a ViewModel do **not**);
+  no exceptions for expected flow — return `Result`/`Result<T>` with an `ErrorCode`; `IClock` injected,
+  never `DateTimeOffset.UtcNow`; Ids via `IdGenerator.NewId()` (ULID), never `Guid`.
+- **§7 security:** passwords use ASP.NET Core Identity `PasswordHasher<T>` primitives only — no custom
+  crypto; security stamp rotates on every credential change; a failed sign-in never reveals whether a
+  user exists.
+- **§9 testing:** every phase adds tests for what it introduces; no test asserts a Persian UI string;
+  no test uses wall-clock time (inject `IClock`).
+- **§11 runnability / §12 DoD:** `build.sh full` 0/0, `test.sh` green, `run.sh` OK; no forbidden dep;
+  `PROGRESS.md` updated (done + next phase + repo-state entry + deviations); commit on branch
+  `genspark_ai_developer`.
+
+---
 
 ## Goal
 Replace the hardcoded `admin`/`admin` gate with a real local credential store: hashed passwords,
-lockout, a first-run owner-setup path, a real session with app-lock, and a real
+lockout, a first-run owner-setup path, a durable session with app-lock, and a real
 `ICurrentUserContext`/`ICurrentUserProvider` so every command from now on carries a genuine `UserId`
 and `DeviceId`.
 
-## Repo reality check (verified against the current tree — read this before coding, skip re-exploring)
-1. **`User` (A03) already has most of the credential machinery, under different names than
-   the "Design decisions" below use.** Do not add duplicate members/methods — extend/rename-call
-   the existing ones:
-   - Existing: `PasswordHash` (nullable `string`, already named exactly this), `SecurityStamp`,
-     `Status` (`UserStatus`: `Active|Disabled|Locked`), `LastLoginUtc`, `FailedAttemptCount`,
-     `LockoutEndUtc`, `_firstFailureUtc` (private).
-   - Existing methods: `RegisterFailedAttempt(IClock, int threshold=5, TimeSpan? window=null)` →
-     `bool` (returns true when it triggered the lockout; already implements the "5 failures → 15 min"
-     policy via `MaxFailedAttempts`/`LockoutDuration`/`DefaultFailureWindow` constants — **do not
-     re-add `RecordFailedLogin`, it's the same thing**), `ClearFailures()`, `IsLockedOut(DateTimeOffset
-     nowUtc)`, `RegisterSuccessfulLogin(IClock)` (calls `ClearFailures` — this is `RecordSuccessfulLogin`),
-     `RotateSecurityStamp()`, `SetPasswordHash(string)` (rotates the stamp already — this is
-     `SetPassword`), `Disable()`, `Enable()` (this is `Unlock`).
-   - **Only genuinely missing:** `MustChangePassword` (bool) — add this one new property + a small
-     setter/method. Everything else in "Design decisions" below that duplicates the above is the
-     same behavior under a different proposed name; implement by calling the existing member.
-2. **The Desktop composition root has ZERO backend wiring today.** `Animora.Desktop.csproj` only
-   references `Animora.Contracts`. `App.axaml.cs`'s `ConfigureServices()` never touches
-   `Animora.Application`, `Animora.Persistence.Sqlite`, or `Animora.Infrastructure.Local`. This
-   phase is the **first** to wire them in. Concretely:
-   - Add `<ProjectReference Include="..\Animora.Client.Services\Animora.Client.Services.csproj" />`
-     to `Animora.Desktop.csproj` (Client.Services already references Application + Contracts +
-     Persistence.Sqlite + Infrastructure.Local, so this one line pulls in the whole stack).
-   - In `ConfigureServices()`, call **`services.AddAnimoraLocalInfrastructure()`** (from
-     `Animora.Infrastructure.Local`), **not** the narrower `AddAnimoraLocalStore()` — only
-     `AddAnimoraLocalInfrastructure` also registers `IClock`, `IMonotonicClock`,
-     `LocalDbKeyService`/`ISecretStore`, `ILocalInstallationIdentity`, and — critically —
-     `ILocalStoreInitializer` (`LocalStoreStartup`), which is what you kick off as the
-     post-first-frame background task. Then call `services.AddAnimoraApplication(configure)` to
-     register the six new use cases.
-   - **Sequencing:** `LocalStoreStartup.InitializeAsync` (8 steps: dir → key → open+native-assert →
-     quick_check → migrate → checkpoint → **bootstrap + `LocalSeeder`** → diagnostics) must
-     complete before a sign-in attempt can succeed — the tenant/roles/permissions rows it seeds
-     are what `CompleteFirstRunSetupCommand` and `SignInCommand` read. Since the Login window shows
-     immediately at first frame while this runs in the background, gate the sign-in/first-run UI on
-     its completion (e.g. `IsBusy`/a "starting up" state in `LoginViewModel` until the task finishes)
-     rather than letting the user submit before the store exists.
-   - `Tenant.CreateLocalDefault("Animora Clinic")` is already created by `LocalSeeder` during store
-     startup (block key `identity.tenant`). **`CompleteFirstRunSetupCommand` must not create a
-     tenant** — it only creates the owner `User` + `StaffMembership(StaffRole.Manager)` + `Device`,
-     inside the already-seeded `Tenant.LocalDefaultId`.
-3. **`IDialogService` has no generic "input dialog" today.** It only exposes
-   `ShowModal(object content, double maxWidth)`, `ShowDrawer`, `ShowSheet`, `SaveTextFileAsync`,
-   `Close`. There is no reusable prompt/form dialog to "reuse" for first-run. Build a small,
-   dedicated `FirstRunViewModel` + `FirstRunView` (clinic name / owner name / username / password
-   fields) and show it via `IDialogService.ShowModal(firstRunViewModel)` — this is a small, real
-   `.axaml` addition (the phase's CONVENTIONS §10 exception list doesn't cover Login, so this is a
-   net-new View/ViewModel pair, not a violation of "no `.axaml` change" — that rule is about
-   Track C mock retirement, not this phase).
-4. **`ICurrentUserProvider`/`CommandContext` shapes to match exactly** (already defined in B01,
-   do not change their signatures): `CommandContext(TenantId, UserId, DeviceId, OperationId,
-   CorrelationId, CausationId, DependsOnOperationId, ExpectedAggregateVersion, CreatedAtUtc)`;
-   `ICurrentUserProvider.BuildCommandContextAsync(string? operationId, string? dependsOn, long?
-   expectedVersion, CancellationToken ct)` / `BuildQueryContext()`. `SessionCurrentUserProvider`
-   must implement these two methods exactly, sourcing `TenantId`/`DeviceId` from the active
-   `LocalSession` (fallback to `ILocalInstallationIdentity` before any session exists).
-5. **Error-code overlap to resolve, not duplicate:** A03 already declared `UserLockedOut`
-   (`USER_LOCKED_OUT`), `UserDisabled` (`USER_DISABLED`), `MembershipNotActive`, `CapabilityNotGranted`
-   in `ErrorCodes`. The phase's proposed `ACCOUNT_LOCKED`/`ACCOUNT_DISABLED` would be semantic
-   duplicates. **Reuse `ErrorCodes.UserLockedOut`/`ErrorCodes.UserDisabled` instead of adding new
-   ones** for those two cases; only add the genuinely new codes: `CREDENTIALS_INVALID`,
-   `SESSION_EXPIRED`, `PASSWORD_POLICY_VIOLATION`, `FIRST_RUN_ALREADY_COMPLETED` (4, not 6).
-   Record this substitution explicitly in the `PROGRESS.md` deviation log.
-6. **`IIdentityRepository`** (`Animora.Application.Ports`) already exists (`FindAsync`/`RequireAsync`
-   by id / `Add`/`AddRange` of `User`), implemented by `IdentityRepository` in
-   `Persistence.Sqlite/Repositories/`. `SignInCommandHandler` needs lookup **by username**, which
-   this repository does not yet expose — add one method (`FindByUsernameAsync(string tenantId,
-   string userName, ct)`) rather than loading all users. There is currently **no repository for
-   `StaffMembership`, `Device`, or `RoleDefinition`** — you must add these three (same simple
-   shape as the existing repositories) plus their DI registrations in
-   `LocalStoreServiceCollectionExtensions.AddAnimoraLocalStore`.
-7. `UserConfiguration` already has a unique index `IX_Users_TenantId_Username` on
-   `(TenantId, UserName)` — no new index needed there; only add the two new local-only tables
-   (`LocalSession`, `LoginAttemptLog`) and their configurations/migration.
+---
 
-## Design decisions (pre-made — implement, do not re-derive)
-- **Package pin added:** `Microsoft.AspNetCore.Identity` `10.0.12` in `Directory.Packages.props`,
-  consumed **only** by `Animora.Infrastructure.Local` and **only** for
-  `PasswordHasher<TUser>`/`PasswordOptions` primitives (STACK.md §11; no Identity stores, no
-  `IdentityDbContext` on the client). `LayeringRulesTests` gains a fact: no other project references it.
-- **Domain additions (A03 entities extended, no new aggregate):**
-  `User` gains `string PasswordHash`, `int FailedAccessCount`, `DateTimeOffset? LockoutEndUtc`,
-  `DateTimeOffset? LastLoginUtc`, `bool MustChangePassword`, `string SecurityStamp` (ULID, rotated on
-  every credential change — the value E07 uses for server-side invalidation).
-  Methods: `RecordFailedLogin(IClock, int maxAttempts, TimeSpan window)`,
-  `RecordSuccessfulLogin(IClock)`, `SetPassword(string hash, IClock)`, `Unlock(IClock)`.
-  **Lockout policy (fixed):** 5 failures → 15-minute lockout; the counter resets on success or after
-  the lockout expires.
-- **Local tables** (`[LocalOnly]`, migration `005_LocalIdentity`):
-  `LocalSession` — `Id`, `UserId`, `DeviceId`, `StartedAtUtc`, `LastActivityUtc`, `ExpiresAtUtc`,
-  `IsLocked`, `EndedAtUtc`, `EndReason`. One active row at a time; the row survives a crash so a
-  restart can restore or expire the session deliberately.
-  `LoginAttemptLog` — append-only `Id`, `UsernameAttempted`, `SucceededOrCode`, `OccurredAtUtc`,
-  `DeviceId` (added to `AppendOnlyGuard.ProtectedTypes`).
-- **Application surface** (`src/Animora.Application/UseCases/Identity/`):
-  - `SignInCommand(string Username, string Password, bool RememberDevice)` → `SignInResult`
-    (`sealed record SignInResult(string UserId, string DisplayName, StaffRole Role,
-    IReadOnlyList<string> Permissions, bool MustChangePassword, DateTimeOffset ExpiresAtUtc)`).
-    **Not** `IJournaledCommand` — a sign-in is not business intent.
-  - `SignOutCommand(string Reason)` → `Unit`. `LockSessionCommand`/`UnlockSessionCommand(string
-    Password)`. `ChangePasswordCommand(string Current, string New)`.
-    `CompleteFirstRunSetupCommand(string ClinicName, string OwnerFullName, string Username,
-    string Password)` → creates the `Tenant` name, the owner `User`, its `StaffMembership`
-    (`StaffRole.Manager`) and the `Device` row; runs **once** (guarded by `LocalInstallation`).
-  - `CurrentSessionQuery` → `SessionSnapshot(string? UserId, string? DisplayName, StaffRole? Role,
-    bool IsLocked, bool IsFirstRun, DateTimeOffset? ExpiresAtUtc)`.
-  - Error codes used: `CREDENTIALS_INVALID`, `ACCOUNT_LOCKED`, `ACCOUNT_DISABLED`,
-    `SESSION_EXPIRED`, `PASSWORD_POLICY_VIOLATION`, `FIRST_RUN_ALREADY_COMPLETED`.
-    **A failed sign-in always returns `CREDENTIALS_INVALID`** — never "no such user" vs "wrong
-    password" (no user enumeration).
-- **Password policy (fixed):** minimum 8 characters, at least one letter and one digit; no complexity
-  theatre beyond that; validated by `PasswordPolicy.Validate(string)` in
-  `Animora.Application/Security/`. Hashing via `PasswordHasher<UserHashSubject>` with
-  `PasswordHasherOptions { CompatibilityMode = IdentityV3, IterationCount = 210_000 }`, wrapped by
-  `Infrastructure.Local/Security/PasswordHashingService.cs` implementing the Application port
-  `IPasswordHasher` (`string Hash(string password)`,
-  `PasswordVerificationOutcome Verify(string hash, string password)` →
-  `{ Failed, Success, SuccessRehashNeeded }`). A `SuccessRehashNeeded` result silently upgrades the
-  stored hash inside the same transaction.
-- **Session service:** `Application/Security/ISessionService.cs` +
-  `Infrastructure.Local/Security/LocalSessionService.cs`:
-  `Task<Result<SessionSnapshot>> RestoreAsync(...)` (reads `LocalSession`; expired → ends it with
-  `SESSION_EXPIRED`), `StartAsync`, `TouchAsync` (updates `LastActivityUtc`, throttled to once per
-  60 s to avoid write churn), `LockAsync`, `UnlockAsync`, `EndAsync`.
-  **Idle policy (fixed):** 30 minutes idle → auto-lock (locked, not signed out); absolute session
-  lifetime 12 hours → sign-out. Both values are `LocalSessionOptions`.
-  `RememberDevice` extends only the **device trust** flag on `Device`, never the session lifetime.
-- **Real `ICurrentUserProvider`:** `Application/Security/SessionCurrentUserProvider.cs` replaces
-  `SingleUserProvider` (deleted). It builds `CommandContext`/`QueryContext` from the active
-  `LocalSession` + `LocalInstallation`, returning `Result.Fail(SESSION_EXPIRED)` when no session is
-  active — so **no command can be dispatched without an authenticated session**.
-- **Real `ICurrentUserContext`** (the `Animora.Contracts` seam) in
-  `src/Animora.Client.Services/Identity/CurrentUserContextService.cs`: reads the session snapshot and
-  maps `StaffRole` → `Animora.Contracts.Navigation.UserRole` via
-  `Client.Services/Mapping/RoleMapping.cs` (`Manager→Manager`, `Doctor→Doctor`,
-  `Receptionist→Receptionist`, `Cashier→Cashier`, `Accountant→Manager` until the enum is extended —
-  documented in the mapping file). `Name`/`RoleLabel`/`Initials` come from the `User` row;
-  **Persian role labels stay in the Desktop resource layer** — the service returns the label the
-  Desktop already uses via `RoleLabels.For(UserRole)` (an existing Desktop helper; if absent, the
-  service returns the stored `RoleDefinition.DisplayName`, which the seeder seeds in Persian).
-- **Desktop changes (minimal, listed exhaustively):**
-  1. `App.axaml.cs`: `AddAnimoraLocalStore()` + `AddAnimoraApplication()` are now registered; the
-     `ICurrentUserContext` line changes from `MockCurrentUserContext` to `CurrentUserContextService`;
-     `Animora.Desktop` gains the project reference to `Animora.Client.Services`; `LocalStoreStartup`
-     is kicked off as a background task after the first frame.
-  2. `LoginViewModel`: `TryAuthenticate` and the two `Demo*` constants are **deleted**; the VM takes
-     `IDispatcher` + `ICurrentUserProvider`-free constructor injection of a new
-     `Animora.Contracts/Identity/IAuthenticationService` (added to Contracts — an addition, not a
-     reshape) with `Task<AuthOutcome> SignInAsync(string username, string password, bool
-     rememberDevice, CancellationToken ct)`, `Task SignOutAsync(...)`, `Task<bool> IsFirstRunAsync(...)`,
-     `Task<AuthOutcome> CompleteFirstRunAsync(FirstRunRequest request, CancellationToken ct)`.
-     `AuthOutcome(bool Succeeded, string? ErrorCode, string? DisplayName)`.
-     `SignIn` becomes an async relay command (`await`, `IsBusy` around it) and maps `ErrorCode` →
-     the existing Persian strings via a `switch` in the VM (the only place codes become Persian).
-  3. `LoginWindow.axaml.cs`: no change. `LoginWindow.axaml`: **no change** (the first-run fields are
-     introduced by a new `FirstRunView` only if `IsFirstRunAsync` is true — implemented as an
-     existing-dialog flow through `IDialogService`, so **no new .axaml page is added**; the first-run
-     dialog reuses the generic input dialog already present in `DialogService`).
-  4. `MockCurrentUserContext.cs` is **deleted** (its only consumer is the DI line above).
-- `Animora.Client.Services/Identity/AuthenticationService.cs` implements
-  `IAuthenticationService` over `IDispatcher` (`SignInCommand`, `SignOutCommand`,
-  `CompleteFirstRunSetupCommand`, `CurrentSessionQuery`).
-- **Seeding change:** `LocalSeeder` no longer needs a demo user; `CompleteFirstRunSetupCommand` is the
-  only user-creation path. If `LocalSeeder` created any placeholder user in A10, remove it here and
-  note it in `PROGRESS.md`.
+## §Reference pack — existing code you build on (verbatim; do not re-read source)
+
+### R1 · `User` aggregate (`src/Animora.Domain/Identity/User.cs`) — ALREADY has the credential machinery
+`sealed class User : AggregateRoot`. **Members that already exist (use these; do NOT add duplicates):**
+```
+Constants:  const int MaxFailedAttempts = 5;
+            static readonly TimeSpan LockoutDuration      = TimeSpan.FromMinutes(15);
+            static readonly TimeSpan DefaultFailureWindow = TimeSpan.FromMinutes(15);
+Props:      string  UserName {get;private set;}          // lowercased on Create
+            string  DisplayName {get;private set;}
+            string? PasswordHash {get;private set;}       // null until a credential is set  ← already the exact name
+            string  SecurityStamp {get;private set;}      // ULID
+            UserStatus Status {get;private set;}          // enum Active=0, Disabled=1, Locked=2
+            DateTimeOffset? LastLoginUtc {get;private set;}
+            int     FailedAttemptCount {get;private set;}
+            DateTimeOffset? LockoutEndUtc {get;private set;}
+            (private DateTimeOffset? _firstFailureUtc)
+Factory:    static User Create(string tenantId, string userName, string displayName, IClock clock)
+Methods:    bool RegisterFailedAttempt(IClock clock, int threshold=MaxFailedAttempts, TimeSpan? window=null)
+                 → returns true when THIS attempt triggered the lockout (this IS "RecordFailedLogin")
+            void ClearFailures()
+            bool IsLockedOut(DateTimeOffset nowUtc)
+            void RegisterSuccessfulLogin(IClock clock)   // calls ClearFailures (this IS "RecordSuccessfulLogin")
+            void RotateSecurityStamp()
+            void SetPasswordHash(string passwordHash)     // rotates the stamp already (this IS "SetPassword")
+            void Disable()
+            void Enable()                                 // clears lockout/failures (this IS "Unlock")
+```
+**Only genuinely missing → ADD in this phase:** `bool MustChangePassword {get; private set;}` + a
+setter method `void RequirePasswordChange()` and clear it inside `SetPasswordHash`. **Add nothing
+else to `User`.** Do not add `FailedAccessCount`/`RecordFailedLogin`/`SetPassword`/`Unlock` — they
+are the members above under different names.
+
+### R2 · Application abstractions (`src/Animora.Application/Abstractions/`)
+```csharp
+public sealed record CommandContext(string TenantId, string UserId, string DeviceId, string OperationId,
+    string CorrelationId, string? CausationId, string? DependsOnOperationId,
+    long? ExpectedAggregateVersion, DateTimeOffset CreatedAtUtc);
+
+public sealed record QueryContext(string TenantId, string UserId, string CorrelationId);
+
+public interface ICommand<TResult>;                         // marker, named <Verb><Aggregate>Command
+public interface IQuery<TResult>;                           // marker, named <Subject>Query
+public interface ICommandHandler<in TCommand, TResult> where TCommand : ICommand<TResult>
+{ Task<Result<TResult>> HandleAsync(TCommand command, CommandContext context, CancellationToken ct); }
+public interface IQueryHandler<in TQuery, TResult> where TQuery : IQuery<TResult>
+{ Task<Result<TResult>> HandleAsync(TQuery query, QueryContext context, CancellationToken ct); }
+public interface IDispatcher {
+    Task<Result<TResult>> SendAsync<TResult>(ICommand<TResult> command, CommandContext ctx, CancellationToken ct = default);
+    Task<Result<TResult>> QueryAsync<TResult>(IQuery<TResult> query, QueryContext ctx, CancellationToken ct = default); }
+public interface IUnitOfWork {
+    Task<Result> SaveAsync(CancellationToken ct = default);
+    Task<Result<T>> ExecuteAsync<T>(Func<CancellationToken, Task<Result<T>>> work, CancellationToken ct = default); }
+```
+
+### R3 · `Result` / `ErrorCode` (`src/Animora.Domain/Results/`)
+```csharp
+public readonly record struct Result {                       // and Result<T> with the same shape
+    bool IsSuccess; bool IsFailure; ErrorCode Error; string? Detail;
+    static Result Ok();                       static Result Fail(ErrorCode error, string? detail = null);
+    // Result<T>:  static Result<T> Ok(T value);  static Result<T> Fail(ErrorCode error, string? detail = null);
+    //             T Value; T OrElse(T fallback); Bind(...) }
+}
+public readonly record struct ErrorCode(string Code, string Category) {
+    // Category constants: Validation, NotFound, Conflict, Forbidden, Integrity, Infrastructure, Entitlement
+}
+```
+`ErrorCodes` is the central catalog (`src/Animora.Domain/Results/ErrorCodes.cs`), grouped by region.
+**Already declared (REUSE — do not duplicate):** `ValidationFailed`, `NotFound`, `StoreUnavailable`,
+`Unexpected`, and in the *Identity (Phase A03)* region: `TenantSuspended`, `UserDisabled`
+(`USER_DISABLED`), `UserLockedOut` (`USER_LOCKED_OUT`), `MembershipNotActive`, `DeviceRevoked`,
+`CapabilityNotGranted`. Pattern for a new code:
+`public static readonly ErrorCode X = new("SCREAMING_SNAKE", ErrorCode.Category);`
+
+### R4 · Security seam (`src/Animora.Application/Security/`)
+```csharp
+public interface ICurrentUserProvider {
+    Task<Result<CommandContext>> BuildCommandContextAsync(string? operationId, string? dependsOn,
+        long? expectedVersion, CancellationToken ct);
+    Result<QueryContext> BuildQueryContext(); }
+```
+`SingleUserProvider` (to be DELETED) is `ICurrentUserProvider` built from `ILocalInstallationIdentity`
++ `ICorrelationContext` + `OperationIdFactory` + `IClock`, with `const string LocalOwnerUserId =
+"U-LOCAL-OWNER"`. Correlation id fallback: `correlation.CurrentId ?? IdGenerator.NewId()`.
+`OperationIdFactory.New()` mints a ULID. `ICorrelationContext.CurrentId` is `string?`.
+
+### R5 · Installation identity + repository patterns
+```csharp
+// src/Animora.Application/Ports/ILocalInstallationIdentity.cs
+public interface ILocalInstallationIdentity { string TenantId { get; } string DeviceId { get; } }
+
+// src/Animora.Application/Ports/IIdentityRepository.cs  (ADD FindByUsernameAsync)
+public interface IIdentityRepository {
+    Task<User?> FindAsync(string id, CancellationToken ct = default);
+    Task<User>  RequireAsync(string id, CancellationToken ct = default);
+    void Add(User entity); void AddRange(IEnumerable<User> entities); }
+
+// src/Animora.Persistence.Sqlite/Repositories/IdentityRepository.cs  (impl pattern to copy)
+public sealed class IdentityRepository(AnimoraLocalDbContext db) : IIdentityRepository {
+    public Task<User?> FindAsync(string id, CancellationToken ct = default) =>
+        db.Set<User>().AsTracking().FirstOrDefaultAsync(e => e.Id == id, ct);
+    public void Add(User entity) => db.Set<User>().Add(entity); /* ... */ }
+```
+`AnimoraLocalDbContext` is the local DbContext; repositories take it via primary constructor and use
+`db.Set<T>()`. Default query behavior is `NoTracking`; use `.AsTracking()` for write paths.
+
+### R6 · EF configuration + migration patterns
+```csharp
+// Config pattern (src/Animora.Persistence.Sqlite/Configurations/Identity/UserConfiguration.cs — EXISTS)
+public sealed class UserConfiguration : IEntityTypeConfiguration<User> {
+    public void Configure(EntityTypeBuilder<User> builder) {
+        builder.HasKey(e => e.Id);
+        builder.HasIndex(e => new { e.TenantId, e.UserName })            // ← already unique; do not re-add
+            .HasDatabaseName("IX_Users_TenantId_Username").IsUnique(); } }
+```
+Existing migrations live in `src/Animora.Persistence.Sqlite/Migrations/` and are numbered:
+`001_LocalCoreSchema`, `002_LocalBusinessSchema`, `003_LocalHardening`, `004_CommandPipeline` (+
+`AnimoraLocalDbContextModelSnapshot.cs`). **Your migration is `005_LocalIdentity`.** SQLite column
+types used by convention: `TEXT` for strings/ids (`maxLength` set), `INTEGER` for `long`/`bool`/enum,
+and `DateTimeOffset` is stored as a `long` epoch column (see `004`: `CreatedAtUtc = table.Column<long>`).
+`AppendOnlyGuard` in `src/Animora.Persistence.Sqlite/Context/AppendOnlyGuard.cs` has a
+`ProtectedTypes` set — append the new `LoginAttemptLog` type to it.
+
+### R7 · DI entry points (append your registrations here — do NOT restructure these files)
+- `AddAnimoraApplication(this IServiceCollection, Action<ApplicationRegistrationBuilder>? configure)`
+  in `src/Animora.Application/ApplicationServiceCollectionExtensions.cs`. It currently does
+  `services.TryAddScoped<ICurrentUserProvider, SingleUserProvider>();` → **change to
+  `SessionCurrentUserProvider`**. Register each new use case via the `builder` inside `configure`,
+  or add lines next to the existing `builder.AddQuery<...>()` calls. Registration API:
+  ```csharp
+  builder.AddCommand<TCommand, TResult, THandler>();   // THandler : ICommandHandler<TCommand,TResult>
+  builder.AddQuery<TQuery, TResult, THandler>();
+  builder.AddValidator<T, TValidator>();               // TValidator : IValidator<T>
+  ```
+- `AddAnimoraLocalStore(...)` in
+  `src/Animora.Persistence.Sqlite/Context/LocalStoreServiceCollectionExtensions.cs` registers every
+  repository as `services.AddScoped<IFooRepository, FooRepository>();` (there is a long list ending
+  with `IIdentityRepository`). **Add here** the three new repositories
+  (`IStaffMembershipRepository`, `IDeviceRepository`, `IRoleDefinitionRepository`).
+- `AddAnimoraLocalInfrastructure(...)` in
+  `src/Animora.Infrastructure.Local/LocalInfrastructureServiceCollectionExtensions.cs` calls
+  `AddAnimoraLocalStore` first, then registers `IClock`/`IMonotonicClock`, the secret store,
+  `ILocalInstallationIdentity → LocalInstallationIdentity`, `ILocalStoreInitializer →
+  LocalStoreStartup`. **Add here** `IPasswordHasher → PasswordHashingService` and
+  `ISessionService → LocalSessionService` + `LocalSessionOptions`. `AddAnimoraLocalInfrastructure`
+  is the entry point the Desktop must call (it wires the whole stack incl. `LocalStoreStartup`).
+
+### R8 · Use-case file shape (copy this exact layout — one file per use case)
+```csharp
+using Animora.Application.Abstractions; using Animora.Domain.Results;
+namespace Animora.Application.UseCases.Identity;
+
+public sealed record FooCommand(string Bar) : ICommand<FooResult>;
+public sealed record FooResult(/* ... */);
+public sealed class FooCommandHandler(/* injected ports */) : ICommandHandler<FooCommand, FooResult> {
+    public async Task<Result<FooResult>> HandleAsync(FooCommand command, CommandContext context, CancellationToken ct) {
+        // return Result<FooResult>.Fail(ErrorCodes.X) or .Ok(new FooResult(...));
+    } }
+```
+Validators implement `IValidator<T>`:
+`ValueTask<IReadOnlyList<ValidationFailure>> ValidateAsync(T instance, CancellationToken ct)` and use
+`Animora.Application.Validation.Rules` helpers (e.g. `Rules.Required(value, name)` → `ValidationFailure?`).
+
+### R9 · Desktop composition root reality
+`src/Animora.Desktop/Animora.Desktop.csproj` today references **only `Animora.Contracts`** — this
+phase adds `<ProjectReference Include="..\Animora.Client.Services\Animora.Client.Services.csproj" />`
+(that one reference pulls in Application + Persistence + Infrastructure transitively).
+`App.axaml.cs` `ConfigureServices()` is a `ServiceCollection` builder ending in
+`BuildServiceProvider()`; it currently has `services.AddSingleton<ICurrentUserContext,
+MockCurrentUserContext>();` and `services.AddTransient<LoginViewModel>();`. `LoginViewModel` today is
+front-end-only with `DemoUser`/`DemoPassword`/`TryAuthenticate` and raises `event EventHandler
+LoginSucceeded`. `IDialogService` exposes `ShowModal(object content, double maxWidth)`, `ShowDrawer`,
+`ShowSheet`, `SaveTextFileAsync`, `Close` — **there is no generic input dialog**, so first-run is a
+net-new `FirstRunView`/`FirstRunViewModel` shown via `ShowModal(...)`.
+`Animora.Contracts/Navigation/UserRole.cs` enum members: `Manager, Receptionist, Cashier, Doctor`
+(no `Accountant`).
+
+---
+
+## §Design decisions (pre-made — implement exactly, do not re-derive)
+
+### D1 · Package pin
+Add `Microsoft.AspNetCore.Identity` version **`10.0.12`** to `Directory.Packages.props` (a
+`<PackageVersion Include="..." Version="10.0.12" />` line in the existing `<ItemGroup>`). Reference it
+**only** from `Animora.Infrastructure.Local.csproj` (`<PackageReference Include=
+"Microsoft.AspNetCore.Identity" />`, no version — versions are central). Add a `LayeringRulesTests`
+fact asserting no other project references it.
+
+### D2 · Domain (`User` only — see R1)
+Add `MustChangePassword` + `RequirePasswordChange()`; clear the flag inside `SetPasswordHash`.
+Lockout/hash/stamp are already present. **No new aggregate, no other new member.**
+
+### D3 · Local tables (`[LocalOnly]`, migration `005_LocalIdentity`)
+- **`LocalSession`** entity — one active row at a time; survives a crash. Columns:
+  `Id` (ULID), `UserId`, `DeviceId`, `StartedAtUtc`, `LastActivityUtc`, `ExpiresAtUtc`,
+  `IsLocked` (bool), `EndedAtUtc?`, `EndReason?` (string).
+- **`LoginAttemptLog`** entity — append-only. Columns: `Id` (ULID), `UsernameAttempted`,
+  `Outcome` (string: `"OK"` or the error code), `OccurredAtUtc`, `DeviceId`. Add its type to
+  `AppendOnlyGuard.ProtectedTypes`.
+- Datetimes are stored as `long` epoch (converter convention already in the model); model both as
+  `DateTimeOffset`/`DateTimeOffset?` on the entity and let the existing convention convert.
+
+### D4 · Password policy & hashing
+- **`PasswordPolicy.Validate(string password) → Result`** in `Animora.Application/Security/`.
+  Fixed policy: **≥ 8 chars, at least one letter and one digit.** Nothing else. Fail →
+  `Result.Fail(ErrorCodes.PasswordPolicyViolation)`.
+- **`IPasswordHasher`** port in `Animora.Application/Security/`:
+  ```csharp
+  public interface IPasswordHasher {
+      string Hash(string password);
+      PasswordVerificationOutcome Verify(string hash, string password); }
+  public enum PasswordVerificationOutcome { Failed, Success, SuccessRehashNeeded }
+  ```
+- **`PasswordHashingService`** in `Infrastructure.Local/Security/` implements it over
+  `PasswordHasher<UserHashSubject>` with `PasswordHasherOptions { CompatibilityMode =
+  PasswordHasherCompatibilityMode.IdentityV3, IterationCount = 210_000 }`. `UserHashSubject` is a
+  trivial private empty class (the hasher's generic subject is unused). Map
+  `PasswordVerificationResult.{Failed→Failed, Success→Success, SuccessRehashNeeded→SuccessRehashNeeded}`.
+  A `SuccessRehashNeeded` verify silently re-hashes into the same write transaction.
+
+### D5 · Session service & options
+- **`ISessionService`** in `Animora.Application/Security/` + `SessionSnapshot`:
+  ```csharp
+  public sealed record SessionSnapshot(string? UserId, string? DisplayName, StaffRole? Role,
+      bool IsLocked, bool IsFirstRun, DateTimeOffset? ExpiresAtUtc);
+  public interface ISessionService {
+      Task<Result<SessionSnapshot>> RestoreAsync(CancellationToken ct);   // expired → end with SESSION_EXPIRED
+      Task<Result<SessionSnapshot>> StartAsync(string userId, string deviceId, CancellationToken ct);
+      Task<Result> TouchAsync(CancellationToken ct);                      // throttled: ≤ 1 write / 60 s
+      Task<Result> LockAsync(CancellationToken ct);
+      Task<Result<SessionSnapshot>> UnlockAsync(string password, CancellationToken ct);
+      Task<Result> EndAsync(string reason, CancellationToken ct); }
+  ```
+- **`LocalSessionService`** in `Infrastructure.Local/Security/` implements it over the `LocalSession`
+  table + `IClock`. **`LocalSessionOptions`** in `Infrastructure.Local/Options/`:
+  `IdleTimeout = TimeSpan.FromMinutes(30)` (idle → **lock**, not sign-out),
+  `AbsoluteLifetime = TimeSpan.FromHours(12)` (→ sign-out with `SESSION_EXPIRED`).
+  `RememberDevice` sets the device-trust flag only; it never extends session lifetime.
+
+### D6 · Real `ICurrentUserProvider`
+`SessionCurrentUserProvider` in `Animora.Application/Security/` replaces (deletes)
+`SingleUserProvider`. Builds `CommandContext`/`QueryContext` from the active `LocalSession` (via
+`ISessionService`) + `ILocalInstallationIdentity` for `TenantId`/`DeviceId`; **returns
+`Result.Fail(ErrorCodes.SessionExpired)` when no session is active** — so no command can dispatch
+without an authenticated session. Reuse the `SingleUserProvider` body shape from R4 (operation-id
+minting, correlation fallback) but source `UserId` from the session.
+
+### D7 · Error codes (add exactly 4 — see R3 for the pattern & the reuse list)
+Add to the Identity region of `ErrorCodes.cs`:
+`CredentialsInvalid` (`CREDENTIALS_INVALID`, Forbidden), `SessionExpired` (`SESSION_EXPIRED`,
+Forbidden), `PasswordPolicyViolation` (`PASSWORD_POLICY_VIOLATION`, Validation),
+`FirstRunAlreadyCompleted` (`FIRST_RUN_ALREADY_COMPLETED`, Conflict).
+**Reuse `UserLockedOut` / `UserDisabled`** for the lock/disable cases (do NOT add
+`ACCOUNT_LOCKED`/`ACCOUNT_DISABLED` — they would be semantic duplicates). Record this substitution in
+the `PROGRESS.md` deviation log. **A failed sign-in always returns `CredentialsInvalid`** — never
+distinguish "no such user" from "wrong password" (no user enumeration).
+
+### D8 · Application use cases (`src/Animora.Application/UseCases/Identity/`)
+Each in its own file, shape per R8. `IJournaledCommand` is **not** applied to sign-in/session
+commands (a sign-in is not business intent).
+- `SignInCommand(string Username, string Password, bool RememberDevice)` → `SignInResult`
+  ```csharp
+  public sealed record SignInResult(string UserId, string DisplayName, StaffRole Role,
+      IReadOnlyList<string> Permissions, bool MustChangePassword, DateTimeOffset ExpiresAtUtc);
+  ```
+  Handler order: load user **by username** (tenant-scoped, via `FindByUsernameAsync`) → if null or
+  locked/disabled → (locked → `UserLockedOut`; disabled → `UserDisabled`; else) append
+  `LoginAttemptLog` + `RegisterFailedAttempt` when the user exists + return `CredentialsInvalid`
+  (never leak which) → `Verify` hash → on `Failed`: `RegisterFailedAttempt` + append log + return
+  `CredentialsInvalid` → on `Success`/`SuccessRehashNeeded`: (rehash via `SetPasswordHash` if needed)
+  `RegisterSuccessfulLogin`, `StartAsync`, append `LoginAttemptLog("OK")`, return permissions from
+  `DefaultRolePermissions` for the membership's `StaffRole`. **On the 5th failure return
+  `UserLockedOut`; the 6th must be rejected on the lockout check without a hash comparison.**
+- `SignOutCommand(string Reason)` → `Unit` (use the existing unit type if any; otherwise return
+  `Result` from the handler — check the codebase's convention only if the compiler complains).
+- `LockSessionCommand()` → `Unit`; `UnlockSessionCommand(string Password)` → `SessionSnapshot`.
+- `ChangePasswordCommand(string Current, string New)` → `Unit` (validate policy on `New`; verify
+  `Current`; `SetPasswordHash`).
+- `CompleteFirstRunSetupCommand(string ClinicName, string OwnerFullName, string Username, string Password)`
+  → `SignInResult` (or `Unit` + auto sign-in — pick `SignInResult` and start the session). Runs
+  **once**, guarded by `LocalInstallation` first-run state; a second call → `FirstRunAlreadyCompleted`.
+  **It does NOT create a `Tenant`** — the tenant/roles/permissions are already seeded by `LocalSeeder`
+  during `LocalStoreStartup` (block key `identity.tenant`, `Tenant.LocalDefaultId`). It creates:
+  the owner `User` (via `User.Create` + `SetPasswordHash`), its `StaffMembership(StaffRole.Manager)`,
+  and the `Device` row — inside `Tenant.LocalDefaultId`.
+- `CurrentSessionQuery` → `SessionSnapshot`.
+
+### D9 · New repositories (patterns per R5) + `FindByUsernameAsync`
+Add to `IIdentityRepository` (+ impl):
+`Task<User?> FindByUsernameAsync(string tenantId, string userName, CancellationToken ct = default)`
+→ `db.Set<User>().AsTracking().FirstOrDefaultAsync(e => e.TenantId == tenantId && e.UserName ==
+userName.Trim().ToLowerInvariant(), ct)`. Add three new repositories with the same shape and register
+each in `AddAnimoraLocalStore`: `IStaffMembershipRepository`/`StaffMembershipRepository`,
+`IDeviceRepository`/`DeviceRepository`, `IRoleDefinitionRepository`/`RoleDefinitionRepository`
+(each `FindAsync`/`Add`; add only what the handlers actually call).
+
+### D10 · `Animora.Contracts` additions (auth seam — additions only, no reshape)
+```csharp
+// src/Animora.Contracts/Identity/IAuthenticationService.cs
+public interface IAuthenticationService {
+    Task<AuthOutcome> SignInAsync(string username, string password, bool rememberDevice, CancellationToken ct = default);
+    Task SignOutAsync(string reason, CancellationToken ct = default);
+    Task<bool> IsFirstRunAsync(CancellationToken ct = default);
+    Task<AuthOutcome> CompleteFirstRunAsync(FirstRunRequest request, CancellationToken ct = default); }
+// src/Animora.Contracts/Identity/AuthModels.cs
+public sealed record AuthOutcome(bool Succeeded, string? ErrorCode, string? DisplayName);
+public sealed record FirstRunRequest(string ClinicName, string OwnerFullName, string Username, string Password);
+```
+
+### D11 · `Animora.Client.Services` implementations
+- `Identity/AuthenticationService.cs` implements `IAuthenticationService` over `IDispatcher`
+  (+ `ICurrentUserProvider` to build the context): maps `SignInCommand`/`SignOutCommand`/
+  `CompleteFirstRunSetupCommand`/`CurrentSessionQuery` results → `AuthOutcome` (`Succeeded`,
+  `Error.Code`, `DisplayName`). **Does not** `ConfigureAwait(false)` (returns to a ViewModel).
+- `Identity/CurrentUserContextService.cs` implements `Animora.Contracts.Identity.ICurrentUserContext`
+  by reading `CurrentSessionQuery` and mapping `StaffRole → UserRole` via `Mapping/RoleMapping.cs`.
+- `Mapping/RoleMapping.cs`: `Manager→Manager, Doctor→Doctor, Receptionist→Receptionist,
+  Cashier→Cashier, Accountant→Manager` (until the `UserRole` enum gains `Accountant`; document the
+  fallback in the file). `Name`/`RoleLabel`/`Initials` come from the `User`/`RoleDefinition` row;
+  Persian role labels stay in the Desktop resource layer (return the stored
+  `RoleDefinition.DisplayName`, seeded in Persian, if no Desktop `RoleLabels` helper is present).
+
+### D12 · Desktop changes (minimal, exhaustive)
+1. `Animora.Desktop.csproj`: add the `Animora.Client.Services` project reference (R9).
+2. `App.axaml.cs` `ConfigureServices()`:
+   - Call `services.AddAnimoraLocalInfrastructure();` then `services.AddAnimoraApplication(builder =>
+     { /* register the identity use cases */ });`.
+   - Replace `AddSingleton<ICurrentUserContext, MockCurrentUserContext>()` with
+     `AddSingleton<ICurrentUserContext, CurrentUserContextService>()`.
+   - Register `AddSingleton<IAuthenticationService, AuthenticationService>()`.
+   - After the first frame, kick off `ILocalStoreInitializer.InitializeAsync` as a background task
+     (do not block the UI thread / first frame). Gate the Login form's submit on its completion
+     (`LoginViewModel.IsBusy`/"starting up" state) so the user can't sign in before the store exists.
+3. `LoginViewModel`: delete `DemoUser`/`DemoPassword`/`TryAuthenticate`; inject
+   `IAuthenticationService`; make `SignIn` an async relay command (`await`, `IsBusy` around it) that
+   calls `SignInAsync` and, on success, raises `LoginSucceeded`; on failure maps `ErrorCode` → the
+   existing Persian strings via a `switch` (the ONLY place codes become Persian). On startup, if
+   `IsFirstRunAsync()` is true, show `FirstRunView` via `IDialogService.ShowModal(new
+   FirstRunViewModel(...))` and call `CompleteFirstRunAsync`.
+   Persian map: `CREDENTIALS_INVALID → "نام کاربری یا رمز عبور نادرست است."`,
+   `USER_LOCKED_OUT → "حساب موقتاً قفل شده است. بعداً تلاش کنید."`,
+   `USER_DISABLED → "این حساب غیرفعال شده است."`,
+   `PASSWORD_POLICY_VIOLATION → "رمز عبور باید حداقل ۸ نویسه و شامل حرف و رقم باشد."`, else a generic
+   `"خطای غیرمنتظره رخ داد."`.
+4. Add `FirstRunView.axaml` + `FirstRunView.axaml.cs` + `FirstRunViewModel` under
+   `Pages/Login/` (clinic name / owner name / username / password fields). This is a **net-new**
+   View/VM pair (CONVENTIONS §10's "no `.axaml` change" is about Track C mock retirement, not this).
+   `LoginWindow.axaml`/`.axaml.cs`: **no change.**
+5. Delete `src/Animora.Desktop/Mocks/MockCurrentUserContext.cs` (its only consumer was the DI line).
+
+### D13 · Seeding
+`LocalSeeder` keeps seeding tenant/roles/permissions; it must **not** seed a demo user
+(`CompleteFirstRunSetupCommand` is the only user-creation path). If A10 left a placeholder user,
+remove it and note it in `PROGRESS.md`.
+
+---
 
 ## Files to create / modify
 | Path | Action | Contents (one line) |
 |---|---|---|
 | `Directory.Packages.props` | modify | pin `Microsoft.AspNetCore.Identity 10.0.12` |
-| `src/Animora.Domain/Identity/User.cs` | modify | hash/lockout/security-stamp fields + 4 methods |
-| `src/Animora.Persistence.Sqlite/Entities/LocalSession.cs` | create | durable session row |
-| `src/Animora.Persistence.Sqlite/Entities/LoginAttemptLog.cs` | create | append-only attempt log |
-| `src/Animora.Persistence.Sqlite/Configurations/Identity/*.cs` | modify/create | user columns + 2 new configurations |
-| `src/Animora.Persistence.Sqlite/Context/AppendOnlyGuard.cs` | modify | add `LoginAttemptLog` |
-| `src/Animora.Persistence.Sqlite/Migrations/*` | create | `005_LocalIdentity` + snapshot |
-| `src/Animora.Application/Security/IPasswordHasher.cs` | create | hashing port + outcome enum |
-| `src/Animora.Application/Security/PasswordPolicy.cs` | create | fixed policy validation |
-| `src/Animora.Application/Security/ISessionService.cs` | create | session port + `SessionSnapshot` |
-| `src/Animora.Application/Security/SessionCurrentUserProvider.cs` | create | real context builder |
-| `src/Animora.Application/Security/SingleUserProvider.cs` | delete | replaced by the real provider |
-| `src/Animora.Application/UseCases/Identity/*.cs` | create | 6 commands/queries + handlers + validators |
-| `src/Animora.Infrastructure.Local/Security/PasswordHashingService.cs` | create | Identity hasher wrapper |
-| `src/Animora.Infrastructure.Local/Security/LocalSessionService.cs` | create | restore/start/touch/lock/end |
+| `src/Animora.Domain/Identity/User.cs` | modify | add `MustChangePassword` + `RequirePasswordChange()`; clear in `SetPasswordHash` |
+| `src/Animora.Domain/Results/ErrorCodes.cs` | modify | +4 codes (D7); reuse `UserLockedOut`/`UserDisabled` |
+| `src/Animora.Persistence.Sqlite/Entities/LocalSession.cs` | create | durable session row (D3) |
+| `src/Animora.Persistence.Sqlite/Entities/LoginAttemptLog.cs` | create | append-only attempt log (D3) |
+| `src/Animora.Persistence.Sqlite/Configurations/Identity/LocalSessionConfiguration.cs` | create | key + one-active index |
+| `src/Animora.Persistence.Sqlite/Configurations/Identity/LoginAttemptLogConfiguration.cs` | create | key + index |
+| `src/Animora.Persistence.Sqlite/Context/AppendOnlyGuard.cs` | modify | add `LoginAttemptLog` to `ProtectedTypes` |
+| `src/Animora.Persistence.Sqlite/Migrations/*005_LocalIdentity*` | create | via `dotnet-ef` (step 2) — 2 tables + `MustChangePassword` column + snapshot |
+| `src/Animora.Application/Ports/IIdentityRepository.cs` | modify | + `FindByUsernameAsync` |
+| `src/Animora.Application/Ports/IStaffMembershipRepository.cs`, `IDeviceRepository.cs`, `IRoleDefinitionRepository.cs` | create | ports (D9) |
+| `src/Animora.Persistence.Sqlite/Repositories/IdentityRepository.cs` | modify | + `FindByUsernameAsync` impl |
+| `src/Animora.Persistence.Sqlite/Repositories/StaffMembershipRepository.cs`, `DeviceRepository.cs`, `RoleDefinitionRepository.cs` | create | impls (D9) |
+| `src/Animora.Persistence.Sqlite/Context/LocalStoreServiceCollectionExtensions.cs` | modify | register 3 new repos |
+| `src/Animora.Application/Security/IPasswordHasher.cs` | create | port + outcome enum (D4) |
+| `src/Animora.Application/Security/PasswordPolicy.cs` | create | fixed policy (D4) |
+| `src/Animora.Application/Security/ISessionService.cs` | create | port + `SessionSnapshot` (D5) |
+| `src/Animora.Application/Security/SessionCurrentUserProvider.cs` | create | real provider (D6) |
+| `src/Animora.Application/Security/SingleUserProvider.cs` | delete | replaced |
+| `src/Animora.Application/ApplicationServiceCollectionExtensions.cs` | modify | `SessionCurrentUserProvider` + register use cases |
+| `src/Animora.Application/UseCases/Identity/*.cs` | create | 7 commands/queries + handlers + validators (D8) |
+| `src/Animora.Infrastructure.Local/Security/PasswordHashingService.cs` | create | Identity hasher wrapper (D4) |
+| `src/Animora.Infrastructure.Local/Security/LocalSessionService.cs` | create | restore/start/touch/lock/unlock/end (D5) |
 | `src/Animora.Infrastructure.Local/Options/LocalSessionOptions.cs` | create | idle 30 min, absolute 12 h |
-| `src/Animora.Contracts/Identity/IAuthenticationService.cs` | create | Contracts **addition** (auth seam) |
+| `src/Animora.Infrastructure.Local/Animora.Infrastructure.Local.csproj` | modify | + `Microsoft.AspNetCore.Identity` package ref |
+| `src/Animora.Infrastructure.Local/LocalInfrastructureServiceCollectionExtensions.cs` | modify | register hasher + session service + options |
+| `src/Animora.Contracts/Identity/IAuthenticationService.cs` | create | auth seam (D10) |
 | `src/Animora.Contracts/Identity/AuthModels.cs` | create | `AuthOutcome`, `FirstRunRequest` |
-| `src/Animora.Client.Services/Identity/AuthenticationService.cs` | create | Contracts impl over `IDispatcher` |
+| `src/Animora.Client.Services/Identity/AuthenticationService.cs` | create | impl over `IDispatcher` (D11) |
 | `src/Animora.Client.Services/Identity/CurrentUserContextService.cs` | create | real `ICurrentUserContext` |
 | `src/Animora.Client.Services/Mapping/RoleMapping.cs` | create | `StaffRole` ↔ `UserRole` |
 | `src/Animora.Desktop/Animora.Desktop.csproj` | modify | reference `Animora.Client.Services` |
-| `src/Animora.Desktop/App.axaml.cs` | modify | add local store + application DI; swap `ICurrentUserContext`; register auth; start `LocalStoreStartup` off first frame |
-| `src/Animora.Desktop/Pages/Login/LoginViewModel.cs` | modify | delete demo creds; async sign-in via `IAuthenticationService`; error-code → Persian map; first-run flow via `IDialogService` |
+| `src/Animora.Desktop/App.axaml.cs` | modify | local infra + application DI; swap `ICurrentUserContext`; register auth; start `LocalStoreStartup` off first frame |
+| `src/Animora.Desktop/Pages/Login/LoginViewModel.cs` | modify | delete demo creds; async sign-in; code→Persian map; first-run flow |
+| `src/Animora.Desktop/Pages/Login/FirstRunView.axaml` (+`.axaml.cs`) | create | first-run form |
+| `src/Animora.Desktop/Pages/Login/FirstRunViewModel.cs` | create | first-run VM |
 | `src/Animora.Desktop/Mocks/MockCurrentUserContext.cs` | delete | replaced |
-| `tests/Animora.Application.Tests/SignInTests.cs` | create | success, wrong password, lockout, disabled, enumeration-safety |
-| `tests/Animora.Application.Tests/FirstRunSetupTests.cs` | create | creates tenant/user/membership/device once only |
+| `tests/Animora.Application.Tests/SignInTests.cs` | create | success, wrong password, unknown user, lockout, disabled, enumeration-safety |
+| `tests/Animora.Application.Tests/FirstRunSetupTests.cs` | create | creates user/membership/device once only |
 | `tests/Animora.Application.Tests/SessionLifecycleTests.cs` | create | idle lock, absolute expiry, restore after crash, lock/unlock |
 | `tests/Animora.Application.Tests/PasswordPolicyTests.cs` | create | policy + rehash-on-verify upgrade |
+| `tests/Animora.Domain.Tests/LayeringRulesTests.cs` | modify | fact: only `Infrastructure.Local` references `Microsoft.AspNetCore.Identity` |
+| `backend-roadmap/PROGRESS.md` | modify | mark B03 done, next → B04, repo-state entry, deviations |
 
-## Implementation steps
-1. Pin the Identity package; extend `User` with the credential/lockout/security-stamp members and
-   their methods + tests-visible invariants.
-2. Add `LocalSession` + `LoginAttemptLog`, their configurations, the `AppendOnlyGuard` entry, and
-   migration `005_LocalIdentity`.
-3. Add `IPasswordHasher` + `PasswordPolicy` (Application) and `PasswordHashingService`
-   (Infrastructure.Local) with the fixed hasher options.
-4. Add `ISessionService`/`SessionSnapshot` + `LocalSessionService` + `LocalSessionOptions`.
-5. Write the six use cases with validators; `SignInCommandHandler` order:
-   load user (by username, tenant-scoped) → lockout check → verify → on failure
-   `RecordFailedLogin` + append `LoginAttemptLog` + return `CREDENTIALS_INVALID` → on success
-   `RecordSuccessfulLogin`, rehash if needed, start the session, return permissions from
-   `DefaultRolePermissions` + the membership's role.
-6. Replace `SingleUserProvider` with `SessionCurrentUserProvider` and delete the old file; update
-   `AddAnimoraApplication` registration.
-7. Add `IAuthenticationService` + `AuthModels` to `Animora.Contracts`, then the
-   `Client.Services` implementations (`AuthenticationService`, `CurrentUserContextService`,
-   `RoleMapping`).
-8. Desktop: add the project reference, register the local store + application + auth services, swap the
-   `ICurrentUserContext` line, start `LocalStoreStartup` as a post-first-frame background task, rewrite
-   `LoginViewModel` per the design decisions, delete `MockCurrentUserContext.cs`.
-9. Verify the login screen behavior manually: first run shows the setup flow; the created credentials
-   sign in; a wrong password shows the existing Persian error; 5 failures lock for 15 minutes.
-10. Write the four test classes.
-11. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; `run.sh` = `SMOKE RUN OK`.
+---
+
+## §Implementation plan (do these in order; commands are exact)
+
+1. **Package + Domain + error codes.** Pin `Microsoft.AspNetCore.Identity 10.0.12` (D1); add the
+   `User.MustChangePassword` member (D2); add the 4 error codes (D7). Reference the package from
+   `Animora.Infrastructure.Local.csproj` only.
+2. **Local tables + migration.** Add `LocalSession`/`LoginAttemptLog` entities + configurations;
+   append `LoginAttemptLog` to `AppendOnlyGuard.ProtectedTypes`. Then generate the migration with the
+   installed tool (no tool install needed):
+   ```bash
+   cd /home/user/webapp && .sandbox/tools/dotnet-ef migrations add 005_LocalIdentity \
+     --project src/Animora.Persistence.Sqlite --startup-project src/Animora.Persistence.Sqlite \
+     --context AnimoraLocalDbContext
+   ```
+   If `.sandbox/tools/dotnet-ef` is absent, run `scripts/sandbox/install-prereqs.sh` once, then retry.
+   Verify: `.sandbox/tools/dotnet-ef migrations list --project src/Animora.Persistence.Sqlite
+   --startup-project src/Animora.Persistence.Sqlite --context AnimoraLocalDbContext` shows `005`.
+3. **Hashing + policy** (D4): `IPasswordHasher`+`PasswordPolicy` (Application), `PasswordHashingService`
+   (Infrastructure.Local).
+4. **Session** (D5): `ISessionService`/`SessionSnapshot`, `LocalSessionService`, `LocalSessionOptions`.
+5. **Use cases** (D8) with validators; wire `SignInCommandHandler` order exactly as specified.
+6. **Provider swap** (D6): create `SessionCurrentUserProvider`, delete `SingleUserProvider`, update
+   `AddAnimoraApplication` (`SessionCurrentUserProvider` + register the use cases).
+7. **Repositories** (D9): `FindByUsernameAsync` + 3 new repos + their DI lines.
+8. **Contracts + Client.Services** (D10, D11): auth seam + implementations + role mapping.
+9. **Desktop** (D12): project reference; DI wiring; `LocalStoreStartup` off first frame; rewrite
+   `LoginViewModel`; add `FirstRunView`/VM; delete `MockCurrentUserContext.cs`.
+10. **Seeding** (D13): ensure no demo user is seeded.
+11. **Tests**: the four Application test classes + the `LayeringRulesTests` fact.
+12. **Gate checks:** `scripts/sandbox/build.sh full` = 0/0 · `scripts/sandbox/test.sh` = `TESTS OK` ·
+    `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
+13. **PROGRESS.md** update + commit on `genspark_ai_developer`.
+
+---
 
 ## Contracts / schema added
-- `Animora.Contracts` **additions**: `IAuthenticationService`, `AuthOutcome`, `FirstRunRequest`
-  (no existing member reshaped).
-- Domain: `User` credential/lockout/stamp members. Local tables `LocalSessions`, `LoginAttemptLogs`
+- `Animora.Contracts` additions: `IAuthenticationService`, `AuthOutcome`, `FirstRunRequest`.
+- Domain: `User.MustChangePassword` (+ method). Local tables `LocalSessions`, `LoginAttemptLogs`
   (migration `005_LocalIdentity`).
 - Ports/impl: `IPasswordHasher`, `PasswordPolicy`, `ISessionService`/`LocalSessionService`,
-  `PasswordHashingService`, `SessionCurrentUserProvider`, `LocalSessionOptions`.
+  `PasswordHashingService`, `SessionCurrentUserProvider`, `LocalSessionOptions`, +3 repositories.
 - Use cases: `SignInCommand`, `SignOutCommand`, `LockSessionCommand`, `UnlockSessionCommand`,
   `ChangePasswordCommand`, `CompleteFirstRunSetupCommand`, `CurrentSessionQuery`.
 - Client services: `AuthenticationService`, `CurrentUserContextService`, `RoleMapping`.
 - DI: `ICurrentUserContext` → `CurrentUserContextService`; `IAuthenticationService` →
-  `AuthenticationService`; local store + application registered. Mock deleted:
-  `MockCurrentUserContext.cs`. `ErrorCodes` += 6.
+  `AuthenticationService`; local infra + application registered. Mock deleted:
+  `MockCurrentUserContext.cs`. `ErrorCodes` += 4 (not 6 — `UserLockedOut`/`UserDisabled` reused).
 
 ## Rules that apply here
-- **CONVENTIONS §7** — passwords use ASP.NET Core Identity primitives only; no custom crypto; the
-  security stamp rotates on every credential change; failures never reveal whether a user exists.
-- **A-RULE 023** — this phase covers **authentication only**; permissions returned in `SignInResult`
-  are data, not an authorization decision (B04 evaluates them).
-- **A-RULE 029** — the session is policy-driven with explicit expiry; there is no silent extension.
-  The device-bound capability snapshot itself is B04's.
-- **CONVENTIONS §10 items 4–6** — the DI swap is one line per service; no `.axaml` change; the
-  `LoginViewModel` change is listed explicitly and is the only ViewModel touched.
-- **PERFORMANCE.md §4/§12** — sign-in is fully async; `LocalStoreStartup` never blocks first frame;
-  `TouchAsync` is throttled so session activity does not write per interaction.
+- **CONVENTIONS §7** — Identity primitives only; no custom crypto; stamp rotates on every credential
+  change; failures never reveal whether a user exists.
+- **A-RULE 023** — authentication only; permissions in `SignInResult` are data, not an authorization
+  decision (B04 evaluates them).
+- **A-RULE 029** — the session is policy-driven with explicit expiry; no silent extension.
+- **CONVENTIONS §10 items 4–6** — DI swaps are one line per service; `LoginWindow.axaml` unchanged;
+  `LoginViewModel` is the only ViewModel touched (plus the net-new `FirstRunViewModel`).
+- **PERFORMANCE.md §4/§12** — sign-in fully async; `LocalStoreStartup` never blocks first frame;
+  `TouchAsync` throttled (≤ 1 write / 60 s).
 - **R-B09** — the session row is durable, so a crash cannot leave a half-authenticated state.
 
 ## Out of scope
 - Permission evaluation, screen/action gating, capability snapshots → B04.
 - Server-side identity, bearer/refresh tokens, device revocation → D03, E07.
-- Role management UI (create/edit roles) → C10 (Profile) consumes B04's catalog.
-- Password reset by an operator → D03/E01 (server-side flows only).
+- Role management UI → C10 (Profile) consumes B04's catalog.
+- Password reset by an operator → D03/E01.
 - Any other mock deletion → the owning Track C phase.
 
 ## Acceptance criteria
-- Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
 - `grep -rn "admin" src/Animora.Desktop/Pages/Login/LoginViewModel.cs` returns nothing; the file
   contains no `TryAuthenticate`.
 - `src/Animora.Desktop/Mocks/MockCurrentUserContext.cs` does not exist and no DI line references it.
-- `SignInTests` green: correct credentials succeed and start a session; a wrong password and an unknown
-  username both return `CREDENTIALS_INVALID`; the 5th failure returns `ACCOUNT_LOCKED` and the 6th is
-  rejected without a hash comparison; after 15 minutes the account unlocks.
-- `FirstRunSetupTests` green: the command creates tenant name + user + `StaffRole.Manager` membership
-  + device; a second invocation returns `FIRST_RUN_ALREADY_COMPLETED`.
-- `SessionLifecycleTests` green: 30 minutes idle → `IsLocked`; 12 hours → signed out with
-  `SESSION_EXPIRED`; a restored session after a simulated crash is either valid or explicitly expired,
-  never silently extended.
+- `SignInTests` green: correct credentials succeed and start a session; a wrong password and an
+  unknown username both return `CREDENTIALS_INVALID`; the 5th failure returns `USER_LOCKED_OUT` and
+  the 6th is rejected without a hash comparison; after 15 minutes the account unlocks.
+- `FirstRunSetupTests` green: the command creates user + `StaffRole.Manager` membership + device (no
+  new tenant); a second invocation returns `FIRST_RUN_ALREADY_COMPLETED`.
+- `SessionLifecycleTests` green: 30 min idle → `IsLocked`; 12 h → signed out with `SESSION_EXPIRED`;
+  a restored session after a simulated crash is either valid or explicitly expired, never silently
+  extended.
 - `PasswordPolicyTests` green: policy violations return `PASSWORD_POLICY_VIOLATION`; a legacy-format
   hash is transparently upgraded on a successful verify.
 - Dispatching any command with no active session returns `SESSION_EXPIRED`.
-- Runnability (`CONVENTIONS.md` §11): `scripts/sandbox/run.sh` = `SMOKE RUN OK`; first run shows the
-  setup flow, and the created account signs in against the real local database.
+- `LayeringRulesTests` green: only `Animora.Infrastructure.Local` references
+  `Microsoft.AspNetCore.Identity`.
+- Runnability (§11): `scripts/sandbox/run.sh` = `SMOKE RUN OK`; first run shows the setup flow, and
+  the created account signs in against the real local database.
 
 ## PROGRESS.md update
-Mark B03 done; advance "Next phase" to `B04`; append a "Repo state" entry listing: the Identity package
-pin, `User` credential members + lockout policy, `LocalSessions`/`LoginAttemptLogs` + migration
-`005_LocalIdentity`, the hashing/session ports and implementations, the 7 use cases, the
-`Animora.Contracts` additions (`IAuthenticationService`, `AuthOutcome`, `FirstRunRequest`), the
-`Client.Services` identity services, the DI changes (local store + application + 2 service lines), the
-`LoginViewModel` rewrite, **mock deleted: `MockCurrentUserContext.cs`**, `ErrorCodes` += 6, the 4 test
-classes, deviations.
+Mark B03 done; advance "Next phase" to `B04`; append a "Repo state" entry listing: the Identity
+package pin, `User.MustChangePassword`, `LocalSessions`/`LoginAttemptLogs` + migration
+`005_LocalIdentity`, the hashing/session ports and implementations, the 7 use cases, the 3 new
+repositories + `FindByUsernameAsync`, the `Animora.Contracts` additions, the `Client.Services`
+identity services, the DI changes (local infra + application + 2 service lines), the `LoginViewModel`
+rewrite + `FirstRunView`/VM, **mock deleted: `MockCurrentUserContext.cs`**, `ErrorCodes` += 4 (with
+the `UserLockedOut`/`UserDisabled` reuse deviation), the 4 Application test classes + the
+`LayeringRulesTests` fact, and any deviation with its justification.
