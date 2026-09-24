@@ -1,0 +1,264 @@
+using System.Globalization;
+using Animora.Domain.Results;
+using Animora.Domain.Time;
+using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Entities;
+using Animora.Persistence.Sqlite.Options;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+
+namespace Animora.Persistence.Sqlite.Maintenance;
+
+/// <summary>
+/// Backup / restore / quarantine / vacuum over fresh, unpooled connections that go through the same
+/// key + pragma path as EF (<see cref="SqliteConnectionInterceptor.Prepare"/>). Quarantine never deletes.
+/// The initializer is resolved lazily from <see cref="IServiceProvider"/> to avoid a DI cycle.
+/// </summary>
+public sealed class LocalStoreMaintenance(
+    IOptions<LocalStoreOptions> options,
+    SqliteConnectionInterceptor connectionSetup,
+    IDbContextFactory<AnimoraLocalDbContext> contexts,
+    IClock clock,
+    IServiceProvider services) : ILocalStoreMaintenance
+{
+    private const string BackupPrefix = "animora-";
+    private const string StampFormat = "yyyyMMdd-HHmmss";
+    private static readonly string[] SideSuffixes = ["", "-wal", "-shm"];
+
+    // Process-wide: a corrupt store detected during a rebuild must not trigger another rebuild.
+    private static int _rebuilding;
+
+    private LocalStoreOptions Store => options.Value;
+
+    public async Task<Result<string>> BackupAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        string? target = null;
+        try
+        {
+            Directory.CreateDirectory(Store.BackupDirectory);
+            target = UniquePath(Store.BackupDirectory, BackupPrefix + Stamp(), ".db");
+            using (var source = Open(Store.DatabasePath))
+            using (var destination = Open(target, sessionPragmas: false))
+            {
+                // Destination is keyed like the source, so an encrypted store yields an encrypted backup.
+                source.BackupDatabase(destination);
+            }
+            ct.ThrowIfCancellationRequested();
+            var check = QuickCheck(target);
+            if (check != "ok")
+            {
+                DeleteBackupFiles(target);
+                return Result<string>.Fail(ErrorCodes.StoreBackupFailed, $"quick_check: {check}");
+            }
+            Prune();
+            await LogAsync(StoreMaintenanceKind.Backup, Path.GetFileName(target), ct);
+            return Result<string>.Ok(target);
+        }
+        catch (Exception ex) when (IsStoreFailure(ex))
+        {
+            if (target is not null) TryDeleteBackupFiles(target);
+            return Result<string>.Fail(Map(ex, ErrorCodes.StoreBackupFailed), ex.Message);
+        }
+    }
+
+    public async Task<Result> RestoreAsync(string backupPath, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(backupPath) || !File.Exists(backupPath))
+            return Result.Fail(ErrorCodes.StoreRestoreFailed, "Backup file not found.");
+        string? quarantine = null;
+        try
+        {
+            var check = QuickCheck(backupPath);
+            if (check != "ok") return Result.Fail(ErrorCodes.StoreRestoreFailed, $"quick_check: {check}");
+            ct.ThrowIfCancellationRequested();
+
+            quarantine = MoveToQuarantine();
+            File.Copy(backupPath, Store.DatabasePath, overwrite: false);
+
+            var initialized = await InitializeAsync(ct);
+            if (initialized.IsFailure)
+                return Result.Fail(ErrorCodes.StoreRestoreFailed,
+                    $"{initialized.Error.Code}: {initialized.Detail}; previous store kept in {quarantine}");
+            await LogAsync(StoreMaintenanceKind.Restore,
+                $"from {Path.GetFileName(backupPath)}; previous store in {quarantine}", ct);
+            return Result.Ok();
+        }
+        catch (Exception ex) when (IsStoreFailure(ex))
+        {
+            var kept = quarantine is null ? string.Empty : $"; previous store kept in {quarantine}";
+            return Result.Fail(Map(ex, ErrorCodes.StoreRestoreFailed), ex.Message + kept);
+        }
+    }
+
+    public async Task<Result<LocalStoreDiagnostics>> QuarantineAndRebuildAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (Interlocked.CompareExchange(ref _rebuilding, 1, 0) != 0)
+            return Result<LocalStoreDiagnostics>.Fail(ErrorCodes.StoreCorrupt,
+                "Store still corrupt during rebuild; refusing to quarantine again.");
+        try
+        {
+            var quarantine = MoveToQuarantine();
+            var initialized = await InitializeAsync(ct);
+            if (initialized.IsFailure) return initialized;
+            await LogAsync(StoreMaintenanceKind.Quarantine, $"moved to {quarantine}", ct);
+            return Result<LocalStoreDiagnostics>.Ok(initialized.Value! with { Quarantined = true });
+        }
+        catch (Exception ex) when (IsStoreFailure(ex))
+        {
+            return Result<LocalStoreDiagnostics>.Fail(Map(ex, ErrorCodes.StoreUnavailable), ex.Message);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _rebuilding, 0);
+        }
+    }
+
+    public async Task<Result<int>> VacuumAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        try
+        {
+            int freed;
+            using (var connection = Open(Store.DatabasePath))
+            {
+                var before = ScalarLong(connection, "PRAGMA page_count;");
+                Execute(connection, "VACUUM;");
+                Execute(connection, "PRAGMA wal_checkpoint(TRUNCATE);");
+                var after = ScalarLong(connection, "PRAGMA page_count;");
+                freed = (int)Math.Max(0, before - after);
+            }
+            await LogAsync(StoreMaintenanceKind.Vacuum, $"pages freed: {freed}", ct);
+            return Result<int>.Ok(freed);
+        }
+        catch (Exception ex) when (IsStoreFailure(ex))
+        {
+            return Result<int>.Fail(Map(ex, ErrorCodes.StoreUnavailable), ex.Message);
+        }
+    }
+
+    private async Task<Result<LocalStoreDiagnostics>> InitializeAsync(CancellationToken ct)
+    {
+        var initializer = services.GetService<ILocalStoreInitializer>();
+        return initializer is null
+            ? Result<LocalStoreDiagnostics>.Fail(ErrorCodes.StoreUnavailable, "No local store initializer registered.")
+            : await initializer.InitializeAsync(ct);
+    }
+
+    private SqliteConnection Open(string path, bool sessionPragmas = true)
+    {
+        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = path,
+            Pooling = false,
+            DefaultTimeout = Math.Max(1, Store.BusyTimeoutMs / 1000),
+        }.ToString());
+        try
+        {
+            connection.Open();
+            connectionSetup.Prepare(connection, sessionPragmas);
+            return connection;
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
+        }
+    }
+
+    private string QuickCheck(string path)
+    {
+        using var connection = Open(path, sessionPragmas: false);
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA quick_check;";
+        return command.ExecuteScalar() as string ?? "no result";
+    }
+
+    /// <summary>Moves the db and its -wal/-shm into <c>&lt;data&gt;/quarantine/&lt;stamp&gt;/</c>. Never deletes.</summary>
+    private string MoveToQuarantine()
+    {
+        SqliteConnection.ClearAllPools();
+        var root = Path.Combine(Store.DataDirectory, "quarantine");
+        Directory.CreateDirectory(root);
+        var folder = UniquePath(root, Stamp(), string.Empty);
+        Directory.CreateDirectory(folder);
+        var db = Path.GetFullPath(Store.DatabasePath);
+        foreach (var suffix in SideSuffixes)
+        {
+            var file = db + suffix;
+            if (File.Exists(file)) File.Move(file, Path.Combine(folder, Path.GetFileName(file)));
+        }
+        return folder;
+    }
+
+    private void Prune()
+    {
+        var stale = Directory.GetFiles(Store.BackupDirectory, BackupPrefix + "*.db")
+            .OrderByDescending(Path.GetFileName, StringComparer.Ordinal)
+            .Skip(Store.BackupRetentionCount);
+        foreach (var file in stale) DeleteBackupFiles(file);
+    }
+
+    private static void DeleteBackupFiles(string path)
+    {
+        foreach (var suffix in SideSuffixes)
+            if (File.Exists(path + suffix)) File.Delete(path + suffix);
+    }
+
+    private static void TryDeleteBackupFiles(string path)
+    {
+        try { DeleteBackupFiles(path); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
+    private async Task LogAsync(StoreMaintenanceKind kind, string detail, CancellationToken ct)
+    {
+        await using var context = await contexts.CreateDbContextAsync(ct);
+        context.Set<StoreMaintenanceLog>().Add(StoreMaintenanceLog.Create(kind, detail, clock.UtcNow));
+        await context.SaveChangesAsync(ct);
+    }
+
+    private string Stamp() => clock.UtcNow.UtcDateTime.ToString(StampFormat, CultureInfo.InvariantCulture);
+
+    private static string UniquePath(string directory, string name, string extension)
+    {
+        var path = Path.Combine(directory, name + extension);
+        for (var i = 1; File.Exists(path) || Directory.Exists(path); i++)
+            path = Path.Combine(directory, $"{name}-{i}{extension}");
+        return path;
+    }
+
+    private static long ScalarLong(SqliteConnection connection, string sql)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+    }
+
+    private static void Execute(SqliteConnection connection, string sql)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.ExecuteNonQuery();
+    }
+
+    // Cancellation is never a store failure: it propagates.
+    private static bool IsStoreFailure(Exception ex) => ex switch
+    {
+        SqliteException or IOException or UnauthorizedAccessException or DbUpdateException => true,
+        InvalidOperationException io => io.Message.StartsWith(ErrorCodes.StoreKeyUnavailable.Code, StringComparison.Ordinal),
+        _ => false,
+    };
+
+    private static ErrorCode Map(Exception ex, ErrorCode fallback) => ex switch
+    {
+        InvalidOperationException => ErrorCodes.StoreKeyUnavailable,
+        SqliteException { SqliteErrorCode: 11 or 26 } => ErrorCodes.StoreCorrupt, // SQLITE_CORRUPT / SQLITE_NOTADB
+        _ => fallback,
+    };
+}
