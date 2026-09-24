@@ -117,10 +117,14 @@ public sealed class PaymentTests
         foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
         {
             // The inherited SyncableEntity transport properties (Id/TenantId/UpdatedAt/Version/Deleted)
-            // are the store's bookkeeping, not the payment's economics; the payment's own properties
-            // must expose no setter at all.
+            // are the store's bookkeeping, not the payment's economics; the type's own properties
+            // must expose no *mutable* public setter. A positional record's init-only setter is a
+            // construction-time setter, not a mutator, so it is allowed (A-RULE 002/003: never edited).
             if (property.DeclaringType != typeof(Payment) && property.DeclaringType != typeof(InvoiceAdjustment)) continue;
-            Assert.Null(property.GetSetMethod(nonPublic: false));
+            var setter = property.GetSetMethod(nonPublic: false);
+            if (setter is null) continue;
+            var modifiers = setter.ReturnParameter.GetRequiredCustomModifiers();
+            Assert.Contains(modifiers, m => m.FullName == "System.Runtime.CompilerServices.IsExternalInit");
         }
     }
 }

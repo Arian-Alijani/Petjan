@@ -120,8 +120,12 @@ public sealed class JournalEntryTests
         {
             // The inherited SyncableEntity transport properties are the store's bookkeeping; every
             // property JournalEntry declares itself must be init-only (append-only forever).
+            // An init-only setter is construction-time only and therefore allowed; a mutable one is not.
             if (property.DeclaringType != typeof(JournalEntry)) continue;
-            Assert.Null(property.GetSetMethod(nonPublic: false));
+            var setter = property.GetSetMethod(nonPublic: false);
+            if (setter is null) continue;
+            var modifiers = setter.ReturnParameter.GetRequiredCustomModifiers();
+            Assert.Contains(modifiers, m => m.FullName == "System.Runtime.CompilerServices.IsExternalInit");
         }
     }
 }
