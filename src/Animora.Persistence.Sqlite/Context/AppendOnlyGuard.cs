@@ -17,7 +17,8 @@ public static class AppendOnlyGuard
     public static IReadOnlySet<Type> ProtectedTypes { get; } = new HashSet<Type>
     {
         typeof(JournalEntry), typeof(JournalLine), typeof(MedicalHistoryEntry),
-        typeof(StockMovement), typeof(Payment), typeof(ChequeEvent), typeof(StoreMaintenanceLog)
+        typeof(StockMovement), typeof(Payment), typeof(ChequeEvent), typeof(StoreMaintenanceLog),
+        typeof(LoginAttemptLog)
     };
 
     public static void Check(DbContext db)

@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `B03a`** — `backend-roadmap/phases/PHASE-B03a-*.md` (B03 is split into B03a→B03c; the parent `PHASE-B03-*.md` is an index only)
+**Next phase: `B03b`** — `backend-roadmap/phases/PHASE-B03b-*.md` (B03 is split into B03a→B03c; the parent `PHASE-B03-*.md` is an index only)
 
 ## Phase status
 
@@ -66,8 +66,8 @@
 | A12 | ✅ Done | 2026-09-24 | Track A test consolidation: 18 Domain + 16 Persistence test files (incl. `FakeClock`, `LocalStoreTestFixture`, `TestSupport`) covering A05–A11. One A02 defect fixed (IdGenerator shared high-water, see Repo state log "A12"). Expected 321 tests green (259+2 Domain, 57 Persistence, 3 others); final build/test.sh/run.sh re-verification not run in the finishing session (user directive: no long builds/tests) — run once before B01. |
 | B01 | ✅ Done | 2026-09-24 | Application layer skeleton: abstractions, frozen reflection-free dispatcher, fixed 6-behavior chain, validation primitives, 3 security-plane ports + temporary defaults, correlation + `OperationIdFactory`, `AddAnimoraApplication()`, `ErrorCodes` += 2. `build.sh full` 0/0; `test.sh` TESTS OK (353: 261 Domain, 33 Application, 57 Persistence, 1 Sync, 1 Server). `run.sh` not re-run (Xvfb not installed; desktop untouched). |
 | B02 | ✅ Done | 2026-09-24 | Local command pipeline + transactional outbox. Wire contracts (`CommandEnvelope`, `SettlementResult`, `CommandTypes` 16, `WireApiError`/`WireFieldError`), Domain `SettlementState` + `SettlementTransitions` allow-table, Application ports (`ICommandJournal`, `IOutbox`, `ICommandTransport`, `ILocalSequenceAllocator`, `IIntegrityAlertSink`, `RetryPolicy`, `CommandFingerprint` SHA-256), `CommandJournalBehavior` in the fixed chain, `LocalCommandProcessor` pass loop, Persistence (`PendingCommand`, `OutboxMessage`, `LocalSequenceCounter`, `PipelineSql` atomic claim, `CommandJournal`, `LocalOutbox`, `OutboxClaim`, `OutboxRelayHandler`), migration `004_CommandPipeline`. Build 0/0; Application 49/49 + Persistence 68/68 green. Not re-run `test.sh`/`run.sh` (user directive: no heavy tests). |
-| B03 | ⬜ Not started | | Split into B03a–B03c (index: `PHASE-B03-*.md`); done when B03c is done. |
-| B03a | ⬜ Not started | | Identity foundation: package pin, `User.MustChangePassword`, 4 error codes, `LocalSession`/`LoginAttemptLog` + migration `005_LocalIdentity`, hashing/policy/session infra + DI. |
+| B03 | 🟡 In progress | | Split into B03a–B03c (index: `PHASE-B03-*.md`); done when B03c is done. |
+| B03a | ✅ Done | 2026-09-24 | Identity foundation: package pin, `User.MustChangePassword`, 4 error codes, `LocalSession`/`LoginAttemptLog` + migration `005_LocalIdentity`, hashing/policy/session infra + DI. |
 | B03b | ⬜ Not started | | Identity application layer: 7 use cases, `SessionCurrentUserProvider` (deletes `SingleUserProvider`), `FindByUsernameAsync` + 3 repos, application DI. |
 | B03c | ⬜ Not started | | Identity contracts/desktop/tests: auth seam, `Client.Services`, login + first-run rewrite, mock deletion, seeding change, all B03 tests + build/test/run gate. |
 | B04 | ⬜ Not started | | Split into B04a–B04c (index: `PHASE-B04-*.md`); done when B04c is done. |
@@ -115,6 +115,29 @@
 Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blocked (reason)`.
 
 ## Repo state log
+
+### B03a — Identity foundation: tables, hashing & session (2026-09-24)
+- **Package:** `Microsoft.Extensions.Identity.Core 10.0.12` (home of `Microsoft.AspNetCore.Identity.PasswordHasher<T>`) pinned
+  in `Directory.Packages.props`; referenced **only** by `Animora.Infrastructure.Local.csproj` (see deviation log).
+- **Domain:** `User.MustChangePassword` + `RequirePasswordChange()`; `SetPasswordHash` clears it (and still rotates the stamp).
+- **ErrorCodes** (Identity region) += 4: `CredentialsInvalid`, `SessionExpired`, `PasswordPolicyViolation`,
+  `FirstRunAlreadyCompleted`. Lock/disable cases reuse `UserLockedOut` / `UserDisabled` (see deviation log).
+- **Persistence:** `[LocalOnly]` `LocalSession` (Start/Touch/Lock/Unlock/End; one active row per device via unique filtered
+  index `IX_LocalSessions_DeviceId_Active` `"EndedAtUtc" IS NULL`) and append-only `LoginAttemptLog`
+  (`Create(username, outcome, deviceId, now)`, `SuccessOutcome = "OK"`, index `IX_LoginAttemptLogs_OccurredAtUtc`;
+  added to `AppendOnlyGuard.ProtectedTypes`). Configs in `Configurations/Identity/`; column types/lengths from
+  `ModelConventions` (Ids TEXT(26), datetimes INTEGER UTC ticks). Migration `005_LocalIdentity`
+  (2 tables + `Users.MustChangePassword`) + snapshot.
+- **Application/Security:** `IPasswordHasher` + `PasswordVerificationOutcome`, `PasswordPolicy.Validate` (≥ 8, letter + digit),
+  `ISessionService` + `SessionSnapshot` (`SignedOut(isFirstRun)` helper).
+- **Infrastructure.Local:** `PasswordHashingService` (Identity `PasswordHasher<T>`, IdentityV3, 210 000 iterations; corrupt hash →
+  `Failed`), `LocalSessionService` (singleton, scope-per-operation, serialized by a semaphore; restore ends expired sessions
+  with `SESSION_EXPIRED`, resumes idle-past-timeout sessions **locked**; touch throttled by `TouchThrottle` = 60 s; unlock
+  verifies the hash, counts failures via `RegisterFailedAttempt`, ends the session if the lockout triggers),
+  `Options/LocalSessionOptions` (Idle 30 min, Absolute 12 h, TouchThrottle 60 s).
+- **DI** (`AddAnimoraLocalInfrastructure`): `LocalSessionOptions`, `IPasswordHasher → PasswordHashingService`,
+  `ISessionService → LocalSessionService` (singletons, `TryAdd`). Nothing consumes them yet (B03b).
+- **Gate:** `build.sh full` 0/0; `dotnet-ef migrations list` shows `005_LocalIdentity`.
 
 ### B01 — Application layer skeleton (2026-09-24)
 - **Abstractions** (`Animora.Application.Abstractions`): `ICommand<TResult>`, `IQuery<TResult>` (markers),
@@ -1177,3 +1200,23 @@ Rule check: CONVENTIONS §2 (Domain still references nothing — verified: `Anim
 Impact:     A09 maps `Invoice.SettlementErrorCode` as a plain nullable string column; C07/C08 map the
             Domain `DiscountKind` to the Contracts one explicitly (a one-line switch, not a cast) —
             the two enums are deliberately separate types.
+
+### B03a — error-code reuse, tooling & session details            (date: 2026-09-24)
+Context:    Phase file pre-made the `ACCOUNT_LOCKED`/`ACCOUNT_DISABLED` substitution; it also assumed install-prereqs
+            installs dotnet-ef to `.sandbox/tools` (it does not) and left some session mechanics open.
+Decision:   (0) The package `Microsoft.AspNetCore.Identity` has no 10.x on NuGet (last 2.3.x; in .NET 10 it is shared-framework
+            only). Pinned `Microsoft.Extensions.Identity.Core 10.0.12` instead — it contains `PasswordHasher<T>`,
+            `PasswordHasherOptions` and `PasswordVerificationResult` in namespace `Microsoft.AspNetCore.Identity`. B03c's
+            `LayeringRulesTests` fact must assert on `Microsoft.Extensions.Identity.Core` (and the namespace
+            `Microsoft.AspNetCore.Identity`) being used only by Infrastructure.Local.
+            (1) Reused `UserLockedOut`/`UserDisabled` instead of adding `ACCOUNT_LOCKED`/`ACCOUNT_DISABLED`.
+            (2) Installed dotnet-ef 10.0.12 with `dotnet tool install dotnet-ef --version 10.0.12 --tool-path .sandbox/tools`
+            (git-ignored). (3) `LocalSessionService` is a singleton that opens a DI scope per operation (session is
+            app-wide; DbContext stays scoped). (4) Throttle interval exposed as `LocalSessionOptions.TouchThrottle`.
+            (5) Touch on a locked session returns `PERMISSION_DENIED`; unlock failures on a non-existent session return
+            `NOT_FOUND`. (6) `SessionSnapshot.Role` = first active `StaffMembership` role of the user (null if none).
+            (7) Unlock does not rehash on `SuccessRehashNeeded` (sign-in handler does, B03b).
+Rule check: CONVENTIONS §2 (Identity only in Infrastructure.Local), §4 (Result codes, IClock, ULIDs), §7 (Identity primitives),
+            A-RULE 029 (explicit expiry, no silent extension), R-B09 (durable session row).
+Impact:     B03b consumes `IPasswordHasher`, `PasswordPolicy`, `ISessionService`; it should write `LoginAttemptLog` rows on
+            sign-in. install-prereqs.sh should be taught to install dotnet-ef (not changed here — out of scope).
