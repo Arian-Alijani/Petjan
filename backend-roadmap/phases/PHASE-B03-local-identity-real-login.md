@@ -22,6 +22,82 @@ lockout, a first-run owner-setup path, a real session with app-lock, and a real
 `ICurrentUserContext`/`ICurrentUserProvider` so every command from now on carries a genuine `UserId`
 and `DeviceId`.
 
+## Repo reality check (verified against the current tree — read this before coding, skip re-exploring)
+1. **`User` (A03) already has most of the credential machinery, under different names than
+   the "Design decisions" below use.** Do not add duplicate members/methods — extend/rename-call
+   the existing ones:
+   - Existing: `PasswordHash` (nullable `string`, already named exactly this), `SecurityStamp`,
+     `Status` (`UserStatus`: `Active|Disabled|Locked`), `LastLoginUtc`, `FailedAttemptCount`,
+     `LockoutEndUtc`, `_firstFailureUtc` (private).
+   - Existing methods: `RegisterFailedAttempt(IClock, int threshold=5, TimeSpan? window=null)` →
+     `bool` (returns true when it triggered the lockout; already implements the "5 failures → 15 min"
+     policy via `MaxFailedAttempts`/`LockoutDuration`/`DefaultFailureWindow` constants — **do not
+     re-add `RecordFailedLogin`, it's the same thing**), `ClearFailures()`, `IsLockedOut(DateTimeOffset
+     nowUtc)`, `RegisterSuccessfulLogin(IClock)` (calls `ClearFailures` — this is `RecordSuccessfulLogin`),
+     `RotateSecurityStamp()`, `SetPasswordHash(string)` (rotates the stamp already — this is
+     `SetPassword`), `Disable()`, `Enable()` (this is `Unlock`).
+   - **Only genuinely missing:** `MustChangePassword` (bool) — add this one new property + a small
+     setter/method. Everything else in "Design decisions" below that duplicates the above is the
+     same behavior under a different proposed name; implement by calling the existing member.
+2. **The Desktop composition root has ZERO backend wiring today.** `Animora.Desktop.csproj` only
+   references `Animora.Contracts`. `App.axaml.cs`'s `ConfigureServices()` never touches
+   `Animora.Application`, `Animora.Persistence.Sqlite`, or `Animora.Infrastructure.Local`. This
+   phase is the **first** to wire them in. Concretely:
+   - Add `<ProjectReference Include="..\Animora.Client.Services\Animora.Client.Services.csproj" />`
+     to `Animora.Desktop.csproj` (Client.Services already references Application + Contracts +
+     Persistence.Sqlite + Infrastructure.Local, so this one line pulls in the whole stack).
+   - In `ConfigureServices()`, call **`services.AddAnimoraLocalInfrastructure()`** (from
+     `Animora.Infrastructure.Local`), **not** the narrower `AddAnimoraLocalStore()` — only
+     `AddAnimoraLocalInfrastructure` also registers `IClock`, `IMonotonicClock`,
+     `LocalDbKeyService`/`ISecretStore`, `ILocalInstallationIdentity`, and — critically —
+     `ILocalStoreInitializer` (`LocalStoreStartup`), which is what you kick off as the
+     post-first-frame background task. Then call `services.AddAnimoraApplication(configure)` to
+     register the six new use cases.
+   - **Sequencing:** `LocalStoreStartup.InitializeAsync` (8 steps: dir → key → open+native-assert →
+     quick_check → migrate → checkpoint → **bootstrap + `LocalSeeder`** → diagnostics) must
+     complete before a sign-in attempt can succeed — the tenant/roles/permissions rows it seeds
+     are what `CompleteFirstRunSetupCommand` and `SignInCommand` read. Since the Login window shows
+     immediately at first frame while this runs in the background, gate the sign-in/first-run UI on
+     its completion (e.g. `IsBusy`/a "starting up" state in `LoginViewModel` until the task finishes)
+     rather than letting the user submit before the store exists.
+   - `Tenant.CreateLocalDefault("Animora Clinic")` is already created by `LocalSeeder` during store
+     startup (block key `identity.tenant`). **`CompleteFirstRunSetupCommand` must not create a
+     tenant** — it only creates the owner `User` + `StaffMembership(StaffRole.Manager)` + `Device`,
+     inside the already-seeded `Tenant.LocalDefaultId`.
+3. **`IDialogService` has no generic "input dialog" today.** It only exposes
+   `ShowModal(object content, double maxWidth)`, `ShowDrawer`, `ShowSheet`, `SaveTextFileAsync`,
+   `Close`. There is no reusable prompt/form dialog to "reuse" for first-run. Build a small,
+   dedicated `FirstRunViewModel` + `FirstRunView` (clinic name / owner name / username / password
+   fields) and show it via `IDialogService.ShowModal(firstRunViewModel)` — this is a small, real
+   `.axaml` addition (the phase's CONVENTIONS §10 exception list doesn't cover Login, so this is a
+   net-new View/ViewModel pair, not a violation of "no `.axaml` change" — that rule is about
+   Track C mock retirement, not this phase).
+4. **`ICurrentUserProvider`/`CommandContext` shapes to match exactly** (already defined in B01,
+   do not change their signatures): `CommandContext(TenantId, UserId, DeviceId, OperationId,
+   CorrelationId, CausationId, DependsOnOperationId, ExpectedAggregateVersion, CreatedAtUtc)`;
+   `ICurrentUserProvider.BuildCommandContextAsync(string? operationId, string? dependsOn, long?
+   expectedVersion, CancellationToken ct)` / `BuildQueryContext()`. `SessionCurrentUserProvider`
+   must implement these two methods exactly, sourcing `TenantId`/`DeviceId` from the active
+   `LocalSession` (fallback to `ILocalInstallationIdentity` before any session exists).
+5. **Error-code overlap to resolve, not duplicate:** A03 already declared `UserLockedOut`
+   (`USER_LOCKED_OUT`), `UserDisabled` (`USER_DISABLED`), `MembershipNotActive`, `CapabilityNotGranted`
+   in `ErrorCodes`. The phase's proposed `ACCOUNT_LOCKED`/`ACCOUNT_DISABLED` would be semantic
+   duplicates. **Reuse `ErrorCodes.UserLockedOut`/`ErrorCodes.UserDisabled` instead of adding new
+   ones** for those two cases; only add the genuinely new codes: `CREDENTIALS_INVALID`,
+   `SESSION_EXPIRED`, `PASSWORD_POLICY_VIOLATION`, `FIRST_RUN_ALREADY_COMPLETED` (4, not 6).
+   Record this substitution explicitly in the `PROGRESS.md` deviation log.
+6. **`IIdentityRepository`** (`Animora.Application.Ports`) already exists (`FindAsync`/`RequireAsync`
+   by id / `Add`/`AddRange` of `User`), implemented by `IdentityRepository` in
+   `Persistence.Sqlite/Repositories/`. `SignInCommandHandler` needs lookup **by username**, which
+   this repository does not yet expose — add one method (`FindByUsernameAsync(string tenantId,
+   string userName, ct)`) rather than loading all users. There is currently **no repository for
+   `StaffMembership`, `Device`, or `RoleDefinition`** — you must add these three (same simple
+   shape as the existing repositories) plus their DI registrations in
+   `LocalStoreServiceCollectionExtensions.AddAnimoraLocalStore`.
+7. `UserConfiguration` already has a unique index `IX_Users_TenantId_Username` on
+   `(TenantId, UserName)` — no new index needed there; only add the two new local-only tables
+   (`LocalSession`, `LoginAttemptLog`) and their configurations/migration.
+
 ## Design decisions (pre-made — implement, do not re-derive)
 - **Package pin added:** `Microsoft.AspNetCore.Identity` `10.0.12` in `Directory.Packages.props`,
   consumed **only** by `Animora.Infrastructure.Local` and **only** for

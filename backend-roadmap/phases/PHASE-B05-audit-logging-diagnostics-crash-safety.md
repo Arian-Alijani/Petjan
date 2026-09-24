@@ -20,6 +20,60 @@ financial action, correlation ids flowing through the whole chain, rotating stru
 no hot-path cost, an exportable diagnostics bundle, and a global exception handler with safe restart
 and in-flight UI recovery. This is the last phase before mock retirement begins.
 
+## Repo reality check (verified against the current tree — read this before coding, skip re-exploring)
+1. **`ICorrelationContext`/`CorrelationContext` (B01) already exist and are simpler than this
+   phase's "AmbientCorrelation" proposal**: `ICorrelationContext.CurrentId` (`string?`) +
+   `Begin(string? id = null)` returning an `IDisposable` scope, `AsyncLocal`-backed. There is
+   **no** `TenantId`/`UserId`/`DeviceId`/`OperationId` carried by it today — only the correlation id
+   itself; those other four values live only in `CommandContext`/`QueryContext`, which are per-call,
+   not ambient. Adding `AmbientCorrelation`/`ICorrelationContext.Current` per the design decision is
+   a **new, additive** member on the existing interface (add `AmbientCorrelation? Current { get; }`
+   next to the existing two members) — do not replace `CurrentId`/`Begin`, `CorrelationBehavior`
+   (stage 1 of `Dispatcher.Chain`) already calls `Begin(CorrelationIdOf(context))` and depends on
+   the existing shape.
+2. **`AppendOnlyGuard.ProtectedTypes`** is a `HashSet<Type>` literal in
+   `Persistence.Sqlite/Context/AppendOnlyGuard.cs` (currently: `JournalEntry`, `JournalLine`,
+   `MedicalHistoryEntry`, `StockMovement`, `Payment`, `ChequeEvent`, `StoreMaintenanceLog`). Adding
+   `AuditEntry` is a one-line addition to that literal — do not restructure the guard.
+3. **`AuditBehavior`'s stated chain position ("immediately after `CommandJournalBehavior`") assumes
+   B02 shipped `CommandJournalBehavior` into `Dispatcher.Chain`.** As of this writing `B02 is not
+   started`; `Dispatcher.Chain` today is exactly: `Correlation → ExceptionMapping → Validation →
+   Authorization → Entitlement → Transaction` (6 entries, `Dispatcher.cs`). If B02 has landed by the
+   time B05 runs, insert `AuditBehavior` right after wherever `CommandJournalBehavior` was placed
+   (inside `TransactionBehavior`, so both write in the same DB transaction); if for any reason B02's
+   chain position differs from its own phase file, follow what B02 actually shipped (check
+   `PROGRESS.md`'s B02 "Repo state" entry), not this phase's assumption. Either way, `AuditBehavior`
+   must run **inside** the transaction opened by `TransactionBehavior` (i.e. after it in the outer→
+   inner order), never outside it, or the "audit row commits/rolls back with the business change"
+   acceptance criterion cannot hold.
+4. **`ILocalStoreMaintenance`/`LocalStoreDiagnostics` (A11c) already exist** with exactly this
+   shape: `BackupAsync`, `RestoreAsync(string backupPath, ct)`, `QuarantineAndRebuildAsync`,
+   `VacuumAsync(ct)` returning `Result<int>` (pages freed) — `MaintenanceScheduler` calls these
+   directly, no new port needed. `LocalStoreDiagnostics` fields are: `DatabasePath`,
+   `NativeSqliteVersion`, `EncryptionActive`, `KeySource` (enum `None|OsKeystore|InsecureFallback`),
+   `SchemaVersion` (the **last applied migration name**, a string, not a number),
+   `RecoveredFromCrash`, `Quarantined`, `DatabaseBytes`, `LastBackupUtc` — use these exact names when
+   building `environment.json` for the diagnostics bundle.
+5. **`IToastService`/`IDialogService` have no severity/notification concept today** — `IToastService
+   .Show(string text, Tone tone = Tone.Ok)` (`Tone`: presumably `Ok|Warn|Danger|Info` per
+   `ToastService.cs`'s icon switch) is the only signal. `ToastNotificationAdapter` maps
+   `NotificationSeverity` → `Tone` (`Info→Info`, `Warning→Warn`, `Error|NeedsAttention→Danger`) and
+   calls `IToastService.Show`; for `NotificationAction`/`TargetRoute` there is no existing "toast with
+   action button" — either extend `ToastMessage`/`ToastHost` minimally (a small `.axaml` addition,
+   acceptable here — this phase is not under the Track-C "zero `.axaml`" rule) or fall back to
+   `IDialogService.ShowModal` for actionable notifications and plain toast for informational ones;
+   record whichever you choose in `PROGRESS.md`.
+6. **`App.axaml.cs` still has no reference to `Animora.Client.Services`/`Animora.Application` unless
+   B03 already added it** (see B03's reality check item 2). If B03 has landed, the project reference
+   and `AddAnimoraLocalInfrastructure()`/`AddAnimoraApplication()` calls already exist — just extend
+   the existing `ConfigureServices()` with the logging/exception-hook/notification-port lines listed
+   below; do not re-add the project reference or re-call those two extension methods.
+7. **`LocalStoreStartup` (A11d) already logs steps internally via `_steps`/`Steps`** (visible to
+   `Animora.Persistence.Tests` via `InternalsVisibleTo`) — this is separate from the Serilog file
+   sink this phase adds; do not conflate the two. `GlobalExceptionHandler`/`CrashRecoveryService`
+   are new types this phase adds in `Infrastructure.Local/Startup/`, alongside (not replacing)
+   `LocalStoreStartup`.
+
 ## Design decisions (pre-made — implement, do not re-derive)
 - **Audit table** (`[LocalOnly]`, migration `007_AuditDiagnostics`):
   `AuditEntry` — `Id` (ULID), `TenantId`, `UserId`, `DeviceId`, `OccurredAtUtc`,

@@ -20,6 +20,69 @@ policy + resource), a real `IAuthorizationGate` wired into the B01 chain, a sign
 capability snapshot with per-capability offline expiry that fails closed, and an `ICapabilityGate` seam
 the shell can consume for screen/action gating without touching any `.axaml`.
 
+## Repo reality check (verified against the current tree — read this before coding, skip re-exploring)
+1. **`PermissionCodes` (A03) uses a different naming scheme than this phase's examples.** Codes are
+   `<context>.<action>` with **no aggregate segment** (e.g. `patients.read`, `sales.post`,
+   `finance.period.close`, `cashier.session.open`), not `sales.invoice.post` /
+   `inventory.stock.adjust` as this phase's prose suggests. **Use the existing constants verbatim**
+   (`PermissionCodes.SalesPost`, `.PatientsWrite`, etc.) — do not invent new literal strings, and do
+   not rename existing ones. Full existing catalog (42 codes): see
+   `src/Animora.Domain/Identity/PermissionCodes.cs`. `RiskLevel` is already computed by
+   `PermissionCodes.RiskOf(code)` from two explicit `HashSet`s (`CriticalCodes`, `HighCodes`) plus a
+   `.read`-suffix rule for `Low`; **reuse `RiskOf`/`OfflineCapabilityPolicy.WindowForCode` directly**
+   instead of re-deriving a risk table.
+2. **The nav → permission map in the phase file uses guessed codes that don't exist.** E.g. there is
+   no `dashboard.view`, `reception.queue.view`, `purchasing.view`, `sales.view`, `cheques.view`,
+   `finance.view`, `history.view`, `profile.view`, `boarding.view`, `inventory.view`,
+   `vaccination.view`, `appointments.view`, `visits.view` constant anywhere. The closest existing
+   equivalents are the `*Read` constants (`PatientsRead`, `VisitsRead`, `VaccinationRead`,
+   `AppointmentsRead`, `BoardingRead`, `InventoryRead`, `PurchasingRead`, `SalesRead`, `ChequesRead`,
+   `FinanceRead`, `ReportsRead`, `SettingsRead`, `AuditRead`) plus `ReceptionManage` (there is no
+   separate reception-read code). **Decide and record explicitly** (in `PROGRESS.md`) whether
+   `NavPermissions` maps each nav item to its closest existing `*Read`/`*Manage` code, or whether new
+   `*.view`-style codes are genuinely needed as **additions** to `PermissionCodes.All` (never renames
+   — `CONVENTIONS.md` §10.3 / mock-retirement rule analog applies to permission codes too: they are
+   never renamed once shipped). There is no `dashboard.*` or `history.*` permission at all today —
+   if gating those two screens is wanted, that is a new code addition, not a lookup.
+3. **`ICurrentUserProvider`/`SessionCurrentUserProvider` come from B03, not B04.** By the time B04
+   runs, `AuthorizationSubject` must be built from the **already-real** session (tenant/user/device
+   from `LocalSession`, not the B01 `SingleUserProvider` stub). Read `StaffMembership`'s
+   `ExtraPermissionCodes`/`DeniedPermissionCodes` (already on the aggregate, A03) when composing the
+   effective RBAC set — `RoleDefinition.PermissionCodes ∪ StaffMembership.ExtraPermissionCodes \
+   StaffMembership.DeniedPermissionCodes` (denies win). There is currently **no repository** for
+   `RoleDefinition`/`StaffMembership`/`Device` — B03 is expected to add these (see B03's reality
+   check item 6); if B03 shipped without them, add them here instead of blocking.
+4. **`IAuthorizationGate.EvaluateAsync` signature is fixed already** (B01):
+   `ValueTask<Result> EvaluateAsync(object command, CommandContext context, CancellationToken ct)` and
+   the `QueryContext` overload. `AuthorizationBehavior` (already wired into `Dispatcher.Chain`, stage
+   3) already coerces a non-`Forbidden`-category failure to `ErrorCodes.PermissionDenied` — so
+   `PermissionAuthorizationGate` only needs to return the right category; it does not need to
+   duplicate that coercion.
+5. **`HandlerEntry`/`PipelineDescriptor` are immutable records with a fixed constructor shape**
+   (`HandlerEntry(RequestType, ResultType, HandlerType, Kind, Pipeline, Invoker)`,
+   `PipelineDescriptor(RequestType, ResultType, Kind, HasValidators)`). "Store the permission code on
+   the entry" (per the phase's design decision) requires **adding a field to both records** (e.g.
+   `PermissionCode` on `PipelineDescriptor`, populated by reading `RequiresPermissionAttribute` in
+   `ApplicationRegistrationBuilder.BuildEntry` via `typeof(TRequest).GetCustomAttribute<...>()` once,
+   at registration) — this is a breaking change to two existing sealed records used by B01's
+   `IPipelineBehavior.Wrap<TRequest,TResult>(PipelineStep<TResult> next, PipelineDescriptor
+   descriptor)` contract. Every existing behavior (`Correlation`, `ExceptionMapping`, `Validation`,
+   `Entitlement`, `Transaction`) receives the same `PipelineDescriptor`, so adding a field is
+   additive and safe, but **do not change `Wrap`'s signature** — only extend the record.
+6. **`AuthorizationPolicies` needs real field names.** `CashSession.CashierUserId` (not
+   `OpenedByUserId`) is the session-owner field; `AccountingPeriod` uses `PeriodState` (`Open |
+   Closing | Closed | Locked`), not a bool — `PeriodOpen` policy checks
+   `period.State == PeriodState.Open`. `Invoice`/`Expense`/`PurchaseOrder`/`Appointment` all already
+   expose `CreatedByUserId`; `Visit`/`Appointment`/`ReceptionQueueEntry` expose `DoctorUserId`
+   (nullable on `Appointment`/`ReceptionQueueEntry`, required on `Visit`) — `AssignedDoctorOnly`
+   compares against these exact property names.
+7. **No `IIdentityRepository` lookup by tenant-wide role catalog exists yet** — `RoleDefinition` rows
+   are per-tenant (`CreateSystem(tenantId, role, clock)`), seeded once per tenant by `LocalSeeder`'s
+   `identity.roles` block. `PermissionEvaluator` needs a way to load the tenant's `RoleDefinition`
+   for a given `StaffRole`; add the lookup to whichever `IRoleDefinitionRepository` B03/B04 creates
+   (see item 3) rather than re-deriving from `DefaultRolePermissions` at evaluation time — a tenant
+   may have edited its stored definition.
+
 ## Design decisions (pre-made — implement, do not re-derive)
 - **Permission model (fixed):** a permission code is `<context>.<action>` (e.g. `sales.invoice.post`,
   `patients.pet.edit`, `finance.period.close`, `inventory.stock.adjust`, `identity.user.manage`).
