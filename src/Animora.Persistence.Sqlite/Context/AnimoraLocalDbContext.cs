@@ -26,8 +26,23 @@ public sealed class AnimoraLocalDbContext(
         ModelConventions.Apply(modelBuilder, this);
     }
 
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
+        PrepareSave();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default)
+    {
+        PrepareSave();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void PrepareSave()
+    {
+        // Append-only rules first: nothing is stamped when the change set is illegal.
+        AppendOnlyGuard.Check(this);
         var changes = ChangeTracker.Entries<SyncableEntity>()
             .Where(entry => entry.State is EntityState.Added or EntityState.Modified).ToArray();
         // Validate all rows before stamping any of them.
@@ -42,6 +57,5 @@ public sealed class AnimoraLocalDbContext(
             if (entry.Entity.TenantId.Length == 0) entry.Entity.TenantId = tenant.TenantId;
             entry.Entity.UpdatedAt = now;
         }
-        return base.SaveChangesAsync(cancellationToken);
     }
 }

@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A10b`** — `backend-roadmap/phases/PHASE-A10b-*.md` (A10 and A11 are each split into 4 one-session sub-phases a→d; run them in order)
+**Next phase: `A10c`** — `backend-roadmap/phases/PHASE-A10c-*.md` (A10 and A11 are each split into 4 one-session sub-phases a→d; run them in order)
 
 ## Phase status
 
@@ -55,7 +55,7 @@
 | A09 | ✅ Done | 2026-09-23 | Local SQLite context, conventions, converters, 18 mappings + migration `001_LocalCoreSchema`; named filters; no tests (A12). |
 | A10 | ⬜ Not started | | Split: A10a–A10d; ✅ when A10d done. PR #123 work is partial (see A10a). |
 | A10a | ✅ Done | 2026-09-24 | 8 child rows → relational tables (PK OwnerId+childKey, cascade FK, field nav, AutoInclude) via reflection-free `OwnedRows.Map/Row` + `ApplyOwnedScalarConventions`; Money→`<N>Minor`/`<N>Currency`, Quantity→`<N>Unit` + `<N>Scaled` INTEGER×1000 (`FixedScaleQuantityConverter`; StockMovement, PO/GR/Invoice lines) or `<N>Value` TEXT (ReorderLevel). Indexes: JournalEntries EntryNumber unique, Products Sku unique filtered, +IX_JournalLines_AccountCode; no category-name lookup → no index. StockLevel ignored. Deviation: children are EF dependent entities (EF10 owned types can't hold complex props); domain: private parameterless materialization ctor on 7 child records. dotnet-ef 10.0.12 at `.sandbox/tools`. No migration (A10d). |
-| A10b | ⬜ Not started | | |
+| A10b | ✅ Done | 2026-09-24 | Guard: `AppendOnlyGuard.Check` runs first in `PrepareSave()` shared by `SaveChanges(bool)`/`SaveChangesAsync(bool,ct)` overrides (covers all overloads), before tenant check/stamping; blocks Modified/Deleted of the 6 types incl. child rows, diagnostics = type + PK original values; Added children allowed. UoW: `SaveAsync` = own transaction when none active (inside `ExecuteAsync` only flushes); `ExecuteAsync` = one tx, nesting throws; events snapshotted before save, ordered by `OccurredAtUtc` (stable), dispatched in-tx, handler writes saved, commit, then `ClearDomainEvents`; any failure → rollback (tx dispose), events kept, `ChangeTracker.Clear()`. `DbUpdateConcurrencyException`→ConcurrencyConflict, Sqlite/DbUpdate(Sqlite)→StoreUnavailable on begin/save/commit; OCE/other exceptions propagate. Dispatcher: no `dynamic`; `services.AddDomainEventHandler<TEvent,THandler>()` → singleton `DomainEventHandlerRegistration` → singleton `DomainEventHandlerMap` (Type→invoker[]), handlers resolved from scope in order, short-circuit. DI: 18 repos + UoW + dispatcher scoped, idempotent; `AddDbContextFactory(..., ServiceLifetime.Scoped)` is the single config source (also registers the scoped context) — scoped factory so the scoped interceptor/tenant are never captured by a singleton. No repo lookups added. |
 | A10c | ⬜ Not started | | |
 | A10d | ⬜ Not started | | |
 | A11 | ⬜ Not started | | Split: A11a–A11d; ✅ when A11d done. |
