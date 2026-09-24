@@ -113,21 +113,27 @@ public sealed class DispatcherTests
     }
 
     [Fact]
-    public async Task SingleUserProvider_BuildsContextsWithOperationId()
+    public async Task SessionCurrentUserProvider_RequiresSession_AndBuildsContexts()
     {
         using var sp = TestHost.Build(new StepLog());
         using var scope = sp.CreateScope();
         var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
+        Assert.Equal(ErrorCodes.SessionExpired, (await provider.BuildCommandContextAsync(null, null, 3, CancellationToken.None)).Error);
+        Assert.Equal(ErrorCodes.SessionExpired, provider.BuildQueryContext().Error);
+
+        var session = await sp.GetRequiredService<ISessionService>().StartAsync("U-TEST", "D-TEST");
+        sp.GetRequiredService<SessionContextCache>().Set(session.Value);
         var ctx = await provider.BuildCommandContextAsync(null, null, 3, CancellationToken.None);
         Assert.True(ctx.IsSuccess);
         Assert.Equal("T-TEST", ctx.Value!.TenantId);
-        Assert.Equal(SingleUserProvider.LocalOwnerUserId, ctx.Value.UserId);
+        Assert.Equal("U-TEST", ctx.Value.UserId);
         Assert.Equal("D-TEST", ctx.Value.DeviceId);
         Assert.Null(Validation.Rules.UlidFormat(ctx.Value.OperationId, "op"));
         Assert.Equal(3, ctx.Value.ExpectedAggregateVersion);
         Assert.Equal(ErrorCodes.ValidationFailed,
             (await provider.BuildCommandContextAsync("not-a-ulid", null, null, CancellationToken.None)).Error);
-        Assert.Equal("T-TEST", provider.BuildQueryContext().Value!.TenantId);
+        Assert.Equal("U-TEST", provider.BuildQueryContext().Value!.UserId);
+        Assert.Equal(ICurrentUserProvider.AnonymousUserId, provider.BuildAnonymousCommandContext().Value!.UserId);
     }
 
     [Fact]

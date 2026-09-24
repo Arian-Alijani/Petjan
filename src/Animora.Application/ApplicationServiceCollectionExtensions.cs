@@ -15,10 +15,11 @@ public static class ApplicationServiceCollectionExtensions
 {
     /// <summary>
     /// Registers correlation, <see cref="OperationIdFactory"/>, the security-plane defaults
-    /// (allow-all authorization → B04, allow-all entitlement → E07, <see cref="SingleUserProvider"/> → B03;
+    /// (allow-all authorization → B04, allow-all entitlement → E07, session-sourced <see cref="SessionCurrentUserProvider"/> (B03b);
     /// all <c>TryAdd</c> so replacements win), the command-pipeline defaults
     /// (<see cref="NullCommandTransport"/> → E06, <see cref="NullIntegrityAlertSink"/> → B05), the reference
-    /// <see cref="PingQuery"/> pair and the two sync UI-seam queries, every explicit registration from
+    /// <see cref="PingQuery"/> pair and the two sync UI-seam queries, every
+    /// explicit registration (identity use cases: <c>builder.AddIdentityUseCases()</c>, B03b) from
     /// <paramref name="configure"/>, then validates and freezes the handler registry.
     /// Throws <see cref="InvalidOperationException"/> on any registry gap (startup failure).
     /// </summary>
@@ -31,7 +32,8 @@ public static class ApplicationServiceCollectionExtensions
         services.TryAddSingleton<OperationIdFactory>();
         services.TryAddSingleton<IAuthorizationGate, AllowAllAuthorizationGate>();
         services.TryAddSingleton<IEntitlementGate, AllowAllEntitlementGate>();
-        services.TryAddScoped<ICurrentUserProvider, SingleUserProvider>();
+        services.TryAddSingleton<SessionContextCache>();
+        services.TryAddScoped<ICurrentUserProvider, SessionCurrentUserProvider>();
         // Command-pipeline defaults: replaced by E06 (transport) and B05 (integrity sink).
         services.TryAddSingleton<ICommandTransport, NullCommandTransport>();
         services.TryAddSingleton<IIntegrityAlertSink, NullIntegrityAlertSink>();

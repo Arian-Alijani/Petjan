@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `B03b`** — `backend-roadmap/phases/PHASE-B03b-*.md` (B03 is split into B03a→B03c; the parent `PHASE-B03-*.md` is an index only)
+**Next phase: `B03c`** — `backend-roadmap/phases/PHASE-B03c-*.md` (B03 is split into B03a→B03c; the parent `PHASE-B03-*.md` is an index only)
 
 ## Phase status
 
@@ -68,7 +68,7 @@
 | B02 | ✅ Done | 2026-09-24 | Local command pipeline + transactional outbox. Wire contracts (`CommandEnvelope`, `SettlementResult`, `CommandTypes` 16, `WireApiError`/`WireFieldError`), Domain `SettlementState` + `SettlementTransitions` allow-table, Application ports (`ICommandJournal`, `IOutbox`, `ICommandTransport`, `ILocalSequenceAllocator`, `IIntegrityAlertSink`, `RetryPolicy`, `CommandFingerprint` SHA-256), `CommandJournalBehavior` in the fixed chain, `LocalCommandProcessor` pass loop, Persistence (`PendingCommand`, `OutboxMessage`, `LocalSequenceCounter`, `PipelineSql` atomic claim, `CommandJournal`, `LocalOutbox`, `OutboxClaim`, `OutboxRelayHandler`), migration `004_CommandPipeline`. Build 0/0; Application 49/49 + Persistence 68/68 green. Not re-run `test.sh`/`run.sh` (user directive: no heavy tests). |
 | B03 | 🟡 In progress | | Split into B03a–B03c (index: `PHASE-B03-*.md`); done when B03c is done. |
 | B03a | ✅ Done | 2026-09-24 | Identity foundation: package pin, `User.MustChangePassword`, 4 error codes, `LocalSession`/`LoginAttemptLog` + migration `005_LocalIdentity`, hashing/policy/session infra + DI. |
-| B03b | ⬜ Not started | | Identity application layer: 7 use cases, `SessionCurrentUserProvider` (deletes `SingleUserProvider`), `FindByUsernameAsync` + 3 repos, application DI. |
+| B03b | ✅ Done | 2026-09-24 | Identity application layer: 7 use cases + validators, `SessionCurrentUserProvider` (deleted `SingleUserProvider`), `FindByUsernameAsync` + 3 repos (+ `ILoginAttemptLog`), application DI. Application + Infrastructure.Local builds 0/0; Dispatcher/Behavior tests 20/20. |
 | B03c | ⬜ Not started | | Identity contracts/desktop/tests: auth seam, `Client.Services`, login + first-run rewrite, mock deletion, seeding change, all B03 tests + build/test/run gate. |
 | B04 | ⬜ Not started | | Split into B04a–B04c (index: `PHASE-B04-*.md`); done when B04c is done. |
 | B04a | ⬜ Not started | | Authorization plane: `PermissionEvaluator` + 5 policies + resource rules, `RequiresPermissionAttribute`, `PermissionAuthorizationGate` (replaces allow-all), `ErrorCodes` += `PERMISSION_UNKNOWN`. |
@@ -115,6 +115,29 @@
 Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blocked (reason)`.
 
 ## Repo state log
+
+### B03b — Identity use cases, provider swap & repositories (2026-09-24)
+- **Use cases** (`Application/UseCases/Identity/`, one file each, handler + validator): `SignInCommand` → `SignInResult`
+  (lookup by username → lockout/disabled gate *without* hash comparison → verify → failure: `RegisterFailedAttempt` +
+  `LoginAttemptLog` + `CREDENTIALS_INVALID` (5th → `USER_LOCKED_OUT`) → success: rehash if needed, `RegisterSuccessfulLogin`,
+  `LoginAttemptLog("OK")`, `ISessionService.StartAsync`, permissions); `SignOutCommand`, `LockSessionCommand`,
+  `UnlockSessionCommand` → `SessionSnapshot`, `ChangePasswordCommand` (policy → verify current → `SetPasswordHash`),
+  `CompleteFirstRunSetupCommand` → `SignInResult` (guard: any user exists → `FIRST_RUN_ALREADY_COMPLETED`; renames the
+  seeded `T-LOCAL-DEFAULT` tenant, creates owner `User` + `StaffMembership(Manager)` + approved `Device`, starts session),
+  `CurrentSessionQuery` → `SessionSnapshot`. Registered via `builder.AddIdentityUseCases()` (`IdentityRegistration`).
+- **Support types:** `Abstractions/Unit`, `Commands/ISelfTransactedCommand` (TransactionBehavior bypass),
+  `Security/SessionContextCache` (singleton last-known snapshot), `IdentityAccess.PermissionsAsync` (stored
+  `RoleDefinition` or `DefaultRolePermissions`, + extras − denies).
+- **Provider:** `SessionCurrentUserProvider` replaces `SingleUserProvider` (deleted). No/expired session →
+  `SESSION_EXPIRED`; locked → `PERMISSION_DENIED`. `ICurrentUserProvider` gains `AnonymousUserId` +
+  `BuildAnonymousCommandContext` / `BuildAnonymousQueryContext` for pre-auth identity requests.
+- **Ports/repos:** `IIdentityRepository.FindByUsernameAsync` / `AnyUserAsync` / `FindTenantAsync`; new
+  `IStaffMembershipRepository` (`FindAsync`, `FindActiveAsync`, `Add`), `IDeviceRepository` (`FindAsync`, `Add`),
+  `IRoleDefinitionRepository` (`FindByRoleAsync`), `ILoginAttemptLog` → `LoginAttemptLogWriter`; all registered in
+  `AddAnimoraLocalStore`.
+- **DI:** `AddAnimoraApplication` → `SessionContextCache` (singleton) + `ICurrentUserProvider → SessionCurrentUserProvider`.
+- **Tests touched (compile only):** `SingleUserProvider` fact replaced by `SessionCurrentUserProvider_RequiresSession_AndBuildsContexts`;
+  `TestHost` registers a `FakeSessionService`. Full B03 test suite is B03c.
 
 ### B03a — Identity foundation: tables, hashing & session (2026-09-24)
 - **Package:** `Microsoft.Extensions.Identity.Core 10.0.12` (home of `Microsoft.AspNetCore.Identity.PasswordHasher<T>`) pinned
@@ -1220,3 +1243,27 @@ Rule check: CONVENTIONS §2 (Identity only in Infrastructure.Local), §4 (Result
             A-RULE 029 (explicit expiry, no silent extension), R-B09 (durable session row).
 Impact:     B03b consumes `IPasswordHasher`, `PasswordPolicy`, `ISessionService`; it should write `LoginAttemptLog` rows on
             sign-in. install-prereqs.sh should be taught to install dotnet-ef (not changed here — out of scope).
+
+### B03b — self-transacted auth commands, anonymous contexts & registration            (date: 2026-09-24)
+Context:    The phase file assumed identity commands run inside the normal pipeline transaction and that a session
+            exists for every dispatch; neither holds for sign-in / first-run / unlock.
+Decision:   (1) Added `ISelfTransactedCommand`: `TransactionBehavior` skips such commands and their handlers call
+            `IUnitOfWork.SaveAsync` explicitly — a failed sign-in must still persist its failed-attempt counter and
+            audit row (the ambient UoW rolls back on `Fail`), and `LocalSessionService` writes through its own scope,
+            which an open ambient SQLite write transaction would block. All 6 identity commands use it.
+            (2) `ICurrentUserProvider` gained `BuildAnonymousCommandContext`/`BuildAnonymousQueryContext`
+            (`UserId = U-ANONYMOUS`) so pre-auth requests can dispatch; every other request requires a live session.
+            (3) `SessionContextCache` singleton so the synchronous `BuildQueryContext` never hits the store.
+            (4) Use cases are registered through `builder.AddIdentityUseCases()` (opt-in) — registering them
+            unconditionally in `AddAnimoraApplication` would break `ValidateOnBuild` for hosts without the local store;
+            B03c's Desktop calls it inside its `configure` lambda.
+            (5) Added `Unit`, `ILoginAttemptLog` port, `IIdentityRepository.AnyUserAsync`/`FindTenantAsync` (first-run
+            guard = "any user exists", matching `LocalSessionService.IsFirstRun`; clinic name renames the seeded tenant).
+            (6) Unknown username still performs one dummy hash verification (timing does not leak existence); membership
+            missing after a correct password → `USER_DISABLED`.
+            (7) Gate ran targeted builds (Application.Tests, Infrastructure.Local = 0/0) instead of `build.sh full` per
+            user directive (no full build).
+Rule check: CONVENTIONS §2 (Application has no Identity/EF refs), §4 (sealed, Result, IClock, ULIDs, ConfigureAwait),
+            §7 (no user-existence leak, stamp rotation via `SetPasswordHash`), A-RULE 023/029.
+Impact:     B03c: Desktop must call `AddIdentityUseCases()`, dispatch SignIn/FirstRun/Unlock/CurrentSession with the
+            anonymous contexts, and run `build.sh full` + the B03 test suite.

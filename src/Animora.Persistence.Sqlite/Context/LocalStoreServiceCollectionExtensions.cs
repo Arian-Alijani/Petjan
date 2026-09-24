@@ -79,6 +79,10 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IExpenseRepository, ExpenseRepository>();
         services.AddScoped<IPeriodRepository, PeriodRepository>();
         services.AddScoped<IIdentityRepository, IdentityRepository>();
+        services.AddScoped<IStaffMembershipRepository, StaffMembershipRepository>();
+        services.AddScoped<IDeviceRepository, DeviceRepository>();
+        services.AddScoped<IRoleDefinitionRepository, RoleDefinitionRepository>();
+        services.AddScoped<ILoginAttemptLog, LoginAttemptLogWriter>();
 
         services.AddScoped<IUnitOfWork, LocalUnitOfWork>();
         services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
