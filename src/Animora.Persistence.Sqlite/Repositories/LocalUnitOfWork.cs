@@ -4,46 +4,83 @@ using Animora.Domain.Results;
 using Animora.Persistence.Sqlite.Context;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Animora.Persistence.Sqlite.Repositories;
 
+/// <summary>
+/// Atomic unit of work: one transaction covers work → save → event dispatch → handler writes → commit.
+/// Domain events are cleared only after commit; on any failure the transaction is rolled back, pending
+/// events stay on the aggregates and the change tracker is cleared so a retry reloads fresh state.
+/// </summary>
 public sealed class LocalUnitOfWork(AnimoraLocalDbContext db, IDomainEventDispatcher dispatcher) : IUnitOfWork
 {
     public async Task<Result> SaveAsync(CancellationToken ct = default)
     {
-        // Dispatchers may persist outbox rows: they must share the caller's transaction.
-        var roots = db.ChangeTracker.Entries().Select(e => e.Entity).OfType<IHasDomainEvents>()
-            .Where(e => e.DomainEvents.Count != 0).ToArray();
+        // Inside ExecuteAsync the ambient transaction owns dispatch and commit: only flush.
+        if (db.Database.CurrentTransaction is not null) return await StoreAsync(() => db.SaveChangesAsync(ct));
+        var outcome = await RunAsync(_ => Task.FromResult(Result<bool>.Ok(true)), ct);
+        return outcome.ToResult();
+    }
+
+    public Task<Result<T>> ExecuteAsync<T>(Func<CancellationToken, Task<Result<T>>> work, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+        return RunAsync(work, ct);
+    }
+
+    private async Task<Result<T>> RunAsync<T>(Func<CancellationToken, Task<Result<T>>> work, CancellationToken ct)
+    {
+        if (db.Database.CurrentTransaction is not null)
+            throw new InvalidOperationException("A unit of work transaction is already active; transactions never nest.");
+        IDbContextTransaction? transaction = null;
+        var committed = false;
         try
         {
-            await db.SaveChangesAsync(ct);
-            foreach (var root in roots)
-                foreach (var domainEvent in root.DomainEvents)
-                {
-                    var result = await dispatcher.DispatchAsync(domainEvent, ct);
-                    if (result.IsFailure) return result;
-                }
-            await db.SaveChangesAsync(ct);
+            var step = await StoreAsync(async () => transaction = await db.Database.BeginTransactionAsync(ct));
+            if (step.IsFailure) return Fail<T>(step);
+
+            var outcome = await work(ct);
+            if (outcome.IsFailure) return outcome;
+
+            var roots = db.ChangeTracker.Entries().Select(e => e.Entity).OfType<IHasDomainEvents>()
+                .Where(r => r.DomainEvents.Count != 0).ToArray();
+            // Deterministic: occurrence time, then raise order (stable sort).
+            var events = roots.SelectMany(r => r.DomainEvents).OrderBy(e => e.OccurredAtUtc).ToArray();
+
+            if ((step = await StoreAsync(() => db.SaveChangesAsync(ct))).IsFailure) return Fail<T>(step);
+            foreach (var domainEvent in events)
+                if ((step = await dispatcher.DispatchAsync(domainEvent, ct)).IsFailure) return Fail<T>(step);
+            if ((step = await StoreAsync(() => db.SaveChangesAsync(ct))).IsFailure) return Fail<T>(step);
+            if ((step = await StoreAsync(() => transaction!.CommitAsync(ct))).IsFailure) return Fail<T>(step);
+
+            committed = true;
             foreach (var root in roots) root.ClearDomainEvents();
+            return outcome;
+        }
+        finally
+        {
+            // Disposing an uncommitted transaction rolls it back (business + handler writes).
+            if (transaction is not null) await transaction.DisposeAsync();
+            if (!committed) db.ChangeTracker.Clear();
+        }
+    }
+
+    private static Result<T> Fail<T>(Result failure) => Result<T>.Fail(failure.Error, failure.Detail);
+
+    /// <summary>Maps store failures to results; cancellation and programming errors propagate.</summary>
+    private static async Task<Result> StoreAsync(Func<Task> operation)
+    {
+        try
+        {
+            await operation();
             return Result.Ok();
         }
         catch (DbUpdateConcurrencyException) { return Result.Fail(ErrorCodes.ConcurrencyConflict); }
-        catch (SqliteException) { return Result.Fail(ErrorCodes.StoreUnavailable); }
-    }
-
-    public async Task<Result<T>> ExecuteAsync<T>(Func<CancellationToken, Task<Result<T>>> work, CancellationToken ct = default)
-    {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var outcome = await work(ct);
-        if (outcome.IsFailure) { await transaction.RollbackAsync(ct); db.ChangeTracker.Clear(); return outcome; }
-        var saved = await SaveAsync(ct);
-        if (saved.IsFailure)
+        catch (DbUpdateException ex) when (ex.InnerException is SqliteException)
         {
-            await transaction.RollbackAsync(ct);
-            db.ChangeTracker.Clear();
-            return Result<T>.Fail(saved.Error, saved.Detail);
+            return Result.Fail(ErrorCodes.StoreUnavailable);
         }
-        await transaction.CommitAsync(ct);
-        return outcome;
+        catch (SqliteException) { return Result.Fail(ErrorCodes.StoreUnavailable); }
     }
 }

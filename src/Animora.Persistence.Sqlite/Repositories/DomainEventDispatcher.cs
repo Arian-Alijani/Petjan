@@ -5,18 +5,43 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Persistence.Sqlite.Repositories;
 
-public sealed class DomainEventHandlerMap : Dictionary<Type, Func<IServiceProvider, IReadOnlyList<object>>>;
+public delegate Task<Result> DomainEventHandlerInvoker(IServiceProvider services, DomainEvent domainEvent, CancellationToken ct);
 
+/// <summary>One explicit registration made by <c>AddDomainEventHandler&lt;TEvent, THandler&gt;()</c>.</summary>
+public sealed class DomainEventHandlerRegistration(Type eventType, Type handlerType, DomainEventHandlerInvoker invoke)
+{
+    public Type EventType { get; } = eventType;
+    public Type HandlerType { get; } = handlerType;
+    public DomainEventHandlerInvoker Invoke { get; } = invoke;
+
+    public static DomainEventHandlerRegistration For<TEvent, THandler>()
+        where TEvent : DomainEvent where THandler : class, IDomainEventHandler<TEvent> =>
+        new(typeof(TEvent), typeof(THandler),
+            (services, domainEvent, ct) => services.GetRequiredService<THandler>().HandleAsync((TEvent)domainEvent, ct));
+}
+
+/// <summary>Singleton map event type → handler invokers, in registration order. No scanning, no reflection invoke.</summary>
+public sealed class DomainEventHandlerMap
+{
+    private readonly Dictionary<Type, DomainEventHandlerInvoker[]> _map;
+
+    public DomainEventHandlerMap(IEnumerable<DomainEventHandlerRegistration> registrations) =>
+        _map = registrations.GroupBy(r => r.EventType)
+            .ToDictionary(g => g.Key, g => g.Select(r => r.Invoke).ToArray());
+
+    public IReadOnlyList<DomainEventHandlerInvoker> HandlersFor(Type eventType) =>
+        _map.TryGetValue(eventType, out var handlers) ? handlers : [];
+}
+
+/// <summary>Resolves handlers from the scoped provider; short-circuits on the first failure.</summary>
 public sealed class DomainEventDispatcher(IServiceProvider services, DomainEventHandlerMap map) : IDomainEventDispatcher
 {
     public async Task<Result> DispatchAsync(DomainEvent domainEvent, CancellationToken ct = default)
     {
-        if (!map.TryGetValue(domainEvent.GetType(), out var factory)) return Result.Ok();
-        foreach (var handler in factory(services))
+        ArgumentNullException.ThrowIfNull(domainEvent);
+        foreach (var handler in map.HandlersFor(domainEvent.GetType()))
         {
-            // Map delegates are compiled by registrations, never discovered by scanning assemblies.
-            var task = (Task<Result>)((dynamic)handler).HandleAsync((dynamic)domainEvent, ct);
-            var result = await task;
+            var result = await handler(services, domainEvent, ct);
             if (result.IsFailure) return result;
         }
         return Result.Ok();
