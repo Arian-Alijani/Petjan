@@ -66,6 +66,12 @@ public sealed record CashMovement(
     string RecordedByUserId,
     string? OperationId)
 {
+    /// <summary>Materialization-only constructor for the persistence store; all values are then set from columns.</summary>
+    private CashMovement()
+        : this(string.Empty, default, default, null, null, string.Empty, default, string.Empty, null)
+    {
+    }
+
     /// <summary><see langword="true"/> when <paramref name="kind"/> adds cash to the drawer.</summary>
     public static bool IsInboundKind(CashMovementKind kind) => kind
         is CashMovementKind.SalePayment

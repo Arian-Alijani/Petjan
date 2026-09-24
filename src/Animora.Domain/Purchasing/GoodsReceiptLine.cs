@@ -28,6 +28,12 @@ public sealed record GoodsReceiptLine(
     string? LotNumber,
     DateTimeOffset? ExpiryUtc)
 {
+    /// <summary>Materialization-only constructor for the persistence store; all values are then set from columns.</summary>
+    private GoodsReceiptLine()
+        : this(string.Empty, string.Empty, string.Empty, default, default, null, null)
+    {
+    }
+
     /// <summary><c>Quantity × UnitCost</c> through the single rounding boundary.</summary>
     public Money LineCost => UnitCost.ApplyPercent(Quantity.Value * 100m);
 }

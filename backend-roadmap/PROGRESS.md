@@ -38,7 +38,7 @@
 
 ## Next phase
 
-**Next phase: `A10a`** — `backend-roadmap/phases/PHASE-A10a-*.md` (A10 and A11 are each split into 4 one-session sub-phases a→d; run them in order)
+**Next phase: `A10b`** — `backend-roadmap/phases/PHASE-A10b-*.md` (A10 and A11 are each split into 4 one-session sub-phases a→d; run them in order)
 
 ## Phase status
 
@@ -54,7 +54,7 @@
 | A08 | ✅ Done | 2026-09-23 | Finance domain: 11 new files (`Domain/Finance` 10, `Events/FinanceEvents.cs`) + ErrorCodes. Append-only balanced `JournalEntry` (**no mutator at all** — every property `private init`; corrections only via `CreateReversal`, A-RULE 002/003 · R-B22); `ChartOfAccounts` seeds the 20 authoritative accounts behind `AccountCodes` constants (no code literal anywhere else); `PostingRules` is the single event → journal translation (10 `For<Event>` methods covering all 14 tabled rows), every one delegating to `JournalEntry.Create` so balance is structural; `AccountingPeriod` forward-only `Open→Closing→Closed→Locked` with 3 close blockers + `EnsurePostable`; `Cheque` 8-state machine with append-only `ChequeEvent` history and the counterparty invariant; `Expense` one-way `Post` + 9 seeded categories → 6000/6100. ErrorCodes += 12 (→ 72). 6 events. **No tests (owed to A12).** Build full 0/0, SMOKE RUN OK. |
 | A09 | ✅ Done | 2026-09-23 | Local SQLite context, conventions, converters, 18 mappings + migration `001_LocalCoreSchema`; named filters; no tests (A12). |
 | A10 | ⬜ Not started | | Split: A10a–A10d; ✅ when A10d done. PR #123 work is partial (see A10a). |
-| A10a | ⬜ Not started | | |
+| A10a | ✅ Done | 2026-09-24 | 8 child rows → relational tables (PK OwnerId+childKey, cascade FK, field nav, AutoInclude) via reflection-free `OwnedRows.Map/Row` + `ApplyOwnedScalarConventions`; Money→`<N>Minor`/`<N>Currency`, Quantity→`<N>Unit` + `<N>Scaled` INTEGER×1000 (`FixedScaleQuantityConverter`; StockMovement, PO/GR/Invoice lines) or `<N>Value` TEXT (ReorderLevel). Indexes: JournalEntries EntryNumber unique, Products Sku unique filtered, +IX_JournalLines_AccountCode; no category-name lookup → no index. StockLevel ignored. Deviation: children are EF dependent entities (EF10 owned types can't hold complex props); domain: private parameterless materialization ctor on 7 child records. dotnet-ef 10.0.12 at `.sandbox/tools`. No migration (A10d). |
 | A10b | ⬜ Not started | | |
 | A10c | ⬜ Not started | | |
 | A10d | ⬜ Not started | | |

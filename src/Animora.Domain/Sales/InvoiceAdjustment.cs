@@ -56,6 +56,12 @@ public sealed record InvoiceAdjustment(
     string? OperationId,
     string? ReversesAdjustmentId)
 {
+    /// <summary>Materialization-only constructor for the persistence store; all values are then set from columns.</summary>
+    private InvoiceAdjustment()
+        : this(string.Empty, default, default, string.Empty, default, string.Empty, null, null)
+    {
+    }
+
     /// <summary><see langword="true"/> when this entry offsets an earlier adjustment.</summary>
     public bool IsReversal => ReversesAdjustmentId is not null;
 }

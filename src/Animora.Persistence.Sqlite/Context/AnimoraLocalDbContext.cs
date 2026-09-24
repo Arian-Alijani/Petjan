@@ -17,6 +17,7 @@ public sealed class AnimoraLocalDbContext(
     {
         // Domain events and immutable child records are not independent tables.
         modelBuilder.Ignore<DomainEvent>();
+        modelBuilder.Ignore<Animora.Domain.Inventory.StockLevel>(); // Rebuildable projection, never a table.
         modelBuilder.Ignore<StayItem>();
         modelBuilder.Ignore<StayRoomAssignment>();
         modelBuilder.Ignore<PrescriptionLine>();
