@@ -102,6 +102,34 @@ internal sealed class FixedClock : IClock
     public DateTimeOffset UtcNow { get; } = new(2026, 9, 24, 8, 0, 0, TimeSpan.Zero);
 }
 
+/// <summary>In-memory session double: signed out until <see cref="StartAsync"/>.</summary>
+internal sealed class FakeSessionService : ISessionService
+{
+    private SessionSnapshot _current = SessionSnapshot.SignedOut(isFirstRun: false);
+
+    public Task<Result<SessionSnapshot>> RestoreAsync(CancellationToken ct = default) => Task.FromResult(Result<SessionSnapshot>.Ok(_current));
+
+    public Task<Result<SessionSnapshot>> StartAsync(string userId, string deviceId, CancellationToken ct = default)
+    {
+        _current = new SessionSnapshot(userId, userId, Domain.Identity.StaffRole.Manager, false, false,
+            new FixedClock().UtcNow.AddHours(12));
+        return Task.FromResult(Result<SessionSnapshot>.Ok(_current));
+    }
+
+    public Task<Result> TouchAsync(CancellationToken ct = default) => Task.FromResult(Result.Ok());
+
+    public Task<Result> LockAsync(CancellationToken ct = default) => Task.FromResult(Result.Ok());
+
+    public Task<Result<SessionSnapshot>> UnlockAsync(string password, CancellationToken ct = default) =>
+        Task.FromResult(Result<SessionSnapshot>.Ok(_current));
+
+    public Task<Result> EndAsync(string reason, CancellationToken ct = default)
+    {
+        _current = SessionSnapshot.SignedOut(isFirstRun: false);
+        return Task.FromResult(Result.Ok());
+    }
+}
+
 internal sealed class FixedInstallation : ILocalInstallationIdentity
 {
     public string TenantId => "T-TEST";
@@ -129,6 +157,7 @@ internal static class TestHost
         if (withUnitOfWork) services.AddSingleton<IUnitOfWork>(new RecordingUnitOfWork(log));
         services.AddSingleton<IClock, FixedClock>();
         services.AddSingleton<ILocalInstallationIdentity, FixedInstallation>();
+        services.AddSingleton<ISessionService, FakeSessionService>();
         // B02: the two sync UI-seam query handlers require the command journal; supply the in-memory double so
         // ValidateOnBuild succeeds.
         services.AddSingleton<Animora.Application.Commands.IIntegrityAlertSink, RecordingIntegritySink>();

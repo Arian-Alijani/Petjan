@@ -1,7 +1,13 @@
 # Progress & Project State — Animora Backend & Server
 
-> **Read this file first, every session. Update it at the end of every phase.** It is the single source
-> of truth for "what already exists" and "what to do next". Never skip the update step.
+> **Read this file first, every session — but only the part you need.** It is the single source
+> of truth for "what already exists" and "what to do next", and it grows by one entry per completed
+> phase (currently >1000 lines). **Every session reads the section up to and including "Phase status"
+> below in full** (principles + current state + Next phase + status table — short, ~115 lines). **Never
+> read "Repo state log" or "Decision & deviation log" end-to-end.** Those are per-phase archives: jump
+> straight to the one `### <PhaseID>` entry a phase file's "Read before starting" cites, by `grep -n
+> "^### <PhaseID>"` or an editor search — never scroll past it. Update this file at the end of every
+> phase (append one new entry; never rewrite/shorten an old one). Never skip the update step.
 
 ## Standing principles (in force in EVERY phase, never traded off)
 
@@ -20,25 +26,31 @@
 
 > These restate — never replace — `CONVENTIONS.md` and `ROADMAP.md`. If wording differs, those govern.
 
-## Current state (authoring-time snapshot — no phase executed yet)
+## Current state
+
+> **This table reflects the state as of the last completed phase (see "Next phase" below) — it is
+> updated every phase, never left stale.** For per-phase detail, jump to that phase's `### <ID>` entry
+> in "Repo state log" (do not read the whole log).
 
 | Area | State |
 |---|---|
-| `src/Animora.Desktop/` | **Complete.** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Builds 0 warnings / 0 errors. |
-| `src/Animora.Contracts/` | 20 interfaces + DTOs, one folder per bounded context. The frontend↔backend seam. |
-| `src/Animora.Desktop/Mocks/` | 22 in-memory files (20 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — the only implementations today. All sample data lives here. |
-| `src/Animora.Domain/`, `src/Animora.Application/`, `src/Animora.Sync.Abstractions/` | Empty placeholders (csproj + README only). |
-| Server / SQL Server / sync / auth / licensing / admin web | **Do not exist.** |
-| Login | `src/Animora.Desktop/Pages/Login/LoginViewModel.cs` — hardcoded `admin`/`admin`; `TryAuthenticate` is the documented swap seam (replaced in B03). |
-| `Directory.Packages.props` | Avalonia 12.1.2 (+Desktop/Fluent/Inter/DataGrid), CommunityToolkit.Mvvm 8.4.2, Microsoft.Extensions.DependencyInjection 10.0.12. `ManagePackageVersionsCentrally=true`. |
+| `src/Animora.Desktop/` | **Complete, still 100% on mocks.** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Builds 0 warnings / 0 errors. Untouched by the backend track until Track C swaps its DI registrations. |
+| `src/Animora.Contracts/` | 20 interfaces + DTOs, one folder per bounded context. The frontend↔backend seam — untouched by Track A/B. |
+| `src/Animora.Desktop/Mocks/` | 22 in-memory files (20 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — still the only implementations Desktop uses. All sample data lives here. **No mock deleted yet** (Track C's job). |
+| `src/Animora.Domain/`, `src/Animora.Application/` | **Real code**, not placeholders — built through Track A (A01–A12: kernel, identity, patients/clinical, scheduling/boarding, inventory/purchasing, sales/cashier, finance) and B01–B02 (application dispatch pipeline, command journal/outbox). `Animora.Domain.csproj` still has **zero** project/package references by design. |
+| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 5 migrations (`001`–`005`), repositories, seed, maintenance/backup/quarantine, OS keystore, clocks. Not yet wired into Desktop. |
+| `src/Animora.Client.Services/`, `src/Animora.Sync.Abstractions/` | Still **empty scaffolds** (csproj + README only) — Track C / Track E deliverables respectively. |
+| Server / SQL Server / licensing / admin web | **Do not exist yet** (Tracks D/E). |
+| Login | `src/Animora.Desktop/Pages/Login/LoginViewModel.cs` — still hardcoded `admin`/`admin`; real local identity tables/hashing/session exist since B03a but are not yet wired to Desktop (B03b/B03c). |
+| `Directory.Packages.props` | Avalonia 12.1.2 (+Desktop/Fluent/Inter/DataGrid), CommunityToolkit.Mvvm 8.4.2, Microsoft.Extensions.DependencyInjection 10.0.12, plus the Track A/B backend pins (EF Core Sqlite 10.0.12, xunit, etc. — see A01 entry). `ManagePackageVersionsCentrally=true`. |
 | `Directory.Build.props` | `net10.0`, `LangVersion 14.0`, `Nullable enable`, `ImplicitUsings enable`. |
-| Solution | `Animora.sln` contains Contracts, Domain, Application, Sync.Abstractions, Desktop. |
-| Scripts | `scripts/sandbox/build.sh [fast\|full\|release\|restore]`, `run.sh` (Xvfb smoke, prints `SMOKE RUN OK`), `install-prereqs.sh`, `doctor.sh`, `bench.sh`. `test.sh` is added by A01. |
+| Solution | `Animora.sln` — 9 `src/` projects + 5 `tests/` projects (see `AGENTS.md` for the full `src/` map). |
+| Scripts | `scripts/sandbox/build.sh [fast\|full\|release\|restore]`, `run.sh` (Xvfb smoke, prints `SMOKE RUN OK`), `test.sh` (added by A01), `install-prereqs.sh`, `doctor.sh`, `bench.sh`. |
 | Frontend history | `windows-frontend-roadmap/PROGRESS.md` (phases 01–29 done). Its `phases/**` must never be read. |
 
 ## Next phase
 
-**Next phase: `B03b`** — `backend-roadmap/phases/PHASE-B03b-*.md` (B03 is split into B03a→B03c; the parent `PHASE-B03-*.md` is an index only)
+**Next phase: `B03c`** — `backend-roadmap/phases/PHASE-B03c-*.md` (B03 is split into B03a→B03c; the parent `PHASE-B03-*.md` is an index only)
 
 ## Phase status
 
@@ -68,7 +80,7 @@
 | B02 | ✅ Done | 2026-09-24 | Local command pipeline + transactional outbox. Wire contracts (`CommandEnvelope`, `SettlementResult`, `CommandTypes` 16, `WireApiError`/`WireFieldError`), Domain `SettlementState` + `SettlementTransitions` allow-table, Application ports (`ICommandJournal`, `IOutbox`, `ICommandTransport`, `ILocalSequenceAllocator`, `IIntegrityAlertSink`, `RetryPolicy`, `CommandFingerprint` SHA-256), `CommandJournalBehavior` in the fixed chain, `LocalCommandProcessor` pass loop, Persistence (`PendingCommand`, `OutboxMessage`, `LocalSequenceCounter`, `PipelineSql` atomic claim, `CommandJournal`, `LocalOutbox`, `OutboxClaim`, `OutboxRelayHandler`), migration `004_CommandPipeline`. Build 0/0; Application 49/49 + Persistence 68/68 green. Not re-run `test.sh`/`run.sh` (user directive: no heavy tests). |
 | B03 | 🟡 In progress | | Split into B03a–B03c (index: `PHASE-B03-*.md`); done when B03c is done. |
 | B03a | ✅ Done | 2026-09-24 | Identity foundation: package pin, `User.MustChangePassword`, 4 error codes, `LocalSession`/`LoginAttemptLog` + migration `005_LocalIdentity`, hashing/policy/session infra + DI. |
-| B03b | ⬜ Not started | | Identity application layer: 7 use cases, `SessionCurrentUserProvider` (deletes `SingleUserProvider`), `FindByUsernameAsync` + 3 repos, application DI. |
+| B03b | ✅ Done | 2026-09-24 | Identity application layer: 7 use cases + validators, `SessionCurrentUserProvider` (deleted `SingleUserProvider`), `FindByUsernameAsync` + 3 repos (+ `ILoginAttemptLog`), application DI. Application + Infrastructure.Local builds 0/0; Dispatcher/Behavior tests 20/20. |
 | B03c | ⬜ Not started | | Identity contracts/desktop/tests: auth seam, `Client.Services`, login + first-run rewrite, mock deletion, seeding change, all B03 tests + build/test/run gate. |
 | B04 | ⬜ Not started | | Split into B04a–B04c (index: `PHASE-B04-*.md`); done when B04c is done. |
 | B04a | ⬜ Not started | | Authorization plane: `PermissionEvaluator` + 5 policies + resource rules, `RequiresPermissionAttribute`, `PermissionAuthorizationGate` (replaces allow-all), `ErrorCodes` += `PERMISSION_UNKNOWN`. |
@@ -114,7 +126,37 @@
 
 Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blocked (reason)`.
 
+---
+
+> ⛔ **STOP — everything below this line is per-phase archive, not current-session context.**
+> Do **not** read further unless a phase file's "Read before starting" names a specific
+> `### <PhaseID>` entry below by ID. If it does, jump straight to that heading (grep for it) —
+> do not read the entries around it. If nothing below is cited, you are done reading this file.
+
 ## Repo state log
+
+### B03b — Identity use cases, provider swap & repositories (2026-09-24)
+- **Use cases** (`Application/UseCases/Identity/`, one file each, handler + validator): `SignInCommand` → `SignInResult`
+  (lookup by username → lockout/disabled gate *without* hash comparison → verify → failure: `RegisterFailedAttempt` +
+  `LoginAttemptLog` + `CREDENTIALS_INVALID` (5th → `USER_LOCKED_OUT`) → success: rehash if needed, `RegisterSuccessfulLogin`,
+  `LoginAttemptLog("OK")`, `ISessionService.StartAsync`, permissions); `SignOutCommand`, `LockSessionCommand`,
+  `UnlockSessionCommand` → `SessionSnapshot`, `ChangePasswordCommand` (policy → verify current → `SetPasswordHash`),
+  `CompleteFirstRunSetupCommand` → `SignInResult` (guard: any user exists → `FIRST_RUN_ALREADY_COMPLETED`; renames the
+  seeded `T-LOCAL-DEFAULT` tenant, creates owner `User` + `StaffMembership(Manager)` + approved `Device`, starts session),
+  `CurrentSessionQuery` → `SessionSnapshot`. Registered via `builder.AddIdentityUseCases()` (`IdentityRegistration`).
+- **Support types:** `Abstractions/Unit`, `Commands/ISelfTransactedCommand` (TransactionBehavior bypass),
+  `Security/SessionContextCache` (singleton last-known snapshot), `IdentityAccess.PermissionsAsync` (stored
+  `RoleDefinition` or `DefaultRolePermissions`, + extras − denies).
+- **Provider:** `SessionCurrentUserProvider` replaces `SingleUserProvider` (deleted). No/expired session →
+  `SESSION_EXPIRED`; locked → `PERMISSION_DENIED`. `ICurrentUserProvider` gains `AnonymousUserId` +
+  `BuildAnonymousCommandContext` / `BuildAnonymousQueryContext` for pre-auth identity requests.
+- **Ports/repos:** `IIdentityRepository.FindByUsernameAsync` / `AnyUserAsync` / `FindTenantAsync`; new
+  `IStaffMembershipRepository` (`FindAsync`, `FindActiveAsync`, `Add`), `IDeviceRepository` (`FindAsync`, `Add`),
+  `IRoleDefinitionRepository` (`FindByRoleAsync`), `ILoginAttemptLog` → `LoginAttemptLogWriter`; all registered in
+  `AddAnimoraLocalStore`.
+- **DI:** `AddAnimoraApplication` → `SessionContextCache` (singleton) + `ICurrentUserProvider → SessionCurrentUserProvider`.
+- **Tests touched (compile only):** `SingleUserProvider` fact replaced by `SessionCurrentUserProvider_RequiresSession_AndBuildsContexts`;
+  `TestHost` registers a `FakeSessionService`. Full B03 test suite is B03c.
 
 ### B03a — Identity foundation: tables, hashing & session (2026-09-24)
 - **Package:** `Microsoft.Extensions.Identity.Core 10.0.12` (home of `Microsoft.AspNetCore.Identity.PasswordHasher<T>`) pinned
@@ -1220,3 +1262,27 @@ Rule check: CONVENTIONS §2 (Identity only in Infrastructure.Local), §4 (Result
             A-RULE 029 (explicit expiry, no silent extension), R-B09 (durable session row).
 Impact:     B03b consumes `IPasswordHasher`, `PasswordPolicy`, `ISessionService`; it should write `LoginAttemptLog` rows on
             sign-in. install-prereqs.sh should be taught to install dotnet-ef (not changed here — out of scope).
+
+### B03b — self-transacted auth commands, anonymous contexts & registration            (date: 2026-09-24)
+Context:    The phase file assumed identity commands run inside the normal pipeline transaction and that a session
+            exists for every dispatch; neither holds for sign-in / first-run / unlock.
+Decision:   (1) Added `ISelfTransactedCommand`: `TransactionBehavior` skips such commands and their handlers call
+            `IUnitOfWork.SaveAsync` explicitly — a failed sign-in must still persist its failed-attempt counter and
+            audit row (the ambient UoW rolls back on `Fail`), and `LocalSessionService` writes through its own scope,
+            which an open ambient SQLite write transaction would block. All 6 identity commands use it.
+            (2) `ICurrentUserProvider` gained `BuildAnonymousCommandContext`/`BuildAnonymousQueryContext`
+            (`UserId = U-ANONYMOUS`) so pre-auth requests can dispatch; every other request requires a live session.
+            (3) `SessionContextCache` singleton so the synchronous `BuildQueryContext` never hits the store.
+            (4) Use cases are registered through `builder.AddIdentityUseCases()` (opt-in) — registering them
+            unconditionally in `AddAnimoraApplication` would break `ValidateOnBuild` for hosts without the local store;
+            B03c's Desktop calls it inside its `configure` lambda.
+            (5) Added `Unit`, `ILoginAttemptLog` port, `IIdentityRepository.AnyUserAsync`/`FindTenantAsync` (first-run
+            guard = "any user exists", matching `LocalSessionService.IsFirstRun`; clinic name renames the seeded tenant).
+            (6) Unknown username still performs one dummy hash verification (timing does not leak existence); membership
+            missing after a correct password → `USER_DISABLED`.
+            (7) Gate ran targeted builds (Application.Tests, Infrastructure.Local = 0/0) instead of `build.sh full` per
+            user directive (no full build).
+Rule check: CONVENTIONS §2 (Application has no Identity/EF refs), §4 (sealed, Result, IClock, ULIDs, ConfigureAwait),
+            §7 (no user-existence leak, stamp rotation via `SetPasswordHash`), A-RULE 023/029.
+Impact:     B03c: Desktop must call `AddIdentityUseCases()`, dispatch SignIn/FirstRun/Unlock/CurrentSession with the
+            anonymous contexts, and run `build.sh full` + the B03 test suite.
