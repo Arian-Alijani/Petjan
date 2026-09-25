@@ -1,7 +1,13 @@
 # Progress & Project State — Animora Backend & Server
 
-> **Read this file first, every session. Update it at the end of every phase.** It is the single source
-> of truth for "what already exists" and "what to do next". Never skip the update step.
+> **Read this file first, every session — but only the part you need.** It is the single source
+> of truth for "what already exists" and "what to do next", and it grows by one entry per completed
+> phase (currently >1000 lines). **Every session reads the section up to and including "Phase status"
+> below in full** (principles + current state + Next phase + status table — short, ~115 lines). **Never
+> read "Repo state log" or "Decision & deviation log" end-to-end.** Those are per-phase archives: jump
+> straight to the one `### <PhaseID>` entry a phase file's "Read before starting" cites, by `grep -n
+> "^### <PhaseID>"` or an editor search — never scroll past it. Update this file at the end of every
+> phase (append one new entry; never rewrite/shorten an old one). Never skip the update step.
 
 ## Standing principles (in force in EVERY phase, never traded off)
 
@@ -20,20 +26,26 @@
 
 > These restate — never replace — `CONVENTIONS.md` and `ROADMAP.md`. If wording differs, those govern.
 
-## Current state (authoring-time snapshot — no phase executed yet)
+## Current state
+
+> **This table reflects the state as of the last completed phase (see "Next phase" below) — it is
+> updated every phase, never left stale.** For per-phase detail, jump to that phase's `### <ID>` entry
+> in "Repo state log" (do not read the whole log).
 
 | Area | State |
 |---|---|
-| `src/Animora.Desktop/` | **Complete.** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Builds 0 warnings / 0 errors. |
-| `src/Animora.Contracts/` | 20 interfaces + DTOs, one folder per bounded context. The frontend↔backend seam. |
-| `src/Animora.Desktop/Mocks/` | 22 in-memory files (20 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — the only implementations today. All sample data lives here. |
-| `src/Animora.Domain/`, `src/Animora.Application/`, `src/Animora.Sync.Abstractions/` | Empty placeholders (csproj + README only). |
-| Server / SQL Server / sync / auth / licensing / admin web | **Do not exist.** |
-| Login | `src/Animora.Desktop/Pages/Login/LoginViewModel.cs` — hardcoded `admin`/`admin`; `TryAuthenticate` is the documented swap seam (replaced in B03). |
-| `Directory.Packages.props` | Avalonia 12.1.2 (+Desktop/Fluent/Inter/DataGrid), CommunityToolkit.Mvvm 8.4.2, Microsoft.Extensions.DependencyInjection 10.0.12. `ManagePackageVersionsCentrally=true`. |
+| `src/Animora.Desktop/` | **Complete, still 100% on mocks.** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Builds 0 warnings / 0 errors. Untouched by the backend track until Track C swaps its DI registrations. |
+| `src/Animora.Contracts/` | 20 interfaces + DTOs, one folder per bounded context. The frontend↔backend seam — untouched by Track A/B. |
+| `src/Animora.Desktop/Mocks/` | 22 in-memory files (20 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — still the only implementations Desktop uses. All sample data lives here. **No mock deleted yet** (Track C's job). |
+| `src/Animora.Domain/`, `src/Animora.Application/` | **Real code**, not placeholders — built through Track A (A01–A12: kernel, identity, patients/clinical, scheduling/boarding, inventory/purchasing, sales/cashier, finance) and B01–B02 (application dispatch pipeline, command journal/outbox). `Animora.Domain.csproj` still has **zero** project/package references by design. |
+| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 5 migrations (`001`–`005`), repositories, seed, maintenance/backup/quarantine, OS keystore, clocks. Not yet wired into Desktop. |
+| `src/Animora.Client.Services/`, `src/Animora.Sync.Abstractions/` | Still **empty scaffolds** (csproj + README only) — Track C / Track E deliverables respectively. |
+| Server / SQL Server / licensing / admin web | **Do not exist yet** (Tracks D/E). |
+| Login | `src/Animora.Desktop/Pages/Login/LoginViewModel.cs` — still hardcoded `admin`/`admin`; real local identity tables/hashing/session exist since B03a but are not yet wired to Desktop (B03b/B03c). |
+| `Directory.Packages.props` | Avalonia 12.1.2 (+Desktop/Fluent/Inter/DataGrid), CommunityToolkit.Mvvm 8.4.2, Microsoft.Extensions.DependencyInjection 10.0.12, plus the Track A/B backend pins (EF Core Sqlite 10.0.12, xunit, etc. — see A01 entry). `ManagePackageVersionsCentrally=true`. |
 | `Directory.Build.props` | `net10.0`, `LangVersion 14.0`, `Nullable enable`, `ImplicitUsings enable`. |
-| Solution | `Animora.sln` contains Contracts, Domain, Application, Sync.Abstractions, Desktop. |
-| Scripts | `scripts/sandbox/build.sh [fast\|full\|release\|restore]`, `run.sh` (Xvfb smoke, prints `SMOKE RUN OK`), `install-prereqs.sh`, `doctor.sh`, `bench.sh`. `test.sh` is added by A01. |
+| Solution | `Animora.sln` — 9 `src/` projects + 5 `tests/` projects (see `AGENTS.md` for the full `src/` map). |
+| Scripts | `scripts/sandbox/build.sh [fast\|full\|release\|restore]`, `run.sh` (Xvfb smoke, prints `SMOKE RUN OK`), `test.sh` (added by A01), `install-prereqs.sh`, `doctor.sh`, `bench.sh`. |
 | Frontend history | `windows-frontend-roadmap/PROGRESS.md` (phases 01–29 done). Its `phases/**` must never be read. |
 
 ## Next phase
@@ -113,6 +125,13 @@
 | E09 | ⬜ Not started | | |
 
 Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blocked (reason)`.
+
+---
+
+> ⛔ **STOP — everything below this line is per-phase archive, not current-session context.**
+> Do **not** read further unless a phase file's "Read before starting" names a specific
+> `### <PhaseID>` entry below by ID. If it does, jump straight to that heading (grep for it) —
+> do not read the entries around it. If nothing below is cited, you are done reading this file.
 
 ## Repo state log
 

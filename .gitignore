@@ -23,3 +23,11 @@ packages/
 # Native core dumps
 core
 core.*
+
+# SQL Server sample backup — binary, 11MB, never read by any agent/tool
+# (see AGENTS.md: "Database-Sampel/" — Never read). Kept on disk, not in git.
+Database-Sampel/*.bak
+
+# Design-tool source-map artifacts for the Animora-UI reference prototype —
+# no product information beyond the corresponding .html (see Animora-UI/README.md).
+Animora-UI/*.srcmap.json
