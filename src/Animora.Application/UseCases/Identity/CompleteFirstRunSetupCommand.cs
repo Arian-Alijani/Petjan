@@ -14,7 +14,8 @@ namespace Animora.Application.UseCases.Identity;
 /// <summary>
 /// One-time owner setup. Does <b>not</b> create the tenant (seeded by <c>LocalSeeder</c> as
 /// <see cref="Tenant.LocalDefaultId"/>); creates the owner user, its Manager membership and the device row,
-/// then starts the session. Dispatched with an anonymous context.
+/// issues the owner's signed offline capability snapshot (B04b) in the same unit-of-work transaction, then starts
+/// the session (separate scope/transaction owned by <see cref="ISessionService"/>). Dispatched with an anonymous context.
 /// </summary>
 public sealed record CompleteFirstRunSetupCommand(string ClinicName, string OwnerFullName, string Username, string Password)
     : ICommand<SignInResult>, ISelfTransactedCommand
@@ -41,6 +42,7 @@ public sealed class CompleteFirstRunSetupCommandHandler(
     IRoleDefinitionRepository roles,
     ILoginAttemptLog attempts,
     IPasswordHasher hasher,
+    CapabilitySnapshotIssuer capabilities,
     ISessionService sessions,
     SessionContextCache cache,
     IUnitOfWork uow,
@@ -73,7 +75,13 @@ public sealed class CompleteFirstRunSetupCommandHandler(
         devices.Add(device);
 
         attempts.Append(command.Username, ILoginAttemptLog.SuccessOutcome, context.DeviceId, clock.UtcNow);
-        var saved = await uow.SaveAsync(ct).ConfigureAwait(false);
+        // Owner, membership, device, audit and the snapshot commit (or roll back) together; without a snapshot the
+        // Manager shell opened after first run would be denied offline (B04c gate).
+        var saved = await uow.ExecuteAsync(async token =>
+        {
+            var issued = await capabilities.IssueAsync(owner, membership, context.DeviceId, token).ConfigureAwait(false);
+            return issued.IsFailure ? Result<bool>.Fail(issued.Error, issued.Detail) : Result<bool>.Ok(true);
+        }, ct).ConfigureAwait(false);
         if (saved.IsFailure) return Result<SignInResult>.Fail(saved.Error, saved.Detail);
 
         var session = await sessions.StartAsync(owner.Id, context.DeviceId, ct).ConfigureAwait(false);

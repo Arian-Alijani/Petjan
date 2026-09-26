@@ -40,6 +40,10 @@ public static class ApplicationServiceCollectionExtensions
         services.TryAddSingleton<IEntitlementGate, AllowAllEntitlementGate>();
         services.TryAddSingleton<SessionContextCache>();
         services.TryAddScoped<ICurrentUserProvider, SessionCurrentUserProvider>();
+        // B04b: offline capability issuer/evaluator (scoped: depend on the scoped store/role repository;
+        // the signer port is a singleton registered by AddAnimoraLocalInfrastructure).
+        services.TryAddScoped<CapabilitySnapshotIssuer>();
+        services.TryAddScoped<CapabilityEvaluator>();
         // Command-pipeline defaults: replaced by E06 (transport) and B05 (integrity sink).
         services.TryAddSingleton<ICommandTransport, NullCommandTransport>();
         services.TryAddSingleton<IIntegrityAlertSink, NullIntegrityAlertSink>();

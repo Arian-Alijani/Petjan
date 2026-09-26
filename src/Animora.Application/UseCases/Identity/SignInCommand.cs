@@ -30,7 +30,10 @@ public sealed class SignInCommandValidator : IValidator<SignInCommand>
 /// <summary>
 /// Order (B03b D2): load by username → lockout/disabled gate (no hash comparison) → verify → on failure count
 /// the attempt, audit, <c>CREDENTIALS_INVALID</c> (5th failure → <c>USER_LOCKED_OUT</c>) → on success rehash if
-/// needed, clear failures, audit <c>OK</c>, start the session. An unknown user still costs one hash
+/// needed, clear failures, audit <c>OK</c> and issue the signed offline capability snapshot (B04b) in ONE
+/// unit-of-work transaction, then start the session. <see cref="ISessionService.StartAsync"/> owns its own scope and
+/// transaction, so the session row is a separate, later commit (documented boundary; the session cache is set only
+/// after it succeeds). An unknown user still costs one hash
 /// verification so timing does not reveal existence (CONVENTIONS §7).
 /// </summary>
 public sealed class SignInCommandHandler(
@@ -39,6 +42,7 @@ public sealed class SignInCommandHandler(
     IRoleDefinitionRepository roles,
     ILoginAttemptLog attempts,
     IPasswordHasher hasher,
+    CapabilitySnapshotIssuer capabilities,
     ISessionService sessions,
     SessionContextCache cache,
     IUnitOfWork uow,
@@ -84,7 +88,12 @@ public sealed class SignInCommandHandler(
 
         user.RegisterSuccessfulLogin(clock);
         attempts.Append(command.Username, ILoginAttemptLog.SuccessOutcome, context.DeviceId, now);
-        var saved = await uow.SaveAsync(ct).ConfigureAwait(false);
+        // Success audit + user mutations + snapshot issuance commit (or roll back) together.
+        var saved = await uow.ExecuteAsync(async token =>
+        {
+            var issued = await capabilities.IssueAsync(user, membership, context.DeviceId, token).ConfigureAwait(false);
+            return issued.IsFailure ? Result<bool>.Fail(issued.Error, issued.Detail) : Result<bool>.Ok(true);
+        }, ct).ConfigureAwait(false);
         if (saved.IsFailure) return Result<SignInResult>.Fail(saved.Error, saved.Detail);
 
         var session = await sessions.StartAsync(user.Id, context.DeviceId, ct).ConfigureAwait(false);
