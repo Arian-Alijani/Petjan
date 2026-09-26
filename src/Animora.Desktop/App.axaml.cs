@@ -1,3 +1,6 @@
+using Animora.Application;
+using Animora.Application.UseCases.Identity;
+using Animora.Client.Services.Identity;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Boarding;
 using Animora.Contracts.Cashier;
@@ -36,14 +39,17 @@ using Animora.Desktop.Pages.Vaccination;
 using Animora.Desktop.Pages.Visits;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
+using Animora.Infrastructure.Local;
+using Animora.Persistence.Sqlite.Maintenance;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Desktop;
 
-public partial class App : Application
+public partial class App : global::Avalonia.Application
 {
     // Composition root. Later phases resolve ViewModels/services from here.
     public static IServiceProvider Services { get; private set; } = default!;
@@ -81,14 +87,74 @@ public partial class App : Application
             }
 
             desktop.MainWindow = login;
+
+            // Local store startup runs only after the login window is up so the first frame is never
+            // blocked (PERFORMANCE §4); the form stays disabled until it completes.
+            login.Opened += OnLoginOpened;
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
+    // async void only at the Avalonia lifecycle-event boundary; every exception is caught here.
+    private static async void OnLoginOpened(object? sender, EventArgs e)
+    {
+        if (sender is not LoginWindow login)
+        {
+            return;
+        }
+
+        login.Opened -= OnLoginOpened;
+        if (login.DataContext is not LoginViewModel viewModel)
+        {
+            return;
+        }
+
+        try
+        {
+            var ready = await InitializeLocalStoreAsync();
+            await Dispatcher.UIThread.InvokeAsync(() => viewModel.InitializeAsync(ready));
+        }
+        catch (Exception)
+        {
+            // Never let a startup failure escape the event boundary; keep sign-in disabled.
+            try
+            {
+                await Dispatcher.UIThread.InvokeAsync(() => viewModel.InitializeAsync(storeReady: false));
+            }
+            catch (Exception)
+            {
+                // The window is gone; nothing left to report to.
+            }
+        }
+    }
+
+    private static async Task<bool> InitializeLocalStoreAsync()
+    {
+        try
+        {
+            // ILocalStoreInitializer is scoped: keep the scope alive for the whole await. Run off the UI thread.
+            return await Task.Run(async () =>
+            {
+                await using var scope = Services.CreateAsyncScope();
+                var initializer = scope.ServiceProvider.GetRequiredService<ILocalStoreInitializer>();
+                var result = await initializer.InitializeAsync(CancellationToken.None).ConfigureAwait(false);
+                return result.IsSuccess;
+            }).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     private static IServiceProvider ConfigureServices()
     {
         var services = new ServiceCollection();
+
+        // B03c: real local store + application layer (identity use cases) behind the desktop seams.
+        services.AddAnimoraLocalInfrastructure();
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it
@@ -105,7 +171,8 @@ public partial class App : Application
         services.AddSingleton<IDialogService>(sp => sp.GetRequiredService<DialogService>());
 
         // Phase 05: identity seam + navigation + shell composition.
-        services.AddSingleton<ICurrentUserContext, MockCurrentUserContext>();
+        services.AddSingleton<ICurrentUserContext, CurrentUserContextService>();
+        services.AddSingleton<IAuthenticationService, AuthenticationService>();
         services.AddSingleton<INavigationService, NavigationService>();
 
         // Phase 06: Dashboard screen — query service is stateless/pure mock
@@ -221,9 +288,11 @@ public partial class App : Application
         services.AddSingleton<ISearchService, MockSearchService>();
         services.AddTransient<CommandPaletteViewModel>();
 
-        // Startup sign-in gate (front-end only for now; admin/admin demo
-        // credentials, mock-authenticated in LoginViewModel). Transient so a
-        // fresh form is built each time the window opens.
+        // Startup sign-in gate (B03c: real local authentication + first-run
+        // owner setup). Transient so a fresh form is built each time the window
+        // opens; the first-run VM is created on demand through a factory.
+        services.AddTransient<FirstRunViewModel>();
+        services.AddTransient<Func<FirstRunViewModel>>(sp => () => sp.GetRequiredService<FirstRunViewModel>());
         services.AddTransient<LoginViewModel>();
         services.AddTransient<LoginWindow>();
 

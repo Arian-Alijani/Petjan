@@ -16,6 +16,9 @@
     <!-- Referenced so LayeringRulesTests can load and assert on their reference sets. -->
     <ProjectReference Include="..\..\src\Animora.Application\Animora.Application.csproj" />
     <ProjectReference Include="..\..\src\Animora.Contracts\Animora.Contracts.csproj" />
+    <!-- B03c: loaded so the identity-package layering fact can inspect their reference sets. -->
+    <ProjectReference Include="..\..\src\Animora.Infrastructure.Local\Animora.Infrastructure.Local.csproj" />
+    <ProjectReference Include="..\..\src\Animora.Client.Services\Animora.Client.Services.csproj" />
   </ItemGroup>
 
 </Project>

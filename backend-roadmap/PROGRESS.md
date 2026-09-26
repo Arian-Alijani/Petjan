@@ -35,13 +35,14 @@
 | Area | State |
 |---|---|
 | `src/Animora.Desktop/` | **Complete, still 100% on mocks.** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Builds 0 warnings / 0 errors. Untouched by the backend track until Track C swaps its DI registrations. |
-| `src/Animora.Contracts/` | 20 interfaces + DTOs, one folder per bounded context. The frontend↔backend seam — untouched by Track A/B. |
-| `src/Animora.Desktop/Mocks/` | 22 in-memory files (20 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — still the only implementations Desktop uses. All sample data lives here. **No mock deleted yet** (Track C's job). |
+| `src/Animora.Contracts/` | 20 interfaces + DTOs, one folder per bounded context. The frontend↔backend seam. B03c added the auth seam (`Identity/IAuthenticationService`, `AuthOutcome`, `FirstRunRequest`) and appended `UserRole.Receptionist`; still references no `Animora.*`. |
+| `src/Animora.Desktop/Mocks/` | 21 in-memory files (19 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — still the only implementations for every non-identity screen. `MockCurrentUserContext` deleted by B03c; the rest are Track C's job. |
 | `src/Animora.Domain/`, `src/Animora.Application/` | **Real code**, not placeholders — built through Track A (A01–A12: kernel, identity, patients/clinical, scheduling/boarding, inventory/purchasing, sales/cashier, finance) and B01–B02 (application dispatch pipeline, command journal/outbox). `Animora.Domain.csproj` still has **zero** project/package references by design. |
-| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 5 migrations (`001`–`005`), repositories, seed, maintenance/backup/quarantine, OS keystore, clocks. Not yet wired into Desktop. |
-| `src/Animora.Client.Services/`, `src/Animora.Sync.Abstractions/` | Still **empty scaffolds** (csproj + README only) — Track C / Track E deliverables respectively. |
+| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 5 migrations (`001`–`005`), repositories, seed, maintenance/backup/quarantine, OS keystore, clocks. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
+| `src/Animora.Client.Services/` | B03c: `Identity/AuthenticationService` (`IAuthenticationService` over the dispatcher, scope-per-call), `Identity/CurrentUserContextService` (real `ICurrentUserContext` over `SessionContextCache`), `Mapping/RoleMapping`. Remaining services are Track C. |
+| `src/Animora.Sync.Abstractions/` | Still an **empty scaffold** (csproj + README only) — Track E deliverable. |
 | Server / SQL Server / licensing / admin web | **Do not exist yet** (Tracks D/E). |
-| Login | `src/Animora.Desktop/Pages/Login/LoginViewModel.cs` — still hardcoded `admin`/`admin`; real local identity tables/hashing/session exist since B03a but are not yet wired to Desktop (B03b/B03c). |
+| Login | **Real local authentication (B03c).** `LoginViewModel` → `IAuthenticationService`; disabled until the local store is ready; first run shows `FirstRunView` (owner setup) and opens the shell. No hardcoded credentials, no demo user seeded. (`LoginWindow.axaml` still shows the old demo hint text — untouched by design.) |
 | `Directory.Packages.props` | Avalonia 12.1.2 (+Desktop/Fluent/Inter/DataGrid), CommunityToolkit.Mvvm 8.4.2, Microsoft.Extensions.DependencyInjection 10.0.12, plus the Track A/B backend pins (EF Core Sqlite 10.0.12, xunit, etc. — see A01 entry). `ManagePackageVersionsCentrally=true`. |
 | `Directory.Build.props` | `net10.0`, `LangVersion 14.0`, `Nullable enable`, `ImplicitUsings enable`. |
 | Solution | `Animora.sln` — 9 `src/` projects + 5 `tests/` projects (see `AGENTS.md` for the full `src/` map). |
@@ -50,7 +51,7 @@
 
 ## Next phase
 
-**Next phase: `B03c`** — `backend-roadmap/phases/PHASE-B03c-*.md` (B03 is split into B03a→B03c; the parent `PHASE-B03-*.md` is an index only)
+**Next phase: `B04` (`B04a`)** — `backend-roadmap/phases/PHASE-B04a-*.md` (B04 is split into B04a→B04c; the parent `PHASE-B04-*.md` is an index only)
 
 ## Phase status
 
@@ -78,10 +79,10 @@
 | A12 | ✅ Done | 2026-09-24 | Track A test consolidation: 18 Domain + 16 Persistence test files (incl. `FakeClock`, `LocalStoreTestFixture`, `TestSupport`) covering A05–A11. One A02 defect fixed (IdGenerator shared high-water, see Repo state log "A12"). Expected 321 tests green (259+2 Domain, 57 Persistence, 3 others); final build/test.sh/run.sh re-verification not run in the finishing session (user directive: no long builds/tests) — run once before B01. |
 | B01 | ✅ Done | 2026-09-24 | Application layer skeleton: abstractions, frozen reflection-free dispatcher, fixed 6-behavior chain, validation primitives, 3 security-plane ports + temporary defaults, correlation + `OperationIdFactory`, `AddAnimoraApplication()`, `ErrorCodes` += 2. `build.sh full` 0/0; `test.sh` TESTS OK (353: 261 Domain, 33 Application, 57 Persistence, 1 Sync, 1 Server). `run.sh` not re-run (Xvfb not installed; desktop untouched). |
 | B02 | ✅ Done | 2026-09-24 | Local command pipeline + transactional outbox. Wire contracts (`CommandEnvelope`, `SettlementResult`, `CommandTypes` 16, `WireApiError`/`WireFieldError`), Domain `SettlementState` + `SettlementTransitions` allow-table, Application ports (`ICommandJournal`, `IOutbox`, `ICommandTransport`, `ILocalSequenceAllocator`, `IIntegrityAlertSink`, `RetryPolicy`, `CommandFingerprint` SHA-256), `CommandJournalBehavior` in the fixed chain, `LocalCommandProcessor` pass loop, Persistence (`PendingCommand`, `OutboxMessage`, `LocalSequenceCounter`, `PipelineSql` atomic claim, `CommandJournal`, `LocalOutbox`, `OutboxClaim`, `OutboxRelayHandler`), migration `004_CommandPipeline`. Build 0/0; Application 49/49 + Persistence 68/68 green. Not re-run `test.sh`/`run.sh` (user directive: no heavy tests). |
-| B03 | 🟡 In progress | | Split into B03a–B03c (index: `PHASE-B03-*.md`); done when B03c is done. |
+| B03 | ✅ Done | 2026-09-26 | Split into B03a–B03c (index: `PHASE-B03-*.md`); completed with B03c. |
 | B03a | ✅ Done | 2026-09-24 | Identity foundation: package pin, `User.MustChangePassword`, 4 error codes, `LocalSession`/`LoginAttemptLog` + migration `005_LocalIdentity`, hashing/policy/session infra + DI. |
 | B03b | ✅ Done | 2026-09-24 | Identity application layer: 7 use cases + validators, `SessionCurrentUserProvider` (deleted `SingleUserProvider`), `FindByUsernameAsync` + 3 repos (+ `ILoginAttemptLog`), application DI. Application + Infrastructure.Local builds 0/0; Dispatcher/Behavior tests 20/20. |
-| B03c | ⬜ Not started | | Identity contracts/desktop/tests: auth seam, `Client.Services`, login + first-run rewrite, mock deletion, seeding change, all B03 tests + build/test/run gate. |
+| B03c | ✅ Done | 2026-09-26 | Auth seam + `Client.Services` identity, Desktop DI/async store startup, login + first-run rewrite, `MockCurrentUserContext` deleted, no demo user; B03 targeted tests 22/22 + layering 4/4; `build.sh full` 0/0; `SMOKE RUN OK`. Full test suite not run (user directive). |
 | B04 | ⬜ Not started | | Split into B04a–B04c (index: `PHASE-B04-*.md`); done when B04c is done. |
 | B04a | ⬜ Not started | | Authorization plane: `PermissionEvaluator` + 5 policies + resource rules, `RequiresPermissionAttribute`, `PermissionAuthorizationGate` (replaces allow-all), `ErrorCodes` += `PERMISSION_UNKNOWN`. |
 | B04b | ⬜ Not started | | Offline capability: `DeviceCapabilitySnapshot` + migration `006_CapabilitySnapshot`, signer/evaluator/issuer/store, sign-in integration, `ErrorCodes` += 2. |
@@ -134,6 +135,45 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > do not read the entries around it. If nothing below is cited, you are done reading this file.
 
 ## Repo state log
+
+### B03c — Identity contracts, desktop wiring, seeding & targeted tests (2026-09-26)
+- **Contracts auth seam:** `Animora.Contracts/Identity/IAuthenticationService` (`SignInAsync`, `SignOutAsync`,
+  `IsFirstRunAsync`, `CompleteFirstRunAsync`) + `AuthModels` (`AuthOutcome`, `FirstRunRequest`). `UserRole.Receptionist`
+  appended (existing numeric values preserved). Contracts still references no `Animora.*`.
+- **Client identity services:** `Client.Services/Identity/AuthenticationService` (singleton; a fresh async scope per call
+  resolves the scoped `IDispatcher` + `ICurrentUserProvider`; anonymous contexts for sign-in / first-run / session query,
+  active-session context for sign-out, which stays idempotent; failure is never treated as first run; no
+  `ConfigureAwait(false)`). `CurrentUserContextService` (singleton) reads `SessionContextCache.Current` — no sync-over-async;
+  initials = first text element; `RoleLabel` = stable key `role.*`.
+- **Role mapping:** `Mapping/RoleMapping` — explicit, exhaustive `StaffRole → UserRole` (Accountant → Manager fallback,
+  documented) + `ToRoleKey`.
+- **Desktop DI:** csproj references `Animora.Client.Services`; `App.axaml.cs` calls `AddAnimoraLocalInfrastructure()` +
+  `AddAnimoraApplication(b => b.AddIdentityUseCases())`; `ICurrentUserContext → CurrentUserContextService`,
+  `IAuthenticationService → AuthenticationService`; `FirstRunViewModel` transient + `Func<FirstRunViewModel>` factory.
+- **Async local-store startup gate:** `LoginWindow.Opened` (async-void boundary, all exceptions caught) → scoped
+  `ILocalStoreInitializer.InitializeAsync` inside an async scope on the thread pool → `LoginViewModel.InitializeAsync(storeReady)`
+  on the UI thread. First frame never blocked; sign-in disabled until ready; failure → generic error, sign-in stays disabled.
+- **LoginViewModel rewrite:** demo credentials/`TryAuthenticate` removed; `IsBusy` (initially true) + `IsStoreReady`
+  drive `SignInCommand` (async); `MapError` is the single code → Persian mapping (shared with first-run); password cleared
+  on failure; first-run modal shown at most once and raises `LoginSucceeded` after setup.
+- **FirstRunView/ViewModel:** `Pages/Login/FirstRunView.axaml` (+ trivial code-behind) and `FirstRunViewModel`
+  (`CompleteSetupCommand`, `SetupSucceeded`); registered in `Shell/ViewFactory.cs`.
+- **Pre-shell DialogService fallback:** with no `ModalHost` attached (before `MainWindow`), `ShowModal` opens a lightweight
+  owned `Window` (`ShowDialog(owner)` or `Show()`), which `Close()` closes; host-attached behaviour unchanged.
+- **Mock deletion:** `src/Animora.Desktop/Mocks/MockCurrentUserContext.cs` deleted.
+- **Seeding:** `LocalSeeder` checked — it seeds no user/credential; unchanged. First-run setup is the only user-creation path.
+- **Tests (Application.Tests; + refs to Infrastructure.Local & Persistence.Sqlite):** `IdentityTestSupport.cs` (mutable clock,
+  counting hasher, in-memory repos, file-backed `LocalIdentityHost`), `SignInTests` (7), `FirstRunSetupTests` (2),
+  `SessionLifecycleTests` (6, temp-file SQLite, restart = simulated crash), `PasswordPolicyTests` (7 incl. IdentityV2 legacy
+  hash → rehash). **Domain.Tests:** `LayeringRulesTests.IdentityPackage_IsReferencedOnlyByInfrastructureLocal`
+  (+ refs to Infrastructure.Local & Client.Services).
+- **Commands & results:**
+  `scripts/sandbox/build.sh` → BUILD OK;
+  `dotnet test tests/Animora.Application.Tests/... --no-restore <MSBUILD_LOWMEM> --filter "FullyQualifiedName~SignInTests|FullyQualifiedName~FirstRunSetupTests|FullyQualifiedName~SessionLifecycleTests|FullyQualifiedName~PasswordPolicyTests" -- xUnit.MaxParallelThreads=1` → **22 passed / 0 failed**;
+  `dotnet test tests/Animora.Domain.Tests/... --no-restore <MSBUILD_LOWMEM> --filter "FullyQualifiedName~LayeringRulesTests" -- xUnit.MaxParallelThreads=1` → **4 passed / 0 failed**;
+  `scripts/sandbox/build.sh full` → **0 warnings / 0 errors**; `scripts/sandbox/run.sh` → **SMOKE RUN OK**.
+  **The full test suite (`scripts/sandbox/test.sh`) was NOT run, per user directive; only the B03c targeted tests ran.**
+  No new migration (still `001`–`005`).
 
 ### B03b — Identity use cases, provider swap & repositories (2026-09-24)
 - **Use cases** (`Application/UseCases/Identity/`, one file each, handler + validator): `SignInCommand` → `SignInResult`
@@ -1286,3 +1326,26 @@ Rule check: CONVENTIONS §2 (Application has no Identity/EF refs), §4 (sealed, 
             §7 (no user-existence leak, stamp rotation via `SetPasswordHash`), A-RULE 023/029.
 Impact:     B03c: Desktop must call `AddIdentityUseCases()`, dispatch SignIn/FirstRun/Unlock/CurrentSession with the
             anonymous contexts, and run `build.sh full` + the B03 test suite.
+
+### B03c — tree vs. phase mismatches & sandbox fixes            (date: 2026-09-26)
+Context:    The phase text diverged from the tree in places, and wiring the backend into Desktop exposed two build issues.
+Decision:   (1) `UserRole` had no `Receptionist` (phase said it did); appended it so the required mapping holds and
+            existing numeric values are kept.
+            (2) `RoleDefinition` has `DisplayKey` (e.g. `role.manager`), not `DisplayName`; `CurrentUserContextService.RoleLabel`
+            returns that stable key (Client.Services produces no Persian text); shell labels were not refactored here.
+            (3) `DialogService` had no attached `ModalHost` before `MainWindow`, so `ShowModal` from login was a silent
+            no-op; added a minimal owned-`Window` fallback in `DialogService.cs` only (outside the phase file table, but
+            required for a runnable first-run). `IDialogService` unchanged.
+            (4) Referencing the backend made `Application.Current` ambiguous with namespace `Animora.Application` inside
+            `Animora.Desktop`; qualified as `global::Avalonia.Application.Current` in `App.axaml.cs`, `ToastService.cs`,
+            `IconKeyConverter.cs` (compile-error-driven, no behaviour change).
+            (5) The Avalonia XAML compiler hit `OutOfMemoryException` under the sandbox's 448 MiB GC cap once Desktop
+            compiled against the full backend graph; raised `DOTNET_GCHeapHardLimit` in `scripts/sandbox/_env.sh` to
+            ~576 MiB (still well under 985 MiB; single-process flags unchanged). A partially OOM-built Desktop `obj/`
+            produced a "No precompiled XAML" smoke crash; a clean Desktop rebuild fixed it.
+            (6) `install-prereqs.sh` was run once because the .NET SDK was actually missing.
+            (7) The Domain.Tests project also references `Animora.Client.Services` so the layering fact can load it.
+            (8) Full test suite not run (user directive); only the B03c targeted tests ran.
+Rule check: CONVENTIONS §2 (Contracts pure; Identity package only in Infrastructure.Local — proven by test), §4, §7, §9, §10.
+Impact:     B04 can build on `IAuthenticationService`/`CurrentUserContextService`; a later localization pass should map
+            `role.*` keys to Persian labels in the Desktop.

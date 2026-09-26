@@ -91,6 +91,9 @@ public static class ViewFactory
         Register<global::Animora.Desktop.Pages.Inventory.ProductModalViewModel, global::Animora.Desktop.Pages.Inventory.ProductModalView>(factories);
         Register<global::Animora.Desktop.Pages.Inventory.StockAdjustModalViewModel, global::Animora.Desktop.Pages.Inventory.StockAdjustModalView>(factories);
 
+        // Login (first-run owner setup, shown pre-shell).
+        Register<global::Animora.Desktop.Pages.Login.FirstRunViewModel, global::Animora.Desktop.Pages.Login.FirstRunView>(factories);
+
         // Patients & Owners (directory + record sheets + wizard/modals).
         Register<global::Animora.Desktop.Pages.Patients.AddPatientWizardViewModel, global::Animora.Desktop.Pages.Patients.AddPatientWizardView>(factories);
         Register<global::Animora.Desktop.Pages.Patients.AddPetModalViewModel, global::Animora.Desktop.Pages.Patients.AddPetModalView>(factories);

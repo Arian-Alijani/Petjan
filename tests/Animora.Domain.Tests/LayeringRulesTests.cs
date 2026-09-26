@@ -76,4 +76,29 @@ public sealed class LayeringRulesTests
 
         Assert.Empty(animoraRefs);
     }
+
+    /// <summary>
+    /// B03c: the ASP.NET Core Identity hashing package is referenced by
+    /// <c>Animora.Infrastructure.Local</c> only (CONVENTIONS §2/§7). Checked on the
+    /// actual referenced assembly names (<c>Microsoft.Extensions.Identity.Core</c>
+    /// hosts <c>Microsoft.AspNetCore.Identity.PasswordHasher</c>).
+    /// </summary>
+    [Fact]
+    public void IdentityPackage_IsReferencedOnlyByInfrastructureLocal()
+    {
+        static bool ReferencesIdentity(Assembly assembly) =>
+            ReferencedAssembliesOf(assembly).Any(a => a.Name is not null &&
+                (a.Name.StartsWith("Microsoft.Extensions.Identity", StringComparison.Ordinal) ||
+                 a.Name.StartsWith("Microsoft.AspNetCore.Identity", StringComparison.Ordinal)));
+
+        var infrastructure = typeof(Animora.Infrastructure.Local.LocalInfrastructureServiceCollectionExtensions).Assembly;
+        Assert.True(ReferencesIdentity(infrastructure));
+
+        Assert.False(ReferencesIdentity(typeof(Animora.Domain.AssemblyMarker).Assembly));
+        Assert.False(ReferencesIdentity(typeof(Animora.Application.AssemblyMarker).Assembly));
+        Assert.False(ReferencesIdentity(typeof(Animora.Contracts.Navigation.UserRole).Assembly));
+        Assert.False(ReferencesIdentity(
+            typeof(Animora.Persistence.Sqlite.Context.LocalStoreServiceCollectionExtensions).Assembly));
+        Assert.False(ReferencesIdentity(typeof(Animora.Client.Services.Identity.AuthenticationService).Assembly));
+    }
 }
