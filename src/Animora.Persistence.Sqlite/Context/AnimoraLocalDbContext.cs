@@ -35,6 +35,11 @@ public sealed class AnimoraLocalDbContext(
         modelBuilder.Entity<PendingCommand>().Property(e => e.CommandFingerprint)
             .HasMaxLength(PendingCommand.FingerprintLength);
         modelBuilder.Entity<OutboxMessage>().Property(e => e.PayloadJson).HasMaxLength(PayloadMaxLength);
+        // B04b: capability snapshot JSON/signature bounds must win over the generic short-text convention.
+        var snapshot = modelBuilder.Entity<DeviceCapabilitySnapshot>();
+        snapshot.Property(e => e.PermissionsJson).HasMaxLength(DeviceCapabilitySnapshot.PermissionsJsonMaxLength);
+        snapshot.Property(e => e.PerCapabilityExpiryJson).HasMaxLength(DeviceCapabilitySnapshot.ExpiryJsonMaxLength);
+        snapshot.Property(e => e.SnapshotSignature).HasMaxLength(DeviceCapabilitySnapshot.SignatureMaxLength);
     }
 
     /// <summary>Max length of a stored command/event JSON payload column.</summary>

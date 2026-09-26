@@ -10,6 +10,7 @@ using Animora.Persistence.Sqlite.Options;
 using Animora.Persistence.Sqlite.Outbox;
 using Animora.Persistence.Sqlite.Queries;
 using Animora.Persistence.Sqlite.Repositories;
+using Animora.Persistence.Sqlite.Security;
 using Animora.Persistence.Sqlite.Seed;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -83,6 +84,8 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IRoleDefinitionRepository, RoleDefinitionRepository>();
         services.AddScoped<ILoginAttemptLog, LoginAttemptLogWriter>();
+        // B04b: one current signed snapshot per (tenant, user, device); joins the scoped context's UoW transaction.
+        services.AddScoped<Application.Security.ICapabilityStore, CapabilityStore>();
 
         services.AddScoped<IUnitOfWork, LocalUnitOfWork>();
         services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();

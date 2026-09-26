@@ -101,6 +101,14 @@ public static class ErrorCodes
     public static readonly ErrorCode CapabilityNotGranted =
         new("CAPABILITY_NOT_GRANTED", ErrorCode.Forbidden);
 
+    /// <summary>The local capability snapshot failed signature verification; it must be discarded (B04b).</summary>
+    public static readonly ErrorCode CapabilitySnapshotTampered =
+        new("CAPABILITY_SNAPSHOT_TAMPERED", ErrorCode.Forbidden);
+
+    /// <summary>No capability snapshot exists for this tenant/user/device (B04b). Fail closed.</summary>
+    public static readonly ErrorCode CapabilitySnapshotMissing =
+        new("CAPABILITY_SNAPSHOT_MISSING", ErrorCode.Forbidden);
+
     /// <summary>Unknown user name or wrong password (deliberately indistinguishable) (B03).</summary>
     public static readonly ErrorCode CredentialsInvalid =
         new("CREDENTIALS_INVALID", ErrorCode.Forbidden);

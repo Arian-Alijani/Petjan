@@ -44,6 +44,9 @@ public static class LocalInfrastructureServiceCollectionExtensions
         services.AddOptions<LocalSessionOptions>();
         services.TryAddSingleton<Application.Security.IPasswordHasher, PasswordHashingService>();
         services.TryAddSingleton<Application.Security.ISessionService, LocalSessionService>();
+
+        // B04b — capability snapshot signer (singleton: only the singleton ISecretStore; key cached in memory).
+        services.TryAddSingleton<Application.Security.ICapabilitySnapshotSigner, CapabilitySnapshotSigner>();
         return services;
     }
 

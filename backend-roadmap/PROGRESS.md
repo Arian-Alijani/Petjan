@@ -51,7 +51,7 @@
 
 ## Next phase
 
-**Next phase: `B04` (`B04b`)** — `backend-roadmap/phases/PHASE-B04b-*.md` (B04 is split into B04a→B04c; the parent `PHASE-B04-*.md` is an index only)
+**Next phase: `B04` (`B04c`)** — `backend-roadmap/phases/PHASE-B04c-*.md` (B04 is split into B04a→B04c; the parent `PHASE-B04-*.md` is an index only)
 
 ## Phase status
 
@@ -85,7 +85,7 @@
 | B03c | ✅ Done | 2026-09-26 | Auth seam + `Client.Services` identity, Desktop DI/async store startup, login + first-run rewrite, `MockCurrentUserContext` deleted, no demo user; B03 targeted tests 22/22 + layering 4/4; `build.sh full` 0/0; `SMOKE RUN OK`. Full test suite not run (user directive). |
 | B04 | ⬜ Not started | | Split into B04a–B04c (index: `PHASE-B04-*.md`); done when B04c is done. |
 | B04a | ✅ Done | 2026-09-26 | Authorization plane: `PermissionEvaluator` (stored RBAC → 5 policies → 2 typed resource rules), `RequiresPermissionAttribute` read once at registration into `PipelineDescriptor`/`HandlerEntry`, scoped `PermissionAuthorizationGate` (allow-all deleted), `ErrorCodes` += `PERMISSION_UNKNOWN`. `build.sh full` 0/0. Tests not run (user directive; B04 tests are B04c). |
-| B04b | ⬜ Not started | | Offline capability: `DeviceCapabilitySnapshot` + migration `006_CapabilitySnapshot`, signer/evaluator/issuer/store, sign-in integration, `ErrorCodes` += 2. |
+| B04b | ✅ Done | 2026-09-26 | Offline capability: `DeviceCapabilitySnapshots` (`[LocalOnly]`, unique tenant/user/device) + migration `006_CapabilitySnapshot`, HMAC-SHA256 signer (keystore key), `CapabilityEvaluator`/`CapabilitySnapshotIssuer`/`CapabilityStore`, issuance in sign-in AND first-run UoW, `ErrorCodes` += 2. High window = 72h (policy authoritative). `build.sh full` 0/0. Tests not run (B04c). |
 | B04c | ⬜ Not started | | Gate seam: `ICapabilityGate` + `CapabilityGateService` (bounded cache), `NavPermissions`, shell ViewModels, DI, all B04 tests + build/test/run gate. |
 | B05 | ⬜ Not started | | Split into B05a–B05c (index: `PHASE-B05-*.md`); done when B05c is done. |
 | B05a | ⬜ Not started | | Audit plane: `AuditEntries` + migration `007_AuditDiagnostics` (AuditEntries only), `IAuditWriter`/`AuditWriter`, `AuditableAttribute`/`AuditBehavior`, `IntegrityAlertSink`, `ErrorCodes` += `AUDIT_WRITE_FAILED`. |
@@ -135,6 +135,64 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > do not read the entries around it. If nothing below is cited, you are done reading this file.
 
 ## Repo state log
+
+### B04b — Signed, device-bound offline capability snapshots & issuance (2026-09-26)
+- **Ports/DTO (Application, `Security/ICapabilityStore.cs`):** immutable `StoredCapabilitySnapshot(Id, TenantId, UserId,
+  DeviceId, PermissionsJson, IssuedAtUtc, PerCapabilityExpiryJson, AbsoluteExpiryUtc, SnapshotSignature, SecurityStamp,
+  RevokedAtUtc)`; `ICapabilityStore.GetAsync → Result<StoredCapabilitySnapshot?>` (missing = null value),
+  `ReplaceAsync → Result`, `RevokeAsync(tenant,user,device,revokedAtUtc) → Result`; `ICapabilitySnapshotSigner.Sign →
+  Result<string>`, `Verify → Result`. Same file: `CapabilitySnapshotCodec` (single JSON codec + canonical form) and
+  `CapabilityPayload`. B04c must consume exactly these signatures.
+- **Table:** `DeviceCapabilitySnapshots` (`Entities/DeviceCapabilitySnapshot`, `[LocalOnly]`, not tenant-filtered; every
+  query binds tenant+user+device). Unique `IX_DeviceCapabilitySnapshots_Tenant_User_Device`; JSON bounds 8192/16384,
+  signature 64 (explicit in `OnModelCreating`, overriding the short-text convention — one-line model addition in
+  `AnimoraLocalDbContext.cs`, indispensable because conventions run after entity configurations); timestamps UTC ticks.
+  Migration `20260926055039_006_CapabilitySnapshot` (EF-generated): CreateTable + CreateIndex only; 001–005 untouched;
+  `migrations list` shows 001–006.
+- **Store:** `Persistence.Sqlite/Security/CapabilityStore` (scoped, scoped `AnimoraLocalDbContext`): inside an active UoW
+  transaction it only flushes (caller commits/rolls back); standalone it opens its own short transaction. Replace =
+  delete current row(s) for the triple, flush, insert (the unique index never sees two). Revoke verifies first: a tampered
+  row is deleted and `CAPABILITY_SNAPSHOT_TAMPERED` returned (never re-signed); otherwise `RevokedAtUtc` is set and the row
+  re-signed atomically (earliest revocation wins). Reads never re-sign.
+- **Signer:** `Infrastructure.Local/Security/CapabilitySnapshotSigner` (singleton): HMAC-SHA256 over one UTF-8 canonical
+  JSON (version, Id, tenant, user, device, ordinal-sorted/distinct permissions, issued ticks, ordinal-sorted expiry pairs,
+  absolute ticks, stamp, revoked ticks|null; signature excluded); malformed/duplicate JSON codes or permission≠expiry key
+  set rejected; base64; `FixedTimeEquals`. Key `capability-snapshot-key` from `ISecretStore` (32 bytes): generated only on
+  `NOT_FOUND`, any other read/write failure or wrong length → `STORE_KEY_UNAVAILABLE` (fail closed). Never in SQLite.
+- **Issuer:** `CapabilitySnapshotIssuer` (scoped): tenant's stored role definition (missing → `CAPABILITY_NOT_GRANTED`,
+  no default fallback) ∪ extras − denies, declared codes only; `CapabilitySnapshot.BuildExpiry`; absolute = max per-code
+  expiry (empty set ⇒ absolute = issued ⇒ grants nothing); `IdGenerator.NewId(clock.UtcNow)`; copies `User.SecurityStamp`;
+  sign → `ReplaceAsync`.
+- **Evaluator:** `CapabilityEvaluator` (scoped, separate from B04a `IPermissionEvaluator`), `Evaluate(snapshot?, code,
+  tenantId, userId, deviceId, currentSecurityStamp, nowUtc, highWaterUtc) → CapabilityEvaluation(State, Result,
+  DiscardSnapshot)`; `CapabilityDecisionState { Allowed, Denied, ExpiredOffline, RequiresOnline }`. Order: missing →
+  `CAPABILITY_SNAPSHOT_MISSING`; binding/stamp mismatch → `CAPABILITY_NOT_GRANTED`; malformed payload → deny + discard;
+  signature mismatch → `CAPABILITY_SNAPSHOT_TAMPERED` + discard (keystore outage denies without discard); unknown/absent
+  code → deny; revoked → deny every non-Low (read) code; Critical → `RequiresOnline`; effective = max(now, highWater)
+  (high-water never lowered/advanced); issued > effective + 5 min → `ExpiredOffline` (rollback, no lifetime extension);
+  per-code window above policy → deny; absolute or per-code expiry `<=` effective → `OFFLINE_CAPABILITY_EXPIRED`.
+- **Offline windows (corrected):** `OfflineCapabilityPolicy` is authoritative — Low 30 d, Normal 14 d, **High 72 h**,
+  Critical 0 (online-only). The phase text's "High 24 h / Medium 7 d" is wrong and was not applied.
+- **Integration:** `SignInCommandHandler` and `CompleteFirstRunSetupCommandHandler` now run success mutations + audit +
+  `IssueAsync` inside one `uow.ExecuteAsync` (failure propagates, no session). First-run is included because it opens the
+  Manager shell without a later sign-in; without a snapshot the B04c gate would deny the owner. Lockout/failure paths
+  unchanged; session start and permissions/result order unchanged; cache set only after session success.
+- **Transaction boundary (unavoidable, documented):** `ISessionService.StartAsync` (`LocalSessionService`) opens its own
+  DI scope and commits separately, so the session row is a later, separate transaction — NOT the handler's. If it fails
+  after the snapshot committed, the handler returns the failure (no session, no cache); the orphan snapshot grants
+  nothing without a session and is replaced at the next sign-in. `ISessionService` was not modified.
+- **DI (real files):** signer → `AddAnimoraLocalInfrastructure` (`LocalInfrastructureServiceCollectionExtensions`, singleton,
+  depends only on singleton `ISecretStore`); store → `AddAnimoraLocalStore` (`LocalStoreServiceCollectionExtensions`,
+  scoped); issuer/evaluator → `AddAnimoraApplication` (scoped). No scoped service captured by a singleton.
+- **ErrorCodes:** `CAPABILITY_SNAPSHOT_TAMPERED`, `CAPABILITY_SNAPSHOT_MISSING` (both Forbidden).
+- **Deviations:** (1) `AnimoraLocalDbContext.cs` (outside the locked set) gained 4 lines of column bounds — indispensable
+  for realistic JSON max lengths (conventions overwrite configuration-level bounds). (2) `install-prereqs.sh` ran once but
+  does not install dotnet-ef (known, see B03 note); dotnet-ef 10.0.12 was installed to `.sandbox/tools` with the
+  documented `dotnet tool install` command. (3) Indispensable compile fix in `tests/Animora.Application.Tests/
+  IdentityTestSupport.cs` (first `build.sh full` failed CS7036: `IdentityWorld` constructs both handlers directly): added
+  `SeededRoleRepository`, `InMemoryCapabilityStore`, `TestCapabilitySigner`, passed an issuer, and `CountingUnitOfWork.
+  ExecuteAsync` now counts one save per successful unit (success paths moved from `SaveAsync` to `ExecuteAsync`). No test
+  assertion changed. Second `build.sh full`: 0 warnings / 0 errors. (4) Tests not run (B04 tests are B04c).
 
 ### B04a — Authorization evaluator, policies, resource rules & dispatcher gate (2026-09-26)
 - **Evaluator:** `Security/IPermissionEvaluator.cs` (`AuthorizationSubject`, `AuthorizationDecision`, interface) +

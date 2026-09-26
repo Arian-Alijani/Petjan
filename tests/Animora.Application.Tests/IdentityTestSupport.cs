@@ -109,6 +109,52 @@ internal sealed class NullRoleRepository : IRoleDefinitionRepository
         Task.FromResult<RoleDefinition?>(null);
 }
 
+/// <summary>B04b compile fix: stored system role definitions so snapshot issuance (fail-closed on a missing role) succeeds.</summary>
+internal sealed class SeededRoleRepository(IClock clock) : IRoleDefinitionRepository
+{
+    public Task<RoleDefinition?> FindByRoleAsync(string tenantId, StaffRole role, CancellationToken ct = default) =>
+        Task.FromResult<RoleDefinition?>(RoleDefinition.CreateSystem(tenantId, role, clock));
+}
+
+/// <summary>B04b compile fix: in-memory capability store (one row per tenant/user/device).</summary>
+internal sealed class InMemoryCapabilityStore : ICapabilityStore
+{
+    public Dictionary<(string, string, string), StoredCapabilitySnapshot> Rows { get; } = [];
+
+    public Task<Result<StoredCapabilitySnapshot?>> GetAsync(string tenantId, string userId, string deviceId,
+        CancellationToken ct = default) =>
+        Task.FromResult(Result<StoredCapabilitySnapshot?>.Ok(Rows.GetValueOrDefault((tenantId, userId, deviceId))));
+
+    public Task<Result> ReplaceAsync(StoredCapabilitySnapshot snapshot, CancellationToken ct = default)
+    {
+        Rows[(snapshot.TenantId, snapshot.UserId, snapshot.DeviceId)] = snapshot;
+        return Task.FromResult(Result.Ok());
+    }
+
+    public Task<Result> RevokeAsync(string tenantId, string userId, string deviceId, DateTimeOffset revokedAtUtc,
+        CancellationToken ct = default) => Task.FromResult(Result.Ok());
+}
+
+/// <summary>B04b compile fix: deterministic non-cryptographic signer for handler-level tests.</summary>
+internal sealed class TestCapabilitySigner : ICapabilitySnapshotSigner
+{
+    public Result<string> Sign(StoredCapabilitySnapshot snapshot)
+    {
+        var canonical = CapabilitySnapshotCodec.Canonicalize(snapshot);
+        return canonical.IsFailure
+            ? Result<string>.Fail(canonical.Error, canonical.Detail)
+            : Result<string>.Ok(Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(canonical.Value!)));
+    }
+
+    public Result Verify(StoredCapabilitySnapshot snapshot)
+    {
+        var expected = Sign(snapshot);
+        return expected.IsSuccess && expected.Value == snapshot.SnapshotSignature
+            ? Result.Ok()
+            : Result.Fail(ErrorCodes.CapabilitySnapshotTampered);
+    }
+}
+
 internal sealed class RecordingAttemptLog : ILoginAttemptLog
 {
     public List<string> Outcomes { get; } = [];
@@ -127,8 +173,13 @@ internal sealed class CountingUnitOfWork : IUnitOfWork
         return Task.FromResult(Result.Ok());
     }
 
-    public Task<Result<T>> ExecuteAsync<T>(Func<CancellationToken, Task<Result<T>>> work, CancellationToken ct = default) =>
-        work(ct);
+    // B04b: success paths now commit through ExecuteAsync; one successful unit counts as one save (mirrors the real UoW).
+    public async Task<Result<T>> ExecuteAsync<T>(Func<CancellationToken, Task<Result<T>>> work, CancellationToken ct = default)
+    {
+        var outcome = await work(ct);
+        if (outcome.IsSuccess) Saves++;
+        return outcome;
+    }
 }
 
 /// <summary>Records session starts; the snapshot expiry follows the injected clock.</summary>
@@ -177,6 +228,8 @@ internal sealed class IdentityWorld
 
     public RecordingSessionService Sessions { get; }
 
+    public InMemoryCapabilityStore Capabilities { get; } = new();
+
     public IdentityWorld(IPasswordHasher? hasher = null)
     {
         Hasher = hasher ?? new CountingHasher();
@@ -200,10 +253,13 @@ internal sealed class IdentityWorld
     }
 
     public SignInCommandHandler SignIn() =>
-        new(Users, Memberships, new NullRoleRepository(), Attempts, Hasher, Sessions, Cache, UnitOfWork, Clock);
+        new(Users, Memberships, new NullRoleRepository(), Attempts, Hasher, Issuer(), Sessions, Cache, UnitOfWork, Clock);
 
     public CompleteFirstRunSetupCommandHandler FirstRun() =>
-        new(Users, Memberships, Devices, new NullRoleRepository(), Attempts, Hasher, Sessions, Cache, UnitOfWork, Clock);
+        new(Users, Memberships, Devices, new NullRoleRepository(), Attempts, Hasher, Issuer(), Sessions, Cache, UnitOfWork, Clock);
+
+    private CapabilitySnapshotIssuer Issuer() =>
+        new(new SeededRoleRepository(Clock), Capabilities, new TestCapabilitySigner(), Clock);
 }
 
 internal sealed class FixedLocalTenant : ILocalTenantContext

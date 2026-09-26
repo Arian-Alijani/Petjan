@@ -3236,6 +3236,65 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("ClockHighWaters", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.DeviceCapabilitySnapshot", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("AbsoluteExpiryUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("IssuedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PerCapabilityExpiryJson")
+                        .IsRequired()
+                        .HasMaxLength(16384)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PermissionsJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("RevokedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SecurityStamp")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SnapshotSignature")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "UserId", "DeviceId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_DeviceCapabilitySnapshots_Tenant_User_Device");
+
+                    b.ToTable("DeviceCapabilitySnapshots", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.LocalInstallation", b =>
                 {
                     b.Property<string>("InstallationId")
