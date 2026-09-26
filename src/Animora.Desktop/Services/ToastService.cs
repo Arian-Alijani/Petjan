@@ -32,7 +32,7 @@ public sealed class ToastService : IToastService
         // IResourceHost extension methods from Avalonia.Controls; Application
         // implements IResourceHost.
         Geometry? icon = null;
-        if (Application.Current is { } app &&
+        if (global::Avalonia.Application.Current is { } app &&
             app.TryFindResource(iconKey, out var iconResource))
         {
             icon = iconResource as Geometry;

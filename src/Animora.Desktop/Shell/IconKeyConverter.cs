@@ -19,7 +19,7 @@ public sealed class IconKeyConverter : IValueConverter
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is string key
-            && Application.Current is { } app
+            && global::Avalonia.Application.Current is { } app
             && app.TryFindResource(key, out var resource)
             && resource is Geometry geometry)
         {

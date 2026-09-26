@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:login="using:Animora.Desktop.Pages.Login"
+             x:Class="Animora.Desktop.Pages.Login.FirstRunView"
+             x:DataType="login:FirstRunViewModel"
+             Width="480"
+             MaxWidth="480"
+             Background="{StaticResource PanelBrush}"
+             FlowDirection="RightToLeft">
+    <StackPanel Margin="22" Spacing="10">
+        <TextBlock Text="راه‌اندازی اولیه کلینیک" FontSize="16" FontWeight="ExtraBold"
+                   Foreground="{StaticResource InkBrush}" />
+        <TextBlock Text="برای شروع، اطلاعات کلینیک و حساب مدیر را وارد کنید." FontSize="12"
+                   Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,0,0,6" />
+
+        <Border IsVisible="{Binding HasError}"
+                Background="{StaticResource DangerBgBrush}"
+                BorderBrush="{StaticResource DangerBrush}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12,10">
+            <TextBlock Text="{Binding ErrorMessage}" FontSize="12" FontWeight="Medium" TextWrapping="Wrap"
+                       Foreground="{StaticResource DangerBrush}" />
+        </Border>
+
+        <StackPanel Spacing="6">
+            <TextBlock Text="نام کلینیک" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+            <TextBox Text="{Binding ClinicName}" Padding="12,10" CornerRadius="10" />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+            <TextBlock Text="نام و نام خانوادگی مدیر" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+            <TextBox Text="{Binding OwnerFullName}" Padding="12,10" CornerRadius="10" />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+            <TextBlock Text="نام کاربری" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+            <TextBox Text="{Binding Username}" Padding="12,10" CornerRadius="10" />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+            <TextBlock Text="رمز عبور" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+            <TextBox Text="{Binding Password}" PasswordChar="•" Padding="12,10" CornerRadius="10" />
+        </StackPanel>
+
+        <Button Classes="primary"
+                Content="ایجاد حساب و ورود"
+                Height="42"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Margin="0,8,0,0"
+                Command="{Binding CompleteSetupCommand}"
+                IsDefault="True" />
+    </StackPanel>
+</UserControl>

@@ -3,6 +3,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Animora.Desktop.Controls;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 
 namespace Animora.Desktop.Services;
@@ -19,6 +20,10 @@ public sealed class DialogService : IDialogService
     private DrawerHost? _drawerHost;
     private SheetHost? _sheetHost;
 
+    // Pre-shell fallback (B03c): before MainWindow attaches the hosts (e.g. first-run from the login
+    // window) a modal is shown in a lightweight owned Window instead of silently doing nothing.
+    private Window? _fallbackWindow;
+
     /// <summary>Wires this service to the shell's overlay hosts. Call once, at composition time.</summary>
     public void Attach(ModalHost modalHost, DrawerHost drawerHost, SheetHost? sheetHost = null)
     {
@@ -33,8 +38,16 @@ public sealed class DialogService : IDialogService
         }
     }
 
-    public void ShowModal(object content, double maxWidth = 520) =>
-        _modalHost?.SetContent(content, maxWidth);
+    public void ShowModal(object content, double maxWidth = 520)
+    {
+        if (_modalHost is not null)
+        {
+            _modalHost.SetContent(content, maxWidth);
+            return;
+        }
+
+        ShowFallbackWindow(content, maxWidth);
+    }
 
     public void ShowDrawer(object content, double width = 420) => _drawerHost?.SetContent(content, width);
 
@@ -80,5 +93,65 @@ public sealed class DialogService : IDialogService
         _modalHost?.SetContent(null);
         _drawerHost?.SetContent(null);
         _sheetHost?.SetContent(null);
+
+        if (_fallbackWindow is { } window)
+        {
+            _fallbackWindow = null;
+            window.Close();
+        }
+    }
+
+    private void ShowFallbackWindow(object content, double maxWidth)
+    {
+        if (_fallbackWindow is not null)
+        {
+            _fallbackWindow.Content = content;
+            return;
+        }
+
+        var window = new Window
+        {
+            Content = content,
+            Width = maxWidth,
+            MaxWidth = maxWidth,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            FlowDirection = Avalonia.Media.FlowDirection.RightToLeft,
+            ShowInTaskbar = false,
+        };
+        window.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_fallbackWindow, window))
+            {
+                _fallbackWindow = null;
+            }
+
+            window.Content = null;
+        };
+        _fallbackWindow = window;
+
+        var owner = (global::Avalonia.Application.Current?.ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (owner is { IsVisible: true })
+        {
+            _ = ObserveDialogAsync(window.ShowDialog(owner));
+        }
+        else
+        {
+            window.Show();
+        }
+    }
+
+    private static async Task ObserveDialogAsync(Task dialog)
+    {
+        try
+        {
+            await dialog;
+        }
+        catch (System.InvalidOperationException)
+        {
+            // The owner closed while the dialog was opening; nothing left to show.
+        }
     }
 }

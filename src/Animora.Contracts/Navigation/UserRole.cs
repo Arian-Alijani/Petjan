@@ -10,4 +10,7 @@ public enum UserRole
     Manager,
     Cashier,
     Doctor,
+
+    /// <summary>Front desk (B03c). Appended so the existing numeric values are preserved.</summary>
+    Receptionist,
 }
