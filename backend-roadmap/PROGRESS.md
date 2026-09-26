@@ -51,7 +51,7 @@
 
 ## Next phase
 
-**Next phase: `B04` (`B04a`)** — `backend-roadmap/phases/PHASE-B04a-*.md` (B04 is split into B04a→B04c; the parent `PHASE-B04-*.md` is an index only)
+**Next phase: `B04` (`B04b`)** — `backend-roadmap/phases/PHASE-B04b-*.md` (B04 is split into B04a→B04c; the parent `PHASE-B04-*.md` is an index only)
 
 ## Phase status
 
@@ -84,7 +84,7 @@
 | B03b | ✅ Done | 2026-09-24 | Identity application layer: 7 use cases + validators, `SessionCurrentUserProvider` (deleted `SingleUserProvider`), `FindByUsernameAsync` + 3 repos (+ `ILoginAttemptLog`), application DI. Application + Infrastructure.Local builds 0/0; Dispatcher/Behavior tests 20/20. |
 | B03c | ✅ Done | 2026-09-26 | Auth seam + `Client.Services` identity, Desktop DI/async store startup, login + first-run rewrite, `MockCurrentUserContext` deleted, no demo user; B03 targeted tests 22/22 + layering 4/4; `build.sh full` 0/0; `SMOKE RUN OK`. Full test suite not run (user directive). |
 | B04 | ⬜ Not started | | Split into B04a–B04c (index: `PHASE-B04-*.md`); done when B04c is done. |
-| B04a | ⬜ Not started | | Authorization plane: `PermissionEvaluator` + 5 policies + resource rules, `RequiresPermissionAttribute`, `PermissionAuthorizationGate` (replaces allow-all), `ErrorCodes` += `PERMISSION_UNKNOWN`. |
+| B04a | ✅ Done | 2026-09-26 | Authorization plane: `PermissionEvaluator` (stored RBAC → 5 policies → 2 typed resource rules), `RequiresPermissionAttribute` read once at registration into `PipelineDescriptor`/`HandlerEntry`, scoped `PermissionAuthorizationGate` (allow-all deleted), `ErrorCodes` += `PERMISSION_UNKNOWN`. `build.sh full` 0/0. Tests not run (user directive; B04 tests are B04c). |
 | B04b | ⬜ Not started | | Offline capability: `DeviceCapabilitySnapshot` + migration `006_CapabilitySnapshot`, signer/evaluator/issuer/store, sign-in integration, `ErrorCodes` += 2. |
 | B04c | ⬜ Not started | | Gate seam: `ICapabilityGate` + `CapabilityGateService` (bounded cache), `NavPermissions`, shell ViewModels, DI, all B04 tests + build/test/run gate. |
 | B05 | ⬜ Not started | | Split into B05a–B05c (index: `PHASE-B05-*.md`); done when B05c is done. |
@@ -135,6 +135,34 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > do not read the entries around it. If nothing below is cited, you are done reading this file.
 
 ## Repo state log
+
+### B04a — Authorization evaluator, policies, resource rules & dispatcher gate (2026-09-26)
+- **Evaluator:** `Security/IPermissionEvaluator.cs` (`AuthorizationSubject`, `AuthorizationDecision`, interface) +
+  `PermissionEvaluator`: unknown code → `PERMISSION_UNKNOWN` first; then RBAC from the store only
+  (`FindActiveAsync` + tenant `FindByRoleAsync`; role ∪ extra − denied, ordinal; missing role definition = no grant,
+  no `DefaultRolePermissions` fallback; caller `Permissions`/`Role` never trusted) → `RBAC`; then policies → policy
+  name; then typed rules → rule type name.
+- **Policies:** `AuthorizationPolicies` — frozen ordinal map of exactly 5 predicates, statically bound to
+  `(code, concrete type)` pairs (`VisitsWrite/VisitsComplete`+`Visit`, `SalesDraft`+`Invoice`,
+  `PurchasingManage`+`PurchaseOrder`, `CashierSessionClose`+`CashSession`, `FinancePost/FinancePeriodClose`+
+  `AccountingPeriod`, `UsersManage`+`User`/`UserManagementOperation`, `RolesManage`+`UserManagementOperation`).
+  `NotSelfDestructive` fails closed without explicit `UserManagementOperation` metadata (a plain `User` is denied).
+- **Rules:** `IResourceAuthorizationRule<T>`; `InvoiceAuthorizationRule` (`SalesDraft` → Draft only; posted is
+  immutable) and `CashSessionAuthorizationRule` (`CashierSessionClose` → owner only), scoped, invoked by type switch.
+- **Registration binding:** `RequiresPermissionAttribute`; `ApplicationRegistrationBuilder.BuildEntry` reads it once,
+  throws on a non-catalog code, stores nullable `PermissionCode` additively in `PipelineDescriptor` and `HandlerEntry`.
+  No request is annotated yet (no existing request maps to a catalog code); unannotated = authenticated-only.
+- **Gate:** scoped `PermissionAuthorizationGate` (registry lookup, never attributes in the hot path); allow-all deleted;
+  DI registers gate, evaluator and both rules scoped. `IEntitlementGate` unchanged.
+- **Deviations from phase text (real tree):** (1) `HandlerEntry`/`PipelineDescriptor` live in their own files under
+  `Dispatch/`, not in `HandlerRegistry.cs`. (2) The catalog has no self-password code: `ChangePasswordCommand` is
+  unannotated and relies on session + `context.UserId` self ownership. (3) A four-request pre-auth allowlist
+  (`SignInCommand`, `CompleteFirstRunSetupCommand`, `UnlockSessionCommand`, `CurrentSessionQuery`), anonymous user on the
+  installation tenant/device only, is required so B03 sign-in/first-run/unlock cannot deadlock. (4) Rule classes sit in
+  `Security/Rules/` but use namespace `Animora.Application.Security`: a `Security.Rules` namespace shadowed
+  `Validation.Rules` in `SessionCurrentUserProvider` (CS0234). (5) Compile-required: `IdempotencyTests` referenced the
+  deleted `AllowAllAuthorizationGate`; it now registers the existing `RecordingAuthorizationGate` with `Result.Ok()`.
+  (6) The .NET SDK was missing; `install-prereqs.sh` ran once. Tests not run (user directive).
 
 ### B03c — Identity contracts, desktop wiring, seeding & targeted tests (2026-09-26)
 - **Contracts auth seam:** `Animora.Contracts/Identity/IAuthenticationService` (`SignInAsync`, `SignOutAsync`,

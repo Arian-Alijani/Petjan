@@ -29,6 +29,10 @@ public static class ErrorCodes
     public static readonly ErrorCode PermissionDenied =
         new("PERMISSION_DENIED", ErrorCode.Forbidden);
 
+    /// <summary>The requested permission code is not in the catalog (B04a); fail closed.</summary>
+    public static readonly ErrorCode PermissionUnknown =
+        new("PERMISSION_UNKNOWN", ErrorCode.Forbidden);
+
     /// <summary>The request addressed data belonging to a different tenant.</summary>
     public static readonly ErrorCode TenantMismatch =
         new("TENANT_MISMATCH", ErrorCode.Forbidden);

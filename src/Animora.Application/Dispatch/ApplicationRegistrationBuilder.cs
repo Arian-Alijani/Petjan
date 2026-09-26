@@ -1,6 +1,9 @@
 using System.Collections.Frozen;
+using System.Reflection;
 using Animora.Application.Abstractions;
+using Animora.Application.Security;
 using Animora.Application.Validation;
+using Animora.Domain.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -98,14 +101,29 @@ public sealed class ApplicationRegistrationBuilder
         RequestKind kind, IReadOnlyList<IPipelineBehavior> chain, bool hasValidators)
         where TRequest : notnull
     {
-        var descriptor = new PipelineDescriptor(typeof(TRequest), typeof(TResult), kind, hasValidators);
+        var permissionCode = ResolvePermissionCode(typeof(TRequest));
+        var descriptor = new PipelineDescriptor(typeof(TRequest), typeof(TResult), kind, hasValidators, permissionCode);
         var step = terminal;
         for (var i = chain.Count - 1; i >= 0; i--) step = chain[i].Wrap<TRequest, TResult>(step, descriptor);
 
         var pipeline = step;
         Func<IServiceProvider, object, object, CancellationToken, Task<object>> invoker = async (sp, request, context, ct) =>
             await pipeline(sp, request, context, ct).ConfigureAwait(false);
-        return new HandlerEntry(typeof(TRequest), typeof(TResult), handlerType, kind, pipeline, invoker);
+        return new HandlerEntry(typeof(TRequest), typeof(TResult), handlerType, kind, pipeline, invoker, permissionCode);
+    }
+
+    /// <summary>
+    /// Reads <see cref="RequiresPermissionAttribute"/> once, at composition (never on the hot path). A code outside
+    /// <see cref="PermissionCodes"/> fails startup; no attribute → <c>null</c> (authenticated-only, not public).
+    /// </summary>
+    private static string? ResolvePermissionCode(Type requestType)
+    {
+        var attribute = requestType.GetCustomAttribute<RequiresPermissionAttribute>();
+        if (attribute is null) return null;
+        if (string.IsNullOrEmpty(attribute.PermissionCode) || !PermissionCodes.Exists(attribute.PermissionCode))
+            throw new InvalidOperationException(
+                $"{requestType.Name} declares unknown permission code '{attribute.PermissionCode}'.");
+        return attribute.PermissionCode;
     }
 
     internal sealed record Registration(

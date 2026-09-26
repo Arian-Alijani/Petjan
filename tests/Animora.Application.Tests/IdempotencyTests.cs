@@ -62,7 +62,7 @@ public sealed class IdempotencyTests
         services.AddSingleton<ILocalSequenceAllocator>(sequences);
         services.AddSingleton<IIntegrityAlertSink>(sink);
         services.AddSingleton<IClock, FixedClock>();
-        services.AddSingleton<IAuthorizationGate, AllowAllAuthorizationGate>();
+        services.AddSingleton<IAuthorizationGate>(new RecordingAuthorizationGate(new StepLog(), Result.Ok()));
         services.AddSingleton<IEntitlementGate, AllowAllEntitlementGate>();
         services.AddAnimoraApplication(b =>
         {
