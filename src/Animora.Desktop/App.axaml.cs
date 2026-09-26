@@ -175,6 +175,12 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IAuthenticationService, AuthenticationService>();
         services.AddSingleton<INavigationService, NavigationService>();
 
+        // B04c: the capability gate is ONE app-wide singleton — the concrete service (warmed by
+        // AuthenticationService via DI) and the ICapabilityGate the shell ViewModels consume are the same
+        // instance, so a sign-in/refresh/sign-out is seen by the sidebar/topbar immediately.
+        services.AddSingleton<CapabilityGateService>();
+        services.AddSingleton<ICapabilityGate>(sp => sp.GetRequiredService<CapabilityGateService>());
+
         // Phase 06: Dashboard screen — query service is stateless/pure mock
         // data, so a singleton is sufficient (no per-navigation reload needed
         // until a real backend adds freshness semantics).
