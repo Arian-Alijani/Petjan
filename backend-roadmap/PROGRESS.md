@@ -51,7 +51,7 @@
 
 ## Next phase
 
-**Next phase: `B04` (`B04c`)** — `backend-roadmap/phases/PHASE-B04c-*.md` (B04 is split into B04a→B04c; the parent `PHASE-B04-*.md` is an index only)
+**Next phase: `B05` (`B05a`)** — `backend-roadmap/phases/PHASE-B05a-*.md` (B05 is split into B05a→B05c; the parent `PHASE-B05-*.md` is an index only)
 
 ## Phase status
 
@@ -83,10 +83,10 @@
 | B03a | ✅ Done | 2026-09-24 | Identity foundation: package pin, `User.MustChangePassword`, 4 error codes, `LocalSession`/`LoginAttemptLog` + migration `005_LocalIdentity`, hashing/policy/session infra + DI. |
 | B03b | ✅ Done | 2026-09-24 | Identity application layer: 7 use cases + validators, `SessionCurrentUserProvider` (deleted `SingleUserProvider`), `FindByUsernameAsync` + 3 repos (+ `ILoginAttemptLog`), application DI. Application + Infrastructure.Local builds 0/0; Dispatcher/Behavior tests 20/20. |
 | B03c | ✅ Done | 2026-09-26 | Auth seam + `Client.Services` identity, Desktop DI/async store startup, login + first-run rewrite, `MockCurrentUserContext` deleted, no demo user; B03 targeted tests 22/22 + layering 4/4; `build.sh full` 0/0; `SMOKE RUN OK`. Full test suite not run (user directive). |
-| B04 | ⬜ Not started | | Split into B04a–B04c (index: `PHASE-B04-*.md`); done when B04c is done. |
+| B04 | ✅ Done | 2026-09-26 | Split into B04a–B04c (index: `PHASE-B04-*.md`); completed with B04c. |
 | B04a | ✅ Done | 2026-09-26 | Authorization plane: `PermissionEvaluator` (stored RBAC → 5 policies → 2 typed resource rules), `RequiresPermissionAttribute` read once at registration into `PipelineDescriptor`/`HandlerEntry`, scoped `PermissionAuthorizationGate` (allow-all deleted), `ErrorCodes` += `PERMISSION_UNKNOWN`. `build.sh full` 0/0. Tests not run (user directive; B04 tests are B04c). |
 | B04b | ✅ Done | 2026-09-26 | Offline capability: `DeviceCapabilitySnapshots` (`[LocalOnly]`, unique tenant/user/device) + migration `006_CapabilitySnapshot`, HMAC-SHA256 signer (keystore key), `CapabilityEvaluator`/`CapabilitySnapshotIssuer`/`CapabilityStore`, issuance in sign-in AND first-run UoW, `ErrorCodes` += 2. High window = 72h (policy authoritative). `build.sh full` 0/0. Tests not run (B04c). |
-| B04c | ⬜ Not started | | Gate seam: `ICapabilityGate` + `CapabilityGateService` (bounded cache), `NavPermissions`, shell ViewModels, DI, all B04 tests + build/test/run gate. |
+| B04c | ✅ Done | 2026-09-26 | Gate seam: `ICapabilityGate` (Contracts) + singleton `CapabilityGateService` (bounded 256-entry cache, fail-closed, B04b reuse), `NavPermissions` (13 real keys), shell ViewModel filtering/status, DI (one singleton), AuthenticationService warm/clear. 31 targeted tests green; `build.sh full` 0/0. |
 | B05 | ⬜ Not started | | Split into B05a–B05c (index: `PHASE-B05-*.md`); done when B05c is done. |
 | B05a | ⬜ Not started | | Audit plane: `AuditEntries` + migration `007_AuditDiagnostics` (AuditEntries only), `IAuditWriter`/`AuditWriter`, `AuditableAttribute`/`AuditBehavior`, `IntegrityAlertSink`, `ErrorCodes` += `AUDIT_WRITE_FAILED`. |
 | B05b | ⬜ Not started | | Observability: Serilog file logging + redaction, `AmbientCorrelation`/`UiCorrelationScope`, diagnostics bundle, `ErrorCodes` += `DIAGNOSTICS_BUNDLE_FAILED`. |
@@ -135,6 +135,61 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > do not read the entries around it. If nothing below is cited, you are done reading this file.
 
 ## Repo state log
+
+### B04c — Capability gate, synchronous shell consumption, nav filtering & status (2026-09-26)
+- **Contracts (pure, no `Animora.*` ref):** `Identity/ICapabilityGate.cs` — `enum CapabilityState { Allowed, Denied,
+  ExpiredOffline, RequiresOnline }` + `ICapabilityGate { bool Can(code); bool CanAny(params string[]); CapabilityState
+  GetState(code); event EventHandler? CapabilitiesChanged; }`. `CanAny` false for null/empty; unknown code always denied.
+- **Gate service:** `Client.Services/Identity/CapabilityGateService.cs` (singleton, `ICapabilityGate`): internal
+  `RefreshAsync(ct)` + `Clear()`; public API synchronous O(1). Warm-up opens ONE short async scope, resolves scoped
+  `ICapabilityStore`/`CapabilityEvaluator`/`IPermissionEvaluator`/`IIdentityRepository` + singleton install identity, loads
+  the session snapshot for tenant/user/device, verifies via B04b `CapabilityEvaluator` (signature, stamp, expiry,
+  high-water) and precomputes a result for all 42 `PermissionCodes.All`, applying the B04a RBAC decision. Publishes an
+  immutable per-snapshot view atomically + `CapabilitiesChanged`. `GetState` does bounded lookup then time-sensitive
+  re-validation (`max(now, highWater)`, session expiry, absolute + per-code windows) so a window cannot stay cached
+  Allowed. No `.Result`/`.Wait()`/`GetAwaiter().GetResult()`. Fail closed before warm-up, on sign-out, locked/expired/absent
+  session, missing/mismatched/tampered snapshot; a tampered snapshot is dropped whole (`ForTampered` view, read-only) and
+  never re-signed. Bounded cache 256 entries, key `(tenant,user,device,code,snapshotId)`, FIFO eviction; new
+  snapshot/sign-in/sign-out/revocation clears it. Map: Critical→`RequiresOnline`, expired→`ExpiredOffline`, else `Denied`.
+- **Auth seam:** `AuthenticationService` now takes the concrete `CapabilityGateService`; awaits `RefreshAsync` BEFORE
+  returning success from `SignInAsync` and `CompleteFirstRunAsync` (shell built immediately after), `Clear()` on any
+  failure and on `SignOutAsync` (in `finally`). `IAuthenticationService` unchanged.
+- **Nav mapping (Desktop `Shell/NavPermissions.cs`):** ordinal map for the **13 real** keys — dashboard→`patients.read`,
+  appointments→`appointments.read`, patients→`patients.read`, visits→`visits.read`, vaccine→`vaccination.read`,
+  boarding→`boarding.read`, sale→`sales.read`, inventory→`inventory.read`, expense→`finance.read`,
+  reports→`reports.read`, cheques→`cheques.read`, history→`audit.read`, profile→`settings.read`. Catalog has no `*.view`
+  permission, so dashboard/history/profile map to real read constants. Substitutions vs the phase text: dashboard→
+  `patients.read` (receptionist landing surface), history→`audit.read`, profile→`settings.read`; the invented
+  reception/purchasing/cashier entries do not exist and were not added. Receptionist (no `reports.read`/`finance.read`/
+  `cheques.read`) never sees `reports`/`expense`/`cheques`; Manager (full catalog) sees all 13.
+- **Offline windows (authoritative, unchanged):** Low 30 d, Normal 14 d, **High 72 h**, Critical online-only. Tests assert
+  `OfflineCapabilityPolicy.HighWindow`; the phase text's "High = 24 h" is stale and not applied.
+- **Shell:** `NavItem` gained an optional, LAST `string? RequiredPermission = null` (no existing construction changed;
+  `NavigationMenu.cs` untouched). `SidebarViewModel` now takes `ICapabilityGate`, filters `NavigationMenu.Items` by
+  `NavPermissions`+`Can`, drops empty groups, exposes a notifying `Groups` rebuilt on `CapabilitiesChanged` (UI-thread
+  marshal), keeps the active selection only while still permitted and refuses navigation to a revoked entry; FinancePage
+  `InitialTab/InitialRange` preserved. `TopbarViewModel` takes the gate, adds notifying `IsReadOnlyMode` (true only when
+  the gate permits no nav capability at all), and reuses the EXISTING status box for a read-only explanation via
+  `SyncStatusText`/`SyncToolTip` while true, restoring normal sync presentation on recovery. No `.axaml` edited; exactly
+  the two allowed ViewModels changed.
+- **DI (`App.axaml.cs`):** `AddSingleton<CapabilityGateService>()` + `AddSingleton<ICapabilityGate>(sp =>
+  sp.GetRequiredService<CapabilityGateService>())` — the same singleton the `AuthenticationService` warms.
+- **Tests (4 new classes, 31 facts):** Application — `PermissionEvaluatorTests` (stored RBAC allow/deny, deny-wins
+  override, extra grant, unknown code ⇒ `PERMISSION_UNKNOWN`, policy before typed rule via an instrumented rule),
+  `CapabilityExpiryTests` (real 30d/14d/**72h**/online-only windows, expiry at equality, clock rollback with later
+  high-water does not revive, mutated JSON ⇒ `CAPABILITY_SNAPSHOT_TAMPERED` + discard, revoke denies writes/releases
+  reads, missing ⇒ `CAPABILITY_SNAPSHOT_MISSING`, stamp mismatch), `AuthorizationGateTests` (denied attributed command ⇒
+  `PERMISSION_DENIED` + handler not called, allow path runs handler, unannotated with no session ⇒ `SESSION_EXPIRED`, only
+  the 4 real pre-auth requests pass anonymously). Persistence — `CapabilityStoreTests` over `LocalStoreTestFixture`
+  migrated FILE SQLite: replace/get round-trip + signature verifies, missing ⇒ null, replace leaves one row, device/tenant
+  isolation, revoke re-signs (still valid), revoke-absent OK.
+- **Fast gate:** `build.sh full` 0 warnings / 0 errors. Targeted `dotnet test` (`--no-restore --no-build`): Application
+  B04 24/24, Persistence `CapabilityStoreTests` 7/7. Smoke (`run.sh`) NOT run — Xvfb not present and per the user's
+  no-desktop-install rule; Receptionist/Manager sidebar is covered by the mapping + gate tests, not manual UI.
+- **Deviations:** (1) none in production shape beyond the locked set. (2) `.sandbox/` SDK/obj are git-ignored; the .NET
+  10.0.401 SDK was installed to `$HOME/.dotnet` via `install-prereqs.sh --no-xvfb` (no desktop env). (3) The persistence
+  test injects a deterministic in-memory `ISecretStore` (the OS keystore does not exist in the sandbox) so the REAL signer
+  and `CapabilityStore` still run — no in-memory EF shortcut.
 
 ### B04b — Signed, device-bound offline capability snapshots & issuance (2026-09-26)
 - **Ports/DTO (Application, `Security/ICapabilityStore.cs`):** immutable `StoredCapabilitySnapshot(Id, TenantId, UserId,
@@ -1434,4 +1489,6 @@ Decision:   (1) `UserRole` had no `Receptionist` (phase said it did); appended i
             (8) Full test suite not run (user directive); only the B03c targeted tests ran.
 Rule check: CONVENTIONS §2 (Contracts pure; Identity package only in Infrastructure.Local — proven by test), §4, §7, §9, §10.
 Impact:     B04 can build on `IAuthenticationService`/`CurrentUserContextService`; a later localization pass should map
+            `role.*` keys to Persian labels in the Desktop.
+IAuthenticationService`/`CurrentUserContextService`; a later localization pass should map
             `role.*` keys to Persian labels in the Desktop.

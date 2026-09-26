@@ -14,6 +14,12 @@ namespace Animora.Contracts.Navigation;
 /// <param name="BadgeCount">Optional badge count pill; null hides the pill.</param>
 /// <param name="InitialTab">Optional initial tab a target ViewModel should open on (e.g. Finance).</param>
 /// <param name="InitialRange">Optional initial range a target ViewModel should open on (e.g. Finance).</param>
+/// <param name="RequiredPermission">
+/// Optional permission code (B04c) the shell gates this entry on. Added LAST so every existing positional
+/// construction stays source-compatible. Kept <see langword="null"/> for the static <c>NavigationMenu</c>
+/// items: their gating lives in the Desktop's ordinal <c>NavPermissions</c> map, so the shared navigation
+/// definition is not rewritten.
+/// </param>
 public sealed record NavItem(
     string Key,
     string Label,
@@ -22,4 +28,5 @@ public sealed record NavItem(
     string GroupName,
     int? BadgeCount = null,
     string? InitialTab = null,
-    string? InitialRange = null);
+    string? InitialRange = null,
+    string? RequiredPermission = null);
