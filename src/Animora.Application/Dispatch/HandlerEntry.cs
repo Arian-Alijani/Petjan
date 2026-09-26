@@ -5,6 +5,8 @@ namespace Animora.Application.Dispatch;
 /// dispatcher calls (no boxing); <see cref="Invoker"/> is the same chain behind an untyped façade for
 /// callers that only know the request type at run time (e.g. replay of stored commands, B02).
 /// Both are closures compiled once at registration — no <c>MethodInfo.Invoke</c>, no activation at call time.
+/// <see cref="PermissionCode"/> is the catalog code declared by <c>RequiresPermissionAttribute</c>, read once at
+/// registration (B04a); <c>null</c> means authenticated-only.
 /// </summary>
 public sealed record HandlerEntry(
     Type RequestType,
@@ -12,4 +14,5 @@ public sealed record HandlerEntry(
     Type HandlerType,
     RequestKind Kind,
     Delegate Pipeline,
-    Func<IServiceProvider, object, object, CancellationToken, Task<object>> Invoker);
+    Func<IServiceProvider, object, object, CancellationToken, Task<object>> Invoker,
+    string? PermissionCode = null);

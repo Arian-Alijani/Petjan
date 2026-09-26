@@ -16,6 +16,10 @@ public sealed class HandlerRegistry
     /// <summary>All entries, keyed by request type.</summary>
     public IReadOnlyDictionary<Type, HandlerEntry> Entries => _entries;
 
+    /// <summary>
+    /// Looks up the frozen entry (including its registration-time <see cref="HandlerEntry.PermissionCode"/>, used by
+    /// the authorization gate instead of attribute reads).
+    /// </summary>
     public bool TryGet(Type requestType, out HandlerEntry entry)
     {
         ArgumentNullException.ThrowIfNull(requestType);

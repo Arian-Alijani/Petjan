@@ -6,7 +6,7 @@ namespace Animora.Application.Security;
 /// <summary>
 /// Authorization plane (who may do what). Separate from the entitlement plane — the two are never
 /// merged (A-RULE 023). A failure of any other category is coerced to <c>PERMISSION_DENIED</c>.
-/// Default: <see cref="AllowAllAuthorizationGate"/>, replaced in B04.
+/// Implemented by <see cref="PermissionAuthorizationGate"/> (B04a); there is no allow-all default.
 /// </summary>
 public interface IAuthorizationGate
 {

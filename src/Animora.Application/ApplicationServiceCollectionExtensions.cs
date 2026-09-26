@@ -6,6 +6,8 @@ using Animora.Application.UseCases.Diagnostics;
 using Animora.Application.UseCases.Sync;
 using Animora.Application.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using Animora.Domain.Cashier;
+using Animora.Domain.Sales;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Animora.Application;
@@ -15,7 +17,8 @@ public static class ApplicationServiceCollectionExtensions
 {
     /// <summary>
     /// Registers correlation, <see cref="OperationIdFactory"/>, the security-plane defaults
-    /// (allow-all authorization → B04, allow-all entitlement → E07, session-sourced <see cref="SessionCurrentUserProvider"/> (B03b);
+    /// (scoped <see cref="PermissionAuthorizationGate"/> + <see cref="PermissionEvaluator"/> + the two typed resource
+    /// rules (B04a), allow-all entitlement → E07, session-sourced <see cref="SessionCurrentUserProvider"/> (B03b);
     /// all <c>TryAdd</c> so replacements win), the command-pipeline defaults
     /// (<see cref="NullCommandTransport"/> → E06, <see cref="NullIntegrityAlertSink"/> → B05), the reference
     /// <see cref="PingQuery"/> pair and the two sync UI-seam queries, every
@@ -30,7 +33,10 @@ public static class ApplicationServiceCollectionExtensions
 
         services.TryAddSingleton<ICorrelationContext, CorrelationContext>();
         services.TryAddSingleton<OperationIdFactory>();
-        services.TryAddSingleton<IAuthorizationGate, AllowAllAuthorizationGate>();
+        services.TryAddScoped<IAuthorizationGate, PermissionAuthorizationGate>();
+        services.TryAddScoped<IPermissionEvaluator, PermissionEvaluator>();
+        services.TryAddScoped<IResourceAuthorizationRule<Invoice>, InvoiceAuthorizationRule>();
+        services.TryAddScoped<IResourceAuthorizationRule<CashSession>, CashSessionAuthorizationRule>();
         services.TryAddSingleton<IEntitlementGate, AllowAllEntitlementGate>();
         services.TryAddSingleton<SessionContextCache>();
         services.TryAddScoped<ICurrentUserProvider, SessionCurrentUserProvider>();
