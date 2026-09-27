@@ -1,7 +1,9 @@
 using Animora.Application;
 using Animora.Application.UseCases.Identity;
+using Animora.Application.UseCases.Patients;
 using Animora.Client.Services.Diagnostics;
 using Animora.Client.Services.Identity;
+using Animora.Client.Services.Patients;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Boarding;
@@ -155,6 +157,9 @@ public partial class App : global::Avalonia.Application
                 var result = await initializer.InitializeAsync(CancellationToken.None).ConfigureAwait(false);
                 if (result.IsFailure) return false;
 
+                // C01: the 8-step startup succeeded — release any ViewModel awaiting the readiness gate.
+                Services.GetRequiredService<StoreReadinessGate>().MarkReady();
+
                 var handler = Services.GetRequiredService<GlobalExceptionHandler>();
                 handler.Diagnostics = result.Value;
                 var recovery = await Services.GetRequiredService<CrashRecoveryService>()
@@ -174,7 +179,7 @@ public partial class App : global::Avalonia.Application
 
         // B03c: real local store + application layer (identity use cases) behind the desktop seams.
         services.AddAnimoraLocalInfrastructure();
-        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases());
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it
@@ -200,6 +205,10 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<CrashRecoveryService>();
         services.AddSingleton<DraftStateStore>();
         services.AddSingleton<MaintenanceScheduler>();
+        // C01: the store readiness gate — one instance, both as the concrete type (marked ready by startup)
+        // and behind the Contracts interface a ViewModel awaits before its first DB read.
+        services.AddSingleton<StoreReadinessGate>();
+        services.AddSingleton<IStoreReadinessGate>(sp => sp.GetRequiredService<StoreReadinessGate>());
 
         // Phase 05: identity seam + navigation + shell composition.
         services.AddSingleton<ICurrentUserContext, CurrentUserContextService>();
@@ -223,10 +232,10 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IReceptionQueueService, MockReceptionQueueService>();
         services.AddSingleton<ReceptionPageViewModel>();
 
-        // Phase 08: Patients & Owners directory. Stateful mock (Phase 09 adds
-        // owner/pet create + edit persistence), so a singleton preserves
-        // mutations while navigating between the list and the detail screens.
-        services.AddSingleton<IPatientsQueryService, MockPatientsQueryService>();
+        // Phase 08 / C01: Patients & Owners directory now runs on the real local SQLite store through the
+        // C01 use cases (PatientsService) instead of the in-memory mock. Singleton: it resolves the scoped
+        // dispatcher + identity provider from a fresh async scope per operation, never capturing them.
+        services.AddSingleton<IPatientsQueryService, PatientsService>();
         services.AddSingleton<PatientsPageViewModel>();
 
         // Phase 09: Patients & Owners drill-in detail screens. The reference

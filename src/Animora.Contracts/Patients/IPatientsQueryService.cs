@@ -3,8 +3,9 @@ namespace Animora.Contracts.Patients;
 /// <summary>
 /// Read/write data seam for the Patients &amp; Owners directory and the drill-in
 /// detail screens (Owner Sheet, Pet File, add owner/pet wizard). The ViewModels
-/// depend only on this interface; the in-memory <c>MockPatientsQueryService</c>
-/// is the sole swap point for a future backend implementation (R-18).
+/// depend only on this interface; the C01 <c>PatientsService</c> (Client.Services)
+/// implements it over the real local store use cases, and the in-memory mock it
+/// replaced is deleted (R-18).
 /// </summary>
 public interface IPatientsQueryService
 {
