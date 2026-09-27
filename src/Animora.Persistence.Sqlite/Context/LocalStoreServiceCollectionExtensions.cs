@@ -66,6 +66,10 @@ public static class LocalStoreServiceCollectionExtensions
 
         services.AddScoped<IOwnerRepository, OwnerRepository>();
         services.AddScoped<IPetRepository, PetRepository>();
+        // C01: append-only weight-history writes.
+        services.AddScoped<IWeightEntryRepository, WeightEntryRepository>();
+        // C01: projection reads backing the Patients directory + detail screens (Application port, impl here).
+        services.TryAddScoped<IPatientDirectoryQueries, PatientDirectoryQueries>();
         services.AddScoped<IVisitRepository, VisitRepository>();
         services.AddScoped<IVaccinationRepository, VaccinationRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
@@ -112,6 +116,8 @@ public static class LocalStoreServiceCollectionExtensions
         // First-run reference seeding (A10c); invoked by the startup path, never by the desktop directly.
         services.AddSingleton<ISeedPeriodCodeProvider, PersianMonthPeriodCodeProvider>();
         services.AddScoped<LocalSeeder>();
+        // C01: deterministic sample owners/pets, applied behind LocalStoreOptions.SeedSampleData.
+        services.AddScoped<PatientsSampleData>();
 
         // Read helpers (A10d): one SQL aggregate each, no tracking, tenant-filtered.
         services.TryAddScoped<StockOnHandQuery>();
