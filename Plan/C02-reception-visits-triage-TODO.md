@@ -324,7 +324,7 @@ request; start-visit is **idempotent** (deterministic `OperationId`).
   - Build `src/Animora.Client.Services` (targeted).
   - **PUSH:** `feat(reception): C02 client services, mappings, visit-type catalog`
 
-- [ ] **T09 — Sample data + seeder hook**
+- [x] **T09 — Sample data + seeder hook**
   - `Persistence.Sqlite/Seed/ReceptionSampleData.cs` (mirror `PatientsSampleData`): 4 doctor
     `StaffMembership` rows (distinct specialties), 6 "today" tickets (3 appointment-sourced via
     `Appointment` rows, 2 walk-in `ReceptionQueueEntry`, 1 no-show). Deterministic ids/clock; tickets

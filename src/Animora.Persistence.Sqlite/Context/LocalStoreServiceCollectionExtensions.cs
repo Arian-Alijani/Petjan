@@ -118,6 +118,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<LocalSeeder>();
         // C01: deterministic sample owners/pets, applied behind LocalStoreOptions.SeedSampleData.
         services.AddScoped<PatientsSampleData>();
+        services.AddScoped<ReceptionSampleData>();
 
         // Read helpers (A10d): one SQL aggregate each, no tracking, tenant-filtered.
         services.TryAddScoped<StockOnHandQuery>();
