@@ -3693,6 +3693,42 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("PendingCommands", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.UiDraftState", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasMaxLength(65536)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ScreenKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdatedAtUtc")
+                        .HasDatabaseName("IX_UiDraftStates_UpdatedAtUtc");
+
+                    b.HasIndex("ScreenKey", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_UiDraftStates_ScreenKey_UserId");
+
+                    b.ToTable("UiDraftStates", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.StoreMaintenanceLog", b =>
                 {
                     b.Property<string>("Id")

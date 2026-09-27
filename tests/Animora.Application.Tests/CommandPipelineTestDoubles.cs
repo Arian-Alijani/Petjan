@@ -18,6 +18,12 @@ internal sealed class RecordingIntegritySink : IIntegrityAlertSink
         Count++;
         LastCode = code;
     }
+
+    public Task<Result> RaiseAsync(IntegrityAlert alert, CancellationToken ct = default)
+    {
+        Raise(alert.Code, alert.Detail);
+        return Task.FromResult(Result.Ok());
+    }
 }
 
 /// <summary>
@@ -44,7 +50,15 @@ internal sealed class FakeCommandJournal(IIntegrityAlertSink sink) : ICommandJou
         {
             if (string.Equals(existing.CommandFingerprint, envelope.CommandFingerprint, StringComparison.Ordinal))
                 return Task.FromResult(Result<PendingCommandRecord>.Ok(existing));
-            sink.Raise(ErrorCodes.IdempotencyFingerprintMismatch.Code, envelope.OperationId);
+            _ = sink.RaiseAsync(new IntegrityAlert(
+                ErrorCodes.IdempotencyFingerprintMismatch.Code,
+                envelope.OperationId,
+                envelope.TenantId,
+                envelope.UserId,
+                envelope.DeviceId,
+                envelope.OperationId,
+                envelope.AggregateType,
+                envelope.AggregateId), ct);
             return Task.FromResult(Result<PendingCommandRecord>.Fail(ErrorCodes.IdempotencyFingerprintMismatch));
         }
 

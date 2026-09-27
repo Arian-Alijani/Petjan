@@ -73,10 +73,10 @@ public sealed class DiagnosticsBundleBuilder(
                 var redaction = archive.CreateEntry("redaction.txt", CompressionLevel.Fastest);
                 await using var redactionStream = redaction.Open();
                 await using var writer = new StreamWriter(redactionStream);
-                await writer.WriteAsync(
+                await writer.WriteAsync((
                     "Passwords, hashes, passphrases, tokens, keys, signatures, national IDs, phone numbers, " +
-                    "command payloads, and owner/pet personal fields are excluded or redacted. Bundle records contain identifiers only."
-                        .AsMemory(), ct).ConfigureAwait(false);
+                    "command payloads, and owner/pet personal fields are excluded or redacted. Bundle records contain identifiers only.")
+                    .AsMemory(), ct).ConfigureAwait(false);
             }
 
             File.Move(temporaryPath, outputPath);

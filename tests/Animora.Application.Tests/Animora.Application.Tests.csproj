@@ -19,6 +19,7 @@
     <!-- B03c: real LocalSessionService / hasher and a file-backed SQLite store for the identity tests. -->
     <ProjectReference Include="..\..\src\Animora.Infrastructure.Local\Animora.Infrastructure.Local.csproj" />
     <ProjectReference Include="..\..\src\Animora.Persistence.Sqlite\Animora.Persistence.Sqlite.csproj" />
+    <ProjectReference Include="..\Animora.Persistence.Tests\Animora.Persistence.Tests.csproj" />
   </ItemGroup>
 
 </Project>
