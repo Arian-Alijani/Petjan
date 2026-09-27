@@ -344,7 +344,7 @@ request; start-visit is **idempotent** (deterministic `OperationId`).
   - Build `src/Animora.Desktop` (targeted) to confirm no dangling refs.
   - **PUSH:** `refactor(desktop): C02 swap DI to real services, gate VMs, delete 2 mocks`
 
-- [ ] **T11 — Tests (3 classes)**
+- [x] **T11 — Tests (3 classes)**
   - `ReceptionQueueUseCaseTests`: appt with no queue row projects Waiting; first state change creates
     exactly ONE `ReceptionQueueEntry`; second admit of same ticket → `TICKET_STATE_INVALID`; walk-in
     whose phone matches existing owner reuses that owner (no duplicate).

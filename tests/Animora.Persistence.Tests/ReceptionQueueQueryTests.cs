@@ -1,9 +1,11 @@
+using System.Data.Common;
 using Animora.Domain.Identity;
 using Animora.Domain.Patients;
 using Animora.Domain.Scheduling;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Queries;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -72,6 +74,48 @@ public sealed class ReceptionQueueQueryTests
             var rail = await new TriageQueries(counted).GetDoctorRailAsync(day, day.AddDays(1), default);
             Assert.Equal(1, Assert.Single(rail).BookedCount);
             Assert.Equal(1, counter.Count);
+        }
+    }
+
+    [Fact]
+    public async Task Queue_IsOneUnionAllSelect_FilteredByUtcRange_WithoutDateFunctions()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        var capture = new SqlCapture();
+        var options = new DbContextOptionsBuilder<AnimoraLocalDbContext>()
+            .UseSqlite($"Data Source={fixture.DatabasePath}")
+            .AddInterceptors(capture)
+            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+            .Options;
+        using var db = new AnimoraLocalDbContext(options, new FixedTenantContext(fixture.TenantId), fixture.Clock);
+        var day = new DateTimeOffset(fixture.Clock.UtcNow.UtcDateTime.Date, TimeSpan.Zero);
+
+        await new ReceptionQueueQueries(db).GetQueueAsync(day, day.AddDays(1), default);
+
+        var sql = Assert.Single(capture.Statements);
+        Assert.StartsWith("SELECT", sql.TrimStart(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("UNION ALL", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("LEFT JOIN", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(";", sql.TrimEnd(';', '\r', '\n', ' '));
+        // The day is a half-open range compared against the stored UTC value — never a SQL date function.
+        foreach (var dateFunction in new[] { "date(", "datetime(", "strftime(", "julianday(" })
+        {
+            Assert.DoesNotContain(dateFunction, sql, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>Records the text of every reader command EF executes.</summary>
+    private sealed class SqlCapture : DbCommandInterceptor
+    {
+        public List<string> Statements { get; } = [];
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            Statements.Add(command.CommandText);
+            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
         }
     }
 }
