@@ -231,7 +231,7 @@ request; start-visit is **idempotent** (deterministic `OperationId`).
 
 > Status legend: `[ ]` not started · `[~]` in progress · `[x]` done & pushed.
 
-- [ ] **T01 — Foundations: TicketRef + OperationIdFactory.Deterministic + 4 error codes**
+- [x] **T01 — Foundations: TicketRef + OperationIdFactory.Deterministic + 4 error codes**
   - Create `UseCases/Reception/TicketRef.cs` (`readonly record struct TicketRef`): fields for kind
     (Appointment/WalkIn) + id; `static bool TryParse(string, out TicketRef)`, `Format()`,
     `FromAppointment(id)`, `FromWalkIn(id)`. Format = `"apt:"+id` / `"wlk:"+id`.
@@ -241,11 +241,11 @@ request; start-visit is **idempotent** (deterministic `OperationId`).
     `src/Animora.Domain`) — targeted, quick.
   - **PUSH:** `feat(reception): C02 TicketRef, deterministic OperationId, 4 error codes`
 
-- [ ] **T02 — Wire CommandTypes (+7)**
+- [x] **T02 — Wire CommandTypes (+7)**
   - Add 7 consts + extend `All` in `Contracts.Wire/Commands/CommandTypes.cs`.
   - **PUSH:** `feat(reception): C02 add 7 command types`
 
-- [ ] **T03 — Query ports + read models (Application)**
+- [x] **T03 — Query ports + read models (Application)**
   - Create `Ports/IReceptionQueueQueries.cs`, `Ports/ITriageQueries.cs`.
   - Create `UseCases/Reception/ReadModels/ReceptionReadModels.cs`
     (`QueueTicketReadModel`, `ReceptionDoctorReadModel`).
@@ -255,7 +255,7 @@ request; start-visit is **idempotent** (deterministic `OperationId`).
     presentation-only bits derived in mapping (initials/accent/icon can be computed in mapping).
   - **PUSH:** `feat(reception): C02 query ports + read models`
 
-- [ ] **T04 — Reception queries (2) + commands (6) + validators + registration**
+- [x] **T04 — Reception queries (2) + commands (6) + validators + registration**
   - `ReceptionQueueQuery(DateOnly LocalDay)` → `IReadOnlyList<QueueTicketReadModel>` (delegates to
     `IReceptionQueueQueries`). `ReceptionDoctorsQuery()` → `IReadOnlyList<ReceptionDoctorReadModel>`
     (from `StaffMembership` where `Role==Doctor && Status==Active`).
@@ -279,7 +279,7 @@ request; start-visit is **idempotent** (deterministic `OperationId`).
   - Build `src/Animora.Application` (targeted).
   - **PUSH:** `feat(reception): C02 reception queries, commands, validators`
 
-- [ ] **T05 — Reception persistence query (single-statement derived queue)**
+- [x] **T05 — Reception persistence query (single-statement derived queue)**
   - `Queries/ReceptionQueueQueries.cs implements IReceptionQueueQueries`.
   - `GetQueueAsync(startUtc, endUtc, ct)`: ONE statement — `LEFT JOIN` today's `Appointment`
     (StartUtc in `[startUtc,endUtc)`) to `ReceptionQueueEntries` (on `AppointmentId`) `UNION ALL`
