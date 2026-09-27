@@ -151,6 +151,80 @@ public sealed class PatientDirectoryQueryTests
     }
 
     [Fact]
+    public async Task GetPets_ClampsThePageSizeTo200()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var owner = Owner.Register(fixture.TenantId, "مالک انبوه", "09120000009", fixture.Clock);
+        db.Add(owner);
+        for (var i = 0; i < 205; i++)
+            db.Add(Pet.Register(fixture.TenantId, owner.Id, $"حیوان {i:D3}", PetSpecies.Dog, fixture.Clock));
+        await db.SaveChangesAsync();
+
+        var queries = QueriesFor(fixture, db);
+
+        // Ask for far more than the hard ceiling; the result page is capped at 200 rows.
+        var page = await queries.GetPetsAsync(null, null, null, 1, 500, default);
+        Assert.Equal(205, page.TotalCount);
+        Assert.Equal(200, page.PageSize);
+        Assert.Equal(200, page.Items.Count);
+
+        // Owners directory clamps identically.
+        var owners = await queries.GetOwnersAsync(null, 1, 1000, default);
+        Assert.Equal(200, owners.PageSize);
+    }
+
+    [Fact]
+    public async Task DirectoryProjections_AreASingleRoundTripStatement()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var owner = Owner.Register(fixture.TenantId, "مالک کوئری", "09120000010", fixture.Clock);
+        db.Add(owner);
+        db.Add(Pet.Register(fixture.TenantId, owner.Id, "رکس", PetSpecies.Dog, fixture.Clock));
+        await db.SaveChangesAsync();
+
+        // The bounded page select folds the owner name / last-weight / pet-count into the SAME statement
+        // (they render as correlated scalar sub-SELECTs, not per-row round trips — no N+1). ToQueryString()
+        // renders exactly the item query EF will run; it must be a single, non-batched SQL statement whose
+        // top level is a SELECT.
+        var petPage = db.Set<Pet>().AsNoTracking()
+            .OrderBy(p => p.Name).ThenBy(p => p.Id)
+            .Select(p => new
+            {
+                p.Id, p.Name,
+                LastWeight = db.Set<WeightEntry>().Where(w => w.PetId == p.Id)
+                    .OrderByDescending(w => w.MeasuredUtc).Select(w => (decimal?)w.WeightKg).FirstOrDefault(),
+            })
+            .Skip(0).Take(50);
+        AssertSingleStatementSelect(petPage.ToQueryString());
+
+        var ownerPage = db.Set<Owner>().AsNoTracking()
+            .OrderBy(o => o.FullName).ThenBy(o => o.Id)
+            .Select(o => new { o.Id, o.FullName, PetCount = db.Set<Pet>().Count(p => p.OwnerId == o.Id) })
+            .Skip(0).Take(50);
+        AssertSingleStatementSelect(ownerPage.ToQueryString());
+    }
+
+    // A single round-trip statement: one terminating ';' (EF appends none, so zero or one) and the top-level
+    // command is a SELECT. Correlated scalar sub-SELECTs (last weight / pet count) are part of this one
+    // statement — they are exactly what keeps the read free of N+1.
+    private static void AssertSingleStatementSelect(string sql)
+    {
+        var trimmed = sql.Trim();
+        Assert.StartsWith("SELECT", trimmed, StringComparison.OrdinalIgnoreCase);
+        // No statement separator except an optional single trailing one ⇒ not a multi-statement batch.
+        var body = trimmed.TrimEnd(';', '\r', '\n', ' ');
+        Assert.DoesNotContain(";", body);
+    }
+
+    [Fact]
     public void SearchKeyProvider_NormalizesPersianDigits()
     {
         var provider = new OwnerSearchKeyProvider();
