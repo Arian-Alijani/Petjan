@@ -1,4 +1,5 @@
 using Animora.Application.Abstractions;
+using Animora.Application.Auditing;
 using Animora.Application.Commands;
 using Animora.Application.Ports;
 using Animora.Application.Security;
@@ -13,6 +14,7 @@ namespace Animora.Application.UseCases.Identity;
 /// Deliberately NOT <c>[RequiresPermission]</c>: the catalog has no self-password code. The gate requires an active,
 /// unlocked, unexpired session matching <c>context.UserId</c>, and the handler only ever targets that user (B04a).
 /// </summary>
+[Auditable(AuditCategory.Security, "identity.password.change")]
 public sealed record ChangePasswordCommand(string Current, string New) : ICommand<Unit>, ISelfTransactedCommand
 {
     public override string ToString() => $"{nameof(ChangePasswordCommand)} {{ Current = ***, New = *** }}";

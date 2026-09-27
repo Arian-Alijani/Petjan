@@ -1,4 +1,5 @@
 using Animora.Application.Abstractions;
+using Animora.Application.Auditing;
 using Animora.Application.Commands;
 using Animora.Application.Ports;
 using Animora.Application.Security;
@@ -10,6 +11,7 @@ using Animora.Domain.Time;
 namespace Animora.Application.UseCases.Identity;
 
 /// <summary>Local sign-in with lockout. Not journaled (a sign-in is not business intent).</summary>
+[Auditable(AuditCategory.Security, "identity.signin")]
 public sealed record SignInCommand(string Username, string Password, bool RememberDevice)
     : ICommand<SignInResult>, ISelfTransactedCommand
 {

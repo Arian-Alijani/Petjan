@@ -38,7 +38,7 @@
 | `src/Animora.Contracts/` | 20 interfaces + DTOs, one folder per bounded context. The frontend↔backend seam. B03c added the auth seam (`Identity/IAuthenticationService`, `AuthOutcome`, `FirstRunRequest`) and appended `UserRole.Receptionist`; still references no `Animora.*`. |
 | `src/Animora.Desktop/Mocks/` | 21 in-memory files (19 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — still the only implementations for every non-identity screen. `MockCurrentUserContext` deleted by B03c; the rest are Track C's job. |
 | `src/Animora.Domain/`, `src/Animora.Application/` | **Real code**, not placeholders — built through Track A (A01–A12: kernel, identity, patients/clinical, scheduling/boarding, inventory/purchasing, sales/cashier, finance) and B01–B02 (application dispatch pipeline, command journal/outbox). `Animora.Domain.csproj` still has **zero** project/package references by design. |
-| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 5 migrations (`001`–`005`), repositories, seed, maintenance/backup/quarantine, OS keystore, clocks. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
+| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 7 migrations (`001`–`007`), repositories, seed, maintenance/backup/quarantine, OS keystore, clocks, and the append-only local audit sink. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
 | `src/Animora.Client.Services/` | B03c: `Identity/AuthenticationService` (`IAuthenticationService` over the dispatcher, scope-per-call), `Identity/CurrentUserContextService` (real `ICurrentUserContext` over `SessionContextCache`), `Mapping/RoleMapping`. Remaining services are Track C. |
 | `src/Animora.Sync.Abstractions/` | Still an **empty scaffold** (csproj + README only) — Track E deliverable. |
 | Server / SQL Server / licensing / admin web | **Do not exist yet** (Tracks D/E). |
@@ -51,7 +51,7 @@
 
 ## Next phase
 
-**Next phase: `B05` (`B05a`)** — `backend-roadmap/phases/PHASE-B05a-*.md` (B05 is split into B05a→B05c; the parent `PHASE-B05-*.md` is an index only)
+**Next phase: `B05` (`B05b`)** — `backend-roadmap/phases/PHASE-B05b-*.md` (B05 is split into B05a→B05c; the parent `PHASE-B05-*.md` is an index only)
 
 ## Phase status
 
@@ -88,7 +88,7 @@
 | B04b | ✅ Done | 2026-09-26 | Offline capability: `DeviceCapabilitySnapshots` (`[LocalOnly]`, unique tenant/user/device) + migration `006_CapabilitySnapshot`, HMAC-SHA256 signer (keystore key), `CapabilityEvaluator`/`CapabilitySnapshotIssuer`/`CapabilityStore`, issuance in sign-in AND first-run UoW, `ErrorCodes` += 2. High window = 72h (policy authoritative). `build.sh full` 0/0. Tests not run (B04c). |
 | B04c | ✅ Done | 2026-09-26 | Gate seam: `ICapabilityGate` (Contracts) + singleton `CapabilityGateService` (bounded 256-entry cache, fail-closed, B04b reuse), `NavPermissions` (13 real keys), shell ViewModel filtering/status, DI (one singleton), AuthenticationService warm/clear. 31 targeted tests green; `build.sh full` 0/0. |
 | B05 | ⬜ Not started | | Split into B05a–B05c (index: `PHASE-B05-*.md`); done when B05c is done. |
-| B05a | ⬜ Not started | | Audit plane: `AuditEntries` + migration `007_AuditDiagnostics` (AuditEntries only), `IAuditWriter`/`AuditWriter`, `AuditableAttribute`/`AuditBehavior`, `IntegrityAlertSink`, `ErrorCodes` += `AUDIT_WRITE_FAILED`. |
+| B05a | ✅ Done | 2026-09-27 | Audit plane: `AuditEntries` + migration `007_AuditDiagnostics` (AuditEntries only), `IAuditWriter`/`AuditWriter`, `AuditableAttribute`/`AuditBehavior`, `IntegrityAlertSink`, `ErrorCodes` += `AUDIT_WRITE_FAILED`. |
 | B05b | ⬜ Not started | | Observability: Serilog file logging + redaction, `AmbientCorrelation`/`UiCorrelationScope`, diagnostics bundle, `ErrorCodes` += `DIAGNOSTICS_BUNDLE_FAILED`. |
 | B05c | ⬜ Not started | | Crash safety + wiring: `IUserNotificationPort`/`ToastNotificationAdapter`, `GlobalExceptionHandler`/`CrashRecoveryService`, `UiDraftState` + migration `008_UiDraftState`, `MaintenanceScheduler`, `App.axaml.cs` wiring, `ErrorCodes` += `CRASH_RECOVERY_REQUIRED`, all B05 tests + build/test/run gate. |
 | C01 | ⬜ Not started | | |
@@ -1288,6 +1288,16 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
   returns nothing in source (`.cs`/`.csproj`).
 - **Deviations:** see D-A01-1 below (anchor `AssemblyMarker` types added to Domain/Application).
 
+### B05a — Append-only audit plane and integrity sink (2026-09-27)
+
+- Added `[LocalOnly]` `AuditEntry`, explicit mapping with four required indexes, append-only protection, and migration `007_AuditDiagnostics`; migration 007 contains `AuditEntries` only.
+- Added `IAuditWriter`/`AuditWriter`, registration-time `AuditableAttribute` resolution into `AuditBinding`, and `AuditBehavior` immediately after `CommandJournalBehavior` inside `TransactionBehavior`.
+- Applied audit metadata to `SignInCommand`, `ChangePasswordCommand`, and `CompleteFirstRunSetupCommand`; added `AUDIT_WRITE_FAILED`.
+- Added async `IntegrityAlertSink` and connected the B02 fingerprint-mismatch path to its durable integrity record plus a `NeedsAttention` notification.
+- Registered a temporary `TryAdd` no-op `IUserNotificationPort`; B05c replaces it with the real adapter.
+- **Verification:** focused Persistence project build completed with 0 warnings / 0 errors through migration generation; EF migration list shows `007_AuditDiagnostics`; acceptance greps passed. Per the user's locked instruction, no full build or long test suite was run.
+- **Deliberate split:** `007_AuditDiagnostics` contains only `AuditEntries`; `UiDraftStates` is deferred to migration `008` in B05c.
+
 ## Decision & deviation log
 
 > Append an entry whenever an executing session deviates from its phase file, or makes a decision the
@@ -1300,6 +1310,12 @@ Decision:   what was done instead
 Rule check: which A-RULE / T-RULE / CONVENTIONS § was consulted and why this complies
 Impact:     phases affected + what a later session must know
 ```
+
+### B05a — migration split and notification placeholder            (date: 2026-09-27)
+Context:    B05 is intentionally split while the integrity sink already needs the future notification port.
+Decision:   Migration 007 contains only AuditEntries; UiDraftStates remains migration 008 for B05c. A TryAdd no-op IUserNotificationPort keeps the audit-backed integrity sink composable until B05c supplies the real adapter.
+Rule check: Preserves append-only audit durability, migration ownership, and inward dependency direction.
+Impact:     B05c must replace the placeholder notification adapter and create migration 008 without altering 007.
 
 ### B01 — pipeline/wiring details the phase file left open            (date: 2026-09-24)
 Context:    The phase lists 6 behaviors "in this exact order" with ExceptionMapping last yet calls it "the

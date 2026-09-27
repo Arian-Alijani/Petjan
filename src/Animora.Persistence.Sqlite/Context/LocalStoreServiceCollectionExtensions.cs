@@ -1,9 +1,11 @@
 using Animora.Application.Abstractions;
+using Animora.Application.Auditing;
 using Animora.Application.Commands;
 using Animora.Application.Correlation;
 using Animora.Application.Outbox;
 using Animora.Application.Ports;
 using Animora.Domain.Events;
+using Animora.Persistence.Sqlite.Auditing;
 using Animora.Persistence.Sqlite.Commands;
 using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Persistence.Sqlite.Options;
@@ -96,7 +98,8 @@ public static class LocalStoreServiceCollectionExtensions
         // (background/query work builds a scope without the full application layer) and a real registration
         // elsewhere (AddAnimoraApplication, or E06/B05) still wins.
         services.TryAddSingleton<ICorrelationContext, CorrelationContext>();
-        services.TryAddSingleton<IIntegrityAlertSink, NullIntegrityAlertSink>();
+        services.Replace(ServiceDescriptor.Scoped<IIntegrityAlertSink, IntegrityAlertSink>());
+        services.TryAddScoped<IAuditWriter, AuditWriter>();
         services.TryAddSingleton<ICommandTransport, NullCommandTransport>();
         services.TryAddScoped<ICommandJournal, CommandJournal>();
         services.TryAddScoped<ILocalSequenceAllocator, LocalSequenceAllocator>();
