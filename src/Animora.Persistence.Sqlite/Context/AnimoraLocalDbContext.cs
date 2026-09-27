@@ -35,6 +35,13 @@ public sealed class AnimoraLocalDbContext(
         modelBuilder.Entity<PendingCommand>().Property(e => e.CommandFingerprint)
             .HasMaxLength(PendingCommand.FingerprintLength);
         modelBuilder.Entity<OutboxMessage>().Property(e => e.PayloadJson).HasMaxLength(PayloadMaxLength);
+        // B05a: audit machine-text/reference bounds must win over the generic short-text convention.
+        var audit = modelBuilder.Entity<AuditEntry>();
+        audit.Property(e => e.Action).HasMaxLength(AuditEntry.ActionMaxLength);
+        audit.Property(e => e.EntityType).HasMaxLength(AuditEntry.EntityTypeMaxLength);
+        audit.Property(e => e.BeforeRef).HasMaxLength(AuditEntry.ReferenceMaxLength);
+        audit.Property(e => e.AfterRef).HasMaxLength(AuditEntry.ReferenceMaxLength);
+        audit.Property(e => e.Detail).HasMaxLength(AuditEntry.DetailMaxLength);
         // B04b: capability snapshot JSON/signature bounds must win over the generic short-text convention.
         var snapshot = modelBuilder.Entity<DeviceCapabilitySnapshot>();
         snapshot.Property(e => e.PermissionsJson).HasMaxLength(DeviceCapabilitySnapshot.PermissionsJsonMaxLength);

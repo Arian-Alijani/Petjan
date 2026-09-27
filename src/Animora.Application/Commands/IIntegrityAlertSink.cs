@@ -1,3 +1,5 @@
+using Animora.Domain.Results;
+
 namespace Animora.Application.Commands;
 
 /// <summary>
@@ -7,15 +9,26 @@ namespace Animora.Application.Commands;
 /// </summary>
 public interface IIntegrityAlertSink
 {
-    /// <summary>Records an integrity alert. Best-effort: a sink failure never masks the original result.</summary>
-    void Raise(string code, string detail);
+    /// <summary>Durably records and surfaces an integrity alert; audit failure is returned to the caller.</summary>
+    Task<Result> RaiseAsync(IntegrityAlert alert, CancellationToken ct = default);
 }
 
-/// <summary>Default <see cref="IIntegrityAlertSink"/>: swallows the alert (no sink wired yet — B05 replaces it).</summary>
+public sealed record IntegrityAlert(
+    string Code,
+    string Detail,
+    string TenantId,
+    string UserId,
+    string DeviceId,
+    string OperationId,
+    string? EntityType,
+    string? EntityId);
+
+/// <summary>Fallback used only when the local audit-backed sink has not been registered.</summary>
 public sealed class NullIntegrityAlertSink : IIntegrityAlertSink
 {
-    public void Raise(string code, string detail)
+    public Task<Result> RaiseAsync(IntegrityAlert alert, CancellationToken ct = default)
     {
-        // No-op by design: B05 registers the real audit-backed sink.
+        ArgumentNullException.ThrowIfNull(alert);
+        return Task.FromResult(Result.Ok());
     }
 }

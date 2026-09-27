@@ -18,7 +18,7 @@ public static class AppendOnlyGuard
     {
         typeof(JournalEntry), typeof(JournalLine), typeof(MedicalHistoryEntry),
         typeof(StockMovement), typeof(Payment), typeof(ChequeEvent), typeof(StoreMaintenanceLog),
-        typeof(LoginAttemptLog)
+        typeof(LoginAttemptLog), typeof(AuditEntry)
     };
 
     public static void Check(DbContext db)

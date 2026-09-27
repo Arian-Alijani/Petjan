@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
 using System.Reflection;
 using Animora.Application.Abstractions;
+using Animora.Application.Auditing;
 using Animora.Application.Security;
 using Animora.Application.Validation;
 using Animora.Domain.Identity;
@@ -102,14 +103,15 @@ public sealed class ApplicationRegistrationBuilder
         where TRequest : notnull
     {
         var permissionCode = ResolvePermissionCode(typeof(TRequest));
-        var descriptor = new PipelineDescriptor(typeof(TRequest), typeof(TResult), kind, hasValidators, permissionCode);
+        var audit = ResolveAuditBinding(typeof(TRequest));
+        var descriptor = new PipelineDescriptor(typeof(TRequest), typeof(TResult), kind, hasValidators, permissionCode, audit);
         var step = terminal;
         for (var i = chain.Count - 1; i >= 0; i--) step = chain[i].Wrap<TRequest, TResult>(step, descriptor);
 
         var pipeline = step;
         Func<IServiceProvider, object, object, CancellationToken, Task<object>> invoker = async (sp, request, context, ct) =>
             await pipeline(sp, request, context, ct).ConfigureAwait(false);
-        return new HandlerEntry(typeof(TRequest), typeof(TResult), handlerType, kind, pipeline, invoker, permissionCode);
+        return new HandlerEntry(typeof(TRequest), typeof(TResult), handlerType, kind, pipeline, invoker, permissionCode, audit);
     }
 
     /// <summary>
@@ -124,6 +126,18 @@ public sealed class ApplicationRegistrationBuilder
             throw new InvalidOperationException(
                 $"{requestType.Name} declares unknown permission code '{attribute.PermissionCode}'.");
         return attribute.PermissionCode;
+    }
+
+    /// <summary>Reads and validates audit metadata once while the frozen pipeline is composed.</summary>
+    private static AuditBinding? ResolveAuditBinding(Type requestType)
+    {
+        var attribute = requestType.GetCustomAttribute<AuditableAttribute>();
+        if (attribute is null) return null;
+        var separator = attribute.Action.IndexOf('.', StringComparison.Ordinal);
+        if (separator <= 0 || separator == attribute.Action.Length - 1)
+            throw new InvalidOperationException(
+                $"{requestType.Name} declares invalid audit action '{attribute.Action}'.");
+        return new AuditBinding(attribute.Category, attribute.Action);
     }
 
     internal sealed record Registration(

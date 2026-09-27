@@ -63,6 +63,10 @@ public static class ErrorCodes
     public static readonly ErrorCode StoreUnavailable =
         new("STORE_UNAVAILABLE", ErrorCode.Infrastructure);
 
+    /// <summary>A mandatory audit row could not be enlisted or persisted; the operation must roll back.</summary>
+    public static readonly ErrorCode AuditWriteFailed =
+        new("AUDIT_WRITE_FAILED", ErrorCode.Infrastructure);
+
     /// <summary>An unclassified defect. Always logged with its exception.</summary>
     public static readonly ErrorCode Unexpected =
         new("UNEXPECTED", ErrorCode.Infrastructure);

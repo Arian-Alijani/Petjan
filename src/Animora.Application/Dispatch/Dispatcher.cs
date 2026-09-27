@@ -7,7 +7,7 @@ namespace Animora.Application.Dispatch;
 /// <summary>
 /// Resolves the frozen entry and runs its pre-composed chain. Composition order (outer → inner):
 /// Correlation → ExceptionMapping → Validation → Authorization → Entitlement → Transaction (commands only)
-/// → CommandJournal (journaled commands only) → Handler. ExceptionMapping is the outermost <i>catch</i>,
+/// → CommandJournal (journaled commands only) → Audit (annotated commands only) → Handler. ExceptionMapping is the outermost <i>catch</i>,
 /// placed just inside Correlation so mapped failures still carry the correlation prefix.
 /// </summary>
 public sealed class Dispatcher(HandlerRegistry registry, IServiceProvider services) : IDispatcher
@@ -22,6 +22,7 @@ public sealed class Dispatcher(HandlerRegistry registry, IServiceProvider servic
         new EntitlementBehavior(),
         new TransactionBehavior(),
         new CommandJournalBehavior(),
+        new AuditBehavior(),
     ];
 
     public Task<Result<TResult>> SendAsync<TResult>(ICommand<TResult> command, CommandContext ctx,

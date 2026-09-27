@@ -39,10 +39,21 @@ public sealed class CommandJournal(
                 return Result<PendingCommandRecord>.Ok(Map(existing));
 
             // Same OperationId, different payload: a security/integrity event, audited, never a replay (A-RULE 019).
-            integrity.Raise(ErrorCodes.IdempotencyFingerprintMismatch.Code,
-                $"OperationId={envelope.OperationId} stored={existing.CommandFingerprint} incoming={envelope.CommandFingerprint}");
-            return Result<PendingCommandRecord>.Fail(ErrorCodes.IdempotencyFingerprintMismatch,
-                $"OperationId={envelope.OperationId}");
+            var detail =
+                $"OperationId={envelope.OperationId} stored={existing.CommandFingerprint} incoming={envelope.CommandFingerprint}";
+            var alerted = await integrity.RaiseAsync(new IntegrityAlert(
+                ErrorCodes.IdempotencyFingerprintMismatch.Code,
+                detail,
+                envelope.TenantId,
+                envelope.UserId,
+                envelope.DeviceId,
+                envelope.OperationId,
+                envelope.AggregateType,
+                envelope.AggregateId), ct).ConfigureAwait(false);
+            return alerted.IsFailure
+                ? Result<PendingCommandRecord>.Fail(ErrorCodes.AuditWriteFailed, alerted.Detail ?? alerted.Error.Code)
+                : Result<PendingCommandRecord>.Fail(ErrorCodes.IdempotencyFingerprintMismatch,
+                    $"OperationId={envelope.OperationId}");
         }
 
         var row = PendingCommand.Create(envelope, clock.UtcNow);

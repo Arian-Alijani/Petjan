@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Animora.Application.Abstractions;
+using Animora.Application.Auditing;
 using Animora.Application.Commands;
 using Animora.Application.Ports;
 using Animora.Application.Security;
@@ -17,6 +18,7 @@ namespace Animora.Application.UseCases.Identity;
 /// issues the owner's signed offline capability snapshot (B04b) in the same unit-of-work transaction, then starts
 /// the session (separate scope/transaction owned by <see cref="ISessionService"/>). Dispatched with an anonymous context.
 /// </summary>
+[Auditable(AuditCategory.Configuration, "identity.firstrun")]
 public sealed record CompleteFirstRunSetupCommand(string ClinicName, string OwnerFullName, string Username, string Password)
     : ICommand<SignInResult>, ISelfTransactedCommand
 {
