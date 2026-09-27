@@ -91,7 +91,7 @@
 | B05a | ✅ Done | 2026-09-27 | Audit plane: `AuditEntries` + migration `007_AuditDiagnostics` (AuditEntries only), `IAuditWriter`/`AuditWriter`, `AuditableAttribute`/`AuditBehavior`, `IntegrityAlertSink`, `ErrorCodes` += `AUDIT_WRITE_FAILED`. |
 | B05b | ✅ Done | 2026-09-27 | Observability: Serilog file logging + redaction, `AmbientCorrelation`/`UiCorrelationScope`, diagnostics bundle, `ErrorCodes` += `DIAGNOSTICS_BUNDLE_FAILED`. |
 | B05c | ✅ Done | 2026-09-27 | Crash safety + wiring: `IUserNotificationPort` (Contracts) + `NotificationModels`, `ToastNotificationAdapter`, `NotificationText` (Desktop), `GlobalExceptionHandler`/`CrashRecoveryService`, `UiDraftState` + `DraftStateStore` + migration `008_UiDraftState`, `MaintenanceScheduler`, `App.axaml.cs` wiring (3 hooks first, notification port, scheduler), `LocalCommandProcessor.IsPassRunning`, `ErrorCodes` += `CRASH_RECOVERY_REQUIRED`, 5 B05 test classes. `build.sh full` 0/0; targeted test filters OK; `SMOKE RUN OK`. |
-| C01 | ✅ Done | 2026-09-27 | Patients & Owners on the real local DB — **establishes the Track C pattern** (use case → Client.Services impl of the Contracts interface → mapping → one DI line → mock deleted). 9 use cases (4 queries + 5 journaled commands) + 4 read models, `PatientDirectoryQueries` (single-statement projections, `Like` over indexed `SearchKey`), `SearchKey` columns + migration `009_PatientsSearchKeys`, `PatientsSampleData` (12 owners / 18 pets / 36 weights / 36 documents) behind `SeedSampleData`, Contracts addition `IStoreReadinessGate` + `StoreReadinessGate`, `PatientsService`/`PatientsMapping`, DI swap, **mock deleted: `MockPatientsQueryService.cs`**, `CommandTypes` += 5, `ErrorCodes` += 4, 3 test classes. `TotalSpend` deferred to C09. Build/test/smoke not re-run in this sandbox (no .NET SDK; see C01 log). |
+| C01 | ✅ Done | 2026-09-27 | Patients & Owners on the real local DB — **establishes the Track C pattern** (use case → Client.Services impl of the Contracts interface → mapping → one DI line → mock deleted). 9 use cases (4 queries + 5 journaled commands) + 4 read models, `PatientDirectoryQueries` (single-statement projections, `Like` over indexed `SearchKey`), `SearchKey` columns + migration `009_PatientsSearchKeys`, `PatientsSampleData` (12 owners / 18 pets / 36 weights / 36 documents) behind `SeedSampleData`, Contracts addition `IStoreReadinessGate` + `StoreReadinessGate`, `PatientsService`/`PatientsMapping`, DI swap, **mock deleted: `MockPatientsQueryService.cs`**, `CommandTypes` += 5, `ErrorCodes` += 4, 3 test classes. `TotalSpend` deferred to C09. Verified: `build.sh full` = **0/0**, `run.sh` = **SMOKE RUN OK**; all C01 tests green (Patients 20/20, PatientDirectory 7/7, Seeding 4/4). Closeout fixed 4 latent C01 defects that only a real build surfaces — see C01 log. |
 | C02 | ⬜ Not started | | |
 | C03 | ⬜ Not started | | |
 | C04 | ⬜ Not started | | |
@@ -185,10 +185,22 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
   **page size clamped to 200**, **directory projection is a single non-batched SELECT statement** via
   `ToQueryString()`, no N+1). `SeedingTests` gains a C01 sample-data assertion (12/18/36/36 counts, documents point
   at a pet+owner with a 64-char lowercase hash).
-- **Verification:** **build/test/smoke were NOT run in this sandbox — no .NET SDK is installed** (per the standing
-  no-heavy-verification directive; installing an SDK was out of scope). Code was completed and reviewed against the
-  phase acceptance criteria. The first session with an SDK must confirm `build.sh full` = 0/0, `test.sh` = TESTS OK,
-  `run.sh` = SMOKE RUN OK and amend this line if anything is red.
+- **Verification (closeout session, SDK 10.0.401 installed on disk):** `scripts/sandbox/build.sh full` =
+  **0 warnings / 0 errors** (14 projects); `scripts/sandbox/run.sh` = **SMOKE RUN OK** (app boots under Xvfb with the
+  real `PatientsService` + `IStoreReadinessGate`, mock deleted, no startup crash). All **C01 tests pass**:
+  `PatientsUseCaseTests`/`PatientsMappingTests` 20/20, `PatientDirectoryQueryTests` 7/7, `SeedingTests` 4/4.
+  Building for the first time surfaced **4 latent C01 defects** the earlier (SDK-less) sessions could not catch, all
+  fixed here: (a) `PatientsUseCaseTests` used `CommandContext` without `using Animora.Application.Abstractions;`
+  (CS0246); (b) `PatientDirectoryQueryTests` referenced a non-existent nested `LocalStoreFixture.FakeClock` — the
+  clock is a top-level class (CS0426); (c) `PatientsSampleData` carried an unused `IClock clock` primary-ctor param
+  (CS9113, and `build.sh` treats warnings as errors) — dropped it (it uses its own `FixedClock`); (d) `PatientsMapping`
+  split clinical notes only on `,`/`\n`, so a Persian-comma-separated note wasn't split — now also splits on `،`
+  (U+060C), matching the mapping test. `test.sh` (whole suite) still reports **34 failures in B04-Security
+  pipeline/DI tests** (`BehaviorPipelineTests`, `DispatcherTests`, `NoReflectionTests`, `SessionLifecycleTests`,
+  `CommandJournalTests`, `LocalMigrationTests`, `AppendOnlyGuardTests`, `StoreStartupTests`) — **all pre-existing and
+  unrelated to C01**: reproduced identically at the pre-C01 commit `1d1e940` (B05c) via a throwaway worktree; root
+  cause is those tests' service provider not registering `IStaffMembershipRepository`/`IRoleDefinitionRepository`/
+  `ICapabilitySnapshotSigner`. No C01 file touches those types; fixing them belongs to a B04-closeout, not C01.
 - **Deviations:** (1) **Migration named `009_PatientsSearchKeys`, not `008`** as the phase text says — `008` was
   already consumed by B05c (`UiDraftState`), so the next free number is 009 (see Decision log "C01"). (2) The
   single-statement acceptance ("`ToQueryString()` contains exactly one `SELECT`") is asserted as **one non-batched
@@ -1382,6 +1394,29 @@ Rule check: which A-RULE / T-RULE / CONVENTIONS § was consulted and why this co
 Impact:     phases affected + what a later session must know
 ```
 
+### C01 closeout — first real build/test/smoke; 4 latent defects fixed            (date: 2026-09-27)
+Context:    C01 was authored and merged (up to `767659d`) without ever compiling — no .NET SDK was present in the
+            earlier sessions. This closeout installed SDK 10.0.401 on disk and ran the real gates. `build.sh full`
+            immediately surfaced defects that only a compiler catches, and `test.sh` surfaced one wrong test
+            expectation; the whole-suite run also showed 34 unrelated B04-Security failures.
+Decision:   Fixed the 4 latent C01 defects (all in C01-authored files): (1) `PatientsUseCaseTests` missing
+            `using Animora.Application.Abstractions;` for `CommandContext` (CS0246); (2) `PatientDirectoryQueryTests`
+            used non-existent nested `LocalStoreFixture.FakeClock` → the top-level `FakeClock` (CS0426);
+            (3) removed the unused `IClock clock` primary-ctor param on `PatientsSampleData` (CS9113, warnings=errors
+            under `build.sh`); (4) `PatientsMapping.Split` now also splits on the Persian comma `،` (U+060C) so
+            Persian-comma clinical notes split correctly (the mapping test's input uses it). Also relaxed the
+            single-statement projection assertion to skip EF Core 10's `.param set` preamble before checking the
+            body is one `SELECT`. Left the 34 B04-Security test failures untouched: proven pre-existing by
+            reproducing them verbatim at the pre-C01 commit `1d1e940` (B05c) in a throwaway git worktree — root cause
+            is those tests not registering `IStaffMembershipRepository`/`IRoleDefinitionRepository`/
+            `ICapabilitySnapshotSigner`; no C01 file references them, so the fix is a B04 concern, out of C01 scope.
+Rule check: CONVENTIONS §4 (errors are codes; Persian handling stays in mapping/normalization), §8 / PERFORMANCE §6
+            (projection stays one no-N+1 statement — only the test's preamble handling changed, not the query).
+            `build.sh full` = 0/0 (warnings-as-errors satisfied); `run.sh` = SMOKE RUN OK.
+Impact:     C01 is now build/test/smoke-verified for its own surface. A later B04 closeout must register the three
+            Security repositories in the pipeline test container to turn the 34 red tests green; until then a
+            whole-suite `test.sh` is red for reasons unrelated to any Track C phase.
+
 ### C01 — migration number, single-statement assertion & permission-test shape            (date: 2026-09-27)
 Context:    The phase text names the migration `008_PatientsSearchKeys`, requires each directory query's
             `ToQueryString()` to "contain exactly one `SELECT`", and requires a test proving "a user lacking
@@ -1399,7 +1434,7 @@ Rule check: CONVENTIONS §5 (search filter runs in SQL over an indexed column), 
             per list, no N+1), §10 (mock retirement), §4 (errors are codes, no Persian in Application/Client.Services).
             Migration numbering is sequential and additive (A-RULE on append-only migrations).
 Impact:     C02+ cite "the C01 pattern" and reuse `IStoreReadinessGate`. Any doc/tooling that expected `008` for
-            patients search keys must read `009`. The first SDK-equipped session must run build/test/smoke.
+            patients search keys must read `009`. (build/test/smoke now run — see the C01 closeout entry above.)
 
 ### B05b — gate limited by the session instruction            (date: 2026-09-27)
 Context:    The phase document requested `build.sh full`, while the user's direct locked instruction explicitly prohibited full builds and long tests; this fresh sandbox also has no dotnet executable installed.
