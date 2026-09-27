@@ -111,7 +111,7 @@ public sealed class AdmitTicketCommandHandler(
             return Result<Unit>.Fail(resolve.Error, resolve.Detail);
         }
 
-        var entry = resolve.Value;
+        var entry = resolve.Value!;
 
         // Advance the backing appointment to CheckedIn on first admit so its lifecycle stays honest.
         if (ticket.Kind == TicketKind.Appointment)
@@ -166,7 +166,7 @@ public sealed class EnterVisitCommandHandler(
             return Result<Unit>.Fail(resolve.Error, resolve.Detail);
         }
 
-        var entry = resolve.Value;
+        var entry = resolve.Value!;
         if (string.IsNullOrWhiteSpace(entry.VisitId))
         {
             return Result<Unit>.Fail(
@@ -212,7 +212,7 @@ public sealed class LeaveQueueCommandHandler(
             return Result<Unit>.Fail(resolve.Error, resolve.Detail);
         }
 
-        var moved = resolve.Value.MarkLeft(clock);
+        var moved = resolve.Value!.MarkLeft(clock);
         return moved.IsFailure
             ? ReceptionTicketWork.AsStateInvalid(moved)
             : Result<Unit>.Ok(Unit.Value);
@@ -318,7 +318,7 @@ public sealed class ToggleTicketUrgentCommandHandler(
             return Result<Unit>.Fail(resolve.Error, resolve.Detail);
         }
 
-        var entry = resolve.Value;
+        var entry = resolve.Value!;
         var next = entry.Priority >= ReceptionQueueEntry.PriorityEmergency
             ? ReceptionQueueEntry.PriorityNormal
             : ReceptionQueueEntry.PriorityEmergency;

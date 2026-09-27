@@ -31,6 +31,8 @@ public sealed class PatientsUseCaseTests
         public readonly Dictionary<string, Owner> Items = new(StringComparer.Ordinal);
         public Task<Owner?> FindAsync(string id, System.Threading.CancellationToken ct = default) =>
             Task.FromResult(Items.TryGetValue(id, out var o) ? o : null);
+        public Task<Owner?> FindByPhoneAsync(string phone, System.Threading.CancellationToken ct = default) =>
+            Task.FromResult(Items.Values.FirstOrDefault(o => o.PhonePrimary == phone));
         public Task<Owner> RequireAsync(string id, System.Threading.CancellationToken ct = default) =>
             FindAsync(id, ct).ContinueWith(t => t.Result!);
         public void Add(Owner entity) => Items[entity.Id] = entity;
@@ -45,6 +47,8 @@ public sealed class PatientsUseCaseTests
         public readonly Dictionary<string, Pet> Items = new(StringComparer.Ordinal);
         public Task<Pet?> FindAsync(string id, System.Threading.CancellationToken ct = default) =>
             Task.FromResult(Items.TryGetValue(id, out var p) ? p : null);
+        public Task<Pet?> FindByOwnerAndNameAsync(string ownerId, string name, System.Threading.CancellationToken ct = default) =>
+            Task.FromResult(Items.Values.FirstOrDefault(p => p.OwnerId == ownerId && p.Name == name));
         public Task<Pet> RequireAsync(string id, System.Threading.CancellationToken ct = default) =>
             FindAsync(id, ct).ContinueWith(t => t.Result!);
         public void Add(Pet entity) => Items[entity.Id] = entity;

@@ -289,7 +289,7 @@ request; start-visit is **idempotent** (deterministic `OperationId`).
   - `GetDoctorsAsync(ct)`: `StaffMembership` Doctor+Active → `ReceptionDoctorReadModel`.
   - **PUSH:** `feat(reception): C02 single-statement derived-queue projection`
 
-- [ ] **T06 — Triage queries (3) + start-visit commands (2) + registration**
+- [x] **T06 — Triage queries (3) + start-visit commands (2) + registration**
   - Queries in `UseCases/Visits/`: `TriageDoctorRailQuery(DateOnly LocalDay)` (per-doctor booked count,
     in-visit flag, next-free-slot-minute in ONE projection), `BookedForDoctorQuery(DoctorId, LocalDay)`,
     `TriagePatientsQuery(string? Search)` (top 50 recently-seen pets by last-visit desc, reuse
