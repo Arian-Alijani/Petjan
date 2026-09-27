@@ -35,6 +35,13 @@ public static class CommandTypes
     public const string SchedulingAppointmentMove = "scheduling.appointment.move";
     public const string BoardingStayCheckout = "boarding.stay.checkout";
 
+    // Patients & owners (C01).
+    public const string PatientsOwnerCreate = "patients.owner.create";
+    public const string PatientsOwnerUpdate = "patients.owner.update";
+    public const string PatientsPetCreate = "patients.pet.create";
+    public const string PatientsPetUpdate = "patients.pet.update";
+    public const string PatientsPetWeightAdd = "patients.pet.weight.add";
+
     /// <summary>Every declared command type, in declaration order.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
@@ -45,5 +52,6 @@ public static class CommandTypes
         FinancePeriodClose, FinanceExpensePost, FinanceChequeTransition,
         SchedulingAppointmentBook, SchedulingAppointmentMove,
         BoardingStayCheckout,
+        PatientsOwnerCreate, PatientsOwnerUpdate, PatientsPetCreate, PatientsPetUpdate, PatientsPetWeightAdd,
     ];
 }
