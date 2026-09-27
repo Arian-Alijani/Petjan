@@ -38,12 +38,12 @@
 | `src/Animora.Contracts/` | 20 interfaces + DTOs, one folder per bounded context. The frontend↔backend seam. B03c added the auth seam (`Identity/IAuthenticationService`, `AuthOutcome`, `FirstRunRequest`) and appended `UserRole.Receptionist`; still references no `Animora.*`. |
 | `src/Animora.Desktop/Mocks/` | 21 in-memory files (19 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — still the only implementations for every non-identity screen. `MockCurrentUserContext` deleted by B03c; the rest are Track C's job. |
 | `src/Animora.Domain/`, `src/Animora.Application/` | **Real code**, not placeholders — built through Track A (A01–A12: kernel, identity, patients/clinical, scheduling/boarding, inventory/purchasing, sales/cashier, finance) and B01–B02 (application dispatch pipeline, command journal/outbox). `Animora.Domain.csproj` still has **zero** project/package references by design. |
-| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 7 migrations (`001`–`007`), repositories, seed, maintenance/backup/quarantine, OS keystore, clocks, and the append-only local audit sink. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
+| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 7 migrations (`001`–`007`), repositories, seed, maintenance/backup/quarantine, OS keystore, clocks, append-only local audit sink, buffered/redacted rolling file logging, and PII-free diagnostics bundle export. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
 | `src/Animora.Client.Services/` | B03c: `Identity/AuthenticationService` (`IAuthenticationService` over the dispatcher, scope-per-call), `Identity/CurrentUserContextService` (real `ICurrentUserContext` over `SessionContextCache`), `Mapping/RoleMapping`. Remaining services are Track C. |
 | `src/Animora.Sync.Abstractions/` | Still an **empty scaffold** (csproj + README only) — Track E deliverable. |
 | Server / SQL Server / licensing / admin web | **Do not exist yet** (Tracks D/E). |
 | Login | **Real local authentication (B03c).** `LoginViewModel` → `IAuthenticationService`; disabled until the local store is ready; first run shows `FirstRunView` (owner setup) and opens the shell. No hardcoded credentials, no demo user seeded. (`LoginWindow.axaml` still shows the old demo hint text — untouched by design.) |
-| `Directory.Packages.props` | Avalonia 12.1.2 (+Desktop/Fluent/Inter/DataGrid), CommunityToolkit.Mvvm 8.4.2, Microsoft.Extensions.DependencyInjection 10.0.12, plus the Track A/B backend pins (EF Core Sqlite 10.0.12, xunit, etc. — see A01 entry). `ManagePackageVersionsCentrally=true`. |
+| `Directory.Packages.props` | Avalonia 12.1.2 (+Desktop/Fluent/Inter/DataGrid), CommunityToolkit.Mvvm 8.4.2, Microsoft.Extensions.DependencyInjection 10.0.12, Serilog 4.2.0 + Extensions.Logging 9.0.0 + Sinks.File 6.0.0, plus the Track A/B backend pins (EF Core Sqlite 10.0.12, xunit, etc. — see A01 entry). `ManagePackageVersionsCentrally=true`. |
 | `Directory.Build.props` | `net10.0`, `LangVersion 14.0`, `Nullable enable`, `ImplicitUsings enable`. |
 | Solution | `Animora.sln` — 9 `src/` projects + 5 `tests/` projects (see `AGENTS.md` for the full `src/` map). |
 | Scripts | `scripts/sandbox/build.sh [fast\|full\|release\|restore]`, `run.sh` (Xvfb smoke, prints `SMOKE RUN OK`), `test.sh` (added by A01), `install-prereqs.sh`, `doctor.sh`, `bench.sh`. |
@@ -51,7 +51,7 @@
 
 ## Next phase
 
-**Next phase: `B05` (`B05b`)** — `backend-roadmap/phases/PHASE-B05b-*.md` (B05 is split into B05a→B05c; the parent `PHASE-B05-*.md` is an index only)
+**Next phase: `B05` (`B05c`)** — `backend-roadmap/phases/PHASE-B05c-*.md` (B05 is split into B05a→B05c; the parent `PHASE-B05-*.md` is an index only)
 
 ## Phase status
 
@@ -89,7 +89,7 @@
 | B04c | ✅ Done | 2026-09-26 | Gate seam: `ICapabilityGate` (Contracts) + singleton `CapabilityGateService` (bounded 256-entry cache, fail-closed, B04b reuse), `NavPermissions` (13 real keys), shell ViewModel filtering/status, DI (one singleton), AuthenticationService warm/clear. 31 targeted tests green; `build.sh full` 0/0. |
 | B05 | ⬜ Not started | | Split into B05a–B05c (index: `PHASE-B05-*.md`); done when B05c is done. |
 | B05a | ✅ Done | 2026-09-27 | Audit plane: `AuditEntries` + migration `007_AuditDiagnostics` (AuditEntries only), `IAuditWriter`/`AuditWriter`, `AuditableAttribute`/`AuditBehavior`, `IntegrityAlertSink`, `ErrorCodes` += `AUDIT_WRITE_FAILED`. |
-| B05b | ⬜ Not started | | Observability: Serilog file logging + redaction, `AmbientCorrelation`/`UiCorrelationScope`, diagnostics bundle, `ErrorCodes` += `DIAGNOSTICS_BUNDLE_FAILED`. |
+| B05b | ✅ Done | 2026-09-27 | Observability: Serilog file logging + redaction, `AmbientCorrelation`/`UiCorrelationScope`, diagnostics bundle, `ErrorCodes` += `DIAGNOSTICS_BUNDLE_FAILED`. |
 | B05c | ⬜ Not started | | Crash safety + wiring: `IUserNotificationPort`/`ToastNotificationAdapter`, `GlobalExceptionHandler`/`CrashRecoveryService`, `UiDraftState` + migration `008_UiDraftState`, `MaintenanceScheduler`, `App.axaml.cs` wiring, `ErrorCodes` += `CRASH_RECOVERY_REQUIRED`, all B05 tests + build/test/run gate. |
 | C01 | ⬜ Not started | | |
 | C02 | ⬜ Not started | | |
@@ -1298,6 +1298,15 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 - **Verification:** focused Persistence project build completed with 0 warnings / 0 errors through migration generation; EF migration list shows `007_AuditDiagnostics`; acceptance greps passed. Per the user's locked instruction, no full build or long test suite was run.
 - **Deliberate split:** `007_AuditDiagnostics` contains only `AuditEntries`; `UiDraftStates` is deferred to migration `008` in B05c.
 
+### B05b — Logging, correlation propagation & diagnostics bundle (2026-09-27)
+
+- Pinned `Serilog` 4.2.0, `Serilog.Extensions.Logging` 9.0.0, and `Serilog.Sinks.File` 6.0.0 centrally; only `Animora.Infrastructure.Local` references them.
+- Added `LocalLoggingOptions`, local-only buffered daily `LoggingSetup` (14 files, 25 MiB roll, two-second flush, EF warning floor), and recursive `LogRedaction`; no console or network sink exists.
+- Extended correlation additively with `AmbientCorrelation`, `ICorrelationContext.Current`, and a full-context `Begin` overload while retaining `CurrentId`/`Begin(string?)`; added `UiCorrelationScope` for per-gesture tenant/user/device/operation propagation. Log events receive all five correlation fields.
+- Added `IDiagnosticsBundleBuilder`/`DiagnosticsBundleBuilder` and DI registration. The archive contains `environment.json`, `schema.json`, `pipeline.json` (summary + newest 50 unsettled, no payloads), `audit-tail.json` (500 newest, bounded detail), `logs/` (newest three), and `redaction.txt`; owner/pet personal fields are never queried.
+- Added `DIAGNOSTICS_BUNDLE_FAILED`; no migration, tests, Desktop wiring, crash safety, scheduler, or draft-store work was added.
+- **Verification:** acceptance greps and `git diff --check` passed. Per the user's locked instruction, no full build or long test suite was run; a focused build could not start because no `dotnet` executable is installed in this fresh sandbox.
+
 ## Decision & deviation log
 
 > Append an entry whenever an executing session deviates from its phase file, or makes a decision the
@@ -1310,6 +1319,12 @@ Decision:   what was done instead
 Rule check: which A-RULE / T-RULE / CONVENTIONS § was consulted and why this complies
 Impact:     phases affected + what a later session must know
 ```
+
+### B05b — gate limited by the session instruction            (date: 2026-09-27)
+Context:    The phase document requested `build.sh full`, while the user's direct locked instruction explicitly prohibited full builds and long tests; this fresh sandbox also has no dotnet executable installed.
+Decision:   Ran only acceptance greps and `git diff --check`; did not install an SDK, run a full build, or execute tests.
+Rule check: The direct session instruction has priority and avoids unrelated environment setup and heavy verification work.
+Impact:     B05c must compile B05b as part of its own required build/test gate before finalizing B05.
 
 ### B05a — migration split and notification placeholder            (date: 2026-09-27)
 Context:    B05 is intentionally split while the integrity sink already needs the future notification port.

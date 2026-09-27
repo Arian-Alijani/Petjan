@@ -67,6 +67,10 @@ public static class ErrorCodes
     public static readonly ErrorCode AuditWriteFailed =
         new("AUDIT_WRITE_FAILED", ErrorCode.Infrastructure);
 
+    /// <summary>A redacted local diagnostics archive could not be assembled.</summary>
+    public static readonly ErrorCode DiagnosticsBundleFailed =
+        new("DIAGNOSTICS_BUNDLE_FAILED", ErrorCode.Infrastructure);
+
     /// <summary>An unclassified defect. Always logged with its exception.</summary>
     public static readonly ErrorCode Unexpected =
         new("UNEXPECTED", ErrorCode.Infrastructure);

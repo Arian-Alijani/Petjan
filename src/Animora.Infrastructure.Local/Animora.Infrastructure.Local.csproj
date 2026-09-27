@@ -10,6 +10,9 @@
     <PackageReference Include="Microsoft.Extensions.Identity.Core" /> <!-- PasswordHasher<T> (namespace Microsoft.AspNetCore.Identity) -->
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
   </ItemGroup>
 
