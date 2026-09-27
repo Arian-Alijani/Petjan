@@ -212,16 +212,22 @@ public sealed class PatientDirectoryQueryTests
         AssertSingleStatementSelect(ownerPage.ToQueryString());
     }
 
-    // A single round-trip statement: one terminating ';' (EF appends none, so zero or one) and the top-level
-    // command is a SELECT. Correlated scalar sub-SELECTs (last weight / pet count) are part of this one
-    // statement — they are exactly what keeps the read free of N+1.
+    // A single round-trip statement: after EF's ".param set" preamble (which declares the tenant-filter
+    // parameter — not SQL), the command body is one SELECT with no statement separator. Correlated scalar
+    // sub-SELECTs (last weight / pet count) are part of that one statement — exactly what avoids N+1.
     private static void AssertSingleStatementSelect(string sql)
     {
-        var trimmed = sql.Trim();
-        Assert.StartsWith("SELECT", trimmed, StringComparison.OrdinalIgnoreCase);
+        // Drop EF Core's ".param set @…" preamble lines; keep the real SQL body.
+        var body = string.Join('\n', sql
+                .Replace("\r\n", "\n")
+                .Split('\n')
+                .SkipWhile(line => line.TrimStart().StartsWith(".param", StringComparison.OrdinalIgnoreCase)
+                                   || line.Trim().Length == 0))
+            .Trim();
+
+        Assert.StartsWith("SELECT", body, StringComparison.OrdinalIgnoreCase);
         // No statement separator except an optional single trailing one ⇒ not a multi-statement batch.
-        var body = trimmed.TrimEnd(';', '\r', '\n', ' ');
-        Assert.DoesNotContain(";", body);
+        Assert.DoesNotContain(";", body.TrimEnd(';', '\r', '\n', ' '));
     }
 
     [Fact]
