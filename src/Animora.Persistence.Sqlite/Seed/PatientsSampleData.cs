@@ -7,7 +7,7 @@ namespace Animora.Persistence.Sqlite.Seed;
 
 /// <summary>Deterministic first-run sample owners/pets (C01). Ids derive from a fixed seed instant so test
 /// assertions are stable. Runs only when LocalStoreOptions.SeedSampleData is true.</summary>
-public sealed class PatientsSampleData(AnimoraLocalDbContext db, ILocalTenantContext tenant, IClock clock)
+public sealed class PatientsSampleData(AnimoraLocalDbContext db, ILocalTenantContext tenant)
 {
     // Marker key so this block is idempotent like the reference seeds.
     public const string SampleKey = "patients.sample";

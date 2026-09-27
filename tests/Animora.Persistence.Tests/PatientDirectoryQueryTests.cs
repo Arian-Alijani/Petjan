@@ -228,7 +228,7 @@ public sealed class PatientDirectoryQueryTests
     public void SearchKeyProvider_NormalizesPersianDigits()
     {
         var provider = new OwnerSearchKeyProvider();
-        var owner = Owner.Register("T1", "علی", "۰۹۱۲۳۴۵۶۷۸۹", new LocalStoreTestFixture.FakeClock(
+        var owner = Owner.Register("T1", "علی", "۰۹۱۲۳۴۵۶۷۸۹", new FakeClock(
             new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
 
         var key = provider.Build(owner);
