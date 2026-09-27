@@ -1,4 +1,6 @@
+using Animora.Application.Diagnostics;
 using Animora.Application.Ports;
+using Animora.Infrastructure.Local.Diagnostics;
 using Animora.Infrastructure.Local.Options;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
@@ -23,6 +25,14 @@ public static class LocalInfrastructureServiceCollectionExtensions
         Action<LocalStoreOptions>? configure = null)
     {
         services.AddAnimoraLocalStore(configure);
+
+        // B05b — local-only buffered file logging and redacted diagnostics export.
+        services.AddOptions<LocalLoggingOptions>()
+            .Configure<IOptions<LocalStoreOptions>>((logging, store) => logging.DataDirectory = store.Value.DataDirectory);
+        services.TryAddSingleton<ILoggerFactory>(provider => LoggingSetup.ConfigureLocalLogging(
+            provider.GetRequiredService<IOptions<LocalLoggingOptions>>().Value));
+        services.TryAddSingleton(typeof(ILogger<>), typeof(Logger<>));
+        services.TryAddScoped<IDiagnosticsBundleBuilder, DiagnosticsBundleBuilder>();
 
         // A11a — keystore, key service, installation identity.
         services.TryAddSingleton(CreateSecretStore);
