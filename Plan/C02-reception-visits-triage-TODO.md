@@ -306,7 +306,7 @@ request; start-visit is **idempotent** (deterministic `OperationId`).
   - Build `src/Animora.Application` (targeted).
   - **PUSH:** `feat(visits): C02 triage queries + idempotent start-visit commands`
 
-- [ ] **T07 — Triage persistence query**
+- [x] **T07 — Triage persistence query**
   - `Queries/TriageQueries.cs implements ITriageQueries`: doctor rail (one projection over
     appointments), booked-for-doctor rows, recently-seen patients. UTC-range day filter, no N+1.
   - **PUSH:** `feat(visits): C02 triage projections`
