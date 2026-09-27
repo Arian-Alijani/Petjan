@@ -34,9 +34,9 @@
 
 | Area | State |
 |---|---|
-| `src/Animora.Desktop/` | **Complete; Track C swap under way.** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Identity (B03c) and **Patients (C01)** now run on the real backend: `IPatientsQueryService → PatientsService`, `IStoreReadinessGate` registered. Remaining non-identity/non-patients screens are still on mocks until their own C phase. |
+| `src/Animora.Desktop/` | **Complete; Track C swap under way.** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Identity (B03c), **Patients (C01)** and **Reception + Visits triage (C02)** now run on the real backend: `IPatientsQueryService → PatientsService`, `IReceptionQueueService → ReceptionQueueService`, `IVisitsTriageService → VisitsTriageService`, `IStoreReadinessGate` registered. Remaining screens are still on mocks until their own C phase. |
 | `src/Animora.Contracts/` | 20 interfaces + DTOs, one folder per bounded context. The frontend↔backend seam. B03c added the auth seam (`Identity/IAuthenticationService`, `AuthOutcome`, `FirstRunRequest`) and appended `UserRole.Receptionist`; still references no `Animora.*`. |
-| `src/Animora.Desktop/Mocks/` | 20 in-memory files (18 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — the only implementations for the remaining non-identity/non-patients screens. `MockCurrentUserContext` deleted by B03c; **`MockPatientsQueryService` deleted by C01**; the rest are later Track C phases' job. |
+| `src/Animora.Desktop/Mocks/` | 20 in-memory files (18 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — the only implementations for the remaining non-identity/non-patients screens. `MockCurrentUserContext` deleted by B03c; **`MockPatientsQueryService` deleted by C01**; **`MockReceptionQueueService` + `MockVisitsTriageService` deleted by C02**; the rest are later Track C phases' job. |
 | `src/Animora.Domain/`, `src/Animora.Application/` | **Real code**, not placeholders — built through Track A (A01–A12: kernel, identity, patients/clinical, scheduling/boarding, inventory/purchasing, sales/cashier, finance) and B01–B02 (application dispatch pipeline, command journal/outbox). `Animora.Domain.csproj` still has **zero** project/package references by design. |
 | `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 7 migrations (`001`–`007`), repositories, seed, maintenance/backup/quarantine, OS keystore, clocks, append-only local audit sink, buffered/redacted rolling file logging, and PII-free diagnostics bundle export. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
 | `src/Animora.Client.Services/` | B03c identity (`Identity/AuthenticationService`, `Identity/CurrentUserContextService`, `Mapping/RoleMapping`). **C01 patients:** `Patients/PatientsService` (real `IPatientsQueryService` over the dispatcher, scope-per-call, no EF/SQL/rule) + `Patients/PatientsMapping` (hand-written read-model ↔ Contracts DTO); `Diagnostics/StoreReadinessGate` (over `LocalStoreStartup`). Remaining services are later Track C phases. |
@@ -51,7 +51,7 @@
 
 ## Next phase
 
-**Next phase: `C02`** — `backend-roadmap/phases/PHASE-C02-*.md` (Reception, visits & triage; follows **the C01 pattern**: use cases → a `Client.Services` implementation of the existing Contracts interface → mapping → one DI line → mock deleted).
+**Next phase: `C03`** — `backend-roadmap/phases/PHASE-C03-*.md` (follows **the C01 pattern**; builds on C02's `Visit` started in `InProgress` from triage).
 
 ## Phase status
 
@@ -92,7 +92,7 @@
 | B05b | ✅ Done | 2026-09-27 | Observability: Serilog file logging + redaction, `AmbientCorrelation`/`UiCorrelationScope`, diagnostics bundle, `ErrorCodes` += `DIAGNOSTICS_BUNDLE_FAILED`. |
 | B05c | ✅ Done | 2026-09-27 | Crash safety + wiring: `IUserNotificationPort` (Contracts) + `NotificationModels`, `ToastNotificationAdapter`, `NotificationText` (Desktop), `GlobalExceptionHandler`/`CrashRecoveryService`, `UiDraftState` + `DraftStateStore` + migration `008_UiDraftState`, `MaintenanceScheduler`, `App.axaml.cs` wiring (3 hooks first, notification port, scheduler), `LocalCommandProcessor.IsPassRunning`, `ErrorCodes` += `CRASH_RECOVERY_REQUIRED`, 5 B05 test classes. `build.sh full` 0/0; targeted test filters OK; `SMOKE RUN OK`. |
 | C01 | ✅ Done | 2026-09-27 | Patients & Owners on the real local DB — **establishes the Track C pattern** (use case → Client.Services impl of the Contracts interface → mapping → one DI line → mock deleted). 9 use cases (4 queries + 5 journaled commands) + 4 read models, `PatientDirectoryQueries` (single-statement projections, `Like` over indexed `SearchKey`), `SearchKey` columns + migration `009_PatientsSearchKeys`, `PatientsSampleData` (12 owners / 18 pets / 36 weights / 36 documents) behind `SeedSampleData`, Contracts addition `IStoreReadinessGate` + `StoreReadinessGate`, `PatientsService`/`PatientsMapping`, DI swap, **mock deleted: `MockPatientsQueryService.cs`**, `CommandTypes` += 5, `ErrorCodes` += 4, 3 test classes. `TotalSpend` deferred to C09. Verified: `build.sh full` = **0/0**, `run.sh` = **SMOKE RUN OK**; all C01 tests green (Patients 20/20, PatientDirectory 7/7, Seeding 4/4). Closeout fixed 4 latent C01 defects that only a real build surfaces — see C01 log. |
-| C02 | ⬜ Not started | | |
+| C02 | ✅ Done | 2026-09-27 | Reception queue + visits triage on the real local DB (the C01 pattern). **Derived queue** (`ReceptionQueueEntry` only for walk-ins / state an appointment cannot carry; appointment rows created lazily on first state change), `TicketRef` (`apt:`/`wlk:`), 5 queries + 8 journaled commands, `OperationIdFactory.Deterministic` (idempotent start-visit), `ReceptionQueueQueries` (one LEFT JOIN + UNION ALL statement, UTC range) + `TriageQueries`, `ReceptionSampleData`, `ReceptionQueueService`/`VisitsTriageService` + 2 mappings + `VisitTypeCatalog`, 2 DI swaps, 2 VM readiness lines, **mocks deleted: `MockReceptionQueueService.cs`, `MockVisitsTriageService.cs`**, `CommandTypes` += 7, `ErrorCodes` += 4, 3 test classes. Verified: `build.sh full` = **0/0**; C02 filtered tests green (Application 25/25, ReceptionQueueQuery 3/3). |
 | C03 | ⬜ Not started | | |
 | C04 | ⬜ Not started | | |
 | C05 | ⬜ Not started | | |
@@ -135,6 +135,40 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > do not read the entries around it. If nothing below is cited, you are done reading this file.
 
 ## Repo state log
+
+### C02 — Reception queue & visits triage on the real local DB (2026-09-27)
+- **Derived-queue rule:** a `ReceptionQueueEntry` is persisted only for walk-ins and for state an `Appointment`
+  cannot carry (called/in-visit/left/urgent). An appointment-sourced ticket gets its row **lazily on the first
+  state change** (`Source=Appointment`, `AppointmentId` set); until then it is projected from the appointment as
+  `Waiting`. Ticket id = `TicketRef`: `"apt:" + AppointmentId` / `"wlk:" + QueueEntryId`; unparsable/unknown →
+  `TICKET_NOT_FOUND`.
+- **Application:** `UseCases/Reception/` — `ReceptionQueueQuery`, `ReceptionDoctorsQuery`; journaled
+  `AdmitTicketCommand`, `EnterVisitCommand`, `LeaveQueueCommand`, `MarkNoShowCommand`, `ToggleTicketUrgentCommand`,
+  `CreateWalkInCommand` (owner de-dup by normalized phone, pet reuse by owner+name). `UseCases/Visits/` —
+  `TriageDoctorRailQuery`, `BookedForDoctorQuery`, `TriagePatientsQuery`; journaled `StartVisitFromTicketCommand`
+  (idempotent: existing in-progress visit returned, no second `Visit`) + `StartNewVisitCommand`. Read models in
+  `ReadModels/`; ports `IReceptionQueueQueries`, `ITriageQueries`; `IReceptionQueueRepository` +=
+  `FindByAppointmentAsync`/`CountForDayAsync`. `Correlation/OperationIdFactory.Deterministic(seed)` (SHA-256 →
+  26-char Crockford id; client uses `"visit-start:" + ticketId`). Registered by `AddReceptionUseCases()` /
+  `AddVisitsUseCases()`.
+- **Persistence:** `Queries/ReceptionQueueQueries` — ONE statement (today's appointments LEFT JOIN queue rows
+  UNION ALL walk-ins), half-open UTC range `[start,end)`, no SQL date function. `Queries/TriageQueries` — doctor
+  rail counts in one projection, booked-for-doctor, top-50 recent patients. `Seed/ReceptionSampleData`
+  (`reception.sample`) behind `SeedSampleData`.
+- **Client services:** `Reception/ReceptionQueueService` + `ReceptionMapping`, `Visits/VisitsTriageService` +
+  `VisitsMapping` + `VisitTypeCatalog` (static, from `AppointmentTypeCatalog`; `GetVisitTypes()` stays synchronous).
+  Enum mapping by name, never numeric cast.
+- **Wire/Domain:** `CommandTypes` += 7 (`reception.ticket.admit/enter/leave/noshow/urgent`,
+  `reception.walkin.create`, `visits.visit.start`). `ErrorCodes` += 4 (`TICKET_NOT_FOUND`, `TICKET_STATE_INVALID`,
+  `WALKIN_PHONE_REQUIRED`, `DOCTOR_NOT_AVAILABLE`).
+- **Desktop:** 2 DI swaps + 2 registration calls in `App.axaml.cs`; `IStoreReadinessGate.WaitAsync()` as the first
+  load step of `ReceptionPageViewModel` and `VisitsTriagePageViewModel`. **Mocks deleted:
+  `MockReceptionQueueService.cs`, `MockVisitsTriageService.cs`.** No `.axaml` change.
+- **Tests:** `Application.Tests/ReceptionQueueUseCaseTests` (lazy single row, repeated admit → state invalid,
+  walk-in owner reuse, no-show on appointment, permissions), `Application.Tests/VisitsTriageUseCaseTests`
+  (start-from-ticket twice → one visit, deterministic OperationId, doctor-rail booked counts over a real store),
+  `Persistence.Tests/ReceptionQueueQueryTests` (no duplicate ticket, one UNION ALL SELECT, no date function);
+  shared doubles in `Application.Tests/ReceptionTestDoubles.cs`.
 
 ### C01 — Patients & Owners on the real local DB; the Track C pattern (2026-09-27)
 - **THE C01 PATTERN (cited by C02–C10 as "the C01 pattern"):** (1) use cases in
@@ -1393,6 +1427,22 @@ Decision:   what was done instead
 Rule check: which A-RULE / T-RULE / CONVENTIONS § was consulted and why this complies
 Impact:     phases affected + what a later session must know
 ```
+
+### C02 — paths, permissions, no-show modeling, gate scope            (date: 2026-09-27)
+Context:    The phase file places `OperationIdFactory` under `Commands/`, cites permissions `reception.queue.manage` /
+            `visits.encounter.edit`, and `QueueState` has no `NoShow` member. The user's locked directive forbids
+            long/heavy builds and test runs.
+Decision:   (1) `Deterministic(seed)` added at the real path `Application/Correlation/OperationIdFactory.cs`.
+            (2) Reused existing `PermissionCodes.ReceptionManage` (6 reception commands) and `VisitsWrite` (2 start-
+            visit commands) — no new permission strings (would need role seeding). (3) No-show lives on the
+            `Appointment` (`MarkNoShow`); an existing Waiting/Called queue row is `MarkLeft`; the projection reports
+            `NoShow` from the appointment state; a walk-in "no-show" is just `MarkLeft`. (4) `TriagePatientsQuery`
+            orders by last `Visit.StartedUtc` desc (null last) then pet id. (5) Gate: `build.sh full` = 0/0 plus the
+            C02-filtered tests only; whole-suite `test.sh` and `run.sh` smoke not run per the user directive.
+Rule check: CONVENTIONS §4 (errors are codes), §5/PERFORMANCE §6 (one statement, UTC range, no N+1), §10 (mocks
+            retired in-phase). Domain gained no member.
+Impact:     C03 continues from the `InProgress` visit C02 starts. A later session may run `test.sh`/`run.sh` to
+            re-confirm the smoke; the pre-existing B04-Security test failures (C01 closeout) still apply.
 
 ### C01 closeout — first real build/test/smoke; 4 latent defects fixed            (date: 2026-09-27)
 Context:    C01 was authored and merged (up to `767659d`) without ever compiling — no .NET SDK was present in the

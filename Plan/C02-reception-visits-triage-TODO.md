@@ -357,7 +357,7 @@ request; start-visit is **idempotent** (deterministic `OperationId`).
     VisitsTriage"`), not the whole suite.
   - **PUSH:** `test(reception): C02 reception + triage + query tests`
 
-- [ ] **T12 — Acceptance gate + PROGRESS.md update**
+- [x] **T12 — Acceptance gate + PROGRESS.md update**
   - Run the phase gate ONCE: `scripts/sandbox/build.sh full` (0/0), `scripts/sandbox/test.sh`
     (`TESTS OK`), `scripts/sandbox/run.sh` (`SMOKE RUN OK`). Fix anything that fails.
   - Update `backend-roadmap/PROGRESS.md`: mark C02 ✅ Done in the status table (row `| C02 |`), set
