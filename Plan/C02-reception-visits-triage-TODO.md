@@ -311,7 +311,7 @@ request; start-visit is **idempotent** (deterministic `OperationId`).
     appointments), booked-for-doctor rows, recently-seen patients. UTC-range day filter, no N+1.
   - **PUSH:** `feat(visits): C02 triage projections`
 
-- [ ] **T08 — Client services + mappings + visit-type catalog**
+- [x] **T08 — Client services + mappings + visit-type catalog**
   - `Client.Services/Visits/VisitTypeCatalog.cs`: static `IReadOnlyList<VisitTypeInfo>` built from
     `AppointmentTypeCatalog` (A05) — no DB/blocking.
   - `Client.Services/Reception/ReceptionMapping.cs`, `Client.Services/Visits/VisitsMapping.cs`:
