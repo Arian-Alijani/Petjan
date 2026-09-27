@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Reception;
+using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -13,6 +14,7 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
 {
     private const int PageSize = 8;
     private readonly IReceptionQueueService _queueService;
+    private readonly IStoreReadinessGate _readiness;
     private readonly IDialogService _dialog;
     private readonly IToastService _toast;
     private string _activeFilter = "all";
@@ -35,10 +37,12 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
 
     public ReceptionPageViewModel(
         IReceptionQueueService queueService,
+        IStoreReadinessGate readiness,
         IDialogService dialog,
         IToastService toast)
     {
         _queueService = queueService;
+        _readiness = readiness;
         _dialog = dialog;
         _toast = toast;
         Title = "پذیرش و صف امروز";
@@ -123,6 +127,7 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
         IsBusy = true;
         try
         {
+            await _readiness.WaitAsync();
             var tickets = await _queueService.GetQueueAsync();
             Queue.ReplaceAll(tickets);
 

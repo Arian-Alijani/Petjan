@@ -1,9 +1,13 @@
 using Animora.Application;
 using Animora.Application.UseCases.Identity;
 using Animora.Application.UseCases.Patients;
+using Animora.Application.UseCases.Reception;
+using Animora.Application.UseCases.Visits;
 using Animora.Client.Services.Diagnostics;
 using Animora.Client.Services.Identity;
 using Animora.Client.Services.Patients;
+using Animora.Client.Services.Reception;
+using Animora.Client.Services.Visits;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Boarding;
@@ -179,7 +183,7 @@ public partial class App : global::Avalonia.Application
 
         // B03c: real local store + application layer (identity use cases) behind the desktop seams.
         services.AddAnimoraLocalInfrastructure();
-        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases());
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddVisitsUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it
@@ -227,9 +231,8 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IDashboardQueryService, MockDashboardQueryService>();
         services.AddSingleton<DashboardPageViewModel>();
 
-        // Phase 07: stateful in-memory live queue. Singleton lifetime preserves
-        // mutations while navigating between Dashboard and Reception.
-        services.AddSingleton<IReceptionQueueService, MockReceptionQueueService>();
+        // C02: real reception queue; each call resolves a scoped dispatcher over the local store.
+        services.AddSingleton<IReceptionQueueService, ReceptionQueueService>();
         services.AddSingleton<ReceptionPageViewModel>();
 
         // Phase 08 / C01: Patients & Owners directory now runs on the real local SQLite store through the
@@ -247,9 +250,8 @@ public partial class App : global::Avalonia.Application
         services.AddTransient<OwnerSheetViewModel>();
         services.AddTransient<PetFileViewModel>();
 
-        // Phase 10: Visits triage gate (doctor rail + entry-mode workspace).
-        // Stateless deterministic mock, so a singleton suffices.
-        services.AddSingleton<IVisitsTriageService, MockVisitsTriageService>();
+        // C02: real triage gate, backed by the local store.
+        services.AddSingleton<IVisitsTriageService, VisitsTriageService>();
         services.AddSingleton<VisitsTriagePageViewModel>();
 
         // Phase 12: Vaccination screen (due/overdue list + catalog + SMS

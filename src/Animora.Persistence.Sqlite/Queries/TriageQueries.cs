@@ -1,0 +1,70 @@
+using Animora.Application.Ports;
+using Animora.Application.Text;
+using Animora.Application.UseCases.Visits.ReadModels;
+using Animora.Domain.Clinical;
+using Animora.Domain.Identity;
+using Animora.Domain.Patients;
+using Animora.Domain.Scheduling;
+using Animora.Persistence.Sqlite.Context;
+using Microsoft.EntityFrameworkCore;
+
+namespace Animora.Persistence.Sqlite.Queries;
+
+/// <summary>Bounded, tenant-filtered triage projections; doctor counts are computed in one SQL query.</summary>
+public sealed class TriageQueries(AnimoraLocalDbContext db) : ITriageQueries
+{
+    public async Task<IReadOnlyList<DoctorRailReadModel>> GetDoctorRailAsync(
+        DateTimeOffset startUtc, DateTimeOffset endUtc, CancellationToken ct)
+    {
+        var doctors = from membership in db.Set<StaffMembership>().AsNoTracking()
+                      where membership.Role == StaffRole.Doctor && membership.Status == MembershipStatus.Active
+                      join user in db.Set<User>().AsNoTracking() on membership.UserId equals user.Id
+                      orderby user.DisplayName, user.Id
+                      select new DoctorRailReadModel(user.Id, user.DisplayName, string.Empty,
+                          db.Set<Appointment>().Count(a => a.DoctorUserId == user.Id
+                              && a.StartUtc >= startUtc && a.StartUtc < endUtc
+                              && a.State != AppointmentState.Cancelled && a.State != AppointmentState.NoShow),
+                          db.Set<Visit>().Any(v => v.DoctorUserId == user.Id && v.State == VisitState.InProgress),
+                          null);
+        return await doctors.ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<BookedAppointmentReadModel>> GetBookedForDoctorAsync(
+        string doctorId, DateTimeOffset startUtc, DateTimeOffset endUtc, CancellationToken ct)
+    {
+        var booked = from appointment in db.Set<Appointment>().AsNoTracking()
+                     where appointment.DoctorUserId == doctorId
+                         && appointment.StartUtc >= startUtc && appointment.StartUtc < endUtc
+                         && appointment.State != AppointmentState.Cancelled
+                     join row in db.Set<ReceptionQueueEntry>().AsNoTracking()
+                         on appointment.Id equals row.AppointmentId into rows
+                     from queue in rows.DefaultIfEmpty()
+                     join pet in db.Set<Pet>().AsNoTracking() on appointment.PetId equals pet.Id
+                     join owner in db.Set<Owner>().AsNoTracking() on appointment.OwnerId equals owner.Id
+                     orderby appointment.StartUtc, appointment.Id
+                     select new BookedAppointmentReadModel("apt:" + appointment.Id,
+                         appointment.StartUtc.Hour * 60 + appointment.StartUtc.Minute,
+                         appointment.DurationMinutes, pet.Id, pet.Name, pet.Species.ToString(),
+                         owner.FullName, owner.PhonePrimary, appointment.AppointmentTypeCode,
+                         queue != null && queue.Priority > 0,
+                         queue == null ? "Waiting" : queue.State.ToString());
+        return await booked.ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<TriagePatientReadModel>> GetRecentPatientsAsync(string? search, CancellationToken ct)
+    {
+        var pets = db.Set<Pet>().AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = PersianText.Normalize(search);
+            pets = pets.Where(p => EF.Functions.Like(p.SearchKey, $"%{term}%"));
+        }
+        var recent = from pet in pets
+                     join owner in db.Set<Owner>().AsNoTracking() on pet.OwnerId equals owner.Id
+                     orderby db.Set<Visit>().Where(v => v.PetId == pet.Id)
+                         .Max(v => (DateTimeOffset?)v.StartedUtc) descending, pet.Id
+                     select new TriagePatientReadModel(pet.Id, pet.Name, pet.Species.ToString(),
+                         owner.Id, owner.FullName, owner.PhonePrimary);
+        return await recent.Take(50).ToListAsync(ct);
+    }
+}

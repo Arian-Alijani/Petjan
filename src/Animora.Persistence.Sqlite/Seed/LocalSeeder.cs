@@ -27,7 +27,8 @@ namespace Animora.Persistence.Sqlite.Seed;
 /// </remarks>
 public sealed class LocalSeeder(
     AnimoraLocalDbContext db, IUnitOfWork unitOfWork, ILocalTenantContext tenant, IClock clock,
-    ISeedPeriodCodeProvider periodCodes, PatientsSampleData sampleData, IOptions<LocalStoreOptions> storeOptions)
+    ISeedPeriodCodeProvider periodCodes, PatientsSampleData sampleData,
+    ReceptionSampleData receptionSampleData, IOptions<LocalStoreOptions> storeOptions)
 {
     public const string TenantKey = "identity.tenant";
     public const string PermissionsKey = "identity.permissions";
@@ -87,6 +88,12 @@ public sealed class LocalSeeder(
                 return Result.Ok();
             }, ct);
             if (sampled.IsFailure) return sampled;
+            var reception = await RunBlockAsync(ReceptionSampleData.SampleKey, () =>
+            {
+                if (!receptionSampleData.AlreadySeeded()) receptionSampleData.Populate();
+                return Result.Ok();
+            }, ct);
+            if (reception.IsFailure) return reception;
         }
         return Result.Ok();
 

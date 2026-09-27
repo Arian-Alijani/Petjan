@@ -70,6 +70,8 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IWeightEntryRepository, WeightEntryRepository>();
         // C01: projection reads backing the Patients directory + detail screens (Application port, impl here).
         services.TryAddScoped<IPatientDirectoryQueries, PatientDirectoryQueries>();
+        services.TryAddScoped<IReceptionQueueQueries, ReceptionQueueQueries>();
+        services.TryAddScoped<ITriageQueries, TriageQueries>();
         services.AddScoped<IVisitRepository, VisitRepository>();
         services.AddScoped<IVaccinationRepository, VaccinationRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
@@ -118,6 +120,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<LocalSeeder>();
         // C01: deterministic sample owners/pets, applied behind LocalStoreOptions.SeedSampleData.
         services.AddScoped<PatientsSampleData>();
+        services.AddScoped<ReceptionSampleData>();
 
         // Read helpers (A10d): one SQL aggregate each, no tracking, tenant-filtered.
         services.TryAddScoped<StockOnHandQuery>();

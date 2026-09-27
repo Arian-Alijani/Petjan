@@ -13,6 +13,13 @@ public sealed class PetRepository(AnimoraLocalDbContext db) : IPetRepository
     public async Task<Pet> RequireAsync(string id, CancellationToken ct = default) =>
         await FindAsync(id, ct) ?? throw new InvalidOperationException($"Pet {id} not found.");
 
+    public Task<Pet?> FindByOwnerAndNameAsync(string ownerId, string name, CancellationToken ct = default)
+    {
+        var trimmed = name.Trim();
+        return db.Set<Pet>().AsTracking()
+            .FirstOrDefaultAsync(e => e.OwnerId == ownerId && e.Name == trimmed, ct);
+    }
+
     public void Add(Pet entity) => db.Set<Pet>().Add(entity);
     public void AddRange(IEnumerable<Pet> entities) => db.Set<Pet>().AddRange(entities);
 }
