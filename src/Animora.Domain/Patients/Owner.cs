@@ -67,6 +67,10 @@ public sealed class Owner : AggregateRoot
     /// <summary>Why the client was blocked; kept for the audit trail.</summary>
     public string? BlockReason { get; private set; }
 
+    /// <summary>Persisted, normalized search index maintained by the persistence layer's ISearchKeyProvider
+    /// on every write (C01). Derived data — the domain never reads it and a merge never writes it.</summary>
+    public string SearchKey { get; set; } = string.Empty;
+
     /// <summary>Registers a new, unblocked owner.</summary>
     public static Owner Register(
         string tenantId,

@@ -51,7 +51,8 @@ public sealed class SeedingTests
             Assert.Equal(5, await db.Set<ProductCategory>().CountAsync());
             Assert.Equal(8, await db.Set<Room>().CountAsync());
             Assert.Equal(1, await db.Set<AccountingPeriod>().CountAsync());
-            Assert.Equal(8, await db.Set<SeedMarker>().CountAsync());
+            // 8 reference blocks + the C01 patients.sample block (SeedSampleData defaults true).
+            Assert.Equal(9, await db.Set<SeedMarker>().CountAsync());
 
             var period = await db.Set<AccountingPeriod>().SingleAsync();
             Assert.Equal(PeriodState.Open, period.State);

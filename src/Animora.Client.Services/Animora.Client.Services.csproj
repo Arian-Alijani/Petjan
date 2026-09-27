@@ -7,4 +7,9 @@
     <ProjectReference Include="..\Animora.Infrastructure.Local\Animora.Infrastructure.Local.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- C01: the hand-written read-model ↔ Contracts mapping is internal and unit-tested directly. -->
+    <InternalsVisibleTo Include="Animora.Application.Tests" />
+  </ItemGroup>
+
 </Project>

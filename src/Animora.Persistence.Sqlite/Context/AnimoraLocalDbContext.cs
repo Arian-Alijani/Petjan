@@ -1,10 +1,12 @@
 using Animora.Domain.Boarding;
 using Animora.Domain.Clinical;
 using Animora.Domain.Events;
+using Animora.Domain.Patients;
 using Animora.Domain.Primitives;
 using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Conventions;
 using Animora.Persistence.Sqlite.Entities;
+using Animora.Persistence.Sqlite.Search;
 using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Persistence.Sqlite.Context;
@@ -13,6 +15,9 @@ public sealed class AnimoraLocalDbContext(
     DbContextOptions<AnimoraLocalDbContext> options, ILocalTenantContext tenant, IClock clock) : DbContext(options)
 {
     internal string CurrentTenantId => tenant.TenantId;
+
+    private static readonly OwnerSearchKeyProvider OwnerSearchKeys = new();
+    private static readonly PetSearchKeyProvider PetSearchKeys = new();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -82,6 +87,12 @@ public sealed class AnimoraLocalDbContext(
         {
             if (entry.Entity.TenantId.Length == 0) entry.Entity.TenantId = tenant.TenantId;
             entry.Entity.UpdatedAt = now;
+            // C01: derived search index — recomputed on every write so a rename/probe is immediately searchable.
+            switch (entry.Entity)
+            {
+                case Owner owner: owner.SearchKey = OwnerSearchKeys.Build(owner); break;
+                case Pet pet: pet.SearchKey = PetSearchKeys.Build(pet); break;
+            }
         }
     }
 }

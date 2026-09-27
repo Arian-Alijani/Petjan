@@ -21,6 +21,10 @@ public sealed class LocalStoreOptions
     public int WalCheckpointPages { get; set; } = 1000;
     public int BackupRetentionCount { get; set; } = 5;
 
+    /// <summary>When true, first-run seeding also inserts realistic sample owners/pets so screens are
+    /// immediately testable (C01). A first-run-setup checkbox sets it; default true for a fresh install.</summary>
+    public bool SeedSampleData { get; set; } = true;
+
     /// <summary>Directory containing the database file.</summary>
     public string DataDirectory => Path.GetDirectoryName(Path.GetFullPath(DatabasePath))!;
 

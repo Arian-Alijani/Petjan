@@ -19,6 +19,12 @@ public static class PermissionCodes
     /// <summary>Create or edit patient and owner records.</summary>
     public const string PatientsWrite = "patients.write";
 
+    /// <summary>Create or edit an owner record (C01 granular owner-write code).</summary>
+    public const string PatientsOwnerEdit = "patients.owner.edit";
+
+    /// <summary>Create or edit a pet record and its weight history (C01 granular pet-write code).</summary>
+    public const string PatientsPetEdit = "patients.pet.edit";
+
     /// <summary>Operate the reception queue (check-in, triage order).</summary>
     public const string ReceptionManage = "reception.manage";
 
@@ -167,7 +173,7 @@ public static class PermissionCodes
 
     private static readonly string[] AllCodes =
     [
-        PatientsRead, PatientsWrite,
+        PatientsRead, PatientsWrite, PatientsOwnerEdit, PatientsPetEdit,
         ReceptionManage,
         VisitsRead, VisitsWrite, VisitsComplete,
         VaccinationRead, VaccinationWrite,

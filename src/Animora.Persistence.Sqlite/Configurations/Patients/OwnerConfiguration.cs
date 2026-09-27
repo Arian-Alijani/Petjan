@@ -9,7 +9,9 @@ public sealed class OwnerConfiguration : IEntityTypeConfiguration<Owner>
     public void Configure(EntityTypeBuilder<Owner> builder)
     {
         builder.HasKey(e => e.Id);
+        builder.Property(e => e.SearchKey).IsRequired();
         builder.HasIndex(e => new { e.TenantId, e.PhonePrimary }).HasDatabaseName("IX_Owners_TenantId_Phone");
         builder.HasIndex(e => new { e.TenantId, e.FullName }).HasDatabaseName("IX_Owners_TenantId_FullName");
+        builder.HasIndex(e => new { e.TenantId, e.SearchKey }).HasDatabaseName("IX_Owners_TenantId_SearchKey");
     }
 }

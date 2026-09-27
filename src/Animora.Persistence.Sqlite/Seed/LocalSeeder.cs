@@ -6,7 +6,9 @@ using Animora.Domain.Inventory;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Options;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Animora.Persistence.Sqlite.Seed;
 
@@ -25,7 +27,7 @@ namespace Animora.Persistence.Sqlite.Seed;
 /// </remarks>
 public sealed class LocalSeeder(
     AnimoraLocalDbContext db, IUnitOfWork unitOfWork, ILocalTenantContext tenant, IClock clock,
-    ISeedPeriodCodeProvider periodCodes)
+    ISeedPeriodCodeProvider periodCodes, PatientsSampleData sampleData, IOptions<LocalStoreOptions> storeOptions)
 {
     public const string TenantKey = "identity.tenant";
     public const string PermissionsKey = "identity.permissions";
@@ -73,6 +75,18 @@ public sealed class LocalSeeder(
         {
             var outcome = await RunBlockAsync(key, add, ct);
             if (outcome.IsFailure) return outcome;
+        }
+
+        // C01: optional, deterministic sample owners/pets so the Patients screens are testable on a fresh
+        // store. Behind LocalStoreOptions.SeedSampleData, in its own idempotent marker-guarded block.
+        if (storeOptions.Value.SeedSampleData)
+        {
+            var sampled = await RunBlockAsync(PatientsSampleData.SampleKey, () =>
+            {
+                if (!sampleData.AlreadySeeded()) sampleData.Populate();
+                return Result.Ok();
+            }, ct);
+            if (sampled.IsFailure) return sampled;
         }
         return Result.Ok();
 

@@ -2025,6 +2025,11 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.Property<long>("RegisteredUtc")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("SearchKey")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("TenantId")
                         .IsRequired()
                         .HasMaxLength(26)
@@ -2044,6 +2049,9 @@ namespace Animora.Persistence.Sqlite.Migrations
 
                     b.HasIndex("TenantId", "PhonePrimary")
                         .HasDatabaseName("IX_Owners_TenantId_Phone");
+
+                    b.HasIndex("TenantId", "SearchKey")
+                        .HasDatabaseName("IX_Owners_TenantId_SearchKey");
 
                     b.HasIndex("TenantId", "UpdatedAt")
                         .HasDatabaseName("IX_Owners_TenantId_UpdatedAt");
@@ -2105,6 +2113,11 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.Property<long>("RegisteredUtc")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("SearchKey")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Species")
                         .HasColumnType("INTEGER");
 
@@ -2130,6 +2143,9 @@ namespace Animora.Persistence.Sqlite.Migrations
 
                     b.HasIndex("TenantId", "OwnerId")
                         .HasDatabaseName("IX_Pets_TenantId_OwnerId");
+
+                    b.HasIndex("TenantId", "SearchKey")
+                        .HasDatabaseName("IX_Pets_TenantId_SearchKey");
 
                     b.HasIndex("TenantId", "UpdatedAt")
                         .HasDatabaseName("IX_Pets_TenantId_UpdatedAt");

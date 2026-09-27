@@ -172,6 +172,18 @@ public static class ErrorCodes
     public static readonly ErrorCode VaccineDoseInvalid =
         new("VACCINE_DOSE_INVALID", ErrorCode.Validation);
 
+    /// <summary>The addressed owner does not exist or is not visible to this tenant (C01).</summary>
+    public static readonly ErrorCode OwnerNotFound = new("OWNER_NOT_FOUND", ErrorCode.NotFound);
+
+    /// <summary>The addressed pet does not exist or is not visible to this tenant (C01).</summary>
+    public static readonly ErrorCode PetNotFound = new("PET_NOT_FOUND", ErrorCode.NotFound);
+
+    /// <summary>The owner still has active pets, so the requested change is refused (C01).</summary>
+    public static readonly ErrorCode OwnerHasActivePets = new("OWNER_HAS_ACTIVE_PETS", ErrorCode.Conflict);
+
+    /// <summary>The weight measurement is missing, non-positive or otherwise not a valid reading (C01).</summary>
+    public static readonly ErrorCode WeightEntryInvalid = new("WEIGHT_ENTRY_INVALID", ErrorCode.Validation);
+
     #endregion
 
     #region Scheduling & Boarding (Phase A05)
