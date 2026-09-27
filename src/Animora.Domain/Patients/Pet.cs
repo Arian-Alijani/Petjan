@@ -110,6 +110,10 @@ public sealed class Pet : AggregateRoot
     /// <summary>When the patient was registered, UTC.</summary>
     public DateTimeOffset RegisteredUtc { get; private set; }
 
+    /// <summary>Persisted, normalized search index maintained by the persistence layer's ISearchKeyProvider
+    /// on every write (C01). Derived data — the domain never reads it and a merge never writes it.</summary>
+    public string SearchKey { get; set; } = string.Empty;
+
     /// <summary>
     /// Registers an active patient and raises <see cref="PetRegisteredEvent"/> so A10 can append the
     /// opening medical-history entry.

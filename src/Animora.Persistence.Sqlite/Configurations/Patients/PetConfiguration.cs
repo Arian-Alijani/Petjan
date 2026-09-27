@@ -9,7 +9,9 @@ public sealed class PetConfiguration : IEntityTypeConfiguration<Pet>
     public void Configure(EntityTypeBuilder<Pet> builder)
     {
         builder.HasKey(e => e.Id);
+        builder.Property(e => e.SearchKey).IsRequired();
         builder.HasIndex(e => new { e.TenantId, e.OwnerId }).HasDatabaseName("IX_Pets_TenantId_OwnerId");
         builder.HasIndex(e => new { e.TenantId, e.Name }).HasDatabaseName("IX_Pets_TenantId_Name");
+        builder.HasIndex(e => new { e.TenantId, e.SearchKey }).HasDatabaseName("IX_Pets_TenantId_SearchKey");
     }
 }
