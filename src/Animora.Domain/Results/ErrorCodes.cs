@@ -212,6 +212,22 @@ public static class ErrorCodes
     public static readonly ErrorCode QueueInvalidTransition =
         new("QUEUE_INVALID_TRANSITION", ErrorCode.Conflict);
 
+    /// <summary>A reception queue ticket id could not be parsed or resolves to no ticket (C02).</summary>
+    public static readonly ErrorCode TicketNotFound =
+        new("TICKET_NOT_FOUND", ErrorCode.NotFound);
+
+    /// <summary>The requested ticket transition is not legal from the ticket's current state (C02).</summary>
+    public static readonly ErrorCode TicketStateInvalid =
+        new("TICKET_STATE_INVALID", ErrorCode.Conflict);
+
+    /// <summary>A walk-in registration was submitted without the required contact phone (C02).</summary>
+    public static readonly ErrorCode WalkInPhoneRequired =
+        new("WALKIN_PHONE_REQUIRED", ErrorCode.Validation);
+
+    /// <summary>The addressed doctor is not an active staff member available for this action (C02).</summary>
+    public static readonly ErrorCode DoctorNotAvailable =
+        new("DOCTOR_NOT_AVAILABLE", ErrorCode.Conflict);
+
     /// <summary>The room is retired or otherwise not available for the requested action.</summary>
     public static readonly ErrorCode RoomUnavailable =
         new("ROOM_UNAVAILABLE", ErrorCode.Conflict);
