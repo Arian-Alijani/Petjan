@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Visits;
+using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -20,6 +21,7 @@ namespace Animora.Desktop.Pages.Visits;
 public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 {
     private readonly IVisitsTriageService _service;
+    private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
     private readonly INavigationService _navigation;
 
@@ -69,10 +71,12 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 
     public VisitsTriagePageViewModel(
         IVisitsTriageService service,
+        IStoreReadinessGate readiness,
         IToastService toast,
         INavigationService navigation)
     {
         _service = service;
+        _readiness = readiness;
         _toast = toast;
         _navigation = navigation;
         Title = "ویزیت و پرونده پزشکی";
@@ -143,6 +147,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 
     private async Task LoadAsync()
     {
+        await _readiness.WaitAsync();
         var doctors = await _service.GetDoctorsAsync();
         Doctors.Clear();
         foreach (var doctor in doctors)

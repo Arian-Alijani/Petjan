@@ -333,7 +333,7 @@ request; start-visit is **idempotent** (deterministic `OperationId`).
     `SampleKey="reception.sample"`).
   - **PUSH:** `feat(reception): C02 deterministic sample tickets + doctors`
 
-- [ ] **T10 — DI wiring + query-port registration + ViewModel gates + delete mocks**
+- [x] **T10 — DI wiring + query-port registration + ViewModel gates + delete mocks**
   - `App.axaml.cs`: line 182 add `.AddReceptionUseCases().AddVisitsUseCases()`; line 232 swap to
     `ReceptionQueueService`; line 252 swap to `VisitsTriageService`; add usings.
   - `LocalStoreServiceCollectionExtensions.cs`: register `IReceptionQueueQueries`/`ITriageQueries`.

@@ -70,6 +70,8 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IWeightEntryRepository, WeightEntryRepository>();
         // C01: projection reads backing the Patients directory + detail screens (Application port, impl here).
         services.TryAddScoped<IPatientDirectoryQueries, PatientDirectoryQueries>();
+        services.TryAddScoped<IReceptionQueueQueries, ReceptionQueueQueries>();
+        services.TryAddScoped<ITriageQueries, TriageQueries>();
         services.AddScoped<IVisitRepository, VisitRepository>();
         services.AddScoped<IVaccinationRepository, VaccinationRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
