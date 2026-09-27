@@ -19,6 +19,8 @@
     <!-- B03c: real LocalSessionService / hasher and a file-backed SQLite store for the identity tests. -->
     <ProjectReference Include="..\..\src\Animora.Infrastructure.Local\Animora.Infrastructure.Local.csproj" />
     <ProjectReference Include="..\..\src\Animora.Persistence.Sqlite\Animora.Persistence.Sqlite.csproj" />
+    <!-- C01: PatientsService/PatientsMapping (the C01 wiring pattern) are exercised from here. -->
+    <ProjectReference Include="..\..\src\Animora.Client.Services\Animora.Client.Services.csproj" />
     <ProjectReference Include="..\Animora.Persistence.Tests\Animora.Persistence.Tests.csproj" />
   </ItemGroup>
 
