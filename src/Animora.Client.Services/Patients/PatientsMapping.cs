@@ -50,10 +50,11 @@ internal static class PatientsMapping
         return i < 0 ? (full, "") : (full[..i], full[(i + 1)..]);
     }
 
-    /// <summary>Splits a comma/newline separated clinical note into a trimmed, non-empty list.</summary>
+    /// <summary>Splits a comma/newline separated clinical note into a trimmed, non-empty list.
+    /// Accepts both the Latin comma ',' and the Persian comma '،' (U+060C) as separators.</summary>
     private static IReadOnlyList<string> Split(string? notes) => string.IsNullOrWhiteSpace(notes)
         ? []
-        : notes.Split([',', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        : notes.Split([',', '،', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     /// <summary>Stable, id-derived avatar tone (sum of char codes mod 6) so the UI colour is reproducible.</summary>
     private static PatientAvatarTone Tone(string id)

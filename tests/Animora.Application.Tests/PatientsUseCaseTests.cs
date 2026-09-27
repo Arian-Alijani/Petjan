@@ -1,8 +1,12 @@
 using System;
 using System.Threading.Tasks;
+using System.Reflection;
+using Animora.Application.Abstractions;
 using Animora.Application.Ports;
+using Animora.Application.Security;
 using Animora.Application.UseCases.Patients;
 using Animora.Contracts.Wire.Commands;
+using Animora.Domain.Identity;
 using Animora.Domain.Patients;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
@@ -154,6 +158,30 @@ public sealed class PatientsUseCaseTests
 
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorCodes.PetNotFound, result.Error);
+    }
+
+    [Theory]
+    [InlineData(typeof(CreatePetCommand))]
+    [InlineData(typeof(UpdatePetInfoCommand))]
+    [InlineData(typeof(AddWeightEntryCommand))]
+    public void PetMutations_RequireThePatientsPetEditPermission_SoALackingUserIsDenied(Type command)
+    {
+        // Enforcement is the [RequiresPermission] the dispatcher reads once at registration; the generic
+        // deny path (subject without the code ⇒ PERMISSION_DENIED, handler skipped) is proven end-to-end in
+        // AuthorizationGateTests. Here we lock the code each pet mutation demands.
+        var attribute = command.GetCustomAttribute<RequiresPermissionAttribute>();
+        Assert.NotNull(attribute);
+        Assert.Equal(PermissionCodes.PatientsPetEdit, attribute!.PermissionCode);
+    }
+
+    [Theory]
+    [InlineData(typeof(CreateOwnerCommand))]
+    [InlineData(typeof(UpdateOwnerCommand))]
+    public void OwnerMutations_RequireThePatientsOwnerEditPermission(Type command)
+    {
+        var attribute = command.GetCustomAttribute<RequiresPermissionAttribute>();
+        Assert.NotNull(attribute);
+        Assert.Equal(PermissionCodes.PatientsOwnerEdit, attribute!.PermissionCode);
     }
 
     [Fact]

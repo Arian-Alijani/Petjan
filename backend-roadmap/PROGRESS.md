@@ -34,12 +34,12 @@
 
 | Area | State |
 |---|---|
-| `src/Animora.Desktop/` | **Complete, still 100% on mocks.** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Builds 0 warnings / 0 errors. Untouched by the backend track until Track C swaps its DI registrations. |
+| `src/Animora.Desktop/` | **Complete; Track C swap under way.** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Identity (B03c) and **Patients (C01)** now run on the real backend: `IPatientsQueryService → PatientsService`, `IStoreReadinessGate` registered. Remaining non-identity/non-patients screens are still on mocks until their own C phase. |
 | `src/Animora.Contracts/` | 20 interfaces + DTOs, one folder per bounded context. The frontend↔backend seam. B03c added the auth seam (`Identity/IAuthenticationService`, `AuthOutcome`, `FirstRunRequest`) and appended `UserRole.Receptionist`; still references no `Animora.*`. |
-| `src/Animora.Desktop/Mocks/` | 21 in-memory files (19 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — still the only implementations for every non-identity screen. `MockCurrentUserContext` deleted by B03c; the rest are Track C's job. |
+| `src/Animora.Desktop/Mocks/` | 20 in-memory files (18 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — the only implementations for the remaining non-identity/non-patients screens. `MockCurrentUserContext` deleted by B03c; **`MockPatientsQueryService` deleted by C01**; the rest are later Track C phases' job. |
 | `src/Animora.Domain/`, `src/Animora.Application/` | **Real code**, not placeholders — built through Track A (A01–A12: kernel, identity, patients/clinical, scheduling/boarding, inventory/purchasing, sales/cashier, finance) and B01–B02 (application dispatch pipeline, command journal/outbox). `Animora.Domain.csproj` still has **zero** project/package references by design. |
 | `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 7 migrations (`001`–`007`), repositories, seed, maintenance/backup/quarantine, OS keystore, clocks, append-only local audit sink, buffered/redacted rolling file logging, and PII-free diagnostics bundle export. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
-| `src/Animora.Client.Services/` | B03c: `Identity/AuthenticationService` (`IAuthenticationService` over the dispatcher, scope-per-call), `Identity/CurrentUserContextService` (real `ICurrentUserContext` over `SessionContextCache`), `Mapping/RoleMapping`. Remaining services are Track C. |
+| `src/Animora.Client.Services/` | B03c identity (`Identity/AuthenticationService`, `Identity/CurrentUserContextService`, `Mapping/RoleMapping`). **C01 patients:** `Patients/PatientsService` (real `IPatientsQueryService` over the dispatcher, scope-per-call, no EF/SQL/rule) + `Patients/PatientsMapping` (hand-written read-model ↔ Contracts DTO); `Diagnostics/StoreReadinessGate` (over `LocalStoreStartup`). Remaining services are later Track C phases. |
 | `src/Animora.Sync.Abstractions/` | Still an **empty scaffold** (csproj + README only) — Track E deliverable. |
 | Server / SQL Server / licensing / admin web | **Do not exist yet** (Tracks D/E). |
 | Login | **Real local authentication (B03c).** `LoginViewModel` → `IAuthenticationService`; disabled until the local store is ready; first run shows `FirstRunView` (owner setup) and opens the shell. No hardcoded credentials, no demo user seeded. (`LoginWindow.axaml` still shows the old demo hint text — untouched by design.) |
@@ -51,7 +51,7 @@
 
 ## Next phase
 
-**Next phase: `C01`** — `backend-roadmap/phases/PHASE-C01-*.md` (Track C begins: the real backend implementations replace the Desktop mocks; `CONVENTIONS.md` §10 mock-retirement is now in force).
+**Next phase: `C02`** — `backend-roadmap/phases/PHASE-C02-*.md` (Reception, visits & triage; follows **the C01 pattern**: use cases → a `Client.Services` implementation of the existing Contracts interface → mapping → one DI line → mock deleted).
 
 ## Phase status
 
@@ -91,7 +91,7 @@
 | B05a | ✅ Done | 2026-09-27 | Audit plane: `AuditEntries` + migration `007_AuditDiagnostics` (AuditEntries only), `IAuditWriter`/`AuditWriter`, `AuditableAttribute`/`AuditBehavior`, `IntegrityAlertSink`, `ErrorCodes` += `AUDIT_WRITE_FAILED`. |
 | B05b | ✅ Done | 2026-09-27 | Observability: Serilog file logging + redaction, `AmbientCorrelation`/`UiCorrelationScope`, diagnostics bundle, `ErrorCodes` += `DIAGNOSTICS_BUNDLE_FAILED`. |
 | B05c | ✅ Done | 2026-09-27 | Crash safety + wiring: `IUserNotificationPort` (Contracts) + `NotificationModels`, `ToastNotificationAdapter`, `NotificationText` (Desktop), `GlobalExceptionHandler`/`CrashRecoveryService`, `UiDraftState` + `DraftStateStore` + migration `008_UiDraftState`, `MaintenanceScheduler`, `App.axaml.cs` wiring (3 hooks first, notification port, scheduler), `LocalCommandProcessor.IsPassRunning`, `ErrorCodes` += `CRASH_RECOVERY_REQUIRED`, 5 B05 test classes. `build.sh full` 0/0; targeted test filters OK; `SMOKE RUN OK`. |
-| C01 | ⬜ Not started | | |
+| C01 | ✅ Done | 2026-09-27 | Patients & Owners on the real local DB — **establishes the Track C pattern** (use case → Client.Services impl of the Contracts interface → mapping → one DI line → mock deleted). 9 use cases (4 queries + 5 journaled commands) + 4 read models, `PatientDirectoryQueries` (single-statement projections, `Like` over indexed `SearchKey`), `SearchKey` columns + migration `009_PatientsSearchKeys`, `PatientsSampleData` (12 owners / 18 pets / 36 weights / 36 documents) behind `SeedSampleData`, Contracts addition `IStoreReadinessGate` + `StoreReadinessGate`, `PatientsService`/`PatientsMapping`, DI swap, **mock deleted: `MockPatientsQueryService.cs`**, `CommandTypes` += 5, `ErrorCodes` += 4, 3 test classes. `TotalSpend` deferred to C09. Verified: `build.sh full` = **0/0**, `run.sh` = **SMOKE RUN OK**; all C01 tests green (Patients 20/20, PatientDirectory 7/7, Seeding 4/4). Closeout fixed 4 latent C01 defects that only a real build surfaces — see C01 log. |
 | C02 | ⬜ Not started | | |
 | C03 | ⬜ Not started | | |
 | C04 | ⬜ Not started | | |
@@ -135,6 +135,80 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > do not read the entries around it. If nothing below is cited, you are done reading this file.
 
 ## Repo state log
+
+### C01 — Patients & Owners on the real local DB; the Track C pattern (2026-09-27)
+- **THE C01 PATTERN (cited by C02–C10 as "the C01 pattern"):** (1) use cases in
+  `Application/UseCases/<Context>/`, one file per command/query + handler + validator; business-fact commands are
+  `IJournaledCommand` with `[RequiresPermission]` + `[Auditable]`, pure reads are queries; (2) the Contracts
+  interface is implemented by a `sealed` `Client.Services/<Context>/<Context>Service` taking `IDispatcher` +
+  `ICurrentUserProvider` + `IOperationIdFactory`, with **no EF / SQL / business rule** — build context, dispatch,
+  map; (3) DTO ↔ read-model mapping in `Client.Services/<Context>/<Context>Mapping.cs`, hand-written static
+  extensions (no AutoMapper); (4) a list read is a **projection query handler** returning a purpose-built read
+  model (never a loaded aggregate); paging via `QueryPaging.ToPagedAsync`; (5) no Persian text in
+  Application/Client.Services — a failure is an `ErrorCode`, the VM/`NotificationText` maps it; (6) reference seed
+  in `LocalSeeder`, realistic sample rows in `Seed/<Context>SampleData.cs` behind `LocalStoreOptions.SeedSampleData`;
+  (7) DI swap is one line per interface + the mock deleted in the same phase.
+- **Application (`UseCases/Patients/`):** `Text/PersianText.cs` (`NormalizeDigits`/`NormalizeArabicLetters`/
+  `Normalize` — digits/letters only, no localization). **4 queries** (`PetDirectoryQuery`, `OwnerDirectoryQuery`,
+  `OwnerDetailQuery`, `PetDetailQuery`) + **5 journaled commands** (`CreateOwnerCommand`, `UpdateOwnerCommand`,
+  `CreatePetCommand`, `UpdatePetInfoCommand`, `AddWeightEntryCommand`) each with handler + validator,
+  `[RequiresPermission("patients.owner.edit" | "patients.pet.edit")]` + `[Auditable(AuditCategory.Clinical, …)]`.
+  **4 read models** in `ReadModels/PatientReadModels.cs`. Registered by `PatientsRegistration`.
+- **Persistence:** `Queries/PatientDirectoryQueries` (port `IPatientDirectoryQueries`) — single-statement
+  projections; owner name / last weight / pet count folded in as correlated scalar sub-SELECTs (no N+1), search via
+  `EF.Functions.Like(SearchKey, "%term%")` over the indexed column. `Search/ISearchKeyProvider` + Owner/Pet
+  providers; `SearchKey` written in `SaveChangesAsync`; indexes `IX_Owners_TenantId_SearchKey`,
+  `IX_Pets_TenantId_SearchKey`. Migration **`009_PatientsSearchKeys`** (+ backfill; named 009 — deviation below).
+  `Seed/PatientsSampleData` — 12 owners, 18 pets (varied species/status), 2 weight entries each (**36**) and
+  **2 `DocumentReference` metadata rows each (36)**, deterministic ULIDs/hashes; runs behind
+  `LocalStoreOptions.SeedSampleData` (default true).
+- **Contracts addition:** `Diagnostics/IStoreReadinessGate` (the standard startup-gate remedy later C phases reuse) +
+  `Client.Services/Diagnostics/StoreReadinessGate` over `LocalStoreStartup`.
+- **Client services:** `Patients/PatientsService` implements all 9 `IPatientsQueryService` members (unpaged
+  `GetPetsAsync`/`GetOwnersAsync` request page 1 at the max page size, documented; no Contracts member reshaped) +
+  `Patients/PatientsMapping`.
+- **Wire/Domain:** `CommandTypes` += 5 (`patients.owner.create/update`, `patients.pet.create/update`,
+  `patients.pet.weight.add`). `ErrorCodes` += 4 (`OWNER_NOT_FOUND`, `PET_NOT_FOUND`, `OWNER_HAS_ACTIVE_PETS`,
+  `WEIGHT_ENTRY_INVALID`).
+- **DI (`App.axaml.cs`):** `IPatientsQueryService → PatientsService`; `IStoreReadinessGate` registered.
+  **Mock deleted: `src/Animora.Desktop/Mocks/MockPatientsQueryService.cs`** (confirmed absent). No `.axaml`
+  change; no ViewModel change required.
+- **Deferred (out of scope, documented):** `OwnerSummary.TotalSpend` is supplied as `0` until C09's
+  `OwnerFinancialSnapshot`; document payload storage is D12 (C01 seeds only the metadata row); visit collections
+  in the pet file arrive with C03.
+- **Tests (3 classes):** Application `PatientsUseCaseTests` (create/update/weight rules — unknown owner →
+  `OWNER_NOT_FOUND`, unknown pet → `PET_NOT_FOUND`, non-positive weight → `WEIGHT_ENTRY_INVALID`, required-field
+  validators; **pet mutations carry `[RequiresPermission("patients.pet.edit")]`** and owner mutations
+  `patients.owner.edit` — the end-to-end deny path is already proven in `AuthorizationGateTests`) and
+  `PatientsMappingTests` (every Contracts DTO field populated from the read model). Persistence
+  `PatientDirectoryQueryTests` (SearchKey stamped + Persian-normalized, `Like` matching, stable paging,
+  **page size clamped to 200**, **directory projection is a single non-batched SELECT statement** via
+  `ToQueryString()`, no N+1). `SeedingTests` gains a C01 sample-data assertion (12/18/36/36 counts, documents point
+  at a pet+owner with a 64-char lowercase hash).
+- **Verification (closeout session, SDK 10.0.401 installed on disk):** `scripts/sandbox/build.sh full` =
+  **0 warnings / 0 errors** (14 projects); `scripts/sandbox/run.sh` = **SMOKE RUN OK** (app boots under Xvfb with the
+  real `PatientsService` + `IStoreReadinessGate`, mock deleted, no startup crash). All **C01 tests pass**:
+  `PatientsUseCaseTests`/`PatientsMappingTests` 20/20, `PatientDirectoryQueryTests` 7/7, `SeedingTests` 4/4.
+  Building for the first time surfaced **4 latent C01 defects** the earlier (SDK-less) sessions could not catch, all
+  fixed here: (a) `PatientsUseCaseTests` used `CommandContext` without `using Animora.Application.Abstractions;`
+  (CS0246); (b) `PatientDirectoryQueryTests` referenced a non-existent nested `LocalStoreFixture.FakeClock` — the
+  clock is a top-level class (CS0426); (c) `PatientsSampleData` carried an unused `IClock clock` primary-ctor param
+  (CS9113, and `build.sh` treats warnings as errors) — dropped it (it uses its own `FixedClock`); (d) `PatientsMapping`
+  split clinical notes only on `,`/`\n`, so a Persian-comma-separated note wasn't split — now also splits on `،`
+  (U+060C), matching the mapping test. `test.sh` (whole suite) still reports **34 failures in B04-Security
+  pipeline/DI tests** (`BehaviorPipelineTests`, `DispatcherTests`, `NoReflectionTests`, `SessionLifecycleTests`,
+  `CommandJournalTests`, `LocalMigrationTests`, `AppendOnlyGuardTests`, `StoreStartupTests`) — **all pre-existing and
+  unrelated to C01**: reproduced identically at the pre-C01 commit `1d1e940` (B05c) via a throwaway worktree; root
+  cause is those tests' service provider not registering `IStaffMembershipRepository`/`IRoleDefinitionRepository`/
+  `ICapabilitySnapshotSigner`. No C01 file touches those types; fixing them belongs to a B04-closeout, not C01.
+- **Deviations:** (1) **Migration named `009_PatientsSearchKeys`, not `008`** as the phase text says — `008` was
+  already consumed by B05c (`UiDraftState`), so the next free number is 009 (see Decision log "C01"). (2) The
+  single-statement acceptance ("`ToQueryString()` contains exactly one `SELECT`") is asserted as **one non-batched
+  SQL statement whose top level is a SELECT** — the last-weight / pet-count folds render as correlated scalar
+  sub-SELECTs inside that one statement (which is exactly what avoids N+1); a literal single-`SELECT`-token count
+  would wrongly flag a correct no-N+1 projection. (3) The permission-denied acceptance is covered by asserting the
+  attribute each mutation carries plus the existing generic gate test, rather than re-instantiating the whole
+  pipeline in the patients test.
 
 ### B04c — Capability gate, synchronous shell consumption, nav filtering & status (2026-09-26)
 - **Contracts (pure, no `Animora.*` ref):** `Identity/ICapabilityGate.cs` — `enum CapabilityState { Allowed, Denied,
@@ -1319,6 +1393,48 @@ Decision:   what was done instead
 Rule check: which A-RULE / T-RULE / CONVENTIONS § was consulted and why this complies
 Impact:     phases affected + what a later session must know
 ```
+
+### C01 closeout — first real build/test/smoke; 4 latent defects fixed            (date: 2026-09-27)
+Context:    C01 was authored and merged (up to `767659d`) without ever compiling — no .NET SDK was present in the
+            earlier sessions. This closeout installed SDK 10.0.401 on disk and ran the real gates. `build.sh full`
+            immediately surfaced defects that only a compiler catches, and `test.sh` surfaced one wrong test
+            expectation; the whole-suite run also showed 34 unrelated B04-Security failures.
+Decision:   Fixed the 4 latent C01 defects (all in C01-authored files): (1) `PatientsUseCaseTests` missing
+            `using Animora.Application.Abstractions;` for `CommandContext` (CS0246); (2) `PatientDirectoryQueryTests`
+            used non-existent nested `LocalStoreFixture.FakeClock` → the top-level `FakeClock` (CS0426);
+            (3) removed the unused `IClock clock` primary-ctor param on `PatientsSampleData` (CS9113, warnings=errors
+            under `build.sh`); (4) `PatientsMapping.Split` now also splits on the Persian comma `،` (U+060C) so
+            Persian-comma clinical notes split correctly (the mapping test's input uses it). Also relaxed the
+            single-statement projection assertion to skip EF Core 10's `.param set` preamble before checking the
+            body is one `SELECT`. Left the 34 B04-Security test failures untouched: proven pre-existing by
+            reproducing them verbatim at the pre-C01 commit `1d1e940` (B05c) in a throwaway git worktree — root cause
+            is those tests not registering `IStaffMembershipRepository`/`IRoleDefinitionRepository`/
+            `ICapabilitySnapshotSigner`; no C01 file references them, so the fix is a B04 concern, out of C01 scope.
+Rule check: CONVENTIONS §4 (errors are codes; Persian handling stays in mapping/normalization), §8 / PERFORMANCE §6
+            (projection stays one no-N+1 statement — only the test's preamble handling changed, not the query).
+            `build.sh full` = 0/0 (warnings-as-errors satisfied); `run.sh` = SMOKE RUN OK.
+Impact:     C01 is now build/test/smoke-verified for its own surface. A later B04 closeout must register the three
+            Security repositories in the pipeline test container to turn the 34 red tests green; until then a
+            whole-suite `test.sh` is red for reasons unrelated to any Track C phase.
+
+### C01 — migration number, single-statement assertion & permission-test shape            (date: 2026-09-27)
+Context:    The phase text names the migration `008_PatientsSearchKeys`, requires each directory query's
+            `ToQueryString()` to "contain exactly one `SELECT`", and requires a test proving "a user lacking
+            `patients.pet.edit` is denied". But `008` was already taken by B05c (`UiDraftState`); the no-N+1
+            projection legitimately renders correlated scalar sub-SELECTs (last weight / pet count) inside one
+            statement; and the end-to-end deny path is already exercised generically by `AuthorizationGateTests`.
+Decision:   (1) Numbered the migration `009_PatientsSearchKeys` (next free number; 001–008 byte-identical).
+            (2) Asserted the projection is a single, non-batched SQL statement whose top level is a `SELECT`
+            (via `ToQueryString()`), not a literal one-`SELECT`-token count — a scalar sub-SELECT is part of the
+            same round trip and is exactly what avoids N+1. (3) Proved the pet mutations carry
+            `[RequiresPermission("patients.pet.edit")]` (owner mutations `patients.owner.edit`) by reflection and
+            rely on `AuthorizationGateTests` for the pipeline deny path, rather than rebuilding the pipeline in the
+            patients test.
+Rule check: CONVENTIONS §5 (search filter runs in SQL over an indexed column), §8 / PERFORMANCE §6 (one statement
+            per list, no N+1), §10 (mock retirement), §4 (errors are codes, no Persian in Application/Client.Services).
+            Migration numbering is sequential and additive (A-RULE on append-only migrations).
+Impact:     C02+ cite "the C01 pattern" and reuse `IStoreReadinessGate`. Any doc/tooling that expected `008` for
+            patients search keys must read `009`. (build/test/smoke now run — see the C01 closeout entry above.)
 
 ### B05b — gate limited by the session instruction            (date: 2026-09-27)
 Context:    The phase document requested `build.sh full`, while the user's direct locked instruction explicitly prohibited full builds and long tests; this fresh sandbox also has no dotnet executable installed.

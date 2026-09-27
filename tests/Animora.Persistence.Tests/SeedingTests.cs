@@ -5,6 +5,7 @@ using Animora.Domain.Boarding;
 using Animora.Domain.Finance;
 using Animora.Domain.Identity;
 using Animora.Domain.Inventory;
+using Animora.Domain.Patients;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Seed;
 using Microsoft.EntityFrameworkCore;
@@ -84,6 +85,39 @@ public sealed class SeedingTests
             var accounts = await db.Set<LedgerAccount>().ToListAsync();
             Assert.NotEmpty(accounts);
             Assert.All(accounts, a => Assert.Equal(Tenant.LocalDefaultId, a.TenantId));
+        }
+    }
+
+    [Fact]
+    public async Task SampleData_SeedsTheC01OwnersPetsWeightsAndDocuments()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+
+        using (var scope = fixture.CreateScope())
+        {
+            Assert.True((await scope.ServiceProvider.GetRequiredService<LocalSeeder>().SeedAsync()).IsSuccess);
+        }
+
+        using (var scope = fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+
+            // Phase: 12 owners, 18 pets, weight histories and 2 documents each.
+            Assert.Equal(12, await db.Set<Owner>().CountAsync());
+            Assert.Equal(18, await db.Set<Pet>().CountAsync());
+            Assert.Equal(36, await db.Set<WeightEntry>().CountAsync());   // 2 per pet
+            Assert.Equal(36, await db.Set<DocumentReference>().CountAsync()); // 2 per pet
+
+            // Every seeded document points at a pet (and its owner) and carries a well-formed hash.
+            var docs = await db.Set<DocumentReference>().AsNoTracking().ToListAsync();
+            Assert.All(docs, d =>
+            {
+                Assert.False(string.IsNullOrWhiteSpace(d.PetId));
+                Assert.False(string.IsNullOrWhiteSpace(d.OwnerId));
+                Assert.Equal(64, d.ContentHashSha256.Length);
+                Assert.Equal(d.ContentHashSha256, d.ContentHashSha256.ToLowerInvariant());
+            });
         }
     }
 
