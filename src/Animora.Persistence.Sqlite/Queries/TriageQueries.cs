@@ -19,16 +19,14 @@ public sealed class TriageQueries(AnimoraLocalDbContext db) : ITriageQueries
         var doctors = from membership in db.Set<StaffMembership>().AsNoTracking()
                       where membership.Role == StaffRole.Doctor && membership.Status == MembershipStatus.Active
                       join user in db.Set<User>().AsNoTracking() on membership.UserId equals user.Id
+                      orderby user.DisplayName, user.Id
                       select new DoctorRailReadModel(user.Id, user.DisplayName, string.Empty,
                           db.Set<Appointment>().Count(a => a.DoctorUserId == user.Id
                               && a.StartUtc >= startUtc && a.StartUtc < endUtc
                               && a.State != AppointmentState.Cancelled && a.State != AppointmentState.NoShow),
                           db.Set<Visit>().Any(v => v.DoctorUserId == user.Id && v.State == VisitState.InProgress),
-                          db.Set<Appointment>().Where(a => a.DoctorUserId == user.Id
-                              && a.StartUtc >= startUtc && a.StartUtc < endUtc
-                              && a.State != AppointmentState.Cancelled && a.State != AppointmentState.NoShow)
-                              .Max(a => (int?)(a.StartUtc.Hour * 60 + a.StartUtc.Minute + a.DurationMinutes)));
-        return await doctors.OrderBy(d => d.Name).ThenBy(d => d.Id).ToListAsync(ct);
+                          null);
+        return await doctors.ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<BookedAppointmentReadModel>> GetBookedForDoctorAsync(

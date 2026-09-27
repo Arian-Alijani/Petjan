@@ -8,93 +8,67 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Persistence.Sqlite.Queries;
 
-/// <summary>
-/// C02 reception-queue projection. The queue is a <b>derived</b> view built in a single logical
-/// statement: today's appointments LEFT-JOINed to their (lazily-created) <c>ReceptionQueueEntry</c>
-/// row, then <c>Concat</c> (UNION ALL) the walk-in rows (no <c>AppointmentId</c>). The day filter is
-/// a UTC half-open range on an indexed timestamp — never a SQL date function, never a per-ticket
-/// round trip. Tenant/soft-delete filters are applied automatically by ModelConventions.
-/// </summary>
+/// <summary>One derived queue statement: appointment LEFT JOIN queue UNION ALL walk-ins.</summary>
 public sealed class ReceptionQueueQueries(AnimoraLocalDbContext db) : IReceptionQueueQueries
 {
     public async Task<IReadOnlyList<QueueTicketReadModel>> GetQueueAsync(
         DateTimeOffset startUtc, DateTimeOffset endUtc, CancellationToken ct)
     {
-        // Leg 1 — appointment-sourced tickets: today's appointments LEFT JOIN their queue row.
-        // State comes from the queue row when it exists, else the appointment maps to Waiting.
-        var fromAppointments =
-            from a in db.Set<Appointment>().AsNoTracking()
-            where a.StartUtc >= startUtc && a.StartUtc < endUtc
-                && a.State != AppointmentState.Cancelled
-            join qe in db.Set<ReceptionQueueEntry>().AsNoTracking()
-                on a.Id equals qe.AppointmentId into qej
-            from q in qej.DefaultIfEmpty()
-            join pet in db.Set<Pet>().AsNoTracking() on a.PetId equals pet.Id
-            join owner in db.Set<Owner>().AsNoTracking() on a.OwnerId equals owner.Id
-            select new QueueTicketReadModel(
-                "apt:" + a.Id,
-                "Appointment",
-                q == null
-                    ? (a.State == AppointmentState.NoShow ? "NoShow" : "Waiting")
-                    : q.State.ToString(),
-                q != null && q.Priority >= ReceptionQueueEntry.PriorityEmergency,
-                pet.Id,
-                pet.Name,
-                pet.Species.ToString(),
-                owner.Id,
-                owner.FullName,
-                owner.PhonePrimary,
-                a.DoctorUserId,
-                a.DoctorUserId == null
-                    ? null
-                    : db.Set<User>().Where(u => u.Id == a.DoctorUserId).Select(u => u.DisplayName).FirstOrDefault(),
-                null, // DoctorSpecialty: no domain source in C02 — mapping/display derives it.
-                q == null ? a.StartUtc : q.EnqueuedUtc,
-                a.DurationMinutes,
-                q == null ? 0 : q.TicketNumber);
-
-        // Leg 2 — walk-in tickets: queue rows with no appointment, enqueued in range.
-        var fromWalkIns =
-            from q in db.Set<ReceptionQueueEntry>().AsNoTracking()
-            where q.AppointmentId == null
-                && q.EnqueuedUtc >= startUtc && q.EnqueuedUtc < endUtc
-            join pet in db.Set<Pet>().AsNoTracking() on q.PetId equals pet.Id
-            join owner in db.Set<Owner>().AsNoTracking() on q.OwnerId equals owner.Id
-            select new QueueTicketReadModel(
-                "wlk:" + q.Id,
-                "WalkIn",
-                q.State.ToString(),
-                q.Priority >= ReceptionQueueEntry.PriorityEmergency,
-                pet.Id,
-                pet.Name,
-                pet.Species.ToString(),
-                owner.Id,
-                owner.FullName,
-                owner.PhonePrimary,
-                q.DoctorUserId,
-                q.DoctorUserId == null
-                    ? null
-                    : db.Set<User>().Where(u => u.Id == q.DoctorUserId).Select(u => u.DisplayName).FirstOrDefault(),
-                null,
-                q.EnqueuedUtc,
-                0,
-                q.TicketNumber);
-
-        var rows = await fromAppointments.Concat(fromWalkIns)
-            .OrderBy(t => t.ArrivalUtc).ThenBy(t => t.TicketId)
-            .ToListAsync(ct);
-        return rows;
+        // Keep both legs as SQL-only scalar projections until after Concat: enum.ToString() and
+        // record constructors in a leg force client evaluation before UNION ALL in EF Core.
+        var appointments =
+            from appointment in db.Set<Appointment>().AsNoTracking()
+            where appointment.StartUtc >= startUtc && appointment.StartUtc < endUtc
+                && appointment.State != AppointmentState.Cancelled
+            join entry in db.Set<ReceptionQueueEntry>().AsNoTracking()
+                on appointment.Id equals entry.AppointmentId into entries
+            from row in entries.DefaultIfEmpty()
+            join pet in db.Set<Pet>().AsNoTracking() on appointment.PetId equals pet.Id
+            join owner in db.Set<Owner>().AsNoTracking() on appointment.OwnerId equals owner.Id
+            select new
+            {
+                TicketId = "apt:" + appointment.Id, Source = 0,
+                State = row == null ? appointment.State == AppointmentState.NoShow ? 5 : 0 : (int)row.State,
+                Urgent = row != null && row.Priority > 0,
+                PetId = pet.Id, PetName = pet.Name, PetKind = pet.Species,
+                OwnerId = owner.Id, OwnerName = owner.FullName, OwnerPhone = owner.PhonePrimary,
+                DoctorId = appointment.DoctorUserId,
+                DoctorName = appointment.DoctorUserId == null ? null : db.Set<User>()
+                    .Where(u => u.Id == appointment.DoctorUserId).Select(u => u.DisplayName).FirstOrDefault(),
+                Arrival = row == null ? appointment.StartUtc : row.EnqueuedUtc,
+                Duration = appointment.DurationMinutes, Sequence = row == null ? 0 : row.TicketNumber,
+            };
+        var walkIns =
+            from row in db.Set<ReceptionQueueEntry>().AsNoTracking()
+            where row.AppointmentId == null && row.EnqueuedUtc >= startUtc && row.EnqueuedUtc < endUtc
+            join pet in db.Set<Pet>().AsNoTracking() on row.PetId equals pet.Id
+            join owner in db.Set<Owner>().AsNoTracking() on row.OwnerId equals owner.Id
+            select new
+            {
+                TicketId = "wlk:" + row.Id, Source = 1, State = (int)row.State,
+                Urgent = row.Priority > 0, PetId = pet.Id, PetName = pet.Name, PetKind = pet.Species,
+                OwnerId = owner.Id, OwnerName = owner.FullName, OwnerPhone = owner.PhonePrimary,
+                DoctorId = row.DoctorUserId,
+                DoctorName = row.DoctorUserId == null ? null : db.Set<User>()
+                    .Where(u => u.Id == row.DoctorUserId).Select(u => u.DisplayName).FirstOrDefault(),
+                Arrival = row.EnqueuedUtc, Duration = 0, Sequence = row.TicketNumber,
+            };
+        var rows = await appointments.Concat(walkIns).ToListAsync(ct);
+        return rows.OrderBy(r => r.Arrival).ThenBy(r => r.TicketId).Select(r =>
+            new QueueTicketReadModel(r.TicketId, r.Source == 0 ? "Appointment" : "WalkIn",
+                r.Source == 0 && r.State == 5 ? "NoShow" : ((QueueState)r.State).ToString(),
+                r.Urgent, r.PetId, r.PetName, r.PetKind.ToString(), r.OwnerId, r.OwnerName,
+                r.OwnerPhone, r.DoctorId, r.DoctorName, null, r.Arrival, r.Duration, r.Sequence))
+            .ToArray();
     }
 
     public async Task<IReadOnlyList<ReceptionDoctorReadModel>> GetDoctorsAsync(CancellationToken ct)
     {
-        var doctors =
-            from m in db.Set<StaffMembership>().AsNoTracking()
-            where m.Role == StaffRole.Doctor && m.Status == MembershipStatus.Active
-            join u in db.Set<User>().AsNoTracking() on m.UserId equals u.Id
-            orderby u.DisplayName, u.Id
-            select new ReceptionDoctorReadModel(u.Id, u.DisplayName, string.Empty);
-
+        var doctors = from membership in db.Set<StaffMembership>().AsNoTracking()
+                      where membership.Role == StaffRole.Doctor && membership.Status == MembershipStatus.Active
+                      join user in db.Set<User>().AsNoTracking() on membership.UserId equals user.Id
+                      orderby user.DisplayName, user.Id
+                      select new ReceptionDoctorReadModel(user.Id, user.DisplayName, string.Empty);
         return await doctors.ToListAsync(ct);
     }
 }
