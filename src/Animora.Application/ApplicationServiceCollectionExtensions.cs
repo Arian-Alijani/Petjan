@@ -48,8 +48,6 @@ public static class ApplicationServiceCollectionExtensions
         // Command-pipeline defaults: replaced by E06 (transport) and B05 (integrity sink).
         services.TryAddSingleton<ICommandTransport, NullCommandTransport>();
         services.TryAddSingleton<IIntegrityAlertSink, NullIntegrityAlertSink>();
-        // B05c replaces this placeholder with the desktop toast adapter.
-        services.TryAddSingleton<IUserNotificationPort, NullUserNotificationPort>();
 
         var builder = new ApplicationRegistrationBuilder(services);
         builder.AddQuery<PingQuery, string, PingQueryHandler>();

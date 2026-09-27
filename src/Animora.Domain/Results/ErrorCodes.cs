@@ -71,6 +71,10 @@ public static class ErrorCodes
     public static readonly ErrorCode DiagnosticsBundleFailed =
         new("DIAGNOSTICS_BUNDLE_FAILED", ErrorCode.Infrastructure);
 
+    /// <summary>A marked client crash requires local-store validation and lease recovery.</summary>
+    public static readonly ErrorCode CrashRecoveryRequired =
+        new("CRASH_RECOVERY_REQUIRED", ErrorCode.Infrastructure);
+
     /// <summary>An unclassified defect. Always logged with its exception.</summary>
     public static readonly ErrorCode Unexpected =
         new("UNEXPECTED", ErrorCode.Infrastructure);

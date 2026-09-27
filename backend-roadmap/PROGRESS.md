@@ -51,7 +51,7 @@
 
 ## Next phase
 
-**Next phase: `B05` (`B05c`)** — `backend-roadmap/phases/PHASE-B05c-*.md` (B05 is split into B05a→B05c; the parent `PHASE-B05-*.md` is an index only)
+**Next phase: `C01`** — `backend-roadmap/phases/PHASE-C01-*.md` (Track C begins: the real backend implementations replace the Desktop mocks; `CONVENTIONS.md` §10 mock-retirement is now in force).
 
 ## Phase status
 
@@ -87,10 +87,10 @@
 | B04a | ✅ Done | 2026-09-26 | Authorization plane: `PermissionEvaluator` (stored RBAC → 5 policies → 2 typed resource rules), `RequiresPermissionAttribute` read once at registration into `PipelineDescriptor`/`HandlerEntry`, scoped `PermissionAuthorizationGate` (allow-all deleted), `ErrorCodes` += `PERMISSION_UNKNOWN`. `build.sh full` 0/0. Tests not run (user directive; B04 tests are B04c). |
 | B04b | ✅ Done | 2026-09-26 | Offline capability: `DeviceCapabilitySnapshots` (`[LocalOnly]`, unique tenant/user/device) + migration `006_CapabilitySnapshot`, HMAC-SHA256 signer (keystore key), `CapabilityEvaluator`/`CapabilitySnapshotIssuer`/`CapabilityStore`, issuance in sign-in AND first-run UoW, `ErrorCodes` += 2. High window = 72h (policy authoritative). `build.sh full` 0/0. Tests not run (B04c). |
 | B04c | ✅ Done | 2026-09-26 | Gate seam: `ICapabilityGate` (Contracts) + singleton `CapabilityGateService` (bounded 256-entry cache, fail-closed, B04b reuse), `NavPermissions` (13 real keys), shell ViewModel filtering/status, DI (one singleton), AuthenticationService warm/clear. 31 targeted tests green; `build.sh full` 0/0. |
-| B05 | ⬜ Not started | | Split into B05a–B05c (index: `PHASE-B05-*.md`); done when B05c is done. |
+| B05 | ✅ Done | 2026-09-27 | Split into B05a–B05c (index: `PHASE-B05-*.md`); completed with B05c (crash safety + notification seam + maintenance + B05 test battery). |
 | B05a | ✅ Done | 2026-09-27 | Audit plane: `AuditEntries` + migration `007_AuditDiagnostics` (AuditEntries only), `IAuditWriter`/`AuditWriter`, `AuditableAttribute`/`AuditBehavior`, `IntegrityAlertSink`, `ErrorCodes` += `AUDIT_WRITE_FAILED`. |
 | B05b | ✅ Done | 2026-09-27 | Observability: Serilog file logging + redaction, `AmbientCorrelation`/`UiCorrelationScope`, diagnostics bundle, `ErrorCodes` += `DIAGNOSTICS_BUNDLE_FAILED`. |
-| B05c | ⬜ Not started | | Crash safety + wiring: `IUserNotificationPort`/`ToastNotificationAdapter`, `GlobalExceptionHandler`/`CrashRecoveryService`, `UiDraftState` + migration `008_UiDraftState`, `MaintenanceScheduler`, `App.axaml.cs` wiring, `ErrorCodes` += `CRASH_RECOVERY_REQUIRED`, all B05 tests + build/test/run gate. |
+| B05c | ✅ Done | 2026-09-27 | Crash safety + wiring: `IUserNotificationPort` (Contracts) + `NotificationModels`, `ToastNotificationAdapter`, `NotificationText` (Desktop), `GlobalExceptionHandler`/`CrashRecoveryService`, `UiDraftState` + `DraftStateStore` + migration `008_UiDraftState`, `MaintenanceScheduler`, `App.axaml.cs` wiring (3 hooks first, notification port, scheduler), `LocalCommandProcessor.IsPassRunning`, `ErrorCodes` += `CRASH_RECOVERY_REQUIRED`, 5 B05 test classes. `build.sh full` 0/0; targeted test filters OK; `SMOKE RUN OK`. |
 | C01 | ⬜ Not started | | |
 | C02 | ⬜ Not started | | |
 | C03 | ⬜ Not started | | |
@@ -600,7 +600,7 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
     `SALARY` → `6100`, everything else (including an unknown code — an uncategorized cost must still
     post) → `6000`.
   - `Events/FinanceEvents.cs` — the 6 events: `JournalEntryPostedEvent(EntryId, PeriodId, Source,
-    TotalDebitMinor, Currency)`, `ChequeStateChangedEvent(ChequeId, FromState, ToState)`,
+    TotalDebitMinor, Currency)`, `ChequeStateChangedEvenoState)`,
     `ChequeClearedEvent(ChequeId, Direction, AmountMinor, Currency)`, `ChequeBouncedEvent(ChequeId,
     Direction, AmountMinor, Currency, Reason)`, `ExpensePostedEvent(ExpenseId, CategoryCode,
     AmountMinor, Currency, SettledMethod)`, `PeriodClosedEvent(PeriodId, ClosingEntryId)` — all
@@ -1006,7 +1006,7 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
     Result<VaccinationRecord>` derives `NextDueUtc = AdministeredUtc + IntervalFor(code, dose)`,
     uppercases the code, defaults `TotalDoses` from the schedule, validates the dose
     (`VACCINE_DOSE_INVALID`) and raises `VaccinationAdministeredEvent`. `StateAt(nowUtc)` is the derived
-    read (`DueSoonWindow = 30 d`; `Overdue` when `NextDueUtc < nowUtc`); the stored `State` only
+    read (`DueSoonWindow = 30 d`; `Overdue` whew = 30 d`; `Overdue` when `NextDueUtc < nowUtc`); the stored `State` only
     separates a live series from a `Skip(...)`-ed one.
   - `Clinical/MedicalHistoryEntry.cs` — `sealed class MedicalHistoryEntry : SyncableEntity` + `enum
     MedicalHistoryKind { Visit, Vaccination, Surgery, Lab, Weight, Prescription, Boarding, Note }`.
@@ -1520,6 +1520,4 @@ Decision:   (1) `UserRole` had no `Receptionist` (phase said it did); appended i
             (8) Full test suite not run (user directive); only the B03c targeted tests ran.
 Rule check: CONVENTIONS §2 (Contracts pure; Identity package only in Infrastructure.Local — proven by test), §4, §7, §9, §10.
 Impact:     B04 can build on `IAuthenticationService`/`CurrentUserContextService`; a later localization pass should map
-            `role.*` keys to Persian labels in the Desktop.
-IAuthenticationService`/`CurrentUserContextService`; a later localization pass should map
             `role.*` keys to Persian labels in the Desktop.

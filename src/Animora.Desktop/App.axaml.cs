@@ -1,6 +1,8 @@
 using Animora.Application;
 using Animora.Application.UseCases.Identity;
+using Animora.Client.Services.Diagnostics;
 using Animora.Client.Services.Identity;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Boarding;
 using Animora.Contracts.Cashier;
@@ -19,6 +21,8 @@ using Animora.Contracts.Search;
 using Animora.Contracts.Sync;
 using Animora.Contracts.Visits;
 using Animora.Contracts.Vaccination;
+using Animora.Desktop.Controls;
+using Animora.Desktop.Diagnostics;
 using Animora.Desktop.Mocks;
 using Animora.Desktop.Shell.Search;
 using Animora.Desktop.Pages.Appointments;
@@ -40,6 +44,7 @@ using Animora.Desktop.Pages.Visits;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Animora.Infrastructure.Local;
+using Animora.Infrastructure.Local.Startup;
 using Animora.Persistence.Sqlite.Maintenance;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -59,6 +64,14 @@ public partial class App : global::Avalonia.Application
     public override void OnFrameworkInitializationCompleted()
     {
         Services = ConfigureServices();
+
+        // B05c: process and dispatcher exception hooks are the first runtime behavior installed.
+        var exceptionHandler = Services.GetRequiredService<GlobalExceptionHandler>();
+        exceptionHandler.RegisterProcessHooks();
+        Dispatcher.UIThread.UnhandledException += (_, args) =>
+        {
+            args.Handled = exceptionHandler.HandleUiException(args.Exception);
+        };
 
         // Convention-based ViewModel → View resolution is a single app-wide
         // IDataTemplate. It is resolved from DI (it owns the ViewCache) and
@@ -113,6 +126,7 @@ public partial class App : global::Avalonia.Application
         try
         {
             var ready = await InitializeLocalStoreAsync();
+            Services.GetRequiredService<MaintenanceScheduler>().Start();
             await Dispatcher.UIThread.InvokeAsync(() => viewModel.InitializeAsync(ready));
         }
         catch (Exception)
@@ -139,7 +153,13 @@ public partial class App : global::Avalonia.Application
                 await using var scope = Services.CreateAsyncScope();
                 var initializer = scope.ServiceProvider.GetRequiredService<ILocalStoreInitializer>();
                 var result = await initializer.InitializeAsync(CancellationToken.None).ConfigureAwait(false);
-                return result.IsSuccess;
+                if (result.IsFailure) return false;
+
+                var handler = Services.GetRequiredService<GlobalExceptionHandler>();
+                handler.Diagnostics = result.Value;
+                var recovery = await Services.GetRequiredService<CrashRecoveryService>()
+                    .RecoverIfRequiredAsync(CancellationToken.None).ConfigureAwait(false);
+                return recovery.IsSuccess;
             }).ConfigureAwait(false);
         }
         catch (Exception)
@@ -169,6 +189,17 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IToastService>(sp => sp.GetRequiredService<ToastService>());
         services.AddSingleton<DialogService>();
         services.AddSingleton<IDialogService>(sp => sp.GetRequiredService<DialogService>());
+
+        // B05c: presentation-neutral notifications are adapted to the existing toast/modal hosts.
+        services.AddSingleton<IUserNotificationPort>(sp => new ToastNotificationAdapter(
+            (text, severity) => sp.GetRequiredService<IToastService>().Show(text, ToTone(severity)),
+            (text, action) => sp.GetRequiredService<IDialogService>()
+                .ShowModal($"{text}\n{action.ActionCode}"),
+            NotificationText.Resolve));
+        services.AddSingleton<GlobalExceptionHandler>();
+        services.AddSingleton<CrashRecoveryService>();
+        services.AddSingleton<DraftStateStore>();
+        services.AddSingleton<MaintenanceScheduler>();
 
         // Phase 05: identity seam + navigation + shell composition.
         services.AddSingleton<ICurrentUserContext, CurrentUserContextService>();
@@ -309,4 +340,12 @@ public partial class App : global::Avalonia.Application
 
         return services.BuildServiceProvider();
     }
+
+    private static Tone ToTone(NotificationSeverity severity) => severity switch
+    {
+        NotificationSeverity.Info => Tone.Info,
+        NotificationSeverity.Warning => Tone.Warn,
+        NotificationSeverity.Error or NotificationSeverity.NeedsAttention => Tone.Danger,
+        _ => Tone.Info,
+    };
 }

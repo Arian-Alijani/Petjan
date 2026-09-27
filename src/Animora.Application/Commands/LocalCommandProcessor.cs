@@ -27,6 +27,11 @@ public sealed class LocalCommandProcessor(
     ICommandJournal journal,
     ICommandTransport transport)
 {
+    private static int _activePasses;
+
+    /// <summary>True while at least one bounded command pass is active.</summary>
+    public static bool IsPassRunning => Volatile.Read(ref _activePasses) > 0;
+
     /// <summary>Rows claimed per pass; a bounded batch keeps the pass short and resumable.</summary>
     public const int DefaultBatchSize = 50;
 
@@ -34,6 +39,19 @@ public sealed class LocalCommandProcessor(
     public static readonly TimeSpan DefaultLease = TimeSpan.FromSeconds(60);
 
     public async Task<Result<CommandProcessorPass>> RunPassAsync(CancellationToken ct = default)
+    {
+        Interlocked.Increment(ref _activePasses);
+        try
+        {
+            return await RunPassCoreAsync(ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _activePasses);
+        }
+    }
+
+    private async Task<Result<CommandProcessorPass>> RunPassCoreAsync(CancellationToken ct)
     {
         var claimed = await journal.ClaimBatchAsync(DefaultBatchSize, DefaultLease, ct).ConfigureAwait(false);
         if (claimed.IsFailure) return Result<CommandProcessorPass>.Fail(claimed.Error, claimed.Detail);

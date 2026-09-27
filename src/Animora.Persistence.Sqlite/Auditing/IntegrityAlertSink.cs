@@ -1,7 +1,7 @@
 using Animora.Application.Auditing;
 using Animora.Application.Commands;
 using Animora.Application.Correlation;
-using Animora.Application.Ports;
+using Animora.Contracts.Diagnostics;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 
@@ -38,8 +38,8 @@ public sealed class IntegrityAlertSink(
         var written = await audit.WriteAsync(record, ct).ConfigureAwait(false);
         if (written.IsFailure) return Result.Fail(ErrorCodes.AuditWriteFailed, written.Detail ?? written.Error.Code);
 
-        return await notifications.RaiseAsync(
-            new UserNotification(UserNotificationClass.NeedsAttention, alert.Code, alert.Detail), ct)
-            .ConfigureAwait(false);
+        notifications.Notify(NotificationSeverity.NeedsAttention, alert.Code,
+            alert.EntityId, new NotificationAction("open-diagnostics", "diagnostics"));
+        return Result.Ok();
     }
 }
