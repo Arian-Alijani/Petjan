@@ -42,6 +42,15 @@ public static class CommandTypes
     public const string PatientsPetUpdate = "patients.pet.update";
     public const string PatientsPetWeightAdd = "patients.pet.weight.add";
 
+    // Reception & visits triage (C02).
+    public const string ReceptionTicketAdmit = "reception.ticket.admit";
+    public const string ReceptionTicketEnter = "reception.ticket.enter";
+    public const string ReceptionTicketLeave = "reception.ticket.leave";
+    public const string ReceptionTicketNoShow = "reception.ticket.noshow";
+    public const string ReceptionTicketUrgent = "reception.ticket.urgent";
+    public const string ReceptionWalkInCreate = "reception.walkin.create";
+    public const string VisitsVisitStart = "visits.visit.start";
+
     /// <summary>Every declared command type, in declaration order.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
@@ -53,5 +62,7 @@ public static class CommandTypes
         SchedulingAppointmentBook, SchedulingAppointmentMove,
         BoardingStayCheckout,
         PatientsOwnerCreate, PatientsOwnerUpdate, PatientsPetCreate, PatientsPetUpdate, PatientsPetWeightAdd,
+        ReceptionTicketAdmit, ReceptionTicketEnter, ReceptionTicketLeave, ReceptionTicketNoShow,
+        ReceptionTicketUrgent, ReceptionWalkInCreate, VisitsVisitStart,
     ];
 }
