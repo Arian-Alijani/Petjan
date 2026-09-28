@@ -280,7 +280,7 @@ Entitlement. Verify the exact enum member names against the file when editing �
 - Edit `CommandTypes.cs`: add the 7 consts (§2) after the C02 block + append to `All`.
 - **Push:** `feat(wire): C03 add 7 command types`.
 
-### [ ] T3 — Persistence: VisitBillingHandoff entity + config + migration 010
+### [x] T3 — Persistence: VisitBillingHandoff entity + config + migration 010
 - Create `src/Animora.Persistence.Sqlite/Entities/VisitBillingHandoff.cs` (`[LocalOnly]`, mirror
   UiDraftState shape): props `Id, TenantId, VisitId(unique), OwnerId, PetId, DoctorId, DateTimeOffset
   CompletedUtc, string LinesJson, HandoffStatus Status, string? InvoiceId`. Add
