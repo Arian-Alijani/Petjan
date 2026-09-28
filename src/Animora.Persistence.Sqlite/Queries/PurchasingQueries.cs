@@ -18,6 +18,14 @@ public sealed class PurchasingQueries(AnimoraLocalDbContext db) : IPurchasingQue
 {
     private const int MaxOrders = 200;
 
+    /// <inheritdoc />
+    public Task<int> CountOrdersAsync(CancellationToken ct) =>
+        db.Set<PurchaseOrder>().AsNoTracking().CountAsync(ct);
+
+    /// <inheritdoc />
+    public Task<int> CountReceiptsAsync(CancellationToken ct) =>
+        db.Set<GoodsReceipt>().AsNoTracking().CountAsync(ct);
+
     public async Task<PurchasingSnapshotReadModel> GetSnapshotAsync(DateTimeOffset nowUtc, CancellationToken ct)
     {
         // SELECT 1 — the recent purchase orders (bounded, newest first).
