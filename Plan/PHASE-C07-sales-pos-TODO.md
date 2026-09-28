@@ -247,7 +247,7 @@ phase (with the ⚠️ reuse notes applied):
 > **acceptance**. After ticking a task, run the locked push command with the suggested message.
 
 ### T01 — Domain + reference groundwork
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:**
   - create `src/Animora.Domain/Sales/Insurer.cs` (fields `Code, Name, CoveragePercent, CeilingMinor`;
     factory `Create(tenantId, code, name, coveragePercent, ceilingMinor)`; follow the reference-entity

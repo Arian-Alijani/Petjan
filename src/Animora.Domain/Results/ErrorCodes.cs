@@ -434,6 +434,26 @@ public static class ErrorCodes
     public static readonly ErrorCode AdjustmentExceedsPaid =
         new("ADJUSTMENT_EXCEEDS_PAID", ErrorCode.Validation);
 
+    /// <summary>The addressed invoice does not exist or is not visible to this tenant.</summary>
+    public static readonly ErrorCode InvoiceNotFound =
+        new("INVOICE_NOT_FOUND", ErrorCode.NotFound);
+
+    /// <summary>The invoice line at the supplied index changed since the caller last read it.</summary>
+    public static readonly ErrorCode InvoiceLineIndexStale =
+        new("INVOICE_LINE_INDEX_STALE", ErrorCode.Conflict);
+
+    /// <summary>A posted invoice must identify the owner being billed.</summary>
+    public static readonly ErrorCode InvoiceOwnerRequired =
+        new("INVOICE_OWNER_REQUIRED", ErrorCode.Validation);
+
+    /// <summary>The visit or boarding handoff has already been attached to an invoice.</summary>
+    public static readonly ErrorCode HandoffAlreadyInvoiced =
+        new("HANDOFF_ALREADY_INVOICED", ErrorCode.Conflict);
+
+    /// <summary>The addressed insurer does not exist or is not visible to this tenant.</summary>
+    public static readonly ErrorCode InsurerNotFound =
+        new("INSURER_NOT_FOUND", ErrorCode.NotFound);
+
     #endregion
 
     #region Finance (Phase A08)
