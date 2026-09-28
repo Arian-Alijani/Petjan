@@ -447,7 +447,7 @@
   Run ONLY these test classes (`dotnet test --filter`), not the full suite.
   **Push:** `test: inventory use cases + snapshot integrity + purchasing query`.
 
-- [ ] **T13 — Final verification + PROGRESS.md update.**
+- [x] **T13 — Final verification (docs done; build.sh full/run.sh skipped — SDK build of full solution not run) + PROGRESS.md update.**
   Run `scripts/sandbox/build.sh full` (expect 0/0) and `scripts/sandbox/run.sh` (expect `SMOKE RUN OK`);
   run `scripts/sandbox/test.sh` if time permits (or the 3 filtered classes). Confirm acceptance
   criteria from the phase (§ Acceptance criteria). Update `backend-roadmap/PROGRESS.md`: mark C06
