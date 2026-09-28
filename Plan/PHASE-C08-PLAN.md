@@ -249,9 +249,10 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 - **Push:** `scripts/git/push.sh "refactor(desktop): swap DI to real services, add readiness gate, delete cashier/cheque mocks"`
 
 ### T11 — تست‌ها (3 کلاس)
-- [ ] `tests/Animora.Application.Tests/CashSessionUseCaseTests.cs`: دومین باز → `CASH_SESSION_ALREADY_OPEN`؛ پرداخت cash بدون session باز → کد مربوطه در حالی که card موفق؛ بستن با counted → variance دقیق ثبت؛ variance بزرگ بدون note → `CASH_VARIANCE_NOTE_REQUIRED`؛ payment stamping.
-- [ ] `tests/Animora.Application.Tests/ChequeLifecycleTests.cs`: هر transition مجاز موفق + دقیقاً یک `ChequeEvent`؛ نامعتبر → `CHEQUE_INVALID_TRANSITION`؛ edit چک cleared → `CHEQUE_NOT_EDITABLE`؛ bulk 3تا با 1 نامعتبر → 2 اعمال + 1 fail گزارش؛ clear → دقیقاً یک `ChequeClearedEvent`.
-- [ ] `tests/Animora.Application.Tests/CashierReusesSalesTests.cs`: هیچ type زیر `Animora.Client.Services/Cashier` به `IUnitOfWork`/repository/`AnimoraLocalDbContext` رفرنس ندهد (reflection/source scan).
+- [x] `tests/Animora.Application.Tests/CashSessionUseCaseTests.cs`: دومین باز → `CASH_SESSION_ALREADY_OPEN`؛ پرداخت cash بدون session باز → کد مربوطه در حالی که card موفق؛ بستن با counted → variance دقیق ثبت؛ variance بزرگ بدون note → `CASH_VARIANCE_NOTE_REQUIRED`؛ payment stamping. (6 تست)
+- [x] `tests/Animora.Application.Tests/ChequeLifecycleTests.cs`: هر transition مجاز موفق + دقیقاً یک `ChequeEvent`؛ نامعتبر → `CHEQUE_INVALID_TRANSITION`؛ edit چک cleared → `CHEQUE_NOT_EDITABLE`؛ bulk 3تا با 1 نامعتبر → 2 اعمال + 1 fail گزارش؛ clear → دقیقاً یک `ChequeClearedEvent`. (6 تست)
+- [x] `tests/Animora.Application.Tests/CashierReusesSalesTests.cs`: هیچ type زیر `Animora.Client.Services/Cashier` به `IUnitOfWork`/repository/`AnimoraLocalDbContext` رفرنس ندهد (reflection scan). (2 تست)
+- **نتیجه:** 14/14 تست سبز.
 - **Push:** `scripts/git/push.sh "test(C08): cash session, cheque lifecycle, cashier-reuses-sales"`
 
 ### T12 — بیلد سریع + تأیید نهایی
