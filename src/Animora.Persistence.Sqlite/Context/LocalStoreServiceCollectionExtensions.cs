@@ -12,6 +12,7 @@ using Animora.Persistence.Sqlite.Options;
 using Animora.Persistence.Sqlite.Outbox;
 using Animora.Persistence.Sqlite.Queries;
 using Animora.Persistence.Sqlite.Repositories;
+using Animora.Persistence.Sqlite.Sales;
 using Animora.Persistence.Sqlite.Security;
 using Animora.Persistence.Sqlite.Seed;
 using Microsoft.Data.Sqlite;
@@ -80,6 +81,11 @@ public static class LocalStoreServiceCollectionExtensions
         // C06: snapshot-joined inventory reads + grouped purchasing KPIs (Application ports, impl here).
         services.TryAddScoped<IInventoryQueries, InventoryQueries>();
         services.TryAddScoped<IPurchasingQueries, PurchasingQueries>();
+        // C07: sales read projections, transactional posting/draft facts and per-tenant invoice numbering.
+        services.TryAddScoped<ISalesQueries, SalesQueries>();
+        services.TryAddScoped<ISalesDraftData, SalesDraftData>();
+        services.TryAddScoped<ISalesPostingData, SalesPostingData>();
+        services.TryAddScoped<IInvoiceNumberAllocator, InvoiceNumberAllocator>();
         services.AddScoped<IVisitRepository, VisitRepository>();
         services.AddScoped<IMedicalHistoryRepository, MedicalHistoryRepository>();
         services.AddScoped<IVisitBillingHandoffWriter, VisitBillingHandoffWriter>();
@@ -135,6 +141,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<SchedulingSampleData>();
         services.AddScoped<BoardingSampleData>();
         services.AddScoped<InventorySampleData>();
+        services.AddScoped<SalesSampleData>();
 
         // Read helpers (A10d): one SQL aggregate each, no tracking, tenant-filtered.
         services.TryAddScoped<StockOnHandQuery>();

@@ -149,7 +149,7 @@ public sealed class IdempotencyTests
     {
         var names = Dispatcher.Chain.Select(x => x.Name).ToArray();
         Assert.Equal(["Correlation", "ExceptionMapping", "Validation", "Authorization", "Entitlement",
-            "Transaction", "CommandJournal"], names);
+            "Transaction", "CommandJournal", "Audit"], names); // B05a: Audit sits inside the transaction.
     }
 
     private sealed class CountingSequenceAllocator : ILocalSequenceAllocator

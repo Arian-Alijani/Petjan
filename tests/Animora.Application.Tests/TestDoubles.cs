@@ -158,6 +158,12 @@ internal static class TestHost
         services.AddSingleton<IClock, FixedClock>();
         services.AddSingleton<ILocalInstallationIdentity, FixedInstallation>();
         services.AddSingleton<ISessionService, FakeSessionService>();
+        // B04a/B04b: AddAnimoraApplication registers the authorization/capability evaluators; supply the
+        // repository/store/signer seams they depend on so the container (ValidateOnBuild) can construct them.
+        services.AddScoped<IStaffMembershipRepository>(_ => new FakeMembershipRepository());
+        services.AddScoped<IRoleDefinitionRepository>(sp => new SeededRoleRepository(sp.GetRequiredService<IClock>()));
+        services.AddSingleton<ICapabilitySnapshotSigner, TestCapabilitySigner>();
+        services.AddScoped<ICapabilityStore, InMemoryCapabilityStore>();
         // B02: the two sync UI-seam query handlers require the command journal; supply the in-memory double so
         // ValidateOnBuild succeeds.
         services.AddSingleton<Animora.Application.Commands.IIntegrityAlertSink, RecordingIntegritySink>();

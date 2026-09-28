@@ -1,8 +1,10 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Correlation;
+using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Diagnostics;
 using Animora.Domain.Results;
+using Animora.Domain.Time;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -22,8 +24,20 @@ public sealed class DispatcherTests
     [Fact]
     public async Task PingQuery_WorksWithDefaultsOnly()
     {
-        var services = new ServiceCollection().AddAnimoraApplication();
+        // B04a: the app defaults now include the real authorization gate, so a non-pre-auth request needs the
+        // security seams (installation identity + membership/role repositories) and an active session.
+        var services = new ServiceCollection()
+            .AddSingleton<IClock, FixedClock>()
+            .AddSingleton<ILocalInstallationIdentity, FixedInstallation>()
+            .AddSingleton<ISessionService, FakeSessionService>()
+            .AddScoped<IStaffMembershipRepository>(_ => new FakeMembershipRepository())
+            .AddScoped<IRoleDefinitionRepository>(sp => new SeededRoleRepository(sp.GetRequiredService<IClock>()));
+        services.AddAnimoraApplication();
         using var sp = services.BuildServiceProvider();
+
+        var session = await sp.GetRequiredService<ISessionService>().StartAsync("U-TEST", "D-TEST");
+        sp.GetRequiredService<SessionContextCache>().Set(session.Value);
+
         var result = await sp.Dispatcher().QueryAsync(new PingQuery(), TestHost.QueryCtx());
         Assert.Equal(PingQueryHandler.Pong, result.Value);
     }

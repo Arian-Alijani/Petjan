@@ -362,7 +362,15 @@ internal sealed class LocalIdentityHost : IAsyncDisposable
         var services = new ServiceCollection();
         services.AddSingleton<IClock>(Clock);
         services.AddSingleton<IPasswordHasher>(Hasher);
-        services.AddAnimoraLocalInfrastructure(o => o.DatabasePath = DatabasePath);
+        services.AddAnimoraLocalInfrastructure(o =>
+        {
+            o.DatabasePath = DatabasePath;
+            // C01 sample data is on by default for fresh installs; it also seeds sample staff users, which
+            // would make CompleteFirstRunSetupCommand fail (a user already exists). An identity host wants a
+            // clean store, and it needs the dev key file because the sandbox has no OS keystore.
+            o.SeedSampleData = false;
+            o.AllowInsecureKeyFallback = true;
+        });
         services.AddScoped<ILocalTenantContext, FixedLocalTenant>();
         services.AddAnimoraApplication(b => b.AddIdentityUseCases());
         return services.BuildServiceProvider();

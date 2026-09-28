@@ -2,8 +2,8 @@ namespace Animora.Contracts.Sales;
 
 /// <summary>
 /// Data seam for the Sale/POS invoice workspace. The desktop ViewModel depends
-/// only on this interface; the in-memory <c>MockSalesQueryService</c> is the
-/// single swappable implementation a future backend replaces (R-18). The shape
+/// only on this interface; the real local-store SalesQueryService supplies the
+/// implementation (R-18). The shape
 /// mirrors what <c>Animora-UI/assets/sale-page.js</c> renders for the sidebar
 /// (ready encounters + all invoices) and the invoice work surface.
 /// </summary>

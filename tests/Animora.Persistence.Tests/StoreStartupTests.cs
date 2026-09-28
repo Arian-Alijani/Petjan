@@ -70,7 +70,7 @@ public sealed class StoreStartupTests
         Assert.False(string.IsNullOrWhiteSpace(diagnostics.NativeSqliteVersion));
         Assert.False(diagnostics.Quarantined);
         Assert.True(diagnostics.DatabaseBytes > 0);
-        Assert.Contains("004", diagnostics.SchemaVersion);
+        Assert.Contains("014", diagnostics.SchemaVersion); // latest migration = 014_SalesInsurers.
     }
 
     [Fact]

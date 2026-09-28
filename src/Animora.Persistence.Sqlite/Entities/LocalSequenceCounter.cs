@@ -18,4 +18,14 @@ public sealed class LocalSequenceCounter
 
     public string Name { get; private set; } = DefaultName;
     public long Value { get; private set; }
+
+    /// <summary>
+    /// Seeds a named counter at a starting value (used by sample data so the first real allocation
+    /// continues past the numbers the samples already consumed, never colliding on the unique number index).
+    /// </summary>
+    internal static LocalSequenceCounter Create(string name, long value) => new()
+    {
+        Name = name,
+        Value = value,
+    };
 }

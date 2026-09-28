@@ -34,6 +34,15 @@ public sealed class CommandJournalBehavior : IPipelineBehavior
 
             var payloadJson = CommandFingerprint.CanonicalJson(request);
             var fingerprint = CommandFingerprint.Compute(command.CommandTypeName, payloadJson);
+            // A replay must never re-enter the handler: posting would consume stock twice (or
+            // fail after the first posting), even though EnqueueAsync deduplicates the row.
+            // Unit commands have a canonical stored success outcome; other result shapes need
+            // an explicit durable response before they can be safely reconstructed.
+            var previous = await journal.FindByOperationIdAsync(commandContext.OperationId, ct).ConfigureAwait(false);
+            if (previous.IsFailure) return Result<TResult>.Fail(previous.Error, previous.Detail);
+            if (previous.Value is { } stored && stored.CommandFingerprint == fingerprint
+                && typeof(TResult) == typeof(Unit))
+                return Result<TResult>.Ok((TResult)(object)Unit.Value);
             var sequence = await sequences.NextAsync(ct).ConfigureAwait(false);
             if (sequence.IsFailure) return Result<TResult>.Fail(sequence.Error, sequence.Detail);
 

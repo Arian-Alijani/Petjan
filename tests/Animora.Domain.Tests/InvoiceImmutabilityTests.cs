@@ -57,6 +57,24 @@ public sealed class InvoiceImmutabilityTests
         Assert.Equal(ErrorCodes.InvoiceInvalidTransition, result.Error);
     }
 
+    [Fact]
+    public void CreditNote_ReversesExactLineEconomics_WithoutChangingOriginalCharge()
+    {
+        var clock = new FakeClock(Issued);
+        var invoice = InvoiceStateMachineTests.Posted(clock);
+        var originalLine = invoice.Lines[0];
+        var originalTotal = invoice.GrandTotal;
+        var adjustment = new InvoiceAdjustment("ADJ-1", AdjustmentKind.LineReturn, originalLine.LineNet,
+            "Returned", clock.UtcNow, "U1", "operation-return", null);
+
+        Assert.True(invoice.AddCreditNote(adjustment).IsSuccess);
+        Assert.Equal(originalLine, Assert.Single(invoice.Lines));
+        Assert.Equal(originalTotal, invoice.GrandTotal);
+        Assert.Equal(originalLine.LineNet, Assert.Single(invoice.Adjustments).Amount);
+        Assert.Equal(-originalLine.LineNet.Minor, invoice.DueTotal.Minor - originalTotal.Minor);
+        Assert.Equal(originalTotal.Subtract(originalLine.LineNet), invoice.DueTotal);
+    }
+
     private static void AssertImmutable(Result result)
     {
         Assert.True(result.IsFailure);

@@ -14,7 +14,7 @@ public sealed class BehaviorPipelineTests
     {
         Assert.Equal(
             ["Correlation", "ExceptionMapping", "Validation", "Authorization", "Entitlement", "Transaction",
-                "CommandJournal"],
+                "CommandJournal", "Audit"], // B05a appended the Audit stage (annotated commands only).
             Dispatcher.Chain.Select(b => b.Name).ToArray());
     }
 

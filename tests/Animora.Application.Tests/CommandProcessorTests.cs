@@ -117,9 +117,12 @@ public sealed class CommandProcessorTests
     }
 
     [Fact]
-    public void RetryBudget_ExhaustsOnTheEleventhAttempt()
+    public void RetryBudget_ExhaustsAtMaxAttempts()
     {
-        Assert.False(RetryPolicy.IsExhausted(10));
-        Assert.True(RetryPolicy.IsExhausted(11));
+        // Authoritative policy (mirrored by the persisted PendingCommand/OutboxMessage paths): the budget is
+        // spent once Attempts reaches MaxAttempts, so a command seeded with MaxAttempts already spent is moved
+        // to NeedsAttention by its very next failure.
+        Assert.False(RetryPolicy.IsExhausted(RetryPolicy.MaxAttempts - 1));
+        Assert.True(RetryPolicy.IsExhausted(RetryPolicy.MaxAttempts));
     }
 }
