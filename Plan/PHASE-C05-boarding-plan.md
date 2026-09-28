@@ -323,11 +323,11 @@ VM فیلد `IStoreReadinessGate _readiness` می‌گیرد و اولین خط 
     (خطای MSB4181 در Application.Tests صرفاً cascade از همین شکست تک‌پروسه بود و با همین fix رفع شد).
   - پوش: `fix(boarding): resolve C05 build errors, 0/0`
 
-- [ ] **T12 — تأیید دستی سبک (اختیاری)**
-  - اگر build سبز شد، `run.sh` اختیاری (SMOKE RUN OK). اگر منابع اجازه نداد رد کن و در PROGRESS ذکر کن.
-  - پوش (اگر تغییری بود): `chore(boarding): smoke verification`
+- [x] **T12 — تأیید دستی سبک (اختیاری)**
+  - در سشن بستن، .NET SDK در sandbox موجود نبود؛ `run.sh` اجرا نشد و در PROGRESS ثبت شد
+    («build/tests unverified — no SDK in session»). build سبز T11 از سشن قبل معتبر است. تغییری لازم نبود.
 
-- [ ] **T13 — PROGRESS.md update**
+- [x] **T13 — PROGRESS.md update**
   - entry جدید `### C05 — ...` append کن (قدیمی را بازنویسی/کوتاه نکن). محتوا: StayChargeCalculator +
     derived-accrual؛ BoardingBillingHandoff + migration 012 («C07 هر دو جدول handoff را می‌خواند»)؛
     stale-index (C07/C08 reuse)؛ rooms/services reference data؛ query ها + 5 command؛
