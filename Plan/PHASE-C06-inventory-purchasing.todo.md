@@ -381,7 +381,7 @@
   `App.axaml.cs:192` is done in T11.) Build `Animora.Application`.
   **Push:** `feat(app): inventory use cases (4 queries + 5 commands)`.
 
-- [ ] **T08 — Application: Purchasing read models + 1 query + 3 commands + registration.**
+- [x] **T08 — Application: Purchasing read models + 1 query + 3 commands + registration.**
   In `src/Animora.Application/UseCases/Purchasing/`: `ReadModels/PurchasingReadModels.cs`
   (`PurchasingSnapshotReadModel`: open/received/cancelled PO counts, MTD spend, top suppliers, PO list).
   Query `PurchasingSnapshotQuery()` → `PurchasingSnapshotReadModel` (delegates to `IPurchasingQueries`,

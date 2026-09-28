@@ -10,4 +10,10 @@ public interface IPurchasingQueries
     /// purchase-order list, computed relative to <paramref name="nowUtc"/>.
     /// </summary>
     Task<PurchasingSnapshotReadModel> GetSnapshotAsync(DateTimeOffset nowUtc, CancellationToken ct);
+
+    /// <summary>Total purchase orders on record, used to allocate the next per-tenant order number.</summary>
+    Task<int> CountOrdersAsync(CancellationToken ct);
+
+    /// <summary>Total goods receipts on record, used to allocate the next per-tenant receipt number.</summary>
+    Task<int> CountReceiptsAsync(CancellationToken ct);
 }
