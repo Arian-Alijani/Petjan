@@ -11,21 +11,29 @@ namespace Animora.Persistence.Sqlite.Queries;
 /// <summary>Tenant-filtered boarding projections; occupancy is counted in SQL, not per room.</summary>
 public sealed class BoardingQueries(AnimoraLocalDbContext db) : IBoardingQueries
 {
-    private IQueryable<StayListItemReadModel> Stays() =>
-        from stay in db.Set<BoardingStay>().AsNoTracking()
+    // Project an already-filtered/ordered stay query into the list read model. Filtering, ordering
+    // and paging must be applied on the <see cref="BoardingStay"/> source before this projection,
+    // because EF cannot translate predicates/sorts that reach into the constructed read model
+    // (e.g. r.Stay.State) once the entity has been embedded in a non-entity type.
+    private IQueryable<StayListItemReadModel> Project(IQueryable<BoardingStay> stays) =>
+        from stay in stays
         join pet in db.Set<Pet>().AsNoTracking() on stay.PetId equals pet.Id
         join owner in db.Set<Owner>().AsNoTracking() on stay.OwnerId equals owner.Id
         join room in db.Set<Room>().AsNoTracking() on stay.RoomId equals room.Id
         select new StayListItemReadModel(stay, pet.Name, pet.Species.ToString(), pet.Breed ?? "",
             owner.FullName, owner.PhonePrimary, room.Code);
 
-    public async Task<IReadOnlyList<StayListItemReadModel>> GetStaysAsync(CancellationToken ct) =>
-        await Stays().OrderByDescending(r => r.Stay.CheckInUtc).ThenBy(r => r.Stay.Id)
-            .Take(200).ToListAsync(ct);
+    public async Task<IReadOnlyList<StayListItemReadModel>> GetStaysAsync(CancellationToken ct)
+    {
+        var stays = db.Set<BoardingStay>().AsNoTracking()
+            .OrderByDescending(s => s.CheckInUtc).ThenBy(s => s.Id).Take(200);
+        return await Project(stays).ToListAsync(ct);
+    }
 
     public async Task<StayDetailReadModel?> GetDetailAsync(string stayId, CancellationToken ct)
     {
-        var row = await Stays().FirstOrDefaultAsync(r => r.Stay.Id == stayId, ct);
+        var stay = db.Set<BoardingStay>().AsNoTracking().Where(s => s.Id == stayId);
+        var row = await Project(stay).FirstOrDefaultAsync(ct);
         return row is null ? null : new StayDetailReadModel(row,
             row.Stay.Items.OrderBy(i => i.ConsumedUtc).ThenBy(i => i.ItemId, StringComparer.Ordinal).ToArray());
     }
@@ -95,7 +103,21 @@ public sealed class BoardingQueries(AnimoraLocalDbContext db) : IBoardingQueries
     public async Task<BoardingHistoryResult> GetHistoryAsync(
         string? search, string sort, int page, int pageSize, CancellationToken ct)
     {
-        var query = Stays().Where(r => r.Stay.State != StayState.Reserved);
+        // Filter and sort on the entity source first so EF never has to translate a predicate or a
+        // sort key that reaches into the constructed read model (r.Stay.State / r.Stay.CheckInUtc
+        // would both fail translation once BoardingStay is embedded in a non-entity type).
+        var stays = db.Set<BoardingStay>().AsNoTracking().Where(s => s.State != StayState.Reserved);
+        // The room rate is the persisted price snapshot; totals are derived in the handler.
+        stays = sort switch
+        {
+            "Oldest" => stays.OrderBy(s => s.CheckInUtc).ThenBy(s => s.Id),
+            "AmountAsc" => stays.OrderBy(s => s.DailyRate.Minor).ThenBy(s => s.Id),
+            "AmountDesc" => stays.OrderByDescending(s => s.DailyRate.Minor).ThenBy(s => s.Id),
+            _ => stays.OrderByDescending(s => s.CheckInUtc).ThenBy(s => s.Id),
+        };
+        // The name filter needs the joined pet/owner/room labels, so it is applied on the projection;
+        // it only touches the read model's own top-level members, which EF can translate.
+        var query = Project(stays);
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = "%" + search.Trim() + "%";
@@ -103,15 +125,7 @@ public sealed class BoardingQueries(AnimoraLocalDbContext db) : IBoardingQueries
                 EF.Functions.Like(r.OwnerName, term) || EF.Functions.Like(r.RoomLabel, term));
         }
         var total = await query.CountAsync(ct);
-        // The room rate is the persisted price snapshot; totals are derived in the handler.
-        var ordered = sort switch
-        {
-            "Oldest" => query.OrderBy(r => r.Stay.CheckInUtc).ThenBy(r => r.Stay.Id),
-            "AmountAsc" => query.OrderBy(r => r.Stay.DailyRate.Minor).ThenBy(r => r.Stay.Id),
-            "AmountDesc" => query.OrderByDescending(r => r.Stay.DailyRate.Minor).ThenBy(r => r.Stay.Id),
-            _ => query.OrderByDescending(r => r.Stay.CheckInUtc).ThenBy(r => r.Stay.Id),
-        };
-        var rows = await ordered.Skip((Math.Max(1, page) - 1) * Math.Clamp(pageSize, 1, 200))
+        var rows = await query.Skip((Math.Max(1, page) - 1) * Math.Clamp(pageSize, 1, 200))
             .Take(Math.Clamp(pageSize, 1, 200)).ToListAsync(ct);
         return new BoardingHistoryResult(rows.Select(r => new BoardingHistoryRowReadModel(
             r.Stay.Id, r.Stay.Id, r.PetName, r.Species, r.OwnerName, r.RoomLabel,
