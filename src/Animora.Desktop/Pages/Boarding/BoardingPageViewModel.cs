@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Boarding;
+using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -23,6 +24,7 @@ namespace Animora.Desktop.Pages.Boarding;
 public sealed partial class BoardingPageViewModel : PageViewModelBase
 {
     private readonly IBoardingQueryService _service;
+    private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
     private readonly INavigationService _navigation;
@@ -35,9 +37,10 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private string _searchQuery = string.Empty;
     private BoardingSpecies? _species;
 
-    public BoardingPageViewModel(IBoardingQueryService service, IToastService toast, IDialogService dialogs, INavigationService navigation)
+    public BoardingPageViewModel(IBoardingQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs, INavigationService navigation)
     {
         _service = service;
+        _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
         _navigation = navigation;
@@ -164,6 +167,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     private async Task LoadAsync()
     {
+        await _readiness.WaitAsync();
         IsBusy = true;
         await ReloadStaysAsync();
         IsBusy = false;

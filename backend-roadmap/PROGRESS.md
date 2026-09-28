@@ -51,7 +51,7 @@
 
 ## Next phase
 
-**Next phase: `C05`** — `backend-roadmap/phases/PHASE-C05-*.md`.
+**Next phase: `C06`** — `backend-roadmap/phases/PHASE-C06-*.md`.
 
 ## Phase status
 
@@ -95,7 +95,7 @@
 | C02 | ✅ Done | 2026-09-27 | Reception queue + visits triage on the real local DB (the C01 pattern). **Derived queue** (`ReceptionQueueEntry` only for walk-ins / state an appointment cannot carry; appointment rows created lazily on first state change), `TicketRef` (`apt:`/`wlk:`), 5 queries + 8 journaled commands, `OperationIdFactory.Deterministic` (idempotent start-visit), `ReceptionQueueQueries` (one LEFT JOIN + UNION ALL statement, UTC range) + `TriageQueries`, `ReceptionSampleData`, `ReceptionQueueService`/`VisitsTriageService` + 2 mappings + `VisitTypeCatalog`, 2 DI swaps, 2 VM readiness lines, **mocks deleted: `MockReceptionQueueService.cs`, `MockVisitsTriageService.cs`**, `CommandTypes` += 7, `ErrorCodes` += 4, 3 test classes. Verified: `build.sh full` = **0/0**; C02 filtered tests green (Application 25/25, ReceptionQueueQuery 3/3). |
 | C03 | ✅ Done | 2026-09-28 | Visit encounter & vaccination on the real local DB (the C01 pattern). Per-field encounter commands (`SaveVisitVitals`, `SaveVisitNote`, `AddPrescriptionLine`, `RemovePrescriptionLine`, `CompleteVisit` — the 6-step C07-seam handoff transaction: complete → one `MedicalHistoryEntry` → one `VisitBillingHandoff` → best-effort reception `Done` → `MarkReadyForInvoice`) + `EncounterDraftQuery`/`RxCatalogQuery`; vaccination `MarkVaccinationDone`/`RecordVaccinationReminder` + due/catalog/history/sms-template queries. New `[LocalOnly]` `VisitBillingHandoff` + `SmsTemplateRow` + migration **`010_C03Schema`** (numbered 010 not 009, D1). `VaccinationThresholds` 5-bucket read-model projection (collapsed → 4-value Contracts `VaccinationStatus`, D6). `Client.Services`: `TenantScopedCache`, `DebounceBuffer`, `VisitEncounterService`/`VaccinationService` + mappings + `SmsTemplateRenderer` (no delivery). Contracts additive `IVisitEncounterService.FlushAsync`. New `IMedicalHistoryRepository`. 2 DI swaps + removed `VisitEncounterStore`. **Mocks deleted: `MockVisitEncounterService.cs`, `VisitEncounterStore.cs`, `MockVaccinationService.cs`.** `CommandTypes` += 7, `ErrorCodes` += 7, reused permissions (D2). 3 test classes (12 tests). Verified: `build.sh full` = **0/0**, C03 tests green (VisitEncounter 3/3, Vaccination 7/7, VisitBillingHandoff 2/2), `run.sh` = **SMOKE RUN OK**. |
 | C04 | ✅ Done (unverified per user request) | 2026-09-28 | Appointments: local clinic calendar/time zone, working hours + migration 011, SQL projection, 7 calendar queries + 2 roster/picker queries, 5 journaled commands, client services + desktop swap and 3 test classes. Tests/build intentionally not run. |
-| C05 | ⬜ Not started | | |
+| C05 | ✅ Done (build/tests unverified — no SDK in session) | 2026-09-28 | Boarding on the real local DB (the C01 pattern). Derived daily accrual via pure `StayChargeCalculator` (never stored); `BoardingBillingHandoff` + migration **012** (C07 reads both handoff tables); stale-index remove rule (C07/C08 reuse); 6 seeded `BoardingServiceDef` reference rows + `BoardingSampleData`; 7 queries + 5 journaled commands; `BoardingQueryService`/`BoardingMapping`; DI swap; **mock deleted: `MockBoardingQueryService.cs`**; `CommandTypes` += 4 (checkout existed); `ErrorCodes` += 6; 3 test classes. Checkout stops at `ReadyForInvoice` + writes a Ready handoff (real invoice deferred to C07). Deviations D1–D11 recorded below. Post-merge fix: boarding list/detail/history queries now filter & sort on the `BoardingStay` entity before projecting into the read model (the embedded entity broke EF translation of `r.Stay.State`). |
 | C06 | ⬜ Not started | | |
 | C07 | ⬜ Not started | | |
 | C08 | ⬜ Not started | | |
@@ -135,6 +135,60 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > do not read the entries around it. If nothing below is cited, you are done reading this file.
 
 ## Repo state log
+
+### C05 — Boarding stays, accrual and checkout handoff (2026-09-28)
+- **Domain & database:** pure static `StayChargeCalculator.Accrued(stay, services, asOf, tz)` — the single
+  daily-accrual algorithm, derived and **never stored** (movement-based, like inventory): `PerDay` services
+  bill `UnitPrice × NightsBetween` (local-day count in the clinic time zone, clamped `Max(1, …)`, same-day
+  → 1 night), `PerStay`/`PerUse` and catalog/product items bill `UnitPrice × Quantity`. `NightsBetween` is
+  inlined in the calculator (Domain never depends on Application). `BoardingStay` gained
+  `long? FrozenTotalMinor` + `FreezeTotalForCheckout(Money)` (audit snapshot; the calculator reproduces the
+  same value at `CheckOutUtc`). New `[LocalOnly] BoardingBillingHandoff` (same column set as C03's
+  `VisitBillingHandoff`, `StayId` unique, reusing `HandoffStatus`) so **C07 can invoice a stay exactly like a
+  visit**, plus additive migration **`012_BoardingHandoff`** (`FrozenTotalMinor` on the stay + handoff table;
+  001–011 unchanged). `ErrorCodes` += 6 (`STAY_NOT_FOUND`, `STAY_NOT_EDITABLE`, `STAY_ITEM_INDEX_STALE`,
+  `ROOM_AT_CAPACITY`, `ROOM_NONE_AVAILABLE`, `STAY_ALREADY_CHECKED_OUT`).
+- **Wire:** `CommandTypes` += 4 (`boarding.stay.create`, `boarding.item.add`, `boarding.item.remove`,
+  `boarding.stay.transfer`); `boarding.stay.checkout` already existed.
+- **Application:** `Application/Ports/IBoardingQueries` + `IBoardingBillingHandoffWriter` (the
+  `IVisitBillingHandoffWriter` pattern), 5 read models, 7 queries (stays list, detail, rooms occupancy,
+  services, selectable items, known pets, paged history ≤200) and 5 journaled commands with permission checks
+  (`BoardingManage` for create/item/transfer, `BoardingCheckout` for checkout) and transaction-scoped room
+  capacity re-check. Stale-index remove: the service resolves the ItemId from the last-read detail and passes
+  both `Index` and `ExpectedItemId`; a mismatch inside the transaction → `STAY_ITEM_INDEX_STALE` and nothing
+  is removed. Transfer with a null target picks the next free room of the same type. **Checkout deviation:**
+  because `CompleteCheckout` needs an InvoiceId (a C07 concern), C05 stops at `RequestCheckout` →
+  `ReadyForInvoice`, freezes the accrued total and writes a `Ready` `BoardingBillingHandoff`; occupancy counts
+  only `State==Active`, so a ready-for-invoice stay already frees its room; a second checkout on a non-active
+  stay → `STAY_ALREADY_CHECKED_OUT`.
+- **Persistence:** `BoardingQueries` — occupancy counted in SQL (correlated `COUNT`, only `State==Active`
+  occupied, never per-room), single-statement stay/detail projections, paged history honoring
+  `BoardingHistorySort` and the 200 cap; `BoardingBillingHandoffWriter` shares the command's scoped
+  `DbContext`. `LocalSeeder` gained a marker-guarded `boarding.services` block (6 `BoardingServiceDef`,
+  rooms untouched); `BoardingSampleData` (5 active + 9 completed stays) sits behind `SeedSampleData`.
+  **Post-merge translation fix:** the list/detail/history read model embeds the whole `BoardingStay`, so
+  filtering/sorting on `r.Stay.State` / `r.Stay.CheckInUtc` after the projection could not be translated by
+  EF; all filtering, ordering and paging now run on the `BoardingStay` source query before the join/project
+  (name search still runs on the projection's own joined labels).
+- **Client/Desktop:** scope-per-call `BoardingQueryService` implementing all `IBoardingQueryService` members
+  + `BoardingMapping` (enum mapping by name, stable item order by `ConsumedUtc` then `ItemId`); DI swapped to
+  the real service, `BoardingPageViewModel` gained an `IStoreReadinessGate` gate, and `IBoardingQueries` /
+  `IBoardingBillingHandoffWriter` registered. **Mock deleted: `MockBoardingQueryService.cs`.**
+- **Coverage:** `StayChargeCalculatorTests` (same-day→1 night, per-day×3, one-time×1, frozen = recompute at
+  `CheckOutUtc`), `BoardingUseCaseTests` (`ROOM_AT_CAPACITY`, `STAY_ITEM_INDEX_STALE` without removal, checkout
+  writes one handoff + frees the room, double checkout → `STAY_ALREADY_CHECKED_OUT`), `BoardingQueryTests`
+  (rooms single `SELECT` via `ToQueryString()`, history sort + 200 cap). No .NET SDK was available in the
+  closeout session, so `build.sh`/`test.sh`/`run.sh` were **not run**; compile/runtime verification remains
+  outstanding (the translation fix above was made by inspection).
+- **Deviations:** D1 migration numbered 012 (011 was C04). D2 billing enum is `PerStay/PerDay/PerUse`
+  (mapped to one-time/per-night/per-unit). D3 stay dates are `DateTimeOffset`, not `long`. D4 `StayItem`
+  uses `ConsumedUtc`/`ItemId` for stable order (no separate `AddedUtc`). D5 items & room history are JSON
+  columns (no new relational table); transfer uses `BoardingStay.TransferRoom`. D6 `FrozenTotalMinor` added
+  to the domain. D7 existing boarding permissions reused (no new permission). D8 `boarding.stay.checkout`
+  already existed (+4 new command types only). D9 new `IBoardingQueries` + handoff writer ports. D10 6 service
+  defs seeded, rooms untouched. D11 domain enums mapped to Contracts enums by name (`Isolation/Cage/Suite`
+  → nearest `Standard`/`Vip`; status `Active→Active`, else `Done`). Plus the checkout→`ReadyForInvoice`
+  deviation (real invoice deferred to C07).
 
 ### C04 — Appointments calendar and booking (2026-09-28)
 - **Domain & database:** three `StaffMembership` work-window fields with validated mutator; indexed
