@@ -3709,40 +3709,39 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("PendingCommands", (string)null);
                 });
 
-            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.UiDraftState", b =>
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.SmsTemplateRow", b =>
                 {
                     b.Property<string>("Id")
                         .HasMaxLength(26)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("PayloadJson")
+                    b.Property<string>("Body")
                         .IsRequired()
-                        .HasMaxLength(65536)
+                        .HasMaxLength(2048)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ScreenKey")
+                    b.Property<string>("Channel")
                         .IsRequired()
-                        .HasMaxLength(100)
+                        .HasMaxLength(400)
                         .HasColumnType("TEXT");
 
-                    b.Property<long>("UpdatedAtUtc")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
 
-                    b.Property<string>("UserId")
+                    b.Property<string>("TenantId")
                         .IsRequired()
                         .HasMaxLength(26)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UpdatedAtUtc")
-                        .HasDatabaseName("IX_UiDraftStates_UpdatedAtUtc");
-
-                    b.HasIndex("ScreenKey", "UserId")
+                    b.HasIndex("TenantId", "Name")
                         .IsUnique()
-                        .HasDatabaseName("IX_UiDraftStates_ScreenKey_UserId");
+                        .HasDatabaseName("IX_SmsTemplateRows_TenantId_Name");
 
-                    b.ToTable("UiDraftStates", (string)null);
+                    b.ToTable("SmsTemplateRows", (string)null);
                 });
 
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.StoreMaintenanceLog", b =>
@@ -3767,6 +3766,100 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasDatabaseName("IX_StoreMaintenanceLogs_OccurredAtUtc");
 
                     b.ToTable("StoreMaintenanceLogs", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.UiDraftState", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ScreenKey")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdatedAtUtc")
+                        .HasDatabaseName("IX_UiDraftStates_UpdatedAtUtc");
+
+                    b.HasIndex("ScreenKey", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_UiDraftStates_ScreenKey_UserId");
+
+                    b.ToTable("UiDraftStates", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.VisitBillingHandoff", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CompletedUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DoctorId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InvoiceId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LinesJson")
+                        .IsRequired()
+                        .HasMaxLength(65536)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PetId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VisitId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VisitId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_VisitBillingHandoffs_VisitId");
+
+                    b.HasIndex("TenantId", "Status", "CompletedUtc")
+                        .HasDatabaseName("IX_VisitBillingHandoffs_TenantId_Status_CompletedUtc");
+
+                    b.ToTable("VisitBillingHandoffs", (string)null);
                 });
 
             modelBuilder.Entity("Animora.Persistence.Sqlite.Seed.SeedMarker", b =>
