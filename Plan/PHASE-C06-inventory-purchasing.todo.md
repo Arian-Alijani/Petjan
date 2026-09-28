@@ -331,7 +331,7 @@
   after `MigrateAsync`/seed so a rebuilt DB is consistent). Build `Animora.Persistence.Sqlite`.
   **Push:** `feat(persist): RebuildStockSnapshotsAsync + call from rebuild path`.
 
-- [ ] **T05 — Persistence: InventoryQueries + PurchasingQueries + ports + DI.**
+- [x] **T05 — Persistence: InventoryQueries + PurchasingQueries + ports + DI.**
   Create Application ports `Ports/IInventoryQueries.cs` and `Ports/IPurchasingQueries.cs` (methods
   returning the read models from T07/T08 — define read models first if needed, or co-develop). Impl:
   `Queries/InventoryQueries.cs` (catalog paged read joining `StockOnHandSnapshot`; `LowStockOnly`

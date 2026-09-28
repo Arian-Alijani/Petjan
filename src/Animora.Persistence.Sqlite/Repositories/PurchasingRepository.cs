@@ -15,4 +15,6 @@ public sealed class PurchasingRepository(AnimoraLocalDbContext db) : IPurchasing
 
     public void Add(PurchaseOrder entity) => db.Set<PurchaseOrder>().Add(entity);
     public void AddRange(IEnumerable<PurchaseOrder> entities) => db.Set<PurchaseOrder>().AddRange(entities);
+
+    public void AddReceipt(GoodsReceipt receipt) => db.Set<GoodsReceipt>().Add(receipt);
 }
