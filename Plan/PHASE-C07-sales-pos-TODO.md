@@ -289,7 +289,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): Insurer config + migration 014_SalesInsurers + seed 6 insurers`
 
 ### T03 — InvoiceNumberAllocator (+ concurrency test)
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:**
   - create `src/Animora.Persistence.Sqlite/Sales/InvoiceNumberAllocator.cs` — define its port
     interface (e.g. `IInvoiceNumberAllocator.AllocateAsync(tenantId, DateTimeOffset issued, ct)` returning
