@@ -1335,6 +1335,10 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasMaxLength(26)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Version")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("WorkDaysMask")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
@@ -1349,10 +1353,6 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(480);
-
-                    b.Property<string>("Version")
-                        .HasMaxLength(400)
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("_deniedPermissionCodes")
                         .IsRequired()
@@ -3346,6 +3346,64 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("AuditEntries", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.BoardingBillingHandoff", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CompletedUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DoctorId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InvoiceId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LinesJson")
+                        .IsRequired()
+                        .HasMaxLength(65536)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PetId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StayId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StayId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_BoardingBillingHandoffs_StayId");
+
+                    b.HasIndex("TenantId", "Status", "CompletedUtc")
+                        .HasDatabaseName("IX_BoardingBillingHandoffs_TenantId_Status_CompletedUtc");
+
+                    b.ToTable("BoardingBillingHandoffs", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.ClockHighWater", b =>
                 {
                     b.Property<int>("Id")
@@ -3765,6 +3823,47 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("SmsTemplateRows", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.StockOnHandSnapshot", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastMovementId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("LastMovementUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("OnHandScaled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VariantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ProductId", "VariantId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_StockOnHandSnapshots_TenantId_ProductId_VariantId");
+
+                    b.ToTable("StockOnHandSnapshots", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.StoreMaintenanceLog", b =>
                 {
                     b.Property<string>("Id")
@@ -3823,64 +3922,6 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasDatabaseName("IX_UiDraftStates_ScreenKey_UserId");
 
                     b.ToTable("UiDraftStates", (string)null);
-                });
-
-            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.BoardingBillingHandoff", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(26)
-                        .HasColumnType("TEXT");
-
-                    b.Property<long>("CompletedUtc")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("DoctorId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("InvoiceId")
-                        .HasMaxLength(26)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LinesJson")
-                        .IsRequired()
-                        .HasMaxLength(65536)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("OwnerId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PetId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("TenantId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("StayId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StayId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_BoardingBillingHandoffs_StayId");
-
-                    b.HasIndex("TenantId", "Status", "CompletedUtc")
-                        .HasDatabaseName("IX_BoardingBillingHandoffs_TenantId_Status_CompletedUtc");
-
-                    b.ToTable("BoardingBillingHandoffs", (string)null);
                 });
 
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.VisitBillingHandoff", b =>
