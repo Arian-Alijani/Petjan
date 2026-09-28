@@ -451,7 +451,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
 - **Push:** `feat(persistence): C03 medical-history write repository`.
 - (Do this BEFORE T4b compiles — reorder if you start T4b first; T4b depends on it.)
 
-### [ ] T9 — Contracts: additive FlushAsync + Client.Services caches/buffers
+### [x] T9 — Contracts: additive FlushAsync + Client.Services caches/buffers
 - Edit `src/Animora.Contracts/Visits/IVisitEncounterService.cs`: ADD one member:
   `Task FlushAsync(CancellationToken cancellationToken = default);` (additive; XML-doc it: "flushes any
   pending debounced note edits; called before navigating away"). Nothing else reshaped.
