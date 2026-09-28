@@ -12,6 +12,7 @@ using Animora.Persistence.Sqlite.Options;
 using Animora.Persistence.Sqlite.Outbox;
 using Animora.Persistence.Sqlite.Queries;
 using Animora.Persistence.Sqlite.Repositories;
+using Animora.Persistence.Sqlite.Sales;
 using Animora.Persistence.Sqlite.Security;
 using Animora.Persistence.Sqlite.Seed;
 using Microsoft.Data.Sqlite;

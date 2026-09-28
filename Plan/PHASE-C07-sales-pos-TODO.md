@@ -453,7 +453,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): register Sales use cases, queries and allocator`
 
 ### T10 — SalesMapping + SalesQueryService (the 22 members)
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:**
   - create `src/Animora.Client.Services/Sales/SalesMapping.cs` — hand-written static extensions mapping
     read models ↔ Contracts DTOs, **including the settlement fields** onto `InvoiceDetail`/
