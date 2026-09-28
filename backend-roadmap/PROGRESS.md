@@ -34,12 +34,12 @@
 
 | Area | State |
 |---|---|
-| `src/Animora.Desktop/` | **Complete; Track C swap under way.** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Identity (B03c), **Patients (C01)** and **Reception + Visits triage (C02)** now run on the real backend: `IPatientsQueryService → PatientsService`, `IReceptionQueueService → ReceptionQueueService`, `IVisitsTriageService → VisitsTriageService`, `IStoreReadinessGate` registered. Remaining screens are still on mocks until their own C phase. |
+| `src/Animora.Desktop/` | **Complete; Track C swap under way.** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Identity (B03c), **Patients (C01)**, **Reception + Visits triage (C02)** and **Visit encounter + Vaccination (C03)** now run on the real backend: `IPatientsQueryService → PatientsService`, `IReceptionQueueService → ReceptionQueueService`, `IVisitsTriageService → VisitsTriageService`, `IVisitEncounterService → VisitEncounterService`, `IVaccinationService → VaccinationService`, `IStoreReadinessGate` registered. Remaining screens are still on mocks until their own C phase. |
 | `src/Animora.Contracts/` | 20 interfaces + DTOs, one folder per bounded context. The frontend↔backend seam. B03c added the auth seam (`Identity/IAuthenticationService`, `AuthOutcome`, `FirstRunRequest`) and appended `UserRole.Receptionist`; still references no `Animora.*`. |
-| `src/Animora.Desktop/Mocks/` | 20 in-memory files (18 `Mock*` services + `AppointmentStore` + `VisitEncounterStore`) — the only implementations for the remaining non-identity/non-patients screens. `MockCurrentUserContext` deleted by B03c; **`MockPatientsQueryService` deleted by C01**; **`MockReceptionQueueService` + `MockVisitsTriageService` deleted by C02**; the rest are later Track C phases' job. |
+| `src/Animora.Desktop/Mocks/` | 16 in-memory files (15 `Mock*` services + `AppointmentStore`) — the only implementations for the remaining non-identity/non-patients screens. `MockCurrentUserContext` deleted by B03c; **`MockPatientsQueryService` deleted by C01**; **`MockReceptionQueueService` + `MockVisitsTriageService` deleted by C02**; **`MockVisitEncounterService` + `VisitEncounterStore` + `MockVaccinationService` deleted by C03**; the rest are later Track C phases' job. |
 | `src/Animora.Domain/`, `src/Animora.Application/` | **Real code**, not placeholders — built through Track A (A01–A12: kernel, identity, patients/clinical, scheduling/boarding, inventory/purchasing, sales/cashier, finance) and B01–B02 (application dispatch pipeline, command journal/outbox). `Animora.Domain.csproj` still has **zero** project/package references by design. |
-| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 7 migrations (`001`–`007`), repositories, seed, maintenance/backup/quarantine, OS keystore, clocks, append-only local audit sink, buffered/redacted rolling file logging, and PII-free diagnostics bundle export. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
-| `src/Animora.Client.Services/` | B03c identity (`Identity/AuthenticationService`, `Identity/CurrentUserContextService`, `Mapping/RoleMapping`). **C01 patients:** `Patients/PatientsService` (real `IPatientsQueryService` over the dispatcher, scope-per-call, no EF/SQL/rule) + `Patients/PatientsMapping` (hand-written read-model ↔ Contracts DTO); `Diagnostics/StoreReadinessGate` (over `LocalStoreStartup`). Remaining services are later Track C phases. |
+| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 10 migrations (`001`–`010`; `008` UiDraftState, `009` PatientsSearchKeys, `010` C03 schema = `VisitBillingHandoffs` + `SmsTemplateRows`), repositories (+ `MedicalHistoryRepository`, C03), seed (`ClinicalSampleData` + reference SMS templates, C03), read queries (`RxCatalogQueries`, `VaccinationQueries`, C03), maintenance/backup/quarantine, OS keystore, clocks, append-only local audit sink, buffered/redacted rolling file logging, and PII-free diagnostics bundle export. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
+| `src/Animora.Client.Services/` | B03c identity (`Identity/AuthenticationService`, `Identity/CurrentUserContextService`, `Mapping/RoleMapping`). **C01 patients:** `Patients/PatientsService` + `Patients/PatientsMapping`; `Diagnostics/StoreReadinessGate`. **C02:** `Reception/ReceptionQueueService`, `Visits/VisitsTriageService` (+ mappings, `VisitTypeCatalog`). **C03:** `Visits/VisitEncounterService` + `Visits/VisitEncounterMapping` + `Visits/DebounceBuffer` (trailing 600 ms note debounce, flushed on complete/navigate), `Vaccination/VaccinationService` + `Vaccination/VaccinationMapping` + `Vaccination/SmsTemplateRenderer` (token substitution, **no delivery**), `Caching/TenantScopedCache` (bounded LRU keyed by tenant+user+resource+version). All are `sealed`, scope-per-call over the dispatcher, no EF/SQL/rule. Remaining services are later Track C phases. |
 | `src/Animora.Sync.Abstractions/` | Still an **empty scaffold** (csproj + README only) — Track E deliverable. |
 | Server / SQL Server / licensing / admin web | **Do not exist yet** (Tracks D/E). |
 | Login | **Real local authentication (B03c).** `LoginViewModel` → `IAuthenticationService`; disabled until the local store is ready; first run shows `FirstRunView` (owner setup) and opens the shell. No hardcoded credentials, no demo user seeded. (`LoginWindow.axaml` still shows the old demo hint text — untouched by design.) |
@@ -51,7 +51,7 @@
 
 ## Next phase
 
-**Next phase: `C03`** — `backend-roadmap/phases/PHASE-C03-*.md` (follows **the C01 pattern**; builds on C02's `Visit` started in `InProgress` from triage).
+**Next phase: `C04`** — `backend-roadmap/phases/PHASE-C04-*.md` (follows **the C01 pattern**; builds on C03's completed visits, `VisitBillingHandoff` handoff rows and vaccination read-projection).
 
 ## Phase status
 
@@ -93,7 +93,7 @@
 | B05c | ✅ Done | 2026-09-27 | Crash safety + wiring: `IUserNotificationPort` (Contracts) + `NotificationModels`, `ToastNotificationAdapter`, `NotificationText` (Desktop), `GlobalExceptionHandler`/`CrashRecoveryService`, `UiDraftState` + `DraftStateStore` + migration `008_UiDraftState`, `MaintenanceScheduler`, `App.axaml.cs` wiring (3 hooks first, notification port, scheduler), `LocalCommandProcessor.IsPassRunning`, `ErrorCodes` += `CRASH_RECOVERY_REQUIRED`, 5 B05 test classes. `build.sh full` 0/0; targeted test filters OK; `SMOKE RUN OK`. |
 | C01 | ✅ Done | 2026-09-27 | Patients & Owners on the real local DB — **establishes the Track C pattern** (use case → Client.Services impl of the Contracts interface → mapping → one DI line → mock deleted). 9 use cases (4 queries + 5 journaled commands) + 4 read models, `PatientDirectoryQueries` (single-statement projections, `Like` over indexed `SearchKey`), `SearchKey` columns + migration `009_PatientsSearchKeys`, `PatientsSampleData` (12 owners / 18 pets / 36 weights / 36 documents) behind `SeedSampleData`, Contracts addition `IStoreReadinessGate` + `StoreReadinessGate`, `PatientsService`/`PatientsMapping`, DI swap, **mock deleted: `MockPatientsQueryService.cs`**, `CommandTypes` += 5, `ErrorCodes` += 4, 3 test classes. `TotalSpend` deferred to C09. Verified: `build.sh full` = **0/0**, `run.sh` = **SMOKE RUN OK**; all C01 tests green (Patients 20/20, PatientDirectory 7/7, Seeding 4/4). Closeout fixed 4 latent C01 defects that only a real build surfaces — see C01 log. |
 | C02 | ✅ Done | 2026-09-27 | Reception queue + visits triage on the real local DB (the C01 pattern). **Derived queue** (`ReceptionQueueEntry` only for walk-ins / state an appointment cannot carry; appointment rows created lazily on first state change), `TicketRef` (`apt:`/`wlk:`), 5 queries + 8 journaled commands, `OperationIdFactory.Deterministic` (idempotent start-visit), `ReceptionQueueQueries` (one LEFT JOIN + UNION ALL statement, UTC range) + `TriageQueries`, `ReceptionSampleData`, `ReceptionQueueService`/`VisitsTriageService` + 2 mappings + `VisitTypeCatalog`, 2 DI swaps, 2 VM readiness lines, **mocks deleted: `MockReceptionQueueService.cs`, `MockVisitsTriageService.cs`**, `CommandTypes` += 7, `ErrorCodes` += 4, 3 test classes. Verified: `build.sh full` = **0/0**; C02 filtered tests green (Application 25/25, ReceptionQueueQuery 3/3). |
-| C03 | ⬜ Not started | | |
+| C03 | ✅ Done | 2026-09-28 | Visit encounter & vaccination on the real local DB (the C01 pattern). Per-field encounter commands (`SaveVisitVitals`, `SaveVisitNote`, `AddPrescriptionLine`, `RemovePrescriptionLine`, `CompleteVisit` — the 6-step C07-seam handoff transaction: complete → one `MedicalHistoryEntry` → one `VisitBillingHandoff` → best-effort reception `Done` → `MarkReadyForInvoice`) + `EncounterDraftQuery`/`RxCatalogQuery`; vaccination `MarkVaccinationDone`/`RecordVaccinationReminder` + due/catalog/history/sms-template queries. New `[LocalOnly]` `VisitBillingHandoff` + `SmsTemplateRow` + migration **`010_C03Schema`** (numbered 010 not 009, D1). `VaccinationThresholds` 5-bucket read-model projection (collapsed → 4-value Contracts `VaccinationStatus`, D6). `Client.Services`: `TenantScopedCache`, `DebounceBuffer`, `VisitEncounterService`/`VaccinationService` + mappings + `SmsTemplateRenderer` (no delivery). Contracts additive `IVisitEncounterService.FlushAsync`. New `IMedicalHistoryRepository`. 2 DI swaps + removed `VisitEncounterStore`. **Mocks deleted: `MockVisitEncounterService.cs`, `VisitEncounterStore.cs`, `MockVaccinationService.cs`.** `CommandTypes` += 7, `ErrorCodes` += 7, reused permissions (D2). 3 test classes (12 tests). Verified: `build.sh full` = **0/0**, C03 tests green (VisitEncounter 3/3, Vaccination 7/7, VisitBillingHandoff 2/2), `run.sh` = **SMOKE RUN OK**. |
 | C04 | ⬜ Not started | | |
 | C05 | ⬜ Not started | | |
 | C06 | ⬜ Not started | | |
@@ -135,6 +135,66 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > do not read the entries around it. If nothing below is cited, you are done reading this file.
 
 ## Repo state log
+
+### C03 — Visit encounter & vaccination on the real local DB (2026-09-28)
+- **Domain:** `Clinical/VisitNoteField` (`History, Exam, Diagnosis, Plan`); `Clinical/VaccinationThresholds`
+  (const bucket bounds `OverdueMaxDays=-1`, `DueSoonMaxDays=14`, `UpcomingMaxDays=60` + `BucketFor(days,
+  administered)` → 5-bucket read-model enum `VaccinationDueBucket { Overdue, DueSoon, Upcoming, Scheduled,
+  Done }`). Existing `VaccinationRecord.StateAt` (30-day window, A04) left untouched — C03's bucket is a
+  **separate read projection** computed only from `DaysUntilDue` (D7). `ErrorCodes` += 7 (`VISIT_NOT_FOUND`,
+  `VISIT_NOT_EDITABLE`, `VISIT_INCOMPLETE`, `RX_LINE_NOT_FOUND`, `VACCINATION_NOT_FOUND`,
+  `VACCINATION_ALREADY_DONE`, `SMS_TEMPLATE_TOKEN_UNKNOWN`).
+- **Wire:** `CommandTypes` += 7 (`visits.visit.vitals`, `visits.visit.note`, `visits.rx.add`,
+  `visits.rx.remove`, `visits.visit.complete`, `vaccination.record.administer`,
+  `vaccination.record.reminder`).
+- **Application:** `UseCases/Visits/` — per-field encounter commands (`SaveVisitVitalsCommand`,
+  `SaveVisitNoteCommand`, `AddPrescriptionLineCommand`, `RemovePrescriptionLineCommand`) + `EncounterDraftQuery`
+  / `RxCatalogQuery`; `CompleteVisitCommand` is the **C07 handoff seam** (one transaction: guard →
+  `Visit.Complete` → one `MedicalHistoryEntry(kind=Visit)` → one `VisitBillingHandoff.Create(Status=Ready)`
+  → best-effort reception ticket → `Done` → `Visit.MarkReadyForInvoice`; returns an `EncounterSummary`
+  read model, tax 9%). Commands 1–4 `[RequiresPermission(VisitsWrite)]`, complete `[RequiresPermission(
+  VisitsComplete)]` (D2 — reused existing permission codes). `UseCases/Vaccination/` — `VaccinationDueQuery`,
+  `VaccinationCatalogQuery`, `VaccinationHistoryQuery`, SMS-template query; journaled
+  `MarkVaccinationDoneCommand` (+ one next `VaccinationRecord` when the protocol has a follow-up dose, D9;
+  second call → `VACCINATION_ALREADY_DONE`) and `RecordVaccinationReminderCommand` (history entry only,
+  **no network**). New port `IMedicalHistoryRepository` (`Add`). Registered by `AddVisitsUseCases()` (extended)
+  + new `AddVaccinationUseCases()`.
+- **Persistence:** `[LocalOnly]` `Entities/VisitBillingHandoff` (+ `HandoffStatus { Ready, Invoiced,
+  Cancelled }`, unique on `VisitId`, `MarkInvoiced`/`Cancel` for C07) + `Entities/SmsTemplateRow`; configs in
+  `Configurations/Clinical/`. Migration **`010_C03Schema`** — both tables + indexes
+  (`IX_VisitBillingHandoffs_TenantId_Status_CompletedUtc`, unique `IX_VisitBillingHandoffs_VisitId`); 001–009
+  byte-identical (D1: numbered 010 not the phase's 009 — 009 taken by C01). `Queries/RxCatalogQueries`
+  (Medicine/Consumable products UNION service defs → `RxCatalogItemReadModel`), `Queries/VaccinationQueries`
+  (due projection joins Pet/Owner, buckets via `VaccinationThresholds`; history over `MedicalHistoryEntry`
+  where `Kind==Vaccination`, paged ≤200). `Repositories/MedicalHistoryRepository`. `Seed/ClinicalSampleData`
+  (`clinical.sample`, behind `SeedSampleData`, guarded on pets existing: 10 completed visits + 14 vaccination
+  records across all 5 buckets, `FixedClock`) + reference SMS-template block (`vaccination.sms.templates`,
+  **always seeded**, 4 rows, tokens `{pet}{owner}{vaccine}{due}`). Ports/queries registered in
+  `LocalStoreServiceCollectionExtensions`.
+- **Contracts:** additive `IVisitEncounterService.FlushAsync(CancellationToken=default)` — flushes pending
+  debounced note edits before navigating away. Nothing else reshaped (D3 — the 12-member seam is frozen; the
+  per-field commands are an Application/Client.Services concern).
+- **Client services:** `Caching/TenantScopedCache<TKey,TValue>` (bounded 16, LRU, key = tenant+user+resource
+  +version, A-RULE 033); `Visits/DebounceBuffer` (trailing 600 ms per `(encounterId, VisitNoteField)`, bounded
+  32, non-blocking, flush on dispose); `Visits/VisitEncounterService` + `Visits/VisitEncounterMapping`
+  (singleton, scope-per-call, maps the 12 existing members onto the T4 commands, `GetCatalogAsync` cached);
+  `Vaccination/VaccinationService` + `Vaccination/VaccinationMapping` (5→4 status collapse, D6:
+  `DueSoon→Due`, `Upcoming→Scheduled`; `SendSmsAsync` = dispatch reminder + `SmsState.Sent`, no network) +
+  `Vaccination/SmsTemplateRenderer` (`{pet}{owner}{vaccine}{due}`, unknown token →
+  `SMS_TEMPLATE_TOKEN_UNKNOWN`, 70-char segments).
+- **Desktop:** `App.axaml.cs` — `.AddVaccinationUseCases()` added; 2 DI swaps
+  (`MockVaccinationService → VaccinationService`, `MockVisitEncounterService → VisitEncounterService`) and
+  removed `VisitEncounterStore` registration; both new services `Singleton`. `VisitEncounterViewModel`:
+  `IStoreReadinessGate.WaitAsync()` first line of `LoadAsync`, `FlushAsync()` in `BackToGate()`/`NextVisit()`;
+  `VaccinationPageViewModel`: readiness gate on initial load. **Mocks deleted:
+  `MockVisitEncounterService.cs`, `VisitEncounterStore.cs`, `MockVaccinationService.cs`.**
+- **Tests:** `Application.Tests/VisitEncounterUseCaseTests` (note-on-completed → `VISIT_NOT_EDITABLE`,
+  empty complete → `VISIT_INCOMPLETE`, success writes exactly one history + one handoff, double-complete
+  rejected — 3), `Application.Tests/VaccinationUseCaseTests` (bucket boundaries −1/0/14/15/60/61, one next
+  record on follow-up, double administer → `VACCINATION_ALREADY_DONE` — 7),
+  `Persistence.Tests/VisitBillingHandoffTests` (010 applies on a 009 DB, unique-index rejects 2nd handoff for
+  same visit, append-only `MedicalHistoryEntry` update throws — 2). Verified: `build.sh full` **0/0**, the 3
+  classes green (12 total), `run.sh` **SMOKE RUN OK**.
 
 ### C02 — Reception queue & visits triage on the real local DB (2026-09-27)
 - **Derived-queue rule:** a `ReceptionQueueEntry` is persisted only for walk-ins and for state an `Appointment`
@@ -1427,6 +1487,39 @@ Decision:   what was done instead
 Rule check: which A-RULE / T-RULE / CONVENTIONS § was consulted and why this complies
 Impact:     phases affected + what a later session must know
 ```
+
+### C03 — migration number, reused permissions, note merge, complete/next-dose modeling            (date: 2026-09-28)
+Context:    The phase file (a) numbered the migration `009` (already taken by C01); (b) invented new permission
+            strings (`visits.encounter.edit/complete`, `vaccination.record.edit`); (c) named a 4-field
+            `VisitNoteField` while the `Visit` aggregate has no separate History/Exam fields; (d) named a
+            5-bucket `VaccinationStatus` while Contracts freezes a 4-value enum; (e) specified a
+            "diagnosis OR one line" complete-guard while `Visit.Complete` hard-requires a Diagnosis; (f)
+            required "administering a dose with a follow-up protocol creates exactly one next record" with no
+            Domain "scheduled-but-not-administered" record type; (g) placed "field commands" on the frozen
+            `IVisitEncounterService` seam.
+Decision:   (D1) migration = **`010_C03Schema`**, single migration carrying both new tables. (D2) reuse the
+            existing `PermissionCodes.VisitsWrite`/`VisitsComplete`/`VaccinationWrite`; `CompleteVisitCommand`
+            gates on `VisitsComplete`. (D3) Contracts `IVisitEncounterService` keeps its 12 members + one
+            additive `FlushAsync`; per-field commands live in Application/Client.Services. (D5) note merge:
+            `Diagnosis→Diagnosis`, `Plan→TreatmentPlan`, `History`+`Exam`→ labelled sections concatenated into
+            `DoctorNotes` (both survive independent edits), via `SetAssessment` only — no new `Visit` field.
+            (D6) 5-bucket read-model enum lives in Domain/read layer for the tests; Contracts mapping collapses
+            `DueSoon→Due`, `Upcoming→Scheduled`. (D7) C03 bucket is a new read projection from `DaysUntilDue`;
+            `VaccinationRecord.StateAt` untouched. (D8) **complete requires a non-empty Diagnosis** — the
+            "OR lines" phrase is only the pre-attempt `VISIT_INCOMPLETE` guard; empty diagnosis →
+            `VISIT_INCOMPLETE`. (D9) `MarkVaccinationDoneCommand` administers the current record + appends
+            history, and creates exactly one next `VaccinationRecord` (dose N+1) when `DoseNumber < TotalDoses`;
+            a second invocation (a dose N+1 record already exists for the pet+code) → `VACCINATION_ALREADY_DONE`.
+Rule check: CONVENTIONS §111 (append-only sequential migrations) → D1; A-RULE 002/003 append-only history
+            (update throws) verified by test; A-RULE 033 (tenant+user+resource+version cache key) → `TenantScopedCache`;
+            PERFORMANCE §4 (never block UI) → `DebounceBuffer` non-blocking; Domain-frozen `Visit`/`VaccinationRecord`
+            (A04) honoured — no aggregate reshape (D5/D7/D8). Reusing permission codes avoids touching
+            `DefaultRolePermissions`/`PermissionCodes.All`/role seed.
+Impact:     **C07** consumes `VisitBillingHandoff` (numbered 010, `MarkInvoiced`/`Cancel` already present) and the
+            reception `Done` transition; C04+ build on completed visits + the vaccination read projection. Any later
+            phase reading vaccination status through Contracts sees the 4-value collapse (D6); a 5-bucket consumer
+            must use the read model / `VaccinationThresholds` directly. `SmsTemplateRenderer` has **no delivery** —
+            wiring a real channel is a future/out-of-band concern.
 
 ### C02 — paths, permissions, no-show modeling, gate scope            (date: 2026-09-27)
 Context:    The phase file places `OperationIdFactory` under `Commands/`, cites permissions `reception.queue.manage` /
