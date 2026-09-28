@@ -506,7 +506,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): swap ISalesQueryService to real impl, add readiness gate, delete mock`
 
 ### T13 — The four test classes
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files (run each FILTERED as you write it, not the whole suite):**
   - create `tests/Animora.Domain.Tests/InvoiceImmutabilityTests.cs` — editing a line / discount /
     insurer on a **posted** invoice returns `INVOICE_IMMUTABLE`; a credit-note/reversal's totals are the
