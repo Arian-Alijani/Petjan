@@ -1,7 +1,9 @@
 using System.Globalization;
+using Animora.Domain.Inventory;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Converters;
 using Animora.Persistence.Sqlite.Entities;
 using Animora.Persistence.Sqlite.Options;
 using Microsoft.Data.Sqlite;
@@ -83,6 +85,11 @@ public sealed class LocalStoreMaintenance(
             if (initialized.IsFailure)
                 return Result.Fail(ErrorCodes.StoreRestoreFailed,
                     $"{initialized.Error.Code}: {initialized.Detail}; previous store kept in {quarantine}");
+            // C06: a restored backup may predate or disagree with the snapshot cache — re-prove it from the ledger.
+            var snapshots = await RebuildStockSnapshotsAsync(ct);
+            if (snapshots.IsFailure)
+                return Result.Fail(ErrorCodes.StoreRestoreFailed,
+                    $"{snapshots.Error.Code}: {snapshots.Detail}; previous store kept in {quarantine}");
             await LogAsync(StoreMaintenanceKind.Restore,
                 $"from {Path.GetFileName(backupPath)}; previous store in {quarantine}", ct);
             return Result.Ok();
@@ -105,6 +112,9 @@ public sealed class LocalStoreMaintenance(
             var quarantine = MoveToQuarantine();
             var initialized = await InitializeAsync(ct);
             if (initialized.IsFailure) return initialized;
+            // C06: the rebuilt store's on-hand cache must equal its (freshly seeded) ledger.
+            var snapshots = await RebuildStockSnapshotsAsync(ct);
+            if (snapshots.IsFailure) return Result<LocalStoreDiagnostics>.Fail(snapshots.Error, snapshots.Detail);
             await LogAsync(StoreMaintenanceKind.Quarantine, $"moved to {quarantine}", ct);
             return Result<LocalStoreDiagnostics>.Ok(initialized.Value! with { Quarantined = true });
         }
@@ -134,6 +144,47 @@ public sealed class LocalStoreMaintenance(
             }
             await LogAsync(StoreMaintenanceKind.Vacuum, $"pages freed: {freed}", ct);
             return Result<int>.Ok(freed);
+        }
+        catch (Exception ex) when (IsStoreFailure(ex))
+        {
+            return Result<int>.Fail(Map(ex, ErrorCodes.StoreUnavailable), ex.Message);
+        }
+    }
+
+    public async Task<Result<int>> RebuildStockSnapshotsAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        try
+        {
+            await using var context = await contexts.CreateDbContextAsync(ct);
+            await using var transaction = await context.Database.BeginTransactionAsync(ct);
+            var tenantId = context.CurrentTenantId;
+            await context.Set<StockOnHandSnapshot>().Where(s => s.TenantId == tenantId).ExecuteDeleteAsync(ct);
+
+            // One streaming pass over the tenant-filtered ledger: exact ×1000 sums + latest movement per key.
+            var totals = new Dictionary<(string ProductId, string VariantId), (long OnHand, DateTimeOffset At, string Id)>();
+            var rows = context.Set<StockMovement>().AsNoTracking()
+                .Select(m => new { m.Id, m.ProductId, m.VariantId, m.OccurredUtc, Value = m.Quantity.Value })
+                .AsAsyncEnumerable();
+            await foreach (var m in rows.WithCancellation(ct))
+            {
+                var key = (m.ProductId, m.VariantId);
+                var scaled = FixedScaleQuantityConverter.ToScaled(m.Value);
+                totals[key] = totals.TryGetValue(key, out var t)
+                    ? (checked(t.OnHand + scaled), m.OccurredUtc >= t.At ? m.OccurredUtc : t.At, m.OccurredUtc >= t.At ? m.Id : t.Id)
+                    : (scaled, m.OccurredUtc, m.Id);
+            }
+
+            var set = context.Set<StockOnHandSnapshot>();
+            foreach (var (key, total) in totals)
+            {
+                var snapshot = StockOnHandSnapshot.Create(tenantId, key.ProductId, key.VariantId);
+                snapshot.Reset(total.OnHand, total.At, total.Id);
+                set.Add(snapshot);
+            }
+            await context.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return Result<int>.Ok(totals.Count);
         }
         catch (Exception ex) when (IsStoreFailure(ex))
         {

@@ -323,7 +323,7 @@
   `for`-loop style (PERFORMANCE.md §2). Build only `Animora.Persistence.Sqlite`.
   **Push:** `feat(persist): in-transaction StockSnapshotUpdater hooked into save path`.
 
-- [ ] **T04 — Persistence: RebuildStockSnapshotsAsync on ILocalStoreMaintenance.**
+- [x] **T04 — Persistence: RebuildStockSnapshotsAsync on ILocalStoreMaintenance.**
   Add `Task<Result<int>> RebuildStockSnapshotsAsync(CancellationToken ct)` to `ILocalStoreMaintenance`
   and implement in `LocalStoreMaintenance.cs` (delete all snapshot rows for tenant, re-SUM movements
   by `(TenantId,ProductId,VariantId)`, insert fresh rows, return inserted count). Call it from A11's

@@ -16,4 +16,10 @@ public interface ILocalStoreMaintenance
 
     /// <summary>VACUUM + WAL truncate; returns the number of pages freed.</summary>
     Task<Result<int>> VacuumAsync(CancellationToken ct);
+
+    /// <summary>
+    /// C06: recomputes every <c>StockOnHandSnapshot</c> row of the current tenant from the append-only
+    /// <c>StockMovements</c> ledger (the snapshot is a cache with a proof). Returns the number of rows written.
+    /// </summary>
+    Task<Result<int>> RebuildStockSnapshotsAsync(CancellationToken ct);
 }
