@@ -236,10 +236,10 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 - **Push:** `scripts/git/push.sh "feat(seed): bank directory + FinanceSampleData (24 cheques, 3 cash sessions)"`
 
 ### T09 — Client Services: CashierService/Mapping + ChequesQueryService/Mapping
-- [ ] `src/Animora.Client.Services/Cashier/CashierMapping.cs` — نگاشت read modelهای C07 → `Cashier*` DTOها.
-- [ ] `src/Animora.Client.Services/Cashier/CashierService.cs` — 15 عضو `ICashierService`، فقط delegate به کامندهای C07 (الگوی C01). بدون EF/SQL.
-- [ ] `src/Animora.Client.Services/Cheques/ChequesMapping.cs` — نگاشت دامنه ↔ contract (جدول state از بخش G).
-- [ ] `src/Animora.Client.Services/Cheques/ChequesQueryService.cs` — پیاده‌سازی `IChequesQueryService`. `GetBanksAsync` از `BankDirectory` static.
+- [x] `src/Animora.Client.Services/Cashier/CashierMapping.cs` — نگاشت read modelهای C07 → `Cashier*` DTOها.
+- [x] `src/Animora.Client.Services/Cashier/CashierService.cs` — 15 عضو `ICashierService`، فقط delegate به کامندهای C07 (الگوی C01). بدون EF/SQL.
+- [x] `src/Animora.Client.Services/Cheques/ChequesMapping.cs` — نگاشت دامنه ↔ contract (جدول state از بخش G).
+- [x] `src/Animora.Client.Services/Cheques/ChequesQueryService.cs` — پیاده‌سازی `IChequesQueryService`. `GetBanksAsync` از `BankDirectory` static.
 - **Push:** `scripts/git/push.sh "feat(client): real CashierService & ChequesQueryService (C01 pattern, reuse C07)"`
 
 ### T10 — DI swap + ViewModel readiness + حذف mocks
