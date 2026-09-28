@@ -463,7 +463,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   `IDisposable`/`DisposeAsync` flush. Never blocks (PERFORMANCE §4).
 - **Push:** `feat(contracts): C03 additive FlushAsync + client cache/debounce primitives`.
 
-### [ ] T10 — Client.Services: real VisitEncounterService + VaccinationService + mappings + SMS renderer
+### [x] T10 — Client.Services: real VisitEncounterService + VaccinationService + mappings + SMS renderer
 - `src/Animora.Client.Services/Visits/VisitEncounterService.cs` (`sealed : IVisitEncounterService`,
   singleton): copy `VisitsTriageService` scope/dispatch pattern. Implement all 10 existing members by
   dispatching the T4 commands/queries; note edits go through `DebounceBuffer` (flush on `CompleteAsync`
