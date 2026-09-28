@@ -34,11 +34,14 @@ public sealed class BoardingQueryTests
                 .Count(s => s.RoomId == r.Id && s.State == StayState.Active) }).ToQueryString();
         Assert.Contains("COUNT(", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("; SELECT", sql, StringComparison.OrdinalIgnoreCase);
-        using var counted = fixture.CreateCountingContext();
-        var rows = await new BoardingQueries(counted.Context).GetRoomsAsync(default);
-        Assert.Equal(1, counted.Counter.Count);
-        Assert.Equal(1, rows.Single(r => r.Room.Id == room.Id).Occupied);
-        Assert.Equal(0, rows.Single(r => r.Room.Id == empty.Id).Occupied);
+        var (counted, counter) = fixture.CreateCountingContext();
+        using (counted)
+        {
+            var rows = await new BoardingQueries(counted).GetRoomsAsync(default);
+            Assert.Equal(1, counter.Count);
+            Assert.Equal(1, rows.Single(r => r.Room.Id == room.Id).Occupied);
+            Assert.Equal(0, rows.Single(r => r.Room.Id == empty.Id).Occupied);
+        }
     }
 
     [Fact]

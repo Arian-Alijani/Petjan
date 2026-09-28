@@ -315,9 +315,12 @@ VM فیلد `IStoreReadinessGate _readiness` می‌گیرد و اولین خط 
     sort/paging). `LocalStoreTestFixture` + `FixedClock` (top-level).
   - پوش: `test(boarding): use-case (capacity/stale/checkout/double) + query (occupancy/paging)`
 
-- [ ] **T11 — build سبک + رفع خطاهای کامپایل**
-  - `scripts/sandbox/build.sh full` یک‌بار (هدف 0/0). خطاهای کامپایل (using گمشده، نام property Money، cast
-    enum) را رفع کن. full test/run طولانی نگیر مگر لازم. اگر build نبود، مثل C04 در PROGRESS "build not run".
+- [x] **T11 — build سبک + رفع خطاهای کامپایل**
+  - `scripts/sandbox/build.sh full` اجرا شد → **BUILD OK (Debug) 0 Warning / 0 Error** (کل solution
+    شامل Desktop و ۵ پروژهٔ تست). یک خطای کامپایل تست رفع شد: `BoardingQueryTests.cs` تاپل
+    `(Context, Counter)` را با `using var` گرفته بود (CS1674)؛ به الگوی معمول
+    `var (counted, counter) = fixture.CreateCountingContext(); using (counted) { ... }` اصلاح شد
+    (خطای MSB4181 در Application.Tests صرفاً cascade از همین شکست تک‌پروسه بود و با همین fix رفع شد).
   - پوش: `fix(boarding): resolve C05 build errors, 0/0`
 
 - [ ] **T12 — تأیید دستی سبک (اختیاری)**
