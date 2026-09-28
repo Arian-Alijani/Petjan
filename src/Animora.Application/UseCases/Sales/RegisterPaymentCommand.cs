@@ -5,6 +5,7 @@ using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
+using Animora.Domain.Cashier;
 using Animora.Domain.Identity;
 using Animora.Domain.Primitives;
 using Animora.Domain.Results;
@@ -32,7 +33,8 @@ public sealed class RegisterPaymentCommandValidator : IValidator<RegisterPayment
             c.Amount.Minor <= 0 ? Rules.Range(c.Amount.Minor, 1L, long.MaxValue, nameof(c.Amount)) : null);
 }
 
-public sealed class RegisterPaymentCommandHandler(IInvoiceRepository invoices, IPaymentRepository payments, IClock clock)
+public sealed class RegisterPaymentCommandHandler(IInvoiceRepository invoices, IPaymentRepository payments, IClock clock,
+    ICashSessionContext? sessions = null)
     : ICommandHandler<RegisterPaymentCommand, Unit>
 {
     public async Task<Result<Unit>> HandleAsync(RegisterPaymentCommand c, CommandContext context, CancellationToken ct)
@@ -41,12 +43,34 @@ public sealed class RegisterPaymentCommandHandler(IInvoiceRepository invoices, I
         if (found.IsFailure) return Result<Unit>.Fail(found.Error);
         var invoice = found.Value!;
         if (c.Amount.Currency != invoice.Currency) return Result<Unit>.Fail(ErrorCodes.ValidationFailed);
+        CashSession? drawer = null;
+        var sessionId = c.CashSessionId;
+        if (c.Method == PaymentMethod.Cash)
+        {
+            if (sessions is not null)
+            {
+                drawer = await sessions.GetOpenSessionAsync(context.TenantId, context.UserId, ct);
+                if (drawer is null || (sessionId is not null && sessionId != drawer.Id))
+                    return Result<Unit>.Fail(ErrorCodes.CashSessionRequired);
+                sessionId = drawer.Id;
+            }
+            else if (string.IsNullOrWhiteSpace(sessionId))
+                return Result<Unit>.Fail(ErrorCodes.CashSessionRequired);
+        }
         var created = Payment.Create(context.TenantId, invoice.Id, c.Method, c.Amount, clock.UtcNow,
-            context.UserId, cashSessionId: c.CashSessionId, chequeId: c.Method == PaymentMethod.Cheque ? c.Reference : null,
+            context.UserId, cashSessionId: sessionId, chequeId: c.Method == PaymentMethod.Cheque ? c.Reference : null,
             cardReference: c.Method == PaymentMethod.Card ? c.Reference : null, operationId: context.OperationId);
         if (created.IsFailure) return Result<Unit>.Fail(created.Error, created.Detail);
         var applied = invoice.ApplyPayment(created.Value!);
         if (applied.IsFailure) return Result<Unit>.Fail(applied.Error, applied.Detail);
+        if (drawer is not null)
+        {
+            var movement = CashMovement.Create(CashMovementKind.SalePayment, c.Amount,
+                "Invoice cash payment", clock.UtcNow, context.UserId, invoice.Id, created.Value!.Id, context.OperationId);
+            if (movement.IsFailure) return Result<Unit>.Fail(movement.Error, movement.Detail);
+            var added = drawer.AddMovement(movement.Value!);
+            if (added.IsFailure) return Result<Unit>.Fail(added.Error, added.Detail);
+        }
         payments.Add(created.Value!);
         return Result<Unit>.Ok(Unit.Value);
     }

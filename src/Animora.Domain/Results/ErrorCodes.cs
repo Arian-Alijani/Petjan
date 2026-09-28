@@ -418,6 +418,9 @@ public static class ErrorCodes
     public static readonly ErrorCode CashSessionAlreadyOpen =
         new("CASH_SESSION_ALREADY_OPEN", ErrorCode.Conflict);
 
+    /// <summary>Cash payments require an active cash drawer.</summary>
+    public static readonly ErrorCode CashSessionRequired = new("CASH_SESSION_REQUIRED", ErrorCode.Validation);
+
     /// <summary>The cash session is closed; a correction belongs to the next session.</summary>
     public static readonly ErrorCode CashSessionClosed =
         new("CASH_SESSION_CLOSED", ErrorCode.Conflict);
@@ -516,6 +519,12 @@ public static class ErrorCodes
     /// </summary>
     public static readonly ErrorCode ChequeCounterpartyRequired =
         new("CHEQUE_COUNTERPARTY_REQUIRED", ErrorCode.Validation);
+
+    /// <summary>The addressed cheque does not exist for this tenant.</summary>
+    public static readonly ErrorCode ChequeNotFound = new("CHEQUE_NOT_FOUND", ErrorCode.NotFound);
+
+    /// <summary>Only a newly registered cheque may have its metadata edited or be removed.</summary>
+    public static readonly ErrorCode ChequeNotEditable = new("CHEQUE_NOT_EDITABLE", ErrorCode.Conflict);
 
     /// <summary>The expense is posted; a correction is a reversing expense, never an edit.</summary>
     public static readonly ErrorCode ExpenseImmutable =
