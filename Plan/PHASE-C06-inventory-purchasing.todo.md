@@ -344,7 +344,7 @@
   Build `Animora.Persistence.Sqlite`.
   **Push:** `feat(persist): InventoryQueries + PurchasingQueries (snapshot-joined, grouped KPIs)`.
 
-- [ ] **T06 — Wire: CommandTypes += 7.**
+- [x] **T06 — Wire: CommandTypes += 7.**
   In `src/Animora.Contracts.Wire/Commands/CommandTypes.cs` add the 7 new consts (§0.1):
   `InventoryProductCreate="inventory.product.create"`, `InventoryProductUpdate="inventory.product.update"`,
   `InventoryVariantAdd="inventory.variant.add"`, `InventoryProductDelete="inventory.product.delete"`,
@@ -422,7 +422,7 @@
   helper used in other mappings. Build `Animora.Client.Services`.
   **Push:** `feat(client): InventoryQueryService + PurchasingQueryService + mapping`.
 
-- [ ] **T11 — Desktop: DI swap + 2 ViewModel readiness lines + delete 2 mocks.**
+- [x] **T11 — Desktop: DI swap + 2 ViewModel readiness lines + delete 2 mocks.**
   In `App.axaml.cs`: (a) swap the two DI lines (§0.9) + add usings; (b) append
   `.AddInventoryUseCases().AddPurchasingUseCases()` to the `AddAnimoraApplication(builder => ...)`
   chain at **line 192** (§0.4). Add the readiness-gate line to `InventoryPageViewModel` and

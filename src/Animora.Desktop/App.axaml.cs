@@ -6,7 +6,11 @@ using Animora.Application.UseCases.Reception;
 using Animora.Application.UseCases.Scheduling;
 using Animora.Application.UseCases.Visits;
 using Animora.Application.UseCases.Vaccination;
+using Animora.Application.UseCases.Inventory;
+using Animora.Application.UseCases.Purchasing;
 using Animora.Client.Services.Boarding;
+using Animora.Client.Services.Inventory;
+using Animora.Client.Services.Purchasing;
 using Animora.Client.Services.Diagnostics;
 using Animora.Client.Services.Identity;
 using Animora.Client.Services.Patients;
@@ -189,7 +193,7 @@ public partial class App : global::Avalonia.Application
 
         // B03c: real local store + application layer (identity use cases) behind the desktop seams.
         services.AddAnimoraLocalInfrastructure();
-        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases());
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it
@@ -284,12 +288,12 @@ public partial class App : global::Avalonia.Application
 
         // Phase 17: Inventory product list & settings. Stateless deterministic
         // mock, so a singleton suffices.
-        services.AddSingleton<IInventoryQueryService, MockInventoryQueryService>();
+        services.AddSingleton<IInventoryQueryService, InventoryQueryService>();
         services.AddSingleton<InventoryPageViewModel>();
 
         // Phase 19: Purchase & suppliers screen. Stateless deterministic mock,
         // so a singleton suffices.
-        services.AddSingleton<IPurchasingQueryService, MockPurchasingQueryService>();
+        services.AddSingleton<IPurchasingQueryService, PurchasingQueryService>();
         services.AddSingleton<PurchasingPageViewModel>();
 
         // Phase 20: Sale/POS invoice workspace. Stateful in-memory mock (build/

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Purchasing;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Services;
@@ -24,6 +25,7 @@ public sealed partial class PurchasingPageViewModel : PageViewModelBase
 {
     private readonly IPurchasingQueryService _service;
     private readonly IToastService _toast;
+    private readonly IStoreReadinessGate _readiness;
 
     [ObservableProperty]
     private PurchaseKpiViewModel? _activeOrders;
@@ -34,10 +36,12 @@ public sealed partial class PurchasingPageViewModel : PageViewModelBase
     [ObservableProperty]
     private PurchaseKpiViewModel? _supplierDebt;
 
-    public PurchasingPageViewModel(IPurchasingQueryService service, IToastService toast)
+    public PurchasingPageViewModel(IPurchasingQueryService service, IStoreReadinessGate readiness,
+        IToastService toast)
     {
         _service = service;
         _toast = toast;
+        _readiness = readiness;
 
         Title = "خرید و تأمین‌کنندگان";
         Eyebrow = "زنجیره تأمین";
@@ -51,6 +55,7 @@ public sealed partial class PurchasingPageViewModel : PageViewModelBase
 
     private async Task LoadAsync()
     {
+        await _readiness.WaitAsync();
         var snapshot = await _service.GetSnapshotAsync();
 
         ActiveOrders = new PurchaseKpiViewModel(snapshot.ActiveOrders);
