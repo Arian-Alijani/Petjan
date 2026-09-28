@@ -96,6 +96,27 @@ public sealed class BoardingStay : AggregateRoot
     /// <summary>The invoice raised for this stay (A07); set by <see cref="AttachInvoice"/>.</summary>
     public string? InvoiceId { get; private set; }
 
+    /// <summary>Auditable checkout snapshot, not the source of the running balance.</summary>
+    public long? FrozenTotalMinor { get; private set; }
+
+    /// <summary>Records the derived total once, when the stay is handed to billing.</summary>
+    public Result FreezeTotalForCheckout(Money total)
+    {
+        if (State != StayState.ReadyForInvoice || FrozenTotalMinor is not null)
+        {
+            return Result.Fail(ErrorCodes.StayNotEditable);
+        }
+
+        if (total.Currency != DailyRate.Currency || total.IsNegative)
+        {
+            return Result.Fail(ErrorCodes.ValidationFailed);
+        }
+
+        FrozenTotalMinor = total.Minor;
+        return Result.Ok();
+    }
+
+
     /// <summary>Consumed items — part of the payload Sales converts into invoice lines.</summary>
     public IReadOnlyList<StayItem> Items => _items;
 

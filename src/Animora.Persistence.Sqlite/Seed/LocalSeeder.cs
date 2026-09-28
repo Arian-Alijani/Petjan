@@ -30,7 +30,7 @@ public sealed class LocalSeeder(
     AnimoraLocalDbContext db, IUnitOfWork unitOfWork, ILocalTenantContext tenant, IClock clock,
     ISeedPeriodCodeProvider periodCodes, PatientsSampleData sampleData,
     ReceptionSampleData receptionSampleData, ClinicalSampleData clinicalSampleData,
-    SchedulingSampleData schedulingSampleData,
+    SchedulingSampleData schedulingSampleData, BoardingSampleData boardingSampleData,
     IOptions<LocalStoreOptions> storeOptions)
 {
     public const string TenantKey = "identity.tenant";
@@ -41,6 +41,7 @@ public sealed class LocalSeeder(
     public const string UnitsKey = "inventory.units";
     public const string CategoriesKey = "inventory.categories";
     public const string RoomsKey = "boarding.rooms";
+    public const string ServicesKey = "boarding.services";
     public const string SmsTemplatesKey = "vaccination.sms.templates";
     private const int SchemaVersion = 1;
 
@@ -74,6 +75,15 @@ public sealed class LocalSeeder(
             (CategoriesKey, () => AddAll(Categories.Select((c, i) =>
                 ProductCategory.Create(tenantId, c.Code, c.Name, sortOrder: i)))),
             (RoomsKey, () => AddAll(Enumerable.Range(1, 8).Select(RoomFor))),
+            (ServicesKey, () => AddRange(new[]
+            {
+                BoardingServiceDef.Create(tenantId, "WALK", "Extra walk", Animora.Domain.ValueObjects.Money.Irt(60_000), BoardingServiceBilling.PerDay),
+                BoardingServiceDef.Create(tenantId, "DIET", "Special diet", Animora.Domain.ValueObjects.Money.Irt(90_000), BoardingServiceBilling.PerDay),
+                BoardingServiceDef.Create(tenantId, "BATH", "Bath", Animora.Domain.ValueObjects.Money.Irt(150_000), BoardingServiceBilling.PerStay),
+                BoardingServiceDef.Create(tenantId, "GROOM", "Grooming", Animora.Domain.ValueObjects.Money.Irt(180_000), BoardingServiceBilling.PerStay),
+                BoardingServiceDef.Create(tenantId, "PLAY", "Play session", Animora.Domain.ValueObjects.Money.Irt(50_000), BoardingServiceBilling.PerUse),
+                BoardingServiceDef.Create(tenantId, "CARE", "Extra care", Animora.Domain.ValueObjects.Money.Irt(75_000), BoardingServiceBilling.PerUse),
+            })),
             (SmsTemplatesKey, () => AddRange(new[]
             {
                 SmsTemplateRow.Create("due-reminder", tenantId, "Due reminder", "SMS",
@@ -121,6 +131,12 @@ public sealed class LocalSeeder(
                 return Result.Ok();
             }, ct);
             if (scheduling.IsFailure) return scheduling;
+            var boarding = await RunBlockAsync(BoardingSampleData.SampleKey, () =>
+            {
+                if (!boardingSampleData.AlreadySeeded()) boardingSampleData.Populate();
+                return Result.Ok();
+            }, ct);
+            if (boarding.IsFailure) return boarding;
         }
         return Result.Ok();
 

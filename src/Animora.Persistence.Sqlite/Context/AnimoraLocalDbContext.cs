@@ -54,6 +54,8 @@ public sealed class AnimoraLocalDbContext(
         snapshot.Property(e => e.SnapshotSignature).HasMaxLength(DeviceCapabilitySnapshot.SignatureMaxLength);
         modelBuilder.Entity<VisitBillingHandoff>().Property(e => e.LinesJson)
             .HasMaxLength(VisitBillingHandoff.LinesJsonMaxLength);
+        modelBuilder.Entity<BoardingBillingHandoff>().Property(e => e.LinesJson)
+            .HasMaxLength(BoardingBillingHandoff.LinesJsonMaxLength);
         modelBuilder.Entity<SmsTemplateRow>().Property(e => e.Body).HasMaxLength(2048);
     }
 
