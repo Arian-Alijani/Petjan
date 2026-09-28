@@ -115,7 +115,7 @@ public sealed class SaveVisitNoteCommandHandler(IVisitRepository visits)
 [RequiresPermission(PermissionCodes.VisitsWrite)]
 [Auditable(AuditCategory.Clinical, CommandTypes.VisitsRxAdd)]
 public sealed record AddPrescriptionLineCommand(string VisitId, string CatalogId, string Title,
-    VisitLineSource Source, long UnitPrice, int Quantity) : ICommand<string>, IJournaledCommand
+    VisitLineSource Source, long UnitPrice, int Quantity, string? LineId = null) : ICommand<string>, IJournaledCommand
 {
     public string CommandTypeName => CommandTypes.VisitsRxAdd;
     public string AggregateTypeName => "Visit";
@@ -142,7 +142,9 @@ public sealed class AddPrescriptionLineCommandHandler(IVisitRepository visits, I
         if (visit is null) return Result<string>.Fail(ErrorCodes.VisitNotFound);
         if (c.Quantity <= 0 || c.UnitPrice < 0 || !Enum.IsDefined(c.Source))
             return Result<string>.Fail(ErrorCodes.ValidationFailed);
-        var id = IdGenerator.NewId(clock.UtcNow);
+        var id = string.IsNullOrWhiteSpace(c.LineId) ? IdGenerator.NewId(clock.UtcNow) : c.LineId;
+        if (visit.ServiceLines.Any(line => line.LineId == id))
+            return Result<string>.Fail(ErrorCodes.ValidationFailed);
         var line = new VisitServiceLine(id, c.CatalogId, c.Title,
             new Quantity(c.Quantity, "PCS"), Money.Irt(c.UnitPrice), c.Source);
         var added = visit.AddServiceLine(line);

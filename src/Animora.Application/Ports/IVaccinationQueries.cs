@@ -17,8 +17,9 @@ public interface IVaccinationQueries
     Task<IReadOnlyList<VaccinationDueRow>> GetDueAsync(DateOnly localDay, CancellationToken ct);
     Task<(IReadOnlyList<VaccinationHistoryRow> Items, int Total)> GetHistoryAsync(
         DateTimeOffset? fromUtc, DateTimeOffset? toUtc, string? search, bool oldest,
-        int page, int pageSize, CancellationToken ct);
+        IReadOnlyCollection<string>? titles, int page, int pageSize, CancellationToken ct);
     Task<IReadOnlyList<SmsTemplateReadModel>> GetTemplatesAsync(CancellationToken ct);
     Task<VaccinationDueRow?> GetRecordAsync(string id, DateOnly localDay, CancellationToken ct);
     Task<bool> HasNextDoseAsync(string petId, string vaccineCode, int doseNumber, CancellationToken ct);
+    Task<bool> IsMarkedDoneAsync(string recordId, CancellationToken ct);
 }

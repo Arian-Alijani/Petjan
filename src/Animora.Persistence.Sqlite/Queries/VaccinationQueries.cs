@@ -44,15 +44,21 @@ public sealed class VaccinationQueries(AnimoraLocalDbContext db) : IVaccinationQ
         db.Set<VaccinationRecord>().AsNoTracking().AnyAsync(r => r.PetId == petId &&
             r.VaccineCode == vaccineCode && r.DoseNumber == doseNumber, ct);
 
+    public Task<bool> IsMarkedDoneAsync(string recordId, CancellationToken ct) =>
+        db.Set<MedicalHistoryEntry>().AsNoTracking().AnyAsync(h =>
+            h.Kind == MedicalHistoryKind.Vaccination && h.SourceEntityId == recordId &&
+            h.Title == "Dose administered", ct);
+
     public async Task<(IReadOnlyList<VaccinationHistoryRow> Items, int Total)> GetHistoryAsync(
         DateTimeOffset? fromUtc, DateTimeOffset? toUtc, string? search, bool oldest,
-        int page, int pageSize, CancellationToken ct)
+        IReadOnlyCollection<string>? titles, int page, int pageSize, CancellationToken ct)
     {
         var query = from h in db.Set<MedicalHistoryEntry>().AsNoTracking()
                     join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
                     join o in db.Set<Owner>().AsNoTracking() on p.OwnerId equals o.Id
                     where h.Kind == MedicalHistoryKind.Vaccination
                     select new { h, p, o };
+        if (titles is not null) query = query.Where(r => titles.Contains(r.h.Title));
         if (fromUtc is { } from) query = query.Where(r => r.h.OccurredUtc >= from);
         if (toUtc is { } to) query = query.Where(r => r.h.OccurredUtc < to);
         if (!string.IsNullOrWhiteSpace(search))
