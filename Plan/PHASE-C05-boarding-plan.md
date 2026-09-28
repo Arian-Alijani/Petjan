@@ -309,7 +309,7 @@ VM فیلد `IStoreReadinessGate _readiness` می‌گیرد و اولین خط 
   - حذف `src/Animora.Desktop/Mocks/MockBoardingQueryService.cs` (§10، همان commit).
   - پوش: `feat(boarding): swap DI to real service, readiness gate, delete mock, register ports`
 
-- [ ] **T10 — BoardingUseCaseTests + BoardingQueryTests**
+- [x] **T10 — BoardingUseCaseTests + BoardingQueryTests**
   - `tests/Animora.Application.Tests/BoardingUseCaseTests.cs` (4 سناریو).
   - `tests/Animora.Persistence.Tests/BoardingQueryTests.cs` (rooms تک‌SELECT با `ToQueryString()`، history
     sort/paging). `LocalStoreTestFixture` + `FixedClock` (top-level).
