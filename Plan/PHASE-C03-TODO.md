@@ -504,7 +504,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   (grep for a real-store fixture).
 - **Push:** `test(application): C03 visit-encounter use cases`.
 
-### [ ] T13 — Tests: VaccinationUseCaseTests + VisitBillingHandoffTests
+### [x] T13 — Tests: VaccinationUseCaseTests + VisitBillingHandoffTests
 - `tests/Animora.Application.Tests/VaccinationUseCaseTests.cs`: bucket boundaries (−1,0,14,15,60,61 days)
   map to documented buckets; administering with follow-up creates exactly one next record; administering
   twice → `VACCINATION_ALREADY_DONE`.
