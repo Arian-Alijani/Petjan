@@ -431,7 +431,9 @@
   confirm zero remaining references to the mock types. Build `Animora.Desktop`.
   **Push:** `refactor(desktop): swap to real inventory/purchasing services, delete mocks, readiness gate`.
 
-- [ ] **T12 — Tests: 3 test classes.**
+- [x] **T12 — Tests: 3 test classes.** (Done: `InventoryUseCaseTests` (9), `StockSnapshotIntegrityTests` (3),
+  `PurchasingQueryTests` (2) — all 14 pass under a filtered run; temp file DBs + `FakeClock`, SELECT counts
+  via `CommandCounter`.)
   `tests/Animora.Application.Tests/InventoryUseCaseTests.cs`: unknown reason → `ADJUSTMENT_REASON_INVALID`;
   `Damage` below zero → `STOCK_WOULD_GO_NEGATIVE`; `Count` may reach 0 but not below; delete with
   on-hand → `PRODUCT_HAS_STOCK`; receiving 7 of ordered 5 without `AllowOverReceipt` →
