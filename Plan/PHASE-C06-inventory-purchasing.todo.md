@@ -302,7 +302,7 @@
   T07/T08). Build `Animora.Domain` + `Animora.Application` to confirm.
   **Push:** `feat(domain): C06 adjustment reasons + 8 error codes + AuditCategory.Inventory`.
 
-- [ ] **T02 — Persistence: StockOnHandSnapshot entity + configuration + migration 013.**
+- [x] **T02 — Persistence: StockOnHandSnapshot entity + configuration + migration 013.**
   Create `Entities/StockOnHandSnapshot.cs` (`[LocalOnly]`, fields per §0.7),
   `Configurations/Inventory/StockOnHandSnapshotConfiguration.cs` (map + unique index
   `IX_StockOnHandSnapshots_TenantId_ProductId_VariantId`, DateTimeOffset converter). Register the
