@@ -46,4 +46,7 @@ public interface IVisitEncounterService
     /// renders (reference <c>renderDone</c> + <c>computeSubtotal</c>+9% tax).
     /// </summary>
     Task<EncounterSummary> CompleteAsync(string encounterId);
+
+    /// <summary>Flushes pending debounced note edits before navigating away or completing a visit.</summary>
+    Task FlushAsync(CancellationToken cancellationToken = default);
 }

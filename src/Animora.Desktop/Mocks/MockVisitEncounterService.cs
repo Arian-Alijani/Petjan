@@ -45,6 +45,8 @@ public sealed class MockVisitEncounterService : IVisitEncounterService
 
     public MockVisitEncounterService(VisitEncounterStore store) => _store = store;
 
+    public Task FlushAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
     public Task<EncounterDraft> GetAsync(string encounterId) =>
         Task.FromResult(_store.Get(encounterId).Draft);
 
