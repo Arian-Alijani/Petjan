@@ -16,6 +16,7 @@ using Animora.Client.Services.Diagnostics;
 using Animora.Client.Services.Identity;
 using Animora.Client.Services.Patients;
 using Animora.Client.Services.Reception;
+using Animora.Client.Services.Sales;
 using Animora.Client.Services.Appointments;
 using Animora.Client.Services.Visits;
 using Animora.Client.Services.Vaccination;
@@ -297,9 +298,8 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IPurchasingQueryService, PurchasingQueryService>();
         services.AddSingleton<PurchasingPageViewModel>();
 
-        // Phase 20: Sale/POS invoice workspace. Stateful in-memory mock (build/
-        // blank create invoices), so a singleton preserves mutations.
-        services.AddSingleton<ISalesQueryService, MockSalesQueryService>();
+        // C07: scope-per-call Sales service over the local journaled dispatcher.
+        services.AddSingleton<ISalesQueryService, SalesQueryService>();
         services.AddSingleton<SalePageViewModel>();
 
         // Phase 22: Cashier (invoice & payment management). Stateful in-memory

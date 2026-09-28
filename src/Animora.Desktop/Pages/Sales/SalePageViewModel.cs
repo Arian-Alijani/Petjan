@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Sales;
+using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -25,6 +26,7 @@ namespace Animora.Desktop.Pages.Sales;
 public sealed partial class SalePageViewModel : PageViewModelBase
 {
     private readonly ISalesQueryService _service;
+    private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
     private readonly List<ReadyEncounterRef> _readyEncounters = [];
@@ -63,9 +65,11 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     [ObservableProperty]
     private bool _hasReadyVisitBadge;
 
-    public SalePageViewModel(ISalesQueryService service, IToastService toast, IDialogService dialogs)
+    public SalePageViewModel(ISalesQueryService service, IStoreReadinessGate readiness,
+        IToastService toast, IDialogService dialogs)
     {
         _service = service;
+        _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
 
@@ -404,6 +408,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     private async Task LoadAsync()
     {
+        await _readiness.WaitAsync();
         IsBusy = true;
         try
         {

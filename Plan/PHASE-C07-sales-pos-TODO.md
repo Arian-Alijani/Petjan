@@ -493,7 +493,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): CommandTypes additions + SalesSampleData (30 invoices)`
 
 ### T12 — Desktop swap (DI, ViewModel, delete mock)
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:**
   - modify `src/Animora.Desktop/App.axaml.cs` — swap line 301 to
     `services.AddSingleton<ISalesQueryService, SalesQueryService>();` and register any new
