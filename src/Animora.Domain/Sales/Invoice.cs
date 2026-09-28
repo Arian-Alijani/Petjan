@@ -460,6 +460,16 @@ public sealed class Invoice : AggregateRoot
 
     // ---- lifecycle ----------------------------------------------------------
 
+    /// <summary>Replaces a draft's provisional number with the transactional sequence before posting.</summary>
+    public Result AssignInvoiceNumber(string number)
+    {
+        if (string.IsNullOrWhiteSpace(number)) return Result.Fail(ErrorCodes.ValidationFailed);
+        var guard = EnsureDraft();
+        if (guard.IsFailure) return guard;
+        InvoiceNumber = number.Trim();
+        return Result.Ok();
+    }
+
     /// <summary>
     /// Issues the invoice: freezes it, stamps <see cref="PostedUtc"/> and raises
     /// <see cref="InvoicePostedEvent"/>. Refused for an empty invoice (<c>INVOICE_EMPTY</c>), when

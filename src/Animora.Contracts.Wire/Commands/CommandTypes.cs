@@ -13,6 +13,15 @@ public static class CommandTypes
     public const string SalesInvoiceRefund = "sales.invoice.refund";
     public const string SalesPaymentRegister = "sales.payment.register";
     public const string SalesAdjustmentAdd = "sales.adjustment.add";
+    public const string SalesInvoiceCreate = "sales.invoice.create";
+    public const string SalesInvoiceLineAdd = "sales.invoice.line.add";
+    public const string SalesInvoiceLineEdit = "sales.invoice.line.edit";
+    public const string SalesInvoiceLineRemove = "sales.invoice.line.remove";
+    public const string SalesInvoiceDiscountSet = "sales.invoice.discount.set";
+    public const string SalesInvoiceInsuranceSet = "sales.invoice.insurance.set";
+    public const string SalesInvoiceOwnerSet = "sales.invoice.owner.set";
+    public const string SalesInvoiceDelete = "sales.invoice.delete";
+    public const string SalesInvoiceLineReturn = "sales.invoice.line.return";
 
     // Cashier.
     public const string CashierSessionOpen = "cashier.session.open";
@@ -80,6 +89,9 @@ public static class CommandTypes
     public static IReadOnlyList<string> All { get; } =
     [
         SalesInvoicePost, SalesInvoiceVoid, SalesInvoiceRefund, SalesPaymentRegister, SalesAdjustmentAdd,
+        SalesInvoiceCreate, SalesInvoiceLineAdd, SalesInvoiceLineEdit, SalesInvoiceLineRemove,
+        SalesInvoiceDiscountSet, SalesInvoiceInsuranceSet, SalesInvoiceOwnerSet, SalesInvoiceDelete,
+        SalesInvoiceLineReturn,
         CashierSessionOpen, CashierSessionClose,
         InventoryStockAdjust, InventoryReceiptPost,
         PurchasingOrderSubmit,
