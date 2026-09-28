@@ -8,8 +8,7 @@ namespace Animora.Contracts.Appointments;
 /// doctor/day slot grid (<c>freeSlots</c>), reports day/doctor load
 /// (<c>conflicts</c> / the doctor busy tally) and creates / edits / cancels /
 /// admits appointments. The desktop ViewModel depends only on this interface;
-/// the in-memory <c>MockAppointmentBookingService</c> is the single swappable
-/// implementation a future backend replaces (R-18).
+/// the real client service dispatches journaled commands (C04).
 /// </summary>
 public interface IAppointmentBookingService
 {

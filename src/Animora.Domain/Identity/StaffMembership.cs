@@ -53,6 +53,21 @@ public sealed class StaffMembership : AggregateRoot
     /// <summary>When the membership ended, UTC; <see langword="null"/> while it has not.</summary>
     public DateTimeOffset? EndedUtc { get; private set; }
 
+    /// <summary>Local minutes since midnight, default 08:00–20:00.</summary>
+    public int WorkStartMinute { get; private set; } = 480;
+    public int WorkEndMinute { get; private set; } = 1200;
+    /// <summary>Bit 0 is Saturday; bit 6 is Friday.</summary>
+    public int WorkDaysMask { get; private set; } = 0b0111111;
+
+    public void SetWorkingHours(int startMin, int endMin, int daysMask)
+    {
+        if (startMin < 0 || endMin > 1440 || startMin >= endMin || daysMask is < 1 or > 127)
+            throw new ArgumentOutOfRangeException(nameof(startMin), "Invalid working window or weekday mask.");
+        WorkStartMinute = startMin;
+        WorkEndMinute = endMin;
+        WorkDaysMask = daysMask;
+    }
+
     /// <summary>Codes granted to this person beyond their role's set.</summary>
     public IReadOnlySet<string> ExtraPermissionCodes => _extraPermissionCodes;
 

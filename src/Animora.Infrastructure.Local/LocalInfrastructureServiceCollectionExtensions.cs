@@ -47,6 +47,7 @@ public static class LocalInfrastructureServiceCollectionExtensions
         // A11d — clocks (TryAdd: tests may override) and the 8-step startup.
         services.TryAddSingleton<IClock>(_ => new SystemClock());
         services.TryAddSingleton<IMonotonicClock, MonotonicClock>();
+        services.TryAddSingleton<IClinicTimeZoneProvider, ClinicTimeZoneProvider>();
         services.TryAddScoped<LocalStoreStartup>();
         services.TryAddScoped<ILocalStoreInitializer>(p => p.GetRequiredService<LocalStoreStartup>());
 

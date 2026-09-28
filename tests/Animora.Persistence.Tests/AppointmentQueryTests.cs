@@ -1,0 +1,60 @@
+using Animora.Application.UseCases.Scheduling;
+using Animora.Application.Ports;
+using Animora.Domain.Results;
+using Animora.Domain.Identity;
+using Animora.Domain.Patients;
+using Animora.Domain.Scheduling;
+using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Queries;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Xunit;
+
+namespace Animora.Persistence.Tests;
+
+public sealed class AppointmentQueryTests
+{
+    private sealed class TehranZone : IClinicTimeZoneProvider
+    {
+        public TimeZoneInfo GetClinicTimeZone() => TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran");
+    }
+
+    [Fact]
+    public async Task RangeOverSixtyTwoDays_ReturnsValidationCode()
+    {
+        var query = new AppointmentRangeQueryHandler(null!, new TehranZone());
+        var result = await query.HandleAsync(new AppointmentRangeQuery(new DateOnly(2026, 3, 1),
+            new DateOnly(2026, 6, 1)), new("T-LOCAL-DEFAULT", "user", "correlation"), default);
+        Assert.Equal(ErrorCodes.AppointmentRangeTooWide, result.Error);
+    }
+
+    [Fact]
+    public async Task LocalDayCounts_AndSqlRangeUseUtcIndexWithoutDateFunction()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var owner = Owner.Register(fixture.TenantId, "Owner", "09120000000", fixture.Clock);
+        var pet = Pet.Register(fixture.TenantId, owner.Id, "Pet", PetSpecies.Dog, fixture.Clock);
+        var doctor = User.Create(fixture.TenantId, "doctor", "Doctor", fixture.Clock);
+        db.AddRange(owner, pet, doctor);
+        var start = new DateTimeOffset(2026, 3, 1, 23, 0, 0, TimeSpan.Zero);
+        db.Add(Appointment.Book(fixture.TenantId, pet.Id, owner.Id, "CHECKUP", start, 30,
+            AppointmentSource.Phone, doctor.Id, fixture.Clock, doctor.Id).Value!);
+        await db.SaveChangesAsync();
+        var queries = new AppointmentQueries(db);
+        var zone = new TehranZone();
+        var counts = await new AppointmentDayCountsQueryHandler(queries, zone).HandleAsync(
+            new AppointmentDayCountsQuery(new DateOnly(2026, 3, 1), new DateOnly(2026, 3, 7)),
+            new(fixture.TenantId, doctor.Id, "corr"), default);
+        Assert.Equal(1, counts.Value![new DateOnly(2026, 3, 2)]);
+
+        var sql = db.Set<Appointment>().AsNoTracking()
+            .Where(a => a.StartUtc >= start && a.StartUtc < start.AddDays(1))
+            .ToQueryString().ToLowerInvariant();
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(sql, @"\bselect\b").Cast<object>());
+        Assert.DoesNotContain("strftime", sql);
+        Assert.DoesNotContain("date(", sql);
+    }
+}

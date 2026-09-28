@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Appointments;
+using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -24,6 +25,7 @@ namespace Animora.Desktop.Pages.Appointments;
 public sealed partial class BookingPanelViewModel : ObservableObject
 {
     private readonly IAppointmentBookingService _booking;
+    private readonly IStoreReadinessGate _readiness;
     private readonly IAppointmentsQueryService _catalog;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
@@ -57,11 +59,13 @@ public sealed partial class BookingPanelViewModel : ObservableObject
 
     public BookingPanelViewModel(
         IAppointmentBookingService booking,
+        IStoreReadinessGate readiness,
         IAppointmentsQueryService catalog,
         IToastService toast,
         IDialogService dialogs)
     {
         _booking = booking;
+        _readiness = readiness;
         _catalog = catalog;
         _toast = toast;
         _dialogs = dialogs;
@@ -266,6 +270,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     // ── load ─────────────────────────────────────────────────────────────────
     private async Task LoadAsync()
     {
+        await _readiness.WaitAsync();
         _types.Clear();
         _types.AddRange(await _catalog.GetTypesAsync());
         _doctors.Clear();

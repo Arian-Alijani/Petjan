@@ -30,6 +30,7 @@ public sealed class LocalSeeder(
     AnimoraLocalDbContext db, IUnitOfWork unitOfWork, ILocalTenantContext tenant, IClock clock,
     ISeedPeriodCodeProvider periodCodes, PatientsSampleData sampleData,
     ReceptionSampleData receptionSampleData, ClinicalSampleData clinicalSampleData,
+    SchedulingSampleData schedulingSampleData,
     IOptions<LocalStoreOptions> storeOptions)
 {
     public const string TenantKey = "identity.tenant";
@@ -114,6 +115,12 @@ public sealed class LocalSeeder(
                 return Result.Ok();
             }, ct);
             if (clinical.IsFailure) return clinical;
+            var scheduling = await RunBlockAsync(SchedulingSampleData.SampleKey, () =>
+            {
+                if (!schedulingSampleData.AlreadySeeded()) schedulingSampleData.Populate();
+                return Result.Ok();
+            }, ct);
+            if (scheduling.IsFailure) return scheduling;
         }
         return Result.Ok();
 

@@ -51,29 +51,11 @@ internal static class ReceptionTicketWork
                 ErrorCodes.TicketNotFound, $"No appointment ticket '{ticket.Id}'.");
         }
 
-        var existing = await queue.FindByAppointmentAsync(appointment.Id, ct);
-        if (existing is not null)
-        {
-            return Result<ReceptionQueueEntry>.Ok(existing);
-        }
-
-        var ticketNumber = await NextTicketNumberAsync(queue, clock, ct);
-        var created = ReceptionQueueEntry.Create(
-            context.TenantId, appointment.PetId, appointment.OwnerId, QueueSource.Appointment,
-            ticketNumber, clock, appointmentId: appointment.Id, priority: ReceptionQueueEntry.PriorityNormal);
-        queue.Add(created);
-        return Result<ReceptionQueueEntry>.Ok(created);
+        return await QueueEntryResolver.ResolveOrCreateForAppointmentAsync(appointment, context, queue, clock, ct);
     }
 
-    /// <summary>Next per-local-day ticket number (count of today's rows + 1). Uses a UTC-day range.</summary>
-    public static async Task<int> NextTicketNumberAsync(
-        IReceptionQueueRepository queue, IClock clock, CancellationToken ct)
-    {
-        var today = clock.UtcNow.UtcDateTime.Date;
-        var startUtc = new DateTimeOffset(today, TimeSpan.Zero);
-        var count = await queue.CountForDayAsync(startUtc, startUtc.AddDays(1), ct);
-        return count + 1;
-    }
+    public static Task<int> NextTicketNumberAsync(IReceptionQueueRepository queue, IClock clock, CancellationToken ct) =>
+        QueueEntryResolver.NextTicketNumberAsync(queue, clock, ct);
 
     /// <summary>Maps a failed domain transition to the C02 conflict code.</summary>
     public static Result<Unit> AsStateInvalid(Result moved) =>

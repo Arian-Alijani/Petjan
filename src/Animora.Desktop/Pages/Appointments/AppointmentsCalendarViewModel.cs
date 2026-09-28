@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Appointments;
+using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -26,6 +27,7 @@ namespace Animora.Desktop.Pages.Appointments;
 public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 {
     private readonly IAppointmentsQueryService _service;
+    private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
     private readonly IAppointmentBookingService _booking;
     private readonly IDialogService _dialogs;
@@ -73,11 +75,13 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     public AppointmentsCalendarViewModel(
         IAppointmentsQueryService service,
+        IStoreReadinessGate readiness,
         IToastService toast,
         IAppointmentBookingService booking,
         IDialogService dialogs)
     {
         _service = service;
+        _readiness = readiness;
         _toast = toast;
         _booking = booking;
         _dialogs = dialogs;
@@ -230,15 +234,16 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         // dispatcher process the pending navigation/layout work first, so the
         // shell paints before the heavier work runs.
         await Task.Yield();
+        await _readiness.WaitAsync();
 
         _doctors.Clear();
         _doctors.AddRange(await _service.GetDoctorsAsync());
         _types.Clear();
         _types.AddRange(await _service.GetTypesAsync());
         _all.Clear();
-        _all.AddRange(await _service.GetForRangeAsync(
-            DateOnly.FromDateTime(DateTime.Today).AddDays(-40),
-            DateOnly.FromDateTime(DateTime.Today).AddDays(40)));
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        _all.AddRange(await _service.GetForRangeAsync(today.AddDays(-40), today.AddDays(20)));
+        _all.AddRange(await _service.GetForRangeAsync(today.AddDays(21), today.AddDays(40)));
 
         RebuildIndexes();
 
@@ -1136,7 +1141,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return;
         }
 
-        var panel = new BookingPanelViewModel(_booking, _service, _toast, _dialogs);
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs);
         panel.Saved += () => _ = RefreshAfterChangeAsync();
         await panel.LoadForNewAsync(null, null, null, null);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
@@ -1159,7 +1164,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private async Task OpenEditAsync(AppointmentEvent ev)
     {
-        var panel = new BookingPanelViewModel(_booking, _service, _toast, _dialogs);
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs);
         panel.Saved += () => _ = RefreshAfterChangeAsync();
         await panel.LoadForEditAsync(ev);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
@@ -1168,9 +1173,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private async Task RefreshAfterChangeAsync()
     {
         _all.Clear();
-        _all.AddRange(await _service.GetForRangeAsync(
-            DateOnly.FromDateTime(DateTime.Today).AddDays(-40),
-            DateOnly.FromDateTime(DateTime.Today).AddDays(40)));
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        _all.AddRange(await _service.GetForRangeAsync(today.AddDays(-40), today.AddDays(20)));
+        _all.AddRange(await _service.GetForRangeAsync(today.AddDays(21), today.AddDays(40)));
         RebuildIndexes();
 
         // Only the active tab needs to re-render immediately; the other two

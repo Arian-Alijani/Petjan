@@ -3,9 +3,7 @@ namespace Animora.Contracts.Appointments;
 /// <summary>
 /// Data seam for the Appointments calendar (day/week/month grids + the
 /// «نوبت‌های پیش رو» queue and «تاریخچه» archive). The desktop ViewModel
-/// depends only on this interface; the in-memory
-/// <c>MockAppointmentsQueryService</c> is the single swappable implementation
-/// a future backend replaces (R-18).
+/// depends only on this interface; the real client service supplies tenant-scoped backend reads (C04).
 /// </summary>
 public interface IAppointmentsQueryService
 {

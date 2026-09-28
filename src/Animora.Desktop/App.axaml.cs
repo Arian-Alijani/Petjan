@@ -2,12 +2,14 @@ using Animora.Application;
 using Animora.Application.UseCases.Identity;
 using Animora.Application.UseCases.Patients;
 using Animora.Application.UseCases.Reception;
+using Animora.Application.UseCases.Scheduling;
 using Animora.Application.UseCases.Visits;
 using Animora.Application.UseCases.Vaccination;
 using Animora.Client.Services.Diagnostics;
 using Animora.Client.Services.Identity;
 using Animora.Client.Services.Patients;
 using Animora.Client.Services.Reception;
+using Animora.Client.Services.Appointments;
 using Animora.Client.Services.Visits;
 using Animora.Client.Services.Vaccination;
 using Animora.Contracts.Diagnostics;
@@ -185,7 +187,7 @@ public partial class App : global::Avalonia.Application
 
         // B03c: real local store + application layer (identity use cases) behind the desktop seams.
         services.AddAnimoraLocalInfrastructure();
-        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddVisitsUseCases().AddVaccinationUseCases());
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddVisitsUseCases().AddVaccinationUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it
@@ -263,9 +265,9 @@ public partial class App : global::Avalonia.Application
         // Phase 13/14: Appointments calendar + booking panel. One shared
         // in-memory event store backs both mocks (the calendar sees events the
         // panel creates/edits), so it is a singleton — as are both services.
-        services.AddSingleton<AppointmentStore>();
-        services.AddSingleton<IAppointmentsQueryService, MockAppointmentsQueryService>();
-        services.AddSingleton<IAppointmentBookingService, MockAppointmentBookingService>();
+        services.AddSingleton<AppointmentsQueryService>();
+        services.AddSingleton<IAppointmentsQueryService>(p => p.GetRequiredService<AppointmentsQueryService>());
+        services.AddSingleton<IAppointmentBookingService, AppointmentBookingService>();
         services.AddSingleton<AppointmentsCalendarViewModel>();
         services.AddTransient<BookingPanelViewModel>();
 

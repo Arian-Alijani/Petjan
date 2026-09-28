@@ -71,6 +71,7 @@ public static class LocalStoreServiceCollectionExtensions
         // C01: projection reads backing the Patients directory + detail screens (Application port, impl here).
         services.TryAddScoped<IPatientDirectoryQueries, PatientDirectoryQueries>();
         services.TryAddScoped<IReceptionQueueQueries, ReceptionQueueQueries>();
+        services.TryAddScoped<IAppointmentQueries, AppointmentQueries>();
         services.TryAddScoped<ITriageQueries, TriageQueries>();
         services.TryAddScoped<IRxCatalogQueries, RxCatalogQueries>();
         services.TryAddScoped<IVaccinationQueries, VaccinationQueries>();
@@ -126,6 +127,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<PatientsSampleData>();
         services.AddScoped<ReceptionSampleData>();
         services.AddScoped<ClinicalSampleData>();
+        services.AddScoped<SchedulingSampleData>();
 
         // Read helpers (A10d): one SQL aggregate each, no tracking, tenant-filtered.
         services.TryAddScoped<StockOnHandQuery>();

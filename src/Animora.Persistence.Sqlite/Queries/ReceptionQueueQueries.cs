@@ -17,24 +17,20 @@ public sealed class ReceptionQueueQueries(AnimoraLocalDbContext db) : IReception
         // Keep both legs as SQL-only scalar projections until after Concat: enum.ToString() and
         // record constructors in a leg force client evaluation before UNION ALL in EF Core.
         var appointments =
-            from appointment in db.Set<Appointment>().AsNoTracking()
-            where appointment.StartUtc >= startUtc && appointment.StartUtc < endUtc
-                && appointment.State != AppointmentState.Cancelled
+            from appointment in SchedulingProjections.AppointmentEvent(
+                db.Set<Appointment>().AsNoTracking().Where(a => a.StartUtc >= startUtc &&
+                    a.StartUtc < endUtc && a.State != AppointmentState.Cancelled), db)
             join entry in db.Set<ReceptionQueueEntry>().AsNoTracking()
                 on appointment.Id equals entry.AppointmentId into entries
             from row in entries.DefaultIfEmpty()
-            join pet in db.Set<Pet>().AsNoTracking() on appointment.PetId equals pet.Id
-            join owner in db.Set<Owner>().AsNoTracking() on appointment.OwnerId equals owner.Id
             select new
             {
                 TicketId = "apt:" + appointment.Id, Source = 0,
                 State = row == null ? appointment.State == AppointmentState.NoShow ? 5 : 0 : (int)row.State,
                 Urgent = row != null && row.Priority > 0,
-                PetId = pet.Id, PetName = pet.Name, PetKind = pet.Species,
-                OwnerId = owner.Id, OwnerName = owner.FullName, OwnerPhone = owner.PhonePrimary,
-                DoctorId = appointment.DoctorUserId,
-                DoctorName = appointment.DoctorUserId == null ? null : db.Set<User>()
-                    .Where(u => u.Id == appointment.DoctorUserId).Select(u => u.DisplayName).FirstOrDefault(),
+                PetId = appointment.PetId, PetName = appointment.PetName, PetKind = appointment.PetSpecies,
+                OwnerId = appointment.OwnerId, OwnerName = appointment.OwnerName, OwnerPhone = appointment.OwnerPhone,
+                DoctorId = appointment.DoctorId, DoctorName = appointment.DoctorName,
                 Arrival = row == null ? appointment.StartUtc : row.EnqueuedUtc,
                 Duration = appointment.DurationMinutes, Sequence = row == null ? 0 : row.TicketNumber,
             };

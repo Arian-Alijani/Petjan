@@ -216,6 +216,25 @@ public static class ErrorCodes
     public static readonly ErrorCode AppointmentDurationInvalid =
         new("APPOINTMENT_DURATION_INVALID", ErrorCode.Validation);
 
+    /// <summary>No appointment exists for the supplied id (C04).</summary>
+    public static readonly ErrorCode AppointmentNotFound =
+        new("APPOINTMENT_NOT_FOUND", ErrorCode.NotFound);
+
+    /// <summary>
+    /// The requested appointment action is illegal for the appointment's current state (C04) —
+    /// e.g. cancelling an already checked-in appointment or checking in a terminal one.
+    /// </summary>
+    public static readonly ErrorCode AppointmentStateInvalid =
+        new("APPOINTMENT_STATE_INVALID", ErrorCode.Conflict);
+
+    /// <summary>The requested calendar range exceeds the 62-day clamp (C04, CONVENTIONS §5).</summary>
+    public static readonly ErrorCode AppointmentRangeTooWide =
+        new("APPOINTMENT_RANGE_TOO_WIDE", ErrorCode.Validation);
+
+    /// <summary>The requested slot falls outside the doctor's configured working window (C04).</summary>
+    public static readonly ErrorCode DoctorOutsideWorkingHours =
+        new("DOCTOR_OUTSIDE_WORKING_HOURS", ErrorCode.Conflict);
+
     /// <summary>The requested reception-queue state change is not in the queue state machine.</summary>
     public static readonly ErrorCode QueueInvalidTransition =
         new("QUEUE_INVALID_TRANSITION", ErrorCode.Conflict);

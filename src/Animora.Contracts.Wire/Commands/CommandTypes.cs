@@ -33,6 +33,9 @@ public static class CommandTypes
     // Scheduling & boarding.
     public const string SchedulingAppointmentBook = "scheduling.appointment.book";
     public const string SchedulingAppointmentMove = "scheduling.appointment.move";
+    public const string SchedulingAppointmentCancel = "scheduling.appointment.cancel";
+    public const string SchedulingAppointmentCheckin = "scheduling.appointment.checkin";
+    public const string SchedulingBookingPatientCreate = "scheduling.bookingpatient.create";
     public const string BoardingStayCheckout = "boarding.stay.checkout";
 
     // Patients & owners (C01).
@@ -68,7 +71,8 @@ public static class CommandTypes
         InventoryStockAdjust, InventoryReceiptPost,
         PurchasingOrderSubmit,
         FinancePeriodClose, FinanceExpensePost, FinanceChequeTransition,
-        SchedulingAppointmentBook, SchedulingAppointmentMove,
+        SchedulingAppointmentBook, SchedulingAppointmentMove, SchedulingAppointmentCancel,
+        SchedulingAppointmentCheckin, SchedulingBookingPatientCreate,
         BoardingStayCheckout,
         PatientsOwnerCreate, PatientsOwnerUpdate, PatientsPetCreate, PatientsPetUpdate, PatientsPetWeightAdd,
         ReceptionTicketAdmit, ReceptionTicketEnter, ReceptionTicketLeave, ReceptionTicketNoShow,
