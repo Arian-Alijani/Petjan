@@ -256,8 +256,8 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 - **Push:** `scripts/git/push.sh "test(C08): cash session, cheque lifecycle, cashier-reuses-sales"`
 
 ### T12 — بیلد سریع + تأیید نهایی
-- [ ] بیلد سریع فقط پروژه‌های تغییرکرده (نه full طولانی): `dotnet build src/Animora.Domain src/Animora.Application ...` یا `scripts/sandbox/build.sh` اگر سریع است. **گرفتن full test/build طولانی ممنوع** — فقط کامپایل‌شدن تغییرات را تأیید کن.
-- [ ] مطمئن شو mockها حذف و DI درست است (grep نهایی).
+- [x] بیلد سریع پروژه‌های تغییرکرده: `Animora.Persistence.Sqlite` و `Animora.Client.Services` هر دو 0 Warning / 0 Error؛ پروژه تست (که Domain + Application را می‌کشد) کامپایل شد و 14/14 تست سبز. (full build طولانی گرفته نشد.)
+- [x] mockها حذف شدند (`MockCashierService`/`MockChequesQueryService` غایب، هیچ رفرنسی باقی نمانده) و DI به سرویس‌های واقعی وصل است (`App.axaml.cs` خطوط 310 و 315).
 - **Push:** `scripts/git/push.sh "chore(C08): finalize — build check & cleanup"`
 
 ### T13 — حذف این فایل پلن (تسک پایانی)
