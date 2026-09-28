@@ -1,0 +1,32 @@
+[env] Install log: /home/user/webapp/.sandbox/logs/install-prereqs.log
+[env] Installing .NET SDK channel 10.0 into /home/user/.dotnet ...
+dotnet-install: Attempting to download using aka.ms link https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.401/dotnet-sdk-10.0.401-linux-x64.tar.gz
+dotnet-install: Remote file https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.401/dotnet-sdk-10.0.401-linux-x64.tar.gz size is 240059572 bytes.
+dotnet-install: Extracting archive from https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.401/dotnet-sdk-10.0.401-linux-x64.tar.gz
+dotnet-install: Downloaded file size is 240059572 bytes.
+dotnet-install: The remote and local file sizes are equal.
+dotnet-install: Installed version is 10.0.401
+dotnet-install: Adding to current process PATH: `/home/user/.dotnet`. Note: This change will be visible only when sourcing script.
+dotnet-install: Note that the script does not resolve dependencies during installation.
+dotnet-install: To check the list of dependencies, go to https://learn.microsoft.com/dotnet/core/install, select your operating system and check the "Dependencies" section.
+dotnet-install: Installation finished successfully.
+[ ok ] .NET SDK installed: 10.0.401
+[env] --no-xvfb: skipping xvfb.
+[env] Restoring NuGet packages (into /home/user/webapp/.sandbox/nuget) ...
+  Determining projects to restore...
+  Restored /home/user/webapp/src/Animora.Domain/Animora.Domain.csproj (in 107 ms).
+  Restored /home/user/webapp/src/Animora.Infrastructure.Local/Animora.Infrastructure.Local.csproj (in 6.56 sec).
+  Restored /home/user/webapp/src/Animora.Contracts/Animora.Contracts.csproj (in 17 ms).
+  Restored /home/user/webapp/src/Animora.Contracts.Wire/Animora.Contracts.Wire.csproj (in 2 ms).
+  Restored /home/user/webapp/src/Animora.Client.Services/Animora.Client.Services.csproj (in 1.38 sec).
+  Restored /home/user/webapp/src/Animora.Application/Animora.Application.csproj (in 17 ms).
+  Restored /home/user/webapp/tests/Animora.Sync.Tests/Animora.Sync.Tests.csproj (in 2.84 sec).
+  Restored /home/user/webapp/tests/Animora.Server.Tests/Animora.Server.Tests.csproj (in 3 ms).
+  Restored /home/user/webapp/tests/Animora.Persistence.Tests/Animora.Persistence.Tests.csproj (in 14 ms).
+  Restored /home/user/webapp/tests/Animora.Domain.Tests/Animora.Domain.Tests.csproj (in 14 ms).
+  Restored /home/user/webapp/src/Animora.Desktop/Animora.Desktop.csproj (in 11.37 sec).
+  Restored /home/user/webapp/src/Animora.Sync.Abstractions/Animora.Sync.Abstractions.csproj (in 4 ms).
+  Restored /home/user/webapp/src/Animora.Persistence.Sqlite/Animora.Persistence.Sqlite.csproj (in 13 ms).
+  Restored /home/user/webapp/tests/Animora.Application.Tests/Animora.Application.Tests.csproj (in 687 ms).
+[ ok ] Restore complete.
+[ ok ] Prerequisites ready. Next: scripts/sandbox/build.sh

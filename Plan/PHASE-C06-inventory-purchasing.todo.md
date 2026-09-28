@@ -353,7 +353,7 @@
   existing `inventory.stock.adjust`. Build `Animora.Contracts.Wire`.
   **Push:** `feat(wire): CommandTypes += 7 (inventory/purchasing C06)`.
 
-- [ ] **T07 — Application: Inventory read models + 4 queries + 5 commands + registration.**
+- [x] **T07 — Application: Inventory read models + 4 queries + 5 commands + registration.**
   In `src/Animora.Application/UseCases/Inventory/`: `ReadModels/InventoryReadModels.cs`
   (`ProductReadModel`, `ProductDetailReadModel` incl. last-100 movements, `CategoryReadModel`,
   `MovementReadModel`). **`PagedResult<T>` already exists** at

@@ -25,6 +25,15 @@ public static class CommandTypes
     // Purchasing.
     public const string PurchasingOrderSubmit = "purchasing.order.submit";
 
+    // Inventory & purchasing (C06).
+    public const string InventoryProductCreate = "inventory.product.create";
+    public const string InventoryProductUpdate = "inventory.product.update";
+    public const string InventoryVariantAdd = "inventory.variant.add";
+    public const string InventoryProductDelete = "inventory.product.delete";
+    public const string PurchasingOrderCreate = "purchasing.order.create";
+    public const string PurchasingReceiptRecord = "purchasing.receipt.record";
+    public const string PurchasingOrderCancel = "purchasing.order.cancel";
+
     // Finance.
     public const string FinancePeriodClose = "finance.period.close";
     public const string FinanceExpensePost = "finance.expense.post";
@@ -74,6 +83,8 @@ public static class CommandTypes
         CashierSessionOpen, CashierSessionClose,
         InventoryStockAdjust, InventoryReceiptPost,
         PurchasingOrderSubmit,
+        InventoryProductCreate, InventoryProductUpdate, InventoryVariantAdd, InventoryProductDelete,
+        PurchasingOrderCreate, PurchasingReceiptRecord, PurchasingOrderCancel,
         FinancePeriodClose, FinanceExpensePost, FinanceChequeTransition,
         SchedulingAppointmentBook, SchedulingAppointmentMove, SchedulingAppointmentCancel,
         SchedulingAppointmentCheckin, SchedulingBookingPatientCreate,
