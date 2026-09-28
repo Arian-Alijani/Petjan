@@ -230,9 +230,9 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 - **Push:** `scripts/git/push.sh "feat(cheques): create/update/delete/status/bulk-status lifecycle commands"`
 
 ### T08 — Seed: BankDirectory + FinanceSampleData
-- [ ] `LocalSeeder.cs` را تغییر بده تا `BankDirectory` را seed کند (اگر لازم به persist است؛ در غیر این صورت `GetBanksAsync` مستقیم از static list می‌خواند — طبق فاز، بدون DB round-trip).
-- [ ] `src/Animora.Persistence.Sqlite/Seed/FinanceSampleData.cs` بساز مطابق الگوی `SalesSampleData` (SampleKey marker, AlreadySeeded, Populate). محتوا: 24 چک (هر دو جهت، همه stateها، پخش‌شده در 8 هفته آینده و 4 هفته گذشته) + 2 جلسه بسته + 1 جلسه باز. پشت `SeedSampleData` flag و RunBlockAsync.
-- [ ] `FinanceSampleData` را در ctor `LocalSeeder` inject و در بلاک sample صدا بزن.
+- [x] `LocalSeeder.cs` را تغییر بده تا `BankDirectory` را seed کند (اگر لازم به persist است؛ در غیر این صورت `GetBanksAsync` مستقیم از static list می‌خواند — طبق فاز، بدون DB round-trip).
+- [x] `src/Animora.Persistence.Sqlite/Seed/FinanceSampleData.cs` بساز مطابق الگوی `SalesSampleData` (SampleKey marker, AlreadySeeded, Populate). محتوا: 24 چک (هر دو جهت، همه stateها، پخش‌شده در 8 هفته آینده و 4 هفته گذشته) + 2 جلسه بسته + 1 جلسه باز. پشت `SeedSampleData` flag و RunBlockAsync.
+- [x] `FinanceSampleData` را در ctor `LocalSeeder` inject و در بلاک sample صدا بزن.
 - **Push:** `scripts/git/push.sh "feat(seed): bank directory + FinanceSampleData (24 cheques, 3 cash sessions)"`
 
 ### T09 — Client Services: CashierService/Mapping + ChequesQueryService/Mapping
