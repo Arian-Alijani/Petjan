@@ -51,7 +51,8 @@
 
 ## Next phase
 
-**Next phase: `C06`** — `backend-roadmap/phases/PHASE-C06-*.md`.
+**Next phase: `C06` (closeout — T12 only)** — `Plan/PHASE-C06-inventory-purchasing.todo.md`. T01–T11
+and T13's docs are done; the three test classes (T12) are the one outstanding item.
 
 ## Phase status
 
@@ -96,7 +97,7 @@
 | C03 | ✅ Done | 2026-09-28 | Visit encounter & vaccination on the real local DB (the C01 pattern). Per-field encounter commands (`SaveVisitVitals`, `SaveVisitNote`, `AddPrescriptionLine`, `RemovePrescriptionLine`, `CompleteVisit` — the 6-step C07-seam handoff transaction: complete → one `MedicalHistoryEntry` → one `VisitBillingHandoff` → best-effort reception `Done` → `MarkReadyForInvoice`) + `EncounterDraftQuery`/`RxCatalogQuery`; vaccination `MarkVaccinationDone`/`RecordVaccinationReminder` + due/catalog/history/sms-template queries. New `[LocalOnly]` `VisitBillingHandoff` + `SmsTemplateRow` + migration **`010_C03Schema`** (numbered 010 not 009, D1). `VaccinationThresholds` 5-bucket read-model projection (collapsed → 4-value Contracts `VaccinationStatus`, D6). `Client.Services`: `TenantScopedCache`, `DebounceBuffer`, `VisitEncounterService`/`VaccinationService` + mappings + `SmsTemplateRenderer` (no delivery). Contracts additive `IVisitEncounterService.FlushAsync`. New `IMedicalHistoryRepository`. 2 DI swaps + removed `VisitEncounterStore`. **Mocks deleted: `MockVisitEncounterService.cs`, `VisitEncounterStore.cs`, `MockVaccinationService.cs`.** `CommandTypes` += 7, `ErrorCodes` += 7, reused permissions (D2). 3 test classes (12 tests). Verified: `build.sh full` = **0/0**, C03 tests green (VisitEncounter 3/3, Vaccination 7/7, VisitBillingHandoff 2/2), `run.sh` = **SMOKE RUN OK**. |
 | C04 | ✅ Done (unverified per user request) | 2026-09-28 | Appointments: local clinic calendar/time zone, working hours + migration 011, SQL projection, 7 calendar queries + 2 roster/picker queries, 5 journaled commands, client services + desktop swap and 3 test classes. Tests/build intentionally not run. |
 | C05 | ✅ Done (build/tests unverified — no SDK in session) | 2026-09-28 | Boarding on the real local DB (the C01 pattern). Derived daily accrual via pure `StayChargeCalculator` (never stored); `BoardingBillingHandoff` + migration **012** (C07 reads both handoff tables); stale-index remove rule (C07/C08 reuse); 6 seeded `BoardingServiceDef` reference rows + `BoardingSampleData`; 7 queries + 5 journaled commands; `BoardingQueryService`/`BoardingMapping`; DI swap; **mock deleted: `MockBoardingQueryService.cs`**; `CommandTypes` += 4 (checkout existed); `ErrorCodes` += 6; 3 test classes. Checkout stops at `ReadyForInvoice` + writes a Ready handoff (real invoice deferred to C07). Deviations D1–D11 recorded below. Post-merge fix: boarding list/detail/history queries now filter & sort on the `BoardingStay` entity before projecting into the read model (the embedded entity broke EF translation of `r.Stay.State`). |
-| C06 | ⬜ Not started | | |
+| C06 | 🟡 Code complete — T12 tests outstanding | 2026-09-28 | Inventory & Purchasing on the real local DB (the C01 pattern). **New: maintained on-hand cache with a proof** — `[LocalOnly]` `StockOnHandSnapshot` (one row per tenant/product/variant, `OnHandScaled` INTEGER ×1000) + `StockSnapshotUpdater.Maintain(db, tenantId, applied)` called from `AnimoraLocalDbContext.PrepareSave()` right after `AppendOnlyGuard.Check`, so EVERY added `StockMovement` from ANY path (receipts, adjustments, future C07 sales, D07 sync) updates its snapshot inside the same transaction; `ILocalStoreMaintenance.RebuildStockSnapshotsAsync` recomputes the cache from the ledger and is called from the restore + `QuarantineAndRebuild` paths. Migration **`013_InventorySnapshot`** (012 taken by C05, D1). `AdjustmentReasons` (Count/Damage/Expiry/Theft/Correction); `ErrorCodes` += 8; `AuditCategory.Inventory` added. `IInventoryQueries`/`IPurchasingQueries` ports + SQLite impls (`InventoryQueries` joins the snapshot for O(1) catalog on-hand; `PurchasingQueries` snapshot in ≤3 SELECTs). Application: 4 inventory queries + 5 commands, 1 purchasing query + 3 commands (receipt writes one `MovementKind.Receipt` per line, over-receipt → `RECEIPT_EXCEEDS_ORDER` unless `AllowOverReceipt`) + registrations. Seed: 12 categories + 8 units (`TAB` added) + `InventorySampleData` (45 products / 90 variants / opening receipts / 6 suppliers / 8 POs across states). `Client.Services`: `InventoryMapping` + `InventoryQueryService` + `PurchasingQueryService` (+ shared `PersianFormat`). Desktop: 2 DI swaps, 2 VM readiness-gate lines, **mocks deleted: `MockInventoryQueryService.cs`, `MockPurchasingQueryService.cs`**, `CommandTypes` += 7. **T12 (3 test classes) not yet written — the only open item.** Deviations D1–D5 below. Verified: `Animora.Application`, `Animora.Persistence.Sqlite`, `Animora.Client.Services` each build 0 warnings / 0 errors. |
 | C07 | ⬜ Not started | | |
 | C08 | ⬜ Not started | | |
 | C09 | ⬜ Not started | | |
@@ -135,6 +136,70 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > do not read the entries around it. If nothing below is cited, you are done reading this file.
 
 ## Repo state log
+
+### C06 — Inventory catalog, stock adjustments and purchasing (2026-09-28)
+- **The core new mechanism — a maintained cache with a proof.** On-hand had no single home: the only
+  authority is the append-only `StockMovements` ledger (R-B23), but the grid must not run a SUM per
+  render. C06 adds `StockOnHandSnapshot` (`[LocalOnly]`, one row per `(TenantId, ProductId, VariantId)`,
+  `OnHandScaled` as the exact ×1000 INTEGER that matches `FixedScaleQuantityConverter`). It is never
+  written by business code: `StockSnapshotUpdater.Maintain(...)` walks `ChangeTracker.Entries<StockMovement>()`
+  in state `Added` from `AnimoraLocalDbContext.PrepareSave()`, upserts the row and folds in the signed
+  scaled quantity — inside the SAME transaction, for EVERY write path (C06 receipts/adjustments, and
+  later C07 sales / D07 sync) with no call site to remember. A `_snapshotApplied` set (owned by the
+  context, cleared after a successful save) makes a retried failed save idempotent. Because a cache can
+  drift, the proof is shipped too: `ILocalStoreMaintenance.RebuildStockSnapshotsAsync` deletes and
+  recomputes every row from the ledger, and the restore + `QuarantineAndRebuild` paths call it so a
+  rebuilt store's cache equals its ledger. **C07/C09/D07 may rely on `StockOnHandSnapshot` being exact
+  after any committed write, and on `RebuildStockSnapshotsAsync` as the repair.**
+- **Schema.** Migration `013_InventorySnapshot` (numbered 013 because 012 is C05's `BoardingHandoff`),
+  unique index `IX_StockOnHandSnapshots_TenantId_ProductId_VariantId`.
+- **Domain/contracts.** `AdjustmentReasons` (Count, Damage, Expiry, Theft, Correction) with `IsValid`;
+  8 error codes (`PRODUCT_NOT_FOUND`, `PRODUCT_HAS_STOCK`, `VARIANT_NOT_FOUND`,
+  `ADJUSTMENT_REASON_INVALID`, `STOCK_WOULD_GO_NEGATIVE`, `PURCHASE_ORDER_NOT_FOUND`,
+  `PURCHASE_ORDER_STATE_INVALID`, `RECEIPT_EXCEEDS_ORDER`); `AuditCategory.Inventory`; `CommandTypes` += 7
+  (`inventory.product.create|update`, `inventory.variant.add`, `inventory.product.delete`,
+  `purchasing.order.create`, `purchasing.receipt.record`, `purchasing.order.cancel`) — `inventory.stock.adjust`
+  already existed and is reused.
+- **Read projections.** `InventoryQueries` takes catalog/detail on-hand from the snapshot (never a live
+  SUM) and computes `LowStockOnly` against the variant's reorder level; `PurchasingQueries.GetSnapshotAsync`
+  answers the whole screen in ≤3 SELECTs (bounded PO list + supplier names + month-to-date posted-receipt
+  spend). Both registered `TryAddScoped`.
+- **Use cases.** 4 inventory queries + 5 commands (`CreateProduct`, `UpdateProductInfo`,
+  `AddProductVariant`, `DeleteProduct`, `AdjustStock`) and 1 purchasing query + 3 commands
+  (`CreatePurchaseOrder`, `ReceiveGoods`, `CancelPurchaseOrder`), each `[RequiresPermission]` +
+  `[Auditable(AuditCategory.Inventory, …)]` + `IJournaledCommand`. Business rules implemented: delete is a
+  soft delete refused with `PRODUCT_HAS_STOCK` while on-hand ≠ 0 or a movement landed in the last 90 days;
+  `AdjustStock` validates the reason, projects the new on-hand and refuses a negative outcome with
+  `STOCK_WOULD_GO_NEGATIVE`, writing ONE movement whose kind follows the delta sign
+  (`AdjustmentIn`/`AdjustmentOut` — there is no single `Adjustment` kind); `ReceiveGoods` posts a receipt,
+  appends one `MovementKind.Receipt` per line carrying its unit cost, applies the receipt to the order
+  (→ PartiallyReceived/Received) and refuses over-receipt with `RECEIPT_EXCEEDS_ORDER` unless
+  `AllowOverReceipt`.
+- **Seed.** Units 7 → 8 (`TAB`) and categories 5 → 12 (`SUPP`, `GROOM`, `TOY`, `HYG`, `LAB`, `SURG`,
+  `EQUIP` added to MED/VAC/FOOD/ACC/SRV); new `InventorySampleData` (marker `inventory.sample`, behind
+  `SeedSampleData`, after the reference blocks because it reads the seeded categories): 45 products × 2
+  variants, one opening `Receipt` per variant, 6 suppliers, 8 purchase orders spread over
+  Draft/Submitted/PartiallyReceived/Received/Cancelled — the received ones also append their real ledger
+  movements so order state, receipts and on-hand agree.
+- **Client seam & Desktop.** `InventoryQueryService` + `PurchasingQueryService` (+ `InventoryMapping` and
+  a shared `PersianFormat` for Persian digits / ٬ grouping / Jalali dates) replace the two mocks; both DI
+  lines swapped and `.AddInventoryUseCases().AddPurchasingUseCases()` chained into
+  `AddAnimoraApplication`; `InventoryPageViewModel`/`PurchasingPageViewModel` gained the
+  `IStoreReadinessGate` line; `MockInventoryQueryService.cs` and `MockPurchasingQueryService.cs` deleted.
+- **Deviations.** (D1) migration is `013_InventorySnapshot`, not the phase text's `012`. (D2) the phase's
+  `MovementKind.Adjustment` maps to `AdjustmentIn`/`AdjustmentOut` chosen by the delta's sign. (D3)
+  `StockAdjustRequest` carries an absolute target while `AdjustStockCommand` takes a signed delta, so the
+  service computes `delta = target − currentOnHand` and records the neutral `Correction` reason (Contracts
+  has no reason field). (D4) `AuditCategory` had no `Inventory` member — it was added (additive) as the
+  phase's attribute requires. (D5) existing permission codes are reused (`inventory.read|adjust|receive`,
+  `purchasing.read|manage`) rather than inventing new ones; no new permission was added, so
+  `DefaultRolePermissions` needed no change. Also: the phase's `inventory.product.edit` / `purchasing.order.manage`
+  names do not exist in the repo. (D6) `PurchaseOrderStatus` mapping for the read-model `State` int:
+  Received→Delivered, Closed→Finalized, Draft/Submitted/PartiallyReceived→InProgress, Cancelled→omitted
+  from the table (no Contracts equivalent).
+- **Outstanding.** T12 — the three test classes (`InventoryUseCaseTests`, `StockSnapshotIntegrityTests`,
+  `PurchasingQueryTests`) were not written in this session; the plan file is retained for that.
+
 
 ### C05 — Boarding stays, accrual and checkout handoff (2026-09-28)
 - **Domain & database:** pure static `StayChargeCalculator.Accrued(stay, services, asOf, tz)` — the single
