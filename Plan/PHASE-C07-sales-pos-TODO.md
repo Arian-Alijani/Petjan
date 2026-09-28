@@ -442,7 +442,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): RegisterPayment + refund/return/void compensating commands`
 
 ### T09 — Registration wiring (Application DI for Sales use cases)
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **File:** create `src/Animora.Application/UseCases/Sales/SalesRegistration.cs` (mirror
   `InventoryRegistration` / `PatientsRegistration`): register all query handlers, command handlers,
   validators, and any Application-side ports. Wire the persistence-side services
