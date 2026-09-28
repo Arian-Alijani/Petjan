@@ -218,7 +218,7 @@ VM فیلد `IStoreReadinessGate _readiness` می‌گیرد و اولین خط 
 
 > بعد از `[x]` شدن هر تسک، فوراً `scripts/git/push.sh "..."`. build/test طولانی نگیر مگر تسک صریحاً بگوید.
 
-- [ ] **T1 — StayChargeCalculator + FrozenTotalMinor + 6 error code**
+- [x] **T1 — StayChargeCalculator + FrozenTotalMinor + 6 error code**
   - بساز `src/Animora.Domain/Boarding/StayChargeCalculator.cs` (pure static):
     `static Money Accrued(BoardingStay stay, IReadOnlyList<BoardingServiceDef> services, DateTimeOffset asOf, TimeZoneInfo tz)`.
     Σ روی `stay.Items`: سرویس متناظر (`CatalogItemId`↔`BoardingServiceDef.Id`)؛ billing=`PerDay`→
@@ -231,12 +231,12 @@ VM فیلد `IStoreReadinessGate _readiness` می‌گیرد و اولین خط 
   - در `ErrorCodes.cs`: 6 کد جدید (بخش ۲).
   - پوش: `feat(boarding): add StayChargeCalculator, FrozenTotalMinor and 6 error codes`
 
-- [ ] **T2 — StayChargeCalculatorTests**
+- [x] **T2 — StayChargeCalculatorTests**
   - `tests/Animora.Domain.Tests/StayChargeCalculatorTests.cs` (4 سناریو بخش ۲). `TimeZoneInfo.Utc` برای
     سادگی مرزها. فقط کامپایل کافی است؛ full test نگیر.
   - پوش: `test(boarding): StayChargeCalculator night/billing/frozen cases`
 
-- [ ] **T3 — BoardingBillingHandoff entity + configuration + migration 012**
+- [x] **T3 — BoardingBillingHandoff entity + configuration + migration 012**
   - `Entities/BoardingBillingHandoff.cs` `[LocalOnly]` (الگوی C03، StayId unique، از `HandoffStatus` موجود).
   - `Configurations/Boarding/BoardingBillingHandoffConfiguration.cs` — HasKey، LinesJson maxlen+required،
     index `(TenantId,Status,CompletedUtc)` + unique `StayId`.
@@ -245,7 +245,7 @@ VM فیلد `IStoreReadinessGate _readiness` می‌گیرد و اولین خط 
     byte-identical؛ snapshot آپدیت. اگر SDK نبود دستی طبق 010/011 + snapshot دستی، در PROGRESS "ef not run".
   - پوش: `feat(boarding): BoardingBillingHandoff entity, config, migration 012`
 
-- [ ] **T4 — پورت‌ها + read models + BoardingQueries + handoff writer**
+- [x] **T4 — پورت‌ها + read models + BoardingQueries + handoff writer**
   - `Application/Ports/IBoardingQueries.cs`: متدهای query (stays list, detail, rooms occupancy, services,
     selectable items, known pets, history) + `CountActiveStaysInRoomAsync` + resolve room helper.
   - read models در `Application/UseCases/Boarding/ReadModels/` (5): `StayListItemReadModel`,
@@ -257,7 +257,7 @@ VM فیلد `IStoreReadinessGate _readiness` می‌گیرد و اولین خط 
   - `Persistence.Sqlite/Repositories/BoardingBillingHandoffWriter.cs`.
   - پوش: `feat(boarding): query ports, read models, BoardingQueries, handoff writer`
 
-- [ ] **T5 — query ها + registration**
+- [x] **T5 — query ها + registration**
   - `Application/UseCases/Boarding/`: `BoardingStayListQuery`, `BoardingStayDetailQuery(StayId)`,
     `BoardingRoomsQuery`, `BoardingServicesQuery`, `BoardingSelectableItemsQuery`,
     `BoardingKnownPetsQuery(Search?)` (reuse C01 `PersianText`/SearchKey), `BoardingHistoryQuery(filter)`.
@@ -265,7 +265,7 @@ VM فیلد `IStoreReadinessGate _readiness` می‌گیرد و اولین خط 
   - `BoardingRegistration.cs` با `AddBoardingUseCases()` (الگوی SchedulingRegistration).
   - پوش: `feat(boarding): boarding queries and use-case registration`
 
-- [ ] **T6 — 5 command + validators + CommandTypes+4**
+- [x] **T6 — 5 command + validators + CommandTypes+4**
   - `CreateBoardingStayCommand`, `AddStayItemCommand`, `RemoveStayItemCommand(StayId, Index, ExpectedItemId)`,
     `TransferStayRoomCommand(StayId, TargetRoomId?)`, `CheckoutStayCommand`. permission:
     create/item/transfer=`BoardingManage`؛ checkout=`BoardingCheckout`. `[Auditable(AuditCategory.Clinical, CommandTypes.X)]`
@@ -285,7 +285,7 @@ VM فیلد `IStoreReadinessGate _readiness` می‌گیرد و اولین خط 
     PROGRESS ثبت کن (checkout واقعی با invoice به C07 موکول).
   - پوش: `feat(boarding): 5 journaled commands, stale-index rule, checkout handoff, CommandTypes+4`
 
-- [ ] **T7 — Seed: services reference data + BoardingSampleData**
+- [x] **T7 — Seed: services reference data + BoardingSampleData**
   - `LocalSeeder.cs`: بلوک جدید `boarding.services` (marker key جدید) با 6 `BoardingServiceDef.Create(...)`.
     seed اتاق‌ها را دست نزن (D10).
   - `Seed/BoardingSampleData.cs`: پشت `LocalStoreOptions.SeedSampleData`، marker `boarding.sample`، guard روی
@@ -293,7 +293,7 @@ VM فیلد `IStoreReadinessGate _readiness` می‌گیرد و اولین خط 
     بلااستفاده (درس C01 defect c).
   - پوش: `feat(boarding): seed 6 service defs (reference) + BoardingSampleData`
 
-- [ ] **T8 — Client.Services: BoardingQueryService + BoardingMapping**
+- [x] **T8 — Client.Services: BoardingQueryService + BoardingMapping**
   - `Client.Services/Boarding/BoardingQueryService.cs` — `sealed`, `IServiceScopeFactory`, scope-per-call،
     همهٔ 13 عضو `IBoardingQueryService`. `RemoveItemAsync` طبق stale-index (اول GetDetail، ItemId،
     ExpectedItemId). `TransferAsync(stayId)`→command با `TargetRoomId=null`.
