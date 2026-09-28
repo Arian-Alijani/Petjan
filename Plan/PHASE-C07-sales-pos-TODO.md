@@ -247,7 +247,7 @@ phase (with the ⚠️ reuse notes applied):
 > **acceptance**. After ticking a task, run the locked push command with the suggested message.
 
 ### T01 — Domain + reference groundwork
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:**
   - create `src/Animora.Domain/Sales/Insurer.cs` (fields `Code, Name, CoveragePercent, CeilingMinor`;
     factory `Create(tenantId, code, name, coveragePercent, ceilingMinor)`; follow the reference-entity
@@ -268,7 +268,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): add Insurer entity, C07 error codes, AllowNegativeStockOnSale option`
 
 ### T02 — Insurer persistence + migration 014 + seed
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:**
   - create `src/Animora.Persistence.Sqlite/Configurations/Sales/InsurerConfiguration.cs` — table
     mapping + **unique index on `Code`** (per tenant if the convention is composite; check existing
@@ -289,7 +289,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): Insurer config + migration 014_SalesInsurers + seed 6 insurers`
 
 ### T03 — InvoiceNumberAllocator (+ concurrency test)
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:**
   - create `src/Animora.Persistence.Sqlite/Sales/InvoiceNumberAllocator.cs` — define its port
     interface (e.g. `IInvoiceNumberAllocator.AllocateAsync(tenantId, DateTimeOffset issued, ct)` returning

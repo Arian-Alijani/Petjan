@@ -25,6 +25,12 @@ public sealed class LocalStoreOptions
     /// immediately testable (C01). A first-run-setup checkbox sets it; default true for a fresh install.</summary>
     public bool SeedSampleData { get; set; } = true;
 
+    /// <summary>
+    /// Allows a sale movement to take the derived on-hand quantity below zero. Enabled by default so
+    /// offline posting is not blocked by a stale or incomplete stock snapshot.
+    /// </summary>
+    public bool AllowNegativeStockOnSale { get; set; } = true;
+
     /// <summary>Directory containing the database file.</summary>
     public string DataDirectory => Path.GetDirectoryName(Path.GetFullPath(DatabasePath))!;
 
