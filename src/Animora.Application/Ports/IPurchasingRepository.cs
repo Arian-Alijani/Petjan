@@ -8,4 +8,7 @@ public interface IPurchasingRepository
     Task<PurchaseOrder> RequireAsync(string id, CancellationToken ct = default);
     void Add(PurchaseOrder entity);
     void AddRange(IEnumerable<PurchaseOrder> entities);
+
+    /// <summary>Persists a goods receipt (C06 <c>ReceiveGoodsCommand</c>); receipts are append-only.</summary>
+    void AddReceipt(GoodsReceipt receipt);
 }
