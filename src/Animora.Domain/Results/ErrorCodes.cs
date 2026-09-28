@@ -354,6 +354,19 @@ public static class ErrorCodes
 
     #endregion
 
+    #region Inventory & Purchasing (Phase C06)
+
+    public static readonly ErrorCode ProductNotFound = new("PRODUCT_NOT_FOUND", ErrorCode.NotFound);
+    public static readonly ErrorCode ProductHasStock = new("PRODUCT_HAS_STOCK", ErrorCode.Conflict);
+    public static readonly ErrorCode VariantNotFound = new("VARIANT_NOT_FOUND", ErrorCode.NotFound);
+    public static readonly ErrorCode AdjustmentReasonInvalid = new("ADJUSTMENT_REASON_INVALID", ErrorCode.Validation);
+    public static readonly ErrorCode StockWouldGoNegative = new("STOCK_WOULD_GO_NEGATIVE", ErrorCode.Conflict);
+    public static readonly ErrorCode PurchaseOrderNotFound = new("PURCHASE_ORDER_NOT_FOUND", ErrorCode.NotFound);
+    public static readonly ErrorCode PurchaseOrderStateInvalid = new("PURCHASE_ORDER_STATE_INVALID", ErrorCode.Conflict);
+    public static readonly ErrorCode ReceiptExceedsOrder = new("RECEIPT_EXCEEDS_ORDER", ErrorCode.Conflict);
+
+    #endregion
+
     #region Sales & Cashier (Phase A07)
 
     /// <summary>

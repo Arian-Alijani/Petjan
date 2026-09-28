@@ -291,7 +291,7 @@
 
 ## 1. TASK LIST (do in order; push after each)
 
-- [ ] **T01 — Domain: AdjustmentReasons + 8 error codes.**
+- [x] **T01 — Domain: AdjustmentReasons + 8 error codes.**
   Create `src/Animora.Domain/Inventory/AdjustmentReasons.cs`: a catalog of valid adjustment reason
   codes `Count, Damage, Expiry, Theft, Correction` (as string consts + a `IsValid(string)` / a
   `IReadOnlySet<string>` `All`, matching how other code catalogs are shaped in Domain — mirror e.g.

@@ -10,6 +10,7 @@ public enum AuditCategory
     Configuration,
     Integrity,
     Maintenance,
+    Inventory,
 }
 
 public enum AuditOutcome
