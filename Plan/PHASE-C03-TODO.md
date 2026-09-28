@@ -496,7 +496,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   Verify no remaining reference (`grep -rn "MockVisitEncounter\|VisitEncounterStore\|MockVaccination" src`).
 - **Push:** `feat(desktop): C03 DI swap, readiness gate, delete 3 mocks`.
 
-### [ ] T12 — Tests: VisitEncounterUseCaseTests
+### [x] T12 — Tests: VisitEncounterUseCaseTests
 - `tests/Animora.Application.Tests/VisitEncounterUseCaseTests.cs`: saving a note for a completed visit →
   `VISIT_NOT_EDITABLE`; completing with neither diagnosis nor lines → `VISIT_INCOMPLETE`; successful
   completion writes exactly one `MedicalHistoryEntry` + exactly one `VisitBillingHandoff`; completing
