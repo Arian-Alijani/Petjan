@@ -14,5 +14,6 @@ public interface IBoardingQueries
     Task<BoardingSelectableReadModel?> FindSelectableAsync(string id, CancellationToken ct);
     Task<IReadOnlyList<BoardingSelectableReadModel>> GetSelectableAsync(CancellationToken ct);
     Task<IReadOnlyList<BoardingKnownPetReadModel>> GetKnownPetsAsync(string? search, CancellationToken ct);
+    Task<BoardingKnownPetReadModel?> FindPetAsync(string petId, CancellationToken ct);
     Task<BoardingHistoryResult> GetHistoryAsync(string? search, string sort, int page, int pageSize, CancellationToken ct);
 }

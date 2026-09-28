@@ -14,5 +14,11 @@ public static class BoardingRegistration
         .AddQuery<BoardingServicesQuery, IReadOnlyList<BoardingServiceDef>, BoardingServicesQueryHandler>()
         .AddQuery<BoardingSelectableItemsQuery, IReadOnlyList<BoardingSelectableReadModel>, BoardingSelectableItemsQueryHandler>()
         .AddQuery<BoardingKnownPetsQuery, IReadOnlyList<BoardingKnownPetReadModel>, BoardingKnownPetsQueryHandler>()
-        .AddQuery<BoardingHistoryQuery, BoardingHistoryResult, BoardingHistoryQueryHandler>();
+        .AddQuery<BoardingHistoryQuery, BoardingHistoryResult, BoardingHistoryQueryHandler>()
+        .AddCommand<CreateBoardingStayCommand, string, CreateBoardingStayCommandHandler>()
+        .AddValidator<CreateBoardingStayCommand, CreateBoardingStayCommandValidator>()
+        .AddCommand<AddStayItemCommand, Unit, AddStayItemCommandHandler>()
+        .AddCommand<RemoveStayItemCommand, Unit, RemoveStayItemCommandHandler>()
+        .AddCommand<TransferStayRoomCommand, Unit, TransferStayRoomCommandHandler>()
+        .AddCommand<CheckoutStayCommand, Unit, CheckoutStayCommandHandler>();
 }

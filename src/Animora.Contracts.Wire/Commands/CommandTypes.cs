@@ -37,6 +37,10 @@ public static class CommandTypes
     public const string SchedulingAppointmentCheckin = "scheduling.appointment.checkin";
     public const string SchedulingBookingPatientCreate = "scheduling.bookingpatient.create";
     public const string BoardingStayCheckout = "boarding.stay.checkout";
+    public const string BoardingStayCreate = "boarding.stay.create";
+    public const string BoardingItemAdd = "boarding.item.add";
+    public const string BoardingItemRemove = "boarding.item.remove";
+    public const string BoardingStayTransfer = "boarding.stay.transfer";
 
     // Patients & owners (C01).
     public const string PatientsOwnerCreate = "patients.owner.create";
@@ -73,7 +77,7 @@ public static class CommandTypes
         FinancePeriodClose, FinanceExpensePost, FinanceChequeTransition,
         SchedulingAppointmentBook, SchedulingAppointmentMove, SchedulingAppointmentCancel,
         SchedulingAppointmentCheckin, SchedulingBookingPatientCreate,
-        BoardingStayCheckout,
+        BoardingStayCheckout, BoardingStayCreate, BoardingItemAdd, BoardingItemRemove, BoardingStayTransfer,
         PatientsOwnerCreate, PatientsOwnerUpdate, PatientsPetCreate, PatientsPetUpdate, PatientsPetWeightAdd,
         ReceptionTicketAdmit, ReceptionTicketEnter, ReceptionTicketLeave, ReceptionTicketNoShow,
         ReceptionTicketUrgent, ReceptionWalkInCreate, VisitsVisitStart,

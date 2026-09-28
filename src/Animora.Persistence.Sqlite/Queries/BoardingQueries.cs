@@ -84,6 +84,14 @@ public sealed class BoardingQueries(AnimoraLocalDbContext db) : IBoardingQueries
                 pet.Breed ?? "", owner.FullName, owner.PhonePrimary, owner.Id)).Take(200).ToListAsync(ct);
     }
 
+    public Task<BoardingKnownPetReadModel?> FindPetAsync(string petId, CancellationToken ct) =>
+        (from pet in db.Set<Pet>().AsNoTracking()
+         join owner in db.Set<Owner>().AsNoTracking() on pet.OwnerId equals owner.Id
+         where pet.Id == petId
+         select new BoardingKnownPetReadModel(pet.Id, pet.Name, pet.Species.ToString(),
+             pet.Breed ?? "", owner.FullName, owner.PhonePrimary, owner.Id))
+        .FirstOrDefaultAsync(ct);
+
     public async Task<BoardingHistoryResult> GetHistoryAsync(
         string? search, string sort, int page, int pageSize, CancellationToken ct)
     {
