@@ -128,6 +128,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<ReceptionSampleData>();
         services.AddScoped<ClinicalSampleData>();
         services.AddScoped<SchedulingSampleData>();
+        services.AddScoped<BoardingSampleData>();
 
         // Read helpers (A10d): one SQL aggregate each, no tracking, tenant-filtered.
         services.TryAddScoped<StockOnHandQuery>();
