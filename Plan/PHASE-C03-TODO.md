@@ -440,7 +440,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   (marker `"clinical.sample"`), guarded by pets existing.
 - **Push:** `feat(persistence): C03 seed sms templates + clinical sample data`.
 
-### [ ] T8 — Application/Persistence: IMedicalHistoryRepository
+### [x] T8 — Application/Persistence: IMedicalHistoryRepository
 - Create `src/Animora.Application/Ports/IMedicalHistoryRepository.cs`:
   `void Add(MedicalHistoryEntry entry);` (+ optional `Task<...> ...` if a query needs it — not required).
 - Create `src/Animora.Persistence.Sqlite/Repositories/MedicalHistoryRepository.cs`:
