@@ -313,7 +313,7 @@
   command). Verify `ef migrations list` shows 001..013 and there are **no pending model changes**.
   Do NOT touch 001–012. **Push:** `feat(persist): StockOnHandSnapshot + migration 013_InventorySnapshot`.
 
-- [ ] **T03 — Persistence: StockSnapshotUpdater + hook into save path.**
+- [x] **T03 — Persistence: StockSnapshotUpdater + hook into save path.**
   Create `Inventory/StockSnapshotUpdater.cs` with `Maintain(AnimoraLocalDbContext db)` that walks
   `ChangeTracker.Entries<StockMovement>()` in state `Added` and upserts the snapshot row
   (add scaled signed qty, set `LastMovementUtc`/`LastMovementId`). Call it from
