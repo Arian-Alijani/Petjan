@@ -401,7 +401,7 @@
   (`AddPurchasingUseCases`). (Composition-chain edit is in T11.) Build `Animora.Application`.
   **Push:** `feat(app): purchasing use cases (snapshot query + 3 commands, ReceiveGoods writes receipt movements)`.
 
-- [ ] **T09 — Persistence: seed 12 categories + 8 units + InventorySampleData.**
+- [x] **T09 — Persistence: seed 12 categories + 8 units + InventorySampleData.**
   In `Seed/LocalSeeder.cs` expand `Units` to 8 (add `("TAB",0)`) and `Categories` to 12 (add the 7
   from §0.1). Create `Seed/InventorySampleData.cs` mirroring `BoardingSampleData` shape
   (`SampleKey` const, `AlreadySeeded()`, `Populate()`): 45 products across the seeded categories,

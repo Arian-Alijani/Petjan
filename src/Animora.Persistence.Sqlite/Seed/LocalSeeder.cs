@@ -31,7 +31,7 @@ public sealed class LocalSeeder(
     ISeedPeriodCodeProvider periodCodes, PatientsSampleData sampleData,
     ReceptionSampleData receptionSampleData, ClinicalSampleData clinicalSampleData,
     SchedulingSampleData schedulingSampleData, BoardingSampleData boardingSampleData,
-    IOptions<LocalStoreOptions> storeOptions)
+    InventorySampleData inventorySampleData, IOptions<LocalStoreOptions> storeOptions)
 {
     public const string TenantKey = "identity.tenant";
     public const string PermissionsKey = "identity.permissions";
@@ -45,11 +45,18 @@ public sealed class LocalSeeder(
     public const string SmsTemplatesKey = "vaccination.sms.templates";
     private const int SchemaVersion = 1;
 
+    // C06: 8 units. TAB was added so tablet-count products (TAB → 0 decimals) have their own unit.
     private static readonly (string Code, int Decimals)[] Units =
-        [("PCS", 0), ("BOX", 0), ("ML", 2), ("MG", 2), ("G", 2), ("KG", 3), ("DOSE", 0)];
+        [("PCS", 0), ("BOX", 0), ("ML", 2), ("MG", 2), ("G", 2), ("KG", 3), ("DOSE", 0), ("TAB", 0)];
 
+    // C06: 12 categories (MED/VAC/FOOD/ACC/SRV plus SUPP/GROOM/TOY/HYG/LAB/SURG/EQUIP).
     private static readonly (string Code, string Name)[] Categories =
-        [("MED", "Medicines"), ("VAC", "Vaccines"), ("FOOD", "Food"), ("ACC", "Accessories"), ("SRV", "Services")];
+    [
+        ("MED", "Medicines"), ("VAC", "Vaccines"), ("FOOD", "Food"), ("ACC", "Accessories"),
+        ("SRV", "Services"), ("SUPP", "Supplements"), ("GROOM", "Grooming"), ("TOY", "Toys"),
+        ("HYG", "Hygiene"), ("LAB", "Lab supplies"), ("SURG", "Surgical consumables"),
+        ("EQUIP", "Equipment"),
+    ];
 
     public async Task<Result> SeedAsync(CancellationToken ct = default)
     {
@@ -137,6 +144,14 @@ public sealed class LocalSeeder(
                 return Result.Ok();
             }, ct);
             if (boarding.IsFailure) return boarding;
+            // C06: optional deterministic inventory catalogue + suppliers + purchase orders. Runs after the
+            // reference blocks above (it reads the seeded categories) and after boarding (independent of it).
+            var inventory = await RunBlockAsync(InventorySampleData.SampleKey, () =>
+            {
+                if (!inventorySampleData.AlreadySeeded()) inventorySampleData.Populate();
+                return Result.Ok();
+            }, ct);
+            if (inventory.IsFailure) return inventory;
         }
         return Result.Ok();
 
