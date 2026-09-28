@@ -51,6 +51,15 @@ public static class CommandTypes
     public const string ReceptionWalkInCreate = "reception.walkin.create";
     public const string VisitsVisitStart = "visits.visit.start";
 
+    // Visit encounter & vaccination (C03).
+    public const string VisitsVisitVitals = "visits.visit.vitals";
+    public const string VisitsVisitNote = "visits.visit.note";
+    public const string VisitsRxAdd = "visits.rx.add";
+    public const string VisitsRxRemove = "visits.rx.remove";
+    public const string VisitsVisitComplete = "visits.visit.complete";
+    public const string VaccinationRecordAdminister = "vaccination.record.administer";
+    public const string VaccinationRecordReminder = "vaccination.record.reminder";
+
     /// <summary>Every declared command type, in declaration order.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
@@ -64,5 +73,7 @@ public static class CommandTypes
         PatientsOwnerCreate, PatientsOwnerUpdate, PatientsPetCreate, PatientsPetUpdate, PatientsPetWeightAdd,
         ReceptionTicketAdmit, ReceptionTicketEnter, ReceptionTicketLeave, ReceptionTicketNoShow,
         ReceptionTicketUrgent, ReceptionWalkInCreate, VisitsVisitStart,
+        VisitsVisitVitals, VisitsVisitNote, VisitsRxAdd, VisitsRxRemove, VisitsVisitComplete,
+        VaccinationRecordAdminister, VaccinationRecordReminder,
     ];
 }

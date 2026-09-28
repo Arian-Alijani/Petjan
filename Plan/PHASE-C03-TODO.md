@@ -276,7 +276,7 @@ Entitlement. Verify the exact enum member names against the file when editing �
 - Append the 7 ErrorCodes (see §2) to `ErrorCodes.cs` Patients & Clinical region.
 - **Push:** `feat(domain): C03 visit-note field, vaccination thresholds, 7 error codes`.
 
-### [ ] T2 — Wire: 7 CommandTypes
+### [x] T2 — Wire: 7 CommandTypes
 - Edit `CommandTypes.cs`: add the 7 consts (§2) after the C02 block + append to `All`.
 - **Push:** `feat(wire): C03 add 7 command types`.
 
