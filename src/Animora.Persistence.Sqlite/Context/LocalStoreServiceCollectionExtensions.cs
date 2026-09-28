@@ -125,6 +125,7 @@ public static class LocalStoreServiceCollectionExtensions
         // C01: deterministic sample owners/pets, applied behind LocalStoreOptions.SeedSampleData.
         services.AddScoped<PatientsSampleData>();
         services.AddScoped<ReceptionSampleData>();
+        services.AddScoped<ClinicalSampleData>();
 
         // Read helpers (A10d): one SQL aggregate each, no tracking, tenant-filtered.
         services.TryAddScoped<StockOnHandQuery>();

@@ -426,7 +426,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
 - Create `VaccinationRegistration.AddVaccinationUseCases()` chaining all queries+commands+validators.
 - **Push:** `feat(application): C03 vaccination queries + administer/reminder commands`.
 
-### [ ] T7 — Persistence: seed SMS templates (reference) + ClinicalSampleData
+### [x] T7 — Persistence: seed SMS templates (reference) + ClinicalSampleData
 - **T7a:** New `[LocalOnly]` entity `SmsTemplateRow` + config; add seed block in `LocalSeeder`
   (`SmsTemplatesKey="vaccination.sms.templates"`, ALWAYS seeded, 4 rows: e.g. `due-reminder`,
   `overdue-reminder`, `confirmation`, `booster`) with token bodies using `{pet}{owner}{vaccine}{due}`.
