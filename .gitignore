@@ -19,6 +19,7 @@ packages/
 
 # Sandbox scripts scratch (SDK-local nuget cache, logs, tmp) — see scripts/sandbox
 .sandbox/
+.dotnet/
 
 # Native core dumps
 core

@@ -420,7 +420,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): PostInvoiceCommand — 7-step journaled posting transaction`
 
 ### T08 — RegisterPaymentCommand + compensating commands (refund / return / void)
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** create in `src/Animora.Application/UseCases/Sales/`:
   - `RegisterPaymentCommand(InvoiceId, PaymentMethod, Money Amount, string? Reference)`
     (`sales.payment.register`, `[RequiresPermission(sales.payment.register)]`) — build a `Payment`

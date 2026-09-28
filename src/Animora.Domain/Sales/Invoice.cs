@@ -649,6 +649,28 @@ public sealed class Invoice : AggregateRoot
         return Result.Ok();
     }
 
+    /// <summary>Records the refund adjustment and its compensating negative payment atomically.
+    /// The original payment rows remain append-only; the paid tally reflects the cash returned.</summary>
+    public Result ApplyRefund(InvoiceAdjustment adjustment, Payment refundPayment)
+    {
+        ArgumentNullException.ThrowIfNull(adjustment);
+        ArgumentNullException.ThrowIfNull(refundPayment);
+        if (refundPayment.InvoiceId != Id || !refundPayment.Amount.IsNegative ||
+            refundPayment.Amount != adjustment.Amount || refundPayment.Amount.Currency != Currency)
+            return Result.Fail(ErrorCodes.ValidationFailed);
+        if (refundPayment.OperationId is { } op && _appliedPaymentOperationIds.Contains(op, StringComparer.Ordinal))
+            return Result.Fail(ErrorCodes.PaymentDuplicateOperation);
+        var result = ApplyRefund(adjustment);
+        if (result.IsFailure) return result;
+        PaidTotal = PaidTotal.Add(refundPayment.Amount);
+        RecalculateTotals();
+        if (refundPayment.OperationId is { } applied) _appliedPaymentOperationIds.Add(applied);
+        Raise(new PaymentRegisteredEvent(IdGenerator.NewId(refundPayment.ReceivedUtc), TenantId,
+            refundPayment.ReceivedUtc, refundPayment.Id, Id, refundPayment.Amount.Minor,
+            refundPayment.Amount.Currency, refundPayment.Method));
+        return Result.Ok();
+    }
+
     /// <summary>
     /// Appends a non-refund adjustment (credit note, write-off, rounding correction, line return) —
     /// the only way a posted invoice's economics change (A-RULE 002). The state is unchanged; only
