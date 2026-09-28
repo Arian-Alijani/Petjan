@@ -301,7 +301,7 @@ VM فیلد `IStoreReadinessGate _readiness` می‌گیرد و اولین خط 
     آیتم‌ها، accrued/ExtraItemsCost از read model.
   - پوش: `feat(boarding): real BoardingQueryService + BoardingMapping`
 
-- [ ] **T9 — DI swap + ViewModel line + delete mock + register ports**
+- [x] **T9 — DI swap + ViewModel line + delete mock + register ports**
   - `App.axaml.cs`: `MockBoardingQueryService`→`BoardingQueryService` (Singleton)؛ `.AddBoardingUseCases()`.
   - `LocalStoreServiceCollectionExtensions.cs`: `AddScoped<IBoardingQueries, BoardingQueries>()` +
     `AddScoped<IBoardingBillingHandoffWriter, BoardingBillingHandoffWriter>()`.

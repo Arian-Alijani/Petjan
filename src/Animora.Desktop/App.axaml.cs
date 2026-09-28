@@ -1,10 +1,12 @@
 using Animora.Application;
+using Animora.Application.UseCases.Boarding;
 using Animora.Application.UseCases.Identity;
 using Animora.Application.UseCases.Patients;
 using Animora.Application.UseCases.Reception;
 using Animora.Application.UseCases.Scheduling;
 using Animora.Application.UseCases.Visits;
 using Animora.Application.UseCases.Vaccination;
+using Animora.Client.Services.Boarding;
 using Animora.Client.Services.Diagnostics;
 using Animora.Client.Services.Identity;
 using Animora.Client.Services.Patients;
@@ -187,7 +189,7 @@ public partial class App : global::Avalonia.Application
 
         // B03c: real local store + application layer (identity use cases) behind the desktop seams.
         services.AddAnimoraLocalInfrastructure();
-        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddVisitsUseCases().AddVaccinationUseCases());
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it
@@ -276,9 +278,8 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IVisitEncounterService, VisitEncounterService>();
         services.AddTransient<VisitEncounterViewModel>();
 
-        // Phase 15: Boarding board/list screen. Stateless deterministic mock,
-        // so a singleton suffices.
-        services.AddSingleton<IBoardingQueryService, MockBoardingQueryService>();
+        // C05: real boarding service creates a fresh scoped dispatcher for each call.
+        services.AddSingleton<IBoardingQueryService, BoardingQueryService>();
         services.AddSingleton<BoardingPageViewModel>();
 
         // Phase 17: Inventory product list & settings. Stateless deterministic
