@@ -4,6 +4,7 @@ using Animora.Domain.Finance;
 using Animora.Domain.Identity;
 using Animora.Domain.Inventory;
 using Animora.Domain.Results;
+using Animora.Domain.Sales;
 using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Options;
@@ -42,6 +43,7 @@ public sealed class LocalSeeder(
     public const string CategoriesKey = "inventory.categories";
     public const string RoomsKey = "boarding.rooms";
     public const string ServicesKey = "boarding.services";
+    public const string InsurersKey = "sales.insurers";
     public const string SmsTemplatesKey = "vaccination.sms.templates";
     private const int SchemaVersion = 1;
 
@@ -90,6 +92,15 @@ public sealed class LocalSeeder(
                 BoardingServiceDef.Create(tenantId, "GROOM", "Grooming", Animora.Domain.ValueObjects.Money.Irt(180_000), BoardingServiceBilling.PerStay),
                 BoardingServiceDef.Create(tenantId, "PLAY", "Play session", Animora.Domain.ValueObjects.Money.Irt(50_000), BoardingServiceBilling.PerUse),
                 BoardingServiceDef.Create(tenantId, "CARE", "Extra care", Animora.Domain.ValueObjects.Money.Irt(75_000), BoardingServiceBilling.PerUse),
+            })),
+            (InsurersKey, () => AddRange(new[]
+            {
+                Insurer.Create(tenantId, "SSO", "تأمین اجتماعی", 70m, 20_000_000),
+                Insurer.Create(tenantId, "IRAN", "بیمه ایران", 60m, 15_000_000),
+                Insurer.Create(tenantId, "ASIA", "بیمه آسیا", 55m, 12_000_000),
+                Insurer.Create(tenantId, "DANA", "بیمه دانا", 65m, 18_000_000),
+                Insurer.Create(tenantId, "ALBORZ", "بیمه البرز", 50m, 10_000_000),
+                Insurer.Create(tenantId, "PARSIAN", "بیمه پارسیان", 75m, 25_000_000),
             })),
             (SmsTemplatesKey, () => AddRange(new[]
             {

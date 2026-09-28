@@ -268,7 +268,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): add Insurer entity, C07 error codes, AllowNegativeStockOnSale option`
 
 ### T02 — Insurer persistence + migration 014 + seed
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:**
   - create `src/Animora.Persistence.Sqlite/Configurations/Sales/InsurerConfiguration.cs` — table
     mapping + **unique index on `Code`** (per tenant if the convention is composite; check existing
