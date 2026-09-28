@@ -364,7 +364,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   handlers commit together.
 - **Push:** `feat(application): C03 encounter commands + complete/handoff transaction`.
 
-### [ ] T5 — Persistence: RxCatalogQueries + VaccinationQueries
+### [x] T5 — Persistence: RxCatalogQueries + VaccinationQueries
 - Create `src/Animora.Persistence.Sqlite/Queries/RxCatalogQueries.cs` (+ port
   `IRxCatalogQueries` in Application/Ports OR reuse the query-handler-owns-DbContext style like
   `PatientDirectoryQueries`): single projection over `Product` where `ProductKind` is Medicine/Consumable,
