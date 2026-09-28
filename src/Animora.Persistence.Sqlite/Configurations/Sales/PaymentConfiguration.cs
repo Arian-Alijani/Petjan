@@ -11,6 +11,7 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
     {
         builder.HasKey(e => e.Id);
         builder.HasIndex(e => new { e.TenantId, e.InvoiceId }).HasDatabaseName("IX_Payments_TenantId_InvoiceId");
+        builder.HasIndex(e => new { e.TenantId, e.CashSessionId }).HasDatabaseName("IX_Payments_TenantId_CashSessionId");
         builder.HasIndex(e => new { e.TenantId, e.ReceivedUtc, e.Method }).HasDatabaseName("IX_Payments_TenantId_ReceivedUtc_Method");
     }
 }

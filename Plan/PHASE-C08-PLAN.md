@@ -175,35 +175,35 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 > وضعیت: `[ ]` انجام‌نشده · `[x]` انجام‌شده. بعد از هر `[x]` بلافاصله `scripts/git/push.sh "..."`.
 
 ### T01 — ثوابت دامنه + ErrorCodes غایب
-- [ ] `grep` بزن تا ببینی کدام ErrorCode واقعاً غایب است (`CHEQUE_NOT_FOUND`, `CHEQUE_NOT_EDITABLE`, احتمالاً `CASH_SESSION_REQUIRED`, `CASH_SESSION_NOT_OPEN`). فقط غایب‌ها را در `ErrorCodes.cs` اضافه کن (از `CashSessionClosed`/`ChequeInvalidTransition`/`PaymentMethodReferenceRequired` موجود بازاستفاده کن، تکراری نساز).
-- [ ] `src/Animora.Domain/Cashier/CashVarianceThresholds.cs` بساز — const `RequiresNote = 5_000_000L`.
-- [ ] `src/Animora.Domain/Finance/ChequeAlertRules.cs` بساز — const آستانه‌ها + سه rule helper.
-- [ ] `src/Animora.Domain/Finance/BankDirectory.cs` بساز — 18 بانک، static `IReadOnlyList`.
+- [x] `grep` بزن تا ببینی کدام ErrorCode واقعاً غایب است (`CHEQUE_NOT_FOUND`, `CHEQUE_NOT_EDITABLE`, احتمالاً `CASH_SESSION_REQUIRED`, `CASH_SESSION_NOT_OPEN`). فقط غایب‌ها را در `ErrorCodes.cs` اضافه کن (از `CashSessionClosed`/`ChequeInvalidTransition`/`PaymentMethodReferenceRequired` موجود بازاستفاده کن، تکراری نساز).
+- [x] `src/Animora.Domain/Cashier/CashVarianceThresholds.cs` بساز — const `RequiresNote = 5_000_000L`.
+- [x] `src/Animora.Domain/Finance/ChequeAlertRules.cs` بساز — const آستانه‌ها + سه rule helper.
+- [x] `src/Animora.Domain/Finance/BankDirectory.cs` بساز — 18 بانک، static `IReadOnlyList`.
 - **Push:** `scripts/git/push.sh "feat(domain): C08 statics (variance, cheque alerts, bank directory) + error codes"`
 
 ### T02 — Port ICashSessionContext + پیاده‌سازی + تغییر RegisterPayment
-- [ ] `src/Animora.Application/Ports/ICashSessionContext.cs` بساز — مثلاً `Task<string?> GetOpenSessionIdAsync(CancellationToken ct)` (id جلسه‌ی باز کاربر فعلی، یا null).
-- [ ] `src/Animora.Persistence.Sqlite/Cashier/CashSessionContext.cs` بساز — query جلسه‌ی باز `(TenantId, CashierUserId)` state=Open.
-- [ ] `RegisterPaymentCommand` را تغییر بده: اگر `CashSessionId` خالی است و متد Cash است، از `ICashSessionContext` resolve کن؛ اگر باز هم null بود برای Cash کد مناسب برگردان (`CASH_SESSION_REQUIRED` یا موجود `PaymentMethodReferenceRequired`)؛ متدهای غیر Cash بی‌تأثیر. یک `CashMovement` (Kind=SalePayment) در session ثبت کن. **این تنها تغییر C07 است و additive.**
-- [ ] DI ثبت `ICashSessionContext` در `ApplicationServiceCollectionExtensions` یا `LocalStoreServiceCollectionExtensions`.
+- [x] `src/Animora.Application/Ports/ICashSessionContext.cs` بساز — مثلاً `Task<string?> GetOpenSessionIdAsync(CancellationToken ct)` (id جلسه‌ی باز کاربر فعلی، یا null).
+- [x] `src/Animora.Persistence.Sqlite/Cashier/CashSessionContext.cs` بساز — query جلسه‌ی باز `(TenantId, CashierUserId)` state=Open.
+- [x] `RegisterPaymentCommand` را تغییر بده: اگر `CashSessionId` خالی است و متد Cash است، از `ICashSessionContext` resolve کن؛ اگر باز هم null بود برای Cash کد مناسب برگردان (`CASH_SESSION_REQUIRED` یا موجود `PaymentMethodReferenceRequired`)؛ متدهای غیر Cash بی‌تأثیر. یک `CashMovement` (Kind=SalePayment) در session ثبت کن. **این تنها تغییر C07 است و additive.**
+- [x] DI ثبت `ICashSessionContext` در `ApplicationServiceCollectionExtensions` یا `LocalStoreServiceCollectionExtensions`.
 - **Push:** `scripts/git/push.sh "feat(sales): stamp CashSessionId via ICashSessionContext, enforce cash-session on cash payments"`
 
 ### T03 — PaymentConfiguration ایندکس + migration 015
-- [ ] در `PaymentConfiguration.cs` ایندکس `(TenantId, CashSessionId)` اضافه کن (`HasDatabaseName("IX_Payments_TenantId_CashSessionId")`). ستون از قبل mapped است، فقط ایندکس.
-- [ ] migration بساز با نام `015_CashSessionLink` (نه 014). دستور EF از داخل پروژه persistence؛ اگر dotnet-ef در دسترس نبود، migration و Designer و snapshot diff را دستی مطابق الگوی migrationهای موجود بنویس. timestamp بزرگ‌تر از `20260928140000`.
+- [x] در `PaymentConfiguration.cs` ایندکس `(TenantId, CashSessionId)` اضافه کن (`HasDatabaseName("IX_Payments_TenantId_CashSessionId")`). ستون از قبل mapped است، فقط ایندکس.
+- [x] migration بساز با نام `015_CashSessionLink` (نه 014). دستور EF از داخل پروژه persistence؛ اگر dotnet-ef در دسترس نبود، migration و Designer و snapshot diff را دستی مطابق الگوی migrationهای موجود بنویس. timestamp بزرگ‌تر از `20260928140000`.
 - **Push:** `scripts/git/push.sh "feat(persistence): 015_CashSessionLink — Payment CashSessionId index"`
 
 ### T04 — CashierQueries + 4 کوئری Cashier
-- [ ] `src/Animora.Persistence.Sqlite/Queries/CashierQueries.cs` بساز.
+- [x] `src/Animora.Persistence.Sqlite/Queries/CashierQueries.cs` بساز.
   - `CashierStatsQuery`: **یک** statement grouped (collected/outstanding/refunded/session variance امروز).
   - `CashierTabCountsQuery`: **یک** grouped COUNT (نه per-tab).
   - list projection paged (از `QueryPaging`/`QueryGuards` موجود استفاده کن).
   - `OpenCashSessionQuery`: جلسه‌ی باز کاربر.
-- [ ] use caseها در `src/Animora.Application/UseCases/Cashier/`: `CashierInvoiceListQuery(CashierTab)`, `CashierStatsQuery()`, `CashierTabCountsQuery()`, `OpenCashSessionQuery()` + handlerها. read modelها را تعریف کن.
+- [x] use caseها در `src/Animora.Application/UseCases/Cashier/`: `CashierInvoiceListQuery(CashierTab)`, `CashierStatsQuery()`, `CashierTabCountsQuery()`, `OpenCashSessionQuery()` + handlerها. read modelها را تعریف کن.
 - **Push:** `scripts/git/push.sh "feat(cashier): CashierQueries + list/stats/tab-count/open-session use cases"`
 
 ### T05 — 3 کامند جلسه صندوق
-- [ ] در `src/Animora.Application/UseCases/Cashier/`:
+- [x] در `src/Animora.Application/UseCases/Cashier/`:
   - `OpenCashSessionCommand(Money OpeningFloat)` — ابتدا `EnsureNoOpenSession` (query جلسه باز)، سپس `CashSession.Open(...)`، sessionNumber را از شمارنده per-tenant بگیر، repo.Add. `CASH_SESSION_ALREADY_OPEN` روی دومین باز.
   - `CloseCashSessionCommand(Money CountedCash, string? Note)` — `BeginClose(counted, note, clock, hasUnsettled)` سپس `Close(clock)`. hasUnsettled را از وضعیت settlement فاکتورهای لینک‌شده بگیر. variance غیرصفر بدون note → `CASH_VARIANCE_NOTE_REQUIRED`.
   - `RecordCashMovementCommand(CashMovementKind Kind, Money Amount, string Reason)` — `CashMovement.Create(...)` + `session.AddMovement(...)`. append-only.
@@ -211,12 +211,12 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 - **Push:** `scripts/git/push.sh "feat(cashier): open/close/record-movement session commands with variance rule"`
 
 ### T06 — ChequeQueries + 4 کوئری Cheque
-- [ ] `src/Animora.Persistence.Sqlite/Queries/ChequeQueries.cs` بساز:
+- [x] `src/Animora.Persistence.Sqlite/Queries/ChequeQueries.cs` بساز:
   - list projection (paged) → map به Contracts `Cheque` shape.
   - `ChequeCashflowQuery(int Weeks = 8)`: یک statement، سپس bucket در حافظه به هفته‌های ISO clinic-local از طریق `ClinicCalendar` (نه SQL date function — R-B24). حداکثر 8×2 گروه.
   - `ChequeBankBreakdownQuery()`: یک `GROUP BY BankKey`.
   - `ChequeAlertsQuery()`: از `ChequeAlertRules` (DueWithin3Days/OverdueUncleared/BouncedUnresolved).
-- [ ] use caseها در `src/Animora.Application/UseCases/Finance/Cheques/` + handlerها + read modelها.
+- [x] use caseها در `src/Animora.Application/UseCases/Finance/Cheques/` + handlerها + read modelها.
 - **Push:** `scripts/git/push.sh "feat(cheques): ChequeQueries + list/cashflow/breakdown/alerts use cases"`
 
 ### T07 — 5 کامند چک

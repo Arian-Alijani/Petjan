@@ -7,6 +7,7 @@ using Animora.Application.Ports;
 using Animora.Domain.Events;
 using Animora.Persistence.Sqlite.Auditing;
 using Animora.Persistence.Sqlite.Commands;
+using Animora.Persistence.Sqlite.Cashier;
 using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Persistence.Sqlite.Options;
 using Animora.Persistence.Sqlite.Outbox;
@@ -83,6 +84,8 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<IPurchasingQueries, PurchasingQueries>();
         // C07: sales read projections, transactional posting/draft facts and per-tenant invoice numbering.
         services.TryAddScoped<ISalesQueries, SalesQueries>();
+        services.TryAddScoped<ICashierQueries, CashierQueries>();
+        services.TryAddScoped<IChequeQueries, ChequeQueries>();
         services.TryAddScoped<ISalesDraftData, SalesDraftData>();
         services.TryAddScoped<ISalesPostingData, SalesPostingData>();
         services.TryAddScoped<IInvoiceNumberAllocator, InvoiceNumberAllocator>();
@@ -99,6 +102,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ICashSessionRepository, CashSessionRepository>();
+        services.TryAddScoped<ICashSessionContext, CashSessionContext>();
         services.AddScoped<ILedgerRepository, LedgerRepository>();
         services.AddScoped<IChequeRepository, ChequeRepository>();
         services.AddScoped<IExpenseRepository, ExpenseRepository>();

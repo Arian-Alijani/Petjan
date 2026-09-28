@@ -26,6 +26,7 @@ public static class CommandTypes
     // Cashier.
     public const string CashierSessionOpen = "cashier.session.open";
     public const string CashierSessionClose = "cashier.session.close";
+    public const string CashierMovementRecord = "cashier.movement.record";
 
     // Inventory.
     public const string InventoryStockAdjust = "inventory.stock.adjust";
@@ -92,7 +93,7 @@ public static class CommandTypes
         SalesInvoiceCreate, SalesInvoiceLineAdd, SalesInvoiceLineEdit, SalesInvoiceLineRemove,
         SalesInvoiceDiscountSet, SalesInvoiceInsuranceSet, SalesInvoiceOwnerSet, SalesInvoiceDelete,
         SalesInvoiceLineReturn,
-        CashierSessionOpen, CashierSessionClose,
+        CashierSessionOpen, CashierSessionClose, CashierMovementRecord,
         InventoryStockAdjust, InventoryReceiptPost,
         PurchasingOrderSubmit,
         InventoryProductCreate, InventoryProductUpdate, InventoryVariantAdd, InventoryProductDelete,
