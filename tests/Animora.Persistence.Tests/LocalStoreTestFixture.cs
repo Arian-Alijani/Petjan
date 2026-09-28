@@ -3,6 +3,7 @@ using System.Data.Common;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Animora.Contracts.Diagnostics;
 using Animora.Domain.Time;
 using Animora.Infrastructure.Local;
 using Animora.Persistence.Sqlite.Context;
@@ -10,10 +11,25 @@ using Animora.Persistence.Sqlite.Options;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Animora.Persistence.Tests;
+
+/// <summary>
+/// A no-op <see cref="IUserNotificationPort"/> so the store's integrity/crash seams (B05a/B05c) can
+/// resolve in tests that don't assert on notifications. Registered with <c>TryAdd</c> so a test can
+/// still supply its own recording double via <c>configureServices</c>.
+/// </summary>
+public sealed class NoOpUserNotificationPort : IUserNotificationPort
+{
+    public void Notify(NotificationSeverity severity, string code, string? entityRef,
+        NotificationAction? action)
+    {
+        // Intentionally empty: the default persistence fixture does not observe notifications.
+    }
+}
 
 /// <summary>A deterministic <see cref="IClock"/> for the persistence tests (no wall-clock — CONVENTIONS §9).</summary>
 public sealed class FakeClock(DateTimeOffset now) : IClock
@@ -84,6 +100,10 @@ public sealed class LocalStoreTestFixture : IDisposable
         var services = new ServiceCollection();
         services.AddSingleton<IClock>(Clock);
         _configureServices?.Invoke(services);
+        // The store's integrity/crash seams (B05a/B05c) depend on IUserNotificationPort, which the
+        // desktop host supplies. Provide a no-op default with TryAdd so tests that pass their own
+        // recording double via configureServices keep priority.
+        services.TryAddSingleton<IUserNotificationPort, NoOpUserNotificationPort>();
         services.AddAnimoraLocalInfrastructure(options =>
         {
             options.DatabasePath = DatabasePath;

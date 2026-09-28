@@ -29,6 +29,7 @@ public sealed class AppendOnlyGuardTests
         {
             typeof(JournalEntry), typeof(JournalLine), typeof(MedicalHistoryEntry),
             typeof(StockMovement), typeof(Payment), typeof(ChequeEvent), typeof(StoreMaintenanceLog),
+            typeof(LoginAttemptLog), typeof(AuditEntry), // B05a audit plane: both are append-only.
         };
 
         Assert.Equal(expected.Length, AppendOnlyGuard.ProtectedTypes.Count);

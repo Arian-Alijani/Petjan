@@ -48,12 +48,14 @@ public sealed class SeedingTests
             Assert.Equal(PermissionCodes.All.Count, await db.Set<Permission>().CountAsync());
             Assert.Equal(Enum.GetValues<StaffRole>().Length, await db.Set<RoleDefinition>().CountAsync());
             Assert.Equal(ChartOfAccounts.Default.Count, await db.Set<LedgerAccount>().CountAsync());
-            Assert.Equal(7, await db.Set<UnitOfMeasure>().CountAsync());
-            Assert.Equal(5, await db.Set<ProductCategory>().CountAsync());
+            Assert.Equal(8, await db.Set<UnitOfMeasure>().CountAsync());    // C06: PCS/BOX/ML/MG/G/KG/DOSE/TAB.
+            Assert.Equal(12, await db.Set<ProductCategory>().CountAsync()); // C06: MED/VAC/FOOD/ACC/SRV/SUPP/GROOM/TOY/HYG/LAB/SURG/EQUIP.
             Assert.Equal(8, await db.Set<Room>().CountAsync());
             Assert.Equal(1, await db.Set<AccountingPeriod>().CountAsync());
-            // 8 reference blocks + the C01 patients.sample block (SeedSampleData defaults true).
-            Assert.Equal(9, await db.Set<SeedMarker>().CountAsync());
+            // 11 reference blocks (tenant, permissions, roles, chart, period, units, categories, rooms,
+            // services, insurers, sms-templates) + 7 sample blocks (patients, reception, clinical,
+            // scheduling, boarding, inventory, sales) since SeedSampleData defaults true.
+            Assert.Equal(18, await db.Set<SeedMarker>().CountAsync());
 
             var period = await db.Set<AccountingPeriod>().SingleAsync();
             Assert.Equal(PeriodState.Open, period.State);

@@ -44,7 +44,8 @@ public sealed class LocalMigrationTests
         using var scope = fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<Animora.Persistence.Sqlite.Context.AnimoraLocalDbContext>();
         var applied = await db.Database.GetAppliedMigrationsAsync();
-        Assert.Equal(4, applied.Count()); // 001, 002, 003, 004.
+        // 001..014 (013 = inventory snapshot; migration 006 exists; SalesInsurers is 014 per C07 D1).
+        Assert.Equal(14, applied.Count());
 
         // Re-applying is a no-op: no new migration, no error.
         await db.Database.MigrateAsync();
