@@ -32,6 +32,21 @@ namespace Animora.Persistence.Sqlite.Migrations
                 table: "StockOnHandSnapshots",
                 columns: new[] { "TenantId", "ProductId", "VariantId" },
                 unique: true);
+
+            // Backfill: stores that already hold movements start with a proven cache (exact INTEGER sums; the
+            // latest movement per key stamps LastMovement*). Ids are 26-char random hex — unique, never synced.
+            migrationBuilder.Sql(
+                """
+                INSERT INTO "StockOnHandSnapshots" ("Id", "TenantId", "ProductId", "VariantId", "OnHandScaled", "LastMovementUtc", "LastMovementId")
+                SELECT upper(hex(randomblob(13))), m."TenantId", m."ProductId", m."VariantId", SUM(m."QuantityScaled"),
+                       MAX(m."OccurredUtc"),
+                       (SELECT l."Id" FROM "StockMovements" l
+                        WHERE l."TenantId" = m."TenantId" AND l."ProductId" = m."ProductId" AND l."VariantId" = m."VariantId" AND l."Deleted" = 0
+                        ORDER BY l."OccurredUtc" DESC, l."Id" DESC LIMIT 1)
+                FROM "StockMovements" m
+                WHERE m."Deleted" = 0
+                GROUP BY m."TenantId", m."ProductId", m."VariantId";
+                """);
         }
 
         /// <inheritdoc />
