@@ -413,7 +413,7 @@
   registration — find where `BoardingSampleData` is registered). Build `Animora.Persistence.Sqlite`.
   **Push:** `feat(persist): seed 12 categories + 8 units + InventorySampleData`.
 
-- [ ] **T10 — Client.Services: InventoryMapping + InventoryQueryService + PurchasingQueryService.**
+- [x] **T10 — Client.Services: InventoryMapping + InventoryQueryService + PurchasingQueryService.**
   Create `src/Animora.Client.Services/Inventory/InventoryMapping.cs`,
   `Inventory/InventoryQueryService.cs`, `Purchasing/PurchasingQueryService.cs` per §0.8 (copy the
   `Resolve`/scope pattern from `Patients/PatientsService.cs`). Implement all 9 `IInventoryQueryService`
