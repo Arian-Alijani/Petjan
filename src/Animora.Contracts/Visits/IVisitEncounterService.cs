@@ -3,9 +3,8 @@ namespace Animora.Contracts.Visits;
 /// <summary>
 /// Data seam for the clinical-encounter wizard (Phase 11): vitals → history →
 /// plan → prescriptions/services (rx) → review → done. The desktop ViewModel
-/// depends only on this interface; the in-memory
-/// <c>MockVisitEncounterService</c> is the single swappable implementation a
-/// future backend replaces (R-18). Mirrors the reference's encounter state
+/// depends only on this interface; a local dispatcher-backed service implements
+/// the seam (R-18). Mirrors the reference's encounter state
 /// (<c>S.enc</c>) mutated by <c>renderVitals</c>/<c>renderHistory</c>/
 /// <c>renderPlan</c>/<c>renderRx</c> plus <c>computeSubtotal</c>.
 /// </summary>

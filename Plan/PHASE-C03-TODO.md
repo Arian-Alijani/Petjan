@@ -484,7 +484,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   segment count (70 chars/segment, mirror Contracts `SmsPreview`).
 - **Push:** `feat(client): C03 real visit-encounter + vaccination services`.
 
-### [ ] T11 — Desktop: DI swap + ViewModel readiness gate + FlushAsync + delete 3 mocks
+### [x] T11 — Desktop: DI swap + ViewModel readiness gate + FlushAsync + delete 3 mocks
 - `App.axaml.cs`: lines 260-261 swap Vaccination mock→`VaccinationService`; lines 275-277 delete
   `VisitEncounterStore` registration + swap encounter mock→`VisitEncounterService`. Add usings. Wire
   `.AddVaccinationUseCases()` at line 186.

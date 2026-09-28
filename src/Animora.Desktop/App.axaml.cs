@@ -3,11 +3,13 @@ using Animora.Application.UseCases.Identity;
 using Animora.Application.UseCases.Patients;
 using Animora.Application.UseCases.Reception;
 using Animora.Application.UseCases.Visits;
+using Animora.Application.UseCases.Vaccination;
 using Animora.Client.Services.Diagnostics;
 using Animora.Client.Services.Identity;
 using Animora.Client.Services.Patients;
 using Animora.Client.Services.Reception;
 using Animora.Client.Services.Visits;
+using Animora.Client.Services.Vaccination;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Boarding;
@@ -183,7 +185,7 @@ public partial class App : global::Avalonia.Application
 
         // B03c: real local store + application layer (identity use cases) behind the desktop seams.
         services.AddAnimoraLocalInfrastructure();
-        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddVisitsUseCases());
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddVisitsUseCases().AddVaccinationUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it
@@ -254,10 +256,8 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IVisitsTriageService, VisitsTriageService>();
         services.AddSingleton<VisitsTriagePageViewModel>();
 
-        // Phase 12: Vaccination screen (due/overdue list + catalog + SMS
-        // reminders). Stateful in-memory mock — its send/mark-done mutations
-        // persist while navigating, so a singleton.
-        services.AddSingleton<IVaccinationService, MockVaccinationService>();
+        // C03: real vaccination queries and journaled commands; scope-per-call.
+        services.AddSingleton<IVaccinationService, VaccinationService>();
         services.AddSingleton<VaccinationPageViewModel>();
 
         // Phase 13/14: Appointments calendar + booking panel. One shared
@@ -269,11 +269,9 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<AppointmentsCalendarViewModel>();
         services.AddTransient<BookingPanelViewModel>();
 
-        // Phase 11: clinical-encounter wizard. One shared encounter store backs
-        // both Visits mocks (triage creates the draft, the wizard mutates it);
-        // the wizard ViewModel is transient so each started visit loads fresh.
-        services.AddSingleton<VisitEncounterStore>();
-        services.AddSingleton<IVisitEncounterService, MockVisitEncounterService>();
+        // C03: real encounter service over local dispatcher; keep the note buffer across navigations.
+        services.AddSingleton<DebounceBuffer>();
+        services.AddSingleton<IVisitEncounterService, VisitEncounterService>();
         services.AddTransient<VisitEncounterViewModel>();
 
         // Phase 15: Boarding board/list screen. Stateless deterministic mock,

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using Animora.Contracts.Visits;
+using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -52,6 +53,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private const decimal TaxRate = 0.09m;
 
     private readonly IVisitEncounterService _service;
+    private readonly IStoreReadinessGate _readiness;
     private readonly INavigationService _navigation;
     private readonly IToastService _toast;
 
@@ -112,10 +114,12 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     public VisitEncounterViewModel(
         IVisitEncounterService service,
+        IStoreReadinessGate readiness,
         INavigationService navigation,
         IToastService toast)
     {
         _service = service;
+        _readiness = readiness;
         _navigation = navigation;
         _toast = toast;
 
@@ -225,6 +229,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     /// </summary>
     public async Task LoadAsync(EncounterDraft draft)
     {
+        await _readiness.WaitAsync();
         ArgumentNullException.ThrowIfNull(draft);
 
         _draft = await _service.GetAsync(draft.Id);
@@ -346,7 +351,11 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private void SaveDraft() => _toast.Show("پیش‌نویس ذخیره شد (نمونه طراحی).", Tone.Ok);
 
     [RelayCommand]
-    private void BackToGate() => _navigation.NavigateTo<VisitsTriagePageViewModel>();
+    private async Task BackToGate()
+    {
+        await _service.FlushAsync();
+        _navigation.NavigateTo<VisitsTriagePageViewModel>();
+    }
 
     [RelayCommand]
     private async Task RemoveRxLineAsync(RxLineViewModel? line)
@@ -370,7 +379,11 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void NextVisit() => _navigation.NavigateTo<VisitsTriagePageViewModel>();
+    private async Task NextVisit()
+    {
+        await _service.FlushAsync();
+        _navigation.NavigateTo<VisitsTriagePageViewModel>();
+    }
 
     [RelayCommand]
     private void HandoffToCashier()
