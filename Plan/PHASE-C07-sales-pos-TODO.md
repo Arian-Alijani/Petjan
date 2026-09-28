@@ -325,7 +325,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): InvoiceNumberAllocator over LocalSequenceCounters + concurrency test`
 
 ### T04 — SalesQueries (persistence read side)
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:**
   - create `src/Animora.Persistence.Sqlite/Queries/SalesQueries.cs` (+ port `ISalesQueries` in
     `Application/Ports/` or `Application/UseCases/Sales/`, matching how `IInventoryQueries` is placed).
@@ -349,7 +349,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): SalesQueries — ready-for-billing union, list, detail(+settlement), catalog, KPIs, history, owner lookup`
 
 ### T05 — Read models
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:**
   - create `src/Animora.Application/UseCases/Sales/ReadModels/*.cs` — **6 read models** including the
     settlement fields on the detail model: e.g. `InvoiceSummaryReadModel`, `InvoiceDetailReadModel`
@@ -360,7 +360,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): 6 sales read models incl. settlement fields`
 
 ### T06 — Draft-editing commands (create ×3, line add/edit/remove, discount, insurance, owner, delete)
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** create in `src/Animora.Application/UseCases/Sales/` (one file per command + handler +
   validator, C01 pattern). Commands (all `IJournaledCommand`, `[RequiresPermission(sales.invoice.edit)]`
   except where noted, `[Auditable(AuditCategory.Financial, CommandTypes.<X>)]`):
@@ -391,7 +391,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): draft-editing commands (create x3, line add/edit/remove, discount, insurance, owner, delete)`
 
 ### T07 — PostInvoiceCommand (the 7-step transaction)
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **File:** create `src/Animora.Application/UseCases/Sales/PostInvoiceCommand.cs` (+ handler +
   validator). `IJournaledCommand`, `[RequiresPermission(sales.invoice.post)]`,
   `[Auditable(AuditCategory.Financial, CommandTypes.SalesInvoicePost)]`. Stable `OperationId` (A-RULE
