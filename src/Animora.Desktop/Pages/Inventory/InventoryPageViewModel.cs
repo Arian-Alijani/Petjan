@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Inventory;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
@@ -30,6 +31,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
     private readonly List<Product> _products = [];
     private readonly List<CategoryInfo> _categories = [];
+    private readonly IStoreReadinessGate _readiness;
 
     // Reference page state: state.tab, state.search, state.catFilter, state.stockFilter.
     private string _subnav = "products";
@@ -40,9 +42,11 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     // Debounced search (~160ms after typing stops), moved out of the code-behind.
     private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
 
-    public InventoryPageViewModel(IInventoryQueryService service, IToastService toast, IDialogService dialogs)
+    public InventoryPageViewModel(IInventoryQueryService service, IStoreReadinessGate readiness,
+        IToastService toast, IDialogService dialogs)
     {
         _service = service;
+        _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
 
@@ -96,6 +100,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
     private async Task LoadAsync()
     {
+        await _readiness.WaitAsync();
         IsBusy = true;
 
         _categories.Clear();
