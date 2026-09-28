@@ -279,6 +279,19 @@ public static class ErrorCodes
     public static readonly ErrorCode StayDatesInvalid =
         new("STAY_DATES_INVALID", ErrorCode.Validation);
 
+    /// <summary>The addressed boarding stay does not exist.</summary>
+    public static readonly ErrorCode StayNotFound = new("STAY_NOT_FOUND", ErrorCode.NotFound);
+    /// <summary>The stay cannot be changed in its current state.</summary>
+    public static readonly ErrorCode StayNotEditable = new("STAY_NOT_EDITABLE", ErrorCode.Conflict);
+    /// <summary>The item at the supplied index changed since it was read.</summary>
+    public static readonly ErrorCode StayItemIndexStale = new("STAY_ITEM_INDEX_STALE", ErrorCode.Conflict);
+    /// <summary>The requested room has reached its maximum active occupancy.</summary>
+    public static readonly ErrorCode RoomAtCapacity = new("ROOM_AT_CAPACITY", ErrorCode.Conflict);
+    /// <summary>No compatible room has available capacity.</summary>
+    public static readonly ErrorCode RoomNoneAvailable = new("ROOM_NONE_AVAILABLE", ErrorCode.Conflict);
+    /// <summary>The stay has already been handed to billing.</summary>
+    public static readonly ErrorCode StayAlreadyCheckedOut = new("STAY_ALREADY_CHECKED_OUT", ErrorCode.Conflict);
+
     #endregion
 
     #region Inventory & Purchasing (Phase A06)
