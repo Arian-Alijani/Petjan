@@ -1,0 +1,272 @@
+using Animora.Application.Abstractions;
+using Animora.Application.Ports;
+using Animora.Application.Security;
+using Animora.Application.UseCases.Inventory;
+using Animora.Contracts.Inventory;
+using Animora.Domain.Inventory;
+using Animora.Domain.Time;
+using Microsoft.Extensions.DependencyInjection;
+using ContractProduct = Animora.Contracts.Inventory.Product;
+using ContractVariant = Animora.Contracts.Inventory.ProductVariant;
+using DomainProductVariant = Animora.Domain.Inventory.ProductVariant;
+
+namespace Animora.Client.Services.Inventory;
+
+/// <summary>
+/// The real <see cref="IInventoryQueryService"/> over the C06 use cases (mirrors the C01
+/// <c>PatientsService</c> pattern). Singleton; the scoped dispatcher and identity provider are resolved
+/// from a fresh async scope per call and never captured. No EF or SQL here.
+/// </summary>
+public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInventoryQueryService
+{
+    private const int MaxPageSize = 200; // QueryPaging.HardMaxPageSize
+
+    /// <summary>
+    /// The reason recorded for a stock adjustment raised through the Contracts seam. The Contracts request
+    /// carries only an absolute target stock (no reason field), so the service bridges to the richer
+    /// <see cref="AdjustStockCommand"/> using the neutral <c>Correction</c> code.
+    /// </summary>
+    private const string BridgeAdjustReason = AdjustmentReasons.Correction;
+
+    public async Task<IReadOnlyList<ContractProduct>> GetProductsAsync()
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider, _) = Resolve(scope);
+        var context = provider.BuildQueryContext();
+        if (context.IsFailure) return [];
+
+        // Unpaged Contracts member → page 1 at the max page size (documented; CONVENTIONS §10 item 2).
+        var result = await dispatcher.QueryAsync(
+            new ProductCatalogQuery(null, null, false, 1, MaxPageSize), context.Value!);
+        if (result.IsFailure) return [];
+
+        var rows = result.Value!.Items;
+        var products = new List<ContractProduct>(rows.Count);
+        for (var i = 0; i < rows.Count; i++) products.Add(rows[i].ToContract());
+        return products;
+    }
+
+    public async Task<IReadOnlyList<CategoryInfo>> GetCategoriesAsync()
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider, _) = Resolve(scope);
+        var context = provider.BuildQueryContext();
+        if (context.IsFailure) return [];
+
+        var result = await dispatcher.QueryAsync(new ProductCategoriesQuery(), context.Value!);
+        if (result.IsFailure) return [];
+
+        var rows = result.Value!;
+        var categories = new List<CategoryInfo>(rows.Count);
+        for (var i = 0; i < rows.Count; i++) categories.Add(rows[i].ToContract());
+        return categories;
+    }
+
+    public async Task<ProductDetail?> GetDetailAsync(string productId)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider, zones) = Resolve(scope);
+        var context = provider.BuildQueryContext();
+        if (context.IsFailure) return null;
+
+        var result = await dispatcher.QueryAsync(new ProductDetailQuery(productId), context.Value!);
+        return result.IsSuccess && result.Value is { } row ? row.ToContract(zones.GetClinicTimeZone()) : null;
+    }
+
+    public async Task SaveProductInfoAsync(string productId, ProductInfoUpdate update)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+        var attributeName = AttributeNameOf(update.AttributeName, update.Variants);
+        var variants = ToInputs(update.Variants, attributeName);
+        _ = await SendAsync(new UpdateProductInfoCommand(productId, update.Name, Lowest(update.Variants, cost: true),
+            Lowest(update.Variants, cost: false), variants, update.Brand, update.Description));
+    }
+
+    public async Task<ContractVariant> AddVariantAsync(string productId, NewVariantRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var label = request.Label ?? string.Empty;
+
+        // Read the product first: the new variant must join the product's own dimension, and its SKU must be
+        // unique inside the product (the domain refuses a duplicate with PRODUCT_SKU_DUPLICATE).
+        var detail = await GetDetailAsync(productId);
+        var attributeName = AttributeNameOf(detail?.Product.Attribute?.Name, detail?.Product.Variants);
+        var sku = UniqueSku(productId, label, detail?.Product.Variants);
+
+        var variantId = await SendAsync(
+            new AddProductVariantCommand(productId, sku, attributeName, label, 0L, 0L));
+
+        var refreshed = await GetDetailAsync(productId);
+        if (refreshed is not null)
+        {
+            for (var i = 0; i < refreshed.Product.Variants.Count; i++)
+            {
+                if (string.Equals(refreshed.Product.Variants[i].Id, variantId, StringComparison.Ordinal))
+                {
+                    return refreshed.Product.Variants[i];
+                }
+            }
+        }
+        return new ContractVariant(variantId, label, sku, 0, 0, 0, 0, null);
+    }
+
+    public async Task<IReadOnlyList<Contracts.Inventory.StockMovement>> GetHistoryAsync(string productId)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider, zones) = Resolve(scope);
+        var context = provider.BuildQueryContext();
+        if (context.IsFailure) return [];
+
+        var result = await dispatcher.QueryAsync(
+            new StockMovementHistoryQuery(productId, 1, MaxPageSize), context.Value!);
+        if (result.IsFailure) return [];
+
+        var zone = zones.GetClinicTimeZone();
+        var rows = result.Value!.Items;
+        var movements = new List<Contracts.Inventory.StockMovement>(rows.Count);
+        for (var i = 0; i < rows.Count; i++) movements.Add(rows[i].ToContract(zone));
+        return movements;
+    }
+
+    public async Task<ContractProduct> CreateProductAsync(NewProductRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var attributeName = AttributeNameOf(request.AttributeName, request.Variants);
+        var variants = ToInputs(request.Variants, attributeName);
+        if (variants.Length == 0)
+        {
+            // A stock-tracked product always keeps at least one variant (VARIANT_REQUIRED): a single-unit
+            // product is created with one implicit DEFAULT variant, exactly as the domain models it.
+            variants = [new ProductVariantInput(null, SkuFor(request.Code, "1"), DomainProductVariant.DefaultAttributeName,
+                request.Code, 0L, 0L, 0L)];
+            attributeName = DomainProductVariant.DefaultAttributeName;
+        }
+
+        var productId = await SendAsync(new CreateProductCommand(
+            request.Code, request.Name, request.CategoryId, "PCS", ProductKind.PetShop,
+            Lowest(request.Variants, cost: true), Lowest(request.Variants, cost: false), variants,
+            request.Brand, Notes: request.Description));
+
+        var detail = await GetDetailAsync(productId);
+        return detail?.Product ?? new ContractProduct(productId, request.Code, request.Name, request.Brand,
+            request.CategoryId, "📦", "a", request.Description, null, []);
+    }
+
+    public async Task DeleteProductAsync(string productId) =>
+        _ = await SendAsync(new DeleteProductCommand(productId));
+
+    public async Task AdjustStockAsync(string productId, string variantId, StockAdjustRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var detail = await GetDetailAsync(productId);
+        var current = 0;
+        if (detail is not null)
+        {
+            for (var i = 0; i < detail.Product.Variants.Count; i++)
+            {
+                if (string.Equals(detail.Product.Variants[i].Id, variantId, StringComparison.Ordinal))
+                {
+                    current = detail.Product.Variants[i].Stock;
+                    break;
+                }
+            }
+        }
+
+        // Contracts carries an absolute target; the command takes a signed delta (see BridgeAdjustReason).
+        var target = Math.Max(0, request.Stock);
+        var delta = target - current;
+        if (delta == 0) return;
+        _ = await SendAsync(new AdjustStockCommand(productId, variantId, InventoryMapping.IntToScaled(delta),
+            BridgeAdjustReason));
+    }
+
+    private static ProductVariantInput[] ToInputs(IReadOnlyList<ContractVariant> variants, string attributeName)
+    {
+        var inputs = new ProductVariantInput[variants.Count];
+        for (var i = 0; i < variants.Count; i++)
+        {
+            var variant = variants[i];
+            inputs[i] = new ProductVariantInput(
+                string.IsNullOrEmpty(variant.Id) ? null : variant.Id,
+                string.IsNullOrWhiteSpace(variant.Sku) ? SkuFor(variant.Label, (i + 1).ToString()) : variant.Sku,
+                attributeName, variant.Label, variant.Cost, variant.Price,
+                InventoryMapping.IntToScaled(variant.ReorderPoint));
+        }
+        return inputs;
+    }
+
+    /// <summary>
+    /// The dimension the product's variants share: the request's own attribute name when it has one, else the
+    /// name already on the product's variants, else the domain's implicit single-variant dimension.
+    /// </summary>
+    private static string AttributeNameOf(string? requested, IReadOnlyList<ContractVariant>? variants)
+    {
+        if (!string.IsNullOrWhiteSpace(requested)) return requested.Trim();
+        return DomainProductVariant.DefaultAttributeName;
+    }
+
+    /// <summary>Lowest variant cost (or sale) price, used as the product-level default.</summary>
+    private static long Lowest(IReadOnlyList<ContractVariant> variants, bool cost)
+    {
+        var lowest = 0L;
+        for (var i = 0; i < variants.Count; i++)
+        {
+            var value = cost ? variants[i].Cost : variants[i].Price;
+            if (lowest == 0L || value < lowest) lowest = value;
+        }
+        return lowest;
+    }
+
+    /// <summary>A SKU for a new variant: product-scoped, ordinal-unique, tolerant of an empty label.</summary>
+    private static string UniqueSku(string productId, string label, IReadOnlyList<ContractVariant>? existing)
+    {
+        var baseSku = SkuFor(productId, label);
+        if (existing is null || !ContainsSku(existing, baseSku)) return baseSku;
+
+        for (var suffix = 2; suffix < 1000; suffix++)
+        {
+            var candidate = $"{baseSku}-{suffix}";
+            if (!ContainsSku(existing, candidate)) return candidate;
+        }
+        return baseSku + "-" + Guid.NewGuid().ToString("N")[..4];
+    }
+
+    private static bool ContainsSku(IReadOnlyList<ContractVariant> variants, string sku)
+    {
+        for (var i = 0; i < variants.Count; i++)
+        {
+            if (string.Equals(variants[i].Sku, sku, StringComparison.Ordinal)) return true;
+        }
+        return false;
+    }
+
+    private static string SkuFor(string seed, string label)
+    {
+        var suffix = seed.Length > 8 ? seed[^8..] : seed;
+        var builder = new System.Text.StringBuilder(suffix.Length + label.Length + 1);
+        builder.Append(suffix).Append('-');
+        for (var i = 0; i < label.Length; i++)
+        {
+            var c = label[i];
+            if (char.IsLetterOrDigit(c)) builder.Append(c);
+        }
+        return builder.Length == suffix.Length + 1 ? suffix + "-1" : builder.ToString();
+    }
+
+    private async Task<T> SendAsync<T>(ICommand<T> command)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider, _) = Resolve(scope);
+        var context = await provider.BuildCommandContextAsync(null, null, null, default);
+        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        var result = await dispatcher.SendAsync(command, context.Value!);
+        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        return result.Value!;
+    }
+
+    private static (IDispatcher Dispatcher, ICurrentUserProvider Provider, IClinicTimeZoneProvider Zones) Resolve(
+        AsyncServiceScope scope) =>
+        (scope.ServiceProvider.GetRequiredService<IDispatcher>(),
+         scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>(),
+         scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>());
+}
