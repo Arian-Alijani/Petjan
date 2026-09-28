@@ -32,7 +32,8 @@ public sealed class LocalSeeder(
     ISeedPeriodCodeProvider periodCodes, PatientsSampleData sampleData,
     ReceptionSampleData receptionSampleData, ClinicalSampleData clinicalSampleData,
     SchedulingSampleData schedulingSampleData, BoardingSampleData boardingSampleData,
-    InventorySampleData inventorySampleData, IOptions<LocalStoreOptions> storeOptions)
+    InventorySampleData inventorySampleData, SalesSampleData salesSampleData,
+    IOptions<LocalStoreOptions> storeOptions)
 {
     public const string TenantKey = "identity.tenant";
     public const string PermissionsKey = "identity.permissions";
@@ -163,6 +164,14 @@ public sealed class LocalSeeder(
                 return Result.Ok();
             }, ct);
             if (inventory.IsFailure) return inventory;
+            // C07: optional deterministic invoices/payments/adjustments. Runs last — it reads the seeded
+            // owners/pets/insurers and the inventory catalogue (and advances the invoice numbering counter).
+            var sales = await RunBlockAsync(SalesSampleData.SampleKey, () =>
+            {
+                if (!salesSampleData.AlreadySeeded()) salesSampleData.Populate();
+                return Result.Ok();
+            }, ct);
+            if (sales.IsFailure) return sales;
         }
         return Result.Ok();
 

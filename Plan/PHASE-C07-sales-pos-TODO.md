@@ -477,7 +477,7 @@ phase (with the ⚠️ reuse notes applied):
 - **Push:** `feat(sales): SalesMapping + SalesQueryService (22 members, settlement + posting-moment mapping)`
 
 ### T11 — CommandTypes + SalesSampleData
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:**
   - modify `src/Animora.Contracts.Wire/Commands/CommandTypes.cs` — add only the **still-missing** const
     strings (see canonical facts: create, line.add, line.edit, line.remove, discount.set, insurance.set,

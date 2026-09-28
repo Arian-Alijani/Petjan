@@ -8,6 +8,7 @@ using Animora.Application.UseCases.Visits;
 using Animora.Application.UseCases.Vaccination;
 using Animora.Application.UseCases.Inventory;
 using Animora.Application.UseCases.Purchasing;
+using Animora.Application.UseCases.Sales;
 using Animora.Client.Services.Boarding;
 using Animora.Client.Services.Inventory;
 using Animora.Client.Services.Purchasing;
