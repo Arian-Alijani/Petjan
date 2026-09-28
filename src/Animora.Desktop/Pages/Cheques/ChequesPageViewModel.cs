@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Cheques;
+using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -32,6 +33,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     private const int GridPageSize = 9;
 
     private readonly IChequesQueryService _service;
+    private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
 
@@ -54,9 +56,10 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     private int _page = 1;
     private string _today = string.Empty;
 
-    public ChequesPageViewModel(IChequesQueryService service, IToastService toast, IDialogService dialogs)
+    public ChequesPageViewModel(IChequesQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs)
     {
         _service = service;
+        _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
 
@@ -200,6 +203,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     private async Task LoadAsync()
     {
         IsBusy = true;
+        await _readiness.WaitAsync();
 
         _today = JalaliCalendar.Today;
         var today = JalaliCalendar.Parse(_today);

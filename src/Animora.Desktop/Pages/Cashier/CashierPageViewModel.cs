@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Cashier;
+using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -27,6 +28,7 @@ namespace Animora.Desktop.Pages.Cashier;
 public sealed partial class CashierPageViewModel : PageViewModelBase
 {
     private readonly ICashierService _service;
+    private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
 
     private readonly List<CashierInvoice> _invoices = [];
@@ -34,9 +36,10 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     private CashierTab _tab = CashierTab.Open;
 
-    public CashierPageViewModel(ICashierService service, IToastService toast)
+    public CashierPageViewModel(ICashierService service, IStoreReadinessGate readiness, IToastService toast)
     {
         _service = service;
+        _readiness = readiness;
         _toast = toast;
 
         Title = "صندوق و مالی";
@@ -153,6 +156,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
     private async Task LoadAsync()
     {
         IsBusy = true;
+        await _readiness.WaitAsync();
 
         BuildMethods();
         BuildPresets();

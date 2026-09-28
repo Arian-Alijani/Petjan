@@ -243,9 +243,9 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 - **Push:** `scripts/git/push.sh "feat(client): real CashierService & ChequesQueryService (C01 pattern, reuse C07)"`
 
 ### T10 — DI swap + ViewModel readiness + حذف mocks
-- [ ] `App.axaml.cs`: خط 308 `MockCashierService` → `CashierService`؛ خط 313 `MockChequesQueryService` → `ChequesQueryService`. namespaceها را import کن.
-- [ ] `CashierPageViewModel.cs` و `ChequesPageViewModel.cs`: خط readiness-gate اضافه کن (field `IStoreReadinessGate _readiness` + ctor inject + `await _readiness.WaitAsync();` در ابتدای load — الگوی `InventoryPageViewModel`).
-- [ ] حذف `src/Animora.Desktop/Mocks/MockCashierService.cs` و `MockChequesQueryService.cs`. مطمئن شو هیچ DI/using به آن‌ها رفرنس نمی‌دهد.
+- [x] `App.axaml.cs`: خط 308 `MockCashierService` → `CashierService`؛ خط 313 `MockChequesQueryService` → `ChequesQueryService`. namespaceها را import کن.
+- [x] `CashierPageViewModel.cs` و `ChequesPageViewModel.cs`: خط readiness-gate اضافه کن (field `IStoreReadinessGate _readiness` + ctor inject + `await _readiness.WaitAsync();` در ابتدای load — الگوی `InventoryPageViewModel`).
+- [x] حذف `src/Animora.Desktop/Mocks/MockCashierService.cs` و `MockChequesQueryService.cs`. مطمئن شو هیچ DI/using به آن‌ها رفرنس نمی‌دهد.
 - **Push:** `scripts/git/push.sh "refactor(desktop): swap DI to real services, add readiness gate, delete cashier/cheque mocks"`
 
 ### T11 — تست‌ها (3 کلاس)
