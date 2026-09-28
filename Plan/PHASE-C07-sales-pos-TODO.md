@@ -15,6 +15,26 @@
 
 ---
 
+## 📌 PROGRESS SNAPSHOT (updated 2026-09-28 — verified against the repo)
+
+Commits landed for C07 so far (branch `genspark_ai_developer`, merged to `main` via PR #153):
+
+| Commit | Task | Summary |
+|---|---|---|
+| `47b5cbd` | **T01** ✅ | `Insurer` domain entity + 5 net-new Sales error codes + `LocalStoreOptions.AllowNegativeStockOnSale` (default `true`). |
+| `be5e356` | **T02** ✅ | `InsurerConfiguration` (unique `Code` index) + migration `014_SalesInsurers` (+`.Designer.cs` + snapshot) + 6 seeded insurers in `LocalSeeder`. |
+| `71a31a0` | **T03** ✅ | `IInvoiceNumberAllocator` port + `InvoiceNumberAllocator` over `LocalSequenceCounters` + concurrency test. |
+
+**Done:** T01, T02, T03 (files verified present on disk; checkboxes below reflect this).
+**Not started:** T04 → T15 (no `SalesQueries`, no `UseCases/Sales`, no `Client.Services/Sales`; the
+mock `MockSalesQueryService.cs` is still wired in Desktop). The next session resumes at **T04**.
+
+Deviation **D1** (migration numbered `014` not the phase's `013`, because `013` is taken by C06) is in
+force and was applied in T02. It will be recorded in `PROGRESS.md` at closeout (T14) together with the
+reuse decisions called out in the canonical-facts section.
+
+---
+
 ## 🔒 LOCKED WORKFLOW RULE (violation = project death)
 
 After **every** task whose checkbox you tick to `[x]`, immediately run:
