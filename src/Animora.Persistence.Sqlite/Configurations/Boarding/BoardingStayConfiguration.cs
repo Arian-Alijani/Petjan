@@ -9,6 +9,7 @@ public sealed class BoardingStayConfiguration : IEntityTypeConfiguration<Boardin
     public void Configure(EntityTypeBuilder<BoardingStay> builder)
     {
         builder.HasKey(e => e.Id);
+        builder.Property(e => e.FrozenTotalMinor);
         builder.HasIndex(e => new { e.TenantId, e.State, e.CheckInUtc }).HasDatabaseName("IX_BoardingStays_TenantId_State_CheckInUtc");
         builder.Ignore(e => e.Items);
         Animora.Persistence.Sqlite.Conventions.JsonFields.Map<BoardingStay, StayItem>(builder, "_items", "Items");
