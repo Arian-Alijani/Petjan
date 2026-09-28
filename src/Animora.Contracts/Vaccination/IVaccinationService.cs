@@ -2,9 +2,8 @@ namespace Animora.Contracts.Vaccination;
 
 /// <summary>
 /// Data seam for the Vaccination screen (due/overdue list + vaccine catalog +
-/// SMS reminders). The desktop ViewModel depends only on this interface; the
-/// in-memory <c>MockVaccinationService</c> is the single swappable
-/// implementation a future backend replaces (R-18).
+/// SMS reminders). The desktop ViewModel depends only on this interface;
+/// a local dispatcher-backed service implements the seam (R-18).
 /// </summary>
 public interface IVaccinationService
 {

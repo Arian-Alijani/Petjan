@@ -72,8 +72,11 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<IPatientDirectoryQueries, PatientDirectoryQueries>();
         services.TryAddScoped<IReceptionQueueQueries, ReceptionQueueQueries>();
         services.TryAddScoped<ITriageQueries, TriageQueries>();
+        services.TryAddScoped<IRxCatalogQueries, RxCatalogQueries>();
+        services.TryAddScoped<IVaccinationQueries, VaccinationQueries>();
         services.AddScoped<IVisitRepository, VisitRepository>();
         services.AddScoped<IMedicalHistoryRepository, MedicalHistoryRepository>();
+        services.AddScoped<IVisitBillingHandoffWriter, VisitBillingHandoffWriter>();
         services.AddScoped<IVaccinationRepository, VaccinationRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<IReceptionQueueRepository, ReceptionQueueRepository>();
@@ -122,6 +125,7 @@ public static class LocalStoreServiceCollectionExtensions
         // C01: deterministic sample owners/pets, applied behind LocalStoreOptions.SeedSampleData.
         services.AddScoped<PatientsSampleData>();
         services.AddScoped<ReceptionSampleData>();
+        services.AddScoped<ClinicalSampleData>();
 
         // Read helpers (A10d): one SQL aggregate each, no tracking, tenant-filtered.
         services.TryAddScoped<StockOnHandQuery>();

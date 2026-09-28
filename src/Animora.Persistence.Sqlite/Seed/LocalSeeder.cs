@@ -7,6 +7,7 @@ using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Options;
+using Animora.Persistence.Sqlite.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -28,7 +29,8 @@ namespace Animora.Persistence.Sqlite.Seed;
 public sealed class LocalSeeder(
     AnimoraLocalDbContext db, IUnitOfWork unitOfWork, ILocalTenantContext tenant, IClock clock,
     ISeedPeriodCodeProvider periodCodes, PatientsSampleData sampleData,
-    ReceptionSampleData receptionSampleData, IOptions<LocalStoreOptions> storeOptions)
+    ReceptionSampleData receptionSampleData, ClinicalSampleData clinicalSampleData,
+    IOptions<LocalStoreOptions> storeOptions)
 {
     public const string TenantKey = "identity.tenant";
     public const string PermissionsKey = "identity.permissions";
@@ -38,6 +40,7 @@ public sealed class LocalSeeder(
     public const string UnitsKey = "inventory.units";
     public const string CategoriesKey = "inventory.categories";
     public const string RoomsKey = "boarding.rooms";
+    public const string SmsTemplatesKey = "vaccination.sms.templates";
     private const int SchemaVersion = 1;
 
     private static readonly (string Code, int Decimals)[] Units =
@@ -70,6 +73,17 @@ public sealed class LocalSeeder(
             (CategoriesKey, () => AddAll(Categories.Select((c, i) =>
                 ProductCategory.Create(tenantId, c.Code, c.Name, sortOrder: i)))),
             (RoomsKey, () => AddAll(Enumerable.Range(1, 8).Select(RoomFor))),
+            (SmsTemplatesKey, () => AddRange(new[]
+            {
+                SmsTemplateRow.Create("due-reminder", tenantId, "Due reminder", "SMS",
+                    "{owner}, {pet} is due for {vaccine} on {due}."),
+                SmsTemplateRow.Create("overdue-reminder", tenantId, "Overdue reminder", "SMS",
+                    "{owner}, {pet} is overdue for {vaccine} since {due}."),
+                SmsTemplateRow.Create("confirmation", tenantId, "Vaccination confirmation", "SMS",
+                    "{owner}, {pet}'s {vaccine} appointment is confirmed for {due}."),
+                SmsTemplateRow.Create("booster", tenantId, "Booster reminder", "SMS",
+                    "{owner}, {pet}'s {vaccine} booster is due on {due}."),
+            })),
         ];
 
         foreach (var (key, add) in blocks)
@@ -94,6 +108,12 @@ public sealed class LocalSeeder(
                 return Result.Ok();
             }, ct);
             if (reception.IsFailure) return reception;
+            var clinical = await RunBlockAsync(ClinicalSampleData.SampleKey, () =>
+            {
+                if (!clinicalSampleData.AlreadySeeded()) clinicalSampleData.Populate();
+                return Result.Ok();
+            }, ct);
+            if (clinical.IsFailure) return clinical;
         }
         return Result.Ok();
 

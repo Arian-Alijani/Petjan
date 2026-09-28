@@ -296,7 +296,7 @@ Entitlement. Verify the exact enum member names against the file when editing �
   `CreateIndex`; Down `DropTable`. Update `.Designer.cs` + `AnimoraLocalDbContextModelSnapshot.cs`.
 - **Push:** `feat(persistence): C03 VisitBillingHandoff entity + migration 010`.
 
-### [ ] T4 — Application: 6 encounter commands + EncounterDraftQuery + RxCatalogQuery
+### [x] T4 — Application: 6 encounter commands + EncounterDraftQuery + RxCatalogQuery
 - Create files under `src/Animora.Application/UseCases/Visits/` (may split into a few files):
   1. `SaveVisitVitalsCommand(string VisitId, decimal? WeightKg, decimal? TemperatureC, int? HeartRateBpm,
      int? RespiratoryRate)` → handler loads Visit (`IVisitRepository.FindAsync`; null→`VisitNotFound`),
@@ -327,7 +327,7 @@ Entitlement. Verify the exact enum member names against the file when editing �
   just declares the port call.)
 - Validators: `Rules.Required(VisitId,...)` on each.
 
-#### [ ] T4b — CompleteVisitCommand handler (the C07 seam — 6 steps, ONE transaction)
+#### [x] T4b — CompleteVisitCommand handler (the C07 seam — 6 steps, ONE transaction)
 Deps: `IVisitRepository, IMedicalHistoryRepository, IReceptionQueueRepository, AnimoraLocalDbContext (for
 Set<VisitBillingHandoff>().Add), IClock`. Steps:
 1. Load Visit (null→`VisitNotFound`). Require `State == InProgress` else `VisitNotEditable`. Require
@@ -364,7 +364,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   handlers commit together.
 - **Push:** `feat(application): C03 encounter commands + complete/handoff transaction`.
 
-### [ ] T5 — Persistence: RxCatalogQueries + VaccinationQueries
+### [x] T5 — Persistence: RxCatalogQueries + VaccinationQueries
 - Create `src/Animora.Persistence.Sqlite/Queries/RxCatalogQueries.cs` (+ port
   `IRxCatalogQueries` in Application/Ports OR reuse the query-handler-owns-DbContext style like
   `PatientDirectoryQueries`): single projection over `Product` where `ProductKind` is Medicine/Consumable,
@@ -382,7 +382,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   query registrations (~lines 67-91).
 - **Push:** `feat(persistence): C03 rx-catalog + vaccination due/history queries`.
 
-### [ ] T6 — Application: 3 vaccination queries + 2 vaccination commands + registration
+### [x] T6 — Application: 3 vaccination queries + 2 vaccination commands + registration
 - Under `src/Animora.Application/UseCases/Vaccination/`:
   - Queries: `VaccinationDueQuery(DateOnly LocalDay)`→list; `VaccinationCatalogQuery()`→catalog list (from
     `VaccineSchedule.All` + product stock OR static — mirror what mock returned; simplest: project from
@@ -426,7 +426,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
 - Create `VaccinationRegistration.AddVaccinationUseCases()` chaining all queries+commands+validators.
 - **Push:** `feat(application): C03 vaccination queries + administer/reminder commands`.
 
-### [ ] T7 — Persistence: seed SMS templates (reference) + ClinicalSampleData
+### [x] T7 — Persistence: seed SMS templates (reference) + ClinicalSampleData
 - **T7a:** New `[LocalOnly]` entity `SmsTemplateRow` + config; add seed block in `LocalSeeder`
   (`SmsTemplatesKey="vaccination.sms.templates"`, ALWAYS seeded, 4 rows: e.g. `due-reminder`,
   `overdue-reminder`, `confirmation`, `booster`) with token bodies using `{pet}{owner}{vaccine}{due}`.
@@ -451,7 +451,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
 - **Push:** `feat(persistence): C03 medical-history write repository`.
 - (Do this BEFORE T4b compiles — reorder if you start T4b first; T4b depends on it.)
 
-### [ ] T9 — Contracts: additive FlushAsync + Client.Services caches/buffers
+### [x] T9 — Contracts: additive FlushAsync + Client.Services caches/buffers
 - Edit `src/Animora.Contracts/Visits/IVisitEncounterService.cs`: ADD one member:
   `Task FlushAsync(CancellationToken cancellationToken = default);` (additive; XML-doc it: "flushes any
   pending debounced note edits; called before navigating away"). Nothing else reshaped.
@@ -463,7 +463,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   `IDisposable`/`DisposeAsync` flush. Never blocks (PERFORMANCE §4).
 - **Push:** `feat(contracts): C03 additive FlushAsync + client cache/debounce primitives`.
 
-### [ ] T10 — Client.Services: real VisitEncounterService + VaccinationService + mappings + SMS renderer
+### [x] T10 — Client.Services: real VisitEncounterService + VaccinationService + mappings + SMS renderer
 - `src/Animora.Client.Services/Visits/VisitEncounterService.cs` (`sealed : IVisitEncounterService`,
   singleton): copy `VisitsTriageService` scope/dispatch pattern. Implement all 10 existing members by
   dispatching the T4 commands/queries; note edits go through `DebounceBuffer` (flush on `CompleteAsync`
@@ -484,7 +484,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   segment count (70 chars/segment, mirror Contracts `SmsPreview`).
 - **Push:** `feat(client): C03 real visit-encounter + vaccination services`.
 
-### [ ] T11 — Desktop: DI swap + ViewModel readiness gate + FlushAsync + delete 3 mocks
+### [x] T11 — Desktop: DI swap + ViewModel readiness gate + FlushAsync + delete 3 mocks
 - `App.axaml.cs`: lines 260-261 swap Vaccination mock→`VaccinationService`; lines 275-277 delete
   `VisitEncounterStore` registration + swap encounter mock→`VisitEncounterService`. Add usings. Wire
   `.AddVaccinationUseCases()` at line 186.
@@ -496,7 +496,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   Verify no remaining reference (`grep -rn "MockVisitEncounter\|VisitEncounterStore\|MockVaccination" src`).
 - **Push:** `feat(desktop): C03 DI swap, readiness gate, delete 3 mocks`.
 
-### [ ] T12 — Tests: VisitEncounterUseCaseTests
+### [x] T12 — Tests: VisitEncounterUseCaseTests
 - `tests/Animora.Application.Tests/VisitEncounterUseCaseTests.cs`: saving a note for a completed visit →
   `VISIT_NOT_EDITABLE`; completing with neither diagnosis nor lines → `VISIT_INCOMPLETE`; successful
   completion writes exactly one `MedicalHistoryEntry` + exactly one `VisitBillingHandoff`; completing
@@ -504,7 +504,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   (grep for a real-store fixture).
 - **Push:** `test(application): C03 visit-encounter use cases`.
 
-### [ ] T13 — Tests: VaccinationUseCaseTests + VisitBillingHandoffTests
+### [x] T13 — Tests: VaccinationUseCaseTests + VisitBillingHandoffTests
 - `tests/Animora.Application.Tests/VaccinationUseCaseTests.cs`: bucket boundaries (−1,0,14,15,60,61 days)
   map to documented buckets; administering with follow-up creates exactly one next record; administering
   twice → `VACCINATION_ALREADY_DONE`.

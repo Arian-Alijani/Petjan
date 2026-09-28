@@ -42,6 +42,9 @@ internal sealed class FakeQueueRepository : IReceptionQueueRepository
     public Task<ReceptionQueueEntry?> FindByAppointmentAsync(string appointmentId, CancellationToken ct = default) =>
         Task.FromResult(Items.Values.FirstOrDefault(e => e.AppointmentId == appointmentId));
 
+    public Task<ReceptionQueueEntry?> FindByVisitAsync(string visitId, CancellationToken ct = default) =>
+        Task.FromResult(Items.Values.FirstOrDefault(e => e.VisitId == visitId));
+
     public Task<int> CountForDayAsync(DateTimeOffset startUtc, DateTimeOffset endUtc, CancellationToken ct = default) =>
         Task.FromResult(Items.Values.Count(e => e.EnqueuedUtc >= startUtc && e.EnqueuedUtc < endUtc));
 

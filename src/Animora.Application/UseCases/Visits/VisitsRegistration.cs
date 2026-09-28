@@ -13,5 +13,17 @@ public static class VisitsRegistration
         .AddCommand<StartVisitFromTicketCommand, EncounterDraftReadModel, StartVisitFromTicketCommandHandler>()
         .AddValidator<StartVisitFromTicketCommand, StartVisitFromTicketCommandValidator>()
         .AddCommand<StartNewVisitCommand, EncounterDraftReadModel, StartNewVisitCommandHandler>()
-        .AddValidator<StartNewVisitCommand, StartNewVisitCommandValidator>();
+        .AddValidator<StartNewVisitCommand, StartNewVisitCommandValidator>()
+        .AddQuery<EncounterDraftQuery, EncounterEditReadModel, EncounterDraftQueryHandler>()
+        .AddQuery<RxCatalogQuery, IReadOnlyList<RxCatalogItemReadModel>, RxCatalogQueryHandler>()
+        .AddCommand<SaveVisitVitalsCommand, Unit, SaveVisitVitalsCommandHandler>()
+        .AddValidator<SaveVisitVitalsCommand, SaveVisitVitalsCommandValidator>()
+        .AddCommand<SaveVisitNoteCommand, Unit, SaveVisitNoteCommandHandler>()
+        .AddValidator<SaveVisitNoteCommand, SaveVisitNoteCommandValidator>()
+        .AddCommand<AddPrescriptionLineCommand, string, AddPrescriptionLineCommandHandler>()
+        .AddValidator<AddPrescriptionLineCommand, AddPrescriptionLineCommandValidator>()
+        .AddCommand<RemovePrescriptionLineCommand, Unit, RemovePrescriptionLineCommandHandler>()
+        .AddValidator<RemovePrescriptionLineCommand, RemovePrescriptionLineCommandValidator>()
+        .AddCommand<CompleteVisitCommand, EncounterSummaryReadModel, CompleteVisitCommandHandler>()
+        .AddValidator<CompleteVisitCommand, CompleteVisitCommandValidator>();
 }

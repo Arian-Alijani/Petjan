@@ -17,6 +17,10 @@ public sealed class ReceptionQueueRepository(AnimoraLocalDbContext db) : IRecept
         db.Set<ReceptionQueueEntry>().AsTracking()
             .FirstOrDefaultAsync(e => e.AppointmentId == appointmentId, ct);
 
+    public Task<ReceptionQueueEntry?> FindByVisitAsync(string visitId, CancellationToken ct = default) =>
+        db.Set<ReceptionQueueEntry>().AsTracking()
+            .FirstOrDefaultAsync(e => e.VisitId == visitId, ct);
+
     public Task<int> CountForDayAsync(DateTimeOffset startUtc, DateTimeOffset endUtc, CancellationToken ct = default) =>
         db.Set<ReceptionQueueEntry>()
             .CountAsync(e => e.EnqueuedUtc >= startUtc && e.EnqueuedUtc < endUtc, ct);

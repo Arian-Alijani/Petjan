@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Vaccination;
+using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.Vaccination;
@@ -24,6 +25,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     private const int PageSize = 8;
 
     private readonly IVaccinationService _service;
+    private readonly IStoreReadinessGate _readiness;
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
 
@@ -43,9 +45,11 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     private int _page = 1;
     private int _pageCount = 1;
 
-    public VaccinationPageViewModel(IVaccinationService service, IDialogService dialogs, IToastService toast)
+    public VaccinationPageViewModel(IVaccinationService service, IStoreReadinessGate readiness,
+        IDialogService dialogs, IToastService toast)
     {
         _service = service;
+        _readiness = readiness;
         _dialogs = dialogs;
         _toast = toast;
 
@@ -190,6 +194,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     private async Task LoadAsync()
     {
         IsBusy = true;
+        await _readiness.WaitAsync();
 
         _records.Clear();
         _records.AddRange(await _service.GetRecordsAsync());
