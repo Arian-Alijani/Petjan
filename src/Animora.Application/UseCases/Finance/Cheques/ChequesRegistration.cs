@@ -10,5 +10,10 @@ public static class ChequesRegistration
         .AddQuery<ChequeListQuery, PagedResult<ChequeRow>, ChequeListQueryHandler>()
         .AddQuery<ChequeCashflowQuery, IReadOnlyList<ChequeCashflowWeek>, ChequeCashflowQueryHandler>()
         .AddQuery<ChequeBankBreakdownQuery, IReadOnlyList<ChequeBankRow>, ChequeBankBreakdownQueryHandler>()
-        .AddQuery<ChequeAlertsQuery, IReadOnlyList<ChequeAlertRow>, ChequeAlertsQueryHandler>();
+        .AddQuery<ChequeAlertsQuery, IReadOnlyList<ChequeAlertRow>, ChequeAlertsQueryHandler>()
+        .AddCommand<CreateChequeCommand, string, CreateChequeCommandHandler>()
+        .AddCommand<UpdateChequeCommand, Unit, UpdateChequeCommandHandler>()
+        .AddCommand<DeleteChequeCommand, Unit, DeleteChequeCommandHandler>()
+        .AddCommand<ChangeChequeStatusCommand, Unit, ChangeChequeStatusCommandHandler>()
+        .AddCommand<BulkChangeChequeStatusCommand, IReadOnlyList<ChequeBulkItemResult>, BulkChangeChequeStatusCommandHandler>();
 }

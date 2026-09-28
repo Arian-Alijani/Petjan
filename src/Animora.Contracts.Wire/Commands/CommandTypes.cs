@@ -48,6 +48,10 @@ public static class CommandTypes
     public const string FinancePeriodClose = "finance.period.close";
     public const string FinanceExpensePost = "finance.expense.post";
     public const string FinanceChequeTransition = "finance.cheque.transition";
+    public const string FinanceChequeCreate = "finance.cheque.create";
+    public const string FinanceChequeUpdate = "finance.cheque.update";
+    public const string FinanceChequeDelete = "finance.cheque.delete";
+    public const string FinanceChequeStatus = "finance.cheque.status";
 
     // Scheduling & boarding.
     public const string SchedulingAppointmentBook = "scheduling.appointment.book";
@@ -99,6 +103,7 @@ public static class CommandTypes
         InventoryProductCreate, InventoryProductUpdate, InventoryVariantAdd, InventoryProductDelete,
         PurchasingOrderCreate, PurchasingReceiptRecord, PurchasingOrderCancel,
         FinancePeriodClose, FinanceExpensePost, FinanceChequeTransition,
+        FinanceChequeCreate, FinanceChequeUpdate, FinanceChequeDelete, FinanceChequeStatus,
         SchedulingAppointmentBook, SchedulingAppointmentMove, SchedulingAppointmentCancel,
         SchedulingAppointmentCheckin, SchedulingBookingPatientCreate,
         BoardingStayCheckout, BoardingStayCreate, BoardingItemAdd, BoardingItemRemove, BoardingStayTransfer,

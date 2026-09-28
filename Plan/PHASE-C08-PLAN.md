@@ -220,7 +220,7 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 - **Push:** `scripts/git/push.sh "feat(cheques): ChequeQueries + list/cashflow/breakdown/alerts use cases"`
 
 ### T07 — 5 کامند چک
-- [ ] در `src/Animora.Application/UseCases/Finance/Cheques/`:
+- [x] در `src/Animora.Application/UseCases/Finance/Cheques/`:
   - `CreateChequeCommand` — `Cheque.Register(...)` (invariant counterparty، amount مثبت)، شروع در `Registered`.
   - `UpdateChequeCommand` — فقط metadata؛ اگر state ≠ `Registered` → `CHEQUE_NOT_EDITABLE`.
   - `DeleteChequeCommand` — soft delete، فقط از `Registered`.
