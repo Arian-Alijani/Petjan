@@ -265,7 +265,7 @@ Entitlement. Verify the exact enum member names against the file when editing �
 
 ## 3. TASK LIST (execute in order; push after each `[x]`)
 
-### [ ] T1 — Domain: enum + thresholds + 7 error codes
+### [x] T1 — Domain: enum + thresholds + 7 error codes
 - Create `src/Animora.Domain/Clinical/VisitNoteField.cs`:
   `public enum VisitNoteField { History, Exam, Diagnosis, Plan }`.
 - Create `src/Animora.Domain/Clinical/VaccinationThresholds.cs` with `public const int` bucket bounds:
