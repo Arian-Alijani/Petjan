@@ -35,9 +35,10 @@ public sealed class EncounterDraftQueryHandler(IVisitRepository visits, IPetRepo
         if (pet is null || owner is null) return Result<EncounterEditReadModel>.Fail(ErrorCodes.VisitNotFound);
         var appointment = visit.AppointmentId is { } appointmentId
             ? await appointments.FindAsync(appointmentId, ct) : null;
-        var entry = visit.AppointmentId is { } id ? await queue.FindByAppointmentAsync(id, ct) : null;
+        var entry = await queue.FindByVisitAsync(visit.Id, ct);
         var ticketId = visit.AppointmentId is { } apt
-            ? TicketRef.FromAppointment(apt).Format() : string.Empty;
+            ? TicketRef.FromAppointment(apt).Format()
+            : entry is { } walkIn ? TicketRef.FromWalkIn(walkIn.Id).Format() : string.Empty;
         var doctors = await triage.GetDoctorRailAsync(visit.StartedUtc.AddDays(-1),
             visit.StartedUtc.AddDays(1), ct);
         var doctor = doctors.FirstOrDefault(d => d.Id == visit.DoctorUserId);

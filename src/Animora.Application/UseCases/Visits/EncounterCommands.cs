@@ -221,14 +221,12 @@ public sealed class CompleteVisitCommandHandler(IVisitRepository visits, IMedica
             visit.Diagnosis!, completedUtc, visit.DoctorUserId, clock, visit.TreatmentPlan, visit.Id, "Visit"));
         var snapshot = JsonSerializer.Serialize(new { ServiceLines = visit.ServiceLines, Prescriptions = visit.Prescriptions });
         handoffs.Add(context.TenantId, visit.Id, visit.OwnerId, visit.PetId, visit.DoctorUserId, completedUtc, snapshot);
-        if (visit.AppointmentId is { } appointmentId)
-        {
-            var entry = await queue.FindByAppointmentAsync(appointmentId, ct);
-            if (entry?.State == QueueState.InVisit) entry.Close(clock);
-        }
+        var entry = await queue.FindByVisitAsync(visit.Id, ct);
+        if (entry?.State == QueueState.InVisit) entry.Close(clock);
         var ready = visit.MarkReadyForInvoice();
         if (ready.IsFailure) return Result<EncounterSummaryReadModel>.Fail(ready.Error);
-        var subtotal = checked(visit.ServiceLines.Sum(l => checked((long)(l.UnitPrice.Minor * l.Quantity.Value))));
+        var subtotal = visit.ServiceLines.Aggregate(0L,
+            (total, line) => checked(total + checked((long)(line.UnitPrice.Minor * line.Quantity.Value))));
         var tax = Money.Irt(subtotal).ApplyPercent(9m).Minor;
         var pet = await pets.FindAsync(visit.PetId, ct);
         var doctor = (await triage.GetDoctorRailAsync(completedUtc.AddDays(-1), completedUtc.AddDays(1), ct))

@@ -296,7 +296,7 @@ Entitlement. Verify the exact enum member names against the file when editing �
   `CreateIndex`; Down `DropTable`. Update `.Designer.cs` + `AnimoraLocalDbContextModelSnapshot.cs`.
 - **Push:** `feat(persistence): C03 VisitBillingHandoff entity + migration 010`.
 
-### [ ] T4 — Application: 6 encounter commands + EncounterDraftQuery + RxCatalogQuery
+### [x] T4 — Application: 6 encounter commands + EncounterDraftQuery + RxCatalogQuery
 - Create files under `src/Animora.Application/UseCases/Visits/` (may split into a few files):
   1. `SaveVisitVitalsCommand(string VisitId, decimal? WeightKg, decimal? TemperatureC, int? HeartRateBpm,
      int? RespiratoryRate)` → handler loads Visit (`IVisitRepository.FindAsync`; null→`VisitNotFound`),
@@ -327,7 +327,7 @@ Entitlement. Verify the exact enum member names against the file when editing �
   just declares the port call.)
 - Validators: `Rules.Required(VisitId,...)` on each.
 
-#### [ ] T4b — CompleteVisitCommand handler (the C07 seam — 6 steps, ONE transaction)
+#### [x] T4b — CompleteVisitCommand handler (the C07 seam — 6 steps, ONE transaction)
 Deps: `IVisitRepository, IMedicalHistoryRepository, IReceptionQueueRepository, AnimoraLocalDbContext (for
 Set<VisitBillingHandoff>().Add), IClock`. Steps:
 1. Load Visit (null→`VisitNotFound`). Require `State == InProgress` else `VisitNotEditable`. Require

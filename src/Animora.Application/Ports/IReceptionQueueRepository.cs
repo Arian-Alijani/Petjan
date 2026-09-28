@@ -12,6 +12,7 @@ public interface IReceptionQueueRepository
     /// <see langword="null"/> when the appointment has not yet triggered a state change (C02).
     /// </summary>
     Task<ReceptionQueueEntry?> FindByAppointmentAsync(string appointmentId, CancellationToken ct = default);
+    Task<ReceptionQueueEntry?> FindByVisitAsync(string visitId, CancellationToken ct = default);
 
     /// <summary>
     /// How many queue rows were enqueued in <c>[startUtc, endUtc)</c> — the per-local-day ticket-number
