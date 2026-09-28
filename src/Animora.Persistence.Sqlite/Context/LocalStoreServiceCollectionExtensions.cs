@@ -73,6 +73,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<IReceptionQueueQueries, ReceptionQueueQueries>();
         services.TryAddScoped<ITriageQueries, TriageQueries>();
         services.AddScoped<IVisitRepository, VisitRepository>();
+        services.AddScoped<IMedicalHistoryRepository, MedicalHistoryRepository>();
         services.AddScoped<IVaccinationRepository, VaccinationRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<IReceptionQueueRepository, ReceptionQueueRepository>();
