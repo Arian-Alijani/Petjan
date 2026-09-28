@@ -6,6 +6,7 @@ using Animora.Domain.Primitives;
 using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Conventions;
 using Animora.Persistence.Sqlite.Entities;
+using Animora.Persistence.Sqlite.Inventory;
 using Animora.Persistence.Sqlite.Search;
 using Microsoft.EntityFrameworkCore;
 
@@ -62,23 +63,32 @@ public sealed class AnimoraLocalDbContext(
     /// <summary>Max length of a stored command/event JSON payload column.</summary>
     internal const int PayloadMaxLength = 65536;
 
+    // C06: ids of movements already folded into StockOnHandSnapshot rows by the pending save (retry guard).
+    private readonly HashSet<string> _snapshotApplied = new(StringComparer.Ordinal);
+
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         PrepareSave();
-        return base.SaveChanges(acceptAllChangesOnSuccess);
+        var written = base.SaveChanges(acceptAllChangesOnSuccess);
+        _snapshotApplied.Clear();
+        return written;
     }
 
-    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
         CancellationToken cancellationToken = default)
     {
         PrepareSave();
-        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        var written = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken).ConfigureAwait(false);
+        _snapshotApplied.Clear();
+        return written;
     }
 
     private void PrepareSave()
     {
         // Append-only rules first: nothing is stamped when the change set is illegal.
         AppendOnlyGuard.Check(this);
+        // C06: maintain the on-hand snapshot for every added movement inside this same transaction.
+        StockSnapshotUpdater.Maintain(this, tenant.TenantId, _snapshotApplied);
         var changes = ChangeTracker.Entries<SyncableEntity>()
             .Where(entry => entry.State is EntityState.Added or EntityState.Modified).ToArray();
         // Validate all rows before stamping any of them.
