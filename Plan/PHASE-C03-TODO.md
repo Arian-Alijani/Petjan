@@ -382,7 +382,7 @@ Set<VisitBillingHandoff>().Add), IClock`. Steps:
   query registrations (~lines 67-91).
 - **Push:** `feat(persistence): C03 rx-catalog + vaccination due/history queries`.
 
-### [ ] T6 — Application: 3 vaccination queries + 2 vaccination commands + registration
+### [x] T6 — Application: 3 vaccination queries + 2 vaccination commands + registration
 - Under `src/Animora.Application/UseCases/Vaccination/`:
   - Queries: `VaccinationDueQuery(DateOnly LocalDay)`→list; `VaccinationCatalogQuery()`→catalog list (from
     `VaccineSchedule.All` + product stock OR static — mirror what mock returned; simplest: project from
