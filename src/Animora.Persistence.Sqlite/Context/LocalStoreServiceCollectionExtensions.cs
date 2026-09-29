@@ -7,6 +7,7 @@ using Animora.Application.Finance;
 using Animora.Application.Outbox;
 using Animora.Application.Ports;
 using Animora.Application.UseCases.History;
+using Animora.Application.UseCases.Dashboard;
 using Animora.Domain.Events;
 using Animora.Persistence.Sqlite.Auditing;
 using Animora.Persistence.Sqlite.Activity;
@@ -100,6 +101,7 @@ public static class LocalStoreServiceCollectionExtensions
         // C09: projection-only finance reads (Application port, impl here).
         services.TryAddScoped<IFinanceQueries, FinanceQueries>();
         services.TryAddScoped<IActivityFeedQueries, ActivityFeedQueries>();
+        services.TryAddScoped<IDashboardQueries, DashboardQueries>();
         services.AddScoped<FinanceProjectionHandler>();
         services.AddScoped<IVisitRepository, VisitRepository>();
         services.AddScoped<IMedicalHistoryRepository, MedicalHistoryRepository>();
