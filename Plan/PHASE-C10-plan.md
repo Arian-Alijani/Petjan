@@ -286,7 +286,7 @@ LOCKED RESULTS:
   entity; the Application read-model/mapper parses them into the Contracts enums. (Same style as
   C09 storing enums as strings.) Deviation **D-03**.
 
-### [ ] T01 — Entities, configurations, migrations, error codes
+### [x] T01 — Entities, configurations, migrations, error codes
 Do (order matters — build must stay green):
 1. `src/Animora.Persistence.Sqlite/Entities/ActivityEvent.cs` — `[LocalOnly]` sealed class,
    fields per "ActivityEvent entity fields" above, private ctor + internal `Create(...)`
