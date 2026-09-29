@@ -84,8 +84,7 @@ public sealed class ActivityEvent
         string status,
         string actorUserId,
         string actorName,
-        string? correlationId,
-        string? eventId = null)
+        string? correlationId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(kind);
@@ -94,7 +93,7 @@ public sealed class ActivityEvent
         if (amountSign is < -1 or > 1) throw new ArgumentOutOfRangeException(nameof(amountSign));
         return new()
         {
-            Id = eventId ?? IdGenerator.NewId(occurredUtc),
+            Id = IdGenerator.NewId(occurredUtc),
             TenantId = tenantId,
             OccurredUtc = occurredUtc,
             LocalDay = localDay,
