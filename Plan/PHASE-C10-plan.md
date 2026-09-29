@@ -374,7 +374,7 @@ Do:
 Targeted build: Application + Persistence + Client.Services.
 Push: `scripts/git/push.sh "feat(C10): dashboard slices, DashboardComposer, cached DashboardQueryService"`
 
-### [ ] T06 — Global search (union) + SearchService
+### [x] T06 — Global search (union) + SearchService
 Do:
 1. `src/Animora.Persistence.Sqlite/Queries/GlobalSearchQueries.cs` — one `UNION ALL` over the
    5 sources, each `Limit`-capped, ordered by source-rank then recency.

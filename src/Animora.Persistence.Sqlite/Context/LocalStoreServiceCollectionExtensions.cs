@@ -8,6 +8,7 @@ using Animora.Application.Outbox;
 using Animora.Application.Ports;
 using Animora.Application.UseCases.History;
 using Animora.Application.UseCases.Dashboard;
+using Animora.Application.UseCases.Search;
 using Animora.Domain.Events;
 using Animora.Persistence.Sqlite.Auditing;
 using Animora.Persistence.Sqlite.Activity;
@@ -102,6 +103,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<IFinanceQueries, FinanceQueries>();
         services.TryAddScoped<IActivityFeedQueries, ActivityFeedQueries>();
         services.TryAddScoped<IDashboardQueries, DashboardQueries>();
+        services.TryAddScoped<IGlobalSearchQueries, GlobalSearchQueries>();
         services.AddScoped<FinanceProjectionHandler>();
         services.AddScoped<IVisitRepository, VisitRepository>();
         services.AddScoped<IMedicalHistoryRepository, MedicalHistoryRepository>();
