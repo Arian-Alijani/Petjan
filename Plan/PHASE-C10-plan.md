@@ -400,7 +400,7 @@ Do:
 Targeted build: Application + Persistence + Client.Services.
 Push: `scripts/git/push.sh "feat(C10): profile/settings queries + non-journaled save commands + UserProfileService"`
 
-### [ ] T08 — DI swaps, ViewModel readiness lines, delete mocks
+### [x] T08 — DI swaps, ViewModel readiness lines, delete mocks
 Do:
 1. `src/Animora.Desktop/App.axaml.cs` — swap the 4 DI registrations to the real services;
    register new use cases + `IActivityFeedWriter` + domain-event handler if not already done
