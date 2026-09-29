@@ -360,7 +360,7 @@ Do:
 Targeted build: Application + Persistence + Client.Services + Desktop.
 Push: `scripts/git/push.sh "feat(C10): history feed query, streaming CsvWriter, HistoryQueryService, HistoryText"`
 
-### [~] T05 — Dashboard queries + composer + service + cache/budget
+### [x] T05 — Dashboard queries + composer + service + cache/budget
 Do:
 1. `src/Animora.Persistence.Sqlite/Queries/DashboardQueries.cs` — one statement per role slice
    (stats, primary/secondary lists, and manager widgets from `DailyFinanceFact` etc.). Keep

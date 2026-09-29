@@ -24,6 +24,7 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             .Where(x => x.TenantId == tenantId && x.LocalDay >= start && x.LocalDay <= today)
             .OrderBy(x => x.LocalDay)
             .Select(x => new DashboardDay(x.LocalDay, x.RevenueMinor)).ToListAsync(ct);
+        if (facts.Count == 0 || facts[^1].LocalDay != today) facts.Add(new DashboardDay(today, 0));
         var feed = db.Set<ActivityEvent>().AsNoTracking()
             .Where(x => x.TenantId == tenantId && x.LocalDay == today);
         if (role == UserRole.Doctor) feed = feed.Where(x => x.ActorUserId == userId);
