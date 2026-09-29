@@ -328,7 +328,7 @@ Do:
 Targeted build: Application + Persistence.
 Push: `scripts/git/push.sh "feat(C10): ActivityFeedHandler + mapper + writer port for 14 event types"`
 
-### [~] T03 — RebuildActivityFeedAsync + seeding hook
+### [x] T03 — RebuildActivityFeedAsync + seeding hook
 Do:
 1. Add `RebuildActivityFeedAsync` to `ILocalStoreMaintenance` + impl in
    `LocalStoreMaintenance.cs` — replay source rows through `ActivityFeedMapper` (reuse it),
