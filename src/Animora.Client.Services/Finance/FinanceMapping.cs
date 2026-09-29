@@ -66,7 +66,7 @@ internal static class FinanceMapping
     internal static readonly FinanceIncome EmptyIncome = new("", 0, 0, 0, 0, 0,
         new(0, 0, 0, 0), 0, [], [], [], [], [], [], [], [], [], []);
     internal static readonly FinanceExpense EmptyExpense = new("", 0, 0, 0, new(0, 0, 0, 0), [], [], []);
-    internal static readonly FinanceProfit EmptyProfit = new("", 0, 0, 0, 0, 0, 0,
+    internal static readonly FinanceProfit EmptyProfit = new("", 0, 0, 0, 0, 0,
         new(0, 0, 0, 0), 0, [], [], [], []);
 
     private static Meta Category(string code) => code switch

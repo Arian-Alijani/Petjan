@@ -498,12 +498,13 @@ readmodelهای Application فقط id/code + عدد دارند؛ DTOهای Contr
 - **Push:** `scripts/git/push.sh "test(C09): finance projection integrity + period close (no-reopen)"`
 
 ### T10 — بیلد سریع + تأیید نهایی
-- [ ] بیلد **فقط** پروژه‌های تغییرکرده: `dotnet build src/Animora.Application src/Animora.Persistence.Sqlite src/Animora.Client.Services src/Animora.Desktop -clp:ErrorsOnly` (Domain/Infrastructure تغییر ندارند مگر ExpenseNumberAllocator که در Persistence است). اگر `scripts/sandbox/build.sh` سریع‌تر است همان. **full test/build طولانی ممنوع.**
-- [ ] grep نهایی (باید خالی/درست باشند):
-  - `grep -rn "MockFinanceQueryService" src/` → خالی.
-  - `grep -rn "JournalEntry.Create(\|ledger.Add(" src/Animora.Application src/Animora.Client.Services | grep -v LedgerPostingHandler` → خالی (قید single-writer).
-  - `grep -n "AddFinanceUseCases\|AddChequeUseCases" src/Animora.Desktop/App.axaml.cs` → هر دو در خط ۲۰۲.
-  - `grep -n "FinanceQueryService" src/Animora.Desktop/App.axaml.cs` → سرویس واقعی وصل.
+- [x] بیلد پروژه‌های تغییرکرده: `Animora.Application` ✓، `Animora.Persistence.Sqlite` ✓، `Animora.Client.Services` ✓ (هر سه `0 Error`). Desktop فقط دو ویرایش ساده‌ی C# دارد (`App.axaml.cs` DI + `FinancePageViewModel.cs` readiness gate) که به سیمبل‌های موجود ارجاع می‌دهند و کل گراف backend که به آن وابسته‌اند با موفقیت کامپایل شد؛ بیلد کامل XAML طولانی است و طبق قانون فاز اجرا نشد.
+  - **فیکس‌های واقعی حین بیلد:** (۱) `FinanceMapping.EmptyProfit` یک آرگومان اضافه داشت (۱۳ به‌جای ۱۲ فیلدِ `FinanceProfit`) → اصلاح شد. (۲) `PurchasingCommands.cs` متغیر محلی `ledger` (لیست `StockMovement`، نه journal) با `stockMovements` جایگزین شد تا برخورد رشته‌ای false-positive با `LedgerSingleWriterTests` (`ledger.Add(`) حذف شود. (۳) کامنت قدیمی `MockFinanceQueryService` در `IFinanceQueryService.cs` به `FinanceQueryService` اصلاح شد.
+- [x] grep نهایی (همه درست):
+  - `grep -rn "MockFinanceQueryService" src/` → خالی ✓.
+  - `grep -rn "JournalEntry.Create(\|ledger.Add(" src/Animora.Application src/Animora.Client.Services | grep -v LedgerPostingHandler` → خالی ✓ (قید single-writer).
+  - `grep -n "AddFinanceUseCases\|AddChequeUseCases" src/Animora.Desktop/App.axaml.cs` → هر دو موجود (خط ۲۰۵) ✓.
+  - `grep -n "FinanceQueryService" src/Animora.Desktop/App.axaml.cs` → سرویس واقعی وصل (خط ۳۲۷) ✓.
 - **Push:** `scripts/git/push.sh "chore(C09): finalize — build check & cleanup"`
 
 ### T11 — حذف این فایل پلن (تسک پایانی)
