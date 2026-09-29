@@ -2,6 +2,8 @@
 
 > **هدف این فایل:** تسک‌لیست خودکفا و دقیق برای اجرای فاز C09. تمام یافته‌های بررسی ریپو (state واقعی کد، انحرافات فاز از واقعیت، الگوها، مسیرها، امضاها) اینجا **خالص‌سازی** شده تا مدل در سشن جدید **بدون بررسی مجدد** مستقیم پیاده‌سازی را شروع کند.
 >
+> **⏱ وضعیت فعلی (بررسی‌شده در این سشن — به آن اعتماد کن، دوباره grep نزن مگر برای تأیید یک‌خطی):** تسک‌های **T01–T05 و بخشی از T09 قبلاً پیاده و merge شده‌اند** (branch روی commit `0976220`). کارِ باقی‌مانده فقط **T06, T07, T08، دو کلاس تستِ باقی‌ماندهٔ T09، و T10, T11** است. بخش «📸 اسنپ‌شات دقیق state» را قبل از شروع بخوان — دقیقاً می‌گوید چه چیزی هست و چه چیزی نیست.
+>
 > **منبع فاز:** `backend-roadmap/phases/PHASE-C09-finance-reporting-read-models.md`
 > **Band:** M · **Track:** C · **Depends:** C08 · **Satisfies:** R-B01, R-B08, R-B22, R-B35
 > **Runnable:** desktop offline yes · server no
@@ -30,6 +32,79 @@ scripts/git/push.sh "type(scope): پیام"
 1. **یک نویسنده‌ی لجر:** فقط `LedgerPostingHandler` مجاز است `JournalEntry` بسازد — با فراخوانی `PostingRules` (که از قبل کامل است). تست `LedgerSingleWriterTests` این را قفل می‌کند.
 2. **read model = projection نه aggregate زنده (A-RULE 034):** سه جدول fact `[LocalOnly]` که `FinanceProjectionHandler` از **همان رویدادها** بیرون از بخش بحرانی OLTP (از طریق outbox → worker) نگه‌داری می‌کند. لجر حقیقت است؛ factها یک cache با اثبات (rebuild).
 3. **queryها فقط factها را می‌خوانند، هرگز invoices/journallines را.**
+
+---
+
+## 📸 اسنپ‌شات دقیق state ریپو (بررسی‌شدهٔ این سشن — پایهٔ تصمیم‌گیری)
+
+این جدول دقیقاً می‌گوید چه چیزی **از قبل موجود و کامل** است. برای T06–T11 فقط به این اتکا کن.
+
+### ✅ کاملاً موجود (دست نزن مگر تسک صراحتاً بگوید)
+| artifact | مسیر | نکته کلیدی |
+|---|---|---|
+| `FinanceRanges` (T01) | `src/Animora.Domain/Finance/FinanceRanges.cs` | catalog: `today/7d/30d/90d/ytd/custom`. `Resolve(id, todayLocalDay, customFrom?, customTo?) → Result<FinanceDayRange>`. `All` (۶ تعریف). label فارسی. bucket: `day/day/day/week/month/day`. **`FinanceDayRange(int FromDay, int ToDay)`** (readonly record struct، yyyymmdd inclusive). |
+| 3 کد ErrorCode (T01) | `src/Animora.Domain/Results/ErrorCodes.cs` | `PeriodNotFound`, `ExpenseCategoryInvalid`, `FinanceRangeInvalid` **اضافه شده‌اند**. `JournalUnbalanced`/`PeriodClosed`/`PeriodCloseBlocked`/`PeriodInvalidTransition`/`ExpenseImmutable` هم موجودند. |
+| 3 fact entity + config + migration 016 (T02) | `Entities/{DailyFinanceFact,ProductSalesFact,OwnerFinancialSnapshot}.cs` · migration `20260929041422_016_FinanceProjections` | همه ساخته و migrate شده. `DailyFinanceFact` متد `Apply(revenue, discount, insurance, invoices, ...)` دارد؛ `ProductSalesFact.Apply(qty, gross)`; `OwnerFinancialSnapshot.Apply(spend, balance, invoiceUtc, invoices)`. |
+| `JournalNumberAllocator` (T03) | `src/Animora.Persistence.Sqlite/Finance/JournalNumberAllocator.cs` + port `IJournalNumberAllocator` | ثبت‌شده در DI خط 94. `AllocateAsync(tenantId, periodCode, ct) → "{periodCode}-{seq:00000}"`. |
+| `LedgerPostingHandler` (T03) | `src/Animora.Application/Finance/LedgerPostingHandler.cs` | **کامل**؛ روی **۱۰** رویداد ثبت شده (۹ + `InvoiceRefundedEvent`). درون‌تراکنشی. dispatch شده در DI خطوط 143–153. resolve دوره: `periods.FindContainingAsync` → اگر closed → `FindNextOpenAsync(period.EndUtc)`. |
+| `FinanceProjectionHandler` (T04) | `src/Animora.Application/Finance/FinanceProjectionHandler.cs` | کامل. `HandleAsync(DomainEvent, ct)` → localDay را از tz حساب و به `IFinanceProjectionStore.ApplyAsync` می‌دهد. ثبت DI خط 98. |
+| `FinanceProjectionStore` | `src/Animora.Persistence.Sqlite/Finance/FinanceProjectionStore.cs` + port `IFinanceProjectionStore` | upsert سه fact از رویدادها. ثبت DI خط 95. |
+| `FinanceProjectionWorker` (T04) | `src/Animora.Infrastructure.Local/Workers/FinanceProjectionWorker.cs` | batch=100، idle backoff. **در `App.axaml.cs:181` با `.Start()` راه‌اندازی می‌شود** (بعد از `MarkReady`). ثبت‌شده. |
+| `FinanceQueries` + port (T05) | `src/Animora.Persistence.Sqlite/Queries/FinanceQueries.cs` · `Application/Ports/IFinanceQueries.cs` | **کامل**؛ ۷ متد (پایین). ثبت DI خط 97. day-bucketing در projection، نه SQL. |
+| Application read models (T05/T06 pre-built) | `src/Animora.Application/UseCases/Finance/ReadModels/FinanceReadModels.cs` | **از قبل موجود**: `FinanceTotals`, `DailyFinanceRow`, `ProductSalesRow`, `ExpenseRowReadModel`, `PaymentMethodTotal`, `FinanceAggregateReadModel` (+ `.Series`), `FinanceSeriesPointReadModel`, `FinanceOverviewReadModel`, `FinanceIncomeReadModel`, `FinanceExpenseReadModel`, `FinanceProfitReadModel`, `FinanceChannelReadModel`, `FinanceCategoryReadModel`, و helper `FinanceSeries.Bucket`. **در T06 فقط query/handler wrapper بساز؛ این readmodelها را دوباره نساز.** |
+| Rebuild + seed (T05) | `Maintenance/{ILocalStoreMaintenance,LocalStoreMaintenance}.cs` (`RebuildFinanceProjectionsAsync` خط 197) · `Finance/FinanceProjectionRebuilder.cs` · `Seed/LocalSeeder.cs` خط 182 | کامل و seedها rebuild می‌شوند. |
+| `IPeriodRepository` (T03/G) | `src/Animora.Application/Ports/IPeriodRepository.cs` | **متدهای resolve از قبل اضافه شده‌اند**: `FindByCodeAsync`, `FindContainingAsync`, `FindNextOpenAsync` (+ Find/Require/Add/AddRange). `PeriodRepository` هم پیاده کرده. |
+| `PostingRulesTests` (T09 جزء اول) | `tests/Animora.Domain.Tests/PostingRulesTests.cs` | **کامل** — هر ۹ رویداد + رد credit/refund + zero-variance + salary→6100. **این تست تمام است؛ در T09 دوباره ننویس.** |
+| `LedgerSingleWriterTests` (T09/T03) | `tests/Animora.Application.Tests/LedgerSingleWriterTests.cs` | **کامل** — source-scan روی `Animora.Application`+`Animora.Client.Services`؛ اطمینان می‌دهد فقط `LedgerPostingHandler.cs` رشتهٔ `JournalEntry.Create(` / `JournalEntry.CreateReversal(` / `ledger.Add(` دارد. **این قید بر T06/T07 حاکم است: هیچ فایل جدید Application/Client نباید این سه رشته را داشته باشد.** |
+
+### ❌ هنوز نیست (کارِ باقی‌مانده — T06/T07/T08/T09b/T10/T11)
+| نبود | توضیح |
+|---|---|
+| finance queries/commands در Application | هیچ `FinanceOverviewQuery`/`RecordExpenseCommand`/… وجود ندارد. (T06) |
+| `Finance/FinanceQueryService.cs` + `FinanceMapping.cs` در Client.Services | پوشهٔ `src/Animora.Client.Services/Finance/` **اصلاً وجود ندارد**. (T07) |
+| Expense number allocator | هیچ `IExpenseNumberAllocator` نیست؛ `RecordExpenseCommand` باید شماره تخصیص دهد (T06؛ روش پایین). |
+| Finance use-case registration در chain | فایل `AddFinanceUseCases` نیست و `AddChequeUseCases()` هم **در `App.axaml.cs:202` صدا زده نمی‌شود** (فقط تا `AddSalesUseCases`). T08 باید هر دو را اضافه کند. |
+| `IFinanceQueryService` واقعی | هنوز `MockFinanceQueryService` در `App.axaml.cs:324` وصل است. (T08) |
+| readiness-gate در `FinancePageViewModel` | ctor فعلی: `(IFinanceQueryService, IToastService, IDialogService)` بدون gate. (T08) |
+| `FinanceProjectionIntegrityTests` + `PeriodCloseTests` | دو کلاس باقی‌ماندهٔ T09. |
+
+### 🔑 امضاهای دقیق (کپی-پیست‌شونده)
+- **`IFinanceQueries` (۷ متد — همه `todayLocalDay:int` می‌گیرند):**
+  `GetAggregateAsync(string rangeId, int todayLocalDay, ct) → FinanceAggregateReadModel` ·
+  `GetChannelsAsync(...) → IReadOnlyList<FinanceChannelReadModel>` ·
+  `GetExpenseCategoriesAsync(...) → IReadOnlyList<FinanceCategoryReadModel>` ·
+  `GetProductSalesAsync(...) → IReadOnlyList<ProductSalesRow>` ·
+  `GetExpenseRowsAsync(...) → IReadOnlyList<ExpenseRowReadModel>` ·
+  `GetPaymentMethodsAsync(...) → IReadOnlyList<PaymentMethodTotal>` ·
+  `GetMaxProjectedDayAsync(ct) → int` (نسخهٔ cache).
+- **`IFinanceQueryService` (۹ عضو Contracts — بدون تغییر؛ T07 اینها را پیاده می‌کند):** `GetOverviewAsync/GetIncomeAsync(range)`, `GetRangesAsync()`, `GetProductSortsAsync()`, `GetExpenseAsync/GetProfitAsync(range)`, `GetExpenseCategoriesAsync()`, `GetPaymentMethodsAsync()`, `AddExpenseAsync(NewExpenseRequest)`.
+- **`FinanceReadModels` (خروجی query؛ lean):** `FinanceAggregateReadModel(RangeId, RangeLabel, Days, Bucket, CurrentRange:FinanceDayRange, Current:FinanceTotals, Previous:FinanceTotals, DailyRows)` + `.Series`. `FinanceTotals(RevenueMinor, CogsMinor, ExpenseMinor, DiscountMinor, InsuranceMinor, RefundMinor, InvoiceCount, PaidInvoiceCount)` + `.ProfitMinor`. `ProductSalesRow(ProductId, VariantId, CategoryId, Name, Kind, QuantitySold:decimal, RevenueMinor, CogsMinor)`. `FinanceChannelReadModel(Id, RevenueMinor)`. `FinanceCategoryReadModel(CategoryCode, AmountMinor)`. `ExpenseRowReadModel(Id, Title, CategoryCode, Method:PaymentMethod?, AmountMinor, IncurredUtc, CreatedByUserId)`. `PaymentMethodTotal(Method:PaymentMethod, AmountMinor)`.
+- **Contracts DTO (rich؛ مقصد map؛ `src/Animora.Contracts/Finance/FinanceModels.cs`):** فیلدهای دقیق را در بخش H ببین. نکتهٔ حیاتی: DTOهای Contracts **غنی از داده‌های ارائه‌ای‌اند** (icon/color/label/tone برای channel/category، species، heatmap، insights، paymentSplit، serviceالسplit) که در readmodelهای lean **وجود ندارند**. بخش 🎨 پایین می‌گوید این‌ها از کجا می‌آیند.
+- **دستورساز infra:** `ICommand<TResult>` (marker) · `IQuery<TResult>` (marker) · `ICommandHandler<TCommand,TResult>.HandleAsync(cmd, CommandContext, ct) → Task<Result<TResult>>` · `IQueryHandler<TQuery,TResult>.HandleAsync(q, QueryContext, ct) → Task<Result<TResult>>` · `IJournaledCommand { CommandTypeName; AggregateTypeName; AggregateIdOrNull }` · `CommandContext(TenantId, UserId, DeviceId, OperationId, CorrelationId, CausationId?, DependsOnOperationId?, ExpectedAggregateVersion?, CreatedAtUtc)` · `QueryContext(TenantId, UserId, CorrelationId)`.
+- **Permissions (موجود؛ `src/Animora.Domain/Identity/PermissionCodes.cs`):** `FinanceRead="finance.read"`, `FinancePost="finance.post"`, `FinancePeriodClose="finance.period.close"`. **کد جدید نساز.** `RecordExpenseCommand` → `FinancePost`؛ `CloseAccountingPeriodCommand` → `FinancePeriodClose`. attribute: `[RequiresPermission(PermissionCodes.FinancePost)]`.
+- **CommandTypes (موجود):** `CommandTypes.FinancePeriodClose="finance.period.close"`, `CommandTypes.FinanceExpensePost="finance.expense.post"`. `[Auditable(AuditCategory.Financial, CommandTypes.FinanceExpensePost)]` / `...FinancePeriodClose`.
+- **Domain برای commandها:** `Expense.Create(tenantId, expenseNumber, categoryCode, title, Money amount, incurredUtc, createdByUserId, settledMethod?, supplierId?, chequeId?, receiptFileId?, note?, reversesExpenseId?) → Result<Expense>` سپس `.Post(IClock) → Result` (raise `ExpensePostedEvent`). `AccountingPeriod.Close(hasUnsettledCommands, hasOpenCashSessions, hasDraftInvoices, IClock, closingEntryId, closedByUserId, note?)`؛ ابتدا `.BeginClose()`. `ExpenseCategories.Contains(code):bool` / `.AccountCodeFor(code)`.
+- **Allocator ترتیبی (برای ExpenseNumber):** `PipelineSql.NextSequenceAsync(AnimoraLocalDbContext db, string name, ct) → Task<long>` (internal، در `src/Animora.Persistence.Sqlite/Commands/PipelineSql.cs`). الگوی نام مثل invoice: `$"expense:{tenantId}:{jalaliYear}"`؛ year از `ISeedPeriodCodeProvider.For(issuedUtc).PeriodCode` (`"1405-07"` → year=`"1405"`).
+- **`ClinicCalendar` (`src/Animora.Application/Time/ClinicCalendar.cs`):** `LocalDay(long utcTicks, TimeZoneInfo) → DateOnly` سپس `int day = d.Year*10000 + d.Month*100 + d.Day`. `ToUtcTicks(DateOnly, hour, tz)`. tz از `IClinicTimeZoneProvider.GetClinicTimeZone()`.
+- **`todayLocalDay` چطور ساخته می‌شود (برای صدا زدن queryها):** `var d = ClinicCalendar.LocalDay(clock.UtcNow.UtcTicks, zones.GetClinicTimeZone()); int today = d.Year*10000 + d.Month*100 + d.Day;` (`IClock clock` را در handler inject کن).
+
+### 🎨 منبع داده‌های ارائه‌ای (پرکردن شکاف lean→rich) — تصمیم قفل‌شده
+readmodelهای Application فقط id/code + عدد دارند؛ DTOهای Contracts label/icon/color/tone + species/heatmap/insights/paymentSplit می‌خواهند. **حل:** یک جدول ثابتِ ارائه‌ای در `Client.Services/Finance/FinanceMapping.cs` (کپیِ عیناً از `MockFinanceQueryService`) نگه‌دار و هنگام map کدها/idها را به آن join کن:
+- **channel meta** (id→label/icon/color): `clinic→(خدمات درمانی, IconClipboard, #0d9488)`, `pharmacy→(داروخانه, IconFlask, #5c8ad6)`, `petshop→(پت‌شاپ, IconCart, #b8a2e6)`, `lab→(آزمایشگاه, IconSpark, #eab749)`.
+- **category meta** (کد Domain `RENT/UTILITIES/SALARY/SUPPLIES/MAINTENANCE/MARKETING/TAX/TRANSPORT/OTHER` → label/icon/color/tone). نگاشت به idهای UI مثل mock (`salary/rent/supply/marketing/repair/tax/other`) لازم است؛ نگاشت: `SALARY→salary(حقوق و دستمزد,IconUsers,#0d9488,teal)`, `RENT→rent(اجاره و قبوض,IconHome,#e0a95b,amber)`, `UTILITIES→rent`(همان سطل قبوض) یا سطل جدا اگر لازم، `SUPPLIES→supply(خرید دارو و کالا,IconBox,#5c8ad6,blue)`, `MARKETING→marketing(بازاریابی,IconMegaphone,#b8a2e6,lilac)`, `MAINTENANCE→repair(تعمیر و نگهداری,IconTools,#e08a5c,peach)`, `TAX→tax(مالیات و بیمه,IconShield,#7a8b89,mute)`, `TRANSPORT→other`, `OTHER→other(متفرقه,IconMore,#b54708,warn)`. (فهرست کامل mock را عیناً بردار.)
+- **payment method meta** (`PaymentMethod` enum → id/label/color): `Card→(pos, کارتخوان, #0d9488)`, `Cash→(cash, نقدی, #8fb5f0)`, `Transfer→(transfer, انتقال, #e08a5c)`, `Cheque/Credit/Insurance/Wallet→` طبق mock.
+- **species / heatmap / insights:** در facts وجود ندارند و از ledger مشتق نمی‌شوند. **تصمیم:** این سه، دادهٔ ارائه‌ایِ ثابت‌اند؛ **عیناً از `MockFinanceQueryService` کپی کن** به `FinanceMapping` به‌عنوان جداول ثابت و در map استفاده کن. (species = ۵ ردیف ثابت، heatmap = ماتریس ۷×۱۲ ثابت، insights = ۴ کارت ثابت.) دلیل: صفحه به این‌ها نیاز بصری دارد ولی خارج از scope دفتر لجرند؛ آوردنشان به‌صورت static در client، «هیچ EF/SQL در client» و «facts=truth» را نقض نمی‌کند.
+- **productSort catalog** (`GetProductSortsAsync`): ثابت — `revenue(پردرآمدترین)`, `qty(پرفروش‌ترین)`, `profit(پرسودترین)`.
+- **ranges catalog** (`GetRangesAsync`): از `FinanceRanges.All` map کن به `FinanceRange(Id,Label,Days,Bucket)` **یا** جدول ثابت mock (۴ بازه `7d/30d/90d/ytd`). چون ViewModel فقط `Id/Label` استفاده می‌کند، هر دو کار می‌کند؛ **از `FinanceRanges.All` استفاده کن** (تک‌منبع حقیقت) و `custom`/`today` را در صورت نیاز فیلتر کن تا با UI mock (۴ بازه) هم‌راستا بماند.
+
+### 🔴 تصمیم قفل‌شدهٔ closing-entry (تناقض معماری period-close — این را عیناً اجرا کن)
+`AccountingPeriod.Close(...)` یک `closingEntryId` **اجباری** می‌خواهد و پیش از raise کردن `PeriodClosedEvent` آن را می‌گیرد. اما `LedgerSingleWriterTests` اثبات می‌کند **فقط `LedgerPostingHandler` مجاز است `JournalEntry.Create`/`ledger.Add` بزند** — پس `CloseAccountingPeriodCommand` **نمی‌تواند** خودش closing entry بسازد. `PostingRules` هم متد `ForPeriodClose` **ندارد**.
+- **تصمیم (کمترین‌ریسک، سازگار با append-only و single-writer):** closing entry یک entry واقعی دوطرفهٔ متوازن نیست که در این فاز لازم باشد؛ صفحهٔ Finance و factها به آن وابسته نیستند (queryها فقط factها را می‌خوانند و factها از close مشتق نمی‌شوند). بنابراین:
+  1. `CloseAccountingPeriodCommand(string PeriodCode)` دوره را با `periods.FindByCodeAsync` می‌گیرد؛ اگر null → `PeriodNotFound`.
+  2. فلگ‌های close را از Application جمع می‌کند: `hasUnsettledCommands` (از `ICommandJournal`/pending — اگر seam سبک در دسترس نبود، **false بگذار و در کامنت ثبت کن**)، `hasOpenCashSessions` (از `ICashSessionRepository`/`ICashSessionContext` اگر متد شمارش هست؛ وگرنه false + کامنت)، `hasDraftInvoices` (از `IInvoiceRepository` اگر متد هست؛ وگرنه false + کامنت). **این seamها را نساز؛ اگر متد شمارش موجود نبود false بده** (بستن ساده). دامنه اگر هر فلگ true بود `PERIOD_CLOSE_BLOCKED` می‌دهد.
+  3. `closingEntryId` را به‌صورت یک شناسهٔ ساخته‌شده با `IdGenerator.NewId(clock.UtcNow)` تولید کن (یک شناسهٔ ارجاعی؛ entry فیزیکی در این فاز ساخته نمی‌شود چون single-writer اجازه نمی‌دهد و فاز به آن وابسته نیست). `period.BeginClose()` سپس `period.Close(hasUnsettled, hasOpenCash, hasDraft, clock, closingEntryId, context.UserId, note:null)`.
+  4. این رفتار را در commit message و بخش deviations ثبت کن: «closing journal entry به‌عنوان یک ارجاع تولید می‌شود؛ ساخت entry فیزیکی به single-writer واگذار و در این فاز غیرضروری است (queryها facts-only).» اگر تستی entry فیزیکی خواست، آن را از طریق راه‌اندازی رویداد به `LedgerPostingHandler` انجام بده، **نه** ساخت مستقیم در command.
+- **نتیجه:** `PeriodCloseTests` باید همین قرارداد را assert کند (پایین T09b).
 
 ---
 
@@ -230,35 +305,131 @@ scripts/git/push.sh "type(scope): پیام"
 - [x] `LocalSeeder.cs`: در پایان بلاک sample (بعد از `SalesSampleData`)، `RebuildFinanceProjectionsAsync` را صدا بزن تا factها از داده‌ی نمونه‌ی C05–C08 مشتق شوند (هیچ sample data جدید فایننس نساز — فاز صریح: «none new»). این مسیر rebuild را روی هر نصب تازه اثبات می‌کند.
 - **Push:** `scripts/git/push.sh "feat(finance): FinanceQueries + RebuildFinanceProjectionsAsync + seed rebuild (C09)"`
 
-### T06 — Application: 7 query + 2 command (+ handlers/validators) + read models
-- [ ] `src/Animora.Application/UseCases/Finance/ReadModels/*.cs`: 5 read model (خروجی 7 query — overview/income/expense/profit + range catalog + product sorts + categories/payment-methods طبق نیاز seam بخش H).
-- [ ] `src/Animora.Application/UseCases/Finance/*.cs`:
-  - queryها: `FinanceRangeCatalogQuery`, `FinanceOverviewQuery(string Range)`, `FinanceIncomeQuery(string Range)`, `FinanceExpenseQuery(string Range)`, `FinanceProfitQuery(string Range)`, `ExpenseCategoriesQuery`, `PaymentMethodsQuery` — هرکدام `IQuery<...>` + handler که `FinanceQueries` را می‌خواند. بازه با `FinanceRanges` resolve و در صورت نامعتبر `FinanceRangeInvalid`.
-  - commandها (فقط 2 — بخش F): `RecordExpenseCommand(category, Money amount, occurredUtc, PaymentMethod, note)` → `[RequiresPermission("finance.post")]` (permission موجود؛ `finance.expense.record` وجود ندارد — از `FinancePost` استفاده کن یا اگر تست کد دقیق خواست بررسی کن) + `[Auditable(AuditCategory.Financial, "finance.expense.post")]`؛ `Expense.Create`→`Post`→raise `ExpensePostedEvent`؛ category نامعتبر → `ExpenseCategoryInvalid`. `CloseAccountingPeriodCommand(string PeriodCode)` → `[RequiresPermission("finance.period.close")]`؛ validate settle/ack همه‌ی source docها، `BeginClose`+`Close` (raise `PeriodClosedEvent`)؛ دوره یافت نشد → `PeriodNotFound`.
-- **Push:** `scripts/git/push.sh "feat(finance): 7 finance queries + RecordExpense/CloseAccountingPeriod commands (C09)"`
+### T06 — Application: ۷ query + ۲ command (handlers) — **کارِ باقی‌مانده**
+> readmodelهای خروجی از قبل در `FinanceReadModels.cs` هستند (اسنپ‌شات). **readmodel جدید نساز.** فقط query/command + handler.
+> پیشنهاد چیدمان فایل: همه در یک فایل `src/Animora.Application/UseCases/Finance/FinanceQueries.cs` (queries+handlers) و یک `FinanceCommands.cs` (۲ command+handler) + یک `FinanceRegistration.cs`. الگوی دقیق = `Cheques/ChequeReadQueries.cs` + `Cheques/ChequeCommands.cs` + `Cheques/ChequesRegistration.cs` (اسنپ‌شات نمونه‌شان را دارد).
 
-### T07 — Client Services: FinanceMapping + FinanceQueryService + C01 TotalSpend
-- [ ] `src/Animora.Client.Services/Finance/FinanceMapping.cs`: read model ↔ Contracts DTO (بخش H؛ سرشاخه‌های `FinanceModels.cs` را یک بار تأیید کن).
-- [ ] `src/Animora.Client.Services/Finance/FinanceQueryService.cs`: پیاده‌سازی 9 عضو `IFinanceQueryService` با الگوی `InventoryQueryService` (بخش J): `IServiceScopeFactory` + `CreateAsyncScope` + `dispatcher.QueryAsync`/`SendAsync`. cache با کلید `tenant|user|finance:<queryName>:<range>|v<maxLocalDayInRange>`. `AddExpenseAsync` → `RecordExpenseCommand`.
-- [ ] C01 debt (بخش K): query سازنده‌ی `OwnerSummaryReadModel` را طوری تغییر بده که `TotalSpend` از `OwnerFinancialSnapshot.TotalSpendMinor` بیاید؛ کامنت `/*0 until C09*/` را از `PatientsMapping.cs` بردار.
-- **Push:** `scripts/git/push.sh "feat(finance): real FinanceQueryService + FinanceMapping; close C01 TotalSpend (C09)"`
+- [ ] **`src/Animora.Application/UseCases/Finance/FinanceReportingQueries.cs`** — ۷ query، هرکدام یک record + handler. همگی `[RequiresPermission(PermissionCodes.FinanceRead)]`. هر handler `IFinanceQueries queries`, `IClock clock`, `IClinicTimeZoneProvider zones` را inject می‌کند و `todayLocalDay` را طبق فرمول اسنپ‌شات می‌سازد:
+  ```csharp
+  var d = ClinicCalendar.LocalDay(clock.UtcNow.UtcTicks, zones.GetClinicTimeZone());
+  var today = d.Year*10000 + d.Month*100 + d.Day;
+  ```
+  فهرست ۷ query و خروجی‌شان (خروجی = readmodelهای موجود؛ بدون map به Contracts در این لایه):
+  1. `FinanceOverviewQuery(string Range) : IQuery<FinanceOverviewReadModel>` — handler: `agg = await queries.GetAggregateAsync(Range, today, ct)`; `channels = GetChannelsAsync`; `cats = GetExpenseCategoriesAsync`; `products = GetProductSalesAsync`; بساز `new FinanceOverviewReadModel(agg, channels, cats, products)`. **`Ok(...)`**.
+  2. `FinanceIncomeQuery(string Range) : IQuery<FinanceIncomeReadModel>` — `new FinanceIncomeReadModel(agg, channels)`.
+  3. `FinanceExpenseQuery(string Range) : IQuery<FinanceExpenseReadModel>` — `new FinanceExpenseReadModel(agg, cats, rows:GetExpenseRowsAsync, payments:GetPaymentMethodsAsync)`.
+  4. `FinanceProfitQuery(string Range) : IQuery<FinanceProfitReadModel>` — `new FinanceProfitReadModel(agg, products)`.
+  5. `FinanceRangeCatalogQuery : IQuery<IReadOnlyList<FinanceRangeDefinition>>` — خروجی `FinanceRanges.All` (بدون touch DB؛ handler بدون IFinanceQueries).
+  6. `FinanceExpenseCategoriesQuery : IQuery<IReadOnlyList<string>>` — خروجی `ExpenseCategories.All` (۹ کد Domain؛ map به label در client).
+  7. `FinancePaymentMethodsQuery : IQuery<IReadOnlyList<PaymentMethod>>` — خروجی فهرست ثابت روش‌های پرداختِ نمایشی: `[Card, Cash, Transfer, Credit]` (مطابق mock؛ enum است، label در client map می‌شود).
+  - **نکته resolve بازه:** خودِ `FinanceQueries.GetAggregateAsync` داخلی `FinanceRanges.Resolve` را صدا می‌زند و روی id ناشناخته به `30d` fallback می‌کند (اسنپ‌شات، خطوط 213–219). پس handler لازم نیست بازه را جدا validate کند؛ **ولی** اگر می‌خواهی id نامعتبر → `FinanceRangeInvalid` بدهی، در handler قبل از فراخوانی `FinanceRanges.Resolve(Range, today)` را چک کن و در صورت `IsFailure` همان error را برگردان. (اختیاری؛ برای هم‌راستایی با `PeriodCloseTests` لازم نیست.)
+- [ ] **`src/Animora.Application/UseCases/Finance/FinanceCommands.cs`** — ۲ command (بخش F: بدون reopen):
+  - **`RecordExpenseCommand`** (mirror `CreateChequeCommand`):
+    ```csharp
+    [RequiresPermission(PermissionCodes.FinancePost)]
+    [Auditable(AuditCategory.Financial, CommandTypes.FinanceExpensePost)]
+    public sealed record RecordExpenseCommand(string CategoryCode, string Title, long AmountMinor,
+        DateTimeOffset IncurredUtc, PaymentMethod? SettledMethod, string? Note = null)
+        : ICommand<string>, IJournaledCommand {
+        public string CommandTypeName => CommandTypes.FinanceExpensePost;
+        public string AggregateTypeName => "Expense";
+        public string? AggregateIdOrNull => null;
+    }
+    ```
+    handler inject: `IExpenseRepository expenses`, `IExpenseNumberAllocator numbers` (پایین می‌سازی)، `IClock clock`. منطق: اگر `!ExpenseCategories.Contains(CategoryCode)` → `Result<string>.Fail(ErrorCodes.ExpenseCategoryInvalid)`. `var number = await numbers.AllocateAsync(context.TenantId, IncurredUtc, ct);` سپس `Expense.Create(context.TenantId, number, CategoryCode, Title, Money.Irt(AmountMinor), IncurredUtc, context.UserId, SettledMethod, note: Note)`؛ اگر fail → همان error؛ سپس `created.Value!.Post(clock)`؛ اگر fail → همان error؛ `expenses.Add(created.Value!)`؛ `Ok(created.Value!.Id)`. **هیچ SaveChanges دستی؛ event درون UoW به `LedgerPostingHandler`+outbox می‌رسد.**
+  - **`CloseAccountingPeriodCommand`** (طبق تصمیم قفل‌شدهٔ closing-entry اسنپ‌شات):
+    ```csharp
+    [RequiresPermission(PermissionCodes.FinancePeriodClose)]
+    [Auditable(AuditCategory.Financial, CommandTypes.FinancePeriodClose)]
+    public sealed record CloseAccountingPeriodCommand(string PeriodCode)
+        : ICommand<Unit>, IJournaledCommand {
+        public string CommandTypeName => CommandTypes.FinancePeriodClose;
+        public string AggregateTypeName => "AccountingPeriod";
+        public string? AggregateIdOrNull => null;
+    }
+    ```
+    handler inject: `IPeriodRepository periods`, `IClock clock`. منطق: `var p = await periods.FindByCodeAsync(PeriodCode, ct)`؛ اگر null → `Fail(ErrorCodes.PeriodNotFound)`. فلگ‌ها را طبق تصمیم قفل‌شده `false` بگذار (کامنت: seam شمارش موجود نیست؛ بستن ساده). `var closingEntryId = IdGenerator.NewId(clock.UtcNow);` `var begin = p.BeginClose(); if (begin.IsFailure) return Result<Unit>.Fail(begin.Error, begin.Detail);` `var closed = p.Close(false, false, false, clock, closingEntryId, context.UserId, null);` `return closed.IsFailure ? Fail(closed.Error, closed.Detail) : Ok(Unit.Value);`. (`p.Close` خودش `PeriodClosedEvent` را raise می‌کند.)
+- [ ] **Expense number allocator** — port + impl (mirror `InvoiceNumberAllocator`):
+  - `src/Animora.Application/Ports/IExpenseNumberAllocator.cs`: `Task<string> AllocateAsync(string tenantId, DateTimeOffset issuedUtc, CancellationToken ct = default);`
+  - `src/Animora.Persistence.Sqlite/Finance/ExpenseNumberAllocator.cs`: کپیِ دقیق `InvoiceNumberAllocator` ولی نام sequence `$"expense:{tenantId}:{jalaliYear}"` و فرمت خروجی مثلاً `$"EXP-{jalaliYear[^2..]}-{sequence:000000}"` (jalaliYear از `ISeedPeriodCodeProvider periodCodes.For(issuedUtc).PeriodCode`). در DI: `services.TryAddScoped<IExpenseNumberAllocator, ExpenseNumberAllocator>();` کنار خط 93/94 در `LocalStoreServiceCollectionExtensions.cs`.
+- [ ] **`src/Animora.Application/UseCases/Finance/FinanceRegistration.cs`** (mirror `ChequesRegistration`):
+  ```csharp
+  public static class FinanceRegistration {
+      public static ApplicationRegistrationBuilder AddFinanceUseCases(this ApplicationRegistrationBuilder b) => b
+          .AddQuery<FinanceOverviewQuery, FinanceOverviewReadModel, FinanceOverviewQueryHandler>()
+          .AddQuery<FinanceIncomeQuery, FinanceIncomeReadModel, FinanceIncomeQueryHandler>()
+          .AddQuery<FinanceExpenseQuery, FinanceExpenseReadModel, FinanceExpenseQueryHandler>()
+          .AddQuery<FinanceProfitQuery, FinanceProfitReadModel, FinanceProfitQueryHandler>()
+          .AddQuery<FinanceRangeCatalogQuery, IReadOnlyList<FinanceRangeDefinition>, FinanceRangeCatalogQueryHandler>()
+          .AddQuery<FinanceExpenseCategoriesQuery, IReadOnlyList<string>, FinanceExpenseCategoriesQueryHandler>()
+          .AddQuery<FinancePaymentMethodsQuery, IReadOnlyList<PaymentMethod>, FinancePaymentMethodsQueryHandler>()
+          .AddCommand<RecordExpenseCommand, string, RecordExpenseCommandHandler>()
+          .AddCommand<CloseAccountingPeriodCommand, Unit, CloseAccountingPeriodCommandHandler>();
+  }
+  ```
+  (فراخوانی این + `AddChequeUseCases` در T08 داخل `App.axaml.cs:202` انجام می‌شود.)
+- **قید single-writer:** هیچ‌کدام از فایل‌های بالا نباید رشتهٔ `JournalEntry.Create(` / `JournalEntry.CreateReversal(` / `ledger.Add(` داشته باشند (تست `LedgerSingleWriterTests` fail می‌شود). closing entry فقط یک id است، نه ساخت entry.
+- **Push:** `scripts/git/push.sh "feat(finance): 7 finance reporting queries + RecordExpense/CloseAccountingPeriod commands + ExpenseNumberAllocator (C09)"`
 
-### T08 — DI swap + ViewModel readiness + حذف mock
-- [ ] `App.axaml.cs` خط ~320: `AddSingleton<IFinanceQueryService, MockFinanceQueryService>()` → `FinanceQueryService`؛ using namespace را اصلاح کن؛ worker را ثبت/راه‌اندازی کن (بخش L).
-- [ ] `FinancePageViewModel.cs`: خط readiness-gate اضافه کن (الگوی `InventoryPageViewModel`/C08 ViewModels: field `IStoreReadinessGate` + ctor inject + `await _readiness.WaitAsync()` ابتدای load). نام دقیق gate را با grep تأیید کن.
-- [ ] حذف `src/Animora.Desktop/Mocks/MockFinanceQueryService.cs`؛ مطمئن شو هیچ DI/using به آن رفرنس نمی‌دهد (grep نهایی).
-- **Push:** `scripts/git/push.sh "refactor(desktop): swap Finance DI to real service, readiness gate, delete mock (C09)"`
+### T07 — Client Services: FinanceMapping + FinanceQueryService + C01 TotalSpend — **کارِ باقی‌مانده**
+> پوشهٔ `src/Animora.Client.Services/Finance/` را بساز. الگوی سرویس = `Inventory/InventoryQueryService.cs` (اسنپ‌شات کامل دارد). قید: **هیچ EF/SQL؛ singleton؛ scope موقت per call؛ هیچ `JournalEntry.Create`/`ledger.Add`**.
 
-### T09 — تست‌ها (4 کلاس؛ بدون full-run طولانی)
-- [ ] `tests/Animora.Domain.Tests/PostingRulesTests.cs`: هر یک از 9 رویداد → entry متوازن با کدهای حساب و علامت درست؛ ساخت نامتوازن → `JOURNAL_UNBALANCED` (بخش E؛ نه LEDGER_UNBALANCED).
-- [ ] `tests/Animora.Application.Tests/LedgerSingleWriterTests.cs`: (اگر در T03 ساخته شد اینجا فقط تأیید/تکمیل). فقط `LedgerPostingHandler` سازنده‌ی `JournalEntry` است.
-- [ ] `tests/Animora.Persistence.Tests/FinanceProjectionIntegrityTests.cs`: بعد از ~300 رویداد تصادفی، 3 fact == بازمحاسبه؛ `RebuildFinanceProjectionsAsync` یک fact عمداً خراب را ترمیم می‌کند (الگوی C06 stock snapshot integrity).
-- [ ] `tests/Animora.Application.Tests/PeriodCloseTests.cs`: post به دوره‌ی بسته → `PERIOD_CLOSED`؛ late event در دوره‌ی باز بعدی می‌افتد (اثر backdate، بخش G). **تست reopen را ننویس** (reopen پیاده نمی‌شود — بخش F؛ اگر اسکلت تست فاز آن را می‌طلبید، به‌جای reopen، «تلاش برای بازگشت به Open رد می‌شود» را assert کن با `PeriodInvalidTransition`).
-- **Push:** `scripts/git/push.sh "test(C09): posting rules, single-writer, projection integrity, period close"`
+- [ ] **`src/Animora.Client.Services/Finance/FinanceMapping.cs`** — جداول ثابت ارائه‌ای (بخش 🎨 اسنپ‌شات: channel/category/paymentMethod meta + species + heatmap + insights + productSorts، **عیناً از `MockFinanceQueryService` کپی**) + متدهای extension که readmodelهای lean را به DTOهای rich تبدیل می‌کنند:
+  - `FinanceOverviewReadModel.ToContract() → FinanceOverview`: از `agg.Current` KPIها (`RevTotal=RevenueMinor`, `ExpTotal=CogsMinor+ExpenseMinor`, `Profit=ProfitMinor`, `Margin=Profit/Rev*100`), delta از `Current` vs `Previous` (درصدها مثل mock `PctDelta`), `AvgDailyProfit=Profit/DayCount`, `Series` از `agg.Series` (map هر `FinanceSeriesPointReadModel` → `FinanceSeriesPoint(Label,Full,Revenue,Expense,Profit)`؛ Label/Full را از localDay بساز یا خالی)، `ByChannel` از `channels` join با channel-meta، `ByCategory` از `cats` join با category-meta (+ delta در برابر previous اگر داری وگرنه 0)، `Products` از `products` join با نام/kind، `Services` از تجمیع products به service/product split، `Insights`/`Species`/`Payments`/`Heatmap` از جداول ثابت.
+  - مشابه برای `FinanceIncomeReadModel.ToContract() → FinanceIncome` (+ `ChannelBars` = channels مرتب‌شده با share%)، `FinanceExpenseReadModel.ToContract() → FinanceExpense` (+ `Rows` از `ExpenseRowReadModel` با label/color دسته و method label)، `FinanceProfitReadModel.ToContract() → FinanceProfit`.
+  - **سرشاخهٔ دقیق هر DTO Contracts در بخش H + کد `FinanceModels.cs`؛ ترتیب/تعداد فیلد را عیناً رعایت کن.** خصوصاً: `FinanceProduct(Name,Category,Kind,Icon,Tone,Qty:int,Revenue,Cost)` (Profit/Margin مشتق‌اند)، `FinanceCategory(Id,Label,Icon,Color,Tone,Value,Delta:double)`، `FinanceChannel(Id,Label,Icon,Color,Value)`، `FinanceSeriesPoint(Label,Full,Revenue,Expense,Profit)`.
+- [ ] **`src/Animora.Client.Services/Finance/FinanceQueryService.cs`** — `sealed class FinanceQueryService(IServiceScopeFactory scopes) : IFinanceQueryService`. الگوی هر متد دقیقاً `InventoryQueryService`:
+  ```csharp
+  await using var scope = scopes.CreateAsyncScope();
+  var dispatcher = scope.ServiceProvider.GetRequiredService<IDispatcher>();
+  var provider   = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
+  var ctx = provider.BuildQueryContext();          // یا BuildCommandContextAsync برای AddExpense
+  if (ctx.IsFailure) return /* fallback خالی */;
+  var r = await dispatcher.QueryAsync(new FinanceOverviewQuery(range), ctx.Value!);
+  return r.IsSuccess ? r.Value!.ToContract() : /* خالی */;
+  ```
+  - نگاشت ۹ عضو: `GetOverviewAsync→FinanceOverviewQuery`, `GetIncomeAsync→FinanceIncomeQuery`, `GetExpenseAsync→FinanceExpenseQuery`, `GetProfitAsync→FinanceProfitQuery`, `GetRangesAsync→FinanceRangeCatalogQuery` (map `FinanceRangeDefinition→FinanceRange`), `GetExpenseCategoriesAsync→FinanceExpenseCategoriesQuery` (map کد Domain→`FinanceCategoryOption(id,label,color)` با جدول meta)، `GetPaymentMethodsAsync→FinancePaymentMethodsQuery` (map enum→`FinancePaymentMethod(id,label)`)، `GetProductSortsAsync→` جدول ثابت (بدون dispatch)، `AddExpenseAsync→RecordExpenseCommand` (via `SendAsync`؛ الگوی `SendAsync<T>` در `InventoryQueryService` خطوط 256–265؛ سپس `ExpenseEntry` را از request+id برگشتی بساز).
+  - **cache (اختیاری ولی طبق فاز):** `TenantScopedCache<string,object>` با کلید `finance:<queryName>:<range>|v<maxDay>` که `maxDay` از `GetMaxProjectedDayAsync` می‌آید (A-RULE 033). اگر پیچیده شد، در نسخهٔ اول **بدون cache** پیاده کن و در کامنت TODO بگذار — درست‌بودن مقدم بر cache است.
+  - **پیش از map، `AddExpenseAsync` نیاز به `NewExpenseRequest` دارد:** `request.CategoryId`/`MethodId` idهای UI‌اند (`salary`,`pos`,…)؛ آن‌ها را با جدول meta معکوس به کد Domain (`SALARY`) و `PaymentMethod` enum برگردان، سپس `RecordExpenseCommand(categoryCode, request.Description, request.Amount, DateParse(request.Date)→UtcTicks via ClinicCalendar, settledMethod, null)`. تاریخ ورودی جلالی است؛ اگر تبدیل جلالی→UTC در client سخت بود، از `clock.UtcNow` (الان) به‌عنوان `IncurredUtc` استفاده کن و در کامنت ثبت کن (رفتار mock هم تاریخ را صرفاً نمایشی می‌گیرد).
+- [ ] **C01 debt (بخش K — دقیق):** در `src/Animora.Persistence.Sqlite/Queries/PatientDirectoryQueries.cs` **خط ۵۸** (و خط ~۶۸ در `GetOwnerAsync`) عبارت `0L /* TotalSpend deferred */` را با subquery روی snapshot جایگزین کن:
+  ```csharp
+  db.Set<OwnerFinancialSnapshot>().Where(s => s.OwnerId == o.Id)
+     .Select(s => (long?)s.TotalSpendMinor).FirstOrDefault() ?? 0L
+  ```
+  سپس در `src/Animora.Client.Services/Patients/PatientsMapping.cs` **خط ۲۵** کامنت `/*0 until C09*/` را حذف کن (خودِ `m.TotalSpend` بماند). **این تنها دو فایل C01 لمس‌شده‌اند.**
+- **Push:** `scripts/git/push.sh "feat(finance): real FinanceQueryService + FinanceMapping; close C01 TotalSpend from OwnerFinancialSnapshot (C09)"`
+
+### T08 — DI swap + register use cases + ViewModel readiness + حذف mock — **کارِ باقی‌مانده**
+- [ ] **`src/Animora.Desktop/App.axaml.cs` خط ۲۰۲** — زنجیرهٔ use-case را کامل کن: بعد از `.AddSalesUseCases()` اضافه کن **`.AddChequeUseCases().AddFinanceUseCases()`** (توجه: `AddChequeUseCases` هم فعلاً صدا زده نمی‌شود و C08 بدون آن dispatch نمی‌شود). usingهای لازم: `Animora.Application.UseCases.Finance` و `...Finance.Cheques`.
+- [ ] **`App.axaml.cs` خط ۳۲۴** — swap: `services.AddSingleton<IFinanceQueryService, MockFinanceQueryService>();` → `services.AddSingleton<IFinanceQueryService, FinanceQueryService>();` (using `Animora.Client.Services.Finance;`). worker از قبل ثبت و در خط ۱۸۱ start می‌شود — **دست نزن**.
+- [ ] **`src/Animora.Desktop/Pages/Finance/FinancePageViewModel.cs`** — readiness gate:
+  - ctor فعلی: `(IFinanceQueryService service, IToastService toast, IDialogService dialogs)`. یک پارامتر `IStoreReadinessGate readiness` **بعد از `service`** اضافه کن (الگوی `AppointmentsCalendarViewModel` ctor: `service, readiness, toast, ...`)؛ فیلد `private readonly IStoreReadinessGate _readiness;` را ست کن.
+  - در ابتدای `LoadAsync()` (قبل از `_service.GetRangesAsync()`) بگذار: `await _readiness.WaitAsync();`. `_ = LoadAsync();` در ctor بماند.
+  - چون VM با DI ساخته می‌شود (`AddSingleton<FinancePageViewModel>()` خط ۳۲۵) و `IStoreReadinessGate` singleton ثبت است (خط ۲۳۱)، تزریق خودکار است. `using Animora.Contracts.Diagnostics;` اضافه کن.
+- [ ] **حذف mock:** `src/Animora.Desktop/Mocks/MockFinanceQueryService.cs` را حذف کن. سپس grep نهایی: `grep -rn "MockFinanceQueryService" src/` باید خالی باشد (به‌جز هیچ). `using Animora.Desktop.Mocks;` اگر بی‌استفاده شد پاک کن (بقیهٔ mockها احتمالاً هنوز آنجا هستند، پس using را با احتیاط بررسی کن).
+- **Push:** `scripts/git/push.sh "refactor(desktop): register finance+cheque use cases, swap Finance DI to real service, readiness gate, delete mock (C09)"`
+
+### T09b — دو کلاس تست باقی‌مانده (بدون full-run طولانی)
+> `PostingRulesTests` و `LedgerSingleWriterTests` **از قبل کامل‌اند** (اسنپ‌شات) — دست نزن. فقط دو کلاس زیر را بساز.
+
+- [ ] **`tests/Animora.Persistence.Tests/FinanceProjectionIntegrityTests.cs`** — الگوی دقیق `StockSnapshotIntegrityTests.cs` (harness: `LocalStoreTestFixture` + `MigrateAsync()` + `CreateScope()` + `Random(seed ثابت)`؛ CONVENTIONS §9). سناریو:
+  1. seed یک نصب و اجازه بده rebuild اجرا شود (یا مستقیم `RebuildFinanceProjectionsAsync` را صدا بزن)، یا ~۳۰۰ رویداد فروش/هزینهٔ deterministic بساز و از طریق مسیر عادی proj(یا مستقیم `FinanceProjectionStore.ApplyAsync`) اعمال کن.
+  2. assert: هر ۳ fact (`DailyFinanceFact`/`ProductSalesFact`/`OwnerFinancialSnapshot`) == نتیجهٔ `FinanceProjectionRebuilder.RebuildAsync` روی همان داده (cache-with-proof).
+  3. یک ردیف fact را عمداً خراب کن (`RevenueMinor += 999`)، `RebuildFinanceProjectionsAsync(ct)` را صدا بزن، دوباره assert کن که ترمیم شد. (دقیقاً مثل بخش «repair a corrupted row» در StockSnapshotIntegrityTests.)
+- [ ] **`tests/Animora.Application.Tests/PeriodCloseTests.cs`** — از `TestDoubles`/`CommandPipelineTestDoubles` موجود در پوشهٔ App.Tests برای ساخت handler/repo fake استفاده کن (به فایل‌های همان پوشه نگاه کن؛ الگوی fake repository آنجاست). سه assert:
+  1. **close ساده:** یک `AccountingPeriod` باز بساز، `CloseAccountingPeriodCommandHandler` را با فلگ‌های false صدا بزن → `IsSuccess` و `period.State == PeriodState.Closed` و `ClosingEntryId != null`.
+  2. **post به دورهٔ بسته:** با period بسته، مسیر `LedgerPostingHandler` (یا مستقیم `AccountingPeriod.EnsurePostable(closedPeriod)`) → `ErrorCodes.PeriodClosed` (`"PERIOD_CLOSED"`).
+  3. **late event → دورهٔ باز بعدی:** یک repo با period بسته + یک period باز بعدی؛ رویدادی که تاریخش در دورهٔ بسته می‌افتد باید در دورهٔ باز بعدی post شود (assert: `LedgerPostingHandler` روی `FindNextOpenAsync` سوار می‌شود و entry با `PeriodId` = دورهٔ باز بعدی ساخته می‌شود). این «اثر backdate»ِ بخش G است — از فیلد `EffectiveUtc` (تاریخ رویداد) در برابر `PostedUtc` استفاده می‌شود؛ فیلد جدید نساز.
+  - **تست reopen ننویس.** اگر خواستی no-reopen را قفل کنی: `Assert` کن `AccountingPeriod.IsTransitionAllowed(PeriodState.Closed, PeriodState.Open) == false` و تلاش برای بازگشت `ErrorCodes.PeriodInvalidTransition` می‌دهد.
+- **Push:** `scripts/git/push.sh "test(C09): finance projection integrity + period close (no-reopen)"`
 
 ### T10 — بیلد سریع + تأیید نهایی
-- [ ] بیلد **فقط** پروژه‌های تغییرکرده (نه full طولانی): `dotnet build src/Animora.Domain src/Animora.Application src/Animora.Persistence.Sqlite src/Animora.Infrastructure.Local src/Animora.Client.Services src/Animora.Desktop -clp:ErrorsOnly` یا اگر `scripts/sandbox/build.sh` سریع است همان. **full test/build طولانی ممنوع** — فقط کامپایل‌شدن تغییرات را تأیید کن.
-- [ ] grep نهایی: mock حذف، DI درست، هیچ رفرنس به `MockFinanceQueryService`، فقط `LedgerPostingHandler` به `JournalEntry.Create`.
+- [ ] بیلد **فقط** پروژه‌های تغییرکرده: `dotnet build src/Animora.Application src/Animora.Persistence.Sqlite src/Animora.Client.Services src/Animora.Desktop -clp:ErrorsOnly` (Domain/Infrastructure تغییر ندارند مگر ExpenseNumberAllocator که در Persistence است). اگر `scripts/sandbox/build.sh` سریع‌تر است همان. **full test/build طولانی ممنوع.**
+- [ ] grep نهایی (باید خالی/درست باشند):
+  - `grep -rn "MockFinanceQueryService" src/` → خالی.
+  - `grep -rn "JournalEntry.Create(\|ledger.Add(" src/Animora.Application src/Animora.Client.Services | grep -v LedgerPostingHandler` → خالی (قید single-writer).
+  - `grep -n "AddFinanceUseCases\|AddChequeUseCases" src/Animora.Desktop/App.axaml.cs` → هر دو در خط ۲۰۲.
+  - `grep -n "FinanceQueryService" src/Animora.Desktop/App.axaml.cs` → سرویس واقعی وصل.
 - **Push:** `scripts/git/push.sh "chore(C09): finalize — build check & cleanup"`
 
 ### T11 — حذف این فایل پلن (تسک پایانی)
@@ -275,11 +446,16 @@ scripts/git/push.sh "type(scope): پیام"
 - هر انحراف واقعی از فاز (خصوصاً no-reopen، نام رویدادها، migration 016، JOURNAL_UNBALANCED) را در commit message ثبت کن.
 
 ## 🧭 تصمیمات قفل‌شده (تکرار برای اطمینان)
-1. `PostingRules` را دوباره نساز؛ فقط مصرف کن.
-2. رویدادها: `InvoiceVoidedEvent`, `GoodsReceiptPostedEvent`+`StockMovementRecordedEvent`, `ExpensePostedEvent` (نه اسامی فاز).
-3. migration = **016_FinanceProjections**.
-4. ErrorCodes: فقط 3 کد غایب را اضافه کن؛ برای unbalanced از `JOURNAL_UNBALANCED` موجود استفاده کن.
-5. **Reopen را پیاده نکن** (دامنه no-reopen است) → 2 command، بدون CommandType/ErrorCode جدید برای reopen.
-6. CommandTypes: هیچ کد جدید (هر دو موجودند).
+1. `PostingRules` را دوباره نساز؛ فقط مصرف کن. (کاملاً موجود.)
+2. رویدادها: `InvoiceVoidedEvent`, `GoodsReceiptPostedEvent`+`StockMovementRecordedEvent`, `ExpensePostedEvent` (نه اسامی فاز). `LedgerPostingHandler` از قبل روی ۱۰ رویداد سوار است.
+3. migration = **016_FinanceProjections** (موجود و migrate‌شده).
+4. ErrorCodes: ۳ کد غایب از قبل اضافه شده‌اند؛ برای unbalanced از `JOURNAL_UNBALANCED` استفاده کن.
+5. **Reopen را پیاده نکن** (دامنه no-reopen) → ۲ command، بدون CommandType/ErrorCode جدید برای reopen.
+6. CommandTypes: هیچ کد جدید (`FinancePeriodClose`/`FinanceExpensePost` موجودند). Permissions هم موجودند (`FinanceRead`/`FinancePost`/`FinancePeriodClose`) — کد جدید نساز.
 7. `FinanceQueryService` = Singleton با الگوی `IServiceScopeFactory` مثل `InventoryQueryService`.
-8. C01 debt: تنها فایل C01 لمس‌شده = query سازنده‌ی `OwnerSummaryReadModel` + برداشتن کامنت در `PatientsMapping`.
+8. C01 debt: **دو** فایل لمس‌شده = `PatientDirectoryQueries.cs` (subquery روی `OwnerFinancialSnapshot.TotalSpendMinor`) + برداشتن کامنت در `PatientsMapping.cs`.
+9. **closing-entry:** `CloseAccountingPeriodCommand` یک `closingEntryId` صرفاً ارجاعی با `IdGenerator.NewId` تولید می‌کند و entry فیزیکی نمی‌سازد (single-writer + facts-only queries). فلگ‌های close = false (بستن ساده). در commit ثبت کن.
+10. **presentation catalog:** label/icon/color/tone/species/heatmap/insights از readmodel نمی‌آیند؛ جداول ثابت در `FinanceMapping.cs` (کپی از mock) نگه‌دار. facts=truth حفظ می‌شود.
+11. **use-case registration:** `App.axaml.cs:202` باید `.AddChequeUseCases().AddFinanceUseCases()` را هم اضافه کند (فعلاً هیچ‌کدام صدا زده نمی‌شوند).
+12. **readmodelهای خروجی query از قبل در `FinanceReadModels.cs` هستند** — در T06 فقط query/handler wrapper بساز؛ readmodel جدید نساز.
+13. **قید single-writer روی T06/T07:** هیچ فایل جدید Application/Client نباید `JournalEntry.Create(`/`CreateReversal(`/`ledger.Add(` داشته باشد (تست source-scan fail می‌شود).
