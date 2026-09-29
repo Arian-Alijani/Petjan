@@ -608,4 +608,20 @@ public static class ErrorCodes
         new("OUTBOX_DEAD_LETTERED", ErrorCode.Conflict);
 
     #endregion
+
+    #region History / Dashboard / Search / Profile (C10)
+
+    /// <summary>A history CSV export exceeded the 50 000-row streaming cap (PERFORMANCE.md §6).</summary>
+    public static readonly ErrorCode ExportTooLarge =
+        new("EXPORT_TOO_LARGE", ErrorCode.Validation);
+
+    /// <summary>The signed-in user has no profile record to read or edit.</summary>
+    public static readonly ErrorCode ProfileNotFound =
+        new("PROFILE_NOT_FOUND", ErrorCode.NotFound);
+
+    /// <summary>A settings save referenced a preference key the catalog does not define.</summary>
+    public static readonly ErrorCode SettingKeyUnknown =
+        new("SETTING_KEY_UNKNOWN", ErrorCode.Validation);
+
+    #endregion
 }
