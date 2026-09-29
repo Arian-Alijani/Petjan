@@ -221,6 +221,33 @@ public sealed class Cheque : AggregateRoot
         };
     }
 
+    /// <summary>Changes descriptive fields only while the cheque is still registered.</summary>
+    public Result UpdateMetadata(string chequeNumber, DateTimeOffset dueUtc, string? bankName,
+        string? bankBranch, string? accountNumber, string? sayadId, string? note)
+    {
+        if (State != ChequeState.Registered || Deleted)
+            return Result.Fail(ErrorCodes.ChequeNotEditable);
+        if (string.IsNullOrWhiteSpace(chequeNumber))
+            return Result.Fail(ErrorCodes.ValidationFailed, "Cheque number is required.");
+        ChequeNumber = chequeNumber.Trim();
+        DueUtc = dueUtc;
+        BankName = Clean(bankName);
+        BankBranch = Clean(bankBranch);
+        AccountNumber = Clean(accountNumber);
+        SayadId = Clean(sayadId);
+        Note = Clean(note);
+        return Result.Ok();
+    }
+
+    /// <summary>Tombstones an unfiled cheque; never erases its audit history.</summary>
+    public Result DeleteDraft()
+    {
+        if (State != ChequeState.Registered || Deleted)
+            return Result.Fail(ErrorCodes.ChequeNotEditable);
+        Deleted = true;
+        return Result.Ok();
+    }
+
     /// <summary>Files a registered cheque into the portfolio, or returns a bounced one to it.</summary>
     public Result MoveToPortfolio(string actorUserId, IClock clock) =>
         Transition(ChequeState.InPortfolio, actorUserId, clock, null);

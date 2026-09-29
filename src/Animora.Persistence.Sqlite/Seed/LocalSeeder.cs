@@ -33,7 +33,7 @@ public sealed class LocalSeeder(
     ReceptionSampleData receptionSampleData, ClinicalSampleData clinicalSampleData,
     SchedulingSampleData schedulingSampleData, BoardingSampleData boardingSampleData,
     InventorySampleData inventorySampleData, SalesSampleData salesSampleData,
-    IOptions<LocalStoreOptions> storeOptions)
+    FinanceSampleData financeSampleData, IOptions<LocalStoreOptions> storeOptions)
 {
     public const string TenantKey = "identity.tenant";
     public const string PermissionsKey = "identity.permissions";
@@ -172,6 +172,9 @@ public sealed class LocalSeeder(
                 return Result.Ok();
             }, ct);
             if (sales.IsFailure) return sales;
+            var finance = await RunBlockAsync(FinanceSampleData.SampleKey, () =>
+                financeSampleData.AlreadySeeded() ? Result.Ok() : financeSampleData.Populate(), ct);
+            if (finance.IsFailure) return finance;
         }
         return Result.Ok();
 

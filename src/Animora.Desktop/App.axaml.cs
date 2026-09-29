@@ -10,6 +10,8 @@ using Animora.Application.UseCases.Inventory;
 using Animora.Application.UseCases.Purchasing;
 using Animora.Application.UseCases.Sales;
 using Animora.Client.Services.Boarding;
+using Animora.Client.Services.Cashier;
+using Animora.Client.Services.Cheques;
 using Animora.Client.Services.Inventory;
 using Animora.Client.Services.Purchasing;
 using Animora.Client.Services.Diagnostics;
@@ -305,12 +307,12 @@ public partial class App : global::Avalonia.Application
         // Phase 22: Cashier (invoice & payment management). Stateful in-memory
         // mock (pay/void/refund/edit mutate invoices), so a singleton preserves
         // mutations while navigating.
-        services.AddSingleton<ICashierService, MockCashierService>();
+        services.AddSingleton<ICashierService, CashierService>();
         services.AddSingleton<CashierPageViewModel>();
 
         // Phase 23: Cheques (treasury) list/board screen. Stateful in-memory mock
         // (row-menu status changes / deletes mutate the list), so a singleton.
-        services.AddSingleton<IChequesQueryService, MockChequesQueryService>();
+        services.AddSingleton<IChequesQueryService, ChequesQueryService>();
         services.AddSingleton<ChequesPageViewModel>();
 
         // Phase 25: shared Finance workspace (Overview + Income tabs). Stateless
