@@ -486,11 +486,11 @@ readmodelهای Application فقط id/code + عدد دارند؛ DTOهای Contr
 ### T09b — دو کلاس تست باقی‌مانده (بدون full-run طولانی)
 > `PostingRulesTests` و `LedgerSingleWriterTests` **از قبل کامل‌اند** (اسنپ‌شات) — دست نزن. فقط دو کلاس زیر را بساز.
 
-- [ ] **`tests/Animora.Persistence.Tests/FinanceProjectionIntegrityTests.cs`** — الگوی دقیق `StockSnapshotIntegrityTests.cs` (harness: `LocalStoreTestFixture` + `MigrateAsync()` + `CreateScope()` + `Random(seed ثابت)`؛ CONVENTIONS §9). سناریو:
+- [x] **`tests/Animora.Persistence.Tests/FinanceProjectionIntegrityTests.cs`** — الگوی دقیق `StockSnapshotIntegrityTests.cs` (harness: `LocalStoreTestFixture` + `MigrateAsync()` + `CreateScope()` + `Random(seed ثابت)`؛ CONVENTIONS §9). سناریو:
   1. seed یک نصب و اجازه بده rebuild اجرا شود (یا مستقیم `RebuildFinanceProjectionsAsync` را صدا بزن)، یا ~۳۰۰ رویداد فروش/هزینهٔ deterministic بساز و از طریق مسیر عادی proj(یا مستقیم `FinanceProjectionStore.ApplyAsync`) اعمال کن.
   2. assert: هر ۳ fact (`DailyFinanceFact`/`ProductSalesFact`/`OwnerFinancialSnapshot`) == نتیجهٔ `FinanceProjectionRebuilder.RebuildAsync` روی همان داده (cache-with-proof).
   3. یک ردیف fact را عمداً خراب کن (`RevenueMinor += 999`)، `RebuildFinanceProjectionsAsync(ct)` را صدا بزن، دوباره assert کن که ترمیم شد. (دقیقاً مثل بخش «repair a corrupted row» در StockSnapshotIntegrityTests.)
-- [ ] **`tests/Animora.Application.Tests/PeriodCloseTests.cs`** — از `TestDoubles`/`CommandPipelineTestDoubles` موجود در پوشهٔ App.Tests برای ساخت handler/repo fake استفاده کن (به فایل‌های همان پوشه نگاه کن؛ الگوی fake repository آنجاست). سه assert:
+- [x] **`tests/Animora.Application.Tests/PeriodCloseTests.cs`** — از `TestDoubles`/`CommandPipelineTestDoubles` موجود در پوشهٔ App.Tests برای ساخت handler/repo fake استفاده کن (به فایل‌های همان پوشه نگاه کن؛ الگوی fake repository آنجاست). سه assert:
   1. **close ساده:** یک `AccountingPeriod` باز بساز، `CloseAccountingPeriodCommandHandler` را با فلگ‌های false صدا بزن → `IsSuccess` و `period.State == PeriodState.Closed` و `ClosingEntryId != null`.
   2. **post به دورهٔ بسته:** با period بسته، مسیر `LedgerPostingHandler` (یا مستقیم `AccountingPeriod.EnsurePostable(closedPeriod)`) → `ErrorCodes.PeriodClosed` (`"PERIOD_CLOSED"`).
   3. **late event → دورهٔ باز بعدی:** یک repo با period بسته + یک period باز بعدی؛ رویدادی که تاریخش در دورهٔ بسته می‌افتد باید در دورهٔ باز بعدی post شود (assert: `LedgerPostingHandler` روی `FindNextOpenAsync` سوار می‌شود و entry با `PeriodId` = دورهٔ باز بعدی ساخته می‌شود). این «اثر backdate»ِ بخش G است — از فیلد `EffectiveUtc` (تاریخ رویداد) در برابر `PostedUtc` استفاده می‌شود؛ فیلد جدید نساز.
