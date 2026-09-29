@@ -474,13 +474,13 @@ readmodelهای Application فقط id/code + عدد دارند؛ DTOهای Contr
 - **Push:** `scripts/git/push.sh "feat(finance): real FinanceQueryService + FinanceMapping; close C01 TotalSpend from OwnerFinancialSnapshot (C09)"`
 
 ### T08 — DI swap + register use cases + ViewModel readiness + حذف mock — **کارِ باقی‌مانده**
-- [ ] **`src/Animora.Desktop/App.axaml.cs` خط ۲۰۲** — زنجیرهٔ use-case را کامل کن: بعد از `.AddSalesUseCases()` اضافه کن **`.AddChequeUseCases().AddFinanceUseCases()`** (توجه: `AddChequeUseCases` هم فعلاً صدا زده نمی‌شود و C08 بدون آن dispatch نمی‌شود). usingهای لازم: `Animora.Application.UseCases.Finance` و `...Finance.Cheques`.
-- [ ] **`App.axaml.cs` خط ۳۲۴** — swap: `services.AddSingleton<IFinanceQueryService, MockFinanceQueryService>();` → `services.AddSingleton<IFinanceQueryService, FinanceQueryService>();` (using `Animora.Client.Services.Finance;`). worker از قبل ثبت و در خط ۱۸۱ start می‌شود — **دست نزن**.
-- [ ] **`src/Animora.Desktop/Pages/Finance/FinancePageViewModel.cs`** — readiness gate:
+- [x] **`src/Animora.Desktop/App.axaml.cs` خط ۲۰۲** — زنجیرهٔ use-case را کامل کن: بعد از `.AddSalesUseCases()` اضافه کن **`.AddChequeUseCases().AddFinanceUseCases()`** (توجه: `AddChequeUseCases` هم فعلاً صدا زده نمی‌شود و C08 بدون آن dispatch نمی‌شود). usingهای لازم: `Animora.Application.UseCases.Finance` و `...Finance.Cheques`.
+- [x] **`App.axaml.cs` خط ۳۲۴** — swap: `services.AddSingleton<IFinanceQueryService, MockFinanceQueryService>();` → `services.AddSingleton<IFinanceQueryService, FinanceQueryService>();` (using `Animora.Client.Services.Finance;`). worker از قبل ثبت و در خط ۱۸۱ start می‌شود — **دست نزن**.
+- [x] **`src/Animora.Desktop/Pages/Finance/FinancePageViewModel.cs`** — readiness gate:
   - ctor فعلی: `(IFinanceQueryService service, IToastService toast, IDialogService dialogs)`. یک پارامتر `IStoreReadinessGate readiness` **بعد از `service`** اضافه کن (الگوی `AppointmentsCalendarViewModel` ctor: `service, readiness, toast, ...`)؛ فیلد `private readonly IStoreReadinessGate _readiness;` را ست کن.
   - در ابتدای `LoadAsync()` (قبل از `_service.GetRangesAsync()`) بگذار: `await _readiness.WaitAsync();`. `_ = LoadAsync();` در ctor بماند.
   - چون VM با DI ساخته می‌شود (`AddSingleton<FinancePageViewModel>()` خط ۳۲۵) و `IStoreReadinessGate` singleton ثبت است (خط ۲۳۱)، تزریق خودکار است. `using Animora.Contracts.Diagnostics;` اضافه کن.
-- [ ] **حذف mock:** `src/Animora.Desktop/Mocks/MockFinanceQueryService.cs` را حذف کن. سپس grep نهایی: `grep -rn "MockFinanceQueryService" src/` باید خالی باشد (به‌جز هیچ). `using Animora.Desktop.Mocks;` اگر بی‌استفاده شد پاک کن (بقیهٔ mockها احتمالاً هنوز آنجا هستند، پس using را با احتیاط بررسی کن).
+- [x] **حذف mock:** `src/Animora.Desktop/Mocks/MockFinanceQueryService.cs` را حذف کن. سپس grep نهایی: `grep -rn "MockFinanceQueryService" src/` باید خالی باشد (به‌جز هیچ). `using Animora.Desktop.Mocks;` اگر بی‌استفاده شد پاک کن (بقیهٔ mockها احتمالاً هنوز آنجا هستند، پس using را با احتیاط بررسی کن).
 - **Push:** `scripts/git/push.sh "refactor(desktop): register finance+cheque use cases, swap Finance DI to real service, readiness gate, delete mock (C09)"`
 
 ### T09b — دو کلاس تست باقی‌مانده (بدون full-run طولانی)
