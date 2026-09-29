@@ -208,7 +208,7 @@ public sealed class ReceiveGoodsCommandHandler(
         if (createdReceipt.IsFailure) return Result<string>.Fail(createdReceipt.Error, createdReceipt.Detail);
 
         var receipt = createdReceipt.Value!;
-        var ledger = new List<StockMovement>(c.Lines.Count);
+        var stockMovements = new List<StockMovement>(c.Lines.Count);
         for (var i = 0; i < c.Lines.Count; i++)
         {
             var input = c.Lines[i];
@@ -236,7 +236,7 @@ public sealed class ReceiveGoodsCommandHandler(
                 sourceEntityType: "GoodsReceipt", sourceEntityId: receipt.Id,
                 operationId: context.OperationId);
             if (movement.IsFailure) return Result<string>.Fail(movement.Error, movement.Detail);
-            ledger.Add(movement.Value!);
+            stockMovements.Add(movement.Value!);
         }
 
         var posted = receipt.Post(clock);
@@ -249,7 +249,7 @@ public sealed class ReceiveGoodsCommandHandler(
         }
 
         purchasing.AddReceipt(receipt);
-        movements.AddRange(ledger);
+        movements.AddRange(stockMovements);
         return Result<string>.Ok(receipt.Id);
     }
 

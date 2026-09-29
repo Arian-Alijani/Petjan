@@ -3,8 +3,8 @@ namespace Animora.Contracts.Finance;
 /// <summary>
 /// Data seam for the Finance workspace (mirrors the reference's shared
 /// <c>finance-page.js</c> + <c>finance-data.js</c> aggregate engine). The
-/// desktop ViewModel depends only on this interface; the in-memory
-/// <c>MockFinanceQueryService</c> is the single swappable implementation a
+/// desktop ViewModel depends only on this interface; the client-side
+/// <c>FinanceQueryService</c> is the single swappable implementation a
 /// future backend replaces (R-18). One screen serves both the <c>expense</c>
 /// and <c>reports</c> nav entries — the same interface backs both tabs.
 /// </summary>

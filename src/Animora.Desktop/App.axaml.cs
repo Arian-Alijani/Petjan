@@ -9,9 +9,12 @@ using Animora.Application.UseCases.Vaccination;
 using Animora.Application.UseCases.Inventory;
 using Animora.Application.UseCases.Purchasing;
 using Animora.Application.UseCases.Sales;
+using Animora.Application.UseCases.Finance;
+using Animora.Application.UseCases.Finance.Cheques;
 using Animora.Client.Services.Boarding;
 using Animora.Client.Services.Cashier;
 using Animora.Client.Services.Cheques;
+using Animora.Client.Services.Finance;
 using Animora.Client.Services.Inventory;
 using Animora.Client.Services.Purchasing;
 using Animora.Client.Services.Diagnostics;
@@ -199,7 +202,7 @@ public partial class App : global::Avalonia.Application
 
         // B03c: real local store + application layer (identity use cases) behind the desktop seams.
         services.AddAnimoraLocalInfrastructure();
-        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases());
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddChequeUseCases().AddFinanceUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it
@@ -321,7 +324,7 @@ public partial class App : global::Avalonia.Application
         // deterministic mock, so a singleton. One ViewModel backs both the
         // «هزینه‌ها» and «آمار و گزارش فروش» sidebar entries — the sidebar passes
         // a per-entry initial tab/range (mirrors the reference's two initFinancePage calls).
-        services.AddSingleton<IFinanceQueryService, MockFinanceQueryService>();
+        services.AddSingleton<IFinanceQueryService, FinanceQueryService>();
         services.AddSingleton<FinancePageViewModel>();
 
         // Phase 27: History — unified event ledger. Self-contained synthetic

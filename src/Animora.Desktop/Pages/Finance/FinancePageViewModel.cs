@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Finance;
+using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -28,6 +29,7 @@ namespace Animora.Desktop.Pages.Finance;
 public sealed partial class FinancePageViewModel : PageViewModelBase
 {
     private readonly IFinanceQueryService _service;
+    private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
 
@@ -38,9 +40,10 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
     private string _entryTab = "overview";
     private string _entryRange = "30d";
 
-    public FinancePageViewModel(IFinanceQueryService service, IToastService toast, IDialogService dialogs)
+    public FinancePageViewModel(IFinanceQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs)
     {
         _service = service;
+        _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
 
@@ -200,6 +203,7 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
     private async Task LoadAsync()
     {
         IsBusy = true;
+        await _readiness.WaitAsync();
 
         var ranges = await _service.GetRangesAsync();
         var sorts = await _service.GetProductSortsAsync();
