@@ -166,6 +166,9 @@ public static class PermissionCodes
     /// <summary>Approve and revoke devices.</summary>
     public const string DevicesManage = "devices.manage";
 
+    /// <summary>Read the clinic staff roster (C10: the Profile «تیم کلینیک» card only).</summary>
+    public const string IdentityStaffView = "identity.staff.view";
+
     /// <summary>Read the append-only audit trail.</summary>
     public const string AuditRead = "audit.read";
 
@@ -188,7 +191,7 @@ public static class PermissionCodes
         FinanceRead, FinancePost, FinancePeriodClose,
         ReportsRead,
         SettingsRead, SettingsWrite,
-        UsersManage, RolesManage, DevicesManage,
+        UsersManage, RolesManage, DevicesManage, IdentityStaffView,
         AuditRead,
     ];
 

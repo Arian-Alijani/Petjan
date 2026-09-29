@@ -8,6 +8,7 @@ using Animora.Application.Outbox;
 using Animora.Application.Ports;
 using Animora.Application.UseCases.History;
 using Animora.Application.UseCases.Dashboard;
+using Animora.Application.UseCases.Profile;
 using Animora.Application.UseCases.Search;
 using Animora.Domain.Events;
 using Animora.Persistence.Sqlite.Auditing;
@@ -18,6 +19,7 @@ using Animora.Persistence.Sqlite.Finance;
 using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Persistence.Sqlite.Options;
 using Animora.Persistence.Sqlite.Outbox;
+using Animora.Persistence.Sqlite.Profile;
 using Animora.Persistence.Sqlite.Queries;
 using Animora.Persistence.Sqlite.Repositories;
 using Animora.Persistence.Sqlite.Sales;
@@ -104,6 +106,9 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<IActivityFeedQueries, ActivityFeedQueries>();
         services.TryAddScoped<IDashboardQueries, DashboardQueries>();
         services.TryAddScoped<IGlobalSearchQueries, GlobalSearchQueries>();
+        // C10: profile/settings reads + the non-journaled preference writer (Application ports, impl here).
+        services.TryAddScoped<IProfileQueries, ProfileQueries>();
+        services.TryAddScoped<IProfilePreferenceWriter, ProfilePreferenceWriter>();
         services.AddScoped<FinanceProjectionHandler>();
         services.AddScoped<IVisitRepository, VisitRepository>();
         services.AddScoped<IMedicalHistoryRepository, MedicalHistoryRepository>();

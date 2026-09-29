@@ -386,7 +386,7 @@ Do:
 Targeted build: Application + Persistence + Client.Services.
 Push: `scripts/git/push.sh "feat(C10): global union search query + debounced SearchService"`
 
-### [ ] T07 — Profile queries/commands + UserProfileService
+### [x] T07 — Profile queries/commands + UserProfileService
 Do:
 1. `src/Animora.Application/UseCases/Profile/*.cs` — `UserProfileQuery()`, `AppSettingsQuery()`
    (read `User` + `UserPreference` + `LocalSessions` + C09 facts/ActivityEvent counts);
