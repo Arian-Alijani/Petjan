@@ -167,7 +167,15 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ---
 
-### [ ] T1 — `SyncCursor` entity + configuration + migration **019**
+### [x] T1 — `SyncCursor` entity + configuration + migration **019**  ✅ DONE
+> Created `Entities/SyncCursor.cs` (`[LocalOnly]`, ULID, `TenantId`/`Scope`/`LastSyncedAtUtc`,
+> `Create`/`MarkSynced`). `Configurations/Sync/SyncCursorConfiguration.cs` declares only key +
+> unique `(TenantId,Scope)` index (`IX_SyncCursors_TenantId_Scope`) — **lengths/types are owned
+> by `ModelConventions`** (Scope→400 ShortText, DateTimeOffset→INTEGER ticks; explicit
+> `HasMaxLength` is overridden by the convention, so it was removed). Migration generated via
+> `dotnet ef` as `20260929195619_019_SyncCursor` (+ Designer + snapshot). Verified: targeted
+> build 0/0, `has-pending-model-changes` = none. **dotnet-ef was installed as a global tool at
+> `/home/user/webapp/.sandbox/dotnet-home/.dotnet/tools` — add to PATH for later ef commands.**
 **Goal:** a `[LocalOnly]` last-synced marker row (E03/E04 later extend it).
 
 **T1.1 Entity** — create `src/Animora.Persistence.Sqlite/Entities/SyncCursor.cs`

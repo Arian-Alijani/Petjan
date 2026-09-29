@@ -4150,6 +4150,34 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("StoreMaintenanceLogs", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.SyncCursor", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("LastSyncedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Scope")
+                        .IsUnique()
+                        .HasDatabaseName("IX_SyncCursors_TenantId_Scope");
+
+                    b.ToTable("SyncCursors", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.UiDraftState", b =>
                 {
                     b.Property<string>("Id")
