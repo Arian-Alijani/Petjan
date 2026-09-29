@@ -254,19 +254,37 @@ grep `AddFinanceUseCases` / registration files).
 
 > Legend: `[ ]` todo · `[~]` in progress · `[x]` done. **Push after each task.**
 
-### [ ] T00 — Confirm baked-in facts with 3 targeted greps
-Purpose: lock the 2 unknowns before coding. Run:
-- `grep -A16 "record ChequeStateChangedEvent" src/Animora.Domain/Events/FinanceEvents.cs`
-  and same for `ExpensePostedEvent` → record exact fields for the mapper.
-- `grep -rn "class PersianText" src/` → confirm namespace for NormalizeDigits/NormalizeArabicLetters.
-- `grep -rn "interface ILocalFileStore" src/` → confirm port + method for CSV file write.
-- `grep -rn "StoreReadinessGate" src/Animora.Desktop/Pages/Finance` (or any C09 VM) → copy the
-  exact readiness-gate line.
-- Confirm `HistoryEventKind`/`HistoryEventStatus` visibility from Persistence (`grep -n
-  "Animora.Contracts" src/Animora.Persistence.Sqlite/Animora.Persistence.Sqlite.csproj`).
-Update this plan's mapper table if any field differs, then push.
-Push: `scripts/git/push.sh "chore(C10): lock research facts for phase execution"` (only if
-plan edited; otherwise skip push for a read-only task and proceed to T01).
+### [x] T00 — Confirm baked-in facts (DONE — results locked below)
+LOCKED RESULTS:
+- **`ChequeStateChangedEvent`** fields: `(EventId, TenantId, OccurredAtUtc, string ChequeId,
+  ChequeState FromState, ChequeState ToState)`. Row: EntityType="Cheque", EntityId=ChequeId,
+  Amount=0, Sign=0, Status maps from `ToState` (best-effort → `HistoryEventStatus`), Title key
+  `history.cheque.statuschanged`, DetailArgs `{"from":FromState,"to":ToState}`.
+- **`ExpensePostedEvent`** fields: `(EventId, TenantId, OccurredAtUtc, string ExpenseId, string
+  CategoryCode, long AmountMinor, string Currency, PaymentMethod? SettledMethod)`. Row:
+  EntityType="Expense", EntityId=ExpenseId, Amount=AmountMinor, **Sign=-1**, Status=Normal/Done,
+  Title `history.expense.recorded`, DetailArgs `{"category":CategoryCode}`.
+- **PersianText** = `Animora.Application.Text.PersianText` (static): `NormalizeDigits(string?)`,
+  `NormalizeArabicLetters(string?)`, and `Normalize(...)` = lower+trim of both. Application can
+  use it directly (search query is in Application).
+- **`ILocalFileStore`** (`Animora.Application.Ports`) is **content-addressed** — `PutAsync(Stream)
+  →Result<string hash>`, `OpenAsync(hash)`, `DeleteAsync`. **No file paths.** → RESOLUTION for
+  export: the `IHistoryQueryService.ExportCsvAsync` contract returns `string` (CSV text). Return
+  the **CSV text** as the string, but build it through the streaming `CsvWriter` into a
+  `MemoryStream`/`StreamWriter` (BOM) to bound memory and enforce the 50 000-row cap → fail with
+  `EXPORT_TOO_LARGE`. Do NOT try to return a filesystem path (no path API exists; contract is
+  `string`). Ignore the phase's "returns the path" wording — the fixed contract wins
+  (CONVENTIONS: no Contracts change). Record this in PROGRESS as deviation **D-02**.
+- **Readiness-gate line**: ctor-inject `IStoreReadinessGate _readiness;` and call
+  `await _readiness.WaitAsync();` before the first data load in the VM's load method (copy from
+  `src/Animora.Desktop/Pages/Finance/FinancePageViewModel.cs` lines 32/43/46/206).
+- **Application → Contracts: YES** (`Animora.Application.csproj` references Contracts). So the
+  Application mapper/queries/read-models MAY use `HistoryEventKind`, `HistoryEventStatus`,
+  `UserRole` from Contracts directly.
+- **Persistence → Contracts: NO** (only Domain + Application). → the `ActivityEvent` **entity**
+  must NOT reference Contracts enums. **Store `Kind` and `Status` as `string` columns** on the
+  entity; the Application read-model/mapper parses them into the Contracts enums. (Same style as
+  C09 storing enums as strings.) Deviation **D-03**.
 
 ### [ ] T01 — Entities, configurations, migrations, error codes
 Do (order matters — build must stay green):
