@@ -1,4 +1,7 @@
 using System.Globalization;
+using Animora.Application.Activity;
+using Animora.Application.Time;
+using Animora.Persistence.Sqlite.Activity;
 using Animora.Application.Ports;
 using Animora.Domain.Inventory;
 using Animora.Domain.Results;
@@ -204,6 +207,48 @@ public sealed class LocalStoreMaintenance(
             var tenantId = context.CurrentTenantId;
             var zone = services.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
             var written = await FinanceProjectionRebuilder.RebuildAsync(context, zone, tenantId, ct);
+            await context.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return Result<int>.Ok(written);
+        }
+        catch (Exception ex) when (IsStoreFailure(ex))
+        {
+            return Result<int>.Fail(Map(ex, ErrorCodes.StoreUnavailable), ex.Message);
+        }
+    }
+
+    public async Task<Result<int>> RebuildActivityFeedAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        try
+        {
+            await using var context = await contexts.CreateDbContextAsync(ct);
+            await using var transaction = await context.Database.BeginTransactionAsync(ct);
+            var tenantId = context.CurrentTenantId;
+            var zone = services.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
+            await context.Set<ActivityEvent>().Where(x => x.TenantId == tenantId).ExecuteDeleteAsync(ct);
+
+            var written = 0;
+            var messages = await context.Set<OutboxMessage>().AsNoTracking()
+                .OrderBy(x => x.CreatedAtUtc)
+                .Select(x => new { x.MessageType, x.PayloadJson, x.CorrelationId })
+                .ToListAsync(ct);
+            foreach (var message in messages)
+            {
+                var source = ActivityFeedMapper.Deserialize(message.MessageType, message.PayloadJson);
+                if (source is null || source.TenantId != tenantId) continue;
+                var draft = ActivityFeedMapper.Map(source);
+                if (draft is null) continue;
+                context.Set<ActivityEvent>().Add(ActivityFeedWriter.Create(draft, zone,
+                    correlationId: message.CorrelationId));
+                written++;
+                // Keep tracked projections bounded even for a long-lived outbox.
+                if (written % 500 == 0)
+                {
+                    await context.SaveChangesAsync(ct);
+                    context.ChangeTracker.Clear();
+                }
+            }
             await context.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             return Result<int>.Ok(written);

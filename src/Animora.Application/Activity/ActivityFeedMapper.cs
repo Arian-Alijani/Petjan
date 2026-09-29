@@ -15,6 +15,26 @@ public sealed record ActivityEventDraft(
 /// <summary>Single mapping authority shared by live dispatch and deterministic rebuild.</summary>
 public static class ActivityFeedMapper
 {
+    /// <summary>Rehydrate supported domain events from the durable outbox for a rebuild.</summary>
+    public static DomainEvent? Deserialize(string type, string payload) => type switch
+    {
+        nameof(PetRegisteredEvent) => JsonSerializer.Deserialize<PetRegisteredEvent>(payload),
+        nameof(VisitCompletedEvent) => JsonSerializer.Deserialize<VisitCompletedEvent>(payload),
+        nameof(VaccinationAdministeredEvent) => JsonSerializer.Deserialize<VaccinationAdministeredEvent>(payload),
+        nameof(AppointmentBookedEvent) => JsonSerializer.Deserialize<AppointmentBookedEvent>(payload),
+        nameof(AppointmentCancelledEvent) => JsonSerializer.Deserialize<AppointmentCancelledEvent>(payload),
+        nameof(StayActivatedEvent) => JsonSerializer.Deserialize<StayActivatedEvent>(payload),
+        nameof(StayCheckedOutEvent) => JsonSerializer.Deserialize<StayCheckedOutEvent>(payload),
+        nameof(GoodsReceiptPostedEvent) => JsonSerializer.Deserialize<GoodsReceiptPostedEvent>(payload),
+        nameof(StockMovementRecordedEvent) => JsonSerializer.Deserialize<StockMovementRecordedEvent>(payload),
+        nameof(InvoicePostedEvent) => JsonSerializer.Deserialize<InvoicePostedEvent>(payload),
+        nameof(PaymentRegisteredEvent) => JsonSerializer.Deserialize<PaymentRegisteredEvent>(payload),
+        nameof(InvoiceRefundedEvent) => JsonSerializer.Deserialize<InvoiceRefundedEvent>(payload),
+        nameof(ChequeStateChangedEvent) => JsonSerializer.Deserialize<ChequeStateChangedEvent>(payload),
+        nameof(ExpensePostedEvent) => JsonSerializer.Deserialize<ExpensePostedEvent>(payload),
+        _ => null,
+    };
+
     public static ActivityEventDraft? Map(DomainEvent e) => e switch
     {
         PetRegisteredEvent x => Draft(x, HistoryEventKind.Patient, ActivityEventKeys.PetRegistered,

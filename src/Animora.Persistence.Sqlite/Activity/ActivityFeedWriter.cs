@@ -31,6 +31,6 @@ public sealed class ActivityFeedWriter(
             draft.Kind.ToString(), draft.TitleKey, draft.DetailArgsJson,
             draft.EntityType, draft.EntityId, draft.AmountMinor, draft.AmountSign,
             draft.Status.ToString(), actor ?? draft.ActorUserId, draft.ActorName,
-            correlationId ?? draft.CorrelationId);
+            correlationId ?? draft.CorrelationId, draft.EventId);
     }
 }

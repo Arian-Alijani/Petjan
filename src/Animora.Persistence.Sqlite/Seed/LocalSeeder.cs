@@ -181,6 +181,8 @@ public sealed class LocalSeeder(
             // This proves the rebuild path on every fresh install. The facts are a cache with a proof.
             var projections = await maintenance.RebuildFinanceProjectionsAsync(ct);
             if (projections.IsFailure) return projections.ToResult();
+            var activity = await maintenance.RebuildActivityFeedAsync(ct);
+            if (activity.IsFailure) return activity.ToResult();
         }
         return Result.Ok();
 

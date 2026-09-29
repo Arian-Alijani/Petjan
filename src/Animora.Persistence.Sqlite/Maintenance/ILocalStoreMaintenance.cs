@@ -29,4 +29,7 @@ public interface ILocalStoreMaintenance
     /// The facts are a cache with a proof; this reproduces them exactly. Returns the number of rows written.
     /// </summary>
     Task<Result<int>> RebuildFinanceProjectionsAsync(CancellationToken ct);
+
+    /// <summary>Replays supported outbox domain events through the live mapper for this tenant.</summary>
+    Task<Result<int>> RebuildActivityFeedAsync(CancellationToken ct);
 }
