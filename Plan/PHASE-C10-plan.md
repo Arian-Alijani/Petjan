@@ -339,7 +339,7 @@ Do:
 Targeted build: Persistence.
 Push: `scripts/git/push.sh "feat(C10): RebuildActivityFeedAsync + seed-time feed rebuild"`
 
-### [ ] T04 — History feed query + CsvWriter + export path
+### [x] T04 — History feed query + CsvWriter + export path
 Do:
 1. `src/Animora.Persistence.Sqlite/Queries/ActivityFeedQueries.cs` — paged projection of
    `ActivityEvent`: one indexed statement, filter by kind/date-range/actor/text, sort per

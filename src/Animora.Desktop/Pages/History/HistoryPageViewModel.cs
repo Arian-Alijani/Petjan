@@ -432,7 +432,11 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         var groups = new List<HistoryDayGroupViewModel>();
         foreach (var group in items.GroupBy(e => e.Date))
         {
-            var rows = group.Select(e => new HistoryEventRowViewModel(e)).ToList();
+            var rows = group.Select(e => new HistoryEventRowViewModel(e with
+            {
+                Title = HistoryText.Title(e.Title),
+                Detail = HistoryText.Detail(e.Detail),
+            })).ToList();
             var net = group.Where(e => e.AmountSign == 1).Sum(e => e.Amount)
                       - group.Where(e => e.AmountSign == -1).Sum(e => e.Amount);
 
@@ -455,6 +459,14 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         var filter = new HistoryFilter(
             FromDate, ToDate, _selectedKinds.ToArray(), SearchText.Trim(), _sort, 1, _pageSize);
         var csv = await _service.ExportCsvAsync(filter);
+        csv = csv.Replace("Date,Time,Title,Detail,Entity,Amount,Sign,Status,Actor",
+            "تاریخ,زمان,عنوان,جزئیات,موجودیت,مبلغ,علامت,وضعیت,کاربر", StringComparison.Ordinal);
+        foreach (var key in new[] { "history.pet.registered", "history.visit.completed",
+            "history.vaccine.administered", "history.appointment.booked", "history.appointment.cancelled",
+            "history.stay.activated", "history.stay.checkedout", "history.goods.received",
+            "history.stock.adjusted", "history.invoice.posted", "history.payment.registered",
+            "history.invoice.refunded", "history.cheque.statuschanged", "history.expense.recorded" })
+            csv = csv.Replace(key, HistoryText.Title(key), StringComparison.Ordinal);
 
         var suggested = "history-" + JalaliCalendar.Today.Replace('/', '-') + ".csv";
         var saved = await _dialogs.SaveTextFileAsync(suggested, csv, "csv");
