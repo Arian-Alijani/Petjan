@@ -7,6 +7,7 @@ using Animora.Domain.Results;
 using Animora.Domain.Sales;
 using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Persistence.Sqlite.Options;
 using Animora.Persistence.Sqlite.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -33,7 +34,8 @@ public sealed class LocalSeeder(
     ReceptionSampleData receptionSampleData, ClinicalSampleData clinicalSampleData,
     SchedulingSampleData schedulingSampleData, BoardingSampleData boardingSampleData,
     InventorySampleData inventorySampleData, SalesSampleData salesSampleData,
-    FinanceSampleData financeSampleData, IOptions<LocalStoreOptions> storeOptions)
+    FinanceSampleData financeSampleData, ILocalStoreMaintenance maintenance,
+    IOptions<LocalStoreOptions> storeOptions)
 {
     public const string TenantKey = "identity.tenant";
     public const string PermissionsKey = "identity.permissions";
@@ -175,6 +177,10 @@ public sealed class LocalSeeder(
             var finance = await RunBlockAsync(FinanceSampleData.SampleKey, () =>
                 financeSampleData.AlreadySeeded() ? Result.Ok() : financeSampleData.Populate(), ct);
             if (finance.IsFailure) return finance;
+            // C09: derive the rebuildable finance facts from the seeded C05–C08 data (no new finance samples).
+            // This proves the rebuild path on every fresh install. The facts are a cache with a proof.
+            var projections = await maintenance.RebuildFinanceProjectionsAsync(ct);
+            if (projections.IsFailure) return projections.ToResult();
         }
         return Result.Ok();
 
