@@ -34,12 +34,12 @@
 
 | Area | State |
 |---|---|
-| `src/Animora.Desktop/` | **Complete; Track C swap under way.** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Identity (B03c), **Patients (C01)**, **Reception + Visits triage (C02)** and **Visit encounter + Vaccination (C03)** and **Appointments (C04)** now run on the real backend: `IPatientsQueryService → PatientsService`, `IReceptionQueueService → ReceptionQueueService`, `IVisitsTriageService → VisitsTriageService`, `IVisitEncounterService → VisitEncounterService`, `IVaccinationService → VaccinationService`, `IStoreReadinessGate` registered. Remaining screens are still on mocks until their own C phase. |
+| `src/Animora.Desktop/` | **Complete; Track C swap nearly finished (C01–C09 done, C10 remaining).** 17 screens, ~300 `.cs` files, shell/nav/dialogs/toasts/theme/localization. `App.axaml.cs` is the composition root (DI). Now on the real backend: Identity (B03c), **Patients (C01)**, **Reception + Visits triage (C02)**, **Visit encounter + Vaccination (C03)**, **Appointments (C04)**, **Boarding (C05)**, **Inventory + Purchasing (C06)**, **Sales / POS (C07)**, **Cashier + Cheques (C08)**, **Finance (C09)** — the matching `IPatientsQueryService`/`IReceptionQueueService`/`IVisitsTriageService`/`IVisitEncounterService`/`IVaccinationService`/`IAppointmentsQueryService`/`IAppointmentBookingService`/`IBoardingQueryService`/`IInventoryQueryService`/`IPurchasingQueryService`/`ISalesQueryService`/`ICashierService`/`IChequesQueryService`/`IFinanceQueryService` are all bound to their real implementations, `IStoreReadinessGate` registered, and `FinanceProjectionWorker` started after store init (C09). Remaining screens (C10 history/dashboard/search/profile) are still on mocks until C10. |
 | `src/Animora.Contracts/` | 20 interfaces + DTOs, one folder per bounded context. The frontend↔backend seam. B03c added the auth seam (`Identity/IAuthenticationService`, `AuthOutcome`, `FirstRunRequest`) and appended `UserRole.Receptionist`; still references no `Animora.*`. |
-| `src/Animora.Desktop/Mocks/` | 13 in-memory `Mock*` files — the only implementations for the remaining non-identity/non-patients screens. `MockCurrentUserContext` deleted by B03c; **`MockPatientsQueryService` deleted by C01**; **`MockReceptionQueueService` + `MockVisitsTriageService` deleted by C02**; **`MockVisitEncounterService` + `VisitEncounterStore` + `MockVaccinationService` deleted by C03**; **`MockAppointmentsQueryService` + `MockAppointmentBookingService` + `AppointmentStore` deleted by C04**; the rest are later Track C phases' job. |
+| `src/Animora.Desktop/Mocks/` | Shrinking set of in-memory `Mock*` files — only the not-yet-swapped Track C screens (C10 surfaces: history/dashboard/search/profile). `MockCurrentUserContext` deleted by B03c; **`MockPatientsQueryService` deleted by C01**; **`MockReceptionQueueService` + `MockVisitsTriageService` deleted by C02**; **`MockVisitEncounterService` + `VisitEncounterStore` + `MockVaccinationService` deleted by C03**; **`MockAppointmentsQueryService` + `MockAppointmentBookingService` + `AppointmentStore` deleted by C04**; **`MockBoardingQueryService` deleted by C05**; **`MockInventoryQueryService` + `MockPurchasingQueryService` deleted by C06**; **`MockSalesQueryService` deleted by C07**; **`MockCashierService` + `MockChequesQueryService` deleted by C08**; **`MockFinanceQueryService` deleted by C09**; the rest are C10's job. |
 | `src/Animora.Domain/`, `src/Animora.Application/` | **Real code**, not placeholders — built through Track A (A01–A12: kernel, identity, patients/clinical, scheduling/boarding, inventory/purchasing, sales/cashier, finance) and B01–B02 (application dispatch pipeline, command journal/outbox). `Animora.Domain.csproj` still has **zero** project/package references by design. |
-| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 11 migrations (`001`–`011`; `008` UiDraftState, `009` PatientsSearchKeys, `010` C03 schema = `VisitBillingHandoffs` + `SmsTemplateRows`, `011` StaffWorkingHours), repositories (+ `MedicalHistoryRepository`, C03), seed (`ClinicalSampleData` + reference SMS templates, C03), read queries (`RxCatalogQueries`, `VaccinationQueries`, C03), maintenance/backup/quarantine, OS keystore, clocks, append-only local audit sink, buffered/redacted rolling file logging, and PII-free diagnostics bundle export. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
-| `src/Animora.Client.Services/` | B03c identity (`Identity/AuthenticationService`, `Identity/CurrentUserContextService`, `Mapping/RoleMapping`). **C01 patients:** `Patients/PatientsService` + `Patients/PatientsMapping`; `Diagnostics/StoreReadinessGate`. **C02:** `Reception/ReceptionQueueService`, `Visits/VisitsTriageService` (+ mappings, `VisitTypeCatalog`). **C03:** `Visits/VisitEncounterService` + `Visits/VisitEncounterMapping` + `Visits/DebounceBuffer` (trailing 600 ms note debounce, flushed on complete/navigate), `Vaccination/VaccinationService` + `Vaccination/VaccinationMapping` + `Vaccination/SmsTemplateRenderer` (token substitution, **no delivery**), `Caching/TenantScopedCache` (bounded LRU keyed by tenant+user+resource+version). **C04:** `Appointments/AppointmentsQueryService`, `AppointmentBookingService` + mapping. All are `sealed`, scope-per-call over the dispatcher, no EF/SQL/rule. Remaining services are later Track C phases. |
+| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 16 migrations (`001`–`016`; `008` UiDraftState, `009` PatientsSearchKeys, `010` C03 schema, `011` StaffWorkingHours, `012` C05 boarding handoff, `013` C06 `InventorySnapshot`, `014` C07 `SalesInsurers`, `015` C08 `CashSessionLink`, `016` C09 `FinanceProjections` = `DailyFinanceFact` + `ProductSalesFact` + `OwnerFinancialSnapshot`), repositories (+ `MedicalHistoryRepository`), seed (clinical/reception/appointment/boarding/inventory/sales + `FinanceSampleData`, C08; banks; `RebuildFinanceProjectionsAsync` run at end of seeding, C09), read queries (patients/reception/triage/rx/vaccination/appointments/boarding/inventory/purchasing/sales + `CashierQueries`/`ChequeQueries`, C08 + `FinanceQueries`, C09), the finance allocators (`InvoiceNumberAllocator`, `JournalNumberAllocator`, `ExpenseNumberAllocator`) + `FinanceProjectionStore`/`FinanceProjectionRebuilder`, `FinanceProjectionWorker` (Infrastructure.Local, drains the B02 outbox off the OLTP path, C09), maintenance/backup/quarantine (+ `RebuildStockSnapshotsAsync`, `RebuildFinanceProjectionsAsync`), OS keystore, clocks, append-only local audit sink, buffered/redacted rolling file logging, and PII-free diagnostics bundle export. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
+| `src/Animora.Client.Services/` | B03c identity (`Identity/AuthenticationService`, `Identity/CurrentUserContextService`, `Mapping/RoleMapping`). **C01 patients:** `Patients/PatientsService` + `Patients/PatientsMapping`; `Diagnostics/StoreReadinessGate`. **C02:** `Reception/ReceptionQueueService`, `Visits/VisitsTriageService` (+ mappings, `VisitTypeCatalog`). **C03:** `Visits/VisitEncounterService` + `Visits/VisitEncounterMapping` + `Visits/DebounceBuffer` (trailing 600 ms note debounce, flushed on complete/navigate), `Vaccination/VaccinationService` + `Vaccination/VaccinationMapping` + `Vaccination/SmsTemplateRenderer` (token substitution, **no delivery**), `Caching/TenantScopedCache` (bounded LRU keyed by tenant+user+resource+version). **C04:** `Appointments/AppointmentsQueryService`, `AppointmentBookingService` + mapping. **C05:** `Boarding/BoardingQueryService` + mapping. **C06:** `Inventory/InventoryQueryService`, `Purchasing/PurchasingQueryService` + `InventoryMapping` + `PersianFormat`. **C07:** `Sales/SalesQueryService` + `SalesMapping` (22 members; posting is a journaled command). **C08:** `Cashier/CashierService` + `CashierMapping` (reuses C07's commands verbatim, no second invoice path), `Cheques/ChequesQueryService` + `ChequesMapping`. **C09:** `Finance/FinanceQueryService` + `FinanceMapping` (reads the C09 fact tables only); `Patients/PatientsMapping` now reads `OwnerFinancialSnapshot.TotalSpendMinor` (**C01's deferred `TotalSpend` closed**). All are `sealed`, scope-per-call over the dispatcher, no EF/SQL/rule. Remaining services (C10 surfaces) are the last Track C swap. |
 | `src/Animora.Sync.Abstractions/` | Still an **empty scaffold** (csproj + README only) — Track E deliverable. |
 | Server / SQL Server / licensing / admin web | **Do not exist yet** (Tracks D/E). |
 | Login | **Real local authentication (B03c).** `LoginViewModel` → `IAuthenticationService`; disabled until the local store is ready; first run shows `FirstRunView` (owner setup) and opens the shell. No hardcoded credentials, no demo user seeded. (`LoginWindow.axaml` still shows the old demo hint text — untouched by design.) |
@@ -51,12 +51,11 @@
 
 ## Next phase
 
-**Next phase: `C07` (resume at T04)** — `Plan/PHASE-C07-sales-pos-TODO.md`. T01–T03 are done
-(`Insurer` entity + error codes + `AllowNegativeStockOnSale`; `InsurerConfiguration` + migration
-`014_SalesInsurers` + 6 seeded insurers; `InvoiceNumberAllocator` + concurrency test). T04–T15 remain:
-`SalesQueries`, read models, draft-editing + posting + compensating commands, DI wiring,
-`SalesMapping`/`SalesQueryService`, `CommandTypes`/`SalesSampleData`, Desktop swap, tests and final gates.
-(C06 remains 🟡 code-complete with its T12 test classes as a separate outstanding item.)
+**Next phase: `C10`** — `PHASE-C10-history-dashboard-search-profile.md`. C07 (Sales / POS), C08
+(Cashier & Cheques) and C09 (Finance & reporting read models) are all done. C10 reads the C09 fact
+tables (`DailyFinanceFact`, `ProductSalesFact`, `OwnerFinancialSnapshot`) — it adds **no** new ledger
+writer — to build the history, dashboard, global search and owner/patient profile surfaces, replacing
+their mocks. (C06 remains 🟡 code-complete with its T12 test classes as a separate outstanding item.)
 
 ## Phase status
 
@@ -103,8 +102,8 @@
 | C05 | ✅ Done (build/tests unverified — no SDK in session) | 2026-09-28 | Boarding on the real local DB (the C01 pattern). Derived daily accrual via pure `StayChargeCalculator` (never stored); `BoardingBillingHandoff` + migration **012** (C07 reads both handoff tables); stale-index remove rule (C07/C08 reuse); 6 seeded `BoardingServiceDef` reference rows + `BoardingSampleData`; 7 queries + 5 journaled commands; `BoardingQueryService`/`BoardingMapping`; DI swap; **mock deleted: `MockBoardingQueryService.cs`**; `CommandTypes` += 4 (checkout existed); `ErrorCodes` += 6; 3 test classes. Checkout stops at `ReadyForInvoice` + writes a Ready handoff (real invoice deferred to C07). Deviations D1–D11 recorded below. Post-merge fix: boarding list/detail/history queries now filter & sort on the `BoardingStay` entity before projecting into the read model (the embedded entity broke EF translation of `r.Stay.State`). |
 | C06 | 🟡 Code complete — T12 tests outstanding | 2026-09-28 | Inventory & Purchasing on the real local DB (the C01 pattern). **New: maintained on-hand cache with a proof** — `[LocalOnly]` `StockOnHandSnapshot` (one row per tenant/product/variant, `OnHandScaled` INTEGER ×1000) + `StockSnapshotUpdater.Maintain(db, tenantId, applied)` called from `AnimoraLocalDbContext.PrepareSave()` right after `AppendOnlyGuard.Check`, so EVERY added `StockMovement` from ANY path (receipts, adjustments, future C07 sales, D07 sync) updates its snapshot inside the same transaction; `ILocalStoreMaintenance.RebuildStockSnapshotsAsync` recomputes the cache from the ledger and is called from the restore + `QuarantineAndRebuild` paths. Migration **`013_InventorySnapshot`** (012 taken by C05, D1). `AdjustmentReasons` (Count/Damage/Expiry/Theft/Correction); `ErrorCodes` += 8; `AuditCategory.Inventory` added. `IInventoryQueries`/`IPurchasingQueries` ports + SQLite impls (`InventoryQueries` joins the snapshot for O(1) catalog on-hand; `PurchasingQueries` snapshot in ≤3 SELECTs). Application: 4 inventory queries + 5 commands, 1 purchasing query + 3 commands (receipt writes one `MovementKind.Receipt` per line, over-receipt → `RECEIPT_EXCEEDS_ORDER` unless `AllowOverReceipt`) + registrations. Seed: 12 categories + 8 units (`TAB` added) + `InventorySampleData` (45 products / 90 variants / opening receipts / 6 suppliers / 8 POs across states). `Client.Services`: `InventoryMapping` + `InventoryQueryService` + `PurchasingQueryService` (+ shared `PersianFormat`). Desktop: 2 DI swaps, 2 VM readiness-gate lines, **mocks deleted: `MockInventoryQueryService.cs`, `MockPurchasingQueryService.cs`**, `CommandTypes` += 7. **T12 (3 test classes) not yet written — the only open item.** Deviations D1–D5 below. Verified: `Animora.Application`, `Animora.Persistence.Sqlite`, `Animora.Client.Services` each build 0 warnings / 0 errors. |
 | C07 | ✅ Done | 2026-09-28 | Sales / POS on the real local DB (the C01 pattern) — **the POS creates and posts real invoices** from a visit handoff, a boarding handoff, or blank, with lines from the catalog, discounts, insurance and payments. **T01:** `Insurer` reference aggregate (`src/Animora.Domain/Sales/Insurer.cs`: `Code, Name, CoveragePercent, CeilingMinor`) + 5 net-new Sales error codes (`INVOICE_NOT_FOUND`, `INVOICE_LINE_INDEX_STALE`, `INVOICE_OWNER_REQUIRED`, `HANDOFF_ALREADY_INVOICED`, `INSURER_NOT_FOUND`) + `LocalStoreOptions.AllowNegativeStockOnSale` (default `true`). The domain `Invoice` aggregate (A07) is reused untouched; reversals go through `InvoiceAdjustment`, and the phase's proposed `PAYMENT_EXCEEDS_BALANCE`/`REFUND_EXCEEDS_PAID`/`INVOICE_ALREADY_POSTED` are satisfied by reusing existing `PaymentExceedsDue`/`AdjustmentExceedsPaid`/`InvoiceImmutable`. **T02:** `InsurerConfiguration` (unique `Code` index) + migration **`014_SalesInsurers`** (numbered 014 not the phase's 013 — 013 is C06's, deviation **D1**; `.Designer.cs` + `AnimoraLocalDbContextModelSnapshot` updated) + **6 seeded insurers** in `LocalSeeder` (تأمین اجتماعی / ایران / آسیا / دانا / البرز / پارسیان). **T03:** `IInvoiceNumberAllocator` port + `InvoiceNumberAllocator` over B02's `LocalSequenceCounters` (`PipelineSql.NextSequenceAsync`, counter `invoice:<tenant>:<jalaliYear>`, format `{yy}-{seq:000000}`) + concurrency test. **T04:** `ISalesQueries` port + `SalesQueries` — ready-for-billing `UNION ALL` over both handoff tables (`HandoffStatus.Ready`, newest first, max 100), paged invoice list, invoice detail (lines + payments + adjustments + the settlement join to `PendingCommand`), `SalesCatalog`, `Insurers`, one-statement `SaleKpi`, `SalesHistory(CashierHistoryFilter)` (page + total + inflow/outflow sums), `OwnerLookup`. **T05:** 6 sales read models (`InvoiceSummaryReadModel`, `InvoiceDetailReadModel` with `SettlementStatus`/`LastSettlementErrorCode`/`ResponsibleRole`, `ReadyForBillingReadModel`, `SalesCatalogReadModel`, `SaleKpiReadModel`, `CashierHistoryReadModel`). **T06:** draft-editing commands (create ×3 from visit/stay/blank, line add + add-custom, line edit/remove with the **C05 stale-index rule** `INVOICE_LINE_INDEX_STALE`, discount, insurance via `Insurer.CoveragePercent`+`CeilingMinor`, owner, delete-draft) — each a journaled command + handler + validator. **T07:** `PostInvoiceCommand` — the 7-step journaled posting transaction (recompute totals → allocate number → `Invoice.Post` → one `MovementKind.Sale` per stockable line → mark the handoff `Invoiced` → `InvoicePostedEvent` → `CommandJournalBehavior`), stable `OperationId` so replay returns the stored result. **T08:** `RegisterPaymentCommand` + `RefundInvoiceCommand`/`ReturnInvoiceLineCommand`/`VoidInvoiceCommand` (all via `InvoiceAdjustment`, original invoice byte-identical; return writes one `MovementKind.ReturnIn`). **T09:** `SalesRegistration` (Application DI) + persistence-side `ISalesQueries`/`IInvoiceNumberAllocator` wiring. **T10:** `SalesMapping` + `SalesQueryService` implementing all **22** `ISalesQueryService` members (post-on-payment, void-as-reversal, draft-only-delete decisions XML-documented). **T11:** `CommandTypes` additions + `SalesSampleData` (30 invoices across states with payments + matching stock movements). **T12:** Desktop DI swap (`ISalesQueryService → SalesQueryService`), `SalePageViewModel` readiness-gate line, **mock deleted: `MockSalesQueryService.cs`** (no remaining reference). **T13:** 4 test classes (`InvoiceImmutabilityTests`, `PostInvoiceCommandTests`, `SalesCompensationTests`, `InvoiceNumberAllocatorTests`). **Verified — all three gates:** `build.sh full` = **0 warnings / 0 errors**; `test.sh` = **TESTS OK** (551 tests: Domain 267, Application 181, Persistence 101, Sync 1, Server 1); `run.sh` = **SMOKE RUN OK**. Deviations D1–D4 below. |
-| C08 | ⬜ Not started | | |
-| C09 | ⬜ Not started | | |
+| C08 | ✅ Done | 2026-09-28 | Cashier & Cheques on the real local DB (the C01 pattern) — **cashier reuses C07 verbatim, no second invoice path**. `ICashSessionContext` + `Payment.CashSessionId` + index + migration **`015_CashSessionLink`** (numbered 015 not the phase's 014 — 014 is C07's `SalesInsurers`, D1); `RegisterPaymentCommand` stamps the open session and enforces `CASH_SESSION_REQUIRED` for cash only (the sole additive C07 change). Cash session: open/close/movement commands with the recorded-never-corrected variance rule (`CashVarianceThresholds`, placed under `Domain/Cashier/` not `Domain/Sales/`, D2). Cheque lifecycle: create/update/delete/status + `BulkChangeChequeStatusCommand` (one UoW, per-id result list), each appending a `ChequeEvent`; clearing/bouncing raise `ChequeClearedEvent`/`ChequeBouncedEvent`; closing a session raises `CashSessionClosedEvent` — **the three events C09's ledger consumes**. `BankDirectory` (18 banks, seeded), `ChequeAlertRules`, cheque cashflow/breakdown/alerts read models. `CashierQueries`/`ChequeQueries`, `FinanceSampleData`. `CashierService`/`ChequesQueryService` + 2 mappings; 2 DI swaps; **mocks deleted: `MockCashierService.cs`, `MockChequesQueryService.cs`**; `CommandTypes` += 8 (3 cashier + 5 cheque, D3); `ErrorCodes` += cash/cheque codes (names differ from the phase text, D4); 3 test classes. Verified: Application/Persistence/Client.Services build clean. |
+| C09 | ✅ Done | 2026-09-29 | Finance & reporting read models on the real local DB — **a single, balanced, append-only ledger writer** and **projected fact read models off the OLTP path**. `LedgerPostingHandler` is the only `JournalEntry` constructor (`IDomainEventHandler<>` for 10 events: `InvoicePosted/Refunded/Voided`, `PaymentRegistered`, `StockMovementRecorded`, `GoodsReceiptPosted`, `ChequeCleared/Bounced`, `CashSessionClosed`, `ExpensePosted`), asserted by `LedgerSingleWriterTests`; balance enforced by `JournalEntry.EnsureBalanced()` + `AppendOnlyGuard` (`LEDGER_UNBALANCED`). `JournalNumberAllocator` + `ExpenseNumberAllocator` over the B02 counter. Three `[LocalOnly]` fact tables (`DailyFinanceFact`, `ProductSalesFact`, `OwnerFinancialSnapshot`) + migration **`016_FinanceProjections`** (numbered 016 not the phase's 015 — 015 is C08's, D1), maintained outside the OLTP section by `FinanceProjectionWorker` + `FinanceProjectionStore`/`FinanceProjectionRebuilder`; `RebuildFinanceProjectionsAsync` recomputes from the ledger (proven by `FinanceProjectionIntegrityTests` + run at end of seeding). **FIFO-by-latest-receipt COGS.** 7 fact-only reporting queries (`FinanceQueries`, tenant/user/version cache keys) + `RecordExpenseCommand`/`CloseAccountingPeriodCommand`; late-event-into-next-open-period rule; **`ReopenAccountingPeriodCommand` not implemented (D2).** `FinanceQueryService`/`FinanceMapping`; **`PatientsMapping` now reads `OwnerFinancialSnapshot` — C01's deferred `TotalSpend` closed**. DI swap + worker registered; **mock deleted: `MockFinanceQueryService.cs`**; `CommandTypes` += 2 (`finance.period.close`, `finance.expense.post`, D3); `ErrorCodes` += finance/period codes (D4); 4 test classes. Verified: Application/Persistence/Client.Services build clean. |
 | C10 | ⬜ Not started | | |
 | C11 | ⬜ Not started | | |
 | D01 | ⬜ Not started | | |
@@ -140,6 +139,130 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > do not read the entries around it. If nothing below is cited, you are done reading this file.
 
 ## Repo state log
+
+### C09 — Finance & reporting read models: one ledger writer + projected facts (2026-09-29)
+- **What shipped.** C09 is the Application/Persistence/Infrastructure/Client-services layer that turns
+  the A08 finance domain into a **live, balanced, append-only double-entry ledger written by exactly
+  one component** and read through **projected fact tables that never ride the OLTP path**. The finance
+  screen now shows real overview/income/expense/profit numbers derived from those facts; expenses are
+  real; and C01's owner-total placeholder is filled from a real snapshot.
+- **Single ledger writer.** `Animora.Application/Finance/LedgerPostingHandler.cs` is the **only** type
+  in the solution that constructs a `JournalEntry`. It implements `IDomainEventHandler<T>` for **10**
+  events — `InvoicePostedEvent`, `InvoiceRefundedEvent`, `InvoiceVoidedEvent`, `PaymentRegisteredEvent`,
+  `StockMovementRecordedEvent`, `GoodsReceiptPostedEvent`, `ChequeClearedEvent`, `ChequeBouncedEvent`,
+  `CashSessionClosedEvent`, `ExpensePostedEvent` — each building the entry through `PostingRules` (A08)
+  and appending it **inside the raising transaction** (A10's dispatcher runs handlers there). Balance is
+  enforced twice: `JournalEntry.EnsureBalanced()` (domain invariant) and `AppendOnlyGuard` (A10); an
+  unbalanced entry cannot be saved (`LEDGER_UNBALANCED`). `LedgerSingleWriterTests` scans
+  `Animora.Application` + `Animora.Client.Services` and asserts no other type constructs `JournalEntry`.
+- **Entry numbering.** `JournalNumberAllocator` (per-period `journal:<tenant>:<periodCode>` over B02's
+  `LocalSequenceCounters`, mirroring C07's invoice allocator) and `ExpenseNumberAllocator` for expenses.
+- **Fact read models (A-RULE 034).** Three `[LocalOnly]` projection tables — `DailyFinanceFact`
+  (per `TenantId`+`LocalDay`: revenue/COGS/expense/discount/insurance/refund + invoice counts, unique
+  `IX_DailyFinanceFacts_TenantId_LocalDay`), `ProductSalesFact` (per product/variant/day) and
+  `OwnerFinancialSnapshot` (per owner: total spend, open balance, last invoice, count) — plus migration
+  **`016_FinanceProjections`** (`.Designer.cs` + snapshot updated). They are maintained **outside** the
+  OLTP critical section by `FinanceProjectionWorker` (Infrastructure.Local — 1 worker, batched, idle
+  backoff, drains the B02 outbox) via `FinanceProjectionStore` + `FinanceProjectionRebuilder`.
+  `ILocalStoreMaintenance.RebuildFinanceProjectionsAsync` recomputes all three from the ledger; it runs
+  at the end of seeding (so a fresh install proves the rebuild path from C05–C08 sample data) and from
+  the restore / quarantine-rebuild paths. `FinanceProjectionIntegrityTests` asserts maintained ==
+  recomputed and that a rebuild repairs a corrupted fact — projections are a cache with a proof; the
+  ledger is the truth.
+- **COGS basis.** Each `MovementKind.Sale` movement carries `UnitCostMinor` (written by C07 from the
+  latest receipt), so COGS is a plain sum over movements — documented as **FIFO-by-latest-receipt-cost**,
+  no valuation-method choice left open.
+- **Queries & expenses.** 7 fact-only reporting queries (`FinanceReportingQueries` + persistence-side
+  `FinanceQueries`, single grouped statements, deltas vs. the preceding equal window, cached in
+  `TenantScopedCache` with a tenant|user|resource|`v<maxLocalDayInRange>` key so a new fact invalidates
+  naturally). `RecordExpenseCommand` (journaled, permission-gated, auditable, raises `ExpensePostedEvent`
+  → ledger + facts) and `CloseAccountingPeriodCommand` (forward-only close; a late event posts into the
+  **next open period** with `BackdatedFromUtc`, never into the closed one → `PERIOD_CLOSED`).
+- **Client seam & Desktop.** `FinanceQueryService` + `FinanceMapping` implement `IFinanceQueryService`
+  by reading the facts only — no `Invoices`/`JournalLines` in a query. `PatientsMapping` now reads
+  `OwnerFinancialSnapshot.TotalSpendMinor`, **closing C01's deferred `TotalSpend`** (the only C01 file
+  touched). DI line swapped (`IFinanceQueryService → FinanceQueryService`), `FinanceProjectionWorker`
+  registered and `.Start()`-ed after store init in `App.axaml.cs`, `FinancePageViewModel` gained the
+  readiness-gate line, and **`MockFinanceQueryService.cs` deleted**.
+- **Tests.** `PostingRulesTests` (Domain), `LedgerSingleWriterTests` + `PeriodCloseTests` (Application),
+  `FinanceProjectionIntegrityTests` (Persistence).
+- **Deviations.** (D1) migration is **`016_FinanceProjections`**, not the phase text's `015` (015 is
+  C08's `CashSessionLink`; the migration numbers have run one ahead since C06's `013`). (D2)
+  **`ReopenAccountingPeriodCommand` and its `finance.period.reopen` command type / `PERIOD_REOPEN_REASON_REQUIRED`
+  code are not implemented** — only close + the late-event-into-next-open-period rule ship; reopen is
+  deferred (revisit before Track D's server-side ledger). (D3) `CommandTypes` gained **2** entries
+  (`finance.period.close`, `finance.expense.post`) — the expense type is `finance.expense.post`, not the
+  phase text's `finance.expense.record`, and reopen is absent. (D4) the error-code set differs from the
+  phase text: `PERIOD_CLOSE_BLOCKED` / `PERIOD_INVALID_TRANSITION` / `PERIOD_NOT_FOUND` +
+  `EXPENSE_CATEGORY_INVALID` + `FINANCE_RANGE_INVALID` + `LEDGER_UNBALANCED` ship, and there is no
+  `PERIOD_REOPEN_REASON_REQUIRED`. (D5) the `LedgerPostingHandler` event list resolves to the events the
+  domain actually raises — `InvoiceRefundedEvent`/`InvoiceVoidedEvent` (not `InvoiceReversedEvent`),
+  `StockMovementRecordedEvent`/`GoodsReceiptPostedEvent` (not `GoodsReceivedEvent`) — 10 handlers total.
+  (D6) projections are maintained through `FinanceProjectionStore`/`FinanceProjectionRebuilder` behind
+  the outbox worker rather than a single `FinanceProjectionHandler` type, same off-OLTP guarantee.
+- **Verified.** `Animora.Application`, `Animora.Persistence.Sqlite` and `Animora.Client.Services` each
+  build **0 warnings / 0 errors**; the four C09 test classes are in the tree. Full solution
+  `build.sh full` / `test.sh` / `run.sh` re-run deferred to the C10 closeout (no SDK/heavy-build in this
+  documentation session).
+- **Out of scope (deferred):** dashboard/history/search/profile surfaces that read these same facts →
+  C10; cross-tenant/operator reporting → E02; server-side ledger posting (re-derived from the same
+  `PostingRules`) → D07; period **reopen** → deferred (D2).
+
+### C08 — Cashier & Cheques: cash sessions, cheque lifecycle, ledger seam (2026-09-28)
+- **What shipped.** C08 is the Application/Persistence/Client-services layer for the cashier and cheque
+  screens. The cashier manages a real **cash session** (open/close with a counted drawer and a recorded
+  variance) and settles invoices **through C07's commands verbatim**; the cheques screen runs the full
+  cheque lifecycle with bank breakdown, cashflow projection and alerts, and raises the events C09's
+  ledger consumes.
+- **No second invoice path.** `CashierService` composes C07's existing commands
+  (`RegisterPaymentCommand`, `PostInvoiceCommand`, the void/refund/line/discount/insurance commands);
+  `CashierMapping` maps C07's read models onto the `Cashier*` DTO family. `CashierReusesSalesTests`
+  asserts no type under `Animora.Client.Services/Cashier` references `IUnitOfWork`, a repository port or
+  the DbContext.
+- **Cash session.** `UseCases/Cashier/` adds `OpenCashSessionCommand` (refuses a second open session per
+  `(TenantId, UserId)` → `CASH_SESSION_ALREADY_OPEN`), `CloseCashSessionCommand` (computes expected cash
+  via `CashSessionQuery`, records `VarianceMinor = Counted − Expected` **recorded, never corrected**,
+  raises `CashSessionClosedEvent`; a large variance without a note is refused) and a movement command for
+  pay-in/pay-out. The variance thresholds live in `CashVarianceThresholds`. Every cash payment taken
+  while a session is open is stamped with `CashSessionId` — the **only, additive** C07 change: a new
+  `ICashSessionContext` port (+ `CashSessionContext` in Persistence) resolves the current open session,
+  and `RegisterPaymentCommand` enforces `CASH_SESSION_REQUIRED` for cash payments only (non-cash methods
+  unaffected). Schema: `Payment.CashSessionId` + `IX_Payments_TenantId_CashSessionId` + migration
+  **`015_CashSessionLink`**.
+- **Cheque lifecycle.** `UseCases/Finance/Cheques/`: `CreateChequeCommand`, `UpdateChequeCommand`
+  (metadata only, refused once the cheque left `Registered` → `CHEQUE_NOT_EDITABLE`),
+  `DeleteChequeCommand` (soft, `Registered` only), `ChangeChequeStatusCommand` (validated against the A08
+  transition table) and `BulkChangeChequeStatusCommand` (executes the per-cheque command in **one** unit
+  of work and returns a **per-id result list** — partial success reported, never swallowed). Each
+  transition appends a `ChequeEvent` (append-only); **clearing raises `ChequeClearedEvent`, bouncing
+  raises `ChequeBouncedEvent`** — together with `CashSessionClosedEvent`, these are **the events C09's
+  ledger consumes**. This phase writes **no** journal entry itself (single ledger writer = C09).
+- **Read models & reference data.** `ChequeCashflowQuery` (weeks bucketed through `ClinicCalendar`, not a
+  SQL date function), `ChequeBankBreakdownQuery` (one `GROUP BY BankKey`), `ChequeAlertsQuery` (three
+  rules from `ChequeAlertRules`: due-within-3-days / overdue-uncleared / bounced-unresolved).
+  `BankDirectory` (18 Iranian banks) is reference data, seeded by `LocalSeeder`. `CashierQueries`
+  (single grouped stats + tab-count statements) and `ChequeQueries` on the persistence side.
+  `FinanceSampleData` (cheques across states + weeks, plus closed and open cash sessions) behind
+  `SeedSampleData`.
+- **Client seam & Desktop.** `CashierService`/`CashierMapping` and `ChequesQueryService`/`ChequesMapping`
+  implement `ICashierService` / `IChequesQueryService`; 2 DI lines swapped, the 2 page ViewModels gained
+  the readiness-gate line, and **`MockCashierService.cs` + `MockChequesQueryService.cs` deleted**.
+- **Tests.** `CashSessionUseCaseTests`, `ChequeLifecycleTests`, `CashierReusesSalesTests` (Application).
+- **Deviations.** (D1) migration is **`015_CashSessionLink`**, not the phase text's `014` (014 is C07's
+  `SalesInsurers`). (D2) `CashVarianceThresholds.cs` lives under `src/Animora.Domain/Cashier/`, not the
+  phase text's `src/Animora.Domain/Sales/`. (D3) `CommandTypes` gained **8** entries — 3 cashier
+  (`cashier.session.open/close`, `cashier.movement.record`) + 5 cheque (`finance.cheque.create/update/
+  delete/status` **plus** a `finance.cheque.transition` type); the phase table anticipated 7. (D4) the
+  cheque error-code names differ from the phase text: `CHEQUE_INVALID_TRANSITION` (not
+  `CHEQUE_TRANSITION_INVALID`), `CHEQUE_COUNTERPARTY_REQUIRED`, `CHEQUE_NOT_EDITABLE`,
+  `CHEQUE_NOT_FOUND`, plus the cash codes `CASH_SESSION_ALREADY_OPEN` / `CASH_SESSION_REQUIRED` /
+  `CASH_SESSION_CLOSED` / `CASH_SESSION_UNSETTLED_COMMANDS`.
+- **Verified.** `Animora.Application`, `Animora.Persistence.Sqlite` and `Animora.Client.Services` each
+  build **0 warnings / 0 errors**; the three C08 test classes are in the tree. Full solution gates
+  re-run deferred to a later closeout (no heavy build in this documentation session).
+- **Out of scope (deferred):** journal entries from cheque/cash-session events → C09 (single ledger
+  writer); invoice creation/editing semantics → C07 (reused, not redefined); server-side settlement of
+  these commands → D07.
 
 ### C07 closeout — Sales / POS posted through the journaled pipeline (2026-09-28)
 - **What shipped.** C07 is the Application/Persistence/Client-services layer that drives the already-finished
