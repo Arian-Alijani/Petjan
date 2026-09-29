@@ -498,6 +498,15 @@ public static class ErrorCodes
     public static readonly ErrorCode PeriodClosed =
         new("PERIOD_CLOSED", ErrorCode.Conflict);
 
+    public static readonly ErrorCode PeriodNotFound =
+        new("PERIOD_NOT_FOUND", ErrorCode.NotFound);
+
+    public static readonly ErrorCode FinanceRangeInvalid =
+        new("FINANCE_RANGE_INVALID", ErrorCode.Validation);
+
+    public static readonly ErrorCode ExpenseCategoryInvalid =
+        new("EXPENSE_CATEGORY_INVALID", ErrorCode.Validation);
+
     /// <summary>
     /// The period cannot close yet: unsettled commands, an open cash session or a draft invoice is
     /// still in flight. <c>Detail</c> names the blocker.

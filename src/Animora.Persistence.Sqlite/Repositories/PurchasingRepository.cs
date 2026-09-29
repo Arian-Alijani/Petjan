@@ -17,4 +17,7 @@ public sealed class PurchasingRepository(AnimoraLocalDbContext db) : IPurchasing
     public void AddRange(IEnumerable<PurchaseOrder> entities) => db.Set<PurchaseOrder>().AddRange(entities);
 
     public void AddReceipt(GoodsReceipt receipt) => db.Set<GoodsReceipt>().Add(receipt);
+
+    public Task<GoodsReceipt?> FindReceiptAsync(string id, CancellationToken ct = default) =>
+        db.Set<GoodsReceipt>().AsTracking().FirstOrDefaultAsync(e => e.Id == id, ct);
 }

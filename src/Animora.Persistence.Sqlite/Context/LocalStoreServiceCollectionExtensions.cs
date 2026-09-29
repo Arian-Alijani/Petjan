@@ -2,12 +2,14 @@ using Animora.Application.Abstractions;
 using Animora.Application.Auditing;
 using Animora.Application.Commands;
 using Animora.Application.Correlation;
+using Animora.Application.Finance;
 using Animora.Application.Outbox;
 using Animora.Application.Ports;
 using Animora.Domain.Events;
 using Animora.Persistence.Sqlite.Auditing;
 using Animora.Persistence.Sqlite.Commands;
 using Animora.Persistence.Sqlite.Cashier;
+using Animora.Persistence.Sqlite.Finance;
 using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Persistence.Sqlite.Options;
 using Animora.Persistence.Sqlite.Outbox;
@@ -89,6 +91,9 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<ISalesDraftData, SalesDraftData>();
         services.TryAddScoped<ISalesPostingData, SalesPostingData>();
         services.TryAddScoped<IInvoiceNumberAllocator, InvoiceNumberAllocator>();
+        services.TryAddScoped<IJournalNumberAllocator, JournalNumberAllocator>();
+        services.TryAddScoped<IFinanceProjectionStore, FinanceProjectionStore>();
+        services.AddScoped<FinanceProjectionHandler>();
         services.AddScoped<IVisitRepository, VisitRepository>();
         services.AddScoped<IMedicalHistoryRepository, MedicalHistoryRepository>();
         services.AddScoped<IVisitBillingHandoffWriter, VisitBillingHandoffWriter>();
@@ -133,6 +138,17 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<OutboxClaim>();
         services.TryAddScoped<LocalCommandProcessor>();
         // Every raised domain event is relayed to the outbox (idempotent: duplicate (event, handler) pairs are ignored).
+        services.AddScoped<LedgerPostingHandler>();
+        services.AddDomainEventHandler<InvoicePostedEvent, LedgerPostingHandler>();
+        services.AddDomainEventHandler<InvoiceVoidedEvent, LedgerPostingHandler>();
+        services.AddDomainEventHandler<PaymentRegisteredEvent, LedgerPostingHandler>();
+        services.AddDomainEventHandler<InvoiceRefundedEvent, LedgerPostingHandler>();
+        services.AddDomainEventHandler<GoodsReceiptPostedEvent, LedgerPostingHandler>();
+        services.AddDomainEventHandler<StockMovementRecordedEvent, LedgerPostingHandler>();
+        services.AddDomainEventHandler<ChequeClearedEvent, LedgerPostingHandler>();
+        services.AddDomainEventHandler<ChequeBouncedEvent, LedgerPostingHandler>();
+        services.AddDomainEventHandler<CashSessionClosedEvent, LedgerPostingHandler>();
+        services.AddDomainEventHandler<ExpensePostedEvent, LedgerPostingHandler>();
         services.AddDomainEventHandler<DomainEvent, OutboxRelayHandler>();
 
         // First-run reference seeding (A10c); invoked by the startup path, never by the desktop directly.

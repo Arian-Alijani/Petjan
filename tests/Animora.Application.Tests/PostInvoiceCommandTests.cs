@@ -202,6 +202,8 @@ internal sealed class SalesPaymentRepository : IPaymentRepository
     public List<Payment> Added { get; } = [];
     public Task<Payment?> FindAsync(string id, CancellationToken ct = default) => Task.FromResult(Added.FirstOrDefault(p => p.Id == id));
     public Task<Payment> RequireAsync(string id, CancellationToken ct = default) => Task.FromResult(Added.First(p => p.Id == id));
+    public Task<Payment?> FindLatestForInvoiceAsync(string invoiceId, CancellationToken ct = default) =>
+        Task.FromResult(Added.LastOrDefault(p => p.InvoiceId == invoiceId && p.Amount.Minor > 0));
     public void Add(Payment entity) => Added.Add(entity);
     public void AddRange(IEnumerable<Payment> entities) => Added.AddRange(entities);
 }

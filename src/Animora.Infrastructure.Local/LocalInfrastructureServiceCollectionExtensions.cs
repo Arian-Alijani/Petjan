@@ -7,6 +7,7 @@ using Animora.Domain.Time;
 using Animora.Infrastructure.Local.Startup;
 using Animora.Infrastructure.Local.Time;
 using Animora.Infrastructure.Local.Storage;
+using Animora.Infrastructure.Local.Workers;
 using Animora.Infrastructure.Local.Security;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Maintenance;
@@ -48,6 +49,7 @@ public static class LocalInfrastructureServiceCollectionExtensions
         services.TryAddSingleton<IClock>(_ => new SystemClock());
         services.TryAddSingleton<IMonotonicClock, MonotonicClock>();
         services.TryAddSingleton<IClinicTimeZoneProvider, ClinicTimeZoneProvider>();
+        services.TryAddSingleton<FinanceProjectionWorker>();
         services.TryAddScoped<LocalStoreStartup>();
         services.TryAddScoped<ILocalStoreInitializer>(p => p.GetRequiredService<LocalStoreStartup>());
 
