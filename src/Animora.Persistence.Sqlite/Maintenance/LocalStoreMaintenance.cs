@@ -1,10 +1,12 @@
 using System.Globalization;
+using Animora.Application.Ports;
 using Animora.Domain.Inventory;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Converters;
 using Animora.Persistence.Sqlite.Entities;
+using Animora.Persistence.Sqlite.Finance;
 using Animora.Persistence.Sqlite.Options;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -185,6 +187,26 @@ public sealed class LocalStoreMaintenance(
             await context.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             return Result<int>.Ok(totals.Count);
+        }
+        catch (Exception ex) when (IsStoreFailure(ex))
+        {
+            return Result<int>.Fail(Map(ex, ErrorCodes.StoreUnavailable), ex.Message);
+        }
+    }
+
+    public async Task<Result<int>> RebuildFinanceProjectionsAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        try
+        {
+            await using var context = await contexts.CreateDbContextAsync(ct);
+            await using var transaction = await context.Database.BeginTransactionAsync(ct);
+            var tenantId = context.CurrentTenantId;
+            var zone = services.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
+            var written = await FinanceProjectionRebuilder.RebuildAsync(context, zone, tenantId, ct);
+            await context.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return Result<int>.Ok(written);
         }
         catch (Exception ex) when (IsStoreFailure(ex))
         {

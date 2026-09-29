@@ -22,4 +22,11 @@ public interface ILocalStoreMaintenance
     /// <c>StockMovements</c> ledger (the snapshot is a cache with a proof). Returns the number of rows written.
     /// </summary>
     Task<Result<int>> RebuildStockSnapshotsAsync(CancellationToken ct);
+
+    /// <summary>
+    /// C09: recomputes the current tenant's finance facts (<c>DailyFinanceFact</c>, <c>ProductSalesFact</c>,
+    /// <c>OwnerFinancialSnapshot</c>) from the authoritative invoices/payments/movements and posted expenses.
+    /// The facts are a cache with a proof; this reproduces them exactly. Returns the number of rows written.
+    /// </summary>
+    Task<Result<int>> RebuildFinanceProjectionsAsync(CancellationToken ct);
 }

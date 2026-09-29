@@ -225,9 +225,9 @@ scripts/git/push.sh "type(scope): پیام"
 - **Push:** `scripts/git/push.sh "feat(finance): FinanceProjectionHandler + outbox-draining FinanceProjectionWorker (C09)"`
 
 ### T05 — Persistence: FinanceQueries + Maintenance rebuild + seed
-- [ ] `src/Animora.Persistence.Sqlite/Queries/FinanceQueries.cs`: 4 آماره‌ی grouped روی factها (overview/income/expense/profit) + product block از `ProductSalesFact`. هر query یک statement grouped؛ delta در برابر پنجره‌ی قبلی هم‌طول. (الگوی grouped را از `CashierQueries`/`LedgerBalanceQuery` بگیر.) هیچ query به `Invoices`/`JournalLines` دست نزند (A-RULE 034).
-- [ ] `ILocalStoreMaintenance` + `LocalStoreMaintenance`: افزودن `Task<Result<int>> RebuildFinanceProjectionsAsync(CancellationToken ct)` که هر 3 fact را از لجر + invoices بازمحاسبه می‌کند (الگوی دقیق `RebuildStockSnapshotsAsync`: transaction → `ExecuteDeleteAsync` factهای tenant → streaming pass → insert → commit).
-- [ ] `LocalSeeder.cs`: در پایان بلاک sample (بعد از `SalesSampleData`)، `RebuildFinanceProjectionsAsync` را صدا بزن تا factها از داده‌ی نمونه‌ی C05–C08 مشتق شوند (هیچ sample data جدید فایننس نساز — فاز صریح: «none new»). این مسیر rebuild را روی هر نصب تازه اثبات می‌کند.
+- [x] `src/Animora.Persistence.Sqlite/Queries/FinanceQueries.cs`: 4 آماره‌ی grouped روی factها (overview/income/expense/profit) + product block از `ProductSalesFact`. هر query یک statement grouped؛ delta در برابر پنجره‌ی قبلی هم‌طول. (الگوی grouped را از `CashierQueries`/`LedgerBalanceQuery` بگیر.) هیچ query به `Invoices`/`JournalLines` دست نزند (A-RULE 034).
+- [x] `ILocalStoreMaintenance` + `LocalStoreMaintenance`: افزودن `Task<Result<int>> RebuildFinanceProjectionsAsync(CancellationToken ct)` که هر 3 fact را از لجر + invoices بازمحاسبه می‌کند (الگوی دقیق `RebuildStockSnapshotsAsync`: transaction → `ExecuteDeleteAsync` factهای tenant → streaming pass → insert → commit).
+- [x] `LocalSeeder.cs`: در پایان بلاک sample (بعد از `SalesSampleData`)، `RebuildFinanceProjectionsAsync` را صدا بزن تا factها از داده‌ی نمونه‌ی C05–C08 مشتق شوند (هیچ sample data جدید فایننس نساز — فاز صریح: «none new»). این مسیر rebuild را روی هر نصب تازه اثبات می‌کند.
 - **Push:** `scripts/git/push.sh "feat(finance): FinanceQueries + RebuildFinanceProjectionsAsync + seed rebuild (C09)"`
 
 ### T06 — Application: 7 query + 2 command (+ handlers/validators) + read models
