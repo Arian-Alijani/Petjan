@@ -187,7 +187,57 @@ readmodelهای Application فقط id/code + عدد دارند؛ DTOهای Contr
   - `Task<IReadOnlyList<FinanceCategoryOption>> GetExpenseCategoriesAsync()`
   - `Task<IReadOnlyList<FinancePaymentMethod>> GetPaymentMethodsAsync()`
   - `Task<ExpenseEntry> AddExpenseAsync(NewExpenseRequest request)`
-- DTOها در `src/Animora.Contracts/Finance/FinanceModels.cs`: `FinanceRange(Id,Label,Days,Bucket)`, `FinanceOverview(...)`, `FinanceIncome(...)`, `FinanceExpense(...)`, `FinanceProfit(...)`, `FinanceDeltas(Revenue,Expense,Profit,Margin)`, `FinanceSeriesPoint(...)`, `FinanceChannel(...)`, `FinanceCategory(...)`, `FinanceProduct(...)`, `FinanceProductSort(Id,Label)`, `FinanceCategoryOption(Id,Label,Color)`, `FinancePaymentMethod(Id,Label)`, `FinanceExpenseRow(...)`, `NewExpenseRequest(...)`, `ExpenseEntry(...)`. **قبل از map کردن، سرشاخه‌های دقیق این recordها را با یک بار خواندن `FinanceModels.cs` تأیید کن** (تعداد و ترتیب فیلدها).
+- **DTOهای Contracts — امضای کامل (کپی-پیست‌شونده؛ عیناً از `FinanceModels.cs` استخراج‌شده در این سشن — دیگر این فایل را باز نکن؛ ترتیب/نوع فیلد دقیق است):**
+  ```csharp
+  // ── ساده‌ها ──
+  FinanceRange(string Id, string Label, int Days, string Bucket)
+  FinanceDeltas(double Revenue, double Expense, double Profit, double Margin)   // درصد؛ Margin اختلاف نقطه‌ای
+  FinanceSeriesPoint(string Label, string Full, long Revenue, long Expense, long Profit)
+  FinanceChannel(string Id, string Label, string Icon, string Color, long Value)
+  FinanceCategory(string Id, string Label, string Icon, string Color, string Tone, long Value, double Delta)
+  FinanceProduct(string Name, string Category, string Kind, string Icon, string Tone, int Qty, long Revenue, long Cost)
+      // مشتق (نساز، خودکارند): Profit => Revenue-Cost ; Margin => Revenue==0?0:(double)Profit/Revenue*100
+  FinanceServiceSplit(string Key, string Label, string Icon, string Color, int Qty, long Revenue, long Profit)  // Margin مشتق
+  FinanceChannelBar(string Id, string Label, string Icon, string Color, long Value, double SharePercent)
+  FinanceInsight(string Icon, string Tone, string Text)
+  FinanceSpecies(string Label, long Value, string Color)
+  FinancePaymentSplit(string Id, string Label, string Color, int Value)   // Value = درصد صحیح (int)
+  FinanceProductSort(string Id, string Label)
+  FinanceCategoryOption(string Id, string Label, string Color)
+  FinancePaymentMethod(string Id, string Label)
+  FinanceExpenseRow(string Id, string Description, string CategoryLabel, string CategoryColor,
+                    string Date, string MethodLabel, long Amount, string By)
+  NewExpenseRequest(string Description, string CategoryId, string MethodId, long Amount, string Date)
+  ExpenseEntry(string Id, string Description, string CategoryId, string MethodId, long Amount, string Date, string By)
+
+  // ── بزرگ‌ها (ترتیب فیلد دقیقاً همین است) ──
+  FinanceOverview(string RangeLabel, int DayCount, long RevTotal, long ExpTotal, long Profit, double Margin,
+                  FinanceDeltas Delta, double AvgDailyProfit,
+                  IReadOnlyList<FinanceSeriesPoint> Series, IReadOnlyList<FinanceChannel> ByChannel,
+                  IReadOnlyList<FinanceCategory> ByCategory, IReadOnlyList<FinanceProduct> Products,
+                  IReadOnlyList<FinanceServiceSplit> Services, IReadOnlyList<FinanceInsight> Insights,
+                  IReadOnlyList<FinanceSpecies> Species, IReadOnlyList<FinancePaymentSplit> Payments,
+                  IReadOnlyList<IReadOnlyList<int>> Heatmap)   // ۱۸ فیلد
+
+  FinanceIncome(string RangeLabel, int DayCount, long RevTotal, long ExpTotal, long Profit, double Margin,
+                FinanceDeltas Delta, double AvgDailyProfit,
+                IReadOnlyList<FinanceSeriesPoint> Series, IReadOnlyList<FinanceChannel> ByChannel,
+                IReadOnlyList<FinanceCategory> ByCategory, IReadOnlyList<FinanceChannelBar> ChannelBars,
+                IReadOnlyList<FinanceProduct> Products, IReadOnlyList<FinanceServiceSplit> Services,
+                IReadOnlyList<FinanceInsight> Insights, IReadOnlyList<FinanceSpecies> Species,
+                IReadOnlyList<FinancePaymentSplit> Payments, IReadOnlyList<IReadOnlyList<int>> Heatmap)  // ۱۹ فیلد
+
+  FinanceExpense(string RangeLabel, int DayCount, long RevTotal, long ExpTotal, FinanceDeltas Delta,
+                 IReadOnlyList<FinanceSeriesPoint> Series, IReadOnlyList<FinanceCategory> ByCategory,
+                 IReadOnlyList<FinanceExpenseRow> Rows)   // ۸ فیلد (نه Profit/Margin/AvgDailyProfit)
+
+  FinanceProfit(string RangeLabel, int DayCount, long RevTotal, long ExpTotal, long Profit, double Margin,
+                FinanceDeltas Delta, double AvgDailyProfit,
+                IReadOnlyList<FinanceSeriesPoint> Series, IReadOnlyList<FinanceCategory> ByCategory,
+                IReadOnlyList<FinanceProduct> Products, IReadOnlyList<FinanceInsight> Insights)   // ۱۲ فیلد
+  ```
+  - **⚠️ دقت‌های حیاتی map (خطاهای رایج):** (۱) `FinanceExpense` فیلد `Profit`/`Margin`/`AvgDailyProfit` **ندارد** — فقط ۸ فیلد. (۲) `FinanceProduct.Qty` و `FinanceServiceSplit.Qty` و `FinanceChannelBar.SharePercent` و `FinancePaymentSplit.Value` نوع‌های `int` هستند (نه long/double که ممکن است اشتباه بزنی). (۳) `Heatmap` نوعش `IReadOnlyList<IReadOnlyList<int>>` است — از mock عیناً `int[][]` را `.Select(r => (IReadOnlyList<int>)r).ToList()` کن. (۴) `Profit`/`Margin` روی `FinanceProduct`/`FinanceServiceSplit` مشتق‌اند؛ در constructor **نده**.
+- **`IFinanceQueryService.cs` — امضای دقیق ۹ عضو (async، بدون `CancellationToken`):** دقیقاً مثل بالا؛ همه `Task<...>` برمی‌گردانند و **هیچ‌کدام `CancellationToken` نمی‌گیرند** (seam بدون ct؛ ct داخل dispatch از context نمی‌آید — از `CancellationToken.None` در فراخوانی dispatcher استفاده کن، یا امضای `QueryAsync` که ct اختیاری/None می‌گیرد).
 - **تصمیم:** فاز 7 queryِ داخلی (`FinanceOverviewQuery` و...) خواسته که خروجی read-model می‌دهند و `FinanceQueryService` آن‌ها را dispatch و به این DTOها map می‌کند (عیناً الگوی `InventoryQueryService` بخش J). نام queryهای Application را نگه‌دار ولی خروجی نهایی seam بالا است.
 
 ### I) CommandTypes — 2 از 3 موجود (`src/Animora.Contracts.Wire/Commands/CommandTypes.cs`)
@@ -380,14 +430,38 @@ readmodelهای Application فقط id/code + عدد دارند؛ DTOهای Contr
   - **سرشاخهٔ دقیق هر DTO Contracts در بخش H + کد `FinanceModels.cs`؛ ترتیب/تعداد فیلد را عیناً رعایت کن.** خصوصاً: `FinanceProduct(Name,Category,Kind,Icon,Tone,Qty:int,Revenue,Cost)` (Profit/Margin مشتق‌اند)، `FinanceCategory(Id,Label,Icon,Color,Tone,Value,Delta:double)`، `FinanceChannel(Id,Label,Icon,Color,Value)`، `FinanceSeriesPoint(Label,Full,Revenue,Expense,Profit)`.
 - [ ] **`src/Animora.Client.Services/Finance/FinanceQueryService.cs`** — `sealed class FinanceQueryService(IServiceScopeFactory scopes) : IFinanceQueryService`. الگوی هر متد دقیقاً `InventoryQueryService`:
   ```csharp
-  await using var scope = scopes.CreateAsyncScope();
-  var dispatcher = scope.ServiceProvider.GetRequiredService<IDispatcher>();
-  var provider   = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
-  var ctx = provider.BuildQueryContext();          // یا BuildCommandContextAsync برای AddExpense
-  if (ctx.IsFailure) return /* fallback خالی */;
-  var r = await dispatcher.QueryAsync(new FinanceOverviewQuery(range), ctx.Value!);
-  return r.IsSuccess ? r.Value!.ToContract() : /* خالی */;
+  // یک helper Resolve(scope) عیناً مثل InventoryQueryService خطوط 267–271 بساز:
+  private static (IDispatcher Dispatcher, ICurrentUserProvider Provider, IClinicTimeZoneProvider Zones) Resolve(
+      AsyncServiceScope scope) =>
+      (scope.ServiceProvider.GetRequiredService<IDispatcher>(),
+       scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>(),
+       scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>());
+
+  // هر متد query (مثال GetOverviewAsync):
+  public async Task<FinanceOverview> GetOverviewAsync(string range)
+  {
+      await using var scope = scopes.CreateAsyncScope();
+      var (dispatcher, provider, _) = Resolve(scope);
+      var context = provider.BuildQueryContext();
+      if (context.IsFailure) return /* FinanceOverview خالی — Empty factory بساز */;
+      var result = await dispatcher.QueryAsync(new FinanceOverviewQuery(range), context.Value!);
+      return result.IsSuccess ? result.Value!.ToContract() : /* خالی */;
+  }
+
+  // AddExpense از الگوی SendAsync<T> عیناً InventoryQueryService خطوط 256–265:
+  private async Task<T> SendAsync<T>(ICommand<T> command)
+  {
+      await using var scope = scopes.CreateAsyncScope();
+      var (dispatcher, provider, _) = Resolve(scope);
+      var context = await provider.BuildCommandContextAsync(null, null, null, default);
+      if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+      var result = await dispatcher.SendAsync(command, context.Value!);
+      if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+      return result.Value!;
+  }
   ```
+  - **نکتهٔ ct:** `dispatcher.QueryAsync(query, context)` و `SendAsync(command, context)` بدون `CancellationToken` صدا زده می‌شوند (overload پیش‌فرض؛ عیناً مثل InventoryQueryService). امضای handler داخلی `HandleAsync(request, context, ct)` است ولی ct از dispatcher می‌آید.
+  - **fallback خالی:** برای هر DTO بزرگ یک instance با لیست‌های خالی (`[]`) و صفرها بساز (مثلاً `new FinanceOverview("", 0, 0, 0, 0, 0, new FinanceDeltas(0,0,0,0), 0, [], [], [], [], [], [], [], [], [])`). یک `static readonly` empty برای هرکدام در `FinanceMapping` تعریف کن تا تکرار نشود.
   - نگاشت ۹ عضو: `GetOverviewAsync→FinanceOverviewQuery`, `GetIncomeAsync→FinanceIncomeQuery`, `GetExpenseAsync→FinanceExpenseQuery`, `GetProfitAsync→FinanceProfitQuery`, `GetRangesAsync→FinanceRangeCatalogQuery` (map `FinanceRangeDefinition→FinanceRange`), `GetExpenseCategoriesAsync→FinanceExpenseCategoriesQuery` (map کد Domain→`FinanceCategoryOption(id,label,color)` با جدول meta)، `GetPaymentMethodsAsync→FinancePaymentMethodsQuery` (map enum→`FinancePaymentMethod(id,label)`)، `GetProductSortsAsync→` جدول ثابت (بدون dispatch)، `AddExpenseAsync→RecordExpenseCommand` (via `SendAsync`؛ الگوی `SendAsync<T>` در `InventoryQueryService` خطوط 256–265؛ سپس `ExpenseEntry` را از request+id برگشتی بساز).
   - **cache (اختیاری ولی طبق فاز):** `TenantScopedCache<string,object>` با کلید `finance:<queryName>:<range>|v<maxDay>` که `maxDay` از `GetMaxProjectedDayAsync` می‌آید (A-RULE 033). اگر پیچیده شد، در نسخهٔ اول **بدون cache** پیاده کن و در کامنت TODO بگذار — درست‌بودن مقدم بر cache است.
   - **پیش از map، `AddExpenseAsync` نیاز به `NewExpenseRequest` دارد:** `request.CategoryId`/`MethodId` idهای UI‌اند (`salary`,`pos`,…)؛ آن‌ها را با جدول meta معکوس به کد Domain (`SALARY`) و `PaymentMethod` enum برگردان، سپس `RecordExpenseCommand(categoryCode, request.Description, request.Amount, DateParse(request.Date)→UtcTicks via ClinicCalendar, settledMethod, null)`. تاریخ ورودی جلالی است؛ اگر تبدیل جلالی→UTC در client سخت بود، از `clock.UtcNow` (الان) به‌عنوان `IncurredUtc` استفاده کن و در کامنت ثبت کن (رفتار mock هم تاریخ را صرفاً نمایشی می‌گیرد).
