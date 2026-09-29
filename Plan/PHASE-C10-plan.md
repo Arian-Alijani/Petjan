@@ -328,7 +328,7 @@ Do:
 Targeted build: Application + Persistence.
 Push: `scripts/git/push.sh "feat(C10): ActivityFeedHandler + mapper + writer port for 14 event types"`
 
-### [x] T03 — RebuildActivityFeedAsync + seeding hook
+### [~] T03 — RebuildActivityFeedAsync + seeding hook
 Do:
 1. Add `RebuildActivityFeedAsync` to `ILocalStoreMaintenance` + impl in
    `LocalStoreMaintenance.cs` — replay source rows through `ActivityFeedMapper` (reuse it),
@@ -339,7 +339,7 @@ Do:
 Targeted build: Persistence.
 Push: `scripts/git/push.sh "feat(C10): RebuildActivityFeedAsync + seed-time feed rebuild"`
 
-### [x] T04 — History feed query + CsvWriter + export path
+### [~] T04 — History feed query + CsvWriter + export path
 Do:
 1. `src/Animora.Persistence.Sqlite/Queries/ActivityFeedQueries.cs` — paged projection of
    `ActivityEvent`: one indexed statement, filter by kind/date-range/actor/text, sort per
@@ -360,7 +360,7 @@ Do:
 Targeted build: Application + Persistence + Client.Services + Desktop.
 Push: `scripts/git/push.sh "feat(C10): history feed query, streaming CsvWriter, HistoryQueryService, HistoryText"`
 
-### [x] T05 — Dashboard queries + composer + service + cache/budget
+### [~] T05 — Dashboard queries + composer + service + cache/budget
 Do:
 1. `src/Animora.Persistence.Sqlite/Queries/DashboardQueries.cs` — one statement per role slice
    (stats, primary/secondary lists, and manager widgets from `DailyFinanceFact` etc.). Keep
@@ -374,7 +374,7 @@ Do:
 Targeted build: Application + Persistence + Client.Services.
 Push: `scripts/git/push.sh "feat(C10): dashboard slices, DashboardComposer, cached DashboardQueryService"`
 
-### [x] T06 — Global search (union) + SearchService
+### [~] T06 — Global search (union) + SearchService
 Do:
 1. `src/Animora.Persistence.Sqlite/Queries/GlobalSearchQueries.cs` — one `UNION ALL` over the
    5 sources, each `Limit`-capped, ordered by source-rank then recency.
