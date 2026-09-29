@@ -65,6 +65,7 @@ using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Animora.Infrastructure.Local;
 using Animora.Infrastructure.Local.Startup;
+using Animora.Infrastructure.Local.Workers;
 using Animora.Persistence.Sqlite.Maintenance;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -177,6 +178,7 @@ public partial class App : global::Avalonia.Application
 
                 // C01: the 8-step startup succeeded — release any ViewModel awaiting the readiness gate.
                 Services.GetRequiredService<StoreReadinessGate>().MarkReady();
+                Services.GetRequiredService<FinanceProjectionWorker>().Start();
 
                 var handler = Services.GetRequiredService<GlobalExceptionHandler>();
                 handler.Diagnostics = result.Value;

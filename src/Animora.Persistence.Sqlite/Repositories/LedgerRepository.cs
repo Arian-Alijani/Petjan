@@ -13,6 +13,11 @@ public sealed class LedgerRepository(AnimoraLocalDbContext db) : ILedgerReposito
     public async Task<JournalEntry> RequireAsync(string id, CancellationToken ct = default) =>
         await FindAsync(id, ct) ?? throw new InvalidOperationException($"JournalEntry {id} not found.");
 
+    public Task<JournalEntry?> FindInvoicePostingAsync(string invoiceId, CancellationToken ct = default) =>
+        db.Set<JournalEntry>().AsTracking()
+            .FirstOrDefaultAsync(e => e.SourceEntityType == "Invoice" && e.SourceEntityId == invoiceId &&
+                e.Source == JournalSource.Sales, ct);
+
     public void Add(JournalEntry entity) => db.Set<JournalEntry>().Add(entity);
     public void AddRange(IEnumerable<JournalEntry> entities) => db.Set<JournalEntry>().AddRange(entities);
 }

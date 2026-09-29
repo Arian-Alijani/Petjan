@@ -238,6 +238,8 @@ internal sealed class PurchasingRepositoryFake(params PurchaseOrder[] orders) : 
         foreach (var entity in entities) Add(entity);
     }
     public void AddReceipt(GoodsReceipt receipt) => Receipts.Add(receipt);
+    public Task<GoodsReceipt?> FindReceiptAsync(string id, CancellationToken ct = default) =>
+        Task.FromResult(Receipts.FirstOrDefault(r => r.Id == id));
 }
 
 internal sealed class InventoryQueriesFake : IInventoryQueries

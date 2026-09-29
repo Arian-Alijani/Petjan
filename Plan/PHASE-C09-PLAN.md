@@ -186,32 +186,32 @@ scripts/git/push.sh "type(scope): پیام"
 > بعد از **هر** تسک، فوراً `scripts/git/push.sh "..."`. قانون قفل‌شده.
 
 ### T01 — Domain: FinanceRanges + 3 ErrorCode
-- [ ] `src/Animora.Domain/Finance/FinanceRanges.cs` بساز: کاتالوگ بازه‌ها `today, 7d, 30d, 90d, ytd, custom` (id, label فارسی, days, bucket) + متد resolve به جفت `(int fromDay, int toDay)` بر اساس یک «امروزِ localDay» ورودی. `custom` جفت from/to صریح می‌گیرد. بازه‌ی نامعتبر → کد `FinanceRangeInvalid`. (منطق تقویم Jalali داخل Domain نیاور؛ فقط حساب int روی yyyymmdd یا offset روزها — resolve نهایی به UTC توسط لایه‌ی بالاتر با `ClinicCalendar`.)
-- [ ] در `ErrorCodes.cs` سه کد غایب را اضافه کن (فقط این‌ها؛ بخش E): `PeriodNotFound`("PERIOD_NOT_FOUND", NotFound), `ExpenseCategoryInvalid`("EXPENSE_CATEGORY_INVALID", Validation), `FinanceRangeInvalid`("FINANCE_RANGE_INVALID", Validation). قبل از افزودن هرکدام `grep` بزن.
+- [x] `src/Animora.Domain/Finance/FinanceRanges.cs` بساز: کاتالوگ بازه‌ها `today, 7d, 30d, 90d, ytd, custom` (id, label فارسی, days, bucket) + متد resolve به جفت `(int fromDay, int toDay)` بر اساس یک «امروزِ localDay» ورودی. `custom` جفت from/to صریح می‌گیرد. بازه‌ی نامعتبر → کد `FinanceRangeInvalid`. (منطق تقویم Jalali داخل Domain نیاور؛ فقط حساب int روی yyyymmdd یا offset روزها — resolve نهایی به UTC توسط لایه‌ی بالاتر با `ClinicCalendar`.)
+- [x] در `ErrorCodes.cs` سه کد غایب را اضافه کن (فقط این‌ها؛ بخش E): `PeriodNotFound`("PERIOD_NOT_FOUND", NotFound), `ExpenseCategoryInvalid`("EXPENSE_CATEGORY_INVALID", Validation), `FinanceRangeInvalid`("FINANCE_RANGE_INVALID", Validation). قبل از افزودن هرکدام `grep` بزن.
 - **Push:** `scripts/git/push.sh "feat(finance): FinanceRanges catalog + 3 finance error codes (C09)"`
 
 ### T02 — Persistence: 3 fact entity + configuration + migration 016
-- [ ] `src/Animora.Persistence.Sqlite/Entities/DailyFinanceFact.cs` `[LocalOnly]`: `Id, TenantId, LocalDay(int yyyymmdd), RevenueMinor, CogsMinor, ExpenseMinor, DiscountMinor, InsuranceMinor, RefundMinor, InvoiceCount, PaidInvoiceCount`. (الگوی `StockOnHandSnapshot`: private setters + factory `Create` + متدهای mutate.)
-- [ ] `src/Animora.Persistence.Sqlite/Entities/ProductSalesFact.cs` `[LocalOnly]`: `Id, TenantId, LocalDay, ProductId, VariantId, QuantitySold, RevenueMinor, CogsMinor`.
-- [ ] `src/Animora.Persistence.Sqlite/Entities/OwnerFinancialSnapshot.cs` `[LocalOnly]`: `Id, TenantId, OwnerId, TotalSpendMinor, OpenBalanceMinor, LastInvoiceUtc, InvoiceCount`.
-- [ ] `src/Animora.Persistence.Sqlite/Configurations/Finance/*.cs` سه configuration + ایندکس‌های unique: `IX_DailyFinanceFacts_TenantId_LocalDay`, `IX_ProductSalesFacts_TenantId_LocalDay_ProductId_VariantId`, unique روی `OwnerFinancialSnapshot.OwnerId` (per tenant). **ثبت configuration خودکار است** — `AnimoraLocalDbContext.OnModelCreating` (خط ~32) از `modelBuilder.ApplyConfigurationsFromAssembly(...)` استفاده می‌کند، پس صرفاً `IEntityTypeConfiguration<T>` پیاده کن؛ ثبت دستی لازم نیست.
-- [ ] migration **`016_FinanceProjections`** (نه 015): سه `CreateTable` + ایندکس‌ها. `.Designer.cs` + به‌روزرسانی `AnimoraLocalDbContextModelSnapshot.cs`. الگوی timestamp/ساختار از `013_InventorySnapshot`. اگر `dotnet ef migrations add` در سندباکس کار می‌کند از آن استفاده کن؛ وگرنه دستی.
+- [x] `src/Animora.Persistence.Sqlite/Entities/DailyFinanceFact.cs` `[LocalOnly]`: `Id, TenantId, LocalDay(int yyyymmdd), RevenueMinor, CogsMinor, ExpenseMinor, DiscountMinor, InsuranceMinor, RefundMinor, InvoiceCount, PaidInvoiceCount`. (الگوی `StockOnHandSnapshot`: private setters + factory `Create` + متدهای mutate.)
+- [x] `src/Animora.Persistence.Sqlite/Entities/ProductSalesFact.cs` `[LocalOnly]`: `Id, TenantId, LocalDay, ProductId, VariantId, QuantitySold, RevenueMinor, CogsMinor`.
+- [x] `src/Animora.Persistence.Sqlite/Entities/OwnerFinancialSnapshot.cs` `[LocalOnly]`: `Id, TenantId, OwnerId, TotalSpendMinor, OpenBalanceMinor, LastInvoiceUtc, InvoiceCount`.
+- [x] `src/Animora.Persistence.Sqlite/Configurations/Finance/*.cs` سه configuration + ایندکس‌های unique: `IX_DailyFinanceFacts_TenantId_LocalDay`, `IX_ProductSalesFacts_TenantId_LocalDay_ProductId_VariantId`, unique روی `OwnerFinancialSnapshot.OwnerId` (per tenant). **ثبت configuration خودکار است** — `AnimoraLocalDbContext.OnModelCreating` (خط ~32) از `modelBuilder.ApplyConfigurationsFromAssembly(...)` استفاده می‌کند، پس صرفاً `IEntityTypeConfiguration<T>` پیاده کن؛ ثبت دستی لازم نیست.
+- [x] migration **`016_FinanceProjections`** (نه 015): سه `CreateTable` + ایندکس‌ها. `.Designer.cs` + به‌روزرسانی `AnimoraLocalDbContextModelSnapshot.cs`. الگوی timestamp/ساختار از `013_InventorySnapshot`. اگر `dotnet ef migrations add` در سندباکس کار می‌کند از آن استفاده کن؛ وگرنه دستی.
 - **Push:** `scripts/git/push.sh "feat(finance): DailyFinanceFact/ProductSalesFact/OwnerFinancialSnapshot + migration 016 (C09)"`
 
 ### T03 — Application: JournalNumberAllocator + LedgerPostingHandler + single-writer test
-- [ ] `src/Animora.Persistence.Sqlite/Finance/JournalNumberAllocator.cs`: شمارنده per-period با نام `journal:<tenantId>:<periodCode>`، فرمت `{periodCode}-{seq:00000}`. **دقیقاً** الگوی `InvoiceNumberAllocator` را کپی کن — مسیر واقعی: `src/Animora.Persistence.Sqlite/Sales/InvoiceNumberAllocator.cs` و port `src/Animora.Application/Ports/IInvoiceNumberAllocator.cs` (همان جدول counter B02 و همان تضمین concurrency). port موازی `IJournalNumberAllocator` را در `Application/Ports/` بساز و در DI ثبت کن.
-- [ ] `src/Animora.Application/Finance/LedgerPostingHandler.cs`: `IDomainEventHandler<T>` برای **9** رویداد (بخش B): `InvoicePostedEvent, InvoiceVoidedEvent, PaymentRegisteredEvent, GoodsReceiptPostedEvent, StockMovementRecordedEvent, ChequeClearedEvent, ChequeBouncedEvent, CashSessionClosedEvent, ExpensePostedEvent`. برای هرکدام:
+- [x] `src/Animora.Persistence.Sqlite/Finance/JournalNumberAllocator.cs`: شمارنده per-period با نام `journal:<tenantId>:<periodCode>`، فرمت `{periodCode}-{seq:00000}`. **دقیقاً** الگوی `InvoiceNumberAllocator` را کپی کن — مسیر واقعی: `src/Animora.Persistence.Sqlite/Sales/InvoiceNumberAllocator.cs` و port `src/Animora.Application/Ports/IInvoiceNumberAllocator.cs` (همان جدول counter B02 و همان تضمین concurrency). port موازی `IJournalNumberAllocator` را در `Application/Ports/` بساز و در DI ثبت کن.
+- [x] `src/Animora.Application/Finance/LedgerPostingHandler.cs`: `IDomainEventHandler<T>` برای **9** رویداد (بخش B): `InvoicePostedEvent, InvoiceVoidedEvent, PaymentRegisteredEvent, GoodsReceiptPostedEvent, StockMovementRecordedEvent, ChequeClearedEvent, ChequeBouncedEvent, CashSessionClosedEvent, ExpensePostedEvent`. برای هرکدام:
   1. دوره را resolve کن (تاریخ رویداد → دوره؛ اگر بسته → دوره‌ی باز بعدی، بخش G).
   2. `EntryNumber` را از `IJournalNumberAllocator` بگیر.
   3. `PostingContext` بساز و متد متناظر `PostingRules.ForXxx(...)` را صدا بزن (برای `ForInvoicePosted`/`ForInvoiceVoided`/`ForInvoiceRefunded` نیاز به بارگذاری `Invoice` از `IInvoiceRepository` داری).
   4. روی موفقیت `ledgerRepo.Add(entry)` — **هیچ SaveChanges دستی**؛ درون تراکنش raise ذخیره می‌شود.
   - `PaymentMethod.Credit` هیچ entry نمی‌سازد (PostingRules خودش رد می‌کند) → آن را به‌عنوان no-op موفق تلقی کن، نه خطا.
-- [ ] ثبت DI: `AddScoped<LedgerPostingHandler>()` + `AddDomainEventHandler<Xxx, LedgerPostingHandler>()` برای هر 9 رویداد در `LocalStoreServiceCollectionExtensions.cs`.
-- [ ] `tests/Animora.Application.Tests/LedgerSingleWriterTests.cs`: اسکن source/IL روی `Animora.Application` + `Animora.Client.Services` که مطمئن شود فقط `LedgerPostingHandler` به `JournalEntry.Create`/`CreateReversal` رفرنس می‌دهد (الگوی reflection مشابه تست `CashierReusesSalesTests` C08 که source scan می‌کرد).
+- [x] ثبت DI: `AddScoped<LedgerPostingHandler>()` + `AddDomainEventHandler<Xxx, LedgerPostingHandler>()` برای هر 9 رویداد در `LocalStoreServiceCollectionExtensions.cs`.
+- [x] `tests/Animora.Application.Tests/LedgerSingleWriterTests.cs`: اسکن source/IL روی `Animora.Application` + `Animora.Client.Services` که مطمئن شود فقط `LedgerPostingHandler` به `JournalEntry.Create`/`CreateReversal` رفرنس می‌دهد (الگوی reflection مشابه تست `CashierReusesSalesTests` C08 که source scan می‌کرد).
 - **Push:** `scripts/git/push.sh "feat(finance): single-writer LedgerPostingHandler over 9 events + JournalNumberAllocator (C09)"`
 
 ### T04 — Application: FinanceProjectionHandler + Infrastructure FinanceProjectionWorker
-- [ ] `src/Animora.Application/Finance/FinanceProjectionHandler.cs`: از هر یک از 9 رویداد factها را به‌روز می‌کند (upsert روی کلیدهای unique):
+- [x] `src/Animora.Application/Finance/FinanceProjectionHandler.cs`: از هر یک از 9 رویداد factها را به‌روز می‌کند (upsert روی کلیدهای unique):
   - `InvoicePostedEvent` → `DailyFinanceFact` (RevenueMinor gross, DiscountMinor, InsuranceMinor, InvoiceCount++) + `ProductSalesFact` per line + `OwnerFinancialSnapshot` (TotalSpendMinor, InvoiceCount++, LastInvoiceUtc, OpenBalanceMinor).
   - `PaymentRegisteredEvent` → `DailyFinanceFact.PaidInvoiceCount`/`OpenBalanceMinor` کاهش بدهی مالک.
   - `StockMovementRecordedEvent` (Sale) → `CogsMinor` روز + `ProductSalesFact.CogsMinor/QuantitySold`.
@@ -220,8 +220,8 @@ scripts/git/push.sh "type(scope): پیام"
   - Cheque cleared/bounced → اثر روی روز در صورت لزوم (طبق PostingRules؛ عمدتاً بر cash/AR، نه revenue — احتمالاً روی factهای revenue اثر ندارد، فقط جریان نقد که در fact نداریم → می‌توانی برای این دو no-op در fact بگذاری، مگر آزمون integrity خلافش را بخواهد).
   - `CashSessionClosedEvent` → variance اثر روی fact ندارد → no-op در fact.
   - **LocalDay** را طبق بخش M از تاریخ رویداد + tz حساب کن.
-- [ ] `src/Animora.Infrastructure.Local/Workers/FinanceProjectionWorker.cs`: loop با batch=100، 1 worker، idle backoff (بخش L). claim از `OutboxClaim` → برای پیام‌های typeهای فایننس، deserialize رویداد و به `FinanceProjectionHandler` بده → `Complete`/`Fail`. پیام غیرفایننس را `Complete` کن (هیچ consumer دیگری ندارد). بیرون از هر request path.
-- [ ] ثبت DI worker + راه‌اندازی در bootstrap (بخش L). `AddScoped<FinanceProjectionHandler>()`.
+- [x] `src/Animora.Infrastructure.Local/Workers/FinanceProjectionWorker.cs`: loop با batch=100، 1 worker، idle backoff (بخش L). claim از `OutboxClaim` → برای پیام‌های typeهای فایننس، deserialize رویداد و به `FinanceProjectionHandler` بده → `Complete`/`Fail`. پیام غیرفایننس را `Complete` کن (هیچ consumer دیگری ندارد). بیرون از هر request path.
+- [x] ثبت DI worker + راه‌اندازی در bootstrap (بخش L). `AddScoped<FinanceProjectionHandler>()`.
 - **Push:** `scripts/git/push.sh "feat(finance): FinanceProjectionHandler + outbox-draining FinanceProjectionWorker (C09)"`
 
 ### T05 — Persistence: FinanceQueries + Maintenance rebuild + seed

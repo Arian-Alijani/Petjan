@@ -11,4 +11,5 @@ public interface IPurchasingRepository
 
     /// <summary>Persists a goods receipt (C06 <c>ReceiveGoodsCommand</c>); receipts are append-only.</summary>
     void AddReceipt(GoodsReceipt receipt);
+    Task<GoodsReceipt?> FindReceiptAsync(string id, CancellationToken ct = default);
 }
