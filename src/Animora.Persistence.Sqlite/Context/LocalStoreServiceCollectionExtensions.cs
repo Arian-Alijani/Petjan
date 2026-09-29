@@ -1,4 +1,5 @@
 using Animora.Application.Abstractions;
+using Animora.Application.Activity;
 using Animora.Application.Auditing;
 using Animora.Application.Commands;
 using Animora.Application.Correlation;
@@ -7,6 +8,7 @@ using Animora.Application.Outbox;
 using Animora.Application.Ports;
 using Animora.Domain.Events;
 using Animora.Persistence.Sqlite.Auditing;
+using Animora.Persistence.Sqlite.Activity;
 using Animora.Persistence.Sqlite.Commands;
 using Animora.Persistence.Sqlite.Cashier;
 using Animora.Persistence.Sqlite.Finance;
@@ -153,6 +155,8 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddDomainEventHandler<CashSessionClosedEvent, LedgerPostingHandler>();
         services.AddDomainEventHandler<ExpensePostedEvent, LedgerPostingHandler>();
         services.AddDomainEventHandler<DomainEvent, OutboxRelayHandler>();
+        services.TryAddScoped<IActivityFeedWriter, ActivityFeedWriter>();
+        services.AddDomainEventHandler<DomainEvent, ActivityFeedHandler>();
 
         // First-run reference seeding (A10c); invoked by the startup path, never by the desktop directly.
         services.AddSingleton<ISeedPeriodCodeProvider, PersianMonthPeriodCodeProvider>();
