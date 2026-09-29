@@ -359,7 +359,7 @@ readmodelهای Application فقط id/code + عدد دارند؛ DTOهای Contr
 > readmodelهای خروجی از قبل در `FinanceReadModels.cs` هستند (اسنپ‌شات). **readmodel جدید نساز.** فقط query/command + handler.
 > پیشنهاد چیدمان فایل: همه در یک فایل `src/Animora.Application/UseCases/Finance/FinanceQueries.cs` (queries+handlers) و یک `FinanceCommands.cs` (۲ command+handler) + یک `FinanceRegistration.cs`. الگوی دقیق = `Cheques/ChequeReadQueries.cs` + `Cheques/ChequeCommands.cs` + `Cheques/ChequesRegistration.cs` (اسنپ‌شات نمونه‌شان را دارد).
 
-- [ ] **`src/Animora.Application/UseCases/Finance/FinanceReportingQueries.cs`** — ۷ query، هرکدام یک record + handler. همگی `[RequiresPermission(PermissionCodes.FinanceRead)]`. هر handler `IFinanceQueries queries`, `IClock clock`, `IClinicTimeZoneProvider zones` را inject می‌کند و `todayLocalDay` را طبق فرمول اسنپ‌شات می‌سازد:
+- [x] **`src/Animora.Application/UseCases/Finance/FinanceReportingQueries.cs`** — ۷ query، هرکدام یک record + handler. همگی `[RequiresPermission(PermissionCodes.FinanceRead)]`. هر handler `IFinanceQueries queries`, `IClock clock`, `IClinicTimeZoneProvider zones` را inject می‌کند و `todayLocalDay` را طبق فرمول اسنپ‌شات می‌سازد:
   ```csharp
   var d = ClinicCalendar.LocalDay(clock.UtcNow.UtcTicks, zones.GetClinicTimeZone());
   var today = d.Year*10000 + d.Month*100 + d.Day;
@@ -373,7 +373,7 @@ readmodelهای Application فقط id/code + عدد دارند؛ DTOهای Contr
   6. `FinanceExpenseCategoriesQuery : IQuery<IReadOnlyList<string>>` — خروجی `ExpenseCategories.All` (۹ کد Domain؛ map به label در client).
   7. `FinancePaymentMethodsQuery : IQuery<IReadOnlyList<PaymentMethod>>` — خروجی فهرست ثابت روش‌های پرداختِ نمایشی: `[Card, Cash, Transfer, Credit]` (مطابق mock؛ enum است، label در client map می‌شود).
   - **نکته resolve بازه:** خودِ `FinanceQueries.GetAggregateAsync` داخلی `FinanceRanges.Resolve` را صدا می‌زند و روی id ناشناخته به `30d` fallback می‌کند (اسنپ‌شات، خطوط 213–219). پس handler لازم نیست بازه را جدا validate کند؛ **ولی** اگر می‌خواهی id نامعتبر → `FinanceRangeInvalid` بدهی، در handler قبل از فراخوانی `FinanceRanges.Resolve(Range, today)` را چک کن و در صورت `IsFailure` همان error را برگردان. (اختیاری؛ برای هم‌راستایی با `PeriodCloseTests` لازم نیست.)
-- [ ] **`src/Animora.Application/UseCases/Finance/FinanceCommands.cs`** — ۲ command (بخش F: بدون reopen):
+- [x] **`src/Animora.Application/UseCases/Finance/FinanceCommands.cs`** — ۲ command (بخش F: بدون reopen):
   - **`RecordExpenseCommand`** (mirror `CreateChequeCommand`):
     ```csharp
     [RequiresPermission(PermissionCodes.FinancePost)]
@@ -399,10 +399,10 @@ readmodelهای Application فقط id/code + عدد دارند؛ DTOهای Contr
     }
     ```
     handler inject: `IPeriodRepository periods`, `IClock clock`. منطق: `var p = await periods.FindByCodeAsync(PeriodCode, ct)`؛ اگر null → `Fail(ErrorCodes.PeriodNotFound)`. فلگ‌ها را طبق تصمیم قفل‌شده `false` بگذار (کامنت: seam شمارش موجود نیست؛ بستن ساده). `var closingEntryId = IdGenerator.NewId(clock.UtcNow);` `var begin = p.BeginClose(); if (begin.IsFailure) return Result<Unit>.Fail(begin.Error, begin.Detail);` `var closed = p.Close(false, false, false, clock, closingEntryId, context.UserId, null);` `return closed.IsFailure ? Fail(closed.Error, closed.Detail) : Ok(Unit.Value);`. (`p.Close` خودش `PeriodClosedEvent` را raise می‌کند.)
-- [ ] **Expense number allocator** — port + impl (mirror `InvoiceNumberAllocator`):
+- [x] **Expense number allocator** — port + impl (mirror `InvoiceNumberAllocator`):
   - `src/Animora.Application/Ports/IExpenseNumberAllocator.cs`: `Task<string> AllocateAsync(string tenantId, DateTimeOffset issuedUtc, CancellationToken ct = default);`
   - `src/Animora.Persistence.Sqlite/Finance/ExpenseNumberAllocator.cs`: کپیِ دقیق `InvoiceNumberAllocator` ولی نام sequence `$"expense:{tenantId}:{jalaliYear}"` و فرمت خروجی مثلاً `$"EXP-{jalaliYear[^2..]}-{sequence:000000}"` (jalaliYear از `ISeedPeriodCodeProvider periodCodes.For(issuedUtc).PeriodCode`). در DI: `services.TryAddScoped<IExpenseNumberAllocator, ExpenseNumberAllocator>();` کنار خط 93/94 در `LocalStoreServiceCollectionExtensions.cs`.
-- [ ] **`src/Animora.Application/UseCases/Finance/FinanceRegistration.cs`** (mirror `ChequesRegistration`):
+- [x] **`src/Animora.Application/UseCases/Finance/FinanceRegistration.cs`** (mirror `ChequesRegistration`):
   ```csharp
   public static class FinanceRegistration {
       public static ApplicationRegistrationBuilder AddFinanceUseCases(this ApplicationRegistrationBuilder b) => b
