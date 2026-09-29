@@ -428,7 +428,7 @@ Run ONLY these classes (e.g. `dotnet test --filter "FullyQualifiedName~ActivityF
 FullyQualifiedName~DashboardBudgetTests|FullyQualifiedName~GlobalSearchQueryTests"`).
 Push: `scripts/git/push.sh "test(C10): ActivityFeed, DashboardBudget, GlobalSearchQuery tests"`
 
-### [ ] T10 — Final verify + PROGRESS.md + optional full build
+### [x] T10 — Final verify + PROGRESS.md + optional full build
 Do:
 1. If not re-forbidden and time allows: `scripts/sandbox/build.sh full` = 0/0. Otherwise a
    final targeted build of all touched projects. Fix any warnings/errors (push heavy fixes
@@ -449,12 +449,12 @@ Push: `scripts/git/push.sh "chore(C10): remove plan file after completion"`
 ---
 
 ## Acceptance checklist (from phase — verify before T10 done)
-- [ ] The 4 mock files gone; no DI line references them.
-- [ ] `ActivityFeedTests` green (14 types, exact key/amount/sign; rebuild exact; ASCII titles).
-- [ ] `DashboardBudgetTests` green (≤8 stmts/role; manager revenue == finance; doctor no
+- [x] The 4 mock files gone; no DI line references them.
+- [x] `ActivityFeedTests` green (14 types, exact key/amount/sign; rebuild exact; ASCII titles).
+- [x] `DashboardBudgetTests` green (≤8 stmts/role; manager revenue == finance; doctor no
       manager widget).
-- [ ] `GlobalSearchQueryTests` green (one SELECT; Persian-digit + Arabic-form match; 1-char no
+- [x] `GlobalSearchQueryTests` green (one SELECT; Persian-digit + Arabic-form match; 1-char no
       query; per-source limits).
-- [ ] History export = UTF-8-BOM CSV, Persian correct; 50 001 rows → `EXPORT_TOO_LARGE`.
-- [ ] Profile/settings survive restart; signing out another session invalidates it.
-- [ ] Build 0/0 (targeted at minimum).
+- [x] History export = UTF-8-BOM CSV, Persian correct; 50 001 rows → `EXPORT_TOO_LARGE`.
+- [x] Profile/settings survive restart; signing out another session invalidates it.
+- [x] Build 0/0 (targeted at minimum).
