@@ -306,7 +306,7 @@ Do (order matters — build must stay green):
 Targeted build: Domain + Persistence.
 Push: `scripts/git/push.sh "feat(C10): add ActivityEvent + UserPreference entities, migrations 017/018, 3 error codes"`
 
-### [ ] T02 — ActivityEventKeys + mapper + handler + writer port
+### [x] T02 — ActivityEventKeys + mapper + handler + writer port
 Do:
 1. `src/Animora.Application/Activity/ActivityEventKeys.cs` — const string catalog of the ~14
    Title keys (e.g. `PetRegistered = "history.pet.registered"`, `InvoicePosted =
