@@ -412,7 +412,7 @@ Do:
 Targeted build: Desktop.
 Push: `scripts/git/push.sh "refactor(C10): swap 4 DI seams to real services, add readiness gates, delete 4 mocks"`
 
-### [ ] T09 — Tests (3 classes, targeted run only)
+### [x] T09 — Tests (3 classes, targeted run only)
 Do:
 1. `tests/Animora.Application.Tests/ActivityFeedTests.cs` — each of the 14 event types
    produces exactly one `ActivityEvent` with documented key/amount/sign;
