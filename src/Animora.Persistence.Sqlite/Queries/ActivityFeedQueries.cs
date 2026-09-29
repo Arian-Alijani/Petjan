@@ -39,10 +39,10 @@ public sealed class ActivityFeedQueries(AnimoraLocalDbContext db) : IActivityFee
 
     private static IQueryable<ActivityEvent> Sort(IQueryable<ActivityEvent> q, HistorySort sort) => sort switch
     {
-        HistorySort.Oldest => q.OrderBy(x => x.LocalDay).ThenBy(x => x.Id),
+        HistorySort.Oldest => q.OrderBy(x => x.OccurredUtc).ThenBy(x => x.Id),
         HistorySort.AmountDesc => q.OrderByDescending(x => x.AmountMinor).ThenByDescending(x => x.Id),
         HistorySort.AmountAsc => q.OrderBy(x => x.AmountMinor).ThenByDescending(x => x.Id),
-        _ => q.OrderByDescending(x => x.LocalDay).ThenByDescending(x => x.Id),
+        _ => q.OrderByDescending(x => x.OccurredUtc).ThenByDescending(x => x.Id),
     };
 
     private static IQueryable<ActivityRow> Project(IQueryable<ActivityEvent> q) => q.Select(x =>
