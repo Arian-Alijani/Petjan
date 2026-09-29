@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Animora.Contracts.Dashboard;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Navigation;
 using Animora.Desktop.Controls;
@@ -23,6 +24,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 {
     private readonly INavigationService _navigation;
     private readonly IDashboardQueryService _dashboard;
+    private readonly IStoreReadinessGate _readiness;
 
     [ObservableProperty]
     private string _heroTitle = string.Empty;
@@ -36,10 +38,11 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     [ObservableProperty]
     private string _secondaryListTitle = string.Empty;
 
-    public DashboardPageViewModel(IDashboardQueryService dashboard, ICurrentUserContext currentUser, INavigationService navigation)
+    public DashboardPageViewModel(IDashboardQueryService dashboard, IStoreReadinessGate readiness, ICurrentUserContext currentUser, INavigationService navigation)
     {
         _navigation = navigation;
         _dashboard = dashboard;
+        _readiness = readiness;
         Role = currentUser.Role;
 
         Title = "داشبورد";
@@ -56,6 +59,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     private async Task LoadAsync()
     {
+        await _readiness.WaitAsync();
         IsBusy = true;
         try
         {

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Profile;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Services;
@@ -28,11 +29,13 @@ namespace Animora.Desktop.Pages.Profile;
 public sealed partial class ProfilePageViewModel : PageViewModelBase
 {
     private readonly IUserProfileService _service;
+    private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
 
-    public ProfilePageViewModel(IUserProfileService service, IToastService toast)
+    public ProfilePageViewModel(IUserProfileService service, IStoreReadinessGate readiness, IToastService toast)
     {
         _service = service;
+        _readiness = readiness;
         _toast = toast;
 
         Title = "پروفایل و تنظیمات";
@@ -202,6 +205,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
 
     private async Task LoadAsync()
     {
+        await _readiness.WaitAsync();
         IsBusy = true;
 
         try

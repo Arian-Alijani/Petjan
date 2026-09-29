@@ -11,6 +11,10 @@ using Animora.Application.UseCases.Purchasing;
 using Animora.Application.UseCases.Sales;
 using Animora.Application.UseCases.Finance;
 using Animora.Application.UseCases.Finance.Cheques;
+using Animora.Application.UseCases.History;
+using Animora.Application.UseCases.Dashboard;
+using Animora.Application.UseCases.Search;
+using Animora.Application.UseCases.Profile;
 using Animora.Client.Services.Boarding;
 using Animora.Client.Services.Cashier;
 using Animora.Client.Services.Cheques;
@@ -202,7 +206,7 @@ public partial class App : global::Avalonia.Application
 
         // B03c: real local store + application layer (identity use cases) behind the desktop seams.
         services.AddAnimoraLocalInfrastructure();
-        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddChequeUseCases().AddFinanceUseCases());
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddChequeUseCases().AddFinanceUseCases().AddHistoryUseCases().AddDashboardUseCases().AddSearchUseCases().AddProfileUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it
@@ -247,7 +251,7 @@ public partial class App : global::Avalonia.Application
         // Phase 06: Dashboard screen — query service is stateless/pure mock
         // data, so a singleton is sufficient (no per-navigation reload needed
         // until a real backend adds freshness semantics).
-        services.AddSingleton<IDashboardQueryService, MockDashboardQueryService>();
+        services.AddSingleton<IDashboardQueryService, Animora.Client.Services.Dashboard.DashboardQueryService>();
         services.AddSingleton<DashboardPageViewModel>();
 
         // C02: real reception queue; each call resolves a scoped dispatcher over the local store.
@@ -329,14 +333,14 @@ public partial class App : global::Avalonia.Application
 
         // Phase 27: History — unified event ledger. Self-contained synthetic
         // mock (a singleton is sufficient; its data is static).
-        services.AddSingleton<IHistoryQueryService, MockHistoryQueryService>();
+        services.AddSingleton<IHistoryQueryService, Animora.Client.Services.History.HistoryQueryService>();
         services.AddSingleton<HistoryPageViewModel>();
 
         // Phase 28: Profile & Settings screen. The mock persists edits
         // in-memory only for the session (mirroring the reference's explicit
         // "settings live in memory only" design), so a singleton preserves
         // edits while navigating away and back.
-        services.AddSingleton<IUserProfileService, MockUserProfileService>();
+        services.AddSingleton<IUserProfileService, Animora.Client.Services.Profile.UserProfileService>();
         services.AddSingleton<ProfilePageViewModel>();
 
         // Sync status seam (topbar sync box). Mock now; a future ISyncEngine
@@ -346,7 +350,7 @@ public partial class App : global::Avalonia.Application
         // Global command palette (Ctrl+K) search seam. Depends on the patients
         // directory so a query also returns live patient/owner matches. The
         // palette ViewModel is transient so each open starts fresh.
-        services.AddSingleton<ISearchService, MockSearchService>();
+        services.AddSingleton<ISearchService, Animora.Client.Services.Search.SearchService>();
         services.AddTransient<CommandPaletteViewModel>();
 
         // Startup sign-in gate (B03c: real local authentication + first-run

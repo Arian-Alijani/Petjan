@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.History;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
@@ -33,6 +34,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     private static readonly int[] PageSizes = [25, 50, 100];
 
     private readonly IHistoryQueryService _service;
+    private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
     private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
@@ -51,9 +53,10 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     // longer matches is discarded (a newer query has superseded it).
     private int _generation;
 
-    public HistoryPageViewModel(IHistoryQueryService service, IToastService toast, IDialogService dialogs)
+    public HistoryPageViewModel(IHistoryQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs)
     {
         _service = service;
+        _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
 
@@ -349,6 +352,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
 
     private async Task ReloadAsync(bool resetPage)
     {
+        await _readiness.WaitAsync();
         if (resetPage)
         {
             _page = 1;
