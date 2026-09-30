@@ -88,7 +88,7 @@ public sealed class OfflineClinicDayScenarioTests
         await Send(new AdjustStockCommand(product, variant, 10000, AdjustmentReasons.Correction));
 
         // 2: owner and pet registration.
-        var owner = await Send(new CreateOwnerCommand("Owner", "09123456789", OwnerGender.Unknown,
+        var owner = await Send(new CreateOwnerCommand("Owner", "09123456789", OwnerGender.Unspecified,
             null, null, null, null, null, null, null, null, null, null, null, false));
         var pet = await Send(new CreatePetCommand(owner, "Pet", PetSpecies.Cat, null, null,
             PetGender.Unknown, null, null, null, false));
@@ -96,7 +96,7 @@ public sealed class OfflineClinicDayScenarioTests
         // 3: appointment tomorrow; clock is advanced before check-in.
         var tomorrow = DateOnly.FromDateTime(fixture.Clock.Now.UtcDateTime).AddDays(1);
         var appointment = await Send(new BookAppointmentCommand(tomorrow, 600, 30,
-            AppointmentTypeCatalog.All[0].Id, doctor, pet, owner, null));
+            AppointmentTypeCatalog.All[0].Code, doctor, pet, owner, null));
         fixture.Clock.Now = fixture.Clock.Now.AddDays(1);
         await Send(new CheckInAppointmentCommand(appointment));
 
@@ -107,7 +107,7 @@ public sealed class OfflineClinicDayScenarioTests
             var queue = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
                 .QueryAsync(new ReceptionQueueQuery(tomorrow), new QueryContext(fixture.TenantId, user, "queue"));
             Assert.True(queue.IsSuccess, queue.Detail);
-            Assert.Contains(queue.Value!, q => q.Id == ticket);
+            Assert.Contains(queue.Value!, q => q.TicketId == ticket);
         }
         await Send(new AdmitTicketCommand(ticket));
         var visit = (await Send(new StartVisitFromTicketCommand(ticket))).VisitId;
