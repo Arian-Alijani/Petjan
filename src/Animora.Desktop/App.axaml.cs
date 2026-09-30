@@ -225,6 +225,7 @@ public partial class App : global::Avalonia.Application
         services.AddAnimoraLocalInfrastructure(testProfile is null ? null : testProfile.ConfigureStore);
         if (testProfile is not null)
         {
+            services.AddSingleton(testProfile);
             // OS secrets must be isolated too: sessions/signers otherwise share the clinic's keys.
             services.AddSingleton<Animora.Infrastructure.Local.Security.ISecretStore>(sp =>
                 testProfile.CreateSecretStore(

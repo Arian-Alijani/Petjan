@@ -25,6 +25,9 @@ public sealed class LocalStoreOptions
     /// immediately testable. Explicit opt-in only: a fresh clinic never receives sample users.</summary>
     public bool SeedSampleData { get; set; }
 
+    /// <summary>Explicit external legacy-preview input; never configured for normal clinic storage.</summary>
+    public string? ClinicBakPreviewPath { get; set; }
+
     /// <summary>
     /// Allows a sale movement to take the derived on-hand quantity below zero. Enabled by default so
     /// offline posting is not blocked by a stale or incomplete stock snapshot.
@@ -43,6 +46,20 @@ public sealed class LocalStoreOptions
 
     public Result Validate()
     {
+        if (ClinicBakPreviewPath is not null)
+        {
+            try
+            {
+                var directory = new DirectoryInfo(DataDirectory);
+                if (SeedSampleData || directory.Parent?.Name != "Animora.LocalTests" ||
+                    directory.Name != Seed.ClinicBakPreviewData.ProfileName(ClinicBakPreviewPath))
+                    return Result.Fail(ErrorCodes.ValidationFailed, "Clinic preview requires its own content-addressed isolated profile and no sample fixtures.");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                return Result.Fail(ErrorCodes.ValidationFailed, "Clinic preview input is missing or invalid.");
+            }
+        }
         if (EncryptionEnabled && !K2Approved) return Result.Fail(ErrorCodes.StoreEncryptionNotApproved);
         if (BackupRetentionCount <= 0)
             return Result.Fail(ErrorCodes.ValidationFailed, "BackupRetentionCount must be positive.");

@@ -19,13 +19,15 @@ public sealed partial class LoginViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly Func<FirstRunViewModel> _firstRunFactory;
     private FirstRunViewModel? _firstRun;
+    private readonly LocalTestProfile? _localProfile;
 
     public LoginViewModel(IAuthenticationService authentication, IDialogService dialogs,
-        Func<FirstRunViewModel> firstRunFactory)
+        Func<FirstRunViewModel> firstRunFactory, LocalTestProfile? localProfile = null)
     {
         _authentication = authentication;
         _dialogs = dialogs;
         _firstRunFactory = firstRunFactory;
+        _localProfile = localProfile;
     }
 
     /// <summary>Raised once the user is signed in (sign-in or completed first-run setup).</summary>
@@ -76,6 +78,32 @@ public sealed partial class LoginViewModel : ObservableObject
             return;
         }
 
+        if (_localProfile?.ClinicBakPreviewPath is not null)
+        {
+            // Only a content-addressed isolated preview can automate credential entry.
+            // This creates/signs in a real Manager; it never bypasses authorization.
+            IsBusy = true;
+            try
+            {
+                const string username = "clinic-preview";
+                const string password = "ClinicPreview2026!";
+                var outcome = await _authentication.IsFirstRunAsync(ct)
+                    ? await _authentication.CompleteFirstRunAsync(new FirstRunRequest(
+                        "بازبینی بکاپ کلینیک قدیمی", "مدیر بازبینی", username, password), ct)
+                    : await _authentication.SignInAsync(username, password, rememberDevice: false, ct);
+                if (outcome.Succeeded)
+                {
+                    Username = username;
+                    LoginSucceeded?.Invoke(this, EventArgs.Empty);
+                }
+                else
+                {
+                    ErrorMessage = "ورود خودکار پروفایل بازبینی انجام نشد؛ " + MapError(outcome.ErrorCode);
+                }
+            }
+            finally { IsBusy = false; }
+            return;
+        }
         if (await _authentication.IsFirstRunAsync(ct))
         {
             ShowFirstRun();

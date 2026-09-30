@@ -34,7 +34,8 @@ public sealed class LocalSeeder(
     ReceptionSampleData receptionSampleData, ClinicalSampleData clinicalSampleData,
     SchedulingSampleData schedulingSampleData, BoardingSampleData boardingSampleData,
     InventorySampleData inventorySampleData, SalesSampleData salesSampleData,
-    FinanceSampleData financeSampleData, ILocalStoreMaintenance maintenance,
+    FinanceSampleData financeSampleData, ClinicBakPreviewData clinicBakPreviewData,
+    ILocalStoreMaintenance maintenance,
     IOptions<LocalStoreOptions> storeOptions)
 {
     public const string TenantKey = "identity.tenant";
@@ -183,6 +184,11 @@ public sealed class LocalSeeder(
             if (projections.IsFailure) return projections.ToResult();
             var activity = await maintenance.RebuildActivityFeedAsync(ct);
             if (activity.IsFailure) return activity.ToResult();
+        }
+        if (storeOptions.Value.ClinicBakPreviewPath is not null)
+        {
+            var preview = await RunBlockAsync(ClinicBakPreviewData.SeedKey, clinicBakPreviewData.Populate, ct);
+            if (preview.IsFailure) return preview;
         }
         return Result.Ok();
 

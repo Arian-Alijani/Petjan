@@ -20,6 +20,13 @@
 #   .\scripts\windows\clean-run.ps1 -LocalTest   # isolated persistent manual test DB
 #   .\scripts\windows\clean-run.ps1 -FreshTest   # new isolated DB; never deletes old data
 #   .\scripts\windows\clean-run.ps1 -LocalTest -TestProfile sales
+#   .\scripts\windows\clean-run.ps1 -ClinicBak  # legacy data preview, automatic real sign-in
+# -ClinicBak requires Python 3 (stdlib only). It reads Clinic.bak without restoring/modifying it.
+# Private output: .sandbox\clinic-bak\clinic.json, clinic-archive.json, clinic-report.json.
+# Uses a dedicated content-addressed profile under %LOCALAPPDATA%\Animora.LocalTests.
+# Repeated runs reuse that profile; changed preview data creates a NEW profile (no reset/delete).
+# Legacy financial/clinical records are historical notes, not new postings/doses/appointments.
+# Never distribute these private JSON files or the preview profile: they contain patient contacts.
 #
 # Local testing uses the REAL database/services/authentication, with no default password.
 # On first run create a Manager account in the setup form (password: >=8 chars, letters+digits).
@@ -37,16 +44,20 @@ param(
     [switch]$LocalTest,
     [switch]$FreshTest,
     [switch]$Clinic,
+    [switch]$ClinicBak,
     [ValidatePattern('^[a-z0-9_-]{1,40}$')]
     [string]$TestProfile = 'manual'
 )
 
 $ErrorActionPreference = 'Stop'
 
+if ($ClinicBak -and ($Clinic -or $LocalTest -or $FreshTest -or $PSBoundParameters.ContainsKey('TestProfile'))) {
+    throw '-ClinicBak cannot be combined with other profile options.'
+}
 if ($Clinic -and ($LocalTest -or $FreshTest -or $PSBoundParameters.ContainsKey('TestProfile'))) {
     throw '-Clinic cannot be combined with local-test options.'
 }
-if (-not $Release -and -not $Clinic -and -not $FreshTest) {
+if (-not $Release -and -not $Clinic -and -not $FreshTest -and -not $ClinicBak) {
     $LocalTest = $true
 }
 if ($LocalTest -and $FreshTest) {
@@ -56,7 +67,9 @@ if ($PSBoundParameters.ContainsKey('TestProfile') -and (-not $LocalTest -or $Fre
     throw '-TestProfile requires -LocalTest and cannot be used with -FreshTest.'
 }
 $AppArgs = @()
-if ($FreshTest) {
+if ($ClinicBak) {
+    # Extraction is performed below, before any clean/build, using an absolute path.
+} elseif ($FreshTest) {
     # Generate the name here so the user can reopen the exact same profile later.
     $TestProfile = 'fresh-' + [Guid]::NewGuid().ToString('N')
     $AppArgs = @("--local-test=$TestProfile")
@@ -74,6 +87,25 @@ if ($LocalTest -or $FreshTest) {
 
 # Resolve repo root (two levels up from this script: scripts\windows\ -> repo).
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
+if ($ClinicBak) {
+    $Backup = Join-Path $RepoRoot 'db-sample\Clinic.bak'
+    $Preview = Join-Path $RepoRoot '.sandbox\clinic-bak\clinic.json'
+    $Extractor = Join-Path $RepoRoot 'scripts\extract-clinic-bak.py'
+    if (-not (Test-Path $Backup -PathType Leaf)) { throw "Backup not found: $Backup" }
+    $Python = Get-Command py -ErrorAction SilentlyContinue
+    $PythonArgs = @('-3')
+    if (-not $Python) {
+        $Python = Get-Command python -ErrorAction SilentlyContinue
+        $PythonArgs = @()
+    }
+    if (-not $Python) { throw 'ClinicBak preview requires Python 3. Install Python, then rerun this same command.' }
+    & $Python.Source @PythonArgs $Extractor $Backup $Preview
+    if ($LASTEXITCODE -ne 0) { throw 'Clinic.bak extraction failed. No application storage was opened.' }
+    $AppArgs = @("--clinic-bak=$Preview")
+    Write-Host '==> LEGACY PREVIEW ONLY: dedicated isolated database; automatic Manager sign-in.'
+    Write-Host '==> No normal clinic data or other profiles are reset or modified.'
+    Write-Host "==> Mapping/exclusions: $(Join-Path $RepoRoot '.sandbox\clinic-bak\clinic-report.json')"
+}
 $Config   = if ($Release) { 'Release' } else { 'Debug' }
 $Proj     = Join-Path $RepoRoot 'src\Animora.Desktop\Animora.Desktop.csproj'
 $Dll      = Join-Path $RepoRoot "src\Animora.Desktop\bin\$Config\net10.0\Animora.Desktop.dll"
