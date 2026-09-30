@@ -79,6 +79,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
     public RangeObservableCollection<OwnerCardViewModel> FilteredOwners { get; } = [];
     public RangeObservableCollection<PetCardViewModel> FilteredPets { get; } = [];
+    public RangeObservableCollection<OwnerCardRowViewModel> OwnerRows { get; } = [];
+    public RangeObservableCollection<PetCardRowViewModel> PetRows { get; } = [];
     public RangeObservableCollection<PatientsSpeciesChipViewModel> SpeciesChips { get; } = [];
 
     public bool IsOwnersView => ViewMode == PatientViewMode.Owners;
@@ -312,6 +314,10 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
                 owner,
                 PetsOfOwner(owner.Id),
                 matchedByOwner[owner.Id].ToArray())));
+
+        // Virtualize rows, not individual cards, exactly like the boarding directory.
+        OwnerRows.ReplaceAll(FilteredOwners.Chunk(3).Select(cards => new OwnerCardRowViewModel(cards)));
+        PetRows.ReplaceAll(FilteredPets.Chunk(3).Select(cards => new PetCardRowViewModel(cards)));
 
         foreach (var chip in SpeciesChips) chip.IsActive = chip.Value == SelectedSpecies;
         NotifyDerived();
