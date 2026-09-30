@@ -81,7 +81,8 @@ public sealed record DashboardListItem(
     string Title,
     string Subtitle,
     string TagText,
-    DashboardTone TagTone);
+    DashboardTone TagTone,
+    string? IconKey = null);
 
 /// <summary>
 /// Full data set for one role's dashboard render. Two labeled content lists

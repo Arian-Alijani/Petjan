@@ -5,6 +5,7 @@ using Animora.Domain.Scheduling;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Entities;
 using Animora.Domain.Patients;
+using Animora.Domain.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Persistence.Sqlite.Queries;
@@ -52,12 +53,16 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             ?? new DashboardActivityTotals(0, 0, 0, 0);
         var activity = await feed.OrderByDescending(x => x.Id).Take(80)
             .Select(x => new DashboardActivity(x.Kind, x.Title, x.EntityId, x.AmountMinor,
-                x.AmountSign, x.ActorUserId)).ToListAsync(ct);
+                x.AmountSign, x.ActorUserId, x.OccurredUtc, x.ActorName)).ToListAsync(ct);
 
-        var open = role == UserRole.Doctor ? 0 : await db.Set<Invoice>().AsNoTracking()
-            .CountAsync(x => x.State == InvoiceState.Posted || x.State == InvoiceState.PartiallyPaid, ct);
-        var low = manager ? await db.Set<StockOnHandSnapshot>().AsNoTracking()
-            .CountAsync(x => x.TenantId == tenantId && x.OnHandScaled <= 0, ct) : 0;
+        var counts = role == UserRole.Doctor ? null : await db.Set<Tenant>().AsNoTracking()
+            .Where(x => x.Id == tenantId).Select(x => new
+            {
+                Open = db.Set<Invoice>().Count(i => i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid),
+                Low = manager ? db.Set<StockOnHandSnapshot>().Count(i => i.TenantId == tenantId && i.OnHandScaled <= 0) : 0
+            }).SingleOrDefaultAsync(ct);
+        var open = counts?.Open ?? 0;
+        var low = counts?.Low ?? 0;
         IReadOnlyDictionary<string, int> species = new Dictionary<string, int>();
         if (manager)
         {
@@ -69,15 +74,29 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
         var appointments = db.Set<Appointment>().AsNoTracking()
             .Where(x => x.StartUtc >= window.StartUtc && x.StartUtc < window.EndUtc);
         if (role == UserRole.Doctor) appointments = appointments.Where(x => x.DoctorUserId == userId);
-        // Queue totals and manager workloads share one indexed appointment read, including unassigned slots.
-        var appointmentCounts = await appointments.GroupBy(x => x.DoctorUserId)
+        // Aggregate all appointments, but keep the displayed preview bounded.
+        var appointmentCounts = await appointments
+            .Where(x => x.State != AppointmentState.Cancelled && x.State != AppointmentState.NoShow)
+            .GroupBy(x => x.DoctorUserId)
             .Select(g => new { DoctorId = g.Key, Total = g.Count(),
-                Scheduled = g.Count(x => x.State == AppointmentState.Scheduled) }).ToListAsync(ct);
+                Name = db.Set<User>().Where(u => u.Id == g.Key).Select(u => u.DisplayName).FirstOrDefault(),
+                Done = g.Count(x => x.State == AppointmentState.Completed),
+                Queued = g.Count(x => x.State == AppointmentState.Scheduled || x.State == AppointmentState.Confirmed
+                    || x.State == AppointmentState.CheckedIn) }).ToListAsync(ct);
+        var preview = await (from appointment in appointments
+            join pet in db.Set<Pet>().AsNoTracking() on appointment.PetId equals pet.Id
+            join owner in db.Set<Owner>().AsNoTracking() on appointment.OwnerId equals owner.Id
+            join doctor in db.Set<User>().AsNoTracking() on appointment.DoctorUserId equals doctor.Id into doctors
+            from doctor in doctors.DefaultIfEmpty()
+            orderby appointment.StartUtc, appointment.Id
+            select new DashboardAppointment(pet.Name, owner.FullName,
+                doctor == null ? "پزشک تعیین نشده" : doctor.DisplayName,
+                appointment.StartUtc, appointment.State.ToString())).Take(8).ToListAsync(ct);
         IReadOnlyList<DashboardWorkload> loads = manager
-            ? appointmentCounts.Where(x => x.DoctorId != null).OrderBy(x => x.DoctorId)
-                .Select(x => new DashboardWorkload(x.DoctorId!, x.Total)).ToArray()
+            ? appointmentCounts.Where(x => x.DoctorId != null).OrderBy(x => x.Name)
+                .Select(x => new DashboardWorkload(x.DoctorId!, x.Total, x.Name ?? "پزشک", x.Done)).ToArray()
             : [];
         return new DashboardSlice(facts, activity, loads, species, open, low,
-            appointmentCounts.Sum(x => x.Scheduled), totals);
+            appointmentCounts.Sum(x => x.Queued), totals, preview);
     }
 }

@@ -1,5 +1,6 @@
 using Animora.Contracts.Dashboard;
 using Animora.Desktop.Controls;
+using Animora.Desktop.Localization;
 
 namespace Animora.Desktop.Pages.Dashboard;
 
@@ -14,11 +15,12 @@ public sealed class DashboardRowViewModel
     public DashboardRowViewModel(DashboardListItem item)
     {
         AvatarText = item.AvatarText;
-        Title = item.Title;
-        Subtitle = item.Subtitle;
+        Title = item.Title.StartsWith("history.", System.StringComparison.Ordinal)
+            ? HistoryText.Title(item.Title) : item.Title;
+        Subtitle = PersianNumberFormatter.ToPersianDigits(item.Subtitle);
         TagText = item.TagText;
         Tone = ToneMap.From(item.TagTone);
-        IconKey = ResolveIconKey(item);
+        IconKey = item.IconKey ?? ResolveIconKey(item);
     }
 
     /// <summary>
