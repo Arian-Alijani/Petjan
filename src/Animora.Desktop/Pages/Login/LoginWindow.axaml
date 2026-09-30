@@ -165,7 +165,7 @@
                         Command="{Binding SignInCommand}"
                         IsDefault="True" />
 
-                <!-- demo hint -->
+                <!-- Real local authentication: there are no built-in demo credentials. -->
                 <Border Background="{StaticResource Bg2Brush}"
                         CornerRadius="{StaticResource RadiusSm}"
                         Padding="12,10"
@@ -173,7 +173,8 @@
                     <TextBlock FontSize="{StaticResource FontSizeXs}"
                                Foreground="{StaticResource MutedBrush}"
                                HorizontalAlignment="Center"
-                               Text="حالت نمایشی — ورود با admin / admin" />
+                               TextWrapping="Wrap"
+                               Text="با حسابی که در راه‌اندازی اولیه ساخته‌اید وارد شوید؛ حساب یا رمز پیش‌فرض وجود ندارد." />
                 </Border>
 
             </StackPanel>
