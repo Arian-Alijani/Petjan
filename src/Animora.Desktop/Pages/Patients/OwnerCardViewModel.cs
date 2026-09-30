@@ -113,3 +113,6 @@ public sealed class OwnerCardViewModel
     private static string FormatPhone(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "ثبت نشده" : PersianNumberFormatter.ToPersianDigits(value);
 }
+
+/// <summary>One virtualized directory row containing at most three cards.</summary>
+public sealed record OwnerCardRowViewModel(IReadOnlyList<OwnerCardViewModel> Cards);
