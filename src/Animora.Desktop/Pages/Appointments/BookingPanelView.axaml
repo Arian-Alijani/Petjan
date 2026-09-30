@@ -297,8 +297,6 @@
                                                        TextWrapping="Wrap" TextAlignment="Center"
                                                        Foreground="{StaticResource MutedBrush}" />
                                         </StackPanel>
-                                            </Button>
-                                        </StackPanel>
                                     </Border>
 
                                     <!-- add form -->
