@@ -260,7 +260,7 @@
                                                 VerticalAlignment="Center">
                                         <TextBlock Text="{Binding PriceText}" FontSize="13" FontWeight="ExtraBold"
                                                    Foreground="{StaticResource InkBrush}" />
-                                        <TextBlock Text="ت" FontSize="10" FontWeight="SemiBold"
+                                        <TextBlock Text="ت" IsVisible="{Binding HasPrice}" FontSize="10" FontWeight="SemiBold"
                                                    Foreground="{StaticResource MutedBrush}"
                                                    VerticalAlignment="Bottom" Margin="0,0,0,1" />
                                     </StackPanel>

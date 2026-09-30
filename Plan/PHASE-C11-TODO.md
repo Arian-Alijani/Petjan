@@ -577,3 +577,5 @@ Decision/Rule check/Impact + a "Repo state" list).
 
 - T6: focused StartupBudgetTests passed; startup source embedded at build time.
 - T5: scenario uses the anonymous identity seam before first run and real sign-in after advancing a day (sessions expire). Two opening-stock commands justify the exact nine feed events.
+
+- U1: existing store uses non-null Money; omitted pricing is represented by zero (not a free sale). Optional packages retain an internal default stock variant. Shared contact-for-price presentation in Inventory/Sales/Cashier; application rejects unpriced catalog checkout by code. No storefront/home product cards exist in this desktop repo.

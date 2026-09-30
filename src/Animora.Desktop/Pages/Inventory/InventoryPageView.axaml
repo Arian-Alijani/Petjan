@@ -538,7 +538,7 @@
                                             <TextBlock Text="{Binding PriceMax}" FontSize="13" FontWeight="Bold"
                                                        Foreground="{Binding PriceForeground}"
                                                        IsVisible="{Binding HasPriceRange}" />
-                                            <TextBlock Text="تومان" FontSize="11" FontWeight="Medium"
+                                            <TextBlock Text="تومان" IsVisible="{Binding HasPrice}" FontSize="11" FontWeight="Medium"
                                                        Foreground="{StaticResource MutedBrush}" Margin="3,0,0,0"
                                                        VerticalAlignment="Center" />
                                         </StackPanel>

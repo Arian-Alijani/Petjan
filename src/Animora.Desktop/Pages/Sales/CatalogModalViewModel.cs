@@ -217,6 +217,11 @@ public sealed partial class CatalogModalViewModel : ObservableObject
             return;
         }
 
+        if (item.Price <= 0)
+        {
+            _toast.Show(ProductPricePresentation.ContactForPrice, Tone.Warn);
+            return;
+        }
         await _service.AddLineAsync(_invoiceId, item, 1);
         _toast.Show($"«{item.Title}» به فاکتور افزوده شد", Tone.Ok);
         _onChanged?.Invoke();
@@ -306,7 +311,8 @@ public sealed partial class CatalogRowViewModel : ObservableObject
         GroupLabel = item.GroupLabel;
         IsItem = item.Kind == "item";
         KindLabel = IsItem ? "کالا" : "خدمت";
-        PriceText = SalePresentation.Money(item.Price);
+        PriceText = ProductPricePresentation.Format(item.Price);
+        HasPrice = item.Price > 0;
         IcoBackground = icoBackground;
         IcoForeground = icoForeground;
 
@@ -341,6 +347,8 @@ public sealed partial class CatalogRowViewModel : ObservableObject
     public bool IsItem { get; }
 
     public string KindLabel { get; }
+
+    public bool HasPrice { get; }
 
     public string PriceText { get; }
 
