@@ -24,7 +24,7 @@ public sealed class LocalSyncStatusService(IServiceScopeFactory scopes, ICommand
         await _pass.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            await readiness.WaitUntilReadyAsync(ct).ConfigureAwait(false);
+            await readiness.WaitAsync(ct).ConfigureAwait(false);
             await using var scope = scopes.CreateAsyncScope();
             await RefreshCoreAsync(scope.ServiceProvider, ct).ConfigureAwait(false);
         }
@@ -40,7 +40,7 @@ public sealed class LocalSyncStatusService(IServiceScopeFactory scopes, ICommand
         var previous = State;
         try
         {
-            await readiness.WaitUntilReadyAsync(ct).ConfigureAwait(false);
+            await readiness.WaitAsync(ct).ConfigureAwait(false);
             Publish(SyncState.Syncing, LastSyncedAt);
             await using var scope = scopes.CreateAsyncScope();
             var services = scope.ServiceProvider;

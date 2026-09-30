@@ -345,7 +345,7 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IUserProfileService, Animora.Client.Services.Profile.UserProfileService>();
         services.AddSingleton<ProfilePageViewModel>();
 
-        // Sync status seam (topbar sync box). Mock now; a future ISyncEngine
+        // Real local sync status seam (topbar); the future ISyncEngine
         // implementation swaps in behind the same ISyncStatusService contract.
         services.AddScoped<LocalCommandProcessor>();
         services.AddSingleton<LocalSyncStatusService>();

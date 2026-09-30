@@ -305,7 +305,7 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ---
 
-### [ ] T3 — Remove `Mocks/` directory entirely + drop its `using`
+### [x] T3 — Remove `Mocks/` directory entirely + drop its `using`
 **Goal:** `src/Animora.Desktop/Mocks/` **does not exist**; no `Mock` identifier in Desktop.
 - After T2 deleted the only file, `git rm -r src/Animora.Desktop/Mocks` (or the empty dir).
 - Remove `using Animora.Desktop.Mocks;` from `App.axaml.cs` (if not already gone in T2).
@@ -568,3 +568,5 @@ Decision/Rule check/Impact + a "Repo state" list).
 - (add: any layering violation found & fixed)
 
 - T2: tenant-scoped ISyncCursorStore port + atomic SQLite upsert; serialized passes, cancellation restoration and real persisted initial status. Targeted checks follow SDK bootstrap.
+
+- T3: Mocks directory absent; no Mock identifier remains in Desktop source. Readiness uses the existing WaitAsync contract.
