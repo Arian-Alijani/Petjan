@@ -303,7 +303,7 @@ public sealed class PatientsUseCaseTests
             object? first = query switch
             {
                 OwnerDirectoryQuery { Page: 1 } => new PagedResult<OwnerSummaryReadModel>(
-                    [new("O-1", "Owner", "09120000000", null, null, null, OwnerGender.Unspecified, Clock.UtcNow, 1, 0)], 2, 1, 1),
+                    [new("O-1", "Owner", "09120000000", null, null, null, OwnerGender.Unspecified, Clock.UtcNow, 1)], 2, 1, 1),
                 PetDirectoryQuery { Page: 1 } => new PagedResult<PetSummaryReadModel>(
                     [new("P-1", "Pet", PetSpecies.Dog, null, null, PetGender.Unknown, PetStatus.Active, "O-1", null, null, null, null, null)], 2, 1, 1),
                 _ => null,

@@ -18,13 +18,13 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             .OrderByDescending(x => x.Id).Select(x => x.Id).FirstOrDefaultAsync(ct) ?? string.Empty;
 
     public async Task<DashboardSlice> GetSliceAsync(string tenantId, DashboardDayWindow window,
-        string userId, UserRole role, CancellationToken ct)
+        string userId, DashboardAccess access, CancellationToken ct)
     {
-        var manager = role is UserRole.Manager or UserRole.Receptionist;
+        var role = access.Role;
         var today = window.LocalDay;
         var date = new DateOnly(today / 10000, today / 100 % 100, today % 100).AddDays(-13);
         IReadOnlyList<DashboardDay> facts = [];
-        if (manager)
+        if (access.Finance)
         {
             var start = date.Year * 10000 + date.Month * 100 + date.Day;
             var stored = await db.Set<DailyFinanceFact>().AsNoTracking()
@@ -43,28 +43,32 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
 
         var feed = db.Set<ActivityEvent>().AsNoTracking()
             .Where(x => x.TenantId == tenantId && x.LocalDay == today);
+        feed = feed.Where(x => (access.Visits && x.Kind == "Visit")
+            || (access.Vaccination && x.Kind == "Vaccine") || (access.Appointments && x.Kind == "Appointment")
+            || (access.Patients && x.Kind == "Patient") || (access.Inventory && x.Kind == "Inventory")
+            || (access.Sales && x.Kind == "Sale" && x.Title != "history.payment.registered")
+            || (access.Collections && x.Title == "history.payment.registered")
+            || (access.Cheques && x.Kind == "Cheque") || (access.Finance && x.Kind == "Expense"));
         if (role == UserRole.Doctor) feed = feed.Where(x => x.ActorUserId == userId);
         // KPIs must describe the whole day, not just the 80-row preview. One aggregate SQL statement.
         var totals = await feed.GroupBy(x => 1).Select(g => new DashboardActivityTotals(
-            g.Sum(x => x.Title == "history.payment.registered" ? x.AmountMinor : 0L),
+            g.Sum(x => access.Collections && x.Title == "history.payment.registered" ? x.AmountMinor : 0L),
             g.Count(x => x.Title == "history.visit.completed"),
             g.Count(x => x.Title == "history.vaccine.administered"),
             g.Count(x => x.Kind == "Cheque"))).SingleOrDefaultAsync(ct)
             ?? new DashboardActivityTotals(0, 0, 0, 0);
         var activity = await feed.OrderByDescending(x => x.Id).Take(80)
-            .Select(x => new DashboardActivity(x.Kind, x.Title, x.EntityId, x.AmountMinor,
-                x.AmountSign, x.ActorUserId, x.OccurredUtc, x.ActorName)).ToListAsync(ct);
+            .Select(x => new DashboardActivity(x.Kind, x.Title, x.EntityId,
+                access.Finance || access.Collections ? x.AmountMinor : 0L,
+                access.Finance || access.Collections ? x.AmountSign : 0, x.ActorUserId, x.OccurredUtc, x.ActorName)).ToListAsync(ct);
 
-        var counts = role == UserRole.Doctor ? null : await db.Set<Tenant>().AsNoTracking()
-            .Where(x => x.Id == tenantId).Select(x => new
-            {
-                Open = db.Set<Invoice>().Count(i => i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid),
-                Low = manager ? db.Set<StockOnHandSnapshot>().Count(i => i.TenantId == tenantId && i.OnHandScaled <= 0) : 0
-            }).SingleOrDefaultAsync(ct);
-        var open = counts?.Open ?? 0;
-        var low = counts?.Low ?? 0;
+        // Separate guarded statements: a forbidden source is not part of SQL at all.
+        var open = access.Sales ? await db.Set<Invoice>().AsNoTracking()
+            .CountAsync(i => i.TenantId == tenantId && (i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid), ct) : 0;
+        var low = access.Inventory ? await db.Set<StockOnHandSnapshot>().AsNoTracking()
+            .CountAsync(i => i.TenantId == tenantId && i.OnHandScaled <= 0, ct) : 0;
         IReadOnlyDictionary<string, int> species = new Dictionary<string, int>();
-        if (manager)
+        if (access.Patients && role != UserRole.Doctor)
         {
             var groups = await db.Set<Pet>().AsNoTracking().Where(x => x.Status == PetStatus.Active)
                 .GroupBy(x => x.Species).Select(g => new { Species = g.Key, Count = g.Count() }).ToListAsync(ct);
@@ -72,7 +76,7 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
         }
 
         var appointments = db.Set<Appointment>().AsNoTracking()
-            .Where(x => x.StartUtc >= window.StartUtc && x.StartUtc < window.EndUtc);
+            .Where(x => access.Appointments && x.StartUtc >= window.StartUtc && x.StartUtc < window.EndUtc);
         if (role == UserRole.Doctor) appointments = appointments.Where(x => x.DoctorUserId == userId);
         // Aggregate all appointments, but keep the displayed preview bounded.
         var appointmentCounts = await appointments
@@ -92,11 +96,11 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             select new DashboardAppointment(pet.Name, owner.FullName,
                 doctor == null ? "پزشک تعیین نشده" : doctor.DisplayName,
                 appointment.StartUtc, appointment.State.ToString())).Take(8).ToListAsync(ct);
-        IReadOnlyList<DashboardWorkload> loads = manager
+        IReadOnlyList<DashboardWorkload> loads = access.Workloads
             ? appointmentCounts.Where(x => x.DoctorId != null).OrderBy(x => x.Name)
                 .Select(x => new DashboardWorkload(x.DoctorId!, x.Total, x.Name ?? "پزشک", x.Done)).ToArray()
             : [];
         return new DashboardSlice(facts, activity, loads, species, open, low,
-            appointmentCounts.Sum(x => x.Queued), totals, preview);
+            appointmentCounts.Sum(x => x.Queued), totals, preview, access);
     }
 }

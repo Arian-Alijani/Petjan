@@ -1,6 +1,15 @@
 # بررسی تأییدی داشبورد و تودوی اجرایی اصلاحات
 
-## دامنه و نتیجه این مرحله
+## وضعیت اجرای اصلاحات — 2026-09-30
+
+- درخواست پایانی کاربر: جمع‌بندی کار انجام‌شده؛ شروع تسک تازه ممنوع.
+- **3 از 44 تسک انجام‌شده: D01، D02، D03. 41 تسک دیگر باز هستند.** checkboxهای زیر مرجع وضعیت پذیرش‌اند؛ این PR ادعای تکمیل کل فاز ندارد.
+- PR اجرا: [#180](https://github.com/Arian-Alijani/Petjan/pull/180)، branch: `genspark_ai_developer`. هر تسک با ثبت evidence، commit مستقل، sync با main و اجرای `scripts/git/push.sh` منتشر شد.
+- مرز دسترسی داده، widgetهای پذیرش و authorization پاسخ cache اصلاح شدند. بررسی نهایی فقط `DashboardAuthorizationTests|DashboardBudgetTests`: **25 passed، 0 failed، 0 skipped، 16 ثانیه اجرای تست**؛ guard کل فرمان 90 ثانیه بود. warning جدید xUnit2031 رفع و در اجرای نهایی دیده نشد؛ تنها CS8625 قبلی در AppointmentQueryTests باقی است. build پروژه Desktop: **0 warning/0 error**. Full build/Full suite و آزمون Windows/GUI اجرا نشده‌اند.
+- D13 سپس D14 اولین موارد بعدی ترتیب مصوب هستند؛ هیچ‌کدام در این اجرا پیاده‌سازی یا تیک نشده‌اند. dependencyهای lifecycle/query/UI/performance و سایر موارد به همان صورت باز باقی‌اند.
+- متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #180 را توصیف نمی‌کنند. fixture قدیمی ناسازگار فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران.
+
+## دامنه و نتیجه مرحله تدوین اولیه (تاریخی)
 
 - تاریخ: 2026-09-30؛ مبنای کد: `0aac7d4`، همان commit گزارش ارسالی `pasted-text-1790782590378.txt`.
 - خروجی این مرحله: تطبیق گزارش با کد و طراحی تودوی قابل‌اجرا؛ **در این کار اصلاح کد برنامه انجام نشده است**. همه checkboxهای پذیرش اصلاحی عمداً باز هستند. commit این سند به معنی رفع مشکلات نیست؛ تغییرات قبلی remote در بخش تفاوت نسخه جدا شده‌اند.
@@ -134,21 +143,24 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 ## تودو — یک مشکل در هر تسک
 
 ### D01 — نقش ارسالی، مرجع دسترسی داده است
-- [ ] وضعیت: باز | P0 | گزارش 1 | نتیجه: قطعی کد.
+- [x] وضعیت: انجام‌شده | P0 | گزارش 1 | نتیجه: دسترسی از session و membership معتبر؛ نقش UI مرجع داده نیست.
+- شواهد اجرای 2026-09-30: `DashboardAuthorizationTests` با session محلی، dispatcher، RBAC ذخیره‌شده و SQLite واقعی، درخواست Manager توسط Doctor/Receptionist/Accountant، grant/deny و نقش ناشناخته را بررسی می‌کند. فیلتر همین کلاس + `DashboardBudgetTests`: **18 passed، 0 failed، 12 ثانیه**؛ Full build/test اجرا نشد. fixture ناسازگار `OwnerSummaryReadModel` فقط با حذف آرگومان حذف‌شده اصلاح شد تا پروژه regression کامپایل شود. warning تاریخی CS8625 خارج از داشبورد باقی است. policy زنده پیش از cache نیز اجرا می‌شود؛ پذیرش اختصاصی D02/D03 هنوز مستقل است.
 - شواهد: `IDashboardQueryService.GetSnapshotAsync`؛ `DashboardQueryService.cs:22–45`؛ `DashboardSnapshotQuery.cs:36–51`؛ `DashboardQueries.cs:20–26`؛ `PermissionAuthorizationGate.cs:79–87`.
 - اقدام: نقش امنیتی/هویت از session معتبر و membership فعلی تعیین شود؛ نقش layout جدا بماند. Application مجوزهای مؤثر هر بخش را با منطق RBAC موجود تعیین کند و پیش از query، داده غیرمجاز را حذف کند. `RequiresPermission` عمومی به‌تنهایی جای مجوز هر widget نیست؛ پزشک پیش‌فرض `ReportsRead` هم دارد، پس آن مجوز به‌تنهایی نباید درآمد مالی را آزاد کند.
 - پذیرش/بررسی محدود: session پزشک با درخواست Manager در مسیر service → dispatcher هیچ مقدار مالی، workload مدیریتی یا aggregate خارج از scope خود نگیرد؛ override grant/deny و نقش نامعتبر fail-closed آزموده شوند؛ افزودن Accountants به layout، مجوز همه داده‌ها ایجاد نکند.
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D01 derive data access from trusted identity"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D02 — پذیرش داده‌های مدیریتی غیرمجاز دریافت می‌کند
-- [ ] وضعیت: باز | P0 | گزارش 2 | نتیجه: قطعی کد | وابستگی: D01.
+- [x] وضعیت: انجام‌شده | P0 | گزارش 2 | نتیجه: widget و DTO مستقل از layout و permission-based | وابستگی: D01.
+- شواهد اجرا: کارت مالی/موجودی فاقد مجوز از Stats حذف می‌شود (نه صفر)، rich widget فاقد مجوز null است و View آن را نمایش نمی‌دهد. SQL مالی/انبار به statementهای مستقل guarded تفکیک شد؛ interceptor مسیر واقعی session → service → dispatcher → SQLite در `Receptionist_ReceivesNoFakeFinancialZero_AndForbiddenSourcesAreNotQueried` عدم query ممنوع و grant/deny را تأیید کرد. **19 regression passed، 0 failed، 12 ثانیه**؛ build فقط Desktop **0 warning/0 error، 64 ثانیه**. budget persistence-only با افزایش مستند یک statement مجاز به‌روز شد؛ D24 هنوز باز است.
 - شواهد: `DashboardQueries.cs:22,59–66`؛ `DashboardQueryService.cs:70–96`؛ `DashboardPageView.axaml.cs:31`؛ `DefaultRolePermissions.cs:36–46`.
 - اقدام: مشترک بودن layout با مدیر حفظ‌پذیر است، اما widget visibility/availability و DTO مستقل و permission-based شوند. «نداشتن اجازه» به صفر مالی جعلی تبدیل نشود؛ query مالی/موجودی غیرمجاز اصلاً اجرا نشود.
 - پذیرش/بررسی محدود: پذیرش پیش‌فرض درآمد و low-stock دریافت نکند؛ تست یک grant مالی معتبر و یک deny صریح، بدون وابستگی به مخفی‌سازی sidebar؛ شمارنده SQL ثابت کند بخش ممنوع خوانده نشده است.
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D02 isolate receptionist widget permissions"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D03 — cache-hit از authorization جاری عبور نمی‌کند
-- [ ] وضعیت: باز | P1 | گزارش 3 | نتیجه: قطعی مسیر bypass؛ رخداد revoke اجرا نشده | وابستگی: D01.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 3 | نتیجه: هر cache-hit از policy زنده مشترک عبور می‌کند | وابستگی: D01.
+- شواهد اجرا: کلید cache شامل tenant/user، نقش معتبر و مجوز مؤثر تمام بخش‌ها، روز و نسخه است. `WarmCache_RechecksLiveAuthorization` روی authorization واقعی و SQLite، suspension/revoke/lock/expiry/signout را پس از cache گرم رد می‌کند؛ تست grant/deny D01/D02 داده قدیمی را پس نمی‌دهد. `AuthorizedConcurrentCacheHits_RemainCoalescedAndDayScoped` هشت درخواست را با یک finance read و snapshot یکسان و تغییر روز با ساعت تزریقی بررسی کرد. **12 تست کلاس authorization passed، 0 failed، 13 ثانیه**. تنها warning جدید analyzer با overload استاندارد Assert.Single اصلاح شد؛ CS8625 تاریخی باقی است.
 - شواهد: `DashboardQueryService.cs:32–43`؛ `SessionCurrentUserProvider.RequireActive`؛ `PermissionAuthorizationGate.cs:76–87`.
 - اقدام: پیش از هر cache response، session/membership و مجوز مؤثر معتبر بررسی شوند؛ هویت/نسخه مجوز جزئی از اعتبار cache باشد و تغییر آن invalidate کند. policy واحد reuse شود؛ دور زدن dispatcher با auth ساختگی ممنوع. بررسی زنده مجوز به cache 60ثانیه‌ای تکیه نکند.
 - پذیرش/بررسی محدود: cache گرم، سپس suspension/revoke/deny/lock/expire؛ فراخوانی بعدی داده قبلی را ندهد. آزمون با authorization واقعی، نه `CacheDispatcher`، انجام شود؛ cache-hit مجاز همچنان bounded و coalesced بماند.
@@ -449,4 +461,4 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - checkbox فقط وقتی بسته شود که مشکل رفع یا با شاهد معتبر از مسیر نهایی حذف شده، regression مرتبط pass، تغییرات committed/pushed و PR ثبت شده باشد. حذف مسیر معیوب در تسک وابسته، مجوز علامت‌زدن خودکار تسک بعدی نیست؛ شاهد/تست آن باید ثبت شود.
 - موارد نیازمند GUI/Windows/contrast/performance در نبود ابزار «تأییدنشده/blocked» باقی بمانند. هیچ Full build/Full test یا تست طولانی برای بستن مصنوعی این فهرست اجرا نشود.
 - baseline local startup و offline behavior حفظ شوند؛ اسکریپت‌های Windows/sandbox/git و دیتابیس کاربر دست‌نخورده، مگر تغییر ضروری جداگانه و اثبات‌شده. ledger/domain invariants و roadmap سرور به‌خاطر dashboard بازنویسی نشوند.
-- این سند برنامه اصلاح است، نه گزارش اجرای 44 fix. در commitهای این کار فقط بررسی/تودو تحویل شده است؛ اصلاحات قبلی remote و مانع تست head جدید در بخش تفاوت نسخه تفکیک شده‌اند.
+- این سند همچنان برنامه 44 اصلاح است، نه ادعای اجرای همه آن‌ها. وضعیت اجرای جدید در ابتدای سند و evidence هر checkbox ثبت شده است؛ گزارش صرفاً سندی اولیه، تغییرات remote قبلی و مانع تاریخی تست در بخش‌های تاریخی تفکیک شده‌اند.
