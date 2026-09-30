@@ -1,6 +1,7 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Patients;
+using Animora.Domain.Results;
 using Animora.Contracts.Patients;
 using Microsoft.Extensions.DependencyInjection;
 using CWeightEntry = Animora.Contracts.Patients.WeightEntry;
@@ -18,10 +19,10 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) return [];
-        // Unpaged Contracts member → page 1 at the max page size (documented; CONVENTIONS §10 item 2).
-        var r = await dispatcher.QueryAsync(new PetDirectoryQuery(null, null, null, 1, MaxPageSize), qc.Value!);
-        return r.IsSuccess ? r.Value!.Items.Select(x => x.ToSummary()).ToList() : [];
+        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
+        return await ReadDirectoryAsync(
+            page => dispatcher.QueryAsync(new PetDirectoryQuery(null, null, null, page, MaxPageSize), qc.Value!),
+            x => x.ToSummary());
     }
 
     public async Task<IReadOnlyList<OwnerSummary>> GetOwnersAsync()
@@ -29,9 +30,31 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) return [];
-        var r = await dispatcher.QueryAsync(new OwnerDirectoryQuery(null, 1, MaxPageSize), qc.Value!);
-        return r.IsSuccess ? r.Value!.Items.Select(x => x.ToSummary()).ToList() : [];
+        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
+        return await ReadDirectoryAsync(
+            page => dispatcher.QueryAsync(new OwnerDirectoryQuery(null, page, MaxPageSize), qc.Value!),
+            x => x.ToSummary());
+    }
+
+    // The Contracts directory is unpaged, but each database read remains bounded. Follow the
+    // EFFECTIVE page size (which can be configured below 200), not the requested size or item count.
+    // Never turn a failed later page into a successful-looking partial directory.
+    private static async Task<IReadOnlyList<TSummary>> ReadDirectoryAsync<TModel, TSummary>(
+        Func<int, Task<Result<PagedResult<TModel>>>> readPage, Func<TModel, TSummary> map)
+    {
+        var items = new List<TSummary>();
+        for (var page = 1; ; page++)
+        {
+            var result = await readPage(page).ConfigureAwait(false);
+            if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+            var batch = result.Value!;
+            if (batch.Page != page || batch.PageSize < 1)
+                throw new InvalidOperationException("Invalid directory paging metadata.");
+            foreach (var item in batch.Items) items.Add(map(item));
+            if ((long)batch.Page * batch.PageSize >= batch.TotalCount) return items;
+            if (batch.Items.Count == 0)
+                throw new InvalidOperationException("Directory ended before its reported total.");
+        }
     }
 
     public async Task<OwnerDetail?> GetOwnerAsync(string id)
