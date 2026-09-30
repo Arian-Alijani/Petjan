@@ -66,8 +66,8 @@
 
         <!-- small icon button (nav-btn) -->
         <Style Selector="Button.ap-icon">
-            <Setter Property="Width" Value="30" />
-            <Setter Property="Height" Value="30" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Background" Value="Transparent" />
@@ -142,11 +142,11 @@
                     BoxShadow="{StaticResource ShadowCard}" Padding="14,12">
                 <StackPanel Spacing="12">
                     <!-- tier 1 · tabs + search + view switch -->
-                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <Grid ColumnDefinitions="*,320" ColumnSpacing="12">
                         <Border Grid.Column="0" Background="{StaticResource Bg2Brush}" CornerRadius="12"
                                 Padding="3">
-                            <StackPanel Orientation="Horizontal" Spacing="2">
-                                <Button Classes="ap-tab" Classes.is-active="{Binding IsCalendarTab}"
+                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="2">
+                                <Button Grid.Column="0" HorizontalAlignment="Stretch" Classes="ap-tab" Classes.is-active="{Binding IsCalendarTab}"
                                         Command="{Binding SelectTabCommand}" CommandParameter="cal"
                                         ToolTip.Tip="میان‌بر: ۱">
                                     <StackPanel Orientation="Horizontal" Spacing="7">
@@ -156,7 +156,7 @@
                                         <TextBlock Text="تقویم" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
-                                <Button Classes="ap-tab" Classes.is-active="{Binding IsQueueTab}"
+                                <Button Grid.Column="1" HorizontalAlignment="Stretch" Classes="ap-tab" Classes.is-active="{Binding IsQueueTab}"
                                         Command="{Binding SelectTabCommand}" CommandParameter="queue"
                                         ToolTip.Tip="میان‌بر: ۲">
                                     <StackPanel Orientation="Horizontal" Spacing="7">
@@ -166,7 +166,7 @@
                                         <TextBlock Text="نوبت‌های پیش رو" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
-                                <Button Classes="ap-tab" Classes.is-active="{Binding IsHistoryTab}"
+                                <Button Grid.Column="2" HorizontalAlignment="Stretch" Classes="ap-tab" Classes.is-active="{Binding IsHistoryTab}"
                                         Command="{Binding SelectTabCommand}" CommandParameter="hist"
                                         ToolTip.Tip="میان‌بر: ۳">
                                     <StackPanel Orientation="Horizontal" Spacing="7">
@@ -176,7 +176,7 @@
                                         <TextBlock Text="تاریخچه" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
-                            </StackPanel>
+                            </Grid>
                         </Border>
 
                         <!-- search -->
@@ -204,69 +204,9 @@
                             </Button>
                         </Grid>
 
-                        <!-- view switch -->
-                        <Border Grid.Column="2" Background="{StaticResource Bg2Brush}" CornerRadius="11"
-                                Padding="3" IsVisible="{Binding ShowCalendarChrome}">
-                            <StackPanel Orientation="Horizontal" Spacing="2">
-                                <Button Classes="ap-seg" Classes.is-active="{Binding IsDayView}"
-                                        Command="{Binding SetViewCommand}" CommandParameter="day">
-                                    <TextBlock Text="روز" />
-                                </Button>
-                                <Button Classes="ap-seg" Classes.is-active="{Binding IsWeekView}"
-                                        Command="{Binding SetViewCommand}" CommandParameter="week">
-                                    <TextBlock Text="هفته" />
-                                </Button>
-                                <Button Classes="ap-seg" Classes.is-active="{Binding IsMonthViewMode}"
-                                        Command="{Binding SetViewCommand}" CommandParameter="month">
-                                    <TextBlock Text="ماه" />
-                                </Button>
-                            </StackPanel>
-                        </Border>
                     </Grid>
 
-                    <!-- tier 2 · date navigation (calendar only) -->
-                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" IsVisible="{Binding ShowCalendarChrome}"
-                          Margin="0,0,0,0">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
-                            <Border Background="{StaticResource Bg2Brush}" CornerRadius="11" Padding="3">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Button Classes="ap-icon" Command="{Binding StepPreviousCommand}"
-                                            ToolTip.Tip="بازه قبلی">
-                                        <Path Classes="icon" Width="16" Height="16"
-                                              Stroke="{StaticResource Ink2Brush}"
-                                              Data="{StaticResource IconChevronRight}" />
-                                    </Button>
-                                    <Button Classes="ap-icon" Command="{Binding StepNextCommand}"
-                                            ToolTip.Tip="بازه بعدی">
-                                        <Path Classes="icon" Width="16" Height="16"
-                                              Stroke="{StaticResource Ink2Brush}"
-                                              Data="{StaticResource IconChevronLeft}" />
-                                    </Button>
-                                </StackPanel>
-                            </Border>
-                            <Button Command="{Binding GoTodayCommand}" Height="30" Padding="12,0"
-                                    CornerRadius="8" Background="{StaticResource PanelBrush}"
-                                    BorderThickness="0"
-                                    FontSize="12.5" FontWeight="Bold"
-                                    Foreground="{StaticResource Ink2Brush}" Cursor="Hand"
-                                    ToolTip.Tip="بازگشت به امروز (T)">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Path Classes="icon" Width="14" Height="14"
-                                          Stroke="{StaticResource Brand600Brush}"
-                                          Data="{StaticResource IconClock}" />
-                                    <TextBlock Text="امروز" />
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="0" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding RangeMainText}" FontSize="15" FontWeight="ExtraBold"
-                                       Foreground="{StaticResource InkBrush}" />
-                            <TextBlock Text="{Binding RangeSubText}" FontSize="11.5"
-                                       Foreground="{StaticResource MutedBrush}" />
-                        </StackPanel>
-                    </Grid>
-
-                    <!-- tier 3 · filters (calendar only) -->
+                    <!-- tier 2 · filters (calendar only) -->
                     <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding ShowCalendarChrome}"
                                 Margin="0,0,0,0">
                         <TextBlock Text="نوع نوبت" FontSize="11" VerticalAlignment="Center"
@@ -325,6 +265,66 @@
                             <TextBlock Text="پنهان‌کردن لغوشده‌ها" />
                         </Button>
                     </StackPanel>
+                    <!-- tier 3 · date navigation (calendar only) -->
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="14" IsVisible="{Binding ShowCalendarChrome}"
+                          Margin="0,0,0,0">
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Border Background="{StaticResource Bg2Brush}" CornerRadius="11" Padding="3">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Button Classes="ap-icon" Command="{Binding StepPreviousCommand}"
+                                            ToolTip.Tip="بازه قبلی">
+                                        <Path Classes="icon" Width="16" Height="16"
+                                              Stroke="{StaticResource Ink2Brush}"
+                                              Data="{StaticResource IconChevronRight}" />
+                                    </Button>
+                                    <Button Classes="ap-icon" Command="{Binding StepNextCommand}"
+                                            ToolTip.Tip="بازه بعدی">
+                                        <Path Classes="icon" Width="16" Height="16"
+                                              Stroke="{StaticResource Ink2Brush}"
+                                              Data="{StaticResource IconChevronLeft}" />
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                            <Button Command="{Binding GoTodayCommand}" Classes="outline" Height="36" Padding="12,0"
+                                    CornerRadius="8" Background="{StaticResource PanelBrush}"
+                                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                    FontSize="12.5" FontWeight="Bold"
+                                    Foreground="{StaticResource Ink2Brush}" Cursor="Hand"
+                                    ToolTip.Tip="بازگشت به امروز (T)">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="icon" Width="14" Height="14"
+                                          Stroke="{StaticResource Brand600Brush}"
+                                          Data="{StaticResource IconClock}" />
+                                    <TextBlock Text="امروز" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding RangeMainText}" FontSize="15" FontWeight="ExtraBold"
+                                       Foreground="{StaticResource InkBrush}" />
+                            <TextBlock Text="{Binding RangeSubText}" FontSize="11.5"
+                                       Foreground="{StaticResource MutedBrush}" />
+                        </StackPanel>
+                        <!-- view switch -->
+                        <Border Grid.Column="1" Background="{StaticResource Bg2Brush}" CornerRadius="11"
+                                Padding="3" VerticalAlignment="Center" IsVisible="{Binding ShowCalendarChrome}">
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <Button Classes="ap-seg" Classes.is-active="{Binding IsDayView}"
+                                        Command="{Binding SetViewCommand}" CommandParameter="day">
+                                    <TextBlock Text="روز" />
+                                </Button>
+                                <Button Classes="ap-seg" Classes.is-active="{Binding IsWeekView}"
+                                        Command="{Binding SetViewCommand}" CommandParameter="week">
+                                    <TextBlock Text="هفته" />
+                                </Button>
+                                <Button Classes="ap-seg" Classes.is-active="{Binding IsMonthViewMode}"
+                                        Command="{Binding SetViewCommand}" CommandParameter="month">
+                                    <TextBlock Text="ماه" />
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
                 </StackPanel>
             </Border>
 

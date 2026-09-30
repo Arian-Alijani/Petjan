@@ -34,7 +34,19 @@ internal static class AppointmentsMapping
         new(row.Id, row.Name, row.Species, row.OwnerName, row.Phone,
             "blue", row.Species.ToLowerInvariant(), row.Species.ToLowerInvariant());
 
+    private static string TypeLabel(string code) => code switch
+    {
+        "CHECKUP" => "معاینه",
+        "VACCINE" => "واکسیناسیون",
+        "SURGERY" => "جراحی",
+        "DENTAL" => "دندان‌پزشکی",
+        "GROOMING" => "آرایش و شست‌وشو",
+        "FOLLOWUP" => "پیگیری",
+        "CONSULT" => "مشاوره",
+        _ => "سایر"
+    };
+
     internal static IReadOnlyList<AppointmentType> Types { get; } = AppointmentTypeCatalog.All
-        .Select(t => new AppointmentType(t.Code, t.Code, t.Code.ToLowerInvariant(),
+        .Select(t => new AppointmentType(t.Code, TypeLabel(t.Code), t.Code.ToLowerInvariant(),
             "#5A67D8", "#EEF2FF", "#3730A3", "calendar", t.DefaultDurationMinutes)).ToArray();
 }
