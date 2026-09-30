@@ -120,7 +120,7 @@ public sealed class LayeringRulesTests
         Assert.NotEmpty(contracts);
         foreach (var contract in contracts)
         {
-            var descriptor = Assert.Single(services.Where(d => d.ServiceType == contract));
+            var descriptor = Assert.Single(services, d => d.ServiceType == contract);
             // Resolve factories through the same container; never guess their implementation type.
             var implementation = descriptor.ImplementationType ?? provider.GetRequiredService(contract).GetType();
             Assert.Equal("Animora.Client.Services", implementation.Assembly.GetName().Name);
@@ -131,7 +131,7 @@ public sealed class LayeringRulesTests
             typeof(Animora.Desktop.Services.IRecordSheetPresenter)];
         foreach (var seam in uiSeams)
         {
-            var descriptor = Assert.Single(services.Where(d => d.ServiceType == seam));
+            var descriptor = Assert.Single(services, d => d.ServiceType == seam);
             var implementation = descriptor.ImplementationType ?? provider.GetRequiredService(seam).GetType();
             Assert.Equal("Animora.Desktop", implementation.Assembly.GetName().Name);
         }

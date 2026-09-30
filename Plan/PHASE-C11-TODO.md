@@ -317,7 +317,7 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ---
 
-### [ ] T4 — Extend `LayeringRulesTests` with 3 machine-checkable facts
+### [x] T4 — Extend `LayeringRulesTests` with 3 machine-checkable facts
 File: `tests/Animora.Domain.Tests/LayeringRulesTests.cs` (append facts; never weaken existing).
 
 **Pre-req:** ensure `Animora.Domain.Tests.csproj` references `Animora.Desktop` (add if missing;
@@ -572,3 +572,5 @@ Decision/Rule check/Impact + a "Repo state" list).
 - T3: Mocks directory absent; no Mock identifier remains in Desktop source. Readiness uses the existing WaitAsync contract.
 
 - T4: added Desktop project reference and shared CreateServiceCollection seam. All 24 Contracts interfaces are audited (no exemptions); the four UI seams are outside Contracts and audited separately. Tests pending targeted run.
+
+- T2/T4 validation: Desktop + dependency graph built; all 7 LayeringRulesTests passed (164 ms). Two xUnit style warnings corrected using predicate overloads.
