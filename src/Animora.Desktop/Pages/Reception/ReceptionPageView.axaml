@@ -22,11 +22,8 @@
     <StackPanel Margin="26,22,26,32" Spacing="18">
         <!-- Page header: exact reference copy and two actions. -->
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
-            <StackPanel Grid.Column="0" Spacing="4">
-                <TextBlock Text="پذیرش و صف امروز" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Brand600Brush}" Margin="0,0,0,2" />
+            <StackPanel Grid.Column="0">
                 <TextBlock Text="مدیریت صف و مراجعین" FontSize="26" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
-                <TextBlock Text="نوبت‌ها، مراجعین بدون نوبت و اورژانس‌ها را در یک صف زنده ببینید؛ فراخوان، ترک صف و ارجاع به ویزیت را با یک کلیک انجام دهید."
-                           FontSize="13" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Bottom">
                 <Button Classes="outline" Command="{Binding OpenWalkInModalCommand}">

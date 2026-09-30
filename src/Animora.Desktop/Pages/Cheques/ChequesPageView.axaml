@@ -262,12 +262,8 @@
         <!-- ═══ Page header (.ch-head) ═══ -->
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,0,0,18">
             <StackPanel Grid.Column="0" VerticalAlignment="Bottom">
-                <TextBlock Text="{Binding PageEyebrow}" FontSize="12" FontWeight="Bold"
-                           Foreground="{StaticResource Brand600Brush}" Margin="0,0,0,6" />
                 <TextBlock Text="{Binding PageTitle}" FontSize="26" FontWeight="ExtraBold"
                            Foreground="{StaticResource InkBrush}" LetterSpacing="-0.4" />
-                <TextBlock Text="{Binding PageSubtitle}" FontSize="13"
-                           Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0" TextWrapping="Wrap" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Bottom">
                 <Button Classes="outline" Command="{Binding ExportCommand}" ToolTip.Tip="خروجی اکسل">
