@@ -4,11 +4,16 @@ namespace Animora.Desktop;
 
 internal static class Program
 {
+    internal static readonly System.Diagnostics.Stopwatch StartupWatch = System.Diagnostics.Stopwatch.StartNew();
+
     // Avalonia entry point. Keep initialization-only code here; do not use
     // any Avalonia types before AppMain (visual tree not yet built).
     [STAThread]
-    public static void Main(string[] args) =>
+    public static void Main(string[] args)
+    {
+        _ = StartupWatch;
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    }
 
     public static AppBuilder BuildAvaloniaApp()
     {

@@ -147,6 +147,8 @@ public partial class App : global::Avalonia.Application
         }
 
         login.Opened -= OnLoginOpened;
+        if (Environment.GetEnvironmentVariable("ANIMORA_BENCH") == "1")
+            Console.WriteLine($"C11 first_frame_ms={Program.StartupWatch.ElapsedMilliseconds}");
         if (login.DataContext is not LoginViewModel viewModel)
         {
             return;
