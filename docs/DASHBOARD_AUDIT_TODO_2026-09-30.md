@@ -142,7 +142,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D01 derive data access from trusted identity"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D02 — پذیرش داده‌های مدیریتی غیرمجاز دریافت می‌کند
-- [ ] وضعیت: باز | P0 | گزارش 2 | نتیجه: قطعی کد | وابستگی: D01.
+- [x] وضعیت: انجام‌شده | P0 | گزارش 2 | نتیجه: widget و DTO مستقل از layout و permission-based | وابستگی: D01.
+- شواهد اجرا: کارت مالی/موجودی فاقد مجوز از Stats حذف می‌شود (نه صفر)، rich widget فاقد مجوز null است و View آن را نمایش نمی‌دهد. SQL مالی/انبار به statementهای مستقل guarded تفکیک شد؛ interceptor مسیر واقعی session → service → dispatcher → SQLite در `Receptionist_ReceivesNoFakeFinancialZero_AndForbiddenSourcesAreNotQueried` عدم query ممنوع و grant/deny را تأیید کرد. **19 regression passed، 0 failed، 12 ثانیه**؛ build فقط Desktop **0 warning/0 error، 64 ثانیه**. budget persistence-only با افزایش مستند یک statement مجاز به‌روز شد؛ D24 هنوز باز است.
 - شواهد: `DashboardQueries.cs:22,59–66`؛ `DashboardQueryService.cs:70–96`؛ `DashboardPageView.axaml.cs:31`؛ `DefaultRolePermissions.cs:36–46`.
 - اقدام: مشترک بودن layout با مدیر حفظ‌پذیر است، اما widget visibility/availability و DTO مستقل و permission-based شوند. «نداشتن اجازه» به صفر مالی جعلی تبدیل نشود؛ query مالی/موجودی غیرمجاز اصلاً اجرا نشود.
 - پذیرش/بررسی محدود: پذیرش پیش‌فرض درآمد و low-stock دریافت نکند؛ تست یک grant مالی معتبر و یک deny صریح، بدون وابستگی به مخفی‌سازی sidebar؛ شمارنده SQL ثابت کند بخش ممنوع خوانده نشده است.

@@ -9,6 +9,8 @@ using Animora.Domain.Identity;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using System.Data.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -63,9 +65,51 @@ public sealed class DashboardAuthorizationTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetSnapshotAsync(UserRole.Manager));
     }
 
-    internal static async Task<LocalIdentityHost> CreateHostAsync(StaffRole role)
+    [Fact]
+    public async Task Receptionist_ReceivesNoFakeFinancialZero_AndForbiddenSourcesAreNotQueried()
     {
-        var host = new LocalIdentityHost();
+        var sql = new SqlRecorder();
+        await using var host = await CreateHostAsync(StaffRole.Receptionist, sql);
+        sql.Commands.Clear();
+        var service = new DashboardQueryService(host.Services.GetRequiredService<IServiceScopeFactory>());
+        var snapshot = await service.GetSnapshotAsync(UserRole.Manager);
+        Assert.DoesNotContain(snapshot.Stats, x => x.IconKey is "IconArrowUpRight" or "IconBox");
+        Assert.Null(snapshot.RevenuePulse);
+        Assert.Null(snapshot.DoctorLoads);
+        Assert.NotEmpty(sql.Commands);
+        Assert.DoesNotContain(sql.Commands, x => x.Contains("DailyFinanceFacts") || x.Contains("StockOnHandSnapshots"));
+        await ChangeMemberAsync(host, member => member.GrantExtra(PermissionCodes.FinanceRead));
+        sql.Commands.Clear();
+        var granted = await service.GetSnapshotAsync(UserRole.Manager);
+        Assert.Contains(granted.Stats, x => x.IconKey == "IconArrowUpRight");
+        Assert.Contains(sql.Commands, x => x.Contains("DailyFinanceFacts"));
+        await ChangeMemberAsync(host, member => member.Deny(PermissionCodes.FinanceRead));
+        sql.Commands.Clear();
+        var denied = await service.GetSnapshotAsync(UserRole.Manager);
+        Assert.DoesNotContain(denied.Stats, x => x.IconKey == "IconArrowUpRight");
+        Assert.DoesNotContain(sql.Commands, x => x.Contains("DailyFinanceFacts"));
+    }
+
+    internal sealed class SqlRecorder : DbCommandInterceptor
+    {
+        public List<string> Commands { get; } = [];
+        public override InterceptionResult<DbDataReader> ReaderExecuting(DbCommand command, CommandEventData data,
+            InterceptionResult<DbDataReader> result)
+        {
+            Commands.Add(command.CommandText);
+            return result;
+        }
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
+            CommandEventData data, InterceptionResult<DbDataReader> result, CancellationToken ct = default)
+        {
+            Commands.Add(command.CommandText);
+            return ValueTask.FromResult(result);
+        }
+    }
+
+    internal static async Task<LocalIdentityHost> CreateHostAsync(StaffRole role, DbCommandInterceptor? interceptor = null)
+    {
+        var host = new LocalIdentityHost(interceptor);
         await host.InitializeAsync();
         var setup = await host.SendAnonymousAsync(new CompleteFirstRunSetupCommand("Clinic", "Owner", "owner", "Secret123!"));
         Assert.True(setup.IsSuccess, setup.Detail);

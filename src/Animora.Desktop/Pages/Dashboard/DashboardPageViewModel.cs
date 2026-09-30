@@ -112,6 +112,12 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     [ObservableProperty]
     private DashboardRevenuePulse? _revenuePulse;
 
+    [ObservableProperty]
+    private bool _hasDoctorWorkload;
+
+    [ObservableProperty]
+    private bool _hasSpecies;
+
     /// <summary>Filled area under the revenue line (chart background).</summary>
     [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueAreaGeometry;
@@ -234,6 +240,8 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         SecondaryList.ReplaceAll(
             snapshot.SecondaryList.Select(x => new DashboardRowViewModel(x)));
 
+        HasDoctorWorkload = snapshot.DoctorLoads is not null;
+        HasSpecies = snapshot.Species is not null;
         RevenuePulse = snapshot.RevenuePulse;
         BuildRevenueChart(snapshot.RevenuePulse?.Points);
 

@@ -80,7 +80,8 @@
         <Grid ColumnDefinitions="1.3*,1*" ColumnSpacing="16">
 
             <!-- نبض مالی کلینیک (clinic financial pulse) -->
-            <Border Grid.Column="0" Classes="card" Padding="20,18">
+            <Border Grid.Column="0" Classes="card" Padding="20,18"
+                    IsVisible="{Binding RevenuePulse, Converter={x:Static ObjectConverters.IsNotNull}}">
                 <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="2">
@@ -173,7 +174,7 @@
             </Border>
 
             <!-- بار کاری پزشکان امروز (doctor workload today) -->
-            <Border Grid.Column="1" Classes="card">
+            <Border Grid.Column="1" Classes="card" IsVisible="{Binding HasDoctorWorkload}">
                 <StackPanel>
                     <Grid Classes="card-header" ColumnDefinitions="*,Auto">
                         <TextBlock Grid.Column="0" Classes="card-title" Text="بار کاری پزشکان امروز" />
@@ -279,7 +280,7 @@
             </Border>
 
             <!-- بیماران بر اساس گونه (patients by species) -->
-            <Border Grid.Column="1" Classes="card">
+            <Border Grid.Column="1" Classes="card" IsVisible="{Binding HasSpecies}">
                 <StackPanel>
                     <StackPanel Classes="card-header">
                         <TextBlock Classes="card-title" Text="بیماران بر اساس گونه" />

@@ -79,6 +79,19 @@ internal static class DashboardMapping
                 Stat("IconUsers", "ویزیت امروز", visits), Stat("IconReceipt", "فاکتورهای باز", slice.OpenInvoices),
                 Stat("IconBox", "هشدار موجودی", slice.LowStockCount) },
         };
+        if (slice.Access is { } allowed)
+            stats = stats.Where(stat => stat.IconKey switch
+            {
+                "IconArrowUpRight" => allowed.Finance,
+                "IconCart" => allowed.Collections,
+                "IconReceipt" => allowed.Sales,
+                "IconBox" => allowed.Inventory,
+                "IconUsers" or "IconCheck" => allowed.Visits,
+                "IconClock" or "IconEdit" or "IconClipboard" => allowed.Appointments,
+                "IconSyringe" => allowed.Vaccination,
+                "IconCheque" => allowed.Cheques,
+                _ => false,
+            }).ToArray();
         zone ??= TimeZoneInfo.Utc;
         var primary = role == UserRole.Cashier
             ? slice.Activity.Where(x => x.Kind == "Sale").Take(8).Select(x => Item(x, zone)).ToArray()

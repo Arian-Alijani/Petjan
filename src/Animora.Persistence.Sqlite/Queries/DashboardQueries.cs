@@ -58,17 +58,15 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             g.Count(x => x.Kind == "Cheque"))).SingleOrDefaultAsync(ct)
             ?? new DashboardActivityTotals(0, 0, 0, 0);
         var activity = await feed.OrderByDescending(x => x.Id).Take(80)
-            .Select(x => new DashboardActivity(x.Kind, x.Title, x.EntityId, x.AmountMinor,
-                x.AmountSign, x.ActorUserId, x.OccurredUtc, x.ActorName)).ToListAsync(ct);
+            .Select(x => new DashboardActivity(x.Kind, x.Title, x.EntityId,
+                access.Finance || access.Collections ? x.AmountMinor : 0L,
+                access.Finance || access.Collections ? x.AmountSign : 0, x.ActorUserId, x.OccurredUtc, x.ActorName)).ToListAsync(ct);
 
-        var counts = !access.Sales && !access.Inventory ? null : await db.Set<Tenant>().AsNoTracking()
-            .Where(x => x.Id == tenantId).Select(x => new
-            {
-                Open = access.Sales ? db.Set<Invoice>().Count(i => i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid) : 0,
-                Low = access.Inventory ? db.Set<StockOnHandSnapshot>().Count(i => i.TenantId == tenantId && i.OnHandScaled <= 0) : 0
-            }).SingleOrDefaultAsync(ct);
-        var open = counts?.Open ?? 0;
-        var low = counts?.Low ?? 0;
+        // Separate guarded statements: a forbidden source is not part of SQL at all.
+        var open = access.Sales ? await db.Set<Invoice>().AsNoTracking()
+            .CountAsync(i => i.TenantId == tenantId && (i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid), ct) : 0;
+        var low = access.Inventory ? await db.Set<StockOnHandSnapshot>().AsNoTracking()
+            .CountAsync(i => i.TenantId == tenantId && i.OnHandScaled <= 0, ct) : 0;
         IReadOnlyDictionary<string, int> species = new Dictionary<string, int>();
         if (access.Patients && role != UserRole.Doctor)
         {

@@ -22,8 +22,8 @@ using Xunit;
 namespace Animora.Application.Tests;
 
 /// <summary>
-/// C10 dashboard budget & role fidelity: composing a snapshot for any role stays within the
-/// eight-<c>DbCommand</c> budget (seven slice reads + one version probe), the Manager's "today
+/// Persistence-only dashboard budget (not the production authorization pipeline): explicit test
+/// capabilities stay within a role-specific <c>DbCommand</c> bound, and the Manager's "today
 /// revenue" equals the finance projection's same-day figure (single source of truth —
 /// <c>DailyFinanceFact</c>), and the Doctor snapshot exposes no manager-only rich widget.
 /// </summary>
@@ -44,10 +44,10 @@ public sealed class DashboardBudgetTests
     }
 
     [Theory]
-    [InlineData(UserRole.Manager, 8)]
+    [InlineData(UserRole.Manager, 9)]
     [InlineData(UserRole.Doctor, 5)]
     [InlineData(UserRole.Cashier, 7)]
-    [InlineData(UserRole.Receptionist, 8)]
+    [InlineData(UserRole.Receptionist, 9)]
     public async Task Snapshot_StaysWithinRoleCommandBudget(UserRole role, int expectedCommands)
     {
         using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
@@ -59,7 +59,7 @@ public sealed class DashboardBudgetTests
         {
             var queries = new DashboardQueries(counting);
             counter.Reset();
-            // The composer runs VersionAsync (1) then GetSliceAsync (the role slice) on one connection.
+            // Count persistence reads only; D24 separately measures live authorization + service scopes.
             _ = await queries.VersionAsync(fixture.TenantId, default);
             _ = await queries.GetSliceAsync(fixture.TenantId, Window, "user-1", TestAccess(role), default);
             Assert.Equal(expectedCommands, counter.Count);
