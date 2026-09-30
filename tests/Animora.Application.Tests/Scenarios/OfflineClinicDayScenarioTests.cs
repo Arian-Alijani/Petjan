@@ -46,7 +46,7 @@ public sealed class OfflineClinicDayScenarioTests
             .AddInventoryUseCases().AddSalesUseCases().AddCashierUseCases().AddBoardingUseCases()));
         await fixture.InitializeAsync();
         var device = fixture.Services.GetRequiredService<ILocalInstallationIdentity>().DeviceId;
-        var user = "";
+        var user = Animora.Application.Security.ICurrentUserProvider.AnonymousUserId;
         var journalOperations = new List<string>();
 
         async Task<T> Send<T>(ICommand<T> command)
@@ -54,7 +54,8 @@ public sealed class OfflineClinicDayScenarioTests
             fixture.Clock.Now = fixture.Clock.Now.AddSeconds(1);
             var operation = IdGenerator.NewId(fixture.Clock.Now);
             using var scope = fixture.CreateScope();
-            var context = new CommandContext(fixture.TenantId, user, device, operation, operation,
+            var contextUser = command is SignInCommand ? Animora.Application.Security.ICurrentUserProvider.AnonymousUserId : user;
+            var context = new CommandContext(fixture.TenantId, contextUser, device, operation, operation,
                 null, null, null, fixture.Clock.Now);
             var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().SendAsync(command, context);
             Assert.True(result.IsSuccess, $"{command.GetType().Name}: {result.Error.Code} {result.Detail}");
@@ -98,6 +99,7 @@ public sealed class OfflineClinicDayScenarioTests
         var appointment = await Send(new BookAppointmentCommand(tomorrow, 600, 30,
             AppointmentTypeCatalog.All[0].Code, doctor, pet, owner, null));
         fixture.Clock.Now = fixture.Clock.Now.AddDays(1);
+        user = (await Send(new SignInCommand("admin", "Secret123", false))).UserId;
         await Send(new CheckInAppointmentCommand(appointment));
 
         // 4: derived queue -> admit -> encounter.
@@ -185,6 +187,7 @@ public sealed class OfflineClinicDayScenarioTests
         var stay = await Send(new CreateBoardingStayCommand(pet, room, tomorrow, tomorrow.AddDays(1), 1000, null));
         await Send(new AddStayItemCommand(stay, variant, 1));
         fixture.Clock.Now = fixture.Clock.Now.AddDays(1);
+        user = (await Send(new SignInCommand("admin", "Secret123", false))).UserId;
         await Send(new CheckoutStayCommand(stay));
         string stayHandoff;
         await using (var db = fixture.CreateContext(fixture.TenantId))

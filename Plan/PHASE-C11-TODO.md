@@ -420,7 +420,7 @@ existing use-case tests for the exact handler names & command DTOs per track:
 
 ---
 
-### [ ] T6 — `StartupBudgetTests` (no blocking work before first frame)
+### [x] T6 — `StartupBudgetTests` (no blocking work before first frame)
 File: `tests/Animora.Application.Tests/StartupBudgetTests.cs` (PERFORMANCE.md §12).
 - Assert `App.axaml.cs` startup does **not** `await` migration, seeding, or projection rebuild
   before the first frame — that work runs behind `LocalStoreStartup` + `IStoreReadinessGate`.
@@ -574,3 +574,6 @@ Decision/Rule check/Impact + a "Repo state" list).
 - T4: added Desktop project reference and shared CreateServiceCollection seam. All 24 Contracts interfaces are audited (no exemptions); the four UI seams are outside Contracts and audited separately. Tests pending targeted run.
 
 - T2/T4 validation: Desktop + dependency graph built; all 7 LayeringRulesTests passed (164 ms). Two xUnit style warnings corrected using predicate overloads.
+
+- T6: focused StartupBudgetTests passed; startup source embedded at build time.
+- T5: scenario uses the anonymous identity seam before first run and real sign-in after advancing a day (sessions expire). Two opening-stock commands justify the exact nine feed events.
