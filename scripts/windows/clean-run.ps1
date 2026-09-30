@@ -18,6 +18,7 @@
 #   .\scripts\windows\clean-run.ps1 -NoRun       # clean + build only
 #   .\scripts\windows\clean-run.ps1 -Clinic      # Debug + normal clinic DB
 #   .\scripts\windows\clean-run.ps1 -LocalTest   # isolated persistent manual test DB
+#   .\scripts\windows\clean-run.ps1 -local-test  # alias; --local-test also accepted
 #   .\scripts\windows\clean-run.ps1 -FreshTest   # new isolated DB; never deletes old data
 #   .\scripts\windows\clean-run.ps1 -SeedCount 100  # NEW random-data test profile
 #   .\scripts\windows\clean-run.ps1 5000           # same as -SeedCount 5000
@@ -60,10 +61,13 @@ param(
     # Accept ANY number the user types (e.g. 55, 9999, or a huge value like 9636 3624928364).
     # Kept as a raw string so an out-of-int / out-of-range value never throws before we can clamp it;
     # the value is sanitized to digits and clamped into 1..50000 below. Only digits/spaces/_/, allowed.
-    [ValidatePattern('^[0-9][0-9 _,]*$')]
+    # PowerShell binds GNU-style --local-test as a positional string, not as a named switch.
+    [ValidatePattern('^(?:[0-9][0-9 _,]*|--local-test)$')]
     [string]$SeedCount,
     [switch]$Release,
     [switch]$NoRun,
+    # PowerShell parameter names are case-insensitive, but embedded hyphens need explicit aliases.
+    [Alias('local-test')]
     [switch]$LocalTest,
     [switch]$FreshTest,
     [switch]$Clinic,
@@ -75,6 +79,12 @@ param(
 $ErrorActionPreference = 'Stop'
 # Explicit exit-code handling works in Windows PowerShell 5.1 and PowerShell 7.
 $PSNativeCommandUseErrorActionPreference = $false
+if ($SeedCount -eq '--local-test') {
+    if ($PSBoundParameters.ContainsKey('LocalTest')) { throw 'Specify local-test only once.' }
+    $LocalTest = $true
+    $PSBoundParameters['LocalTest'] = $true
+    $null = $PSBoundParameters.Remove('SeedCount')
+}
 $SeedRequested = $PSBoundParameters.ContainsKey('SeedCount')
 if ($SeedRequested) {
     if ($Clinic -or $ClinicBak -or $PSBoundParameters.ContainsKey('TestProfile')) {

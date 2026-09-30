@@ -1,5 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Entities;
+using Animora.Persistence.Sqlite.Seed;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -44,13 +50,68 @@ public sealed class LocalMigrationTests
         using var scope = fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<Animora.Persistence.Sqlite.Context.AnimoraLocalDbContext>();
         var applied = await db.Database.GetAppliedMigrationsAsync();
-        // 001..014 (013 = inventory snapshot; migration 006 exists; SalesInsurers is 014 per C07 D1).
-        Assert.Equal(14, applied.Count());
+        Assert.NotEmpty(applied);
+        Assert.Equal(db.Database.GetMigrations(), applied);
 
         // Re-applying is a no-op: no new migration, no error.
         await db.Database.MigrateAsync();
         var again = await db.Database.GetAppliedMigrationsAsync();
         Assert.Equal(applied.OrderBy(x => x), again.OrderBy(x => x));
+    }
+
+    [Theory]
+    [InlineData("en-US")]
+    [InlineData("fa-IR")]
+    [InlineData("tr-TR")]
+    public void ModelMatchesSnapshot_InEachCulture(string cultureName)
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(cultureName);
+            using var fixture = new LocalStoreTestFixture();
+            // Do not reuse a model cached by an earlier culture/provider.
+            var options = new DbContextOptionsBuilder<AnimoraLocalDbContext>()
+                .UseSqlite($"Data Source={fixture.DatabasePath}")
+                .EnableServiceProviderCaching(false).Options;
+            using var db = new AnimoraLocalDbContext(options,
+                new FixedTenantContext(fixture.TenantId), fixture.Clock);
+            Assert.False(db.Database.HasPendingModelChanges());
+            Assert.False(System.IO.File.Exists(fixture.DatabasePath)); // Model-only check never opens storage.
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
+    }
+
+    [Fact]
+    public async Task UpgradeFromPreviousMigration_PreservesExistingRows()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var migrations = db.Database.GetMigrations().ToArray();
+        Assert.True(migrations.Length >= 2);
+        await db.GetService<IMigrator>().MigrateAsync(migrations[^2]);
+        var marker = SeedMarker.Create("regression.preserve", 1, fixture.Clock.UtcNow);
+        db.Add(marker);
+        var ownerSnapshot = OwnerFinancialSnapshot.Create(fixture.TenantId, "regression-owner");
+        db.Add(ownerSnapshot);
+        db.Entry(ownerSnapshot).Property<long>("OpenBalanceMinor").CurrentValue = 12345;
+        await db.SaveChangesAsync();
+
+        await db.Database.MigrateAsync();
+        db.ChangeTracker.Clear();
+        var saved = await db.Set<SeedMarker>().SingleAsync(e => e.SeedKey == "regression.preserve");
+        Assert.Equal(marker.Id, saved.Id);
+        Assert.Equal(marker.SchemaVersion, saved.SchemaVersion);
+        Assert.Equal(marker.CreatedAtUtc, saved.CreatedAtUtc);
+        var savedSnapshot = await db.Set<OwnerFinancialSnapshot>().AsTracking()
+            .SingleAsync(e => e.Id == ownerSnapshot.Id);
+        Assert.Equal(12345L, db.Entry(savedSnapshot).Property<long>("OpenBalanceMinor").CurrentValue);
+        Assert.Null(typeof(OwnerFinancialSnapshot).GetProperty("OpenBalanceMinor"));
+        Assert.Equal(migrations, await db.Database.GetAppliedMigrationsAsync());
     }
 
     [Fact]
