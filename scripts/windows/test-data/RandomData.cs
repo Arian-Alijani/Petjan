@@ -54,10 +54,12 @@ internal static class RandomData
                 .Select(m => m.UserId).FirstAsync();
             var periodCodes = sp.GetRequiredService<ISeedPeriodCodeProvider>();
             // Real journal posting handlers require an open period for every historical accounting date.
-            for (var month = -6; month <= 1; month++)
+            var knownPeriods = (await db.Set<AccountingPeriod>().Select(p => p.PeriodCode).ToListAsync())
+                .ToHashSet(StringComparer.Ordinal);
+            for (var day = -180; day <= 40; day += 7)
             {
-                var period = periodCodes.For(now.AddMonths(month));
-                if (!await db.Set<AccountingPeriod>().AnyAsync(p => p.PeriodCode == period.PeriodCode))
+                var period = periodCodes.For(now.AddDays(day));
+                if (knownPeriods.Add(period.PeriodCode))
                     db.Add(Value(AccountingPeriod.Create(tenant, period.PeriodCode, period.StartUtc, period.EndUtc)));
             }
             doctors = new string[4];
@@ -66,7 +68,9 @@ internal static class RandomData
                 var doctor = User.Create(tenant, $"random-doctor-{d}", $"دامپزشک آزمایشی {d + 1}", new AtClock(now));
                 doctors[d] = doctor.Id;
                 db.Add(doctor);
-                db.Add(StaffMembership.Create(tenant, doctor.Id, StaffRole.Doctor, new AtClock(now)));
+                var membership = StaffMembership.Create(tenant, doctor.Id, StaffRole.Doctor, new AtClock(now));
+                membership.SetWorkingHours(480, 1200, 127);
+                db.Add(membership);
             }
             var category = await db.Set<ProductCategory>().Where(c => c.Code == "ACC").Select(c => c.Id).FirstAsync();
             // Bounded reusable catalogue; the requested count scales business scenarios, not staff/rooms.
@@ -91,6 +95,9 @@ internal static class RandomData
                 .OrderBy(p => p.Sku).ToArrayAsync();
             suppliers = await db.Set<Supplier>().AsNoTracking().OrderBy(s => s.Id).Take(110).ToArrayAsync();
             rooms = await db.Set<Room>().AsNoTracking().OrderBy(r => r.Code).ToArrayAsync();
+            // One usable live drawer; historical synthetic receipts use separate closed sessions.
+            db.Add(Value(CashSession.Open(tenant, "RND-CS-LIVE", actor, Money.Irt(1_000_000), now)));
+            Check(await sp.GetRequiredService<IUnitOfWork>().SaveAsync());
             await using var content = new MemoryStream(document);
             documentHash = Value(await sp.GetRequiredService<ILocalFileStore>().PutAsync(content, default));
         }
@@ -129,7 +136,8 @@ internal static class RandomData
 
                     var doctor = doctors[i % doctors.Length];
                     // New doctors, non-overlapping 30-minute slots. Today + a recent past/future calendar.
-                    var day = i < 32 ? 0 : (i - 32) / 32 - 7;
+                    var day = i < 32 ? 0 : (i - 32) / 32 - Math.Max(1, (count - 32 + 63) / 64);
+                    if (i >= 32 && day >= 0) day++; // Never repeat today's baseline slots.
                     var start = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero).AddDays(day)
                         .AddHours(6).AddMinutes((i % 32 / 4) * 30);
                     var appointment = Value(Appointment.Book(tenant, pet.Id, owner.Id, "CHECKUP", start, 30,
@@ -172,13 +180,16 @@ internal static class RandomData
                     var quantity = random.Next(1, 4);
                     var supplier = suppliers[random.Next(suppliers.Length)];
                     AddPurchase(db, tenant, actor, supplier, product, variant, i, clock);
-                    var invoice = Value(Invoice.Create(tenant, "draft-" + IdGenerator.NewId(at), InvoiceKind.DirectSale,
-                        at, actor, owner.Id, null, pet.Id, operationId: IdGenerator.NewId(at)));
+                    var invoice = Value(Invoice.Create(tenant, "draft-" + IdGenerator.NewId(at),
+                        visit.State == VisitState.ReadyForInvoice ? InvoiceKind.Visit : InvoiceKind.DirectSale,
+                        at, actor, owner.Id, null, pet.Id, operationId: IdGenerator.NewId(at), notes: "داده مصنوعی؛ صرفاً تست"));
+                    if (visit.State == VisitState.ReadyForInvoice) Check(invoice.AttachVisit(visit.Id));
                     Check(invoice.AddLine(new InvoiceLine(IdGenerator.NewId(at), InvoiceLineKind.Product,
                         variant.VariantId, product.Id, variant.VariantId, product.Name, new Quantity(quantity, "PCS"),
                         variant.SalePrice, i % 4 == 0 ? 5m : 0m, 9m, InvoiceLineSource.Catalog, null)));
                     Check(invoice.AddLine(new InvoiceLine(IdGenerator.NewId(at), InvoiceLineKind.Service,
-                        null, null, null, "معاینه آزمایشی", new Quantity(1, "PCS"), fee, 0m, 9m, InvoiceLineSource.Catalog, null)));
+                        null, null, null, "معاینه آزمایشی", new Quantity(1, "PCS"), fee, 0m, 9m,
+                        visit.State == VisitState.ReadyForInvoice ? InvoiceLineSource.Visit : InvoiceLineSource.Manual, visit.Id)));
                     if (i % 6 != 0)
                     {
                         Check(invoice.AssignInvoiceNumber(await sp.GetRequiredService<IInvoiceNumberAllocator>().AllocateAsync(tenant, at, ct)));
@@ -240,20 +251,60 @@ internal static class RandomData
                     if (i % 4 is 2 or 3) Check(cheque.Deposit(actor, clock));
                     if (i % 4 == 3) Check(cheque.MarkBounced(actor, "برگشت آزمایشی", clock));
                     db.Add(cheque);
-                    // Historical checked-out stays only: never create thousands of concurrent occupants.
-                    if (i % 4 == 0 && invoice.State != InvoiceState.Draft)
+                    // Live occupancy is bounded by room capacity; history uses non-overlapping room stays.
+                    if (i < 8)
                     {
-                        var stay = Value(BoardingStay.Reserve(tenant, pet.Id, owner.Id, rooms[i % rooms.Length].Id,
-                            at.AddDays(-2), at, Money.Irt(random.Next(200, 500) * 1000L)));
-                        Check(stay.Activate(new AtClock(at.AddDays(-2)))); Check(stay.RequestCheckout(clock));
-                        Check(stay.FreezeTotalForCheckout(stay.DailyRate.Multiply(2)));
-                        Check(stay.AttachInvoice(invoice.Id)); Check(stay.CompleteCheckout(clock)); db.Add(stay);
+                        var checkIn = i is 4 or 5 ? now.AddDays(3) : now.AddDays(-1);
+                        var stay = Value(BoardingStay.Reserve(tenant, pet.Id, owner.Id, rooms[i].Id,
+                            checkIn, checkIn.AddDays(4), Money.Irt(250_000)));
+                        if (i is not (4 or 5)) Check(stay.Activate(new AtClock(checkIn)));
+                        if (i >= 6)
+                        {
+                            Check(stay.RequestCheckout(new AtClock(now)));
+                            var total = StayChargeCalculator.Accrued(stay, [], now, TimeZoneInfo.Utc);
+                            Check(stay.FreezeTotalForCheckout(total));
+                            db.Add(BoardingBillingHandoff.Create(tenant, stay.Id, owner.Id, pet.Id, now,
+                                JsonSerializer.Serialize(new { TotalMinor = total.Minor, Currency = total.Currency, stay.Items })));
+                        }
+                        db.Add(stay);
                     }
+                    if (i % 4 == 0 && i < 128)
+                        await AddHistoricalStayAsync(sp, db, tenant, actor, owner, pet, rooms[(i / 4) % rooms.Length],
+                            i, now, ct);
                 }
                 return Result<bool>.Ok(true);
             }));
             Console.WriteLine($"==> Synthetic scenarios: {end:N0}/{count:N0}");
         }
+    }
+
+    private static async Task AddHistoricalStayAsync(IServiceProvider sp, AnimoraLocalDbContext db,
+        string tenant, string actor, Owner owner, Pet pet, Room room, int index, DateTimeOffset now, CancellationToken ct)
+    {
+        // Eight rooms, one 2-day stay per room per 3-day block, all ending before live occupancy.
+        var end = now.AddDays(-20 - index / 32 * 3);
+        var start = end.AddDays(-2);
+        var clock = new AtClock(end);
+        var stay = Value(BoardingStay.Reserve(tenant, pet.Id, owner.Id, room.Id, start, end, Money.Irt(250_000)));
+        Check(stay.Activate(new AtClock(start))); Check(stay.RequestCheckout(clock));
+        var total = StayChargeCalculator.Accrued(stay, [], end, TimeZoneInfo.Utc);
+        Check(stay.FreezeTotalForCheckout(total));
+        var number = await sp.GetRequiredService<IInvoiceNumberAllocator>().AllocateAsync(tenant, end, ct);
+        var invoice = Value(Invoice.Create(tenant, number, InvoiceKind.Boarding, end, actor, owner.Id,
+            petId: pet.Id, operationId: IdGenerator.NewId(end), notes: "پانسیون ساختگی"));
+        Check(invoice.AttachStay(stay.Id));
+        Check(invoice.AddLine(new InvoiceLine(IdGenerator.NewId(end), InvoiceLineKind.Boarding, null, null, null,
+            "اقامت آزمایشی", new Quantity(1, "PCS"), total, 0m, 0m, InvoiceLineSource.Stay, stay.Id)));
+        Check(invoice.Post(clock)); Check(stay.AttachInvoice(invoice.Id)); Check(stay.CompleteCheckout(clock));
+        var handoff = BoardingBillingHandoff.Create(tenant, stay.Id, owner.Id, pet.Id, end,
+            JsonSerializer.Serialize(new { TotalMinor = total.Minor, Currency = total.Currency, stay.Items }));
+        handoff.MarkInvoiced(invoice.Id);
+        var payload = JsonSerializer.Serialize(new { invoiceId = invoice.Id });
+        var sequence = Value(await sp.GetRequiredService<ILocalSequenceAllocator>().NextAsync(ct));
+        db.Add(PendingCommand.Create(CommandEnvelope.Create(invoice.OperationId!, tenant, actor, "D-MANUAL-TEST",
+            CommandTypes.SalesInvoicePost, "Invoice", invoice.Id, payload,
+            CommandFingerprint.Compute(CommandTypes.SalesInvoicePost, payload), end, sequence), end));
+        db.Add(stay); db.Add(invoice); db.Add(handoff);
     }
 
     private static void AddPurchase(AnimoraLocalDbContext db, string tenant, string actor, Supplier supplier,
