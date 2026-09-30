@@ -90,6 +90,8 @@ public static class CommandTypes
     public const string VaccinationRecordAdminister = "vaccination.record.administer";
     public const string VaccinationRecordReminder = "vaccination.record.reminder";
 
+    public const string InventoryCategoryDelete = "inventory.category.delete";
+
     /// <summary>Every declared command type, in declaration order.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
@@ -100,7 +102,7 @@ public static class CommandTypes
         CashierSessionOpen, CashierSessionClose, CashierMovementRecord,
         InventoryStockAdjust, InventoryReceiptPost,
         PurchasingOrderSubmit,
-        InventoryProductCreate, InventoryProductUpdate, InventoryVariantAdd, InventoryProductDelete,
+        InventoryProductCreate, InventoryProductUpdate, InventoryVariantAdd, InventoryProductDelete, InventoryCategoryDelete,
         PurchasingOrderCreate, PurchasingReceiptRecord, PurchasingOrderCancel,
         FinancePeriodClose, FinanceExpensePost, FinanceChequeTransition,
         FinanceChequeCreate, FinanceChequeUpdate, FinanceChequeDelete, FinanceChequeStatus,

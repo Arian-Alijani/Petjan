@@ -4,14 +4,15 @@ using Animora.Application.Commands;
 using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Domain.Identity;
+using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Results;
 namespace Animora.Application.UseCases.Inventory;
 
 [RequiresPermission(PermissionCodes.InventoryAdjust)]
-[Auditable(AuditCategory.Inventory, "inventory.category.delete")]
+[Auditable(AuditCategory.Inventory, CommandTypes.InventoryCategoryDelete)]
 public sealed record DeleteProductCategoryCommand(string CategoryId) : ICommand<Unit>, IJournaledCommand
 {
-    public string CommandTypeName => "inventory.category.delete";
+    public string CommandTypeName => CommandTypes.InventoryCategoryDelete;
     public string AggregateTypeName => "ProductCategory";
     public string? AggregateIdOrNull => CategoryId;
 }
