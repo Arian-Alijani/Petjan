@@ -49,21 +49,39 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         Eyebrow = "مرکز فرمان";
         Breadcrumbs.Add("داشبورد");
 
-        // Non-blocking init: never call .Result/.GetAwaiter().GetResult() on the
-        // UI thread (PERFORMANCE.md §4). The mock resolves synchronously today; a
-        // future Datasync-backed service returns a real Task and this stays
-        // responsive. Set IsBusy until the snapshot lands so the shell reflects
-        // the in-flight state.
-        _ = LoadAsync();
+        // Load on activation, not DI construction; singleton pages also refresh on return.
+        // Database work is awaited without blocking the dispatcher (PERFORMANCE.md §4/§12).
+
     }
 
-    private async Task LoadAsync()
+    [ObservableProperty]
+    private string? _loadError;
+    private DashboardSnapshot? _appliedSnapshot;
+
+    public override void OnNavigatedTo()
     {
-        await _readiness.WaitAsync();
+        if (!IsBusy) _ = RefreshCommand.ExecuteAsync(null);
+    }
+
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
         IsBusy = true;
+        LoadError = null;
         try
         {
-            Apply(await _dashboard.GetSnapshotAsync(Role));
+            await _readiness.WaitAsync();
+            var snapshot = await _dashboard.GetSnapshotAsync(Role);
+            // A cache hit returns the same immutable snapshot: no row/geometry/notification rebuild.
+            if (!ReferenceEquals(_appliedSnapshot, snapshot))
+            {
+                Apply(snapshot);
+                _appliedSnapshot = snapshot;
+            }
+        }
+        catch (Exception)
+        {
+            LoadError = "بارگذاری داشبورد انجام نشد؛ دوباره تلاش کنید";
         }
         finally
         {
@@ -73,7 +91,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     public UserRole Role { get; }
 
-    public bool IsManager => Role == UserRole.Manager;
+    public bool IsManager => Role is UserRole.Manager or UserRole.Receptionist;
 
     public bool IsCashier => Role == UserRole.Cashier;
 
@@ -160,7 +178,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     [RelayCommand]
     private void FocusSpecies(int index)
     {
-        if (index < 0 || index >= Species.Count)
+        if (index < 0 || index >= Species.Count || SpeciesActiveIndex == index)
         {
             return;
         }
@@ -183,6 +201,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     [RelayCommand]
     private void BlurSpecies()
     {
+        if (!IsSpeciesDimmed && SpeciesActiveIndex == -1) return;
         IsSpeciesDimmed = false;
         SpeciesActiveIndex = -1;
         foreach (var row in Species)
@@ -250,48 +269,38 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
             pts[i] = new Avalonia.Point(i * step, y);
         }
 
-        var line = new Avalonia.Media.PathGeometry();
-        var lineFig = new Avalonia.Media.PathFigure
+        // Packed immutable paths avoid a managed PathFigure/LineSegment object per point (§11).
+        var line = new Avalonia.Media.StreamGeometry();
+        using (var context = line.Open())
         {
-            StartPoint = pts[0],
-            IsClosed = false,
-            IsFilled = false,
-        };
-        for (var i = 1; i < pts.Length; i++)
-        {
-            lineFig.Segments!.Add(new Avalonia.Media.LineSegment { Point = pts[i] });
+            context.BeginFigure(pts[0], false);
+            for (var i = 1; i < pts.Length; i++) context.LineTo(pts[i]);
+            context.EndFigure(false);
         }
-
-        line.Figures!.Add(lineFig);
         RevenueLineGeometry = line;
 
-        var area = new Avalonia.Media.PathGeometry();
-        var areaFig = new Avalonia.Media.PathFigure
+        var area = new Avalonia.Media.StreamGeometry();
+        using (var context = area.Open())
         {
-            StartPoint = new Avalonia.Point(0, bottom),
-            IsClosed = true,
-            IsFilled = true,
-        };
-        foreach (var p in pts)
-        {
-            areaFig.Segments!.Add(new Avalonia.Media.LineSegment { Point = p });
+            context.BeginFigure(new Avalonia.Point(0, bottom), true);
+            foreach (var p in pts) context.LineTo(p);
+            context.LineTo(new Avalonia.Point(width, bottom));
+            context.EndFigure(true);
         }
-
-        areaFig.Segments!.Add(new Avalonia.Media.LineSegment { Point = new Avalonia.Point(width, bottom) });
-        area.Figures!.Add(areaFig);
         RevenueAreaGeometry = area;
     }
 
     private void ApplySpecies(IReadOnlyList<DashboardSpecies> species)
     {
-        Species.Clear();
+        var rows = new DashboardSpeciesViewModel[species.Count];
         var total = species.Sum(s => s.Count);
         for (var i = 0; i < species.Count; i++)
         {
             var s = species[i];
             var pct = total <= 0 ? 0 : (double)s.Count / total;
-            Species.Add(new DashboardSpeciesViewModel(i, s, pct));
+            rows[i] = new DashboardSpeciesViewModel(i, s, pct);
         }
+        Species.ReplaceAll(rows);
 
         _speciesBaseTotal = Localization.PersianNumberFormatter.FormatGrouped(total);
         _speciesBaseSub = Localization.PersianNumberFormatter.ToPersianDigits(

@@ -145,6 +145,11 @@ public static class LocalStoreServiceCollectionExtensions
         // (background/query work builds a scope without the full application layer) and a real registration
         // elsewhere (AddAnimoraApplication, or E06/B05) still wins.
         services.TryAddSingleton<ICorrelationContext, CorrelationContext>();
+        // The audit-backed sink surfaces integrity alerts through the presentation notification seam when a host
+        // provides one. Headless hosts (manual-test data tool, background/sync services, tests) have no UI, so a
+        // no-op port is registered as a fallback; a presentation host's real adapter (added later, unconditionally)
+        // still wins. This keeps auditing — the security-critical part of A-RULE 019 — working in every host.
+        services.TryAddSingleton<Contracts.Diagnostics.IUserNotificationPort, Contracts.Diagnostics.NullUserNotificationPort>();
         services.Replace(ServiceDescriptor.Scoped<IIntegrityAlertSink, IntegrityAlertSink>());
         services.TryAddScoped<IAuditWriter, AuditWriter>();
         services.TryAddSingleton<ICommandTransport, NullCommandTransport>();

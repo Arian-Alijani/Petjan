@@ -5,6 +5,11 @@ using Animora.Application.Abstractions;
 using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Patients;
+using Animora.Application.UseCases.Patients.ReadModels;
+using Animora.Client.Services.Patients;
+using Animora.Persistence.Sqlite.Context;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Identity;
 using Animora.Domain.Patients;
@@ -186,6 +191,125 @@ public sealed class PatientsUseCaseTests
         var attribute = command.GetCustomAttribute<RequiresPermissionAttribute>();
         Assert.NotNull(attribute);
         Assert.Equal(PermissionCodes.PatientsOwnerEdit, attribute!.PermissionCode);
+    }
+
+    [Theory]
+    [InlineData(200)]
+    [InlineData(37)]
+    public async Task DirectoryService_ReadsAllPagesAndOwnerRelations_AfterReopeningStore(int pageSize)
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture(
+            configureOptions: options => options.MaxPageSize = pageSize,
+            configureServices: services =>
+            {
+                services.AddScoped<IDispatcher, DirectoryDispatcher>();
+                services.AddSingleton<ICurrentUserProvider, DirectoryUserProvider>();
+            });
+        await fixture.MigrateAsync();
+        string lastOwnerId = "";
+        using (var scope = fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            for (var i = 0; i < 405; i++)
+            {
+                // Identical names exercise the unique ID ordering tiebreaker across page boundaries.
+                var owner = Owner.Register(fixture.TenantId, "مالک یکسان", $"0912{i:D7}", fixture.Clock);
+                db.Add(owner);
+                db.Add(Pet.Register(fixture.TenantId, owner.Id, "بیمار یکسان", PetSpecies.Dog, fixture.Clock));
+                lastOwnerId = owner.Id;
+            }
+            for (var i = 0; i < 205; i++)
+                db.Add(Pet.Register(fixture.TenantId, lastOwnerId, $"گربه {i:D3}", PetSpecies.Cat, fixture.Clock));
+            await db.SaveChangesAsync();
+        }
+
+        using var reopened = fixture.BuildProvider();
+        var service = new PatientsService(reopened.GetRequiredService<IServiceScopeFactory>());
+        var owners = await service.GetOwnersAsync();
+        var pets = await service.GetPetsAsync();
+        Assert.Equal(405, owners.Count);
+        Assert.Equal(610, pets.Count);
+        Assert.Equal(405, owners.Select(o => o.Id).Distinct().Count());
+        Assert.Equal(610, pets.Select(p => p.Id).Distinct().Count());
+        Assert.All(pets, pet => Assert.Contains(owners, owner => owner.Id == pet.OwnerId));
+        Assert.Equal(206, pets.Count(p => p.OwnerId == lastOwnerId));
+        Assert.Equal(206, (await service.GetOwnerAsync(lastOwnerId))!.Pets.Count);
+    }
+
+    [Fact]
+    public async Task DirectoryService_EmptyStoreReturnsEmptyLists()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture(configureServices: services =>
+        {
+            services.AddScoped<IDispatcher, DirectoryDispatcher>();
+            services.AddSingleton<ICurrentUserProvider, DirectoryUserProvider>();
+        });
+        await fixture.MigrateAsync();
+        var service = new PatientsService(fixture.Services.GetRequiredService<IServiceScopeFactory>());
+        Assert.Empty(await service.GetOwnersAsync());
+        Assert.Empty(await service.GetPetsAsync());
+    }
+
+    [Fact]
+    public async Task DirectoryService_FailedLaterPageIsNotReturnedAsPartialSuccess()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IDispatcher>(new FailedDirectoryDispatcher());
+        services.AddSingleton<ICurrentUserProvider, DirectoryUserProvider>();
+        using var provider = services.BuildServiceProvider();
+        var service = new PatientsService(provider.GetRequiredService<IServiceScopeFactory>());
+        var ownersError = await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetOwnersAsync());
+        var petsError = await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetPetsAsync());
+        Assert.Equal(ErrorCodes.StoreUnavailable.Code, ownersError.Message);
+        Assert.Equal(ErrorCodes.StoreUnavailable.Code, petsError.Message);
+    }
+
+    private sealed class DirectoryUserProvider : ICurrentUserProvider
+    {
+        public Result<QueryContext> BuildQueryContext() => Result<QueryContext>.Ok(
+            new QueryContext("T-LOCAL-DEFAULT", "U-1", "COR-1"));
+        public QueryContext BuildAnonymousQueryContext() => BuildQueryContext().Value!;
+        public Result<CommandContext> BuildAnonymousCommandContext(string? operationId = null) => throw new NotSupportedException();
+        public Task<Result<CommandContext>> BuildCommandContextAsync(string? operationId, string? dependsOn,
+            long? expectedVersion, System.Threading.CancellationToken ct) => throw new NotSupportedException();
+    }
+
+    // Only the dispatcher/identity seam is substituted; paging, mapping, scopes and file storage are real.
+    private sealed class DirectoryDispatcher(IPatientDirectoryQueries queries) : IDispatcher
+    {
+        public Task<Result<T>> SendAsync<T>(ICommand<T> command, CommandContext ctx,
+            System.Threading.CancellationToken ct = default) => throw new NotSupportedException();
+        public async Task<Result<T>> QueryAsync<T>(IQuery<T> query, QueryContext ctx,
+            System.Threading.CancellationToken ct = default)
+        {
+            object? value = query switch
+            {
+                OwnerDirectoryQuery q => await queries.GetOwnersAsync(q.Search, q.Page, q.PageSize, ct),
+                PetDirectoryQuery q => await queries.GetPetsAsync(q.Search, q.Species, q.Status, q.Page, q.PageSize, ct),
+                OwnerDetailQuery q => await queries.GetOwnerAsync(q.OwnerId, ct),
+                _ => throw new NotSupportedException(),
+            };
+            return Result<T>.Ok((T)value!);
+        }
+    }
+
+    private sealed class FailedDirectoryDispatcher : IDispatcher
+    {
+        public Task<Result<T>> SendAsync<T>(ICommand<T> command, CommandContext ctx,
+            System.Threading.CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<T>> QueryAsync<T>(IQuery<T> query, QueryContext ctx,
+            System.Threading.CancellationToken ct = default)
+        {
+            object? first = query switch
+            {
+                OwnerDirectoryQuery { Page: 1 } => new PagedResult<OwnerSummaryReadModel>(
+                    [new("O-1", "Owner", "09120000000", null, null, null, OwnerGender.Unspecified, Clock.UtcNow, 1, 0)], 2, 1, 1),
+                PetDirectoryQuery { Page: 1 } => new PagedResult<PetSummaryReadModel>(
+                    [new("P-1", "Pet", PetSpecies.Dog, null, null, PetGender.Unknown, PetStatus.Active, "O-1", null, null, null, null, null)], 2, 1, 1),
+                _ => null,
+            };
+            return Task.FromResult(first is null ? Result<T>.Fail(ErrorCodes.StoreUnavailable) : Result<T>.Ok((T)first));
+        }
     }
 
     [Fact]

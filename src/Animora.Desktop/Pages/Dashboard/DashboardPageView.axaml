@@ -8,6 +8,14 @@
 
     <StackPanel Margin="26,22,26,40" Spacing="20">
 
+        <Border Classes="card" Padding="16"
+                IsVisible="{Binding LoadError, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding LoadError}" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Content="تلاش دوباره" Command="{Binding RefreshCommand}" />
+            </Grid>
+        </Border>
+
         <!-- KPI row: Phase 03 StatCard, matching .stats-grid (4 columns). -->
         <ItemsControl ItemsSource="{Binding Stats}">
             <ItemsControl.ItemsPanel>
@@ -33,11 +41,9 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <!-- Role-specific content: one ViewModel, three sub-views selected by
-             role (CONVENTIONS.md §3) — mirrors DASH_VIEW_MANAGER/CASHIER/DOCTOR. -->
-        <dashboard:ManagerDashboardView IsVisible="{Binding IsManager}" DataContext="{Binding}" />
-        <dashboard:CashierDashboardView IsVisible="{Binding IsCashier}" DataContext="{Binding}" />
-        <dashboard:DoctorDashboardView IsVisible="{Binding IsDoctor}" DataContext="{Binding}" />
+        <!-- Instantiate only the active role's subtree. IsVisible=false still constructs
+             controls, bindings and templates for the other two roles (PERFORMANCE.md §7/§12). -->
+        <ContentControl x:Name="RoleContentHost" HorizontalContentAlignment="Stretch" />
 
         <!-- Quick access strip, matching .quick-grid / .quick-tile (TILES array):
              4 columns, per-tile accent colors, hover icon-chip morph, subtitle
