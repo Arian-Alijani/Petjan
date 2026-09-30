@@ -161,7 +161,9 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ## 3. Task list
 
-### [ ] T0 — Baseline commit of the plan
+### [x] T0 — Baseline commit of the plan
+> Baseline already committed on main (`a6c0533`); main is two commits ahead of the old AI branch.
+> Work continues on `genspark_ai_developer` forked from main, with per-task push + PR updates.
 - Ensure `Plan/PHASE-C11-TODO.md` exists (this file).
 - **PUSH:** `scripts/git/push.sh "docs(plan): add C11 mock-purge/offline-acceptance TODO"`
 
@@ -548,7 +550,17 @@ Decision/Rule check/Impact + a "Repo state" list).
 
 ---
 
+### [ ] U1 — Optional product packages/prices and consistent contact-for-price presentation
+- Implement in the real Inventory/Sales seams and UI; do not invent a price or permit unpriced checkout.
+- PUSH: `scripts/git/push.sh "fix(inventory): allow unpriced products with consistent presentation"`
+
+### [ ] U2 — Catalog pagination, category counts and deletion correctness
+- Preserve filters across pagination, prevent stale responses, derive counts from the same catalog predicate, and refresh deletion state.
+- PUSH: `scripts/git/push.sh "fix(catalog): preserve filters and consistent category lifecycle"`
+
 ## 4. Deviations log (fill as you go)
+- User explicitly forbids full builds/long tests: T9/T10/T11 use targeted verification instead; never claim a full-suite pass.
+- Use AI branch based on newer main, with PR; final plan deletion remains last after U1/U2.
 - **018→019:** migration created as `019_SyncCursor` because `018_UserPreferences` exists.
 - (add: Domain.Tests → Animora.Desktop reference, if added)
 - (add: DI-audit `ConfigureServices` seam, if extracted)
