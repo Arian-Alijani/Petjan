@@ -12,7 +12,6 @@ using Animora.Infrastructure.Local;
 using Animora.Infrastructure.Local.Security;
 using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Persistence.Sqlite.Options;
-using Animora.Persistence.Sqlite.Seed;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -39,7 +38,13 @@ try
     var password = ReadPassword();
     Console.Write("Confirm password: ");
     if (ReadPassword() != password) throw new ArgumentException("Passwords do not match. Nothing was seeded.");
+    var policy = PasswordPolicy.Validate(password);
+    if (policy.IsFailure) throw new ArgumentException($"Password refused: {policy.Error.Code}. Nothing was seeded.");
 
+    Directory.CreateDirectory(profile.DataDirectory);
+    // Atomic ownership token: even two concurrent direct invocations cannot seed the same profile.
+    using var reservation = new FileStream(Path.Combine(profile.DataDirectory, "random-data.lock"),
+        FileMode.CreateNew, FileAccess.Write, FileShare.None);
     var services = new ServiceCollection();
     services.AddAnimoraLocalInfrastructure(profile.ConfigureStore);
     services.AddSingleton<ISecretStore>(sp => profile.CreateSecretStore(
@@ -57,18 +62,9 @@ try
     }
     password = string.Empty;
 
-    // Built-in fixtures cover rare lifecycle states. They are enabled in THIS process/profile only,
-    // AFTER real first-run setup (credential-less fixture doctors must not suppress owner setup).
-    var options = provider.GetRequiredService<IOptions<LocalStoreOptions>>().Value;
-    options.SeedSampleData = true;
-    try
-    {
-        await using var scope = provider.CreateAsyncScope();
-        Require(await scope.ServiceProvider.GetRequiredService<LocalSeeder>().SeedAsync());
-    }
-    finally { options.SeedSampleData = false; }
-
-    await RandomData.PopulateAsync(provider, count);
+    // Reference catalogs come from normal initialization; synthetic business data stays in scripts.
+    // Include 32 baseline scenarios so even -SeedCount 1 has data in every major screen.
+    await RandomData.PopulateAsync(provider, count + 32);
     await using (var scope = provider.CreateAsyncScope())
     {
         var maintenance = scope.ServiceProvider.GetRequiredService<ILocalStoreMaintenance>();
@@ -78,8 +74,8 @@ try
     }
     // Written last: a failed/partial generation must never be launched automatically by clean-run.
     await File.WriteAllTextAsync(Path.Combine(profile.DataDirectory, "random-data-complete.json"),
-        JsonSerializer.Serialize(new { Profile = profile.Name, Scenarios = count, CreatedUtc = DateTimeOffset.UtcNow }));
-    Console.WriteLine($"Ready: {count:N0} additional scenarios + baseline lifecycle examples. Login username: {username}");
+        JsonSerializer.Serialize(new { Profile = profile.Name, Scenarios = count, BaselineScenarios = 32, CreatedUtc = DateTimeOffset.UtcNow }));
+    Console.WriteLine($"Ready: {count:N0} additional scenarios + 32 baseline scenarios. Login username: {username}");
     Console.WriteLine($"Isolated storage: {profile.DataDirectory}");
     return 0;
 }
@@ -107,7 +103,3 @@ static string ReadPassword()
 
 static T Require<T>(Result<T> result) => result.IsSuccess ? result.Value! :
     throw new InvalidOperationException($"Test-data operation failed: {result.Error.Code}");
-static void Require(Result result)
-{
-    if (result.IsFailure) throw new InvalidOperationException($"Test-data operation failed: {result.Error.Code}");
-}
