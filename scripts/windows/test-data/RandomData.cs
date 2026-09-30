@@ -202,9 +202,9 @@ internal static class RandomData
                             sourceEntityType: "Invoice", sourceEntityId: invoice.Id, operationId: invoice.OperationId, reason: "Synthetic sale")));
                         var sequence = Value(await sp.GetRequiredService<ILocalSequenceAllocator>().NextAsync(ct));
                         var payload = JsonSerializer.Serialize(new { invoiceId = invoice.Id });
-                        db.Add(PendingCommand.Create(CommandEnvelope.Create(invoice.OperationId!, tenant, actor, "D-MANUAL-TEST",
+                        Value(await sp.GetRequiredService<ICommandJournal>().EnqueueAsync(CommandEnvelope.Create(invoice.OperationId!, tenant, actor, "D-MANUAL-TEST",
                             CommandTypes.SalesInvoicePost, "Invoice", invoice.Id, payload,
-                            CommandFingerprint.Compute(CommandTypes.SalesInvoicePost, payload), at, sequence), at));
+                            CommandFingerprint.Compute(CommandTypes.SalesInvoicePost, payload), at, sequence), ct));
                         if (i % 6 is 2 or 3 or 4 or 5)
                         {
                             var method = i % 3 == 0 ? PaymentMethod.Cash : i % 3 == 1 ? PaymentMethod.Card : PaymentMethod.Transfer;
@@ -301,9 +301,9 @@ internal static class RandomData
         handoff.MarkInvoiced(invoice.Id);
         var payload = JsonSerializer.Serialize(new { invoiceId = invoice.Id });
         var sequence = Value(await sp.GetRequiredService<ILocalSequenceAllocator>().NextAsync(ct));
-        db.Add(PendingCommand.Create(CommandEnvelope.Create(invoice.OperationId!, tenant, actor, "D-MANUAL-TEST",
+        Value(await sp.GetRequiredService<ICommandJournal>().EnqueueAsync(CommandEnvelope.Create(invoice.OperationId!, tenant, actor, "D-MANUAL-TEST",
             CommandTypes.SalesInvoicePost, "Invoice", invoice.Id, payload,
-            CommandFingerprint.Compute(CommandTypes.SalesInvoicePost, payload), end, sequence), end));
+            CommandFingerprint.Compute(CommandTypes.SalesInvoicePost, payload), end, sequence), ct));
         db.Add(stay); db.Add(invoice); db.Add(handoff);
     }
 
