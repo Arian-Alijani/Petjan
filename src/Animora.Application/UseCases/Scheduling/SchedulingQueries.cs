@@ -136,10 +136,12 @@ public sealed class AppointmentDoctorsQueryHandler(IAppointmentQueries queries)
 }
 
 [RequiresPermission(PermissionCodes.AppointmentsRead)]
-public sealed record BookingPatientsQuery : IQuery<IReadOnlyList<BookingPatientReadModel>>;
+public sealed record BookingPatientsQuery(
+    string Search = "", string SpeciesKey = "all", int Limit = 21,
+    string? PatientId = null, string? AppointmentId = null) : IQuery<IReadOnlyList<BookingPatientReadModel>>;
 public sealed class BookingPatientsQueryHandler(IAppointmentQueries queries)
     : IQueryHandler<BookingPatientsQuery, IReadOnlyList<BookingPatientReadModel>>
 {
     public async Task<Result<IReadOnlyList<BookingPatientReadModel>>> HandleAsync(BookingPatientsQuery q, QueryContext context, CancellationToken ct) =>
-        Result<IReadOnlyList<BookingPatientReadModel>>.Ok(await queries.GetPatientsAsync(ct));
+        Result<IReadOnlyList<BookingPatientReadModel>>.Ok(await queries.GetPatientsAsync(q.Search, q.SpeciesKey, Math.Clamp(q.Limit, 1, 21), q.PatientId, q.AppointmentId, ct));
 }

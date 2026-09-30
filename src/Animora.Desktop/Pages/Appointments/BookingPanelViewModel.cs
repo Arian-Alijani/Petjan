@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Diagnostics;
@@ -35,7 +36,10 @@ public sealed partial class BookingPanelViewModel : ObservableObject
 
     private readonly List<AppointmentDoctor> _doctors = [];
     private readonly List<AppointmentType> _types = [];
-    private readonly List<BookingPatient> _patients = [];
+    private const int PatientPageSize = 20;
+    private readonly Task _initialLoad;
+    private CancellationTokenSource? _patientSearchCancellation;
+    private int _patientSearchVersion;
     private List<TimeSlot> _slots = [];
     private List<AppointmentEvent> _conflicts = [];
 
@@ -53,7 +57,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private string _note = string.Empty;
     private string _query = string.Empty;
     private string _kindFilter = "all";
-    private int _highlightIndex;
     private bool _picking = true;
     private bool _adding;
 
@@ -70,13 +73,13 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         _toast = toast;
         _dialogs = dialogs;
         _date = DateOnly.FromDateTime(DateTime.Today);
-        _ = LoadAsync();
+        _initialLoad = LoadAsync();
     }
 
     // ── collections ──────────────────────────────────────────────────────────
     public ObservableCollection<BookingTypeOptionViewModel> TypeOptions { get; } = [];
     public ObservableCollection<BookingDoctorOptionViewModel> DoctorOptions { get; } = [];
-    public ObservableCollection<BookingPatientOptionViewModel> PatientList { get; } = [];
+    public RangeObservableCollection<BookingPatientOptionViewModel> PatientList { get; } = [];
     public ObservableCollection<BookingKindChipViewModel> KindChips { get; } = [];
     public ObservableCollection<BookingDurationOptionViewModel> DurationOptions { get; } = [];
     public ObservableCollection<BookingCalendarDayViewModel> CalendarDays { get; } = [];
@@ -127,13 +130,22 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private int _firstFreeMinutes;
 
     // ── section 2 · patient picker ───────────────────────────────────────────
-    public string PatientSearchPlaceholder => "نام حیوان، مالک، نژاد یا شماره تماس…";
+    public string PatientSearchPlaceholder => "نام بیمار، مالک، شماره تماس یا شناسه پرونده…";
+
+    [ObservableProperty]
+    private bool _isPatientSearching;
+
+    [ObservableProperty]
+    private bool _showPatientSearchMessage = true;
+
+    [ObservableProperty]
+    private string _patientSearchMessage = "برای انتخاب بیمار، حداقل ۲ حرف از نام یا شماره تماس را وارد کنید.";
 
     [ObservableProperty]
     private string _patientResultCount = string.Empty;
 
     [ObservableProperty]
-    private bool _hasPatientResults = true;
+    private bool _hasPatientResults;
 
     [ObservableProperty]
     private bool _isPatientSearchVisible = true;
@@ -151,14 +163,14 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     [ObservableProperty]
     private string _queryText = string.Empty;
 
-    // Search debounce (~160ms), moved out of the code-behind into the VM.
-    private readonly Debouncer _queryDebounce = new(TimeSpan.FromMilliseconds(160));
+    // Only the latest settled input reaches the database.
+    private readonly Debouncer _queryDebounce = new(TimeSpan.FromMilliseconds(300));
 
     partial void OnQueryTextChanged(string value)
     {
         _query = value ?? string.Empty;
-        _highlightIndex = 0;
-        _queryDebounce.Debounce(RenderPatient);
+        HasQuery = !string.IsNullOrWhiteSpace(_query);
+        QueuePatientSearch();
     }
 
     // selected patient card fields
@@ -275,8 +287,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         _types.AddRange(await _catalog.GetTypesAsync());
         _doctors.Clear();
         _doctors.AddRange(await _catalog.GetDoctorsAsync());
-        _patients.Clear();
-        _patients.AddRange(await _booking.GetPatientsAsync());
 
         _type = _types.Count > 0 ? _types[0].Id : "visit";
         _dur = TypeOf(_type).DurationMinutes;
@@ -353,28 +363,64 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     }
 
     // ---------------- 2 · patient ----------------
-    private IEnumerable<BookingPatient> FilteredPatients()
+    /// <summary>Cancels both queued and in-flight work when the panel closes.</summary>
+    public void StopPatientSearch()
     {
-        var q = PersianText.Normalize(_query);
-        return _patients.Where(p =>
+        _patientSearchVersion++;
+        _queryDebounce.Cancel();
+        _patientSearchCancellation?.Cancel();
+        _patientSearchCancellation = null;
+        IsPatientSearching = false;
+    }
+
+    private void QueuePatientSearch()
+    {
+        StopPatientSearch();
+        PatientList.ReplaceAll([]);
+        HasPatientResults = false;
+        PatientResultCount = string.Empty;
+        ShowPatientSearchMessage = true;
+        var canSearch = PersianText.Normalize(_query).Length >= 2 && _picking && !_adding;
+        PatientSearchMessage = canSearch ? "در حال جست‌وجو…" :
+            "برای انتخاب بیمار، حداقل ۲ حرف از نام یا شماره تماس را وارد کنید.";
+        if (canSearch) _queryDebounce.Debounce(() => _ = SearchPatientsAsync());
+    }
+
+    private async Task SearchPatientsAsync()
+    {
+        var version = _patientSearchVersion;
+        using var cancellation = new CancellationTokenSource();
+        _patientSearchCancellation = cancellation;
+        IsPatientSearching = true;
+        try
         {
-            if (_kindFilter != "all")
+            await _readiness.WaitAsync(cancellation.Token);
+            var rows = await _booking.SearchPatientsAsync(_query.Trim(), _kindFilter, cancellation.Token);
+            if (version != _patientSearchVersion || cancellation.IsCancellationRequested) return;
+            PatientList.ReplaceAll(rows.Take(PatientPageSize).Select(p =>
+                new BookingPatientOptionViewModel(p, p.Id == _selectedPatient?.Id, false)));
+            HasPatientResults = PatientList.Count > 0;
+            PatientResultCount = AppointmentsPresentation.Fa(PatientList.Count) + " نتیجه";
+            var hasMore = rows.Count > PatientPageSize;
+            ShowPatientSearchMessage = !HasPatientResults || hasMore;
+            PatientSearchMessage = hasMore ? "۲۰ نتیجه اول نمایش داده شد؛ برای یافتن بیمار، جست‌وجو را دقیق‌تر کنید." :
+                "بیماری با این مشخصات پیدا نشد؛ نام، شماره تماس یا فیلتر گونه را بررسی کنید.";
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (Exception)
+        {
+            if (version != _patientSearchVersion) return;
+            ShowPatientSearchMessage = true;
+            PatientSearchMessage = "جست‌وجو انجام نشد. دوباره جست‌وجو کنید.";
+        }
+        finally
+        {
+            if (version == _patientSearchVersion)
             {
-                var isOther = p.SpeciesKey is not ("dog" or "cat" or "bird");
-                if (_kindFilter == "other" ? !isOther : p.SpeciesKey != _kindFilter)
-                {
-                    return false;
-                }
+                IsPatientSearching = false;
+                _patientSearchCancellation = null;
             }
-
-            if (string.IsNullOrEmpty(q))
-            {
-                return true;
-            }
-
-            var hay = PersianText.Normalize($"{p.Name} {p.OwnerName} {p.Kind} {p.Phone}");
-            return hay.Contains(q, StringComparison.Ordinal);
-        });
+        }
     }
 
     private void RenderPatient()
@@ -391,23 +437,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
             SelectedPhone = selected.Phone;
             SelectedIconKey = selected.SpeciesIconKey;
             SelectedAvatarBrush = AppointmentsPresentation.AvatarBrush(selected.AvatarTone);
-        }
-
-        if (IsPatientSearchVisible)
-        {
-            var list = FilteredPatients().ToList();
-            PatientList.Clear();
-            for (var k = 0; k < list.Count; k++)
-            {
-                var p = list[k];
-                PatientList.Add(new BookingPatientOptionViewModel(
-                    p,
-                    isSelected: selected is not null && ReferenceEquals(p, selected),
-                    isHighlighted: _highlightIndex == k));
-            }
-
-            HasPatientResults = list.Count > 0;
-            PatientResultCount = AppointmentsPresentation.Fa(list.Count) + " نتیجه";
         }
 
         IsAddFormVisible = _adding;
@@ -618,9 +647,8 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         }
 
         _kindFilter = id;
-        _highlightIndex = 0;
         BuildKindChips();
-        RenderPatient();
+        QueuePatientSearch();
         await Task.CompletedTask;
     }
 
@@ -659,7 +687,11 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void CancelClose() => _dialogs.Close();
+    private void CancelClose()
+    {
+        StopPatientSearch();
+        _dialogs.Close();
+    }
 
     [RelayCommand]
     private void SelectPatient(BookingPatientOptionViewModel? option)
@@ -669,10 +701,11 @@ public sealed partial class BookingPanelViewModel : ObservableObject
             return;
         }
 
+        StopPatientSearch();
         _selectedPatient = option.Patient;
         _picking = false;
         _adding = false;
-        _query = string.Empty;
+        QueryText = string.Empty;
         RenderPatient();
         RenderSummary();
     }
@@ -681,7 +714,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private void ChangePatient()
     {
         _picking = true;
-        _highlightIndex = 0;
+        QueuePatientSearch();
         RenderPatient();
     }
 
@@ -690,6 +723,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     {
         _adding = true;
         _picking = true;
+        QueuePatientSearch();
         if (!string.IsNullOrEmpty(_query) && !char.IsDigit(_query[0]))
         {
             NewName = _query;
@@ -702,6 +736,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private void CancelAddPatient()
     {
         _adding = false;
+        QueuePatientSearch();
         RenderPatient();
     }
 
@@ -720,12 +755,11 @@ public sealed partial class BookingPanelViewModel : ObservableObject
             NewOwner.Trim(),
             NewPhone.Trim()));
 
-        _patients.Clear();
-        _patients.AddRange(await _booking.GetPatientsAsync());
-        _selectedPatient = _patients.FirstOrDefault(p => p.Id == created.Id) ?? created;
+        StopPatientSearch();
+        _selectedPatient = created;
         _adding = false;
         _picking = false;
-        _query = string.Empty;
+        QueryText = string.Empty;
         NewName = string.Empty;
         NewOwner = string.Empty;
         NewPhone = string.Empty;
@@ -760,12 +794,13 @@ public sealed partial class BookingPanelViewModel : ObservableObject
             await _booking.CreateAsync(new NewAppointmentRequest(
                 _date, _start, _dur, _type, _doc,
                 p.Name, p.Kind, p.OwnerName, p.Phone, p.AvatarTone, p.SpeciesIconKey,
-                _note, _sms, _remind));
+                _note, _sms, _remind, p.Id));
             _toast.Show(_sms
                 ? $"نوبت {p.Name} ثبت و پیامک تأیید ارسال شد."
                 : $"نوبت {p.Name} ثبت شد.", Tone.Ok);
         }
 
+        StopPatientSearch();
         _dialogs.Close();
         Saved?.Invoke();
     }
@@ -776,6 +811,8 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     /// </summary>
     public async Task LoadForEditAsync(AppointmentEvent ev)
     {
+        await _initialLoad;
+        StopPatientSearch();
         _mode = "edit";
         _id = ev.Id;
         _type = ev.TypeId;
@@ -785,7 +822,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         _dur = ev.DurationMinutes;
         _note = ev.Note;
         NoteText = ev.Note;
-        _selectedPatient = _patients.FirstOrDefault(p => p.Name == ev.PetName && p.OwnerName == ev.OwnerName);
+        _selectedPatient = await _booking.GetAppointmentPatientAsync(ev.Id);
         _picking = _selectedPatient is null;
         _sms = true;
         _remind = true;
@@ -798,6 +835,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     /// </summary>
     public async Task LoadForNewAsync(DateOnly? date, int? start, int? dur, string? doctorId)
     {
+        await _initialLoad;
         _mode = "new";
         _id = null;
         _type = _types.Count > 0 ? _types[0].Id : "visit";
@@ -807,9 +845,9 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         _adding = false;
         _note = string.Empty;
         NoteText = string.Empty;
-        _query = string.Empty;
+        QueryText = string.Empty;
+        QueuePatientSearch();
         _kindFilter = "all";
-        _highlightIndex = 0;
         _date = date ?? DateOnly.FromDateTime(DateTime.Today);
         _start = start ?? 570;
         _doc = doctorId ?? (_doctors.Count > 0 ? _doctors[0].Id : "d1");

@@ -15,5 +15,6 @@ public interface IAppointmentQueries
     Task<IReadOnlyList<ExistingSlot>> GetDoctorSlotsAsync(string doctorId, long startTicks, long endTicks, string? excludeId, CancellationToken ct);
     Task<(int WorkStartMinute, int WorkEndMinute, int WorkDaysMask)?> GetDoctorWorkingHoursAsync(string doctorId, CancellationToken ct);
     Task<IReadOnlyList<DoctorRosterReadModel>> GetDoctorsAsync(CancellationToken ct);
-    Task<IReadOnlyList<BookingPatientReadModel>> GetPatientsAsync(CancellationToken ct);
+    Task<IReadOnlyList<BookingPatientReadModel>> GetPatientsAsync(
+        string search, string speciesKey, int limit, string? patientId, string? appointmentId, CancellationToken ct);
 }

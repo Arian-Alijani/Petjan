@@ -11,13 +11,13 @@ namespace Animora.Client.Services.Appointments;
 /// <summary>Real appointment calendar reads; each call owns an isolated dispatch scope.</summary>
 public sealed class AppointmentsQueryService(IServiceScopeFactory scopes) : IAppointmentsQueryService
 {
-    internal async Task<T> QueryAsync<T>(IQuery<T> query)
+    internal async Task<T> QueryAsync<T>(IQuery<T> query, CancellationToken ct = default)
     {
         await using var scope = scopes.CreateAsyncScope();
         var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
         var context = provider.BuildQueryContext();
         if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
-        var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().QueryAsync(query, context.Value!);
+        var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().QueryAsync(query, context.Value!, ct);
         if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
         return result.Value!;
     }

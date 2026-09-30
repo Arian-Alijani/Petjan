@@ -193,9 +193,9 @@
                                 </Border>
 
                                 <!-- picker pane -->
-                                <StackPanel IsVisible="{Binding IsPatientSearchVisible}" Spacing="10">
+                                <StackPanel IsVisible="{Binding IsPatientSearchVisible}" Spacing="12">
                                     <Panel>
-                                        <TextBox Classes="pat-search-input" Height="40"
+                                        <TextBox Classes="pat-search-input" Height="44" MaxLength="100"
                                                  Padding="38,0,34,0" CornerRadius="12" FontSize="13"
                                                  PlaceholderText="{Binding PatientSearchPlaceholder}"
                                                  Text="{Binding QueryText, Mode=TwoWay}" />
@@ -215,7 +215,7 @@
                                         </Button>
                                     </Panel>
 
-                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                         <ItemsControl Grid.Column="0" ItemsSource="{Binding KindChips}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" /></ItemsPanelTemplate>
@@ -230,12 +230,14 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                        <TextBlock Grid.Column="2" Text="{Binding PatientResultCount}" FontSize="11"
+                                        <TextBlock Grid.Column="1" Text="{Binding PatientResultCount}" FontSize="11"
                                                    Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                                     </Grid>
 
-                                    <!-- result list -->
-                                    <ScrollViewer MaxHeight="208" VerticalScrollBarVisibility="Auto"
+                                    <ProgressBar Height="3" IsIndeterminate="True"
+                                                 IsVisible="{Binding IsPatientSearching}" />
+                                    <!-- Bounded to 20 rows; never realizes the clinic's full patient list. -->
+                                    <ScrollViewer MaxHeight="260" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                                                   IsVisible="{Binding HasPatientResults}">
                                         <ItemsControl ItemsSource="{Binding PatientList}">
                                             <ItemsControl.ItemTemplate>
@@ -246,7 +248,7 @@
                                                             Margin="0,0,0,6"
                                                             Command="{Binding #Root.((ap:BookingPanelViewModel)DataContext).SelectPatientCommand}"
                                                             CommandParameter="{Binding}">
-                                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                                             <Border Grid.Column="0" Width="34" Height="34" CornerRadius="11"
                                                                     Background="{Binding AvatarBrush}">
                                                                 <Path Classes="icon" Width="18" Height="18" Stroke="White"
@@ -254,25 +256,24 @@
                                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                             </Border>
                                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                                <StackPanel Orientation="Horizontal" Spacing="7">
-                                                                    <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="Bold" />
-                                                                    <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
+                                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                                    <TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis"
+                                                                               FontSize="13" FontWeight="Bold" />
+                                                                    <Border Grid.Column="1" Background="White" BorderBrush="{StaticResource Line2Brush}"
                                                                             BorderThickness="1" CornerRadius="99" Padding="7,1">
                                                                         <TextBlock Text="{Binding Kind}" FontSize="10"
                                                                                    Foreground="{StaticResource MutedBrush}" />
                                                                     </Border>
-                                                                </StackPanel>
-                                                                <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2,0,0">
+                                                                </Grid>
+                                                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6" Margin="0,4,0,0">
                                                                     <Path Classes="icon" Width="13" Height="13"
                                                                           Stroke="{StaticResource MutedBrush}"
                                                                           Data="{StaticResource IconUsers}" />
-                                                                    <TextBlock Text="{Binding OwnerName}" FontSize="11"
-                                                                               Foreground="{StaticResource MutedBrush}" />
-                                                                    <TextBlock Text="·" FontSize="11" Opacity="0.5"
-                                                                               Foreground="{StaticResource MutedBrush}" />
-                                                                    <TextBlock Text="{Binding Phone}" FontSize="11"
-                                                                               Foreground="{StaticResource MutedBrush}" />
-                                                                </StackPanel>
+                                                                    <TextBlock Grid.Column="1" Text="{Binding OwnerName}" FontSize="11.5"
+                                                                               TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedBrush}" />
+                                                                    <TextBlock Grid.Column="2" Text="{Binding Phone}" FontSize="11.5"
+                                                                               FlowDirection="LeftToRight" Foreground="{StaticResource MutedBrush}" />
+                                                                </Grid>
                                                             </StackPanel>
                                                             <Path Grid.Column="2" Classes="tick" Width="16" Height="16"
                                                                   Stroke="{StaticResource Brand600Brush}"
@@ -286,25 +287,16 @@
                                     </ScrollViewer>
 
                                     <!-- empty result -->
-                                    <Border Classes="pat-empty" IsVisible="{Binding !HasPatientResults}">
+                                    <Border Classes="pat-empty" IsVisible="{Binding ShowPatientSearchMessage}" Padding="16,12">
                                         <StackPanel HorizontalAlignment="Center" Spacing="5">
                                             <Path Classes="icon" Width="22" Height="22"
                                                   Stroke="{StaticResource Muted2Brush}"
                                                   Data="{StaticResource IconSearch}"
                                                   HorizontalAlignment="Center" />
-                                            <TextBlock Text="بیماری با این مشخصات پیدا نشد" FontSize="13"
-                                                       FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
-                                                       HorizontalAlignment="Center" />
-                                            <TextBlock Text="می‌توانید همین‌جا پرونده جدیدی بسازید." FontSize="11.5"
-                                                       Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
-                                            <Button Classes="outline sm" Margin="0,7,0,0"
-                                                    Command="{Binding BeginAddPatientCommand}">
-                                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                                    <Path Classes="icon" Width="14" Height="14"
-                                                          Stroke="{Binding $parent[Button].Foreground}"
-                                                          Data="{StaticResource IconPlus}" />
-                                                    <TextBlock Text="ثبت بیمار جدید" />
-                                                </StackPanel>
+                                            <TextBlock Text="{Binding PatientSearchMessage}" FontSize="12"
+                                                       TextWrapping="Wrap" TextAlignment="Center"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
                                             </Button>
                                         </StackPanel>
                                     </Border>

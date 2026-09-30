@@ -101,13 +101,43 @@ public sealed class AppointmentQueries(AnimoraLocalDbContext db) : IAppointmentQ
         return row is null ? null : (row.WorkStartMinute, row.WorkEndMinute, row.WorkDaysMask);
     }
 
-    public async Task<IReadOnlyList<BookingPatientReadModel>> GetPatientsAsync(CancellationToken ct)
+    public async Task<IReadOnlyList<BookingPatientReadModel>> GetPatientsAsync(
+        string search, string speciesKey, int limit, string? patientId, string? appointmentId, CancellationToken ct)
     {
-        var rows = await (from pet in db.Set<Pet>().AsNoTracking()
+        ct.ThrowIfCancellationRequested();
+        var normalized = Animora.Application.Text.PersianText.Normalize(search);
+        // Empty/short input must not enumerate the clinic's records, even outside the UI.
+        if (patientId is null && appointmentId is null && normalized.Length < 2) return [];
+        var source = from pet in db.Set<Pet>().AsNoTracking()
             join owner in db.Set<Owner>().AsNoTracking() on pet.OwnerId equals owner.Id
-            orderby pet.Name, pet.Id
-            select new { pet.Id, pet.OwnerId, pet.Name, pet.Species,
-                OwnerName = owner.FullName, Phone = owner.PhonePrimary }).Take(500).ToListAsync(ct);
+            select new { Pet = pet, Owner = owner };
+        if (patientId is not null)
+            source = source.Where(r => r.Pet.Id == patientId);
+        else if (appointmentId is not null)
+            source = source.Where(r => db.Set<Appointment>().Any(a =>
+                a.Id == appointmentId && a.PetId == r.Pet.Id));
+        else
+        {
+            // Stored keys already fold Persian/Arabic letters and digits. All filtering
+            // stays in SQL; no 500-row preload, client-side scan, or total-count query.
+            foreach (var term in normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                source = source.Where(r => r.Pet.SearchKey.Contains(term) ||
+                    r.Owner.SearchKey.Contains(term) || r.Pet.Id.Contains(term));
+            source = speciesKey switch
+            {
+                "dog" => source.Where(r => r.Pet.Species == PetSpecies.Dog),
+                "cat" => source.Where(r => r.Pet.Species == PetSpecies.Cat),
+                "bird" => source.Where(r => r.Pet.Species == PetSpecies.Bird),
+                "other" => source.Where(r => r.Pet.Species != PetSpecies.Dog &&
+                    r.Pet.Species != PetSpecies.Cat && r.Pet.Species != PetSpecies.Bird),
+                _ => source
+            };
+        }
+        var rows = await source.OrderBy(r => r.Pet.Name).ThenBy(r => r.Pet.Id)
+            .Select(r => new { r.Pet.Id, r.Pet.OwnerId, r.Pet.Name, r.Pet.Species,
+                OwnerName = r.Owner.FullName, Phone = r.Owner.PhonePrimary })
+            .Take(patientId is not null || appointmentId is not null ? 1 : Math.Clamp(limit, 1, 21))
+            .ToListAsync(ct);
         return rows.Select(r => new BookingPatientReadModel(r.Id, r.OwnerId, r.Name,
             r.Species.ToString(), r.OwnerName, r.Phone)).ToArray();
     }

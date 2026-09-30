@@ -30,13 +30,19 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
         return row is null ? null : new AppointmentDetail(row.Event.ToContract(calendar.GetTimeZone()), row.CreatedText);
     }
 
-    public async Task<IReadOnlyList<BookingPatient>> GetPatientsAsync() =>
-        (await QueryAsync(new BookingPatientsQuery())).Select(r => r.ToContract()).ToArray();
+    public async Task<IReadOnlyList<BookingPatient>> SearchPatientsAsync(
+        string search, string speciesKey, CancellationToken ct = default) =>
+        (await calendar.QueryAsync(new BookingPatientsQuery(search, speciesKey), ct))
+            .Select(r => r.ToContract()).ToArray();
+
+    public async Task<BookingPatient?> GetAppointmentPatientAsync(string appointmentId) =>
+        (await QueryAsync(new BookingPatientsQuery(AppointmentId: appointmentId)))
+            .SingleOrDefault()?.ToContract();
 
     public async Task<BookingPatient> CreatePatientAsync(NewPatientRequest request)
     {
         var id = await SendAsync(new CreateBookingPatientCommand(request.Name, request.Kind, request.OwnerName, request.Phone));
-        return (await GetPatientsAsync()).Single(p => p.Id == id);
+        return (await QueryAsync(new BookingPatientsQuery(PatientId: id))).Single().ToContract();
     }
 
     public async Task<IReadOnlyList<TimeSlot>> GetAvailableSlotsAsync(string doctorId, DateOnly date, int durationMinutes) =>
@@ -60,7 +66,7 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
 
     public async Task<AppointmentEvent> CreateAsync(NewAppointmentRequest request)
     {
-        var patient = await ResolvePatientAsync(request.PetName, request.OwnerName, request.OwnerPhone);
+        var patient = await ResolvePatientAsync(request.PatientId);
         var id = await SendAsync(new BookAppointmentCommand(request.Date, request.StartMinutes,
             request.DurationMinutes, request.TypeId, request.DoctorId, patient.Id, patient.OwnerId, request.Note));
         return (await GetDetailAsync(id))!.Event;
@@ -80,11 +86,12 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
         _ = await SendAsync(new CheckInAppointmentCommand(appointmentId));
 
     private async Task<Animora.Application.UseCases.Scheduling.ReadModels.BookingPatientReadModel> ResolvePatientAsync(
-        string petName, string ownerName, string phone)
+        string patientId)
     {
-        var matches = (await QueryAsync(new BookingPatientsQuery())).Where(p =>
-            p.Name == petName && p.OwnerName == ownerName && p.Phone == phone).Take(2).ToArray();
-        return matches.Length == 1 ? matches[0] : throw new InvalidOperationException(
-            matches.Length == 0 ? "Patient not found." : "Ambiguous patient selection.");
+        if (string.IsNullOrWhiteSpace(patientId)) throw new InvalidOperationException("Patient not selected.");
+        // Resolve the selected identity directly; duplicate names and records beyond
+        // the old 500-row window must not cause incorrect or ambiguous bookings.
+        return (await QueryAsync(new BookingPatientsQuery(PatientId: patientId))).SingleOrDefault()
+            ?? throw new InvalidOperationException("Patient not found.");
     }
 }
