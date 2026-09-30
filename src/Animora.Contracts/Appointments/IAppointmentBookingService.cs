@@ -19,10 +19,14 @@ public interface IAppointmentBookingService
     Task<AppointmentDetail?> GetDetailAsync(string appointmentId);
 
     /// <summary>
-    /// The patient/owner pick-list, mirroring the reference's shared
-    /// <c>PETS</c> collection.
+    /// Searches persisted patient/owner keys. Requires at least two characters;
+    /// returns at most 21 rows (20 visible plus one overflow indicator).
     /// </summary>
-    Task<IReadOnlyList<BookingPatient>> GetPatientsAsync();
+    Task<IReadOnlyList<BookingPatient>> SearchPatientsAsync(
+        string search, string speciesKey, CancellationToken ct = default);
+
+    /// <summary>Loads only the patient linked to an appointment for editing.</summary>
+    Task<BookingPatient?> GetAppointmentPatientAsync(string appointmentId);
 
     /// <summary>
     /// Registers a new patient via the panel's quick-add form (the reference's

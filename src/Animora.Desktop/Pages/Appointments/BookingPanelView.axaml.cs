@@ -11,5 +11,9 @@ namespace Animora.Desktop.Pages.Appointments;
 /// </summary>
 public partial class BookingPanelView : UserControl
 {
-    public BookingPanelView() => InitializeComponent();
+    public BookingPanelView()
+    {
+        InitializeComponent();
+        DetachedFromVisualTree += (_, _) => (DataContext as BookingPanelViewModel)?.StopPatientSearch();
+    }
 }

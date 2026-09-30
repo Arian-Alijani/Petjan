@@ -63,7 +63,8 @@ public sealed record NewAppointmentRequest(
     string SpeciesIconKey,
     string Note,
     bool SendSms,
-    bool SendReminder);
+    bool SendReminder,
+    string PatientId = "");
 
 /// <summary>
 /// Payload to edit an existing appointment (the reference's edit branch in
