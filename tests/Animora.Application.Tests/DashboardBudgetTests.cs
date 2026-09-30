@@ -45,8 +45,8 @@ public sealed class DashboardBudgetTests
 
     [Theory]
     [InlineData(UserRole.Manager, 8)]
-    [InlineData(UserRole.Doctor, 4)]
-    [InlineData(UserRole.Cashier, 5)]
+    [InlineData(UserRole.Doctor, 5)]
+    [InlineData(UserRole.Cashier, 6)]
     [InlineData(UserRole.Receptionist, 8)]
     public async Task Snapshot_StaysWithinRoleCommandBudget(UserRole role, int expectedCommands)
     {
@@ -222,6 +222,8 @@ public sealed class DashboardBudgetTests
         var queries = new DashboardQueries(db);
         var manager = await queries.GetSliceAsync(fixture.TenantId, window, "mgr", UserRole.Manager, default);
         Assert.Equal(4, manager.QueueCount);
+        Assert.Equal(4, manager.Appointments!.Count);
+        Assert.All(manager.Appointments, x => Assert.Equal("Pet", x.PetName));
         Assert.Equal(2, manager.Workloads.Count);
         Assert.Equal(2, manager.Workloads.Single(x => x.DoctorId == "doc-1").Total);
         var doctorSlice = await queries.GetSliceAsync(fixture.TenantId, window, "doc-1", UserRole.Doctor, default);
@@ -306,6 +308,31 @@ public sealed class DashboardBudgetTests
             var dashboard = (DashboardSnapshotQuery)(object)query;
             return Result<T>.Ok((T)(object)await queries.GetSliceAsync(ctx.TenantId, dashboard.Window!, ctx.UserId, dashboard.Role, ct));
         }
+    }
+
+    [Fact]
+    public void Mapping_UsesRealAppointmentDetailsAndSemanticEventIcons()
+    {
+        var slice = new DashboardSlice([], [new("Appointment", "history.appointment.booked", "opaque-id", 0, 0, "", Window.StartUtc, "مدیر")],
+            [new("doctor-id", 5, "دکتر رضایی", 2)], new Dictionary<string, int> { ["Cat"] = 3 }, 0, 0, 0,
+            Appointments: [new("پیشی", "مالک", "دکتر رضایی", Window.StartUtc.AddHours(9), "Confirmed")]);
+        var snapshot = InvokeMap(UserRole.Manager, slice);
+        var appointment = Assert.Single(snapshot.PrimaryList);
+        Assert.Equal("پیشی", appointment.Title);
+        Assert.Contains("09:00", appointment.Subtitle);
+        Assert.Contains("مالک", appointment.Subtitle);
+        Assert.Equal("تأیید شده", appointment.TagText);
+        Assert.Equal("IconCalendar", appointment.IconKey);
+        var activity = Assert.Single(snapshot.SecondaryList);
+        Assert.Equal("history.appointment.booked", activity.Title); // Localized by Desktop's existing HistoryText.
+        Assert.DoesNotContain("opaque-id", activity.Subtitle);
+        Assert.Equal("نوبت", activity.TagText);
+        Assert.Equal("IconCalendar", activity.IconKey);
+        var workload = Assert.Single(snapshot.DoctorLoads!);
+        Assert.Equal("دکتر رضایی", workload.Name);
+        Assert.Equal(2, workload.Done);
+        Assert.Equal(5, workload.Total);
+        Assert.Equal("گربه", Assert.Single(snapshot.Species!).Name);
     }
 
     // DashboardMapping is internal to Client.Services; Application.Tests has InternalsVisibleTo.
