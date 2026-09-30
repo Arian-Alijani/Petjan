@@ -609,6 +609,11 @@ public static class ErrorCodes
 
     #endregion
 
+    /// <summary>A catalog item has not yet been priced; never silently invoice it for zero.</summary>
+    public static readonly ErrorCode ProductPriceRequired = new("PRODUCT_PRICE_REQUIRED", ErrorCode.Validation);
+
+    public static readonly ErrorCode CategoryInUse = new("CATEGORY_IN_USE", ErrorCode.Conflict);
+
     #region History / Dashboard / Search / Profile (C10)
 
     /// <summary>A history CSV export exceeded the 50 000-row streaming cap (PERFORMANCE.md §6).</summary>

@@ -110,6 +110,7 @@ public sealed partial class NewProductModalViewModel : ObservableObject
         }
 
         var code = CodeText.Trim();
+        if (code.Length == 0) code = "P-" + Guid.NewGuid().ToString("N")[..12];
         var brand = Brand.Trim();
         var glyph = string.IsNullOrWhiteSpace(Glyph) ? "📦" : Glyph.Trim();
         var categoryId = SelectedCategory?.Id ?? CategoryOptions.FirstOrDefault()?.Id ?? "med";
@@ -156,9 +157,17 @@ public sealed partial class NewProductModalViewModel : ObservableObject
             attributeOptions,
             variants);
 
-        await _service.CreateProductAsync(request);
+        try
+        {
+            await _service.CreateProductAsync(request);
+        }
+        catch (InvalidOperationException)
+        {
+            _toast.Show("ایجاد کالا انجام نشد؛ اطلاعات را بررسی کنید", Tone.Danger);
+            return;
+        }
         _dialogs.Close();
-        _toast.Show("کالا ساخته شد (نمونه طراحی)");
+        _toast.Show("کالا ساخته شد");
         _onCreated?.Invoke();
     }
 

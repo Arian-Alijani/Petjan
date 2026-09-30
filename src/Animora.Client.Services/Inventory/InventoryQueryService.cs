@@ -35,14 +35,15 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
         var context = provider.BuildQueryContext();
         if (context.IsFailure) return [];
 
-        // Unpaged Contracts member → page 1 at the max page size (documented; CONVENTIONS §10 item 2).
-        var result = await dispatcher.QueryAsync(
-            new ProductCatalogQuery(null, null, false, 1, MaxPageSize), context.Value!);
-        if (result.IsFailure) return [];
-
-        var rows = result.Value!.Items;
-        var products = new List<ContractProduct>(rows.Count);
-        for (var i = 0; i < rows.Count; i++) products.Add(rows[i].ToContract());
+        // Compatibility unpaged seam: never silently truncate after 200 products.
+        var products = new List<ContractProduct>();
+        for (var page = 1; ; page++)
+        {
+            var result = await dispatcher.QueryAsync(new ProductCatalogQuery(null, null, false, page, MaxPageSize), context.Value!);
+            if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+            products.AddRange(result.Value!.Items.Select(row => row.ToContract()));
+            if (products.Count >= result.Value.TotalCount || result.Value.Items.Count == 0) break;
+        }
         return products;
     }
 
@@ -151,6 +152,9 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
         return detail?.Product ?? new ContractProduct(productId, request.Code, request.Name, request.Brand,
             request.CategoryId, "📦", "a", request.Description, null, []);
     }
+
+    public async Task DeleteCategoryAsync(string categoryId) =>
+        _ = await SendAsync(new DeleteProductCategoryCommand(categoryId));
 
     public async Task DeleteProductAsync(string productId) =>
         _ = await SendAsync(new DeleteProductCommand(productId));

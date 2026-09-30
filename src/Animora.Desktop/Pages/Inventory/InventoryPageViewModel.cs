@@ -30,6 +30,16 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private readonly IDialogService _dialogs;
 
     private readonly List<Product> _products = [];
+    private const int PageSize = 50;
+    private int _page = 1;
+    private int _pages = 1;
+    private int _loadVersion;
+    public bool HasPreviousPage => _page > 1;
+    public bool HasNextPage => _page < _pages;
+    public string PageText => $"{PersianNumberFormatter.ToPersianDigits(_page)} / {PersianNumberFormatter.ToPersianDigits(_pages)}";
+
+    [RelayCommand] private void NextPage() { if (HasNextPage) { _page++; RefreshProducts(); } }
+    [RelayCommand] private void PreviousPage() { if (HasPreviousPage) { _page--; RefreshProducts(); } }
     private readonly List<CategoryInfo> _categories = [];
     private readonly IStoreReadinessGate _readiness;
 
@@ -101,20 +111,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private async Task LoadAsync()
     {
         await _readiness.WaitAsync();
-        IsBusy = true;
-
-        _categories.Clear();
-        _categories.AddRange(await _service.GetCategoriesAsync());
-
-        _products.Clear();
-        _products.AddRange(await _service.GetProductsAsync());
-
-        IsBusy = false;
-
-        BuildSubnavCounts();
-        BuildFilterChips();
-        RefreshProducts();
-        BuildSettings();
+        await ReloadAsync();
     }
 
     private void BuildSubnavCounts()
@@ -188,15 +185,22 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
             });
         }
 
-        FilteredProducts.ReplaceAll(items.Select(product =>
+        var matched = items.ToArray();
+        _pages = Math.Max(1, (matched.Length + PageSize - 1) / PageSize);
+        _page = Math.Clamp(_page, 1, _pages);
+        var expanded = FilteredProducts.Where(r => r.IsExpanded).Select(r => r.Product.Id).ToHashSet();
+        FilteredProducts.ReplaceAll(matched.Skip((_page - 1) * PageSize).Take(PageSize).Select(product =>
         {
-            var category = _categories.FirstOrDefault(c => c.Id == product.CategoryId) ?? _categories[0];
+            var category = _categories.FirstOrDefault(c => c.Id == product.CategoryId) ?? new CategoryInfo(product.CategoryId, "بدون دسته", "muted", "IconBox");
             var hasVariants = product.Variants.Count > 1;
-            return new InventoryProductRowViewModel(product, category, hasVariants);
+            return new InventoryProductRowViewModel(product, category, hasVariants) { IsExpanded = expanded.Contains(product.Id) };
         }));
 
         // Preserve any previously-expanded row state across a re-render.
         HasProducts = FilteredProducts.Count > 0;
+        OnPropertyChanged(nameof(PageText));
+        OnPropertyChanged(nameof(HasPreviousPage));
+        OnPropertyChanged(nameof(HasNextPage));
     }
 
     /// <summary>Mirrors the reference's <c>stockStatus(p)</c>.</summary>
@@ -263,6 +267,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private void SetCategoryFilter(string? id)
     {
         if (string.IsNullOrEmpty(id)) return;
+        _page = 1;
         _catFilter = id;
         BuildFilterChips();
         RefreshProducts();
@@ -272,6 +277,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private void SetStockFilter(string? key)
     {
         if (string.IsNullOrEmpty(key)) return;
+        _page = 1;
         _stockFilter = key;
         BuildFilterChips();
         RefreshProducts();
@@ -287,6 +293,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
     public void ApplySearch(string? text)
     {
+        _page = 1;
         _search = text?.Trim() ?? string.Empty;
         RefreshProducts();
     }
@@ -366,17 +373,23 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
     private async Task ReloadAsync()
     {
+        var version = ++_loadVersion;
         IsBusy = true;
-        _categories.Clear();
-        _categories.AddRange(await _service.GetCategoriesAsync());
-        _products.Clear();
-        _products.AddRange(await _service.GetProductsAsync());
-        IsBusy = false;
-
-        BuildSubnavCounts();
-        BuildFilterChips();
-        RefreshProducts();
-        BuildSettings();
+        try
+        {
+            var categories = await _service.GetCategoriesAsync();
+            var products = await _service.GetProductsAsync();
+            if (version != _loadVersion) return;
+            _categories.Clear(); _categories.AddRange(categories);
+            _products.Clear(); _products.AddRange(products);
+            if (_catFilter != "all" && !_categories.Any(c => c.Id == _catFilter)) _catFilter = "all";
+            BuildSubnavCounts(); BuildFilterChips(); RefreshProducts(); BuildSettings();
+        }
+        catch (Exception)
+        {
+            if (version == _loadVersion) _toast.Show("دریافت فهرست کالاها انجام نشد؛ دوباره تلاش کنید", Tone.Danger);
+        }
+        finally { if (version == _loadVersion) IsBusy = false; }
     }
 
     // ── settings actions (reference new-cat / save-settings / del-cat) ──────
@@ -397,16 +410,20 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void DeleteCategory(InventoryCategoryRowViewModel? row)
+    private async Task DeleteCategoryAsync(InventoryCategoryRowViewModel? row)
     {
         if (row is null) return;
-
-        if (_products.Any(p => p.CategoryId == row.Id))
+        try
         {
-            _toast.Show("این دسته دارای کالاست و حذف نمی‌شود", Tone.Warn);
-            return;
+            await _service.DeleteCategoryAsync(row.Id);
+            await ReloadAsync();
+            _toast.Show("دسته حذف شد");
         }
-
-        _toast.Show("دسته حذف شد — نمونه طراحی");
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(ex.Message == "CATEGORY_IN_USE" ? "این دسته دارای کالا یا زیردسته است و حذف نمی‌شود"
+                : "حذف دسته انجام نشد؛ دوباره تلاش کنید", Tone.Warn);
+            await ReloadAsync();
+        }
     }
 }

@@ -43,7 +43,8 @@ internal static class StockSnapshotUpdater
         if (missingProducts is not null)
         {
             var tenantIds = added.Select(m => TenantOf(m, currentTenantId)).Distinct().ToArray();
-            var loaded = snapshots.Where(s => tenantIds.Contains(s.TenantId) && missingProducts.Contains(s.ProductId)).ToList();
+            var loaded = snapshots.AsTracking()
+                .Where(s => tenantIds.Contains(s.TenantId) && missingProducts.Contains(s.ProductId)).ToList();
             foreach (var row in loaded) byKey.TryAdd((row.TenantId, row.ProductId, row.VariantId), row);
         }
 

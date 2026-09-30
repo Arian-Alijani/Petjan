@@ -50,7 +50,8 @@ using Animora.Contracts.Visits;
 using Animora.Contracts.Vaccination;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Diagnostics;
-using Animora.Desktop.Mocks;
+using Animora.Client.Services.Sync;
+using Animora.Application.Commands;
 using Animora.Desktop.Shell.Search;
 using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Boarding;
@@ -146,6 +147,8 @@ public partial class App : global::Avalonia.Application
         }
 
         login.Opened -= OnLoginOpened;
+        if (Environment.GetEnvironmentVariable("ANIMORA_BENCH") == "1")
+            Console.WriteLine($"C11 first_frame_ms={Program.StartupWatch.ElapsedMilliseconds}");
         if (login.DataContext is not LoginViewModel viewModel)
         {
             return;
@@ -185,6 +188,7 @@ public partial class App : global::Avalonia.Application
 
                 // C01: the 8-step startup succeeded — release any ViewModel awaiting the readiness gate.
                 Services.GetRequiredService<StoreReadinessGate>().MarkReady();
+                await Services.GetRequiredService<LocalSyncStatusService>().RefreshAsync().ConfigureAwait(false);
                 Services.GetRequiredService<FinanceProjectionWorker>().Start();
 
                 var handler = Services.GetRequiredService<GlobalExceptionHandler>();
@@ -200,7 +204,10 @@ public partial class App : global::Avalonia.Application
         }
     }
 
-    private static IServiceProvider ConfigureServices()
+    private static IServiceProvider ConfigureServices() => CreateServiceCollection().BuildServiceProvider();
+
+    /// <summary>The shared composition seam for startup and machine-checkable registration audits.</summary>
+    public static IServiceCollection CreateServiceCollection()
     {
         var services = new ServiceCollection();
 
@@ -343,9 +350,11 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IUserProfileService, Animora.Client.Services.Profile.UserProfileService>();
         services.AddSingleton<ProfilePageViewModel>();
 
-        // Sync status seam (topbar sync box). Mock now; a future ISyncEngine
+        // Real local sync status seam (topbar); the future ISyncEngine
         // implementation swaps in behind the same ISyncStatusService contract.
-        services.AddSingleton<ISyncStatusService, MockSyncStatusService>();
+        services.AddScoped<LocalCommandProcessor>();
+        services.AddSingleton<LocalSyncStatusService>();
+        services.AddSingleton<ISyncStatusService>(sp => sp.GetRequiredService<LocalSyncStatusService>());
 
         // Global command palette (Ctrl+K) search seam. Depends on the patients
         // directory so a query also returns live patient/owner matches. The
@@ -366,7 +375,7 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
 
-        return services.BuildServiceProvider();
+        return services;
     }
 
     private static Tone ToTone(NotificationSeverity severity) => severity switch

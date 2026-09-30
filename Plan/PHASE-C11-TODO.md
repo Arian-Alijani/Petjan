@@ -161,7 +161,9 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ## 3. Task list
 
-### [ ] T0 — Baseline commit of the plan
+### [x] T0 — Baseline commit of the plan
+> Baseline already committed on main (`a6c0533`); main is two commits ahead of the old AI branch.
+> Work continues on `genspark_ai_developer` forked from main, with per-task push + PR updates.
 - Ensure `Plan/PHASE-C11-TODO.md` exists (this file).
 - **PUSH:** `scripts/git/push.sh "docs(plan): add C11 mock-purge/offline-acceptance TODO"`
 
@@ -248,7 +250,7 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ---
 
-### [ ] T2 — `LocalSyncStatusService` (real, server-free) + swap DI + delete mock
+### [x] T2 — `LocalSyncStatusService` (real, server-free) + swap DI + delete mock
 **Goal:** the last mock (`MockSyncStatusService`) is replaced by a real
 `ISyncStatusService` implementation living in `Animora.Client.Services`.
 
@@ -303,7 +305,7 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ---
 
-### [ ] T3 — Remove `Mocks/` directory entirely + drop its `using`
+### [x] T3 — Remove `Mocks/` directory entirely + drop its `using`
 **Goal:** `src/Animora.Desktop/Mocks/` **does not exist**; no `Mock` identifier in Desktop.
 - After T2 deleted the only file, `git rm -r src/Animora.Desktop/Mocks` (or the empty dir).
 - Remove `using Animora.Desktop.Mocks;` from `App.axaml.cs` (if not already gone in T2).
@@ -315,7 +317,7 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ---
 
-### [ ] T4 — Extend `LayeringRulesTests` with 3 machine-checkable facts
+### [x] T4 — Extend `LayeringRulesTests` with 3 machine-checkable facts
 File: `tests/Animora.Domain.Tests/LayeringRulesTests.cs` (append facts; never weaken existing).
 
 **Pre-req:** ensure `Animora.Domain.Tests.csproj` references `Animora.Desktop` (add if missing;
@@ -362,7 +364,7 @@ record deviation). Use `typeof(Animora.Desktop.App).Assembly` to load the compos
 
 ---
 
-### [ ] T5 — `OfflineClinicDayScenarioTests` (14-step end-to-end)
+### [~] T5 — `OfflineClinicDayScenarioTests` (14-step end-to-end)
 File: `tests/Animora.Application.Tests/Scenarios/OfflineClinicDayScenarioTests.cs` (create
 `Scenarios/` folder). Uses `Animora.Persistence.Tests.LocalStoreTestFixture` (temp-file DB +
 `MigrateAsync` + `FakeClock`). Drive all "now" via `fixture.Clock.Now = ...`.
@@ -418,7 +420,7 @@ existing use-case tests for the exact handler names & command DTOs per track:
 
 ---
 
-### [ ] T6 — `StartupBudgetTests` (no blocking work before first frame)
+### [x] T6 — `StartupBudgetTests` (no blocking work before first frame)
 File: `tests/Animora.Application.Tests/StartupBudgetTests.cs` (PERFORMANCE.md §12).
 - Assert `App.axaml.cs` startup does **not** `await` migration, seeding, or projection rebuild
   before the first frame — that work runs behind `LocalStoreStartup` + `IStoreReadinessGate`.
@@ -442,7 +444,7 @@ File: `tests/Animora.Application.Tests/StartupBudgetTests.cs` (PERFORMANCE.md §
 
 ---
 
-### [ ] T7 — `bench.sh offline` mode + budget capture
+### [~] T7 — `bench.sh offline` mode + budget capture
 File: `scripts/sandbox/bench.sh` (add an `offline` mode) + create
 `backend-roadmap/measurements/C11-offline-budget.md`.
 - Add an `offline` invocation (positional or `--offline`) that:
@@ -548,9 +550,47 @@ Decision/Rule check/Impact + a "Repo state" list).
 
 ---
 
+### [~] U1 — Optional product packages/prices and consistent contact-for-price presentation
+- Implement in the real Inventory/Sales seams and UI; do not invent a price or permit unpriced checkout.
+- PUSH: `scripts/git/push.sh "fix(inventory): allow unpriced products with consistent presentation"`
+
+### [~] U2 — Catalog pagination, category counts and deletion correctness
+- Preserve filters across pagination, prevent stale responses, derive counts from the same catalog predicate, and refresh deletion state.
+- PUSH: `scripts/git/push.sh "fix(catalog): preserve filters and consistent category lifecycle"`
+
 ## 4. Deviations log (fill as you go)
+- User explicitly forbids full builds/long tests: T9/T10/T11 use targeted verification instead; never claim a full-suite pass.
+- Use AI branch based on newer main, with PR; final plan deletion remains last after U1/U2.
 - **018→019:** migration created as `019_SyncCursor` because `018_UserPreferences` exists.
 - (add: Domain.Tests → Animora.Desktop reference, if added)
 - (add: DI-audit `ConfigureServices` seam, if extracted)
 - (add: bench offline instrumentation approach)
 - (add: any layering violation found & fixed)
+
+- T2: tenant-scoped ISyncCursorStore port + atomic SQLite upsert; serialized passes, cancellation restoration and real persisted initial status. Targeted checks follow SDK bootstrap.
+
+- T3: Mocks directory absent; no Mock identifier remains in Desktop source. Readiness uses the existing WaitAsync contract.
+
+- T4: added Desktop project reference and shared CreateServiceCollection seam. All 24 Contracts interfaces are audited (no exemptions); the four UI seams are outside Contracts and audited separately. Tests pending targeted run.
+
+- T2/T4 validation: Desktop + dependency graph built; all 7 LayeringRulesTests passed (164 ms). Two xUnit style warnings corrected using predicate overloads.
+
+- T6: focused StartupBudgetTests passed; startup source embedded at build time.
+- T5: scenario uses the anonymous identity seam before first run and real sign-in after advancing a day (sessions expire). Two opening-stock commands justify the exact nine feed events.
+
+- U1: existing store uses non-null Money; omitted pricing is represented by zero (not a free sale). Optional packages retain an internal default stock variant. Shared contact-for-price presentation in Inventory/Sales/Cashier; application rejects unpriced catalog checkout by code. No storefront/home product cards exist in this desktop repo.
+
+
+## Session handoff — 2026-09-30 (explicit wrap-up request)
+- Completed: T0, T2, T3, T4, T6; every implementation chunk committed/pushed and PR #163 updated.
+- Latest targeted compile: Application/Persistence/Client.Services and Application.Tests compiled; Desktop compiled with the catalog UI changes. No full solution build or full suite was run.
+- LayeringRulesTests: 7/7 passed before the final catalog changes. Final rerun compiled Desktop but test runner did not finish within the bounded run; do not claim a final rerun pass.
+- StartupBudgetTests: passed in the latest focused two-test run.
+- T5 continuous scenario: bootstrap, appointment, clinical completion, invoice, two payments and stock/ledger checks execute. Latest failure is the exact ordered activity-feed assertion: expected nine events including stock events, actual feed omits stock events. T5 is NOT complete; no assertions weakened.
+- Scenario exposed two production bugs fixed and pushed: SQLite APPLY in SalesDraftData lookup; existing stock snapshots loaded untracked under global NoTracking (now AsTracking).
+- T7: offline mode, six metric probes, hardware/budget report generation and 2x guard implemented; benchmark NOT executed and measurements file NOT generated.
+- T8: smoke NOT executed. Network namespace creation is denied in this sandbox; roadmap permits documenting NullCommandTransport as the no-network seam. Portable Xvfb dependencies were extracted inside ignored .sandbox, not installed system-wide.
+- U1: optional pricing/package UI path and shared contact-for-price display implemented across Inventory/Sales/Cashier; zero means unpriced and catalog checkout is blocked with PRODUCT_PRICE_REQUIRED. Empty price uses existing non-null Money schema. Dedicated regression coverage and visual acceptance remain.
+- U2: distinct Unicode category keys, consistent snapshot counts, category-filter-preserving UI pagination, stale-response guard, safe missing-category fallback, no 200/1000 product truncation, and journaled empty-leaf category deletion implemented. Dedicated paging/count/deletion regression tests remain.
+- Remaining: finish T5 feed issue + boarding/reopen assertions; run T7/T8; complete targeted T9/T10/T11 and final T13; update PROGRESS via T12 only after acceptance; delete this plan via T14 ONLY after all outstanding tasks finish.
+- Phase C11 is NOT declared done and next phase is NOT advanced.

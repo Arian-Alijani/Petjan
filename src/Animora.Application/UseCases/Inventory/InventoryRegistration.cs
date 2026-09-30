@@ -15,6 +15,7 @@ public static class InventoryRegistration
         .AddQuery<ProductDetailQuery, ProductDetailReadModel?, ProductDetailQueryHandler>()
         .AddQuery<ProductCategoriesQuery, IReadOnlyList<CategoryReadModel>, ProductCategoriesQueryHandler>()
         .AddQuery<StockMovementHistoryQuery, PagedResult<MovementReadModel>, StockMovementHistoryQueryHandler>()
+        .AddCommand<DeleteProductCategoryCommand, Unit, DeleteProductCategoryCommandHandler>()
         .AddCommand<CreateProductCommand, string, CreateProductCommandHandler>()
         .AddValidator<CreateProductCommand, CreateProductCommandValidator>()
         .AddCommand<UpdateProductInfoCommand, Unit, UpdateProductInfoCommandHandler>()

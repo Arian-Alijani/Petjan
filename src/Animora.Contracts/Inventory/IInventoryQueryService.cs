@@ -49,6 +49,9 @@ public interface IInventoryQueryService
     /// <summary>Removes a product, mirroring the product modal's «حذف کالا».</summary>
     Task DeleteProductAsync(string productId);
 
+    /// <summary>Deletes only an empty leaf category; persists a replicated tombstone.</summary>
+    Task DeleteCategoryAsync(string categoryId);
+
     /// <summary>
     /// Sets a variant's on-hand stock and logs the delta as a history entry,
     /// mirroring the stock-adjust modal's «ثبت موجودی» handler.

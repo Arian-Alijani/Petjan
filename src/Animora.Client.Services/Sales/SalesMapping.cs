@@ -212,7 +212,7 @@ internal static class SalesMapping
         foreach (var item in row.Items)
         {
             if (item.Kind == "Service") svc++; else itemCt++;
-            var key = Slug(item.Category);
+            var key = "category:" + item.Category;
             var current = byKey.TryGetValue(key, out var existing) ? existing.Count : 0;
             byKey[key] = (item.Category, current + 1);
         }
@@ -238,7 +238,7 @@ internal static class SalesMapping
     }
 
     internal static CatalogItem ToContract(this SalesCatalogItemReadModel row) =>
-        new(row.Id, row.Kind == "Service" ? "svc" : "item", row.Title, row.Category, row.Category,
+        new(row.Id, row.Kind == "Service" ? "svc" : "item", row.Title, row.Category, "category:" + row.Category,
             row.PriceMinor, row.Kind == "Service" ? "IconClipboard" : "IconBox");
 
     internal static InsurerRef ToContract(this InsurerReadModel row) =>
