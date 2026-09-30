@@ -73,7 +73,7 @@ public sealed class CreateStaffCommandHandler(IIdentityRepository users, IStaffM
         var policy = PasswordPolicy.Validate(command.Password);
         if (policy.IsFailure) return Result<Unit>.Fail(policy.Error, policy.Detail);
         if (await users.FindByUsernameAsync(context.TenantId, command.Username, ct) is not null)
-            return Result<Unit>.Fail(ErrorCodes.ValidationFailed, "USERNAME_EXISTS");
+            return Result<Unit>.Fail(ErrorCodes.UsernameExists);
         if (await roles.FindByRoleAsync(context.TenantId, command.Role, ct) is null)
             return Result<Unit>.Fail(ErrorCodes.PermissionDenied);
         // Creating another administrator also requires permission to grant authority.

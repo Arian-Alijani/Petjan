@@ -45,7 +45,7 @@ public sealed class StaffManagementTests
         await Service(host).AddStaffAsync(new CreateStaffRequest("Staff Person", " StaffLogin ", "Secret456", role, "09120000000"));
         var directory = await Service(host).GetStaffAsync();
         Assert.Equal(2, directory.Members.Count);
-        var staff = Assert.Single(directory.Members.Where(m => m.Username == "stafflogin"));
+        var staff = Assert.Single(directory.Members, m => m.Username == "stafflogin");
         Assert.Equal(role, staff.RoleId);
         await host.RestartAsync();
         var login = await host.SendAnonymousAsync(new SignInCommand("STAFFLOGIN", "Secret456", false));
@@ -81,9 +81,9 @@ public sealed class StaffManagementTests
         await using var host = await OwnerHostAsync();
         var service = Service(host);
         await service.AddStaffAsync(new CreateStaffRequest("Doctor", "doctor", "Secret456", "Doctor", ""));
-        var member = Assert.Single((await service.GetStaffAsync()).Members.Where(m => m.Username == "doctor"));
+        var member = Assert.Single((await service.GetStaffAsync()).Members, m => m.Username == "doctor");
         await service.SaveStaffAccessAsync(member.MembershipId, [PermissionCodes.VisitsRead, PermissionCodes.ReportsRead]);
-        var saved = Assert.Single((await service.GetStaffAsync()).Members.Where(m => m.UserId == member.UserId));
+        var saved = Assert.Single((await service.GetStaffAsync()).Members, m => m.UserId == member.UserId);
         Assert.Equal(new[] { PermissionCodes.ReportsRead, PermissionCodes.VisitsRead }, saved.PermissionCodes.Order().ToArray());
         await host.RestartAsync();
         Assert.True((await host.SendAnonymousAsync(new SignInCommand("doctor", "Secret456", false))).IsSuccess);
@@ -108,13 +108,13 @@ public sealed class StaffManagementTests
         await using var host = await OwnerHostAsync();
         var service = Service(host);
         await service.AddStaffAsync(new CreateStaffRequest("Doctor", "doctor", "Secret456", "Doctor", ""));
-        var member = Assert.Single((await service.GetStaffAsync()).Members.Where(m => m.Username == "doctor"));
+        var member = Assert.Single((await service.GetStaffAsync()).Members, m => m.Username == "doctor");
         Assert.True((await host.SendAnonymousAsync(new SignInCommand("doctor", "Secret456", false))).IsSuccess);
         var oldSession = host.Cache.Current!;
         Assert.True((await host.SendAnonymousAsync(new SignInCommand("owner", "Secret123", false))).IsSuccess);
         await service.SetStaffActiveAsync(member.MembershipId, false);
         Assert.Equal(2, (await service.GetStaffAsync()).Members.Count);
-        Assert.False(Assert.Single((await service.GetStaffAsync()).Members.Where(m => m.UserId == member.UserId)).IsActive);
+        Assert.False(Assert.Single((await service.GetStaffAsync()).Members, m => m.UserId == member.UserId).IsActive);
         host.Cache.Set(oldSession);
         var blocked = await host.SendAsUserAsync(SaveUserProfileCommand.For(AppSettingsKeys.ProfilePhone, "0912"));
         Assert.Equal(ErrorCodes.PermissionDenied, blocked.Error);
@@ -132,10 +132,10 @@ public sealed class StaffManagementTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.SetStaffActiveAsync(owner.MembershipId, false));
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.SaveStaffAccessAsync(owner.MembershipId, []));
         await service.AddStaffAsync(new CreateStaffRequest("Doctor", "doctor", "Secret456", "Doctor", ""));
-        var doctor = Assert.Single((await service.GetStaffAsync()).Members.Where(m => m.RoleId == "Doctor"));
+        var doctor = Assert.Single((await service.GetStaffAsync()).Members, m => m.RoleId == "Doctor");
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.SaveStaffAccessAsync(doctor.MembershipId, ["visits.unknown"]));
-        Assert.Equal(doctor.PermissionCodes, Assert.Single((await service.GetStaffAsync()).Members.Where(m => m.UserId == doctor.UserId)).PermissionCodes);
-        Assert.True(Assert.Single((await service.GetStaffAsync()).Members.Where(m => m.UserId == owner.UserId)).IsActive);
+        Assert.Equal(doctor.PermissionCodes, Assert.Single((await service.GetStaffAsync()).Members, m => m.UserId == doctor.UserId).PermissionCodes);
+        Assert.True(Assert.Single((await service.GetStaffAsync()).Members, m => m.UserId == owner.UserId).IsActive);
     }
 
     private static UserProfileService Service(LocalIdentityHost host) =>

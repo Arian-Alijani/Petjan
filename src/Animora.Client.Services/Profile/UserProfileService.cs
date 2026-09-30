@@ -114,8 +114,7 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         var context = await provider.BuildCommandContextAsync(null, null, null, default);
         if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
         var result = await dispatcher.SendAsync(command, context.Value!);
-        if (result.IsFailure) throw new InvalidOperationException(result.Detail == "USERNAME_EXISTS"
-            ? "USERNAME_EXISTS" : result.Error.Code);
+        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
     }
 
     private static (IDispatcher Dispatcher, ICurrentUserProvider Provider, IClinicTimeZoneProvider Zones) Resolve(
