@@ -89,10 +89,10 @@ public sealed class PatientsMappingTests
     }
 
     [Fact]
-    public void OwnerSummary_SplitsTheNameAndDefersFinanceToC09()
+    public void OwnerSummary_SplitsTheNameWithoutAccountBalance()
     {
         var s = new OwnerSummaryReadModel("OW1", "نگار محمدی", "09120000001", null, null, null,
-            DomainOwnerGender.Female, Registered, 1, 0L).ToSummary();
+            DomainOwnerGender.Female, Registered, 1).ToSummary();
 
         Assert.Equal("OW1", s.File);
         Assert.Equal("نگار", s.FirstName);
@@ -104,7 +104,9 @@ public sealed class PatientsMappingTests
         Assert.Equal("", s.NationalId);    // null → "".
         Assert.Null(s.Referral);           // C09 territory.
         Assert.Equal(Registered.UtcDateTime, s.Since);
-        Assert.Equal(0L, s.Balance);       // TotalSpend deferred to C09.
+        Assert.Null(typeof(OwnerSummary).GetProperty("Balance"));
+        Assert.Null(typeof(OwnerDetail).GetProperty("Balance"));
+        Assert.Null(typeof(Animora.Contracts.Sales.OwnerRef).GetProperty("Balance"));
         Assert.Empty(s.Tags);
     }
 
@@ -112,7 +114,7 @@ public sealed class PatientsMappingTests
     public void OwnerSummary_UnspecifiedGenderDefaultsToMale_AndASingleWordIsNotSplit()
     {
         var s = new OwnerSummaryReadModel("OW2", "Ali", "0912", null, "0079", null,
-            DomainOwnerGender.Unspecified, Registered, 0, 0L).ToSummary();
+            DomainOwnerGender.Unspecified, Registered, 0).ToSummary();
 
         Assert.Equal("Ali", s.FirstName);
         Assert.Equal("", s.LastName);
@@ -124,7 +126,7 @@ public sealed class PatientsMappingTests
     public void OwnerDetail_CarriesTheMappedPetRoster()
     {
         var owner = new OwnerSummaryReadModel("OW1", "نگار محمدی", "0912", null, null, null,
-            DomainOwnerGender.Female, Registered, 1, 0L);
+            DomainOwnerGender.Female, Registered, 1);
         var detail = new OwnerDetailReadModel(owner, [Pet()]).ToDetail();
 
         var pet = Assert.Single(detail.Pets);

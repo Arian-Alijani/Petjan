@@ -247,7 +247,7 @@ internal static class SalesMapping
     internal static OwnerRef ToContract(this OwnerLookupReadModel row)
     {
         var (first, last) = SplitName(row.Name);
-        return new OwnerRef(row.Id, first, last, string.Empty, row.Phone, ToneOf(row.Id), 0, string.Empty);
+        return new OwnerRef(row.Id, first, last, string.Empty, row.Phone, ToneOf(row.Id), string.Empty);
     }
 
     // ── Cashier history ─────────────────────────────────────────────────────
