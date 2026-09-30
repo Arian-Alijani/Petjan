@@ -6,7 +6,7 @@
              xmlns:vx="using:Animora.Desktop.Pages.Vaccination"
              xmlns:ap="using:Animora.Desktop.Pages.Appointments"
              x:Class="Animora.Desktop.App"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Light">
 
     <Application.Resources>
         <ResourceDictionary>
@@ -53,6 +53,9 @@
          cannot receive that dependency. -->
 
     <Application.Styles>
+        <!-- Animora's surface/ink tokens currently define a light palette only.
+             Do not mix those fixed light surfaces with OS-selected dark Fluent
+             input, placeholder, popup and interaction-state resources. -->
         <FluentTheme />
 
         <!-- Application-wide default font: Vazirmatn (bundled).
@@ -114,6 +117,20 @@
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
             <Setter Property="CaretBrush" Value="{StaticResource Brand600Brush}" />
             <Setter Property="SelectionBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="SelectionForegroundBrush" Value="{StaticResource InkBrush}" />
+            <Setter Property="PlaceholderForeground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <!-- Fluent sets Foreground again on hover/focus/disabled. Override those
+             states too, not just the resting control, for every text/number field. -->
+        <Style Selector="TextBox:pointerover, TextBox:focus, TextBox:focus-within">
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBox:disabled">
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="TextBox /template/ TextPresenter#PART_TextPresenter">
+            <Setter Property="TextElement.Foreground"
+                    Value="{ReflectionBinding $parent[TextBox].Foreground}" />
         </Style>
         <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
             <Setter Property="Background" Value="{StaticResource InputHoverBrush}" />
@@ -124,6 +141,30 @@
             <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
         </Style>
         <Style Selector="TextBox:focus-within /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+
+        <!-- Select fields share the same readable palette, including the string
+             selection rendered by Fluent's internal ContentControl. Bind to the
+             owning control so page-specific ink/brand overrides still apply. -->
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="PlaceholderForeground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        </Style>
+        <Style Selector="ComboBox:disabled">
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="ComboBox /template/ ContentControl#ContentPresenter">
+            <Setter Property="Foreground"
+                    Value="{ReflectionBinding $parent[ComboBox].Foreground}" />
+        </Style>
+        <Style Selector="ComboBox:pointerover /template/ Border#Background, ComboBox:pressed /template/ Border#Background">
+            <Setter Property="Background" Value="{StaticResource InputHoverBrush}" />
+        </Style>
+        <Style Selector="ComboBox:focus-visible /template/ Border#HighlightBackground">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
         </Style>
