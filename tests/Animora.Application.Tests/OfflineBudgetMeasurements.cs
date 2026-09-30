@@ -92,8 +92,17 @@ public sealed class OfflineBudgetMeasurements
             async Task Patients() { var page = await patients.GetPetsAsync(null, null, null, 1, 200, default); Assert.Equal(200, page.Items.Count); }
             await Patients();
             metrics["patients_ms"] = await Measure(Patients);
-            var search = scope.ServiceProvider.GetRequiredService<IGlobalSearchQueries>();
-            async Task Search() { var hits = await search.SearchAsync(fixture.TenantId, "Patient", 8, default); Assert.NotEmpty(hits); }
+            // The persistence port accepts normalized terms. Include the production handler so
+            // a mixed-case keystroke exercises normalization rather than timing an empty result.
+            var search = new GlobalSearchQueryHandler(scope.ServiceProvider.GetRequiredService<IGlobalSearchQueries>());
+            async Task Search()
+            {
+                var result = await search.HandleAsync(new GlobalSearchQuery("Patient", 8),
+                    new QueryContext(fixture.TenantId, userId, "bench"), default);
+                Assert.True(result.IsSuccess, result.Detail);
+                Assert.Equal(8, result.Value!.Count);
+                Assert.All(result.Value, hit => Assert.Equal("pet", hit.Source));
+            }
             await Search();
             metrics["search_ms"] = await Measure(Search);
             var dashboard = scope.ServiceProvider.GetRequiredService<DashboardComposer>();
