@@ -319,7 +319,8 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ---
 
-### [~] T4 — Extend `LayeringRulesTests` with 3 machine-checkable facts
+### [x] T4 — Extend `LayeringRulesTests` with 3 machine-checkable facts
+> 2026-09-30 resumed verification: all 7 LayeringRulesTests passed (185 ms), including all 24 Contracts registrations, mock purge, and Desktop/Client forbidden references. Sequential targeted compilation succeeded without warnings/errors.
 File: `tests/Animora.Domain.Tests/LayeringRulesTests.cs` (append facts; never weaken existing).
 
 **Pre-req:** ensure `Animora.Domain.Tests.csproj` references `Animora.Desktop` (add if missing;
@@ -366,7 +367,8 @@ record deviation). Use `typeof(Animora.Desktop.App).Assembly` to load the compos
 
 ---
 
-### [~] T5 — `OfflineClinicDayScenarioTests` (14-step end-to-end)
+### [x] T5 — `OfflineClinicDayScenarioTests` (14-step end-to-end)
+> 2026-09-30: continuous 14-step file-DB clinic + boarding + reopen scenario passed; together with PostInvoiceCommandTests, 6/6 passed. Repaired real SQL translation defects (ready-for-billing UNION and catalog APPLY), untracked stock snapshots/handoffs, movement events lost by intermediate audit flushes, and missing billed boarding checkout. Sign-in remains anonymous when renewing an expired session. Checkout feed order follows invoice issuance, as the domain requires.
 File: `tests/Animora.Application.Tests/Scenarios/OfflineClinicDayScenarioTests.cs` (create
 `Scenarios/` folder). Uses `Animora.Persistence.Tests.LocalStoreTestFixture` (temp-file DB +
 `MigrateAsync` + `FakeClock`). Drive all "now" via `fixture.Clock.Now = ...`.
@@ -625,3 +627,45 @@ Stock defect repaired during T5 preparation: no writer emitted StockMovementReco
 added movements, so stock sales had no COGS/feed consequences. LocalUnitOfWork now captures added
 movement rows before SaveChanges and dispatches their events within the same transaction. This
 change needs its scenario acceptance and existing stock/UoW regression checks before phase closeout.
+
+## Session handoff — 2026-09-30 continuation (user requested wrap-up)
+
+- Delivery PR: https://github.com/Arian-Alijani/Petjan/pull/166, branch `genspark_ai_developer`.
+  Started from latest `main` (a6e59e9), which contained all prior C11 work.
+- **T4 completed and pushed:** 7/7 LayeringRulesTests passed, all 24 Contracts interfaces covered,
+  mock namespace/type guard and Desktop/Client forbidden-reference checks retained without exclusions.
+- **T5 completed and pushed:** the continuous migrated-file 14-step clinic scenario, same-file reopen,
+  boarding invoice/payment/stock/ledger/feed and checkout/reopen assertions passed. Combined with the
+  five PostInvoiceCommandTests, **6/6 passed (9 seconds)**. Latest evidence: `.sandbox/logs/c11-scenario.log`.
+- Defects fixed and pushed, without weakening assertions:
+  - Renew overnight sessions via anonymous SignInCommand context (matching AuthenticationService).
+  - SalesQueries ready-for-billing UNION ALL uses scalar projection before server-side ordering/limit.
+  - SalesDraftData product/variant lookup avoids SQLite's unsupported correlated APPLY.
+  - StockSnapshotUpdater explicitly tracks existing snapshots; sales now persist exact stock deltas.
+  - LocalUnitOfWork buffers movement events across intermediate audit SaveAsync flushes and dispatches
+    each once in the ambient transaction; clears the buffer at transaction completion/rollback.
+  - SalesPostingData explicitly tracks both handoff types, so invoiced handoffs leave ready-to-bill.
+  - PostInvoiceCommand completes BoardingStay.AttachInvoice/CompleteCheckout atomically. Feed checkout
+    follows invoice issuance (domain forbids unbilled checkout); stay, invoice link and room-history
+    closure are explicitly asserted after reopening.
+- **T7 still in progress:** fixed bench.sh to use prebuilt/no-restore filtered measurement tests and
+  create its report directory. Shell syntax verified and fix pushed. The actual offline invocation
+  aborted: VSTest could not connect to testhost after 90 seconds in a network namespace with loopback
+  down. **No six-metric report exists and no measured numbers/pass claim is made.**
+  Next run must allow namespace-local loopback (still no external network), or capture warm query
+  measurements before isolating only the GUI process. Keep the documented login/dashboard/RSS proxy
+  limitations honest; these are not authenticated rendered-shell measurements.
+- **T8–T14 remain pending.** No offline SMOKE RUN OK, no final targeted regression sweep, no C11
+  closeout or D01 advancement. PROGRESS.md and the roadmap phase were deliberately not changed.
+  Keep this plan until the remaining acceptance tasks are actually complete.
+- No full build or full test suite was run. T9/T10 must use targeted compilation/short filtered tests
+  instead, per the user directive, and record that explicit deviation rather than claiming full-suite green.
+- Next short regressions: Persistence StockSnapshotIntegrityTests + UnitOfWorkTests; Application
+  LocalSyncStatusServiceTests + StartupBudgetTests + SalesCompensationTests + LedgerSingleWriterTests,
+  followed by the three layering guards after final Desktop compilation. Run sequentially, not in parallel.
+- Fresh-session SDK was installed inside `.sandbox/dotnet`; X11 dependencies extracted entirely inside
+  `.sandbox/x11/root`, with wrapper `.sandbox/x11/wrappers/Xvfb`. X11 run requires local LD_LIBRARY_PATH,
+  workspace HOME/XDG paths, bind `.sandbox/tmp` over `/tmp` inside `unshare -Urnm`, and the local xkbcomp
+  overlay described above. External networking isolation works; only loopback exists in that namespace.
+- Latest benchmark failure logs: `.sandbox/logs/c11-bench.log` and `c11-budget-queries.log`.
+  No further tasks were started after the user's wrap-up instruction.

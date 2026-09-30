@@ -43,7 +43,10 @@ internal static class StockSnapshotUpdater
         if (missingProducts is not null)
         {
             var tenantIds = added.Select(m => TenantOf(m, currentTenantId)).Distinct().ToArray();
-            var loaded = snapshots.Where(s => tenantIds.Contains(s.TenantId) && missingProducts.Contains(s.ProductId)).ToList();
+            // Store queries default to NoTracking; this is a write projection and must
+            // track existing rows so subsequent sales/receipts persist their deltas.
+            var loaded = snapshots.AsTracking()
+                .Where(s => tenantIds.Contains(s.TenantId) && missingProducts.Contains(s.ProductId)).ToList();
             foreach (var row in loaded) byKey.TryAdd((row.TenantId, row.ProductId, row.VariantId), row);
         }
 

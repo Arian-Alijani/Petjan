@@ -4,6 +4,7 @@
 # =============================================================================
 # Usage:
 #   scripts/sandbox/bench.sh [--no-build] [--seconds N] [--release] [--label L]
+#   scripts/sandbox/bench.sh offline   # prebuilt Desktop + Application.Tests, 60 s idle
 # Outputs: a one-line BENCH record (label, ttfui ms, peak rss KB, cpu %, wall).
 # The app is launched under Xvfb; we poll RSS+CPU from /proc.
 # =============================================================================
@@ -32,7 +33,7 @@ if [ "$OFFLINE" = "1" ]; then
   export ANIMORA_BENCH_OUTPUT="$LOG_DIR/c11-warm-metrics.json"
   rm -f "$ANIMORA_BENCH_OUTPUT"
   dotnet test "$REPO_ROOT/tests/Animora.Application.Tests/Animora.Application.Tests.csproj" \
-    --filter FullyQualifiedName~OfflineBudgetMeasurements -c "$CONFIG" "${MSBUILD_LOWMEM[@]}" \
+    --no-build --no-restore --filter FullyQualifiedName~OfflineBudgetMeasurements -c "$CONFIG" \
     --nologo -v minimal > "$LOG_DIR/c11-budget-queries.log" 2>&1 || { cat "$LOG_DIR/c11-budget-queries.log"; exit 1; }
 fi
 
@@ -100,6 +101,7 @@ printf 'BENCH label=%s config=%s ttfui_ms=%s peak_rss_kb=%s wall_ms=%s alive=%s\
 if [ "$OFFLINE" = "1" ]; then
   [ "$SECONDS_RUN" -ge 60 ] || { err "Offline idle measurement requires 60 seconds"; exit 2; }
   [ "$ALIVE_AT_END" = "1" ] || { cat "$APP_LOG"; err "App exited before idle measurement"; exit 1; }
+  mkdir -p "$REPO_ROOT/backend-roadmap/measurements"
   python3 "$SCRIPT_DIR/offline-budget.py" "$APP_LOG" "$ANIMORA_BENCH_OUTPUT" "$LAST_RSS_KB" \
     "$REPO_ROOT/backend-roadmap/measurements/C11-offline-budget.md"
 fi

@@ -33,13 +33,17 @@ public sealed class SalesDraftData(AnimoraLocalDbContext db) : ISalesDraftData
 
     public async Task<SalesCatalogEntry?> FindCatalogEntryAsync(string id, CancellationToken ct)
     {
-        var product = await db.Set<Product>().AsNoTracking().Where(p => p.IsActive)
-            .SelectMany(p => p.Variants.Where(v => v.IsActive && (v.VariantId == id || p.Id == id)),
-                (p, v) => new SalesCatalogEntry(v.VariantId,
-                    p.Kind == ProductKind.Service ? null : p.Id,
-                    p.Kind == ProductKind.Service ? null : v.VariantId,
-                    p.Name, p.Kind == ProductKind.Service ? InvoiceLineKind.Service : InvoiceLineKind.Product,
-                    v.SalePrice.Minor, p.UnitCode)).FirstOrDefaultAsync(ct);
+        // Flatten the navigation before applying the correlated predicate: SQLite has
+        // no APPLY operator for a filtered collection selector that references its parent.
+        var product = await (from p in db.Set<Product>().AsNoTracking()
+            from v in p.Variants
+            where p.IsActive && v.IsActive && (v.VariantId == id || p.Id == id)
+            orderby v.VariantId
+            select new SalesCatalogEntry(v.VariantId,
+                p.Kind == ProductKind.Service ? null : p.Id,
+                p.Kind == ProductKind.Service ? null : v.VariantId,
+                p.Name, p.Kind == ProductKind.Service ? InvoiceLineKind.Service : InvoiceLineKind.Product,
+                v.SalePrice.Minor, p.UnitCode)).FirstOrDefaultAsync(ct);
         if (product is not null) return product;
         return await db.Set<BoardingServiceDef>().AsNoTracking().Where(s => s.Id == id && s.IsActive)
             .Select(s => new SalesCatalogEntry(s.Id, null, null, s.Title,

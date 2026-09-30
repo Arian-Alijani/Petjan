@@ -23,16 +23,20 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
                      where h.Status == HandoffStatus.Ready
                      join o in db.Set<Owner>().AsNoTracking() on h.OwnerId equals o.Id
                      join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
-                     select new ReadyForBillingReadModel(h.Id, "Visit", h.OwnerId, o.FullName,
-                         h.PetId, p.Name, h.DoctorId, h.CompletedUtc, h.LinesJson);
+                     select new { h.Id, Source = "Visit", h.OwnerId, OwnerName = o.FullName,
+                         h.PetId, PetName = p.Name, h.DoctorId, h.CompletedUtc, h.LinesJson };
         var stays = from h in db.Set<BoardingBillingHandoff>().AsNoTracking()
                     where h.Status == HandoffStatus.Ready
                     join o in db.Set<Owner>().AsNoTracking() on h.OwnerId equals o.Id
                     join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
-                    select new ReadyForBillingReadModel(h.Id, "Boarding", h.OwnerId, o.FullName,
-                        h.PetId, p.Name, h.DoctorId, h.CompletedUtc, h.LinesJson);
+                    select new { h.Id, Source = "Boarding", h.OwnerId, OwnerName = o.FullName,
+                        h.PetId, PetName = p.Name, h.DoctorId, h.CompletedUtc, h.LinesJson };
+        // Keep the UNION ALL, ordering and bound server-side. Constructing a positional
+        // record before the set operation makes its member accesses untranslatable in EF.
         return await visits.Concat(stays).OrderByDescending(h => h.CompletedUtc)
-            .ThenBy(h => h.Id).Take(100).ToListAsync(ct);
+            .ThenBy(h => h.Id).Take(100)
+            .Select(h => new ReadyForBillingReadModel(h.Id, h.Source, h.OwnerId, h.OwnerName,
+                h.PetId, h.PetName, h.DoctorId, h.CompletedUtc, h.LinesJson)).ToListAsync(ct);
     }
 
     private IQueryable<InvoiceSummaryReadModel> ProjectInvoices(IQueryable<Invoice> invoices) =>

@@ -31,7 +31,7 @@ public sealed class PostInvoiceCommandValidator : IValidator<PostInvoiceCommand>
 }
 
 public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvoiceNumberAllocator numbers,
-    IStockMovementRepository movements, ISalesPostingData posting, IClock clock)
+    IStockMovementRepository movements, ISalesPostingData posting, IClock clock, IBoardingRepository boarding)
     : ICommandHandler<PostInvoiceCommand, Unit>
 {
     public async Task<Result<Unit>> HandleAsync(PostInvoiceCommand c, CommandContext context, CancellationToken ct)
@@ -96,6 +96,17 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
             var status = await posting.MarkHandoffInvoicedAsync(source, sourceId!, invoice.Id, ct);
             if (status != HandoffPostStatus.Ready) return Result<Unit>.Fail(status == HandoffPostStatus.AlreadyInvoiced
                 ? ErrorCodes.HandoffAlreadyInvoiced : ErrorCodes.NotFound);
+        }
+        if (invoice.BoardingStayId is { } stayId)
+        {
+            // Checkout was requested before billing. Finish it only once the real invoice
+            // is issued, in this same transaction; never leave the room occupied indefinitely.
+            var stay = await boarding.FindAsync(stayId, ct);
+            if (stay is null) return Result<Unit>.Fail(ErrorCodes.StayNotFound);
+            var attached = stay.AttachInvoice(invoice.Id);
+            if (attached.IsFailure) return Result<Unit>.Fail(attached.Error, attached.Detail);
+            var checkedOut = stay.CompleteCheckout(clock);
+            if (checkedOut.IsFailure) return Result<Unit>.Fail(checkedOut.Error, checkedOut.Detail);
         }
         // Journal and snapshot writes are automatic in the ambient unit-of-work transaction.
         return Result<Unit>.Ok(Unit.Value);
