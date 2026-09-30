@@ -34,7 +34,7 @@ public sealed class OfflineBudgetMeasurements
         }
         using var scope = fixture.CreateScope();
         var services = scope.ServiceProvider;
-        var patients = services.GetRequiredService<PatientDirectoryQueries>();
+        var patients = services.GetRequiredService<Animora.Application.Ports.IPatientDirectoryQueries>();
         var dbContext = services.GetRequiredService<AnimoraLocalDbContext>();
         var search = new GlobalSearchQueries(dbContext);
         var dashboard = new DashboardQueries(dbContext);
