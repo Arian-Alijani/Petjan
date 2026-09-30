@@ -19,6 +19,18 @@
 #   .\scripts\windows\clean-run.ps1 -Clinic      # Debug + normal clinic DB
 #   .\scripts\windows\clean-run.ps1 -LocalTest   # isolated persistent manual test DB
 #   .\scripts\windows\clean-run.ps1 -FreshTest   # new isolated DB; never deletes old data
+#   .\scripts\windows\clean-run.ps1 -SeedCount 100  # NEW random-data test profile
+#   .\scripts\windows\clean-run.ps1 5000           # same as -SeedCount 5000
+# From scripts\windows: .\clean-run.ps1 -FreshTest -SeedCount 100
+# SeedCount: 1..50000 additional linked scenarios + 32 baseline scenarios, not a total row count.
+# Populates patients, owners, clinical records, vaccination, appointments, boarding,
+# inventory, purchasing, invoices, payments, cashier, cheques, expenses, finance/history projections.
+# Catalogue/staff/room counts are bounded; each scenario produces multiple linked records.
+# Random mode asks for your own Manager username/password in the terminal; sign in normally in the app.
+# Requires Windows + .NET 10 SDK only; no Python or external database tools.
+# Always creates a NEW profile, even in Release. Cannot combine with Clinic/ClinicBak/TestProfile.
+# Existing profiles, real clinic storage and application settings are never seeded/reset/overwritten.
+# With -NoRun, builds only: no Manager prompt, database creation or random-data generation.
 #   .\scripts\windows\clean-run.ps1 -LocalTest -TestProfile sales
 #   .\scripts\windows\clean-run.ps1 -ClinicBak  # legacy data preview, automatic real sign-in
 # -ClinicBak requires Python 3 (stdlib only). It reads Clinic.bak without restoring/modifying it.
@@ -32,13 +44,17 @@
 # On first run create a Manager account in the setup form (password: >=8 chars, letters+digits).
 # The same -TestProfile reopens its data; -FreshTest creates a NEW profile if you forget the login.
 # Debug defaults to the persistent manual profile; -Clinic or plain -Release uses the clinic DB.
-# Test profiles start empty (reference catalogs only); create owners/patients/stock via the UI.
+# Without -SeedCount, test profiles start empty (reference catalogs only); create data via the UI.
 # Test storage: %LOCALAPPDATA%\Animora.LocalTests\<profile> (DB, backups, files, logs, DPAPI secrets).
 # Close the app before switching profiles. Never put real patient data in a test profile.
 # =============================================================================
 
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
+    [Parameter(Position = 0)]
+    [Alias('RandomCount')]
+    [ValidateRange(1, 50000)]
+    [int]$SeedCount,
     [switch]$Release,
     [switch]$NoRun,
     [switch]$LocalTest,
@@ -50,6 +66,19 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Explicit exit-code handling works in Windows PowerShell 5.1 and PowerShell 7.
+$PSNativeCommandUseErrorActionPreference = $false
+$SeedRequested = $PSBoundParameters.ContainsKey('SeedCount')
+if ($SeedRequested) {
+    if ($Clinic -or $ClinicBak -or $PSBoundParameters.ContainsKey('TestProfile')) {
+        throw '-SeedCount always creates a NEW isolated profile; cannot combine with -Clinic, -ClinicBak or -TestProfile.'
+    }
+    if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+        throw '-SeedCount requires an interactive Windows PowerShell terminal and Windows DPAPI.'
+    }
+    $LocalTest = $false
+    $FreshTest = $true
+}
 
 if ($ClinicBak -and ($Clinic -or $LocalTest -or $FreshTest -or $PSBoundParameters.ContainsKey('TestProfile'))) {
     throw '-ClinicBak cannot be combined with other profile options.'
@@ -71,7 +100,8 @@ if ($ClinicBak) {
     # Extraction is performed below, before any clean/build, using an absolute path.
 } elseif ($FreshTest) {
     # Generate the name here so the user can reopen the exact same profile later.
-    $TestProfile = 'fresh-' + [Guid]::NewGuid().ToString('N')
+    $Prefix = if ($SeedRequested) { 'random-' } else { 'fresh-' }
+    $TestProfile = $Prefix + [Guid]::NewGuid().ToString('N')
     $AppArgs = @("--local-test=$TestProfile")
 } elseif ($LocalTest) {
     $AppArgs = @("--local-test=$TestProfile")
@@ -82,11 +112,16 @@ if ($ClinicBak) {
 if ($LocalTest -or $FreshTest) {
     Write-Host "==> ISOLATED LOCAL TEST: $TestProfile"
     Write-Host "==> Reopen with: .\scripts\windows\clean-run.ps1 -LocalTest -TestProfile $TestProfile"
-    Write-Host '==> First run: create your own Manager account. No normal clinic data is used.'
+    if ($SeedRequested) {
+        Write-Host "==> RANDOM DATA: $SeedCount additional scenarios + 32 baseline scenarios; never modifies an existing profile."
+        Write-Host '==> After build: create your test Manager in this terminal, then sign in normally in the app.'
+    } else {
+        Write-Host '==> First run: create your own Manager account. No normal clinic data is used.'
+    }
 }
 
 # Resolve repo root (two levels up from this script: scripts\windows\ -> repo).
-$RepoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
+$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 if ($ClinicBak) {
     $Backup = Join-Path $RepoRoot 'db-sample\Clinic.bak'
     $Preview = Join-Path $RepoRoot '.sandbox\clinic-bak\clinic.json'
@@ -128,10 +163,13 @@ Write-Host "==> Building ($Config) ..."
 dotnet build $Proj -c $Config `
     -p:EnableAvaloniaXamlCompilation=true `
     --no-incremental
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Build FAILED (exit $LASTEXITCODE). The build's own verification " +
-        "target will report if compiled XAML is missing — read the error above."
-    exit $LASTEXITCODE
+$BuildExitCode = $LASTEXITCODE
+if ($BuildExitCode -ne 0) {
+    # Parentheses keep '+' inside the message expression (not a positional Write-Error argument).
+    # Continue prints the message without masking the native build failure with a terminating exception.
+    Write-Error -Message ("Build FAILED (exit $BuildExitCode). The build's own verification " +
+        "target will report if compiled XAML is missing — read the error above.") -ErrorAction Continue
+    exit $BuildExitCode
 }
 
 # 3. Run the app (unless -NoRun).
@@ -141,8 +179,32 @@ if ($NoRun) {
 }
 
 if (-not (Test-Path $Dll)) {
-    Write-Error "Expected output not found: $Dll"
+    Write-Error -Message "Expected output not found: $Dll" -ErrorAction Continue
     exit 1
+}
+
+if ($SeedRequested) {
+    $SeedProject = Join-Path $PSScriptRoot 'test-data\Animora.TestData.csproj'
+    $SeedDll = Join-Path $PSScriptRoot "test-data\bin\$Config\net10.0\Animora.TestData.dll"
+    Write-Host '==> Building standalone manual-test data tool (not included in the application) ...'
+    dotnet build $SeedProject -c $Config --no-incremental
+    $SeedBuildExitCode = $LASTEXITCODE
+    if ($SeedBuildExitCode -ne 0) {
+        Write-Error -Message "Test-data tool build FAILED (exit $SeedBuildExitCode). App was not launched." -ErrorAction Continue
+        exit $SeedBuildExitCode
+    }
+    Write-Host '==> Generating data in the NEW isolated profile only ...'
+    dotnet $SeedDll $TestProfile $SeedCount
+    $SeedExitCode = $LASTEXITCODE
+    if ($SeedExitCode -ne 0) {
+        Write-Error -Message 'Random-data generation failed. App was not launched; any partial test data was kept.' -ErrorAction Continue
+        exit $SeedExitCode
+    }
+    $ProfileDirectory = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) "Animora.LocalTests\$TestProfile"
+    if (-not (Test-Path (Join-Path $ProfileDirectory 'random-data-complete.json') -PathType Leaf)) {
+        Write-Error -Message 'Missing completion marker; refusing to launch an incomplete random-data profile.' -ErrorAction Continue
+        exit 1
+    }
 }
 
 Write-Host "==> Launching Animora.Desktop ..."
