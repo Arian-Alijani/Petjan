@@ -33,16 +33,13 @@ public sealed class SalesDraftData(AnimoraLocalDbContext db) : ISalesDraftData
 
     public async Task<SalesCatalogEntry?> FindCatalogEntryAsync(string id, CancellationToken ct)
     {
-        // Keep the outer-product predicate outside the collection selector: SQLite has no APPLY.
-        var product = await (from p in db.Set<Product>().AsNoTracking()
-            where p.IsActive
-            from v in p.Variants
-            where v.IsActive && (v.VariantId == id || p.Id == id)
-            select new SalesCatalogEntry(v.VariantId,
-                p.Kind == ProductKind.Service ? null : p.Id,
-                p.Kind == ProductKind.Service ? null : v.VariantId,
-                p.Name, p.Kind == ProductKind.Service ? InvoiceLineKind.Service : InvoiceLineKind.Product,
-                v.SalePrice.Minor, p.UnitCode)).FirstOrDefaultAsync(ct);
+        var product = await db.Set<Product>().AsNoTracking().Where(p => p.IsActive)
+            .SelectMany(p => p.Variants.Where(v => v.IsActive && (v.VariantId == id || p.Id == id)),
+                (p, v) => new SalesCatalogEntry(v.VariantId,
+                    p.Kind == ProductKind.Service ? null : p.Id,
+                    p.Kind == ProductKind.Service ? null : v.VariantId,
+                    p.Name, p.Kind == ProductKind.Service ? InvoiceLineKind.Service : InvoiceLineKind.Product,
+                    v.SalePrice.Minor, p.UnitCode)).FirstOrDefaultAsync(ct);
         if (product is not null) return product;
         return await db.Set<BoardingServiceDef>().AsNoTracking().Where(s => s.Id == id && s.IsActive)
             .Select(s => new SalesCatalogEntry(s.Id, null, null, s.Title,

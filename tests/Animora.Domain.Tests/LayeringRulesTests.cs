@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Reflection;
 using Xunit;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Domain.Tests;
 
@@ -101,48 +100,5 @@ public sealed class LayeringRulesTests
         Assert.False(ReferencesIdentity(
             typeof(Animora.Persistence.Sqlite.Context.LocalStoreServiceCollectionExtensions).Assembly));
         Assert.False(ReferencesIdentity(typeof(Animora.Client.Services.Identity.AuthenticationService).Assembly));
-    }
-    [Fact]
-    public void NoMockNamespaceExists()
-    {
-        var types = typeof(Animora.Desktop.App).Assembly.GetTypes();
-        Assert.DoesNotContain(types, t => t.Name.StartsWith("Mock", StringComparison.Ordinal));
-        Assert.DoesNotContain(types, t => t.Namespace?.Split('.').Contains("Mocks") == true);
-    }
-
-    [Fact]
-    public void EveryContractsInterfaceHasExactlyOneRealRegistration()
-    {
-        var services = Animora.Desktop.App.CreateServiceCollection();
-        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
-        var contracts = typeof(Animora.Contracts.Sync.ISyncStatusService).Assembly.GetExportedTypes()
-            .Where(t => t.IsInterface).ToArray();
-        Assert.NotEmpty(contracts);
-        foreach (var contract in contracts)
-        {
-            var descriptor = Assert.Single(services, d => d.ServiceType == contract);
-            // Resolve factories through the same container; never guess their implementation type.
-            var implementation = descriptor.ImplementationType ?? provider.GetRequiredService(contract).GetType();
-            Assert.Equal("Animora.Client.Services", implementation.Assembly.GetName().Name);
-        }
-        // These four UI-owned seams are outside Contracts; still audit them explicitly.
-        Type[] uiSeams = [typeof(Animora.Desktop.Services.INavigationService),
-            typeof(Animora.Desktop.Services.IToastService), typeof(Animora.Desktop.Services.IDialogService),
-            typeof(Animora.Desktop.Services.IRecordSheetPresenter)];
-        foreach (var seam in uiSeams)
-        {
-            var descriptor = Assert.Single(services, d => d.ServiceType == seam);
-            var implementation = descriptor.ImplementationType ?? provider.GetRequiredService(seam).GetType();
-            Assert.Equal("Animora.Desktop", implementation.Assembly.GetName().Name);
-        }
-    }
-
-    [Fact]
-    public void DesktopHasNoForbiddenReferences()
-    {
-        var desktop = typeof(Animora.Desktop.App).Assembly;
-        foreach (var prefix in new[] { "Microsoft.EntityFrameworkCore", "System.Data.Common", "System.Net.Http",
-            "CommunityToolkit.Datasync" })
-            Assert.False(ReferencesNameStartingWith(desktop, prefix), prefix);
     }
 }

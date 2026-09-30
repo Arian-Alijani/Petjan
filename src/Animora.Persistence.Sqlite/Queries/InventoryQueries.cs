@@ -20,6 +20,7 @@ namespace Animora.Persistence.Sqlite.Queries;
 public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOptions> options)
     : IInventoryQueries
 {
+    private const int MaxCatalogScan = 1000; // Bounded scan before in-memory low-stock paging.
     private const int MaxMovementHistory = 100;
 
     private LocalStoreOptions Options => options.Value;
@@ -27,26 +28,44 @@ public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalSto
     public async Task<PagedResult<ProductReadModel>> GetCatalogAsync(
         string? search, string? categoryId, bool lowStockOnly, int page, int pageSize, CancellationToken ct)
     {
-        IQueryable<Product> q = lowStockOnly ? db.Set<Product>().FromSqlRaw("""
-            SELECT p.* FROM Products p WHERE EXISTS (
-              SELECT 1 FROM ProductVariants v LEFT JOIN StockOnHandSnapshots s
-              ON s.ProductId = p.Id AND s.VariantId = v.VariantId AND s.TenantId = p.TenantId
-              WHERE v.OwnerId = p.Id AND v.IsActive = 1
-              AND COALESCE(s.OnHandScaled, 0) <= CAST(CAST(v.ReorderLevelValue AS REAL) * 1000 AS INTEGER))
-            """) : db.Set<Product>();
-        q = q.AsNoTracking().Where(p => p.IsActive && db.Set<ProductCategory>()
-            .Any(c => c.Id == p.CategoryId && c.IsActive));
+        var q = db.Set<Product>().AsNoTracking();
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
-            q = q.Where(p => EF.Functions.Like(p.Name, $"%{term}%") || EF.Functions.Like(p.Sku, $"%{term}%")
-                || p.Variants.Any(v => v.IsActive && EF.Functions.Like(v.Sku, $"%{term}%")));
+            q = q.Where(p => EF.Functions.Like(p.Name, $"%{term}%") || EF.Functions.Like(p.Sku, $"%{term}%"));
         }
-        if (!string.IsNullOrWhiteSpace(categoryId)) q = q.Where(p => p.CategoryId == categoryId);
-        var pageResult = await q.OrderBy(p => p.Name).ThenBy(p => p.Id).ToPagedAsync(page, pageSize, Options, ct);
-        var onHand = await LoadOnHandAsync(pageResult.Items.Select(p => p.Id), ct);
-        return new PagedResult<ProductReadModel>(pageResult.Items.Select(p => ToReadModel(p, onHand)).ToArray(),
-            pageResult.TotalCount, pageResult.Page, pageResult.PageSize);
+        if (!string.IsNullOrWhiteSpace(categoryId))
+        {
+            q = q.Where(p => p.CategoryId == categoryId);
+        }
+
+        // Bounded, stably-ordered scan; variants auto-include with the aggregate.
+        var products = await q.OrderBy(p => p.Name).ThenBy(p => p.Id).Take(MaxCatalogScan).ToListAsync(ct);
+        if (products.Count == 0)
+        {
+            return new PagedResult<ProductReadModel>([], 0, page, pageSize);
+        }
+
+        var onHand = await LoadOnHandAsync(products.Select(p => p.Id), ct);
+        var rows = new List<ProductReadModel>(products.Count);
+        for (var i = 0; i < products.Count; i++)
+        {
+            var row = ToReadModel(products[i], onHand);
+            if (lowStockOnly && !IsLowStock(row))
+            {
+                continue;
+            }
+            rows.Add(row);
+        }
+
+        var max = Math.Clamp(Options.MaxPageSize, 1, QueryPaging.HardMaxPageSize);
+        var size = Math.Clamp(pageSize, 1, max);
+        var pageIndex = Math.Max(1, page);
+        var skip = (pageIndex - 1) * size;
+        IReadOnlyList<ProductReadModel> items = skip >= rows.Count
+            ? []
+            : rows.GetRange(skip, Math.Min(size, rows.Count - skip));
+        return new PagedResult<ProductReadModel>(items, rows.Count, pageIndex, size);
     }
 
     public async Task<ProductDetailReadModel?> GetDetailAsync(string productId, CancellationToken ct)

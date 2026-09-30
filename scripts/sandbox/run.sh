@@ -53,7 +53,7 @@ DLL="$REPO_ROOT/$DESKTOP_DLL_REL/$CONFIG/net10.0/Animora.Desktop.dll"
 [ -f "$DLL" ] || { err "Missing $DLL — build first."; exit 1; }
 
 # 2. Need a display -----------------------------------------------------------
-if [ "${ANIMORA_USE_EXISTING_DISPLAY:-0}" != "1" ] && ! command -v xvfb-run >/dev/null 2>&1; then
+if ! command -v xvfb-run >/dev/null 2>&1; then
   err "xvfb not installed — cannot run a GUI app headlessly."
   err "Install it: scripts/sandbox/install-prereqs.sh   (or: sudo apt-get install -y xvfb)"
   exit 3
@@ -62,12 +62,8 @@ fi
 # 3. Smoke-run under Xvfb -----------------------------------------------------
 log "Launching under Xvfb for ${SECONDS_RUN}s ..."
 set +e
-if [ "${ANIMORA_USE_EXISTING_DISPLAY:-0}" = "1" ]; then
+xvfb-run -a --server-args="-screen 0 1024x768x24" \
   timeout --preserve-status "${SECONDS_RUN}s" dotnet "$DLL"
-else
-  xvfb-run -a --server-args="-screen 0 1024x768x24" \
-    timeout --preserve-status "${SECONDS_RUN}s" dotnet "$DLL"
-fi
 RC=$?
 set -e
 

@@ -40,7 +40,6 @@ public sealed class AddInvoiceLineCommandHandler(IInvoiceRepository invoices, IS
         if (found.IsFailure) return Result<Unit>.Fail(found.Error);
         var item = await data.FindCatalogEntryAsync(c.CatalogItemId, ct);
         if (item is null) return Result<Unit>.Fail(ErrorCodes.NotFound);
-        if (item.PriceMinor <= 0) return Result<Unit>.Fail(ErrorCodes.ProductPriceRequired);
         var line = new InvoiceLine(IdGenerator.NewId(clock.UtcNow), item.Kind, item.Id,
             item.ProductId, item.VariantId, item.Title, new Quantity(c.Quantity, item.UnitCode),
             Money.Irt(item.PriceMinor), 0, 0, InvoiceLineSource.Catalog, item.Id);
