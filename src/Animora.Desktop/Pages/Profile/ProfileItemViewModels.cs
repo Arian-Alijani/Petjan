@@ -206,7 +206,7 @@ public sealed partial class ProfileTabViewModel : ObservableObject
 }
 
 /// <summary>A titled option list for one settings select (.pb-select).</summary>
-public sealed class ProfileSelectViewModel
+public sealed partial class ProfileSelectViewModel : ObservableObject
 {
     public ProfileSelectViewModel(IReadOnlyList<string> options, string selected)
     {
@@ -220,9 +220,10 @@ public sealed class ProfileSelectViewModel
 
     public IReadOnlyList<string> Options { get; }
 
-    public int SelectedIndex { get; set; }
+    [ObservableProperty]
+    private int _selectedIndex;
 
-    public string Value => Options[SelectedIndex];
+    public string Value => SelectedIndex >= 0 && SelectedIndex < Options.Count ? Options[SelectedIndex] : string.Empty;
 }
 
 /// <summary>A single settings toggle row (reference <c>.switch-row</c>).</summary>
@@ -287,6 +288,8 @@ public sealed partial class StaffMemberViewModel : ObservableObject
     }
 
     public bool IsProtected { get; init; }
+
+    public string ChangeToken { get; init; } = string.Empty;
 
     public string Id { get; }
 

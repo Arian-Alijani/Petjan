@@ -10,7 +10,7 @@ namespace Animora.Application.UseCases.Profile;
 
 public sealed record StaffDirectoryRow(User User, StaffMembership Membership);
 public sealed record StaffAccessRow(string MembershipId, string UserId, string Name, string Username,
-    StaffRole Role, bool IsActive, IReadOnlyList<string> Permissions);
+    StaffRole Role, bool IsActive, IReadOnlyList<string> Permissions, string ChangeToken);
 public sealed record StaffDirectoryResult(IReadOnlyList<StaffAccessRow> Members,
     IReadOnlyDictionary<StaffRole, IReadOnlyList<string>> Roles, bool CanManageUsers, bool CanManageAccess);
 
@@ -46,7 +46,7 @@ public sealed class StaffDirectoryQueryHandler(IProfileQueries queries, IRoleDef
             granted.ExceptWith(row.Membership.DeniedPermissionCodes);
             members.Add(new(row.Membership.Id, row.User.Id, row.User.DisplayName, row.User.UserName,
                 row.Membership.Role, row.Membership.IsActive && row.User.Status != UserStatus.Disabled,
-                granted.ToArray()));
+                granted.ToArray(), StaffChangeToken.For(row.User, row.Membership)));
         }
         return Result<StaffDirectoryResult>.Ok(new(members, definitions, canUsers, canAccess));
     }
@@ -96,7 +96,7 @@ public sealed class CreateStaffCommandHandler(IIdentityRepository users, IStaffM
 
 [RequiresPermission(PermissionCodes.UsersManage)]
 [Auditable(AuditCategory.Configuration, "identity.staff.status")]
-public sealed record SetStaffActiveCommand(string MembershipId, bool Active) : ICommand<Unit>;
+public sealed record SetStaffActiveCommand(string MembershipId, bool Active, string? ExpectedChangeToken = null) : ICommand<Unit>;
 public sealed class SetStaffActiveCommandHandler(IIdentityRepository users, IStaffMembershipRepository memberships)
     : ICommandHandler<SetStaffActiveCommand, Unit>
 {
@@ -110,6 +110,8 @@ public sealed class SetStaffActiveCommandHandler(IIdentityRepository users, ISta
             return Result<Unit>.Fail(ErrorCodes.PermissionDenied);
         var user = await users.FindAsync(member.UserId, ct);
         if (user is null || user.TenantId != context.TenantId) return Result<Unit>.Fail(ErrorCodes.NotFound);
+        if (command.ExpectedChangeToken is { } token && token != StaffChangeToken.For(user, member))
+            return Result<Unit>.Fail(ErrorCodes.ConcurrencyConflict);
         if (command.Active) { member.Reinstate(); user.Enable(); }
         else { member.Suspend(); user.Disable(); }
         return Result<Unit>.Ok(Unit.Value);
@@ -118,7 +120,7 @@ public sealed class SetStaffActiveCommandHandler(IIdentityRepository users, ISta
 
 [RequiresPermission(Animora.Domain.Identity.PermissionCodes.RolesManage)]
 [Auditable(AuditCategory.Configuration, "identity.staff.permissions")]
-public sealed record SaveStaffAccessCommand(string MembershipId, IReadOnlyList<string> PermissionCodes) : ICommand<Unit>;
+public sealed record SaveStaffAccessCommand(string MembershipId, IReadOnlyList<string> PermissionCodes, string? ExpectedChangeToken = null) : ICommand<Unit>;
 public sealed class SaveStaffAccessCommandHandler(IIdentityRepository users, IStaffMembershipRepository memberships,
     IRoleDefinitionRepository roles, CapabilitySnapshotIssuer capabilities)
     : ICommandHandler<SaveStaffAccessCommand, Unit>
@@ -136,6 +138,8 @@ public sealed class SaveStaffAccessCommandHandler(IIdentityRepository users, ISt
         var role = await roles.FindByRoleAsync(context.TenantId, member.Role, ct);
         if (user is null || user.TenantId != context.TenantId || user.Status == UserStatus.Disabled || role is null)
             return Result<Unit>.Fail(ErrorCodes.PermissionDenied);
+        if (command.ExpectedChangeToken is { } token && token != StaffChangeToken.For(user, member))
+            return Result<Unit>.Fail(ErrorCodes.ConcurrencyConflict);
         var granted = new HashSet<string>(command.PermissionCodes, StringComparer.Ordinal);
         foreach (var code in PermissionCodes.All)
         {
@@ -146,5 +150,20 @@ public sealed class SaveStaffAccessCommandHandler(IIdentityRepository users, ISt
         user.RotateSecurityStamp();
         var issued = await capabilities.IssueAsync(user, member, context.DeviceId, ct);
         return issued.IsFailure ? Result<Unit>.Fail(issued.Error, issued.Detail) : Result<Unit>.Ok(Unit.Value);
+    }
+}
+
+/// <summary>Opaque edit precondition over security facts. Does not reuse the server-only sync Version field.</summary>
+internal static class StaffChangeToken
+{
+    internal static string For(User user, StaffMembership membership)
+    {
+        var facts = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            membership.Id, membership.Role, MembershipStatus = membership.Status, UserStatus = user.Status, user.SecurityStamp,
+            Extra = membership.ExtraPermissionCodes.Order(StringComparer.Ordinal).ToArray(),
+            Denied = membership.DeniedPermissionCodes.Order(StringComparer.Ordinal).ToArray(),
+        });
+        return Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(facts)));
     }
 }

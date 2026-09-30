@@ -138,6 +138,81 @@ public sealed class StaffManagementTests
         Assert.True(Assert.Single((await service.GetStaffAsync()).Members, m => m.UserId == owner.UserId).IsActive);
     }
 
+    [Theory]
+    [InlineData("", "doctor", "Secret456")]
+    [InlineData("Doctor", "", "Secret456")]
+    [InlineData("Doctor", "doctor", "")]
+    public async Task MissingRequiredField_IsRejectedWithoutPartialAccount(string name, string username, string password)
+    {
+        await using var host = await OwnerHostAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(host).AddStaffAsync(
+            new CreateStaffRequest(name, username, password, "Doctor", "")));
+        Assert.Single((await Service(host).GetStaffAsync()).Members);
+    }
+
+    [Fact]
+    public async Task StalePermissionAndStatusChanges_DoNotOverwriteNewerStaffState()
+    {
+        await using var host = await OwnerHostAsync();
+        var service = Service(host);
+        await service.AddStaffAsync(new CreateStaffRequest("Doctor", "doctor", "Secret456", "Doctor", ""));
+        var original = Assert.Single((await service.GetStaffAsync()).Members, m => m.RoleId == "Doctor");
+        await service.SaveStaffAccessAsync(original.MembershipId, [PermissionCodes.VisitsRead], original.ChangeToken);
+        var conflict = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.SaveStaffAccessAsync(original.MembershipId, [PermissionCodes.VisitsWrite], original.ChangeToken));
+        Assert.Equal(ErrorCodes.ConcurrencyConflict.Code, conflict.Message);
+        var statusConflict = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.SetStaffActiveAsync(original.MembershipId, false, original.ChangeToken));
+        Assert.Equal(ErrorCodes.ConcurrencyConflict.Code, statusConflict.Message);
+        var current = Assert.Single((await service.GetStaffAsync()).Members, m => m.UserId == original.UserId);
+        Assert.True(current.IsActive);
+        Assert.Equal(new[] { PermissionCodes.VisitsRead }, current.PermissionCodes);
+        Assert.NotEqual(original.ChangeToken, current.ChangeToken);
+    }
+
+    [Fact]
+    public async Task AccountStatus_UnknownWithoutIntegration_AndPreservesAuthoritativeCachedValues()
+    {
+        await using var host = await OwnerHostAsync();
+        var unknown = await Service(host).GetAccountStatusAsync();
+        Assert.Null(unknown.SubscriptionExpiresAtUtc);
+        Assert.Null(unknown.SmsCredit);
+        Assert.Null(unknown.ObservedAtUtc);
+        using var scope = host.Services.CreateScope();
+        var expected = new ClinicAccountStatus("Professional", MutableClock.Start.AddDays(20), 0m, "تومان",
+            0, MutableClock.Start.AddDays(5), MutableClock.Start, true);
+        var services = new ServiceCollection();
+        services.AddSingleton(scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>());
+        services.AddSingleton<IClinicAccountStatusSource>(new FixedAccountStatus(expected));
+        using var provider = services.BuildServiceProvider();
+        var service = new UserProfileService(provider.GetRequiredService<IServiceScopeFactory>());
+        Assert.Equal(expected, await service.GetAccountStatusAsync());
+    }
+
+    [Fact]
+    public void CreationForm_HasAllRequiredImmediateTwoWayBindings_AndMaskedPassword()
+    {
+        using var stream = typeof(StaffManagementTests).Assembly.GetManifestResourceStream("Settings.View")!;
+        var view = System.Xml.Linq.XDocument.Load(stream);
+        System.Xml.Linq.XNamespace ns = "https://github.com/avaloniaui";
+        foreach (var field in new[] { "NewMemberName", "NewMemberUsername", "NewMemberPassword" })
+        {
+            var input = Assert.Single(view.Descendants(ns + "TextBox"), e =>
+                e.Attribute("Text")?.Value.Contains(field, StringComparison.Ordinal) == true);
+            Assert.Contains("Mode=TwoWay", input.Attribute("Text")!.Value);
+            Assert.Contains("UpdateSourceTrigger=PropertyChanged", input.Attribute("Text")!.Value);
+            Assert.NotNull(input.Attribute("MaxLength"));
+            if (field == "NewMemberPassword") Assert.NotNull(input.Attribute("PasswordChar"));
+        }
+        Assert.Contains(view.Descendants(ns + "TextBlock"), e => e.Attribute("Text")?.Value == "{Binding SubscriptionRemaining}");
+        Assert.Contains(view.Descendants(ns + "TextBlock"), e => e.Attribute("Text")?.Value == "{Binding SmsCredit}");
+    }
+
+    private sealed class FixedAccountStatus(ClinicAccountStatus status) : IClinicAccountStatusSource
+    {
+        public Task<ClinicAccountStatus> GetAsync(CancellationToken ct = default) => Task.FromResult(status);
+    }
+
     private static UserProfileService Service(LocalIdentityHost host) =>
         new(host.Services.GetRequiredService<IServiceScopeFactory>());
 

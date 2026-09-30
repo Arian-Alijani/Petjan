@@ -73,6 +73,16 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
     }
 
+    public async Task<ClinicAccountStatus> GetAccountStatusAsync()
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>().BuildQueryContext();
+        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        // Licensing and SMS integrations are not implemented yet. Unknown is not an active/free subscription.
+        var source = scope.ServiceProvider.GetService<IClinicAccountStatusSource>();
+        return source is null ? new ClinicAccountStatus() : await source.GetAsync().ConfigureAwait(false);
+    }
+
     public async Task<StaffDirectory> GetStaffAsync()
     {
         await using var scope = scopes.CreateAsyncScope();
@@ -85,7 +95,7 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         return new StaffDirectory(
             model.Members.Select(m => new StaffAccount(m.MembershipId, m.UserId, m.Name, m.Username,
                 m.Role.ToString(), m.IsActive, m.Role == StaffRole.Manager || m.UserId == context.Value!.UserId,
-                m.Permissions)).ToArray(),
+                m.Permissions, m.ChangeToken)).ToArray(),
             model.Roles.Select(r => new StaffRoleOption(r.Key.ToString(), ProfileMapping.RoleLabel(r.Key.ToString()),
                 r.Value)).ToArray(),
             PermissionCodes.All.Select(code => new StaffPermissionOption(code, ProfileMapping.PermissionLabel(code),
@@ -101,11 +111,11 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         return SendStaffAsync(new CreateStaffCommand(request.Name, request.Username, request.Password, role, request.Phone));
     }
 
-    public Task SetStaffActiveAsync(string membershipId, bool active) =>
-        SendStaffAsync(new SetStaffActiveCommand(membershipId, active));
+    public Task SetStaffActiveAsync(string membershipId, bool active, string? expectedChangeToken = null) =>
+        SendStaffAsync(new SetStaffActiveCommand(membershipId, active, expectedChangeToken));
 
-    public Task SaveStaffAccessAsync(string membershipId, IReadOnlyList<string> permissionCodes) =>
-        SendStaffAsync(new SaveStaffAccessCommand(membershipId, permissionCodes));
+    public Task SaveStaffAccessAsync(string membershipId, IReadOnlyList<string> permissionCodes, string? expectedChangeToken = null) =>
+        SendStaffAsync(new SaveStaffAccessCommand(membershipId, permissionCodes, expectedChangeToken));
 
     private async Task SendStaffAsync(ICommand<Unit> command)
     {

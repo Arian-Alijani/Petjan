@@ -21,8 +21,11 @@ public interface IUserProfileService
     /// <summary>Persists the edited settings in the local store.</summary>
     Task SaveSettingsAsync(AppSettings settings);
 
+    /// <summary>Account status from the configured authority, or explicit unknown fields before server integration.</summary>
+    Task<ClinicAccountStatus> GetAccountStatusAsync();
+
     Task<StaffDirectory> GetStaffAsync();
     Task AddStaffAsync(CreateStaffRequest request);
-    Task SetStaffActiveAsync(string membershipId, bool active);
-    Task SaveStaffAccessAsync(string membershipId, IReadOnlyList<string> permissionCodes);
+    Task SetStaffActiveAsync(string membershipId, bool active, string? expectedChangeToken = null);
+    Task SaveStaffAccessAsync(string membershipId, IReadOnlyList<string> permissionCodes, string? expectedChangeToken = null);
 }
