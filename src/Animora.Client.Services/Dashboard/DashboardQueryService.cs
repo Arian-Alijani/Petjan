@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Client.Services.Dashboard;
 
-/// <summary>60-second tenant/user/role/version cache over role-specific persisted slices.</summary>
+/// <summary>60-second tenant/user/effective-permission/day/version cache. Live authorization precedes every hit.</summary>
 public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashboardQueryService
 {
     private readonly TenantScopedCache<string, (DateTimeOffset Expires, DashboardSnapshot Snapshot)> _cache = new();

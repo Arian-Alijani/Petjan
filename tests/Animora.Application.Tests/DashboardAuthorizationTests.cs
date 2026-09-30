@@ -55,6 +55,47 @@ public sealed class DashboardAuthorizationTests
         Assert.Null(denied.RevenuePulse);
     }
 
+    [Theory]
+    [InlineData("suspend")]
+    [InlineData("revoke")]
+    [InlineData("lock")]
+    [InlineData("expire")]
+    [InlineData("signout")]
+    public async Task WarmCache_RechecksLiveAuthorization(string change)
+    {
+        await using var host = await CreateHostAsync(StaffRole.Manager);
+        var service = new DashboardQueryService(host.Services.GetRequiredService<IServiceScopeFactory>());
+        var warm = await service.GetSnapshotAsync(UserRole.Manager);
+        Assert.NotNull(warm.RevenuePulse);
+        Assert.Same(warm, await service.GetSnapshotAsync(UserRole.Manager));
+        switch (change)
+        {
+            case "suspend": await ChangeMemberAsync(host, member => member.Suspend()); break;
+            case "revoke": await ChangeMemberAsync(host, member => member.ChangeRole(StaffRole.Receptionist)); break;
+            case "lock": host.Cache.Set(host.Cache.Current! with { IsLocked = true }); break;
+            case "expire": host.Clock.Advance(TimeSpan.FromDays(7)); break;
+            case "signout": host.Cache.Set(null); break;
+        }
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetSnapshotAsync(UserRole.Manager));
+    }
+
+    [Fact]
+    public async Task AuthorizedConcurrentCacheHits_RemainCoalescedAndDayScoped()
+    {
+        var sql = new SqlRecorder();
+        await using var host = await CreateHostAsync(StaffRole.Manager, sql);
+        var service = new DashboardQueryService(host.Services.GetRequiredService<IServiceScopeFactory>());
+        sql.Commands.Clear();
+        var snapshots = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => service.GetSnapshotAsync(UserRole.Doctor)));
+        Assert.All(snapshots, x => Assert.Same(snapshots[0], x));
+        Assert.Single(sql.Commands, x => x.Contains("DailyFinanceFacts"));
+        Assert.Equal(UserRole.Manager, snapshots[0].Role);
+        host.Clock.Advance(TimeSpan.FromDays(1));
+        // Keep the local test session active while advancing the injected clinic clock.
+        host.Cache.Set(host.Cache.Current! with { ExpiresAtUtc = host.Clock.UtcNow.AddHours(12) });
+        Assert.NotSame(snapshots[0], await service.GetSnapshotAsync(UserRole.Manager));
+    }
+
     [Fact]
     public async Task UnknownStoredRole_FailsClosed()
     {

@@ -150,7 +150,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D02 isolate receptionist widget permissions"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D03 — cache-hit از authorization جاری عبور نمی‌کند
-- [ ] وضعیت: باز | P1 | گزارش 3 | نتیجه: قطعی مسیر bypass؛ رخداد revoke اجرا نشده | وابستگی: D01.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 3 | نتیجه: هر cache-hit از policy زنده مشترک عبور می‌کند | وابستگی: D01.
+- شواهد اجرا: کلید cache شامل tenant/user، نقش معتبر و مجوز مؤثر تمام بخش‌ها، روز و نسخه است. `WarmCache_RechecksLiveAuthorization` روی authorization واقعی و SQLite، suspension/revoke/lock/expiry/signout را پس از cache گرم رد می‌کند؛ تست grant/deny D01/D02 داده قدیمی را پس نمی‌دهد. `AuthorizedConcurrentCacheHits_RemainCoalescedAndDayScoped` هشت درخواست را با یک finance read و snapshot یکسان و تغییر روز با ساعت تزریقی بررسی کرد. **12 تست کلاس authorization passed، 0 failed، 13 ثانیه**. تنها warning جدید analyzer با overload استاندارد Assert.Single اصلاح شد؛ CS8625 تاریخی باقی است.
 - شواهد: `DashboardQueryService.cs:32–43`؛ `SessionCurrentUserProvider.RequireActive`؛ `PermissionAuthorizationGate.cs:76–87`.
 - اقدام: پیش از هر cache response، session/membership و مجوز مؤثر معتبر بررسی شوند؛ هویت/نسخه مجوز جزئی از اعتبار cache باشد و تغییر آن invalidate کند. policy واحد reuse شود؛ دور زدن dispatcher با auth ساختگی ممنوع. بررسی زنده مجوز به cache 60ثانیه‌ای تکیه نکند.
 - پذیرش/بررسی محدود: cache گرم، سپس suspension/revoke/deny/lock/expire؛ فراخوانی بعدی داده قبلی را ندهد. آزمون با authorization واقعی، نه `CacheDispatcher`، انجام شود؛ cache-hit مجاز همچنان bounded و coalesced بماند.
