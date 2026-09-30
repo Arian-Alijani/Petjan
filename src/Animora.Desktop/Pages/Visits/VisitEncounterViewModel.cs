@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using Animora.Contracts.Visits;
+using Animora.Contracts.Identity;
 using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
@@ -56,6 +57,11 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private readonly IStoreReadinessGate _readiness;
     private readonly INavigationService _navigation;
     private readonly IToastService _toast;
+    private readonly ICapabilityGate _capabilities;
+
+    public bool CanEditVisit => _capabilities.Can("visits.write");
+    private bool CanFinishVisit() => _capabilities.Can("visits.complete");
+    private bool CanAdvance() => !IsLastStep || CanFinishVisit();
 
     private EncounterDraft _draft = EmptyDraft();
     private string _encounterId = string.Empty;
@@ -116,12 +122,14 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         IVisitEncounterService service,
         IStoreReadinessGate readiness,
         INavigationService navigation,
-        IToastService toast)
+        IToastService toast,
+        ICapabilityGate capabilities)
     {
         _service = service;
         _readiness = readiness;
         _navigation = navigation;
         _toast = toast;
+        _capabilities = capabilities;
 
         Title = "ویزیت و پرونده پزشکی";
         Eyebrow = "پرونده الکترونیک سلامت";
@@ -295,7 +303,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     /// </summary>
     private void AddPickedLine(RxCatalogItem item)
     {
-        _ = AddPickedLineAsync(item);
+        if (CanEditVisit) _ = AddPickedLineAsync(item);
     }
 
     private async Task AddPickedLineAsync(RxCatalogItem item)
@@ -310,7 +318,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanAdvance))]
     private async Task NextStepAsync()
     {
         if (CurrentStep == EncounterStep.Review)
@@ -347,8 +355,13 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         CurrentStep = (EncounterStep)step.Index;
     }
 
-    [RelayCommand]
-    private void SaveDraft() => _toast.Show("پیش‌نویس ذخیره شد (نمونه طراحی).", Tone.Ok);
+    [RelayCommand(CanExecute = nameof(CanEditVisit))]
+    private async Task SaveDraftAsync()
+    {
+        await PersistAsync();
+        await _service.FlushAsync();
+        _toast.Show("پیش‌نویس ویزیت ذخیره شد.", Tone.Ok);
+    }
 
     [RelayCommand]
     private async Task BackToGate()
@@ -357,7 +370,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         _navigation.NavigateTo<VisitsTriagePageViewModel>();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEditVisit))]
     private async Task RemoveRxLineAsync(RxLineViewModel? line)
     {
         if (line is null)
@@ -400,6 +413,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     private async Task CompleteAsync()
     {
+        if (!CanFinishVisit()) return;
         await PersistAsync();
         var summary = await _service.CompleteAsync(_encounterId);
 
@@ -438,6 +452,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     private async Task PersistAsync()
     {
+        if (!CanEditVisit) return;
         await _service.SaveVitalsAsync(_encounterId, BuildVitals());
         await _service.SaveHistoryNoteAsync(_encounterId, HistoryText);
         await _service.SaveExamNoteAsync(_encounterId, ExamText);
@@ -482,6 +497,10 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     private void NotifyState()
     {
+        OnPropertyChanged(nameof(CanEditVisit));
+        NextStepCommand.NotifyCanExecuteChanged();
+        SaveDraftCommand.NotifyCanExecuteChanged();
+        RemoveRxLineCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(IsVitalsStep));
         OnPropertyChanged(nameof(IsHistoryStep));
         OnPropertyChanged(nameof(IsPlanStep));

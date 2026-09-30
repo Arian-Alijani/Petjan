@@ -27,6 +27,7 @@ public sealed class PermissionAuthorizationGate(
     SessionContextCache sessions,
     ILocalInstallationIdentity installation,
     IPermissionEvaluator evaluator,
+    IStaffMembershipRepository memberships,
     IClock clock) : IAuthorizationGate
 {
     private static readonly FrozenSet<Type> PreAuthentication = new[]
@@ -72,7 +73,14 @@ public sealed class PermissionAuthorizationGate(
         if (session.IsLocked) return Result.Fail(ErrorCodes.PermissionDenied, "Session is locked.");
         if (!Same(sessionUser, userId)) return Result.Fail(ErrorCodes.PermissionDenied, "Session user mismatch.");
 
-        if (entry.PermissionCode is not { } code) return Result.Ok();
+        // Sign-out must remain possible after administrative suspension. Every other
+        // authenticated-only request also needs a live membership, not merely an old session.
+        if (request is SignOutCommand) return Result.Ok();
+        if (entry.PermissionCode is not { } code)
+        {
+            var member = await memberships.FindActiveAsync(tenantId, userId, ct).ConfigureAwait(false);
+            return member is { IsActive: true } ? Result.Ok() : Result.Fail(ErrorCodes.PermissionDenied);
+        }
         if (session.Role is not { } role) return Result.Fail(ErrorCodes.PermissionDenied, PermissionEvaluator.RbacRule);
 
         var subject = new AuthorizationSubject(tenantId, userId, FrozenSet<string>.Empty, role, deviceId, IsOffline: false);

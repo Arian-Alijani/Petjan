@@ -90,6 +90,21 @@ public sealed class AuthorizationGateTests
         Assert.Equal(ErrorCodes.SessionExpired, other.Error);
     }
 
+    [Fact]
+    public async Task SuspendedMembership_WithOldSession_CannotUseUnannotatedCommands()
+    {
+        var (provider, counter, cache, memberships) = BuildHost();
+        using var _ = provider;
+        var member = StaffMembership.Create(Tenant, User, StaffRole.Receptionist, new FixedClock());
+        memberships.Add(member);
+        cache.Set(Session(User, StaffRole.Receptionist));
+        Assert.True((await SendAsync(provider, new PlainCommand("before"), TestHost.CommandCtx())).IsSuccess);
+        member.Suspend();
+        var denied = await SendAsync(provider, new PlainCommand("after"), TestHost.CommandCtx());
+        Assert.Equal(ErrorCodes.PermissionDenied, denied.Error);
+        Assert.Equal(1, counter.Calls);
+    }
+
     private static SessionSnapshot Session(string userId, StaffRole role) =>
         new(userId, userId, role, IsLocked: false, IsFirstRun: false, Now.AddHours(12));
 
@@ -114,6 +129,7 @@ public sealed class AuthorizationGateTests
         services.AddSingleton<ILocalInstallationIdentity, FixedInstallation>();
         services.AddSingleton<IUnitOfWork>(new RecordingUnitOfWork(new StepLog()));
         services.AddSingleton(cache);
+        services.AddSingleton<IStaffMembershipRepository>(memberships);
         services.AddSingleton<ISessionService, FakeSessionService>();
         services.AddSingleton(counter);
         // The real B04a evaluator over in-memory stores (registered first: TryAddScoped in AddAnimoraApplication wins nothing).

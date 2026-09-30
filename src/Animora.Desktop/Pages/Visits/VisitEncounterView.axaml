@@ -649,22 +649,22 @@
                                 <controls:LazyTabHost ActiveKey="{Binding CurrentStep}">
                                     <controls:LazyTab Key="Vitals">
                                         <DataTemplate x:DataType="visits:VisitEncounterViewModel">
-                                            <visits:VitalsStepView />
+                                            <visits:VitalsStepView IsEnabled="{Binding CanEditVisit}" />
                                         </DataTemplate>
                                     </controls:LazyTab>
                                     <controls:LazyTab Key="History">
                                         <DataTemplate x:DataType="visits:VisitEncounterViewModel">
-                                            <visits:HistoryStepView />
+                                            <visits:HistoryStepView IsEnabled="{Binding CanEditVisit}" />
                                         </DataTemplate>
                                     </controls:LazyTab>
                                     <controls:LazyTab Key="Plan">
                                         <DataTemplate x:DataType="visits:VisitEncounterViewModel">
-                                            <visits:PlanStepView />
+                                            <visits:PlanStepView IsEnabled="{Binding CanEditVisit}" />
                                         </DataTemplate>
                                     </controls:LazyTab>
                                     <controls:LazyTab Key="Rx">
                                         <DataTemplate x:DataType="visits:VisitEncounterViewModel">
-                                            <visits:RxStepView />
+                                            <visits:RxStepView IsEnabled="{Binding CanEditVisit}" />
                                         </DataTemplate>
                                     </controls:LazyTab>
                                     <controls:LazyTab Key="Review">
