@@ -32,17 +32,25 @@ public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashbo
         var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
         var context = provider.BuildQueryContext();
         if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        var policy = await DashboardComposer.ResolveAccessAsync(new DashboardSnapshotQuery(role), context.Value!,
+            scope.ServiceProvider.GetRequiredService<IAuthorizationGate>(),
+            scope.ServiceProvider.GetRequiredService<SessionContextCache>(),
+            scope.ServiceProvider.GetRequiredService<IStaffMembershipRepository>(),
+            scope.ServiceProvider.GetRequiredService<IPermissionEvaluator>(),
+            scope.ServiceProvider.GetRequiredService<ILocalInstallationIdentity>(), default);
+        if (policy.IsFailure) throw new InvalidOperationException(policy.Error.Code);
+        var access = policy.Value!;
         var now = scope.ServiceProvider.GetRequiredService<IClock>().UtcNow;
         var zone = scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
         var window = DashboardDayWindow.For(ClinicCalendar.LocalDay(now.UtcTicks, zone), zone);
         var queries = scope.ServiceProvider.GetRequiredService<IDashboardQueries>();
         var version = await queries.VersionAsync(context.Value!.TenantId, default);
-        var key = $"{context.Value.TenantId}|{context.Value.UserId}|dashboard:{role}|day{window.LocalDay}|v{version}";
+        var key = $"{context.Value.TenantId}|{context.Value.UserId}|dashboard:{access.CacheKey}|day{window.LocalDay}|v{version}";
         if (_cache.TryGet(key, out var entry) && entry.Expires > now) return entry.Snapshot;
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
             .QueryAsync(new DashboardSnapshotQuery(role, window), context.Value);
         if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
-        var snapshot = DashboardMapping.Map(role, result.Value!, zone);
+        var snapshot = DashboardMapping.Map(access.Role, result.Value!, zone);
         _cache.Set(key, (now.AddSeconds(60), snapshot));
         return snapshot;
     }
@@ -87,11 +95,11 @@ internal static class DashboardMapping
         return new DashboardSnapshot(role, "نمای کلی امروز", "آخرین فعالیت‌های کلینیک", stats,
             role == UserRole.Cashier ? "فاکتورهای امروز" : "نوبت‌های امروز", primary,
             "رویدادهای اخیر", secondary,
-            manager ? new DashboardRevenuePulse(today.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), "۱۴ روز اخیر",
+            (slice.Access?.Finance ?? manager) ? new DashboardRevenuePulse(today.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), "۱۴ روز اخیر",
                 values.Select(x => max == 0 ? 0d : (double)x / max).ToArray()) : null,
-            manager ? slice.Workloads.Select(x => new DashboardDoctorLoad(string.IsNullOrEmpty(x.Name) ? "پ" : x.Name[..1], x.Name, "پزشک",
+            (slice.Access?.Workloads ?? manager) ? slice.Workloads.Select(x => new DashboardDoctorLoad(string.IsNullOrEmpty(x.Name) ? "پ" : x.Name[..1], x.Name, "پزشک",
                 x.Done, x.Total, "#0D9488")).ToArray() : null,
-            manager ? slice.Species.Select(x => new DashboardSpecies(SpeciesName(x.Key), x.Value, SpeciesColor(x.Key))).ToArray() : null);
+            (slice.Access?.Patients ?? manager) && role != UserRole.Doctor ? slice.Species.Select(x => new DashboardSpecies(SpeciesName(x.Key), x.Value, SpeciesColor(x.Key))).ToArray() : null);
     }
 
     private static DashboardStat Stat(string icon, string label, long value) =>

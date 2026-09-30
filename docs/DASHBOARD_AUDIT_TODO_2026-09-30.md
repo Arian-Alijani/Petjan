@@ -134,7 +134,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 ## تودو — یک مشکل در هر تسک
 
 ### D01 — نقش ارسالی، مرجع دسترسی داده است
-- [ ] وضعیت: باز | P0 | گزارش 1 | نتیجه: قطعی کد.
+- [x] وضعیت: انجام‌شده | P0 | گزارش 1 | نتیجه: دسترسی از session و membership معتبر؛ نقش UI مرجع داده نیست.
+- شواهد اجرای 2026-09-30: `DashboardAuthorizationTests` با session محلی، dispatcher، RBAC ذخیره‌شده و SQLite واقعی، درخواست Manager توسط Doctor/Receptionist/Accountant، grant/deny و نقش ناشناخته را بررسی می‌کند. فیلتر همین کلاس + `DashboardBudgetTests`: **18 passed، 0 failed، 12 ثانیه**؛ Full build/test اجرا نشد. fixture ناسازگار `OwnerSummaryReadModel` فقط با حذف آرگومان حذف‌شده اصلاح شد تا پروژه regression کامپایل شود. warning تاریخی CS8625 خارج از داشبورد باقی است. policy زنده پیش از cache نیز اجرا می‌شود؛ پذیرش اختصاصی D02/D03 هنوز مستقل است.
 - شواهد: `IDashboardQueryService.GetSnapshotAsync`؛ `DashboardQueryService.cs:22–45`؛ `DashboardSnapshotQuery.cs:36–51`؛ `DashboardQueries.cs:20–26`؛ `PermissionAuthorizationGate.cs:79–87`.
 - اقدام: نقش امنیتی/هویت از session معتبر و membership فعلی تعیین شود؛ نقش layout جدا بماند. Application مجوزهای مؤثر هر بخش را با منطق RBAC موجود تعیین کند و پیش از query، داده غیرمجاز را حذف کند. `RequiresPermission` عمومی به‌تنهایی جای مجوز هر widget نیست؛ پزشک پیش‌فرض `ReportsRead` هم دارد، پس آن مجوز به‌تنهایی نباید درآمد مالی را آزاد کند.
 - پذیرش/بررسی محدود: session پزشک با درخواست Manager در مسیر service → dispatcher هیچ مقدار مالی، workload مدیریتی یا aggregate خارج از scope خود نگیرد؛ override grant/deny و نقش نامعتبر fail-closed آزموده شوند؛ افزودن Accountants به layout، مجوز همه داده‌ها ایجاد نکند.

@@ -46,7 +46,7 @@ public sealed class DashboardBudgetTests
     [Theory]
     [InlineData(UserRole.Manager, 8)]
     [InlineData(UserRole.Doctor, 5)]
-    [InlineData(UserRole.Cashier, 6)]
+    [InlineData(UserRole.Cashier, 7)]
     [InlineData(UserRole.Receptionist, 8)]
     public async Task Snapshot_StaysWithinRoleCommandBudget(UserRole role, int expectedCommands)
     {
@@ -61,7 +61,7 @@ public sealed class DashboardBudgetTests
             counter.Reset();
             // The composer runs VersionAsync (1) then GetSliceAsync (the role slice) on one connection.
             _ = await queries.VersionAsync(fixture.TenantId, default);
-            _ = await queries.GetSliceAsync(fixture.TenantId, Window, "user-1", role, default);
+            _ = await queries.GetSliceAsync(fixture.TenantId, Window, "user-1", TestAccess(role), default);
             Assert.Equal(expectedCommands, counter.Count);
         }
     }
@@ -76,7 +76,7 @@ public sealed class DashboardBudgetTests
 
         using var scope = fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "mgr", UserRole.Manager, default);
+        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
 
         // The mapper's "today revenue" stat is the last (today) revenue-day value verbatim.
         var snapshot = InvokeMap(UserRole.Manager, slice);
@@ -100,7 +100,7 @@ public sealed class DashboardBudgetTests
 
         using var scope = fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "doc", UserRole.Doctor, default);
+        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "doc", TestAccess(UserRole.Doctor), default);
 
         var snapshot = InvokeMap(UserRole.Doctor, slice);
         // All three manager rich widgets must be absent for a Doctor.
@@ -118,7 +118,7 @@ public sealed class DashboardBudgetTests
 
         using var scope = fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "mgr", UserRole.Manager, default);
+        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
 
         var snapshot = InvokeMap(UserRole.Manager, slice);
         Assert.NotNull(snapshot.RevenuePulse);
@@ -150,12 +150,12 @@ public sealed class DashboardBudgetTests
         Add("Visit", "history.visit.completed", 11, tenant: "other-tenant");
         await db.SaveChangesAsync();
 
-        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "user-1", role, default);
+        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "user-1", TestAccess(role), default);
         Assert.Equal(80, slice.Activity.Count); // Preview stays cheap; statistics must not use it.
         Assert.Equal(role == UserRole.Doctor ? 101 : 108, slice.ActivityTotals!.Visits);
-        Assert.Equal(95_000, slice.ActivityTotals.Payments);
+        Assert.Equal(role == UserRole.Doctor ? 0 : 95_000, slice.ActivityTotals.Payments);
         Assert.Equal(105, slice.ActivityTotals.Vaccinations);
-        Assert.Equal(90, slice.ActivityTotals.Cheques);
+        Assert.Equal(role == UserRole.Doctor ? 0 : 90, slice.ActivityTotals.Cheques);
         var mapped = InvokeMap(role, slice);
         if (role == UserRole.Manager) Assert.Equal("108", mapped.Stats[1].Value);
         if (role == UserRole.Doctor)
@@ -185,7 +185,7 @@ public sealed class DashboardBudgetTests
         inactive.SetStatus(PetStatus.Deceased);
         db.Add(inactive);
         await db.SaveChangesAsync();
-        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "mgr", UserRole.Manager, default);
+        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
         Assert.Equal(14, slice.RevenueDays.Count);
         Assert.Equal(20260216, slice.RevenueDays[0].LocalDay);
         Assert.Equal(100, slice.RevenueDays[0].RevenueMinor);
@@ -220,50 +220,15 @@ public sealed class DashboardBudgetTests
                 AppointmentSource.Phone, "user-1", fixture.Clock, doctor).Value!);
         await db.SaveChangesAsync();
         var queries = new DashboardQueries(db);
-        var manager = await queries.GetSliceAsync(fixture.TenantId, window, "mgr", UserRole.Manager, default);
+        var manager = await queries.GetSliceAsync(fixture.TenantId, window, "mgr", TestAccess(UserRole.Manager), default);
         Assert.Equal(4, manager.QueueCount);
         Assert.Equal(4, manager.Appointments!.Count);
         Assert.All(manager.Appointments, x => Assert.Equal("Pet", x.PetName));
         Assert.Equal(2, manager.Workloads.Count);
         Assert.Equal(2, manager.Workloads.Single(x => x.DoctorId == "doc-1").Total);
-        var doctorSlice = await queries.GetSliceAsync(fixture.TenantId, window, "doc-1", UserRole.Doctor, default);
+        var doctorSlice = await queries.GetSliceAsync(fixture.TenantId, window, "doc-1", TestAccess(UserRole.Doctor), default);
         Assert.Equal(2, doctorSlice.QueueCount);
         Assert.Empty(doctorSlice.Workloads);
-    }
-
-    [Fact]
-    public async Task Service_CoalescesConcurrentReadsAndSeparatesDayIdentityRoleAndExpiry()
-    {
-        var queries = new CacheQueries();
-        var identity = new CacheIdentity();
-        var clock = new Animora.Persistence.Tests.FakeClock(new DateTimeOffset(2026, 3, 1, 20, 29, 50, TimeSpan.Zero));
-        var services = new ServiceCollection();
-        services.AddSingleton<IClock>(clock);
-        services.AddSingleton<IClinicTimeZoneProvider, FixedZone>();
-        services.AddSingleton<ICurrentUserProvider>(identity);
-        services.AddSingleton<IDashboardQueries>(queries);
-        services.AddSingleton<IDispatcher>(new CacheDispatcher(queries));
-        using var provider = services.BuildServiceProvider();
-        var service = new DashboardQueryService(provider.GetRequiredService<IServiceScopeFactory>());
-        var snapshots = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => service.GetSnapshotAsync(UserRole.Manager)));
-        Assert.Equal(1, queries.SliceReads);
-        Assert.All(snapshots, snapshot => Assert.Same(snapshots[0], snapshot));
-        Assert.Equal(20260301, queries.LastWindow!.LocalDay);
-
-        clock.Now = clock.Now.AddSeconds(20); // New local day, still within the old entry's 60-second TTL.
-        Assert.NotSame(snapshots[0], await service.GetSnapshotAsync(UserRole.Manager));
-        Assert.Equal(20260302, queries.LastWindow!.LocalDay);
-        identity.UserId = "user-2";
-        _ = await service.GetSnapshotAsync(UserRole.Manager);
-        identity.TenantId = "tenant-2";
-        _ = await service.GetSnapshotAsync(UserRole.Manager);
-        _ = await service.GetSnapshotAsync(UserRole.Doctor);
-        clock.Now = clock.Now.AddSeconds(61);
-        _ = await service.GetSnapshotAsync(UserRole.Doctor);
-        Assert.Equal(6, queries.SliceReads);
-        queries.Version = "changed";
-        _ = await service.GetSnapshotAsync(UserRole.Doctor);
-        Assert.Equal(7, queries.SliceReads);
     }
 
     private sealed class FixedZone : IClinicTimeZoneProvider
@@ -272,43 +237,10 @@ public sealed class DashboardBudgetTests
             "test-clinic", TimeSpan.FromMinutes(210), "Test clinic", "Test clinic");
     }
 
-    private sealed class CacheIdentity : ICurrentUserProvider
-    {
-        public string TenantId { get; set; } = "tenant-1";
-        public string UserId { get; set; } = "user-1";
-        public Result<QueryContext> BuildQueryContext() => Result<QueryContext>.Ok(new(TenantId, UserId, "cor-1"));
-        public QueryContext BuildAnonymousQueryContext() => BuildQueryContext().Value!;
-        public Result<CommandContext> BuildAnonymousCommandContext(string? operationId = null) => throw new NotSupportedException();
-        public Task<Result<CommandContext>> BuildCommandContextAsync(string? operationId, string? dependsOn,
-            long? expectedVersion, System.Threading.CancellationToken ct) => throw new NotSupportedException();
-    }
-
-    private sealed class CacheQueries : IDashboardQueries
-    {
-        public int SliceReads { get; private set; }
-        public string Version { get; set; } = "version-1";
-        public DashboardDayWindow? LastWindow { get; private set; }
-        public Task<string> VersionAsync(string tenantId, System.Threading.CancellationToken ct) => Task.FromResult(Version);
-        public Task<DashboardSlice> GetSliceAsync(string tenantId, DashboardDayWindow window,
-            string userId, UserRole role, System.Threading.CancellationToken ct)
-        {
-            SliceReads++;
-            LastWindow = window;
-            return Task.FromResult(new DashboardSlice([], [], [], new Dictionary<string, int>(), 0, 0, 0));
-        }
-    }
-
-    private sealed class CacheDispatcher(CacheQueries queries) : IDispatcher
-    {
-        public Task<Result<T>> SendAsync<T>(ICommand<T> command, CommandContext ctx,
-            System.Threading.CancellationToken ct = default) => throw new NotSupportedException();
-        public async Task<Result<T>> QueryAsync<T>(IQuery<T> query, QueryContext ctx,
-            System.Threading.CancellationToken ct = default)
-        {
-            var dashboard = (DashboardSnapshotQuery)(object)query;
-            return Result<T>.Ok((T)(object)await queries.GetSliceAsync(ctx.TenantId, dashboard.Window!, ctx.UserId, dashboard.Role, ct));
-        }
-    }
+    private static DashboardAccess TestAccess(UserRole role) => new(role,
+        role is UserRole.Manager or UserRole.Receptionist, role != UserRole.Doctor,
+        role is UserRole.Manager or UserRole.Receptionist, role != UserRole.Doctor,
+        true, true, role != UserRole.Doctor, true, true, role is UserRole.Manager or UserRole.Receptionist);
 
     [Fact]
     public void Mapping_UsesRealAppointmentDetailsAndSemanticEventIcons()

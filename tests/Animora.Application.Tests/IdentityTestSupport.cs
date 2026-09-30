@@ -3,6 +3,7 @@ using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Identity;
 using Animora.Application.UseCases.Profile;
+using Animora.Application.UseCases.Dashboard;
 using Animora.Application.UseCases.Visits;
 using Animora.Domain.Identity;
 using Animora.Domain.Results;
@@ -374,7 +375,8 @@ internal sealed class LocalIdentityHost : IAsyncDisposable
             o.AllowInsecureKeyFallback = true;
         });
         services.AddScoped<ILocalTenantContext, FixedLocalTenant>();
-        services.AddAnimoraApplication(b => b.AddIdentityUseCases().AddProfileUseCases().AddVisitsUseCases());
+        services.AddAnimoraApplication(b => b.AddIdentityUseCases().AddProfileUseCases().AddVisitsUseCases()
+            .AddDashboardUseCases());
         return services.BuildServiceProvider();
     }
 }
