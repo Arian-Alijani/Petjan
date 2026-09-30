@@ -255,19 +255,31 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             _dialogs), maxWidth: 760);
     }
 
+    private readonly SemaphoreSlim _loadGate = new(1, 1);
+
     private async Task LoadAsync()
     {
+        await _loadGate.WaitAsync();
         IsBusy = true;
         try
         {
-            _allPets = await _patientsQueryService.GetPetsAsync();
-            _allOwners = await _patientsQueryService.GetOwnersAsync();
+            // Publish only after BOTH complete. A failed reload must not mix new pets with old owners.
+            var pets = await _patientsQueryService.GetPetsAsync();
+            var owners = await _patientsQueryService.GetOwnersAsync();
+            _allPets = pets;
+            _allOwners = owners;
             RebuildIndexes();
+            BuildSpeciesChips();
             ApplyFilter();
+        }
+        catch (Exception)
+        {
+            _toast.Show("بارگذاری بیماران و مالکین انجام نشد؛ دوباره تلاش کنید", Tone.Danger);
         }
         finally
         {
             IsBusy = false;
+            _loadGate.Release();
         }
     }
 
@@ -275,12 +287,13 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     {
         var needle = PersianText.Normalize(SearchText);
         var matchedPets = _allPets.Where(pet => PetMatches(pet, needle)).ToArray();
+        var matchedByOwner = matchedPets.ToLookup(pet => pet.OwnerId);
 
         // Owner filtering mirrors the reference's ownerMatches: the owner's own
         // fields OR any of their pets matching, with species/vaccine filters
         // requiring at least one matching pet.
         var matchedOwners = _allOwners
-            .Where(owner => OwnerMatches(owner, needle, matchedPets))
+            .Where(owner => OwnerMatches(owner, needle, matchedByOwner.Contains(owner.Id)))
             .ToArray();
 
         FilteredPets.ReplaceAll(
@@ -290,9 +303,9 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             matchedOwners.Select(owner => new OwnerCardViewModel(
                 owner,
                 PetsOfOwner(owner.Id),
-                matchedPets.Where(p => p.OwnerId == owner.Id).ToArray())));
+                matchedByOwner[owner.Id].ToArray())));
 
-        BuildSpeciesChips();
+        foreach (var chip in SpeciesChips) chip.IsActive = chip.Value == SelectedSpecies;
         NotifyDerived();
     }
 
@@ -324,9 +337,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             && PersianText.Contains(haystack, needle);
     }
 
-    private bool OwnerMatches(OwnerSummary owner, string needle, IReadOnlyList<PetSummary> matchedPets)
+    private bool OwnerMatches(OwnerSummary owner, string needle, bool hasPet)
     {
-        var hasPet = matchedPets.Any(p => p.OwnerId == owner.Id);
 
         // A species/vaccination filter narrows owners to those with a match.
         if (SelectedSpecies is not null || VaccineFilter != VaccineFilter.All)
