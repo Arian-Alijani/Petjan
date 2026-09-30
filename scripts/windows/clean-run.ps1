@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # clean-run.ps1  —  Windows clean rebuild + launch for Animora.Desktop
 # =============================================================================
 # Fixes the classic Avalonia startup crash:
@@ -13,9 +13,10 @@
 # fine — the fix is a genuinely CLEAN rebuild, which this script forces.
 #
 # Usage (from a PowerShell prompt at the repo root):
-#   .\scripts\windows\clean-run.ps1              # clean + Debug build + run
-#   .\scripts\windows\clean-run.ps1 -Release     # clean + Release build + run
+#   .\scripts\windows\clean-run.ps1              # Debug + persistent isolated test DB
+#   .\scripts\windows\clean-run.ps1 -Release     # Release + normal clinic DB
 #   .\scripts\windows\clean-run.ps1 -NoRun       # clean + build only
+#   .\scripts\windows\clean-run.ps1 -Clinic      # Debug + normal clinic DB
 #   .\scripts\windows\clean-run.ps1 -LocalTest   # isolated persistent manual test DB
 #   .\scripts\windows\clean-run.ps1 -FreshTest   # new isolated DB; never deletes old data
 #   .\scripts\windows\clean-run.ps1 -LocalTest -TestProfile sales
@@ -23,7 +24,7 @@
 # Local testing uses the REAL database/services/authentication, with no default password.
 # On first run create a Manager account in the setup form (password: >=8 chars, letters+digits).
 # The same -TestProfile reopens its data; -FreshTest creates a NEW profile if you forget the login.
-# Without these switches the normal clinic database/login is completely unchanged.
+# Debug defaults to the persistent manual profile; -Clinic or plain -Release uses the clinic DB.
 # Test profiles start empty (reference catalogs only); create owners/patients/stock via the UI.
 # Test storage: %LOCALAPPDATA%\Animora.LocalTests\<profile> (DB, backups, files, logs, DPAPI secrets).
 # Close the app before switching profiles. Never put real patient data in a test profile.
@@ -35,12 +36,19 @@ param(
     [switch]$NoRun,
     [switch]$LocalTest,
     [switch]$FreshTest,
+    [switch]$Clinic,
     [ValidatePattern('^[a-z0-9_-]{1,40}$')]
     [string]$TestProfile = 'manual'
 )
 
 $ErrorActionPreference = 'Stop'
 
+if ($Clinic -and ($LocalTest -or $FreshTest -or $PSBoundParameters.ContainsKey('TestProfile'))) {
+    throw '-Clinic cannot be combined with local-test options.'
+}
+if (-not $Release -and -not $Clinic -and -not $FreshTest) {
+    $LocalTest = $true
+}
 if ($LocalTest -and $FreshTest) {
     throw 'Choose -LocalTest or -FreshTest, not both.'
 }
@@ -54,6 +62,9 @@ if ($FreshTest) {
     $AppArgs = @("--local-test=$TestProfile")
 } elseif ($LocalTest) {
     $AppArgs = @("--local-test=$TestProfile")
+} else {
+    # Explicit even in Debug: do not redirect a clinic launch to test storage.
+    $AppArgs = @('--clinic')
 }
 if ($LocalTest -or $FreshTest) {
     Write-Host "==> ISOLATED LOCAL TEST: $TestProfile"

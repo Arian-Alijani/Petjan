@@ -2,6 +2,18 @@ using System.Collections.Generic;
 
 namespace Animora.Contracts.Profile;
 
+public sealed record StaffAccount(string MembershipId, string UserId, string Name, string Username,
+    string RoleId, bool IsActive, bool IsProtected, IReadOnlyList<string> PermissionCodes, string ChangeToken = "");
+
+public sealed record StaffRoleOption(string Id, string Label, IReadOnlyList<string> DefaultPermissions);
+public sealed record StaffPermissionOption(string Code, string Label, string Description);
+public sealed record StaffDirectory(IReadOnlyList<StaffAccount> Members, IReadOnlyList<StaffRoleOption> Roles,
+    IReadOnlyList<StaffPermissionOption> Permissions, bool CanManageUsers, bool CanManageAccess);
+public sealed record CreateStaffRequest(string Name, string Username, string Password, string RoleId, string Phone)
+{
+    public override string ToString() => $"{nameof(CreateStaffRequest)} {{ Username = {Username}, Password = *** }}";
+}
+
 /// <summary>
 /// The signed-in user's profile as shown on the Profile &amp; Settings screen
 /// (Animora-UI/assets/profile.js — the <c>USER</c> record plus the hero
@@ -175,4 +187,21 @@ public sealed class NotificationChannelSetting
     public bool Sms { get; set; }
 
     public bool InApp { get; set; }
+}
+
+/// <summary>Authoritative account data. Null means unknown, never zero. Cached values retain their observation time.</summary>
+public sealed record ClinicAccountStatus(
+    string? PlanName = null,
+    System.DateTimeOffset? SubscriptionExpiresAtUtc = null,
+    decimal? SmsCredit = null,
+    string SmsCreditUnit = "تومان",
+    long? SmsRemainingMessages = null,
+    System.DateTimeOffset? SmsExpiresAtUtc = null,
+    System.DateTimeOffset? ObservedAtUtc = null,
+    bool IsStale = false);
+
+/// <summary>Server/SMS-provider adapter seam. Implement in the service layer; never put HTTP in a ViewModel.</summary>
+public interface IClinicAccountStatusSource
+{
+    System.Threading.Tasks.Task<ClinicAccountStatus> GetAsync(System.Threading.CancellationToken ct = default);
 }

@@ -73,6 +73,60 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
     }
 
+    public async Task<ClinicAccountStatus> GetAccountStatusAsync()
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>().BuildQueryContext();
+        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        // Licensing and SMS integrations are not implemented yet. Unknown is not an active/free subscription.
+        var source = scope.ServiceProvider.GetService<IClinicAccountStatusSource>();
+        return source is null ? new ClinicAccountStatus() : await source.GetAsync().ConfigureAwait(false);
+    }
+
+    public async Task<StaffDirectory> GetStaffAsync()
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider, _) = Resolve(scope);
+        var context = provider.BuildQueryContext();
+        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        var result = await dispatcher.QueryAsync(new StaffDirectoryQuery(), context.Value!);
+        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        var model = result.Value!;
+        return new StaffDirectory(
+            model.Members.Select(m => new StaffAccount(m.MembershipId, m.UserId, m.Name, m.Username,
+                m.Role.ToString(), m.IsActive, m.Role == StaffRole.Manager || m.UserId == context.Value!.UserId,
+                m.Permissions, m.ChangeToken)).ToArray(),
+            model.Roles.Select(r => new StaffRoleOption(r.Key.ToString(), ProfileMapping.RoleLabel(r.Key.ToString()),
+                r.Value)).ToArray(),
+            PermissionCodes.All.Select(code => new StaffPermissionOption(code, ProfileMapping.PermissionLabel(code),
+                PermissionCodes.RiskOf(code) == RiskLevel.Critical ? "مجوز حساس؛ در حالت آفلاین محدود است" :
+                PermissionCodes.RiskOf(code) == RiskLevel.High ? "عملیات حساس؛ اعتبار آفلاین محدود" : "مجوز مستقل این عملیات")).ToArray(),
+            model.CanManageUsers, model.CanManageAccess);
+    }
+
+    public Task AddStaffAsync(CreateStaffRequest request)
+    {
+        if (!Enum.TryParse<StaffRole>(request.RoleId, out var role) || !Enum.IsDefined(role))
+            throw new InvalidOperationException("VALIDATION_FAILED");
+        return SendStaffAsync(new CreateStaffCommand(request.Name, request.Username, request.Password, role, request.Phone));
+    }
+
+    public Task SetStaffActiveAsync(string membershipId, bool active, string? expectedChangeToken = null) =>
+        SendStaffAsync(new SetStaffActiveCommand(membershipId, active, expectedChangeToken));
+
+    public Task SaveStaffAccessAsync(string membershipId, IReadOnlyList<string> permissionCodes, string? expectedChangeToken = null) =>
+        SendStaffAsync(new SaveStaffAccessCommand(membershipId, permissionCodes, expectedChangeToken));
+
+    private async Task SendStaffAsync(ICommand<Unit> command)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider, _) = Resolve(scope);
+        var context = await provider.BuildCommandContextAsync(null, null, null, default);
+        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        var result = await dispatcher.SendAsync(command, context.Value!);
+        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+    }
+
     private static (IDispatcher Dispatcher, ICurrentUserProvider Provider, IClinicTimeZoneProvider Zones) Resolve(
         AsyncServiceScope scope) =>
         (scope.ServiceProvider.GetRequiredService<IDispatcher>(),
@@ -224,6 +278,56 @@ internal static class ProfileMapping
         : role == nameof(StaffRole.Cashier) ? ("#0d9488", "info")
         : role == nameof(StaffRole.Manager) ? ("#7b5cc4", "info")
         : ("#e08a5c", "mute");
+
+    internal static string PermissionLabel(string code) => code switch
+    {
+        PermissionCodes.PatientsRead => "پرونده‌ها · مشاهده",
+        PermissionCodes.PatientsWrite => "پرونده‌ها · ویرایش",
+        PermissionCodes.PatientsOwnerEdit => "پرونده‌ها · ویرایش مالک",
+        PermissionCodes.PatientsPetEdit => "پرونده‌ها · ویرایش حیوان",
+        PermissionCodes.ReceptionManage => "پذیرش · مدیریت صف",
+        PermissionCodes.VisitsRead => "ویزیت · مشاهده",
+        PermissionCodes.VisitsWrite => "ویزیت · معاینه و نسخه",
+        PermissionCodes.VisitsComplete => "ویزیت · تکمیل و ارسال به صندوق",
+        PermissionCodes.VaccinationRead => "واکسیناسیون · مشاهده",
+        PermissionCodes.VaccinationWrite => "واکسیناسیون · ثبت تزریق",
+        PermissionCodes.AppointmentsRead => "نوبت‌دهی · مشاهده",
+        PermissionCodes.AppointmentsBook => "نوبت‌دهی · رزرو",
+        PermissionCodes.AppointmentsMove => "نوبت‌دهی · جابه‌جایی",
+        PermissionCodes.AppointmentsCancel => "نوبت‌دهی · لغو",
+        PermissionCodes.BoardingRead => "پانسیون · مشاهده",
+        PermissionCodes.BoardingManage => "پانسیون · مدیریت",
+        PermissionCodes.BoardingCheckout => "پانسیون · ترخیص",
+        PermissionCodes.InventoryRead => "انبار · مشاهده",
+        PermissionCodes.InventoryAdjust => "انبار · اصلاح موجودی",
+        PermissionCodes.InventoryReceive => "انبار · دریافت کالا",
+        PermissionCodes.PurchasingRead => "خرید · مشاهده",
+        PermissionCodes.PurchasingManage => "خرید · مدیریت سفارش",
+        PermissionCodes.SalesRead => "فروش · مشاهده",
+        PermissionCodes.SalesDraft => "فروش · ایجاد فاکتور",
+        PermissionCodes.SalesPost => "فروش · ثبت نهایی",
+        PermissionCodes.SalesVoid => "فروش · ابطال فاکتور",
+        PermissionCodes.SalesRefund => "فروش · استرداد",
+        PermissionCodes.SalesDiscountApprove => "فروش · تأیید تخفیف",
+        PermissionCodes.PaymentsRegister => "پرداخت · ثبت دریافت",
+        PermissionCodes.PaymentsReverse => "پرداخت · برگشت",
+        PermissionCodes.CashierSessionOpen => "صندوق · بازکردن نشست",
+        PermissionCodes.CashierSessionClose => "صندوق · بستن نشست",
+        PermissionCodes.ChequesRead => "چک‌ها · مشاهده",
+        PermissionCodes.ChequesManage => "چک‌ها · مدیریت",
+        PermissionCodes.FinanceRead => "حسابداری · مشاهده",
+        PermissionCodes.FinancePost => "حسابداری · ثبت سند",
+        PermissionCodes.FinancePeriodClose => "حسابداری · بستن دوره",
+        PermissionCodes.ReportsRead => "گزارش‌ها · مشاهده",
+        PermissionCodes.SettingsRead => "تنظیمات · مشاهده",
+        PermissionCodes.SettingsWrite => "تنظیمات · ویرایش",
+        PermissionCodes.UsersManage => "مدیریت · کاربران",
+        PermissionCodes.RolesManage => "مدیریت · دسترسی‌ها",
+        PermissionCodes.DevicesManage => "مدیریت · دستگاه‌ها",
+        PermissionCodes.IdentityStaffView => "تیم · مشاهده همکاران",
+        PermissionCodes.AuditRead => "رویدادها · مشاهده گزارش ممیزی",
+        _ => code,
+    };
 
     internal static string RoleLabel(string role) => role switch
     {

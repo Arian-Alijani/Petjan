@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace Animora.Desktop;
 
 /// <summary>
-/// Explicit, isolated manual-test storage. This changes only storage configuration, never authentication,
+/// Isolated manual-test storage, selected explicitly or by the Debug launch default. This changes only storage configuration, never authentication,
 /// authorization or business services. No existing profile is deleted or reset.
 /// </summary>
 public sealed class LocalTestProfile
@@ -22,12 +22,18 @@ public sealed class LocalTestProfile
     public string DataDirectory { get; }
     public string WindowSuffix => $" — تست محلی [{Name}]";
 
-    public static LocalTestProfile? Parse(string[] args, string? dataRoot = null)
+    public static LocalTestProfile? Parse(string[] args, string? dataRoot = null, bool useDefaultTestProfile = false)
     {
         string? name = null;
         var fresh = false;
+        var clinic = false;
         foreach (var arg in args)
         {
+            if (arg == "--clinic")
+            {
+                clinic = true;
+                continue;
+            }
             if (arg == "--local-test-fresh")
             {
                 fresh = true;
@@ -46,12 +52,16 @@ public sealed class LocalTestProfile
                     !(c is >= 'a' and <= 'z' or >= '0' and <= '9' or '-' or '_')))
                 throw new ArgumentException("Test profile names must be 1–40 lowercase letters, digits, '-' or '_'.");
         }
+        if (clinic && (name is not null || fresh))
+            throw new ArgumentException("Use --clinic or a local-test profile, not both.");
         if (fresh)
         {
             if (name is not null)
                 throw new ArgumentException("Use either a named test profile or --local-test-fresh, not both.");
             name = "fresh-" + Guid.NewGuid().ToString("N");
         }
+        if (name is null && useDefaultTestProfile && !clinic)
+            name = "manual";
         return name is null ? null : new LocalTestProfile(name,
             dataRoot ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
     }

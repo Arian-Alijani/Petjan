@@ -87,6 +87,10 @@ public static class ErrorCodes
     public static readonly ErrorCode TenantSuspended =
         new("TENANT_SUSPENDED", ErrorCode.Forbidden);
 
+    /// <summary>A normalized login name is already registered in this tenant.</summary>
+    public static readonly ErrorCode UsernameExists =
+        new("USERNAME_EXISTS", ErrorCode.Conflict);
+
     /// <summary>The account exists but is administratively disabled.</summary>
     public static readonly ErrorCode UserDisabled =
         new("USER_DISABLED", ErrorCode.Forbidden);

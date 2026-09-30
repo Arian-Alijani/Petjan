@@ -26,5 +26,6 @@
 
   <ItemGroup>
     <EmbeddedResource Include="../../src/Animora.Desktop/App.axaml.cs" LogicalName="C11.AppStartup" />
+    <EmbeddedResource Include="../../src/Animora.Desktop/Pages/Profile/ProfilePageView.axaml" LogicalName="Settings.View" />
   </ItemGroup>
 </Project>

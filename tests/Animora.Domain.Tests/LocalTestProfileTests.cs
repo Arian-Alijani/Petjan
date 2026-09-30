@@ -26,6 +26,32 @@ public sealed class LocalTestProfileTests
     }
 
     [Fact]
+    public void DebugDefault_ReusesManualProfileButExplicitClinicPreservesNormalStorage()
+    {
+        var root = Path.GetTempPath();
+        var defaultProfile = LocalTestProfile.Parse([], root, useDefaultTestProfile: true)!;
+        Assert.Equal("manual", defaultProfile.Name);
+        Assert.Equal(LocalTestProfile.Parse(["--local-test"], root)!.DataDirectory,
+            defaultProfile.DataDirectory);
+        Assert.Equal(defaultProfile.DataDirectory,
+            LocalTestProfile.Parse(["--some-avalonia-option"], root, useDefaultTestProfile: true)!.DataDirectory);
+        Assert.Null(LocalTestProfile.Parse(["--clinic"], root, useDefaultTestProfile: true));
+        Assert.Null(LocalTestProfile.Parse(["--clinic"], root));
+        Assert.Equal("sales", LocalTestProfile.Parse(["--local-test=sales"], root,
+            useDefaultTestProfile: true)!.Name);
+        Assert.StartsWith("fresh-", LocalTestProfile.Parse(["--local-test-fresh"], root,
+            useDefaultTestProfile: true)!.Name);
+    }
+
+    [Theory]
+    [InlineData("--local-test")]
+    [InlineData("--local-test=manual")]
+    [InlineData("--local-test-fresh")]
+    public void ClinicAndTestFlags_AreRejectedWithoutFallingBack(string testArg) =>
+        Assert.Throws<ArgumentException>(() => LocalTestProfile.Parse(
+            ["--clinic", testArg], useDefaultTestProfile: true));
+
+    [Fact]
     public void NamedProfiles_AreStableAndNeverShareNormalOrOtherTestStorage()
     {
         var root = Path.GetTempPath();

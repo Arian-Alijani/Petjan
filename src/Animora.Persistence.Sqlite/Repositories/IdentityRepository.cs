@@ -19,7 +19,7 @@ public sealed class IdentityRepository(AnimoraLocalDbContext db) : IIdentityRepo
         return db.Set<User>().AsTracking().FirstOrDefaultAsync(e => e.TenantId == tenantId && e.UserName == normalized, ct);
     }
 
-    public Task<bool> AnyUserAsync(CancellationToken ct = default) => db.Set<User>().AnyAsync(ct);
+    public Task<bool> AnyUserAsync(CancellationToken ct = default) => db.Set<User>().AnyAsync(u => u.PasswordHash != null, ct);
 
     public Task<Tenant?> FindTenantAsync(string tenantId, CancellationToken ct = default) =>
         db.Set<Tenant>().AsTracking().FirstOrDefaultAsync(e => e.Id == tenantId, ct);

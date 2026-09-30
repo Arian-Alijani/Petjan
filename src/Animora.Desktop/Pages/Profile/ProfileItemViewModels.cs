@@ -206,7 +206,7 @@ public sealed partial class ProfileTabViewModel : ObservableObject
 }
 
 /// <summary>A titled option list for one settings select (.pb-select).</summary>
-public sealed class ProfileSelectViewModel
+public sealed partial class ProfileSelectViewModel : ObservableObject
 {
     public ProfileSelectViewModel(IReadOnlyList<string> options, string selected)
     {
@@ -220,9 +220,10 @@ public sealed class ProfileSelectViewModel
 
     public IReadOnlyList<string> Options { get; }
 
-    public int SelectedIndex { get; set; }
+    [ObservableProperty]
+    private int _selectedIndex;
 
-    public string Value => Options[SelectedIndex];
+    public string Value => SelectedIndex >= 0 && SelectedIndex < Options.Count ? Options[SelectedIndex] : string.Empty;
 }
 
 /// <summary>A single settings toggle row (reference <c>.switch-row</c>).</summary>
@@ -247,7 +248,7 @@ public sealed partial class ProfileToggleViewModel : ObservableObject
 }
 
 // ═════════════════════════════════════════════════════════════════════════
-//  Access-management tab (مدیریت دسترسی‌ها) — design-only item ViewModels.
+//  Access-management tab (مدیریت دسترسی‌ها) — durable roster presentation.
 //  Lets the clinic manager add staff (doctor / secretary / …), assign a
 //  role, and toggle each staff member's access to the app's sections.
 // ═════════════════════════════════════════════════════════════════════════
@@ -279,12 +280,16 @@ public sealed partial class StaffMemberViewModel : ObservableObject
 
         (RoleBackground, RoleForeground) = roleId switch
         {
-            "manager" => (ProfilePresentation.Fill("#f4f3ff"), ProfilePresentation.Fill("#7b5cc4")),
-            "doctor" => (ProfilePresentation.Fill("#eff8ff"), ProfilePresentation.Fill("#1570cd")),
-            "secretary" => (ProfilePresentation.Fill("#f0fdfa"), ProfilePresentation.Fill("#0e7566")),
+            "Manager" => (ProfilePresentation.Fill("#f4f3ff"), ProfilePresentation.Fill("#7b5cc4")),
+            "Doctor" => (ProfilePresentation.Fill("#eff8ff"), ProfilePresentation.Fill("#1570cd")),
+            "Receptionist" => (ProfilePresentation.Fill("#f0fdfa"), ProfilePresentation.Fill("#0e7566")),
             _ => (ProfilePresentation.Fill("#eef2f0"), ProfilePresentation.Fill("#536b68")),
         };
     }
+
+    public bool IsProtected { get; init; }
+
+    public string ChangeToken { get; init; } = string.Empty;
 
     public string Id { get; }
 
