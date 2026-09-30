@@ -545,9 +545,9 @@
                             <ComboBoxItem Content="بدون واکسن" />
                         </ComboBox>
                         <ComboBox Classes="pbselect" SelectedIndex="{Binding SortIndex}">
-                            <ComboBoxItem Content="جدیدترین ویزیت" />
+                            <ComboBoxItem Content="{Binding RecentSortLabel}" />
                             <ComboBoxItem Content="نام (الفبا)" />
-                            <ComboBoxItem Content="سن" />
+                            <ComboBoxItem Content="{Binding AgeSortLabel}" />
                         </ComboBox>
                         <Border Classes="seg">
                             <StackPanel Orientation="Horizontal" Spacing="2">
