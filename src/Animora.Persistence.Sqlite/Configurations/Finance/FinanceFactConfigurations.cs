@@ -31,5 +31,9 @@ public sealed class OwnerFinancialSnapshotConfiguration : IEntityTypeConfigurati
         builder.HasKey(e => e.Id);
         builder.HasIndex(e => new { e.TenantId, e.OwnerId }).IsUnique()
             .HasDatabaseName("IX_OwnerFinancialSnapshots_TenantId_OwnerId");
+        // Balance was removed from the projection/API, not from existing databases. Retain the
+        // legacy column as storage-only metadata so the model still matches migration 016 onward.
+        // No CLR property or business use: do not drop data or suppress PendingModelChangesWarning.
+        builder.Property<long>("OpenBalanceMinor").HasColumnType("INTEGER");
     }
 }
