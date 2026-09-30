@@ -104,7 +104,7 @@ public sealed class InventoryVariantRowViewModel
         IsLow = variant.Stock <= variant.ReorderPoint;
         StockText = $"{InventoryPresentation.Money(variant.Stock)} عدد";
         CostText = $"{InventoryPresentation.Money(variant.Cost)} ت";
-        PriceText = ProductPricePresentation.Format(variant.Price, includeCurrency: true);
+        PriceText = $"{InventoryPresentation.Money(variant.Price)} ت";
         ExpiryText = variant.Expiry ?? "—";
     }
 
@@ -173,12 +173,11 @@ public sealed partial class InventoryProductRowViewModel : ObservableObject
         StockBar = InventoryPresentation.StockBarBrush(status, percent);
 
         var prices = product.Variants.Select(v => v.Price).ToList();
-        var min = prices.Count > 0 ? prices.Min() : 0;
-        var max = prices.Count > 0 ? prices.Max() : 0;
-        HasPrice = min > 0;
-        PriceMin = ProductPricePresentation.Format(min);
-        PriceMax = ProductPricePresentation.Format(max);
-        HasPriceRange = HasPrice && min != max;
+        var min = prices.Min();
+        var max = prices.Max();
+        PriceMin = InventoryPresentation.Money(min);
+        PriceMax = InventoryPresentation.Money(max);
+        HasPriceRange = min != max;
         PriceForeground = InventoryPresentation.PriceForeground(status);
 
         (StatusLabel, StatusForeground, StatusDot, StatusRing) = status switch
@@ -228,8 +227,6 @@ public sealed partial class InventoryProductRowViewModel : ObservableObject
     public IBrush StockNumberForeground { get; }
 
     public IBrush StockBar { get; }
-
-    public bool HasPrice { get; }
 
     public string PriceMin { get; }
 

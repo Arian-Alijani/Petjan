@@ -33,13 +33,6 @@ public sealed partial class CatalogModalViewModel : ObservableObject
     private readonly List<CatalogItem> _visible = [];
 
     private string _filterKey = "all";
-    private const int PageSize = 30;
-    private int _page = 1, _pages = 1, _loadVersion;
-    public bool HasPreviousPage => _page > 1;
-    public bool HasNextPage => _page < _pages;
-    public string PageText => $"{SalePresentation.Fa(_page)} / {SalePresentation.Fa(_pages)}";
-    [RelayCommand] private void NextPage() { if (HasNextPage) { _page++; HighlightIndex = 0; Render(); } }
-    [RelayCommand] private void PreviousPage() { if (HasPreviousPage) { _page--; HighlightIndex = 0; Render(); } }
 
     public CatalogModalViewModel(
         ISalesQueryService service,
@@ -77,9 +70,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
 
     private async Task LoadAsync()
     {
-        var version = ++_loadVersion;
         var snapshot = await _service.GetCatalogAsync();
-        if (version != _loadVersion) return;
         _all.Clear();
         _all.AddRange(snapshot.Items);
 
@@ -89,7 +80,6 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         _recent.Clear();
         _recent.AddRange(snapshot.Recent);
 
-        if (_filterKey != "all" && !_filterRefs.Any(f => f.Key == _filterKey)) _filterKey = "all";
         BuildFilters();
         Render();
     }
@@ -99,8 +89,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         Filters.Clear();
         foreach (var f in _filterRefs)
         {
-            var count = _all.Count(x => Matches(x, f.Key));
-            Filters.Add(new CatalogFilterViewModel(f with { Count = count }) { IsActive = f.Key == _filterKey });
+            Filters.Add(new CatalogFilterViewModel(f) { IsActive = f.Key == _filterKey });
         }
 
         OnPropertyChanged(nameof(HasFilters));
@@ -114,7 +103,6 @@ public sealed partial class CatalogModalViewModel : ObservableObject
             return;
         }
 
-        _page = 1;
         _filterKey = key;
         HighlightIndex = 0;
         foreach (var f in Filters)
@@ -131,7 +119,14 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         var norm = PersianText.Normalize(q);
 
         IEnumerable<CatalogItem> list = _all;
-        list = list.Where(x => Matches(x, _filterKey));
+        if (_filterKey is "svc" or "item")
+        {
+            list = list.Where(x => x.Kind == _filterKey);
+        }
+        else if (_filterKey != "all")
+        {
+            list = list.Where(x => x.GroupKey == _filterKey);
+        }
 
         if (norm.Length > 0)
         {
@@ -140,14 +135,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         }
 
         _visible.Clear();
-        var matched = list.ToArray();
-        _pages = Math.Max(1, (matched.Length + PageSize - 1) / PageSize);
-        _page = Math.Clamp(_page, 1, _pages);
-        _visible.AddRange(matched.Skip((_page - 1) * PageSize).Take(PageSize));
-        HighlightIndex = Math.Clamp(HighlightIndex, 0, Math.Max(0, _visible.Count - 1));
-        OnPropertyChanged(nameof(PageText));
-        OnPropertyChanged(nameof(HasPreviousPage));
-        OnPropertyChanged(nameof(HasNextPage));
+        _visible.AddRange(list);
 
         Rows.Clear();
         for (var i = 0; i < _visible.Count; i++)
@@ -168,7 +156,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
             foreach (var r in _recent)
             {
                 var item = _all.FirstOrDefault(x => x.Kind == r.Kind && x.Id == r.Ref);
-                if (item is not null && Matches(item, _filterKey))
+                if (item is not null)
                 {
                     Recent.Add(new CatalogRecentChipViewModel(item));
                 }
@@ -176,18 +164,14 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         }
 
         OnPropertyChanged(nameof(HasRecent));
-        CountText = matched.Length > 0 ? $"{SalePresentation.Fa(matched.Length)} نتیجه" : string.Empty;
+        CountText = Rows.Count > 0 ? $"{SalePresentation.Fa(Rows.Count)} نتیجه" : string.Empty;
     }
-
-    private static bool Matches(CatalogItem item, string key) => key == "all"
-        || (key is "svc" or "item" ? item.Kind == key : item.GroupKey == key);
 
     [ObservableProperty]
     private string _countText = string.Empty;
 
     partial void OnQueryChanged(string value)
     {
-        _page = 1;
         HighlightIndex = 0;
         Render();
     }
@@ -233,11 +217,6 @@ public sealed partial class CatalogModalViewModel : ObservableObject
             return;
         }
 
-        if (item.Price <= 0)
-        {
-            _toast.Show(ProductPricePresentation.ContactForPrice, Tone.Warn);
-            return;
-        }
         await _service.AddLineAsync(_invoiceId, item, 1);
         _toast.Show($"«{item.Title}» به فاکتور افزوده شد", Tone.Ok);
         _onChanged?.Invoke();
@@ -253,7 +232,13 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         }
     }
 
-    private Task RefreshRecentAsync() => LoadAsync();
+    private async Task RefreshRecentAsync()
+    {
+        var snapshot = await _service.GetCatalogAsync();
+        _recent.Clear();
+        _recent.AddRange(snapshot.Recent);
+        Render();
+    }
 
     [RelayCommand]
     private void Close() => _dialogs.Close();
@@ -321,8 +306,7 @@ public sealed partial class CatalogRowViewModel : ObservableObject
         GroupLabel = item.GroupLabel;
         IsItem = item.Kind == "item";
         KindLabel = IsItem ? "کالا" : "خدمت";
-        PriceText = ProductPricePresentation.Format(item.Price);
-        HasPrice = item.Price > 0;
+        PriceText = SalePresentation.Money(item.Price);
         IcoBackground = icoBackground;
         IcoForeground = icoForeground;
 
@@ -357,8 +341,6 @@ public sealed partial class CatalogRowViewModel : ObservableObject
     public bool IsItem { get; }
 
     public string KindLabel { get; }
-
-    public bool HasPrice { get; }
 
     public string PriceText { get; }
 

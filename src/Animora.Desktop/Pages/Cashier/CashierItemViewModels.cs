@@ -270,7 +270,7 @@ public sealed class CashierCatalogOptionViewModel
     public CashierCatalogOptionViewModel(CashierCatalogItem item)
     {
         Id = item.Id;
-        Label = $"{CashierPresentation.LineKindLabel(item.Kind)} · {item.Title} · {Animora.Desktop.Localization.ProductPricePresentation.Format(item.Price, includeCurrency: true)}";
+        Label = $"{CashierPresentation.LineKindLabel(item.Kind)} · {item.Title} · {CashierPresentation.Money(item.Price)}";
     }
 
     public string Id { get; }
