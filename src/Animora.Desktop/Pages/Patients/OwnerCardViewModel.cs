@@ -12,7 +12,7 @@ public sealed record OwnerContactLineViewModel(string IconKey, string Value, boo
 
 /// <summary>
 /// One owner-card tag pill (name + resolved palette), mirroring the reference's
-/// .oc-tag (.vip/.debt/.loyal).
+/// .oc-tag (.vip/.loyal).
 /// </summary>
 public sealed record OwnerTagViewModel(string Text, IBrush Background, IBrush Foreground);
 
@@ -21,7 +21,7 @@ public sealed record OwnerTagViewModel(string Text, IBrush Background, IBrush Fo
 /// card / owner table row, pre-resolving every value the reference's
 /// <c>ownerCard</c> / <c>ownersTable</c> render — avatar tone + initials, gender
 /// pill, file badge, contact lines, tag pills, the pets sub-list with its
-/// per-pet chips, and the footer (member-since + balance).
+/// per-pet chips, and the footer (member-since).
 /// </summary>
 public sealed class OwnerCardViewModel
 {
@@ -65,9 +65,6 @@ public sealed class OwnerCardViewModel
             : string.Join("، ", allPets.Take(2).Select(p => p.Name)) + (allPets.Count > 2 ? "…" : string.Empty);
 
         SinceText = $"مشتری از {JalaliDate.FromDateTime(owner.Since).ToString("short")}";
-        BalanceText = owner.Balance > 0
-            ? $"{PersianNumberFormatter.FormatGrouped(owner.Balance)} ت"
-            : "۰";
 
         // Owners table: last visit across the owner's pets.
         var last = allPets
@@ -103,7 +100,6 @@ public sealed class OwnerCardViewModel
     public string PetsPreviewText { get; }
 
     public string SinceText { get; }
-    public string BalanceText { get; }
 
     public string LastVisitText { get; }
     public bool HasVaccines { get; }
@@ -113,3 +109,6 @@ public sealed class OwnerCardViewModel
     private static string FormatPhone(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "ثبت نشده" : PersianNumberFormatter.ToPersianDigits(value);
 }
+
+/// <summary>One virtualized directory row containing at most three cards.</summary>
+public sealed record OwnerCardRowViewModel(IReadOnlyList<OwnerCardViewModel> Cards);

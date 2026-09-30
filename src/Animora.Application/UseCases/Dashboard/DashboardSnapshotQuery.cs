@@ -6,15 +6,17 @@ using Animora.Domain.Results;
 namespace Animora.Application.UseCases.Dashboard;
 
 public sealed record DashboardActivity(string Kind, string TitleKey, string EntityId, long AmountMinor,
-    int AmountSign, string ActorUserId);
+    int AmountSign, string ActorUserId, DateTimeOffset OccurredUtc = default, string ActorName = "");
 public sealed record DashboardDay(int LocalDay, long RevenueMinor);
-public sealed record DashboardWorkload(string DoctorId, int Total);
+public sealed record DashboardWorkload(string DoctorId, int Total, string Name = "", int Done = 0);
+public sealed record DashboardAppointment(string PetName, string OwnerName, string DoctorName,
+    DateTimeOffset StartUtc, string State);
 /// <summary>Full-day aggregates, independent of the bounded recent-activity preview.</summary>
 public sealed record DashboardActivityTotals(long Payments, int Visits, int Vaccinations, int Cheques);
 public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     IReadOnlyList<DashboardActivity> Activity, IReadOnlyList<DashboardWorkload> Workloads,
     IReadOnlyDictionary<string, int> Species, int OpenInvoices, int LowStockCount, int QueueCount,
-    DashboardActivityTotals? ActivityTotals = null);
+    DashboardActivityTotals? ActivityTotals = null, IReadOnlyList<DashboardAppointment>? Appointments = null);
 
 /// <summary>The local day and its half-open UTC range, resolved once using ClinicCalendar.</summary>
 public sealed record DashboardDayWindow(int LocalDay, DateTimeOffset StartUtc, DateTimeOffset EndUtc)

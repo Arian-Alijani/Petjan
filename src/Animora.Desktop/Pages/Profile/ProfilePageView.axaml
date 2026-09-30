@@ -278,22 +278,10 @@
             <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
         </Style>
 
-        <Style Selector="TextBlock.pf-eyebrow">
-            <Setter Property="Foreground" Value="{StaticResource Brand600Brush}" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Margin" Value="0,0,0,6" />
-        </Style>
         <Style Selector="TextBlock.pf-page-title">
             <Setter Property="FontSize" Value="26" />
             <Setter Property="FontWeight" Value="ExtraBold" />
             <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
-        </Style>
-        <Style Selector="TextBlock.pf-page-subtitle">
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
-            <Setter Property="Margin" Value="0,4,0,0" />
-            <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
 
         <!-- ═══ access management (.pf-staff / .pf-perm) ═══ -->
@@ -392,10 +380,8 @@
 
     <Grid Margin="24,24,24,32" RowDefinitions="Auto,Auto" RowSpacing="24">
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <StackPanel Spacing="4">
-                <TextBlock Classes="pf-eyebrow" Text="فضای کاری کلینیک / تنظیمات" />
+            <StackPanel>
                 <TextBlock Classes="pf-page-title" Text="{Binding PageTitle}" />
-                <TextBlock Classes="pf-page-subtitle" Text="{Binding PageSubtitle}" />
             </StackPanel>
             <Border Grid.Column="1" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource LineBrush}"
                     BorderThickness="1" CornerRadius="12" Padding="14,10" VerticalAlignment="Center">

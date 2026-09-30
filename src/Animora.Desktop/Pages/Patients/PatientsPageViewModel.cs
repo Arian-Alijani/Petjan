@@ -79,6 +79,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
     public RangeObservableCollection<OwnerCardViewModel> FilteredOwners { get; } = [];
     public RangeObservableCollection<PetCardViewModel> FilteredPets { get; } = [];
+    public RangeObservableCollection<OwnerCardRowViewModel> OwnerRows { get; } = [];
+    public RangeObservableCollection<PetCardRowViewModel> PetRows { get; } = [];
     public RangeObservableCollection<PatientsSpeciesChipViewModel> SpeciesChips { get; } = [];
 
     public bool IsOwnersView => ViewMode == PatientViewMode.Owners;
@@ -88,6 +90,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     public bool HasOwners => FilteredOwners.Count > 0;
     public bool HasPets => FilteredPets.Count > 0;
     public bool HasSearchText => !string.IsNullOrWhiteSpace(SearchText);
+    public string RecentSortLabel => IsOwnersView ? "جدیدترین ثبت" : "جدیدترین ویزیت";
+    public string AgeSortLabel => IsOwnersView ? "قدیمی‌ترین ثبت" : "سن";
 
     // Content-region visibility: the four rendering combinations plus the
     // shared empty state (reference render() swaps host class + content).
@@ -306,10 +310,14 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             SortPets(matchedPets).Select(pet => new PetCardViewModel(pet, OwnerById(pet.OwnerId))));
 
         FilteredOwners.ReplaceAll(
-            matchedOwners.Select(owner => new OwnerCardViewModel(
+            SortOwners(matchedOwners).Select(owner => new OwnerCardViewModel(
                 owner,
                 PetsOfOwner(owner.Id),
                 matchedByOwner[owner.Id].ToArray())));
+
+        // Virtualize rows, not individual cards, exactly like the boarding directory.
+        OwnerRows.ReplaceAll(FilteredOwners.Chunk(3).Select(cards => new OwnerCardRowViewModel(cards)));
+        PetRows.ReplaceAll(FilteredPets.Chunk(3).Select(cards => new PetCardRowViewModel(cards)));
 
         foreach (var chip in SpeciesChips) chip.IsActive = chip.Value == SelectedSpecies;
         NotifyDerived();
@@ -388,6 +396,17 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         return list;
     }
 
+    private static readonly StringComparer PersianNameComparer =
+        StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("fa-IR"), ignoreCase: true);
+
+    private IEnumerable<OwnerSummary> SortOwners(IEnumerable<OwnerSummary> owners) => Sort switch
+    {
+        PatientSort.Name => owners.OrderBy(o => PersianText.Normalize($"{o.FirstName} {o.LastName}"), PersianNameComparer)
+            .ThenBy(o => o.Id, StringComparer.Ordinal),
+        PatientSort.Age => owners.OrderBy(o => o.Since).ThenBy(o => o.Id, StringComparer.Ordinal),
+        _ => owners.OrderByDescending(o => o.Since).ThenByDescending(o => o.Id, StringComparer.Ordinal),
+    };
+
     private void BuildSpeciesChips()
     {
         SpeciesChips.Clear();
@@ -431,6 +450,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         // filtered collections change; otherwise the toggle only takes effect
         // after navigating away and back (forcing a full re-render).
         OnPropertyChanged(nameof(IsOwnersView));
+        OnPropertyChanged(nameof(RecentSortLabel));
+        OnPropertyChanged(nameof(AgeSortLabel));
         OnPropertyChanged(nameof(IsPetsView));
         OnPropertyChanged(nameof(IsGridView));
         OnPropertyChanged(nameof(IsListView));

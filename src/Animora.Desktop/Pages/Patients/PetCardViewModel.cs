@@ -109,3 +109,6 @@ public sealed class PetCardViewModel
     public string VaccineStateText => HasVaccines ? "دارد" : "ندارد";
     public Tone VaccineStateTone => HasVaccines ? Tone.Ok : Tone.Neutral;
 }
+
+/// <summary>One virtualized directory row containing at most three cards.</summary>
+public sealed record PetCardRowViewModel(IReadOnlyList<PetCardViewModel> Cards);

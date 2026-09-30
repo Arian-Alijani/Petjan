@@ -4,7 +4,6 @@ using Animora.Application.Text;
 using Animora.Application.UseCases.Patients.ReadModels;
 using Animora.Domain.Patients;
 using Animora.Persistence.Sqlite.Context;
-using Animora.Persistence.Sqlite.Entities;
 using Animora.Persistence.Sqlite.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -55,9 +54,7 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             .Select(o => new OwnerSummaryReadModel(
                 o.Id, o.FullName, o.PhonePrimary, o.PhoneSecondary, o.NationalId, o.Address, o.Gender,
                 o.RegisteredUtc,
-                db.Set<Pet>().Count(p => p.OwnerId == o.Id),
-                db.Set<OwnerFinancialSnapshot>().Where(s => s.OwnerId == o.Id)
-                    .Select(s => (long?)s.TotalSpendMinor).FirstOrDefault() ?? 0L));
+                db.Set<Pet>().Count(p => p.OwnerId == o.Id)));
         return await projected.ToPagedAsync(page, pageSize, Options, ct);
     }
 
@@ -67,9 +64,7 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             .Where(o => o.Id == ownerId)
             .Select(o => new OwnerSummaryReadModel(
                 o.Id, o.FullName, o.PhonePrimary, o.PhoneSecondary, o.NationalId, o.Address, o.Gender,
-                o.RegisteredUtc, db.Set<Pet>().Count(p => p.OwnerId == o.Id),
-                db.Set<OwnerFinancialSnapshot>().Where(s => s.OwnerId == o.Id)
-                    .Select(s => (long?)s.TotalSpendMinor).FirstOrDefault() ?? 0L))
+                o.RegisteredUtc, db.Set<Pet>().Count(p => p.OwnerId == o.Id)))
             .FirstOrDefaultAsync(ct);
         if (owner is null) return null;
 

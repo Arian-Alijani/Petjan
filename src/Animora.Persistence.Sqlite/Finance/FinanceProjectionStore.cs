@@ -29,7 +29,7 @@ public sealed class FinanceProjectionStore(AnimoraLocalDbContext db) : IFinanceP
                 }
                 if (posted.OwnerId is not null)
                     (await Owner(e.TenantId, posted.OwnerId, ct)).Apply(
-                        spend: posted.GrandTotalMinor, balance: posted.GrandTotalMinor,
+                        spend: posted.GrandTotalMinor,
                         invoiceUtc: posted.OccurredAtUtc, invoices: 1);
                 break;
             }
@@ -45,7 +45,7 @@ public sealed class FinanceProjectionStore(AnimoraLocalDbContext db) : IFinanceP
                         .Apply(-line.Quantity.Value, -line.LineGross.Minor);
                 if (invoice.OwnerId is not null)
                     (await Owner(e.TenantId, invoice.OwnerId, ct)).Apply(
-                        spend: -invoice.GrandTotal.Minor, balance: -invoice.GrandTotal.Minor, invoices: -1);
+                        spend: -invoice.GrandTotal.Minor, invoices: -1);
                 break;
             }
             case PaymentRegisteredEvent payment when payment.AmountMinor != 0 && payment.Method != PaymentMethod.Credit:
@@ -54,8 +54,6 @@ public sealed class FinanceProjectionStore(AnimoraLocalDbContext db) : IFinanceP
                     ?? throw new InvalidOperationException($"Missing invoice {payment.InvoiceId}");
                 if (payment.AmountMinor > 0 && invoice.DueTotal.Minor <= 0)
                     (await Daily(e.TenantId, day, ct)).Apply(paidInvoices: 1);
-                if (invoice.OwnerId is not null)
-                    (await Owner(e.TenantId, invoice.OwnerId, ct)).Apply(balance: -payment.AmountMinor);
                 break;
             }
             case InvoiceRefundedEvent refund:

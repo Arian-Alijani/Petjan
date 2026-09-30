@@ -22,14 +22,14 @@ internal static class PatientsMapping
         var (first, last) = SplitName(m.FullName);
         return new OwnerSummary(m.Id, m.Id /*File*/, first, last, MapOwnerGender(m.Gender),
             m.PhonePrimary, m.PhoneSecondary, Phone: null, m.NationalId ?? "", m.Address, Referral: null,
-            m.RegisteredUtc.UtcDateTime, Tone(m.Id), m.TotalSpend, Tags: []);
+            m.RegisteredUtc.UtcDateTime, Tone(m.Id), Tags: []);
     }
 
     public static OwnerDetail ToDetail(this OwnerDetailReadModel m)
     {
         var s = m.Owner.ToSummary();
         return new OwnerDetail(s.Id, s.File, s.FirstName, s.LastName, s.Gender, s.Mobile1, s.Mobile2,
-            s.Phone, s.NationalId, s.Address, s.Referral, s.Since, s.Tone, s.Balance, s.Tags,
+            s.Phone, s.NationalId, s.Address, s.Referral, s.Since, s.Tone, s.Tags,
             m.Pets.Select(p => p.ToSummary()).ToList());
     }
 
