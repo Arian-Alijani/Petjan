@@ -17,10 +17,18 @@ namespace Animora.Persistence.Sqlite.Repositories;
 /// </summary>
 public sealed class LocalUnitOfWork(AnimoraLocalDbContext db, IDomainEventDispatcher dispatcher) : IUnitOfWork
 {
+    // Audit and other ports may flush inside the ambient transaction. Preserve movement
+    // events before those flushes reset Added state; dispatch exactly once at commit.
+    private readonly Dictionary<string, StockMovementRecordedEvent> _movementEvents = new(StringComparer.Ordinal);
+
     public async Task<Result> SaveAsync(CancellationToken ct = default)
     {
         // Inside ExecuteAsync the ambient transaction owns dispatch and commit: only flush.
-        if (db.Database.CurrentTransaction is not null) return await StoreAsync(() => db.SaveChangesAsync(ct));
+        if (db.Database.CurrentTransaction is not null)
+        {
+            CaptureMovementEvents();
+            return await StoreAsync(() => db.SaveChangesAsync(ct));
+        }
         var outcome = await RunAsync(_ => Task.FromResult(Result<bool>.Ok(true)), ct);
         return outcome.ToResult();
     }
@@ -51,11 +59,8 @@ public sealed class LocalUnitOfWork(AnimoraLocalDbContext db, IDomainEventDispat
             // StockMovement is append-only (not an aggregate), so it cannot buffer events itself.
             // Capture each added movement before SaveChanges resets its state. This keeps the
             // stock ledger, COGS, outbox and activity feed in the same commit for every writer.
-            var movementEvents = db.ChangeTracker.Entries<StockMovement>()
-                .Where(e => e.State == EntityState.Added).Select(e => e.Entity)
-                .Select(m => new StockMovementRecordedEvent(IdGenerator.NewId(m.OccurredUtc),
-                    m.TenantId, m.OccurredUtc, m.Id, m.ProductId, m.VariantId, m.Kind, m.Quantity.Value));
-            var events = roots.SelectMany(r => r.DomainEvents).Concat(movementEvents)
+            CaptureMovementEvents();
+            var events = roots.SelectMany(r => r.DomainEvents).Concat(_movementEvents.Values)
                 .OrderBy(e => e.OccurredAtUtc).ToArray();
 
             if ((step = await StoreAsync(() => db.SaveChangesAsync(ct))).IsFailure) return Fail<T>(step);
@@ -73,6 +78,19 @@ public sealed class LocalUnitOfWork(AnimoraLocalDbContext db, IDomainEventDispat
             // Disposing an uncommitted transaction rolls it back (business + handler writes).
             if (transaction is not null) await transaction.DisposeAsync();
             if (!committed) db.ChangeTracker.Clear();
+            _movementEvents.Clear();
+        }
+    }
+
+    private void CaptureMovementEvents()
+    {
+        foreach (var entry in db.ChangeTracker.Entries<StockMovement>())
+        {
+            if (entry.State != EntityState.Added) continue;
+            var m = entry.Entity;
+            if (_movementEvents.ContainsKey(m.Id)) continue;
+            _movementEvents.Add(m.Id, new StockMovementRecordedEvent(IdGenerator.NewId(m.OccurredUtc),
+                m.TenantId, m.OccurredUtc, m.Id, m.ProductId, m.VariantId, m.Kind, m.Quantity.Value));
         }
     }
 

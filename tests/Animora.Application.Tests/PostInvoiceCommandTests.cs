@@ -54,6 +54,7 @@ public sealed class PostInvoiceCommandTests
         services.AddSingleton<IInvoiceNumberAllocator>(numbers);
         services.AddSingleton<IStockMovementRepository>(movements);
         services.AddSingleton<ISalesPostingData>(new SalesPostingFake());
+        services.AddSingleton<IBoardingRepository>(new BoardingRepositoryFake());
         services.AddSingleton(SalesTestData.Clock);
         services.AddSingleton<IUnitOfWork, ImmediateUnitOfWork>();
         services.AddSingleton<ICommandJournal>(journal);
@@ -90,7 +91,7 @@ public sealed class PostInvoiceCommandTests
         var movements = new StockMovementRepositoryFake();
         var numbers = new SalesNumberAllocator();
         var posting = new SalesPostingFake();
-        var handler = new PostInvoiceCommandHandler(repo, numbers, movements, posting, SalesTestData.Clock);
+        var handler = new PostInvoiceCommandHandler(repo, numbers, movements, posting, SalesTestData.Clock, new BoardingRepositoryFake());
 
         var result = await handler.HandleAsync(new PostInvoiceCommand(invoice.Id), SalesTestData.Context, default);
 
@@ -113,7 +114,7 @@ public sealed class PostInvoiceCommandTests
         Assert.True(invoice.AttachVisit("VISIT-1").IsSuccess);
         var posting = new SalesPostingFake();
         var handler = new PostInvoiceCommandHandler(new SalesInvoiceRepository(invoice),
-            new SalesNumberAllocator(), new StockMovementRepositoryFake(), posting, SalesTestData.Clock);
+            new SalesNumberAllocator(), new StockMovementRepositoryFake(), posting, SalesTestData.Clock, new BoardingRepositoryFake());
 
         var result = await handler.HandleAsync(new PostInvoiceCommand(invoice.Id), SalesTestData.Context, default);
 
@@ -131,7 +132,7 @@ public sealed class PostInvoiceCommandTests
         var movements = new StockMovementRepositoryFake();
         var posting = new SalesPostingFake { Status = HandoffPostStatus.AlreadyInvoiced };
         var handler = new PostInvoiceCommandHandler(new SalesInvoiceRepository(invoice), numbers,
-            movements, posting, SalesTestData.Clock);
+            movements, posting, SalesTestData.Clock, new BoardingRepositoryFake());
 
         var result = await handler.HandleAsync(new PostInvoiceCommand(invoice.Id), SalesTestData.Context, default);
 
@@ -148,7 +149,7 @@ public sealed class PostInvoiceCommandTests
         var movements = new StockMovementRepositoryFake();
         var numbers = new SalesNumberAllocator();
         var handler = new PostInvoiceCommandHandler(new SalesInvoiceRepository(invoice), numbers,
-            movements, new SalesPostingFake { AllowNegativeStock = false, OnHand = 0 }, SalesTestData.Clock);
+            movements, new SalesPostingFake { AllowNegativeStock = false, OnHand = 0 }, SalesTestData.Clock, new BoardingRepositoryFake());
 
         var result = await handler.HandleAsync(new PostInvoiceCommand(invoice.Id), SalesTestData.Context, default);
 

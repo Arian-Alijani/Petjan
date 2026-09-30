@@ -47,14 +47,14 @@ public sealed class SalesPostingData(AnimoraLocalDbContext db, IOptions<LocalSto
         // Rows are tracked so status + invoice link are flushed with invoice, movements and journal.
         if (source == "Visit")
         {
-            var handoff = await db.Set<VisitBillingHandoff>().FirstOrDefaultAsync(h => h.VisitId == sourceId, ct);
+            var handoff = await db.Set<VisitBillingHandoff>().AsTracking().FirstOrDefaultAsync(h => h.VisitId == sourceId, ct);
             if (handoff is null) return HandoffPostStatus.NotFound;
             if (handoff.Status != HandoffStatus.Ready) return Map(handoff.Status);
             handoff.MarkInvoiced(invoiceId);
         }
         else
         {
-            var handoff = await db.Set<BoardingBillingHandoff>().FirstOrDefaultAsync(h => h.StayId == sourceId, ct);
+            var handoff = await db.Set<BoardingBillingHandoff>().AsTracking().FirstOrDefaultAsync(h => h.StayId == sourceId, ct);
             if (handoff is null) return HandoffPostStatus.NotFound;
             if (handoff.Status != HandoffStatus.Ready) return Map(handoff.Status);
             handoff.MarkInvoiced(invoiceId);

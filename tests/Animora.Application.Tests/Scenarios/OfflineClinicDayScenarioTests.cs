@@ -10,6 +10,7 @@ using Animora.Application.UseCases.Reception;
 using Animora.Application.UseCases.Sales;
 using Animora.Application.UseCases.Scheduling;
 using Animora.Application.UseCases.Visits;
+using Animora.Domain.Boarding;
 using Animora.Domain.Cashier;
 using Animora.Domain.Clinical;
 using Animora.Domain.Finance;
@@ -53,7 +54,10 @@ public sealed class OfflineClinicDayScenarioTests
             using var scope = fixture.CreateScope();
             var identity = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
             var context = identity.BuildAnonymousCommandContext().Value!;
-            if (userId is not null) context = context with { UserId = userId };
+            // Sign-in must stay anonymous, just like AuthenticationService: the previous
+            // session can be expired and must not be validated before credentials are checked.
+            if (userId is not null && command is not SignInCommand)
+                context = context with { UserId = userId };
             var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().SendAsync(command, context);
             Assert.True(result.IsSuccess, $"{command.GetType().Name}: {result.Error.Code}: {result.Detail}");
             if (command is IJournaledCommand) operations.Add(context.OperationId);
@@ -205,9 +209,16 @@ public sealed class OfflineClinicDayScenarioTests
             Assert.Equal(700, entries.SelectMany(e => e.Lines).Where(l => l.AccountCode == AccountCodes.ProductRevenue ||
                 l.AccountCode == AccountCodes.BoardingRevenue).Sum(l => -l.SignedMinor));
             var feed = await db.Set<ActivityEvent>().OrderBy(e => e.OccurredUtc).ThenBy(e => e.Id).ToListAsync();
-            Assert.Equal(expectedFeed.Concat(new[] { ActivityEventKeys.StayActivated, ActivityEventKeys.StayCheckedOut,
-                ActivityEventKeys.InvoicePosted, ActivityEventKeys.StockMovementRecorded, ActivityEventKeys.PaymentRegistered }),
+            // The real checkout event follows invoice issuance: an unbilled stay cannot leave.
+            Assert.Equal(expectedFeed.Concat(new[] { ActivityEventKeys.StayActivated, ActivityEventKeys.InvoicePosted,
+                ActivityEventKeys.StayCheckedOut, ActivityEventKeys.StockMovementRecorded, ActivityEventKeys.PaymentRegistered }),
                 feed.Select(e => e.Title));
+            var stay = await db.Set<BoardingStay>().SingleAsync(s => s.Id == stayId);
+            Assert.Equal(StayState.CheckedOut, stay.State);
+            Assert.Equal(boardingInvoiceId, stay.InvoiceId);
+            Assert.NotNull(stay.ActualCheckOutUtc);
+            Assert.All(stay.RoomHistory, room => Assert.NotNull(room.ToUtc));
+            Assert.Empty(await Query(new ReadyForBillingQuery()));
             Assert.Equal(operations, (await db.Set<PendingCommand>().OrderBy(p => p.LocalSequence).ToListAsync()).Select(p => p.OperationId));
         }
         using (var db = fixture.CreateContext(fixture.TenantId)) await AssertBoarding(db);
