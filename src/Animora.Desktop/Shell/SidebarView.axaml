@@ -248,9 +248,10 @@
                 </Border>
             </StackPanel>
 
-            <!-- Grouped nav list (fills the middle) -->
+            <!-- Keep wheel/touch scrolling in the rail, without a scrollbar
+                 competing with the icons or consuming compact-rail width. -->
             <ScrollViewer HorizontalScrollBarVisibility="Disabled"
-                          VerticalScrollBarVisibility="Auto">
+                          VerticalScrollBarVisibility="Hidden">
                 <ItemsControl ItemsSource="{Binding Groups}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="shell:NavGroupViewModel">
