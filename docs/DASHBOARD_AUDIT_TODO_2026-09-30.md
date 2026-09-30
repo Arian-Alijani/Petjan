@@ -3,11 +3,11 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - درخواست پایانی کاربر: جمع‌بندی کار انجام‌شده؛ شروع تسک تازه ممنوع.
-- **3 از 44 تسک انجام‌شده: D01، D02، D03. 41 تسک دیگر باز هستند.** checkboxهای زیر مرجع وضعیت پذیرش‌اند؛ این PR ادعای تکمیل کل فاز ندارد.
-- PR اجرا: [#180](https://github.com/Arian-Alijani/Petjan/pull/180)، branch: `genspark_ai_developer`. هر تسک با ثبت evidence، commit مستقل، sync با main و اجرای `scripts/git/push.sh` منتشر شد.
-- مرز دسترسی داده، widgetهای پذیرش و authorization پاسخ cache اصلاح شدند. بررسی نهایی فقط `DashboardAuthorizationTests|DashboardBudgetTests`: **25 passed، 0 failed، 0 skipped، 16 ثانیه اجرای تست**؛ guard کل فرمان 90 ثانیه بود. warning جدید xUnit2031 رفع و در اجرای نهایی دیده نشد؛ تنها CS8625 قبلی در AppointmentQueryTests باقی است. build پروژه Desktop: **0 warning/0 error**. Full build/Full suite و آزمون Windows/GUI اجرا نشده‌اند.
-- D13 سپس D14 اولین موارد بعدی ترتیب مصوب هستند؛ هیچ‌کدام در این اجرا پیاده‌سازی یا تیک نشده‌اند. dependencyهای lifecycle/query/UI/performance و سایر موارد به همان صورت باز باقی‌اند.
-- متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #180 را توصیف نمی‌کنند. fixture قدیمی ناسازگار فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران.
+- **11 از 44 تسک انجام‌شده: D01، D02، D03، D11، D13، D14، D15، D32، D39، D41، D43. 33 تسک دیگر باز هستند.** این جلسه 8 تسک جدید را تکمیل کرد؛ checkboxهای زیر مرجع پذیرش‌اند و تکمیل کل فاز ادعا نمی‌شود.
+- PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
+- خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
+- باقی‌مانده: D04–D10، D12، D16–D31، D33–D38، D40، D42، D44. مرحله بعد طبق پلن D05 سپس D06/D07/D09/D10 است؛ lifecycle/cache generations/query consistency/index/budget/render/accessibility هنوز تکمیل نشده‌اند. موارد GUI/Windows/contrast/performance تیک نشده‌اند.
+- متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #181 را توصیف نمی‌کنند. fixture قدیمی ناسازگار در اجرای قبلی فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران. اسکریپت‌های Windows/sandbox/git، migrationها و دیتابیس واقعی کاربر در این جلسه تغییر نکردند.
 
 ## دامنه و نتیجه مرحله تدوین اولیه (تاریخی)
 
@@ -216,7 +216,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D10 align queue counters with authoritative state"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D11 — low-stock با reorder level و active بودن سازگار نیست
-- [ ] وضعیت: باز | P1 | گزارش 11 | نتیجه: قطعی KPI.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 11 | نتیجه: count محصولات فعال با variant فعال در/زیر reorder در SQL مشترک.
+- شواهد اجرای جدید: `InventoryStockQuery.LowStockProducts` در catalog کمبود و dashboard reuse شد؛ CountAsync بدون materialize محصولات، absent snapshot=0، دو variant کمبود=یک محصول و inactive product/variant حذف می‌شوند. regression واقعی `LowStock_CountsActiveProductsOnce_AtVariantReorderThreshold` همراه چهار budget role: **5 passed، 0 failed، 7 ثانیه**. آزمون اول مشکل مقایسه TEXT decimal در SQLite برای مقدار برابر را آشکار کرد و cast عددی صریح آن را اصلاح کرد؛ این شکست پنهان نشد. تغییرات پوش و PR [#181](https://github.com/Arian-Alijani/Petjan/pull/181) به‌روز شد؛ migration/ledger/reset دیتابیس کاربر انجام نشد.
 - شواهد: `DashboardQueries.cs:59–60`؛ `InventoryQueries.cs:164–169,182–192`.
 - اقدام: low-stock مشترک برای active product دارای حداقل یک active variant با `onHand <= reorderLevel`؛ نبود snapshot معادل صفر. واحد پیشنهادی مطابق inventory «کالای دارای کمبود» است، نه تعداد snapshotها. projection aggregate در SQL یا read model maintained؛ خواندن تمام محصولات برای شمارش ممنوع.
 - پذیرش/بررسی محدود: stock=2/reorder=10، مقدار برابر حد، absent snapshot، inactive product/variant و دو variant کمبود یک محصول؛ تعداد کالای یکتا و همان نتیجه inventory بررسی شود.
@@ -230,21 +231,24 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D12 show real doctor workload"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D13 — refund به دریافت اضافه می‌شود
-- [ ] وضعیت: باز | P0 | گزارش 13 | نتیجه: قطعی + بازتولید محاسباتی.
+- [x] وضعیت: انجام‌شده | P0 | گزارش 13 | نتیجه: دریافت signed از Payment معتبر و refund با علامت صحیح.
+- شواهد اجرای جدید: `Receipts_UseRealSignedPayments_AndRefundLiveRebuildAgree` از Domain واقعی Invoice.ApplyRefund، Payment مثبت/منفی، writer زنده و maintenance rebuild روی SQLite موقت استفاده می‌کند؛ gross=100/refund=30/net=70، refund روز بعد، مرز نیمه‌باز روز کلینیک و حذف USD از جمع IRT تأیید شد. مقدار gross/refund/currency در read model و عنوان تومان/خالص در KPI حفظ شد؛ adjustment دوباره شمرده نمی‌شود. فیلتر `DashboardBudgetTests|ActivityFeedTests`: **22 passed، 0 failed، 11 ثانیه**؛ warning تاریخی CS8625 باقی است؛ Full build/test اجرا نشد. commit کد `8187355` پوش شد و PR [#181](https://github.com/Arian-Alijani/Petjan/pull/181) ایجاد شد. D14 مستقل باقی است.
 - شواهد: `ActivityFeedMapper.cs:61–62,83–87`؛ `DashboardQueries.cs:48`؛ `Invoice.cs:668–670` رویداد payment منفی تولید می‌کند.
 - اقدام: magnitude+sign projection صحیح حفظ شود و KPI از Payment/read model معتبر، signed aggregation بگیرد؛ gross receipt، refund و net با اسم روشن. مبلغ refund invoice و reversing payment دو بار در net جمع نشوند؛ ledger/Payment append-only تغییر نکنند. اصلاح داده projection قبلی فقط با rebuild ایزوله و مسیر maintenance موجود، نه update ledger.
 - پذیرش/بررسی محدود: receipt=100/refund=30 → gross=100، refund=30، net=70؛ refund روز دیگر، چند پرداخت، واحد پول و مرز روز بررسی شوند؛ live/rebuild علامت یکسان بدهند. تست Domain refund واقعی و query لازم است، نه فقط عدد دستی feed.
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D13 preserve signed payment refunds"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D14 — Credit به‌عنوان دریافت واقعی شمرده می‌شود
-- [ ] وضعیت: باز | P1 | گزارش 14 | نتیجه: قطعی | وابستگی: D13.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 14 | نتیجه: قاعده مشترک signed غیرCredit در داشبورد/صندوق | وابستگی: D13.
+- شواهد اجرای جدید: `NonCreditSettlements_DashboardAndCashierShareSignedCurrencyRule` روی SQLite واقعی هر شش روش Cash/Card/Transfer/Cheque/Wallet/Insurance را با +100/-30 و Credit/unknown را با صفر تأیید کرد. `PaymentReceiptQuery.NonCreditSettlements` currency=IRT و بازه نیمه‌باز مشترک دارد. عنوان KPI «خالص تسویه غیرنسیه امروز (تومان)» است: Cheque شامل چک وصول‌نشده، Wallet مصرف پیش‌پرداخت و Insurance ثبت تسویه بیمه است؛ هیچ‌کدام به‌عنوان ورود نقد صندوق ادعا نمی‌شود. method/currency در args فعالیت حفظ شدند. فیلتر `DashboardBudgetTests|DashboardAuthorizationTests`: **35 passed، 0 failed، 17 ثانیه**؛ warning تاریخی CS8625 باقی است. کد پوش و PR [#181](https://github.com/Arian-Alijani/Petjan/pull/181) به‌روز شد؛ ledger writer/worker اضافه نشد.
 - شواهد: `Payment.cs:22–23`؛ `DashboardQueries.cs:48`؛ mapper روش را حذف می‌کند؛ `FinanceProjectionStore.cs:51` Credit را کنار می‌گذارد؛ `CashierQueries.GetStatsAsync` نیز فعلاً همه روش‌ها را جمع می‌کند.
 - اقدام: تعریف مشترک receipt از Payment معتبر که Credit را دریافت نمی‌داند؛ method/currency لازم در read model حفظ شوند. معنای Cheque وصول‌نشده، Wallet و Insurance صریح و عنوان KPI متناسب باشد؛ «ثبت تسویه غیرCredit» با «ورود نقد به صندوق» یکی فرض نشود. درآمد فروش جای receipt استفاده نشود.
 - پذیرش/بررسی محدود: فقط Credit → دریافت واقعی صفر؛ Cash/Card/Transfer و reverse معتبر نتیجه signed صحیح؛ روش‌های غیرنقدی بر اساس تعریف مصوب تست شوند؛ KPI داشبورد/صندوق قاعده مشترک داشته باشند، بدون ledger writer یا worker دوم.
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D14 exclude credit from real collections"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D15 — عنوان «چک‌ها» برای شمارش event مبهم است
-- [ ] وضعیت: باز | P2 | گزارش 15 | نتیجه: mismatch قطعی؛ معنای جدید انتخاب محصول است.
+- [x] وضعیت: انجام‌شده | P2 | گزارش 15 | نتیجه: KPI با عنوان «تغییر وضعیت چک امروز».
+- شواهد اجرای جدید: regression واقعی `ChequeKpi_CountsTodayStateChanges_NotDistinctCheques_AndRequiresPermission` یک چک با سه event امروز + یکی روز قبل را به عدد 3 و عنوان دقیق نگاشت کرد؛ deny مجوز، widget و شمارش چک را حذف کرد. **1 passed، 0 failed، 4 ثانیه**؛ بازه clinic day موجود حفظ شد و KPI سررسید جدید ساخته نشد. کد و پلن با اسکریپت پوش، PR [#181](https://github.com/Arian-Alijani/Petjan/pull/181).
 - شواهد: `DashboardQueries.cs:51`؛ `DashboardQueryService.cs:69`؛ یک چک چند `ChequeStateChangedEvent` می‌سازد.
 - اقدام کم‌هزینه این فاز: حفظ شمارش عملیات روز و تغییر عنوان به «تغییر وضعیت چک امروز»، permission مربوطه و روز کلینیک. KPI سررسید/pending جدید فقط در صورت درخواست مستقل ساخته شود؛ بی‌دلیل دامنه توسعه نیابد.
 - پذیرش/بررسی محدود: یک چک با سه تغییر وضعیت → 3 تغییر، نه 3 چک؛ عنوان و caption دقیق؛ تغییر روز قبل وارد عدد امروز نشود؛ کاربر بدون ChequesRead widget نگیرد.
@@ -363,7 +367,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D31 make donut interactions keyboard accessible"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D32 — اعداد عملیاتی ثابت production هستند
-- [ ] وضعیت: باز | P1 | گزارش 32 | نتیجه: قطعی.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 32 | نتیجه: اعداد عملیاتی ساختگی حذف شدند.
+- شواهد اجرای جدید: subtitle واکسیناسیون «یادآور و سوابق» و badge ثابت انبار حذف شد. بررسی هدفمند Python روی quick actions وجود دقیقاً 8 target، AltKeyهای 1..8 و نبود «۶ یادآور»/Badge «۳» را تأیید کرد؛ query/seed/mock تازه اضافه نشد. تغییرات با اسکریپت پوش ارسال و PR [#181](https://github.com/Arian-Alijani/Petjan/pull/181) به‌روز شد.
 - شواهد: `DashboardQuickAction.cs:48–50`؛ «۶ یادآور امروز» و Badge «۳» ثابت‌اند.
 - اقدام کم‌هزینه: عدد/ادعای عملیاتی ثابت حذف و subtitle عمومی واقعی مثل «یادآور و سوابق» باقی بماند؛ badge فقط وقتی source معتبر مستقل موجود شد. seed یا mock به Pages وارد نشود؛ برای تزئین tile query اضافی نسازید.
 - پذیرش/بررسی محدود: DB خالی هیچ «۶ یادآور» یا «۳ کمبود» نداشته باشد؛ AltKeyها/targetها و navigation ثابت بمانند؛ جست‌وجوی هدفمند production XAML/quick actions ادعای count ساختگی باقی‌مانده نیابد.
@@ -414,7 +419,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(navigation): D38 activate repeated singleton destinations"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D39 — snapshot فقط ظاهراً read-only است
-- [ ] وضعیت: باز | P3 | بدهی سوم گزارش | نتیجه: ضعف قرارداد؛ mutation واقعی مشاهده نشده.
+- [x] وضعیت: انجام‌شده | P3 | بدهی سوم گزارش | نتیجه: collections ورودی و nested points در مرز DTO freeze شدند.
+- شواهد اجرای جدید: `DashboardCollections.Freeze` copy خصوصی + ReadOnlyCollection می‌سازد؛ constructor و init/with برای Stats/Primary/Secondary/DoctorLoads/Species/Points همگی محافظت می‌شوند. `Snapshot_FreezesInputAndNestedCollections_IncludingRecordInitializers` mutation آرایه ورودی، cast به IList و nested/empty را رد کرد؛ cache-hit واقعی authorization همان reference را حفظ می‌کند. فیلتر این تست + `AuthorizedConcurrentCacheHits`: **2 passed، 0 failed، 6 ثانیه**. package/copy در cache-hit اضافه نشد. کد و پلن پوش، PR [#181](https://github.com/Arian-Alijani/Petjan/pull/181).
 - شواهد: `DashboardModels.cs:93–106`؛ mapper آرایه‌ها را پشت IReadOnlyList منتشر و cache همان reference را share می‌کند.
 - اقدام: freeze/copy collections در یک مرز مشخص با immutable collection واقعی یا wrapper غیرقابل‌تغییر بدون دسترسی به backing array. nested points/species/loads هم پوشش داده شوند؛ از copy مجدد در cache-hit اجتناب شود. تغییر بی‌دلیل کل public API یا افزودن package سنگین ممنوع.
 - پذیرش/بررسی محدود: تغییر آرایه ورودی بعد construction و cast/mutation خروجی نتواند cached snapshot را خراب کند؛ hit همان reference immutable را بدهد و geometry rebuilt نشود؛ empty/nested collections نیز آزموده شوند.
@@ -428,7 +434,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(charts): D40 preserve small donut slices"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D41 — pulse بی‌نهایت بدون reduced-motion policy
-- [ ] وضعیت: باز | P3 | بدهی پنجم گزارش | نتیجه: قطعی animation، هزینه runtime اندازه‌گیری نشده | وابستگی: D32.
+- [x] وضعیت: انجام‌شده | P3 | بدهی پنجم گزارش | نتیجه: animation دائمی badge حذف شد | وابستگی: D32.
+- شواهد اجرای جدید: style pulse و ScaleTransform/Animation آن از XAML حذف شد؛ optional badge برای منبع واقعی آینده static باقی است. parse XML و assertion نبود INFINITE/Style.Animations و باقی بودن binding badge موفق بود. هیچ timer/task/setting جدید یا ادعای کاهش ms/RSS اضافه نشد. تغییرات با اسکریپت پوش و PR [#181](https://github.com/Arian-Alijani/Petjan/pull/181) ارسال شدند.
 - شواهد: `DashboardPageView.axaml:129–158`، Animation با IterationCount=INFINITE.
 - اقدام کم‌هزینه: pulse دائمی غیرضروری badge حذف شود؛ اگر به‌دلیل نیاز مصوب باقی ماند، opt-in/reduced-motion و pause هنگام inactive لازم است. چون D32 badge ساختگی را حذف می‌کند، animation بی‌مصرف نیز باید حذف شود؛ animation engine یا setting پیچیده بی‌دلیل نسازید.
 - پذیرش/بررسی محدود: در داشبورد بدون badge، animation loop وجود نداشته باشد؛ badge واقعی static خوانا باشد؛ خروج صفحه task/render-loop باقی نگذارد. ادعای کاهش ms/RSS بدون اندازه‌گیری نشود.
@@ -442,7 +449,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "refactor(dashboard): D42 reuse typed quick action styling"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D43 — presentation مرده یا متکی به index ثابت است
-- [ ] وضعیت: باز | P3 | بدهی هفتم گزارش | نتیجه: قطعی با اصلاح محل ParseColor | وابستگی: D05/D16/D17.
+- [x] وضعیت: انجام‌شده | P3 | بدهی هفتم گزارش | نتیجه: اعضای واقعاً بدون مصرف و allocation مرده حذف شدند؛ وابستگی index2 حذف شد.
+- شواهد اجرای جدید: جست‌وجوی دقیق نشان داد HeroTitle/HeroSubtitle/PrimaryAction در dashboard view مصرف ندارند؛ فقط اعضای ViewModel حذف و public DTO حفظ شد. `QuickActions[2]`/CTA بی‌مصرف، `DashboardDoctorLoadViewModel.ParseColor` و gradient/FillBrush بی‌مصرف گونه حذف شدند؛ SwatchBrush و palette/target/AltKey دست‌نخورده‌اند. assertion هدفمند نبود تمام اعضای حذف‌شده در dashboard و build فقط Desktop: **0 warning، 0 error، 96 ثانیه**؛ Full solution build/test اجرا نشد. حذف دسترسی positional مستقل از تمام‌شدن D05/D16/D17 است و آن تسک‌ها را Done نمی‌کند. کد و پلن با اسکریپت پوش و PR [#181](https://github.com/Arian-Alijani/Petjan/pull/181) ارسال شدند.
 - شواهد: HeroTitle/HeroSubtitle در View مصرف ندارند؛ `PrimaryAction => QuickActions[2]`؛ `DashboardDoctorLoadViewModel.ParseColor` استفاده نمی‌شود؛ `DashboardSpeciesViewModel.FillBrush`/gradient ساخته می‌شود اما legend SwatchBrush را bind می‌کند.
 - اقدام: فقط اعضای واقعاً بدون مصرف و تخصیص مرده حذف/جایگزین؛ action با شناسه معنایی یا حذف CTA ناموجود. پس از filter permission ممکن است index2 دیگر وجود نداشته باشد؛ index ثابت ممنوع. عضو public Contracts فقط پس از بررسی مصرف‌کننده‌های دقیق تغییر کند؛ refactor کل ViewModel لازم نیست.
 - پذیرش/بررسی محدود: لیست quick actions با کمتر از 3 action crash نکند؛ target و hotkey ثابت؛ جست‌وجوی دقیق اعضای حذف‌شده مصرف باقی‌مانده نداشته باشد؛ حذف gradient باعث تغییر visuals موجود نشود.

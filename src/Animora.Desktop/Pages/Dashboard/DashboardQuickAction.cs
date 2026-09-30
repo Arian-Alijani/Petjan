@@ -45,9 +45,9 @@ public sealed record DashboardQuickAction(
         new DashboardQuickAction("نوبت جدید", "ثبت در تقویم", "IconCalendar", typeof(AppointmentsCalendarViewModel), "#0d9488", "#f0fdfa", 1),
         new DashboardQuickAction("پرونده بیمار", "جستجو و ثبت", "IconUsers", typeof(PatientsPageViewModel), "#7b5cc4", "#ece5fb", 2),
         new DashboardQuickAction("شروع ویزیت", "ثبت معاینه", "IconClipboard", typeof(VisitsTriagePageViewModel), "#1570cd", "#eff8ff", 3),
-        new DashboardQuickAction("واکسیناسیون", "۶ یادآور امروز", "IconSyringe", typeof(VaccinationPageViewModel), "#027a48", "#ecfdf3", 4),
+        new DashboardQuickAction("واکسیناسیون", "یادآور و سوابق", "IconSyringe", typeof(VaccinationPageViewModel), "#027a48", "#ecfdf3", 4),
         new DashboardQuickAction("فروش و صندوق", "صدور فاکتور", "IconCart", typeof(SalePageViewModel), "#d9803f", "#fbe7d6", 5),
-        new DashboardQuickAction("انبار و کالا", "کنترل موجودی", "IconBox", typeof(InventoryPageViewModel), "#b54708", "#fffaeb", 6, Badge: "۳"),
+        new DashboardQuickAction("انبار و کالا", "کنترل موجودی", "IconBox", typeof(InventoryPageViewModel), "#b54708", "#fffaeb", 6),
         new DashboardQuickAction("خرید و تأمین", "سفارش تأمین", "IconTruck", typeof(PurchasingPageViewModel), "#14b8a6", "#e5f4f0", 7),
         new DashboardQuickAction("گزارش‌ها", "تحلیل عملکرد", "IconChart", typeof(FinancePageViewModel), "#2f6f8f", "#e2eff5", 8),
     };

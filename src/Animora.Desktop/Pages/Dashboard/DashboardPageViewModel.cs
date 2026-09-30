@@ -27,12 +27,6 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private readonly IStoreReadinessGate _readiness;
 
     [ObservableProperty]
-    private string _heroTitle = string.Empty;
-
-    [ObservableProperty]
-    private string _heroSubtitle = string.Empty;
-
-    [ObservableProperty]
     private string _primaryListTitle = string.Empty;
 
     [ObservableProperty]
@@ -162,9 +156,6 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     public IReadOnlyList<DashboardQuickAction> QuickActions { get; } = DashboardQuickAction.All;
 
-    /// <summary>Hero CTA target — mirrors the reference's most prominent quick tile ("شروع ویزیت").</summary>
-    public DashboardQuickAction PrimaryAction => QuickActions[2];
-
     [RelayCommand]
     private void OpenQuickAction(DashboardQuickAction? action)
     {
@@ -227,8 +218,6 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     private void Apply(DashboardSnapshot snapshot)
     {
-        HeroTitle = snapshot.HeroTitle;
-        HeroSubtitle = snapshot.HeroSubtitle;
         PrimaryListTitle = snapshot.PrimaryListTitle;
         SecondaryListTitle = snapshot.SecondaryListTitle;
 

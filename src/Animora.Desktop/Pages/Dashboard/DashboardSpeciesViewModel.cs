@@ -22,8 +22,6 @@ public sealed partial class DashboardSpeciesViewModel : ObservableObject
     // The reference keeps a floor of 9% width so a tiny share is still visible.
     private const double MinFillPercent = 9.0;
 
-    private readonly IBrush _fillBrush;
-
     [ObservableProperty]
     private bool _isActive;
 
@@ -37,14 +35,6 @@ public sealed partial class DashboardSpeciesViewModel : ObservableObject
         // colour, so bindings never allocate a new solid brush per render.
         SwatchBrush = BrushCache.Solid(species.ColorHex);
         CountText = PersianNumberFormatter.FormatGrouped(species.Count);
-
-        // The reference `.legend-fill` gradient:
-        //   linear-gradient(to left, var(--c) 0%, color-mix(in srgb, var(--c) 25%, transparent) 100%)
-        // The species colours come from a small fixed palette and the trailing
-        // stop is the 8-bit alpha 0x40, so the alpha-aware GradientBrushCache
-        // owns one frozen instance (bounded keys — PERFORMANCE.md §10/§15).
-        _fillBrush = GradientBrushCache.LinearGradient(
-            species.ColorHex, 0xFF, species.ColorHex, 0x40, 1, 0, 0, 0);
 
         // Round to a whole percent, then render as an integer so the string
         // form is culture-invariant and never carries a decimal point.
@@ -80,9 +70,6 @@ public sealed partial class DashboardSpeciesViewModel : ObservableObject
 
     /// <summary>Fill fraction (0..1) of the row's soft share background.</summary>
     public double FillFraction { get; }
-
-    /// <summary>The soft share gradient painted behind the legend row.</summary>
-    public IBrush FillBrush => _fillBrush;
 
     private static string ResolveIconKey(string name) => name switch
     {
