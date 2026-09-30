@@ -29,6 +29,7 @@ for ((i=1; i<=$#; i++)); do
 done
 
 if [ "$OFFLINE" = "1" ]; then
+  [ "$SECONDS_RUN" -ge 60 ] || { err "Offline idle measurement requires 60 seconds"; exit 2; }
   export ANIMORA_BENCH=1
   export ANIMORA_BENCH_OUTPUT="$LOG_DIR/c11-warm-metrics.json"
   rm -f "$ANIMORA_BENCH_OUTPUT"
@@ -49,11 +50,12 @@ command -v Xvfb >/dev/null 2>&1 || { err "Xvfb not installed."; exit 3; }
 
 DISPLAY_NUM=98
 export DISPLAY=":$DISPLAY_NUM"
-Xvfb "$DISPLAY" -nolisten tcp -screen 0 "1440x900x24" >/dev/null 2>&1 &
+XVFB_LOG="$LOG_DIR/bench-xvfb.log"
+Xvfb "$DISPLAY" -nolisten tcp -screen 0 "1440x900x24" >"$XVFB_LOG" 2>&1 &
 XVFB_PID=$!
 trap 'kill "${APP_PID:-}" "$XVFB_PID" 2>/dev/null || true' EXIT
 sleep 1
-kill -0 "$XVFB_PID" 2>/dev/null || { err "Xvfb failed"; exit 3; }
+kill -0 "$XVFB_PID" 2>/dev/null || { cat "$XVFB_LOG"; err "Xvfb failed"; exit 3; }
 
 APP_LOG="$LOG_DIR/bench-app.log"
 : > "$APP_LOG"
@@ -65,7 +67,8 @@ APP_PID=$!
 PEAK_RSS_KB=0
 LAST_RSS_KB=0
 FIRST_RSS_MS=0
-DEADLINE=$(( $(date +%s) + SECONDS_RUN ))
+# Millisecond deadline avoids rounding the required 60-second idle interval down.
+DEADLINE_MS=$(( SECONDS_RUN * 1000 ))
 while kill -0 "$APP_PID" 2>/dev/null; do
   NOW_MS=$(( $(date +%s%3N) - START_MS ))
   if [ -r "/proc/$APP_PID/status" ]; then
@@ -75,7 +78,7 @@ while kill -0 "$APP_PID" 2>/dev/null; do
     [ "$RSS" -gt "$PEAK_RSS_KB" ] && PEAK_RSS_KB=$RSS
     if [ "$FIRST_RSS_MS" = "0" ] && [ "$RSS" -gt 20000 ]; then FIRST_RSS_MS=$NOW_MS; fi
   fi
-  [ "$(date +%s)" -ge "$DEADLINE" ] && break
+  [ "$NOW_MS" -ge "$DEADLINE_MS" ] && break
   sleep 0.1
 done
 
@@ -94,12 +97,12 @@ wait "$XVFB_PID" 2>/dev/null || true
 # Let the X server release the display/lock before the next run reuses it.
 sleep 1
 
-ALIVE="yes"; grep -qiE "Unhandled exception|System\.(Exception|InvalidOperationException)" "$APP_LOG" && ALIVE="maybe"
+ALIVE="no"; [ "$ALIVE_AT_END" = "1" ] && ALIVE="yes"
+grep -qiE "Unhandled exception|System\.(Exception|InvalidOperationException)" "$APP_LOG" && ALIVE="maybe"
 printf 'BENCH label=%s config=%s ttfui_ms=%s peak_rss_kb=%s wall_ms=%s alive=%s\n' \
   "$LABEL" "$CONFIG" "$FIRST_RSS_MS" "$PEAK_RSS_KB" "$WALL_MS" "$ALIVE"
 
 if [ "$OFFLINE" = "1" ]; then
-  [ "$SECONDS_RUN" -ge 60 ] || { err "Offline idle measurement requires 60 seconds"; exit 2; }
   [ "$ALIVE_AT_END" = "1" ] || { cat "$APP_LOG"; err "App exited before idle measurement"; exit 1; }
   mkdir -p "$REPO_ROOT/backend-roadmap/measurements"
   python3 "$SCRIPT_DIR/offline-budget.py" "$APP_LOG" "$ANIMORA_BENCH_OUTPUT" "$LAST_RSS_KB" \
