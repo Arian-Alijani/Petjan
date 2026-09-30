@@ -21,8 +21,12 @@
 #   .\scripts\windows\clean-run.ps1 -FreshTest   # new isolated DB; never deletes old data
 #   .\scripts\windows\clean-run.ps1 -SeedCount 100  # NEW random-data test profile
 #   .\scripts\windows\clean-run.ps1 5000           # same as -SeedCount 5000
+#   .\scripts\windows\clean-run.ps1 55             # small profile
+#   .\scripts\windows\clean-run.ps1 9999           # large profile
 # From scripts\windows: .\clean-run.ps1 -FreshTest -SeedCount 100
-# SeedCount: 1..50000 additional linked scenarios + 32 baseline scenarios, not a total row count.
+# SeedCount accepts ANY number you type (e.g. 55, 9999, or a huge value); it is sanitized to digits and
+# CLAMPED into 1..50000 additional linked scenarios + 32 baseline scenarios (a scenario count, not a row count).
+# After seeding, the terminal prints the sign-in username; the password is the one you typed while seeding.
 # Populates patients, owners, clinical records, vaccination, appointments, boarding,
 # inventory, purchasing, invoices, payments, cashier, cheques, expenses, finance/history projections.
 # Catalogue/staff/room counts are bounded; each scenario produces multiple linked records.
@@ -53,8 +57,11 @@
 param(
     [Parameter(Position = 0)]
     [Alias('RandomCount')]
-    [ValidateRange(1, 50000)]
-    [int]$SeedCount,
+    # Accept ANY number the user types (e.g. 55, 9999, or a huge value like 9636 3624928364).
+    # Kept as a raw string so an out-of-int / out-of-range value never throws before we can clamp it;
+    # the value is sanitized to digits and clamped into 1..50000 below. Only digits/spaces/_/, allowed.
+    [ValidatePattern('^[0-9][0-9 _,]*$')]
+    [string]$SeedCount,
     [switch]$Release,
     [switch]$NoRun,
     [switch]$LocalTest,
@@ -75,6 +82,20 @@ if ($SeedRequested) {
     }
     if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
         throw '-SeedCount requires an interactive Windows PowerShell terminal and Windows DPAPI.'
+    }
+    # Sanitize to digits only, then clamp into the safe supported range instead of failing.
+    # This lets ANY number be entered (55, 9999, 9636362492836...) and mapped to 1..50000.
+    $SeedDigits = ($SeedCount -replace '[^0-9]', '')
+    if ([string]::IsNullOrEmpty($SeedDigits)) {
+        throw 'SeedCount must contain at least one digit, e.g. 55, 250 or 9999.'
+    }
+    $SeedRequestedBig = [bigint]::Parse($SeedDigits)
+    $SeedMin = [bigint]1
+    $SeedMax = [bigint]50000
+    $SeedClamped = [bigint]::Min([bigint]::Max($SeedRequestedBig, $SeedMin), $SeedMax)
+    $SeedCountValue = [int]$SeedClamped
+    if ($SeedRequestedBig -ne $SeedClamped) {
+        Write-Host "==> Requested $SeedRequestedBig scenarios; clamped to supported range 1..50000 -> $SeedCountValue."
     }
     $LocalTest = $false
     $FreshTest = $true
@@ -113,7 +134,7 @@ if ($LocalTest -or $FreshTest) {
     Write-Host "==> ISOLATED LOCAL TEST: $TestProfile"
     Write-Host "==> Reopen with: .\scripts\windows\clean-run.ps1 -LocalTest -TestProfile $TestProfile"
     if ($SeedRequested) {
-        Write-Host "==> RANDOM DATA: $SeedCount additional scenarios + 32 baseline scenarios; never modifies an existing profile."
+        Write-Host "==> RANDOM DATA: $SeedCountValue additional scenarios + 32 baseline scenarios; never modifies an existing profile."
         Write-Host '==> After build: create your test Manager in this terminal, then sign in normally in the app.'
     } else {
         Write-Host '==> First run: create your own Manager account. No normal clinic data is used.'
@@ -194,17 +215,34 @@ if ($SeedRequested) {
         exit $SeedBuildExitCode
     }
     Write-Host '==> Generating data in the NEW isolated profile only ...'
-    dotnet $SeedDll $TestProfile $SeedCount
+    dotnet $SeedDll $TestProfile $SeedCountValue
     $SeedExitCode = $LASTEXITCODE
     if ($SeedExitCode -ne 0) {
         Write-Error -Message 'Random-data generation failed. App was not launched; any partial test data was kept.' -ErrorAction Continue
         exit $SeedExitCode
     }
     $ProfileDirectory = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) "Animora.LocalTests\$TestProfile"
-    if (-not (Test-Path (Join-Path $ProfileDirectory 'random-data-complete.json') -PathType Leaf)) {
+    $CompleteMarker = Join-Path $ProfileDirectory 'random-data-complete.json'
+    if (-not (Test-Path $CompleteMarker -PathType Leaf)) {
         Write-Error -Message 'Missing completion marker; refusing to launch an incomplete random-data profile.' -ErrorAction Continue
         exit 1
     }
+    # Surface the sign-in username again right before launch, after all the build/seed output has scrolled by,
+    # so it is easy to read when the login window appears. The password is the one you typed during seeding.
+    try {
+        $SeedInfo = Get-Content -Raw -LiteralPath $CompleteMarker | ConvertFrom-Json
+    } catch { $SeedInfo = $null }
+    Write-Host ''
+    Write-Host '====================================================================='
+    Write-Host ' TEST LOGIN (enter these in the app window that is about to open):'
+    if ($SeedInfo -and $SeedInfo.Username) {
+        Write-Host "   Username : $($SeedInfo.Username)"
+    } else {
+        Write-Host '   Username : the one you typed during seeding (default: manager)'
+    }
+    Write-Host '   Password : the password you typed during seeding (chosen by you).'
+    Write-Host '====================================================================='
+    Write-Host ''
 }
 
 Write-Host "==> Launching Animora.Desktop ..."

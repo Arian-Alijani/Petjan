@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -21,9 +22,23 @@ using Microsoft.Extensions.Options;
 try
 {
     if (!OperatingSystem.IsWindows()) throw new InvalidOperationException("This manual-test tool requires Windows/DPAPI.");
-    if (args.Length != 2 || !Regex.IsMatch(args[0], "\\Arandom-[a-f0-9]{32}\\z") ||
-        !int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out var count) || count is < 1 or > 50000)
-        throw new ArgumentException("Expected a NEW random-<GUID> profile and a scenario count from 1 to 50000.");
+    const int MinSeedCount = 1;
+    const int MaxSeedCount = 50000;
+    if (args.Length != 2 || !Regex.IsMatch(args[0], "\\Arandom-[a-f0-9]{32}\\z"))
+        throw new ArgumentException("Expected a NEW random-<GUID> profile and a scenario count.");
+    // Accept ANY number the user types (e.g. 55, 9999, 9636362492836), ignoring spaces, separators and a
+    // leading sign, then clamp it into the safe supported range instead of failing. This keeps the manual
+    // launch resilient to huge or odd inputs while never letting an out-of-range value reach the seeder.
+    var rawCount = new string((args[1] ?? string.Empty).Where(char.IsDigit).ToArray());
+    if (rawCount.Length == 0)
+        throw new ArgumentException("The scenario count must contain at least one digit (e.g. 55, 9999, 250).");
+    var requestedText = rawCount.TrimStart('0');
+    if (requestedText.Length == 0) requestedText = "0";
+    var count = BigInteger.TryParse(rawCount, NumberStyles.None, CultureInfo.InvariantCulture, out var requested)
+        ? (int)BigInteger.Min(BigInteger.Max(requested, MinSeedCount), MaxSeedCount)
+        : MaxSeedCount; // Anything larger than int/BigInteger parsing can express is treated as "as many as allowed".
+    if (requestedText != count.ToString(CultureInfo.InvariantCulture))
+        Console.WriteLine($"==> Requested {requestedText} scenarios; clamped to the supported range {MinSeedCount}..{MaxSeedCount} -> {count}.");
 
     var profile = LocalTestProfile.Parse([$"--local-test={args[0]}"])!;
     // Fail BEFORE composing/opening storage if even an incomplete previous profile exists.
@@ -73,10 +88,18 @@ try
         Require(await maintenance.RebuildActivityFeedAsync(default));
     }
     // Written last: a failed/partial generation must never be launched automatically by clean-run.
+    // Store the username (never the password) so clean-run.ps1 can echo the login right before launch.
     await File.WriteAllTextAsync(Path.Combine(profile.DataDirectory, "random-data-complete.json"),
-        JsonSerializer.Serialize(new { Profile = profile.Name, Scenarios = count, BaselineScenarios = 32, CreatedUtc = DateTimeOffset.UtcNow }));
-    Console.WriteLine($"Ready: {count:N0} additional scenarios + 32 baseline scenarios. Login username: {username}");
-    Console.WriteLine($"Isolated storage: {profile.DataDirectory}");
+        JsonSerializer.Serialize(new { Profile = profile.Name, Scenarios = count, BaselineScenarios = 32, Username = username, CreatedUtc = DateTimeOffset.UtcNow }));
+    Console.WriteLine();
+    Console.WriteLine("=====================================================================");
+    Console.WriteLine($" Ready: {count:N0} additional scenarios + 32 baseline scenarios.");
+    Console.WriteLine(" Sign in to the app that is about to launch with THESE credentials:");
+    Console.WriteLine($"   Username : {username}");
+    Console.WriteLine("   Password : the password you just typed above (chosen by you).");
+    Console.WriteLine($" Isolated storage: {profile.DataDirectory}");
+    Console.WriteLine("=====================================================================");
+    Console.WriteLine();
     return 0;
 }
 catch (Exception ex)
