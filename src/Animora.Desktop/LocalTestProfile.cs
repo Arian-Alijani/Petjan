@@ -1,6 +1,7 @@
 using Animora.Domain.Results;
 using Animora.Infrastructure.Local.Security;
 using Animora.Persistence.Sqlite.Options;
+using Animora.Persistence.Sqlite.Seed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -12,23 +13,37 @@ namespace Animora.Desktop;
 /// </summary>
 public sealed class LocalTestProfile
 {
-    private LocalTestProfile(string name, string dataRoot)
+    private LocalTestProfile(string name, string dataRoot, string? clinicBakPreviewPath = null)
     {
         Name = name;
+        ClinicBakPreviewPath = clinicBakPreviewPath;
         DataDirectory = Path.Combine(Path.GetFullPath(dataRoot), "Animora.LocalTests", name);
     }
 
     public string Name { get; }
     public string DataDirectory { get; }
-    public string WindowSuffix => $" — تست محلی [{Name}]";
+    public string? ClinicBakPreviewPath { get; }
+    public string WindowSuffix => ClinicBakPreviewPath is not null
+        ? $" — بازبینی بکاپ قدیمی؛ غیرعملیاتی [{Name}]"
+        : $" — تست محلی [{Name}]";
 
     public static LocalTestProfile? Parse(string[] args, string? dataRoot = null, bool useDefaultTestProfile = false)
     {
         string? name = null;
         var fresh = false;
         var clinic = false;
+        string? previewPath = null;
         foreach (var arg in args)
         {
+            if (arg == "--clinic-bak" || arg.StartsWith("--clinic-bak=", StringComparison.Ordinal))
+            {
+                if (previewPath is not null) throw new ArgumentException("Specify only one Clinic backup preview.");
+                previewPath = arg == "--clinic-bak" ? Path.Combine(".sandbox", "clinic-bak", "clinic.json") : arg["--clinic-bak=".Length..];
+                if (string.IsNullOrWhiteSpace(previewPath)) throw new ArgumentException("Clinic preview path cannot be empty.");
+                continue;
+            }
+            if (arg.StartsWith("--clinic-bak", StringComparison.Ordinal))
+                throw new ArgumentException("Use --clinic-bak[=preview.json].");
             if (arg == "--clinic")
             {
                 clinic = true;
@@ -52,6 +67,16 @@ public sealed class LocalTestProfile
                     !(c is >= 'a' and <= 'z' or >= '0' and <= '9' or '-' or '_')))
                 throw new ArgumentException("Test profile names must be 1–40 lowercase letters, digits, '-' or '_'.");
         }
+        if (previewPath is not null)
+        {
+            if (clinic || fresh || name is not null)
+                throw new ArgumentException("--clinic-bak cannot be combined with other storage selectors.");
+            previewPath = Path.GetFullPath(previewPath);
+            return new LocalTestProfile(ClinicBakPreviewData.ProfileName(previewPath),
+                dataRoot ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), previewPath);
+        }
+        if (name?.StartsWith(ClinicBakPreviewData.ProfilePrefix, StringComparison.Ordinal) == true)
+            throw new ArgumentException("Clinic preview profiles can only be opened with --clinic-bak.");
         if (clinic && (name is not null || fresh))
             throw new ArgumentException("Use --clinic or a local-test profile, not both.");
         if (fresh)
@@ -73,6 +98,7 @@ public sealed class LocalTestProfile
         // Reception fixtures create credential-less doctor users BEFORE owner setup and suppress
         // first-run detection. Start empty so the real setup flow can create the test Manager.
         options.SeedSampleData = false;
+        options.ClinicBakPreviewPath = ClinicBakPreviewPath;
         options.AllowInsecureKeyFallback = !OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS();
     }
 

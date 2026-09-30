@@ -1,4 +1,12 @@
+using System.Text.Json;
 using Animora.Contracts.Identity;
+using Animora.Desktop.Pages.Login;
+using Animora.Domain.Clinical;
+using Animora.Domain.Patients;
+using Animora.Domain.Sales;
+using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Seed;
+using Microsoft.EntityFrameworkCore;
 using Animora.Contracts.Patients;
 using Animora.Desktop;
 using Animora.Infrastructure.Local.Security;
@@ -22,7 +30,9 @@ public sealed class LocalTestProfileTests
         using var provider = services.BuildServiceProvider();
         Assert.Equal(new LocalStoreOptions().DatabasePath,
             provider.GetRequiredService<IOptions<LocalStoreOptions>>().Value.DatabasePath);
-        Assert.True(provider.GetRequiredService<IOptions<LocalStoreOptions>>().Value.SeedSampleData);
+        var options = provider.GetRequiredService<IOptions<LocalStoreOptions>>().Value;
+        Assert.Equal(new LocalStoreOptions().SeedSampleData, options.SeedSampleData);
+        Assert.Null(options.ClinicBakPreviewPath); // normal startup never imports or auto-authenticates a preview
     }
 
     [Fact]
@@ -167,6 +177,161 @@ public sealed class LocalTestProfileTests
             Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Theory]
+    [InlineData("--clinic")]
+    [InlineData("--local-test")]
+    [InlineData("--local-test-fresh")]
+    public void ClinicPreview_RejectsMixedSelectorsBeforeReadingFiles(string selector) =>
+        Assert.Throws<ArgumentException>(() => LocalTestProfile.Parse(["--clinic-bak=missing.json", selector]));
+
+    [Fact]
+    public void ClinicPreview_RejectsMissingTypoAndReservedManualProfiles()
+    {
+        Assert.Throws<ArgumentException>(() => LocalTestProfile.Parse(["--clinic-bak="]));
+        Assert.Throws<ArgumentException>(() => LocalTestProfile.Parse(["--clinic-bak-typo"]));
+        Assert.Throws<ArgumentException>(() => LocalTestProfile.Parse(["--clinic-bak=missing.json"]));
+        Assert.Throws<ArgumentException>(() => LocalTestProfile.Parse(["--local-test=clinic-bak-existing"]));
+    }
+
+    [Fact]
+    public async Task ClinicPreview_RealImportAutoLoginRestartAndNormalDataSafety()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "animora-clinic-preview-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var sentinel = Path.Combine(root, "clinic.db");
+        await File.WriteAllTextAsync(sentinel, "original clinic bytes");
+        try
+        {
+            var input = WritePreview(root);
+            // Explicit opt-in for the full extracted snapshot; ordinary CI uses the tiny fixture.
+            var actual = Environment.GetEnvironmentVariable("ANIMORA_CLINIC_PREVIEW");
+            if (!string.IsNullOrEmpty(actual)) File.Copy(actual, input, overwrite: true);
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(input));
+            var owners = document.RootElement.GetProperty("owners").EnumerateArray().ToArray();
+            var petCount = owners.Sum(o => o.GetProperty("pets").GetArrayLength());
+            var expectedHistory = owners.Sum(o => o.GetProperty("pets").EnumerateArray()
+                .Sum(p => p.GetProperty("history").GetArrayLength()));
+            var profile = LocalTestProfile.Parse([$"--clinic-bak={input}"], root, useDefaultTestProfile: true)!;
+            var options = new LocalStoreOptions();
+            profile.ConfigureStore(options);
+            Assert.True(options.Validate().IsSuccess);
+            Assert.False(options.SeedSampleData);
+            Assert.NotNull(options.ClinicBakPreviewPath);
+            Assert.Equal(profile.DataDirectory, LocalTestProfile.Parse([$"--clinic-bak={input}"], root)!.DataDirectory);
+            await using (var provider = Build(profile))
+            {
+                await Initialize(provider);
+                var auth = provider.GetRequiredService<IAuthenticationService>();
+                Assert.True(await auth.IsFirstRunAsync()); // importer never seeds credential-less staff
+                var login = provider.GetRequiredService<LoginViewModel>();
+                var opened = 0;
+                login.LoginSucceeded += (_, _) => opened++;
+                await login.InitializeAsync(storeReady: true);
+                Assert.Equal(1, opened);
+                Assert.False(login.HasError, login.ErrorMessage);
+                Assert.False(await auth.IsFirstRunAsync());
+                await using var scope = provider.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+                Assert.Equal(owners.Length, await db.Set<Owner>().CountAsync());
+                Assert.Equal(petCount, await db.Set<Pet>().CountAsync());
+                Assert.Equal(expectedHistory, await db.Set<MedicalHistoryEntry>()
+                    .CountAsync(h => h.SourceEntityType != null && h.SourceEntityType.StartsWith("LegacyClinic:")));
+                Assert.Equal(0, await db.Set<Invoice>().CountAsync());
+                Assert.Equal(0, await db.Set<VaccinationRecord>().CountAsync());
+                var first = owners[0].GetProperty("pets")[0];
+                var pet = await db.Set<Pet>().FirstAsync(p => p.Name == first.GetProperty("name").GetString());
+                Assert.Equal((Animora.Domain.Patients.PetSpecies)first.GetProperty("species").GetInt32(), pet.Species);
+                Assert.NotNull(pet.BirthDateUtc);
+                Assert.True(pet.BirthDateUtc < pet.RegisteredUtc);
+                await auth.SignOutAsync("preview-test");
+            }
+            // Restart uses the same marker and authenticates, not duplicate-import or bypass.
+            await using (var reopened = Build(profile))
+            {
+                await Initialize(reopened);
+                var login = reopened.GetRequiredService<LoginViewModel>();
+                var opened = false;
+                login.LoginSucceeded += (_, _) => opened = true;
+                await login.InitializeAsync(true);
+                Assert.True(opened);
+                await using var scope = reopened.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+                Assert.Equal(petCount, await db.Set<Pet>().CountAsync());
+                Assert.Equal(1, await db.Set<SeedMarker>().CountAsync(m => m.SeedKey == ClinicBakPreviewData.SeedKey));
+            }
+            Assert.Equal("original clinic bytes", await File.ReadAllTextAsync(sentinel));
+            // A changed input selects a new folder without touching or deleting the first.
+            await File.AppendAllTextAsync(input, " ");
+            Assert.NotEqual(profile.DataDirectory, LocalTestProfile.Parse([$"--clinic-bak={input}"], root)!.DataDirectory);
+            Assert.True(File.Exists(Path.Combine(profile.DataDirectory, "animora.db")));
+            Assert.True(options.Validate().IsFailure); // content/profile mismatch fails closed
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ClinicPreview_RefusesNonemptyStoreAndDoesNotCreateImportMarker()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "animora-preview-refusal-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var input = WritePreview(root);
+            var profile = LocalTestProfile.Parse([$"--clinic-bak={input}"], root)!;
+            var services = new ServiceCollection();
+            App.ConfigureServices(services, profile);
+            // Create existing business data at the same isolated path, without import enabled.
+            services.PostConfigure<LocalStoreOptions>(o => o.ClinicBakPreviewPath = null);
+            await using (var provider = services.BuildServiceProvider())
+            {
+                await Initialize(provider);
+                await using var scope = provider.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+                db.Add(Owner.Register("T-LOCAL-DEFAULT", "Existing owner", "09120000000", new TestClock()));
+                await db.SaveChangesAsync();
+            }
+            await using (var provider = Build(profile))
+            {
+                await using var scope = provider.CreateAsyncScope();
+                var result = await scope.ServiceProvider.GetRequiredService<ILocalStoreInitializer>().InitializeAsync(CancellationToken.None);
+                Assert.True(result.IsFailure);
+                var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+                Assert.Equal(1, await db.Set<Owner>().CountAsync());
+                Assert.Equal(0, await db.Set<Pet>().CountAsync());
+                Assert.False(await db.Set<SeedMarker>().AnyAsync(m => m.SeedKey == ClinicBakPreviewData.SeedKey));
+            }
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static string WritePreview(string root)
+    {
+        var path = Path.Combine(root, "preview.json");
+        File.WriteAllText(path, JsonSerializer.Serialize(new
+        {
+            formatVersion = 1, sourceSha256 = ClinicBakPreviewData.SourceSha256,
+            owners = new[] { new { fullName = "Test owner", phone = "", registeredDate = "1402/12/14",
+                pets = new[] { new { code = "1034", name = "Test cat", species = 1, breed = "Source breed",
+                    birthDate = "1401/07/01", registeredDate = "1402/12/14", isNeutered = true,
+                    history = new[] { new { sourceTable = "tblPatient", sourceId = "1034", date = "1402/12/14",
+                        title = "Original record", detail = "Legacy metadata preserved" } } } } } }
+        }));
+        return path;
+    }
+
+    private sealed class TestClock : Animora.Domain.Time.IClock
+    {
+        public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
     }
 
     private static ServiceProvider Build(LocalTestProfile profile)

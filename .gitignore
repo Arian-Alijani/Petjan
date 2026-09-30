@@ -5,6 +5,10 @@ obj/
 # Test output
 **/TestResults/
 
+# Python read-only backup extractor cache
+__pycache__/
+*.py[cod]
+
 # Visual Studio / Rider / VS Code
 .vs/
 .idea/
