@@ -96,16 +96,15 @@ public static class PatientsPresentation
         _ => new SexDotInfo("؟", "نامشخص", Brush("#eef2f0"), Brush("#7a8b89")),
     };
 
-    // ---- owner gender / tags / balance (patients-data.js + patients.css) ----
+    // ---- owner gender / tags (patients-data.js + patients.css) ----
 
     public static string OwnerGenderLabel(OwnerGender gender) =>
         gender == OwnerGender.Male ? "آقا" : "خانم";
 
-    /// <summary>Tag pill palette (patients.css .oc-tag.vip/.debt/.loyal).</summary>
+    /// <summary>Tag pill palette (patients.css .oc-tag.vip/.loyal).</summary>
     public static (IBrush Background, IBrush Foreground) TagTone(string tag) => tag switch
     {
         "VIP" => (Brush("#f4f3ff"), Brush("#7b5cc4")),
-        "بدهکار" => (Brush("#fef3f2"), Brush("#d92d20")),
         "مشتری وفادار" => (Brush("#ecfdf3"), Brush("#027a48")),
         _ => (Brush("#eef2f0"), Brush("#536b68")),
     };

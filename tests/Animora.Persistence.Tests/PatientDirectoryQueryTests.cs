@@ -139,7 +139,6 @@ public sealed class PatientDirectoryQueryTests
         var ownerB = (await queries.GetOwnersAsync("ب ب", 1, 10, default)).Items.Single();
         Assert.Equal(b.Id, ownerB.Id);
         Assert.Equal(1, ownerB.PetCount);
-        Assert.Equal(0L, ownerB.TotalSpend);   // deferred to C09.
 
         var detail = await queries.GetOwnerAsync(b.Id, default);
         Assert.NotNull(detail);

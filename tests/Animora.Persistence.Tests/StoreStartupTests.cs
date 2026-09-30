@@ -70,7 +70,31 @@ public sealed class StoreStartupTests
         Assert.False(string.IsNullOrWhiteSpace(diagnostics.NativeSqliteVersion));
         Assert.False(diagnostics.Quarantined);
         Assert.True(diagnostics.DatabaseBytes > 0);
-        Assert.Contains("014", diagnostics.SchemaVersion); // latest migration = 014_SalesInsurers.
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.Equal(db.Database.GetMigrations().Last(), diagnostics.SchemaVersion);
+    }
+
+    [Fact]
+    public async Task EmptyTestProfile_InitializesAndReopensWithoutDefaultUsers()
+    {
+        using var fixture = new LocalStoreTestFixture(configureOptions: options => options.SeedSampleData = false);
+        var first = await fixture.InitializeAsync();
+        Assert.False(first.Quarantined);
+
+        // Reopen the same isolated file through a fresh provider, never resetting any profile.
+        using var reopened = fixture.BuildProvider();
+        using var scope = reopened.CreateScope();
+        var initializer = scope.ServiceProvider
+            .GetRequiredService<Animora.Persistence.Sqlite.Maintenance.ILocalStoreInitializer>();
+        var result = await initializer.InitializeAsync(default);
+        Assert.True(result.IsSuccess, result.Detail);
+        Assert.False(result.Value!.Quarantined);
+        Assert.Equal(first.DatabasePath, result.Value.DatabasePath);
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.False(db.Database.HasPendingModelChanges());
+        Assert.Empty(await db.Set<Animora.Domain.Identity.User>().ToListAsync());
+        Assert.Empty(await db.Set<Animora.Domain.Patients.Owner>().ToListAsync());
     }
 
     [Fact]

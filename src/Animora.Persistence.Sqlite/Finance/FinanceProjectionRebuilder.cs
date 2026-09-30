@@ -43,7 +43,7 @@ public static class FinanceProjectionRebuilder
             {
                 i.Id, i.OwnerId, i.State, i.PostedUtc, i.SettledUtc,
                 Subtotal = i.Subtotal.Minor, Discount = i.DiscountTotal.Minor,
-                Insurance = i.InsuranceCoverage.Minor, Grand = i.GrandTotal.Minor, Due = i.DueTotal.Minor,
+                Insurance = i.InsuranceCoverage.Minor, Grand = i.GrandTotal.Minor,
             })
             .ToListAsync(ct);
 
@@ -64,7 +64,6 @@ public static class FinanceProjectionRebuilder
             {
                 var acc = For(owner, ownerId);
                 acc.Spend += inv.Grand;
-                acc.OpenBalance += inv.Due;
                 acc.Invoices += 1;
                 if (acc.LastInvoiceUtc is null || inv.PostedUtc > acc.LastInvoiceUtc) acc.LastInvoiceUtc = inv.PostedUtc;
             }
@@ -146,7 +145,7 @@ public static class FinanceProjectionRebuilder
         foreach (var (ownerId, acc) in owner)
         {
             var snapshot = OwnerFinancialSnapshot.Create(tenantId, ownerId);
-            snapshot.Apply(acc.Spend, acc.OpenBalance, acc.LastInvoiceUtc, acc.Invoices);
+            snapshot.Apply(acc.Spend, acc.LastInvoiceUtc, acc.Invoices);
             ownerSet.Add(snapshot);
             written++;
         }
@@ -207,7 +206,6 @@ public static class FinanceProjectionRebuilder
     private sealed class OwnerAcc
     {
         public long Spend;
-        public long OpenBalance;
         public int Invoices;
         public DateTimeOffset? LastInvoiceUtc;
     }

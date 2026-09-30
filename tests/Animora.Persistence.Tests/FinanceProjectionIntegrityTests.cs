@@ -65,7 +65,7 @@ public sealed class FinanceProjectionIntegrityTests
             .Select(f => new { f.LocalDay, f.ProductId, f.VariantId, f.QuantitySold, f.RevenueMinor, f.CogsMinor })
             .ToListAsync();
         var owners = await db.Set<OwnerFinancialSnapshot>().AsNoTracking().OrderBy(f => f.OwnerId)
-            .Select(f => new { f.OwnerId, f.TotalSpendMinor, f.OpenBalanceMinor, f.LastInvoiceUtc, f.InvoiceCount })
+            .Select(f => new { f.OwnerId, f.TotalSpendMinor, f.LastInvoiceUtc, f.InvoiceCount })
             .ToListAsync();
         return (daily.Select(x => x.ToString()!).ToArray(), products.Select(x => x.ToString()!).ToArray(),
             owners.Select(x => x.ToString()!).ToArray());

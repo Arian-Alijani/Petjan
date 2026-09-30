@@ -11,7 +11,6 @@ public sealed class OwnerFinancialSnapshot
     public string TenantId { get; private set; } = string.Empty;
     public string OwnerId { get; private set; } = string.Empty;
     public long TotalSpendMinor { get; private set; }
-    public long OpenBalanceMinor { get; private set; }
     public DateTimeOffset? LastInvoiceUtc { get; private set; }
     public int InvoiceCount { get; private set; }
 
@@ -22,10 +21,9 @@ public sealed class OwnerFinancialSnapshot
         return new() { Id = IdGenerator.NewId(), TenantId = tenantId, OwnerId = ownerId };
     }
 
-    public void Apply(long spend = 0, long balance = 0, DateTimeOffset? invoiceUtc = null, int invoices = 0)
+    public void Apply(long spend = 0, DateTimeOffset? invoiceUtc = null, int invoices = 0)
     {
         TotalSpendMinor = checked(TotalSpendMinor + spend);
-        OpenBalanceMinor = checked(OpenBalanceMinor + balance);
         InvoiceCount = checked(InvoiceCount + invoices);
         if (invoiceUtc is not null && (LastInvoiceUtc is null || invoiceUtc > LastInvoiceUtc))
             LastInvoiceUtc = invoiceUtc;

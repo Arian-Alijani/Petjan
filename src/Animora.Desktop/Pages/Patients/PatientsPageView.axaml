@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:patients="using:Animora.Desktop.Pages.Patients"
              xmlns:controls="using:Animora.Desktop.Controls"
@@ -545,9 +545,9 @@
                             <ComboBoxItem Content="بدون واکسن" />
                         </ComboBox>
                         <ComboBox Classes="pbselect" SelectedIndex="{Binding SortIndex}">
-                            <ComboBoxItem Content="جدیدترین ویزیت" />
+                            <ComboBoxItem Content="{Binding RecentSortLabel}" />
                             <ComboBoxItem Content="نام (الفبا)" />
-                            <ComboBoxItem Content="سن" />
+                            <ComboBoxItem Content="{Binding AgeSortLabel}" />
                         </ComboBox>
                         <Border Classes="seg">
                             <StackPanel Orientation="Horizontal" Spacing="2">
@@ -588,14 +588,18 @@
              ScrollViewer) so only visible rows are realized. -->
         <Grid Grid.Row="1">
 
-        <!-- owner grid (.owner-grid): grid mode. VirtualizingStackPanel is
-             single-axis, so the 4-column card grid is rendered as a virtualized
-             single-column list of the same full-width cards (Option 1). -->
-        <ListBox Classes="records" ItemsSource="{Binding FilteredOwners}"
+        <!-- Detailed owner cards, virtualized in three-card rows. -->
+        <ListBox Classes="records" ItemsSource="{Binding OwnerRows}"
                  IsVisible="{Binding ShowOwnersGrid}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="patients:OwnerCardViewModel">
+                <DataTemplate x:DataType="patients:OwnerCardRowViewModel">
+                    <ItemsControl ItemsSource="{Binding Cards}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><UniformGrid Columns="3" /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="patients:OwnerCardViewModel">
                     <Button Classes="cardlink" HorizontalAlignment="Stretch" Margin="0,0,14,14"
                             Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
                             CommandParameter="{Binding Owner}">
@@ -756,17 +760,25 @@
                             </Border>
                         </StackPanel>
                     </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <!-- pets grid (.pets-grid): grid mode. Same Option-1 approach — the
-             5-column card grid renders as a virtualized single-column list. -->
-        <ListBox Classes="records" ItemsSource="{Binding FilteredPets}"
+        <!-- Detailed patient cards, virtualized in three-card rows. -->
+        <ListBox Classes="records" ItemsSource="{Binding PetRows}"
                  IsVisible="{Binding ShowPetsGrid}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="patients:PetCardViewModel">
+                <DataTemplate x:DataType="patients:PetCardRowViewModel">
+                    <ItemsControl ItemsSource="{Binding Cards}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><UniformGrid Columns="3" /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="patients:PetCardViewModel">
                     <Button Classes="cardlink" HorizontalAlignment="Stretch" Margin="0,0,14,14"
                             Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenPetCommand}"
                             CommandParameter="{Binding Pet}">
@@ -847,164 +859,125 @@
                             </Border>
                         </StackPanel>
                     </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <!-- owners table (list mode) -->
-        <Border IsVisible="{Binding ShowOwnersTable}" Background="{StaticResource PanelBrush}"
-                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
-                CornerRadius="18" BoxShadow="{StaticResource ShadowCard}" ClipToBounds="True">
-            <!-- Grid (Auto header / * rows) so the ListBox gets a bounded height. -->
-            <Grid RowDefinitions="Auto,*">
-                <Border Grid.Row="0" Background="{StaticResource TableHeadBrush}"
-                        BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
-                    <Grid ColumnDefinitions="2*,1.6*,1*,1.6*,1.2*,1*,1.2*,44" ColumnSpacing="0">
-                        <TextBlock Grid.Column="0" Classes="th" Margin="16,12" Text="مالک" />
-                        <TextBlock Grid.Column="1" Classes="th" Margin="16,12" Text="تماس" />
-                        <TextBlock Grid.Column="2" Classes="th" Margin="16,12" Text="پرونده" />
-                        <TextBlock Grid.Column="3" Classes="th" Margin="16,12" Text="حیوانات" />
-                        <TextBlock Grid.Column="4" Classes="th" Margin="16,12" Text="آخرین ویزیت" />
-                        <TextBlock Grid.Column="5" Classes="th" Margin="16,12" Text="واکسن" />
-                        <TextBlock Grid.Column="6" Classes="th" Margin="16,12" Text="مانده حساب" />
-                        <TextBlock Grid.Column="7" Classes="th" Margin="16,12" Text="" />
-                    </Grid>
-                </Border>
-                <ListBox Grid.Row="1" Classes="records" ItemsSource="{Binding FilteredOwners}"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="patients:OwnerCardViewModel">
-                            <Button Classes="rowlink" HorizontalContentAlignment="Stretch"
-                                    Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
-                                    CommandParameter="{Binding Owner}">
-                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" TextElement.FontSize="13">
-                                    <Grid ColumnDefinitions="2*,1.6*,1*,1.6*,1.2*,0.9*,1.2*,Auto">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="16,12"
-                                                    VerticalAlignment="Center">
-                                            <Border Width="36" Height="36" CornerRadius="12" Background="{Binding ToneBrush}">
-                                                <TextBlock Text="{Binding Initials}" FontSize="12" FontWeight="ExtraBold"
-                                                           Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <!-- Compact list layout: three independent cards per virtualized row. -->
+        <ListBox Classes="records" ItemsSource="{Binding OwnerRows}"
+                 IsVisible="{Binding ShowOwnersTable}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="patients:OwnerCardRowViewModel">
+                    <ItemsControl ItemsSource="{Binding Cards}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><UniformGrid Columns="3" /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="patients:OwnerCardViewModel">
+                                <Button Classes="cardlink" HorizontalAlignment="Stretch" Margin="0,0,14,14"
+                                        Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
+                                        CommandParameter="{Binding Owner}">
+                                    <StackPanel Margin="14" Spacing="10">
+                                        <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10">
+                                            <Border Width="40" Height="40" CornerRadius="12" Background="{Binding ToneBrush}">
+                                                <TextBlock Text="{Binding Initials}" Foreground="White" FontWeight="Bold"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
                                             </Border>
-                                            <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Name}" Classes="nm" />
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Classes="nm" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Text="{Binding FileText}" Classes="sb" />
                                             </StackPanel>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Margin="16,12" VerticalAlignment="Center">
-                                            <TextBlock FontSize="12.5" FontWeight="Bold" Text="{Binding Owner.Mobile1}"
-                                                       Foreground="{StaticResource InkBrush}" />
-                                            <TextBlock Classes="sb" Text="{Binding Owner.Phone, TargetNullValue=بدون تلفن ثابت}" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="2" Margin="16,12" Classes="sb" FontSize="12.5"
-                                                   Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center"
-                                                   Text="{Binding Owner.File}" />
-                                        <StackPanel Grid.Column="3" Margin="16,12" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding PetCountText}" FontSize="13"
-                                                       Foreground="{StaticResource InkBrush}" />
-                                            <TextBlock Text="{Binding PetsPreviewText}" Classes="sb" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="4" Margin="16,12" Text="{Binding LastVisitText}"
-                                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
-                                        <controls:Badge Grid.Column="5" Margin="16,0" VerticalAlignment="Center"
-                                                        Text="{Binding VaccineStateText}"
-                                                        Tone="{Binding VaccineStateTone}" />
-                                        <TextBlock Grid.Column="6" Margin="16,12" Text="{Binding BalanceText}"
-                                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
-                                        <Path Grid.Column="7" Margin="16,0" Classes="icon" Width="17" Height="17"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Stroke="{StaticResource Muted2Brush}"
-                                              Data="{StaticResource IconEye}" />
-                                    </Grid>
-                                </Border>
-                            </Button>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </Grid>
-        </Border>
+                                            <Path Grid.Column="2" Classes="icon" Width="17" Height="17"
+                                                  VerticalAlignment="Center" Data="{StaticResource IconEye}" />
+                                        </Grid>
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                            <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconMobile}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Owner.Mobile1}" Classes="ocline" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding Owner.Phone, TargetNullValue=بدون تلفن ثابت}" Classes="sb" />
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding PetCountText}" Classes="nm" />
+                                                <TextBlock Text="{Binding PetsPreviewText}" Classes="sb" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <controls:Badge Grid.Column="1" Text="{Binding VaccineStateText}"
+                                                            Tone="{Binding VaccineStateTone}" ToolTip.Tip="وضعیت واکسن حیوانات" />
+                                        </Grid>
+                                        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="0,8,0,0">
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                                <TextBlock Text="آخرین ویزیت" Classes="sb" />
+                                                <TextBlock Grid.Column="1" Text="{Binding LastVisitText}" Classes="sb" HorizontalAlignment="Right" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
 
-        <!-- pets table (list mode) -->
-        <Border IsVisible="{Binding ShowPetsTable}" Background="{StaticResource PanelBrush}"
-                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
-                CornerRadius="18" BoxShadow="{StaticResource ShadowCard}" ClipToBounds="True">
-            <Grid RowDefinitions="Auto,*">
-                <Border Grid.Row="0" Background="{StaticResource TableHeadBrush}"
-                        BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
-                    <Grid ColumnDefinitions="2*,1.6*,1.4*,1*,0.9*,1.3*,1.4*,120,44">
-                        <TextBlock Grid.Column="0" Classes="th" Margin="16,12" Text="بیمار" />
-                        <TextBlock Grid.Column="1" Classes="th" Margin="16,12" Text="مالک" />
-                        <TextBlock Grid.Column="2" Classes="th" Margin="16,12" Text="گونه / نژاد" />
-                        <TextBlock Grid.Column="3" Classes="th" Margin="16,12" Text="سن" />
-                        <TextBlock Grid.Column="4" Classes="th" Margin="16,12" Text="وزن" />
-                        <TextBlock Grid.Column="5" Classes="th" Margin="16,12" Text="آخرین ویزیت" />
-                        <TextBlock Grid.Column="6" Classes="th" Margin="16,12" Text="واکسن بعدی" />
-                        <TextBlock Grid.Column="7" Classes="th" Margin="16,12" Text="وضعیت" />
-                        <TextBlock Grid.Column="8" Classes="th" Margin="16,12" Text="" />
-                    </Grid>
-                </Border>
-                <ListBox Grid.Row="1" Classes="records" ItemsSource="{Binding FilteredPets}"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="patients:PetCardViewModel">
-                            <Button Classes="rowlink" HorizontalContentAlignment="Stretch"
-                                    Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenPetCommand}"
-                                    CommandParameter="{Binding Pet}">
-                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" TextElement.FontSize="13">
-                                    <Grid ColumnDefinitions="2*,1.6*,1.4*,1*,0.9*,1.3*,1.4*,120,44">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="16,12">
-                                            <Border Width="36" Height="36" CornerRadius="12" Background="{Binding ToneBrush}">
-                                                <Path Classes="icon" Width="18" Height="18" Stroke="White"
+        <ListBox Classes="records" ItemsSource="{Binding PetRows}"
+                 IsVisible="{Binding ShowPetsTable}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="patients:PetCardRowViewModel">
+                    <ItemsControl ItemsSource="{Binding Cards}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><UniformGrid Columns="3" /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="patients:PetCardViewModel">
+                                <Button Classes="cardlink" HorizontalAlignment="Stretch" Margin="0,0,14,14"
+                                        Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenPetCommand}"
+                                        CommandParameter="{Binding Pet}">
+                                    <StackPanel Margin="14" Spacing="10">
+                                        <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10">
+                                            <Border Width="40" Height="40" CornerRadius="12" Background="{Binding ToneBrush}">
+                                                <Path Classes="icon" Width="20" Height="20" Stroke="White"
                                                       Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}"
                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
                                             </Border>
-                                            <StackPanel VerticalAlignment="Center">
-                                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                                    <TextBlock Text="{Binding Name}" Classes="nm" />
-                                                    <Border Classes="sexdot" Background="{Binding Sex.Background}">
-                                                        <TextBlock Text="{Binding Sex.Glyph}" Foreground="{Binding Sex.Foreground}"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Border>
-                                                </StackPanel>
-                                                <TextBlock Text="{Binding Code}" Classes="sb" />
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Classes="nm" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding CodeText}" Classes="sb" />
                                             </StackPanel>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Margin="16,12" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding OwnerName}" FontSize="12.5" FontWeight="Bold"
-                                                       Foreground="{StaticResource InkBrush}" />
-                                            <TextBlock Text="{Binding OwnerMobile}" Classes="sb" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2" Margin="16,12" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding SpeciesLabel}" Foreground="{StaticResource InkBrush}" />
-                                            <TextBlock Text="{Binding Breed}" Classes="sb" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="3" Margin="16,12" Classes="sb" FontSize="12.5"
-                                                   Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center"
-                                                   Text="{Binding AgeLongText}" />
-                                        <TextBlock Grid.Column="4" Margin="16,12" Classes="ovcell"
-                                                   VerticalAlignment="Center" Text="{Binding WeightTableText}" />
-                                        <StackPanel Grid.Column="5" Margin="16,12" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding LastVisitText}" Foreground="{StaticResource InkBrush}" />
-                                            <TextBlock Text="{Binding LastVisitType}" Classes="sb" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="6" Margin="16,12" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding NextVaccineText}" Classes="ovcell"
-                                                       Classes.overdue="{Binding IsNextVaccineOverdue}" />
-                                            <TextBlock Text="{Binding NextVaccineName}" Classes="sb" />
-                                        </StackPanel>
-                                        <controls:Badge Grid.Column="7" Margin="16,0" VerticalAlignment="Center"
-                                                        Text="{Binding StatusText}" Tone="{Binding StatusTone}" />
-                                        <Path Grid.Column="8" Margin="16,0" Classes="icon" Width="17" Height="17"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Stroke="{StaticResource Muted2Brush}"
-                                              Data="{StaticResource IconEye}" />
-                                    </Grid>
-                                </Border>
-                            </Button>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </Grid>
-        </Border>
+                                            <controls:Badge Grid.Column="2" Text="{Binding StatusText}" Tone="{Binding StatusTone}" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding BreedText}" Classes="sb" TextTrimming="CharacterEllipsis" />
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <TextBlock Text="{Binding OwnerName}" Classes="nm" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="1" Text="{Binding OwnerMobile}" Classes="sb" />
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <TextBlock Text="{Binding AgeLongText}" Classes="sb" />
+                                            <TextBlock Grid.Column="1" Text="{Binding WeightTableText}" Classes="sb" />
+                                        </Grid>
+                                        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="0,8,0,0">
+                                            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                                                <StackPanel>
+                                                    <TextBlock Text="آخرین ویزیت" Classes="sb" />
+                                                    <TextBlock Text="{Binding LastVisitText}" Classes="ocline" />
+                                                    <TextBlock Text="{Binding LastVisitType}" Classes="sb" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="واکسن بعدی" Classes="sb" />
+                                                    <TextBlock Text="{Binding NextVaccineText}" Classes="ovcell" Classes.overdue="{Binding IsNextVaccineOverdue}" />
+                                                    <TextBlock Text="{Binding NextVaccineName}" Classes="sb" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
 
         <!-- empty state (.pt-empty) -->
         <Border IsVisible="{Binding ShowEmptyState}" Background="{StaticResource PanelBrush}"

@@ -112,8 +112,6 @@ public sealed class OwnerRowViewModel
         HasMobile = Mobile.Length > 0;
         Initial = string.IsNullOrEmpty(owner.FirstName) ? "?" : owner.FirstName[..1];
         AvatarBrush = SalePresentation.AvatarBrush(owner.Tone);
-        HasBalance = owner.Balance > 0;
-        BalanceText = "بدهی " + SalePresentation.Money(owner.Balance);
     }
 
     public string Id { get; }
@@ -132,7 +130,4 @@ public sealed class OwnerRowViewModel
 
     public IBrush AvatarBrush { get; }
 
-    public bool HasBalance { get; }
-
-    public string BalanceText { get; }
 }
