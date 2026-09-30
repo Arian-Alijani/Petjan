@@ -81,7 +81,7 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
 
     public PetFormViewModel Pet { get; } = new();
 
-    public ObservableCollection<WizardOwnerRowViewModel> OwnerRows { get; } = [];
+    public Animora.Desktop.Controls.RangeObservableCollection<WizardOwnerRowViewModel> OwnerRows { get; } = [];
     public IReadOnlyList<string> Referrals => PatientsPresentation.Referrals;
 
     public bool IsNewMode => !IsExistingMode;
@@ -186,10 +186,11 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
     private void RenderOwnerList()
     {
         var needle = PersianText.Normalize(OwnerSearch);
-        OwnerRows.Clear();
+        var petCounts = _allPets.ToLookup(p => p.OwnerId);
+        var rows = new List<WizardOwnerRowViewModel>();
         foreach (var owner in _allOwners)
         {
-            var count = _allPets.Count(p => p.OwnerId == owner.Id);
+            var count = petCounts[owner.Id].Count();
             var haystack = PersianText.Normalize(
                 $"{owner.FirstName} {owner.LastName} {owner.File} {owner.Mobile1} {owner.NationalId}");
             if (needle.Length > 0 && !PersianText.Contains(haystack, needle))
@@ -203,8 +204,9 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
                 row.IsPicked = true;
             }
 
-            OwnerRows.Add(row);
+            rows.Add(row);
         }
+        OwnerRows.ReplaceAll(rows);
 
         OnPropertyChanged(nameof(HasOwnerRows));
     }
