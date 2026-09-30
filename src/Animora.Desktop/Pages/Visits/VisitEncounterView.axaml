@@ -567,12 +567,8 @@
         <StackPanel Margin="26,22,26,40">
             <!-- Page header (visits.html .page-header — always visible) -->
             <StackPanel Margin="0,0,0,18">
-                <TextBlock Text="پرونده الکترونیک سلامت" FontSize="12" FontWeight="Bold"
-                           Foreground="{StaticResource Brand600Brush}" Margin="0,0,0,6" />
                 <TextBlock Text="ویزیت و پرونده پزشکی" FontSize="26" FontWeight="ExtraBold"
                            Foreground="{StaticResource InkBrush}" />
-                <TextBlock Text="ابتدا پزشک مربوطه را انتخاب کنید، سپس از نوبت‌های رزرو شده امروز یک بیمار را برای ویزیت بردارید یا برای یک مراجعهٔ بدون نوبت، ویزیت جدید ثبت کنید."
-                           FontSize="13" Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0" TextWrapping="Wrap" />
             </StackPanel>
 
             <!-- ===================== Wizard scene ===================== -->

@@ -285,13 +285,9 @@
 
         <!-- ═══════════ PAGE HEADER (.page-header) ═══════════ -->
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,0,0,18">
-            <StackPanel Grid.Column="0" Spacing="4">
-                <TextBlock Text="صندوق و مالی" FontSize="12" FontWeight="Bold"
-                           Foreground="{StaticResource Brand600Brush}" Margin="0,0,0,2" />
+            <StackPanel Grid.Column="0">
                 <TextBlock Text="مدیریت فاکتور و پرداخت" FontSize="26" FontWeight="ExtraBold"
                            Foreground="{StaticResource InkBrush}" />
-                <TextBlock Text="صورت‌حساب‌ها را ببندید، مالیات و تخفیف را تنظیم کنید، پرداخت‌ها را ثبت و در صورت نیاز عودت دهید."
-                           FontSize="13" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
                 <Button Classes="outline cs-act" Command="{Binding PrintInvoiceCommand}">

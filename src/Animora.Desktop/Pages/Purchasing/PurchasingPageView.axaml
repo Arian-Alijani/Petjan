@@ -82,13 +82,9 @@
         <!-- Page header (.page-header: flex, space-between, align flex-end,
              gap 20px, margin-bottom 18px). -->
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,0,0,18">
-            <StackPanel Grid.Column="0" Spacing="4">
-                <TextBlock Text="زنجیره تأمین" FontSize="12" FontWeight="Bold"
-                           Foreground="{StaticResource Brand600Brush}" Margin="0,0,0,2" />
+            <StackPanel Grid.Column="0">
                 <TextBlock Text="فاکتور خرید و تأمین‌کنندگان" FontSize="26" FontWeight="ExtraBold"
                            Foreground="{StaticResource InkBrush}" />
-                <TextBlock Text="سفارش‌های خرید، بدهی‌ها و دریافت کالا را مدیریت کنید."
-                           FontSize="13" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Bottom">
                 <Button Classes="primary" Command="{Binding NewPurchaseInvoiceCommand}">

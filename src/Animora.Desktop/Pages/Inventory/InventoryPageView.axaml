@@ -266,12 +266,8 @@
         <!-- ═══ Page header (inventory.html .page-header) ═══ -->
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,0,0,18">
             <StackPanel Grid.Column="0">
-                <TextBlock Text="مرکز انبار" FontSize="12" FontWeight="Bold"
-                           Foreground="{StaticResource Brand600Brush}" Margin="0,0,0,6" />
                 <TextBlock Text="انبار و کالا" FontSize="26" FontWeight="ExtraBold"
                            Foreground="{StaticResource InkBrush}" LetterSpacing="-0.4" />
-                <TextBlock Text="کالاها و تنوع‌ها را مدیریت کنید و موجودی انبار را به‌روز نگه دارید."
-                           FontSize="13" Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0" TextWrapping="Wrap" />
             </StackPanel>
             <Button Grid.Column="1" Classes="primary" IsVisible="{Binding ShowHeaderNew}"
                     Command="{Binding OpenNewProductCommand}" VerticalAlignment="Bottom">
