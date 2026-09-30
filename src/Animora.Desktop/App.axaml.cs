@@ -116,12 +116,16 @@ public partial class App : global::Avalonia.Application
             // is built until the user is in). The shell then owns the app
             // lifetime and the login window is closed.
             var login = Services.GetRequiredService<LoginWindow>();
+            if (Program.TestProfile is { } loginProfile)
+                login.Title += loginProfile.WindowSuffix;
 
             if (login.DataContext is LoginViewModel loginViewModel)
             {
                 loginViewModel.LoginSucceeded += async (_, _) =>
                 {
                     var shell = Services.GetRequiredService<MainWindow>();
+                    if (Program.TestProfile is { } shellProfile)
+                        shell.Title += shellProfile.WindowSuffix;
                     desktop.MainWindow = shell;
                     shell.Show();
                     login.Close();
@@ -207,16 +211,26 @@ public partial class App : global::Avalonia.Application
     private static IServiceProvider ConfigureServices()
     {
         var services = new ServiceCollection();
-        ConfigureServices(services);
+        ConfigureServices(services, Program.TestProfile);
         return services.BuildServiceProvider();
     }
 
     /// <summary>The shared composition seam; registration only, with no store I/O.</summary>
-    public static void ConfigureServices(IServiceCollection services)
-    {
+    public static void ConfigureServices(IServiceCollection services) => ConfigureServices(services, null);
 
+    /// <summary>Explicit test profile override; a null profile preserves the normal composition.</summary>
+    public static void ConfigureServices(IServiceCollection services, LocalTestProfile? testProfile)
+    {
         // B03c: real local store + application layer (identity use cases) behind the desktop seams.
-        services.AddAnimoraLocalInfrastructure();
+        services.AddAnimoraLocalInfrastructure(testProfile is null ? null : testProfile.ConfigureStore);
+        if (testProfile is not null)
+        {
+            // OS secrets must be isolated too: sessions/signers otherwise share the clinic's keys.
+            services.AddSingleton<Animora.Infrastructure.Local.Security.ISecretStore>(sp =>
+                testProfile.CreateSecretStore(
+                    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Animora.Persistence.Sqlite.Options.LocalStoreOptions>>(),
+                    sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Animora.Infrastructure.Local.Security.FileFallbackSecretStore>>()));
+        }
         services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddCashierUseCases().AddChequeUseCases().AddFinanceUseCases().AddHistoryUseCases().AddDashboardUseCases().AddSearchUseCases().AddProfileUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no

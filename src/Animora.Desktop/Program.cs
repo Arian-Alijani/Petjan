@@ -8,9 +8,28 @@ internal static class Program
     // any Avalonia types before AppMain (visual tree not yet built).
     internal static readonly System.Diagnostics.Stopwatch StartupTimer = new();
 
+    internal static LocalTestProfile? TestProfile { get; private set; }
+
     [STAThread]
     public static void Main(string[] args)
     {
+        // Parse before building DI or opening storage. Invalid test flags must never fall back to
+        // the normal clinic database.
+        try
+        {
+            TestProfile = LocalTestProfile.Parse(args);
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            Environment.ExitCode = 2;
+            return;
+        }
+        if (TestProfile is { } profile)
+        {
+            Console.WriteLine($"LOCAL TEST [{profile.Name}]: {profile.DataDirectory}");
+            Console.WriteLine("Create your own Manager account on first run; normal clinic data is not used.");
+        }
         StartupTimer.Start();
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
