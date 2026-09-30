@@ -10,7 +10,7 @@
 ## 0. Locked rules for this session (READ FIRST)
 
 1. **PUSH AFTER EVERY TASK.** After each task below is complete, run:
-   `scripts/git/push.sh "type(scope): message"` (branch is `main`). Not pushing = failure.
+   `scripts/git/push.sh "type(scope): message"` (branch is `genspark_ai_developer`). Not pushing = failure.
 2. **No full test / no long build unless a task says so.** Prefer targeted builds
    (`scripts/sandbox/build.sh <project>` style is NOT available — build.sh only takes
    `fast|full|release|restore`). Use `dotnet build <csproj>` for targeted builds via
@@ -161,7 +161,9 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ## 3. Task list
 
-### [ ] T0 — Baseline commit of the plan
+### [x] T0 — Baseline commit of the plan
+> 2026-09-30: remote branches are equal at 83ec46b; using genspark_ai_developer for PR delivery.
+> User directive overrides T9/T10: targeted compilation and short filtered tests only; no full build/full suite.
 - Ensure `Plan/PHASE-C11-TODO.md` exists (this file).
 - **PUSH:** `scripts/git/push.sh "docs(plan): add C11 mock-purge/offline-acceptance TODO"`
 
@@ -248,7 +250,7 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ---
 
-### [ ] T2 — `LocalSyncStatusService` (real, server-free) + swap DI + delete mock
+### [x] T2 — `LocalSyncStatusService` (real, server-free) + swap DI + delete mock
 **Goal:** the last mock (`MockSyncStatusService`) is replaced by a real
 `ISyncStatusService` implementation living in `Animora.Client.Services`.
 
@@ -298,12 +300,14 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 **T2.3 Delete** `src/Animora.Desktop/Mocks/MockSyncStatusService.cs` (git rm).
 
+> Implemented scope-per-call cursor port, atomic tenant upsert, serialized passes, cancel/error states; post-login refresh. SDK bootstrap in progress; compilation follows in T4.
+
 **T2.4 Targeted build:** build `Animora.Client.Services` + `Animora.Desktop`.
 - **PUSH:** `scripts/git/push.sh "feat(sync): replace MockSyncStatusService with real LocalSyncStatusService"`
 
 ---
 
-### [ ] T3 — Remove `Mocks/` directory entirely + drop its `using`
+### [x] T3 — Remove `Mocks/` directory entirely + drop its `using`
 **Goal:** `src/Animora.Desktop/Mocks/` **does not exist**; no `Mock` identifier in Desktop.
 - After T2 deleted the only file, `git rm -r src/Animora.Desktop/Mocks` (or the empty dir).
 - Remove `using Animora.Desktop.Mocks;` from `App.axaml.cs` (if not already gone in T2).
@@ -315,7 +319,7 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ---
 
-### [ ] T4 — Extend `LayeringRulesTests` with 3 machine-checkable facts
+### [~] T4 — Extend `LayeringRulesTests` with 3 machine-checkable facts
 File: `tests/Animora.Domain.Tests/LayeringRulesTests.cs` (append facts; never weaken existing).
 
 **Pre-req:** ensure `Animora.Domain.Tests.csproj` references `Animora.Desktop` (add if missing;
@@ -362,7 +366,7 @@ record deviation). Use `typeof(Animora.Desktop.App).Assembly` to load the compos
 
 ---
 
-### [ ] T5 — `OfflineClinicDayScenarioTests` (14-step end-to-end)
+### [~] T5 — `OfflineClinicDayScenarioTests` (14-step end-to-end)
 File: `tests/Animora.Application.Tests/Scenarios/OfflineClinicDayScenarioTests.cs` (create
 `Scenarios/` folder). Uses `Animora.Persistence.Tests.LocalStoreTestFixture` (temp-file DB +
 `MigrateAsync` + `FakeClock`). Drive all "now" via `fixture.Clock.Now = ...`.
@@ -418,7 +422,7 @@ existing use-case tests for the exact handler names & command DTOs per track:
 
 ---
 
-### [ ] T6 — `StartupBudgetTests` (no blocking work before first frame)
+### [x] T6 — `StartupBudgetTests` (no blocking work before first frame)
 File: `tests/Animora.Application.Tests/StartupBudgetTests.cs` (PERFORMANCE.md §12).
 - Assert `App.axaml.cs` startup does **not** `await` migration, seeding, or projection rebuild
   before the first frame — that work runs behind `LocalStoreStartup` + `IStoreReadinessGate`.
@@ -442,7 +446,7 @@ File: `tests/Animora.Application.Tests/StartupBudgetTests.cs` (PERFORMANCE.md §
 
 ---
 
-### [ ] T7 — `bench.sh offline` mode + budget capture
+### [~] T7 — `bench.sh offline` mode + budget capture
 File: `scripts/sandbox/bench.sh` (add an `offline` mode) + create
 `backend-roadmap/measurements/C11-offline-budget.md`.
 - Add an `offline` invocation (positional or `--offline`) that:
@@ -554,3 +558,70 @@ Decision/Rule check/Impact + a "Repo state" list).
 - (add: DI-audit `ConfigureServices` seam, if extracted)
 - (add: bench offline instrumentation approach)
 - (add: any layering violation found & fixed)
+
+- C11 DI audit: extracted public registration-only App.ConfigureServices(IServiceCollection); Domain.Tests references Desktop. All 24 Contracts interfaces audited, with no exclusions.
+
+- T2/T3 targeted Desktop build: 0 warnings / 0 errors (2026-09-30).
+- Scenario prerequisite defect fixed: added stock movements had no StockMovementRecordedEvent writer, so COGS/feed were absent. LocalUnitOfWork now emits them transactionally, once per added row.
+
+- DI audit caught pre-existing EF reference in Client.Services DraftStateStore. Moved persistence behind IUiDraftStore (also fixes its missing AsTracking update). No guard relaxed.
+
+- Scenario/DI fix: Desktop omitted AddCashierUseCases; registered it. Enter is already part of StartVisitFromTicket (no invalid redundant state change).
+
+
+## Session handoff — 2026-09-30 (user requested wrap-up)
+
+- PR: https://github.com/Arian-Alijani/Petjan/pull/165; branch `genspark_ai_developer`.
+- T0/T1/T2/T3 implemented and pushed. Initial targeted Desktop compilation: 0 warnings/0 errors.
+- T2 focused sync regression tests: 4/4 passed (durable offline pass, configured empty endpoint,
+  tenant isolation/monotonic cursor, cancelled wait). Scope-per-call service uses Application ports;
+  no EF types in Client.Services. Post-login refresh loads the cursor without a processor pass.
+- T4 implementation pushed; first run had 6/7 green, exposed Client.Services DraftStateStore's EF
+  dependency. Fixed with IUiDraftStore + persistence adapter and AsTracking. Full coverage of all
+  24 Contracts interfaces retained. Latest rerun was interrupted by sandbox resource exhaustion;
+  **T4 is not verified complete**. Desktop missing AddCashierUseCases also fixed.
+- T5 fourteen-step continuous file-DB scenario implemented and compiling, including two Rx product
+  lines + a product sale (nine activity events), exact journal operation IDs, stock snapshot/ledger,
+  COGS, cash variance, reopen and boarding. Last completed run failed at next-day check-in with
+  SESSION_EXPIRED. Added a real SignInCommand after advancing the clock; **rerun still required**.
+  Fixtures disable demo data (SeedSampleData=false) and enable workspace-only dev key fallback.
+- T6 startup source guard **passed**. Embeds current App source at compilation, checks registration
+  and framework-startup method bodies, deferral to Opened, off-thread initializer and readiness gate.
+- T7 implementation pushed (bench offline + six-metric harness + report generator + 2x failure
+  threshold), but **not measured yet**. No C11-offline-budget.md with real numbers exists yet.
+  First-frame metric is a documented LoginWindow.Opened proxy; dashboard measurement is a warm
+  query proxy, not rendered UI; idle RSS is the login window, not an authenticated shell.
+- T8 not completed. Local Xvfb and isolated network namespace bootstrap succeeded (only lo, down),
+  but actual run.sh smoke was not reached because its preceding layering run failed. No SMOKE RUN
+  OK claim is made. Xvfb binaries/dependencies are extracted under `.sandbox/x11`, not system-installed.
+- Latest completed Application filtered run: 5 passed / 1 failed (startup + four sync passed;
+  scenario session expiry as above). Latest entry-point compilation issue from benchmark field
+  instrumentation (STAThread on a field) fixed and pushed; latest Desktop rerun remains unverified.
+- Concurrent targeted compilers exceeded the 985 MiB sandbox, making even git/tail unresponsive.
+  Sandbox reset preserved files and stopped all processes. **Run future builds sequentially**, never
+  simultaneously. No full build or full test suite was run, as the user requested.
+- T9–T14 remain pending. Do NOT mark C11 done/advance D01/delete this plan until evidence is complete.
+  PROGRESS.md and the roadmap phase file were deliberately not changed.
+
+### Resume commands / environment (no repo-wide rediscovery needed)
+
+```
+export DOTNET_ROOT=/home/user/webapp/.sandbox/dotnet
+source scripts/sandbox/_env.sh
+# Run one at a time:
+dotnet test tests/Animora.Application.Tests/Animora.Application.Tests.csproj --filter 'FullyQualifiedName~OfflineClinicDayScenario|FullyQualifiedName~StartupBudgetTests|FullyQualifiedName~LocalSyncStatusServiceTests' -c Debug "${MSBUILD_LOWMEM[@]}" --nologo -v minimal
+dotnet test tests/Animora.Domain.Tests/Animora.Domain.Tests.csproj --filter FullyQualifiedName~LayeringRulesTests -c Debug "${MSBUILD_LOWMEM[@]}" --nologo -v minimal
+```
+
+SDK 10.0.401 is installed in `.sandbox/dotnet`. Logs: `.sandbox/logs/c11-{scenario,layering,desktop-build}.log`.
+X11 PATH: `.sandbox/x11/wrappers:.sandbox/x11/root/usr/bin`; LD_LIBRARY_PATH:
+`.sandbox/x11/root/usr/lib/x86_64-linux-gnu`. Set HOME/XDG_DATA_HOME/XDG_CONFIG_HOME within
+`.sandbox` before GUI execution. For workspace-only X sockets and network-disabled smoke use
+`unshare -Urnm` and bind `.sandbox/tmp` to `/tmp` inside that namespace; overlay `/usr/bin` with
+lowerdir `/usr/bin`, upperdir `.sandbox/x11/bin-upper`, workdir `.sandbox/x11/bin-work` so Xvfb can
+find its local xkbcomp. The Xvfb wrapper already supplies the local xkb-data directory.
+
+Stock defect repaired during T5 preparation: no writer emitted StockMovementRecordedEvent for
+added movements, so stock sales had no COGS/feed consequences. LocalUnitOfWork now captures added
+movement rows before SaveChanges and dispatches their events within the same transaction. This
+change needs its scenario acceptance and existing stock/UoW regression checks before phase closeout.

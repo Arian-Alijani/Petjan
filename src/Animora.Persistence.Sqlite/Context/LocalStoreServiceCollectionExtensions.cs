@@ -153,6 +153,8 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<IOutbox, LocalOutbox>();
         services.TryAddScoped<OutboxClaim>();
         services.TryAddScoped<LocalCommandProcessor>();
+        services.TryAddScoped<ISyncCursorStore, SyncCursorStore>();
+        services.TryAddScoped<IUiDraftStore, UiDraftStore>();
         // Every raised domain event is relayed to the outbox (idempotent: duplicate (event, handler) pairs are ignored).
         services.AddScoped<LedgerPostingHandler>();
         services.AddDomainEventHandler<InvoicePostedEvent, LedgerPostingHandler>();

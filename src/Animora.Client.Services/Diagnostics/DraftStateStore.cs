@@ -1,8 +1,6 @@
 using Animora.Domain.Results;
 using Animora.Domain.Time;
-using Animora.Persistence.Sqlite.Context;
-using Animora.Persistence.Sqlite.Entities;
-using Microsoft.EntityFrameworkCore;
+using Animora.Application.Ports;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Client.Services.Diagnostics;
@@ -34,14 +32,8 @@ public sealed class DraftStateStore(IServiceScopeFactory scopes, IClock clock)
         {
             await Task.Delay(DebounceDelay, delay.Token);
             await using var scope = scopes.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-            var draft = await db.Set<UiDraftState>()
-                .SingleOrDefaultAsync(e => e.ScreenKey == screenKey && e.UserId == userId, delay.Token);
-            if (draft is null)
-                db.Add(UiDraftState.Create(screenKey, userId, payloadJson, clock.UtcNow));
-            else
-                draft.ReplacePayload(payloadJson, clock.UtcNow);
-            await db.SaveChangesAsync(delay.Token);
+            await scope.ServiceProvider.GetRequiredService<IUiDraftStore>()
+                .SaveAsync(screenKey, userId, payloadJson, clock.UtcNow, delay.Token);
             return Result.Ok();
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -72,11 +64,8 @@ public sealed class DraftStateStore(IServiceScopeFactory scopes, IClock clock)
         try
         {
             await using var scope = scopes.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-            var payload = await db.Set<UiDraftState>().AsNoTracking()
-                .Where(e => e.ScreenKey == screenKey && e.UserId == userId)
-                .Select(e => e.PayloadJson)
-                .SingleOrDefaultAsync(ct);
+            var payload = await scope.ServiceProvider.GetRequiredService<IUiDraftStore>()
+                .LoadAsync(screenKey, userId, ct);
             return Result<string?>.Ok(payload);
         }
         catch (OperationCanceledException)
@@ -94,10 +83,7 @@ public sealed class DraftStateStore(IServiceScopeFactory scopes, IClock clock)
         try
         {
             await using var scope = scopes.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-            await db.Set<UiDraftState>()
-                .Where(e => e.ScreenKey == screenKey && e.UserId == userId)
-                .ExecuteDeleteAsync(ct);
+            await scope.ServiceProvider.GetRequiredService<IUiDraftStore>().ClearAsync(screenKey, userId, ct);
             return Result.Ok();
         }
         catch (OperationCanceledException)

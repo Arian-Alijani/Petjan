@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using Xunit;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Domain.Tests;
 
@@ -100,5 +101,41 @@ public sealed class LayeringRulesTests
         Assert.False(ReferencesIdentity(
             typeof(Animora.Persistence.Sqlite.Context.LocalStoreServiceCollectionExtensions).Assembly));
         Assert.False(ReferencesIdentity(typeof(Animora.Client.Services.Identity.AuthenticationService).Assembly));
+    }
+    [Fact]
+    public void NoMockNamespaceExists()
+    {
+        var types = typeof(Animora.Desktop.App).Assembly.GetTypes();
+        Assert.DoesNotContain(types, t => t.Name.StartsWith("Mock", StringComparison.Ordinal));
+        Assert.DoesNotContain(types, t => t.Namespace?.Split('.').Contains("Mocks") == true);
+    }
+
+    [Fact]
+    public void Contracts_HaveExactlyOneRealRegistration()
+    {
+        var services = new ServiceCollection();
+        Animora.Desktop.App.ConfigureServices(services);
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        var interfaces = typeof(Animora.Contracts.Sync.ISyncStatusService).Assembly.GetExportedTypes()
+            .Where(t => t.IsInterface).ToArray();
+        Assert.NotEmpty(interfaces);
+        // UI-only interfaces live in Desktop, not Contracts; no Contracts exception is necessary.
+        foreach (var contract in interfaces)
+        {
+            var descriptor = Assert.Single(services, d => d.ServiceType == contract);
+            var implementation = descriptor.ImplementationType ?? provider.GetRequiredService(contract).GetType();
+            Assert.Equal("Animora.Client.Services", implementation.Assembly.GetName().Name);
+        }
+    }
+
+    [Fact]
+    public void Desktop_HasNoStoreOrNetworkReferences()
+    {
+        var desktop = typeof(Animora.Desktop.App).Assembly;
+        foreach (var prefix in new[] { "Microsoft.EntityFrameworkCore", "System.Data.Common",
+                     "System.Net.Http", "CommunityToolkit.Datasync" })
+            Assert.False(ReferencesNameStartingWith(desktop, prefix), prefix);
+        var client = typeof(Animora.Client.Services.Sync.LocalSyncStatusService).Assembly;
+        Assert.False(ReferencesNameStartingWith(client, "Microsoft.EntityFrameworkCore"));
     }
 }

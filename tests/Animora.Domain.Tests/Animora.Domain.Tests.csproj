@@ -8,11 +8,13 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Animora.Domain\Animora.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Animora.Desktop\Animora.Desktop.csproj" />
     <!-- Referenced so LayeringRulesTests can load and assert on their reference sets. -->
     <ProjectReference Include="..\..\src\Animora.Application\Animora.Application.csproj" />
     <ProjectReference Include="..\..\src\Animora.Contracts\Animora.Contracts.csproj" />
