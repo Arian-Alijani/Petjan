@@ -53,6 +53,13 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         return viewModel;
     }
 
-    partial void OnCurrentViewModelChanged(PageViewModelBase? value) =>
+    partial void OnCurrentViewModelChanged(PageViewModelBase? value)
+    {
+        // Singleton page ViewModels only load once (in their constructor), so
+        // signal every activation to let the page refresh data it may share
+        // with other screens (doctors, appointments, …). Kept in the property
+        // setter so it fires for all NavigateTo overloads uniformly.
+        value?.OnNavigatedTo();
         CurrentViewModelChanged?.Invoke(this, EventArgs.Empty);
+    }
 }

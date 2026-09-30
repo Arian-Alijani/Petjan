@@ -145,18 +145,60 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         ? "می‌توانید بدون نوبت هم ویزیت جدید ثبت کنید."
         : "فیلترها را تغییر دهید یا از حالت ویزیت جدید استفاده کنید.";
 
-    private async Task LoadAsync()
+    /// <summary>
+    /// Re-loads the doctor rail on every visit (this page is a singleton, so
+    /// its constructor load fires only once). A doctor registered on the
+    /// Profile page after this page was first shown must appear when the user
+    /// returns, so we reload here for every visit past the first.
+    /// </summary>
+    public override void OnNavigatedTo()
     {
-        await _readiness.WaitAsync();
-        var doctors = await _service.GetDoctorsAsync();
-        Doctors.Clear();
-        foreach (var doctor in doctors)
+        if (!_loadedOnce)
         {
-            Doctors.Add(new DoctorTileViewModel(doctor));
+            // Constructor already kicked off the initial load.
+            return;
         }
 
-        _allPatients = await _service.GetPatientsAsync();
-        NotifyState();
+        _ = LoadAsync();
+    }
+
+    private bool _isLoading;
+    private bool _loadedOnce;
+
+    private async Task LoadAsync()
+    {
+        if (_isLoading)
+        {
+            return;
+        }
+
+        _isLoading = true;
+        try
+        {
+            await _readiness.WaitAsync();
+            var doctors = await _service.GetDoctorsAsync();
+            var selectedId = SelectedDoctor?.Doctor.Id;
+            Doctors.Clear();
+            foreach (var doctor in doctors)
+            {
+                Doctors.Add(new DoctorTileViewModel(doctor));
+            }
+
+            // Preserve the current selection across a reload so a background
+            // refresh does not reset the doctor the user is working with.
+            if (selectedId is not null)
+            {
+                SelectedDoctor = Doctors.FirstOrDefault(d => d.Doctor.Id == selectedId);
+            }
+
+            _allPatients = await _service.GetPatientsAsync();
+            NotifyState();
+        }
+        finally
+        {
+            _isLoading = false;
+            _loadedOnce = true;
+        }
     }
 
     partial void OnSelectedDoctorChanged(DoctorTileViewModel? value) => NotifyState();

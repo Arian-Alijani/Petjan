@@ -50,6 +50,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     // Reference page state: S.tab / S.view / S.cursor / S.types / S.docs / S.hideCancel / S.q.
     private string _activeTab = "cal";
+    private bool _isLoading;
+    private bool _loadedOnce;
     private string _viewMode = "week";
     private DateOnly _cursor;
     private readonly HashSet<string> _activeTypeIds = [];
@@ -220,9 +222,32 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     public bool IsQueueCancelledShown => _queueShowCancelled;
 
+    /// <summary>
+    /// Re-loads the page each time it is navigated to (it is a singleton, so
+    /// the constructor load runs only once). The first visit is already covered
+    /// by the constructor, so this only fires the reload on subsequent visits,
+    /// picking up doctors/appointments created elsewhere in the meantime.
+    /// </summary>
+    public override void OnNavigatedTo()
+    {
+        if (!_loadedOnce)
+        {
+            // Constructor already kicked off the initial load.
+            return;
+        }
+
+        _ = LoadAsync();
+    }
+
     // ── load ─────────────────────────────────────────────────────────────────
     private async Task LoadAsync()
     {
+        if (_isLoading)
+        {
+            return;
+        }
+
+        _isLoading = true;
         IsBusy = true;
 
         // Yield once before the (currently synchronous, mock-backed) fetch +
@@ -247,11 +272,16 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         RebuildIndexes();
 
+        // Rebuild the active filter sets from scratch so a doctor/type added
+        // since the last load (e.g. registered on the Profile page) is included
+        // and its appointments pass the calendar's visibility filter.
+        _activeTypeIds.Clear();
         foreach (var t in _types)
         {
             _activeTypeIds.Add(t.Id);
         }
 
+        _activeDoctorIds.Clear();
         foreach (var d in _doctors)
         {
             _activeDoctorIds.Add(d.Id);
@@ -272,6 +302,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         ];
 
         IsBusy = false;
+        _isLoading = false;
+        _loadedOnce = true;
 
         // Render only the active tab (mirrors ApplySearch/SelectTab): Queue
         // and History are behind a LazyTabHost and rebuilt on first activation
