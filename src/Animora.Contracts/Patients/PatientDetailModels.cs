@@ -133,7 +133,6 @@ public sealed record OwnerDetail(
     string? Referral,
     DateTime Since,
     PatientAvatarTone Tone,
-    long Balance,
     IReadOnlyList<string> Tags,
     IReadOnlyList<PetSummary> Pets);
 

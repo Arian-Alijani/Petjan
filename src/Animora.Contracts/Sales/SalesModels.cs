@@ -371,7 +371,7 @@ public sealed record DiscountChangeRequest(DiscountKind Kind, int Value);
 
 /// <summary>
 /// One owner of the «انتخاب مشتری» picker directory, mirroring the reference's
-/// <c>window.OWNERS</c> rows: name, file code, mobile, avatar tone and balance.
+/// <c>window.OWNERS</c> rows: name, file code, mobile, avatar tone.
 /// </summary>
 public sealed record OwnerRef(
     string Id,
@@ -380,7 +380,6 @@ public sealed record OwnerRef(
     string FileCode,
     string Mobile,
     string Tone,
-    long Balance,
     string PetName);
 
 /// <summary>

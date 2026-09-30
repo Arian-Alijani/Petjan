@@ -8,10 +8,10 @@ public sealed record PetSummaryReadModel(
     PetStatus Status, string OwnerId, DateTimeOffset? BirthDateUtc, decimal? CurrentWeightKg,
     DateTimeOffset? LastVisitUtc, string? LastVisitType, string? MicrochipCode);
 
-/// <summary>Directory row for an owner. PetCount joined; TotalSpend deferred to C09 (always 0 here).</summary>
+/// <summary>Directory row for an owner with the joined pet count.</summary>
 public sealed record OwnerSummaryReadModel(
     string Id, string FullName, string PhonePrimary, string? PhoneSecondary, string? NationalId,
-    string? Address, OwnerGender Gender, DateTimeOffset RegisteredUtc, int PetCount, long TotalSpend);
+    string? Address, OwnerGender Gender, DateTimeOffset RegisteredUtc, int PetCount);
 
 /// <summary>Owner sheet: profile + live pet roster.</summary>
 public sealed record OwnerDetailReadModel(OwnerSummaryReadModel Owner, IReadOnlyList<PetSummaryReadModel> Pets);

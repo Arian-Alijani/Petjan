@@ -90,10 +90,6 @@
                                             <TextBlock Text="{Binding Mobile}" FontSize="11"
                                                        Foreground="{StaticResource MutedBrush}"
                                                        IsVisible="{Binding HasMobile}" />
-                                            <TextBlock Text="{Binding BalanceText}" FontSize="11"
-                                                       FontWeight="Bold"
-                                                       Foreground="{StaticResource DangerBrush}"
-                                                       IsVisible="{Binding HasBalance}" />
                                         </StackPanel>
                                     </StackPanel>
                                     <Path Grid.Column="2" Classes="icon" Width="14" Height="14"

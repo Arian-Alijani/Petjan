@@ -86,7 +86,7 @@ public sealed record PetSummary(
 /// <summary>
 /// One owner row for the directory, shaped to exactly what the reference's
 /// <c>ownerCard</c>/<c>ownersTable</c> render: identity, contact block, file
-/// number, tags, referral source, join date and account balance. The owner's
+/// number, tags, referral source, join date. The owner's
 /// animals are derived by the view layer from the pet list (single source of
 /// truth — no de-normalized pet data on the owner).
 /// </summary>
@@ -104,5 +104,4 @@ public sealed record OwnerSummary(
     string? Referral,
     DateTime Since,
     PatientAvatarTone Tone,
-    long Balance,
     IReadOnlyList<string> Tags);
