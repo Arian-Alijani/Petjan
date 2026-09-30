@@ -202,7 +202,10 @@ public partial class App : global::Avalonia.Application
         }
     }
 
-    private static IServiceProvider ConfigureServices()
+    private static IServiceProvider ConfigureServices() => CreateServiceCollection().BuildServiceProvider();
+
+    /// <summary>The shared composition seam for startup and machine-checkable registration audits.</summary>
+    public static IServiceCollection CreateServiceCollection()
     {
         var services = new ServiceCollection();
 
@@ -370,7 +373,7 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
 
-        return services.BuildServiceProvider();
+        return services;
     }
 
     private static Tone ToTone(NotificationSeverity severity) => severity switch

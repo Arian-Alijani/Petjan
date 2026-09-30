@@ -570,3 +570,5 @@ Decision/Rule check/Impact + a "Repo state" list).
 - T2: tenant-scoped ISyncCursorStore port + atomic SQLite upsert; serialized passes, cancellation restoration and real persisted initial status. Targeted checks follow SDK bootstrap.
 
 - T3: Mocks directory absent; no Mock identifier remains in Desktop source. Readiness uses the existing WaitAsync contract.
+
+- T4: added Desktop project reference and shared CreateServiceCollection seam. All 24 Contracts interfaces are audited (no exemptions); the four UI seams are outside Contracts and audited separately. Tests pending targeted run.
