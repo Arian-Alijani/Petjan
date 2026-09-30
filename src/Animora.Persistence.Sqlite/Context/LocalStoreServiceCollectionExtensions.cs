@@ -107,6 +107,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<IDashboardQueries, DashboardQueries>();
         services.TryAddScoped<IGlobalSearchQueries, GlobalSearchQueries>();
         // C10: profile/settings reads + the non-journaled preference writer (Application ports, impl here).
+        services.TryAddScoped<ISyncCursorStore, Animora.Persistence.Sqlite.Sync.SyncCursorStore>();
         services.TryAddScoped<IProfileQueries, ProfileQueries>();
         services.TryAddScoped<IProfilePreferenceWriter, ProfilePreferenceWriter>();
         services.AddScoped<FinanceProjectionHandler>();

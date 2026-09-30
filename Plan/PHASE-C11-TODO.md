@@ -250,7 +250,7 @@ public interface IClock { DateTimeOffset UtcNow { get; } }
 
 ---
 
-### [ ] T2 — `LocalSyncStatusService` (real, server-free) + swap DI + delete mock
+### [x] T2 — `LocalSyncStatusService` (real, server-free) + swap DI + delete mock
 **Goal:** the last mock (`MockSyncStatusService`) is replaced by a real
 `ISyncStatusService` implementation living in `Animora.Client.Services`.
 
@@ -566,3 +566,5 @@ Decision/Rule check/Impact + a "Repo state" list).
 - (add: DI-audit `ConfigureServices` seam, if extracted)
 - (add: bench offline instrumentation approach)
 - (add: any layering violation found & fixed)
+
+- T2: tenant-scoped ISyncCursorStore port + atomic SQLite upsert; serialized passes, cancellation restoration and real persisted initial status. Targeted checks follow SDK bootstrap.
