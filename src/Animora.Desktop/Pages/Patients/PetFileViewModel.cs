@@ -79,7 +79,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     private readonly IToastService _toast;
 
     private PetDetail? _pet;
-    private OwnerSummary? _owner;
+    private OwnerDetail? _owner;
 
     [ObservableProperty] private PetTabViewModel? _selectedTab;
     [ObservableProperty] private bool _isEditingInfo;
@@ -247,8 +247,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
             return;
         }
 
-        _owner = (await _patients.GetOwnersAsync())
-            .FirstOrDefault(o => o.Id == detail.OwnerId);
+        _owner = await _patients.GetOwnerAsync(detail.OwnerId);
         Apply(detail);
         SelectTab("summary");
     }
