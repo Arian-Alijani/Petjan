@@ -255,6 +255,12 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             _dialogs), maxWidth: 760);
     }
 
+    // Singletons must refresh when returning from another screen that edited these records.
+    public override void OnNavigatedTo()
+    {
+        if (!IsBusy) _ = LoadAsync();
+    }
+
     private readonly SemaphoreSlim _loadGate = new(1, 1);
 
     private async Task LoadAsync()
