@@ -6,6 +6,14 @@
              x:Class="Animora.Desktop.Pages.Appointments.AppointmentsHistoryTabView"
              x:DataType="ap:AppointmentsCalendarViewModel"
              FlowDirection="RightToLeft">
+    <UserControl.Resources>
+        <!-- Both the selected value and popup rows render the human label,
+             while SelectedValueBinding continues to filter by the stable ID. -->
+        <DataTemplate x:Key="HistoryFilterOptionTemplate" x:DataType="ap:HistorySelectOption">
+            <TextBlock Text="{Binding Label}" FlowDirection="RightToLeft"
+                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+        </DataTemplate>
+    </UserControl.Resources>
     <UserControl.Styles>
         <Style Selector="Button.hs-row">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
@@ -191,13 +199,19 @@
                     <TextBlock Text="فیلترها" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"
                                Foreground="{StaticResource Muted2Brush}" />
                     <ComboBox ItemsSource="{Binding HistoryDoctorOptions}" SelectedValue="{Binding SelectedHistoryDoctor, Mode=TwoWay}"
-                              SelectedValueBinding="{Binding Id}" MinWidth="130" Height="32"
+                              SelectedValueBinding="{ReflectionBinding Id}"
+                              ItemTemplate="{StaticResource HistoryFilterOptionTemplate}"
+                              MinWidth="130" Height="32"
                               VerticalAlignment="Center" />
                     <ComboBox ItemsSource="{Binding HistoryTypeOptions}" SelectedValue="{Binding SelectedHistoryType, Mode=TwoWay}"
-                              SelectedValueBinding="{Binding Id}" MinWidth="130" Height="32"
+                              SelectedValueBinding="{ReflectionBinding Id}"
+                              ItemTemplate="{StaticResource HistoryFilterOptionTemplate}"
+                              MinWidth="130" Height="32"
                               VerticalAlignment="Center" />
                     <ComboBox ItemsSource="{Binding HistoryInvoiceOptions}" SelectedValue="{Binding SelectedHistoryInvoice, Mode=TwoWay}"
-                              SelectedValueBinding="{Binding Id}" MinWidth="130" Height="32"
+                              SelectedValueBinding="{ReflectionBinding Id}"
+                              ItemTemplate="{StaticResource HistoryFilterOptionTemplate}"
+                              MinWidth="130" Height="32"
                               VerticalAlignment="Center" />
                 </StackPanel>
             </Border>

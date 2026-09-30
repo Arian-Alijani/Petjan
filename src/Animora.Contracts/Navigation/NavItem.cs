@@ -11,7 +11,6 @@ namespace Animora.Contracts.Navigation;
 /// <param name="IconKey">Resource key of the icon geometry (e.g. "IconDashboard").</param>
 /// <param name="ViewModelType">The <c>PageViewModelBase</c>-derived type this item navigates to.</param>
 /// <param name="GroupName">The nav section this item belongs to.</param>
-/// <param name="BadgeCount">Optional badge count pill; null hides the pill.</param>
 /// <param name="InitialTab">Optional initial tab a target ViewModel should open on (e.g. Finance).</param>
 /// <param name="InitialRange">Optional initial range a target ViewModel should open on (e.g. Finance).</param>
 /// <param name="RequiredPermission">
@@ -26,7 +25,6 @@ public sealed record NavItem(
     string IconKey,
     Type ViewModelType,
     string GroupName,
-    int? BadgeCount = null,
     string? InitialTab = null,
     string? InitialRange = null,
     string? RequiredPermission = null);

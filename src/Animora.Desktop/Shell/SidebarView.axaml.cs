@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Data.Converters;
 using Avalonia.Media.Transformation;
@@ -39,7 +36,7 @@ public partial class SidebarView : UserControl
 
     /// <summary>
     /// Full opacity when the sidebar is expanded, fully transparent when
-    /// collapsed. Paired with an Opacity transition on the label/badge so they
+    /// collapsed. Paired with an Opacity transition on the label so they
     /// fade out (rather than snap out) in lock-step with the width tween,
     /// keeping the icon from appearing to jump.
     /// </summary>
@@ -54,23 +51,10 @@ public partial class SidebarView : UserControl
     public static readonly IValueConverter CollapsedOpacityConverter =
         new FuncValueConverter<bool, double>(expanded => expanded ? 0d : 1d);
 
-    /// <summary>
-    /// True only when the first binding is true AND the second is false — used
-    /// for the compact-rail notification dot, which shows for badged entries
-    /// (HasBadge) but only while the sidebar is collapsed (NOT IsExpanded).
-    /// </summary>
-    public static readonly IMultiValueConverter BadgeDotConverter =
-        new FirstTrueRestFalseMultiConverter();
-
     /// <summary>Inverts a single boolean (visible only when collapsed).</summary>
     public static readonly IValueConverter InverseBoolConverter =
         new FuncValueConverter<bool, bool>(v => !v);
 
     public SidebarView() => InitializeComponent();
 
-    private sealed class FirstTrueRestFalseMultiConverter : IMultiValueConverter
-    {
-        public object Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture) =>
-            values.Count == 2 && values[0] is true && values[1] is false;
-    }
 }
