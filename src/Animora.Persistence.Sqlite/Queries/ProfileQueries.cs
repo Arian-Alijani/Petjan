@@ -63,6 +63,16 @@ public sealed class ProfileQueries(AnimoraLocalDbContext db) : IProfileQueries
         return new ProfileFacts(lastLogin, preferences, stats, rows);
     }
 
+    public async Task<IReadOnlyList<StaffDirectoryRow>> StaffAsync(string tenantId, CancellationToken ct)
+    {
+        var rows = await (from m in db.Set<StaffMembership>().AsNoTracking()
+                          join u in db.Set<User>().AsNoTracking() on m.UserId equals u.Id
+                          where m.TenantId == tenantId && u.TenantId == tenantId && m.Status != MembershipStatus.Ended
+                          orderby u.DisplayName, u.Id
+                          select new { User = u, Membership = m }).ToListAsync(ct);
+        return rows.Select(row => new StaffDirectoryRow(row.User, row.Membership)).ToArray();
+    }
+
     public async Task<IReadOnlyList<ProfileTeamRowData>> TeamAsync(string tenantId, CancellationToken ct) =>
         await (from m in db.Set<StaffMembership>().AsNoTracking()
                join u in db.Set<User>().AsNoTracking() on m.UserId equals u.Id

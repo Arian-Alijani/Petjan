@@ -48,8 +48,6 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
             Tabs.Add(new ProfileTabViewModel(id, label, iconKey) { IsActive = id == ActiveTab });
         }
 
-        SeedAccessManagement();
-
         _ = LoadAsync();
     }
 
@@ -174,15 +172,45 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
 
     // ── Access-management tab (مدیریت دسترسی‌ها) ──────────────────────────
 
-    /// <summary>The clinic staff roster (design-only sample data).</summary>
+    /// <summary>The persisted clinic staff roster.</summary>
     public ObservableCollection<StaffMemberViewModel> Staff { get; } = [];
 
     /// <summary>Role-template summary cards (manager / doctor / secretary).</summary>
     public ObservableCollection<StaffRoleCardViewModel> RoleCards { get; } = [];
 
     /// <summary>Role choices for the «افزودن کاربر» form.</summary>
-    public ProfileSelectViewModel NewMemberRoleOptions { get; } =
-        new(["پزشک", "منشی", "مدیر", "دستیار"], "پزشک");
+    [ObservableProperty]
+    private ProfileSelectViewModel _newMemberRoleOptions = new([""], "");
+
+    private StaffDirectory? _directory;
+
+    [ObservableProperty] private string _newMemberUsername = string.Empty;
+    [ObservableProperty] private string _newMemberPassword = string.Empty;
+    [ObservableProperty] private bool _canManageUsers;
+    [ObservableProperty] private bool _canManageAccess;
+    [ObservableProperty] private bool _isStaffBusy;
+    [ObservableProperty] private string _accessMessage = string.Empty;
+
+    public bool CanEditSelected => CanManageAccess && SelectedStaff is { IsProtected: false, IsActive: true } && !IsStaffBusy;
+    public bool CanChangeSelectedStatus => CanManageUsers && SelectedStaff is { IsProtected: false } && !IsStaffBusy;
+    public string StaffSummary => $"{ProfilePresentation.Fa(Staff.Count.ToString())} کاربر · {ProfilePresentation.Fa(Staff.Count(m => m.IsActive).ToString())} فعال · {ProfilePresentation.Fa(Staff.Count(m => !m.IsActive).ToString())} غیرفعال";
+    public string SelectedStatusAction => SelectedStaff?.IsActive == true ? "غیرفعال‌کردن کاربر" : "فعال‌کردن کاربر";
+
+    partial void OnCanManageUsersChanged(bool value) => NotifyAccessState();
+    partial void OnCanManageAccessChanged(bool value) => NotifyAccessState();
+    partial void OnIsStaffBusyChanged(bool value) => NotifyAccessState();
+
+    private void NotifyAccessState()
+    {
+        OnPropertyChanged(nameof(CanEditSelected));
+        OnPropertyChanged(nameof(CanChangeSelectedStatus));
+        OnPropertyChanged(nameof(SelectedStatusAction));
+        AddStaffCommand.NotifyCanExecuteChanged();
+        RemoveStaffCommand.NotifyCanExecuteChanged();
+        SaveAccessCommand.NotifyCanExecuteChanged();
+        GrantAllPermissionsCommand.NotifyCanExecuteChanged();
+        ResetPermissionsCommand.NotifyCanExecuteChanged();
+    }
 
     [ObservableProperty]
     private StaffMemberViewModel? _selectedStaff;
@@ -199,6 +227,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         {
             member.IsSelected = ReferenceEquals(member, value);
         }
+        NotifyAccessState();
     }
 
     // ── Loading ──────────────────────────────────────────────────────────
@@ -215,6 +244,12 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
 
             ApplyProfile(profile);
             ApplySettings(settings);
+            await ReloadStaffAsync();
+        }
+        catch (System.Exception)
+        {
+            AccessMessage = "دریافت اطلاعات ناموفق بود؛ دوباره تلاش کنید.";
+            _toast.Show(AccessMessage, Tone.Warn);
         }
         finally
         {
@@ -312,31 +347,6 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         ("access", "مدیریت دسترسی‌ها", "IconIdCard"),
     ];
 
-    // ── Access-management catalogs (design-only sample data) ─────────────
-
-    /// <summary>App sections a staff member's access can be toggled for.</summary>
-    private static readonly (string Id, string Label, string Sub, string IconKey)[] SectionCatalog =
-    [
-        ("dashboard", "داشبورد", "نمای کلی و شاخص‌های کلینیک", "IconDashboard"),
-        ("reception", "پذیرش", "صف انتظار و پذیرش مراجعین", "IconClipboard"),
-        ("patients", "پرونده‌ها", "پرونده مالکان و حیوانات", "IconPaw"),
-        ("visits", "ویزیت", "معاینه و ثبت نسخه", "IconStetho"),
-        ("appointments", "نوبت‌دهی", "تقویم و رزرو نوبت", "IconCalendar"),
-        ("sales", "فروش و صندوق", "صدور فاکتور و دریافت وجه", "IconReceipt"),
-        ("inventory", "انبار", "موجودی کالا و دارو", "IconBox"),
-        ("finance", "مالی و حسابداری", "هزینه‌ها، سود و چک‌ها", "IconChart"),
-        ("settings", "تنظیمات و مدیریت", "دسترسی به این صفحه و مدیریت کاربران", "IconTools"),
-    ];
-
-    /// <summary>Which sections each role gets by default (design template).</summary>
-    private static HashSet<string> DefaultSections(string roleId) => roleId switch
-    {
-        "manager" => ["dashboard", "reception", "patients", "visits", "appointments", "sales", "inventory", "finance", "settings"],
-        "doctor" => ["dashboard", "patients", "visits", "appointments"],
-        "secretary" => ["dashboard", "reception", "patients", "appointments", "sales"],
-        _ => ["dashboard", "patients"],
-    };
-
     // ── Notification matrix catalog (reference NMAT) ─────────────────────
 
     private static readonly (string Id, string Label, string Sub)[] MatrixCatalog =
@@ -372,169 +382,149 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsAccessTab));
     }
 
-    // ── Access-management: seed + commands (design-only) ─────────────────
+    // ── Durable staff management ─────────────────────────────────────────
 
-    private void SeedAccessManagement()
+    private async Task ReloadStaffAsync(string? selectedId = null)
     {
-        RoleCards.Add(new StaffRoleCardViewModel(
-            "manager", "مدیر", "دسترسی کامل به همهٔ بخش‌ها", "IconShield", 1, "#7b5cc4", "#f4f3ff"));
-        RoleCards.Add(new StaffRoleCardViewModel(
-            "doctor", "پزشک", "ویزیت، پرونده و نوبت‌دهی", "IconStetho", 2, "#1570cd", "#eff8ff"));
-        RoleCards.Add(new StaffRoleCardViewModel(
-            "secretary", "منشی", "پذیرش، نوبت و صندوق", "IconClipboard", 2, "#0e7566", "#f0fdfa"));
-
-        AddStaffMember("مدیر کلینیک", "manager", "مدیر", "دسترسی کامل · آخرین ورود: امروز", "م ک", "#7b5cc4", true, select: true);
-        AddStaffMember("دکتر آرمان رضایی", "doctor", "پزشک", "دامپزشک · شیفت صبح", "آ ر", "#1570cd", true);
-        AddStaffMember("دکتر سارا محمدی", "doctor", "پزشک", "دامپزشک · شیفت عصر", "س م", "#0d9488", true);
-        AddStaffMember("نگار احمدی", "secretary", "منشی", "پذیرش · شیفت صبح", "ن ا", "#0e7566", true);
-        AddStaffMember("رضا کریمی", "secretary", "منشی", "پذیرش · شیفت عصر", "ر ک", "#b54708", false);
-    }
-
-    private void AddStaffMember(
-        string name, string roleId, string roleLabel, string subtitle,
-        string initials, string accentHex, bool isActive, bool select = false)
-    {
-        var member = new StaffMemberViewModel(
-            "u" + (Staff.Count + 1), name, roleId, roleLabel, subtitle, initials, accentHex, isActive);
-
-        var granted = DefaultSections(roleId);
-        foreach (var (id, label, sub, iconKey) in SectionCatalog)
+        var directory = await _service.GetStaffAsync();
+        _directory = directory;
+        CanManageUsers = directory.CanManageUsers;
+        CanManageAccess = directory.CanManageAccess;
+        selectedId ??= SelectedStaff?.Id;
+        Staff.Clear();
+        RoleCards.Clear();
+        foreach (var account in directory.Members)
         {
-            member.Permissions.Add(new StaffPermissionViewModel(id, label, sub, iconKey, granted.Contains(id)));
+            var role = directory.Roles.FirstOrDefault(r => r.Id == account.RoleId);
+            var member = new StaffMemberViewModel(account.MembershipId, account.Name, account.RoleId,
+                role?.Label ?? account.RoleId, account.Username, InitialsOf(account.Name),
+                account.RoleId == "Manager" ? "#7b5cc4" : "#1570cd", account.IsActive)
+                { IsProtected = account.IsProtected };
+            foreach (var permission in directory.Permissions)
+                member.Permissions.Add(new StaffPermissionViewModel(permission.Code, permission.Label,
+                    permission.Description, "IconShield", account.PermissionCodes.Contains(permission.Code)));
+            Staff.Add(member);
         }
-
-        Staff.Add(member);
-
-        if (select)
-        {
-            SelectedStaff = member;
-        }
+        foreach (var role in directory.Roles)
+            RoleCards.Add(new StaffRoleCardViewModel(role.Id, role.Label, "کاربران ثبت‌شده در این نقش", "IconIdCard",
+                directory.Members.Count(m => m.RoleId == role.Id), "#1570cd", "#eff8ff"));
+        var options = directory.Roles.Select(r => r.Label).ToArray();
+        var current = NewMemberRoleOptions.Value;
+        NewMemberRoleOptions = new ProfileSelectViewModel(options.Length == 0 ? [""] : options,
+            options.Contains(current) ? current : options.FirstOrDefault() ?? "");
+        SelectedStaff = Staff.FirstOrDefault(m => m.Id == selectedId) ?? Staff.FirstOrDefault();
+        OnPropertyChanged(nameof(StaffSummary));
+        AccessMessage = !CanManageUsers && !CanManageAccess
+            ? "اجازهٔ مدیریت کاربران و دسترسی‌ها را ندارید."
+            : "اطلاعات از پایگاه داده خوانده شد. تغییر دسترسی‌ها نیاز به ذخیره دارد.";
     }
-
-    private static string RoleIdFromLabel(string label) => label switch
-    {
-        "پزشک" => "doctor",
-        "منشی" => "secretary",
-        "مدیر" => "manager",
-        _ => "assistant",
-    };
 
     private static string InitialsOf(string name)
     {
         var parts = name.Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length >= 2
-            ? $"{parts[0][..1]} {parts[1][..1]}"
-            : (name.Length > 0 ? name[..1] : "؟");
+        return parts.Length >= 2 ? $"{parts[0][..1]} {parts[1][..1]}" : name[..1];
     }
 
-    /// <summary>«افزودن کاربر جدید» — adds a staff member from the mini form.</summary>
-    [RelayCommand]
-    private void AddStaff()
+    private bool CanAddStaff() => CanManageUsers && !IsStaffBusy;
+    private bool CanSaveAccess() => CanEditSelected;
+    private bool CanRemoveStaff() => CanChangeSelectedStatus;
+
+    [RelayCommand(CanExecute = nameof(CanAddStaff))]
+    private async Task AddStaffAsync()
     {
-        var name = NewMemberName.Trim();
-        if (string.IsNullOrEmpty(name))
+        var role = _directory?.Roles.FirstOrDefault(r => r.Label == NewMemberRoleOptions.Value);
+        if (role is null || string.IsNullOrWhiteSpace(NewMemberName) || string.IsNullOrWhiteSpace(NewMemberUsername)
+            || string.IsNullOrWhiteSpace(NewMemberPassword))
         {
-            _toast.Show("نام کاربر را وارد کنید.", Tone.Warn);
+            AccessMessage = "نام، نام کاربری و رمز عبور را وارد کنید.";
+            _toast.Show(AccessMessage, Tone.Warn);
             return;
         }
-
-        var roleLabel = NewMemberRoleOptions.Value;
-        var roleId = RoleIdFromLabel(roleLabel);
-        var accents = new[] { "#1570cd", "#0d9488", "#0e7566", "#b54708", "#7b5cc4" };
-        var accent = accents[Staff.Count % accents.Length];
-
-        var subtitle = string.IsNullOrWhiteSpace(NewMemberPhone)
-            ? $"{roleLabel} · تازه اضافه‌شده"
-            : $"{roleLabel} · {ProfilePresentation.Fa(NewMemberPhone.Trim())}";
-
-        AddStaffMember(name, roleId, roleLabel, subtitle, InitialsOf(name), accent, true, select: true);
-
-        NewMemberName = string.Empty;
-        NewMemberPhone = string.Empty;
-
-        _toast.Show($"«{name}» به تیم اضافه شد (نمونه طراحی).", Tone.Ok);
+        var request = new CreateStaffRequest(NewMemberName.Trim(), NewMemberUsername.Trim(), NewMemberPassword,
+            role.Id, NewMemberPhone.Trim());
+        await ChangeStaffAsync(async () =>
+        {
+            await _service.AddStaffAsync(request);
+            NewMemberName = NewMemberPhone = NewMemberUsername = NewMemberPassword = string.Empty;
+        }, "حساب کاربری با نقش انتخاب‌شده ثبت شد.");
     }
 
-    /// <summary>Loads the tapped member's permission grid into the editor panel.</summary>
     [RelayCommand]
     private void SelectStaff(StaffMemberViewModel? member)
     {
-        if (member is not null)
-        {
-            SelectedStaff = member;
-        }
+        if (member is not null && !IsStaffBusy) SelectedStaff = member;
     }
 
-    /// <summary>«حذف کاربر» — removes the selected member from the roster.</summary>
-    [RelayCommand]
-    private void RemoveStaff(StaffMemberViewModel? member)
+    [RelayCommand(CanExecute = nameof(CanRemoveStaff))]
+    private async Task RemoveStaffAsync(StaffMemberViewModel? member)
     {
         member ??= SelectedStaff;
-        if (member is null)
-        {
-            return;
-        }
-
-        if (member.RoleId == "manager")
-        {
-            _toast.Show("حساب مدیر اصلی قابل حذف نیست.", Tone.Warn);
-            return;
-        }
-
-        var index = Staff.IndexOf(member);
-        Staff.Remove(member);
-
-        if (ReferenceEquals(SelectedStaff, member))
-        {
-            SelectedStaff = Staff.Count > 0 ? Staff[System.Math.Max(0, index - 1)] : null;
-        }
-
-        _toast.Show($"«{member.Name}» حذف شد (نمونه طراحی).", Tone.Info);
+        if (member is null || member.IsProtected) return;
+        var active = !member.IsActive;
+        await ChangeStaffAsync(() => _service.SetStaffActiveAsync(member.Id, active),
+            active ? "حساب کاربر فعال شد." : "حساب غیرفعال شد؛ سوابق کاربر محفوظ است.");
     }
 
-    /// <summary>Grants the selected member every section at once.</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSaveAccess))]
     private void GrantAllPermissions()
     {
-        if (SelectedStaff is null)
-        {
-            return;
-        }
-
-        foreach (var permission in SelectedStaff.Permissions)
-        {
-            permission.IsGranted = true;
-        }
+        if (SelectedStaff is null) return;
+        foreach (var permission in SelectedStaff.Permissions) permission.IsGranted = true;
+        AccessMessage = "تغییرات هنوز ذخیره نشده است.";
     }
 
-    /// <summary>Resets the selected member to their role's default sections.</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSaveAccess))]
     private void ResetPermissions()
     {
-        if (SelectedStaff is null)
-        {
-            return;
-        }
-
-        var granted = DefaultSections(SelectedStaff.RoleId);
+        if (SelectedStaff is null) return;
+        var granted = _directory?.Roles.FirstOrDefault(r => r.Id == SelectedStaff.RoleId)?.DefaultPermissions ?? [];
         foreach (var permission in SelectedStaff.Permissions)
-        {
             permission.IsGranted = granted.Contains(permission.SectionId);
-        }
-
-        _toast.Show("دسترسی‌ها به حالت پیش‌فرض نقش بازگشت.", Tone.Info);
+        AccessMessage = "پیش‌فرض نقش اعمال شد؛ برای ثبت، ذخیرهٔ دسترسی‌ها را بزنید.";
     }
 
-    /// <summary>Persists the selected member's access grid (design-only toast).</summary>
-    [RelayCommand]
-    private void SaveAccess()
+    [RelayCommand(CanExecute = nameof(CanSaveAccess))]
+    private async Task SaveAccessAsync()
     {
-        if (SelectedStaff is null)
-        {
-            return;
-        }
+        var member = SelectedStaff;
+        if (member is null) return;
+        var codes = member.Permissions.Where(p => p.IsGranted).Select(p => p.SectionId).ToArray();
+        await ChangeStaffAsync(() => _service.SaveStaffAccessAsync(member.Id, codes), "دسترسی‌های کاربر ثبت شد.");
+    }
 
-        _toast.Show($"دسترسی‌های «{SelectedStaff.Name}» ذخیره شد (نمونه طراحی).", Tone.Ok);
+    private async Task ChangeStaffAsync(System.Func<Task> change, string success)
+    {
+        IsStaffBusy = true;
+        try
+        {
+            await change();
+            _toast.Show(success, Tone.Ok);
+            try { await ReloadStaffAsync(); AccessMessage = success; }
+            catch (System.Exception) { AccessMessage = "ثبت انجام شد؛ دریافت فهرست جدید ناموفق بود. بازخوانی کنید."; }
+        }
+        catch (System.Exception ex)
+        {
+            AccessMessage = ex.Message switch
+            {
+                "USERNAME_EXISTS" => "نام کاربری تکراری است؛ نام دیگری وارد کنید.",
+                "PASSWORD_POLICY_VIOLATION" => "رمز عبور حداقل ۸ کاراکتر و شامل حرف و عدد باشد.",
+                "PERMISSION_DENIED" => "مجوز این عملیات را ندارید یا حساب محافظت‌شده است.",
+                "VALIDATION_FAILED" => "اطلاعات واردشده معتبر نیست؛ طول و مقدار فیلدها را بررسی کنید.",
+                _ => "ذخیره ناموفق بود؛ تغییرات ثبت نشد. دوباره تلاش کنید.",
+            };
+            _toast.Show(AccessMessage, Tone.Warn);
+        }
+        finally { IsStaffBusy = false; }
+    }
+
+    [RelayCommand]
+    private async Task RefreshStaffAsync()
+    {
+        if (IsStaffBusy) return;
+        IsStaffBusy = true;
+        try { await ReloadStaffAsync(); }
+        catch (System.Exception) { AccessMessage = "بازخوانی اطلاعات ناموفق بود."; }
+        finally { IsStaffBusy = false; }
     }
 
     [RelayCommand]

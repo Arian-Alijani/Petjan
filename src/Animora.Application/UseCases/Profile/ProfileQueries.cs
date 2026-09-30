@@ -26,6 +26,8 @@ public interface IProfileQueries
 
     /// <summary>The tenant's active staff roster (identity + role + shift), ordered by display name.</summary>
     Task<IReadOnlyList<ProfileTeamRowData>> TeamAsync(string tenantId, CancellationToken ct);
+
+    Task<IReadOnlyList<StaffDirectoryRow>> StaffAsync(string tenantId, CancellationToken ct);
 }
 
 /// <summary>The non-team inputs of the profile read model.</summary>
@@ -121,6 +123,10 @@ public static class ProfileRegistration
         this Animora.Application.Dispatch.ApplicationRegistrationBuilder builder) => builder
         .AddQuery<UserProfileQuery, UserProfileReadModel, UserProfileQueryHandler>()
         .AddQuery<AppSettingsQuery, IReadOnlyDictionary<string, string>, AppSettingsQueryHandler>()
+        .AddQuery<StaffDirectoryQuery, StaffDirectoryResult, StaffDirectoryQueryHandler>()
+        .AddCommand<CreateStaffCommand, Unit, CreateStaffCommandHandler>()
+        .AddCommand<SetStaffActiveCommand, Unit, SetStaffActiveCommandHandler>()
+        .AddCommand<SaveStaffAccessCommand, Unit, SaveStaffAccessCommandHandler>()
         .AddCommand<SaveUserProfileCommand, Unit, SaveUserProfileCommandHandler>()
         .AddCommand<SaveAppSettingsCommand, Unit, SaveAppSettingsCommandHandler>();
 }
