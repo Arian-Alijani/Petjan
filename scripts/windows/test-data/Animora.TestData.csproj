@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../src/Animora.Infrastructure.Local/Animora.Infrastructure.Local.csproj" />
+    <!-- Reuse the exact isolated storage/DPAPI configuration; never reference this tool from the app. -->
+    <Compile Include="../../../src/Animora.Desktop/LocalTestProfile.cs" Link="LocalTestProfile.cs" />
+  </ItemGroup>
+</Project>
