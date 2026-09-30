@@ -638,6 +638,11 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12" Margin="12">
+                    <Button Content="قبلی" Command="{Binding PreviousPageCommand}" IsEnabled="{Binding HasPreviousPage}" />
+                    <TextBlock Text="{Binding PageText}" VerticalAlignment="Center" />
+                    <Button Content="بعدی" Command="{Binding NextPageCommand}" IsEnabled="{Binding HasNextPage}" />
+                </StackPanel>
             </StackPanel>
         </Border>
 

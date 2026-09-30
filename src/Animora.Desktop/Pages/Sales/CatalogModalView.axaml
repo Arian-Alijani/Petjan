@@ -287,11 +287,16 @@
         <!-- ═══ foot ═══ -->
         <Border Grid.Row="4" Padding="22,10" Background="{StaticResource BgBrush}"
                 BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0">
-            <Grid ColumnDefinitions="Auto,*">
+            <Grid ColumnDefinitions="Auto,Auto,*">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0">
+                    <Button Content="قبلی" Command="{Binding PreviousPageCommand}" IsEnabled="{Binding HasPreviousPage}" />
+                    <TextBlock Text="{Binding PageText}" VerticalAlignment="Center" />
+                    <Button Content="بعدی" Command="{Binding NextPageCommand}" IsEnabled="{Binding HasNextPage}" />
+                </StackPanel>
                 <TextBlock Grid.Column="0" Text="{Binding CountText}" FontSize="11"
                            FontWeight="Bold" Foreground="{StaticResource Brand700Brush}"
                            VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" FontSize="11" Foreground="{StaticResource MutedBrush}"
+                <TextBlock Grid.Column="2" FontSize="11" Foreground="{StaticResource MutedBrush}"
                            TextAlignment="Right" TextWrapping="Wrap" Margin="10,0,0,0"
                            Text="می‌تونی چند بار کلیک کنی تا تعداد بیشتری اضافه بشه — یا از داخل فاکتور تعداد رو تنظیم کن." />
             </Grid>
