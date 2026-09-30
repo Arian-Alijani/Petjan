@@ -72,7 +72,7 @@ public sealed partial class LoginViewModel : ObservableObject
 
         if (!storeReady)
         {
-            ErrorMessage = MapError(null);
+            ErrorMessage = "پایگاه دادهٔ محلی آماده نشد؛ ورود برای حفاظت از داده‌ها غیرفعال است. برای تست، برنامه را با --local-test اجرا کنید.";
             return;
         }
 

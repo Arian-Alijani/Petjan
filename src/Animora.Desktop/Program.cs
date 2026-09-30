@@ -17,7 +17,13 @@ internal static class Program
         // the normal clinic database.
         try
         {
+            // Developer launches (including Visual Studio) reuse an isolated durable test profile.
+            // Release keeps the clinic default; --clinic explicitly selects it in Debug too.
+#if DEBUG
+            TestProfile = LocalTestProfile.Parse(args, useDefaultTestProfile: true);
+#else
             TestProfile = LocalTestProfile.Parse(args);
+#endif
         }
         catch (ArgumentException ex)
         {
