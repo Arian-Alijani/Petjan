@@ -22,8 +22,8 @@ public sealed class LocalStoreOptions
     public int BackupRetentionCount { get; set; } = 5;
 
     /// <summary>When true, first-run seeding also inserts realistic sample owners/pets so screens are
-    /// immediately testable (C01). A first-run-setup checkbox sets it; default true for a fresh install.</summary>
-    public bool SeedSampleData { get; set; } = true;
+    /// immediately testable. Explicit opt-in only: a fresh clinic never receives sample users.</summary>
+    public bool SeedSampleData { get; set; }
 
     /// <summary>
     /// Allows a sale movement to take the derived on-hand quantity below zero. Enabled by default so

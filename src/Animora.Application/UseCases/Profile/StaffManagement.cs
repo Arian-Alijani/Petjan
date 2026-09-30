@@ -116,7 +116,7 @@ public sealed class SetStaffActiveCommandHandler(IIdentityRepository users, ISta
     }
 }
 
-[RequiresPermission(PermissionCodes.RolesManage)]
+[RequiresPermission(Animora.Domain.Identity.PermissionCodes.RolesManage)]
 [Auditable(AuditCategory.Configuration, "identity.staff.permissions")]
 public sealed record SaveStaffAccessCommand(string MembershipId, IReadOnlyList<string> PermissionCodes) : ICommand<Unit>;
 public sealed class SaveStaffAccessCommandHandler(IIdentityRepository users, IStaffMembershipRepository memberships,

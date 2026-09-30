@@ -67,7 +67,7 @@ public sealed class ProfileQueries(AnimoraLocalDbContext db) : IProfileQueries
     {
         var rows = await (from m in db.Set<StaffMembership>().AsNoTracking()
                           join u in db.Set<User>().AsNoTracking() on m.UserId equals u.Id
-                          where m.TenantId == tenantId && u.TenantId == tenantId && m.Status != MembershipStatus.Ended
+                          where m.TenantId == tenantId && u.TenantId == tenantId && m.Status != MembershipStatus.Ended && u.PasswordHash != null
                           orderby u.DisplayName, u.Id
                           select new { User = u, Membership = m }).ToListAsync(ct);
         return rows.Select(row => new StaffDirectoryRow(row.User, row.Membership)).ToArray();
@@ -77,6 +77,7 @@ public sealed class ProfileQueries(AnimoraLocalDbContext db) : IProfileQueries
         await (from m in db.Set<StaffMembership>().AsNoTracking()
                join u in db.Set<User>().AsNoTracking() on m.UserId equals u.Id
                where m.TenantId == tenantId && m.Status == MembershipStatus.Active
+                   && u.TenantId == tenantId && u.Status != UserStatus.Disabled && u.PasswordHash != null
                orderby u.DisplayName
                select new ProfileTeamRowData(u.Id, u.DisplayName, m.Role.ToString(),
                    m.WorkStartMinute, m.WorkEndMinute)).ToListAsync(ct);
