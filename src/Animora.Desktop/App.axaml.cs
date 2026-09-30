@@ -9,6 +9,7 @@ using Animora.Application.UseCases.Vaccination;
 using Animora.Application.UseCases.Inventory;
 using Animora.Application.UseCases.Purchasing;
 using Animora.Application.UseCases.Sales;
+using Animora.Application.UseCases.Cashier;
 using Animora.Application.UseCases.Finance;
 using Animora.Application.UseCases.Finance.Cheques;
 using Animora.Application.UseCases.History;
@@ -50,7 +51,7 @@ using Animora.Contracts.Visits;
 using Animora.Contracts.Vaccination;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Diagnostics;
-using Animora.Desktop.Mocks;
+using Animora.Client.Services.Sync;
 using Animora.Desktop.Shell.Search;
 using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Boarding;
@@ -118,12 +119,13 @@ public partial class App : global::Avalonia.Application
 
             if (login.DataContext is LoginViewModel loginViewModel)
             {
-                loginViewModel.LoginSucceeded += (_, _) =>
+                loginViewModel.LoginSucceeded += async (_, _) =>
                 {
                     var shell = Services.GetRequiredService<MainWindow>();
                     desktop.MainWindow = shell;
                     shell.Show();
                     login.Close();
+                    await Services.GetRequiredService<LocalSyncStatusService>().RefreshAsync();
                 };
             }
 
@@ -146,6 +148,8 @@ public partial class App : global::Avalonia.Application
         }
 
         login.Opened -= OnLoginOpened;
+        if (Environment.GetEnvironmentVariable("ANIMORA_BENCH") == "1")
+            Console.WriteLine($"ANIMORA_BENCH first_frame_ms={Program.StartupTimer.Elapsed.TotalMilliseconds:F3}");
         if (login.DataContext is not LoginViewModel viewModel)
         {
             return;
@@ -203,10 +207,17 @@ public partial class App : global::Avalonia.Application
     private static IServiceProvider ConfigureServices()
     {
         var services = new ServiceCollection();
+        ConfigureServices(services);
+        return services.BuildServiceProvider();
+    }
+
+    /// <summary>The shared composition seam; registration only, with no store I/O.</summary>
+    public static void ConfigureServices(IServiceCollection services)
+    {
 
         // B03c: real local store + application layer (identity use cases) behind the desktop seams.
         services.AddAnimoraLocalInfrastructure();
-        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddChequeUseCases().AddFinanceUseCases().AddHistoryUseCases().AddDashboardUseCases().AddSearchUseCases().AddProfileUseCases());
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddCashierUseCases().AddChequeUseCases().AddFinanceUseCases().AddHistoryUseCases().AddDashboardUseCases().AddSearchUseCases().AddProfileUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it
@@ -343,9 +354,9 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IUserProfileService, Animora.Client.Services.Profile.UserProfileService>();
         services.AddSingleton<ProfilePageViewModel>();
 
-        // Sync status seam (topbar sync box). Mock now; a future ISyncEngine
-        // implementation swaps in behind the same ISyncStatusService contract.
-        services.AddSingleton<ISyncStatusService, MockSyncStatusService>();
+        // Local offline sync status. E04 swaps engine internals behind the same contract.
+        services.AddSingleton<LocalSyncStatusService>();
+        services.AddSingleton<ISyncStatusService>(sp => sp.GetRequiredService<LocalSyncStatusService>());
 
         // Global command palette (Ctrl+K) search seam. Depends on the patients
         // directory so a query also returns live patient/owner matches. The
@@ -366,7 +377,6 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
 
-        return services.BuildServiceProvider();
     }
 
     private static Tone ToTone(NotificationSeverity severity) => severity switch

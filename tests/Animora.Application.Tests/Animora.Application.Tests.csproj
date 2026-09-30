@@ -24,4 +24,7 @@
     <ProjectReference Include="..\Animora.Persistence.Tests\Animora.Persistence.Tests.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="../../src/Animora.Desktop/App.axaml.cs" LogicalName="C11.AppStartup" />
+  </ItemGroup>
 </Project>

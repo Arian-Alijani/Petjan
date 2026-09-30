@@ -1,5 +1,7 @@
 using Animora.Application.Abstractions;
 using Animora.Domain.Primitives;
+using Animora.Domain.Events;
+using Animora.Domain.Inventory;
 using Animora.Domain.Results;
 using Animora.Persistence.Sqlite.Context;
 using Microsoft.Data.Sqlite;
@@ -46,7 +48,15 @@ public sealed class LocalUnitOfWork(AnimoraLocalDbContext db, IDomainEventDispat
             var roots = db.ChangeTracker.Entries().Select(e => e.Entity).OfType<IHasDomainEvents>()
                 .Where(r => r.DomainEvents.Count != 0).ToArray();
             // Deterministic: occurrence time, then raise order (stable sort).
-            var events = roots.SelectMany(r => r.DomainEvents).OrderBy(e => e.OccurredAtUtc).ToArray();
+            // StockMovement is append-only (not an aggregate), so it cannot buffer events itself.
+            // Capture each added movement before SaveChanges resets its state. This keeps the
+            // stock ledger, COGS, outbox and activity feed in the same commit for every writer.
+            var movementEvents = db.ChangeTracker.Entries<StockMovement>()
+                .Where(e => e.State == EntityState.Added).Select(e => e.Entity)
+                .Select(m => new StockMovementRecordedEvent(IdGenerator.NewId(m.OccurredUtc),
+                    m.TenantId, m.OccurredUtc, m.Id, m.ProductId, m.VariantId, m.Kind, m.Quantity.Value));
+            var events = roots.SelectMany(r => r.DomainEvents).Concat(movementEvents)
+                .OrderBy(e => e.OccurredAtUtc).ToArray();
 
             if ((step = await StoreAsync(() => db.SaveChangesAsync(ct))).IsFailure) return Fail<T>(step);
             foreach (var domainEvent in events)

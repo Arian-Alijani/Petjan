@@ -6,9 +6,14 @@ internal static class Program
 {
     // Avalonia entry point. Keep initialization-only code here; do not use
     // any Avalonia types before AppMain (visual tree not yet built).
+    internal static readonly System.Diagnostics.Stopwatch StartupTimer = new();
+
     [STAThread]
-    public static void Main(string[] args) =>
+    public static void Main(string[] args)
+    {
+        StartupTimer.Start();
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    }
 
     public static AppBuilder BuildAvaloniaApp()
     {
