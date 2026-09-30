@@ -32,12 +32,6 @@
         <Style Selector="Button.nav-item Path.nav-icon">
             <Setter Property="Stroke" Value="{StaticResource MutedBrush}" />
         </Style>
-        <Style Selector="Button.nav-item Border.nav-badge">
-            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
-        </Style>
-        <Style Selector="Button.nav-item TextBlock.nav-badge-text">
-            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
-        </Style>
         <Style Selector="Button.nav-item Border.nav-accent">
             <Setter Property="IsVisible" Value="False" />
         </Style>
@@ -52,12 +46,6 @@
         </Style>
         <Style Selector="Button.nav-item.active Path.nav-icon">
             <Setter Property="Stroke" Value="{StaticResource Brand600Brush}" />
-        </Style>
-        <Style Selector="Button.nav-item.active Border.nav-badge">
-            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
-        </Style>
-        <Style Selector="Button.nav-item.active TextBlock.nav-badge-text">
-            <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="Button.nav-item.active Border.nav-accent">
             <Setter Property="IsVisible" Value="True" />
@@ -284,18 +272,7 @@
                                                     ToolTip.Tip="{Binding Label}"
                                                     Command="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).NavigateCommand}"
                                                     CommandParameter="{Binding}">
-                                                <!-- Persian RTL nav row. The inner Grid is laid out
-                                                     LeftToRight so its columns are DETERMINISTIC physical
-                                                     slots (FlowDirection mirroring previously flipped the
-                                                     icon to the physical LEFT, which is the bug we are
-                                                     fixing). Physical column order, left → right:
-                                                        badge(Auto) | label(*) | icon(Auto)
-                                                     so the ICON sits flush on the far RIGHT edge on every
-                                                     row (they line up in one vertical column), the label
-                                                     is right-aligned so it hugs the icon, and the numeric
-                                                     badge sits on the far left. In the compact rail the
-                                                     badge + label collapse and the icon re-centers across
-                                                     the whole pill. -->
+                                                <!-- Fixed physical slots keep the label next to the right-hand icon. -->
                                                 <Grid FlowDirection="LeftToRight">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto" />
@@ -316,35 +293,6 @@
                                                             HorizontalAlignment="Right"
                                                             VerticalAlignment="Stretch"
                                                             Background="{StaticResource Brand600Brush}" />
-
-                                                    <!-- Badge (far left, RTL trailing edge). Stays present in
-                                                         the layout but fades via an Opacity transition so it
-                                                         dissolves in lock-step with the width tween instead of
-                                                         snapping out. IsHitTestVisible is dropped while
-                                                         collapsed via the zero opacity + it never overlaps the
-                                                         icon since the icon is a separate overlaid layer. -->
-                                                    <Border Grid.Column="0"
-                                                            Classes="nav-badge"
-                                                            CornerRadius="20"
-                                                            Padding="7,1"
-                                                            MinWidth="20"
-                                                            Margin="0,0,8,0"
-                                                            VerticalAlignment="Center"
-                                                            IsVisible="{Binding HasBadge}"
-                                                            Opacity="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded, Converter={x:Static shell:SidebarView.ExpandedOpacityConverter}}">
-                                                        <Border.Transitions>
-                                                            <Transitions>
-                                                                <DoubleTransition Property="Opacity"
-                                                                                  Duration="0:0:0.18"
-                                                                                  Easing="LinearEasing" />
-                                                            </Transitions>
-                                                        </Border.Transitions>
-                                                        <TextBlock Classes="nav-badge-text"
-                                                                   Text="{Binding BadgeText}"
-                                                                   HorizontalAlignment="Center"
-                                                                   FontSize="11"
-                                                                   FontWeight="Bold" />
-                                                    </Border>
 
                                                     <!-- Label: fills the middle column, right-aligned so it
                                                          hugs the icon on the right. FlowDirection is RTL here
@@ -407,21 +355,6 @@
                                                               Height="18"
                                                               VerticalAlignment="Center"
                                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
-                                                        <!-- compact-rail notification dot for badged
-                                                             entries (numeric badge is shown when expanded) -->
-                                                        <Ellipse Width="7"
-                                                                 Height="7"
-                                                                 HorizontalAlignment="Left"
-                                                                 VerticalAlignment="Top"
-                                                                 Margin="-3,-2,0,0"
-                                                                 Fill="{StaticResource Brand500Brush}">
-                                                            <Ellipse.IsVisible>
-                                                                <MultiBinding Converter="{x:Static shell:SidebarView.BadgeDotConverter}">
-                                                                    <Binding Path="HasBadge" />
-                                                                    <Binding Path="$parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded" />
-                                                                </MultiBinding>
-                                                            </Ellipse.IsVisible>
-                                                        </Ellipse>
                                                     </Panel>
                                                 </Grid>
                                             </Button>
