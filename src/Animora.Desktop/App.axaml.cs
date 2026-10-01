@@ -274,9 +274,13 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<CapabilityGateService>();
         services.AddSingleton<ICapabilityGate>(sp => sp.GetRequiredService<CapabilityGateService>());
 
-        // Phase 06: Dashboard screen — query service is stateless/pure mock
-        // data, so a singleton is sufficient (no per-navigation reload needed
-        // until a real backend adds freshness semantics).
+        // C10: Dashboard screen runs on the real local backend. The query service is a
+        // stateless singleton that opens a fresh async scope per call over the authorized
+        // query pipeline (SQLite); it carries its own tenant/user/role-scoped data cache
+        // keyed by the source generation, so freshness is real (invalidated on any source
+        // write, D19) rather than process-lifetime. The singleton ViewModel re-activates on
+        // every navigation and refreshes on an activation-scoped timer (D04/D20/D37/D38),
+        // so navigating back shows current state — no per-navigation reload is skipped.
         services.AddSingleton<IDashboardQueryService, Animora.Client.Services.Dashboard.DashboardQueryService>();
         services.AddSingleton<DashboardPageViewModel>();
 

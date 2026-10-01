@@ -9,16 +9,18 @@ anything else only when a rule below says to.
 **Animora** — a self-hosted **veterinary clinic management + accounting**
 desktop app. Persian / RTL UI, Jalali calendar. One C# solution on **.NET 10**,
 UI is **Avalonia + MVVM (CommunityToolkit.Mvvm)**. Current state: the **Windows
-desktop frontend is complete** (all 17 screens built, `dotnet build` = 0/0) and
-**still runs entirely on in-memory `Mock*` services** behind `Animora.Contracts`
-interfaces — that has not changed. In parallel, a **separate backend track is
-mid-flight** (`backend-roadmap/`): real `Animora.Domain`, `Animora.Application`
-and the local `Animora.Persistence.Sqlite` / `Animora.Infrastructure.Local`
-store already exist and build — but **none of it is wired into the Desktop
-app yet**; the `Mock*` swap happens screen-by-screen later in that roadmap's
-Track C. Exact per-project state is in the table below. **Never state which
-backend phase is "current" from memory — it changes every session.** The
-live answer is always `backend-roadmap/PROGRESS.md`'s "Next phase" line.
+desktop frontend is complete** (all 17 screens built) and now runs on the
+**real local SQLite backend** — the backend roadmap's **Track C mock purge is
+finished**, the `Mocks/` folder was removed entirely, and every screen's
+`Animora.Contracts` interface is bound to its real `Animora.Client.Services`
+implementation over `Animora.Application` + `Animora.Persistence.Sqlite`
+(authorized query pipeline, local encrypted store, activation-scoped refresh —
+no network server, offline-first). The remaining backend work (server / Datasync
+in Tracks D–E) is still ahead and **not** wired in. **Do not state which backend
+phase is "current", or that any screen is bug-free, from memory — it changes
+every session.** The live answer is always `backend-roadmap/PROGRESS.md`'s
+"Next phase" line and its state table; read that before assuming a project's
+shape. Exact per-project state is in the table below.
 
 ## The top-level folders — which one to touch
 
@@ -64,12 +66,13 @@ phase file tells you to.
 
 ## Where things live in `src/` (so you don't grep blindly)
 
-**Nine projects.** The frontend track (Desktop/Contracts) is done and frozen
-on mocks; the backend track (everything else) is mid-flight and growing —
-check `backend-roadmap/PROGRESS.md` before assuming a project's state.
+**Nine projects.** Desktop/Contracts are complete and now run on the real
+local backend (Track C mock purge done); the server/Datasync part of the
+backend track (Tracks D–E) is still mid-flight — check
+`backend-roadmap/PROGRESS.md` before assuming a project's state.
 
 ```
-src/Animora.Desktop/            ← THE app UI. Frontend-track edits happen here. Still 100% on Mock* — untouched by the backend track until Track C.
+src/Animora.Desktop/            ← THE app UI. Frontend-track edits happen here. Now on the real local backend via Animora.Client.Services (Track C mock purge complete; Mocks/ removed).
   App.axaml.cs                  ← DI container: every service + ViewModel is registered here.
   Program.cs                    ← entry point (rarely touched).
   Shell/                        ← MainWindow, Sidebar, Topbar, navigation, ViewLocator, PageViewModelBase.
@@ -78,15 +81,15 @@ src/Animora.Desktop/            ← THE app UI. Frontend-track edits happen here
   Resources/Theme/               ← design tokens: Colors / Typography / Spacing / Elevation / Icons (.axaml).
   Resources/Controls/            ← XAML styles per control family.
   Services/                      ← Navigation, Dialog, Toast, RecordSheet (interface + impl pairs).
-  Mocks/                         ← in-memory Mock* implementations of Contracts interfaces (all sample data lives ONLY here — still the ONLY implementation Desktop uses).
+  (Mocks/ removed by Track C C11 — Desktop consumes the real Animora.Client.Services implementations; see PROGRESS.md.)
   Localization/                  ← RTL, Persian digits, Jalali calendar helpers.
 src/Animora.Contracts/<Area>/   ← DTOs + query/service interfaces per bounded context, one folder per screen. The seam Desktop ↔ future real services.
 src/Animora.Contracts.Wire/     ← backend-track wire DTOs (CommandEnvelope, SettlementResult, error shapes) — server↔client transport, not used by Desktop.
 src/Animora.Domain/             ← backend track. Real: entities/aggregates/value objects per bounded context (Boarding, Cashier, Clinical, Finance, Identity, Inventory, Patients, Purchasing, Sales, Scheduling + Primitives/Results/Time/ValueObjects/Events). Zero project references by design (CONVENTIONS §2) — never imports Contracts.
 src/Animora.Application/        ← backend track. Real: command/query dispatch pipeline, behaviors, use cases, validation, security-plane ports (Abstractions/Behaviors/Commands/Correlation/Dispatch/Outbox/Ports/Security/UseCases/Validation).
-src/Animora.Persistence.Sqlite/ ← backend track. Real: the local EF Core SQLite store — DbContext, migrations, repositories, seed, queries, maintenance. This is the desktop's future offline database; Desktop does not reference it yet.
+src/Animora.Persistence.Sqlite/ ← backend track. Real: the local EF Core SQLite store — DbContext, migrations, repositories, seed, queries, maintenance. This is the desktop's offline database, reached indirectly through Client.Services (Desktop never references EF directly).
 src/Animora.Infrastructure.Local/ ← backend track. Real: OS keystore/encryption, native SQLite assertion, clocks, local file store (Options/Security/Startup/Storage/Time).
-src/Animora.Client.Services/    ← backend track. Still an empty scaffold (csproj + README) — the Track-C DI swap target that will implement Contracts for real over Application+Persistence and replace Mock* one bounded context at a time. Desktop does not reference it yet.
+src/Animora.Client.Services/    ← backend track. Real: Track-C implementations of the Contracts interfaces over Application + Persistence (Identity, Patients, Reception, Visits, Vaccination, Appointments, Boarding, Inventory, Purchasing, Sales, Cashier, Cheques, Finance, History, Dashboard, Search, Profile, Sync). This is what Desktop's DI now binds to — scope-per-call over the dispatcher, no EF/SQL/rule leaks into Desktop.
 src/Animora.Sync.Abstractions/  ← still an empty scaffold (csproj + README) — the future ISyncEngine, added by Track E.
 ```
 
@@ -106,10 +109,10 @@ Inventory, Purchasing, Sales, Cashier, Cheques, Finance, History, Profile.
 
 ## The one architectural rule that governs every change
 
-Data flows: **View → ViewModel → `Animora.Contracts` interface (via constructor DI) → `Mock*` impl in `Mocks/`.**
-- ViewModels depend **only** on Contracts interfaces, never on `Mock*` or concrete data.
-- All sample/seed data lives **only** in `Mocks/`. Never hardcode data or add `if (design-time)` branches in `Pages/**`.
-- To add a screen's data need: add/extend the interface + DTO in `Contracts/<Area>/`, implement it in `Mocks/`, register both in `App.axaml.cs`.
+Data flows: **View → ViewModel → `Animora.Contracts` interface (via constructor DI) → real `Animora.Client.Services` impl → `Animora.Application` dispatch → local SQLite store.**
+- ViewModels depend **only** on Contracts interfaces, never on a concrete service, EF/SQL types, or DI scope. The seam is unchanged; only the implementation behind it is real now (the `Mock*` classes were removed by Track C).
+- No sample/seed data or `if (design-time)` branches in `Pages/**`; seed data lives in the Persistence layer's seeders, not the UI.
+- To add a screen's data need: add/extend the interface + DTO in `Contracts/<Area>/`, implement it in the matching `Animora.Client.Services/<Area>/` service over the dispatcher, register both in `App.axaml.cs`.
 - RTL is set once app-wide in `App.axaml`; don't re-set per screen.
 
 ## Build / run / verify (this sandbox)
@@ -142,8 +145,8 @@ These are large. Do not read end-to-end. Grep for the one section/§ you need.
 ## Fast task → path recipes
 
 - **Change/fix a screen's UI or behavior** → `src/Animora.Desktop/Pages/<Area>/`. Need the visual target? open `Animora-UI/<area>.html` (+ its `assets/*` referenced there).
-- **Change data shape a screen consumes** → interface+DTO in `src/Animora.Contracts/<Area>/`, then its `Mocks/Mock*Service.cs`, then `App.axaml.cs` registration.
-- **Add a new screen** → new `Pages/<Area>/` pair + Contracts interface + Mock + DI registration + a `Shell/NavigationMenu.cs` entry.
+- **Change data shape a screen consumes** → interface+DTO in `src/Animora.Contracts/<Area>/`, then its real `src/Animora.Client.Services/<Area>/` service (+ mapping), then `App.axaml.cs` registration.
+- **Add a new screen** → new `Pages/<Area>/` pair + Contracts interface + real `Animora.Client.Services` impl + DI registration + a `Shell/NavigationMenu.cs` entry.
 - **Theme / color / spacing / icon change** → `src/Animora.Desktop/Resources/Theme/*.axaml`.
 - **Reusable control** → `src/Animora.Desktop/Controls/` (+ style in `Resources/Controls/`).
 - **Navigation / dialogs / toasts** → `src/Animora.Desktop/Services/` and `Shell/`.

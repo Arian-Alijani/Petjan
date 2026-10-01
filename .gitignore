@@ -36,3 +36,4 @@ Database-Sampel/*.bak
 # Design-tool source-map artifacts for the Animora-UI reference prototype —
 # no product information beyond the corresponding .html (see Animora-UI/README.md).
 Animora-UI/*.srcmap.json
+.sandbox-sdk-install.log
