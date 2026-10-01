@@ -18,4 +18,10 @@
     <!-- Active filter chip: 0 2px 8px rgba(13,148,136,.22) -->
     <BoxShadows x:Key="ShadowChip">0 2 8 0 #380D9488</BoxShadows>
 
+    <!-- Dashboard quick-tile hover lift: 0 14px 28px rgba(16,24,40,.10) -->
+    <BoxShadows x:Key="ShadowTileHover">0 14 28 0 #1A101828</BoxShadows>
+
+    <!-- 2px panel-coloured ring that separates a count badge from its icon chip. -->
+    <BoxShadows x:Key="ShadowBadgeRing">0 0 0 2 #FFFFFFFF</BoxShadows>
+
 </ResourceDictionary>

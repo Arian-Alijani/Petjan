@@ -1,0 +1,125 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dashboard="using:Animora.Desktop.Pages.Dashboard"
+        x:DataType="dashboard:DashboardQuickAction">
+
+    <!-- Dashboard quick-access tile (.quick-tile / .qt-*). Declared ONCE here instead of
+         inside every item DataTemplate, so the eight tiles share a single style set.
+         The per-tile accent/soft colours come from the typed DashboardQuickAction seam
+         (x:DataType above) through compiled bindings — no ReflectionBinding. All literals
+         resolve to Theme tokens (Colors / Elevation / Spacing / Typography). -->
+
+    <!-- Tile shell: transparent; surface + lift live on the inner qt-card. -->
+    <Style Selector="Button.quick-tile">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Top" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.quick-tile:pointerover">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Button.quick-tile Border.qt-card">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+        <Setter Property="Padding" Value="14,14,14,13" />
+        <Setter Property="RenderTransform" Value="translateY(0px)" />
+    </Style>
+    <!-- Hover and keyboard focus: lift + shadow + accent border (focus parity, D31-style). -->
+    <Style Selector="Button.quick-tile:pointerover Border.qt-card, Button.quick-tile:focus-visible Border.qt-card">
+        <Setter Property="RenderTransform" Value="translateY(-5px)" />
+        <Setter Property="BoxShadow" Value="{StaticResource ShadowTileHover}" />
+        <Setter Property="BorderBrush" Value="{Binding AccentBrush}" />
+    </Style>
+
+    <!-- Icon chip: soft at rest, accent on hover/focus. -->
+    <Style Selector="Button.quick-tile Border.qt-icon">
+        <Setter Property="Width" Value="38" />
+        <Setter Property="Height" Value="38" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
+        <Setter Property="Background" Value="{Binding SoftBrush}" />
+    </Style>
+    <Style Selector="Button.quick-tile:pointerover Border.qt-icon, Button.quick-tile:focus-visible Border.qt-icon">
+        <Setter Property="Background" Value="{Binding AccentBrush}" />
+        <Setter Property="RenderTransform" Value="translateY(-2px) rotate(-6deg) scale(1.06)" />
+    </Style>
+    <Style Selector="Button.quick-tile Border.qt-icon Path.icon">
+        <Setter Property="Width" Value="18" />
+        <Setter Property="Height" Value="18" />
+        <Setter Property="Stroke" Value="{Binding AccentBrush}" />
+    </Style>
+    <Style Selector="Button.quick-tile:pointerover Border.qt-icon Path.icon, Button.quick-tile:focus-visible Border.qt-icon Path.icon">
+        <Setter Property="Stroke" Value="{StaticResource OnAccentBrush}" />
+    </Style>
+
+    <!-- Alt+N corner hint. -->
+    <Style Selector="Button.quick-tile Border.qt-key">
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="Background" Value="{StaticResource TableHeadBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="5,1" />
+    </Style>
+    <Style Selector="Button.quick-tile Border.qt-key > TextBlock">
+        <Setter Property="FontSize" Value="{StaticResource FontSizeKey}" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+        <Setter Property="Opacity" Value="0.75" />
+    </Style>
+
+    <!-- Optional sourced count badge: static (no perpetual animation, D41). -->
+    <Style Selector="Button.quick-tile Border.qt-badge">
+        <Setter Property="MinWidth" Value="18" />
+        <Setter Property="Height" Value="18" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="Margin" Value="-6,-6,0,0" />
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="5,0" />
+        <Setter Property="Background" Value="{StaticResource DangerBrush}" />
+        <Setter Property="BoxShadow" Value="{StaticResource ShadowBadgeRing}" />
+    </Style>
+    <Style Selector="Button.quick-tile Border.qt-badge > TextBlock">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="{StaticResource FontSizeBadge}" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="Foreground" Value="{StaticResource OnAccentBrush}" />
+    </Style>
+
+    <!-- Title / subtitle. -->
+    <Style Selector="Button.quick-tile TextBlock.qt-title">
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="FontSize" Value="{StaticResource FontSizeSm}" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+    </Style>
+    <Style Selector="Button.quick-tile TextBlock.qt-sub">
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+    </Style>
+
+    <!-- Arrow: fades/slides in on hover/focus. -->
+    <Style Selector="Button.quick-tile Path.qt-arrow">
+        <Setter Property="Width" Value="14" />
+        <Setter Property="Height" Value="14" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Stroke" Value="{StaticResource Muted2Brush}" />
+        <Setter Property="Opacity" Value="0" />
+        <Setter Property="RenderTransform" Value="translateX(6px)" />
+    </Style>
+    <Style Selector="Button.quick-tile:pointerover Path.qt-arrow, Button.quick-tile:focus-visible Path.qt-arrow">
+        <Setter Property="Opacity" Value="1" />
+        <Setter Property="RenderTransform" Value="translateX(0px)" />
+        <Setter Property="Stroke" Value="{Binding AccentBrush}" />
+    </Style>
+</Styles>

@@ -3,7 +3,7 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
-- **41 از 44 تسک انجام‌شده؛ 3 تسک باز: D35، D42، D44.**
+- **42 از 44 تسک انجام‌شده؛ 2 تسک باز: D35، D44.**
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
 - باقی‌مانده: D35، D42، D44. پذیرش GUI/Windows بدون شاهد واقعی بسته نمی‌شود.
@@ -472,7 +472,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D41 remove unnecessary perpetual badge motion"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D42 — ReflectionBinding/styleهای tile تکراری‌اند
-- [ ] وضعیت: باز | P3 | بدهی ششم گزارش | نتیجه: بدهی قطعی نگهداری، کندی اثبات نشده.
+- [x] وضعیت: انجام‌شده | P3 | بدهی ششم گزارش | نتیجه: styleهای tile یک‌بار در `QuickTile.axaml` تعریف شدند و ReflectionBinding حذف شد؛ visual/AltKey/target ثابت.
+- شواهد اجرای 2026-10-01: بلوک `Button.Styles` (حدود ۱۰۰ خط) از DataTemplate حذف و در `Resources/Controls/QuickTile.axaml` با `x:DataType=DashboardQuickAction` منتقل شد؛ `AccentBrush/SoftBrush` اکنون compiled `{Binding}` هستند (صفر `ReflectionBinding` در dashboard). styleها یک‌بار در `App.axaml` include می‌شوند و المان‌ها با classهای `qt-key/qt-badge/qt-title/qt-sub` خالی از literal inline هستند. selector hover برای `:focus-visible` هم اعمال شد تا tile با کیبورد همان حالت را بگیرد. Target/AltKey/Command/لیست `DashboardQuickAction.All`، startup، DI و سرویس‌ها تغییر نکردند. build فقط Desktop: **0 warning/0 error، 45 ثانیه**؛ smoke run زیر xvfb **8 ثانیه بدون crash/خطای binding** (فقط تا صفحه ورود؛ hover/focus بصری دو رنگ tile در sandbox بدون ورود/GUI تأییدنشده). ادعای perf ثبت نشد. Full build/test اجرا نشد.
 - شواهد: `DashboardPageView.axaml:77–170` style داخل هر DataTemplate و ReflectionBindingهای accent/soft.
 - اقدام: style/control reusable مناسب داخل Desktop، compiled binding یا property seam قابل‌کامپایل؛ visual و AltKey ثابت حفظ شوند. برای فقط 8 tile virtualization/framework جدید لازم نیست؛ perf claim باید سنجیده شود.
 - پذیرش/بررسی محدود: build فقط Desktop و binding/style check، یک hover/focus کوتاه دو رنگ tile؛ duplication حذف و هیچ binding error جدید نباشد؛ مسیر startup/DI/سرویس‌های local عوض نشود.

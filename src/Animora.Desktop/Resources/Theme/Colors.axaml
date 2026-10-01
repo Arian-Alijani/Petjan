@@ -110,4 +110,8 @@
     <SolidColorBrush x:Key="ShotBrush" Color="{StaticResource ShotColor}" />
     <SolidColorBrush x:Key="ShotBgBrush" Color="{StaticResource ShotBgColor}" />
 
+    <!-- Foreground for content drawn on a saturated accent/danger fill (tile hover icon, count badge). -->
+    <Color x:Key="OnAccentColor">#ffffff</Color>
+    <SolidColorBrush x:Key="OnAccentBrush" Color="{StaticResource OnAccentColor}" />
+
 </ResourceDictionary>
