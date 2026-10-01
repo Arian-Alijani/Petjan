@@ -3,10 +3,10 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
-- **29 از 44 تسک انجام‌شده؛ 15 تسک باز: D19، D21، D22، D23، D24، D26، D28، D29، D31، D33، D34، D35، D36، D42، D44.**
+- **30 از 44 تسک انجام‌شده؛ 14 تسک باز: D19، D21، D22، D23، D24، D28، D29، D31، D33، D34، D35، D36، D42، D44.**
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
-- باقی‌مانده: D19، D21، D22، D23، D24، D26، D27، D28، D29، D31، D33، D34، D35، D36، D42، D44. پذیرش GUI/Windows بدون شاهد واقعی بسته نمی‌شود.
+- باقی‌مانده: D19، D21، D22، D23، D24، D28، D29، D31، D33، D34، D35، D36، D42، D44. پذیرش GUI/Windows بدون شاهد واقعی بسته نمی‌شود.
 - متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #181 را توصیف نمی‌کنند. fixture قدیمی ناسازگار در اجرای قبلی فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران. اسکریپت‌های Windows/sandbox/git، migrationها و دیتابیس واقعی کاربر در این جلسه تغییر نکردند.
 
 ## دامنه و نتیجه مرحله تدوین اولیه (تاریخی)
