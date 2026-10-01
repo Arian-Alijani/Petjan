@@ -160,4 +160,64 @@ public sealed class DashboardGenerationTests
             Assert.Null((await new DashboardQueryService(doctor.Services.GetRequiredService<IServiceScopeFactory>())
                 .GetSnapshotAsync(UserRole.Doctor)).Freshness);
     }
+
+    private sealed class ProbeRecorder : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
+    {
+        public System.Collections.Generic.List<(string Sql, System.Collections.Generic.Dictionary<string, object?> Args)> Commands { get; } = [];
+        private void Record(System.Data.Common.DbCommand command)
+        {
+            var args = new System.Collections.Generic.Dictionary<string, object?>();
+            foreach (System.Data.Common.DbParameter p in command.Parameters) args[p.ParameterName] = p.Value;
+            Commands.Add((command.CommandText, args));
+        }
+        public override Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> ReaderExecuting(
+            System.Data.Common.DbCommand command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData data,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> result)
+        { Record(command); return result; }
+        public override System.Threading.Tasks.ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader>> ReaderExecutingAsync(
+            System.Data.Common.DbCommand command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData data,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> result,
+            System.Threading.CancellationToken ct = default)
+        { Record(command); return System.Threading.Tasks.ValueTask.FromResult(result); }
+    }
+
+    // D22 evidence: the real EF SQL of the final probe, executed through EXPLAIN QUERY PLAN on a bounded
+    // (10 000 history rows, two tenants) deterministic fixture. This is plan evidence, not a latency claim.
+    [Fact]
+    public async Task VersionProbe_IsOneStatement_AndAPrimaryKeySearch_IndependentOfHistorySize()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using (var scope = fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            for (var i = 0; i < 10_000; i++)
+                db.Add(ActivityEvent.Create(i % 2 == 0 ? fixture.TenantId : "OTHER-TENANT", fixture.Clock.UtcNow, 20260301,
+                    "Inventory", "history.inventory.changed", "{}", "Inventory", $"stock-{i}", 0, 0, "Done", "u", "n", null));
+            await db.SaveChangesAsync();
+        }
+
+        var recorder = new ProbeRecorder();
+        var options = new DbContextOptionsBuilder<AnimoraLocalDbContext>()
+            .UseSqlite($"Data Source={fixture.DatabasePath}").AddInterceptors(recorder)
+            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking).Options;
+        await using var probe = new AnimoraLocalDbContext(options, new FixedTenantContext(fixture.TenantId), fixture.Clock);
+        var version = await new DashboardQueries(probe).VersionAsync(fixture.TenantId, default);
+        Assert.Equal("5000", version); // exactly the tenant's own 5 000 inserts: bounded, tenant-scoped, exact
+        var statement = Assert.Single(recorder.Commands);
+        Assert.DoesNotContain("ActivityEvents", statement.Sql);
+        Assert.DoesNotContain("ORDER BY", statement.Sql, StringComparison.OrdinalIgnoreCase);
+
+        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={fixture.DatabasePath}");
+        await connection.OpenAsync();
+        await using var explain = connection.CreateCommand();
+        explain.CommandText = "EXPLAIN QUERY PLAN " + statement.Sql;
+        foreach (var (name, value) in statement.Args) explain.Parameters.AddWithValue(name, value ?? DBNull.Value);
+        var plan = new System.Collections.Generic.List<string>();
+        await using (var reader = await explain.ExecuteReaderAsync())
+            while (await reader.ReadAsync()) plan.Add(reader.GetString(3));
+        Assert.Contains(plan, line => line.Contains("SEARCH", StringComparison.Ordinal)
+            && line.Contains("sqlite_autoindex_DashboardGenerations", StringComparison.Ordinal) && line.Contains("TenantId=?", StringComparison.Ordinal));
+        Assert.DoesNotContain(plan, line => line.Contains("SCAN", StringComparison.Ordinal) || line.Contains("TEMP B-TREE", StringComparison.Ordinal));
+    }
 }
