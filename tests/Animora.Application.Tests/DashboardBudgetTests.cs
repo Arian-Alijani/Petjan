@@ -8,6 +8,13 @@ using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Dashboard;
 using Animora.Domain.Patients;
+using Animora.Domain.Sales;
+using Animora.Domain.ValueObjects;
+using Animora.Domain.Events;
+using Animora.Application.Activity;
+using Animora.Application.Outbox;
+using Animora.Persistence.Sqlite.Maintenance;
+using Animora.Persistence.Sqlite.Activity;
 using Animora.Domain.Scheduling;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
@@ -44,10 +51,10 @@ public sealed class DashboardBudgetTests
     }
 
     [Theory]
-    [InlineData(UserRole.Manager, 9)]
+    [InlineData(UserRole.Manager, 10)]
     [InlineData(UserRole.Doctor, 5)]
-    [InlineData(UserRole.Cashier, 7)]
-    [InlineData(UserRole.Receptionist, 9)]
+    [InlineData(UserRole.Cashier, 8)]
+    [InlineData(UserRole.Receptionist, 10)]
     public async Task Snapshot_StaysWithinRoleCommandBudget(UserRole role, int expectedCommands)
     {
         using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
@@ -144,6 +151,9 @@ public sealed class DashboardBudgetTests
         }
         Add("Visit", "history.visit.completed", 101);
         Add("Sale", "history.payment.registered", 95, 1000);
+        for (var i = 0; i < 95; i++)
+            db.Add(Payment.Create(fixture.TenantId, "invoice", PaymentMethod.Card, Money.Irt(1000),
+                Window.StartUtc.AddHours(9), "user-1").Value!);
         Add("Vaccine", "history.vaccine.administered", 105);
         Add("Cheque", "history.cheque.changed", 90);
         Add("Visit", "history.visit.completed", 7, actor: "other-doctor");
@@ -229,6 +239,181 @@ public sealed class DashboardBudgetTests
         var doctorSlice = await queries.GetSliceAsync(fixture.TenantId, window, "doc-1", TestAccess(UserRole.Doctor), default);
         Assert.Equal(2, doctorSlice.QueueCount);
         Assert.Empty(doctorSlice.Workloads);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Receipts_UseRealSignedPayments_AndRefundLiveRebuildAgree(bool nextDayRefund)
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var window = DashboardDayWindow.For(new DateOnly(2026, 3, 1), new FixedZone().GetClinicTimeZone());
+        var at = window.StartUtc.AddHours(9);
+        var invoice = Invoice.Create(fixture.TenantId, "REFUND-1", InvoiceKind.DirectSale, at,
+            "cashier", guestName: "Guest").Value!;
+        Assert.True(invoice.AddLine(new InvoiceLine("line", InvoiceLineKind.Service, null, null, null,
+            "Consultation", new Quantity(1, "PCS"), Money.Irt(100), 0, 0, InvoiceLineSource.Manual, null)).IsSuccess);
+        Assert.True(invoice.Post(fixture.Clock).IsSuccess);
+        var receipt = Payment.Create(fixture.TenantId, invoice.Id, PaymentMethod.Card, Money.Irt(100), at, "cashier").Value!;
+        Assert.True(invoice.ApplyPayment(receipt).IsSuccess);
+        var refundAt = nextDayRefund ? window.EndUtc : window.EndUtc.AddTicks(-1);
+        var refund = Payment.Create(fixture.TenantId, invoice.Id, PaymentMethod.Card, Money.Irt(-30),
+            refundAt, "cashier", reversesPaymentId: receipt.Id).Value!;
+        Assert.True(invoice.ApplyRefund(new InvoiceAdjustment("adjustment", AdjustmentKind.Refund,
+            Money.Irt(-30), "return", refundAt, "cashier", null, null), refund).IsSuccess);
+        db.AddRange(invoice, receipt, refund);
+        // Other currencies and the half-open day boundary must not silently contaminate toman totals.
+        db.Add(Payment.Create(fixture.TenantId, invoice.Id, PaymentMethod.Card, Money.Of(999, "USD"), at, "cashier").Value!);
+        db.Add(Payment.Create(fixture.TenantId, invoice.Id, PaymentMethod.Card, Money.Irt(999), window.EndUtc, "cashier").Value!);
+        var writer = scope.ServiceProvider.GetRequiredService<IActivityFeedWriter>();
+        var outbox = scope.ServiceProvider.GetRequiredService<IOutbox>();
+        foreach (var source in invoice.DomainEvents)
+        {
+            if (ActivityFeedMapper.Map(source) is { } draft) await writer.WriteAsync(draft, default);
+            Assert.True((await outbox.EnqueueAsync(source.GetType().Name, source)).IsSuccess);
+        }
+        await db.SaveChangesAsync();
+        var liveRefund = await db.Set<ActivityEvent>().AsNoTracking().SingleAsync(x => x.EntityId == refund.Id);
+        Assert.Equal(30, liveRefund.AmountMinor);
+        Assert.Equal(-1, liveRefund.AmountSign);
+        var queries = new DashboardQueries(db);
+        var slice = await queries.GetSliceAsync(fixture.TenantId, window, "cashier", TestAccess(UserRole.Cashier), default);
+        Assert.Equal(100, slice.Receipts!.Gross);
+        Assert.Equal(nextDayRefund ? 0 : 30, slice.Receipts.Refunds);
+        Assert.Equal(nextDayRefund ? 100 : 70, slice.ActivityTotals!.Payments);
+        Assert.Equal("IRT", slice.Receipts.Currency);
+        Assert.Contains("تومان", InvokeMap(UserRole.Cashier, slice).Stats[0].Label);
+        var rebuilt = await scope.ServiceProvider.GetRequiredService<ILocalStoreMaintenance>().RebuildActivityFeedAsync(default);
+        Assert.True(rebuilt.IsSuccess, rebuilt.Detail);
+        var rebuiltRefund = await db.Set<ActivityEvent>().AsNoTracking().SingleAsync(x => x.EntityId == refund.Id);
+        Assert.Equal(liveRefund.AmountMinor, rebuiltRefund.AmountMinor);
+        Assert.Equal(liveRefund.AmountSign, rebuiltRefund.AmountSign);
+    }
+
+    [Theory]
+    [InlineData(PaymentMethod.Cash, 70)]
+    [InlineData(PaymentMethod.Card, 70)]
+    [InlineData(PaymentMethod.Transfer, 70)]
+    [InlineData(PaymentMethod.Cheque, 70)]
+    [InlineData(PaymentMethod.Wallet, 70)]
+    [InlineData(PaymentMethod.Insurance, 70)]
+    [InlineData(PaymentMethod.Credit, 0)]
+    [InlineData((PaymentMethod)999, 0)]
+    public async Task NonCreditSettlements_DashboardAndCashierShareSignedCurrencyRule(PaymentMethod method, long expected)
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        foreach (var amount in new[] { 100L, -30L })
+            db.Add(Payment.Create(fixture.TenantId, "invoice", method, Money.Irt(amount),
+                Window.StartUtc.AddHours(9), "cashier", cashSessionId: "session", chequeId: "cheque").Value!);
+        await db.SaveChangesAsync();
+        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "cashier", TestAccess(UserRole.Cashier), default);
+        var cashier = await scope.ServiceProvider.GetRequiredService<ICashierQueries>().GetStatsAsync(Window.StartUtc, Window.EndUtc, default);
+        Assert.Equal(expected, slice.ActivityTotals!.Payments);
+        Assert.Equal(expected, cashier.CollectedMinor);
+        Assert.Equal(expected == 0 ? 0 : 100, slice.Receipts!.Gross);
+        Assert.Equal(expected == 0 ? 0 : 30, slice.Receipts.Refunds);
+        Assert.Contains("غیرنسیه", InvokeMap(UserRole.Cashier, slice).Stats[0].Label);
+    }
+
+    [Fact]
+    public async Task LowStock_CountsActiveProductsOnce_AtVariantReorderThreshold()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        void Add(string sku, long? stock, decimal reorder, bool active = true, bool activeVariant = true, bool secondLow = false)
+        {
+            var variants = new[]
+            {
+                new Animora.Domain.Inventory.ProductVariant(sku + "-v", sku + "-v", "DEFAULT", "", Money.Irt(1), Money.Irt(2),
+                    new Quantity(reorder, "PCS"), null, activeVariant),
+                new Animora.Domain.Inventory.ProductVariant(sku + "-v2", sku + "-v2", "size", "other", Money.Irt(1), Money.Irt(2),
+                    new Quantity(secondLow ? 10 : 0, "PCS"), null, true),
+            };
+            var product = Animora.Domain.Inventory.Product.Create(fixture.TenantId, sku, sku, "category",
+                Animora.Domain.Inventory.ProductKind.Medicine, "PCS", Money.Irt(1), Money.Irt(2), variants).Value!;
+            if (!active) Assert.True(product.Deactivate().IsSuccess);
+            db.Add(product);
+            foreach (var variant in variants)
+            {
+                if (stock is null && variant == variants[0]) continue;
+                var snap = StockOnHandSnapshot.Create(fixture.TenantId, product.Id, variant.VariantId);
+                snap.Reset(variant == variants[0] ? stock!.Value : 1000, Window.StartUtc, "movement");
+                db.Add(snap);
+            }
+        }
+        Add("below", 2000, 10, secondLow: true);
+        Add("equal", 10000, 10);
+        Add("absent", null, 10);
+        Add("inactive", 2000, 10, active: false);
+        Add("inactive-variant", 2000, 10, activeVariant: false);
+        Add("above", 11000, 10);
+        await db.SaveChangesAsync();
+        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "manager", TestAccess(UserRole.Manager), default);
+        var catalog = await scope.ServiceProvider.GetRequiredService<IInventoryQueries>().GetCatalogAsync(null, null, true, 1, 20, default);
+        Assert.Equal(new[] { "absent", "below", "equal" }, catalog.Items.Select(x => x.Sku).OrderBy(x => x).ToArray());
+        Assert.Equal(3, slice.LowStockCount);
+        Assert.Equal(slice.LowStockCount, catalog.TotalCount);
+    }
+
+    [Fact]
+    public async Task ChequeKpi_CountsTodayStateChanges_NotDistinctCheques_AndRequiresPermission()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        foreach (var day in new[] { Today - 1, Today, Today, Today })
+            db.Add(ActivityEvent.Create(fixture.TenantId, Window.StartUtc.AddHours(9), day, "Cheque",
+                "history.cheque.changed", "{}", "Cheque", "one-cheque", 0, 0, "Pending", "cashier", "", null));
+        await db.SaveChangesAsync();
+        var access = TestAccess(UserRole.Cashier);
+        var queries = new DashboardQueries(db);
+        var slice = await queries.GetSliceAsync(fixture.TenantId, Window, "cashier", access, default);
+        Assert.Equal(3, slice.ActivityTotals!.Cheques);
+        var stat = Assert.Single(InvokeMap(UserRole.Cashier, slice).Stats, x => x.IconKey == "IconCheque");
+        Assert.Equal("تغییر وضعیت چک امروز", stat.Label);
+        Assert.Equal("3", stat.Value);
+        var denied = await queries.GetSliceAsync(fixture.TenantId, Window, "cashier", access with { Cheques = false }, default);
+        Assert.Equal(0, denied.ActivityTotals!.Cheques);
+        Assert.DoesNotContain(InvokeMap(UserRole.Cashier, denied).Stats, x => x.IconKey == "IconCheque");
+    }
+
+    [Fact]
+    public void Snapshot_FreezesInputAndNestedCollections_IncludingRecordInitializers()
+    {
+        var stat = new Contracts.Dashboard.DashboardStat("IconPaw", "Original", "1", null, true);
+        var stats = new[] { stat };
+        var rows = new[] { new Contracts.Dashboard.DashboardListItem("", "Original", "", "", Contracts.Dashboard.DashboardTone.Info) };
+        var points = new[] { 1d, -0.5d };
+        var species = new[] { new Contracts.Dashboard.DashboardSpecies("Dog", 1, "#000000") };
+        var loads = new[] { new Contracts.Dashboard.DashboardDoctorLoad("D", "Doctor", "", 1, 2, "#000000") };
+        var snapshot = new Contracts.Dashboard.DashboardSnapshot(UserRole.Manager, "", "", stats, "", rows, "", rows,
+            new("1", "", points), loads, species);
+        stats[0] = stat with { Label = "Mutated" };
+        rows[0] = rows[0] with { Title = "Mutated" };
+        points[0] = 999;
+        species[0] = species[0] with { Count = 999 };
+        loads[0] = loads[0] with { Done = 999 };
+        Assert.Equal("Original", snapshot.Stats[0].Label);
+        Assert.Equal("Original", snapshot.PrimaryList[0].Title);
+        Assert.Equal("Original", snapshot.SecondaryList[0].Title);
+        Assert.Equal(1, snapshot.RevenuePulse!.Points[0]);
+        Assert.Equal(1, snapshot.Species![0].Count);
+        Assert.Equal(1, snapshot.DoctorLoads![0].Done);
+        Assert.Throws<NotSupportedException>(() => ((IList<Contracts.Dashboard.DashboardStat>)snapshot.Stats)[0] = stat);
+        Assert.Throws<NotSupportedException>(() => ((IList<double>)snapshot.RevenuePulse.Points)[0] = 999);
+        var changed = snapshot with { Stats = stats };
+        stats[0] = stat with { Label = "Changed again" };
+        Assert.Equal("Mutated", changed.Stats[0].Label);
+        Assert.NotNull(new Contracts.Dashboard.DashboardSnapshot(UserRole.Doctor, "", "", [], "", [], "", []).Stats);
     }
 
     private sealed class FixedZone : IClinicTimeZoneProvider

@@ -72,9 +72,10 @@ internal static class DashboardMapping
             UserRole.Doctor => new[] { Stat("IconCheck", "ویزیت‌های من", visits),
                 Stat("IconClock", "صف من", slice.QueueCount), Stat("IconEdit", "در انتظار", slice.QueueCount),
                 Stat("IconSyringe", "واکسن‌ها", totals.Vaccinations) },
-            UserRole.Cashier => new[] { Stat("IconCart", "دریافت امروز", payment),
+            UserRole.Cashier => new[] { Stat("IconCart", "خالص تسویه غیرنسیه امروز (تومان)", payment) with
+                { Foot = slice.Receipts is { } receipt ? $"دریافت ناخالص: {receipt.Gross:N0} · بازپرداخت: {receipt.Refunds:N0} تومان" : null },
                 Stat("IconReceipt", "فاکتورهای باز", slice.OpenInvoices), Stat("IconClipboard", "صف پرداخت", slice.QueueCount),
-                Stat("IconCheque", "چک‌ها", totals.Cheques) },
+                Stat("IconCheque", "تغییر وضعیت چک امروز", totals.Cheques) },
             _ => new[] { Stat("IconArrowUpRight", "درآمد امروز", today),
                 Stat("IconUsers", "ویزیت امروز", visits), Stat("IconReceipt", "فاکتورهای باز", slice.OpenInvoices),
                 Stat("IconBox", "هشدار موجودی", slice.LowStockCount) },

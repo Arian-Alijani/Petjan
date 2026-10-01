@@ -6,6 +6,7 @@ using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Entities;
 using Animora.Domain.Patients;
 using Animora.Domain.Identity;
+using Animora.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Persistence.Sqlite.Queries;
@@ -52,11 +53,22 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
         if (role == UserRole.Doctor) feed = feed.Where(x => x.ActorUserId == userId);
         // KPIs must describe the whole day, not just the 80-row preview. One aggregate SQL statement.
         var totals = await feed.GroupBy(x => 1).Select(g => new DashboardActivityTotals(
-            g.Sum(x => access.Collections && x.Title == "history.payment.registered" ? x.AmountMinor : 0L),
+            0L, // Receipts come from the signed Payment ledger, never activity magnitudes.
             g.Count(x => x.Title == "history.visit.completed"),
             g.Count(x => x.Title == "history.vaccine.administered"),
             g.Count(x => x.Kind == "Cheque"))).SingleOrDefaultAsync(ct)
             ?? new DashboardActivityTotals(0, 0, 0, 0);
+        DashboardReceipts? receipts = null;
+        if (access.Collections)
+        {
+            receipts = await db.Set<Payment>().AsNoTracking()
+                .Where(x => x.TenantId == tenantId).NonCreditSettlements(window.StartUtc, window.EndUtc)
+                .GroupBy(x => 1).Select(g => new DashboardReceipts(
+                    g.Sum(x => x.Amount.Minor > 0 ? x.Amount.Minor : 0L),
+                    g.Sum(x => x.Amount.Minor < 0 ? -x.Amount.Minor : 0L), CurrencyScale.Irt))
+                .SingleOrDefaultAsync(ct) ?? new DashboardReceipts(0, 0, CurrencyScale.Irt);
+            totals = totals with { Payments = receipts.Net };
+        }
         var activity = await feed.OrderByDescending(x => x.Id).Take(80)
             .Select(x => new DashboardActivity(x.Kind, x.Title, x.EntityId,
                 access.Finance || access.Collections ? x.AmountMinor : 0L,
@@ -65,8 +77,8 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
         // Separate guarded statements: a forbidden source is not part of SQL at all.
         var open = access.Sales ? await db.Set<Invoice>().AsNoTracking()
             .CountAsync(i => i.TenantId == tenantId && (i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid), ct) : 0;
-        var low = access.Inventory ? await db.Set<StockOnHandSnapshot>().AsNoTracking()
-            .CountAsync(i => i.TenantId == tenantId && i.OnHandScaled <= 0, ct) : 0;
+        var low = access.Inventory ? await db.Set<Animora.Domain.Inventory.Product>().AsNoTracking()
+            .Where(i => i.TenantId == tenantId).LowStockProducts(db).CountAsync(ct) : 0;
         IReadOnlyDictionary<string, int> species = new Dictionary<string, int>();
         if (access.Patients && role != UserRole.Doctor)
         {
@@ -101,6 +113,6 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
                 .Select(x => new DashboardWorkload(x.DoctorId!, x.Total, x.Name ?? "پزشک", x.Done)).ToArray()
             : [];
         return new DashboardSlice(facts, activity, loads, species, open, low,
-            appointmentCounts.Sum(x => x.Queued), totals, preview, access);
+            appointmentCounts.Sum(x => x.Queued), totals, preview, access, receipts);
     }
 }

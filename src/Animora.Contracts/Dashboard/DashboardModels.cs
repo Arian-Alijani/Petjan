@@ -68,7 +68,11 @@ public sealed record DashboardSpecies(
 public sealed record DashboardRevenuePulse(
     string Value,
     string Caption,
-    IReadOnlyList<double> Points);
+    IReadOnlyList<double> Points)
+{
+    private readonly IReadOnlyList<double> _points = DashboardCollections.Freeze(Points);
+    public IReadOnlyList<double> Points { get => _points; init => _points = DashboardCollections.Freeze(value); }
+}
 
 /// <summary>
 /// One row in a dashboard content list (live queue / alerts / open invoices /
@@ -104,4 +108,28 @@ public sealed record DashboardSnapshot(
     // chart, the doctor-workload card and the species donut/legend.
     DashboardRevenuePulse? RevenuePulse = null,
     IReadOnlyList<DashboardDoctorLoad>? DoctorLoads = null,
-    IReadOnlyList<DashboardSpecies>? Species = null);
+    IReadOnlyList<DashboardSpecies>? Species = null)
+{
+    // Copy once at construction, never at cache-hit. Elements are immutable records.
+    private readonly IReadOnlyList<DashboardStat> _stats = DashboardCollections.Freeze(Stats);
+    public IReadOnlyList<DashboardStat> Stats { get => _stats; init => _stats = DashboardCollections.Freeze(value); }
+    private readonly IReadOnlyList<DashboardListItem> _primaryList = DashboardCollections.Freeze(PrimaryList);
+    public IReadOnlyList<DashboardListItem> PrimaryList { get => _primaryList; init => _primaryList = DashboardCollections.Freeze(value); }
+    private readonly IReadOnlyList<DashboardListItem> _secondaryList = DashboardCollections.Freeze(SecondaryList);
+    public IReadOnlyList<DashboardListItem> SecondaryList { get => _secondaryList; init => _secondaryList = DashboardCollections.Freeze(value); }
+    private readonly IReadOnlyList<DashboardDoctorLoad>? _doctorLoads = DoctorLoads is null ? null : DashboardCollections.Freeze(DoctorLoads);
+    public IReadOnlyList<DashboardDoctorLoad>? DoctorLoads { get => _doctorLoads; init => _doctorLoads = value is null ? null : DashboardCollections.Freeze(value); }
+    private readonly IReadOnlyList<DashboardSpecies>? _species = Species is null ? null : DashboardCollections.Freeze(Species);
+    public IReadOnlyList<DashboardSpecies>? Species { get => _species; init => _species = value is null ? null : DashboardCollections.Freeze(value); }
+}
+
+internal static class DashboardCollections
+{
+    internal static IReadOnlyList<T> Freeze<T>(IReadOnlyList<T> source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var copy = new T[source.Count];
+        for (var i = 0; i < copy.Length; i++) copy[i] = source[i];
+        return Array.AsReadOnly(copy);
+    }
+}

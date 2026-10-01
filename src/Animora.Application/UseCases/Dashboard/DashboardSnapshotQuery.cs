@@ -16,11 +16,16 @@ public sealed record DashboardAppointment(string PetName, string OwnerName, stri
     DateTimeOffset StartUtc, string State);
 /// <summary>Full-day aggregates, independent of the bounded recent-activity preview.</summary>
 public sealed record DashboardActivityTotals(long Payments, int Visits, int Vaccinations, int Cheques);
+/// <summary>Signed receipts in the product currency; adjustments are not counted a second time.</summary>
+public sealed record DashboardReceipts(long Gross, long Refunds, string Currency)
+{
+    public long Net => checked(Gross - Refunds);
+}
 public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     IReadOnlyList<DashboardActivity> Activity, IReadOnlyList<DashboardWorkload> Workloads,
     IReadOnlyDictionary<string, int> Species, int OpenInvoices, int LowStockCount, int QueueCount,
     DashboardActivityTotals? ActivityTotals = null, IReadOnlyList<DashboardAppointment>? Appointments = null,
-    DashboardAccess? Access = null);
+    DashboardAccess? Access = null, DashboardReceipts? Receipts = null);
 
 /// <summary>The local day and its half-open UTC range, resolved once using ClinicCalendar.</summary>
 public sealed record DashboardDayWindow(int LocalDay, DateTimeOffset StartUtc, DateTimeOffset EndUtc)
