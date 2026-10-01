@@ -23,6 +23,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     private readonly IRecordSheetPresenter _presenter;
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
+    private readonly IDataChangeNotifier _changes;
     private IReadOnlyList<PetSummary> _allPets = [];
     private IReadOnlyList<OwnerSummary> _allOwners = [];
 
@@ -60,9 +61,11 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         IPatientsQueryService patientsQueryService,
         IRecordSheetPresenter presenter,
         IDialogService dialogs,
-        IToastService toast)
+        IToastService toast,
+        IDataChangeNotifier changes)
     {
         _patientsQueryService = patientsQueryService;
+        _changes = changes;
         _presenter = presenter;
         _dialogs = dialogs;
         _toast = toast;
@@ -75,6 +78,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         // the directory before the constructor returns, while a real async
         // backend keeps the shell responsive.
         UseLoadStatus(ReloadPageAsync);
+        // Owner/pet sheets edit records from over this page; the page's own wizard/add-pet writes reload directly.
+        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Patients);
         _ = ReloadPageAsync();
     }
 
@@ -223,7 +228,11 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         _dialogs.ShowModal(new AddPatientWizardViewModel(
             // The wizard persists a new owner/pet, so reload (which rebuilds the
             // lookup/haystack indexes) rather than re-filtering stale data.
-            _patientsQueryService, _dialogs, () => _ = LoadAsync()), maxWidth: 760);
+            _patientsQueryService, _dialogs, () =>
+            {
+                _changes.Notify(DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
+                _ = LoadAsync();
+            }), maxWidth: 760);
 
     [RelayCommand]
     private void CallOwner(OwnerSummary? owner)
@@ -254,6 +263,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             async req =>
             {
                 await _patientsQueryService.CreatePetAsync(detail.Id, req);
+                _changes.Notify(DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
                 await LoadAsync();
                 _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
             },

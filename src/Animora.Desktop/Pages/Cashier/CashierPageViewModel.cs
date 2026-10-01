@@ -30,15 +30,18 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
     private readonly ICashierService _service;
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
+    private readonly IDataChangeNotifier _changes;
 
     private readonly List<CashierInvoice> _invoices = [];
     private bool _suppressSelects;
 
     private CashierTab _tab = CashierTab.Open;
 
-    public CashierPageViewModel(ICashierService service, IStoreReadinessGate readiness, IToastService toast)
+    public CashierPageViewModel(ICashierService service, IStoreReadinessGate readiness, IToastService toast,
+        IDataChangeNotifier changes)
     {
         _service = service;
+        _changes = changes;
         _readiness = readiness;
         _toast = toast;
 
@@ -48,6 +51,8 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         Breadcrumbs.Add("صندوق");
 
         UseLoadStatus(ReloadPageAsync);
+        // Invoices are issued by the sales page; a completed encounter queues a new one.
+        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Sales, DataDomain.Visits);
     }
 
     public RangeObservableCollection<CashierStatViewModel> Stats { get; } = [];
@@ -461,6 +466,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         _toast.Show($"{verb} · {CashierPresentation.Money(amount)}", Tone.Ok);
 
         ResetPayment();
+        NotifyInvoicesChanged();
         await RefreshAsync(id);
     }
 
@@ -481,6 +487,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         }
 
         _toast.Show("فاکتور ابطال شد", Tone.Ok);
+        NotifyInvoicesChanged();
         await RefreshAsync(id);
     }
 
@@ -508,6 +515,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
         _toast.Show($"عودت ثبت شد · {CashierPresentation.Money(amount)}", Tone.Ok);
         RefundAmountText = string.Empty;
+        NotifyInvoicesChanged();
         await RefreshAsync(id);
     }
 
@@ -569,6 +577,11 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         ShowDetail(updated);
         await ReloadStatsAsync();
     }
+
+    /// <summary>A payment/void/refund moves stock-linked invoices, the ledger, the sales list and the dashboard KPIs.</summary>
+    private void NotifyInvoicesChanged() => _changes.Notify(
+        DataDomain.Cashier, DataDomain.Sales, DataDomain.Inventory, DataDomain.Finance,
+        DataDomain.History, DataDomain.Dashboard);
 
     private async Task RefreshAsync(string currentId)
     {

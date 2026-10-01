@@ -73,7 +73,8 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         IVisitsTriageService service,
         IStoreReadinessGate readiness,
         IToastService toast,
-        INavigationService navigation)
+        INavigationService navigation,
+        IDataChangeNotifier changes)
     {
         _service = service;
         _readiness = readiness;
@@ -92,6 +93,8 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         SelectType(Types.FirstOrDefault());
         // Non-blocking init (PERFORMANCE.md §4).
         UseLoadStatus(ReloadPageAsync);
+        // Booked tickets and the patient directory change from the appointments and patients pages.
+        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Appointments, DataDomain.Patients);
         _ = ReloadPageAsync();
     }
 

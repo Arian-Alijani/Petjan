@@ -27,6 +27,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 {
     private readonly IInventoryQueryService _service;
     private readonly IToastService _toast;
+    private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
 
     private readonly List<Product> _products = [];
@@ -43,9 +44,11 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
 
     public InventoryPageViewModel(IInventoryQueryService service, IStoreReadinessGate readiness,
-        IToastService toast, IDialogService dialogs)
+        IToastService toast, IDialogService dialogs,
+        IDataChangeNotifier changes)
     {
         _service = service;
+        _changes = changes;
         _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
@@ -58,6 +61,8 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         Tabs.Add(new InventorySubnavViewModel("settings", "تنظیمات کالاها", "IconTools"));
 
         UseLoadStatus(ReloadPageAsync);
+        // Stock moves with sales, payments and purchases.
+        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Sales, DataDomain.Cashier, DataDomain.Purchasing);
     }
 
     /// <summary>products | settings — the reference's <c>state.tab</c>.</summary>
@@ -372,7 +377,11 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     }
 
     /// <summary>Re-reads the catalog and rebuilds every derived section (reference <c>render()</c>).</summary>
-    private void Refresh() => _ = ReloadAsync();
+    private void Refresh()
+    {
+        _changes.Notify(DataDomain.Inventory, DataDomain.Dashboard);
+        _ = ReloadAsync();
+    }
 
     private async Task ReloadAsync()
     {

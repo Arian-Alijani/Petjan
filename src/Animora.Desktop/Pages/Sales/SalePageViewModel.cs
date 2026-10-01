@@ -28,6 +28,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private readonly ISalesQueryService _service;
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
+    private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
     private readonly List<ReadyEncounterRef> _readyEncounters = [];
     private readonly List<InvoiceSummary> _invoices = [];
@@ -66,9 +67,10 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private bool _hasReadyVisitBadge;
 
     public SalePageViewModel(ISalesQueryService service, IStoreReadinessGate readiness,
-        IToastService toast, IDialogService dialogs)
+        IToastService toast, IDialogService dialogs, IDataChangeNotifier changes)
     {
         _service = service;
+        _changes = changes;
         _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
@@ -81,9 +83,11 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         Segments.Add(new SaleSegmentViewModel("ready", "صف ویزیت"));
         Segments.Add(new SaleSegmentViewModel("invoices", "فاکتورها"));
 
-        History = new SaleHistoryViewModel(service, toast, dialogs);
+        History = new SaleHistoryViewModel(service, toast, dialogs, NotifyInvoicesChanged);
 
         UseLoadStatus(ReloadPageAsync);
+        // The ready-visit queue is fed by completed encounters; the cashier settles the same invoices.
+        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Visits, DataDomain.Cashier);
     }
 
     /// <summary>
@@ -248,6 +252,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsReadySegment));
         OnPropertyChanged(nameof(IsInvoicesSegment));
 
+        NotifyInvoicesChanged();
         await ReloadListsAsync();
         RenderSidebar();
         ShowInvoice(detail);
@@ -259,6 +264,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private async Task NewBlankInvoice()
     {
         var detail = await _service.CreateBlankAsync(InvoiceKind.Sale);
+        NotifyInvoicesChanged();
         _segment = "invoices";
         OnPropertyChanged(nameof(IsReadySegment));
         OnPropertyChanged(nameof(IsInvoicesSegment));
@@ -361,6 +367,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         }
 
         _toast.Show($"فاکتور «{detail.Id}» ابطال شد", Tone.Ok);
+        NotifyInvoicesChanged();
         await RefreshAfterMutationAsync();
     }
 
@@ -378,7 +385,16 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     }
 
     /// <summary>Reloads the lists/KPIs re-renders sidebar and refreshes the open invoice.</summary>
-    private void RefreshAfterMutation() => _ = RefreshAfterMutationAsync();
+    private void RefreshAfterMutation()
+    {
+        NotifyInvoicesChanged();
+        _ = RefreshAfterMutationAsync();
+    }
+
+    /// <summary>A sale write also changes stock, the ledger, the cashier queue and the dashboard KPIs.</summary>
+    private void NotifyInvoicesChanged() => _changes.Notify(
+        DataDomain.Sales, DataDomain.Cashier, DataDomain.Inventory, DataDomain.Finance,
+        DataDomain.History, DataDomain.Dashboard);
 
     private async Task RefreshAfterMutationAsync()
     {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using Animora.Contracts.Navigation;
+using Animora.Desktop.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Animora.Desktop.Shell;
@@ -71,6 +72,37 @@ public abstract partial class PageViewModelBase : ObservableObject
     protected bool IsLoadInFlight => LoadStatus?.IsBusy == true;
 
     /// <summary>
+    /// True while this page is the one shown in the shell. Maintained by <c>NavigationService</c> only; read by
+    /// <see cref="RefreshOnDataChange"/> so a hidden page is never reloaded behind the user's back.
+    /// </summary>
+    internal bool IsCurrentPage { get; set; }
+
+    private IDisposable? _dataChangeSubscription;
+    private bool _changedDuringLoad;
+
+    /// <summary>
+    /// Subscribes this singleton page to cross-page data changes (<see cref="IDataChangeNotifier"/>) in
+    /// <paramref name="domains"/>. Shown: <paramref name="refresh"/> runs at once (a sheet/modal over the page wrote).
+    /// Hidden: nothing - the entry hook reloads on the next visit, so there is no flag to keep in sync. Mid-load
+    /// (shown): the running query may predate the write, so the load repeats once it finishes. A page never lists
+    /// the writes it already reloads for itself.
+    /// </summary>
+    protected void RefreshOnDataChange(IDataChangeNotifier notifier, Action refresh, params DataDomain[] domains)
+    {
+        ArgumentNullException.ThrowIfNull(notifier);
+        ArgumentNullException.ThrowIfNull(refresh);
+
+        _dataChangeSubscription?.Dispose();
+        _dataChangeSubscription = notifier.Subscribe(domain =>
+        {
+            if (!IsCurrentPage || Array.IndexOf(domains, domain) < 0) return;
+
+            if (IsLoadInFlight) _changedDuringLoad = true;
+            else refresh();
+        });
+    }
+
+    /// <summary>
     /// Runs a page load and records its outcome. A failure never escapes the fire-and-forget callers: it is shown
     /// as the page's error/stale state with a retry, and a stuck <see cref="IsBusy"/> is released.
     /// </summary>
@@ -87,19 +119,29 @@ public abstract partial class PageViewModelBase : ObservableObject
     protected async Task TrackLoadResultAsync(Func<Task<bool>> load)
     {
         var status = LoadStatus;
-        status?.Begin();
-        bool ok;
-        try
-        {
-            ok = await load();
-        }
-        catch (Exception)
-        {
-            ok = false;
-        }
 
-        if (!ok) IsBusy = false;
-        if (ok) status?.Succeeded();
-        else status?.Failed();
+        // Each repeat needs a fresh change notification, and the count is capped, so this cannot spin.
+        for (var attempt = 0; attempt < MaxChangeReloads; attempt++)
+        {
+            _changedDuringLoad = false;
+            status?.Begin();
+            bool ok;
+            try
+            {
+                ok = await load();
+            }
+            catch (Exception)
+            {
+                ok = false;
+            }
+
+            if (!ok) IsBusy = false;
+            if (ok) status?.Succeeded();
+            else status?.Failed();
+
+            if (!ok || !_changedDuringLoad) return;
+        }
     }
+
+    private const int MaxChangeReloads = 3;
 }

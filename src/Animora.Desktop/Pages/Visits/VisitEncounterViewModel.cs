@@ -57,6 +57,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private readonly IStoreReadinessGate _readiness;
     private readonly INavigationService _navigation;
     private readonly IToastService _toast;
+    private readonly IDataChangeNotifier _changes;
     private readonly ICapabilityGate _capabilities;
 
     public bool CanEditVisit => _capabilities.Can("visits.write");
@@ -123,9 +124,11 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         IStoreReadinessGate readiness,
         INavigationService navigation,
         IToastService toast,
-        ICapabilityGate capabilities)
+        ICapabilityGate capabilities,
+        IDataChangeNotifier changes)
     {
         _service = service;
+        _changes = changes;
         _readiness = readiness;
         _navigation = navigation;
         _toast = toast;
@@ -416,6 +419,11 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         if (!CanFinishVisit()) return;
         await PersistAsync();
         var summary = await _service.CompleteAsync(_encounterId);
+
+        // A completed encounter feeds the sales/cashier queues, the history ledger and the patient's file.
+        _changes.Notify(
+            DataDomain.Visits, DataDomain.Sales, DataDomain.Cashier, DataDomain.History,
+            DataDomain.Patients, DataDomain.Dashboard);
 
         DonePatientName = summary.PatientName;
         DoneDoctorShort = summary.DoctorShortName;

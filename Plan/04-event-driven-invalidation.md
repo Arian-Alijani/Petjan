@@ -1,6 +1,6 @@
 # تسک ۰۴ — invalidate رویدادمحور بین صفحات
 
-**وضعیت:** ⬜ TODO
+**وضعیت:** ✅ DONE
 **پیش‌نیاز:** تسک ۰۳ (همهٔ صفحات `OnNavigatedTo`-refresh + `LoadAsync` قابل‌صدا
 دارند).
 **هدف:** وقتی کاربر در یک صفحه چیزی می‌نویسد (فروش، خرید، ثبت بیمار، ...)،
@@ -170,13 +170,13 @@ scripts/sandbox/run.sh          # چون App.axaml.cs (DI) لمس شد → SMOKE
 
 ## معیار پذیرش (Definition of Done)
 
-- [ ] `IDataChangeNotifier` + `DataChangeNotifier` ساخته و در DI ثبت شد.
-- [ ] تمام نقاط نوشتن جدول «تولیدکننده‌ها» `Notify(...)` را صدا می‌زنند
+- [x] `IDataChangeNotifier` + `DataChangeNotifier` ساخته و در DI ثبت شد.
+- [x] تمام نقاط نوشتن جدول «تولیدکننده‌ها» `Notify(...)` را صدا می‌زنند
       (بدون حذف callbackهای درون‌صفحه‌ای موجود).
-- [ ] صفحات مصرف‌کننده subscribe دارند + پرچم کهنگی + رفرش فوری/تأخیری درست.
-- [ ] drill-in/transient VMهای subscribe‌کننده در dispose لغو اشتراک می‌کنند.
-- [ ] لایه‌بندی حفظ شد (notifier فقط در Desktop؛ Contracts/Application دست‌نخورده).
-- [ ] بیلد 0/0 و smoke-run OK.
+- [x] صفحات مصرف‌کننده subscribe دارند + پرچم کهنگی + رفرش فوری/تأخیری درست.
+- [x] drill-in/transient VMهای subscribe‌کننده در dispose لغو اشتراک می‌کنند.
+- [x] لایه‌بندی حفظ شد (notifier فقط در Desktop؛ Contracts/Application دست‌نخورده).
+- [x] بیلد 0/0 و smoke-run OK.
 
 ---
 

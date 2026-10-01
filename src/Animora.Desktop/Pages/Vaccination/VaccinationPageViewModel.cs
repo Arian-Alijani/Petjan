@@ -28,6 +28,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     private readonly IStoreReadinessGate _readiness;
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
+    private readonly IDataChangeNotifier _changes;
 
     private readonly List<VaccinationRecord> _records = [];
     private readonly List<VaccineCatalogEntry> _catalog = [];
@@ -46,9 +47,10 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     private int _pageCount = 1;
 
     public VaccinationPageViewModel(IVaccinationService service, IStoreReadinessGate readiness,
-        IDialogService dialogs, IToastService toast)
+        IDialogService dialogs, IToastService toast, IDataChangeNotifier changes)
     {
         _service = service;
+        _changes = changes;
         _readiness = readiness;
         _dialogs = dialogs;
         _toast = toast;
@@ -76,6 +78,8 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         SelectedSpeciesOption = SpeciesOptions[0];
 
         UseLoadStatus(ReloadPageAsync);
+        // Patients (owners/pets) feed the due list.
+        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Patients);
     }
 
     /// <summary>visits | stock | history | settings — the reference's <c>#vxMainSeg</c> keys.</summary>
@@ -409,6 +413,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         }
 
         await _service.MarkDoneAsync(row.Record.Id);
+        NotifyVaccinationChanged();
         _records[_records.FindIndex(r => r.Id == row.Record.Id)] =
             _records.First(r => r.Id == row.Record.Id) with { Status = VaccinationStatus.Done };
 
@@ -451,9 +456,13 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
 
     // Marks a record done when triggered from the detail sheet (mirrors the
     // reference's `vaxMarkDone` fired from inside the drawer).
+    private void NotifyVaccinationChanged() =>
+        _changes.Notify(DataDomain.Vaccination, DataDomain.History, DataDomain.Patients, DataDomain.Dashboard);
+
     private async Task MarkDoneByIdAsync(VaccinationRecord record)
     {
         await _service.MarkDoneAsync(record.Id);
+        NotifyVaccinationChanged();
         var index = _records.FindIndex(r => r.Id == record.Id);
         if (index >= 0)
         {

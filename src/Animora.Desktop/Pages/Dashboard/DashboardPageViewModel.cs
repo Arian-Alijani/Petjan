@@ -38,7 +38,8 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private string _secondaryListTitle = string.Empty;
     public string SecondaryListTitle { get => _secondaryListTitle; private set => SetProperty(ref _secondaryListTitle, value); }
 
-    public DashboardPageViewModel(IDashboardQueryService dashboard, IStoreReadinessGate readiness, ICurrentUserContext currentUser, INavigationService navigation)
+    public DashboardPageViewModel(IDashboardQueryService dashboard, IStoreReadinessGate readiness, ICurrentUserContext currentUser, INavigationService navigation,
+        IDataChangeNotifier changes)
     {
         _navigation = navigation;
         _dashboard = dashboard;
@@ -49,6 +50,12 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         _refresh = new DashboardRefreshCoordinator<PreparedDashboard>(FetchAsync, Prepare, Publish, OnRefreshFailed, OnRefreshSucceeded);
         _refresh.StateChanged += OnRefreshStateChanged;
         _refreshTimer.Tick += OnRefreshTick;
+        // Shown while a write lands (a sheet/modal over the page): refresh now. Hidden: the next visit's
+        // ActivateAsync always refreshes, so no stale flag is needed.
+        RefreshOnDataChange(changes, () => _ = _refresh.RefreshAsync(force: true),
+            DataDomain.Patients, DataDomain.Visits, DataDomain.Vaccination, DataDomain.Appointments,
+            DataDomain.Boarding, DataDomain.Inventory, DataDomain.Sales, DataDomain.Cashier, DataDomain.Cheques,
+            DataDomain.Finance);
 
         Title = "داشبورد";
         Eyebrow = "مرکز فرمان";

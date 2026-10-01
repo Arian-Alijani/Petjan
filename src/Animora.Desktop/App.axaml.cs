@@ -267,6 +267,7 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<ICurrentUserContext, CurrentUserContextService>();
         services.AddSingleton<IAuthenticationService, AuthenticationService>();
         services.AddSingleton<INavigationService, NavigationService>();
+        services.AddSingleton<IDataChangeNotifier, DataChangeNotifier>();
 
         // B04c: the capability gate is ONE app-wide singleton — the concrete service (warmed by
         // AuthenticationService via DI) and the ICapabilityGate the shell ViewModels consume are the same

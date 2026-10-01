@@ -77,6 +77,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     private readonly IRecordSheetPresenter _presenter;
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
+    private readonly IDataChangeNotifier _changes;
 
     private PetDetail? _pet;
     private OwnerDetail? _owner;
@@ -101,9 +102,11 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         IPatientsQueryService patients,
         IRecordSheetPresenter presenter,
         IDialogService dialogs,
-        IToastService toast)
+        IToastService toast,
+        IDataChangeNotifier changes)
     {
         _patients = patients;
+        _changes = changes;
         _presenter = presenter;
         _dialogs = dialogs;
         _toast = toast;
@@ -588,6 +591,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         };
 
         var saved = await _patients.SavePetInfoAsync(updated);
+        _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
         Apply(saved);
         IsEditingInfo = false;
         _toast.Show("مشخصات بیمار به‌روزرسانی شد", Controls.Tone.Ok);

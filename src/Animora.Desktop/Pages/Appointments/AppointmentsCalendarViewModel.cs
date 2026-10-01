@@ -29,6 +29,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private readonly IAppointmentsQueryService _service;
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
+    private readonly IDataChangeNotifier _changes;
     private readonly IAppointmentBookingService _booking;
     private readonly IDialogService _dialogs;
 
@@ -79,9 +80,11 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         IStoreReadinessGate readiness,
         IToastService toast,
         IAppointmentBookingService booking,
-        IDialogService dialogs)
+        IDialogService dialogs,
+        IDataChangeNotifier changes)
     {
         _service = service;
+        _changes = changes;
         _readiness = readiness;
         _toast = toast;
         _booking = booking;
@@ -98,6 +101,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _historyCalendarCursor = today;
 
         UseLoadStatus(ReloadPageAsync);
+        // A completed encounter closes its appointment; patient edits change the names shown.
+        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Visits, DataDomain.Patients);
         _ = ReloadPageAsync();
     }
 
@@ -1187,7 +1192,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs);
-        panel.Saved += () => _ = RefreshAfterChangeAsync();
+        panel.Saved += RefreshAfterWrite;
         await panel.LoadForNewAsync(null, null, null, null);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
     }
@@ -1199,7 +1204,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             _service,
             _toast,
             _dialogs,
-            onChanged: () => _ = RefreshAfterChangeAsync(),
+            onChanged: RefreshAfterWrite,
             onEdit: editEv => _ = OpenEditAsync(editEv));
         if (await detail.LoadAsync(ev.Id))
         {
@@ -1210,9 +1215,16 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private async Task OpenEditAsync(AppointmentEvent ev)
     {
         var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs);
-        panel.Saved += () => _ = RefreshAfterChangeAsync();
+        panel.Saved += RefreshAfterWrite;
         await panel.LoadForEditAsync(ev);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
+    }
+
+    /// <summary>A booking write also feeds the visits queue, the patient directory and the dashboard; reload this page too.</summary>
+    private void RefreshAfterWrite()
+    {
+        _changes.Notify(DataDomain.Appointments, DataDomain.Visits, DataDomain.Patients, DataDomain.Dashboard);
+        _ = RefreshAfterChangeAsync();
     }
 
     private async Task RefreshAfterChangeAsync()

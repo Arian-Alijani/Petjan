@@ -111,7 +111,14 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
             return;
         }
 
-        CurrentViewModel?.OnNavigatedFrom();
+        if (CurrentViewModel is { } leaving)
+        {
+            leaving.IsCurrentPage = false;
+            leaving.OnNavigatedFrom();
+        }
+
+        // Before the assignment: the change handler runs OnNavigatedTo, which may already be notified of writes.
+        viewModel.IsCurrentPage = true;
         CurrentViewModel = viewModel;
     }
 

@@ -38,6 +38,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     private readonly ISalesQueryService _service;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
+    private readonly Action? _onInvoiceChanged;
     private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
 
     private readonly HashSet<CashierHistoryKind> _selectedKinds = [];
@@ -56,8 +57,10 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     // longer matches is discarded (a newer query has superseded it).
     private int _generation;
 
-    public SaleHistoryViewModel(ISalesQueryService service, IToastService toast, IDialogService dialogs)
+    public SaleHistoryViewModel(ISalesQueryService service, IToastService toast, IDialogService dialogs,
+        Action? onInvoiceChanged = null)
     {
+        _onInvoiceChanged = onInvoiceChanged;
         _service = service;
         _toast = toast;
         _dialogs = dialogs;
@@ -80,7 +83,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
         }
 
         _dialogs.ShowSheet(
-            new InvoiceViewerViewModel(_service, _toast, _dialogs, invoiceId, Refresh),
+            new InvoiceViewerViewModel(_service, _toast, _dialogs, invoiceId, OnInvoiceChanged),
             1040,
             720);
     }
@@ -216,6 +219,13 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
 
         _loaded = true;
         _ = ReloadAsync(resetPage: true);
+    }
+
+    // The viewer edited/voided/deleted an invoice: refresh the ledger and tell the other pages.
+    private void OnInvoiceChanged()
+    {
+        Refresh();
+        _onInvoiceChanged?.Invoke();
     }
 
     /// <summary>Force a refresh (e.g. after a cashier-tab mutation changed the ledger).</summary>

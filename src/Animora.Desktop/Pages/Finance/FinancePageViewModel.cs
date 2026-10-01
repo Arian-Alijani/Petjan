@@ -31,6 +31,7 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
     private readonly IFinanceQueryService _service;
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
+    private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
 
     private string _range = "30d";
@@ -40,9 +41,11 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
     private string _entryTab = "overview";
     private string _entryRange = "30d";
 
-    public FinancePageViewModel(IFinanceQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs)
+    public FinancePageViewModel(IFinanceQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs,
+        IDataChangeNotifier changes)
     {
         _service = service;
+        _changes = changes;
         _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
@@ -53,6 +56,8 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
         Breadcrumbs.Add("مالی و هزینه‌ها");
 
         UseLoadStatus(ReloadPageAsync);
+        // Revenue and payables come from sales, cashier payments, purchases and cheques.
+        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Sales, DataDomain.Cashier, DataDomain.Purchasing, DataDomain.Cheques);
     }
 
     // ── Chrome ───────────────────────────────────────────────────────────
@@ -827,6 +832,7 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
     /// <summary>Prepends the newly recorded expense to the table and flashes its new-row highlight.</summary>
     private void HighlightNewExpense(Contracts.Finance.ExpenseEntry entry)
     {
+        _changes.Notify(DataDomain.Finance, DataDomain.Dashboard);
         var row = new FinanceExpenseRowViewModel(
             entry.Id, entry.Description, CategoryLabel(entry.CategoryId), CategoryColor(entry.CategoryId),
             PersianNumberFormatter.ToPersianDigits(entry.Date), MethodLabel(entry.MethodId),

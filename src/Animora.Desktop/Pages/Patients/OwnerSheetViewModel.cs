@@ -54,6 +54,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private readonly IRecordSheetPresenter _presenter;
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
+    private readonly IDataChangeNotifier _changes;
 
     private OwnerDetail? _owner;
 
@@ -75,9 +76,11 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         IPatientsQueryService patients,
         IRecordSheetPresenter presenter,
         IDialogService dialogs,
-        IToastService toast)
+        IToastService toast,
+        IDataChangeNotifier changes)
     {
         _patients = patients;
+        _changes = changes;
         _presenter = presenter;
         _dialogs = dialogs;
         _toast = toast;
@@ -245,6 +248,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         };
 
         var saved = await _patients.SaveOwnerAsync(updated);
+        _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
         Apply(saved);
         IsEditing = false;
         _toast.Show("اطلاعات مالک به‌روزرسانی شد", Tone.Ok);
@@ -282,6 +286,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
             async req =>
             {
                 await _patients.CreatePetAsync(owner.Id, req);
+                _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
                 await LoadAsync(owner.Id);
                 _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
             },

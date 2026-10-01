@@ -35,6 +35,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     private readonly IChequesQueryService _service;
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
+    private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
 
     private readonly List<Cheque> _cheques = [];
@@ -56,9 +57,11 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     private int _page = 1;
     private string _today = string.Empty;
 
-    public ChequesPageViewModel(IChequesQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs)
+    public ChequesPageViewModel(IChequesQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs,
+        IDataChangeNotifier changes)
     {
         _service = service;
+        _changes = changes;
         _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
@@ -69,6 +72,8 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
         Breadcrumbs.Add("چک‌ها");
 
         UseLoadStatus(ReloadPageAsync);
+        // Purchase invoices paid by cheque register new payable cheques.
+        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Purchasing);
     }
 
     // ── Chrome ───────────────────────────────────────────────────────────
@@ -981,7 +986,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
         var banks = _banks.Values.ToList();
         var vm = new ChequeDrawerViewModel(
             _service, _toast, _dialogs, banks, editing,
-            onSaved: () => _ = ReloadAsync());
+            onSaved: ReloadAfterWrite);
 
         // The reference's `.ch-modal` is a centred 720px dialog (cheques.css
         // .ch-modal), not a side drawer — so it opens through ShowModal.
@@ -1010,7 +1015,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     {
         var vm = new ChequeDetailViewModel(
             _service, _toast, _dialogs, c, BankOf(c.BankKey),
-            onChanged: () => _ = ReloadAsync(),
+            onChanged: ReloadAfterWrite,
             onEdit: edit =>
             {
                 _dialogs.Close();
@@ -1018,6 +1023,16 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
             });
         _dialogs.ShowDrawer(vm, 480);
     }
+
+    /// <summary>Cheque writes move the treasury figures and the dashboard KPIs; reload this page too.</summary>
+    private void ReloadAfterWrite()
+    {
+        NotifyChequesChanged();
+        _ = ReloadAsync();
+    }
+
+    private void NotifyChequesChanged() =>
+        _changes.Notify(DataDomain.Cheques, DataDomain.Finance, DataDomain.Dashboard);
 
     /// <summary>Reloads the whole screen from the service (after any mutation).</summary>
     private async Task ReloadAsync()
@@ -1103,10 +1118,12 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
         {
             case "bank":
                 await _service.BulkUpdateStatusAsync(ids, ChequeStatus.AtBank);
+                NotifyChequesChanged();
                 _toast.Show("دسته چک انتخابی به بانک واگذار شد (نمونه طراحی)", Tone.Ok);
                 break;
             case "clear":
                 await _service.BulkUpdateStatusAsync(ids, ChequeStatus.Cleared);
+                NotifyChequesChanged();
                 _toast.Show("وصول چک‌های انتخابی ثبت شد (نمونه طراحی)", Tone.Ok);
                 break;
             case "sms":
@@ -1184,6 +1201,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
                 return;
             case "del":
                 await _service.DeleteAsync(id);
+                NotifyChequesChanged();
                 _selectedIds.Remove(id);
                 _toast.Show("چک حذف شد (نمونه طراحی)", Tone.Danger);
                 await ReloadAsync();
@@ -1201,6 +1219,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
         };
 
         await _service.BulkUpdateStatusAsync([id], st);
+        NotifyChequesChanged();
         _toast.Show($"وضعیت چک {ChequesPresentation.FaText(c.Number)} به «{ChequesPresentation.StatusLabel(st)}» تغییر کرد", Tone.Ok);
         await ReloadAsync();
     }

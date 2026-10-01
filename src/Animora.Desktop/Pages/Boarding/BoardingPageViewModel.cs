@@ -26,6 +26,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private readonly IBoardingQueryService _service;
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
+    private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
     private readonly INavigationService _navigation;
 
@@ -37,9 +38,11 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private string _searchQuery = string.Empty;
     private BoardingSpecies? _species;
 
-    public BoardingPageViewModel(IBoardingQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs, INavigationService navigation)
+    public BoardingPageViewModel(IBoardingQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs, INavigationService navigation,
+        IDataChangeNotifier changes)
     {
         _service = service;
+        _changes = changes;
         _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
@@ -94,6 +97,8 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         SelectedSpeciesOption.IsActive = true;
 
         UseLoadStatus(ReloadPageAsync);
+        // Boarders are pets from the patient directory; checkout invoices are settled in the cashier.
+        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Patients, DataDomain.Cashier);
     }
 
     /// <summary>board | history | settings — the reference's <c>#bd-main-seg</c> keys.</summary>
@@ -286,6 +291,13 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
             (await _service.GetServicesAsync()).Select(service => new BoardingServiceRowViewModel(service)));
     }
 
+    /// <summary>Stay writes (incl. checkout charges) reach the cashier, the ledger and the dashboard; reload this page too.</summary>
+    private void RefreshAfterWrite()
+    {
+        _changes.Notify(DataDomain.Boarding, DataDomain.Cashier, DataDomain.History, DataDomain.Dashboard);
+        _ = RefreshAfterChangeAsync();
+    }
+
     private async Task RefreshAfterChangeAsync()
     {
         await ReloadStaysAsync();
@@ -359,7 +371,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         _dialogs.ShowModal(
             new StayDetailModalViewModel(
                 _service, _toast, _dialogs, stayId,
-                onChanged: () => _ = RefreshAfterChangeAsync(),
+                onChanged: RefreshAfterWrite,
                 onTransfer: stay => ShowTransfer(stay),
                 onCheckout: stay => ShowCheckout(stay),
                 onGotoCashier: GotoCashier),
@@ -388,21 +400,21 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         var items = detail?.Items ?? [];
         _dialogs.ShowModal(
             new TransferModalViewModel(_service, _toast, _dialogs, stay, items,
-                onTransferred: () => _ = RefreshAfterChangeAsync()),
+                onTransferred: RefreshAfterWrite),
             maxWidth: 580);
     }
 
     private void ShowCheckout(BoardingStay stay) =>
         _dialogs.ShowModal(
             new CheckoutModalViewModel(_service, _toast, _dialogs, stay,
-                onCheckedOut: () => _ = RefreshAfterChangeAsync()),
+                onCheckedOut: RefreshAfterWrite),
             maxWidth: 520);
 
     [RelayCommand]
     private void OpenNewStay() =>
         _dialogs.ShowModal(
             new NewStayModalViewModel(_service, _toast, _dialogs,
-                onCreated: () => _ = RefreshAfterChangeAsync()),
+                onCreated: RefreshAfterWrite),
             maxWidth: 580);
 
     // ── settings actions (reference bdSettingsSave/bdAddRoom/bdAddService/bdEditSvc) ──
