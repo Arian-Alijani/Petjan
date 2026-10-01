@@ -63,6 +63,22 @@ public sealed class DashboardRefreshCoordinator<TView> : IDisposable where TView
     }
 
     /// <summary>
+    /// The signed-in identity/role changed: cancel anything in flight (a late response of the previous identity is
+    /// never published) and forget the published snapshot so the next load always publishes, even if it were the
+    /// same instance. The caller clears its own presentation state.
+    /// </summary>
+    public void Reset()
+    {
+        bool changed;
+        lock (_gate)
+        {
+            changed = CancelLocked();
+            Current = null;
+        }
+        if (changed) StateChanged?.Invoke();
+    }
+
+    /// <summary>
     /// Requests a load. Concurrent callers share one query; a forced request that arrives during a non-forced
     /// load schedules exactly one forced re-run.
     /// </summary>

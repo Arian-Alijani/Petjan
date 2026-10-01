@@ -148,6 +148,38 @@ public sealed class DashboardLifecycleTests
         Assert.Equal(["ok"], p.Applied);
     }
 
+    [Fact]
+    public async Task IdentityReset_DropsLateResponseOfPreviousIdentity_AndNextLoadAlwaysPublishes()
+    {
+        var p = new Probe();
+        var doctor = p.Coordinator.ActivateAsync();
+        p.Coordinator.Reset(); // the signed-in identity changed while the doctor's load was in flight
+        Assert.False(p.Coordinator.IsBusy);
+        p.Calls[0].Result.TrySetResult(Snap("doctor-data"));
+        await doctor;
+        Assert.Empty(p.Applied);
+        Assert.Null(p.Coordinator.Current);
+        var receptionist = p.Coordinator.ActivateAsync();
+        p.Calls[1].Result.SetResult(Snap("receptionist-data"));
+        await receptionist;
+        Assert.Equal(["receptionist-data"], p.Applied);
+    }
+
+    [Fact]
+    public async Task IdentityReset_ForgetsPublishedSnapshot_SoAnIdenticalInstanceIsPublishedAgain()
+    {
+        var p = new Probe();
+        var shared = Snap("shared");
+        var first = p.Coordinator.RefreshAsync();
+        p.Calls[0].Result.SetResult(shared);
+        await first;
+        p.Coordinator.Reset();
+        var second = p.Coordinator.RefreshAsync();
+        p.Calls[1].Result.SetResult(shared);
+        await second;
+        Assert.Equal(["shared", "shared"], p.Applied);
+    }
+
     // ---- service: token reaches the semaphore and the database --------------------------------------------
 
     private sealed class Gatekeeper : DbCommandInterceptor

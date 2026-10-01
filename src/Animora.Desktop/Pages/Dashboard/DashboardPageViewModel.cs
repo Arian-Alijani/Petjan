@@ -28,6 +28,8 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private readonly INavigationService _navigation;
     private readonly IDashboardQueryService _dashboard;
     private readonly IStoreReadinessGate _readiness;
+    private readonly ICurrentUserContext _currentUser;
+    private string _identityKey;
 
     [ObservableProperty]
     private string _primaryListTitle = string.Empty;
@@ -40,7 +42,9 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         _navigation = navigation;
         _dashboard = dashboard;
         _readiness = readiness;
+        _currentUser = currentUser;
         Role = currentUser.Role;
+        _identityKey = IdentityKey(currentUser);
         _refresh = new DashboardRefreshCoordinator<DashboardSnapshot>(FetchAsync, snapshot => snapshot, Apply, OnRefreshFailed);
         _refresh.StateChanged += OnRefreshStateChanged;
 
@@ -60,7 +64,51 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     // Visit lifecycle: activation supersedes any in-flight load and always ends in a refresh; leaving the page
     // cancels the load through the token down to the database, and its late result is never applied.
-    public override void OnNavigatedTo() => _ = _refresh.ActivateAsync();
+    public override void OnNavigatedTo()
+    {
+        SyncIdentity();
+        _ = _refresh.ActivateAsync();
+    }
+
+    private static string IdentityKey(ICurrentUserContext user) => $"{user.UserId}|{user.Role}";
+
+    // The page is a singleton, so the signed-in identity can change underneath it (sign-out/in as another user).
+    // A different identity/role resets every piece of state of the previous one before anything is loaded.
+    private void SyncIdentity()
+    {
+        var key = IdentityKey(_currentUser);
+        if (key == _identityKey) return;
+        _identityKey = key;
+        _refresh.Reset();
+        ClearPresentation();
+        Role = _currentUser.Role;
+    }
+
+    private void ClearPresentation()
+    {
+        LoadError = null;
+        Stats.ReplaceAll([]);
+        PrimaryList.ReplaceAll([]);
+        SecondaryList.ReplaceAll([]);
+        DoctorLoads.ReplaceAll([]);
+        Species.ReplaceAll([]);
+        PrimaryListTitle = string.Empty;
+        SecondaryListTitle = string.Empty;
+        HasDoctorWorkload = false;
+        HasSpecies = false;
+        RevenuePulse = null;
+        RevenueAreaGeometry = null;
+        RevenueLineGeometry = null;
+        RevenueZeroLineGeometry = null;
+        RevenueTooltip = string.Empty;
+        SpeciesSlices = System.Array.Empty<Animora.Desktop.Controls.DonutSlice>();
+        SpeciesTotal = string.Empty;
+        SpeciesTotalSub = string.Empty;
+        SpeciesActiveIndex = -1;
+        IsSpeciesDimmed = false;
+        _speciesBaseTotal = string.Empty;
+        _speciesBaseSub = string.Empty;
+    }
 
     public override void OnNavigatedFrom() => _refresh.Deactivate();
 
@@ -82,13 +130,9 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private void OnRefreshFailed(Exception exception) =>
         LoadError = "بارگذاری داشبورد انجام نشد؛ دوباره تلاش کنید";
 
-    public UserRole Role { get; }
-
-    public bool IsManager => Role is UserRole.Manager or UserRole.Receptionist;
-
-    public bool IsCashier => Role == UserRole.Cashier;
-
-    public bool IsDoctor => Role == UserRole.Doctor;
+    /// <summary>Presentation layout role of the current identity; changes (and notifies) when the identity changes.</summary>
+    [ObservableProperty]
+    private UserRole _role;
 
     public RangeObservableCollection<DashboardStat> Stats { get; } = new();
 
