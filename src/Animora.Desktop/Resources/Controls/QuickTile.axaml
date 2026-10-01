@@ -31,10 +31,9 @@
         <Setter Property="Padding" Value="14,14,14,13" />
         <Setter Property="RenderTransform" Value="translateY(0px)" />
     </Style>
-    <!-- Hover and keyboard focus: lift + shadow + accent border (focus parity, D31-style). -->
+    <!-- Hover and keyboard focus: lift + accent border (no shadow) (focus parity, D31-style). -->
     <Style Selector="Button.quick-tile:pointerover Border.qt-card, Button.quick-tile:focus-visible Border.qt-card">
         <Setter Property="RenderTransform" Value="translateY(-5px)" />
-        <Setter Property="BoxShadow" Value="{StaticResource ShadowTileHover}" />
         <Setter Property="BorderBrush" Value="{Binding AccentBrush}" />
     </Style>
 
