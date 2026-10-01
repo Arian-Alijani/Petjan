@@ -2,7 +2,7 @@
 
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
-- درخواست پایانی کاربر: جمع‌بندی کار انجام‌شده؛ شروع تسک تازه ممنوع.
+- ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
 - **11 از 44 تسک انجام‌شده: D01، D02، D03، D11، D13، D14، D15، D32، D39، D41، D43. 33 تسک دیگر باز هستند.** این جلسه 8 تسک جدید را تکمیل کرد؛ checkboxهای زیر مرجع پذیرش‌اند و تکمیل کل فاز ادعا نمی‌شود.
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
@@ -174,7 +174,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D04 reset state on identity changes"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D05 — quick action و hotkey کنترل ورود sidebar را ندارند
-- [ ] وضعیت: باز | P1 | گزارش 5 | نتیجه: قطعی UI؛ bypass فرمان backend اثبات نشده.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 5 | نتیجه: policy مشترک typed page/key برای تمام overloadهای navigation.
+- شواهد 2026-10-01: gate پیش از resolve/configure؛ unknown و key نامنطبق fail-closed؛ پس از await/configure مجدداً gate؛ denial با null و toast امن بدون exception. Purchasing/Reception/Cashier با permission واقعی catalog صریح map شدند؛ Finance expense/reports با semantic key مستقل‌اند. `NavigationAdmissionTests`: **6 passed، 0 failed، 82ms**، production source لینک‌شده با pageهای inert فقط برای حذف startup GUI؛ تست backend auth مستقل دست‌نخورده. build فقط Desktop: **0 warning/0 error، 55 ثانیه**؛ warning تاریخی CS8625 در compilation تست باقی است. اسکریپت پوش اجرا و PR [#182](https://github.com/Arian-Alijani/Petjan/pull/182) ثبت شد. Full build/test اجرا نشد.
 - شواهد: `DashboardPageViewModel.OpenQuickAction`؛ `DashboardQuickAction.All`؛ `MainWindowViewModel.cs:93–119`؛ تمام overloadهای `NavigationService`؛ مقایسه `SidebarViewModel.cs:56–64` و `NavPermissions`.
 - اقدام: policy مرکزی permission→target در navigation موجود؛ sidebar/tile/hotkey/palette و overloadهای configure/async همگی همان تصمیم را استفاده کنند. denial به‌صورت قابل‌فهم و بدون exception کنترل‌نشده باشد؛ قبل از resolve/configure صفحه ممنوع gate انجام شود. targetهای خارج sidebar مثل Purchasing/Reception/Cashier صریحاً map شوند؛ صفحه ناشناخته fail-closed بماند.
 - پذیرش/بررسی محدود: پذیرش به Inventory/Finance/Purchasing از هیچ ورودی وارد نشود؛ grant/deny رفتار یکسان ایجاد کند؛ به‌هنگام await configure و revoke دوباره gate شود. رفتار landing لوکال مجاز حفظ شود؛ backend مستقل باقی بماند.
