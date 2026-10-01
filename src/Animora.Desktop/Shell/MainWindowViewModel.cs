@@ -16,8 +16,6 @@ namespace Animora.Desktop.Shell;
 /// </summary>
 public sealed partial class MainWindowViewModel : ObservableObject
 {
-    private const string StartupKey = "dashboard";
-
     private const double ExpandedSidebarWidth = 288;
 
     // Keep a compact navigation rail visible when the full menu is collapsed so
@@ -61,7 +59,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
         // Default landing page: the real Dashboard screen (Phase 06).
         _navigation.NavigateTo<DashboardPageViewModel>();
-        Sidebar.SetActive(StartupKey);
     }
 
     private void OnSidebarToggleRequested(object? sender, EventArgs e)
@@ -114,19 +111,6 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _dialogs.ShowModal(palette, maxWidth: 660);
     }
 
-    private void NavigateTo(Type target)
-    {
-        if (_navigation.NavigateTo(target) is null) return;
-
-        // Mirror the sidebar highlight from the navigation catalog so the active
-        // item stays correct no matter which entry point was used.
-        foreach (var item in NavigationMenu.Items)
-        {
-            if (item.ViewModelType == target)
-            {
-                Sidebar.SetActive(item.Key);
-                break;
-            }
-        }
-    }
+    // The sidebar highlight follows the navigation state; there is nothing to mirror here.
+    private void NavigateTo(Type target) => _navigation.NavigateTo(target);
 }

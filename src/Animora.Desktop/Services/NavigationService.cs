@@ -24,6 +24,8 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         _toast = toast;
     }
 
+    public string? CurrentNavigationKey { get; private set; }
+
     public event EventHandler? CurrentViewModelChanged;
 
     public TViewModel? NavigateTo<TViewModel>() where TViewModel : PageViewModelBase =>
@@ -34,9 +36,10 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         ArgumentNullException.ThrowIfNull(configure);
         if (!Admit(typeof(TViewModel))) return null;
         var viewModel = _services.GetRequiredService<TViewModel>();
+        ApplyEntry(viewModel, NavPermissions.KeyFor(typeof(TViewModel)));
         configure(viewModel);
         if (!Admit(typeof(TViewModel))) return null;
-        Publish(viewModel);
+        Publish(viewModel, NavPermissions.KeyFor(typeof(TViewModel)));
         return viewModel;
     }
 
@@ -46,10 +49,11 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         ArgumentNullException.ThrowIfNull(configure);
         if (!Admit(typeof(TViewModel))) return null;
         var viewModel = _services.GetRequiredService<TViewModel>();
+        ApplyEntry(viewModel, NavPermissions.KeyFor(typeof(TViewModel)));
         await configure(viewModel);
         // Authority can change while record hydration is awaited.
         if (!Admit(typeof(TViewModel))) return null;
-        Publish(viewModel);
+        Publish(viewModel, NavPermissions.KeyFor(typeof(TViewModel)));
         return viewModel;
     }
 
@@ -59,9 +63,11 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         ArgumentNullException.ThrowIfNull(viewModelType);
         if (!Admit(viewModelType, navigationKey)) return null;
         var viewModel = (PageViewModelBase)_services.GetRequiredService(viewModelType);
+        var key = navigationKey ?? NavPermissions.KeyFor(viewModelType);
+        ApplyEntry(viewModel, key);
         configure?.Invoke(viewModel);
         if (!Admit(viewModelType, navigationKey)) return null;
-        Publish(viewModel);
+        Publish(viewModel, key);
         return viewModel;
     }
 
@@ -76,16 +82,32 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         return false;
     }
 
+    // The semantic entry (tab/range of expense vs reports) is applied for every caller, not only the sidebar.
+    private static void ApplyEntry(PageViewModelBase viewModel, string? key)
+    {
+        if (key is null) return;
+        foreach (var item in NavigationMenu.Items)
+        {
+            if (item.Key != key) continue;
+            viewModel.ApplyNavigationEntry(item);
+            return;
+        }
+    }
+
     // Single publication path for every overload. Activation is decoupled from the property-equality check:
     //  - a different page: the page being replaced is told it is leaving (cancel in-flight work/timers), then the
     //    new page becomes current (OnCurrentViewModelChanged activates it and raises CurrentViewModelChanged);
     //  - the same singleton page: it is simply activated again (e.g. Ctrl+Shift+D on the dashboard refreshes it
     //    once) without a leave/recreate and without a spurious CurrentViewModelChanged.
-    private void Publish(PageViewModelBase viewModel)
+    private void Publish(PageViewModelBase viewModel, string? key)
     {
+        var keyChanged = CurrentNavigationKey != key;
+        CurrentNavigationKey = key;
         if (ReferenceEquals(CurrentViewModel, viewModel))
         {
             viewModel.OnNavigatedTo();
+            // Same page, different semantic entry (expense -> reports): the highlight must follow.
+            if (keyChanged) CurrentViewModelChanged?.Invoke(this, EventArgs.Empty);
             return;
         }
 

@@ -3,10 +3,10 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
-- **39 از 44 تسک انجام‌شده؛ 5 تسک باز: D33، D34، D35، D42، D44.**
+- **40 از 44 تسک انجام‌شده؛ 4 تسک باز: D34، D35، D42، D44.**
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
-- باقی‌مانده: D33، D34، D35، D42، D44. پذیرش GUI/Windows بدون شاهد واقعی بسته نمی‌شود.
+- باقی‌مانده: D34، D35، D42، D44. پذیرش GUI/Windows بدون شاهد واقعی بسته نمی‌شود.
 - متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #181 را توصیف نمی‌کنند. fixture قدیمی ناسازگار در اجرای قبلی فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران. اسکریپت‌های Windows/sandbox/git، migrationها و دیتابیس واقعی کاربر در این جلسه تغییر نکردند.
 
 ## دامنه و نتیجه مرحله تدوین اولیه (تاریخی)
@@ -399,7 +399,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D32 remove fabricated operational counts"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D33 — tile، active sidebar را sync نمی‌کند
-- [ ] وضعیت: باز | P2 | گزارش 33 | نتیجه: قطعی مسیر caller | وابستگی: D05.
+- [x] وضعیت: انجام‌شده | P2 | گزارش 33 | نتیجه: active sidebar از state مرکزی navigation مشتق می‌شود (کلید semantic)؛ highlight همه ورودی‌ها یکسان. | وابستگی: D05.
+- شواهد اجرای 2026-10-01: `INavigationService.CurrentNavigationKey` (کلید semantic مانند expense/reports/purchasing) در تمام overloadها پس از admission ثبت می‌شود و `SidebarViewModel` با یک اشتراک دائمی روی `CurrentViewModelChanged` highlight را مشتق می‌کند؛ `SetActive` دستی در Sidebar/MainWindow و کپی `finance.Configure` حذف شد. tab/range ورودی هر entry از `PageViewModelBase.ApplyNavigationEntry` برای همه callerها (tile/hotkey/palette/sidebar) تحویل می‌شود؛ تغییر expense↔reports روی ViewModel مشترک رویداد می‌دهد؛ صفحه بدون sidebar (Purchasing) highlight را پاک می‌کند؛ ناوبری ردشده کلید/فعال را تغییر نمی‌دهد. `NavigationAdmissionTests`: **12 passed، 0 failed**؛ build فقط Desktop: **0 warning/0 error، 57 ثانیه**.
 - شواهد: `DashboardPageViewModel.cs:170`؛ shell در `MainWindowViewModel.cs:119–129` دستی SetActive می‌کند؛ `SidebarViewModel` listener navigation ندارد.
 - اقدام: active selection از CurrentViewModelChanged/navigation descriptor مرکزی مشتق شود، نه از callerهای متفاوت. Finance دو entry با InitialTab/Range دارد؛ مقصد semantic entry هم منتقل شود و فقط first matching Type انتخاب نشود. target بدون sidebar مثل Purchasing highlight اشتباه روی dashboard باقی نگذارد.
 - پذیرش/بررسی محدود: tile/sidebar/hotkey/palette/drill-in نتیجه highlight یکسان؛ expense/reports با ViewModel مشترک درست؛ navigation denied active state را تغییر ندهد؛ subscription فقط یک بار و lifecycle درست باشد.
