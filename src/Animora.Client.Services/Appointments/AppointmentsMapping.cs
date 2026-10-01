@@ -26,9 +26,13 @@ internal static class AppointmentsMapping
                 row.State == AppointmentState.Completed ? AppointmentVisitOutcome.Complete : AppointmentVisitOutcome.None);
     }
 
-    internal static AppointmentDoctor ToContract(this DoctorRosterReadModel row) =>
+    /// <summary>
+    /// Maps a roster row. <paramref name="index"/> is the doctor's position in the roster so each
+    /// doctor gets a distinct, stable accent (roster order is deterministic).
+    /// </summary>
+    internal static AppointmentDoctor ToContract(this DoctorRosterReadModel row, int index) =>
         new(row.Id, row.Name, row.Name, row.Specialty,
-            row.Name.Length > 0 ? row.Name[..1] : "?", "#5A67D8");
+            row.Name.Length > 0 ? row.Name[..1] : "?", AppointmentColorPalette.ByIndex(index));
 
     internal static BookingPatient ToContract(this BookingPatientReadModel row) =>
         new(row.Id, row.Name, row.Species, row.OwnerName, row.Phone,
@@ -46,7 +50,13 @@ internal static class AppointmentsMapping
         _ => "سایر"
     };
 
+    /// <summary>Builds a type whose background/foreground are derived from its single accent color.</summary>
+    internal static AppointmentType BuildType(string id, string label, string classKey, string accent, int durationMinutes) =>
+        new(id, label, classKey, accent, AppointmentColorPalette.Tint(accent),
+            AppointmentColorPalette.Shade(accent), "calendar", durationMinutes);
+
+    // Each catalog type gets its own accent (by catalog order) — stable across runs.
     internal static IReadOnlyList<AppointmentType> Types { get; } = AppointmentTypeCatalog.All
-        .Select(t => new AppointmentType(t.Code, TypeLabel(t.Code), t.Code.ToLowerInvariant(),
-            "#5A67D8", "#EEF2FF", "#3730A3", "calendar", t.DefaultDurationMinutes)).ToArray();
+        .Select((t, i) => BuildType(t.Code, TypeLabel(t.Code), t.Code.ToLowerInvariant(),
+            AppointmentColorPalette.ByIndex(i), t.DefaultDurationMinutes)).ToArray();
 }

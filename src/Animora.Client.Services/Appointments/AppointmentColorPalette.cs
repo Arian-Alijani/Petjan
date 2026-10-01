@@ -25,6 +25,31 @@ internal static class AppointmentColorPalette
         return Accents[(int)(hash % (uint)Accents.Length)];
     }
 
+    /// <summary>Very light tint of <paramref name="accent"/> (chip / card background).</summary>
+    internal static string Tint(string accent) => Mix(accent, 255, 0.88);
+
+    /// <summary>Dark shade of <paramref name="accent"/> (readable text on <see cref="Tint"/>).</summary>
+    internal static string Shade(string accent) => Mix(accent, 0, 0.55);
+
+    // Blends accent toward a gray level (255 = white, 0 = black) by `amount` (0..1).
+    private static string Mix(string hex, int target, double amount)
+    {
+        var (r, g, b) = Parse(hex);
+        int M(int c) => (int)Math.Round(c + (target - c) * amount);
+        return $"#{M(r):X2}{M(g):X2}{M(b):X2}";
+    }
+
+    private static (int R, int G, int B) Parse(string hex)
+    {
+        var h = hex.AsSpan().TrimStart('#');
+        if (h.Length == 6 &&
+            int.TryParse(h[..2], System.Globalization.NumberStyles.HexNumber, null, out var r) &&
+            int.TryParse(h.Slice(2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g) &&
+            int.TryParse(h.Slice(4, 2), System.Globalization.NumberStyles.HexNumber, null, out var b))
+            return (r, g, b);
+        return (0x5A, 0x67, 0xD8);
+    }
+
     /// <summary>
     /// A palette color not in <paramref name="used"/>; when every palette color is taken, a random
     /// saturated color is generated (the caller persists it once).

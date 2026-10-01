@@ -75,9 +75,9 @@ public sealed class AppointmentEventViewModel
     public bool IsMedium => Tier == EventTier.Medium;
     public bool IsCancelled => Model.Status == AppointmentStatus.Cancelled;
 
-    public IBrush AccentBrush => AppointmentsPresentation.TypeAccent(Type.ClassKey);
-    public IBrush BackgroundBrush => AppointmentsPresentation.TypeBackground(Type.ClassKey);
-    public IBrush ForegroundBrush => AppointmentsPresentation.TypeForeground(Type.ClassKey);
+    public IBrush AccentBrush => AppointmentsPresentation.TypeAccent(Type);
+    public IBrush BackgroundBrush => AppointmentsPresentation.TypeBackground(Type);
+    public IBrush ForegroundBrush => AppointmentsPresentation.TypeForeground(Type);
     public IBrush AvatarBrush => AppointmentsPresentation.AvatarBrush(Model.AvatarTone);
     public IBrush FlagBrush => Model.Status switch
     {
@@ -136,13 +136,13 @@ public sealed class MonthEventViewModel
     public string EventClass => Type.ClassKey;
 
     /// <summary>Chip background brush for the event type.</summary>
-    public IBrush BackgroundBrush => AppointmentsPresentation.TypeBackground(Type.ClassKey);
+    public IBrush BackgroundBrush => AppointmentsPresentation.TypeBackground(Type);
 
     /// <summary>Chip foreground (text) brush for the event type.</summary>
-    public IBrush ForegroundBrush => AppointmentsPresentation.TypeForeground(Type.ClassKey);
+    public IBrush ForegroundBrush => AppointmentsPresentation.TypeForeground(Type);
 
     /// <summary>Chip start-border accent brush for the event type.</summary>
-    public IBrush AccentBrush => AppointmentsPresentation.TypeAccent(Type.ClassKey);
+    public IBrush AccentBrush => AppointmentsPresentation.TypeAccent(Type);
 
     /// <summary>Cancelled month chips dim to 0.55 opacity (reference's <c>.st-cancel</c>).</summary>
     public double ChipOpacity => IsCancelled ? 0.55 : 1;

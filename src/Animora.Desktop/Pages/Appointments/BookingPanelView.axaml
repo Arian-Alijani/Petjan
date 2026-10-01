@@ -101,7 +101,8 @@
                                                     CommandParameter="{Binding Id}">
                                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="9">
                                                     <Border Grid.Column="0" Width="30" Height="30" CornerRadius="9"
-                                                            Background="{Binding BackgroundBrush}">
+                                                            Background="{Binding BackgroundBrush}"
+                                                            BorderBrush="{Binding AccentBrush}" BorderThickness="1.5">
                                                         <Path Classes="icon" Width="16" Height="16"
                                                               Stroke="{Binding AccentBrush}"
                                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"

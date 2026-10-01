@@ -29,7 +29,7 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes) : IApp
     }
 
     public async Task<IReadOnlyList<AppointmentDoctor>> GetDoctorsAsync() =>
-        (await QueryAsync(new AppointmentDoctorsQuery())).Select(r => r.ToContract()).ToArray();
+        (await QueryAsync(new AppointmentDoctorsQuery())).Select((r, i) => r.ToContract(i)).ToArray();
 
     public Task<IReadOnlyList<AppointmentType>> GetTypesAsync() => Task.FromResult(AppointmentsMapping.Types);
 

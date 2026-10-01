@@ -24,29 +24,48 @@ public static class AppointmentsPresentation
 
     public static string Fa(string value) => PersianNumberFormatter.ToPersianDigits(value);
 
-    // ── per-type palette (appointments.css `.t-*`) ────────────────────────────
-    private static readonly Dictionary<string, (string Accent, string Bg, string Fg)> TypePalette = new()
+    // ── per-type colours ──────────────────────────────────────────────────────
+    // Every AppointmentType carries its own Accent / Background / Foreground (assigned once by the
+    // service layer), so brushes are resolved from the type itself — never from a fixed class-key
+    // table, which left every non-reference type on the gray fallback.
+
+    /// <summary>The accent brush of a type (cached, no per-render allocation).</summary>
+    public static IBrush TypeAccent(AppointmentType type) => Brush(type.Accent);
+
+    /// <summary>The tinted background brush of a type; derived from the accent when the type has none.</summary>
+    public static IBrush TypeBackground(AppointmentType type) =>
+        Brush(string.IsNullOrWhiteSpace(type.Background) ? ColorMath.Tint(type.Accent) : type.Background);
+
+    /// <summary>The text brush of a type; derived from the accent when the type has none.</summary>
+    public static IBrush TypeForeground(AppointmentType type) =>
+        Brush(string.IsNullOrWhiteSpace(type.Foreground) ? ColorMath.Shade(type.Accent) : type.Foreground);
+
+    /// <summary>Brush for an arbitrary accent hex (cached).</summary>
+    public static IBrush AccentFromHex(string hex) => Brush(hex);
+
+    /// <summary>Light tint brush derived from an accent hex, for backgrounds behind accent-coloured text.</summary>
+    public static IBrush TintFromAccent(string hex) => Brush(ColorMath.Tint(hex));
+
+    /// <summary>Dark shade brush derived from an accent hex, readable on <see cref="TintFromAccent"/>.</summary>
+    public static IBrush ShadeFromAccent(string hex) => Brush(ColorMath.Shade(hex));
+
+    private static class ColorMath
     {
-        ["visit"] = ("#0d9488", "#e6f4f0", "#125b52"),
-        ["vaccine"] = ("#1570cd", "#e6eefb", "#2f5299"),
-        ["dental"] = ("#8f74d1", "#ece6fa", "#5b3ea1"),
-        ["surgery"] = ("#d92d20", "#fbe6e3", "#96291f"),
-        ["groom"] = ("#e08a5c", "#fbead9", "#8a4a1e"),
-        ["lab"] = ("#2f9fb0", "#e2f2f5", "#1d6672"),
-        ["followup"] = ("#b54708", "#fbf0d9", "#8a5c14"),
-    };
+        public static string Tint(string hex) => Mix(hex, 255, 0.88);
 
-    private static (string Accent, string Bg, string Fg) Palette(string classKey) =>
-        TypePalette.TryGetValue(classKey, out var p) ? p : ("#98a2b3", "#eef2f0", "#536b68");
+        public static string Shade(string hex) => Mix(hex, 0, 0.55);
 
-    /// <summary>The accent brush for a type's CSS class key.</summary>
-    public static IBrush TypeAccent(string classKey) => Brush(Palette(classKey).Accent);
+        private static string Mix(string hex, int target, double amount)
+        {
+            if (!Color.TryParse(hex, out var c))
+            {
+                c = Color.Parse("#5A67D8");
+            }
 
-    /// <summary>The background brush for a type's CSS class key.</summary>
-    public static IBrush TypeBackground(string classKey) => Brush(Palette(classKey).Bg);
-
-    /// <summary>The foreground (text) brush for a type's CSS class key.</summary>
-    public static IBrush TypeForeground(string classKey) => Brush(Palette(classKey).Fg);
+            int M(byte v) => (int)System.Math.Round(v + (target - v) * amount);
+            return $"#{M(c.R):X2}{M(c.G):X2}{M(c.B):X2}";
+        }
+    }
 
     /// <summary>The left accent border brush (same as the type accent).</summary>
     public static IBrush Accent(string hex) => Brush(hex);

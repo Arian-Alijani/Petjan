@@ -552,8 +552,8 @@ public sealed partial class BookingPanelViewModel : ObservableObject
 
         SummaryTypeLabel = t.Label;
         SummaryTypeClass = t.ClassKey;
-        SummaryTypeBackground = AppointmentsPresentation.TypeBackground(t.ClassKey);
-        SummaryTypeForeground = AppointmentsPresentation.TypeForeground(t.ClassKey);
+        SummaryTypeBackground = AppointmentsPresentation.TypeBackground(t);
+        SummaryTypeForeground = AppointmentsPresentation.TypeForeground(t);
         SummaryDoctorShort = d.ShortName;
         SummaryDateText = AppointmentsCalendarMath.DayNames[AppointmentsCalendarMath.WeekIndex(_date)] +
                           "، " + AppointmentsCalendarMath.Full(_date);

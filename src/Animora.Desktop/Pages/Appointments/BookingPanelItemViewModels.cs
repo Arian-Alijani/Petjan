@@ -19,9 +19,9 @@ public sealed partial class BookingTypeOptionViewModel : ObservableObject
         Type = type;
         _isSelected = isSelected;
         DurationText = AppointmentsPresentation.Fa(durationMinutes) + " دقیقه";
-        AccentBrush = AppointmentsPresentation.TypeAccent(type.ClassKey);
-        BackgroundBrush = AppointmentsPresentation.TypeBackground(type.ClassKey);
-        ForegroundBrush = AppointmentsPresentation.TypeForeground(type.ClassKey);
+        AccentBrush = AppointmentsPresentation.TypeAccent(type);
+        BackgroundBrush = AppointmentsPresentation.TypeBackground(type);
+        ForegroundBrush = AppointmentsPresentation.TypeForeground(type);
     }
 
     public AppointmentType Type { get; }
