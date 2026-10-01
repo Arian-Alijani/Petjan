@@ -35,6 +35,11 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
         (await calendar.QueryAsync(new BookingPatientsQuery(search, speciesKey), ct))
             .Select(r => r.ToContract()).ToArray();
 
+    public async Task<BookingPatient?> GetPatientAsync(string patientId) =>
+        string.IsNullOrWhiteSpace(patientId)
+            ? null
+            : (await QueryAsync(new BookingPatientsQuery(PatientId: patientId))).SingleOrDefault()?.ToContract();
+
     public async Task<BookingPatient?> GetAppointmentPatientAsync(string appointmentId) =>
         (await QueryAsync(new BookingPatientsQuery(AppointmentId: appointmentId)))
             .SingleOrDefault()?.ToContract();

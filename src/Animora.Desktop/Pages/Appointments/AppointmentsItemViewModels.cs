@@ -75,9 +75,9 @@ public sealed class AppointmentEventViewModel
     public bool IsMedium => Tier == EventTier.Medium;
     public bool IsCancelled => Model.Status == AppointmentStatus.Cancelled;
 
-    public IBrush AccentBrush => AppointmentsPresentation.TypeAccent(Type.ClassKey);
-    public IBrush BackgroundBrush => AppointmentsPresentation.TypeBackground(Type.ClassKey);
-    public IBrush ForegroundBrush => AppointmentsPresentation.TypeForeground(Type.ClassKey);
+    public IBrush AccentBrush => AppointmentsPresentation.TypeAccent(Type);
+    public IBrush BackgroundBrush => AppointmentsPresentation.TypeBackground(Type);
+    public IBrush ForegroundBrush => AppointmentsPresentation.TypeForeground(Type);
     public IBrush AvatarBrush => AppointmentsPresentation.AvatarBrush(Model.AvatarTone);
     public IBrush FlagBrush => Model.Status switch
     {
@@ -121,11 +121,15 @@ public enum EventTier
 /// </summary>
 public sealed class MonthEventViewModel
 {
-    public MonthEventViewModel(AppointmentEvent model, AppointmentType type)
+    public MonthEventViewModel(AppointmentEvent model, AppointmentType type, bool showTime = true)
     {
         Model = model;
         Type = type;
+        ShowTime = showTime;
     }
+
+    /// <summary>False in day-only mode, where an appointment has no meaningful clock time.</summary>
+    public bool ShowTime { get; }
 
     public AppointmentEvent Model { get; }
     public AppointmentType Type { get; }
@@ -136,13 +140,13 @@ public sealed class MonthEventViewModel
     public string EventClass => Type.ClassKey;
 
     /// <summary>Chip background brush for the event type.</summary>
-    public IBrush BackgroundBrush => AppointmentsPresentation.TypeBackground(Type.ClassKey);
+    public IBrush BackgroundBrush => AppointmentsPresentation.TypeBackground(Type);
 
     /// <summary>Chip foreground (text) brush for the event type.</summary>
-    public IBrush ForegroundBrush => AppointmentsPresentation.TypeForeground(Type.ClassKey);
+    public IBrush ForegroundBrush => AppointmentsPresentation.TypeForeground(Type);
 
     /// <summary>Chip start-border accent brush for the event type.</summary>
-    public IBrush AccentBrush => AppointmentsPresentation.TypeAccent(Type.ClassKey);
+    public IBrush AccentBrush => AppointmentsPresentation.TypeAccent(Type);
 
     /// <summary>Cancelled month chips dim to 0.55 opacity (reference's <c>.st-cancel</c>).</summary>
     public double ChipOpacity => IsCancelled ? 0.55 : 1;
@@ -588,3 +592,37 @@ public sealed partial class HistoryCalendarCellViewModel : ObservableObject
     [ObservableProperty]
     private bool _isInactive;
 }
+
+/// <summary>
+/// One row of the Settings tab's «انواع نوبت» list: the type's colour dot, label and duration.
+/// Catalog types are read-only defaults; only clinic-created (custom) types can be removed.
+/// </summary>
+public sealed class AppointmentSettingTypeRowViewModel
+{
+    public AppointmentSettingTypeRowViewModel(
+        string id, string label, string colorHex, int durationMinutes, bool isCustom, bool? requiresDoctor)
+    {
+        Id = id;
+        Label = label;
+        ColorHex = colorHex;
+        IsCustom = isCustom;
+        var meta = AppointmentsPresentation.Fa(durationMinutes) + " دقیقه";
+        if (requiresDoctor is { } needsDoctor)
+        {
+            meta += needsDoctor ? " · نیاز به پزشک" : " · بدون پزشک";
+        }
+
+        MetaText = meta;
+    }
+
+    public string Id { get; }
+    public string Label { get; }
+    public string ColorHex { get; }
+    public string MetaText { get; }
+    public bool IsCustom { get; }
+    public bool CanRemove => IsCustom;
+    public string BadgeText => IsCustom ? "سفارشی" : "پیش‌فرض";
+}
+
+/// <summary>A numeric choice (minutes / hours) shown in a Settings-tab dropdown.</summary>
+public sealed record SettingNumberOption(int Value, string Label);

@@ -59,10 +59,15 @@ public sealed class BookAppointmentCommandValidator : IValidator<BookAppointment
 public sealed class BookAppointmentCommandHandler(IAppointmentRepository repository, IAppointmentQueries queries,
     IClinicTimeZoneProvider zones, IClock clock) : ICommandHandler<BookAppointmentCommand, string>
 {
+    /// <summary>Matches the <c>AppointmentTypeCode</c> column length (32).</summary>
+    private const int MaxTypeCodeLength = 32;
+
     public async Task<Result<string>> HandleAsync(BookAppointmentCommand c, CommandContext context, CancellationToken ct)
     {
-        if (!AppointmentTypeCatalog.TryGet(c.TypeId, out _))
-            return Result<string>.Fail(ErrorCodes.ValidationFailed, "Unknown appointment type.");
+        // The clinic can define its own types (stored client-side as preferences), so any well-formed code
+        // is accepted; the code must fit the stored column.
+        if (string.IsNullOrWhiteSpace(c.TypeId) || c.TypeId.Length > MaxTypeCodeLength)
+            return Result<string>.Fail(ErrorCodes.ValidationFailed, "Invalid appointment type.");
         var free = await BookingWork.EnsureSlotAsync(queries, zones, c.Date, c.StartMinutes,
             c.DurationMinutes, c.DoctorId, null, ct);
         if (free.IsFailure) return Result<string>.Fail(free.Error, free.Detail);

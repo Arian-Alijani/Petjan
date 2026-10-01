@@ -1,0 +1,260 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ap="using:Animora.Desktop.Pages.Appointments"
+             x:Name="Root"
+             x:Class="Animora.Desktop.Pages.Appointments.AppointmentsSettingsTabView"
+             x:DataType="ap:AppointmentsCalendarViewModel"
+             FlowDirection="RightToLeft">
+    <UserControl.Resources>
+        <DataTemplate x:Key="SettingNumberOptionTemplate" x:DataType="ap:SettingNumberOption">
+            <TextBlock Text="{Binding Label}" FlowDirection="RightToLeft"
+                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+        </DataTemplate>
+    </UserControl.Resources>
+    <UserControl.Styles>
+        <!-- reuses the booking panel's switch-row / bk-switch toggle styling -->
+        <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/BookingPanelStyles.axaml" />
+
+        <Style Selector="Border.st-card">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusLg}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="Padding" Value="20,18" />
+        </Style>
+
+        <!-- calendar-mode option -->
+        <Style Selector="Button.st-opt">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.st-opt:pointerover">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        </Style>
+        <Style Selector="Button.st-opt.is-active">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="Border.st-radio">
+            <Setter Property="Width" Value="18" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.is-active Border.st-radio">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+        </Style>
+
+        <!-- type row -->
+        <Style Selector="Border.st-row">
+            <Setter Property="Background" Value="#fbfcfb" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="12,9" />
+        </Style>
+        <Style Selector="Button.st-del">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.st-del:pointerover">
+            <Setter Property="Background" Value="#fbe6e3" />
+            <Setter Property="Foreground" Value="#d92d20" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+
+        <!-- ═══ انواع نوبت ═══ -->
+        <Border Grid.Column="0" Classes="st-card" VerticalAlignment="Top">
+            <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                    <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource Brand700Brush}"
+                          Data="{StaticResource IconPalette}" VerticalAlignment="Center" />
+                    <TextBlock Text="انواع نوبت" FontSize="15" FontWeight="ExtraBold"
+                               Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="هر نوع جدید یک رنگ متمایز می‌گیرد و فوراً در فیلترها و ثبت نوبت دیده می‌شود."
+                           FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" />
+
+                <!-- add form -->
+                <Border Classes="st-row" Padding="12">
+                    <StackPanel Spacing="10">
+                        <TextBox Text="{Binding NewTypeLabel, Mode=TwoWay}" MaxLength="40" Height="40"
+                                 Padding="12,0" CornerRadius="12" VerticalContentAlignment="Center"
+                                 PlaceholderText="نام نوع نوبت، مثلاً «سونوگرافی»" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <ComboBox Grid.Column="0" HorizontalAlignment="Stretch" Height="38"
+                                      ItemsSource="{Binding TypeDurationOptions}"
+                                      SelectedValue="{Binding NewTypeDuration, Mode=TwoWay}"
+                                      SelectedValueBinding="{ReflectionBinding Value}"
+                                      ItemTemplate="{StaticResource SettingNumberOptionTemplate}" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <ToggleButton Classes="bk-switch" IsChecked="{Binding NewTypeRequiresDoctor, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                                <TextBlock Text="نیاز به پزشک" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
+                        <Button Classes="primary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                IsEnabled="{Binding CanAddType}" Command="{Binding AddAppointmentTypeCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                                      Data="{StaticResource IconPlus}" />
+                                <TextBlock Text="افزودن نوع نوبت" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <ItemsControl ItemsSource="{Binding SettingTypes}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="8" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="ap:AppointmentSettingTypeRowViewModel">
+                            <Border Classes="st-row">
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="11">
+                                    <Ellipse Grid.Column="0" Width="14" Height="14" VerticalAlignment="Center"
+                                             Fill="{Binding ColorHex, Converter={StaticResource HexBrushConverter}}" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Label}" FontSize="13" FontWeight="Bold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="{Binding MetaText}" FontSize="11"
+                                                   Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                    <Border Grid.Column="2" Background="{StaticResource Bg2Brush}" CornerRadius="99"
+                                            Padding="9,3" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding BadgeText}" FontSize="10.5" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                    </Border>
+                                    <Button Grid.Column="3" Classes="st-del" IsVisible="{Binding CanRemove}"
+                                            Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).RemoveAppointmentTypeCommand}"
+                                            CommandParameter="{Binding}" ToolTip.Tip="حذف نوع">
+                                        <Path Classes="icon" Width="15" Height="15"
+                                              Stroke="{Binding $parent[Button].Foreground}"
+                                              Data="{StaticResource IconTrash}" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Column="1" Spacing="16" VerticalAlignment="Top">
+
+            <!-- ═══ حالت تقویم ═══ -->
+            <Border Classes="st-card">
+                <StackPanel Spacing="14">
+                    <StackPanel Orientation="Horizontal" Spacing="9">
+                        <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource Brand700Brush}"
+                              Data="{StaticResource IconCalendar}" VerticalAlignment="Center" />
+                        <TextBlock Text="حالت تقویم" FontSize="15" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button Grid.Column="0" Classes="st-opt" Classes.is-active="{Binding CalendarModeIsTimeBased}"
+                                Command="{Binding SetCalendarModeCommand}" CommandParameter="time">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
+                                <Border Grid.Column="0" Classes="st-radio" VerticalAlignment="Top" Margin="0,2,0,0" />
+                                <StackPanel Grid.Column="1" Spacing="3">
+                                    <TextBlock Text="بر اساس ساعت" FontSize="13" FontWeight="Bold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="هر نوبت ساعت شروع و مدت مشخص دارد؛ نمای روز، هفته و ماه فعال است."
+                                               FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+                        <Button Grid.Column="1" Classes="st-opt" Classes.is-active="{Binding CalendarModeIsDayOnly}"
+                                Command="{Binding SetCalendarModeCommand}" CommandParameter="day">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
+                                <Border Grid.Column="0" Classes="st-radio" VerticalAlignment="Top" Margin="0,2,0,0" />
+                                <StackPanel Grid.Column="1" Spacing="3">
+                                    <TextBlock Text="فقط روزانه" FontSize="13" FontWeight="Bold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="نوبت فقط برای یک روز ثبت می‌شود، بدون ساعت مشخص؛ تقویم ماهانه نمایش داده می‌شود."
+                                               FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ═══ پیامک ═══ -->
+            <Border Classes="st-card">
+                <StackPanel Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="9">
+                        <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource Brand700Brush}"
+                              Data="{StaticResource IconSms}" VerticalAlignment="Center" />
+                        <TextBlock Text="پیامک" FontSize="15" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <Border Classes="switch-row">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
+                            <ToggleButton Grid.Column="0" Classes="bk-switch" IsChecked="{Binding SmsOnBooking, Mode=TwoWay}">
+                                <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                            </ToggleButton>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="پیامک ثبت نوبت" FontSize="12.5" FontWeight="Bold"
+                                           Foreground="{StaticResource Ink2Brush}" />
+                                <TextBlock Text="بلافاصله پس از ثبت نوبت برای مالک ارسال می‌شود" FontSize="11"
+                                           Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Classes="switch-row">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
+                                <ToggleButton Grid.Column="0" Classes="bk-switch" IsChecked="{Binding SmsReminder, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="پیامک یادآوری" FontSize="12.5" FontWeight="Bold"
+                                               Foreground="{StaticResource Ink2Brush}" />
+                                    <TextBlock Text="{Binding SmsReminderHintText}" FontSize="11" TextWrapping="Wrap"
+                                               Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" IsEnabled="{Binding SmsReminder}">
+                                <TextBlock Grid.Column="0" Text="زمان یادآوری" FontSize="11.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" Height="36"
+                                          ItemsSource="{Binding ReminderLeadOptions}"
+                                          SelectedValue="{Binding SmsReminderLeadHours, Mode=TwoWay}"
+                                          SelectedValueBinding="{ReflectionBinding Value}"
+                                          ItemTemplate="{StaticResource SettingNumberOptionTemplate}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Diagnostics;
+using Animora.Contracts.Patients;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -32,6 +33,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private readonly IDataChangeNotifier _changes;
     private readonly IAppointmentBookingService _booking;
     private readonly IDialogService _dialogs;
+    private readonly IAppointmentSettingsService _settings;
+    private readonly IPatientsQueryService _patients;
 
     private readonly List<AppointmentDoctor> _doctors = [];
     private readonly List<AppointmentType> _types = [];
@@ -81,9 +84,13 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         IToastService toast,
         IAppointmentBookingService booking,
         IDialogService dialogs,
-        IDataChangeNotifier changes)
+        IDataChangeNotifier changes,
+        IAppointmentSettingsService settings,
+        IPatientsQueryService patients)
     {
         _service = service;
+        _settings = settings;
+        _patients = patients;
         _changes = changes;
         _readiness = readiness;
         _toast = toast;
@@ -208,6 +215,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     public bool IsCalendarTab => _activeTab == "cal";
     public bool IsQueueTab => _activeTab == "queue";
     public bool IsHistoryTab => _activeTab == "hist";
+    public bool IsSettingsTab => _activeTab == "settings";
     public bool ShowCalendarChrome => _activeTab == "cal";
     public bool IsTimeGridView => !IsMonthView;
 
@@ -215,7 +223,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     public bool IsWeekView => _viewMode == "week";
     public bool IsMonthViewMode => _viewMode == "month";
 
-    /// <summary>Active top-level tab key ("cal"/"queue"/"hist"), bound to the
+    /// <summary>Active top-level tab key ("cal"/"queue"/"hist"/"settings"), bound to the
     /// <see cref="Controls.LazyTabHost.ActiveKey"/> so only the selected tab's
     /// subtree is realised instead of building all three behind IsVisible.</summary>
     public string ActiveTab => _activeTab;
@@ -284,6 +292,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _doctors.AddRange(await _service.GetDoctorsAsync());
         _types.Clear();
         _types.AddRange(await _service.GetTypesAsync());
+        ApplySettings(await _settings.GetAsync());
+        LockViewForCalendarMode();
         _all.Clear();
         var today = DateOnly.FromDateTime(DateTime.Today);
         _all.AddRange(await _service.GetForRangeAsync(today.AddDays(-40), today.AddDays(20)));
@@ -358,8 +368,13 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     }
 
     // ── lookup helpers (typeOf / docOf) ──────────────────────────────────────
+    // An appointment can outlive its type (a custom type removed in Settings): show it as a neutral
+    // «نوع حذف‌شده» instead of failing the whole render.
+    private static readonly AppointmentType RemovedType =
+        new("removed", "نوع حذف‌شده", "removed", "#98a2b3", "#eef2f0", "#536b68", "calendar", 30);
+
     private AppointmentType TypeOf(string id) =>
-        _typeById.TryGetValue(id, out var t) ? t : _types.First(x => x.Id == id);
+        _typeById.TryGetValue(id, out var t) ? t : _types.FirstOrDefault(x => x.Id == id) ?? RemovedType;
 
     private AppointmentDoctor DocOf(string id) =>
         _doctorById.TryGetValue(id, out var d) ? d : _doctors.First(x => x.Id == id);
@@ -421,7 +436,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private bool Visible(AppointmentEvent a)
     {
-        if (!_activeTypeIds.Contains(a.TypeId) || !_activeDoctorIds.Contains(a.DoctorId))
+        // Appointments of a removed type have no filter chip, so they must stay visible rather than vanish.
+        var typeVisible = !_typeById.ContainsKey(a.TypeId) || _activeTypeIds.Contains(a.TypeId);
+        if (!typeVisible || !_activeDoctorIds.Contains(a.DoctorId))
         {
             return false;
         }
@@ -654,7 +671,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 total += list.Count;
             }
 
-            var shown = list.Take(3).Select(a => new MonthEventViewModel(a, TypeOf(a.TypeId))).ToList();
+            var shown = list.Take(3).Select(a => new MonthEventViewModel(a, TypeOf(a.TypeId), showTime: !CalendarModeIsDayOnly)).ToList();
             cells.Add(new MonthCellViewModel(
                 d,
                 isOut,
@@ -1012,6 +1029,263 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             : "انتخاب بازه از تقویم";
     }
 
+    // ── settings tab ─────────────────────────────────────────────────────────
+    /// <summary>Rows of the «انواع نوبت» list (catalog defaults first, then clinic-created types).</summary>
+    public RangeObservableCollection<AppointmentSettingTypeRowViewModel> SettingTypes { get; } = [];
+
+    /// <summary>Duration choices (minutes) for a new appointment type.</summary>
+    public IReadOnlyList<SettingNumberOption> TypeDurationOptions { get; } =
+        new[] { 15, 20, 30, 45, 60, 90, 120 }.Select(m => new SettingNumberOption(m, AppointmentsPresentation.Fa(m) + " دقیقه")).ToArray();
+
+    /// <summary>Reminder lead-time choices (hours before the appointment).</summary>
+    public IReadOnlyList<SettingNumberOption> ReminderLeadOptions { get; } =
+        new[] { 1, 2, 3, 6, 12, 24, 48, 72 }.Select(h => new SettingNumberOption(h, AppointmentsPresentation.Fa(h) + " ساعت قبل")).ToArray();
+
+    private CalendarMode _calendarMode = CalendarMode.TimeBased;
+    private bool _smsOnBooking = true;
+    private bool _smsReminder = true;
+    private int _smsReminderLeadHours = 24;
+    private string _newTypeLabel = string.Empty;
+    private int _newTypeDuration = 30;
+    private bool _newTypeRequiresDoctor = true;
+    private bool _applyingSettings;
+
+    public bool CalendarModeIsDayOnly => _calendarMode == CalendarMode.DayOnly;
+    public bool CalendarModeIsTimeBased => _calendarMode == CalendarMode.TimeBased;
+
+    public bool SmsOnBooking
+    {
+        get => _smsOnBooking;
+        set
+        {
+            if (SetProperty(ref _smsOnBooking, value))
+            {
+                PersistSms();
+            }
+        }
+    }
+
+    public bool SmsReminder
+    {
+        get => _smsReminder;
+        set
+        {
+            if (SetProperty(ref _smsReminder, value))
+            {
+                PersistSms();
+            }
+        }
+    }
+
+    public int SmsReminderLeadHours
+    {
+        get => _smsReminderLeadHours;
+        set
+        {
+            if (SetProperty(ref _smsReminderLeadHours, value))
+            {
+                OnPropertyChanged(nameof(SmsReminderHintText));
+                PersistSms();
+            }
+        }
+    }
+
+    public string SmsReminderHintText =>
+        $"یادآوری خودکار {AppointmentsPresentation.Fa(_smsReminderLeadHours)} ساعت پیش از زمان نوبت ارسال می‌شود";
+
+    public string NewTypeLabel
+    {
+        get => _newTypeLabel;
+        set
+        {
+            if (SetProperty(ref _newTypeLabel, value))
+            {
+                OnPropertyChanged(nameof(CanAddType));
+            }
+        }
+    }
+
+    public int NewTypeDuration
+    {
+        get => _newTypeDuration;
+        set => SetProperty(ref _newTypeDuration, value);
+    }
+
+    public bool NewTypeRequiresDoctor
+    {
+        get => _newTypeRequiresDoctor;
+        set => SetProperty(ref _newTypeRequiresDoctor, value);
+    }
+
+    public bool CanAddType => !string.IsNullOrWhiteSpace(_newTypeLabel);
+
+    /// <summary>Pushes persisted settings into the bindable state without writing them back.</summary>
+    private void ApplySettings(AppointmentSettings settings)
+    {
+        _applyingSettings = true;
+        try
+        {
+            _calendarMode = settings.CalendarMode;
+            _smsOnBooking = settings.Sms.SendOnBooking;
+            _smsReminder = settings.Sms.SendReminder;
+            _smsReminderLeadHours = settings.Sms.ReminderLeadHours;
+            OnPropertyChanged(nameof(CalendarModeIsDayOnly));
+            OnPropertyChanged(nameof(CalendarModeIsTimeBased));
+            OnPropertyChanged(nameof(SmsOnBooking));
+            OnPropertyChanged(nameof(SmsReminder));
+            OnPropertyChanged(nameof(SmsReminderLeadHours));
+            OnPropertyChanged(nameof(SmsReminderHintText));
+
+            var customById = new Dictionary<string, CustomAppointmentType>();
+            foreach (var custom in settings.CustomTypes)
+            {
+                customById[custom.Id] = custom;
+            }
+
+            var rows = new List<AppointmentSettingTypeRowViewModel>(_types.Count + customById.Count);
+            foreach (var type in _types)
+            {
+                var isCustom = customById.TryGetValue(type.Id, out var c);
+                rows.Add(new AppointmentSettingTypeRowViewModel(
+                    type.Id, type.Label, type.Accent, type.DurationMinutes, isCustom, isCustom ? c!.RequiresDoctor : null));
+            }
+
+            // Custom types the catalog merge has not surfaced yet are still listed so they can be removed.
+            foreach (var custom in settings.CustomTypes)
+            {
+                if (!_types.Exists(t => t.Id == custom.Id))
+                {
+                    rows.Add(new AppointmentSettingTypeRowViewModel(
+                        custom.Id, custom.Label, custom.ColorHex, custom.DurationMinutes, true, custom.RequiresDoctor));
+                }
+            }
+
+            SettingTypes.ReplaceAll(rows);
+        }
+        finally
+        {
+            _applyingSettings = false;
+        }
+    }
+
+    /// <summary>
+    /// Day-only mode has no time grid: the calendar is forced to the month view (whose cells are whole
+    /// days) and the day/week switch is hidden. Time-based mode leaves the chosen view untouched.
+    /// </summary>
+    private void LockViewForCalendarMode()
+    {
+        if (!CalendarModeIsDayOnly || _viewMode == "month")
+        {
+            return;
+        }
+
+        _viewMode = "month";
+        OnPropertyChanged(nameof(ViewMode));
+        OnPropertyChanged(nameof(IsDayView));
+        OnPropertyChanged(nameof(IsWeekView));
+        OnPropertyChanged(nameof(IsMonthViewMode));
+    }
+
+    private void PersistSms()
+    {
+        if (_applyingSettings)
+        {
+            return;
+        }
+
+        _ = _settings.SetSmsAsync(new AppointmentSmsSettings(_smsOnBooking, _smsReminder, _smsReminderLeadHours));
+    }
+
+    [RelayCommand]
+    private async Task SetCalendarMode(string? key)
+    {
+        var mode = key == "day" ? CalendarMode.DayOnly : CalendarMode.TimeBased;
+        if (mode == _calendarMode)
+        {
+            return;
+        }
+
+        _calendarMode = mode;
+        OnPropertyChanged(nameof(CalendarModeIsDayOnly));
+        OnPropertyChanged(nameof(CalendarModeIsTimeBased));
+        await _settings.SetCalendarModeAsync(mode);
+        LockViewForCalendarMode();
+        // The calendar tab is cached by its LazyTabHost: repaint it now so it is correct on return.
+        Render();
+        _toast.Show(mode == CalendarMode.DayOnly ? "حالت تقویم: فقط روزانه" : "حالت تقویم: بر اساس ساعت", Tone.Ok);
+    }
+
+    [RelayCommand]
+    private async Task AddAppointmentType()
+    {
+        var label = _newTypeLabel.Trim();
+        if (label.Length == 0)
+        {
+            return;
+        }
+
+        if (SettingTypes.Any(t => string.Equals(t.Label, label, StringComparison.CurrentCultureIgnoreCase)))
+        {
+            _toast.Show("نوعی با این نام از قبل وجود دارد.", Tone.Warn);
+            return;
+        }
+
+        await _settings.AddTypeAsync(label, _newTypeDuration, _newTypeRequiresDoctor);
+        NewTypeLabel = string.Empty;
+        _toast.Show($"نوع «{label}» اضافه شد.", Tone.Ok);
+        await ReloadTypesAsync();
+    }
+
+    [RelayCommand]
+    private async Task RemoveAppointmentType(AppointmentSettingTypeRowViewModel? row)
+    {
+        if (row is null || !row.CanRemove)
+        {
+            return;
+        }
+
+        await _settings.RemoveTypeAsync(row.Id);
+        _toast.Show($"نوع «{row.Label}» حذف شد.", Tone.Info);
+        await ReloadTypesAsync();
+    }
+
+    /// <summary>
+    /// Re-reads the type catalog + settings after an add/remove so the toolbar chips, filters and
+    /// the booking panel's type menu agree immediately, then tells other consumers to refresh.
+    /// </summary>
+    private async Task ReloadTypesAsync()
+    {
+        var types = await _service.GetTypesAsync();
+        _types.Clear();
+        _types.AddRange(types);
+
+        // Keep only filters that still exist; newly added types start active so their events show.
+        var known = new HashSet<string>(_types.Select(t => t.Id));
+        _activeTypeIds.RemoveWhere(id => !known.Contains(id));
+        foreach (var t in _types)
+        {
+            if (!_typeById.ContainsKey(t.Id))
+            {
+                _activeTypeIds.Add(t.Id);
+            }
+        }
+
+        if (_activeTypeIds.Count == 0)
+        {
+            foreach (var t in _types)
+            {
+                _activeTypeIds.Add(t.Id);
+            }
+        }
+
+        RebuildIndexes();
+        HistoryTypeOptions = BuildSelectOptions("همه انواع نوبت", _types.Select(t => (t.Id, t.Label)));
+        OnPropertyChanged(nameof(HistoryTypeOptions));
+        ApplySettings(await _settings.GetAsync());
+        RenderActiveTab();
+        _changes.Notify(DataDomain.Appointments);
+    }
+
     // ── commands ─────────────────────────────────────────────────────────────
     [RelayCommand]
     private void SelectTab(string? key)
@@ -1026,6 +1300,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsCalendarTab));
         OnPropertyChanged(nameof(IsQueueTab));
         OnPropertyChanged(nameof(IsHistoryTab));
+        OnPropertyChanged(nameof(IsSettingsTab));
         OnPropertyChanged(nameof(ShowCalendarChrome));
 
         if (key == "queue")
@@ -1041,7 +1316,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     [RelayCommand]
     private void SetView(string? key)
     {
-        if (string.IsNullOrEmpty(key))
+        if (string.IsNullOrEmpty(key) || (CalendarModeIsDayOnly && key != "month"))
         {
             return;
         }
@@ -1191,9 +1466,29 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return;
         }
 
-        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs);
+        await OpenNewBookingAsync(null);
+    }
+
+    /// <summary>
+    /// Day-only mode: clicking a day cell books that day directly (no clock time to pick).
+    /// Ignored in time-based mode, where booking happens through the toolbar button.
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenDayBooking(DateOnly day)
+    {
+        if (!CalendarModeIsDayOnly)
+        {
+            return;
+        }
+
+        await OpenNewBookingAsync(day);
+    }
+
+    private async Task OpenNewBookingAsync(DateOnly? date)
+    {
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients);
         panel.Saved += RefreshAfterWrite;
-        await panel.LoadForNewAsync(null, null, null, null);
+        await panel.LoadForNewAsync(date, null, null, null);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
     }
 
@@ -1214,7 +1509,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private async Task OpenEditAsync(AppointmentEvent ev)
     {
-        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs);
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients);
         panel.Saved += RefreshAfterWrite;
         await panel.LoadForEditAsync(ev);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);

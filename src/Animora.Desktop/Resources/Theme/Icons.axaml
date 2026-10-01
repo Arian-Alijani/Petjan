@@ -23,6 +23,16 @@
         M3,10 L21,10
     </StreamGeometry>
 
+    <!-- Calendar with a plus: "new appointment". Same frame as IconCalendar; the + sits in the body. -->
+    <StreamGeometry x:Key="IconCalendarPlus">
+        M3,4 L21,4 L21,22 L3,22 Z
+        M16,2 L16,6
+        M8,2 L8,6
+        M3,10 L21,10
+        M12,13 L12,19
+        M9,16 L15,16
+    </StreamGeometry>
+
     <StreamGeometry x:Key="IconUsers">
         M17,21 v-2 a4,4 0 0 0 -4,-4 H5 a4,4 0 0 0 -4,4 v2
         M5,7 A4,4 0 1 0 13,7 A4,4 0 1 0 5,7 Z

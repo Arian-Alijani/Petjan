@@ -40,15 +40,5 @@
                        Foreground="{StaticResource MutedBrush}"
                        VerticalAlignment="Center" />
         </Panel>
-        <Border Background="{StaticResource Bg2Brush}"
-                CornerRadius="99"
-                Padding="12,5"
-                Margin="0,10,0,0"
-                HorizontalAlignment="Center">
-            <TextBlock Text="می‌توانید روی تقویم کلیک کنید یا در بازه دلخواه بکشید تا مستقیم نوبت‌دهی کنید."
-                       FontSize="11.5" FontWeight="Normal"
-                       Foreground="{StaticResource Muted2Brush}"
-                       VerticalAlignment="Center" />
-        </Border>
     </StackPanel>
 </UserControl>

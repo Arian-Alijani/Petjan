@@ -9,7 +9,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Animora.Client.Services.Appointments;
 
 /// <summary>Real appointment calendar reads; each call owns an isolated dispatch scope.</summary>
-public sealed class AppointmentsQueryService(IServiceScopeFactory scopes) : IAppointmentsQueryService
+public sealed class AppointmentsQueryService(IServiceScopeFactory scopes, IAppointmentSettingsService settings)
+    : IAppointmentsQueryService
 {
     internal async Task<T> QueryAsync<T>(IQuery<T> query, CancellationToken ct = default)
     {
@@ -29,9 +30,23 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes) : IApp
     }
 
     public async Task<IReadOnlyList<AppointmentDoctor>> GetDoctorsAsync() =>
-        (await QueryAsync(new AppointmentDoctorsQuery())).Select(r => r.ToContract()).ToArray();
+        (await QueryAsync(new AppointmentDoctorsQuery())).Select((r, i) => r.ToContract(i)).ToArray();
 
-    public Task<IReadOnlyList<AppointmentType>> GetTypesAsync() => Task.FromResult(AppointmentsMapping.Types);
+    /// <summary>
+    /// The fixed catalog types followed by the clinic's own types (Settings tab). Catalog types are never
+    /// dropped; custom ids are prefixed (<c>c-</c>) so they cannot collide with catalog codes.
+    /// </summary>
+    public async Task<IReadOnlyList<AppointmentType>> GetTypesAsync()
+    {
+        var custom = (await settings.GetAsync()).CustomTypes;
+        if (custom.Count == 0) return AppointmentsMapping.Types;
+
+        var types = new List<AppointmentType>(AppointmentsMapping.Types.Count + custom.Count);
+        types.AddRange(AppointmentsMapping.Types);
+        foreach (var c in custom)
+            types.Add(AppointmentsMapping.BuildType(c.Id, c.Label, c.Id, c.ColorHex, c.DurationMinutes));
+        return types;
+    }
 
     public async Task<IReadOnlyList<AppointmentEvent>> GetForRangeAsync(DateOnly start, DateOnly end)
     {

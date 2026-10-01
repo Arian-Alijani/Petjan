@@ -6,8 +6,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Diagnostics;
+using Animora.Contracts.Patients;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Services;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -30,6 +32,8 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private readonly IAppointmentsQueryService _catalog;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
+    private readonly IAppointmentSettingsService _settings;
+    private readonly IPatientsQueryService _patients;
 
     /// <summary>Raised after a successful save so the calendar can close + refresh.</summary>
     public event Action? Saved;
@@ -52,21 +56,22 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private DateOnly _date;
     private int _start = 570;
     private int _dur = 30;
-    private bool _sms = true;
-    private bool _remind = true;
-    private string _note = string.Empty;
+    private DateOnly _originalDate;
     private string _query = string.Empty;
     private string _kindFilter = "all";
     private bool _picking = true;
-    private bool _adding;
 
     public BookingPanelViewModel(
         IAppointmentBookingService booking,
         IStoreReadinessGate readiness,
         IAppointmentsQueryService catalog,
         IToastService toast,
-        IDialogService dialogs)
+        IDialogService dialogs,
+        IAppointmentSettingsService settings,
+        IPatientsQueryService patients)
     {
+        _settings = settings;
+        _patients = patients;
         _booking = booking;
         _readiness = readiness;
         _catalog = catalog;
@@ -106,6 +111,34 @@ public sealed partial class BookingPanelViewModel : ObservableObject
 
     [ObservableProperty]
     private string _headTypeClass = "visit";
+
+    // ── calendar mode (settings) ─────────────────────────────────────────────
+    /// <summary>
+    /// True when the clinic books by whole day (no clock time). The slot grid, duration picker and
+    /// conflict check are hidden; the saved start/duration are conventional values (see
+    /// <see cref="ResolveDayOnlySlotAsync"/>), not something the user picks.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsTimed))]
+    [NotifyPropertyChangedFor(nameof(DateSectionTitle))]
+    [NotifyPropertyChangedFor(nameof(DateSectionHint))]
+    private bool _isDayOnly;
+
+    /// <summary>The inverse of <see cref="IsDayOnly"/>, for XAML bindings.</summary>
+    public bool IsTimed => !IsDayOnly;
+
+    public string DateSectionTitle => IsDayOnly ? "تاریخ نوبت" : "تاریخ و ساعت";
+
+    public string DateSectionHint => IsDayOnly
+        ? "فقط روز نوبت را انتخاب کنید؛ ساعت مشخص نمی‌شود"
+        : "ابتدا روز، سپس مدت و ساعت شروع را انتخاب کنید";
+
+    /// <summary>Day-only info card: how many appointments the chosen doctor already has that day.</summary>
+    [ObservableProperty]
+    private string _dayOnlyInfoText = string.Empty;
+
+    [ObservableProperty]
+    private string _summaryDayCountText = string.Empty;
 
     // ── section 1 · type ─────────────────────────────────────────────────────
     public string TypeHint => "مدت پیش‌فرض هر نوع به‌صورت خودکار اعمال می‌شود";
@@ -154,9 +187,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private bool _isPatientCardVisible;
 
     [ObservableProperty]
-    private bool _isAddFormVisible;
-
-    [ObservableProperty]
     private bool _hasQuery;
 
     /// <summary>Two-way bound to the picker's search box (mirrors the reference's <c>bkQ</c>).</summary>
@@ -191,19 +221,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
 
     [ObservableProperty]
     private IBrush _selectedAvatarBrush = Brushes.Transparent;
-
-    // new-patient form fields
-    [ObservableProperty]
-    private string _newName = string.Empty;
-
-    [ObservableProperty]
-    private string _newKind = "سگ";
-
-    [ObservableProperty]
-    private string _newOwner = string.Empty;
-
-    [ObservableProperty]
-    private string _newPhone = string.Empty;
 
     // ── section 5 · extras ───────────────────────────────────────────────────
     [ObservableProperty]
@@ -292,15 +309,31 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         _dur = TypeOf(_type).DurationMinutes;
         _doc = _doctors.Count > 0 ? _doctors[0].Id : "d1";
 
+        await ApplySettingsAsync();
         BuildKindChips();
         await ReloadAvailableAsync();
+    }
+
+    /// <summary>Reads the clinic's appointment preferences: calendar mode + default SMS switches.</summary>
+    private async Task ApplySettingsAsync()
+    {
+        var settings = await _settings.GetAsync();
+        IsDayOnly = settings.CalendarMode == CalendarMode.DayOnly;
+        if (_mode == "new")
+        {
+            SendSms = settings.Sms.SendOnBooking;
+            SendReminder = settings.Sms.SendReminder;
+        }
     }
 
     /// <summary>Fetches the doctor/day slot grid + conflicts, then paints everything.</summary>
     private async Task ReloadAvailableAsync()
     {
         _slots = (await _booking.GetAvailableSlotsAsync(_doc, _date, _dur)).ToList();
-        _conflicts = (await _booking.GetConflictsAsync(_date, _doc, _start, _dur, _id)).ToList();
+        // Clock overlaps are meaningless when booking by day only.
+        _conflicts = IsDayOnly
+            ? []
+            : (await _booking.GetConflictsAsync(_date, _doc, _start, _dur, _id)).ToList();
         _busyByDoctor.Clear();
         foreach (var d in _doctors)
         {
@@ -349,7 +382,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         HeadTypeClass = t.ClassKey;
         HeadTypeLabel = t.Label;
         HeadDateText = AppointmentsCalendarMath.Medium(_date);
-        HeadRangeText = AppointmentsPresentation.Range(_start, _start + _dur);
+        HeadRangeText = IsDayOnly ? "بدون ساعت مشخص" : AppointmentsPresentation.Range(_start, _start + _dur);
     }
 
     // ---------------- 1 · type ----------------
@@ -380,7 +413,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         HasPatientResults = false;
         PatientResultCount = string.Empty;
         ShowPatientSearchMessage = true;
-        var canSearch = PersianText.Normalize(_query).Length >= 2 && _picking && !_adding;
+        var canSearch = PersianText.Normalize(_query).Length >= 2 && _picking;
         PatientSearchMessage = canSearch ? "در حال جست‌وجو…" :
             "برای انتخاب بیمار، حداقل ۲ حرف از نام یا شماره تماس را وارد کنید.";
         if (canSearch) _queryDebounce.Debounce(() => _ = SearchPatientsAsync());
@@ -439,7 +472,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
             SelectedAvatarBrush = AppointmentsPresentation.AvatarBrush(selected.AvatarTone);
         }
 
-        IsAddFormVisible = _adding;
         HasQuery = !string.IsNullOrEmpty(_query);
     }
 
@@ -552,23 +584,30 @@ public sealed partial class BookingPanelViewModel : ObservableObject
 
         SummaryTypeLabel = t.Label;
         SummaryTypeClass = t.ClassKey;
-        SummaryTypeBackground = AppointmentsPresentation.TypeBackground(t.ClassKey);
-        SummaryTypeForeground = AppointmentsPresentation.TypeForeground(t.ClassKey);
+        SummaryTypeBackground = AppointmentsPresentation.TypeBackground(t);
+        SummaryTypeForeground = AppointmentsPresentation.TypeForeground(t);
         SummaryDoctorShort = d.ShortName;
         SummaryDateText = AppointmentsCalendarMath.DayNames[AppointmentsCalendarMath.WeekIndex(_date)] +
                           "، " + AppointmentsCalendarMath.Full(_date);
-        SummaryTimeText = AppointmentsPresentation.Range(_start, _start + _dur);
+        SummaryTimeText = IsDayOnly ? "بدون ساعت" : AppointmentsPresentation.Range(_start, _start + _dur);
         SummaryDurationText = AppointmentsPresentation.Fa(_dur) + " دقیقه";
         SummaryPriceText = PersianNumberFormatter.FormatGrouped(_dur * 12000L) + " تومان";
 
+        var dayCount = _busyByDoctor.GetValueOrDefault(_doc, 0);
+        SummaryDayCountText = AppointmentsPresentation.Fa(dayCount) + " نوبت";
+        DayOnlyInfoText = dayCount == 0
+            ? $"برای {d.ShortName} در این روز هنوز نوبتی ثبت نشده است."
+            : $"برای {d.ShortName} در این روز {AppointmentsPresentation.Fa(dayCount)} نوبت ثبت شده است.";
+
         HasConflict = HasSelectedPatient && _conflicts.Count > 0;
-        ShowFreeOk = HasSelectedPatient && _conflicts.Count == 0;
+        ShowFreeOk = HasSelectedPatient && !IsDayOnly && _conflicts.Count == 0;
         if (HasConflict)
         {
             ConflictTitle = "تداخل با " + AppointmentsPresentation.Fa(_conflicts.Count) + " نوبت";
             ConflictSub = string.Join("، ", _conflicts.Select(c =>
                 $"{c.PetName} ({AppointmentsPresentation.Time(c.StartMinutes)})"));
         }
+
 
         FreeOkText = $"این بازه برای {d.ShortName} آزاد است.";
         CanSubmit = HasSelectedPatient;
@@ -701,10 +740,15 @@ public sealed partial class BookingPanelViewModel : ObservableObject
             return;
         }
 
+        ApplySelectedPatient(option.Patient);
+    }
+
+    /// <summary>Makes <paramref name="patient"/> the booking's patient and repaints the card + summary.</summary>
+    private void ApplySelectedPatient(BookingPatient patient)
+    {
         StopPatientSearch();
-        _selectedPatient = option.Patient;
+        _selectedPatient = patient;
         _picking = false;
-        _adding = false;
         QueryText = string.Empty;
         RenderPatient();
         RenderSummary();
@@ -718,55 +762,55 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         RenderPatient();
     }
 
+    /// <summary>
+    /// Opens the main patient-registration wizard on top of this panel. Only the modal layer is ever closed,
+    /// so everything already chosen here (type, doctor, date, time, note, SMS switches) is preserved; the new
+    /// patient is then selected automatically.
+    /// </summary>
     [RelayCommand]
     private void BeginAddPatient()
     {
-        _adding = true;
-        _picking = true;
-        QueuePatientSearch();
-        if (!string.IsNullOrEmpty(_query) && !char.IsDigit(_query[0]))
-        {
-            NewName = _query;
-        }
-
-        RenderPatient();
+        var wizard = new AddPatientWizardViewModel(
+            _patients, _dialogs, result => _ = SelectCreatedPatientAsync(result), closeModalOnly: true);
+        _dialogs.ShowModal(wizard, maxWidth: 760);
     }
 
-    [RelayCommand]
-    private void CancelAddPatient()
+    private async Task SelectCreatedPatientAsync(AddPatientWizardResult result)
     {
-        _adding = false;
-        QueuePatientSearch();
-        RenderPatient();
-    }
-
-    [RelayCommand]
-    private async Task SavePatient()
-    {
-        if (string.IsNullOrWhiteSpace(NewName) || string.IsNullOrWhiteSpace(NewOwner))
+        if (result.PetId is null || await _booking.GetPatientAsync(result.PetId) is not { } patient)
         {
-            _toast.Show("نام حیوان و نام مالک الزامی است.", Tone.Danger);
+            _toast.Show("پرونده ساخته شد؛ بیمار را از فهرست جست‌وجو و انتخاب کنید.", Tone.Info);
             return;
         }
 
-        var created = await _booking.CreatePatientAsync(new NewPatientRequest(
-            NewName.Trim(),
-            string.IsNullOrWhiteSpace(NewKind) ? "نامشخص" : NewKind.Trim(),
-            NewOwner.Trim(),
-            NewPhone.Trim()));
+        ApplySelectedPatient(patient);
+        _toast.Show($"پروندهٔ «{patient.Name}» ساخته و برای این نوبت انتخاب شد.", Tone.Info);
+    }
 
-        StopPatientSearch();
-        _selectedPatient = created;
-        _adding = false;
-        _picking = false;
-        QueryText = string.Empty;
-        NewName = string.Empty;
-        NewOwner = string.Empty;
-        NewPhone = string.Empty;
-        NewKind = "سگ";
-        RenderPatient();
-        RenderSummary();
-        _toast.Show($"پروندهٔ «{created.Name}» ساخته و برای این نوبت انتخاب شد.", Tone.Info);
+    /// <summary>
+    /// Day-only bookings carry no user-chosen clock time, but the backend still stores a start and a
+    /// duration (and enforces working hours / double-booking). So the panel quietly assigns the doctor's
+    /// first free slot of that day — the data model is unchanged. Returns null (after telling the user)
+    /// when the day is full for that doctor.
+    /// </summary>
+    private async Task<(int Start, int Duration)?> ResolveDayOnlySlotAsync()
+    {
+        // Editing without changing the day keeps the appointment exactly where it already is.
+        if (_mode == "edit" && _date == _originalDate)
+        {
+            return (_start, _dur);
+        }
+
+        var duration = _mode == "edit" ? _dur : TypeOf(_type).DurationMinutes;
+        var slots = await _booking.GetAvailableSlotsAsync(_doc, _date, duration);
+        var free = slots.FirstOrDefault(s => s.IsFree);
+        if (free is null)
+        {
+            _toast.Show("ظرفیت این روز برای پزشک انتخاب‌شده تکمیل است؛ روز یا پزشک دیگری را انتخاب کنید.", Tone.Danger);
+            return null;
+        }
+
+        return (free.Minutes, duration);
     }
 
     [RelayCommand]
@@ -781,21 +825,34 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         }
 
         var p = _selectedPatient;
+        var start = _start;
+        var duration = _dur;
+        if (IsDayOnly)
+        {
+            if (await ResolveDayOnlySlotAsync() is not { } resolved)
+            {
+                return;
+            }
+
+            (start, duration) = resolved;
+        }
+
+        var note = (NoteText ?? string.Empty).Trim();
         if (_mode == "edit" && _id is not null)
         {
             await _booking.UpdateAsync(_id, new UpdateAppointmentRequest(
-                _date, _start, _dur, _type, _doc,
+                _date, start, duration, _type, _doc,
                 p.Name, p.Kind, p.OwnerName, p.Phone, p.AvatarTone, p.SpeciesIconKey,
-                _note, _sms, _remind));
+                note, SendSms, SendReminder));
             _toast.Show("تغییرات نوبت ذخیره شد.", Tone.Ok);
         }
         else
         {
             await _booking.CreateAsync(new NewAppointmentRequest(
-                _date, _start, _dur, _type, _doc,
+                _date, start, duration, _type, _doc,
                 p.Name, p.Kind, p.OwnerName, p.Phone, p.AvatarTone, p.SpeciesIconKey,
-                _note, _sms, _remind, p.Id));
-            _toast.Show(_sms
+                note, SendSms, SendReminder, p.Id));
+            _toast.Show(SendSms
                 ? $"نوبت {p.Name} ثبت و پیامک تأیید ارسال شد."
                 : $"نوبت {p.Name} ثبت شد.", Tone.Ok);
         }
@@ -820,12 +877,11 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         _date = ev.Date;
         _start = ev.StartMinutes;
         _dur = ev.DurationMinutes;
-        _note = ev.Note;
+        _originalDate = ev.Date;
         NoteText = ev.Note;
         _selectedPatient = await _booking.GetAppointmentPatientAsync(ev.Id);
         _picking = _selectedPatient is null;
-        _sms = true;
-        _remind = true;
+        await ApplySettingsAsync();
         await ReloadAvailableAsync();
     }
 
@@ -842,8 +898,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         _dur = dur ?? TypeOf(_type).DurationMinutes;
         _selectedPatient = null;
         _picking = true;
-        _adding = false;
-        _note = string.Empty;
         NoteText = string.Empty;
         QueryText = string.Empty;
         QueuePatientSearch();
@@ -851,6 +905,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         _date = date ?? DateOnly.FromDateTime(DateTime.Today);
         _start = start ?? 570;
         _doc = doctorId ?? (_doctors.Count > 0 ? _doctors[0].Id : "d1");
+        await ApplySettingsAsync();
         BuildKindChips();
         await ReloadAvailableAsync();
     }

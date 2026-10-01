@@ -30,7 +30,8 @@ public sealed class DialogService : IDialogService
         _modalHost = modalHost;
         _drawerHost = drawerHost;
         _sheetHost = sheetHost;
-        _modalHost.BackdropRequestedClose += (_, _) => Close();
+        // A modal is the top-most layer: dismissing its backdrop must not tear down a sheet/drawer below it.
+        _modalHost.BackdropRequestedClose += (_, _) => CloseModal();
         _drawerHost.BackdropRequestedClose += (_, _) => Close();
         if (_sheetHost is not null)
         {
@@ -90,9 +91,14 @@ public sealed class DialogService : IDialogService
 
     public void Close()
     {
-        _modalHost?.SetContent(null);
+        CloseModal();
         _drawerHost?.SetContent(null);
         _sheetHost?.SetContent(null);
+    }
+
+    public void CloseModal()
+    {
+        _modalHost?.SetContent(null);
 
         if (_fallbackWindow is { } window)
         {

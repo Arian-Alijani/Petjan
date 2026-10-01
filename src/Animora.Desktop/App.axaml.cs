@@ -315,6 +315,8 @@ public partial class App : global::Avalonia.Application
         // Phase 13/14: Appointments calendar + booking panel. One shared
         // in-memory event store backs both mocks (the calendar sees events the
         // panel creates/edits), so it is a singleton — as are both services.
+        // Clinic-editable appointment preferences (custom types, calendar mode, SMS) — local JSON, singleton cache.
+        services.AddSingleton<IAppointmentSettingsService, AppointmentSettingsService>();
         services.AddSingleton<AppointmentsQueryService>();
         services.AddSingleton<IAppointmentsQueryService>(p => p.GetRequiredService<AppointmentsQueryService>());
         services.AddSingleton<IAppointmentBookingService, AppointmentBookingService>();
