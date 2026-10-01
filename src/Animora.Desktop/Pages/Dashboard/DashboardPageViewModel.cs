@@ -46,7 +46,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         _currentUser = currentUser;
         Role = currentUser.Role;
         _identityKey = IdentityKey(currentUser);
-        _refresh = new DashboardRefreshCoordinator<DashboardSnapshot>(FetchAsync, snapshot => snapshot, Apply, OnRefreshFailed);
+        _refresh = new DashboardRefreshCoordinator<PreparedDashboard>(FetchAsync, Prepare, Publish, OnRefreshFailed);
         _refresh.StateChanged += OnRefreshStateChanged;
         _refreshTimer.Tick += OnRefreshTick;
 
@@ -62,7 +62,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     [ObservableProperty]
     private string? _loadError;
 
-    private readonly DashboardRefreshCoordinator<DashboardSnapshot> _refresh;
+    private readonly DashboardRefreshCoordinator<PreparedDashboard> _refresh;
 
     // Visit lifecycle: activation supersedes any in-flight load and always ends in a refresh; leaving the page
     // cancels the load through the token down to the database, and its late result is never applied.
@@ -90,27 +90,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private void ClearPresentation()
     {
         LoadError = null;
-        Stats.ReplaceAll([]);
-        PrimaryList.ReplaceAll([]);
-        SecondaryList.ReplaceAll([]);
-        DoctorLoads.ReplaceAll([]);
-        Species.ReplaceAll([]);
-        PrimaryListTitle = string.Empty;
-        SecondaryListTitle = string.Empty;
-        HasDoctorWorkload = false;
-        HasSpecies = false;
-        RevenuePulse = null;
-        RevenueAreaGeometry = null;
-        RevenueLineGeometry = null;
-        RevenueZeroLineGeometry = null;
-        RevenueTooltip = string.Empty;
-        SpeciesSlices = System.Array.Empty<Animora.Desktop.Controls.DonutSlice>();
-        SpeciesTotal = string.Empty;
-        SpeciesTotalSub = string.Empty;
-        SpeciesActiveIndex = -1;
-        IsSpeciesDimmed = false;
-        _speciesBaseTotal = string.Empty;
-        _speciesBaseSub = string.Empty;
+        Publish(Prepare(new DashboardSnapshot(Role, "", "", [], "", [], "", [])));
     }
 
     public override void OnNavigatedFrom()
@@ -162,17 +142,17 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     [ObservableProperty]
     private UserRole _role;
 
-    public RangeObservableCollection<DashboardStat> Stats { get; } = new();
+    public IReadOnlyList<DashboardStat> Stats => _presentation?.Stats ?? Array.Empty<DashboardStat>();
 
-    public RangeObservableCollection<DashboardRowViewModel> PrimaryList { get; } = new();
+    public IReadOnlyList<DashboardRowViewModel> PrimaryList => _presentation?.PrimaryList ?? Array.Empty<DashboardRowViewModel>();
 
-    public RangeObservableCollection<DashboardRowViewModel> SecondaryList { get; } = new();
+    public IReadOnlyList<DashboardRowViewModel> SecondaryList => _presentation?.SecondaryList ?? Array.Empty<DashboardRowViewModel>();
 
     /// <summary>Manager-only: the doctor-workload rows.</summary>
-    public RangeObservableCollection<DashboardDoctorLoadViewModel> DoctorLoads { get; } = new();
+    public IReadOnlyList<DashboardDoctorLoadViewModel> DoctorLoads => _presentation?.DoctorLoads ?? Array.Empty<DashboardDoctorLoadViewModel>();
 
     /// <summary>Manager-only: the species donut legend rows.</summary>
-    public RangeObservableCollection<DashboardSpeciesViewModel> Species { get; } = new();
+    public IReadOnlyList<DashboardSpeciesViewModel> Species => _presentation?.Species ?? Array.Empty<DashboardSpeciesViewModel>();
 
     [ObservableProperty]
     private DashboardRevenuePulse? _revenuePulse;
@@ -295,30 +275,54 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     [RelayCommand]
     private void OpenSpeciesPatients() => _navigation.NavigateTo<PatientsPageViewModel>();
 
-    private void Apply(DashboardSnapshot snapshot)
+    // All allocations, parsing and formatting happen before any observable state is touched.
+    private sealed record PreparedDashboard(DashboardSnapshot Snapshot, IReadOnlyList<DashboardStat> Stats,
+        IReadOnlyList<DashboardRowViewModel> PrimaryList, IReadOnlyList<DashboardRowViewModel> SecondaryList,
+        IReadOnlyList<DashboardDoctorLoadViewModel> DoctorLoads, IReadOnlyList<DashboardSpeciesViewModel> Species,
+        ChartGeometry Chart, string Tooltip, string Total, string Sub,
+        IReadOnlyList<DonutSlice> Slices);
+    private sealed record ChartGeometry(Avalonia.Media.Geometry? Area, Avalonia.Media.Geometry? Line,
+        Avalonia.Media.Geometry? Zero);
+    private PreparedDashboard? _presentation;
+
+    private static PreparedDashboard Prepare(DashboardSnapshot snapshot)
     {
-        PrimaryListTitle = snapshot.PrimaryListTitle;
-        SecondaryListTitle = snapshot.SecondaryListTitle;
+        var species = snapshot.Species ?? Array.Empty<DashboardSpecies>();
+        var total = species.Sum(s => s.Count);
+        var rows = species.Select((s, i) => new DashboardSpeciesViewModel(i, s,
+            total <= 0 ? 0 : (double)s.Count / total)).ToArray();
+        return new PreparedDashboard(snapshot, snapshot.Stats,
+            snapshot.PrimaryList.Select(x => new DashboardRowViewModel(x)).ToArray(),
+            snapshot.SecondaryList.Select(x => new DashboardRowViewModel(x)).ToArray(),
+            (snapshot.DoctorLoads ?? Array.Empty<DashboardDoctorLoad>()).Select(x => new DashboardDoctorLoadViewModel(x)).ToArray(),
+            rows, BuildRevenueChart(snapshot.RevenuePulse), RevenueTooltipText(snapshot.RevenuePulse),
+            Localization.PersianNumberFormatter.FormatGrouped(total),
+            Localization.PersianNumberFormatter.ToPersianDigits(species.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                + " گونه ثبت‌شده", BuildSpeciesSlices(species));
+    }
 
-        Stats.ReplaceAll(snapshot.Stats);
-
-        PrimaryList.ReplaceAll(
-            snapshot.PrimaryList.Select(x => new DashboardRowViewModel(x)));
-
-        SecondaryList.ReplaceAll(
-            snapshot.SecondaryList.Select(x => new DashboardRowViewModel(x)));
-
-        HasDoctorWorkload = snapshot.DoctorLoads is not null;
-        HasSpecies = snapshot.Species is not null;
-        RevenuePulse = snapshot.RevenuePulse;
-        BuildRevenueChart(snapshot.RevenuePulse);
-        RevenueTooltip = RevenueTooltipText(snapshot.RevenuePulse);
-
-        DoctorLoads.ReplaceAll(
-            (snapshot.DoctorLoads ?? System.Array.Empty<DashboardDoctorLoad>())
-                .Select(doc => new DashboardDoctorLoadViewModel(doc)));
-
-        ApplySpecies(snapshot.Species ?? System.Array.Empty<DashboardSpecies>());
+    private void Publish(PreparedDashboard next)
+    {
+        // The coordinator resumes on the UI dispatcher. Update backing state first, then ONE reset notification:
+        // every observer reads a complete new state, never a mix of old rows and new chart/species.
+        _presentation = next;
+        _primaryListTitle = next.Snapshot.PrimaryListTitle;
+        _secondaryListTitle = next.Snapshot.SecondaryListTitle;
+        _hasDoctorWorkload = next.Snapshot.DoctorLoads is not null;
+        _hasSpecies = next.Snapshot.Species is not null;
+        _revenuePulse = next.Snapshot.RevenuePulse;
+        _revenueAreaGeometry = next.Chart.Area;
+        _revenueLineGeometry = next.Chart.Line;
+        _revenueZeroLineGeometry = next.Chart.Zero;
+        _revenueTooltip = next.Tooltip;
+        _speciesBaseTotal = _speciesTotal = next.Total;
+        _speciesBaseSub = _speciesTotalSub = next.Sub;
+        _speciesTotalLabel = "کل بیماران فعال";
+        _speciesCenterBrush = null;
+        _isSpeciesDimmed = false;
+        _speciesActiveIndex = -1;
+        _speciesSlices = next.Slices;
+        OnPropertyChanged(string.Empty);
     }
 
     private static string RevenueTooltipText(DashboardRevenuePulse? pulse)
@@ -333,15 +337,12 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     // Builds the area + line + zero-line geometry from the signed, zero-containing pulse domain. The area closes
     // to the zero baseline (not the canvas bottom), so negative days visibly fall below it.
-    private void BuildRevenueChart(DashboardRevenuePulse? pulse)
+    private static ChartGeometry BuildRevenueChart(DashboardRevenuePulse? pulse)
     {
         var layout = RevenueChartMath.Build(pulse?.Points, pulse?.ZeroLevel ?? 0);
         if (layout is not { } chart)
         {
-            RevenueAreaGeometry = null;
-            RevenueLineGeometry = null;
-            RevenueZeroLineGeometry = null;
-            return;
+            return new(null, null, null);
         }
 
         var count = chart.X.Length;
@@ -353,7 +354,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
             for (var i = 1; i < count; i++) context.LineTo(new Avalonia.Point(chart.X[i], chart.Y[i]));
             context.EndFigure(false);
         }
-        RevenueLineGeometry = line;
+
 
         var area = new Avalonia.Media.StreamGeometry();
         using (var context = area.Open())
@@ -363,7 +364,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
             context.LineTo(new Avalonia.Point(chart.X[count - 1], chart.ZeroY));
             context.EndFigure(true);
         }
-        RevenueAreaGeometry = area;
+
 
         var zero = new Avalonia.Media.StreamGeometry();
         using (var context = zero.Open())
@@ -372,32 +373,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
             context.LineTo(new Avalonia.Point(RevenueChartMath.Width, chart.ZeroY));
             context.EndFigure(false);
         }
-        RevenueZeroLineGeometry = zero;
-    }
-
-    private void ApplySpecies(IReadOnlyList<DashboardSpecies> species)
-    {
-        var rows = new DashboardSpeciesViewModel[species.Count];
-        var total = species.Sum(s => s.Count);
-        for (var i = 0; i < species.Count; i++)
-        {
-            var s = species[i];
-            var pct = total <= 0 ? 0 : (double)s.Count / total;
-            rows[i] = new DashboardSpeciesViewModel(i, s, pct);
-        }
-        Species.ReplaceAll(rows);
-
-        _speciesBaseTotal = Localization.PersianNumberFormatter.FormatGrouped(total);
-        _speciesBaseSub = Localization.PersianNumberFormatter.ToPersianDigits(
-            species.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)) + " گونه ثبت‌شده";
-
-        SpeciesTotal = _speciesBaseTotal;
-        SpeciesTotalLabel = "کل بیماران فعال";
-        SpeciesTotalSub = _speciesBaseSub;
-        SpeciesCenterBrush = Controls.BrushCache.Solid("#101828");
-        IsSpeciesDimmed = false;
-        SpeciesActiveIndex = -1;
-        SpeciesSlices = BuildSpeciesSlices(species);
+        return new(area, line, zero);
     }
 
     // Maps the species snapshot to the immutable slice records the ring control

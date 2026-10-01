@@ -238,6 +238,33 @@ public sealed class DashboardLifecycleTests
         Assert.False(error.CanRetry);
     }
 
+    [Fact]
+    public async Task PreparationFailure_KeepsEntirePublishedStateAndAppliedMarker_ThenValidStateReplacesOnce()
+    {
+        var snapshot = Snap("old");
+        var view = "old-view";
+        var publications = 0;
+        var failures = new List<Exception>();
+        using var coordinator = new DashboardRefreshCoordinator<string>((_, _) => Task.FromResult(snapshot),
+            s => s.HeroTitle == "invalid" ? throw new FormatException("bad presentation") : s.HeroTitle + "-view",
+            s => { view = s; publications++; }, failures.Add);
+        await coordinator.ActivateAsync();
+        var original = coordinator.Current;
+        snapshot = Snap("invalid");
+        await coordinator.RefreshAsync();
+        Assert.Equal("old-view", view);
+        Assert.Same(original, coordinator.Current);
+        Assert.Equal(1, publications);
+        Assert.Single(failures);
+        snapshot = Snap("valid");
+        await coordinator.RefreshAsync();
+        Assert.Equal("valid-view", view);
+        Assert.Same(snapshot, coordinator.Current);
+        Assert.Equal(2, publications);
+        await coordinator.RefreshAsync();
+        Assert.Equal(2, publications); // unchanged cache hit skips preparation and publication
+    }
+
     // ---- service: token reaches the semaphore and the database --------------------------------------------
 
     private sealed class Gatekeeper : DbCommandInterceptor
