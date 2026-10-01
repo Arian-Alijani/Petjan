@@ -98,7 +98,15 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
 
         // Separate guarded statements: a forbidden source is not part of SQL at all.
         var openInvoices = db.Set<Invoice>().AsNoTracking().Where(i => i.TenantId == tenantId).OpenInvoices();
-        var open = access.Sales ? await openInvoices.CountAsync(ct) : 0;
+        // One aggregate: open (Draft/Posted/PartiallyPaid, same as the cashier page) and the payable subset.
+        // Payment queue = issued invoices that still need money; drafts are open but not yet payable.
+        var invoiceCounts = access.Sales ? await openInvoices.GroupBy(i => 1).Select(g => new
+        {
+            Open = g.Count(),
+            Awaiting = g.Count(i => i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid),
+        }).SingleOrDefaultAsync(ct) : null;
+        var open = invoiceCounts?.Open ?? 0;
+        var awaitingPayment = invoiceCounts?.Awaiting ?? 0;
         IReadOnlyList<DashboardOperationalRow> invoiceRows = [];
         IReadOnlyList<DashboardOperationalRow> readyRows = [];
         if (access.Sales && role == UserRole.Cashier)
@@ -133,9 +141,26 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             .GroupBy(x => x.DoctorUserId)
             .Select(g => new { DoctorId = g.Key, Total = g.Count(),
                 Name = db.Set<User>().Where(u => u.Id == g.Key).Select(u => u.DisplayName).FirstOrDefault(),
-                Done = g.Count(x => x.State == AppointmentState.Completed),
-                Queued = g.Count(x => x.State == AppointmentState.Scheduled || x.State == AppointmentState.Confirmed
-                    || x.State == AppointmentState.CheckedIn) }).ToListAsync(ct);
+                Done = g.Count(x => x.State == AppointmentState.Completed) }).ToListAsync(ct);
+        // Active queue = the reception page's derived queue (appointment LEFT JOIN entry UNION walk-ins),
+        // restricted to non-terminal states. Doctor scope uses the assigned doctor, never the actor.
+        var queueCount = 0;
+        if (access.Appointments)
+        {
+            queueCount = await (from a in appointments.Where(a => a.State != AppointmentState.Cancelled
+                    && a.State != AppointmentState.NoShow)
+                join e in db.Set<ReceptionQueueEntry>().AsNoTracking() on a.Id equals e.AppointmentId into entries
+                from e in entries.DefaultIfEmpty()
+                where (e == null && (a.State == AppointmentState.Scheduled || a.State == AppointmentState.Confirmed
+                        || a.State == AppointmentState.CheckedIn || a.State == AppointmentState.InVisit))
+                    || (e != null && (e.State == QueueState.Waiting || e.State == QueueState.Called || e.State == QueueState.InVisit))
+                select a.Id).CountAsync(ct);
+            var walkIns = db.Set<ReceptionQueueEntry>().AsNoTracking().Where(r => r.AppointmentId == null
+                && r.EnqueuedUtc >= window.StartUtc && r.EnqueuedUtc < window.EndUtc
+                && (r.State == QueueState.Waiting || r.State == QueueState.Called || r.State == QueueState.InVisit));
+            if (role == UserRole.Doctor) walkIns = walkIns.Where(r => r.DoctorUserId == userId);
+            queueCount += await walkIns.CountAsync(ct);
+        }
         var preview = await (from appointment in appointments.Where(a => a.State != AppointmentState.Cancelled
                 && a.State != AppointmentState.NoShow && a.State != AppointmentState.Completed)
             join pet in db.Set<Pet>().AsNoTracking() on appointment.PetId equals pet.Id
@@ -168,6 +193,6 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
                     vaccine.NextDueUtc!.Value, "Due", vaccine.VaccineName)).Take(8).ToListAsync(ct);
         }
         return new DashboardSlice(facts, activity, loads, species, open, low,
-            appointmentCounts.Sum(x => x.Queued), totals, preview, access, receipts, invoiceRows, readyRows, reminders);
+            queueCount, totals, preview, access, receipts, invoiceRows, readyRows, reminders, awaitingPayment);
     }
 }

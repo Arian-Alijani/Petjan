@@ -51,10 +51,10 @@ public sealed class DashboardBudgetTests
     }
 
     [Theory]
-    [InlineData(UserRole.Manager, 10)]
-    [InlineData(UserRole.Doctor, 6)]
-    [InlineData(UserRole.Cashier, 10)]
-    [InlineData(UserRole.Receptionist, 10)]
+    [InlineData(UserRole.Manager, 12)]
+    [InlineData(UserRole.Doctor, 8)]
+    [InlineData(UserRole.Cashier, 12)]
+    [InlineData(UserRole.Receptionist, 12)]
     public async Task Snapshot_StaysWithinRoleCommandBudget(UserRole role, int expectedCommands)
     {
         using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
@@ -183,6 +183,71 @@ public sealed class DashboardBudgetTests
         Assert.Equal(80, manager.Activity.Count); // Only the activity widget owns the 80-row preview.
         Assert.Equal(8, manager.Appointments!.Count);
         Assert.Equal(8, InvokeMap(UserRole.Manager, manager).PrimaryList.Count);
+    }
+
+    [Fact]
+    public async Task QueueAndPaymentCounters_MatchAuthoritativeStates_NotScheduledAppointments()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var owner = Owner.Register(fixture.TenantId, "مالک", "09120000001", fixture.Clock);
+        var pet = Pet.Register(fixture.TenantId, owner.Id, "بیمار", PetSpecies.Dog, fixture.Clock);
+        db.AddRange(owner, pet);
+        Appointment Book(int minute, string doctor = "doc-A")
+        {
+            var a = Appointment.Book(fixture.TenantId, pet.Id, owner.Id, "CHECKUP", Window.StartUtc.AddHours(8).AddMinutes(minute),
+                30, AppointmentSource.Phone, "receptionist", fixture.Clock, doctor).Value!;
+            db.Add(a);
+            return a;
+        }
+        void Entry(Appointment? appointment, string doctor, int stateSteps)
+        {
+            var e = ReceptionQueueEntry.Create(fixture.TenantId, pet.Id, owner.Id,
+                appointment is null ? QueueSource.WalkIn : QueueSource.Appointment, 1, fixture.Clock, appointment?.Id);
+            if (stateSteps >= 1) Assert.True(e.Call(doctor, fixture.Clock).IsSuccess);
+            if (stateSteps >= 2) Assert.True(e.StartVisit("visit").IsSuccess);
+            if (stateSteps >= 3) Assert.True(e.Close(fixture.Clock).IsSuccess);
+            db.Add(e);
+        }
+        var scheduled = Book(0);                 // active: no entry yet
+        var waiting = Book(30); Entry(waiting, "doc-A", 0);   // active
+        var done = Book(60); Entry(done, "doc-A", 3);         // terminal
+        var other = Book(90, "doc-B");                          // another doctor
+        var cancelled = Book(120); Assert.True(cancelled.Cancel("لغو", fixture.Clock).IsSuccess);
+        Entry(null, "doc-A", 1);                                 // walk-in Called: active
+        Entry(null, "doc-A", 3);                                 // walk-in Done: terminal
+        foreach (var (state, i) in new[] { "Draft", "Posted", "Partial", "Paid" }.Select((x, i) => (x, i)))
+        {
+            var invoice = Invoice.Create(fixture.TenantId, $"Q-{state}", InvoiceKind.DirectSale, Window.StartUtc, "cashier", ownerId: owner.Id).Value!;
+            Assert.True(invoice.AddLine(new InvoiceLine("line", InvoiceLineKind.Service, null, null, null,
+                "Consultation", new Quantity(1, "PCS"), Money.Irt(100), 0, 0, InvoiceLineSource.Manual, null)).IsSuccess);
+            if (i >= 1) Assert.True(invoice.Post(fixture.Clock).IsSuccess);
+            if (i >= 2)
+                Assert.True(invoice.ApplyPayment(Payment.Create(fixture.TenantId, invoice.Id, PaymentMethod.Card,
+                    Money.Irt(i == 3 ? 100 : 10), Window.StartUtc, "cashier").Value!).IsSuccess);
+            db.Add(invoice);
+        }
+        await db.SaveChangesAsync();
+        var queries = new DashboardQueries(db);
+        var manager = await queries.GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
+        var doctor = await queries.GetSliceAsync(fixture.TenantId, Window, "doc-A", TestAccess(UserRole.Doctor), default);
+        var cashier = await queries.GetSliceAsync(fixture.TenantId, Window, "cashier", TestAccess(UserRole.Cashier), default);
+        // scheduled + waiting + other doctor + walk-in called = 4; doctor-A sees 3.
+        Assert.Equal(4, manager.QueueCount);
+        Assert.Equal(3, doctor.QueueCount);
+        Assert.Equal(3, cashier.OpenInvoices);          // Draft + Posted + PartiallyPaid, same as the cashier page.
+        Assert.Equal(2, cashier.AwaitingPaymentCount);  // Draft is open but not yet payable.
+        var cashierStats = InvokeMap(UserRole.Cashier, cashier).Stats;
+        Assert.Equal("2", Assert.Single(cashierStats, x => x.Label == "در انتظار پرداخت").Value);
+        Assert.Contains(cashierStats, x => x.Label.StartsWith("فاکتورهای باز"));
+        Assert.DoesNotContain(cashierStats, x => x.Label == "صف پرداخت");
+        var reference = await scope.ServiceProvider.GetRequiredService<ICashierQueries>().GetTabCountsAsync(default);
+        Assert.Equal(reference.Open, cashier.OpenInvoices);
+        var page = await new ReceptionQueueQueries(db).GetQueueAsync(Window.StartUtc, Window.EndUtc, default);
+        Assert.Equal(manager.QueueCount, page.Count(t => t.State is "Waiting" or "Called" or "InVisit"
+            || (t.Source == "Appointment" && t.State is "Scheduled" or "Confirmed" or "CheckedIn")));
     }
 
     [Fact]

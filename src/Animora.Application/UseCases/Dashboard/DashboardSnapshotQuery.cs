@@ -30,7 +30,7 @@ public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     DashboardAccess? Access = null, DashboardReceipts? Receipts = null,
     IReadOnlyList<DashboardOperationalRow>? OpenInvoiceRows = null,
     IReadOnlyList<DashboardOperationalRow>? ReadyBillingRows = null,
-    IReadOnlyList<DashboardOperationalRow>? ReminderRows = null);
+    IReadOnlyList<DashboardOperationalRow>? ReminderRows = null, int AwaitingPaymentCount = 0);
 
 /// <summary>The local day and its half-open UTC range, resolved once using ClinicCalendar.</summary>
 public sealed record DashboardDayWindow(int LocalDay, DateTimeOffset StartUtc, DateTimeOffset EndUtc)

@@ -70,14 +70,14 @@ internal static class DashboardMapping
         var stats = role switch
         {
             UserRole.Doctor => new[] { Stat("IconCheck", "ویزیت‌های من", visits),
-                Stat("IconClock", "صف من", slice.QueueCount), Stat("IconEdit", "در انتظار", slice.QueueCount),
+                Stat("IconClock", "صف فعال من", slice.QueueCount), Stat("IconEdit", "در انتظار", slice.QueueCount),
                 Stat("IconSyringe", "واکسن‌ها", totals.Vaccinations) },
             UserRole.Cashier => new[] { Stat("IconCart", "خالص تسویه غیرنسیه امروز (تومان)", payment) with
                 { Foot = slice.Receipts is { } receipt ? $"دریافت ناخالص: {receipt.Gross:N0} · بازپرداخت: {receipt.Refunds:N0} تومان" : null },
-                Stat("IconReceipt", "فاکتورهای باز", slice.OpenInvoices), Stat("IconClipboard", "صف پرداخت", slice.QueueCount),
+                Stat("IconReceipt", "فاکتورهای باز (شامل پیش‌نویس)", slice.OpenInvoices), Stat("IconWallet", "در انتظار پرداخت", slice.AwaitingPaymentCount),
                 Stat("IconCheque", "تغییر وضعیت چک امروز", totals.Cheques) },
             _ => new[] { Stat("IconArrowUpRight", "درآمد امروز", today),
-                Stat("IconUsers", "ویزیت امروز", visits), Stat("IconReceipt", "فاکتورهای باز", slice.OpenInvoices),
+                Stat("IconUsers", "ویزیت امروز", visits), Stat("IconReceipt", "فاکتورهای باز (شامل پیش‌نویس)", slice.OpenInvoices),
                 Stat("IconBox", "هشدار موجودی", slice.LowStockCount) },
         };
         if (slice.Access is { } allowed)
@@ -85,7 +85,7 @@ internal static class DashboardMapping
             {
                 "IconArrowUpRight" => allowed.Finance,
                 "IconCart" => allowed.Collections,
-                "IconReceipt" => allowed.Sales,
+                "IconReceipt" or "IconWallet" => allowed.Sales,
                 "IconBox" => allowed.Inventory,
                 "IconUsers" or "IconCheck" => allowed.Visits,
                 "IconClock" or "IconEdit" or "IconClipboard" => allowed.Appointments,
