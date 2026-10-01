@@ -251,6 +251,52 @@ public sealed class DashboardBudgetTests
     }
 
     [Fact]
+    public async Task DoctorWorkload_UsesRealNamesAndCompletedState_WithStableOrdering()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var owner = Owner.Register(fixture.TenantId, "مالک", "09120000001", fixture.Clock);
+        var pet = Pet.Register(fixture.TenantId, owner.Id, "بیمار", PetSpecies.Dog, fixture.Clock);
+        var named = Animora.Domain.Identity.User.Create(fixture.TenantId, "dr.rezaei", "دکتر رضایی", fixture.Clock);
+        db.AddRange(owner, pet, named);
+        var minute = 0;
+        void Add(string? doctor, Action<Appointment>? shape = null)
+        {
+            var a = Appointment.Book(fixture.TenantId, pet.Id, owner.Id, "CHECKUP", Window.StartUtc.AddHours(8).AddMinutes(minute += 30),
+                30, AppointmentSource.Phone, "receptionist", fixture.Clock, doctor).Value!;
+            shape?.Invoke(a);
+            db.Add(a);
+        }
+        Add(named.Id, a => { Assert.True(a.Confirm().IsSuccess); Assert.True(a.CheckIn(fixture.Clock).IsSuccess);
+            Assert.True(a.StartVisit("visit-1").IsSuccess); Assert.True(a.Complete().IsSuccess); });
+        Add(named.Id);
+        Add(named.Id, a => Assert.True(a.Cancel("لغو", fixture.Clock).IsSuccess));   // excluded from total
+        Add("removed-doctor");                                                       // no valid user row
+        Add(null);                                                                   // unassigned is not a doctor row
+        await db.SaveChangesAsync();
+        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
+        Assert.Equal(2, slice.Workloads.Count);
+        var real = Assert.Single(slice.Workloads, x => x.DoctorId == named.Id);
+        Assert.Equal(("دکتر رضایی", 2, 1), (real.Name, real.Total, real.Done));
+        var removed = Assert.Single(slice.Workloads, x => x.DoctorId == "removed-doctor");
+        Assert.Equal((string.Empty, 1, 0), (removed.Name, removed.Total, removed.Done));
+        var mapped = InvokeMap(UserRole.Manager, slice).DoctorLoads!;
+        Assert.Equal(new[] { "دکتر رضایی", "پزشک نامشخص" }, mapped.Select(x => x.Name).ToArray());
+        Assert.Equal("د", mapped[0].Initial);
+        Assert.Equal(0.5, mapped[0].Ratio);
+        Assert.Equal(0, mapped[1].Ratio);               // zero completed is real, not a hard-coded default
+        Assert.All(mapped, x => Assert.Equal(string.Empty, x.Specialty)); // never an invented specialty
+        // Zero/complete ratios and a surrogate-pair name are safe.
+        var edge = DashboardMapping.Map(UserRole.Manager, new DashboardSlice([], [], [new("d", 0, "\U0001F600 دکتر", 0),
+            new("e", 2, "x", 5)], new Dictionary<string, int>(), 0, 0, 0)).DoctorLoads!;
+        Assert.Equal("\U0001F600", edge[0].Initial);
+        Assert.Equal(0, edge[0].Ratio);
+        Assert.Equal((2, 2), (edge[1].Done, edge[1].Total)); // Done is clamped to Total
+    }
+
+    [Fact]
     public async Task ManagerRevenue_EqualsFinanceSameDayFigure()
     {
         const long expected = 7_654_321;

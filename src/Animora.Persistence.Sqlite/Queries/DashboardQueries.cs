@@ -172,8 +172,9 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
                 doctor == null ? "پزشک تعیین نشده" : doctor.DisplayName,
                 appointment.StartUtc, appointment.State.ToString())).Take(8).ToListAsync(ct);
         IReadOnlyList<DashboardWorkload> loads = access.Workloads
-            ? appointmentCounts.Where(x => x.DoctorId != null).OrderBy(x => x.Name)
-                .Select(x => new DashboardWorkload(x.DoctorId!, x.Total, x.Name ?? "پزشک", x.Done)).ToArray()
+            ? appointmentCounts.Where(x => x.DoctorId != null)
+                .OrderBy(x => x.Name ?? "\uFFFF", StringComparer.Ordinal).ThenBy(x => x.DoctorId, StringComparer.Ordinal)
+                .Select(x => new DashboardWorkload(x.DoctorId!, x.Total, x.Name ?? string.Empty, x.Done)).ToArray()
             : [];
         IReadOnlyList<DashboardOperationalRow> reminders = [];
         if (access.Vaccination && role == UserRole.Doctor)

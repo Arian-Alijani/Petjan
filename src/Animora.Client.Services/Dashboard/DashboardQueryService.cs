@@ -111,9 +111,18 @@ internal static class DashboardMapping
             role switch { UserRole.Cashier => "آماده صدور فاکتور", UserRole.Doctor => "یادآور واکسن بیماران امروز", _ => "فعالیت‌های اخیر" }, secondary,
             (slice.Access?.Finance ?? manager) ? new DashboardRevenuePulse(today.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), "۱۴ روز اخیر",
                 values.Select(x => max == 0 ? 0d : (double)x / max).ToArray()) : null,
-            (slice.Access?.Workloads ?? manager) ? slice.Workloads.Select(x => new DashboardDoctorLoad(string.IsNullOrEmpty(x.Name) ? "پ" : x.Name[..1], x.Name, "پزشک",
-                x.Done, x.Total, "#0D9488")).ToArray() : null,
+            (slice.Access?.Workloads ?? manager) ? slice.Workloads.Select(Load).ToArray() : null,
             (slice.Access?.Patients ?? manager) && role != UserRole.Doctor ? slice.Species.Select(x => new DashboardSpecies(SpeciesName(x.Key), x.Value, SpeciesColor(x.Key))).ToArray() : null);
+    }
+
+    // Specialty is not modelled, so it is left empty rather than invented. A removed/unnamed doctor gets an
+    // explicit label; the avatar initial is the first text element (never half of a surrogate pair).
+    internal const string UnknownDoctorName = "پزشک نامشخص";
+    private static DashboardDoctorLoad Load(DashboardWorkload x)
+    {
+        var name = string.IsNullOrWhiteSpace(x.Name) ? UnknownDoctorName : x.Name.Trim();
+        return new(System.Globalization.StringInfo.GetNextTextElement(name), name, string.Empty,
+            Math.Clamp(x.Done, 0, x.Total), x.Total, "#0D9488");
     }
 
     private static DashboardStat Stat(string icon, string label, long value) =>
