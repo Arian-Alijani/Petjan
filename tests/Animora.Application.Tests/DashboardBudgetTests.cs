@@ -52,8 +52,8 @@ public sealed class DashboardBudgetTests
 
     [Theory]
     [InlineData(UserRole.Manager, 10)]
-    [InlineData(UserRole.Doctor, 5)]
-    [InlineData(UserRole.Cashier, 8)]
+    [InlineData(UserRole.Doctor, 6)]
+    [InlineData(UserRole.Cashier, 10)]
     [InlineData(UserRole.Receptionist, 10)]
     public async Task Snapshot_StaysWithinRoleCommandBudget(UserRole role, int expectedCommands)
     {
@@ -71,6 +71,65 @@ public sealed class DashboardBudgetTests
             _ = await queries.GetSliceAsync(fixture.TenantId, Window, "user-1", TestAccess(role), default);
             Assert.Equal(expectedCommands, counter.Count);
         }
+    }
+
+    [Fact]
+    public async Task OperationalLists_ReadCurrentState_NotRecentEvents()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var owner = Owner.Register(fixture.TenantId, "مالک", "09120000001", fixture.Clock);
+        var pet = Pet.Register(fixture.TenantId, owner.Id, "بیمار", PetSpecies.Dog, fixture.Clock);
+        db.AddRange(owner, pet);
+        var appointment = Appointment.Book(fixture.TenantId, pet.Id, owner.Id, "CHECKUP", Window.StartUtc.AddHours(9),
+            30, AppointmentSource.Phone, "receptionist", fixture.Clock, "doc-A").Value!;
+        var cancelled = Appointment.Book(fixture.TenantId, pet.Id, owner.Id, "CHECKUP", Window.StartUtc.AddHours(10),
+            30, AppointmentSource.Phone, "receptionist", fixture.Clock, "doc-A").Value!;
+        Assert.True(cancelled.Cancel("لغو", fixture.Clock).IsSuccess);
+        var invoice = Invoice.Create(fixture.TenantId, "INV-1", InvoiceKind.DirectSale, Window.StartUtc.AddDays(-1),
+            "cashier", ownerId: owner.Id, petId: pet.Id).Value!;
+        Assert.True(invoice.AddLine(new InvoiceLine("line", InvoiceLineKind.Service, null, null, null,
+            "Consultation", new Quantity(1, "PCS"), Money.Irt(100), 0, 0, InvoiceLineSource.Manual, null)).IsSuccess);
+        Assert.True(invoice.Post(fixture.Clock).IsSuccess);
+        for (var i = 0; i < 2; i++)
+        {
+            var payment = Payment.Create(fixture.TenantId, invoice.Id, PaymentMethod.Card, Money.Irt(10),
+                Window.StartUtc.AddHours(9), "cashier").Value!;
+            Assert.True(invoice.ApplyPayment(payment).IsSuccess);
+            db.Add(payment);
+        }
+        var ready = VisitBillingHandoff.Create(fixture.TenantId, "visit-ready", owner.Id, pet.Id, "doc-A", Window.StartUtc, "[]");
+        var billed = VisitBillingHandoff.Create(fixture.TenantId, "visit-billed", owner.Id, pet.Id, "doc-A", Window.StartUtc, "[]");
+        billed.MarkInvoiced(invoice.Id);
+        var vaccine = Animora.Domain.Clinical.VaccinationRecord.Administer(fixture.TenantId, pet.Id, "DHPP", "واکسن",
+            1, Window.StartUtc.AddDays(-21), "doc-B", fixture.Clock).Value!;
+        db.AddRange(appointment, cancelled, invoice, ready, billed, vaccine);
+        for (var i = 0; i < 90; i++)
+            db.Add(ActivityEvent.Create(fixture.TenantId, Window.StartUtc.AddHours(12), Today, "Inventory",
+                "history.inventory.changed", "{}", "Inventory", $"stock-{i}", 0, 0, "Done", "receptionist", "پذیرش", null));
+        await db.SaveChangesAsync();
+        var queries = new DashboardQueries(db);
+        var doctor = await queries.GetSliceAsync(fixture.TenantId, Window, "doc-A", TestAccess(UserRole.Doctor), default);
+        Assert.Single(doctor.Appointments!);
+        Assert.Equal("بیمار", Assert.Single(doctor.ReminderRows!).Name);
+        Assert.Empty(doctor.Activity); // Operational rows exist without any matching event.
+        var cashier = await queries.GetSliceAsync(fixture.TenantId, Window, "cashier", TestAccess(UserRole.Cashier), default);
+        Assert.Equal("INV-1", Assert.Single(cashier.OpenInvoiceRows!).Name);
+        Assert.Equal("PartiallyPaid", cashier.OpenInvoiceRows![0].State);
+        Assert.Single(cashier.ReadyBillingRows!);
+        var reference = await scope.ServiceProvider.GetRequiredService<ISalesQueries>().GetReadyForBillingAsync(default);
+        Assert.Single(reference);
+        Assert.Equal(reference[0].PetName, cashier.ReadyBillingRows![0].Name);
+        var mapped = InvokeMap(UserRole.Cashier, cashier);
+        Assert.Single(mapped.PrimaryList);
+        Assert.Single(mapped.SecondaryList);
+        Assert.Equal("آماده صدور فاکتور", mapped.SecondaryListTitle);
+        var denied = await queries.GetSliceAsync(fixture.TenantId, Window, "cashier",
+            TestAccess(UserRole.Cashier) with { Sales = false }, default);
+        Assert.Empty(denied.OpenInvoiceRows!);
+        Assert.Empty(denied.ReadyBillingRows!);
     }
 
     [Fact]

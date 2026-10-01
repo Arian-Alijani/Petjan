@@ -95,20 +95,20 @@ internal static class DashboardMapping
             }).ToArray();
         zone ??= TimeZoneInfo.Utc;
         var primary = role == UserRole.Cashier
-            ? slice.Activity.Where(x => x.Kind == "Sale").Take(8).Select(x => Item(x, zone)).ToArray()
+            ? (slice.OpenInvoiceRows ?? []).Select(x => OperationalItem(x, zone)).ToArray()
             : (slice.Appointments ?? []).Select(x => AppointmentItem(x, zone)).ToArray();
-        var secondary = slice.Activity.Where(x => role switch
-            {
-                UserRole.Doctor => x.Kind is "Vaccine" or "Visit",
-                UserRole.Cashier => x.TitleKey == "history.payment.registered",
-                _ => true,
-            }).Take(8).Select(x => Item(x, zone)).ToArray();
+        var secondary = role switch
+        {
+            UserRole.Cashier => (slice.ReadyBillingRows ?? []).Select(x => OperationalItem(x, zone)).ToArray(),
+            UserRole.Doctor => (slice.ReminderRows ?? []).Select(x => OperationalItem(x, zone)).ToArray(),
+            _ => slice.Activity.Take(8).Select(x => Item(x, zone)).ToArray(),
+        };
         var manager = role is UserRole.Manager or UserRole.Receptionist;
         var values = slice.RevenueDays.Select(x => x.RevenueMinor).ToArray();
         var max = values.Length == 0 ? 0 : values.Max();
         return new DashboardSnapshot(role, "نمای کلی امروز", "آخرین فعالیت‌های کلینیک", stats,
-            role == UserRole.Cashier ? "فاکتورهای امروز" : "نوبت‌های امروز", primary,
-            "رویدادهای اخیر", secondary,
+            role == UserRole.Cashier ? "فاکتورهای باز" : "نوبت‌های فعال امروز", primary,
+            role switch { UserRole.Cashier => "آماده صدور فاکتور", UserRole.Doctor => "یادآور واکسن بیماران امروز", _ => "فعالیت‌های اخیر" }, secondary,
             (slice.Access?.Finance ?? manager) ? new DashboardRevenuePulse(today.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), "۱۴ روز اخیر",
                 values.Select(x => max == 0 ? 0d : (double)x / max).ToArray()) : null,
             (slice.Access?.Workloads ?? manager) ? slice.Workloads.Select(x => new DashboardDoctorLoad(string.IsNullOrEmpty(x.Name) ? "پ" : x.Name[..1], x.Name, "پزشک",
@@ -123,6 +123,15 @@ internal static class DashboardMapping
             string.Join(" · ", new[] { TimeZoneInfo.ConvertTime(x.OccurredUtc, zone).ToString("HH:mm"),
                 x.ActorName, x.AmountMinor == 0 ? "" : x.AmountMinor.ToString("N0") + " ریال" }.Where(v => v.Length > 0)),
             KindName(x.Kind), x.AmountSign < 0 ? DashboardTone.Warn : DashboardTone.Info, Icon(x.Kind));
+
+    private static DashboardListItem OperationalItem(DashboardOperationalRow row, TimeZoneInfo zone) =>
+        new("", string.IsNullOrWhiteSpace(row.Name) ? "بدون عنوان" : row.Name,
+            $"{TimeZoneInfo.ConvertTime(row.AtUtc, zone):MM/dd HH:mm} · {row.OwnerName}" +
+            (row.Kind == "Vaccine" ? $" · {row.Reference}" : ""),
+            row.State switch { "Draft" => "پیش‌نویس", "Posted" => "در انتظار پرداخت", "PartiallyPaid" => "پرداخت جزئی",
+                "Ready" => "آماده صدور", "Due" => "موعد واکسن", _ => "عملیات" },
+            row.State is "Due" or "PartiallyPaid" ? DashboardTone.Warn : DashboardTone.Info,
+            row.Kind switch { "Invoice" => "IconReceipt", "Visit" => "IconClipboard", "Boarding" => "IconHome", "Vaccine" => "IconSyringe", _ => "IconClipboard" });
 
     private static DashboardListItem AppointmentItem(DashboardAppointment x, TimeZoneInfo zone) =>
         new("", x.PetName, $"{TimeZoneInfo.ConvertTime(x.StartUtc, zone):HH:mm} · {x.OwnerName} · {x.DoctorName}",
