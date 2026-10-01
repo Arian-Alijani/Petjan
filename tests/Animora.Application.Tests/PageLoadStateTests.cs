@@ -31,4 +31,39 @@ public sealed class PageLoadStateTests
     [Fact]
     public void Describe_ReadyIsEmpty() =>
         Assert.Equal(string.Empty, PageLoadStateResolver.Describe(PageLoadState.Ready));
+
+    [Fact]
+    public void Status_FirstLoadFailure_IsError_ThenRetrySucceeds_IsHidden()
+    {
+        var status = new PageLoadStatus(() => Task.CompletedTask);
+        status.Begin();
+        Assert.Equal(PageLoadState.InitialLoading, status.State);
+        Assert.True(status.IsVisible);
+
+        status.Failed();
+        Assert.Equal(PageLoadState.Error, status.State);
+        Assert.True(status.CanRetry);
+
+        status.Begin();
+        status.Succeeded();
+        Assert.Equal(PageLoadState.Ready, status.State);
+        Assert.False(status.IsVisible);
+    }
+
+    [Fact]
+    public void Status_FailureAfterSuccess_IsStale_AndOverlappingLoadsKeepBusy()
+    {
+        var status = new PageLoadStatus(() => Task.CompletedTask);
+        status.Begin();
+        status.Succeeded();
+
+        status.Begin();
+        status.Begin();
+        status.Failed();
+        Assert.True(status.IsBusy); // the second load is still running
+        status.Failed();
+        Assert.False(status.IsBusy);
+        Assert.Equal(PageLoadState.Stale, status.State);
+        Assert.True(status.CanRetry);
+    }
 }

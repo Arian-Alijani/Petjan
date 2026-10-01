@@ -93,7 +93,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         SelectedSpeciesOption = SpeciesOptions[0];
         SelectedSpeciesOption.IsActive = true;
 
-        _ = LoadAsync();
+        UseLoadStatus(ReloadPageAsync);
     }
 
     /// <summary>board | history | settings — the reference's <c>#bd-main-seg</c> keys.</summary>
@@ -164,6 +164,16 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(SpeciesLabelText));
         RefreshCards();
     }
+
+
+    // Singleton page: reload on every visit (not only at construction) so data changed elsewhere is never stale.
+    // Failures surface in the shell's load-state block, which also offers the manual refresh.
+    public override void OnNavigatedTo()
+    {
+        if (!IsLoadInFlight) _ = ReloadPageAsync();
+    }
+
+    private Task ReloadPageAsync() => TrackLoadAsync(LoadAsync);
 
     private async Task LoadAsync()
     {

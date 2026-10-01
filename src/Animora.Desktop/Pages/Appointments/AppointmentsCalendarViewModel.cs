@@ -51,7 +51,6 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     // Reference page state: S.tab / S.view / S.cursor / S.types / S.docs / S.hideCancel / S.q.
     private string _activeTab = "cal";
     private bool _isLoading;
-    private bool _loadedOnce;
     private string _viewMode = "week";
     private DateOnly _cursor;
     private readonly HashSet<string> _activeTypeIds = [];
@@ -98,7 +97,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _queueDay = today;
         _historyCalendarCursor = today;
 
-        _ = LoadAsync();
+        UseLoadStatus(ReloadPageAsync);
+        _ = ReloadPageAsync();
     }
 
     // ── bindable collections ─────────────────────────────────────────────────
@@ -230,14 +230,28 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     /// </summary>
     public override void OnNavigatedTo()
     {
-        if (!_loadedOnce)
+        // The constructor's initial load is still in flight on the very first visit.
+        if (IsLoadInFlight)
         {
-            // Constructor already kicked off the initial load.
             return;
         }
 
-        _ = LoadAsync();
+        _ = ReloadPageAsync();
     }
+
+    // LoadAsync has no cleanup of its own: a failure must release the re-entrancy guard so a retry can run.
+    private Task ReloadPageAsync() => TrackLoadAsync(async () =>
+    {
+        try
+        {
+            await LoadAsync();
+        }
+        catch
+        {
+            _isLoading = false;
+            throw;
+        }
+    });
 
     // ── load ─────────────────────────────────────────────────────────────────
     private async Task LoadAsync()
@@ -303,7 +317,6 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         IsBusy = false;
         _isLoading = false;
-        _loadedOnce = true;
 
         // Render only the active tab (mirrors ApplySearch/SelectTab): Queue
         // and History are behind a LazyTabHost and rebuilt on first activation

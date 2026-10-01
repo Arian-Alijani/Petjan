@@ -1,4 +1,6 @@
+using System;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using Animora.Contracts.Navigation;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -54,5 +56,50 @@ public abstract partial class PageViewModelBase : ObservableObject
     /// </summary>
     public virtual void ApplyNavigationEntry(NavItem entry)
     {
+    }
+
+    /// <summary>
+    /// Standard load state (loading / failed / stale) with a manual refresh command; null for pages that render
+    /// their own (the dashboard). The shell shows it once above the page and in the topbar refresh button.
+    /// </summary>
+    public PageLoadStatus? LoadStatus { get; private set; }
+
+    /// <summary>Opts the page in to <see cref="LoadStatus"/>; <paramref name="refresh"/> is the page's reload.</summary>
+    protected void UseLoadStatus(Func<Task> refresh) => LoadStatus = new PageLoadStatus(refresh);
+
+    /// <summary>True while a tracked load is running; entry hooks use it to avoid a duplicate parallel load.</summary>
+    protected bool IsLoadInFlight => LoadStatus?.IsBusy == true;
+
+    /// <summary>
+    /// Runs a page load and records its outcome. A failure never escapes the fire-and-forget callers: it is shown
+    /// as the page's error/stale state with a retry, and a stuck <see cref="IsBusy"/> is released.
+    /// </summary>
+    protected Task TrackLoadAsync(Func<Task> load) => TrackLoadResultAsync(async () =>
+    {
+        await load();
+        return true;
+    });
+
+    /// <summary>
+    /// Same as <see cref="TrackLoadAsync"/> for loads that already catch and report their own failure: the load
+    /// returns <c>false</c> when it failed, so the page still shows the error/stale state.
+    /// </summary>
+    protected async Task TrackLoadResultAsync(Func<Task<bool>> load)
+    {
+        var status = LoadStatus;
+        status?.Begin();
+        bool ok;
+        try
+        {
+            ok = await load();
+        }
+        catch (Exception)
+        {
+            ok = false;
+        }
+
+        if (!ok) IsBusy = false;
+        if (ok) status?.Succeeded();
+        else status?.Failed();
     }
 }

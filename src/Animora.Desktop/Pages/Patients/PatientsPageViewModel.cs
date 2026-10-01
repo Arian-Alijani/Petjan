@@ -74,7 +74,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         // on the UI thread. The mock completes synchronously, so this still fills
         // the directory before the constructor returns, while a real async
         // backend keeps the shell responsive.
-        _ = LoadAsync();
+        UseLoadStatus(ReloadPageAsync);
+        _ = ReloadPageAsync();
     }
 
     public RangeObservableCollection<OwnerCardViewModel> FilteredOwners { get; } = [];
@@ -262,12 +263,15 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     // Singletons must refresh when returning from another screen that edited these records.
     public override void OnNavigatedTo()
     {
-        if (!IsBusy) _ = LoadAsync();
+        if (!IsBusy) _ = ReloadPageAsync();
     }
+
+    private Task ReloadPageAsync() => TrackLoadResultAsync(LoadAsync);
 
     private readonly SemaphoreSlim _loadGate = new(1, 1);
 
-    private async Task LoadAsync()
+    /// <returns>False when the load failed (already reported to the user here).</returns>
+    private async Task<bool> LoadAsync()
     {
         await _loadGate.WaitAsync();
         IsBusy = true;
@@ -281,10 +285,12 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             RebuildIndexes();
             BuildSpeciesChips();
             ApplyFilter();
+            return true;
         }
         catch (Exception)
         {
             _toast.Show("بارگذاری بیماران و مالکین انجام نشد؛ دوباره تلاش کنید", Tone.Danger);
+            return false;
         }
         finally
         {

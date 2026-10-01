@@ -236,6 +236,22 @@
                     </Grid>
                 </Button>
 
+                <!-- Manual refresh of the current page (fallback to the automatic refresh on entry). -->
+                <Button Classes="ghost"
+                        Command="{Binding CurrentPage.LoadStatus.RefreshCommand}"
+                        IsVisible="{Binding CurrentPage.LoadStatus, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        Width="36"
+                        Height="36"
+                        Padding="0"
+                        ToolTip.Tip="تازه‌سازی صفحه"
+                        AutomationProperties.Name="تازه‌سازی اطلاعات صفحه">
+                    <Path Classes="icon"
+                          Width="18"
+                          Height="18"
+                          Stroke="{StaticResource Ink2Brush}"
+                          Data="{StaticResource IconRefresh}" />
+                </Button>
+
                 <!-- Theme toggle (moon) — inert stub, matching the reference. -->
                 <Button Classes="ghost"
                         Command="{Binding ToggleThemeCommand}"

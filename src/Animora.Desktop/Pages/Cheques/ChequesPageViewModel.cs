@@ -68,7 +68,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
         Breadcrumbs.Add("مالی");
         Breadcrumbs.Add("چک‌ها");
 
-        _ = LoadAsync();
+        UseLoadStatus(ReloadPageAsync);
     }
 
     // ── Chrome ───────────────────────────────────────────────────────────
@@ -199,6 +199,28 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     partial void OnCalendarMonthChanged(int value) => OnPropertyChanged(nameof(CalendarTitle));
 
     // ── Loading ─────────────────────────────────────────────────────────
+
+    // Singleton page: reload on every visit (not only at construction) so data changed elsewhere is never stale.
+    // Failures surface in the shell's load-state block, which also offers the manual refresh.
+    public override void OnNavigatedTo()
+    {
+        if (!IsLoadInFlight) _ = ReloadPageAsync();
+    }
+
+    private bool _pageLoaded;
+
+    // First visit builds everything; later visits only re-read the data (keeps the user's tab, filters and selection).
+    private Task ReloadPageAsync() => TrackLoadAsync(async () =>
+    {
+        if (_pageLoaded)
+        {
+            await ReloadAsync();
+            return;
+        }
+
+        await LoadAsync();
+        _pageLoaded = true;
+    });
 
     private async Task LoadAsync()
     {

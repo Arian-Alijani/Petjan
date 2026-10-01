@@ -49,10 +49,8 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
         Eyebrow = "مدیریت کلینیک";
         Breadcrumbs.Add("مدیریت کلینیک");
         Breadcrumbs.Add("پذیرش");
-        // Non-blocking init (PERFORMANCE.md §4): the mock resolves synchronously,
-        // so the queue is populated at construction while a real async service
-        // would no longer block the UI thread.
-        _ = RefreshAsync();
+        // Non-blocking init (PERFORMANCE.md §4): the first load starts on the first visit (OnNavigatedTo).
+        UseLoadStatus(ReloadPageAsync);
     }
 
     public RangeObservableCollection<QueueTicket> Queue { get; } = [];
@@ -116,8 +114,18 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
 
     partial void OnPageNumberChanged(int value) => NotifyPageState();
 
+    // Singleton page: reload on every visit; failures surface in the shell's load-state block (with retry).
+    public override void OnNavigatedTo()
+    {
+        if (!IsLoadInFlight) _ = ReloadPageAsync();
+    }
+
+    private Task ReloadPageAsync() => TrackLoadAsync(LoadQueueAsync);
+
     [RelayCommand]
-    private async Task RefreshAsync()
+    private Task RefreshAsync() => ReloadPageAsync();
+
+    private async Task LoadQueueAsync()
     {
         if (IsBusy)
         {

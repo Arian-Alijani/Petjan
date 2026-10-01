@@ -52,6 +52,19 @@
                               FlowDirection="RightToLeft"
                               DataContext="{Binding Topbar}" />
 
+            <!-- Standard load state of the current page (loading / failed / stale + retry). One shared block for
+                 every page that opts in through PageViewModelBase.LoadStatus; the dashboard keeps its own. -->
+            <Grid DockPanel.Dock="Top" FlowDirection="RightToLeft" Margin="26,14,26,0"
+                  ColumnDefinitions="*,Auto" ColumnSpacing="10"
+                  IsVisible="{Binding CurrentPage.LoadStatus.IsVisible, FallbackValue=False}">
+                <controls:PageLoadingState Grid.Column="0"
+                                           IsBusy="{Binding CurrentPage.LoadStatus.IsBusy, FallbackValue=False}"
+                                           StateText="{Binding CurrentPage.LoadStatus.Text}" />
+                <Button Grid.Column="1" Content="تلاش دوباره" VerticalAlignment="Center"
+                        IsVisible="{Binding CurrentPage.LoadStatus.CanRetry, FallbackValue=False}"
+                        Command="{Binding CurrentPage.LoadStatus.RefreshCommand}" />
+            </Grid>
+
             <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                           VerticalScrollBarVisibility="Auto"
                           FlowDirection="RightToLeft">

@@ -52,7 +52,7 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
         Breadcrumbs.Add("کسب و کار");
         Breadcrumbs.Add("مالی و هزینه‌ها");
 
-        _ = LoadAsync();
+        UseLoadStatus(ReloadPageAsync);
     }
 
     // ── Chrome ───────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(PageTitle));
         OnPropertyChanged(nameof(PageSubtitle));
         OnPropertyChanged(nameof(ExportLabel));
-        _ = LoadAsync();
+        _ = ReloadPageAsync();
     }
 
     // ── Collections ──────────────────────────────────────────────────────
@@ -202,6 +202,16 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
     private string SpeciesTotalText { get; set; } = string.Empty;
 
     // ── Loading ──────────────────────────────────────────────────────────
+
+
+    // Singleton page: reload on every visit (not only at construction) so data changed elsewhere is never stale.
+    // Failures surface in the shell's load-state block, which also offers the manual refresh.
+    public override void OnNavigatedTo()
+    {
+        if (!IsLoadInFlight) _ = ReloadPageAsync();
+    }
+
+    private Task ReloadPageAsync() => TrackLoadAsync(LoadAsync);
 
     private async Task LoadAsync()
     {

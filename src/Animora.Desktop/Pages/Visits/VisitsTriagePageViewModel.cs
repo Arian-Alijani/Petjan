@@ -91,7 +91,8 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 
         SelectType(Types.FirstOrDefault());
         // Non-blocking init (PERFORMANCE.md §4).
-        _ = LoadAsync();
+        UseLoadStatus(ReloadPageAsync);
+        _ = ReloadPageAsync();
     }
 
     public ObservableCollection<DoctorTileViewModel> Doctors { get; } = [];
@@ -153,17 +154,18 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     /// </summary>
     public override void OnNavigatedTo()
     {
-        if (!_loadedOnce)
+        // The constructor's initial load is still in flight on the very first visit.
+        if (IsLoadInFlight)
         {
-            // Constructor already kicked off the initial load.
             return;
         }
 
-        _ = LoadAsync();
+        _ = ReloadPageAsync();
     }
 
+    private Task ReloadPageAsync() => TrackLoadAsync(LoadAsync);
+
     private bool _isLoading;
-    private bool _loadedOnce;
 
     private async Task LoadAsync()
     {
@@ -197,7 +199,6 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         finally
         {
             _isLoading = false;
-            _loadedOnce = true;
         }
     }
 

@@ -35,7 +35,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
             Tabs.Add(new ProfileTabViewModel(id, label, iconKey) { IsActive = id == ActiveTab });
         }
 
-        _ = LoadAsync();
+        UseLoadStatus(ReloadPageAsync);
     }
 
     // ── Chrome ───────────────────────────────────────────────────────────
@@ -302,7 +302,17 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
 
     // ── Loading ──────────────────────────────────────────────────────────
 
-    private async Task LoadAsync()
+    // Singleton page: reload on every visit so a staff/account change made elsewhere is never stale.
+    public override void OnNavigatedTo()
+    {
+        // Never overwrite edits the user has not saved yet.
+        if (!IsLoadInFlight && !HasProfileChanges && !HasSettingsChanges) _ = ReloadPageAsync();
+    }
+
+    private Task ReloadPageAsync() => TrackLoadResultAsync(LoadAsync);
+
+    /// <returns>False when the load failed (already reported to the user here).</returns>
+    private async Task<bool> LoadAsync()
     {
         await _readiness.WaitAsync();
         IsBusy = true;
@@ -317,11 +327,13 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
             await ReloadStaffAsync();
             await RefreshAccountStatusAsync();
             HasSettingsChanges = HasProfileChanges = false;
+            return true;
         }
         catch (System.Exception)
         {
             AccessMessage = "دریافت اطلاعات ناموفق بود؛ دوباره تلاش کنید.";
             _toast.Show(AccessMessage, Tone.Warn);
+            return false;
         }
         finally
         {

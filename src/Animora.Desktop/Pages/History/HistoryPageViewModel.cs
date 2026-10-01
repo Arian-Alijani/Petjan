@@ -67,8 +67,16 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
 
         BuildRangeChips();
         BuildCategoryChips();
-        _ = ReloadAsync(resetPage: true);
+        UseLoadStatus(ReloadPageAsync);
     }
+
+    // Singleton page: reload on every visit, keeping the user's filters and page.
+    public override void OnNavigatedTo()
+    {
+        if (!IsLoadInFlight) _ = ReloadPageAsync();
+    }
+
+    private Task ReloadPageAsync() => TrackLoadAsync(() => ReloadAsync(resetPage: false));
 
     // ── Chrome ───────────────────────────────────────────────────────────
 

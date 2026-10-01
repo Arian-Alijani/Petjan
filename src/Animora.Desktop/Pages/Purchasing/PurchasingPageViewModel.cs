@@ -47,11 +47,21 @@ public sealed partial class PurchasingPageViewModel : PageViewModelBase
         Eyebrow = "زنجیره تأمین";
         Breadcrumbs.Add("کسب و کار / خرید");
 
-        _ = LoadAsync();
+        UseLoadStatus(ReloadPageAsync);
     }
 
     /// <summary>The purchase-orders table rows (the reference's tbody).</summary>
     public RangeObservableCollection<PurchaseOrderRowViewModel> Orders { get; } = [];
+
+
+    // Singleton page: reload on every visit (not only at construction) so data changed elsewhere is never stale.
+    // Failures surface in the shell's load-state block, which also offers the manual refresh.
+    public override void OnNavigatedTo()
+    {
+        if (!IsLoadInFlight) _ = ReloadPageAsync();
+    }
+
+    private Task ReloadPageAsync() => TrackLoadAsync(LoadAsync);
 
     private async Task LoadAsync()
     {

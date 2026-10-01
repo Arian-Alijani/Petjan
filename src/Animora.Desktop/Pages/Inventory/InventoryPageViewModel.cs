@@ -57,7 +57,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         Tabs.Add(new InventorySubnavViewModel("products", "کالاها", "IconBox"));
         Tabs.Add(new InventorySubnavViewModel("settings", "تنظیمات کالاها", "IconTools"));
 
-        _ = LoadAsync();
+        UseLoadStatus(ReloadPageAsync);
     }
 
     /// <summary>products | settings — the reference's <c>state.tab</c>.</summary>
@@ -97,6 +97,16 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsSettingsTab));
         OnPropertyChanged(nameof(ShowHeaderNew));
     }
+
+
+    // Singleton page: reload on every visit (not only at construction) so data changed elsewhere is never stale.
+    // Failures surface in the shell's load-state block, which also offers the manual refresh.
+    public override void OnNavigatedTo()
+    {
+        if (!IsLoadInFlight) _ = ReloadPageAsync();
+    }
+
+    private Task ReloadPageAsync() => TrackLoadAsync(LoadAsync);
 
     private async Task LoadAsync()
     {

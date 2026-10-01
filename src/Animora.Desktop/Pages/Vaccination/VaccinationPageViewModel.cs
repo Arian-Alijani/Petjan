@@ -75,7 +75,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
 
         SelectedSpeciesOption = SpeciesOptions[0];
 
-        _ = LoadAsync();
+        UseLoadStatus(ReloadPageAsync);
     }
 
     /// <summary>visits | stock | history | settings — the reference's <c>#vxMainSeg</c> keys.</summary>
@@ -190,6 +190,16 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
             History.EnsureLoaded();
         }
     }
+
+
+    // Singleton page: reload on every visit (not only at construction) so data changed elsewhere is never stale.
+    // Failures surface in the shell's load-state block, which also offers the manual refresh.
+    public override void OnNavigatedTo()
+    {
+        if (!IsLoadInFlight) _ = ReloadPageAsync();
+    }
+
+    private Task ReloadPageAsync() => TrackLoadAsync(LoadAsync);
 
     private async Task LoadAsync()
     {
