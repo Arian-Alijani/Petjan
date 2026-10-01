@@ -110,6 +110,19 @@
     <SolidColorBrush x:Key="ShotBrush" Color="{StaticResource ShotColor}" />
     <SolidColorBrush x:Key="ShotBgBrush" Color="{StaticResource ShotBgColor}" />
 
+    <!-- Dashboard semantic surfaces. Dashboard literals were promoted to tokens (D44);
+         values are unchanged so the rendered look is identical. -->
+    <Color x:Key="RowActiveColor">#f9fbfa</Color>           <!-- active legend row fill -->
+    <Color x:Key="ChartTrackColor">#f0f4f2</Color>          <!-- donut empty track -->
+    <Color x:Key="MedallionLineColor">#e7ecea</Color>       <!-- donut centre medallion border -->
+    <Color x:Key="MedallionEdgeColor">#fbfdfc</Color>       <!-- donut centre medallion gradient edge -->
+    <Color x:Key="ChartAreaTopColor">#5914B8A6</Color>      <!-- revenue area fill: Brand500 @ 35% -->
+    <Color x:Key="ChartAreaBottomColor">#0014B8A6</Color>   <!-- revenue area fill: Brand500 @ 0% -->
+
+    <SolidColorBrush x:Key="RowActiveBrush" Color="{StaticResource RowActiveColor}" />
+    <SolidColorBrush x:Key="ChartTrackBrush" Color="{StaticResource ChartTrackColor}" />
+    <SolidColorBrush x:Key="MedallionLineBrush" Color="{StaticResource MedallionLineColor}" />
+
     <!-- Foreground for content drawn on a saturated accent/danger fill (tile hover icon, count badge). -->
     <Color x:Key="OnAccentColor">#ffffff</Color>
     <SolidColorBrush x:Key="OnAccentBrush" Color="{StaticResource OnAccentColor}" />

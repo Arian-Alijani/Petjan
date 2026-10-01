@@ -17,7 +17,7 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Border.legend-row.on">
-            <Setter Property="Background" Value="#f9fbfa" />
+            <Setter Property="Background" Value="{StaticResource RowActiveBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
         </Style>
         <Style Selector="Border.legend-row.on TextBlock.lg-name">
@@ -129,15 +129,15 @@
                                 <Path Data="{Binding RevenueAreaGeometry}">
                                     <Path.Fill>
                                         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                            <GradientStop Offset="0" Color="#5914B8A6" />
-                                            <GradientStop Offset="1" Color="#0014B8A6" />
+                                            <GradientStop Offset="0" Color="{StaticResource ChartAreaTopColor}" />
+                                            <GradientStop Offset="1" Color="{StaticResource ChartAreaBottomColor}" />
                                         </LinearGradientBrush>
                                     </Path.Fill>
                                 </Path>
 
                                 <!-- revenue trend line -->
                                 <Path Data="{Binding RevenueLineGeometry}"
-                                      Stroke="#14B8A6"
+                                      Stroke="{StaticResource Brand500Brush}"
                                       StrokeThickness="2.5"
                                       StrokeLineCap="Round"
                                       StrokeJoin="Round" />
@@ -290,19 +290,19 @@
                                 <controls:DonutRing x:Name="DonutRing"
                                                        Slices="{Binding SpeciesSlices}"
                                                        ActiveIndex="{Binding SpeciesActiveIndex}"
-                                                       TrackBrush="#f0f4f2" />
+                                                       TrackBrush="{StaticResource ChartTrackBrush}" />
                             </Button>
 
                             <!-- glossy center medallion (.donut-center; inset 34/186 ≈ 36/200) -->
                             <Border Margin="36" CornerRadius="999"
                                     IsHitTestVisible="False"
-                                    BorderBrush="#e7ecea" BorderThickness="1"
-                                    BoxShadow="0 6 18 0 #0D101828">
+                                    BorderBrush="{StaticResource MedallionLineBrush}" BorderThickness="1"
+                                    BoxShadow="{StaticResource ShadowMedallion}">
                                 <Border.Background>
                                     <RadialGradientBrush Center="50%,40%" GradientOrigin="50%,40%"
                                                          RadiusX="0.75" RadiusY="0.75">
-                                        <GradientStop Color="#ffffff" Offset="0.55" />
-                                        <GradientStop Color="#fbfdfc" Offset="1" />
+                                        <GradientStop Color="{StaticResource PanelColor}" Offset="0.55" />
+                                        <GradientStop Color="{StaticResource MedallionEdgeColor}" Offset="1" />
                                     </RadialGradientBrush>
                                 </Border.Background>
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="3">
