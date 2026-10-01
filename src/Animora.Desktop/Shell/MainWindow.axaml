@@ -65,16 +65,10 @@
                         Command="{Binding CurrentPage.LoadStatus.RefreshCommand}" />
             </Grid>
 
-            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
-                          VerticalScrollBarVisibility="Auto"
-                          FlowDirection="RightToLeft">
-                <!-- Short fade only: RTL makes a horizontal slide ambiguous, and views are cached so the swap is cheap. -->
-                <TransitioningContentControl Content="{Binding CurrentPage}">
-                    <TransitioningContentControl.PageTransition>
-                        <CrossFade Duration="0:0:0.18" />
-                    </TransitioningContentControl.PageTransition>
-                </TransitioningContentControl>
-            </ScrollViewer>
+            <!-- Page host: blur + round spinner veil, then the page swap, then the veil dissolves. The swap is deferred
+                 until the veil is on screen and the veil/spinner animate on the render thread, so a heavy destination
+                 page never freezes the transition (PERFORMANCE.md §17). It owns the page ScrollViewer. -->
+            <controls:PageTransitionHost PageContent="{Binding CurrentPage}" />
         </DockPanel>
         </Grid>
 

@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Controls.PageTransitionHost">
+
+    <!-- Two layers only, so the transition adds almost nothing to the visual tree (PERFORMANCE.md §17):
+           1. the page "stage" (scrollable host of the current page),
+           2. a veil (scrim + round spinner) that is collapsed (IsVisible=False) whenever no transition runs,
+              so an idle app pays nothing for it - no layout, no hit-testing, no render, no frame callbacks.
+         The veil's fade runs on the render thread (composition implicit animation set up in code-behind) and the
+         spinner is a render-thread custom visual, so both keep moving while the UI thread builds a heavy page. -->
+    <Panel>
+        <ScrollViewer x:Name="Scroller"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto"
+                      FlowDirection="RightToLeft">
+            <ContentControl x:Name="Stage" />
+        </ScrollViewer>
+
+        <!-- ~72% page-background scrim: reads as frosted glass over the (cheaply, statically) blurred page.
+             Visible veil blocks pointer input to the page underneath, so a second click cannot hit a half-swapped page. -->
+        <Border x:Name="Veil"
+                IsVisible="False"
+                Opacity="0"
+                Background="#B8F6F8F9"
+                FlowDirection="LeftToRight">
+            <!-- Opaque round plate: the spinner's per-frame dirty rect is just this small disc, and no shadow means
+                 no blurred shadow gets re-rasterised every frame. -->
+            <Border Width="60" Height="60"
+                    CornerRadius="30"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource LineBrush}"
+                    BorderThickness="1"
+                    AutomationProperties.Name="در حال بارگذاری صفحه"
+                    AutomationProperties.LiveSetting="Polite">
+                <controls:LoadingSpinner x:Name="Spinner"
+                                         Width="40" Height="40"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center" />
+            </Border>
+        </Border>
+    </Panel>
+
+</UserControl>

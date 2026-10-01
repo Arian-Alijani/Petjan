@@ -188,6 +188,25 @@ informational line (see `Program.cs`) and guard verbose/diagnostic logging
 behind the DevTools build. Structured logging in hot paths is treated as a
 performance bug.
 
+## §17 — Page transitions: veil first, heavy work second, motion on the render thread
+
+Navigation shows a frosted veil (blurred old page + scrim + round spinner), swaps the page behind it, then
+dissolves the veil (`Controls/PageTransitionHost`, `Controls/LoadingSpinner`). Rules that keep it cheap and
+keep it moving even when the destination page is heavy:
+
+- **The swap is the last thing that happens, never the first.** The veil/blur are committed to the render thread
+  one frame *before* the destination view is built, measured and arranged (`Entering → Covered → Settling →
+  Exiting`). The loading UI is therefore always visible before the UI thread gets busy.
+- **Anything that must keep moving while the UI thread is blocked runs on the render thread**: the veil fade is a
+  composition implicit animation and the spinner is a `CompositionCustomVisualHandler`. UI-thread timers /
+  XAML animations must not drive loading feedback.
+- **Blur is the only expensive effect**, so it is never animated per frame: a few discrete radii (reused
+  `BlurEffect` instances) and `Effect = null` at rest. No snapshots, no bitmaps, no per-frame allocation.
+- **Zero idle cost**: the veil is collapsed (`IsVisible=False`), the spinner sends no frame callbacks and the host
+  registers `RequestAnimationFrame` only while a transition is running.
+- **Latest wins**: a navigation during a transition only retargets it; intermediate pages are never realised.
+- The first page (startup, §12) and hosts that are detached/invisible swap directly with no veil.
+
 ---
 
 ## Known technical debt (tracked, not yet addressed)
