@@ -305,7 +305,11 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         SpeciesCenterBrush = null;
     }
 
-    /// <summary>Navigate to the patients directory (donut drill-in).</summary>
+    /// <summary>Text equivalent of the donut for screen readers; the chart is never the only way to read the counts.</summary>
+    public string SpeciesAutomationName => SpeciesAccessibility.Summary(_speciesBaseTotal,
+        Species.Select(x => x.AutomationName).ToArray());
+
+    /// <summary>Navigate to the patients directory (donut drill-in); runs through the central page-admission policy.</summary>
     [RelayCommand]
     private void OpenSpeciesPatients() => _navigation.NavigateTo<PatientsPageViewModel>();
 

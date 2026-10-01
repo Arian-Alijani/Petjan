@@ -274,16 +274,24 @@
                              hit-testable border wraps it so the whole disc responds
                              to the pointer for the cross-highlight. -->
                         <Grid Width="200" Height="200" HorizontalAlignment="Center" Margin="0,0,0,14">
-                            <Border Background="Transparent"
+                            <!-- A real Button: Tab-focusable, Enter/Space and left-click only (right/middle never navigate),
+                                 with a text equivalent of the chart for screen readers. -->
+                            <Button Background="Transparent" BorderThickness="0" Padding="0"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                                     Cursor="Hand"
+                                    Command="{Binding OpenSpeciesPatientsCommand}"
+                                    AutomationProperties.Name="{Binding SpeciesAutomationName}"
                                     PointerMoved="OnDonutPointerMoved"
                                     PointerExited="OnDonutPointerExited"
-                                    PointerPressed="OnDonutPointerPressed">
+                                    GotFocus="OnDonutGotFocus"
+                                    LostFocus="OnDonutLostFocus"
+                                    KeyDown="OnSpeciesKeyDown">
                                 <controls:DonutRing x:Name="DonutRing"
                                                        Slices="{Binding SpeciesSlices}"
                                                        ActiveIndex="{Binding SpeciesActiveIndex}"
                                                        TrackBrush="#f0f4f2" />
-                            </Border>
+                            </Button>
 
                             <!-- glossy center medallion (.donut-center; inset 34/186 ≈ 36/200) -->
                             <Border Margin="36" CornerRadius="999"
@@ -316,7 +324,10 @@
                                     <Button Background="Transparent" BorderThickness="0" Padding="0"
                                             HorizontalContentAlignment="Stretch" Cursor="Hand"
                                             Command="{Binding $parent[UserControl].((dashboard:DashboardPageViewModel)DataContext).FocusSpeciesCommand}"
-                                            CommandParameter="{Binding Index}">
+                                            CommandParameter="{Binding Index}"
+                                            AutomationProperties.Name="{Binding AutomationName}"
+                                            GotFocus="OnLegendGotFocus" LostFocus="OnLegendLostFocus"
+                                            KeyDown="OnSpeciesKeyDown">
                                     <Border Classes="legend-row" Classes.on="{Binding IsActive}"
                                             PointerEntered="OnLegendEnter" PointerExited="OnLegendLeave">
                                         <Panel>

@@ -67,6 +67,9 @@ public sealed partial class DashboardSpeciesViewModel : ObservableObject
 
     public string PercentText { get; }
 
+    /// <summary>Plain-text legend entry for screen readers (name, count, percent).</summary>
+    public string AutomationName => SpeciesAccessibility.Entry(Name, CountText, PercentText);
+
     /// <summary>Whole percent (0..100) of the total.</summary>
     public long Percent { get; }
 

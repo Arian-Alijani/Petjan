@@ -11,7 +11,11 @@ public partial class ManagerDashboardView : UserControl
 
     // Species legend hover → focus/blur the donut, mirroring the reference's
     // per-row mouseenter/mouseleave wiring in Animora-UI/assets/dashboard.js.
-    private void OnLegendEnter(object? sender, PointerEventArgs e)
+    private void OnLegendEnter(object? sender, PointerEventArgs e) => FocusRow(sender);
+
+    private void OnLegendLeave(object? sender, PointerEventArgs e) => BlurAll();
+
+    private void FocusRow(object? sender)
     {
         if (sender is Control { DataContext: DashboardSpeciesViewModel row } &&
             DataContext is DashboardPageViewModel vm)
@@ -20,7 +24,7 @@ public partial class ManagerDashboardView : UserControl
         }
     }
 
-    private void OnLegendLeave(object? sender, PointerEventArgs e)
+    private void BlurAll()
     {
         if (DataContext is DashboardPageViewModel vm)
         {
@@ -49,21 +53,25 @@ public partial class ManagerDashboardView : UserControl
         }
     }
 
-    private void OnDonutPointerExited(object? sender, PointerEventArgs e)
+    private void OnDonutPointerExited(object? sender, PointerEventArgs e) => BlurAll();
+
+    // Keyboard parity with hover: focusing the ring/legend shows the same readout, leaving it (or Escape) restores it.
+    private void OnLegendGotFocus(object? sender, RoutedEventArgs e) => FocusRow(sender);
+
+    private void OnLegendLostFocus(object? sender, RoutedEventArgs e) => BlurAll();
+
+    private void OnDonutGotFocus(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is DashboardPageViewModel vm)
-        {
-            vm.BlurSpeciesCommand.Execute(null);
-        }
+        if (DataContext is DashboardPageViewModel { Species.Count: > 0 } vm && vm.SpeciesActiveIndex < 0)
+            vm.FocusSpeciesCommand.Execute(0);
     }
 
-    // Clicking the ring drills into the patients directory (reference: the seg
-    // click handler calls navigateTo('patients.html')).
-    private void OnDonutPointerPressed(object? sender, PointerPressedEventArgs e)
+    private void OnDonutLostFocus(object? sender, RoutedEventArgs e) => BlurAll();
+
+    private void OnSpeciesKeyDown(object? sender, KeyEventArgs e)
     {
-        if (DataContext is DashboardPageViewModel vm)
-        {
-            vm.OpenSpeciesPatientsCommand.Execute(null);
-        }
+        if (e.Key != Key.Escape || DataContext is not DashboardPageViewModel vm) return;
+        vm.BlurSpeciesCommand.Execute(null);
+        e.Handled = true;
     }
 }
