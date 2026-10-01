@@ -1,6 +1,6 @@
 # تسک ۰۲ — ترنزیشن نرم تعویض صفحه + کنترل لودینگ مشترک
 
-**وضعیت:** ⬜ TODO
+**وضعیت:** ✅ DONE
 **پیش‌نیاز:** تسک ۰۱ (برای `PageLoadState` در کنترل لودینگ).
 **هدف:** (الف) جابجایی بین صفحات با یک ترنزیشن نرم و سبک انجام شود (نه تعویض
 ناگهانی فعلی)، (ب) یک کنترل لودینگ/overlay مشترک ساخته شود که صفحات (در تسک ۰۳)
@@ -125,11 +125,11 @@ scripts/sandbox/run.sh          # چون MainWindow.axaml (shell) لمس شد �
 
 ## معیار پذیرش (Definition of Done)
 
-- [ ] `MainWindow.axaml` از `TransitioningContentControl` با `CrossFade 0.18s`
+- [x] `MainWindow.axaml` از `TransitioningContentControl` با `CrossFade 0.18s`
       استفاده می‌کند؛ `ScrollViewer` دست‌نخورده.
-- [ ] کنترل/قطعهٔ لودینگ مشترک ساخته شد و ظاهرش با بلوک داشبورد یکسان است.
-- [ ] `scripts/sandbox/build.sh` → 0/0 و `scripts/sandbox/run.sh` → SMOKE RUN OK.
-- [ ] هیچ کتابخانهٔ جدیدی اضافه نشد (فقط Avalonia بومی).
+- [x] کنترل/قطعهٔ لودینگ مشترک ساخته شد و ظاهرش با بلوک داشبورد یکسان است.
+- [x] `scripts/sandbox/build.sh` → 0/0 و `scripts/sandbox/run.sh` → SMOKE RUN OK.
+- [x] هیچ کتابخانهٔ جدیدی اضافه نشد (فقط Avalonia بومی).
 
 ---
 

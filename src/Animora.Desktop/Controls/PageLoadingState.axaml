@@ -1,0 +1,16 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Animora.Desktop.Controls.PageLoadingState">
+
+    <!-- Same look as the dashboard's explicit load-state block (D28) so every page reads alike. -->
+    <Border Classes="card" Padding="12,10">
+        <StackPanel Spacing="6">
+            <ProgressBar x:Name="Progress" IsIndeterminate="True"
+                         AutomationProperties.Name="در حال دریافت اطلاعات" />
+            <TextBlock x:Name="StateTextBlock" TextWrapping="Wrap"
+                       AutomationProperties.LiveSetting="Polite"
+                       Foreground="{StaticResource MutedBrush}" />
+        </StackPanel>
+    </Border>
+
+</UserControl>

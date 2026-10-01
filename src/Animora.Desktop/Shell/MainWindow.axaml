@@ -55,7 +55,12 @@
             <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                           VerticalScrollBarVisibility="Auto"
                           FlowDirection="RightToLeft">
-                <ContentControl Content="{Binding CurrentPage}" />
+                <!-- Short fade only: RTL makes a horizontal slide ambiguous, and views are cached so the swap is cheap. -->
+                <TransitioningContentControl Content="{Binding CurrentPage}">
+                    <TransitioningContentControl.PageTransition>
+                        <CrossFade Duration="0:0:0.18" />
+                    </TransitioningContentControl.PageTransition>
+                </TransitioningContentControl>
             </ScrollViewer>
         </DockPanel>
         </Grid>
