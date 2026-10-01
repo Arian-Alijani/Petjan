@@ -32,11 +32,11 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private readonly Avalonia.Threading.DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromMinutes(1) };
     private string _identityKey;
 
-    [ObservableProperty]
     private string _primaryListTitle = string.Empty;
+    public string PrimaryListTitle { get => _primaryListTitle; private set => SetProperty(ref _primaryListTitle, value); }
 
-    [ObservableProperty]
     private string _secondaryListTitle = string.Empty;
+    public string SecondaryListTitle { get => _secondaryListTitle; private set => SetProperty(ref _secondaryListTitle, value); }
 
     public DashboardPageViewModel(IDashboardQueryService dashboard, IStoreReadinessGate readiness, ICurrentUserContext currentUser, INavigationService navigation)
     {
@@ -154,59 +154,59 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     /// <summary>Manager-only: the species donut legend rows.</summary>
     public IReadOnlyList<DashboardSpeciesViewModel> Species => _presentation?.Species ?? Array.Empty<DashboardSpeciesViewModel>();
 
-    [ObservableProperty]
     private DashboardRevenuePulse? _revenuePulse;
+    public DashboardRevenuePulse? RevenuePulse { get => _revenuePulse; private set => SetProperty(ref _revenuePulse, value); }
 
-    [ObservableProperty]
     private bool _hasDoctorWorkload;
+    public bool HasDoctorWorkload { get => _hasDoctorWorkload; private set => SetProperty(ref _hasDoctorWorkload, value); }
 
-    [ObservableProperty]
     private bool _hasSpecies;
+    public bool HasSpecies { get => _hasSpecies; private set => SetProperty(ref _hasSpecies, value); }
 
     /// <summary>Filled area under the revenue line (chart background).</summary>
-    [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueAreaGeometry;
+    public Avalonia.Media.Geometry? RevenueAreaGeometry { get => _revenueAreaGeometry; private set => SetProperty(ref _revenueAreaGeometry, value); }
 
     /// <summary>Explicit zero baseline so negative days are visible against it.</summary>
-    [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueZeroLineGeometry;
+    public Avalonia.Media.Geometry? RevenueZeroLineGeometry { get => _revenueZeroLineGeometry; private set => SetProperty(ref _revenueZeroLineGeometry, value); }
 
     /// <summary>One line per plotted day: Jalali date and the real signed amount (chart tooltip).</summary>
-    [ObservableProperty]
     private string _revenueTooltip = string.Empty;
+    public string RevenueTooltip { get => _revenueTooltip; private set => SetProperty(ref _revenueTooltip, value); }
 
     /// <summary>The revenue trend line itself.</summary>
-    [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueLineGeometry;
+    public Avalonia.Media.Geometry? RevenueLineGeometry { get => _revenueLineGeometry; private set => SetProperty(ref _revenueLineGeometry, value); }
 
     /// <summary>Center value of the species donut — total active patients.</summary>
-    [ObservableProperty]
     private string _speciesTotal = string.Empty;
+    public string SpeciesTotal { get => _speciesTotal; private set => SetProperty(ref _speciesTotal, value); }
 
     /// <summary>Center caption of the species donut — "کل بیماران فعال" by default.</summary>
-    [ObservableProperty]
     private string _speciesTotalLabel = "کل بیماران فعال";
+    public string SpeciesTotalLabel { get => _speciesTotalLabel; private set => SetProperty(ref _speciesTotalLabel, value); }
 
     /// <summary>Center sub-caption of the species donut — the registered species count.</summary>
-    [ObservableProperty]
     private string _speciesTotalSub = string.Empty;
+    public string SpeciesTotalSub { get => _speciesTotalSub; private set => SetProperty(ref _speciesTotalSub, value); }
 
     /// <summary>Accent colour of the center value; reverts to ink on blur.</summary>
-    [ObservableProperty]
     private Avalonia.Media.IBrush? _speciesCenterBrush;
+    public Avalonia.Media.IBrush? SpeciesCenterBrush { get => _speciesCenterBrush; private set => SetProperty(ref _speciesCenterBrush, value); }
 
     /// <summary>Dims the ring/legend while a slice is focused (reference .donut-wrap.dim).</summary>
-    [ObservableProperty]
     private bool _isSpeciesDimmed;
+    public bool IsSpeciesDimmed { get => _isSpeciesDimmed; private set => SetProperty(ref _isSpeciesDimmed, value); }
 
     /// <summary>Geometry describing the donut ring's coloured slices.</summary>
-    [ObservableProperty]
     private System.Collections.Generic.IReadOnlyList<Animora.Desktop.Controls.DonutSlice> _speciesSlices =
         System.Array.Empty<Animora.Desktop.Controls.DonutSlice>();
+    public System.Collections.Generic.IReadOnlyList<Animora.Desktop.Controls.DonutSlice> SpeciesSlices { get => _speciesSlices; private set => SetProperty(ref _speciesSlices, value); }
 
     /// <summary>Index of the hovered slice (-1 = none), for the ring's focus state.</summary>
-    [ObservableProperty]
     private int _speciesActiveIndex = -1;
+    public int SpeciesActiveIndex { get => _speciesActiveIndex; private set => SetProperty(ref _speciesActiveIndex, value); }
 
     /// <summary>The species donut's default center readout, restored on blur.</summary>
     private string _speciesBaseTotal = string.Empty;
