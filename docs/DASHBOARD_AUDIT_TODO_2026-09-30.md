@@ -3,10 +3,10 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
-- **27 از 44 تسک انجام‌شده: D01، D02، D03، D04، D05، D06، D07، D08، D09، D10، D11، D12، D13، D14، D15، D16، D17، D18، D25، D30، D32، D37، D38، D39، D40، D41، D43. 17 تسک دیگر باز هستند.** (به‌روزرسانی خودکار پس از هر تسک؛ جزئیات هر مورد در بخش خودش ثبت شده است.)
+- **28 از 44 تسک انجام‌شده؛ 16 تسک باز: D19، D21، D22، D23، D24، D26، D27، D28، D29، D31، D33، D34، D35، D36، D42، D44.**
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
-- باقی‌مانده: D19، D20، D21، D22، D23، D24، D26، D27، D28، D29، D31، D33، D34، D35، D36، D42، D44. موارد GUI/Windows/contrast/performance که اندازه‌گیری نشده‌اند تیک نخورده‌اند.
+- باقی‌مانده: D19، D21، D22، D23، D24، D26، D27، D28، D29، D31، D33، D34، D35، D36، D42، D44. پذیرش GUI/Windows بدون شاهد واقعی بسته نمی‌شود.
 - متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #181 را توصیف نمی‌کنند. fixture قدیمی ناسازگار در اجرای قبلی فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران. اسکریپت‌های Windows/sandbox/git، migrationها و دیتابیس واقعی کاربر در این جلسه تغییر نکردند.
 
 ## دامنه و نتیجه مرحله تدوین اولیه (تاریخی)
@@ -294,7 +294,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D19 invalidate cache on all source generations"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D20 — TTL بدون refresh، UI را تازه نمی‌کند
-- [ ] وضعیت: باز | P1 | گزارش 20 | نتیجه: نبود policy قطعی؛ ماندن ساعت‌ها در GUI مشاهده نشده | وابستگی: D04/D25/D37/D38.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 20 | نتیجه: نبود policy قطعی؛ ماندن ساعت‌ها در GUI مشاهده نشده | وابستگی: D04/D25/D37/D38.
+- شواهد اجرای 2026-10-01: `RefreshSnapshotAsync` cache داده را دور می‌زند، اما policy زنده همچنان اجرا می‌شود؛ دکمه همیشگی refresh، timer یک‌دقیقه‌ای فقط هنگام activation و توقف/cancel هنگام خروج، و زمان آخرین دریافت موفق اضافه شد. `DashboardLifecycleTests`: **14 passed، 0 failed، 8 ثانیه** شامل timestamp تزریقی عبور روز، coalescing و غیرفعال‌شدن tick، و service واقعی با cache گرم. build فقط Desktop: **0 warning/0 error، 57 ثانیه**. warning تاریخی CS8625 تست باقی است. Full build/test اجرا نشد. PR [#185](https://github.com/Arian-Alijani/Petjan/pull/185).
 - شواهد: `DashboardPageViewModel.cs:61–89`؛ TTL خط 46 service؛ XAML فقط retry در error دارد.
 - اقدام: manual refresh همیشگی، activation refresh و policy محدود هنگام active بودن؛ tick/data-change coalesced، عبور روز کلینیک و last-updated. timer/subscription هنگام خروج متوقف شود. refresh دستی و freshness از TTL مستقل باشند و راهی برای درخواست تازه واقعی داشته باشند؛ worker/UI polling بی‌حد ساخته نشود.
 - پذیرش/بررسی محدود: ساعت/زمان تزریقی یا fake scheduler، بدون wait واقعی 60ثانیه؛ tick فعال و عبور نیمه‌شب refresh کنند، deactivated نکند؛ چند trigger concurrent یک بار query؛ manual refresh cache معتبر اما قدیمی را نیز با policy درست تازه کند.
