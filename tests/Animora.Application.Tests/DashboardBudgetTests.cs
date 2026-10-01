@@ -460,6 +460,55 @@ public sealed class DashboardBudgetTests
     }
 
     [Fact]
+    public async Task ActivityActor_IsDurableInOutbox_AndRebuildMatchesLiveWriter()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var correlation = scope.ServiceProvider.GetRequiredService<Animora.Application.Correlation.ICorrelationContext>();
+        var writer = scope.ServiceProvider.GetRequiredService<IActivityFeedWriter>();
+        var outbox = scope.ServiceProvider.GetRequiredService<IOutbox>();
+        Invoice Make(string number)
+        {
+            var invoice = Invoice.Create(fixture.TenantId, number, InvoiceKind.DirectSale, Window.StartUtc.AddHours(9), "cashier", guestName: "G").Value!;
+            Assert.True(invoice.AddLine(new InvoiceLine("line", InvoiceLineKind.Service, null, null, null,
+                "Consultation", new Quantity(1, "PCS"), Money.Irt(100), 0, 0, InvoiceLineSource.Manual, null)).IsSuccess);
+            Assert.True(invoice.Post(fixture.Clock).IsSuccess);
+            return invoice;
+        }
+        async Task Stage(Invoice invoice)
+        {
+            foreach (var source in invoice.DomainEvents)
+            {
+                if (ActivityFeedMapper.Map(source) is { } draft) await writer.WriteAsync(draft, default);
+                Assert.True((await outbox.EnqueueAsync(source.GetType().Name, source)).IsSuccess);
+            }
+        }
+        var live = Make("ACT-1");
+        using (correlation.Begin(new Animora.Application.Correlation.AmbientCorrelation("corr-live", fixture.TenantId, "receptionist", "dev", null)))
+            await Stage(live);
+        var legacy = Make("ACT-2");
+        await Stage(legacy); // no ambient actor: a legacy/system row, actor stays unknown
+        db.AddRange(live, legacy);
+        await db.SaveChangesAsync();
+        Assert.Equal("receptionist", await db.Set<OutboxMessage>().AsNoTracking()
+            .Where(x => x.CorrelationId == "corr-live").Select(x => x.ActorUserId).FirstAsync());
+        async Task<string[]> Snapshot() => (await db.Set<ActivityEvent>().AsNoTracking().OrderBy(x => x.Id).ToListAsync())
+            .Select(x => $"{x.Id}|{x.ActorUserId}|{x.CorrelationId}|{x.TenantId}").ToArray();
+        var before = await Snapshot();
+        var maintenance = scope.ServiceProvider.GetRequiredService<ILocalStoreMaintenance>();
+        Assert.True((await maintenance.RebuildActivityFeedAsync(default)).IsSuccess);
+        var first = await Snapshot();
+        Assert.True((await maintenance.RebuildActivityFeedAsync(default)).IsSuccess);
+        Assert.Equal(first, await Snapshot());                   // deterministic
+        var liveRow = first.Single(x => x.Contains("|corr-live|"));
+        Assert.Contains("|receptionist|", liveRow);
+        Assert.Contains(before.Single(x => x.Contains("|corr-live|")), first);   // live == rebuilt
+        Assert.DoesNotContain(first.Where(x => !x.Contains("|corr-live|")), x => x.Contains("|receptionist|"));
+    }
+
+    [Fact]
     public async Task ManagerRevenue_EqualsFinanceSameDayFigure()
     {
         const long expected = 7_654_321;
