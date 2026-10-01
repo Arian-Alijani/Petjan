@@ -588,3 +588,37 @@ public sealed partial class HistoryCalendarCellViewModel : ObservableObject
     [ObservableProperty]
     private bool _isInactive;
 }
+
+/// <summary>
+/// One row of the Settings tab's «انواع نوبت» list: the type's colour dot, label and duration.
+/// Catalog types are read-only defaults; only clinic-created (custom) types can be removed.
+/// </summary>
+public sealed class AppointmentSettingTypeRowViewModel
+{
+    public AppointmentSettingTypeRowViewModel(
+        string id, string label, string colorHex, int durationMinutes, bool isCustom, bool? requiresDoctor)
+    {
+        Id = id;
+        Label = label;
+        ColorHex = colorHex;
+        IsCustom = isCustom;
+        var meta = AppointmentsPresentation.Fa(durationMinutes) + " دقیقه";
+        if (requiresDoctor is { } needsDoctor)
+        {
+            meta += needsDoctor ? " · نیاز به پزشک" : " · بدون پزشک";
+        }
+
+        MetaText = meta;
+    }
+
+    public string Id { get; }
+    public string Label { get; }
+    public string ColorHex { get; }
+    public string MetaText { get; }
+    public bool IsCustom { get; }
+    public bool CanRemove => IsCustom;
+    public string BadgeText => IsCustom ? "سفارشی" : "پیش‌فرض";
+}
+
+/// <summary>A numeric choice (minutes / hours) shown in a Settings-tab dropdown.</summary>
+public sealed record SettingNumberOption(int Value, string Label);
