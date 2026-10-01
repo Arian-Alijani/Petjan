@@ -349,6 +349,45 @@ public sealed class DashboardBudgetTests
         Assert.Equal(("Dog", "سگ"), (single[0].Key, single[0].Name));
     }
 
+    [Theory]
+    [InlineData(new long[] { 100, -50 }, new[] { 1.0, 0.0 }, 0.3333333333)]
+    [InlineData(new long[] { -100, -50 }, new[] { 0.0, 0.5 }, 1.0)]
+    [InlineData(new long[] { 0, 0, 0 }, new[] { 0.0, 0.0, 0.0 }, 0.0)]
+    [InlineData(new long[] { 5 }, new[] { 1.0 }, 0.0)]
+    [InlineData(new long[] { 0, 9_000_000_000_000_000_000, -9_000_000_000_000_000_000 }, new[] { 0.5, 1.0, 0.0 }, 0.5)]
+    public void RevenueChart_PlacesSignedValuesAroundZero_WithoutClampingOrNaN(long[] values, double[] expected, double zero)
+    {
+        var (points, zeroLevel) = DashboardMapping.Normalize(values);
+        Assert.Equal(expected.Length, points.Length);
+        for (var i = 0; i < expected.Length; i++) Assert.Equal(expected[i], points[i], 6);
+        Assert.Equal(zero, zeroLevel, 6);
+        Assert.All(points, x => Assert.True(double.IsFinite(x) && x is >= 0 and <= 1));
+        var layout = Desktop.Pages.Dashboard.RevenueChartMath.Build(points, zeroLevel);
+        if (points.Length < 2) { Assert.Null(layout); return; }
+        // Canvas y grows downward: a lower value is always drawn lower than a higher one.
+        for (var i = 0; i < values.Length; i++)
+            for (var j = 0; j < values.Length; j++)
+                if (values[i] < values[j]) Assert.True(layout!.Value.Y[i] > layout.Value.Y[j]);
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (values[i] < 0) Assert.True(layout!.Value.Y[i] > layout.Value.ZeroY);
+            if (values[i] > 0) Assert.True(layout!.Value.Y[i] < layout.Value.ZeroY);
+        }
+    }
+
+    [Fact]
+    public void RevenuePulse_KeepsRealSignedAmounts_AndIsFrozen()
+    {
+        var slice = new DashboardSlice([new(20260228, 300), new(20260301, -120)], [], [], new Dictionary<string, int>(), 0, 0, 0);
+        var pulse = InvokeMap(UserRole.Manager, slice).RevenuePulse!;
+        Assert.Equal(new long[] { 300, -120 }, pulse.Values);
+        Assert.Equal("-120", pulse.Value);
+        Assert.True(pulse.Points[1] < pulse.ZeroLevel && pulse.ZeroLevel < pulse.Points[0]);
+        Assert.Throws<NotSupportedException>(() => ((IList<long>)pulse.Values)[0] = 1);
+        Assert.Empty(DashboardMapping.Map(UserRole.Manager, new DashboardSlice([], [], [], new Dictionary<string, int>(), 0, 0, 0)).RevenuePulse!.Points);
+        Assert.Null(Desktop.Pages.Dashboard.RevenueChartMath.Build(new[] { double.NaN, 0.5 }, 0));
+    }
+
     [Fact]
     public async Task ManagerRevenue_EqualsFinanceSameDayFigure()
     {

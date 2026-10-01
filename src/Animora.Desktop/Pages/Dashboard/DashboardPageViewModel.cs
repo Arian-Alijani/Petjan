@@ -116,6 +116,10 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueAreaGeometry;
 
+    /// <summary>Explicit zero baseline so negative days are visible against it.</summary>
+    [ObservableProperty]
+    private Avalonia.Media.Geometry? _revenueZeroLineGeometry;
+
     /// <summary>The revenue trend line itself.</summary>
     [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueLineGeometry;
@@ -232,7 +236,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         HasDoctorWorkload = snapshot.DoctorLoads is not null;
         HasSpecies = snapshot.Species is not null;
         RevenuePulse = snapshot.RevenuePulse;
-        BuildRevenueChart(snapshot.RevenuePulse?.Points);
+        BuildRevenueChart(snapshot.RevenuePulse);
 
         DoctorLoads.ReplaceAll(
             (snapshot.DoctorLoads ?? System.Array.Empty<DashboardDoctorLoad>())
@@ -241,37 +245,26 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         ApplySpecies(snapshot.Species ?? System.Array.Empty<DashboardSpecies>());
     }
 
-    // Builds the area + line geometry from the normalized 0..1 pulse series,
-    // over a 500×180 canvas matching the reference pulseChart viewBox.
-    private void BuildRevenueChart(IReadOnlyList<double>? points)
+    // Builds the area + line + zero-line geometry from the signed, zero-containing pulse domain. The area closes
+    // to the zero baseline (not the canvas bottom), so negative days visibly fall below it.
+    private void BuildRevenueChart(DashboardRevenuePulse? pulse)
     {
-        if (points is null || points.Count < 2)
+        var layout = RevenueChartMath.Build(pulse?.Points, pulse?.ZeroLevel ?? 0);
+        if (layout is not { } chart)
         {
             RevenueAreaGeometry = null;
             RevenueLineGeometry = null;
+            RevenueZeroLineGeometry = null;
             return;
         }
 
-        const double width = 500;
-        const double height = 180;
-        const double top = 12;
-        const double bottom = height - 12;
-
-        var step = width / (points.Count - 1);
-        var pts = new Avalonia.Point[points.Count];
-        for (var i = 0; i < points.Count; i++)
-        {
-            var clamped = points[i] < 0 ? 0 : points[i] > 1 ? 1 : points[i];
-            var y = bottom - clamped * (bottom - top);
-            pts[i] = new Avalonia.Point(i * step, y);
-        }
-
+        var count = chart.X.Length;
         // Packed immutable paths avoid a managed PathFigure/LineSegment object per point (§11).
         var line = new Avalonia.Media.StreamGeometry();
         using (var context = line.Open())
         {
-            context.BeginFigure(pts[0], false);
-            for (var i = 1; i < pts.Length; i++) context.LineTo(pts[i]);
+            context.BeginFigure(new Avalonia.Point(chart.X[0], chart.Y[0]), false);
+            for (var i = 1; i < count; i++) context.LineTo(new Avalonia.Point(chart.X[i], chart.Y[i]));
             context.EndFigure(false);
         }
         RevenueLineGeometry = line;
@@ -279,12 +272,21 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         var area = new Avalonia.Media.StreamGeometry();
         using (var context = area.Open())
         {
-            context.BeginFigure(new Avalonia.Point(0, bottom), true);
-            foreach (var p in pts) context.LineTo(p);
-            context.LineTo(new Avalonia.Point(width, bottom));
+            context.BeginFigure(new Avalonia.Point(chart.X[0], chart.ZeroY), true);
+            for (var i = 0; i < count; i++) context.LineTo(new Avalonia.Point(chart.X[i], chart.Y[i]));
+            context.LineTo(new Avalonia.Point(chart.X[count - 1], chart.ZeroY));
             context.EndFigure(true);
         }
         RevenueAreaGeometry = area;
+
+        var zero = new Avalonia.Media.StreamGeometry();
+        using (var context = zero.Open())
+        {
+            context.BeginFigure(new Avalonia.Point(0, chart.ZeroY), false);
+            context.LineTo(new Avalonia.Point(RevenueChartMath.Width, chart.ZeroY));
+            context.EndFigure(false);
+        }
+        RevenueZeroLineGeometry = zero;
     }
 
     private void ApplySpecies(IReadOnlyList<DashboardSpecies> species)

@@ -151,7 +151,11 @@
                                 <Line StartPoint="0,120" EndPoint="500,120"
                                       Stroke="{StaticResource Line2Brush}" StrokeThickness="1" StrokeDashArray="3,4" />
 
-                                <!-- filled area under the line -->
+                                <!-- zero baseline: negative days fall below this line -->
+                                <Path Data="{Binding RevenueZeroLineGeometry}"
+                                      Stroke="{StaticResource MutedBrush}" StrokeThickness="1" />
+
+                                <!-- filled area between the line and the zero baseline -->
                                 <Path Data="{Binding RevenueAreaGeometry}">
                                     <Path.Fill>
                                         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">

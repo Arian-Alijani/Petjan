@@ -105,15 +105,28 @@ internal static class DashboardMapping
         };
         var manager = role is UserRole.Manager or UserRole.Receptionist;
         var values = slice.RevenueDays.Select(x => x.RevenueMinor).ToArray();
-        var max = values.Length == 0 ? 0 : values.Max();
+        var (points, zeroLevel) = Normalize(values);
         return new DashboardSnapshot(role, "نمای کلی امروز", "آخرین فعالیت‌های کلینیک", stats,
             role == UserRole.Cashier ? "فاکتورهای باز" : "نوبت‌های فعال امروز", primary,
             role switch { UserRole.Cashier => "آماده صدور فاکتور", UserRole.Doctor => "یادآور واکسن بیماران امروز", _ => "فعالیت‌های اخیر" }, secondary,
             (slice.Access?.Finance ?? manager) ? new DashboardRevenuePulse(today.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), "۱۴ روز اخیر",
-                values.Select(x => max == 0 ? 0d : (double)x / max).ToArray()) : null,
+                points) { ZeroLevel = zeroLevel, Values = values } : null,
             (slice.Access?.Workloads ?? manager) ? slice.Workloads.Select(Load).ToArray() : null,
             (slice.Access?.Patients ?? manager) && role != UserRole.Doctor ? slice.Species.OrderByDescending(x => x.Value).ThenBy(x => x.Key, StringComparer.Ordinal)
                 .Select(x => new DashboardSpecies(SpeciesName(x.Key), x.Value, SpeciesColor(x.Key), x.Key)).ToArray() : null);
+    }
+
+    /// <summary>
+    /// Signed normalization: the domain always contains zero, so a negative day sits below the zero level and
+    /// an all-negative/all-zero series divides by a non-zero span or yields a flat series — never NaN/Infinity.
+    /// </summary>
+    internal static (double[] Points, double ZeroLevel) Normalize(IReadOnlyList<long> values)
+    {
+        if (values.Count == 0) return ([], 0);
+        double low = Math.Min(0, values.Min()), high = Math.Max(0, values.Max());
+        var span = high - low;
+        if (span <= 0) return (new double[values.Count], 0);
+        return (values.Select(v => (v - low) / span).ToArray(), (0 - low) / span);
     }
 
     // Specialty is not modelled, so it is left empty rather than invented. A removed/unnamed doctor gets an

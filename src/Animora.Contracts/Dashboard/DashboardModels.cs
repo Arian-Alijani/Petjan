@@ -76,7 +76,20 @@ public sealed record DashboardRevenuePulse(
     IReadOnlyList<double> Points)
 {
     private readonly IReadOnlyList<double> _points = DashboardCollections.Freeze(Points);
+
+    /// <summary>
+    /// Positions in 0..1 inside the signed domain [min(0,min), max(0,max)] — a negative day is placed below
+    /// the zero level and is never clamped to zero.
+    /// </summary>
     public IReadOnlyList<double> Points { get => _points; init => _points = DashboardCollections.Freeze(value); }
+
+    /// <summary>Position of zero in the same 0..1 space as <see cref="Points"/> (0 when every value is zero/positive-free).</summary>
+    public double ZeroLevel { get; init; }
+
+    private IReadOnlyList<long> _values = [];
+
+    /// <summary>The real signed minor-unit amount of every plotted day, same order as <see cref="Points"/>.</summary>
+    public IReadOnlyList<long> Values { get => _values; init => _values = DashboardCollections.Freeze(value); }
 }
 
 /// <summary>
