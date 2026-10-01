@@ -8,6 +8,7 @@ using Animora.Persistence.Sqlite.Entities;
 using Animora.Domain.Patients;
 using Animora.Domain.Identity;
 using Animora.Domain.ValueObjects;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Persistence.Sqlite.Queries;
@@ -21,11 +22,49 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
     /// reads — including facts written later by the projection worker — so it never depends on a new feed row.
     /// </summary>
     public async Task<string> VersionAsync(string tenantId, CancellationToken ct) =>
-        (await db.Set<DashboardGeneration>().AsNoTracking().Where(x => x.TenantId == tenantId)
-            .Select(x => (long?)x.Value).FirstOrDefaultAsync(ct) ?? 0L)
-            .ToString(System.Globalization.CultureInfo.InvariantCulture);
+        (await ReadGenerationAsync(tenantId, ct)).ToString(System.Globalization.CultureInfo.InvariantCulture);
 
+    private async Task<long> ReadGenerationAsync(string tenantId, CancellationToken ct) =>
+        await db.Set<DashboardGeneration>().AsNoTracking().Where(x => x.TenantId == tenantId)
+            .Select(x => (long?)x.Value).FirstOrDefaultAsync(ct) ?? 0L;
+
+    /// <summary>
+    /// One consistent snapshot: every read below (and the generation, read first) runs inside a single short read
+    /// transaction, so a writer committing between two statements can never produce a mix of two states. SQLite
+    /// (WAL) fixes the snapshot at the first read and holds no write lock; the transaction is read-only and is
+    /// released — never committed — when the reads finish, fail or are cancelled. An ambient transaction (caller
+    /// already owns one) is reused, never nested. Derived facts may still lag the source; that lag is reported
+    /// in <see cref="DashboardSlice.Projection"/>, not hidden by the transaction.
+    /// </summary>
     public async Task<DashboardSlice> GetSliceAsync(string tenantId, DashboardDayWindow window,
+        string userId, DashboardAccess access, CancellationToken ct)
+    {
+        if (db.Database.CurrentTransaction is not null)
+            return await ReadConsistentAsync(tenantId, window, userId, access, ct);
+
+        await db.Database.OpenConnectionAsync(ct);
+        try
+        {
+            // DEFERRED, not EF's default BEGIN IMMEDIATE: a reader must never take the write lock and block the
+            // projection worker or a command. The snapshot starts at the first read (the generation).
+            var connection = (SqliteConnection)db.Database.GetDbConnection();
+            await using var read = await db.Database.UseTransactionAsync(connection.BeginTransaction(deferred: true), ct);
+            return await ReadConsistentAsync(tenantId, window, userId, access, ct);
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
+    private async Task<DashboardSlice> ReadConsistentAsync(string tenantId, DashboardDayWindow window,
+        string userId, DashboardAccess access, CancellationToken ct)
+    {
+        var generation = await ReadGenerationAsync(tenantId, ct);
+        return (await ReadSliceAsync(tenantId, window, userId, access, ct)) with { Generation = generation };
+    }
+
+    private async Task<DashboardSlice> ReadSliceAsync(string tenantId, DashboardDayWindow window,
         string userId, DashboardAccess access, CancellationToken ct)
     {
         var role = access.Role;

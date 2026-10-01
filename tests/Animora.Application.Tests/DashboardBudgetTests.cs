@@ -51,10 +51,10 @@ public sealed class DashboardBudgetTests
     }
 
     [Theory]
-    [InlineData(UserRole.Manager, 13)]
-    [InlineData(UserRole.Doctor, 8)]
-    [InlineData(UserRole.Cashier, 12)]
-    [InlineData(UserRole.Receptionist, 13)]
+    [InlineData(UserRole.Manager, 14)]
+    [InlineData(UserRole.Doctor, 9)]
+    [InlineData(UserRole.Cashier, 13)]
+    [InlineData(UserRole.Receptionist, 14)]
     public async Task Snapshot_StaysWithinRoleCommandBudget(UserRole role, int expectedCommands)
     {
         using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
@@ -66,7 +66,7 @@ public sealed class DashboardBudgetTests
         {
             var queries = new DashboardQueries(counting);
             counter.Reset();
-            // Count persistence reads only; D24 separately measures live authorization + service scopes.
+            // Count persistence reads only (generation probe + in-transaction generation + slice); D24 separately measures live authorization + service scopes.
             _ = await queries.VersionAsync(fixture.TenantId, default);
             _ = await queries.GetSliceAsync(fixture.TenantId, Window, "user-1", TestAccess(role), default);
             Assert.Equal(expectedCommands, counter.Count);

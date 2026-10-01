@@ -28,6 +28,8 @@ public sealed record DashboardOperationalRow(string Kind, string Name, string Ow
 /// worker has not applied yet and whether any was dead-lettered. Read with the same slice, never inferred.
 /// </summary>
 public sealed record DashboardProjectionLag(int Pending, int Failed);
+/// <remarks><b>Generation</b> is the tenant source generation read at the start of the same short read transaction as
+/// every other member, so the data and its generation always describe one committed state.</remarks>
 public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     IReadOnlyList<DashboardActivity> Activity, IReadOnlyList<DashboardWorkload> Workloads,
     IReadOnlyDictionary<string, int> Species, int OpenInvoices, int LowStockCount, int QueueCount,
@@ -36,7 +38,8 @@ public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     IReadOnlyList<DashboardOperationalRow>? OpenInvoiceRows = null,
     IReadOnlyList<DashboardOperationalRow>? ReadyBillingRows = null,
     IReadOnlyList<DashboardOperationalRow>? ReminderRows = null, int AwaitingPaymentCount = 0,
-    DashboardProjectionLag? Projection = null);
+    DashboardProjectionLag? Projection = null,
+    long Generation = 0);
 
 /// <summary>The local day and its half-open UTC range, resolved once using ClinicCalendar.</summary>
 public sealed record DashboardDayWindow(int LocalDay, DateTimeOffset StartUtc, DateTimeOffset EndUtc)

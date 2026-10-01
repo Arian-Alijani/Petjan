@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using System.Threading;
+using Animora.Application.UseCases.Dashboard;
 using System.Threading.Tasks;
 using Animora.Application.Security;
 using Animora.Client.Services.Dashboard;
@@ -219,5 +221,124 @@ public sealed class DashboardGenerationTests
         Assert.Contains(plan, line => line.Contains("SEARCH", StringComparison.Ordinal)
             && line.Contains("sqlite_autoindex_DashboardGenerations", StringComparison.Ordinal) && line.Contains("TenantId=?", StringComparison.Ordinal));
         Assert.DoesNotContain(plan, line => line.Contains("SCAN", StringComparison.Ordinal) || line.Contains("TEMP B-TREE", StringComparison.Ordinal));
+    }
+
+    // ---- D21: one short read transaction ------------------------------------------------------------------
+
+    private static DashboardAccess ManagerAccess() => new(UserRole.Manager, true, true, true, true, true, true, true,
+        true, true, true);
+
+    private static DashboardDayWindow Window => DashboardDayWindow.For(new DateOnly(2026, 3, 1), TimeZoneInfo.Utc);
+
+    /// <summary>Runs a hook exactly when the N-th statement is about to execute (a deterministic barrier, no sleeps).</summary>
+    private sealed class StatementHook(int atStatement, Action action) : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
+    {
+        private int _count;
+        public int Count => _count;
+        private void Tick()
+        {
+            if (Interlocked.Increment(ref _count) == atStatement) action();
+        }
+        public override Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> ReaderExecuting(
+            System.Data.Common.DbCommand command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData data,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> result)
+        { Tick(); return result; }
+        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader>> ReaderExecutingAsync(
+            System.Data.Common.DbCommand command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData data,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> result,
+            CancellationToken ct = default)
+        { Tick(); return ValueTask.FromResult(result); }
+    }
+
+    private static AnimoraLocalDbContext ReaderContext(LocalStoreTestFixture fixture, StatementHook hook) =>
+        new(new DbContextOptionsBuilder<AnimoraLocalDbContext>().UseSqlite($"Data Source={fixture.DatabasePath}")
+            .AddInterceptors(hook).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking).Options,
+            new FixedTenantContext(fixture.TenantId), fixture.Clock);
+
+    private static void WriteConcurrently(LocalStoreTestFixture fixture)
+    {
+        // A second, independent connection commits a fact AND a patient while the first slice is mid-read.
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var fact = db.Set<DailyFinanceFact>().AsTracking().Single();
+        fact.Apply(revenue: 999);
+        var owner = Owner.Register(fixture.TenantId, "مالک", "09120000002", fixture.Clock);
+        db.AddRange(owner, Pet.Register(fixture.TenantId, owner.Id, "جدید", PetSpecies.Dog, fixture.Clock));
+        db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task Slice_IsOneCommittedSnapshot_AWriterBetweenReadsIsNeitherMixedInNorMislabelled()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using (var scope = fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            var fact = DailyFinanceFact.Create(fixture.TenantId, 20260301);
+            fact.Apply(revenue: 100);
+            db.Add(fact);
+            await db.SaveChangesAsync();
+        }
+        var before = long.Parse(await VersionAsync(fixture));
+
+        // statement 1 = generation, 2 = revenue facts, 3 = lag … the writer commits right before statement 3.
+        var hook = new StatementHook(3, () => WriteConcurrently(fixture));
+        DashboardSlice slice;
+        await using (var reader = ReaderContext(fixture, hook))
+            slice = await new DashboardQueries(reader).GetSliceAsync(fixture.TenantId, Window, "u", ManagerAccess(), default);
+
+        Assert.True(hook.Count >= 3);
+        Assert.Equal(before, slice.Generation);                      // generation labels the state that was read
+        Assert.Equal(100, slice.RevenueDays[^1].RevenueMinor);       // the early read: pre-write
+        Assert.Empty(slice.Species);                                 // the late read: still pre-write (no mixed commits)
+        var after = long.Parse(await VersionAsync(fixture));
+        Assert.True(after > before);                                 // …and the next probe sees the writer, so the cache refreshes
+
+        // Next slice observes the writer's commit entirely.
+        await using var next = ReaderContext(fixture, new StatementHook(int.MaxValue, () => { }));
+        var fresh = await new DashboardQueries(next).GetSliceAsync(fixture.TenantId, Window, "u", ManagerAccess(), default);
+        Assert.Equal(after, fresh.Generation);
+        Assert.Equal(1099, fresh.RevenueDays[^1].RevenueMinor);
+        Assert.Equal(1, fresh.Species.Single().Value);
+    }
+
+    [Fact]
+    public async Task Slice_ReleasesItsTransaction_OnCancellationAndOnFailure_AndNeverNests()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+
+        await using (var cancelled = ReaderContext(fixture, new StatementHook(int.MaxValue, () => { })))
+        {
+            using var cts = new CancellationTokenSource();
+            await cts.CancelAsync();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                new DashboardQueries(cancelled).GetSliceAsync(fixture.TenantId, Window, "u", ManagerAccess(), cts.Token));
+            Assert.Null(cancelled.Database.CurrentTransaction);
+        }
+
+        await using (var failing = ReaderContext(fixture, new StatementHook(4, () => throw new InvalidOperationException("boom"))))
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new DashboardQueries(failing).GetSliceAsync(fixture.TenantId, Window, "u", ManagerAccess(), default));
+            Assert.Null(failing.Database.CurrentTransaction);
+        }
+
+        // The pool is healthy afterwards: a writer is not blocked by a leaked read transaction.
+        using (var scope = fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            var fact = DailyFinanceFact.Create(fixture.TenantId, 20260301);
+            fact.Apply(revenue: 1);
+            db.Add(fact);
+            await db.SaveChangesAsync();
+        }
+
+        // An ambient transaction is reused, not nested, and left open for its owner.
+        await using var owner = ReaderContext(fixture, new StatementHook(int.MaxValue, () => { }));
+        await using var ambient = await owner.Database.BeginTransactionAsync();
+        _ = await new DashboardQueries(owner).GetSliceAsync(fixture.TenantId, Window, "u", ManagerAccess(), default);
+        Assert.Same(ambient, owner.Database.CurrentTransaction);
     }
 }
