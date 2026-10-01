@@ -10,8 +10,8 @@
          Header row: delta chip on the leading (right) side, tinted icon tile on
          the trailing (left) side. Value / label / foot are a leading-aligned
          (right) block. -->
-    <Border Classes="card" Padding="20,18">
-        <StackPanel Spacing="16">
+    <Border Classes="card" Padding="18,16" MinHeight="132">
+        <StackPanel Spacing="14">
 
             <Grid ColumnDefinitions="Auto,*,Auto">
                 <!-- Delta chip: leading edge (right in RTL) -->
@@ -31,9 +31,9 @@
                 <!-- Icon tile: trailing edge (left in RTL) -->
                 <Border x:Name="IconTile"
                         Grid.Column="2"
-                        Width="40"
-                        Height="40"
-                        CornerRadius="12"
+                        Width="42"
+                        Height="42"
+                        CornerRadius="13"
                         BorderThickness="1"
                         VerticalAlignment="Center"
                         Background="{StaticResource Brand50Brush}"
@@ -51,12 +51,14 @@
             <StackPanel Spacing="3" HorizontalAlignment="Stretch">
                 <TextBlock x:Name="ValueText"
                            FontSize="{StaticResource FontSizeXl}"
-                           FontWeight="Bold"
+                           FontWeight="ExtraBold"
                            TextAlignment="Start"
                            HorizontalAlignment="Left"
                            Foreground="{StaticResource InkBrush}" />
                 <TextBlock x:Name="LabelText"
                            FontSize="{StaticResource FontSizeSm}"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
                            TextAlignment="Start"
                            HorizontalAlignment="Left"
                            Foreground="{StaticResource MutedBrush}" />
@@ -65,6 +67,7 @@
                            TextAlignment="Start"
                            HorizontalAlignment="Left"
                            Foreground="{StaticResource Muted2Brush}"
+                           TextWrapping="Wrap"
                            IsVisible="False" />
             </StackPanel>
 

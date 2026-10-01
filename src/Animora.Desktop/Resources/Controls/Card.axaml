@@ -63,4 +63,16 @@
         <Setter Property="Margin" Value="18" />
     </Style>
 
+    <!-- Dashboard list row (.dash-row): a calm, evenly spaced row inside a card's list.
+         Hairline separator between rows, soft hover wash, consistent 8/6 padding. -->
+    <Style Selector="Border.dash-row">
+        <Setter Property="Padding" Value="8,9" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Border.dash-row:pointerover">
+        <Setter Property="Background" Value="{StaticResource RowHoverBrush}" />
+    </Style>
+
 </Styles>
