@@ -46,7 +46,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         _currentUser = currentUser;
         Role = currentUser.Role;
         _identityKey = IdentityKey(currentUser);
-        _refresh = new DashboardRefreshCoordinator<PreparedDashboard>(FetchAsync, Prepare, Publish, OnRefreshFailed);
+        _refresh = new DashboardRefreshCoordinator<PreparedDashboard>(FetchAsync, Prepare, Publish, OnRefreshFailed, OnRefreshSucceeded);
         _refresh.StateChanged += OnRefreshStateChanged;
         _refreshTimer.Tick += OnRefreshTick;
 
@@ -60,7 +60,33 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ViewState), nameof(StateText), nameof(IsStateVisible), nameof(IsStale), nameof(IsInitialLoading))]
     private string? _loadError;
+
+    // Explicit, mutually exclusive load state (D28). Zero values only appear once HasData is true.
+    public bool HasData => _presentation is { IsPlaceholder: false };
+
+    public DashboardViewState ViewState => DashboardViewStateResolver.Resolve(
+        HasData, _refresh.IsBusy, !string.IsNullOrEmpty(LoadError), _presentation?.Snapshot);
+
+    public string StateText => DashboardViewStateResolver.Describe(ViewState);
+    public bool IsStateVisible => ViewState != DashboardViewState.Ready;
+    public bool IsStale => ViewState == DashboardViewState.Stale;
+    public bool IsInitialLoading => ViewState == DashboardViewState.InitialLoading;
+    public bool ShowPrimaryEmpty => HasData && PrimaryList.Count == 0;
+    public bool ShowSecondaryEmpty => HasData && SecondaryList.Count == 0;
+    public bool ShowSpeciesEmpty => HasData && Species.Count == 0;
+    public bool ShowDoctorLoadsEmpty => HasData && DoctorLoads.Count == 0;
+    public string EmptyListText => "موردی برای نمایش وجود ندارد.";
+
+    private void NotifyViewState()
+    {
+        OnPropertyChanged(nameof(ViewState));
+        OnPropertyChanged(nameof(StateText));
+        OnPropertyChanged(nameof(IsStateVisible));
+        OnPropertyChanged(nameof(IsStale));
+        OnPropertyChanged(nameof(IsInitialLoading));
+    }
 
     private readonly DashboardRefreshCoordinator<PreparedDashboard> _refresh;
 
@@ -90,7 +116,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private void ClearPresentation()
     {
         LoadError = null;
-        Publish(Prepare(new DashboardSnapshot(Role, "", "", [], "", [], "", [])));
+        Publish(Prepare(new DashboardSnapshot(Role, "", "", [], "", [], "", [])) with { IsPlaceholder = true });
     }
 
     public override void OnNavigatedFrom()
@@ -119,7 +145,15 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     {
         IsBusy = _refresh.IsBusy;
         OnPropertyChanged(nameof(LastUpdatedText));
-        if (IsBusy) LoadError = null;
+        if (IsBusy && !HasData) LoadError = null; // with data, the failure stays visible until the retry succeeds
+        NotifyViewState();
+    }
+
+    // A successful load (including a cache hit that republishes nothing) ends a stale/error condition.
+    private void OnRefreshSucceeded()
+    {
+        LoadError = null;
+        NotifyViewState();
     }
 
     public bool CanRetry { get; private set; } = true;
@@ -271,7 +305,11 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         SpeciesCenterBrush = null;
     }
 
-    /// <summary>Navigate to the patients directory (donut drill-in).</summary>
+    /// <summary>Text equivalent of the donut for screen readers; the chart is never the only way to read the counts.</summary>
+    public string SpeciesAutomationName => SpeciesAccessibility.Summary(_speciesBaseTotal,
+        Species.Select(x => x.AutomationName).ToArray());
+
+    /// <summary>Navigate to the patients directory (donut drill-in); runs through the central page-admission policy.</summary>
     [RelayCommand]
     private void OpenSpeciesPatients() => _navigation.NavigateTo<PatientsPageViewModel>();
 
@@ -280,7 +318,11 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         IReadOnlyList<DashboardRowViewModel> PrimaryList, IReadOnlyList<DashboardRowViewModel> SecondaryList,
         IReadOnlyList<DashboardDoctorLoadViewModel> DoctorLoads, IReadOnlyList<DashboardSpeciesViewModel> Species,
         ChartGeometry Chart, string Tooltip, string Total, string Sub,
-        IReadOnlyList<DonutSlice> Slices);
+        IReadOnlyList<DonutSlice> Slices)
+    {
+        /// <summary>True for the blank state published on identity reset/revocation: not data, so no zeros are shown.</summary>
+        public bool IsPlaceholder { get; init; }
+    }
     private sealed record ChartGeometry(Avalonia.Media.Geometry? Area, Avalonia.Media.Geometry? Line,
         Avalonia.Media.Geometry? Zero);
     private PreparedDashboard? _presentation;

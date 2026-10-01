@@ -22,6 +22,7 @@ public sealed class DashboardRefreshCoordinator<TView> : IDisposable where TView
     private readonly Func<DashboardSnapshot, TView> _prepare;
     private readonly Action<TView> _publish;
     private readonly Action<Exception>? _onFailed;
+    private readonly Action? _onLoaded;
     private readonly Lock _gate = new();
     private CancellationTokenSource? _loadCts;
     private Task? _inflight;
@@ -33,8 +34,9 @@ public sealed class DashboardRefreshCoordinator<TView> : IDisposable where TView
     private DateTimeOffset? _lastTick;
 
     public DashboardRefreshCoordinator(Fetch fetch, Func<DashboardSnapshot, TView> prepare, Action<TView> publish,
-        Action<Exception>? onFailed = null)
+        Action<Exception>? onFailed = null, Action? onLoaded = null)
     {
+        _onLoaded = onLoaded;
         _fetch = fetch ?? throw new ArgumentNullException(nameof(fetch));
         _prepare = prepare ?? throw new ArgumentNullException(nameof(prepare));
         _publish = publish ?? throw new ArgumentNullException(nameof(publish));
@@ -184,7 +186,7 @@ public sealed class DashboardRefreshCoordinator<TView> : IDisposable where TView
                 if (generation != _generation || ct.IsCancellationRequested) return;
             }
             // A cache hit returns the same immutable snapshot: nothing to rebuild or republish.
-            if (ReferenceEquals(Current, snapshot)) return;
+            if (ReferenceEquals(Current, snapshot)) { LastUpdated = DateTimeOffset.UtcNow; _onLoaded?.Invoke(); return; }
             var view = _prepare(snapshot);
             lock (_gate)
             {
@@ -193,6 +195,7 @@ public sealed class DashboardRefreshCoordinator<TView> : IDisposable where TView
             _publish(view);
             Current = snapshot;
             LastUpdated = DateTimeOffset.UtcNow;
+            _onLoaded?.Invoke();
         }
         catch (OperationCanceledException)
         {

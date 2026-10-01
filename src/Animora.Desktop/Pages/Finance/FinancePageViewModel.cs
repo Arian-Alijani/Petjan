@@ -77,6 +77,9 @@ public sealed partial class FinancePageViewModel : PageViewModelBase
     /// sidebar's navigation parameter (mirrors the reference's two
     /// <c>initFinancePage</c> calls); safe to call before/after load.
     /// </summary>
+    public override void ApplyNavigationEntry(Animora.Contracts.Navigation.NavItem entry) =>
+        Configure(entry.InitialTab ?? "overview", entry.InitialRange ?? "30d");
+
     public void Configure(string initialTab, string initialRange)
     {
         if (!string.IsNullOrEmpty(initialTab) && Tabs.Any(t => t.Id == initialTab))

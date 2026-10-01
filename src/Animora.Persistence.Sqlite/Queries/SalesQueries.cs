@@ -27,17 +27,18 @@ internal sealed class ReadyBillingProjection
     public string LinesJson { get; init; } = "";
 
     // Scalar member initializers keep both UNION legs translatable before the final record projection.
-    internal static IQueryable<ReadyBillingProjection> Query(AnimoraLocalDbContext db)
+    // tenantId (optional) lets the handoff leg use its (TenantId, Status, CompletedUtc) index instead of a scan.
+    internal static IQueryable<ReadyBillingProjection> Query(AnimoraLocalDbContext db, string? tenantId = null)
     {
         var visits = from h in db.Set<VisitBillingHandoff>().AsNoTracking()
-            where h.Status == HandoffStatus.Ready
+            where h.Status == HandoffStatus.Ready && (tenantId == null || h.TenantId == tenantId)
             join o in db.Set<Owner>().AsNoTracking() on h.OwnerId equals o.Id
             join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
             select new ReadyBillingProjection { Id = h.Id, Source = "Visit", OwnerId = h.OwnerId,
                 OwnerName = o.FullName, PetId = h.PetId, PetName = p.Name, DoctorId = h.DoctorId,
                 CompletedUtc = h.CompletedUtc, LinesJson = h.LinesJson };
         var stays = from h in db.Set<BoardingBillingHandoff>().AsNoTracking()
-            where h.Status == HandoffStatus.Ready
+            where h.Status == HandoffStatus.Ready && (tenantId == null || h.TenantId == tenantId)
             join o in db.Set<Owner>().AsNoTracking() on h.OwnerId equals o.Id
             join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
             select new ReadyBillingProjection { Id = h.Id, Source = "Boarding", OwnerId = h.OwnerId,

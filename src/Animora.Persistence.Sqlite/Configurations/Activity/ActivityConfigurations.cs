@@ -21,6 +21,9 @@ public sealed class ActivityEventConfiguration : IEntityTypeConfiguration<Activi
             .HasDatabaseName("IX_ActivityEvents_TenantId_Kind_OccurredUtc");
         builder.HasIndex(e => new { e.TenantId, e.EntityType, e.EntityId })
             .HasDatabaseName("IX_ActivityEvents_TenantId_EntityType_EntityId");
+        // D23: the dashboard's per-day totals and newest-first preview (LocalDay = ? ORDER BY Id DESC).
+        builder.HasIndex(e => new { e.TenantId, e.LocalDay, e.Id })
+            .HasDatabaseName("IX_ActivityEvents_TenantId_LocalDay_Id");
     }
 }
 

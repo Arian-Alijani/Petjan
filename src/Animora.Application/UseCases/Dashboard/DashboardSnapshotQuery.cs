@@ -23,6 +23,13 @@ public sealed record DashboardReceipts(long Gross, long Refunds, string Currency
 }
 public sealed record DashboardOperationalRow(string Kind, string Name, string OwnerName,
     DateTimeOffset AtUtc, string State, string Reference = "");
+/// <summary>
+/// State of the derived finance facts relative to the authoritative tables: how many outbox messages the projection
+/// worker has not applied yet and whether any was dead-lettered. Read with the same slice, never inferred.
+/// </summary>
+public sealed record DashboardProjectionLag(int Pending, int Failed);
+/// <remarks><b>Generation</b> is the tenant source generation read at the start of the same short read transaction as
+/// every other member, so the data and its generation always describe one committed state.</remarks>
 public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     IReadOnlyList<DashboardActivity> Activity, IReadOnlyList<DashboardWorkload> Workloads,
     IReadOnlyDictionary<string, int> Species, int OpenInvoices, int LowStockCount, int QueueCount,
@@ -30,7 +37,9 @@ public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     DashboardAccess? Access = null, DashboardReceipts? Receipts = null,
     IReadOnlyList<DashboardOperationalRow>? OpenInvoiceRows = null,
     IReadOnlyList<DashboardOperationalRow>? ReadyBillingRows = null,
-    IReadOnlyList<DashboardOperationalRow>? ReminderRows = null, int AwaitingPaymentCount = 0);
+    IReadOnlyList<DashboardOperationalRow>? ReminderRows = null, int AwaitingPaymentCount = 0,
+    DashboardProjectionLag? Projection = null,
+    long Generation = 0);
 
 /// <summary>The local day and its half-open UTC range, resolved once using ClinicCalendar.</summary>
 public sealed record DashboardDayWindow(int LocalDay, DateTimeOffset StartUtc, DateTimeOffset EndUtc)
@@ -93,16 +102,20 @@ public sealed class DashboardComposer(IDashboardQueries queries, Animora.Domain.
             return Result<DashboardAccess>.Fail(ErrorCodes.PermissionDenied);
         var subject = new AuthorizationSubject(context.TenantId, context.UserId, FrozenSet<string>.Empty,
             member.Role, installation.DeviceId, IsOffline: false);
-        async Task<bool> Can(string code) => (await permissions.EvaluateAsync(code, subject, null, ct)).Allowed;
-        var finance = await Can(PermissionCodes.FinanceRead);
-        var collections = finance || await Can(PermissionCodes.PaymentsRegister);
-        var inventory = await Can(PermissionCodes.InventoryRead);
-        var sales = await Can(PermissionCodes.SalesRead);
-        var visits = await Can(PermissionCodes.VisitsRead);
-        var vaccination = await Can(PermissionCodes.VaccinationRead);
-        var cheques = await Can(PermissionCodes.ChequesRead);
-        var appointments = await Can(PermissionCodes.AppointmentsRead);
-        var patients = await Can(PermissionCodes.PatientsRead);
+        // One stored-membership/role read for every widget permission (not one per code).
+        var allowed = await permissions.AllowedAsync([PermissionCodes.FinanceRead, PermissionCodes.PaymentsRegister,
+            PermissionCodes.InventoryRead, PermissionCodes.SalesRead, PermissionCodes.VisitsRead,
+            PermissionCodes.VaccinationRead, PermissionCodes.ChequesRead, PermissionCodes.AppointmentsRead,
+            PermissionCodes.PatientsRead], subject, ct);
+        var finance = allowed.Contains(PermissionCodes.FinanceRead);
+        var collections = finance || allowed.Contains(PermissionCodes.PaymentsRegister);
+        var inventory = allowed.Contains(PermissionCodes.InventoryRead);
+        var sales = allowed.Contains(PermissionCodes.SalesRead);
+        var visits = allowed.Contains(PermissionCodes.VisitsRead);
+        var vaccination = allowed.Contains(PermissionCodes.VaccinationRead);
+        var cheques = allowed.Contains(PermissionCodes.ChequesRead);
+        var appointments = allowed.Contains(PermissionCodes.AppointmentsRead);
+        var patients = allowed.Contains(PermissionCodes.PatientsRead);
         var role = member.Role switch
         {
             StaffRole.Doctor => UserRole.Doctor,

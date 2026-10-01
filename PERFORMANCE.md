@@ -76,9 +76,10 @@ private async Task LoadAsync()
 - The constructor kicks off `_ = LoadAsync()` and returns immediately.
 - `LoadAsync` is `private async Task LoadAsync()` — **never `async void`** (an
   `async void` cannot be awaited, loses exceptions, and cannot be tested).
-- The mock services resolve synchronously today, so the UI still fills before
-  the first frame; a future Datasync/SQLite-backed service returns a real Task
-  and the shell stays responsive.
+- The services now run on the real local SQLite backend (Track C complete), so
+  `LoadAsync` awaits a genuine database read off the UI thread; the shell stays
+  responsive and the UI fills when the Task completes. (A future Datasync/server
+  service can replace the same seam with no UI change.)
 - Presentation of record sheets/dialogs (`RecordSheetPresenter`,
   `NavigationService`) follows the same rule: the load is awaited, never blocked.
 
@@ -193,9 +194,12 @@ performance bug.
 
 - **Singleton page ViewModels load in their constructor.** Many page ViewModels
   (the singleton pages) trigger `_ = LoadAsync()` from their constructor, so
-  data loads only once per process. With the in-memory mocks this is fine, but
-  against a real backend the screen can show stale data until restart, and it
-  couples view lifetime to data lifetime. The standard, lifecycle-aware
-  alternative is an `OnNavigatedTo`-style hook (load on navigate / when shown,
-  optionally with a refresh policy). This is a deliberate future refactor —
-  out of scope here — and is recorded as debt rather than rewritten now.
+  data loads only once per process. Against the real backend such a screen can
+  show stale data until restart, and it couples view lifetime to data lifetime.
+  The standard, lifecycle-aware alternative is an `OnNavigatedTo`-style hook
+  (load on navigate / when shown, optionally with a refresh policy). The
+  **Dashboard** has already moved to this model — it re-activates on navigation
+  and refreshes on an activation-scoped timer with a source-generation data
+  cache (D04/D19/D20/D37/D38) — but the remaining singleton pages still load in
+  their constructor. Migrating them is a deliberate future refactor, recorded as
+  debt rather than rewritten now.

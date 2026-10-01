@@ -11,6 +11,8 @@ public sealed class VisitConfiguration : IEntityTypeConfiguration<Visit>
         builder.HasKey(e => e.Id);
         builder.HasIndex(e => new { e.TenantId, e.PetId, e.StartedUtc }).HasDatabaseName("IX_Visits_TenantId_PetId_StartedUtc");
         builder.HasIndex(e => new { e.TenantId, e.State, e.StartedUtc }).HasDatabaseName("IX_Visits_TenantId_State_StartedUtc");
+        // D23: the doctor's completed-visit count for one clinic day.
+        builder.HasIndex(e => new { e.TenantId, e.DoctorUserId, e.CompletedUtc }).HasDatabaseName("IX_Visits_TenantId_DoctorUserId_CompletedUtc");
         builder.OwnsOne(e => e.Vitals, v =>
         {
             v.Property(x => x.WeightKg).HasConversion(new Animora.Persistence.Sqlite.Converters.DecimalStringConverter()).HasColumnType("TEXT");

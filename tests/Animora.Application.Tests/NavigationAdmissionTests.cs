@@ -137,6 +137,60 @@ namespace Animora.Application.Tests
             Assert.Equal((1, 0), (patients.Activations, patients.Deactivations));
         }
 
+        [Fact]
+        public void NavigationKey_IsSemantic_ForEveryEntryPoint_AndFinanceEntryIsDelivered()
+        {
+            var gate = new Gate { Allowed = { PermissionCodes.FinanceRead, PermissionCodes.ReportsRead, PermissionCodes.PurchasingRead } };
+            var finance = new FinancePageViewModel();
+            using var services = new ServiceCollection().AddSingleton(finance)
+                .AddSingleton<Animora.Desktop.Pages.Purchasing.PurchasingPageViewModel>().BuildServiceProvider();
+            var nav = new NavigationService(services, gate, new Toast());
+            var changes = 0;
+            nav.CurrentViewModelChanged += (_, _) => changes++;
+
+            nav.NavigateTo(typeof(FinancePageViewModel), "expense");
+            Assert.Equal("expense", nav.CurrentNavigationKey);
+            Assert.Equal(("expense", "expense", "30d"), (finance.LastEntry!.Key, finance.LastEntry.InitialTab, finance.LastEntry.InitialRange));
+
+            // Same ViewModel, other semantic entry: the key changes and observers are told (first-match-by-Type is gone).
+            nav.NavigateTo(typeof(FinancePageViewModel), "reports");
+            Assert.Equal(("reports", "overview", "7d"), (nav.CurrentNavigationKey, finance.LastEntry!.InitialTab, finance.LastEntry.InitialRange));
+            Assert.Equal(2, changes);
+
+            // A tile/hotkey/palette passes only the Type: it resolves to the page's default semantic key.
+            nav.NavigateTo<FinancePageViewModel>();
+            Assert.Equal("reports", nav.CurrentNavigationKey);
+
+            // Non-sidebar target: its own key, which has no sidebar entry (so no stale highlight can be derived).
+            nav.NavigateTo<Animora.Desktop.Pages.Purchasing.PurchasingPageViewModel>();
+            Assert.Equal("purchasing", nav.CurrentNavigationKey);
+            Assert.DoesNotContain(NavigationMenu.Items, i => i.Key == nav.CurrentNavigationKey);
+        }
+
+        [Fact]
+        public void DeniedNavigation_LeavesNavigationKeyUnchanged()
+        {
+            var gate = new Gate { Allowed = { PermissionCodes.PatientsRead } };
+            using var services = new ServiceCollection().AddSingleton<Animora.Desktop.Pages.Patients.PatientsPageViewModel>()
+                .AddSingleton<InventoryPageViewModel>().BuildServiceProvider();
+            var nav = new NavigationService(services, gate, new Toast());
+            nav.NavigateTo<Animora.Desktop.Pages.Patients.PatientsPageViewModel>();
+            Assert.Null(nav.NavigateTo<InventoryPageViewModel>());
+            Assert.Equal("patients", nav.CurrentNavigationKey);
+        }
+
+        [Fact]
+        public void Sidebar_DerivesHighlightFromNavigationState_NotFromCallers()
+        {
+            var root = Path.Combine(AppContext.BaseDirectory, "../../../../../src/Animora.Desktop/Shell/");
+            var sidebar = File.ReadAllText(Path.Combine(root, "SidebarViewModel.cs"));
+            Assert.Single(System.Text.RegularExpressions.Regex.Matches(sidebar, @"_navigation\.CurrentViewModelChanged \+="));
+            Assert.DoesNotContain("-= OnNavigationChanged", sidebar);
+            Assert.DoesNotContain("SetActive(", sidebar);
+            Assert.DoesNotContain("SetActive(", File.ReadAllText(Path.Combine(root, "MainWindowViewModel.cs")));
+            Assert.DoesNotContain("finance.Configure", sidebar);
+        }
+
         private sealed class UnknownPage : PageViewModelBase { }
         private sealed class Toast : IToastService
         {
@@ -157,6 +211,8 @@ namespace Animora.Application.Tests
     {
         public int Activations { get; private set; }
         public int Deactivations { get; private set; }
+        public Animora.Contracts.Navigation.NavItem? LastEntry { get; private set; }
+        public override void ApplyNavigationEntry(Animora.Contracts.Navigation.NavItem entry) => LastEntry = entry;
         public override void OnNavigatedTo() => Activations++;
         public override void OnNavigatedFrom() => Deactivations++;
     }

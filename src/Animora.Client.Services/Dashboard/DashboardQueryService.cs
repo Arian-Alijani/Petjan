@@ -13,7 +13,11 @@ using Animora.Application.Correlation;
 
 namespace Animora.Client.Services.Dashboard;
 
-/// <summary>60-second tenant/user/effective-permission/day/version cache. Live authorization precedes every hit.</summary>
+/// <summary>
+/// 60-second tenant/user/effective-permission/day/source-generation cache. Live authorization precedes every hit; the
+/// generation (<see cref="IDashboardQueries.VersionAsync"/>) advances on any committed change to a source table, so
+/// data written without a new feed event (facts, rebuilds, appointments, stock, patients) never serves a stale hit.
+/// </summary>
 public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashboardQueryService
 {
     private readonly TenantScopedCache<string, (DateTimeOffset Expires, DashboardSnapshot Snapshot)> _cache = new();
@@ -60,13 +64,21 @@ public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashbo
         var window = DashboardDayWindow.For(ClinicCalendar.LocalDay(now.UtcTicks, zone), zone);
         var queries = scope.ServiceProvider.GetRequiredService<IDashboardQueries>();
         var version = await queries.VersionAsync(context.Value!.TenantId, ct);
-        var key = $"{context.Value.TenantId}|{context.Value.UserId}|dashboard:{access.CacheKey}|day{window.LocalDay}|v{version}";
+        string KeyFor(string generation) =>
+            $"{context.Value.TenantId}|{context.Value.UserId}|dashboard:{access.CacheKey}|day{window.LocalDay}|v{generation}";
+        var key = KeyFor(version);
         if (!force && _cache.TryGet(key, out var entry) && entry.Expires > now) return entry.Snapshot;
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
             .QueryAsync(new DashboardSnapshotQuery(role, window), context.Value, ct);
         if (result.IsFailure) throw Failure(scope.ServiceProvider, result.Error.Code);
-        var snapshot = DashboardMapping.Map(access.Role, result.Value!, zone);
-        _cache.Set(key, (now.AddSeconds(60), snapshot));
+        var snapshot = DashboardMapping.Map(access.Role, result.Value!, zone) with
+        {
+            Freshness = result.Value!.Projection is { } lag ? new DashboardFreshness(now, lag.Pending, lag.Failed > 0) : null,
+        };
+        // The slice carries the generation of the very state it was read from; if a write landed between the probe
+        // and the read, the entry is filed under that newer generation, never under the stale probe value.
+        _cache.Set(KeyFor(result.Value!.Generation.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            (now.AddSeconds(60), snapshot));
         return snapshot;
     }
     private static DashboardQueryException Failure(IServiceProvider services, string code)

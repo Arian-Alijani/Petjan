@@ -225,6 +225,9 @@
         <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/IconStyle.axaml" />
         <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/Card.axaml" />
 
+        <!-- D42: dashboard quick-tile styles declared once (typed accent/soft bindings). -->
+        <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/QuickTile.axaml" />
+
         <!-- Phase 25: Finance workspace styles (.pagebar/.pb-seg, KPI/mini cards,
              highlight bar, list rows, donut legend, heatmap). Scoped to the
              FinancePageView subtree so they never leak to other screens. -->

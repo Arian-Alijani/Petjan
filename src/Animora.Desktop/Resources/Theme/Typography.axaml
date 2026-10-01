@@ -27,6 +27,10 @@
     <FontFamily x:Key="AppFontFamilyExtraBold">avares://Animora.Desktop/Assets/Fonts/Vazirmatn-ExtraBold.ttf#Vazirmatn ExtraBold</FontFamily>
     <FontFamily x:Key="AppFontFamilyBlack">avares://Animora.Desktop/Assets/Fonts/Vazirmatn-Black.ttf#Vazirmatn Black</FontFamily>
 
+    <!-- Micro sizes for dense chips (shortcut hint, count badge, tile caption). -->
+    <sys:Double x:Key="FontSizeKey">9.5</sys:Double>
+    <sys:Double x:Key="FontSizeBadge">10</sys:Double>
+    <sys:Double x:Key="FontSizeCaption">10.5</sys:Double>
     <sys:Double x:Key="FontSizeXs">11</sys:Double>
     <sys:Double x:Key="FontSizeSm">13</sys:Double>
     <sys:Double x:Key="FontSizeMd">15</sys:Double>

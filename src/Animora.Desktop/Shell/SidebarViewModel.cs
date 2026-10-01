@@ -47,6 +47,36 @@ public sealed partial class SidebarViewModel : ObservableObject
         _groups = BuildGroups();
 
         _gate.CapabilitiesChanged += OnCapabilitiesChanged;
+        // The highlight is derived from the navigation state - the one place every entry point passes through.
+        // The sidebar is an app-lifetime singleton, so this single subscription is never removed.
+        _navigation.CurrentViewModelChanged += OnNavigationChanged;
+        SyncActiveFromNavigation();
+    }
+
+    private void OnNavigationChanged(object? sender, EventArgs e)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) SyncActiveFromNavigation();
+        else Dispatcher.UIThread.Post(SyncActiveFromNavigation);
+    }
+
+    /// <summary>
+    /// Highlights the entry of the current navigation key, or clears the highlight when the shown page has no
+    /// (permitted) sidebar entry, so a page such as Purchasing never leaves a stale item selected.
+    /// </summary>
+    public void SyncActiveFromNavigation()
+    {
+        var key = _navigation.CurrentNavigationKey;
+        if (key is not null && IsPermitted(key) && FindEntry(key) is { } entry)
+        {
+            ApplyActive(entry);
+            return;
+        }
+
+        if (ActiveEntry is { } active)
+        {
+            active.IsActive = false;
+            ActiveEntry = null;
+        }
     }
 
     public ICurrentUserContext CurrentUser { get; }
@@ -61,24 +91,8 @@ public sealed partial class SidebarViewModel : ObservableObject
             return;
         }
 
-        var viewModel = _navigation.NavigateTo(entry.Item.ViewModelType, entry.Key, page =>
-        {
-            if (page is Pages.Finance.FinancePageViewModel finance)
-                finance.Configure(entry.Item.InitialTab ?? "overview", entry.Item.InitialRange ?? "30d");
-        });
-
-        if (viewModel is not null) SetActive(entry.Key);
-    }
-
-    /// <summary>Highlight the entry with <paramref name="key"/> (used at startup too).</summary>
-    public void SetActive(string key)
-    {
-        if (!IsPermitted(key) || FindEntry(key) is not { } entry)
-        {
-            return;
-        }
-
-        ApplyActive(entry);
+        // Admission, the entry's tab/range and the highlight are all owned by the navigation service/state.
+        _navigation.NavigateTo(entry.Item.ViewModelType, entry.Key);
     }
 
     private void OnCapabilitiesChanged(object? sender, EventArgs e)

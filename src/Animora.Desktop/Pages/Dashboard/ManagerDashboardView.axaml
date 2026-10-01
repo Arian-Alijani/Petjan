@@ -17,7 +17,7 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Border.legend-row.on">
-            <Setter Property="Background" Value="#f9fbfa" />
+            <Setter Property="Background" Value="{StaticResource RowActiveBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
         </Style>
         <Style Selector="Border.legend-row.on TextBlock.lg-name">
@@ -77,7 +77,7 @@
     <StackPanel Spacing="16">
 
         <!-- ============ Row 1: revenue pulse + doctor workload ============ -->
-        <Grid ColumnDefinitions="1.3*,1*" ColumnSpacing="16">
+        <controls:AdaptiveGrid MinItemWidth="340" MaxColumns="2" Weights="1.3,1" ColumnSpacing="16" RowSpacing="16">
 
             <!-- نبض مالی کلینیک (clinic financial pulse) -->
             <Border Grid.Column="0" Classes="card" Padding="20,18"
@@ -89,19 +89,19 @@
                                        FontSize="{StaticResource FontSizeMd}"
                                        FontWeight="ExtraBold"
                                        Foreground="{StaticResource InkBrush}" />
-                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Bottom">
+                            <WrapPanel Orientation="Horizontal" VerticalAlignment="Bottom">
                                 <TextBlock Text="{Binding RevenuePulse.Value}"
                                            FontSize="{StaticResource FontSizeXl}"
                                            FontWeight="ExtraBold"
                                            Foreground="{StaticResource InkBrush}"
-                                           VerticalAlignment="Bottom" />
+                                           VerticalAlignment="Bottom" Margin="0,0,6,0" />
                                 <TextBlock Text="{Binding RevenuePulse.Caption}"
                                            FontSize="{StaticResource FontSizeXs}"
                                            FontWeight="Bold"
                                            Foreground="{StaticResource OkBrush}"
                                            VerticalAlignment="Bottom"
                                            Margin="4,0,0,3" />
-                            </StackPanel>
+                            </WrapPanel>
                         </StackPanel>
 
                     </Grid>
@@ -129,15 +129,15 @@
                                 <Path Data="{Binding RevenueAreaGeometry}">
                                     <Path.Fill>
                                         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                            <GradientStop Offset="0" Color="#5914B8A6" />
-                                            <GradientStop Offset="1" Color="#0014B8A6" />
+                                            <GradientStop Offset="0" Color="{StaticResource ChartAreaTopColor}" />
+                                            <GradientStop Offset="1" Color="{StaticResource ChartAreaBottomColor}" />
                                         </LinearGradientBrush>
                                     </Path.Fill>
                                 </Path>
 
                                 <!-- revenue trend line -->
                                 <Path Data="{Binding RevenueLineGeometry}"
-                                      Stroke="#14B8A6"
+                                      Stroke="{StaticResource Brand500Brush}"
                                       StrokeThickness="2.5"
                                       StrokeLineCap="Round"
                                       StrokeJoin="Round" />
@@ -157,6 +157,8 @@
                                    Text="نوبت انجام‌شده / کل" />
                     </Grid>
                     <Border Classes="card-header-rule" />
+                    <TextBlock Margin="18,14,18,0" Text="{Binding EmptyListText}" IsVisible="{Binding ShowDoctorLoadsEmpty}"
+                               Foreground="{StaticResource MutedBrush}" />
                     <ItemsControl Margin="18,14,18,18" ItemsSource="{Binding DoctorLoads}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="dashboard:DashboardDoctorLoadViewModel">
@@ -173,7 +175,7 @@
                                                    Foreground="{Binding AccentBrush}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="5">
-                                        <TextBlock Text="{Binding Name}"
+                                        <TextBlock Text="{Binding Name}" TextWrapping="Wrap"
                                                    FontSize="{StaticResource FontSizeSm}"
                                                    FontWeight="Bold"
                                                    Foreground="{StaticResource InkBrush}" />
@@ -207,10 +209,10 @@
                 </StackPanel>
             </Border>
 
-        </Grid>
+        </controls:AdaptiveGrid>
 
         <!-- ======= Row 2: live queue + species donut + alerts ======= -->
-        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
+        <controls:AdaptiveGrid MinItemWidth="300" MaxColumns="3" ColumnSpacing="16" RowSpacing="16">
 
             <!-- صف زندهٔ امروز (today's live queue) -->
             <Border Grid.Column="0" Classes="card">
@@ -219,6 +221,8 @@
                         <TextBlock Classes="card-title" Text="{Binding PrimaryListTitle}" />
                     </StackPanel>
                     <Border Classes="card-header-rule" />
+                    <TextBlock Margin="18,14,18,0" Text="{Binding EmptyListText}" IsVisible="{Binding ShowPrimaryEmpty}"
+                               Foreground="{StaticResource MutedBrush}" />
                     <ItemsControl Margin="18,14,18,18" ItemsSource="{Binding PrimaryList}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
@@ -237,11 +241,11 @@
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
-                                        <TextBlock Text="{Binding Title}"
+                                        <TextBlock Text="{Binding Title}" TextWrapping="Wrap"
                                                    FontSize="{StaticResource FontSizeSm}"
                                                    FontWeight="Bold"
                                                    Foreground="{StaticResource InkBrush}" />
-                                        <TextBlock Text="{Binding Subtitle}"
+                                        <TextBlock Text="{Binding Subtitle}" TextWrapping="Wrap"
                                                    FontSize="{StaticResource FontSizeXs}"
                                                    Foreground="{StaticResource MutedBrush}" />
                                     </StackPanel>
@@ -270,27 +274,35 @@
                              hit-testable border wraps it so the whole disc responds
                              to the pointer for the cross-highlight. -->
                         <Grid Width="200" Height="200" HorizontalAlignment="Center" Margin="0,0,0,14">
-                            <Border Background="Transparent"
+                            <!-- A real Button: Tab-focusable, Enter/Space and left-click only (right/middle never navigate),
+                                 with a text equivalent of the chart for screen readers. -->
+                            <Button Background="Transparent" BorderThickness="0" Padding="0"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                                     Cursor="Hand"
+                                    Command="{Binding OpenSpeciesPatientsCommand}"
+                                    AutomationProperties.Name="{Binding SpeciesAutomationName}"
                                     PointerMoved="OnDonutPointerMoved"
                                     PointerExited="OnDonutPointerExited"
-                                    PointerPressed="OnDonutPointerPressed">
+                                    GotFocus="OnDonutGotFocus"
+                                    LostFocus="OnDonutLostFocus"
+                                    KeyDown="OnSpeciesKeyDown">
                                 <controls:DonutRing x:Name="DonutRing"
                                                        Slices="{Binding SpeciesSlices}"
                                                        ActiveIndex="{Binding SpeciesActiveIndex}"
-                                                       TrackBrush="#f0f4f2" />
-                            </Border>
+                                                       TrackBrush="{StaticResource ChartTrackBrush}" />
+                            </Button>
 
                             <!-- glossy center medallion (.donut-center; inset 34/186 ≈ 36/200) -->
                             <Border Margin="36" CornerRadius="999"
                                     IsHitTestVisible="False"
-                                    BorderBrush="#e7ecea" BorderThickness="1"
-                                    BoxShadow="0 6 18 0 #0D101828">
+                                    BorderBrush="{StaticResource MedallionLineBrush}" BorderThickness="1"
+                                    BoxShadow="{StaticResource ShadowMedallion}">
                                 <Border.Background>
                                     <RadialGradientBrush Center="50%,40%" GradientOrigin="50%,40%"
                                                          RadiusX="0.75" RadiusY="0.75">
-                                        <GradientStop Color="#ffffff" Offset="0.55" />
-                                        <GradientStop Color="#fbfdfc" Offset="1" />
+                                        <GradientStop Color="{StaticResource PanelColor}" Offset="0.55" />
+                                        <GradientStop Color="{StaticResource MedallionEdgeColor}" Offset="1" />
                                     </RadialGradientBrush>
                                 </Border.Background>
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="3">
@@ -304,13 +316,18 @@
                         </Grid>
 
                         <!-- Legend rows (.species-legend / .legend-row) -->
+                        <TextBlock Margin="18,14,18,0" Text="{Binding EmptyListText}" IsVisible="{Binding ShowSpeciesEmpty}"
+                                   Foreground="{StaticResource MutedBrush}" />
                         <ItemsControl ItemsSource="{Binding Species}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="dashboard:DashboardSpeciesViewModel">
                                     <Button Background="Transparent" BorderThickness="0" Padding="0"
                                             HorizontalContentAlignment="Stretch" Cursor="Hand"
                                             Command="{Binding $parent[UserControl].((dashboard:DashboardPageViewModel)DataContext).FocusSpeciesCommand}"
-                                            CommandParameter="{Binding Index}">
+                                            CommandParameter="{Binding Index}"
+                                            AutomationProperties.Name="{Binding AutomationName}"
+                                            GotFocus="OnLegendGotFocus" LostFocus="OnLegendLostFocus"
+                                            KeyDown="OnSpeciesKeyDown">
                                     <Border Classes="legend-row" Classes.on="{Binding IsActive}"
                                             PointerEntered="OnLegendEnter" PointerExited="OnLegendLeave">
                                         <Panel>
@@ -348,6 +365,8 @@
                         <TextBlock Classes="card-title" Text="{Binding SecondaryListTitle}" />
                     </StackPanel>
                     <Border Classes="card-header-rule" />
+                    <TextBlock Margin="18,14,18,0" Text="{Binding EmptyListText}" IsVisible="{Binding ShowSecondaryEmpty}"
+                               Foreground="{StaticResource MutedBrush}" />
                     <ItemsControl Margin="18,14,18,18" ItemsSource="{Binding SecondaryList}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
@@ -384,7 +403,7 @@
                 </StackPanel>
             </Border>
 
-        </Grid>
+        </controls:AdaptiveGrid>
 
     </StackPanel>
 

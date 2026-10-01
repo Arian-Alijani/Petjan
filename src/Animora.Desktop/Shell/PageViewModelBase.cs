@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Animora.Contracts.Navigation;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Animora.Desktop.Shell;
@@ -42,6 +43,16 @@ public abstract partial class PageViewModelBase : ObservableObject
     /// in-flight loads for their visible lifetime stop them here; the default is a no-op.
     /// </summary>
     public virtual void OnNavigatedFrom()
+    {
+    }
+
+    /// <summary>
+    /// Called by the navigation service, after admission and before the page is published, with the semantic
+    /// navigation entry the visit came through (the same page type can back several entries, e.g. Finance:
+    /// expenses / reports). Every entry point - sidebar, tile, hotkey, palette - passes through here, so the
+    /// destination state never depends on which caller navigated. The default is a no-op.
+    /// </summary>
+    public virtual void ApplyNavigationEntry(NavItem entry)
     {
     }
 }

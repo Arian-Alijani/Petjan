@@ -16,7 +16,13 @@ public interface INavigationService
     /// <summary>The page ViewModel currently hosted in the shell content area.</summary>
     PageViewModelBase? CurrentViewModel { get; }
 
-    /// <summary>Raised after <see cref="CurrentViewModel"/> changes.</summary>
+    /// <summary>
+    /// The semantic navigation key (sidebar entry key, e.g. "expense" vs "reports", or a non-sidebar page key such as
+    /// "purchasing") of the visit that is currently shown; the single source the sidebar highlight derives from.
+    /// </summary>
+    string? CurrentNavigationKey { get; }
+
+    /// <summary>Raised after <see cref="CurrentViewModel"/> or <see cref="CurrentNavigationKey"/> changes.</summary>
     event EventHandler? CurrentViewModelChanged;
 
     /// <summary>Resolve <typeparamref name="TViewModel"/> from DI and make it current.</summary>
