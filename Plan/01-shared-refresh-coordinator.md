@@ -1,6 +1,6 @@
 # تسک ۰۱ — ابزار رفرش مشترک (`PageRefreshCoordinator` + `PageLoadState`)
 
-**وضعیت:** ⬜ TODO
+**وضعیت:** ✅ DONE
 **پیش‌نیاز:** هیچ (اولین تسک)
 **هدف:** تعمیم منطق پختهٔ داشبورد به یک ابزار مشترک، Avalonia-free و
 unit-testable، که همهٔ صفحات لیستی بتوانند از آن استفاده کنند — بدون وابستگی به
@@ -127,12 +127,12 @@ resolver را می‌توان در تسک ۰۳ همراه مهاجرت اجرا 
 
 ## معیار پذیرش (Definition of Done)
 
-- [ ] `PageRefreshCoordinator<TSnapshot, TView>` ساخته شد و Avalonia-free است
+- [x] `PageRefreshCoordinator<TSnapshot, TView>` ساخته شد و Avalonia-free است
       (هیچ `using Avalonia`؛ فقط System/Threading/Tasks).
-- [ ] `PageLoadState` + `PageLoadStateResolver` ساخته شد، بدون وابستگی به DTO داشبورد.
-- [ ] هر دو فایل در csproj تست لینک شدند.
-- [ ] تست `PageLoadStateTests` سبز است (یا بیلد موفق + یادداشت اجرای تست در تسک ۰۳).
-- [ ] داشبورد و بقیهٔ کد **بدون تغییر**؛ `scripts/sandbox/build.sh` → 0/0.
+- [x] `PageLoadState` + `PageLoadStateResolver` ساخته شد، بدون وابستگی به DTO داشبورد.
+- [x] هر دو فایل در csproj تست لینک شدند.
+- [x] تست `PageLoadStateTests` سبز است (یا بیلد موفق + یادداشت اجرای تست در تسک ۰۳).
+- [x] داشبورد و بقیهٔ کد **بدون تغییر**؛ `scripts/sandbox/build.sh` → 0/0.
 
 ---
 

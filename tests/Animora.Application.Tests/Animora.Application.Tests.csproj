@@ -37,6 +37,8 @@
     <Compile Include="../../src/Animora.Desktop/Pages/Dashboard/RevenueChartMath.cs" Link="Navigation/RevenueChartMath.cs" />
     <Compile Include="../../src/Animora.Desktop/Pages/Dashboard/DashboardRefreshCoordinator.cs" Link="Navigation/DashboardRefreshCoordinator.cs" />
     <Compile Include="../../src/Animora.Desktop/Pages/Dashboard/DashboardViewState.cs" Link="Navigation/DashboardViewState.cs" />
+    <Compile Include="../../src/Animora.Desktop/Shell/PageRefreshCoordinator.cs" Link="Navigation/PageRefreshCoordinator.cs" />
+    <Compile Include="../../src/Animora.Desktop/Shell/PageLoadState.cs" Link="Navigation/PageLoadState.cs" />
     <Compile Include="../../src/Animora.Desktop/Controls/AdaptiveGridMath.cs" Link="Navigation/AdaptiveGridMath.cs" />
     <Compile Include="../../src/Animora.Desktop/Pages/Dashboard/SpeciesAccessibility.cs" Link="Navigation/SpeciesAccessibility.cs" />
     <Compile Include="../../src/Animora.Desktop/Shell/NavigationMenu.cs" Link="Navigation/NavigationMenu.cs" />
