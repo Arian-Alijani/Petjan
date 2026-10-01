@@ -114,9 +114,9 @@ public sealed class DashboardBudgetTests
             1, Window.StartUtc.AddDays(-21), "doc-B", fixture.Clock).Value!;
         var completedVaccine = Animora.Domain.Clinical.VaccinationRecord.Administer(fixture.TenantId, pet.Id, "RABIES", "انجام شده",
             1, Window.StartUtc.AddDays(-400), "doc-B", fixture.Clock).Value!;
-        db.Add(Animora.Domain.Clinical.MedicalHistoryEntry.Create(fixture.TenantId, pet.Id,
-            Animora.Domain.Clinical.MedicalHistoryKind.Vaccination, Window.StartUtc, "Dose administered", "",
-            "receptionist", sourceEntityId: completedVaccine.Id));
+        db.Add(new Animora.Domain.Clinical.MedicalHistoryEntry(fixture.TenantId, pet.Id,
+            Animora.Domain.Clinical.MedicalHistoryKind.Vaccination, "Dose administered", Window.StartUtc,
+            "receptionist", fixture.Clock, sourceEntityId: completedVaccine.Id));
         db.AddRange(appointment, cancelled, invoice, ready, billed, vaccine, completedVaccine);
         for (var i = 0; i < 90; i++)
             db.Add(ActivityEvent.Create(fixture.TenantId, Window.StartUtc.AddHours(12), Today, "Inventory",
