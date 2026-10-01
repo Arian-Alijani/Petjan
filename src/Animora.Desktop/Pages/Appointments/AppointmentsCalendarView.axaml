@@ -48,38 +48,41 @@
             <Setter Property="FontWeight" Value="Bold" />
         </Style>
 
-        <!-- filter chip -->
+        <!-- filter chip — mirrors Sales catalog filter (.catf / .catf-ct) -->
         <Style Selector="Button.ap-chip">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="999" />
-            <Setter Property="Padding" Value="9,4" />
-            <Setter Property="Height" Value="28" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
         </Style>
         <Style Selector="Button.ap-chip:pointerover">
             <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
             <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
         </Style>
-        <Style Selector="Button.ap-chip TextBlock.cnt">
-            <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
-        </Style>
         <Style Selector="Button.ap-chip.is-active, Button.ap-chip.is-active:pointerover">
             <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
             <Setter Property="Foreground" Value="White" />
-            <Setter Property="FontWeight" Value="Bold" />
         </Style>
         <Style Selector="Button.ap-chip.is-active /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
-        <Style Selector="Button.ap-chip.is-active TextBlock.cnt">
-            <Setter Property="Foreground" Value="#CCFFFFFF" />
+        <Style Selector="Border.ap-chip-ct">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="MinWidth" Value="18" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Padding" Value="5,0" />
+        </Style>
+        <Style Selector="Button.ap-chip.is-active Border.ap-chip-ct">
+            <Setter Property="Background" Value="#33ffffff" />
         </Style>
 
         <!-- small icon button (nav-btn) -->
@@ -279,7 +282,11 @@
                                                 <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                                          Fill="{Binding Type.Accent, Converter={StaticResource HexBrushConverter}}" />
                                                 <TextBlock Text="{Binding Label}" />
-                                                <TextBlock Classes="cnt" Text="{Binding CountText}" FontSize="10.5" />
+                                                <Border Classes="ap-chip-ct">
+                                                    <TextBlock Text="{Binding CountText}" FontSize="10" FontWeight="ExtraBold"
+                                                               Foreground="{StaticResource Muted2Brush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
                                             </StackPanel>
                                         </Button>
                                     </DataTemplate>
@@ -310,7 +317,11 @@
                                                                VerticalAlignment="Center" />
                                                 </Border>
                                                 <TextBlock Text="{Binding ShortName}" />
-                                                <TextBlock Classes="cnt" Text="{Binding CountText}" FontSize="10.5" />
+                                                <Border Classes="ap-chip-ct">
+                                                    <TextBlock Text="{Binding CountText}" FontSize="10" FontWeight="ExtraBold"
+                                                               Foreground="{StaticResource Muted2Brush}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
                                             </StackPanel>
                                         </Button>
                                     </DataTemplate>

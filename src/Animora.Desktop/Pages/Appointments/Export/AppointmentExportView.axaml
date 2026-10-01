@@ -1,0 +1,635 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ex="using:Animora.Desktop.Pages.Appointments.Export"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Appointments.Export.AppointmentExportView"
+             x:Name="Root"
+             x:DataType="ex:AppointmentExportViewModel"
+             Width="980" FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/BookingPanelStyles.axaml" />
+
+        <!-- section card -->
+        <Style Selector="Border.xsec">
+            <Setter Property="Padding" Value="16,14" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="TextBlock.xh">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.xlbl">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+
+        <!-- filter chip -->
+        <Style Selector="Button.xchip">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="CornerRadius" Value="99" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+        </Style>
+        <Style Selector="Button.xchip:pointerover /template/ ContentPresenter">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="Button.xchip.on">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="Button.xchip.on:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Border.xcount">
+            <Setter Property="CornerRadius" Value="99" />
+            <Setter Property="Padding" Value="6,0" />
+            <Setter Property="MinWidth" Value="20" />
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="Button.xchip.on Border.xcount">
+            <Setter Property="Background" Value="White" />
+        </Style>
+
+        <!-- segmented control -->
+        <Style Selector="Border.seg">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Padding" Value="3" />
+        </Style>
+        <Style Selector="Button.segb">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.segb:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#80ffffff" />
+        </Style>
+        <Style Selector="Button.segb.on">
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="Button.segb.on:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="Button.segb.on">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
+        <!-- paper card -->
+        <Style Selector="Button.paper">
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.paper:pointerover /template/ ContentPresenter">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="Button.paper.on">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.paper.on:pointerover /template/ ContentPresenter">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.paper Border.sheetico">
+            <Setter Property="BorderBrush" Value="{StaticResource MutedBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="2" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.paper.on Border.sheetico">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+        </Style>
+
+        <!-- toggle row -->
+        <Style Selector="Grid.trow">
+            <Setter Property="Margin" Value="0,4" />
+        </Style>
+        <Style Selector="Grid.trow TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <!-- day picker -->
+        <Style Selector="Button.pday">
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.pday:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="Button.pday.out">
+            <Setter Property="Opacity" Value="0.38" />
+        </Style>
+        <Style Selector="Button.pday.fri">
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+        </Style>
+        <Style Selector="Button.pday.today">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="Button.pday.sel">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Button.pday.sel:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Button.pday.sel">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="Button.pday Ellipse.dot">
+            <Setter Property="Fill" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="Button.pday.sel Ellipse.dot">
+            <Setter Property="Fill" Value="White" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" MaxHeight="820">
+
+        <!-- ═══ header ═══ -->
+        <Border Grid.Row="0" Padding="22,18,22,14" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12" Background="{StaticResource Brand50Brush}">
+                    <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}"
+                          Data="{StaticResource IconPrinter}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="خروجی و چاپ نوبت‌ها" FontSize="17" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                    <TextBlock Text="روزها، پزشکان و فیلترها را انتخاب کنید؛ فرم چاپی مرتب و آمادهٔ A4 / A3 ساخته می‌شود."
+                               FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                </StackPanel>
+                <Button Grid.Column="2" Classes="icon-btn close" Command="{Binding CancelCommand}" VerticalAlignment="Top">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconX}" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- ═══ body ═══ -->
+        <ScrollViewer Grid.Row="1" Background="{StaticResource BgBrush}">
+            <Grid ColumnDefinitions="*,340" ColumnSpacing="14" Margin="18,16">
+
+                <!-- ── selection column ── -->
+                <StackPanel Grid.Column="0" Spacing="12">
+
+                    <!-- dates -->
+                    <Border Classes="xsec">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Classes="xh" Text="۱. روزهای مورد نظر" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Classes="seg">
+                                    <UniformGrid Columns="3">
+                                        <Button Classes="segb" Classes.on="{Binding IsDayMode}" Content="یک روز"
+                                                Command="{Binding SetDateModeCommand}" CommandParameter="day" />
+                                        <Button Classes="segb" Classes.on="{Binding IsRangeMode}" Content="بازهٔ تاریخ"
+                                                Command="{Binding SetDateModeCommand}" CommandParameter="range" />
+                                        <Button Classes="segb" Classes.on="{Binding IsPickMode}" Content="روزهای منتخب"
+                                                Command="{Binding SetDateModeCommand}" CommandParameter="pick" />
+                                    </UniformGrid>
+                                </Border>
+                            </Grid>
+
+                            <!-- quick presets -->
+                            <ItemsControl ItemsSource="{Binding PresetChips}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="ex:ExportChipViewModel">
+                                        <Button Classes="xchip" Classes.on="{Binding IsOn}" Content="{Binding Label}"
+                                                Command="{Binding #Root.((ex:AppointmentExportViewModel)DataContext).ApplyPresetCommand}"
+                                                CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- single day -->
+                            <StackPanel Spacing="6" IsVisible="{Binding IsDayMode}">
+                                <TextBlock Classes="xlbl" Text="تاریخ" />
+                                <controls:JalaliDatePicker Width="220" HorizontalAlignment="Left"
+                                                           DateValue="{Binding DayValue, Mode=TwoWay}" />
+                            </StackPanel>
+
+                            <!-- range -->
+                            <StackPanel Spacing="10" IsVisible="{Binding IsRangeMode}">
+                                <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="12">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Classes="xlbl" Text="از تاریخ" />
+                                        <controls:JalaliDatePicker Width="190" DateValue="{Binding FromValue, Mode=TwoWay}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="6">
+                                        <TextBlock Classes="xlbl" Text="تا تاریخ" />
+                                        <controls:JalaliDatePicker Width="190" DateValue="{Binding ToValue, Mode=TwoWay}" />
+                                    </StackPanel>
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Classes="xlbl" Text="روزهای هفته در بازه" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                        <Button Classes="linkbtn" Content="همه" Command="{Binding SetAllCommand}" CommandParameter="weekdays:on" />
+                                        <Button Classes="linkbtn" Content="بدون جمعه" Command="{Binding ExcludeFridayCommand}" />
+                                    </StackPanel>
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding WeekdayChips}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="ex:ExportChipViewModel">
+                                            <Button Classes="xchip" Classes.on="{Binding IsOn}" Content="{Binding Label}"
+                                                    Command="{Binding #Root.((ex:AppointmentExportViewModel)DataContext).ToggleChipCommand}"
+                                                    CommandParameter="{Binding}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- pick days -->
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" IsVisible="{Binding IsPickMode}">
+                                <StackPanel Grid.Column="0" Spacing="6" Width="290">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <Button Grid.Column="0" Classes="cal-nav-btn" Command="{Binding ShiftPickerMonthCommand}" CommandParameter="-1">
+                                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Ink2Brush}" Data="{StaticResource IconChevronRight}" />
+                                        </Button>
+                                        <TextBlock Grid.Column="1" Text="{Binding PickerTitle}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   FontWeight="ExtraBold" FontSize="13" Foreground="{StaticResource InkBrush}" />
+                                        <Button Grid.Column="2" Classes="cal-nav-btn" Command="{Binding ShiftPickerMonthCommand}" CommandParameter="1">
+                                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Ink2Brush}" Data="{StaticResource IconChevronLeft}" />
+                                        </Button>
+                                    </Grid>
+                                    <ItemsControl ItemsSource="{Binding PickerWeekdayHeaders}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><UniformGrid Columns="7" /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <TextBlock Text="{Binding}" HorizontalAlignment="Center" FontSize="11" FontWeight="Bold"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <ItemsControl ItemsSource="{Binding PickerCells}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><UniformGrid Columns="7" /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="ex:ExportDayCellViewModel">
+                                                <Button Classes="pday" Classes.sel="{Binding IsSelected}" Classes.out="{Binding !InMonth}"
+                                                        Classes.today="{Binding IsToday}" Classes.fri="{Binding IsFriday}"
+                                                        Command="{Binding #Root.((ex:AppointmentExportViewModel)DataContext).TogglePickDayCommand}"
+                                                        CommandParameter="{Binding}">
+                                                    <StackPanel Spacing="1" HorizontalAlignment="Center">
+                                                        <TextBlock Text="{Binding Label}" FontSize="12" HorizontalAlignment="Center" />
+                                                        <Ellipse Classes="dot" Width="4" Height="4" HorizontalAlignment="Center"
+                                                                 IsVisible="{Binding HasAppointments}" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Top" Margin="0,6,0,0">
+                                    <TextBlock Text="{Binding PickedText}" FontWeight="ExtraBold" FontSize="13" Foreground="{StaticResource Brand700Brush}" />
+                                    <TextBlock Text="روی هر روز کلیک کنید تا به فهرست چاپ اضافه یا از آن حذف شود. نقطه یعنی آن روز نوبت دارد. می‌توانید بین ماه‌ها جابه‌جا شوید."
+                                               FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" />
+                                    <Button Classes="ghost sm" Content="پاک کردن انتخاب‌ها" HorizontalAlignment="Left"
+                                            Command="{Binding ClearPickedCommand}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Background="{StaticResource WarnBgBrush}" CornerRadius="10" Padding="10,7"
+                                    IsVisible="{Binding HasWarning}">
+                                <TextBlock Text="{Binding Warning}" FontSize="11.5" Foreground="{StaticResource WarnBrush}" TextWrapping="Wrap" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- doctors -->
+                    <Border Classes="xsec">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Classes="xh" Text="۲. پزشکان / کارکنان" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                    <Button Classes="linkbtn" Content="همه" Command="{Binding SetAllCommand}" CommandParameter="doctors:on" />
+                                    <Button Classes="linkbtn" Content="هیچ‌کدام" Command="{Binding SetAllCommand}" CommandParameter="doctors:off" />
+                                </StackPanel>
+                            </Grid>
+                            <ItemsControl ItemsSource="{Binding DoctorChips}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="ex:ExportChipViewModel">
+                                        <Button Classes="xchip" Classes.on="{Binding IsOn}" Height="40" Padding="10,0,8,0"
+                                                Command="{Binding #Root.((ex:AppointmentExportViewModel)DataContext).ToggleChipCommand}"
+                                                CommandParameter="{Binding}">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Ellipse Width="9" Height="9" Fill="{Binding Accent}" VerticalAlignment="Center" />
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Label}" FontSize="12" />
+                                                    <TextBlock Text="{Binding Sub}" FontSize="10.5" FontWeight="Normal"
+                                                               Foreground="{StaticResource MutedBrush}" IsVisible="{Binding HasSub}" />
+                                                </StackPanel>
+                                                <Border Classes="xcount" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding CountText}" FontSize="11" HorizontalAlignment="Center" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- types + status + search -->
+                    <Border Classes="xsec">
+                        <StackPanel Spacing="10">
+                            <TextBlock Classes="xh" Text="۳. فیلترهای تکمیلی" />
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Classes="xlbl" Text="نوع نوبت" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                    <Button Classes="linkbtn" Content="همه" Command="{Binding SetAllCommand}" CommandParameter="types:on" />
+                                    <Button Classes="linkbtn" Content="هیچ‌کدام" Command="{Binding SetAllCommand}" CommandParameter="types:off" />
+                                </StackPanel>
+                            </Grid>
+                            <ItemsControl ItemsSource="{Binding TypeChips}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="ex:ExportChipViewModel">
+                                        <Button Classes="xchip" Classes.on="{Binding IsOn}"
+                                                Command="{Binding #Root.((ex:AppointmentExportViewModel)DataContext).ToggleChipCommand}"
+                                                CommandParameter="{Binding}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <Ellipse Width="8" Height="8" Fill="{Binding Accent}" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                                <Border Classes="xcount" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding CountText}" FontSize="11" HorizontalAlignment="Center" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Classes="xlbl" Text="وضعیت نوبت" />
+                            <ItemsControl ItemsSource="{Binding StatusChips}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="ex:ExportChipViewModel">
+                                        <Button Classes="xchip" Classes.on="{Binding IsOn}"
+                                                Command="{Binding #Root.((ex:AppointmentExportViewModel)DataContext).ToggleChipCommand}"
+                                                CommandParameter="{Binding}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <Ellipse Width="8" Height="8" Fill="{Binding Accent}" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                                <Border Classes="xcount" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding CountText}" FontSize="11" HorizontalAlignment="Center" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Classes="xlbl" Text="جستجو (نام بیمار، صاحب، تلفن، کد یا یادداشت)" />
+                            <TextBox Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="مثلاً «واکسن» یا ۰۹۱۲…" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ── output column ── -->
+                <StackPanel Grid.Column="1" Spacing="12">
+
+                    <!-- live summary -->
+                    <Border CornerRadius="14" Padding="16,14">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Offset="0" Color="#0f766e" />
+                                <GradientStop Offset="1" Color="#14b8a6" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Spacing="4">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="آمادهٔ چاپ" FontSize="11.5" Foreground="#d9fffa" FontWeight="Bold" />
+                                <controls:LoadingSpinner Grid.Column="1" Width="16" Height="16" IsVisible="{Binding IsLoading}" />
+                            </Grid>
+                            <TextBlock Text="{Binding SummaryMain}" FontSize="26" FontWeight="ExtraBold" Foreground="White" />
+                            <TextBlock Text="{Binding SummarySub}" FontSize="11.5" Foreground="#e6fffb" TextWrapping="Wrap" />
+                            <Border Height="1" Background="#33ffffff" Margin="0,6" />
+                            <TextBlock Text="{Binding RangeText}" FontSize="11.5" Foreground="White" TextWrapping="Wrap" FontWeight="Bold" />
+                            <TextBlock Text="{Binding PaperSummary}" FontSize="11" Foreground="#d9fffa" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- paper -->
+                    <Border Classes="xsec">
+                        <StackPanel Spacing="10">
+                            <TextBlock Classes="xh" Text="۴. اندازه و جهت کاغذ" />
+                            <UniformGrid Columns="2" ColumnSpacing="8">
+                                <Button Classes="paper" Classes.on="{Binding IsA4}" Command="{Binding SetPaperCommand}" CommandParameter="A4">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                        <Panel Width="30" Height="36">
+                                            <Border Classes="sheetico" Width="21" Height="29" />
+                                        </Panel>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="A4" FontWeight="ExtraBold" FontSize="14" Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="۲۱۰×۲۹۷ · روزانه" FontSize="10.5" Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+                                <Button Classes="paper" Classes.on="{Binding IsA3}" Command="{Binding SetPaperCommand}" CommandParameter="A3">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                        <Panel Width="30" Height="36">
+                                            <Border Classes="sheetico" Width="26" Height="36" />
+                                        </Panel>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="A3" FontWeight="ExtraBold" FontSize="14" Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="۲۹۷×۴۲۰ · بُرد/دیواری" FontSize="10.5" Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+                            </UniformGrid>
+                            <Border Classes="seg">
+                                <UniformGrid Columns="2">
+                                    <Button Classes="segb" Classes.on="{Binding IsPortrait}" Content="عمودی"
+                                            Command="{Binding SetOrientationCommand}" CommandParameter="portrait" />
+                                    <Button Classes="segb" Classes.on="{Binding Landscape}" Content="افقی"
+                                            Command="{Binding SetOrientationCommand}" CommandParameter="landscape" />
+                                </UniformGrid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- layout -->
+                    <Border Classes="xsec">
+                        <StackPanel Spacing="8">
+                            <TextBlock Classes="xh" Text="۵. چیدمان فرم" />
+                            <Border Classes="seg" IsVisible="{Binding IsMultiDoctorClinic}">
+                                <UniformGrid Columns="2">
+                                    <Button Classes="segb" Classes.on="{Binding IsTimelineLayout}" Content="ترتیب زمانی"
+                                            Command="{Binding SetLayoutCommand}" CommandParameter="time" />
+                                    <Button Classes="segb" Classes.on="{Binding LayoutByDoctor}" Content="تفکیک پزشک"
+                                            Command="{Binding SetLayoutCommand}" CommandParameter="doctor" />
+                                </UniformGrid>
+                            </Border>
+                            <Grid Classes="trow" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="هر روز در صفحهٔ جدید" />
+                                <ToggleButton Grid.Column="1" Classes="bk-switch" IsChecked="{Binding NewPagePerDay, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                            </Grid>
+                            <Grid Classes="trow" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="فشرده (ردیف بیشتر در هر صفحه)" />
+                                <ToggleButton Grid.Column="1" Classes="bk-switch" IsChecked="{Binding Compact, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                            </Grid>
+                            <Grid Classes="trow" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="خلاصه و آمار ابتدای فرم" />
+                                <ToggleButton Grid.Column="1" Classes="bk-switch" IsChecked="{Binding IncludeSummary, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                            </Grid>
+                            <Grid Classes="trow" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="نمایش روزهای بدون نوبت" />
+                                <ToggleButton Grid.Column="1" Classes="bk-switch" IsChecked="{Binding IncludeEmptyDays, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- columns -->
+                    <Border Classes="xsec">
+                        <StackPanel Spacing="4">
+                            <TextBlock Classes="xh" Text="۶. ستون‌ها و اطلاعات" Margin="0,0,0,4" />
+                            <Grid Classes="trow" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="باکس تیک کنار هر نوبت" />
+                                <ToggleButton Grid.Column="1" Classes="bk-switch" IsChecked="{Binding ShowCheckbox, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                            </Grid>
+                            <Grid Classes="trow" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="شمارهٔ تماس صاحب" />
+                                <ToggleButton Grid.Column="1" Classes="bk-switch" IsChecked="{Binding ShowPhone, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                            </Grid>
+                            <Grid Classes="trow" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="نوع نوبت" />
+                                <ToggleButton Grid.Column="1" Classes="bk-switch" IsChecked="{Binding ShowType, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                            </Grid>
+                            <Grid Classes="trow" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="وضعیت" />
+                                <ToggleButton Grid.Column="1" Classes="bk-switch" IsChecked="{Binding ShowStatus, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                            </Grid>
+                            <Grid Classes="trow" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="توضیحات ثبت‌شدهٔ نوبت" />
+                                <ToggleButton Grid.Column="1" Classes="bk-switch" IsChecked="{Binding ShowNote, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                            </Grid>
+                            <Grid Classes="trow" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="کد نوبت" />
+                                <ToggleButton Grid.Column="1" Classes="bk-switch" IsChecked="{Binding ShowCode, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                            </Grid>
+                            <Grid Classes="trow" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="ستون خالی یادداشت دستی" />
+                                <ToggleButton Grid.Column="1" Classes="bk-switch" IsChecked="{Binding ShowNotesColumn, Mode=TwoWay}">
+                                    <Ellipse Classes="bk-knob" Width="18" Height="18" />
+                                </ToggleButton>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- titles -->
+                    <Border Classes="xsec">
+                        <StackPanel Spacing="6">
+                            <TextBlock Classes="xh" Text="۷. عنوان فرم" Margin="0,0,0,2" />
+                            <TextBlock Classes="xlbl" Text="عنوان" />
+                            <TextBox Text="{Binding Title, Mode=TwoWay}" />
+                            <TextBlock Classes="xlbl" Text="تهیه‌کننده" Margin="0,4,0,0" />
+                            <TextBox Text="{Binding PreparedBy, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- ═══ footer ═══ -->
+        <Border Grid.Row="2" Padding="18,12" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Background="White">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="پیش‌نمایش در مرورگر باز می‌شود؛ چاپگر یا «ذخیره به‌صورت PDF» را انتخاب کنید."
+                           FontSize="11.5" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button Classes="ghost" Content="انصراف" Command="{Binding CancelCommand}" />
+                    <Button Classes="outline" Command="{Binding SaveCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Path Classes="icon" Width="16" Height="16" Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconDownload}" />
+                            <TextBlock Text="ذخیره فایل" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="primary" Command="{Binding PrintCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Path Classes="icon" Width="16" Height="16" Stroke="White" Data="{StaticResource IconPrinter}" />
+                            <TextBlock Text="پیش‌نمایش و چاپ" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
