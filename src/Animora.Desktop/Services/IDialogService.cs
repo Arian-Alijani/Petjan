@@ -40,5 +40,13 @@ public interface IDialogService
     /// </summary>
     Task<bool> SaveTextFileAsync(string suggestedName, string content, string extension = "csv");
 
+    /// <summary>Closes every overlay (modal, drawer and sheet) at once.</summary>
     void Close();
+
+    /// <summary>
+    /// Closes only the modal layer, leaving any drawer/sheet underneath untouched. Used by a modal that is
+    /// opened on top of a sheet (e.g. the patient wizard launched from the booking panel) so the sheet's
+    /// in-progress state survives.
+    /// </summary>
+    void CloseModal();
 }

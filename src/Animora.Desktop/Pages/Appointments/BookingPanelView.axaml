@@ -300,61 +300,7 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <!-- add form -->
-                                    <Border Classes="pat-add" IsVisible="{Binding IsAddFormVisible}">
-                                        <StackPanel>
-                                            <Border Padding="13,10" Background="White"
-                                                    BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
-                                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                                    <Path Classes="icon" Width="16" Height="16"
-                                                          Stroke="{StaticResource Brand600Brush}"
-                                                          Data="{StaticResource IconPaw}" />
-                                                    <TextBlock Text="ثبت سریع بیمار جدید" FontSize="12.5" FontWeight="ExtraBold" />
-                                                </StackPanel>
-                                            </Border>
-                                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto"
-                                                  ColumnSpacing="10" RowSpacing="10" Margin="13">
-                                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="5">
-                                                    <TextBlock Text="نام حیوان" FontSize="11.5" FontWeight="SemiBold"
-                                                               Foreground="{StaticResource MutedBrush}" />
-                                                    <TextBox Text="{Binding NewName}" Height="38" Padding="12,0"
-                                                             CornerRadius="12" PlaceholderText="مثلاً میلو" />
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="5">
-                                                    <TextBlock Text="گونه / نژاد" FontSize="11.5" FontWeight="SemiBold"
-                                                               Foreground="{StaticResource MutedBrush}" />
-                                                    <TextBox Text="{Binding NewKind}" Height="38" Padding="12,0"
-                                                             CornerRadius="12" PlaceholderText="مثلاً سگ پامرانین" />
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="5">
-                                                    <TextBlock Text="نام مالک" FontSize="11.5" FontWeight="SemiBold"
-                                                               Foreground="{StaticResource MutedBrush}" />
-                                                    <TextBox Text="{Binding NewOwner}" Height="38" Padding="12,0"
-                                                             CornerRadius="12" PlaceholderText="نام و نام خانوادگی" />
-                                                </StackPanel>
-                                                <StackPanel Grid.Row="1" Grid.Column="1" Spacing="5">
-                                                    <TextBlock Text="شماره تماس" FontSize="11.5" FontWeight="SemiBold"
-                                                               Foreground="{StaticResource MutedBrush}" />
-                                                    <TextBox Text="{Binding NewPhone}" Height="38" Padding="12,0"
-                                                             CornerRadius="12" PlaceholderText="۰۹۱۲…" />
-                                                </StackPanel>
-                                            </Grid>
-                                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="13,0,13,13">
-                                                <Button Classes="primary sm" Command="{Binding SavePatientCommand}">
-                                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                                        <Path Classes="icon" Width="14" Height="14" Stroke="White"
-                                                              Data="{StaticResource IconCheck}" />
-                                                        <TextBlock Text="افزودن و انتخاب" />
-                                                    </StackPanel>
-                                                </Button>
-                                                <Button Classes="ghost sm" Command="{Binding CancelAddPatientCommand}">
-                                                    <TextBlock Text="انصراف" />
-                                                </Button>
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </Border>
-
-                                    <Button Classes="pat-new" IsVisible="{Binding !IsAddFormVisible}"
+                                    <Button Classes="pat-new"
                                             Command="{Binding BeginAddPatientCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="7">
                                             <Path Classes="icon" Width="15" Height="15"

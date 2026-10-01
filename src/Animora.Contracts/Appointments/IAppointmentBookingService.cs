@@ -25,6 +25,9 @@ public interface IAppointmentBookingService
     Task<IReadOnlyList<BookingPatient>> SearchPatientsAsync(
         string search, string speciesKey, CancellationToken ct = default);
 
+    /// <summary>Loads one patient (pet + owner identity) by id, or null when it no longer exists.</summary>
+    Task<BookingPatient?> GetPatientAsync(string patientId);
+
     /// <summary>Loads only the patient linked to an appointment for editing.</summary>
     Task<BookingPatient?> GetAppointmentPatientAsync(string appointmentId);
 

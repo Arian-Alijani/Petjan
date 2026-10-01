@@ -102,9 +102,11 @@
              backs the Patients records' centered "sheet" pattern (owner/pet
              files), above the modal/drawer/toast z-order. -->
         <controls:ToastHost x:Name="Toast" ZIndex="100" IsHitTestVisible="False" />
-        <controls:ModalHost x:Name="Modal" ZIndex="110" />
         <controls:DrawerHost x:Name="Drawer" ZIndex="120" />
         <controls:SheetHost x:Name="Sheet" ZIndex="130" />
+        <!-- The modal is the top-most overlay so a dialog launched from inside a sheet (e.g. the patient
+             wizard from the booking panel, add-pet from the owner file) is not hidden behind it. -->
+        <controls:ModalHost x:Name="Modal" ZIndex="140" />
     </Grid>
 
 </Window>

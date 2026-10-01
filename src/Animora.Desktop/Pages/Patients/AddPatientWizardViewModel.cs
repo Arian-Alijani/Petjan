@@ -30,6 +30,15 @@ public sealed partial class WizardOwnerRowViewModel : ObservableObject
 }
 
 /// <summary>
+/// What the wizard created, so a caller that launched it from another flow (the booking panel) can pick
+/// the new patient straight away instead of searching for it again.
+/// </summary>
+/// <param name="OwnerId">The owner the pet belongs to (new or pre-existing).</param>
+/// <param name="PetId">The created pet's id, or null if the wizard produced no pet.</param>
+/// <param name="PetName">Display name of the pet.</param>
+public sealed record AddPatientWizardResult(string OwnerId, string? PetId, string PetName);
+
+/// <summary>
 /// Backs the add-owner/add-pet wizard modal (Phase 09, patients-page.js
 /// <c>openOwnerModal</c>/<c>setWizMode</c>/<c>renderWizOwnerList</c>/<c>paintWiz</c>):
 /// a 2-step flow — owner info (new owner OR pick an existing one) then pet info.
@@ -38,7 +47,8 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
 {
     private readonly IPatientsQueryService _patients;
     private readonly IDialogService _dialogs;
-    private readonly Action _onCompleted;
+    private readonly Action<AddPatientWizardResult> _onCompleted;
+    private readonly bool _closeModalOnly;
     private IReadOnlyList<OwnerSummary> _allOwners = [];
     private IReadOnlyList<PetSummary> _allPets = [];
 
@@ -58,14 +68,29 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
     [ObservableProperty] private bool _ownerIsFemale = true;
     [ObservableProperty] private string _referral = string.Empty;
 
+    /// <summary>Standalone use (Patients page): closes every overlay when done and ignores the result.</summary>
     public AddPatientWizardViewModel(
         IPatientsQueryService patients,
         IDialogService dialogs,
         Action onCompleted)
+        : this(patients, dialogs, _ => onCompleted(), closeModalOnly: false)
+    {
+    }
+
+    /// <summary>
+    /// Nested use: <paramref name="closeModalOnly"/> keeps a sheet/drawer that launched the wizard open
+    /// (and its state intact), and <paramref name="onCompleted"/> receives what was created.
+    /// </summary>
+    public AddPatientWizardViewModel(
+        IPatientsQueryService patients,
+        IDialogService dialogs,
+        Action<AddPatientWizardResult> onCompleted,
+        bool closeModalOnly)
     {
         _patients = patients;
         _dialogs = dialogs;
         _onCompleted = onCompleted;
+        _closeModalOnly = closeModalOnly;
         Referral = PatientsPresentation.Referrals[0];
         // Non-blocking init (PERFORMANCE.md §4): load the owner/pet lookups
         // asynchronously instead of blocking the UI thread in the constructor.
@@ -161,13 +186,27 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Cancel() => _dialogs.Close();
+    private void Cancel() => CloseSelf();
+
+    private void CloseSelf()
+    {
+        if (_closeModalOnly)
+        {
+            _dialogs.CloseModal();
+        }
+        else
+        {
+            _dialogs.Close();
+        }
+    }
 
     private async Task CommitAsync()
     {
+        AddPatientWizardResult result;
         if (IsExistingMode && SelectedOwner is not null)
         {
-            await _patients.CreatePetAsync(SelectedOwner.Owner.Id, Pet.BuildRequest());
+            var pet = await _patients.CreatePetAsync(SelectedOwner.Owner.Id, Pet.BuildRequest());
+            result = new AddPatientWizardResult(SelectedOwner.Owner.Id, pet.Id, pet.Name);
         }
         else
         {
@@ -176,11 +215,13 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
                 OwnerIsFemale ? OwnerGender.Female : OwnerGender.Male,
                 NationalId.Trim(), Mobile1.Trim(), Blank(Mobile2), Blank(Phone), Blank(Address),
                 Blank(Referral), Pet.BuildRequest());
-            await _patients.CreateOwnerAsync(owner);
+            var created = await _patients.CreateOwnerAsync(owner);
+            var firstPet = created.Pets.Count > 0 ? created.Pets[0] : null;
+            result = new AddPatientWizardResult(created.Id, firstPet?.Id, firstPet?.Name ?? string.Empty);
         }
 
-        _dialogs.Close();
-        _onCompleted();
+        CloseSelf();
+        _onCompleted(result);
     }
 
     private void RenderOwnerList()

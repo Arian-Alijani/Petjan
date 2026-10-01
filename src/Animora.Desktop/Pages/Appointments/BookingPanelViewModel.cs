@@ -6,8 +6,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Diagnostics;
+using Animora.Contracts.Patients;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Services;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -31,6 +33,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
     private readonly IAppointmentSettingsService _settings;
+    private readonly IPatientsQueryService _patients;
 
     /// <summary>Raised after a successful save so the calendar can close + refresh.</summary>
     public event Action? Saved;
@@ -57,7 +60,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private string _query = string.Empty;
     private string _kindFilter = "all";
     private bool _picking = true;
-    private bool _adding;
 
     public BookingPanelViewModel(
         IAppointmentBookingService booking,
@@ -65,9 +67,11 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         IAppointmentsQueryService catalog,
         IToastService toast,
         IDialogService dialogs,
-        IAppointmentSettingsService settings)
+        IAppointmentSettingsService settings,
+        IPatientsQueryService patients)
     {
         _settings = settings;
+        _patients = patients;
         _booking = booking;
         _readiness = readiness;
         _catalog = catalog;
@@ -183,9 +187,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private bool _isPatientCardVisible;
 
     [ObservableProperty]
-    private bool _isAddFormVisible;
-
-    [ObservableProperty]
     private bool _hasQuery;
 
     /// <summary>Two-way bound to the picker's search box (mirrors the reference's <c>bkQ</c>).</summary>
@@ -220,19 +221,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
 
     [ObservableProperty]
     private IBrush _selectedAvatarBrush = Brushes.Transparent;
-
-    // new-patient form fields
-    [ObservableProperty]
-    private string _newName = string.Empty;
-
-    [ObservableProperty]
-    private string _newKind = "سگ";
-
-    [ObservableProperty]
-    private string _newOwner = string.Empty;
-
-    [ObservableProperty]
-    private string _newPhone = string.Empty;
 
     // ── section 5 · extras ───────────────────────────────────────────────────
     [ObservableProperty]
@@ -425,7 +413,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         HasPatientResults = false;
         PatientResultCount = string.Empty;
         ShowPatientSearchMessage = true;
-        var canSearch = PersianText.Normalize(_query).Length >= 2 && _picking && !_adding;
+        var canSearch = PersianText.Normalize(_query).Length >= 2 && _picking;
         PatientSearchMessage = canSearch ? "در حال جست‌وجو…" :
             "برای انتخاب بیمار، حداقل ۲ حرف از نام یا شماره تماس را وارد کنید.";
         if (canSearch) _queryDebounce.Debounce(() => _ = SearchPatientsAsync());
@@ -484,7 +472,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
             SelectedAvatarBrush = AppointmentsPresentation.AvatarBrush(selected.AvatarTone);
         }
 
-        IsAddFormVisible = _adding;
         HasQuery = !string.IsNullOrEmpty(_query);
     }
 
@@ -753,10 +740,15 @@ public sealed partial class BookingPanelViewModel : ObservableObject
             return;
         }
 
+        ApplySelectedPatient(option.Patient);
+    }
+
+    /// <summary>Makes <paramref name="patient"/> the booking's patient and repaints the card + summary.</summary>
+    private void ApplySelectedPatient(BookingPatient patient)
+    {
         StopPatientSearch();
-        _selectedPatient = option.Patient;
+        _selectedPatient = patient;
         _picking = false;
-        _adding = false;
         QueryText = string.Empty;
         RenderPatient();
         RenderSummary();
@@ -770,55 +762,29 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         RenderPatient();
     }
 
+    /// <summary>
+    /// Opens the main patient-registration wizard on top of this panel. Only the modal layer is ever closed,
+    /// so everything already chosen here (type, doctor, date, time, note, SMS switches) is preserved; the new
+    /// patient is then selected automatically.
+    /// </summary>
     [RelayCommand]
     private void BeginAddPatient()
     {
-        _adding = true;
-        _picking = true;
-        QueuePatientSearch();
-        if (!string.IsNullOrEmpty(_query) && !char.IsDigit(_query[0]))
-        {
-            NewName = _query;
-        }
-
-        RenderPatient();
+        var wizard = new AddPatientWizardViewModel(
+            _patients, _dialogs, result => _ = SelectCreatedPatientAsync(result), closeModalOnly: true);
+        _dialogs.ShowModal(wizard, maxWidth: 760);
     }
 
-    [RelayCommand]
-    private void CancelAddPatient()
+    private async Task SelectCreatedPatientAsync(AddPatientWizardResult result)
     {
-        _adding = false;
-        QueuePatientSearch();
-        RenderPatient();
-    }
-
-    [RelayCommand]
-    private async Task SavePatient()
-    {
-        if (string.IsNullOrWhiteSpace(NewName) || string.IsNullOrWhiteSpace(NewOwner))
+        if (result.PetId is null || await _booking.GetPatientAsync(result.PetId) is not { } patient)
         {
-            _toast.Show("نام حیوان و نام مالک الزامی است.", Tone.Danger);
+            _toast.Show("پرونده ساخته شد؛ بیمار را از فهرست جست‌وجو و انتخاب کنید.", Tone.Info);
             return;
         }
 
-        var created = await _booking.CreatePatientAsync(new NewPatientRequest(
-            NewName.Trim(),
-            string.IsNullOrWhiteSpace(NewKind) ? "نامشخص" : NewKind.Trim(),
-            NewOwner.Trim(),
-            NewPhone.Trim()));
-
-        StopPatientSearch();
-        _selectedPatient = created;
-        _adding = false;
-        _picking = false;
-        QueryText = string.Empty;
-        NewName = string.Empty;
-        NewOwner = string.Empty;
-        NewPhone = string.Empty;
-        NewKind = "سگ";
-        RenderPatient();
-        RenderSummary();
-        _toast.Show($"پروندهٔ «{created.Name}» ساخته و برای این نوبت انتخاب شد.", Tone.Info);
+        ApplySelectedPatient(patient);
+        _toast.Show($"پروندهٔ «{patient.Name}» ساخته و برای این نوبت انتخاب شد.", Tone.Info);
     }
 
     /// <summary>
@@ -932,7 +898,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         _dur = dur ?? TypeOf(_type).DurationMinutes;
         _selectedPatient = null;
         _picking = true;
-        _adding = false;
         NoteText = string.Empty;
         QueryText = string.Empty;
         QueuePatientSearch();

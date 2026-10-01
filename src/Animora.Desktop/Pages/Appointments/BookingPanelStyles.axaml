@@ -111,13 +111,6 @@
         <Setter Property="Background" Value="#fbfcfb" />
     </Style>
 
-    <Style Selector="Border.pat-add">
-        <Setter Property="CornerRadius" Value="14" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
-        <Setter Property="Background" Value="#fbfcfb" />
-        <Setter Property="ClipToBounds" Value="True" />
-    </Style>
     <Style Selector="Button.pat-new">
         <Setter Property="Padding" Value="10" />
         <Setter Property="CornerRadius" Value="12" />

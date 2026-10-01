@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Diagnostics;
+using Animora.Contracts.Patients;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -33,6 +34,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private readonly IAppointmentBookingService _booking;
     private readonly IDialogService _dialogs;
     private readonly IAppointmentSettingsService _settings;
+    private readonly IPatientsQueryService _patients;
 
     private readonly List<AppointmentDoctor> _doctors = [];
     private readonly List<AppointmentType> _types = [];
@@ -83,10 +85,12 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         IAppointmentBookingService booking,
         IDialogService dialogs,
         IDataChangeNotifier changes,
-        IAppointmentSettingsService settings)
+        IAppointmentSettingsService settings,
+        IPatientsQueryService patients)
     {
         _service = service;
         _settings = settings;
+        _patients = patients;
         _changes = changes;
         _readiness = readiness;
         _toast = toast;
@@ -1475,7 +1479,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private async Task OpenNewBookingAsync(DateOnly? date)
     {
-        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings);
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients);
         panel.Saved += RefreshAfterWrite;
         await panel.LoadForNewAsync(date, null, null, null);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
@@ -1498,7 +1502,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private async Task OpenEditAsync(AppointmentEvent ev)
     {
-        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings);
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients);
         panel.Saved += RefreshAfterWrite;
         await panel.LoadForEditAsync(ev);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
