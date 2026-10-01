@@ -51,10 +51,10 @@ public sealed class DashboardBudgetTests
     }
 
     [Theory]
-    [InlineData(UserRole.Manager, 12)]
+    [InlineData(UserRole.Manager, 13)]
     [InlineData(UserRole.Doctor, 8)]
     [InlineData(UserRole.Cashier, 12)]
-    [InlineData(UserRole.Receptionist, 12)]
+    [InlineData(UserRole.Receptionist, 13)]
     public async Task Snapshot_StaysWithinRoleCommandBudget(UserRole role, int expectedCommands)
     {
         using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();

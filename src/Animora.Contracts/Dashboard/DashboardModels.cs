@@ -124,6 +124,17 @@ public sealed record DashboardListItem(
     string? TitleKey = null);
 
 /// <summary>
+/// When a snapshot's data was read and how far the derived finance facts lag behind the authoritative records.
+/// <b>PendingProjectionCount</b> is the number of committed events the projection worker has not applied yet (the
+/// finance widgets may be behind by that much); <b>ProjectionFailed</b> means at least one was dead-lettered, so the
+/// finance figures must not be presented as ready/current. Null on a snapshot without finance data.
+/// </summary>
+public sealed record DashboardFreshness(DateTimeOffset GeneratedAtUtc, int PendingProjectionCount, bool ProjectionFailed)
+{
+    public bool IsProjectionCurrent => PendingProjectionCount == 0 && !ProjectionFailed;
+}
+
+/// <summary>
 /// Full data set for one role's dashboard render. Two labeled content lists
 /// cover each role's two main sections (manager: live queue + alerts;
 /// cashier: open invoices + ready-to-bill; doctor: live queue + vaccination
@@ -143,7 +154,8 @@ public sealed record DashboardSnapshot(
     // chart, the doctor-workload card and the species donut/legend.
     DashboardRevenuePulse? RevenuePulse = null,
     IReadOnlyList<DashboardDoctorLoad>? DoctorLoads = null,
-    IReadOnlyList<DashboardSpecies>? Species = null)
+    IReadOnlyList<DashboardSpecies>? Species = null,
+    DashboardFreshness? Freshness = null)
 {
     // Copy once at construction, never at cache-hit. Elements are immutable records.
     private readonly IReadOnlyList<DashboardStat> _stats = DashboardCollections.Freeze(Stats);

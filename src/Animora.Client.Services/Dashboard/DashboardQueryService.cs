@@ -13,7 +13,11 @@ using Animora.Application.Correlation;
 
 namespace Animora.Client.Services.Dashboard;
 
-/// <summary>60-second tenant/user/effective-permission/day/version cache. Live authorization precedes every hit.</summary>
+/// <summary>
+/// 60-second tenant/user/effective-permission/day/source-generation cache. Live authorization precedes every hit; the
+/// generation (<see cref="IDashboardQueries.VersionAsync"/>) advances on any committed change to a source table, so
+/// data written without a new feed event (facts, rebuilds, appointments, stock, patients) never serves a stale hit.
+/// </summary>
 public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashboardQueryService
 {
     private readonly TenantScopedCache<string, (DateTimeOffset Expires, DashboardSnapshot Snapshot)> _cache = new();
@@ -65,7 +69,10 @@ public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashbo
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
             .QueryAsync(new DashboardSnapshotQuery(role, window), context.Value, ct);
         if (result.IsFailure) throw Failure(scope.ServiceProvider, result.Error.Code);
-        var snapshot = DashboardMapping.Map(access.Role, result.Value!, zone);
+        var snapshot = DashboardMapping.Map(access.Role, result.Value!, zone) with
+        {
+            Freshness = result.Value!.Projection is { } lag ? new DashboardFreshness(now, lag.Pending, lag.Failed > 0) : null,
+        };
         _cache.Set(key, (now.AddSeconds(60), snapshot));
         return snapshot;
     }
