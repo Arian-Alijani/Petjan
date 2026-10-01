@@ -22,7 +22,7 @@ internal sealed class ReadyBillingProjection
     public string OwnerName { get; init; } = "";
     public string PetId { get; init; } = "";
     public string PetName { get; init; } = "";
-    public string? DoctorId { get; init; }
+    public string DoctorId { get; init; } = "";
     public DateTimeOffset CompletedUtc { get; init; }
     public string LinesJson { get; init; } = "";
 
