@@ -24,6 +24,11 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
     public async Task<string> VersionAsync(string tenantId, CancellationToken ct) =>
         (await ReadGenerationAsync(tenantId, ct)).ToString(System.Globalization.CultureInfo.InvariantCulture);
 
+    private static readonly OutboxStatus[] OutstandingOutbox =
+    [
+        OutboxStatus.Pending, OutboxStatus.Claimed, OutboxStatus.Processing, OutboxStatus.Retry, OutboxStatus.DeadLettered,
+    ];
+
     private async Task<long> ReadGenerationAsync(string tenantId, CancellationToken ct) =>
         await db.Set<DashboardGeneration>().AsNoTracking().Where(x => x.TenantId == tenantId)
             .Select(x => (long?)x.Value).FirstOrDefaultAsync(ct) ?? 0L;
@@ -89,7 +94,9 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             facts = series;
             // The facts above are written by the projection worker after the source commit: report how far behind
             // they are instead of presenting them as current. Index IX_OutboxMessages_Status_NextAttemptUtc.
-            var lag = await db.Set<OutboxMessage>().AsNoTracking().Where(x => x.Status != OutboxStatus.Succeeded)
+            // A fixed status list (not "<> Succeeded") lets SQLite seek the (Status, NextAttemptUtc) index per
+            // status instead of scanning every row, including the ever-growing succeeded history.
+            var lag = await db.Set<OutboxMessage>().AsNoTracking().Where(x => OutstandingOutbox.Contains(x.Status))
                 .GroupBy(x => 1).Select(g => new
                 {
                     Pending = g.Count(x => x.Status != OutboxStatus.DeadLettered),
@@ -173,7 +180,7 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
                 select new DashboardOperationalRow("Invoice", invoice.InvoiceNumber,
                     owner == null ? invoice.GuestName ?? "مشتری مهمان" : owner.FullName,
                     invoice.IssuedUtc, invoice.State.ToString(), invoice.InvoiceNumber)).Take(8).ToListAsync(ct);
-            readyRows = await ReadyBillingProjection.Query(db).OrderByDescending(h => h.CompletedUtc).ThenBy(h => h.Id)
+            readyRows = await ReadyBillingProjection.Query(db, tenantId).OrderByDescending(h => h.CompletedUtc).ThenBy(h => h.Id)
                 .Take(8).Select(h => new DashboardOperationalRow(h.Source, h.PetName, h.OwnerName,
                     h.CompletedUtc, "Ready")).ToListAsync(ct);
         }

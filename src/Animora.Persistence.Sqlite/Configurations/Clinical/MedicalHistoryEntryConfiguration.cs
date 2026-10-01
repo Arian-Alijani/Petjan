@@ -10,5 +10,7 @@ public sealed class MedicalHistoryEntryConfiguration : IEntityTypeConfiguration<
     {
         builder.HasKey(e => e.Id);
         builder.HasIndex(e => new { e.TenantId, e.PetId, e.OccurredUtc }).HasDatabaseName("IX_MedicalHistoryEntries_TenantId_PetId_OccurredUtc");
+        // D23: "was this dose already recorded" probe of the doctor's reminder list.
+        builder.HasIndex(e => new { e.TenantId, e.SourceEntityId }).HasDatabaseName("IX_MedicalHistoryEntries_TenantId_SourceEntityId");
     }
 }

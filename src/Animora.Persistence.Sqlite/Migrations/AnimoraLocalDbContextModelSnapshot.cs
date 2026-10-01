@@ -473,6 +473,9 @@ namespace Animora.Persistence.Sqlite.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId", "SourceEntityId")
+                        .HasDatabaseName("IX_MedicalHistoryEntries_TenantId_SourceEntityId");
+
                     b.HasIndex("TenantId", "UpdatedAt")
                         .HasDatabaseName("IX_MedicalHistoryEntries_TenantId_UpdatedAt");
 
@@ -551,6 +554,9 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "AdministeredUtc")
+                        .HasDatabaseName("IX_VaccinationRecords_TenantId_AdministeredUtc");
 
                     b.HasIndex("TenantId", "UpdatedAt")
                         .HasDatabaseName("IX_VaccinationRecords_TenantId_UpdatedAt");
@@ -651,6 +657,9 @@ namespace Animora.Persistence.Sqlite.Migrations
 
                     b.HasIndex("TenantId", "UpdatedAt")
                         .HasDatabaseName("IX_Visits_TenantId_UpdatedAt");
+
+                    b.HasIndex("TenantId", "DoctorUserId", "CompletedUtc")
+                        .HasDatabaseName("IX_Visits_TenantId_DoctorUserId_CompletedUtc");
 
                     b.HasIndex("TenantId", "PetId", "StartedUtc")
                         .HasDatabaseName("IX_Visits_TenantId_PetId_StartedUtc");
@@ -3302,6 +3311,10 @@ namespace Animora.Persistence.Sqlite.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId", "AppointmentId")
+                        .HasDatabaseName("IX_ReceptionQueueEntries_TenantId_AppointmentId")
+                        .HasFilter("\"AppointmentId\" IS NOT NULL");
+
                     b.HasIndex("TenantId", "UpdatedAt")
                         .HasDatabaseName("IX_ReceptionQueueEntries_TenantId_UpdatedAt");
 
@@ -3388,6 +3401,9 @@ namespace Animora.Persistence.Sqlite.Migrations
 
                     b.HasIndex("TenantId", "Kind", "OccurredUtc")
                         .HasDatabaseName("IX_ActivityEvents_TenantId_Kind_OccurredUtc");
+
+                    b.HasIndex("TenantId", "LocalDay", "Id")
+                        .HasDatabaseName("IX_ActivityEvents_TenantId_LocalDay_Id");
 
                     b.ToTable("ActivityEvents", (string)null);
                 });

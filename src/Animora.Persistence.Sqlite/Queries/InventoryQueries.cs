@@ -24,7 +24,7 @@ internal static class InventoryStockQuery
         products.Where(p => p.IsActive && p.Variants.Any(v => v.IsActive
             // ReorderLevel's non-summable converter stores decimal as TEXT; cast both operands
             // numerically so SQLite cannot compare "10.0" and "10" lexicographically.
-            && (double)(db.Set<StockOnHandSnapshot>().Where(s => s.ProductId == p.Id && s.VariantId == v.VariantId)
+            && (double)(db.Set<StockOnHandSnapshot>().Where(s => s.TenantId == p.TenantId && s.ProductId == p.Id && s.VariantId == v.VariantId)
                 .Select(s => (long?)s.OnHandScaled).FirstOrDefault() ?? 0L) / 1000d <= (double)v.ReorderLevel.Value));
 }
 
