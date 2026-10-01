@@ -29,6 +29,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private readonly IDashboardQueryService _dashboard;
     private readonly IStoreReadinessGate _readiness;
     private readonly ICurrentUserContext _currentUser;
+    private readonly Avalonia.Threading.DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromMinutes(1) };
     private string _identityKey;
 
     [ObservableProperty]
@@ -47,6 +48,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         _identityKey = IdentityKey(currentUser);
         _refresh = new DashboardRefreshCoordinator<DashboardSnapshot>(FetchAsync, snapshot => snapshot, Apply, OnRefreshFailed);
         _refresh.StateChanged += OnRefreshStateChanged;
+        _refreshTimer.Tick += OnRefreshTick;
 
         Title = "داشبورد";
         Eyebrow = "مرکز فرمان";
@@ -68,6 +70,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     {
         SyncIdentity();
         _ = _refresh.ActivateAsync();
+        _refreshTimer.Start();
     }
 
     private static string IdentityKey(ICurrentUserContext user) => $"{user.UserId}|{user.Role}";
@@ -110,15 +113,22 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         _speciesBaseSub = string.Empty;
     }
 
-    public override void OnNavigatedFrom() => _refresh.Deactivate();
+    public override void OnNavigatedFrom()
+    {
+        _refreshTimer.Stop();
+        _refresh.Deactivate();
+    }
+
+    private void OnRefreshTick(object? sender, EventArgs args) =>
+        _ = _refresh.TickAsync(DateTimeOffset.UtcNow);
 
     [RelayCommand]
-    private Task RefreshAsync() => _refresh.RefreshAsync();
+    private Task RefreshAsync() => _refresh.RefreshAsync(force: true);
 
     private async Task<DashboardSnapshot> FetchAsync(CancellationToken ct, bool force)
     {
         await _readiness.WaitAsync(ct);
-        return await _dashboard.GetSnapshotAsync(Role, ct);
+        return force ? await _dashboard.RefreshSnapshotAsync(Role, ct) : await _dashboard.GetSnapshotAsync(Role, ct);
     }
 
     private void OnRefreshStateChanged()

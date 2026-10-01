@@ -180,6 +180,36 @@ public sealed class DashboardLifecycleTests
         Assert.Equal(["shared", "shared"], p.Applied);
     }
 
+    [Fact]
+    public async Task ActiveTicks_AreMinuteBounded_Coalesced_AndStopOnExit()
+    {
+        var p = new Probe();
+        var activation = p.Coordinator.ActivateAsync();
+        p.Calls[0].Result.SetResult(Snap("initial"));
+        await activation;
+        var midnight = new DateTimeOffset(2026, 10, 2, 0, 0, 0, TimeSpan.Zero);
+        var tick = p.Coordinator.TickAsync(midnight);
+        var repeated = p.Coordinator.TickAsync(midnight.AddSeconds(5));
+        Assert.Equal(2, p.Calls.Count);
+        Assert.True(p.Calls[1].Force);
+        p.Calls[1].Result.SetResult(Snap("next-day"));
+        await Task.WhenAll(tick, repeated);
+        p.Coordinator.Deactivate();
+        await p.Coordinator.TickAsync(midnight.AddHours(2));
+        Assert.Equal(2, p.Calls.Count);
+    }
+
+    [Fact]
+    public async Task ManualRefresh_BypassesWarmDataCache_ButStillAuthorizes()
+    {
+        var sql = new DashboardAuthorizationTests.SqlRecorder();
+        await using var host = await DashboardAuthorizationTests.CreateHostAsync(StaffRole.Manager, sql);
+        var service = new DashboardQueryService(host.Services.GetRequiredService<IServiceScopeFactory>());
+        var initial = await service.GetSnapshotAsync(UserRole.Manager);
+        Assert.Same(initial, await service.GetSnapshotAsync(UserRole.Manager));
+        Assert.NotSame(initial, await service.RefreshSnapshotAsync(UserRole.Manager));
+    }
+
     // ---- service: token reaches the semaphore and the database --------------------------------------------
 
     private sealed class Gatekeeper : DbCommandInterceptor
