@@ -66,6 +66,7 @@ public sealed class DashboardComposer(IDashboardQueries queries, Animora.Domain.
     public async Task<Result<DashboardSlice>> HandleAsync(DashboardSnapshotQuery query, QueryContext context, CancellationToken ct)
     {
         var access = await ResolveAccessAsync(query, context, gate, sessions, memberships, permissions, installation, ct);
+        ct.ThrowIfCancellationRequested();
         if (access.IsFailure) return Result<DashboardSlice>.Fail(access.Error, access.Detail);
         var window = query.Window;
         if (window is null)

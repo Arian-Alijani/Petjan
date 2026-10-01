@@ -36,7 +36,7 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         var viewModel = _services.GetRequiredService<TViewModel>();
         configure(viewModel);
         if (!Admit(typeof(TViewModel))) return null;
-        CurrentViewModel = viewModel;
+        Publish(viewModel);
         return viewModel;
     }
 
@@ -49,7 +49,7 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         await configure(viewModel);
         // Authority can change while record hydration is awaited.
         if (!Admit(typeof(TViewModel))) return null;
-        CurrentViewModel = viewModel;
+        Publish(viewModel);
         return viewModel;
     }
 
@@ -61,7 +61,7 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         var viewModel = (PageViewModelBase)_services.GetRequiredService(viewModelType);
         configure?.Invoke(viewModel);
         if (!Admit(viewModelType, navigationKey)) return null;
-        CurrentViewModel = viewModel;
+        Publish(viewModel);
         return viewModel;
     }
 
@@ -74,6 +74,23 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         if (matches && key is not null && NavPermissions.For(key) is { } code && _gate.Can(code)) return true;
         _toast.Show("اجازه ورود به این بخش را ندارید یا دسترسی شما منقضی شده است.", Tone.Warn);
         return false;
+    }
+
+    // Single publication path for every overload. Activation is decoupled from the property-equality check:
+    //  - a different page: the page being replaced is told it is leaving (cancel in-flight work/timers), then the
+    //    new page becomes current (OnCurrentViewModelChanged activates it and raises CurrentViewModelChanged);
+    //  - the same singleton page: it is simply activated again (e.g. Ctrl+Shift+D on the dashboard refreshes it
+    //    once) without a leave/recreate and without a spurious CurrentViewModelChanged.
+    private void Publish(PageViewModelBase viewModel)
+    {
+        if (ReferenceEquals(CurrentViewModel, viewModel))
+        {
+            viewModel.OnNavigatedTo();
+            return;
+        }
+
+        CurrentViewModel?.OnNavigatedFrom();
+        CurrentViewModel = viewModel;
     }
 
     partial void OnCurrentViewModelChanged(PageViewModelBase? value)

@@ -19,14 +19,15 @@ public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashbo
 
     // Microsoft.Data.Sqlite executes async reads synchronously. Keep the whole scoped read/mapping
     // off the UI thread, not just the continuation after its first SQL call.
-    public Task<DashboardSnapshot> GetSnapshotAsync(UserRole role) => Task.Run(async () =>
+    public Task<DashboardSnapshot> GetSnapshotAsync(UserRole role, CancellationToken ct = default) => Task.Run(async () =>
     {
-        await _loadGate.WaitAsync().ConfigureAwait(false);
-        try { return await LoadSnapshotAsync(role).ConfigureAwait(false); }
+        // WaitAsync(ct) throws before acquiring, so the release below only ever pairs with a real acquire.
+        await _loadGate.WaitAsync(ct).ConfigureAwait(false);
+        try { return await LoadSnapshotAsync(role, ct).ConfigureAwait(false); }
         finally { _loadGate.Release(); }
-    });
+    }, ct);
 
-    private async Task<DashboardSnapshot> LoadSnapshotAsync(UserRole role)
+    private async Task<DashboardSnapshot> LoadSnapshotAsync(UserRole role, CancellationToken ct)
     {
         await using var scope = scopes.CreateAsyncScope();
         var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
@@ -37,18 +38,19 @@ public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashbo
             scope.ServiceProvider.GetRequiredService<SessionContextCache>(),
             scope.ServiceProvider.GetRequiredService<IStaffMembershipRepository>(),
             scope.ServiceProvider.GetRequiredService<IPermissionEvaluator>(),
-            scope.ServiceProvider.GetRequiredService<ILocalInstallationIdentity>(), default);
+            scope.ServiceProvider.GetRequiredService<ILocalInstallationIdentity>(), ct);
         if (policy.IsFailure) throw new InvalidOperationException(policy.Error.Code);
         var access = policy.Value!;
+        ct.ThrowIfCancellationRequested();
         var now = scope.ServiceProvider.GetRequiredService<IClock>().UtcNow;
         var zone = scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
         var window = DashboardDayWindow.For(ClinicCalendar.LocalDay(now.UtcTicks, zone), zone);
         var queries = scope.ServiceProvider.GetRequiredService<IDashboardQueries>();
-        var version = await queries.VersionAsync(context.Value!.TenantId, default);
+        var version = await queries.VersionAsync(context.Value!.TenantId, ct);
         var key = $"{context.Value.TenantId}|{context.Value.UserId}|dashboard:{access.CacheKey}|day{window.LocalDay}|v{version}";
         if (_cache.TryGet(key, out var entry) && entry.Expires > now) return entry.Snapshot;
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
-            .QueryAsync(new DashboardSnapshotQuery(role, window), context.Value);
+            .QueryAsync(new DashboardSnapshotQuery(role, window), context.Value, ct);
         if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
         var snapshot = DashboardMapping.Map(access.Role, result.Value!, zone);
         _cache.Set(key, (now.AddSeconds(60), snapshot));

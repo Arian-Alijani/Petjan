@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Identity;
@@ -38,6 +41,8 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         _dashboard = dashboard;
         _readiness = readiness;
         Role = currentUser.Role;
+        _refresh = new DashboardRefreshCoordinator<DashboardSnapshot>(FetchAsync, snapshot => snapshot, Apply, OnRefreshFailed);
+        _refresh.StateChanged += OnRefreshStateChanged;
 
         Title = "داشبورد";
         Eyebrow = "مرکز فرمان";
@@ -50,38 +55,32 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     [ObservableProperty]
     private string? _loadError;
-    private DashboardSnapshot? _appliedSnapshot;
 
-    public override void OnNavigatedTo()
-    {
-        if (!IsBusy) _ = RefreshCommand.ExecuteAsync(null);
-    }
+    private readonly DashboardRefreshCoordinator<DashboardSnapshot> _refresh;
+
+    // Visit lifecycle: activation supersedes any in-flight load and always ends in a refresh; leaving the page
+    // cancels the load through the token down to the database, and its late result is never applied.
+    public override void OnNavigatedTo() => _ = _refresh.ActivateAsync();
+
+    public override void OnNavigatedFrom() => _refresh.Deactivate();
 
     [RelayCommand]
-    private async Task RefreshAsync()
+    private Task RefreshAsync() => _refresh.RefreshAsync();
+
+    private async Task<DashboardSnapshot> FetchAsync(CancellationToken ct, bool force)
     {
-        IsBusy = true;
-        LoadError = null;
-        try
-        {
-            await _readiness.WaitAsync();
-            var snapshot = await _dashboard.GetSnapshotAsync(Role);
-            // A cache hit returns the same immutable snapshot: no row/geometry/notification rebuild.
-            if (!ReferenceEquals(_appliedSnapshot, snapshot))
-            {
-                Apply(snapshot);
-                _appliedSnapshot = snapshot;
-            }
-        }
-        catch (Exception)
-        {
-            LoadError = "بارگذاری داشبورد انجام نشد؛ دوباره تلاش کنید";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        await _readiness.WaitAsync(ct);
+        return await _dashboard.GetSnapshotAsync(Role, ct);
     }
+
+    private void OnRefreshStateChanged()
+    {
+        IsBusy = _refresh.IsBusy;
+        if (IsBusy) LoadError = null;
+    }
+
+    private void OnRefreshFailed(Exception exception) =>
+        LoadError = "بارگذاری داشبورد انجام نشد؛ دوباره تلاش کنید";
 
     public UserRole Role { get; }
 
