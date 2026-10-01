@@ -120,6 +120,10 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueZeroLineGeometry;
 
+    /// <summary>One line per plotted day: Jalali date and the real signed amount (chart tooltip).</summary>
+    [ObservableProperty]
+    private string _revenueTooltip = string.Empty;
+
     /// <summary>The revenue trend line itself.</summary>
     [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueLineGeometry;
@@ -237,12 +241,23 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         HasSpecies = snapshot.Species is not null;
         RevenuePulse = snapshot.RevenuePulse;
         BuildRevenueChart(snapshot.RevenuePulse);
+        RevenueTooltip = RevenueTooltipText(snapshot.RevenuePulse);
 
         DoctorLoads.ReplaceAll(
             (snapshot.DoctorLoads ?? System.Array.Empty<DashboardDoctorLoad>())
                 .Select(doc => new DashboardDoctorLoadViewModel(doc)));
 
         ApplySpecies(snapshot.Species ?? System.Array.Empty<DashboardSpecies>());
+    }
+
+    private static string RevenueTooltipText(DashboardRevenuePulse? pulse)
+    {
+        if (pulse is null || pulse.Values.Count == 0 || pulse.Values.Count != pulse.DayLabels.Count) return string.Empty;
+        var lines = new string[pulse.Values.Count];
+        for (var i = 0; i < lines.Length; i++)
+            lines[i] = Localization.PersianNumberFormatter.ToPersianDigits(
+                pulse.DayLabels[i] + ": " + pulse.Values[i].ToString("N0", System.Globalization.CultureInfo.InvariantCulture)) + " تومان";
+        return string.Join('\n', lines);
     }
 
     // Builds the area + line + zero-line geometry from the signed, zero-containing pulse domain. The area closes

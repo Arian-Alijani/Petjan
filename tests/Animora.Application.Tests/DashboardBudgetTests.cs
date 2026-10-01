@@ -389,6 +389,36 @@ public sealed class DashboardBudgetTests
     }
 
     [Fact]
+    public async Task RevenuePulse_ExposesActual14DayRange_TodayHeadline_AndRealDatesAndAmounts()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        await SeedRevenueFactAsync(fixture, 20260228, 300);
+        await SeedRevenueFactAsync(fixture, Today, -120);
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
+        var pulse = InvokeMap(UserRole.Manager, slice).RevenuePulse!;
+        Assert.Equal(14, pulse.Values.Count);
+        Assert.Equal(14, pulse.DayLabels.Count);
+        Assert.Equal("-120", pulse.Value);                       // headline = today, not the 14-day sum
+        Assert.Contains("امروز", pulse.Caption);
+        Assert.Contains("تومان", pulse.Caption);
+        Assert.NotEqual("۱۴ روز اخیر", pulse.Caption);
+        Assert.Equal("1404/12/10", pulse.DayLabels[^1]);          // 2026-03-01 in the Jalali calendar
+        Assert.Equal("1404/11/27", pulse.DayLabels[0]);           // zero-filled window starts 13 days earlier
+        Assert.Equal(300, pulse.Values[^2]);
+        Assert.Equal(-120, pulse.Values[^1]);
+        Assert.Contains("1404/11/27 تا 1404/12/10", pulse.Summary);
+        Assert.Contains("کمترین -120", pulse.Summary);
+        Assert.Contains("بیشترین 300", pulse.Summary);
+        var xaml = System.IO.File.ReadAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "../../../../../src/Animora.Desktop/Pages/Dashboard/ManagerDashboardView.axaml"));
+        Assert.DoesNotContain("هفته", xaml);                      // no inert range tabs
+        Assert.DoesNotContain("ماه</TextBlock", xaml);
+        Assert.Contains("داده‌ای", InvokeMap(UserRole.Manager, new DashboardSlice([], [], [], new Dictionary<string, int>(), 0, 0, 0)).RevenuePulse!.Summary);
+    }
+
+    [Fact]
     public async Task ManagerRevenue_EqualsFinanceSameDayFigure()
     {
         const long expected = 7_654_321;

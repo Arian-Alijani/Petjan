@@ -3,10 +3,10 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
-- **20 از 44 تسک انجام‌شده: D01، D02، D03، D05، D06، D07، D09، D10، D11، D12، D13، D14، D15، D16، D17، D18، D32، D39، D41، D43. 24 تسک دیگر باز هستند.** (به‌روزرسانی خودکار پس از هر تسک؛ جزئیات هر مورد در بخش خودش ثبت شده است.)
+- **21 از 44 تسک انجام‌شده: D01، D02، D03، D05، D06، D07، D09، D10، D11، D12، D13، D14، D15، D16، D17، D18، D30، D32، D39، D41، D43. 23 تسک دیگر باز هستند.** (به‌روزرسانی خودکار پس از هر تسک؛ جزئیات هر مورد در بخش خودش ثبت شده است.)
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
-- باقی‌مانده: D04، D08، D19، D20، D21، D22، D23، D24، D25، D26، D27، D28، D29، D30، D31، D33، D34، D35، D36، D37، D38، D40، D42، D44. موارد GUI/Windows/contrast/performance که اندازه‌گیری نشده‌اند تیک نخورده‌اند.
+- باقی‌مانده: D04، D08، D19، D20، D21، D22، D23، D24، D25، D26، D27، D28، D29، D31، D33، D34، D35، D36، D37، D38، D40، D42، D44. موارد GUI/Windows/contrast/performance که اندازه‌گیری نشده‌اند تیک نخورده‌اند.
 - متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #181 را توصیف نمی‌کنند. fixture قدیمی ناسازگار در اجرای قبلی فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران. اسکریپت‌های Windows/sandbox/git، migrationها و دیتابیس واقعی کاربر در این جلسه تغییر نکردند.
 
 ## دامنه و نتیجه مرحله تدوین اولیه (تاریخی)
@@ -362,7 +362,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D29 reflow cards for constrained widths"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D30 — range tabs ظاهری و caption/value ناسازگارند
-- [ ] وضعیت: باز | P2 | گزارش 30 | نتیجه: قطعی | وابستگی: D18.
+- [x] وضعیت: انجام‌شده | P2 | گزارش 30 | نتیجه: قطعی | وابستگی: D18.
+- شواهد اجرای 2026-10-01: تب‌های inert روز/هفته/ماه/سال حذف شدند؛ عنوان «روند درآمد ۱۴ روز اخیر» و headline «درآمد امروز (تومان)» جدا از مجموع 14 روز است. تاریخ جلالی و مبلغ signed هر نقطه در DTO (`DayLabels/Values/Summary`) حفظ و به tooltip و AutomationProperties.Name متنی وصل شد. تست `RevenuePulse_ExposesActual14DayRange_...`: 14 روز zero-filled با پنجره روز کلینیک، تاریخ جلالی ابتدا/انتها، مبلغ منفی، caption و نبود تب inert در XAML. Budget+Authorization: **51 passed، 0 failed، 21 ثانیه**؛ build فقط Desktop: **0 warning/0 error**.
 - شواهد: `ManagerDashboardView.axaml:106–137` inert Borderها؛ query همیشه 14روز؛ Pulse.Value امروز ولی Caption «14 روز اخیر»؛ قرارداد Points تاریخ ندارد.
 - اقدام کم‌هزینه این فاز: tabs روز/هفته/ماه/سال حذف، بازه واقعی «روند درآمد ۱۴ روز اخیر» و مقدار headline «درآمد امروز» با واحد روشن نمایش یابد. تاریخ/مقدار واقعی points در DTO حفظ و tooltip/معادل متنی کوتاه داده شود؛ range selector جدید و queries چهار بازه بدون درخواست لازم نیست.
 - پذیرش/بررسی محدود: هیچ کنترل غیرفعال شبیه interactive selection نماند؛ headline امروز با مجموع 14روز اشتباه نشود؛ 14 روز zero-filled با timezone و تاریخ درست؛ tooltip/متن واحد پول و مبلغ signed مطابق داده واقعی باشند.

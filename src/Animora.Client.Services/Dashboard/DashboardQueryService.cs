@@ -109,11 +109,30 @@ internal static class DashboardMapping
         return new DashboardSnapshot(role, "نمای کلی امروز", "آخرین فعالیت‌های کلینیک", stats,
             role == UserRole.Cashier ? "فاکتورهای باز" : "نوبت‌های فعال امروز", primary,
             role switch { UserRole.Cashier => "آماده صدور فاکتور", UserRole.Doctor => "یادآور واکسن بیماران امروز", _ => "فعالیت‌های اخیر" }, secondary,
-            (slice.Access?.Finance ?? manager) ? new DashboardRevenuePulse(today.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), "۱۴ روز اخیر",
-                points) { ZeroLevel = zeroLevel, Values = values } : null,
+            (slice.Access?.Finance ?? manager) ? Pulse(slice.RevenueDays, today, points, zeroLevel, values) : null,
             (slice.Access?.Workloads ?? manager) ? slice.Workloads.Select(Load).ToArray() : null,
             (slice.Access?.Patients ?? manager) && role != UserRole.Doctor ? slice.Species.OrderByDescending(x => x.Value).ThenBy(x => x.Key, StringComparer.Ordinal)
                 .Select(x => new DashboardSpecies(SpeciesName(x.Key), x.Value, SpeciesColor(x.Key), x.Key)).ToArray() : null);
+    }
+
+    private const string CurrencyLabel = "تومان";
+
+    // Headline = TODAY's revenue; the chart covers the real 14-day window. Dates and signed amounts stay in the DTO.
+    private static DashboardRevenuePulse Pulse(IReadOnlyList<DashboardDay> days, long today, double[] points, double zero, long[] values)
+    {
+        var calendar = new System.Globalization.PersianCalendar();
+        static string Money(long v) => v.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+        string Label(int day)
+        {
+            var date = new DateTime(day / 10000, day / 100 % 100, day % 100, 0, 0, 0, DateTimeKind.Unspecified);
+            return $"{calendar.GetYear(date):0000}/{calendar.GetMonth(date):00}/{calendar.GetDayOfMonth(date):00}";
+        }
+        var labels = days.Select(d => Label(d.LocalDay)).ToArray();
+        var summary = days.Count == 0 ? "داده‌ای برای نمایش وجود ندارد" :
+            $"{labels[0]} تا {labels[^1]} · کمترین {Money(values.Min())} · بیشترین {Money(values.Max())} {CurrencyLabel}";
+        return new DashboardRevenuePulse(today.ToString("N0", System.Globalization.CultureInfo.InvariantCulture),
+            $"درآمد امروز ({CurrencyLabel})", points)
+        { ZeroLevel = zero, Values = values, DayLabels = labels, Summary = summary };
     }
 
     /// <summary>
@@ -143,7 +162,7 @@ internal static class DashboardMapping
         new(icon, label, value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), null, true);
     private static DashboardListItem Item(DashboardActivity x, TimeZoneInfo zone) =>
         new("", SafeActivityTitle(x), string.Join(" · ", new[] { TimeZoneInfo.ConvertTime(x.OccurredUtc, zone).ToString("HH:mm"),
-                x.ActorName, x.AmountMinor == 0 ? "" : x.AmountMinor.ToString("N0") + " ریال" }.Where(v => v.Length > 0)),
+                x.ActorName, x.AmountMinor == 0 ? "" : x.AmountMinor.ToString("N0") + " تومان" }.Where(v => v.Length > 0)),
             KindName(x.Kind), x.AmountSign < 0 ? DashboardTone.Warn : DashboardTone.Info, Icon(x.Kind),
             x.Kind, x.Status, x.TitleKey);
 

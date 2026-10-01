@@ -86,6 +86,14 @@ public sealed record DashboardRevenuePulse(
     /// <summary>Position of zero in the same 0..1 space as <see cref="Points"/> (0 when every value is zero/positive-free).</summary>
     public double ZeroLevel { get; init; }
 
+    private IReadOnlyList<string> _dayLabels = [];
+
+    /// <summary>Localized calendar label of every plotted day (same order as <see cref="Points"/>), for tooltips.</summary>
+    public IReadOnlyList<string> DayLabels { get => _dayLabels; init => _dayLabels = DashboardCollections.Freeze(value); }
+
+    /// <summary>Short textual equivalent of the chart (range, lowest and highest day) for tooltip/automation.</summary>
+    public string Summary { get; init; } = string.Empty;
+
     private IReadOnlyList<long> _values = [];
 
     /// <summary>The real signed minor-unit amount of every plotted day, same order as <see cref="Points"/>.</summary>
