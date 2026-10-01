@@ -90,6 +90,53 @@ namespace Animora.Application.Tests
         public void NonSidebarTargets_AreExplicit(string key, string permission) =>
             Assert.Equal(permission, NavPermissions.For(key));
 
+        [Fact]
+        public void SameSingletonDestination_ActivatesOnce_WithoutLeaveOrChangeEvent()
+        {
+            var gate = new Gate { Allowed = { PermissionCodes.InventoryRead, PermissionCodes.PatientsRead } };
+            var page = new InventoryPageViewModel();
+            using var services = new ServiceCollection().AddSingleton(page).BuildServiceProvider();
+            var nav = new NavigationService(services, gate, new Toast());
+            var changes = 0;
+            nav.CurrentViewModelChanged += (_, _) => changes++;
+            Assert.Same(page, nav.NavigateTo<InventoryPageViewModel>());
+            Assert.Equal((1, 0, 1), (page.Activations, page.Deactivations, changes));
+            Assert.Same(page, nav.NavigateTo<InventoryPageViewModel>());
+            Assert.Same(page, nav.NavigateTo(typeof(InventoryPageViewModel)));
+            Assert.Same(page, nav.NavigateTo<InventoryPageViewModel>(_ => { }));
+            Assert.Equal((4, 0, 1), (page.Activations, page.Deactivations, changes));
+        }
+
+        [Fact]
+        public async Task LeavingAndReturning_DeactivatesOnce_AndReactivatesOnce()
+        {
+            var gate = new Gate { Allowed = { PermissionCodes.InventoryRead, PermissionCodes.PatientsRead } };
+            var inventory = new InventoryPageViewModel();
+            var patients = new Animora.Desktop.Pages.Patients.PatientsPageViewModel();
+            using var services = new ServiceCollection().AddSingleton(inventory).AddSingleton(patients).BuildServiceProvider();
+            var nav = new NavigationService(services, gate, new Toast());
+            nav.NavigateTo<InventoryPageViewModel>();
+            nav.NavigateTo<Animora.Desktop.Pages.Patients.PatientsPageViewModel>();
+            Assert.Equal((1, 1), (inventory.Activations, inventory.Deactivations));
+            Assert.Equal((1, 0), (patients.Activations, patients.Deactivations));
+            await nav.NavigateToAsync<InventoryPageViewModel>(_ => Task.CompletedTask);
+            Assert.Equal((2, 1), (inventory.Activations, inventory.Deactivations));
+            Assert.Equal((1, 1), (patients.Activations, patients.Deactivations));
+        }
+
+        [Fact]
+        public void DeniedNavigation_NeitherActivatesNorDeactivatesTheCurrentPage()
+        {
+            var gate = new Gate { Allowed = { PermissionCodes.PatientsRead } };
+            var patients = new Animora.Desktop.Pages.Patients.PatientsPageViewModel();
+            using var services = new ServiceCollection().AddSingleton(patients).AddSingleton<InventoryPageViewModel>().BuildServiceProvider();
+            var nav = new NavigationService(services, gate, new Toast());
+            nav.NavigateTo<Animora.Desktop.Pages.Patients.PatientsPageViewModel>();
+            Assert.Null(nav.NavigateTo<InventoryPageViewModel>());
+            Assert.Same(patients, nav.CurrentViewModel);
+            Assert.Equal((1, 0), (patients.Activations, patients.Deactivations));
+        }
+
         private sealed class UnknownPage : PageViewModelBase { }
         private sealed class Toast : IToastService
         {
@@ -109,7 +156,9 @@ namespace Animora.Application.Tests
     public abstract class NavigationTestPage : PageViewModelBase
     {
         public int Activations { get; private set; }
+        public int Deactivations { get; private set; }
         public override void OnNavigatedTo() => Activations++;
+        public override void OnNavigatedFrom() => Deactivations++;
     }
 }
 

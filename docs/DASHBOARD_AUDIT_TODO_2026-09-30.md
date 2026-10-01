@@ -3,10 +3,10 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
-- **23 از 44 تسک انجام‌شده: D01، D02، D03، D05، D06، D07، D08، D09، D10، D11، D12، D13، D14، D15، D16، D17، D18، D30، D32، D39، D40، D41، D43. 21 تسک دیگر باز هستند.** (به‌روزرسانی خودکار پس از هر تسک؛ جزئیات هر مورد در بخش خودش ثبت شده است.)
+- **28 از 44 تسک انجام‌شده؛ 16 تسک باز: D19، D21، D22، D23، D24، D26، D27، D28، D29، D31، D33، D34، D35، D36، D42، D44.**
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
-- باقی‌مانده: D04، D19، D20، D21، D22، D23، D24، D25، D26، D27، D28، D29، D31، D33، D34، D35، D36، D37، D38، D42، D44. موارد GUI/Windows/contrast/performance که اندازه‌گیری نشده‌اند تیک نخورده‌اند.
+- باقی‌مانده: D19، D21، D22، D23، D24، D26، D27، D28، D29، D31، D33، D34، D35، D36، D42، D44. پذیرش GUI/Windows بدون شاهد واقعی بسته نمی‌شود.
 - متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #181 را توصیف نمی‌کنند. fixture قدیمی ناسازگار در اجرای قبلی فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران. اسکریپت‌های Windows/sandbox/git، migrationها و دیتابیس واقعی کاربر در این جلسه تغییر نکردند.
 
 ## دامنه و نتیجه مرحله تدوین اولیه (تاریخی)
@@ -167,7 +167,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D03 authorize cached responses"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D04 — singleton داشبورد هویت/نقش قدیمی را نگه می‌دارد
-- [ ] وضعیت: باز | P1 | گزارش 4 | نتیجه: نقص lifecycle قطعی؛ سناریوی GUI تأییدنشده | وابستگی: D01، D25، D37، D38.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 4 | نتیجه: نقص lifecycle قطعی؛ سناریوی GUI تأییدنشده | وابستگی: D01، D25، D37، D38.
+- شواهد اجرای 2026-10-01: ViewModel سینگلتون اکنون در هر activation هویت (`UserId|Role`) را با `ICurrentUserContext` مقایسه می‌کند؛ تغییر هویت/نقش، coordinator را `Reset` می‌کند (درخواست in-flight هویت قبلی cancel و پاسخ دیررس آن هرگز اعمال نمی‌شود، snapshot منتشرشده فراموش می‌شود) و تمام collections/chart/species/عنوان‌ها/خطا پاک و `Role` (اکنون ObservableProperty) به‌روز می‌شود. `DashboardPageView` به تغییر property نقش (نه فقط DataContext) پاسخ می‌دهد، زیرنمای مناسب را می‌سازد، و subscription در detach/attach دقیقاً یک‌بار برقرار می‌شود. layout نقش از authorization جداست (D01–D03 دست‌نخورده). تست‌های `IdentityReset_*` به `DashboardLifecycleTests` اضافه شدند: `DashboardLifecycleTests|NavigationAdmissionTests` **21 passed، 0 failed، 8 ثانیه**؛ build فقط Desktop **0 warning/0 error، 47 ثانیه**. سناریوی GUI واقعی (Doctor→Receptionist در پنجره) در این sandbox بدون نمایشگر اجرا نشد؛ منطق reset/late-response با تست و wiring view با build تأیید شد.
 - شواهد: `DashboardPageViewModel.cs:41–46,92`؛ DI در `App.axaml.cs:281`؛ `CurrentUserContextService.cs:33`؛ `RoleMapping.cs:15–17`؛ view فقط `DataContextChanged` را می‌شنود.
 - اقدام: تغییر هویت/نقش snapshot، collections و درخواست قبلی را reset کند؛ layout از نقش presentation و permission مستقل باشد. View به تغییر state/layout پاسخ دهد، نه فقط reference DataContext. subscribe/unsubscribe دارای lifecycle باشد؛ بدون ساخت backend احراز هویت جدید.
 - پذیرش/بررسی محدود: در همان process با هویت تست محلی Doctor → Receptionist/Accountant، زیرنمای درست و فقط داده مجاز نمایش یابد؛ پاسخ دیررس هویت قبلی اعمال نشود. تغییر layout با DataContext ثابت هم آزموده شود.
@@ -293,7 +294,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D19 invalidate cache on all source generations"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D20 — TTL بدون refresh، UI را تازه نمی‌کند
-- [ ] وضعیت: باز | P1 | گزارش 20 | نتیجه: نبود policy قطعی؛ ماندن ساعت‌ها در GUI مشاهده نشده | وابستگی: D04/D25/D37/D38.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 20 | نتیجه: نبود policy قطعی؛ ماندن ساعت‌ها در GUI مشاهده نشده | وابستگی: D04/D25/D37/D38.
+- شواهد اجرای 2026-10-01: `RefreshSnapshotAsync` cache داده را دور می‌زند، اما policy زنده همچنان اجرا می‌شود؛ دکمه همیشگی refresh، timer یک‌دقیقه‌ای فقط هنگام activation و توقف/cancel هنگام خروج، و زمان آخرین دریافت موفق اضافه شد. `DashboardLifecycleTests`: **14 passed، 0 failed، 8 ثانیه** شامل timestamp تزریقی عبور روز، coalescing و غیرفعال‌شدن tick، و service واقعی با cache گرم. build فقط Desktop: **0 warning/0 error، 57 ثانیه**. warning تاریخی CS8625 تست باقی است. Full build/test اجرا نشد. PR [#185](https://github.com/Arian-Alijani/Petjan/pull/185).
 - شواهد: `DashboardPageViewModel.cs:61–89`؛ TTL خط 46 service؛ XAML فقط retry در error دارد.
 - اقدام: manual refresh همیشگی، activation refresh و policy محدود هنگام active بودن؛ tick/data-change coalesced، عبور روز کلینیک و last-updated. timer/subscription هنگام خروج متوقف شود. refresh دستی و freshness از TTL مستقل باشند و راهی برای درخواست تازه واقعی داشته باشند؛ worker/UI polling بی‌حد ساخته نشود.
 - پذیرش/بررسی محدود: ساعت/زمان تزریقی یا fake scheduler، بدون wait واقعی 60ثانیه؛ tick فعال و عبور نیمه‌شب refresh کنند، deactivated نکند؛ چند trigger concurrent یک بار query؛ manual refresh cache معتبر اما قدیمی را نیز با policy درست تازه کند.
@@ -328,14 +330,16 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "test(dashboard): D24 measure the production query pipeline"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D25 — cancellation/lifecycle تا DB منتقل نمی‌شود
-- [ ] وضعیت: باز | P2 | گزارش 25 | نتیجه: نقص قطعی قرارداد.
+- [x] وضعیت: انجام‌شده | P2 | گزارش 25 | نتیجه: نقص قطعی قرارداد.
+- شواهد اجرای 2026-10-01: token اختیاری backward-compatible در `IDashboardQueryService.GetSnapshotAsync` به semaphore، `Task.Run`، access policy، version probe، dispatcher و EF منتقل شد؛ `PageViewModelBase.OnNavigatedFrom` و مسیر مرکزی `NavigationService.Publish` (هر سه overload) خروج قبلی را اعلام می‌کند و `DashboardRefreshCoordinator` نتیجه generation قدیمی را هرگز اعمال نمی‌کند (OCE بی‌صدا، busy نسل جدید با finally قدیمی پاک نمی‌شود). `DashboardLifecycleTests` (کنترل با TaskCompletionSource/barrier، بدون sleep) cancel پیش از کار، حین انتظار semaphore (بدون over-release، سریال‌بودن بعدی اثبات شد) و حین query را می‌آزماید. regression: `DashboardLifecycleTests|NavigationAdmissionTests` **19 passed، 0 failed، 8 ثانیه**؛ build فقط Desktop **0 warning/0 error، 51 ثانیه**؛ Full build/test اجرا نشد.
 - شواهد: `IDashboardQueryService.cs:14` token ندارد؛ service انتظار semaphore با default؛ ViewModel نیز readiness/query بدون token؛ `PageViewModelBase` فقط OnNavigatedTo دارد.
 - اقدام: token اختیاری backward-compatible در Contracts، انتقال به readiness/gate/semaphore/dispatcher/EF؛ activation/deactivation hook و generation latest-wins. NavigationService تمام overloadها خروج قبلی را اعلام کند؛ `Task.Run` برای SQLite sync از UI حفظ شود. SQLite cancellation ممکن است فوراً statement در حال اجرا را متوقف نکند، اما نتیجه قدیمی نباید اعمال شود.
 - پذیرش/بررسی محدود: token canceled پیش از کار و هنگام انتظار semaphore؛ خروج و ورود مجدد در query کنترل‌شده؛ نتیجه فقط برای activation فعلی. OCE پیام failure نسازد؛ semaphore در مسیر cancel پیش از acquire over-release نشود؛ subscribers و CTS نشت نکنند.
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D25 propagate cancellation through activation"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D26 — failureهای typed به یک پیام عمومی تبدیل می‌شوند
-- [ ] وضعیت: باز | P2 | گزارش 26 | نتیجه: قطعی | وابستگی: D25.
+- [x] وضعیت: انجام‌شده | P2 | گزارش 26 | نتیجه: قطعی | وابستگی: D25.
+- شواهد اجرای 2026-10-01: `DashboardQueryException` در Contracts با session/permission/store/unexpected و correlation opaque؛ OCE دست‌نخورده. service failureهای context/policy/dispatcher/probe/mapping را با دسته امن log می‌کند؛ exception/payload/SQL/PII وارد log یا پیام نمی‌شود. denial/expiry داده قدیمی را پاک می‌کند؛ retry تنها store recovery. `DashboardLifecycleTests|DashboardAuthorizationTests`: **32 passed، 0 failed** (log محدود همین اجرا)، شامل 5 دسته پیام/unknown امن، session واقعی، revoke cache گرم و cancellation. guard نخست 60ثانیه هنگام compilation خاتمه یافت؛ incremental rerun با سقف 90ثانیه موفق بود، نه full test. PR [#185](https://github.com/Arian-Alijani/Petjan/pull/185).
 - شواهد: `DashboardQueryService.cs:34,44`؛ `DashboardPageViewModel.cs:82–85`؛ version/mapping بیرون dispatcher هستند.
 - اقدام: outcome typed یا exception مشخص با error code امن از Client.Services به Contracts؛ session expiry/permission/store/cancel/unexpected جدا. logging ساختاریافته با correlation برای probe/mapping failures، نه render/timer/per-item؛ خطای برنامه‌نویسی فقط retry generic پنهان نشود. JSON/Id/PII/stack خام به UI نرود.
 - پذیرش/بررسی محدود: پنج حالت خطا پیام/رفتار متفاوت و correlation ثبت‌شده مناسب داشته باشند؛ cancel بی‌صدا؛ raw detail مالی/هویتی یا exception داخلی در پیام کاربر/log بدون redaction نباشد؛ retry فقط برای موارد قابل‌بازیابی.
@@ -416,14 +420,16 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 ## تودوی بدهی‌های کوچک‌تر گزارش — جدا از مشکلات بالا
 
 ### D37 — activation هنگام IsBusy نادیده گرفته می‌شود
-- [ ] وضعیت: باز | P2 | بدهی اول گزارش | نتیجه: قطعی مسیر/ریسک تازگی | وابستگی: D25.
+- [x] وضعیت: انجام‌شده | P2 | بدهی اول گزارش | نتیجه: قطعی مسیر/ریسک تازگی | وابستگی: D25.
+- شواهد اجرای 2026-10-01: activation در حین loading دیگر نادیده گرفته نمی‌شود: `ActivateAsync` همیشه generation جدید می‌سازد و load قبلی را cancel می‌کند؛ trigger همزمان `RefreshAsync` یک query مشترک دارد و refresh اجباری حین load دقیقاً یک re-run نگه می‌دارد. تست‌های `ReturnDuringLoading_*`، `LateResultOfSupersededLoad_*`، `ConcurrentRefreshTriggers_*`، `ForcedRefreshDuringLoad_*` و `NonCancellationFailure_*` (همان اجرای 19 passed) IsBusy نسل جدید را با finally نسل قدیمی false نمی‌کنند.
 - شواهد: `DashboardPageViewModel.cs:61–64`، `if (!IsBusy)` و async command پیش‌فرض.
 - اقدام: activation جدید cancel/supersede یا refresh pending coalesced داشته باشد؛ force کردن AllowConcurrentExecutions بدون generation صحیح ممنوع. تمام triggerها از یک policy latest-wins/serialized عبور کنند؛ این تسک regression سناریوی «بازگشت حین loading» است، نه تکرار D25.
 - پذیرش/بررسی محدود: leave→return قبل completion، فقط نتیجه activation آخر با refresh تضمین‌شده؛ تأخیر fake task، بدون wait طولانی؛ IsBusy درخواست جدید با finally درخواست قدیمی false نشود.
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D37 retain refresh requests during loading"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D38 — navigate به همان singleton activation ایجاد نمی‌کند
-- [ ] وضعیت: باز | P2 | بدهی دوم گزارش | نتیجه: قطعی طراحی equality setter | وابستگی: D25/D37.
+- [x] وضعیت: انجام‌شده | P2 | بدهی دوم گزارش | نتیجه: قطعی طراحی equality setter | وابستگی: D25/D37.
+- شواهد اجرای 2026-10-01: activation از equality property جدا شد: `NavigationService.Publish` برای مقصد یکسان فقط `OnNavigatedTo` را یک‌بار صدا می‌زند (بدون leave/recreate و بدون `CurrentViewModelChanged` اضافه) و برای صفحه دیگر ابتدا `OnNavigatedFrom` سپس publish. تست‌های `SameSingletonDestination_*`، `LeavingAndReturning_*`، `DeniedNavigation_*` (در همان 19 passed) هر چهار overload، deny و بازگشت را پوشش می‌دهند.
 - شواهد: `NavigationService.cs:51–62`؛ setter تولیدی ObservableProperty با equality تغییر reference را شرط می‌کند؛ `MainWindowViewModel.NavigateHome`.
 - اقدام: activation از change reference جدا، در یک مسیر مرکزی هر overload navigation صریح انجام شود؛ هنگام مقصد یکسان deactivation/recreate بیهوده نشود. configured/async overload دوبار activate نکنند؛ CurrentViewModelChanged همچنان معنای دقیق داشته باشد.
 - پذیرش/بررسی محدود: Ctrl+Shift+D روی خود dashboard، refresh یک‌بار؛ navigation به صفحه دیگر و برگشت یک‌بار؛ deny، activation نداشته باشد؛ lifetime سایر singletonها آسیب نبیند.

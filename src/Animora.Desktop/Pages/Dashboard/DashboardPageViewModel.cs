@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Identity;
@@ -25,19 +28,27 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private readonly INavigationService _navigation;
     private readonly IDashboardQueryService _dashboard;
     private readonly IStoreReadinessGate _readiness;
+    private readonly ICurrentUserContext _currentUser;
+    private readonly Avalonia.Threading.DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromMinutes(1) };
+    private string _identityKey;
 
-    [ObservableProperty]
     private string _primaryListTitle = string.Empty;
+    public string PrimaryListTitle { get => _primaryListTitle; private set => SetProperty(ref _primaryListTitle, value); }
 
-    [ObservableProperty]
     private string _secondaryListTitle = string.Empty;
+    public string SecondaryListTitle { get => _secondaryListTitle; private set => SetProperty(ref _secondaryListTitle, value); }
 
     public DashboardPageViewModel(IDashboardQueryService dashboard, IStoreReadinessGate readiness, ICurrentUserContext currentUser, INavigationService navigation)
     {
         _navigation = navigation;
         _dashboard = dashboard;
         _readiness = readiness;
+        _currentUser = currentUser;
         Role = currentUser.Role;
+        _identityKey = IdentityKey(currentUser);
+        _refresh = new DashboardRefreshCoordinator<PreparedDashboard>(FetchAsync, Prepare, Publish, OnRefreshFailed);
+        _refresh.StateChanged += OnRefreshStateChanged;
+        _refreshTimer.Tick += OnRefreshTick;
 
         Title = "داشبورد";
         Eyebrow = "مرکز فرمان";
@@ -50,112 +61,152 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     [ObservableProperty]
     private string? _loadError;
-    private DashboardSnapshot? _appliedSnapshot;
 
+    private readonly DashboardRefreshCoordinator<PreparedDashboard> _refresh;
+
+    // Visit lifecycle: activation supersedes any in-flight load and always ends in a refresh; leaving the page
+    // cancels the load through the token down to the database, and its late result is never applied.
     public override void OnNavigatedTo()
     {
-        if (!IsBusy) _ = RefreshCommand.ExecuteAsync(null);
+        SyncIdentity();
+        _ = _refresh.ActivateAsync();
+        _refreshTimer.Start();
     }
+
+    private static string IdentityKey(ICurrentUserContext user) => $"{user.UserId}|{user.Role}";
+
+    // The page is a singleton, so the signed-in identity can change underneath it (sign-out/in as another user).
+    // A different identity/role resets every piece of state of the previous one before anything is loaded.
+    private void SyncIdentity()
+    {
+        var key = IdentityKey(_currentUser);
+        if (key == _identityKey) return;
+        _identityKey = key;
+        _refresh.Reset();
+        ClearPresentation();
+        Role = _currentUser.Role;
+    }
+
+    private void ClearPresentation()
+    {
+        LoadError = null;
+        Publish(Prepare(new DashboardSnapshot(Role, "", "", [], "", [], "", [])));
+    }
+
+    public override void OnNavigatedFrom()
+    {
+        _refreshTimer.Stop();
+        _refresh.Deactivate();
+    }
+
+    private void OnRefreshTick(object? sender, EventArgs args) =>
+        _ = _refresh.TickAsync(DateTimeOffset.UtcNow);
 
     [RelayCommand]
-    private async Task RefreshAsync()
+    private Task RefreshAsync() => _refresh.RefreshAsync(force: true);
+
+    private async Task<DashboardSnapshot> FetchAsync(CancellationToken ct, bool force)
     {
-        IsBusy = true;
-        LoadError = null;
-        try
-        {
-            await _readiness.WaitAsync();
-            var snapshot = await _dashboard.GetSnapshotAsync(Role);
-            // A cache hit returns the same immutable snapshot: no row/geometry/notification rebuild.
-            if (!ReferenceEquals(_appliedSnapshot, snapshot))
-            {
-                Apply(snapshot);
-                _appliedSnapshot = snapshot;
-            }
-        }
-        catch (Exception)
-        {
-            LoadError = "بارگذاری داشبورد انجام نشد؛ دوباره تلاش کنید";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        await _readiness.WaitAsync(ct);
+        return force ? await _dashboard.RefreshSnapshotAsync(Role, ct) : await _dashboard.GetSnapshotAsync(Role, ct);
     }
 
-    public UserRole Role { get; }
+    public string LastUpdatedText => _refresh.LastUpdated is { } at
+        ? "آخرین دریافت: " + Localization.PersianNumberFormatter.ToPersianDigits(at.ToLocalTime().ToString("HH:mm"))
+        : "اطلاعات هنوز دریافت نشده است";
 
-    public bool IsManager => Role is UserRole.Manager or UserRole.Receptionist;
+    private void OnRefreshStateChanged()
+    {
+        IsBusy = _refresh.IsBusy;
+        OnPropertyChanged(nameof(LastUpdatedText));
+        if (IsBusy) LoadError = null;
+    }
 
-    public bool IsCashier => Role == UserRole.Cashier;
+    public bool CanRetry { get; private set; } = true;
 
-    public bool IsDoctor => Role == UserRole.Doctor;
+    private void OnRefreshFailed(Exception exception)
+    {
+        var failure = exception as DashboardQueryException;
+        if (failure?.Kind is DashboardFailureKind.SessionExpired or DashboardFailureKind.PermissionDenied)
+        {
+            _refresh.Reset();
+            ClearPresentation(); // Revocation must not leave previously authorized data visible.
+        }
+        CanRetry = failure?.CanRetry ?? false;
+        OnPropertyChanged(nameof(CanRetry));
+        LoadError = failure is null ? "خطای غیرمنتظره در داشبورد؛ با پشتیبانی تماس بگیرید."
+            : failure.UserMessage + " شناسه پیگیری: " + failure.CorrelationId;
+    }
 
-    public RangeObservableCollection<DashboardStat> Stats { get; } = new();
+    /// <summary>Presentation layout role of the current identity; changes (and notifies) when the identity changes.</summary>
+    [ObservableProperty]
+    private UserRole _role;
 
-    public RangeObservableCollection<DashboardRowViewModel> PrimaryList { get; } = new();
+    public IReadOnlyList<DashboardStat> Stats => _presentation?.Stats ?? Array.Empty<DashboardStat>();
 
-    public RangeObservableCollection<DashboardRowViewModel> SecondaryList { get; } = new();
+    public IReadOnlyList<DashboardRowViewModel> PrimaryList => _presentation?.PrimaryList ?? Array.Empty<DashboardRowViewModel>();
+
+    public IReadOnlyList<DashboardRowViewModel> SecondaryList => _presentation?.SecondaryList ?? Array.Empty<DashboardRowViewModel>();
 
     /// <summary>Manager-only: the doctor-workload rows.</summary>
-    public RangeObservableCollection<DashboardDoctorLoadViewModel> DoctorLoads { get; } = new();
+    public IReadOnlyList<DashboardDoctorLoadViewModel> DoctorLoads => _presentation?.DoctorLoads ?? Array.Empty<DashboardDoctorLoadViewModel>();
 
     /// <summary>Manager-only: the species donut legend rows.</summary>
-    public RangeObservableCollection<DashboardSpeciesViewModel> Species { get; } = new();
+    public IReadOnlyList<DashboardSpeciesViewModel> Species => _presentation?.Species ?? Array.Empty<DashboardSpeciesViewModel>();
 
-    [ObservableProperty]
     private DashboardRevenuePulse? _revenuePulse;
+    public DashboardRevenuePulse? RevenuePulse { get => _revenuePulse; private set => SetProperty(ref _revenuePulse, value); }
 
-    [ObservableProperty]
     private bool _hasDoctorWorkload;
+    public bool HasDoctorWorkload { get => _hasDoctorWorkload; private set => SetProperty(ref _hasDoctorWorkload, value); }
 
-    [ObservableProperty]
     private bool _hasSpecies;
+    public bool HasSpecies { get => _hasSpecies; private set => SetProperty(ref _hasSpecies, value); }
 
     /// <summary>Filled area under the revenue line (chart background).</summary>
-    [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueAreaGeometry;
+    public Avalonia.Media.Geometry? RevenueAreaGeometry { get => _revenueAreaGeometry; private set => SetProperty(ref _revenueAreaGeometry, value); }
 
     /// <summary>Explicit zero baseline so negative days are visible against it.</summary>
-    [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueZeroLineGeometry;
+    public Avalonia.Media.Geometry? RevenueZeroLineGeometry { get => _revenueZeroLineGeometry; private set => SetProperty(ref _revenueZeroLineGeometry, value); }
 
     /// <summary>One line per plotted day: Jalali date and the real signed amount (chart tooltip).</summary>
-    [ObservableProperty]
     private string _revenueTooltip = string.Empty;
+    public string RevenueTooltip { get => _revenueTooltip; private set => SetProperty(ref _revenueTooltip, value); }
 
     /// <summary>The revenue trend line itself.</summary>
-    [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueLineGeometry;
+    public Avalonia.Media.Geometry? RevenueLineGeometry { get => _revenueLineGeometry; private set => SetProperty(ref _revenueLineGeometry, value); }
 
     /// <summary>Center value of the species donut — total active patients.</summary>
-    [ObservableProperty]
     private string _speciesTotal = string.Empty;
+    public string SpeciesTotal { get => _speciesTotal; private set => SetProperty(ref _speciesTotal, value); }
 
     /// <summary>Center caption of the species donut — "کل بیماران فعال" by default.</summary>
-    [ObservableProperty]
     private string _speciesTotalLabel = "کل بیماران فعال";
+    public string SpeciesTotalLabel { get => _speciesTotalLabel; private set => SetProperty(ref _speciesTotalLabel, value); }
 
     /// <summary>Center sub-caption of the species donut — the registered species count.</summary>
-    [ObservableProperty]
     private string _speciesTotalSub = string.Empty;
+    public string SpeciesTotalSub { get => _speciesTotalSub; private set => SetProperty(ref _speciesTotalSub, value); }
 
     /// <summary>Accent colour of the center value; reverts to ink on blur.</summary>
-    [ObservableProperty]
     private Avalonia.Media.IBrush? _speciesCenterBrush;
+    public Avalonia.Media.IBrush? SpeciesCenterBrush { get => _speciesCenterBrush; private set => SetProperty(ref _speciesCenterBrush, value); }
 
     /// <summary>Dims the ring/legend while a slice is focused (reference .donut-wrap.dim).</summary>
-    [ObservableProperty]
     private bool _isSpeciesDimmed;
+    public bool IsSpeciesDimmed { get => _isSpeciesDimmed; private set => SetProperty(ref _isSpeciesDimmed, value); }
 
     /// <summary>Geometry describing the donut ring's coloured slices.</summary>
-    [ObservableProperty]
     private System.Collections.Generic.IReadOnlyList<Animora.Desktop.Controls.DonutSlice> _speciesSlices =
         System.Array.Empty<Animora.Desktop.Controls.DonutSlice>();
+    public System.Collections.Generic.IReadOnlyList<Animora.Desktop.Controls.DonutSlice> SpeciesSlices { get => _speciesSlices; private set => SetProperty(ref _speciesSlices, value); }
 
     /// <summary>Index of the hovered slice (-1 = none), for the ring's focus state.</summary>
-    [ObservableProperty]
     private int _speciesActiveIndex = -1;
+    public int SpeciesActiveIndex { get => _speciesActiveIndex; private set => SetProperty(ref _speciesActiveIndex, value); }
 
     /// <summary>The species donut's default center readout, restored on blur.</summary>
     private string _speciesBaseTotal = string.Empty;
@@ -224,30 +275,54 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     [RelayCommand]
     private void OpenSpeciesPatients() => _navigation.NavigateTo<PatientsPageViewModel>();
 
-    private void Apply(DashboardSnapshot snapshot)
+    // All allocations, parsing and formatting happen before any observable state is touched.
+    private sealed record PreparedDashboard(DashboardSnapshot Snapshot, IReadOnlyList<DashboardStat> Stats,
+        IReadOnlyList<DashboardRowViewModel> PrimaryList, IReadOnlyList<DashboardRowViewModel> SecondaryList,
+        IReadOnlyList<DashboardDoctorLoadViewModel> DoctorLoads, IReadOnlyList<DashboardSpeciesViewModel> Species,
+        ChartGeometry Chart, string Tooltip, string Total, string Sub,
+        IReadOnlyList<DonutSlice> Slices);
+    private sealed record ChartGeometry(Avalonia.Media.Geometry? Area, Avalonia.Media.Geometry? Line,
+        Avalonia.Media.Geometry? Zero);
+    private PreparedDashboard? _presentation;
+
+    private static PreparedDashboard Prepare(DashboardSnapshot snapshot)
     {
-        PrimaryListTitle = snapshot.PrimaryListTitle;
-        SecondaryListTitle = snapshot.SecondaryListTitle;
+        var species = snapshot.Species ?? Array.Empty<DashboardSpecies>();
+        var total = species.Sum(s => s.Count);
+        var rows = species.Select((s, i) => new DashboardSpeciesViewModel(i, s,
+            total <= 0 ? 0 : (double)s.Count / total)).ToArray();
+        return new PreparedDashboard(snapshot, snapshot.Stats,
+            snapshot.PrimaryList.Select(x => new DashboardRowViewModel(x)).ToArray(),
+            snapshot.SecondaryList.Select(x => new DashboardRowViewModel(x)).ToArray(),
+            (snapshot.DoctorLoads ?? Array.Empty<DashboardDoctorLoad>()).Select(x => new DashboardDoctorLoadViewModel(x)).ToArray(),
+            rows, BuildRevenueChart(snapshot.RevenuePulse), RevenueTooltipText(snapshot.RevenuePulse),
+            Localization.PersianNumberFormatter.FormatGrouped(total),
+            Localization.PersianNumberFormatter.ToPersianDigits(species.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                + " گونه ثبت‌شده", BuildSpeciesSlices(species));
+    }
 
-        Stats.ReplaceAll(snapshot.Stats);
-
-        PrimaryList.ReplaceAll(
-            snapshot.PrimaryList.Select(x => new DashboardRowViewModel(x)));
-
-        SecondaryList.ReplaceAll(
-            snapshot.SecondaryList.Select(x => new DashboardRowViewModel(x)));
-
-        HasDoctorWorkload = snapshot.DoctorLoads is not null;
-        HasSpecies = snapshot.Species is not null;
-        RevenuePulse = snapshot.RevenuePulse;
-        BuildRevenueChart(snapshot.RevenuePulse);
-        RevenueTooltip = RevenueTooltipText(snapshot.RevenuePulse);
-
-        DoctorLoads.ReplaceAll(
-            (snapshot.DoctorLoads ?? System.Array.Empty<DashboardDoctorLoad>())
-                .Select(doc => new DashboardDoctorLoadViewModel(doc)));
-
-        ApplySpecies(snapshot.Species ?? System.Array.Empty<DashboardSpecies>());
+    private void Publish(PreparedDashboard next)
+    {
+        // The coordinator resumes on the UI dispatcher. Update backing state first, then ONE reset notification:
+        // every observer reads a complete new state, never a mix of old rows and new chart/species.
+        _presentation = next;
+        _primaryListTitle = next.Snapshot.PrimaryListTitle;
+        _secondaryListTitle = next.Snapshot.SecondaryListTitle;
+        _hasDoctorWorkload = next.Snapshot.DoctorLoads is not null;
+        _hasSpecies = next.Snapshot.Species is not null;
+        _revenuePulse = next.Snapshot.RevenuePulse;
+        _revenueAreaGeometry = next.Chart.Area;
+        _revenueLineGeometry = next.Chart.Line;
+        _revenueZeroLineGeometry = next.Chart.Zero;
+        _revenueTooltip = next.Tooltip;
+        _speciesBaseTotal = _speciesTotal = next.Total;
+        _speciesBaseSub = _speciesTotalSub = next.Sub;
+        _speciesTotalLabel = "کل بیماران فعال";
+        _speciesCenterBrush = null;
+        _isSpeciesDimmed = false;
+        _speciesActiveIndex = -1;
+        _speciesSlices = next.Slices;
+        OnPropertyChanged(string.Empty);
     }
 
     private static string RevenueTooltipText(DashboardRevenuePulse? pulse)
@@ -262,15 +337,12 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     // Builds the area + line + zero-line geometry from the signed, zero-containing pulse domain. The area closes
     // to the zero baseline (not the canvas bottom), so negative days visibly fall below it.
-    private void BuildRevenueChart(DashboardRevenuePulse? pulse)
+    private static ChartGeometry BuildRevenueChart(DashboardRevenuePulse? pulse)
     {
         var layout = RevenueChartMath.Build(pulse?.Points, pulse?.ZeroLevel ?? 0);
         if (layout is not { } chart)
         {
-            RevenueAreaGeometry = null;
-            RevenueLineGeometry = null;
-            RevenueZeroLineGeometry = null;
-            return;
+            return new(null, null, null);
         }
 
         var count = chart.X.Length;
@@ -282,7 +354,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
             for (var i = 1; i < count; i++) context.LineTo(new Avalonia.Point(chart.X[i], chart.Y[i]));
             context.EndFigure(false);
         }
-        RevenueLineGeometry = line;
+
 
         var area = new Avalonia.Media.StreamGeometry();
         using (var context = area.Open())
@@ -292,7 +364,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
             context.LineTo(new Avalonia.Point(chart.X[count - 1], chart.ZeroY));
             context.EndFigure(true);
         }
-        RevenueAreaGeometry = area;
+
 
         var zero = new Avalonia.Media.StreamGeometry();
         using (var context = zero.Open())
@@ -301,32 +373,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
             context.LineTo(new Avalonia.Point(RevenueChartMath.Width, chart.ZeroY));
             context.EndFigure(false);
         }
-        RevenueZeroLineGeometry = zero;
-    }
-
-    private void ApplySpecies(IReadOnlyList<DashboardSpecies> species)
-    {
-        var rows = new DashboardSpeciesViewModel[species.Count];
-        var total = species.Sum(s => s.Count);
-        for (var i = 0; i < species.Count; i++)
-        {
-            var s = species[i];
-            var pct = total <= 0 ? 0 : (double)s.Count / total;
-            rows[i] = new DashboardSpeciesViewModel(i, s, pct);
-        }
-        Species.ReplaceAll(rows);
-
-        _speciesBaseTotal = Localization.PersianNumberFormatter.FormatGrouped(total);
-        _speciesBaseSub = Localization.PersianNumberFormatter.ToPersianDigits(
-            species.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)) + " گونه ثبت‌شده";
-
-        SpeciesTotal = _speciesBaseTotal;
-        SpeciesTotalLabel = "کل بیماران فعال";
-        SpeciesTotalSub = _speciesBaseSub;
-        SpeciesCenterBrush = Controls.BrushCache.Solid("#101828");
-        IsSpeciesDimmed = false;
-        SpeciesActiveIndex = -1;
-        SpeciesSlices = BuildSpeciesSlices(species);
+        return new(area, line, zero);
     }
 
     // Maps the species snapshot to the immutable slice records the ring control

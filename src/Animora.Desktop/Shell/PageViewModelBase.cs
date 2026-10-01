@@ -35,4 +35,13 @@ public abstract partial class PageViewModelBase : ObservableObject
     public virtual void OnNavigatedTo()
     {
     }
+
+    /// <summary>
+    /// Called when another page replaces this one as the current page (never when navigation to this page is
+    /// denied, and never when the destination is this same page). Pages that run background work, timers or
+    /// in-flight loads for their visible lifetime stop them here; the default is a no-op.
+    /// </summary>
+    public virtual void OnNavigatedFrom()
+    {
+    }
 }
