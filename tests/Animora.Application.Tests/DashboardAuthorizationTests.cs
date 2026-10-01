@@ -76,7 +76,7 @@ public sealed class DashboardAuthorizationTests
             case "expire": host.Clock.Advance(TimeSpan.FromDays(7)); break;
             case "signout": host.Cache.Set(null); break;
         }
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetSnapshotAsync(UserRole.Manager));
+        await Assert.ThrowsAsync<Animora.Contracts.Dashboard.DashboardQueryException>(() => service.GetSnapshotAsync(UserRole.Manager));
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public sealed class DashboardAuthorizationTests
         await ChangeMemberAsync(host, member => member.ChangeRole((StaffRole)999));
         host.Cache.Set(host.Cache.Current! with { Role = (StaffRole)999 });
         var service = new DashboardQueryService(host.Services.GetRequiredService<IServiceScopeFactory>());
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetSnapshotAsync(UserRole.Manager));
+        await Assert.ThrowsAsync<Animora.Contracts.Dashboard.DashboardQueryException>(() => service.GetSnapshotAsync(UserRole.Manager));
     }
 
     [Fact]

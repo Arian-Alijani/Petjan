@@ -149,6 +149,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         var failure = exception as DashboardQueryException;
         if (failure?.Kind is DashboardFailureKind.SessionExpired or DashboardFailureKind.PermissionDenied)
         {
+            _refresh.Reset();
             ClearPresentation(); // Revocation must not leave previously authorized data visible.
         }
         CanRetry = failure?.CanRetry ?? false;
