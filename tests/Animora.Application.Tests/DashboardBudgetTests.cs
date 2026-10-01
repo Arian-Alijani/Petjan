@@ -80,6 +80,13 @@ public sealed class DashboardBudgetTests
         await fixture.MigrateAsync();
         using var scope = fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var emptyQueries = new DashboardQueries(db);
+        var empty = await emptyQueries.GetSliceAsync(fixture.TenantId, Window, "cashier", TestAccess(UserRole.Cashier), default);
+        Assert.Empty(empty.OpenInvoiceRows!);
+        Assert.Empty(empty.ReadyBillingRows!);
+        var emptyDoctor = await emptyQueries.GetSliceAsync(fixture.TenantId, Window, "doc-A", TestAccess(UserRole.Doctor), default);
+        Assert.Empty(emptyDoctor.Appointments!);
+        Assert.Empty(emptyDoctor.ReminderRows!);
         var owner = Owner.Register(fixture.TenantId, "مالک", "09120000001", fixture.Clock);
         var pet = Pet.Register(fixture.TenantId, owner.Id, "بیمار", PetSpecies.Dog, fixture.Clock);
         db.AddRange(owner, pet);
@@ -105,7 +112,12 @@ public sealed class DashboardBudgetTests
         billed.MarkInvoiced(invoice.Id);
         var vaccine = Animora.Domain.Clinical.VaccinationRecord.Administer(fixture.TenantId, pet.Id, "DHPP", "واکسن",
             1, Window.StartUtc.AddDays(-21), "doc-B", fixture.Clock).Value!;
-        db.AddRange(appointment, cancelled, invoice, ready, billed, vaccine);
+        var completedVaccine = Animora.Domain.Clinical.VaccinationRecord.Administer(fixture.TenantId, pet.Id, "RABIES", "انجام شده",
+            1, Window.StartUtc.AddDays(-400), "doc-B", fixture.Clock).Value!;
+        db.Add(new Animora.Domain.Clinical.MedicalHistoryEntry(fixture.TenantId, pet.Id,
+            Animora.Domain.Clinical.MedicalHistoryKind.Vaccination, "Dose administered", Window.StartUtc,
+            "receptionist", fixture.Clock, sourceEntityId: completedVaccine.Id));
+        db.AddRange(appointment, cancelled, invoice, ready, billed, vaccine, completedVaccine);
         for (var i = 0; i < 90; i++)
             db.Add(ActivityEvent.Create(fixture.TenantId, Window.StartUtc.AddHours(12), Today, "Inventory",
                 "history.inventory.changed", "{}", "Inventory", $"stock-{i}", 0, 0, "Done", "receptionist", "پذیرش", null));
