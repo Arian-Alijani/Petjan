@@ -53,6 +53,8 @@ public sealed class DashboardRefreshCoordinator<TView> : IDisposable where TView
     /// <summary>The snapshot most recently published.</summary>
     public DashboardSnapshot? Current { get; private set; }
 
+    public DateTimeOffset? LastUpdated { get; private set; }
+
     /// <summary>A visit began: supersede anything in flight and guarantee a refresh for this visit.</summary>
     public Task ActivateAsync()
     {
@@ -92,6 +94,7 @@ public sealed class DashboardRefreshCoordinator<TView> : IDisposable where TView
         {
             changed = CancelLocked();
             Current = null;
+            LastUpdated = null;
         }
         if (changed) StateChanged?.Invoke();
     }
@@ -189,6 +192,7 @@ public sealed class DashboardRefreshCoordinator<TView> : IDisposable where TView
             }
             _publish(view);
             Current = snapshot;
+            LastUpdated = DateTimeOffset.UtcNow;
         }
         catch (OperationCanceledException)
         {

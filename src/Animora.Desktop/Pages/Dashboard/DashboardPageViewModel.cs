@@ -131,9 +131,14 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         return force ? await _dashboard.RefreshSnapshotAsync(Role, ct) : await _dashboard.GetSnapshotAsync(Role, ct);
     }
 
+    public string LastUpdatedText => _refresh.LastUpdated is { } at
+        ? "آخرین دریافت: " + Localization.PersianNumberFormatter.ToPersianDigits(at.ToLocalTime().ToString("HH:mm"))
+        : "اطلاعات هنوز دریافت نشده است";
+
     private void OnRefreshStateChanged()
     {
         IsBusy = _refresh.IsBusy;
+        OnPropertyChanged(nameof(LastUpdatedText));
         if (IsBusy) LoadError = null;
     }
 

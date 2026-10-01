@@ -8,6 +8,7 @@
 
     <StackPanel Margin="26,22,26,40" Spacing="20">
 
+        <TextBlock Text="{Binding LastUpdatedText}" Foreground="{StaticResource MutedBrush}" />
         <Button Content="تازه‌سازی داشبورد" Command="{Binding RefreshCommand}"
                 AutomationProperties.Name="تازه‌سازی اطلاعات داشبورد" HorizontalAlignment="Right" />
 
