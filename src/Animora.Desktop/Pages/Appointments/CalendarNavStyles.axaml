@@ -1,0 +1,60 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      Shared period-navigation buttons (previous / next month, week, range).
+      One component for the calendar toolbar, queue day strip, history calendar and the
+      booking panel mini calendar, so every stepper has the same size, outline and hover.
+      Direction convention (RTL): «قبلی» is the right-hand button and points right,
+      «بعدی» is the left-hand button and points left — see CalendarNavButtons.
+    -->
+    <Style Selector="Button.cal-step">
+        <Setter Property="Width" Value="34" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.cal-step.sm">
+        <Setter Property="Width" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="Button.cal-step /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.cal-step:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+    </Style>
+    <Style Selector="Button.cal-step:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+    </Style>
+    <Style Selector="Button.cal-step Path">
+        <Setter Property="Width" Value="14" />
+        <Setter Property="Height" Value="14" />
+        <Setter Property="StrokeThickness" Value="2.2" />
+        <Setter Property="Stroke" Value="{Binding $parent[Button].Foreground}" />
+        <!-- Never mirror the glyph: Avalonia flips Path geometry under RTL, which reversed the
+             chevrons. Pinning LTR makes «>» always point right and «<» always point left. -->
+        <Setter Property="FlowDirection" Value="LeftToRight" />
+    </Style>
+    <Style Selector="Button.cal-step.sm Path">
+        <Setter Property="Width" Value="12" />
+        <Setter Property="Height" Value="12" />
+    </Style>
+</Styles>

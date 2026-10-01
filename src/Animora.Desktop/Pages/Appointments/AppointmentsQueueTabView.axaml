@@ -45,11 +45,9 @@
 
             <!-- day strip -->
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6" Margin="16,14">
-                <Button Grid.Column="0" Classes="ap-icon" Width="34" Height="34"
-                        Command="{Binding ShiftQueueWeekCommand}" CommandParameter="-1"
+                <Button Grid.Column="0" Classes="cal-step" Command="{Binding ShiftQueueWeekCommand}" CommandParameter="-1"
                         ToolTip.Tip="هفتهٔ قبل">
-                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Ink2Brush}"
-                          Data="{StaticResource IconChevronRight}" />
+                    <Path Classes="icon" Data="{StaticResource IconChevronRight}" />
                 </Button>
                 <ItemsControl Grid.Column="1" ItemsSource="{Binding QueueDays}" HorizontalAlignment="Stretch">
                     <ItemsControl.ItemsPanel>
@@ -77,11 +75,9 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <Button Grid.Column="2" Classes="ap-icon" Width="34" Height="34"
-                        Command="{Binding ShiftQueueWeekCommand}" CommandParameter="1"
+                <Button Grid.Column="2" Classes="cal-step" Command="{Binding ShiftQueueWeekCommand}" CommandParameter="1"
                         ToolTip.Tip="هفتهٔ بعد">
-                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Ink2Brush}"
-                          Data="{StaticResource IconChevronLeft}" />
+                    <Path Classes="icon" Data="{StaticResource IconChevronLeft}" />
                 </Button>
             </Grid>
 

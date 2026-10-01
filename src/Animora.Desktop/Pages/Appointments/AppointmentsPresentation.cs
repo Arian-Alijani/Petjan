@@ -46,6 +46,12 @@ public static class AppointmentsPresentation
     /// <summary>Light tint brush derived from an accent hex, for backgrounds behind accent-coloured text.</summary>
     public static IBrush TintFromAccent(string hex) => Brush(ColorMath.Tint(hex));
 
+    /// <summary>Very light wash of an accent (selected filter chip surface).</summary>
+    public static IBrush SoftFromAccent(string hex) => Brush(ColorMath.Soft(hex));
+
+    /// <summary>Muted outline of an accent for a selected filter chip.</summary>
+    public static IBrush OutlineFromAccent(string hex) => Brush(ColorMath.Outline(hex));
+
     /// <summary>Dark shade brush derived from an accent hex, readable on <see cref="TintFromAccent"/>.</summary>
     public static IBrush ShadeFromAccent(string hex) => Brush(ColorMath.Shade(hex));
 
@@ -54,6 +60,10 @@ public static class AppointmentsPresentation
         public static string Tint(string hex) => Mix(hex, 255, 0.88);
 
         public static string Shade(string hex) => Mix(hex, 0, 0.55);
+
+        public static string Soft(string hex) => Mix(hex, 255, 0.91);
+
+        public static string Outline(string hex) => Mix(hex, 255, 0.58);
 
         private static string Mix(string hex, int target, double amount)
         {

@@ -63,6 +63,7 @@ public sealed class AppointmentEventViewModel
     public string PetName => Model.PetName;
     public string StatusClass => AppointmentsPresentation.StatusClassKey(Model.Status);
     public string TypeClass => Type.ClassKey;
+
     public string StartText => AppointmentsPresentation.Time(Model.StartMinutes);
     public string RangeText => AppointmentsPresentation.Range(Model.StartMinutes, Model.EndMinutes);
     public string TypeLabel => Type.Label;
@@ -315,7 +316,21 @@ public sealed partial class AppointmentTypeChipViewModel : ObservableObject
     public string Label => Type.Label;
     public string TypeClass => Type.ClassKey;
 
+    // Selected state takes a soft wash of the type's own accent instead of one global green.
+    public IBrush ChipBackground => IsActive
+        ? AppointmentsPresentation.SoftFromAccent(Type.Accent)
+        : AppointmentsPresentation.AccentFromHex("#FFFFFF");
+
+    public IBrush ChipBorder => IsActive
+        ? AppointmentsPresentation.OutlineFromAccent(Type.Accent)
+        : AppointmentsPresentation.AccentFromHex("#E5EAEE");
+
+    public IBrush ChipLabel => IsActive
+        ? AppointmentsPresentation.ShadeFromAccent(Type.Accent)
+        : AppointmentsPresentation.AccentFromHex("#667085");
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ChipBackground), nameof(ChipBorder), nameof(ChipLabel))]
     private bool _isActive;
 }
 
@@ -335,7 +350,20 @@ public sealed partial class AppointmentDoctorChipViewModel : ObservableObject
     public string ShortName => Doctor.ShortName;
     public string Initial => Doctor.Initial;
 
+    public IBrush ChipBackground => IsActive
+        ? AppointmentsPresentation.SoftFromAccent(Doctor.Accent)
+        : AppointmentsPresentation.AccentFromHex("#FFFFFF");
+
+    public IBrush ChipBorder => IsActive
+        ? AppointmentsPresentation.OutlineFromAccent(Doctor.Accent)
+        : AppointmentsPresentation.AccentFromHex("#E5EAEE");
+
+    public IBrush ChipLabel => IsActive
+        ? AppointmentsPresentation.ShadeFromAccent(Doctor.Accent)
+        : AppointmentsPresentation.AccentFromHex("#667085");
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ChipBackground), nameof(ChipBorder), nameof(ChipLabel))]
     private bool _isActive;
 }
 

@@ -8,6 +8,7 @@
              Width="980" FlowDirection="RightToLeft">
     <UserControl.Styles>
         <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/BookingPanelStyles.axaml" />
+        <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/CalendarNavStyles.axaml" />
 
         <!-- section card -->
         <Style Selector="Border.xsec">
@@ -289,13 +290,13 @@
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" IsVisible="{Binding IsPickMode}">
                                 <StackPanel Grid.Column="0" Spacing="6" Width="290">
                                     <Grid ColumnDefinitions="Auto,*,Auto">
-                                        <Button Grid.Column="0" Classes="cal-nav-btn" Command="{Binding ShiftPickerMonthCommand}" CommandParameter="-1">
-                                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Ink2Brush}" Data="{StaticResource IconChevronRight}" />
+                                        <Button Grid.Column="0" Classes="cal-step sm" Command="{Binding ShiftPickerMonthCommand}" CommandParameter="-1">
+                                            <Path Classes="icon" Data="{StaticResource IconChevronRight}" />
                                         </Button>
                                         <TextBlock Grid.Column="1" Text="{Binding PickerTitle}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    FontWeight="ExtraBold" FontSize="13" Foreground="{StaticResource InkBrush}" />
-                                        <Button Grid.Column="2" Classes="cal-nav-btn" Command="{Binding ShiftPickerMonthCommand}" CommandParameter="1">
-                                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Ink2Brush}" Data="{StaticResource IconChevronLeft}" />
+                                        <Button Grid.Column="2" Classes="cal-step sm" Command="{Binding ShiftPickerMonthCommand}" CommandParameter="1">
+                                            <Path Classes="icon" Data="{StaticResource IconChevronLeft}" />
                                         </Button>
                                     </Grid>
                                     <ItemsControl ItemsSource="{Binding PickerWeekdayHeaders}">

@@ -94,24 +94,16 @@
                     BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="16,14">
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="10">
-                        <Button Grid.Column="0" Classes="ap-icon" Width="32" Height="32"
-                                Background="{StaticResource PanelBrush}" BorderThickness="1"
-                                BorderBrush="{StaticResource LineBrush}"
-                                Command="{Binding HistoryCalendarStepCommand}" CommandParameter="1"
+                        <Button Grid.Column="0" Classes="cal-step" Command="{Binding HistoryCalendarStepCommand}" CommandParameter="1"
                                 ToolTip.Tip="ماه قبل">
-                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Ink2Brush}"
-                                  Data="{StaticResource IconChevronRight}" />
+                            <Path Classes="icon" Data="{StaticResource IconChevronRight}" />
                         </Button>
                         <TextBlock Grid.Column="1" Text="{Binding HistoryCalendarLabel}" FontSize="15"
                                    FontWeight="ExtraBold" VerticalAlignment="Center" MinWidth="130"
                                    TextAlignment="Center" Foreground="{StaticResource InkBrush}" />
-                        <Button Grid.Column="2" Classes="ap-icon" Width="32" Height="32"
-                                Background="{StaticResource PanelBrush}" BorderThickness="1"
-                                BorderBrush="{StaticResource LineBrush}"
-                                Command="{Binding HistoryCalendarStepCommand}" CommandParameter="-1"
+                        <Button Grid.Column="2" Classes="cal-step" Command="{Binding HistoryCalendarStepCommand}" CommandParameter="-1"
                                 ToolTip.Tip="ماه بعد">
-                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Ink2Brush}"
-                                  Data="{StaticResource IconChevronLeft}" />
+                            <Path Classes="icon" Data="{StaticResource IconChevronLeft}" />
                         </Button>
                         <Button Grid.Column="4" Classes="ap-chip" Command="{Binding HistoryCalendarTodayCommand}">
                             <TextBlock Text="امروز" />

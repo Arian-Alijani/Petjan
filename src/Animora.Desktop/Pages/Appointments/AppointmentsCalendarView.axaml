@@ -7,6 +7,7 @@
              x:DataType="ap:AppointmentsCalendarViewModel"
              FlowDirection="RightToLeft">
     <UserControl.Styles>
+        <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/CalendarNavStyles.axaml" />
         <!-- primary tab (pb-seg lg) -->
         <Style Selector="Button.ap-tab">
             <Setter Property="Background" Value="Transparent" />
@@ -83,6 +84,29 @@
         </Style>
         <Style Selector="Button.ap-chip.is-active Border.ap-chip-ct">
             <Setter Property="Background" Value="#33ffffff" />
+        </Style>
+
+        <!-- accent-tinted filter chip (type / doctor): the surface, outline and label colours come
+             from each option's own accent (see ChipBackground/ChipBorder/ChipLabel), so a selected
+             option reads as a soft wash of ITS colour instead of one saturated green. -->
+        <Style Selector="Border.ap-tint">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="20" />
+        </Style>
+        <Style Selector="Button.ap-tint-tap">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.ap-tint-tap:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#0A101828" />
+        </Style>
+        <Style Selector="Button.ap-tint-tap:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#14101828" />
         </Style>
 
         <!-- small icon button (nav-btn) -->
@@ -189,7 +213,7 @@
                 <StackPanel Spacing="12">
 
                     <!-- tier 1 · tabs (stretch) + search (fixed 420) -->
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <Grid x:Name="Tier1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <Border Grid.Column="0" Background="{StaticResource Bg2Brush}" CornerRadius="12"
                                 Padding="3" HorizontalAlignment="Stretch">
                             <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="2">
@@ -236,7 +260,7 @@
                         </Border>
 
                         <!-- search (.pb-search) -->
-                        <Grid Grid.Column="1" Width="420" MinWidth="200" VerticalAlignment="Stretch">
+                        <Grid x:Name="SearchHost" Grid.Column="1" Width="420" MinWidth="200" VerticalAlignment="Stretch">
                             <TextBox x:Name="SearchBox" Classes="ap-search"
                                      PlaceholderText="جستجوی بیمار، مالک یا پزشک…"
                                      Text="{Binding SearchQueryText, Mode=TwoWay}"
@@ -261,74 +285,91 @@
                         </Grid>
                     </Grid>
 
-                    <!-- tier 2 · appointment type + doctor, ONE row (calendar only) -->
+                    <!-- tier 2 · appointment type + doctor (calendar only). Groups sit on ONE row
+                         when there is room and wrap onto the next row when the window narrows;
+                         the chips inside each group wrap too, so nothing overlaps or clips. -->
                     <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
                             Padding="0,12,0,0" IsVisible="{Binding ShowCalendarChrome}">
-                        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="10">
-                            <TextBlock Grid.Column="0" Text="نوع نوبت" FontSize="11.5" FontWeight="SemiBold"
-                                       VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
-                            <ItemsControl Grid.Column="1" ItemsSource="{Binding TypeChips}" VerticalAlignment="Center">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" Spacing="6" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="ap:AppointmentTypeChipViewModel">
-                                        <Button Classes="ap-chip" Classes.is-active="{Binding IsActive}"
-                                                Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).ToggleTypeCommand}"
-                                                CommandParameter="{Binding}">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                                                         Fill="{Binding Type.Accent, Converter={StaticResource HexBrushConverter}}" />
-                                                <TextBlock Text="{Binding Label}" />
-                                                <Border Classes="ap-chip-ct">
-                                                    <TextBlock Text="{Binding CountText}" FontSize="10" FontWeight="ExtraBold"
-                                                               Foreground="{StaticResource Muted2Brush}"
-                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <WrapPanel Grid.Column="0" Orientation="Horizontal" ItemSpacing="22" LineSpacing="8">
+                                <DockPanel LastChildFill="True">
+                                    <TextBlock DockPanel.Dock="Left" Text="نوع نوبت" FontSize="11.5" FontWeight="SemiBold"
+                                               VerticalAlignment="Top" Margin="0,8,10,0"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                    <ItemsControl ItemsSource="{Binding TypeChips}" VerticalAlignment="Center">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="ap:AppointmentTypeChipViewModel">
+                                                <Border Classes="ap-tint"
+                                                        Background="{Binding ChipBackground}"
+                                                        BorderBrush="{Binding ChipBorder}">
+                                                    <Button Classes="ap-tint-tap"
+                                                            Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).ToggleTypeCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                                     Fill="{Binding Type.Accent, Converter={StaticResource HexBrushConverter}}" />
+                                                            <TextBlock Text="{Binding Label}" Foreground="{Binding ChipLabel}"
+                                                                       VerticalAlignment="Center" />
+                                                            <Border Classes="ap-chip-ct">
+                                                                <TextBlock Text="{Binding CountText}" FontSize="10" FontWeight="ExtraBold"
+                                                                           Foreground="{StaticResource Muted2Brush}"
+                                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Button>
                                                 </Border>
-                                            </StackPanel>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </DockPanel>
 
-                            <Border Grid.Column="2" Width="1" Height="22" Background="{StaticResource LineBrush}"
-                                    VerticalAlignment="Center" Margin="4,0" />
-
-                            <TextBlock Grid.Column="3" Text="پزشک" FontSize="11.5" FontWeight="SemiBold"
-                                       VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
-                            <ItemsControl Grid.Column="4" ItemsSource="{Binding DoctorChips}" VerticalAlignment="Center">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="ap:AppointmentDoctorChipViewModel">
-                                        <Button Classes="ap-chip" Classes.is-active="{Binding IsActive}"
-                                                Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).ToggleDoctorCommand}"
-                                                CommandParameter="{Binding}">
-                                            <StackPanel Orientation="Horizontal" Spacing="7">
-                                                <Border Width="20" Height="20" CornerRadius="10"
-                                                        Background="{Binding Doctor.Accent, Converter={StaticResource HexBrushConverter}}">
-                                                    <TextBlock Text="{Binding Initial}" FontSize="10" FontWeight="ExtraBold"
-                                                               Foreground="White" HorizontalAlignment="Center"
-                                                               VerticalAlignment="Center" />
+                                <DockPanel LastChildFill="True">
+                                    <TextBlock DockPanel.Dock="Left" Text="پزشک" FontSize="11.5" FontWeight="SemiBold"
+                                               VerticalAlignment="Top" Margin="0,8,10,0"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                    <ItemsControl ItemsSource="{Binding DoctorChips}" VerticalAlignment="Center">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="ap:AppointmentDoctorChipViewModel">
+                                                <Border Classes="ap-tint"
+                                                        Background="{Binding ChipBackground}"
+                                                        BorderBrush="{Binding ChipBorder}">
+                                                    <Button Classes="ap-tint-tap"
+                                                            Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).ToggleDoctorCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                                            <Border Width="20" Height="20" CornerRadius="10"
+                                                                    Background="{Binding Doctor.Accent, Converter={StaticResource HexBrushConverter}}">
+                                                                <TextBlock Text="{Binding Initial}" FontSize="10" FontWeight="ExtraBold"
+                                                                           Foreground="White" HorizontalAlignment="Center"
+                                                                           VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <TextBlock Text="{Binding ShortName}" Foreground="{Binding ChipLabel}"
+                                                                       VerticalAlignment="Center" />
+                                                            <Border Classes="ap-chip-ct">
+                                                                <TextBlock Text="{Binding CountText}" FontSize="10" FontWeight="ExtraBold"
+                                                                           Foreground="{StaticResource Muted2Brush}"
+                                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Button>
                                                 </Border>
-                                                <TextBlock Text="{Binding ShortName}" />
-                                                <Border Classes="ap-chip-ct">
-                                                    <TextBlock Text="{Binding CountText}" FontSize="10" FontWeight="ExtraBold"
-                                                               Foreground="{StaticResource Muted2Brush}"
-                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
-                                            </StackPanel>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </DockPanel>
+                            </WrapPanel>
 
-                            <Button Grid.Column="5" VerticalAlignment="Center" Classes="ap-chip"
+                            <Button Grid.Column="1" VerticalAlignment="Top" Classes="ap-chip"
                                     Command="{Binding ToggleHideCancelCommand}">
                                 <TextBlock Text="پنهان‌کردن لغوشده‌ها" />
                             </Button>
@@ -364,26 +405,18 @@
                                 </StackPanel>
                             </Border>
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
-                                        BorderThickness="1" CornerRadius="10" Padding="2" Height="34">
-                                    <StackPanel Orientation="Horizontal" Spacing="2">
-                                        <!-- RTL: «قبلی» sits on the right and points right, «بعدی» on the left pointing left
-                                             (same convention as the booking panel and history calendars). -->
-                                        <Button Classes="ap-icon" Width="32" Height="28" Command="{Binding StepPreviousCommand}"
-                                                ToolTip.Tip="بازه قبلی">
-                                            <Path Classes="icon" Width="16" Height="16"
-                                                  Stroke="{Binding $parent[Button].Foreground}"
-                                                  Data="{StaticResource IconChevronRight}" />
-                                        </Button>
-                                        <Border Width="1" Margin="0,6" Background="{StaticResource Line2Brush}" />
-                                        <Button Classes="ap-icon" Width="32" Height="28" Command="{Binding StepNextCommand}"
-                                                ToolTip.Tip="بازه بعدی">
-                                            <Path Classes="icon" Width="16" Height="16"
-                                                  Stroke="{Binding $parent[Button].Foreground}"
-                                                  Data="{StaticResource IconChevronLeft}" />
-                                        </Button>
-                                    </StackPanel>
-                                </Border>
+                                <!-- RTL: «قبلی» is the right-hand button pointing right, «بعدی» the
+                                     left-hand one pointing left (glyphs are pinned LTR in cal-step). -->
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <Button Classes="cal-step" Command="{Binding StepPreviousCommand}"
+                                            ToolTip.Tip="بازه قبلی">
+                                        <Path Classes="icon" Data="{StaticResource IconChevronRight}" />
+                                    </Button>
+                                    <Button Classes="cal-step" Command="{Binding StepNextCommand}"
+                                            ToolTip.Tip="بازه بعدی">
+                                        <Path Classes="icon" Data="{StaticResource IconChevronLeft}" />
+                                    </Button>
+                                </StackPanel>
                                 <Button Command="{Binding GoTodayCommand}" Classes="ap-today"
                                         ToolTip.Tip="بازگشت به امروز (T)">
                                     <StackPanel Orientation="Horizontal" Spacing="6">

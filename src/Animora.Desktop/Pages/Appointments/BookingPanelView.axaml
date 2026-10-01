@@ -9,6 +9,7 @@
              ClipToBounds="True">
     <UserControl.Styles>
         <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/BookingPanelStyles.axaml" />
+        <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/CalendarNavStyles.axaml" />
     </UserControl.Styles>
 
     <Border Background="{StaticResource PanelBrush}" CornerRadius="28" ClipToBounds="True">
@@ -390,20 +391,16 @@
                                             <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,9">
                                                 <TextBlock Grid.Column="0" Text="{Binding CalendarLabel}"
                                                            FontSize="13" FontWeight="ExtraBold" VerticalAlignment="Center" />
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3">
-                                                    <Button Classes="cal-nav-btn"
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                                    <Button Classes="cal-step sm"
                                                             Command="{Binding StepMonthCommand}" CommandParameter="-1"
                                                             ToolTip.Tip="ماه قبل">
-                                                        <Path Classes="icon" Width="14" Height="14"
-                                                              Stroke="{Binding $parent[Button].Foreground}"
-                                                              Data="{StaticResource IconChevronRight}" />
+                                                        <Path Classes="icon" Data="{StaticResource IconChevronRight}" />
                                                     </Button>
-                                                    <Button Classes="cal-nav-btn"
+                                                    <Button Classes="cal-step sm"
                                                             Command="{Binding StepMonthCommand}" CommandParameter="1"
                                                             ToolTip.Tip="ماه بعد">
-                                                        <Path Classes="icon" Width="14" Height="14"
-                                                              Stroke="{Binding $parent[Button].Foreground}"
-                                                              Data="{StaticResource IconChevronLeft}" />
+                                                        <Path Classes="icon" Data="{StaticResource IconChevronLeft}" />
                                                     </Button>
                                                 </StackPanel>
                                             </Grid>
