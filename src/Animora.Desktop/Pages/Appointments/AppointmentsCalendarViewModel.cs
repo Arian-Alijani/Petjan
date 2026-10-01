@@ -368,8 +368,13 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     }
 
     // ── lookup helpers (typeOf / docOf) ──────────────────────────────────────
+    // An appointment can outlive its type (a custom type removed in Settings): show it as a neutral
+    // «نوع حذف‌شده» instead of failing the whole render.
+    private static readonly AppointmentType RemovedType =
+        new("removed", "نوع حذف‌شده", "removed", "#98a2b3", "#eef2f0", "#536b68", "calendar", 30);
+
     private AppointmentType TypeOf(string id) =>
-        _typeById.TryGetValue(id, out var t) ? t : _types.First(x => x.Id == id);
+        _typeById.TryGetValue(id, out var t) ? t : _types.FirstOrDefault(x => x.Id == id) ?? RemovedType;
 
     private AppointmentDoctor DocOf(string id) =>
         _doctorById.TryGetValue(id, out var d) ? d : _doctors.First(x => x.Id == id);
@@ -431,7 +436,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private bool Visible(AppointmentEvent a)
     {
-        if (!_activeTypeIds.Contains(a.TypeId) || !_activeDoctorIds.Contains(a.DoctorId))
+        // Appointments of a removed type have no filter chip, so they must stay visible rather than vanish.
+        var typeVisible = !_typeById.ContainsKey(a.TypeId) || _activeTypeIds.Contains(a.TypeId);
+        if (!typeVisible || !_activeDoctorIds.Contains(a.DoctorId))
         {
             return false;
         }
