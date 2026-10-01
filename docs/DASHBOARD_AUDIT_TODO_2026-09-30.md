@@ -338,7 +338,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D25 propagate cancellation through activation"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D26 — failureهای typed به یک پیام عمومی تبدیل می‌شوند
-- [ ] وضعیت: باز | P2 | گزارش 26 | نتیجه: قطعی | وابستگی: D25.
+- [x] وضعیت: انجام‌شده | P2 | گزارش 26 | نتیجه: قطعی | وابستگی: D25.
+- شواهد اجرای 2026-10-01: `DashboardQueryException` در Contracts با session/permission/store/unexpected و correlation opaque؛ OCE دست‌نخورده. service failureهای context/policy/dispatcher/probe/mapping را با دسته امن log می‌کند؛ exception/payload/SQL/PII وارد log یا پیام نمی‌شود. denial/expiry داده قدیمی را پاک می‌کند؛ retry تنها store recovery. `DashboardLifecycleTests|DashboardAuthorizationTests`: **32 passed، 0 failed** (log محدود همین اجرا)، شامل 5 دسته پیام/unknown امن، session واقعی، revoke cache گرم و cancellation. guard نخست 60ثانیه هنگام compilation خاتمه یافت؛ incremental rerun با سقف 90ثانیه موفق بود، نه full test. PR [#185](https://github.com/Arian-Alijani/Petjan/pull/185).
 - شواهد: `DashboardQueryService.cs:34,44`؛ `DashboardPageViewModel.cs:82–85`؛ version/mapping بیرون dispatcher هستند.
 - اقدام: outcome typed یا exception مشخص با error code امن از Client.Services به Contracts؛ session expiry/permission/store/cancel/unexpected جدا. logging ساختاریافته با correlation برای probe/mapping failures، نه render/timer/per-item؛ خطای برنامه‌نویسی فقط retry generic پنهان نشود. JSON/Id/PII/stack خام به UI نرود.
 - پذیرش/بررسی محدود: پنج حالت خطا پیام/رفتار متفاوت و correlation ثبت‌شده مناسب داشته باشند؛ cancel بی‌صدا؛ raw detail مالی/هویتی یا exception داخلی در پیام کاربر/log بدون redaction نباشد؛ retry فقط برای موارد قابل‌بازیابی.
