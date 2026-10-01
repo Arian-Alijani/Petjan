@@ -21,11 +21,16 @@ public sealed record DashboardReceipts(long Gross, long Refunds, string Currency
 {
     public long Net => checked(Gross - Refunds);
 }
+public sealed record DashboardOperationalRow(string Kind, string Name, string OwnerName,
+    DateTimeOffset AtUtc, string State, string Reference = "");
 public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     IReadOnlyList<DashboardActivity> Activity, IReadOnlyList<DashboardWorkload> Workloads,
     IReadOnlyDictionary<string, int> Species, int OpenInvoices, int LowStockCount, int QueueCount,
     DashboardActivityTotals? ActivityTotals = null, IReadOnlyList<DashboardAppointment>? Appointments = null,
-    DashboardAccess? Access = null, DashboardReceipts? Receipts = null);
+    DashboardAccess? Access = null, DashboardReceipts? Receipts = null,
+    IReadOnlyList<DashboardOperationalRow>? OpenInvoiceRows = null,
+    IReadOnlyList<DashboardOperationalRow>? ReadyBillingRows = null,
+    IReadOnlyList<DashboardOperationalRow>? ReminderRows = null);
 
 /// <summary>The local day and its half-open UTC range, resolved once using ClinicCalendar.</summary>
 public sealed record DashboardDayWindow(int LocalDay, DateTimeOffset StartUtc, DateTimeOffset EndUtc)

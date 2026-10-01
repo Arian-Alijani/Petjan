@@ -26,6 +26,12 @@ internal static class PaymentReceiptQuery
             || p.Method == PaymentMethod.Cheque || p.Method == PaymentMethod.Wallet || p.Method == PaymentMethod.Insurance));
 }
 
+internal static class InvoiceOpenQuery
+{
+    internal static IQueryable<Invoice> OpenInvoices(this IQueryable<Invoice> invoices) => invoices.Where(i =>
+        i.State == InvoiceState.Draft || i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid);
+}
+
 public sealed class CashierQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOptions> options) : ICashierQueries
 {
     public Task<PagedResult<InvoiceSummaryReadModel>> GetInvoicesAsync(CashierInvoiceTab tab, int page, int pageSize, CancellationToken ct)
@@ -33,7 +39,7 @@ public sealed class CashierQueries(AnimoraLocalDbContext db, IOptions<LocalStore
         var invoices = db.Set<Invoice>().AsNoTracking();
         invoices = tab switch
         {
-            CashierInvoiceTab.Open => invoices.Where(i => i.State == InvoiceState.Draft || i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid),
+            CashierInvoiceTab.Open => invoices.OpenInvoices(),
             CashierInvoiceTab.Settled => invoices.Where(i => i.State == InvoiceState.Paid),
             CashierInvoiceTab.Void => invoices.Where(i => i.State == InvoiceState.Void || i.State == InvoiceState.Refunded),
             _ => invoices,

@@ -1,64 +1,83 @@
 using System;
+using Animora.Contracts.Identity;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Shell;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Desktop.Services;
 
-/// <summary>
-/// Default <see cref="INavigationService"/>: resolves page ViewModels from
-/// the DI container so each navigation gets a fully-injected instance.
-/// Registered as a singleton in the composition root.
-/// </summary>
+/// <summary>Central page admission; denied pages are never resolved or configured.</summary>
 public sealed partial class NavigationService : ObservableObject, INavigationService
 {
     private readonly IServiceProvider _services;
+    private readonly ICapabilityGate _gate;
+    private readonly IToastService _toast;
 
     [ObservableProperty]
     private PageViewModelBase? _currentViewModel;
 
-    public NavigationService(IServiceProvider services) => _services = services;
+    public NavigationService(IServiceProvider services, ICapabilityGate gate, IToastService toast)
+    {
+        _services = services;
+        _gate = gate;
+        _toast = toast;
+    }
 
     public event EventHandler? CurrentViewModelChanged;
 
-    public TViewModel NavigateTo<TViewModel>() where TViewModel : PageViewModelBase =>
-        (TViewModel)NavigateTo(typeof(TViewModel));
+    public TViewModel? NavigateTo<TViewModel>() where TViewModel : PageViewModelBase =>
+        (TViewModel?)NavigateTo(typeof(TViewModel));
 
-    public TViewModel NavigateTo<TViewModel>(Action<TViewModel> configure) where TViewModel : PageViewModelBase
+    public TViewModel? NavigateTo<TViewModel>(Action<TViewModel> configure) where TViewModel : PageViewModelBase
     {
-        var viewModel = (TViewModel)_services.GetRequiredService(typeof(TViewModel));
+        ArgumentNullException.ThrowIfNull(configure);
+        if (!Admit(typeof(TViewModel))) return null;
+        var viewModel = _services.GetRequiredService<TViewModel>();
         configure(viewModel);
+        if (!Admit(typeof(TViewModel))) return null;
         CurrentViewModel = viewModel;
         return viewModel;
     }
 
-    public async Task<TViewModel> NavigateToAsync<TViewModel>(Func<TViewModel, Task> configure)
+    public async Task<TViewModel?> NavigateToAsync<TViewModel>(Func<TViewModel, Task> configure)
         where TViewModel : PageViewModelBase
     {
-        var viewModel = (TViewModel)_services.GetRequiredService(typeof(TViewModel));
-        // Await the configure step (the drill-in record load) before switching the
-        // shell, so the page is fully hydrated on first paint and the UI thread is
-        // never blocked (PERFORMANCE.md §4).
+        ArgumentNullException.ThrowIfNull(configure);
+        if (!Admit(typeof(TViewModel))) return null;
+        var viewModel = _services.GetRequiredService<TViewModel>();
         await configure(viewModel);
+        // Authority can change while record hydration is awaited.
+        if (!Admit(typeof(TViewModel))) return null;
         CurrentViewModel = viewModel;
         return viewModel;
     }
 
-    public PageViewModelBase NavigateTo(Type viewModelType)
+    public PageViewModelBase? NavigateTo(Type viewModelType, string? navigationKey = null,
+        Action<PageViewModelBase>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(viewModelType);
-
+        if (!Admit(viewModelType, navigationKey)) return null;
         var viewModel = (PageViewModelBase)_services.GetRequiredService(viewModelType);
+        configure?.Invoke(viewModel);
+        if (!Admit(viewModelType, navigationKey)) return null;
         CurrentViewModel = viewModel;
         return viewModel;
+    }
+
+    private bool Admit(Type page, string? navigationKey = null)
+    {
+        var defaultKey = NavPermissions.KeyFor(page);
+        var key = navigationKey ?? defaultKey;
+        // The expense and reports entries intentionally share one page type.
+        var matches = key == defaultKey || (defaultKey == "reports" && key == "expense");
+        if (matches && key is not null && NavPermissions.For(key) is { } code && _gate.Can(code)) return true;
+        _toast.Show("اجازه ورود به این بخش را ندارید یا دسترسی شما منقضی شده است.", Tone.Warn);
+        return false;
     }
 
     partial void OnCurrentViewModelChanged(PageViewModelBase? value)
     {
-        // Singleton page ViewModels only load once (in their constructor), so
-        // signal every activation to let the page refresh data it may share
-        // with other screens (doctors, appointments, …). Kept in the property
-        // setter so it fires for all NavigateTo overloads uniformly.
         value?.OnNavigatedTo();
         CurrentViewModelChanged?.Invoke(this, EventArgs.Empty);
     }

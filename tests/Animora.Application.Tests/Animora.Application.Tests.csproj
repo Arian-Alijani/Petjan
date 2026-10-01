@@ -10,6 +10,7 @@
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
     <!-- B01: real SqliteException / DbUpdateConcurrencyException for the ErrorMapping table (tests only). -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
   </ItemGroup>
@@ -25,6 +26,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Exercise the production navigation code without starting Avalonia or loading pages. -->
+    <Compile Include="../../src/Animora.Desktop/Services/NavigationService.cs" Link="Navigation/NavigationService.cs" />
+    <Compile Include="../../src/Animora.Desktop/Services/INavigationService.cs" Link="Navigation/INavigationService.cs" />
+    <Compile Include="../../src/Animora.Desktop/Services/IToastService.cs" Link="Navigation/IToastService.cs" />
+    <Compile Include="../../src/Animora.Desktop/Controls/Tone.cs" Link="Navigation/Tone.cs" />
+    <Compile Include="../../src/Animora.Desktop/Shell/PageViewModelBase.cs" Link="Navigation/PageViewModelBase.cs" />
+    <Compile Include="../../src/Animora.Desktop/Shell/NavPermissions.cs" Link="Navigation/NavPermissions.cs" />
     <EmbeddedResource Include="../../src/Animora.Desktop/App.axaml.cs" LogicalName="C11.AppStartup" />
     <EmbeddedResource Include="../../src/Animora.Desktop/Pages/Profile/ProfilePageView.axaml" LogicalName="Settings.View" />
   </ItemGroup>

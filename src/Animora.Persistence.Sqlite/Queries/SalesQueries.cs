@@ -14,26 +14,45 @@ using Microsoft.Extensions.Options;
 
 namespace Animora.Persistence.Sqlite.Queries;
 
+internal sealed class ReadyBillingProjection
+{
+    public string Id { get; init; } = "";
+    public string Source { get; init; } = "";
+    public string OwnerId { get; init; } = "";
+    public string OwnerName { get; init; } = "";
+    public string PetId { get; init; } = "";
+    public string PetName { get; init; } = "";
+    public string DoctorId { get; init; } = "";
+    public DateTimeOffset CompletedUtc { get; init; }
+    public string LinesJson { get; init; } = "";
+
+    // Scalar member initializers keep both UNION legs translatable before the final record projection.
+    internal static IQueryable<ReadyBillingProjection> Query(AnimoraLocalDbContext db)
+    {
+        var visits = from h in db.Set<VisitBillingHandoff>().AsNoTracking()
+            where h.Status == HandoffStatus.Ready
+            join o in db.Set<Owner>().AsNoTracking() on h.OwnerId equals o.Id
+            join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
+            select new ReadyBillingProjection { Id = h.Id, Source = "Visit", OwnerId = h.OwnerId,
+                OwnerName = o.FullName, PetId = h.PetId, PetName = p.Name, DoctorId = h.DoctorId,
+                CompletedUtc = h.CompletedUtc, LinesJson = h.LinesJson };
+        var stays = from h in db.Set<BoardingBillingHandoff>().AsNoTracking()
+            where h.Status == HandoffStatus.Ready
+            join o in db.Set<Owner>().AsNoTracking() on h.OwnerId equals o.Id
+            join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
+            select new ReadyBillingProjection { Id = h.Id, Source = "Boarding", OwnerId = h.OwnerId,
+                OwnerName = o.FullName, PetId = h.PetId, PetName = p.Name, DoctorId = h.DoctorId,
+                CompletedUtc = h.CompletedUtc, LinesJson = h.LinesJson };
+        return visits.Concat(stays);
+    }
+}
+
 /// <summary>Bounded sales projections; global tenant filters apply to every domain set.</summary>
 public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOptions> options) : ISalesQueries
 {
     public async Task<IReadOnlyList<ReadyForBillingReadModel>> GetReadyForBillingAsync(CancellationToken ct)
     {
-        var visits = from h in db.Set<VisitBillingHandoff>().AsNoTracking()
-                     where h.Status == HandoffStatus.Ready
-                     join o in db.Set<Owner>().AsNoTracking() on h.OwnerId equals o.Id
-                     join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
-                     select new { h.Id, Source = "Visit", h.OwnerId, OwnerName = o.FullName,
-                         h.PetId, PetName = p.Name, h.DoctorId, h.CompletedUtc, h.LinesJson };
-        var stays = from h in db.Set<BoardingBillingHandoff>().AsNoTracking()
-                    where h.Status == HandoffStatus.Ready
-                    join o in db.Set<Owner>().AsNoTracking() on h.OwnerId equals o.Id
-                    join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
-                    select new { h.Id, Source = "Boarding", h.OwnerId, OwnerName = o.FullName,
-                        h.PetId, PetName = p.Name, h.DoctorId, h.CompletedUtc, h.LinesJson };
-        // Keep the UNION ALL, ordering and bound server-side. Constructing a positional
-        // record before the set operation makes its member accesses untranslatable in EF.
-        return await visits.Concat(stays).OrderByDescending(h => h.CompletedUtc)
+        return await ReadyBillingProjection.Query(db).OrderByDescending(h => h.CompletedUtc)
             .ThenBy(h => h.Id).Take(100)
             .Select(h => new ReadyForBillingReadModel(h.Id, h.Source, h.OwnerId, h.OwnerName,
                 h.PetId, h.PetName, h.DoctorId, h.CompletedUtc, h.LinesJson)).ToListAsync(ct);
