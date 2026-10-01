@@ -3,10 +3,10 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
-- **11 از 44 تسک انجام‌شده: D01، D02، D03، D11، D13، D14، D15، D32، D39، D41، D43. 33 تسک دیگر باز هستند.** این جلسه 8 تسک جدید را تکمیل کرد؛ checkboxهای زیر مرجع پذیرش‌اند و تکمیل کل فاز ادعا نمی‌شود.
+- **13 از 44 تسک انجام‌شده: D01، D02، D03، D05، D06، D11، D13، D14، D15، D32، D39، D41، D43. 31 تسک دیگر باز هستند.** (به‌روزرسانی خودکار پس از هر تسک؛ جزئیات هر مورد در بخش خودش ثبت شده است.)
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
-- باقی‌مانده: D04–D10، D12، D16–D31، D33–D38، D40، D42، D44. مرحله بعد طبق پلن D05 سپس D06/D07/D09/D10 است؛ lifecycle/cache generations/query consistency/index/budget/render/accessibility هنوز تکمیل نشده‌اند. موارد GUI/Windows/contrast/performance تیک نشده‌اند.
+- باقی‌مانده: D04، D07، D08، D09، D10، D12، D16، D17، D18، D19، D20، D21، D22، D23، D24، D25، D26، D27، D28، D29، D30، D31، D33، D34، D35، D36، D37، D38، D40، D42، D44. موارد GUI/Windows/contrast/performance که اندازه‌گیری نشده‌اند تیک نخورده‌اند.
 - متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #181 را توصیف نمی‌کنند. fixture قدیمی ناسازگار در اجرای قبلی فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران. اسکریپت‌های Windows/sandbox/git، migrationها و دیتابیس واقعی کاربر در این جلسه تغییر نکردند.
 
 ## دامنه و نتیجه مرحله تدوین اولیه (تاریخی)
@@ -182,7 +182,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(navigation): D05 centralize page admission policy"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D06 — فهرست عملیاتی از رویداد ساخته شده، نه وضعیت جاری
-- [ ] وضعیت: باز | P1 | گزارش 6 | نتیجه: قطعی مدل داده | وابستگی: D01/D02.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 6 | نتیجه: قطعی مدل داده | وابستگی: D01/D02.
+- شواهد اجرای 2026-10-01: فهرست‌های عملیاتی از وضعیت جاری خوانده می‌شوند (Appointment روز، OpenInvoices، ReadyBillingProjection، یادآور واکسن بدون MedicalHistory انجام‌شده) و ActivityFeed فقط در بخش «فعالیت‌ها»ی مدیر/پذیرش می‌ماند. تست `OperationalLists_ReadCurrentState_NotRecentEvents` (رزرو ثبت‌شده قبلی برای امروز، لغوشده حذف، دو پرداخت یک فاکتور = یک ردیف PartiallyPaid، handoff آماده برابر query مرجع فروش، یادآور واقعی، store خالی و deny فروش، 90 رویداد نامرتبط) + کلاس‌های Budget/Authorization: **39 passed، 0 failed، 19 ثانیه**. هر لیست در SQL با `Take(8)` محدود است؛ Full build/test اجرا نشد.
 - شواهد: `DashboardQueries.cs:43–55`؛ `DashboardQueryService.cs:74–85`؛ read modelهای موجود `ReceptionQueueQueries`، `SalesQueries.GetReadyForBillingAsync/GetInvoicesAsync` و `VaccinationQueries.GetDueAsync`.
 - اقدام: projection اختصاصی bounded برای نوبت/صف امروز، فاکتور باز، آماده صدور و یادآور لازم تعریف شود؛ قواعد موجود reuse یا به projection مشترک استخراج شوند، نه fetch کل صفحه و filter حافظه. ActivityFeed فقط در بخش صریح «فعالیت‌ها» استفاده شود؛ هیچ تغییر Command/Domain غیرلازم انجام نشود.
 - پذیرش/بررسی محدود: رزرو دیروز برای امروز حاضر باشد؛ cancelled از صف فعال حذف شود؛ چند پرداخت یک فاکتور را چند ردیف فاکتور نکند؛ ready handoff و reminder واقعی دیده شوند؛ empty store لیست خالی صحیح بدهد؛ اندازه هر لیست در SQL محدود باشد.
