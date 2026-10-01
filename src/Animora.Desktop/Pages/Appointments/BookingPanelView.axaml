@@ -615,15 +615,6 @@
                                     <TextBlock Text="انصراف" />
                                 </Button>
                             </StackPanel>
-                            <Border Classes="bk-tip">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Path Classes="icon" Width="15" Height="15"
-                                          Stroke="{StaticResource Brand500Brush}"
-                                          Data="{StaticResource IconBulb}" VerticalAlignment="Top" />
-                                    <TextBlock Text="روی تقویم کلیک کنید یا بکشید تا بازهٔ دلخواه مستقیم انتخاب شود."
-                                               FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" />
-                                </StackPanel>
-                            </Border>
                         </StackPanel>
 
                         <!-- summary card -->

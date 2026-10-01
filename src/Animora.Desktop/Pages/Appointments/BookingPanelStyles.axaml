@@ -384,11 +384,6 @@
         <Setter Property="CornerRadius" Value="12" />
         <Setter Property="Background" Value="{StaticResource OkBgBrush}" />
     </Style>
-    <Style Selector="Border.bk-tip">
-        <Setter Property="Padding" Value="12,11" />
-        <Setter Property="CornerRadius" Value="12" />
-        <Setter Property="Background" Value="#f1f6f4" />
-    </Style>
     <Style Selector="Button.bk-submit">
         <Setter Property="Padding" Value="16,13" />
         <Setter Property="FontSize" Value="14" />
