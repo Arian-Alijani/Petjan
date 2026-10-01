@@ -35,7 +35,7 @@
         <ItemsControl ItemsSource="{Binding Stats}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <UniformGrid Columns="4" />
+                    <controls:AdaptiveGrid MinItemWidth="210" MaxColumns="4" />
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.Styles>
@@ -73,7 +73,7 @@
                 <ItemsControl Margin="18" ItemsSource="{Binding QuickActions}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <UniformGrid Columns="4" />
+                            <controls:AdaptiveGrid MinItemWidth="190" MaxColumns="4" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.Styles>
@@ -219,12 +219,12 @@
                                             </Panel>
 
                                             <StackPanel Spacing="1">
-                                                <TextBlock Text="{Binding Label}"
+                                                <TextBlock Text="{Binding Label}" TextWrapping="Wrap"
                                                            FontSize="{StaticResource FontSizeSm}"
                                                            FontWeight="ExtraBold"
                                                            Foreground="{StaticResource InkBrush}" />
                                                 <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0"
+                                                    <TextBlock Grid.Column="0" TextWrapping="Wrap"
                                                                Text="{Binding Subtitle}"
                                                                FontSize="10.5"
                                                                Foreground="{StaticResource MutedBrush}" />

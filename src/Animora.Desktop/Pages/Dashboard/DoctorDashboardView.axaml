@@ -8,7 +8,7 @@
     <!-- Mirrors DASH_VIEW_DOCTOR's "live queue" + "vaccination reminders"
          cards (Animora-UI/assets/dashboard-views.js); the hero live-clock and
          progress-ring are out of this phase's static-render budget. -->
-    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+    <controls:AdaptiveGrid MinItemWidth="320" MaxColumns="2" ColumnSpacing="16" RowSpacing="16">
 
         <Border Grid.Column="0" Classes="card">
             <StackPanel>
@@ -36,11 +36,11 @@
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
-                                    <TextBlock Text="{Binding Title}"
+                                    <TextBlock Text="{Binding Title}" TextWrapping="Wrap"
                                                FontSize="{StaticResource FontSizeSm}"
                                                FontWeight="Bold"
                                                Foreground="{StaticResource InkBrush}" />
-                                    <TextBlock Text="{Binding Subtitle}"
+                                    <TextBlock Text="{Binding Subtitle}" TextWrapping="Wrap"
                                                FontSize="{StaticResource FontSizeXs}"
                                                Foreground="{StaticResource MutedBrush}" />
                                 </StackPanel>
@@ -78,11 +78,11 @@
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
-                                    <TextBlock Text="{Binding Title}"
+                                    <TextBlock Text="{Binding Title}" TextWrapping="Wrap"
                                                FontSize="{StaticResource FontSizeSm}"
                                                FontWeight="Bold"
                                                Foreground="{StaticResource InkBrush}" />
-                                    <TextBlock Text="{Binding Subtitle}"
+                                    <TextBlock Text="{Binding Subtitle}" TextWrapping="Wrap"
                                                FontSize="{StaticResource FontSizeXs}"
                                                Foreground="{StaticResource MutedBrush}" />
                                 </StackPanel>
@@ -94,6 +94,6 @@
             </StackPanel>
         </Border>
 
-    </Grid>
+    </controls:AdaptiveGrid>
 
 </UserControl>
