@@ -12,18 +12,25 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Persistence.Sqlite.Queries;
 
-/// <summary>Role-specific sequential reads on one context; at most eight including the version probe.</summary>
+/// <summary>Role-specific sequential reads on one context; bounded, including the version probe.</summary>
 public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueries
 {
+    /// <summary>
+    /// The tenant's source generation: a single primary-key lookup of the trigger-maintained
+    /// <see cref="DashboardGeneration"/> row. It advances for every committed write to any table the dashboard
+    /// reads — including facts written later by the projection worker — so it never depends on a new feed row.
+    /// </summary>
     public async Task<string> VersionAsync(string tenantId, CancellationToken ct) =>
-        await db.Set<ActivityEvent>().AsNoTracking().Where(x => x.TenantId == tenantId)
-            .OrderByDescending(x => x.Id).Select(x => x.Id).FirstOrDefaultAsync(ct) ?? string.Empty;
+        (await db.Set<DashboardGeneration>().AsNoTracking().Where(x => x.TenantId == tenantId)
+            .Select(x => (long?)x.Value).FirstOrDefaultAsync(ct) ?? 0L)
+            .ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     public async Task<DashboardSlice> GetSliceAsync(string tenantId, DashboardDayWindow window,
         string userId, DashboardAccess access, CancellationToken ct)
     {
         var role = access.Role;
         var today = window.LocalDay;
+        DashboardProjectionLag? projection = null;
         var date = new DateOnly(today / 10000, today / 100 % 100, today % 100).AddDays(-13);
         IReadOnlyList<DashboardDay> facts = [];
         if (access.Finance)
@@ -41,6 +48,15 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
                 series[i] = new DashboardDay(key, byDay.GetValueOrDefault(key));
             }
             facts = series;
+            // The facts above are written by the projection worker after the source commit: report how far behind
+            // they are instead of presenting them as current. Index IX_OutboxMessages_Status_NextAttemptUtc.
+            var lag = await db.Set<OutboxMessage>().AsNoTracking().Where(x => x.Status != OutboxStatus.Succeeded)
+                .GroupBy(x => 1).Select(g => new
+                {
+                    Pending = g.Count(x => x.Status != OutboxStatus.DeadLettered),
+                    Failed = g.Count(x => x.Status == OutboxStatus.DeadLettered),
+                }).SingleOrDefaultAsync(ct);
+            projection = new DashboardProjectionLag(lag?.Pending ?? 0, lag?.Failed ?? 0);
         }
 
         // "Mine" is the doctor responsible for the clinical entity, never the actor of the command that
@@ -194,6 +210,6 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
                     vaccine.NextDueUtc!.Value, "Due", vaccine.VaccineName)).Take(8).ToListAsync(ct);
         }
         return new DashboardSlice(facts, activity, loads, species, open, low,
-            queueCount, totals, preview, access, receipts, invoiceRows, readyRows, reminders, awaitingPayment);
+            queueCount, totals, preview, access, receipts, invoiceRows, readyRows, reminders, awaitingPayment, projection);
     }
 }

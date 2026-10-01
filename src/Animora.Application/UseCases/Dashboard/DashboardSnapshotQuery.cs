@@ -23,6 +23,11 @@ public sealed record DashboardReceipts(long Gross, long Refunds, string Currency
 }
 public sealed record DashboardOperationalRow(string Kind, string Name, string OwnerName,
     DateTimeOffset AtUtc, string State, string Reference = "");
+/// <summary>
+/// State of the derived finance facts relative to the authoritative tables: how many outbox messages the projection
+/// worker has not applied yet and whether any was dead-lettered. Read with the same slice, never inferred.
+/// </summary>
+public sealed record DashboardProjectionLag(int Pending, int Failed);
 public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     IReadOnlyList<DashboardActivity> Activity, IReadOnlyList<DashboardWorkload> Workloads,
     IReadOnlyDictionary<string, int> Species, int OpenInvoices, int LowStockCount, int QueueCount,
@@ -30,7 +35,8 @@ public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     DashboardAccess? Access = null, DashboardReceipts? Receipts = null,
     IReadOnlyList<DashboardOperationalRow>? OpenInvoiceRows = null,
     IReadOnlyList<DashboardOperationalRow>? ReadyBillingRows = null,
-    IReadOnlyList<DashboardOperationalRow>? ReminderRows = null, int AwaitingPaymentCount = 0);
+    IReadOnlyList<DashboardOperationalRow>? ReminderRows = null, int AwaitingPaymentCount = 0,
+    DashboardProjectionLag? Projection = null);
 
 /// <summary>The local day and its half-open UTC range, resolved once using ClinicCalendar.</summary>
 public sealed record DashboardDayWindow(int LocalDay, DateTimeOffset StartUtc, DateTimeOffset EndUtc)

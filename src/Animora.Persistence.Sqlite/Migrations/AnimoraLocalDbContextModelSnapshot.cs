@@ -3602,6 +3602,20 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("DailyFinanceFacts", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.DashboardGeneration", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Value")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TenantId");
+
+                    b.ToTable("DashboardGenerations", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.DeviceCapabilitySnapshot", b =>
                 {
                     b.Property<string>("Id")
