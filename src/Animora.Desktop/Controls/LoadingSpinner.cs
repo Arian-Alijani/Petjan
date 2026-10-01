@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using Avalonia.Rendering.Composition;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace Animora.Desktop.Controls;
 
@@ -53,7 +54,7 @@ public sealed class LoadingSpinner : Control
     private bool TryCreateVisual()
     {
         if (_visual is not null) return true;
-        if (!IsAttachedToVisualTree) return false;
+        if (this.GetVisualRoot() is null) return false;
 
         var host = ElementComposition.GetElementVisual(this);
         if (host is null) return false;
