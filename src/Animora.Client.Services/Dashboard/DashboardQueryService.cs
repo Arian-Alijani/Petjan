@@ -112,7 +112,8 @@ internal static class DashboardMapping
             (slice.Access?.Finance ?? manager) ? new DashboardRevenuePulse(today.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), "۱۴ روز اخیر",
                 values.Select(x => max == 0 ? 0d : (double)x / max).ToArray()) : null,
             (slice.Access?.Workloads ?? manager) ? slice.Workloads.Select(Load).ToArray() : null,
-            (slice.Access?.Patients ?? manager) && role != UserRole.Doctor ? slice.Species.Select(x => new DashboardSpecies(SpeciesName(x.Key), x.Value, SpeciesColor(x.Key))).ToArray() : null);
+            (slice.Access?.Patients ?? manager) && role != UserRole.Doctor ? slice.Species.OrderByDescending(x => x.Value).ThenBy(x => x.Key, StringComparer.Ordinal)
+                .Select(x => new DashboardSpecies(SpeciesName(x.Key), x.Value, SpeciesColor(x.Key), x.Key)).ToArray() : null);
     }
 
     // Specialty is not modelled, so it is left empty rather than invented. A removed/unnamed doctor gets an
@@ -175,6 +176,7 @@ internal static class DashboardMapping
     };
     private static string SpeciesColor(string species) => species switch
     {
-        "Cat" => "#0D9488", "Dog" => "#6366F1", "Bird" => "#F59E0B", "Rabbit" => "#EC4899", _ => "#64748B"
+        "Cat" => "#0D9488", "Dog" => "#6366F1", "Bird" => "#F59E0B", "Rabbit" => "#EC4899",
+        "Rodent" => "#8B5CF6", "Reptile" => "#16A34A", _ => "#64748B"
     };
 }

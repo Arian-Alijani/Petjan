@@ -55,10 +55,15 @@ public sealed record DashboardDoctorLoad(
 /// name, patient count and slice colour hex (mirrors SPECIES in
 /// Animora-UI/assets/dashboard.js).
 /// </summary>
+/// <remarks>
+/// <b>Key</b> is the stable, language-independent species identifier (Dog, Cat, ...). Presentation derives the
+/// Persian name, glyph and palette from it; <b>Name</b>/<b>ColorHex</b> remain only as a compatibility fallback.
+/// </remarks>
 public sealed record DashboardSpecies(
     string Name,
     int Count,
-    string ColorHex);
+    string ColorHex,
+    string Key = "");
 
 /// <summary>
 /// The manager "نبض مالی کلینیک" (clinic financial pulse) card data: a big

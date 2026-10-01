@@ -28,12 +28,14 @@ public sealed partial class DashboardSpeciesViewModel : ObservableObject
     public DashboardSpeciesViewModel(int index, DashboardSpecies species, double fraction)
     {
         Index = index;
-        Name = species.Name;
-        IconKey = ResolveIconKey(species.Name);
-        ColorHex = species.ColorHex;
+        // Stable key -> presentation palette; the legacy Name/ColorHex only matter for an unkeyed species.
+        var look = SpeciesPresentation.For(species.Key, species.Name);
+        Name = string.IsNullOrEmpty(species.Key) ? species.Name : look.Name;
+        IconKey = look.IconKey;
+        ColorHex = string.IsNullOrEmpty(species.Key) ? species.ColorHex : look.ColorHex;
         // Shared process-wide (PERFORMANCE.md §10): the swatch is a fixed palette
         // colour, so bindings never allocate a new solid brush per render.
-        SwatchBrush = BrushCache.Solid(species.ColorHex);
+        SwatchBrush = BrushCache.Solid(ColorHex);
         CountText = PersianNumberFormatter.FormatGrouped(species.Count);
 
         // Round to a whole percent, then render as an integer so the string
@@ -70,14 +72,4 @@ public sealed partial class DashboardSpeciesViewModel : ObservableObject
 
     /// <summary>Fill fraction (0..1) of the row's soft share background.</summary>
     public double FillFraction { get; }
-
-    private static string ResolveIconKey(string name) => name switch
-    {
-        "سگ" => "IconDog",
-        "گربه" => "IconCat",
-        "پرنده" => "IconBird",
-        "خرگوش و جوندگان" => "IconRabbit",
-        _ => "IconPaw",
-    };
-
 }

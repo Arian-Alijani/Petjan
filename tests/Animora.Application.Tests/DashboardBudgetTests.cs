@@ -327,6 +327,29 @@ public sealed class DashboardBudgetTests
     }
 
     [Fact]
+    public void Species_UseStableKeyPalette_AndDeterministicOrder()
+    {
+        var keys = new[] { "Dog", "Cat", "Bird", "Rodent", "Reptile", "Other", "Hamster" };
+        var looks = keys.Select(k => Desktop.Pages.Dashboard.SpeciesPresentation.For(k)).ToArray();
+        Assert.Equal(new[] { "سگ", "گربه", "پرنده", "جوندگان", "خزندگان", "سایر", "سایر" }, looks.Select(x => x.Name).ToArray());
+        // Every real species has its own colour; only Other/unknown share the neutral colour.
+        Assert.Equal(6, looks.Take(6).Select(x => x.ColorHex).Distinct().Count());
+        Assert.Equal(looks[5].ColorHex, looks[6].ColorHex);
+        Assert.Equal("نام قدیمی", Desktop.Pages.Dashboard.SpeciesPresentation.For("Hamster", "نام قدیمی").Name);
+        Assert.Equal("IconDog", looks[0].IconKey);
+        Assert.Equal("IconPaw", Desktop.Pages.Dashboard.SpeciesPresentation.For(null).IconKey);
+        var forward = new Dictionary<string, int> { ["Cat"] = 3, ["Dog"] = 3, ["Bird"] = 5, ["Other"] = 0 };
+        var reversed = forward.Reverse().ToDictionary(x => x.Key, x => x.Value);
+        string[] Order(Dictionary<string, int> input) => InvokeMap(UserRole.Manager,
+            new DashboardSlice([], [], [], input, 0, 0, 0)).Species!.Select(x => x.Key).ToArray();
+        Assert.Equal(new[] { "Bird", "Cat", "Dog", "Other" }, Order(forward));
+        Assert.Equal(Order(forward), Order(reversed));
+        Assert.Empty(InvokeMap(UserRole.Manager, new DashboardSlice([], [], [], new Dictionary<string, int>(), 0, 0, 0)).Species!);
+        var single = InvokeMap(UserRole.Manager, new DashboardSlice([], [], [], new Dictionary<string, int> { ["Dog"] = 1 }, 0, 0, 0)).Species!;
+        Assert.Equal(("Dog", "سگ"), (single[0].Key, single[0].Name));
+    }
+
+    [Fact]
     public async Task ManagerRevenue_EqualsFinanceSameDayFigure()
     {
         const long expected = 7_654_321;

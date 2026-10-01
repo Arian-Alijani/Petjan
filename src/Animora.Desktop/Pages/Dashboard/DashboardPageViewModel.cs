@@ -320,7 +320,8 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         var slices = new System.Collections.Generic.List<Animora.Desktop.Controls.DonutSlice>(species.Count);
         foreach (var s in species)
         {
-            slices.Add(new Animora.Desktop.Controls.DonutSlice(s.Count, s.ColorHex));
+            slices.Add(new Animora.Desktop.Controls.DonutSlice(s.Count,
+                string.IsNullOrEmpty(s.Key) ? s.ColorHex : SpeciesPresentation.For(s.Key, s.Name).ColorHex));
         }
 
         return slices;
