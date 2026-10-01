@@ -192,14 +192,12 @@ performance bug.
 
 ## Known technical debt (tracked, not yet addressed)
 
-- **Singleton page ViewModels load in their constructor.** Many page ViewModels
-  (the singleton pages) trigger `_ = LoadAsync()` from their constructor, so
-  data loads only once per process. Against the real backend such a screen can
-  show stale data until restart, and it couples view lifetime to data lifetime.
-  The standard, lifecycle-aware alternative is an `OnNavigatedTo`-style hook
-  (load on navigate / when shown, optionally with a refresh policy). The
-  **Dashboard** has already moved to this model — it re-activates on navigation
-  and refreshes on an activation-scoped timer with a source-generation data
-  cache (D04/D19/D20/D37/D38) — but the remaining singleton pages still load in
-  their constructor. Migrating them is a deliberate future refactor, recorded as
-  debt rather than rewritten now.
+- ~~**Singleton page ViewModels load in their constructor.**~~ **Resolved.** The
+  singleton pages reload on every visit through `OnNavigatedTo` (Patients and
+  Visits keep their first load in the constructor and reload on return), and
+  report an explicit loading / failed / stale state (`PageLoadStatus`,
+  `PageLoadState`) with a manual refresh as the fallback. The Dashboard keeps its
+  own `DashboardRefreshCoordinator` + activation-scoped timer. Writes now
+  invalidate related pages through `IDataChangeNotifier`: a page that is shown
+  when a write lands reloads at once, and a hidden page reloads on its next
+  visit. There is still no query cache outside the Dashboard snapshot.

@@ -30,6 +30,7 @@
     <Compile Include="../../src/Animora.Desktop/Services/NavigationService.cs" Link="Navigation/NavigationService.cs" />
     <Compile Include="../../src/Animora.Desktop/Services/INavigationService.cs" Link="Navigation/INavigationService.cs" />
     <Compile Include="../../src/Animora.Desktop/Services/IToastService.cs" Link="Navigation/IToastService.cs" />
+    <Compile Include="../../src/Animora.Desktop/Services/IDataChangeNotifier.cs" Link="Navigation/IDataChangeNotifier.cs" />
     <Compile Include="../../src/Animora.Desktop/Controls/Tone.cs" Link="Navigation/Tone.cs" />
     <Compile Include="../../src/Animora.Desktop/Shell/PageViewModelBase.cs" Link="Navigation/PageViewModelBase.cs" />
     <Compile Include="../../src/Animora.Desktop/Shell/NavPermissions.cs" Link="Navigation/NavPermissions.cs" />
