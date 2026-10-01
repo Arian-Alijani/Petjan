@@ -61,18 +61,13 @@ public sealed partial class SidebarViewModel : ObservableObject
             return;
         }
 
-        var viewModel = _navigation.NavigateTo(entry.Item.ViewModelType);
-
-        // Phase 25: the shared Finance screen backs two nav entries; pass each
-        // entry's initial tab/range (mirrors the reference's two
-        // initFinancePage({ tab, range }) calls from expense.html / reports.html).
-        if (viewModel is Pages.Finance.FinancePageViewModel finance
-            && (entry.Item.InitialTab is not null || entry.Item.InitialRange is not null))
+        var viewModel = _navigation.NavigateTo(entry.Item.ViewModelType, entry.Key, page =>
         {
-            finance.Configure(entry.Item.InitialTab ?? "overview", entry.Item.InitialRange ?? "30d");
-        }
+            if (page is Pages.Finance.FinancePageViewModel finance)
+                finance.Configure(entry.Item.InitialTab ?? "overview", entry.Item.InitialRange ?? "30d");
+        });
 
-        SetActive(entry.Key);
+        if (viewModel is not null) SetActive(entry.Key);
     }
 
     /// <summary>Highlight the entry with <paramref name="key"/> (used at startup too).</summary>

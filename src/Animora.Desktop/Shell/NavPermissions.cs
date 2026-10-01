@@ -36,7 +36,37 @@ public static class NavPermissions
         ["cheques"] = PermissionCodes.ChequesRead,
         ["history"] = PermissionCodes.AuditRead,
         ["profile"] = PermissionCodes.SettingsRead,
+        ["purchasing"] = PermissionCodes.PurchasingRead,
+        ["reception"] = PermissionCodes.ReceptionManage,
+        ["cashier"] = PermissionCodes.SalesRead,
     }.ToFrozenDictionary(StringComparer.Ordinal);
+
+    // Page admission is shared by every navigation entry point, including targets
+    // without a sidebar entry. Finance defaults to overview; expense admission
+    // also requires finance.read through its semantic key.
+    private static readonly FrozenDictionary<Type, string> ByPage = new Dictionary<Type, string>
+    {
+        [typeof(Pages.Dashboard.DashboardPageViewModel)] = "dashboard",
+        [typeof(Pages.Appointments.AppointmentsCalendarViewModel)] = "appointments",
+        [typeof(Pages.Patients.PatientsPageViewModel)] = "patients",
+        [typeof(Pages.Visits.VisitsTriagePageViewModel)] = "visits",
+        [typeof(Pages.Visits.VisitEncounterViewModel)] = "visits",
+        [typeof(Pages.Vaccination.VaccinationPageViewModel)] = "vaccine",
+        [typeof(Pages.Boarding.BoardingPageViewModel)] = "boarding",
+        [typeof(Pages.Sales.SalePageViewModel)] = "sale",
+        [typeof(Pages.Inventory.InventoryPageViewModel)] = "inventory",
+        [typeof(Pages.Finance.FinancePageViewModel)] = "reports",
+        [typeof(Pages.Cheques.ChequesPageViewModel)] = "cheques",
+        [typeof(Pages.History.HistoryPageViewModel)] = "history",
+        [typeof(Pages.Profile.ProfilePageViewModel)] = "profile",
+        [typeof(Pages.Purchasing.PurchasingPageViewModel)] = "purchasing",
+        [typeof(Pages.Reception.ReceptionPageViewModel)] = "reception",
+        [typeof(Pages.Cashier.CashierPageViewModel)] = "cashier",
+    }.ToFrozenDictionary();
+
+    public static string? KeyFor(Type page) => ByPage.GetValueOrDefault(page);
+
+    public static string? For(Type page) => KeyFor(page) is { } key ? For(key) : null;
 
     /// <summary>The required permission code for a nav key, or <see langword="null"/> for an unmapped key (fail closed).</summary>
     public static string? For(string key) =>

@@ -116,7 +116,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private void NavigateTo(Type target)
     {
-        _navigation.NavigateTo(target);
+        if (_navigation.NavigateTo(target) is null) return;
 
         // Mirror the sidebar highlight from the navigation catalog so the active
         // item stays correct no matter which entry point was used.
