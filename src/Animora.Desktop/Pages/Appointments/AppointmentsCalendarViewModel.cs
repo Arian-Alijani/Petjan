@@ -5,9 +5,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Diagnostics;
+using Animora.Contracts.Identity;
 using Animora.Contracts.Patients;
+using Animora.Contracts.Profile;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.Appointments.Export;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -35,6 +38,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private readonly IDialogService _dialogs;
     private readonly IAppointmentSettingsService _settings;
     private readonly IPatientsQueryService _patients;
+    private readonly IPrintService _print;
+    private readonly IUserProfileService _profile;
+    private readonly ICurrentUserContext _user;
 
     private readonly List<AppointmentDoctor> _doctors = [];
     private readonly List<AppointmentType> _types = [];
@@ -86,9 +92,15 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         IDialogService dialogs,
         IDataChangeNotifier changes,
         IAppointmentSettingsService settings,
-        IPatientsQueryService patients)
+        IPatientsQueryService patients,
+        IPrintService print,
+        IUserProfileService profile,
+        ICurrentUserContext user)
     {
         _service = service;
+        _print = print;
+        _profile = profile;
+        _user = user;
         _settings = settings;
         _patients = patients;
         _changes = changes;
@@ -1536,9 +1548,20 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         RenderActiveTab();
     }
 
+    /// <summary>
+    /// «خروجی»: opens the print/export options dialog, pre-seeded with the date
+    /// span the calendar is currently showing (day / week / month view).
+    /// </summary>
     [RelayCommand]
-    private void ExportCalendar() =>
-        _toast.Show("خروجی تقویم آماده دانلود است.", Tone.Info);
+    private void ExportCalendar()
+    {
+        var scope = ScopeDates();
+        var (from, to) = scope.Count > 0 ? (scope.Min(), scope.Max()) : (_cursor, _cursor);
+        var vm = new AppointmentExportViewModel(
+            _service, _print, _dialogs, _toast, _profile, _user,
+            _doctors.ToList(), _types.ToList(), CalendarModeIsDayOnly, from, to);
+        _dialogs.ShowModal(new AppointmentExportView { DataContext = vm }, 980);
+    }
 
     // ── queue commands ───────────────────────────────────────────────────────
     [RelayCommand]
