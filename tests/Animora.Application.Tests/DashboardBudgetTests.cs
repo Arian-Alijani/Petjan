@@ -206,7 +206,6 @@ public sealed class DashboardBudgetTests
 
     [Theory]
     [InlineData(UserRole.Manager)]
-    [InlineData(UserRole.Doctor)]
     [InlineData(UserRole.Cashier)]
     public async Task DailyKpis_AreNotTruncatedByRecentActivityLimit(UserRole role)
     {
@@ -233,21 +232,58 @@ public sealed class DashboardBudgetTests
 
         var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "user-1", TestAccess(role), default);
         Assert.Equal(80, slice.Activity.Count); // Preview stays cheap; statistics must not use it.
-        Assert.Equal(role == UserRole.Doctor ? 101 : 108, slice.ActivityTotals!.Visits);
-        Assert.Equal(role == UserRole.Doctor ? 0 : 95_000, slice.ActivityTotals.Payments);
+        Assert.Equal(108, slice.ActivityTotals!.Visits);
+        Assert.Equal(95_000, slice.ActivityTotals.Payments);
         Assert.Equal(105, slice.ActivityTotals.Vaccinations);
-        Assert.Equal(role == UserRole.Doctor ? 0 : 90, slice.ActivityTotals.Cheques);
+        Assert.Equal(90, slice.ActivityTotals.Cheques);
         var mapped = InvokeMap(role, slice);
         if (role == UserRole.Manager) Assert.Equal("108", mapped.Stats[1].Value);
-        if (role == UserRole.Doctor)
-        {
-            Assert.Equal("101", mapped.Stats[0].Value);
-            Assert.Equal("105", mapped.Stats[3].Value);
-            Assert.Empty(slice.RevenueDays);
-            Assert.Empty(slice.Workloads);
-            Assert.Empty(slice.Species);
-        }
         if (role == UserRole.Cashier) Assert.Equal("95,000", mapped.Stats[0].Value);
+    }
+
+    [Fact]
+    public async Task DoctorKpis_UseAssignedDoctorAndAdministeringDoctor_NotAuditActor()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var owner = Owner.Register(fixture.TenantId, "مالک", "09120000001", fixture.Clock);
+        var pet = Pet.Register(fixture.TenantId, owner.Id, "بیمار", PetSpecies.Dog, fixture.Clock);
+        db.AddRange(owner, pet);
+        Animora.Domain.Clinical.Visit Complete(string doctor)
+        {
+            var visit = Animora.Domain.Clinical.Visit.Open(fixture.TenantId, pet.Id, owner.Id, doctor,
+                Animora.Domain.Clinical.VisitReason.Checkup, new Animora.Persistence.Tests.FakeClock(Window.StartUtc.AddHours(10)));
+            Assert.True(visit.Start().IsSuccess);
+            Assert.True(visit.SetAssessment("ok").IsSuccess);
+            Assert.True(visit.Complete(new Animora.Persistence.Tests.FakeClock(Window.StartUtc.AddHours(10))).IsSuccess);
+            return visit;
+        }
+        var mine = Complete("doc-A");
+        db.AddRange(mine, Complete("doc-B"));
+        // The receptionist is the audit actor of both; the doctor column must decide ownership.
+        foreach (var id in new[] { "v1", "v2", "v3" })
+            db.Add(ActivityEvent.Create(fixture.TenantId, Window.StartUtc.AddHours(10), Today, "Visit",
+                "history.visit.completed", "{}", "Visit", id, 0, 0, "Done", "receptionist", "پذیرش", null));
+        db.Add(Animora.Domain.Clinical.VaccinationRecord.Administer(fixture.TenantId, pet.Id, "DHPP", "A", 1,
+            Window.StartUtc.AddHours(11), "doc-A", fixture.Clock).Value!);
+        db.Add(Animora.Domain.Clinical.VaccinationRecord.Administer(fixture.TenantId, pet.Id, "RABIES", "B", 1,
+            Window.StartUtc.AddHours(11), "receptionist", fixture.Clock, visitId: mine.Id).Value!);
+        db.Add(Animora.Domain.Clinical.VaccinationRecord.Administer(fixture.TenantId, pet.Id, "FVRCP", "C", 1,
+            Window.StartUtc.AddHours(11), "doc-B", fixture.Clock).Value!);
+        await db.SaveChangesAsync();
+        var queries = new DashboardQueries(db);
+        var a = await queries.GetSliceAsync(fixture.TenantId, Window, "doc-A", TestAccess(UserRole.Doctor), default);
+        var b = await queries.GetSliceAsync(fixture.TenantId, Window, "doc-B", TestAccess(UserRole.Doctor), default);
+        var actorOnly = await queries.GetSliceAsync(fixture.TenantId, Window, "receptionist", TestAccess(UserRole.Doctor), default);
+        Assert.Equal((1, 2), (a.ActivityTotals!.Visits, a.ActivityTotals.Vaccinations));
+        Assert.Equal((1, 1), (b.ActivityTotals!.Visits, b.ActivityTotals.Vaccinations));
+        Assert.Equal((0, 1), (actorOnly.ActivityTotals!.Visits, actorOnly.ActivityTotals.Vaccinations));
+        Assert.Empty(a.Activity); // Doctor widgets never expose audit rows authored by other actors.
+        // Audit actor/name remain intact for the manager's explicit activity section.
+        var manager = await queries.GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
+        Assert.All(manager.Activity, x => Assert.Equal("receptionist", x.ActorUserId));
     }
 
     [Fact]
