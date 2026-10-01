@@ -142,8 +142,20 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         if (IsBusy) LoadError = null;
     }
 
-    private void OnRefreshFailed(Exception exception) =>
-        LoadError = "بارگذاری داشبورد انجام نشد؛ دوباره تلاش کنید";
+    public bool CanRetry { get; private set; } = true;
+
+    private void OnRefreshFailed(Exception exception)
+    {
+        var failure = exception as DashboardQueryException;
+        if (failure?.Kind is DashboardFailureKind.SessionExpired or DashboardFailureKind.PermissionDenied)
+        {
+            ClearPresentation(); // Revocation must not leave previously authorized data visible.
+        }
+        CanRetry = failure?.CanRetry ?? false;
+        OnPropertyChanged(nameof(CanRetry));
+        LoadError = failure is null ? "خطای غیرمنتظره در داشبورد؛ با پشتیبانی تماس بگیرید."
+            : failure.UserMessage + " شناسه پیگیری: " + failure.CorrelationId;
+    }
 
     /// <summary>Presentation layout role of the current identity; changes (and notifies) when the identity changes.</summary>
     [ObservableProperty]

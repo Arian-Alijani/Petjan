@@ -16,7 +16,7 @@
                 IsVisible="{Binding LoadError, Converter={x:Static ObjectConverters.IsNotNull}}">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Text="{Binding LoadError}" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Content="تلاش دوباره" Command="{Binding RefreshCommand}" />
+                <Button Grid.Column="1" Content="تلاش دوباره" IsVisible="{Binding CanRetry}" Command="{Binding RefreshCommand}" />
             </Grid>
         </Border>
 

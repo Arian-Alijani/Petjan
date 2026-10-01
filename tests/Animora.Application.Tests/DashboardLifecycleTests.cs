@@ -210,6 +210,34 @@ public sealed class DashboardLifecycleTests
         Assert.NotSame(initial, await service.RefreshSnapshotAsync(UserRole.Manager));
     }
 
+    [Theory]
+    [InlineData("SESSION_EXPIRED", DashboardFailureKind.SessionExpired, false)]
+    [InlineData("PERMISSION_DENIED", DashboardFailureKind.PermissionDenied, false)]
+    [InlineData("STORE_UNAVAILABLE", DashboardFailureKind.StoreUnavailable, true)]
+    [InlineData("UNEXPECTED", DashboardFailureKind.Unexpected, false)]
+    [InlineData("private owner/financial detail", DashboardFailureKind.Unexpected, false)]
+    public void Failures_AreTypedSafe_AndOnlyRecoverableOnesOfferRetry(string code, DashboardFailureKind kind, bool retry)
+    {
+        var error = new DashboardQueryException(DashboardQueryException.Classify(code), "opaque-correlation");
+        Assert.Equal(kind, error.Kind);
+        Assert.Equal(retry, error.CanRetry);
+        Assert.Equal("opaque-correlation", error.CorrelationId);
+        Assert.DoesNotContain(code, error.UserMessage);
+        Assert.Null(error.InnerException);
+    }
+
+    [Fact]
+    public async Task ExpiredSession_ServiceEmitsSafeTypedFailureWithCorrelation()
+    {
+        await using var host = await DashboardAuthorizationTests.CreateHostAsync(StaffRole.Manager);
+        host.Cache.Set(null);
+        var service = new DashboardQueryService(host.Services.GetRequiredService<IServiceScopeFactory>());
+        var error = await Assert.ThrowsAsync<DashboardQueryException>(() => service.GetSnapshotAsync(UserRole.Manager));
+        Assert.Equal(DashboardFailureKind.SessionExpired, error.Kind);
+        Assert.NotEmpty(error.CorrelationId);
+        Assert.False(error.CanRetry);
+    }
+
     // ---- service: token reaches the semaphore and the database --------------------------------------------
 
     private sealed class Gatekeeper : DbCommandInterceptor
