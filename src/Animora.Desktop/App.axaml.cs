@@ -247,6 +247,7 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IToastService>(sp => sp.GetRequiredService<ToastService>());
         services.AddSingleton<DialogService>();
         services.AddSingleton<IDialogService>(sp => sp.GetRequiredService<DialogService>());
+        services.AddSingleton<IPrintService, PrintService>();
 
         // B05c: presentation-neutral notifications are adapted to the existing toast/modal hosts.
         services.AddSingleton<IUserNotificationPort>(sp => new ToastNotificationAdapter(
