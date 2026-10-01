@@ -3,10 +3,10 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
-- **36 از 44 تسک انجام‌شده؛ 8 تسک باز: D28، D29، D31، D33، D34، D35، D42، D44.** (D36 در اجرای 2026-10-01 بسته شد.)
+- **37 از 44 تسک انجام‌شده؛ 7 تسک باز: D29، D31، D33، D34، D35، D42، D44.**
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
-- باقی‌مانده: D28، D29، D31، D33، D34، D35، D42، D44. پذیرش GUI/Windows بدون شاهد واقعی بسته نمی‌شود.
+- باقی‌مانده: D29، D31، D33، D34، D35، D42، D44. پذیرش GUI/Windows بدون شاهد واقعی بسته نمی‌شود.
 - متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #181 را توصیف نمی‌کنند. fixture قدیمی ناسازگار در اجرای قبلی فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران. اسکریپت‌های Windows/sandbox/git، migrationها و دیتابیس واقعی کاربر در این جلسه تغییر نکردند.
 
 ## دامنه و نتیجه مرحله تدوین اولیه (تاریخی)
@@ -359,7 +359,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D27 prepare and publish coherent view state"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D28 — loading/empty/stale از صفر واقعی قابل‌تشخیص نیست
-- [ ] وضعیت: باز | P2 | گزارش 28 | نتیجه: قطعی binding/state | وابستگی: D20/D26/D27.
+- [x] وضعیت: انجام‌شده | P2 | گزارش 28 | نتیجه: state صریح InitialLoading/Refreshing/Ready/Empty/Stale/Error؛ صفر واقعی از loading/خطا جدا شد. | وابستگی: D20/D26/D27.
+- شواهد اجرای 2026-10-01: enum و resolver خالص `DashboardViewState` (Avalonia-free) + ViewModel: `HasData` (placeholder پس از reset/revocation داده نیست)، `ViewState/StateText`، اعلان موفقیت coordinator (`onLoaded`، شامل cache-hit) که LoadError را پاک می‌کند؛ خطای refresh با داده قبلی نگه داشته می‌شود و Stale (نه تازه) نمایش می‌یابد، خطای اولیه Error است. View: نوار وضعیت با ProgressBar/متن LiveSetting=Polite و empty-template برای همه فهرست‌ها/ورکلود/گونه (فقط پس از HasData). `DashboardViewStateTests` + `DashboardLifecycleTests`: **28 passed، 0 failed، 9 ثانیه**؛ build فقط Desktop: **0 warning/0 error، 57 ثانیه**. بررسی GUI واقعی (نمایشگر) در sandbox اجرا نشد.
 - شواهد: `DashboardPageView.axaml:9–46`؛ IsBusy بدون نمایش؛ ItemsControlهای Manager/Doctor/Cashier empty template ندارند؛ error banner موجود است ولی انواع state را جدا نمی‌کند.
 - اقدام: state صریح InitialLoading/Refreshing/Ready/Empty/Stale/Error و last-updated؛ خطای refresh داده قبلی را نگه دارد اما آن را تازه جلوه ندهد. empty/unavailable/no-permission هر widget با هم و با عدد صفر یکی نباشند؛ متن و progress accessible و بدون animation بی‌حد باشند.
 - پذیرش/بررسی محدود: store خالی موفق → Empty، startup pending → Loading، refresh failure با data → Stale، initial failure → Error؛ صفر واقعی بعد از موفقیت ظاهر شود، نه پیش از query. فقط همین stateها با fake readiness/service و یک بررسی UI کوتاه.

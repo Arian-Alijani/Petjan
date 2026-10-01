@@ -16,6 +16,8 @@
                     <TextBlock Classes="card-title" Text="{Binding PrimaryListTitle}" />
                 </StackPanel>
                 <Border Classes="card-header-rule" />
+                <TextBlock Margin="18,14,18,0" Text="{Binding EmptyListText}" IsVisible="{Binding ShowPrimaryEmpty}"
+                           Foreground="{StaticResource MutedBrush}" />
                 <ItemsControl Margin="18,14,18,18" ItemsSource="{Binding PrimaryList}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
@@ -56,6 +58,8 @@
                     <TextBlock Classes="card-title" Text="{Binding SecondaryListTitle}" />
                 </StackPanel>
                 <Border Classes="card-header-rule" />
+                <TextBlock Margin="18,14,18,0" Text="{Binding EmptyListText}" IsVisible="{Binding ShowSecondaryEmpty}"
+                           Foreground="{StaticResource MutedBrush}" />
                 <ItemsControl Margin="18,14,18,18" ItemsSource="{Binding SecondaryList}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="dashboard:DashboardRowViewModel">

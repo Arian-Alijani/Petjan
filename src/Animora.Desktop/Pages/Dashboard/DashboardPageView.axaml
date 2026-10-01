@@ -12,6 +12,17 @@
         <Button Content="تازه‌سازی داشبورد" Command="{Binding RefreshCommand}"
                 AutomationProperties.Name="تازه‌سازی اطلاعات داشبورد" HorizontalAlignment="Right" />
 
+        <!-- Explicit load state (D28): initial loading / refreshing / empty / stale / error are distinct from a real zero. -->
+        <Border Classes="card" Padding="12,10" IsVisible="{Binding IsStateVisible}">
+            <StackPanel Spacing="6">
+                <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}"
+                             AutomationProperties.Name="در حال دریافت اطلاعات داشبورد" />
+                <TextBlock Text="{Binding StateText}" TextWrapping="Wrap"
+                           AutomationProperties.LiveSetting="Polite"
+                           Foreground="{StaticResource MutedBrush}" />
+            </StackPanel>
+        </Border>
+
         <Border Classes="card" Padding="16"
                 IsVisible="{Binding LoadError, Converter={x:Static ObjectConverters.IsNotNull}}">
             <Grid ColumnDefinitions="*,Auto">

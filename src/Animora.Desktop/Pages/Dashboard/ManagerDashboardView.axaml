@@ -157,6 +157,8 @@
                                    Text="نوبت انجام‌شده / کل" />
                     </Grid>
                     <Border Classes="card-header-rule" />
+                    <TextBlock Margin="18,14,18,0" Text="{Binding EmptyListText}" IsVisible="{Binding ShowDoctorLoadsEmpty}"
+                               Foreground="{StaticResource MutedBrush}" />
                     <ItemsControl Margin="18,14,18,18" ItemsSource="{Binding DoctorLoads}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="dashboard:DashboardDoctorLoadViewModel">
@@ -219,6 +221,8 @@
                         <TextBlock Classes="card-title" Text="{Binding PrimaryListTitle}" />
                     </StackPanel>
                     <Border Classes="card-header-rule" />
+                    <TextBlock Margin="18,14,18,0" Text="{Binding EmptyListText}" IsVisible="{Binding ShowPrimaryEmpty}"
+                               Foreground="{StaticResource MutedBrush}" />
                     <ItemsControl Margin="18,14,18,18" ItemsSource="{Binding PrimaryList}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
@@ -304,6 +308,8 @@
                         </Grid>
 
                         <!-- Legend rows (.species-legend / .legend-row) -->
+                        <TextBlock Margin="18,14,18,0" Text="{Binding EmptyListText}" IsVisible="{Binding ShowSpeciesEmpty}"
+                                   Foreground="{StaticResource MutedBrush}" />
                         <ItemsControl ItemsSource="{Binding Species}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="dashboard:DashboardSpeciesViewModel">
@@ -348,6 +354,8 @@
                         <TextBlock Classes="card-title" Text="{Binding SecondaryListTitle}" />
                     </StackPanel>
                     <Border Classes="card-header-rule" />
+                    <TextBlock Margin="18,14,18,0" Text="{Binding EmptyListText}" IsVisible="{Binding ShowSecondaryEmpty}"
+                               Foreground="{StaticResource MutedBrush}" />
                     <ItemsControl Margin="18,14,18,18" ItemsSource="{Binding SecondaryList}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
