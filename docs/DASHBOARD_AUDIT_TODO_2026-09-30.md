@@ -3,10 +3,10 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
-- **14 از 44 تسک انجام‌شده: D01، D02، D03، D05، D06، D07، D11، D13، D14، D15، D32، D39، D41، D43. 30 تسک دیگر باز هستند.** (به‌روزرسانی خودکار پس از هر تسک؛ جزئیات هر مورد در بخش خودش ثبت شده است.)
+- **15 از 44 تسک انجام‌شده: D01، D02، D03، D05، D06، D07، D09، D11، D13، D14، D15، D32، D39، D41، D43. 29 تسک دیگر باز هستند.** (به‌روزرسانی خودکار پس از هر تسک؛ جزئیات هر مورد در بخش خودش ثبت شده است.)
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
-- باقی‌مانده: D04، D08، D09، D10، D12، D16، D17، D18، D19، D20، D21، D22، D23، D24، D25، D26، D27، D28، D29، D30، D31، D33، D34، D35، D36، D37، D38، D40، D42، D44. موارد GUI/Windows/contrast/performance که اندازه‌گیری نشده‌اند تیک نخورده‌اند.
+- باقی‌مانده: D04، D08، D10، D12، D16، D17، D18، D19، D20، D21، D22، D23، D24، D25، D26، D27، D28، D29، D30، D31، D33، D34، D35، D36، D37، D38، D40، D42، D44. موارد GUI/Windows/contrast/performance که اندازه‌گیری نشده‌اند تیک نخورده‌اند.
 - متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #181 را توصیف نمی‌کنند. fixture قدیمی ناسازگار در اجرای قبلی فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران. اسکریپت‌های Windows/sandbox/git، migrationها و دیتابیس واقعی کاربر در این جلسه تغییر نکردند.
 
 ## دامنه و نتیجه مرحله تدوین اولیه (تاریخی)
@@ -205,7 +205,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(activity): D08 preserve durable actor provenance"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D09 — سقف مشترک 80 رویداد یک widget دیگر را حذف می‌کند
-- [ ] وضعیت: باز | P1 | گزارش 9 | نتیجه: قطعی + بازتولید حافظه | وابستگی: D06.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 9 | نتیجه: قطعی + بازتولید حافظه | وابستگی: D06.
+- شواهد اجرای 2026-10-01: regression `WidgetPreviews_AreBoundedIndependently_AndAggregatesIgnorePreviewLimits`: 12 نوبت + 12 فاکتور + 12 handoff + 120 رویداد نامرتبط؛ هر preview در SQL حداکثر 8 ردیف با ترتیب پایدار (StartUtc,Id / IssuedUtc,Id / CompletedUtc,Id)، سقف 80 فقط مال بخش «فعالیت‌ها»، و QueueCount/OpenInvoices aggregate مستقل از preview (12). مسیر معیوب filter+Take(8) روی feed در D06/D07 حذف شده بود؛ این تسک تأیید حذف وابستگی است. کلاس Budget: **28 passed، 0 failed، 16 ثانیه**.
 - شواهد: `DashboardQueries.cs:53` و filter سپس `Take(8)` در `DashboardQueryService.cs:74–85`.
 - اقدام: limit/sort مستقل در SQL هر widget؛ limit کلی feed فقط برای preview همان فعالیت‌ها. total/HasMore در صورت لازم مستقل از preview باشد؛ ترتیب دارای tie-breaker ثابت باشد. اگر D06 مسیر معیوب را حذف کرد، این تسک فقط regression و تأیید حذف وابستگی است، نه پیاده‌سازی تکراری.
 - پذیرش/بررسی محدود: 1 نوبت + 80 رویداد نامرتبط، نوبت را حذف نکند؛ هر لیست حداکثر اندازه مصوب داشته باشد؛ aggregate روز از preview مشتق نشود.

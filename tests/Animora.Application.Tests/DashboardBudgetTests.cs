@@ -145,6 +145,47 @@ public sealed class DashboardBudgetTests
     }
 
     [Fact]
+    public async Task WidgetPreviews_AreBoundedIndependently_AndAggregatesIgnorePreviewLimits()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var owner = Owner.Register(fixture.TenantId, "مالک", "09120000001", fixture.Clock);
+        var pet = Pet.Register(fixture.TenantId, owner.Id, "بیمار", PetSpecies.Dog, fixture.Clock);
+        db.AddRange(owner, pet);
+        for (var i = 0; i < 12; i++)
+        {
+            db.Add(Appointment.Book(fixture.TenantId, pet.Id, owner.Id, "CHECKUP", Window.StartUtc.AddMinutes(60 + i * 5),
+                30, AppointmentSource.Phone, "receptionist", fixture.Clock, "doc-A").Value!);
+            var invoice = Invoice.Create(fixture.TenantId, $"INV-{i:00}", InvoiceKind.DirectSale, Window.StartUtc.AddMinutes(i),
+                "cashier", ownerId: owner.Id, petId: pet.Id).Value!;
+            Assert.True(invoice.AddLine(new InvoiceLine("line", InvoiceLineKind.Service, null, null, null,
+                "Consultation", new Quantity(1, "PCS"), Money.Irt(100), 0, 0, InvoiceLineSource.Manual, null)).IsSuccess);
+            Assert.True(invoice.Post(fixture.Clock).IsSuccess);
+            db.Add(invoice);
+            db.Add(VisitBillingHandoff.Create(fixture.TenantId, $"visit-{i}", owner.Id, pet.Id, "doc-A", Window.StartUtc.AddMinutes(i), "[]"));
+        }
+        for (var i = 0; i < 120; i++)
+            db.Add(ActivityEvent.Create(fixture.TenantId, Window.StartUtc.AddHours(12), Today, "Inventory",
+                "history.inventory.changed", "{}", "Inventory", $"stock-{i}", 0, 0, "Done", "receptionist", "پذیرش", null));
+        await db.SaveChangesAsync();
+        var queries = new DashboardQueries(db);
+        var doctor = await queries.GetSliceAsync(fixture.TenantId, Window, "doc-A", TestAccess(UserRole.Doctor), default);
+        Assert.Equal(8, doctor.Appointments!.Count);
+        Assert.Equal(12, doctor.QueueCount); // The KPI is an aggregate, never derived from the preview.
+        Assert.Equal(doctor.Appointments.OrderBy(x => x.StartUtc).Select(x => x.StartUtc), doctor.Appointments.Select(x => x.StartUtc));
+        var cashier = await queries.GetSliceAsync(fixture.TenantId, Window, "cashier", TestAccess(UserRole.Cashier), default);
+        Assert.Equal(8, cashier.OpenInvoiceRows!.Count);
+        Assert.Equal(8, cashier.ReadyBillingRows!.Count);
+        Assert.Equal(12, cashier.OpenInvoices);
+        var manager = await queries.GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
+        Assert.Equal(80, manager.Activity.Count); // Only the activity widget owns the 80-row preview.
+        Assert.Equal(8, manager.Appointments!.Count);
+        Assert.Equal(8, InvokeMap(UserRole.Manager, manager).PrimaryList.Count);
+    }
+
+    [Fact]
     public async Task ManagerRevenue_EqualsFinanceSameDayFigure()
     {
         const long expected = 7_654_321;
