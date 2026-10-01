@@ -289,6 +289,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _types.Clear();
         _types.AddRange(await _service.GetTypesAsync());
         ApplySettings(await _settings.GetAsync());
+        LockViewForCalendarMode();
         _all.Clear();
         var today = DateOnly.FromDateTime(DateTime.Today);
         _all.AddRange(await _service.GetForRangeAsync(today.AddDays(-40), today.AddDays(20)));
@@ -659,7 +660,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 total += list.Count;
             }
 
-            var shown = list.Take(3).Select(a => new MonthEventViewModel(a, TypeOf(a.TypeId))).ToList();
+            var shown = list.Take(3).Select(a => new MonthEventViewModel(a, TypeOf(a.TypeId), showTime: !CalendarModeIsDayOnly)).ToList();
             cells.Add(new MonthCellViewModel(
                 d,
                 isOut,
@@ -1156,6 +1157,24 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
     }
 
+    /// <summary>
+    /// Day-only mode has no time grid: the calendar is forced to the month view (whose cells are whole
+    /// days) and the day/week switch is hidden. Time-based mode leaves the chosen view untouched.
+    /// </summary>
+    private void LockViewForCalendarMode()
+    {
+        if (!CalendarModeIsDayOnly || _viewMode == "month")
+        {
+            return;
+        }
+
+        _viewMode = "month";
+        OnPropertyChanged(nameof(ViewMode));
+        OnPropertyChanged(nameof(IsDayView));
+        OnPropertyChanged(nameof(IsWeekView));
+        OnPropertyChanged(nameof(IsMonthViewMode));
+    }
+
     private void PersistSms()
     {
         if (_applyingSettings)
@@ -1179,6 +1198,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         OnPropertyChanged(nameof(CalendarModeIsDayOnly));
         OnPropertyChanged(nameof(CalendarModeIsTimeBased));
         await _settings.SetCalendarModeAsync(mode);
+        LockViewForCalendarMode();
+        // The calendar tab is cached by its LazyTabHost: repaint it now so it is correct on return.
+        Render();
         _toast.Show(mode == CalendarMode.DayOnly ? "حالت تقویم: فقط روزانه" : "حالت تقویم: بر اساس ساعت", Tone.Ok);
     }
 
@@ -1283,7 +1305,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     [RelayCommand]
     private void SetView(string? key)
     {
-        if (string.IsNullOrEmpty(key))
+        if (string.IsNullOrEmpty(key) || (CalendarModeIsDayOnly && key != "month"))
         {
             return;
         }
@@ -1433,9 +1455,29 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return;
         }
 
-        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs);
+        await OpenNewBookingAsync(null);
+    }
+
+    /// <summary>
+    /// Day-only mode: clicking a day cell books that day directly (no clock time to pick).
+    /// Ignored in time-based mode, where booking happens through the toolbar button.
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenDayBooking(DateOnly day)
+    {
+        if (!CalendarModeIsDayOnly)
+        {
+            return;
+        }
+
+        await OpenNewBookingAsync(day);
+    }
+
+    private async Task OpenNewBookingAsync(DateOnly? date)
+    {
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings);
         panel.Saved += RefreshAfterWrite;
-        await panel.LoadForNewAsync(null, null, null, null);
+        await panel.LoadForNewAsync(date, null, null, null);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
     }
 
@@ -1456,7 +1498,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private async Task OpenEditAsync(AppointmentEvent ev)
     {
-        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs);
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings);
         panel.Saved += RefreshAfterWrite;
         await panel.LoadForEditAsync(ev);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);

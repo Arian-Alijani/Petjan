@@ -308,7 +308,8 @@
                                            Foreground="{StaticResource MutedBrush}" />
                             </StackPanel>
                             <Border Grid.Column="1" Background="{StaticResource Bg2Brush}" CornerRadius="11"
-                                    Padding="3" VerticalAlignment="Center">
+                                    Padding="3" VerticalAlignment="Center"
+                                    IsVisible="{Binding !CalendarModeIsDayOnly}">
                                 <StackPanel Orientation="Horizontal" Spacing="2">
                                     <Button Classes="ap-seg" Classes.is-active="{Binding IsDayView}"
                                             Command="{Binding SetViewCommand}" CommandParameter="day">

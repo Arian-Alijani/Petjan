@@ -430,9 +430,9 @@
                             <StackPanel>
                                 <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
                                     <Border Grid.Column="0" Classes="step"><TextBlock Text="۴" /></Border>
-                                    <TextBlock Grid.Column="1" Text="تاریخ و ساعت" FontSize="13" FontWeight="ExtraBold"
+                                    <TextBlock Grid.Column="1" Text="{Binding DateSectionTitle}" FontSize="13" FontWeight="ExtraBold"
                                                VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="3" Text="ابتدا روز، سپس مدت و ساعت شروع را انتخاب کنید"
+                                    <TextBlock Grid.Column="3" Text="{Binding DateSectionHint}"
                                                FontSize="11" Foreground="{StaticResource MutedBrush}"
                                                VerticalAlignment="Center" />
                                 </Grid>
@@ -515,8 +515,27 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <!-- slots -->
-                                    <StackPanel Grid.Column="1" Spacing="11">
+                                    <!-- day-only: no clock time, just how busy the chosen day is -->
+                                    <Border Grid.Column="1" Classes="switch-row" VerticalAlignment="Top"
+                                            IsVisible="{Binding IsDayOnly}">
+                                        <StackPanel Orientation="Horizontal" Spacing="11">
+                                            <Path Classes="icon" Width="18" Height="18"
+                                                  Stroke="{StaticResource Brand600Brush}"
+                                                  Data="{StaticResource IconCalendar}" VerticalAlignment="Top" />
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="حالت تقویم: فقط روزانه" FontSize="12.5" FontWeight="Bold"
+                                                           Foreground="{StaticResource Ink2Brush}" />
+                                                <TextBlock Text="{Binding DayOnlyInfoText}" FontSize="11" TextWrapping="Wrap"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                                <TextBlock Text="نوبت بدون ساعت مشخص ثبت می‌شود و در تقویم همان روز نمایش داده می‌شود."
+                                                           FontSize="11" TextWrapping="Wrap"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- slots (time-based mode only) -->
+                                    <StackPanel Grid.Column="1" Spacing="11" IsVisible="{Binding IsTimed}">
                                         <ItemsControl ItemsSource="{Binding DurationOptions}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" /></ItemsPanelTemplate>
@@ -731,14 +750,21 @@
                                                    FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>
-                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7">
+                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7" IsVisible="{Binding IsDayOnly}">
+                                        <TextBlock Grid.Column="0" Text="نوبت‌های آن روز" FontSize="12"
+                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding SummaryDayCountText}" FontSize="12"
+                                                   FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7" IsVisible="{Binding IsTimed}">
                                         <TextBlock Grid.Column="0" Text="ساعت" FontSize="12"
                                                    Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                                         <TextBlock Grid.Column="1" Text="{Binding SummaryTimeText}" FontSize="12"
                                                    FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>
-                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7">
+                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7" IsVisible="{Binding IsTimed}">
                                         <TextBlock Grid.Column="0" Text="مدت" FontSize="12"
                                                    Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                                         <TextBlock Grid.Column="1" Text="{Binding SummaryDurationText}" FontSize="12"

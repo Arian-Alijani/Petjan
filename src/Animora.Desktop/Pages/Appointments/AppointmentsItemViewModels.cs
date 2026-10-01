@@ -121,11 +121,15 @@ public enum EventTier
 /// </summary>
 public sealed class MonthEventViewModel
 {
-    public MonthEventViewModel(AppointmentEvent model, AppointmentType type)
+    public MonthEventViewModel(AppointmentEvent model, AppointmentType type, bool showTime = true)
     {
         Model = model;
         Type = type;
+        ShowTime = showTime;
     }
+
+    /// <summary>False in day-only mode, where an appointment has no meaningful clock time.</summary>
+    public bool ShowTime { get; }
 
     public AppointmentEvent Model { get; }
     public AppointmentType Type { get; }
