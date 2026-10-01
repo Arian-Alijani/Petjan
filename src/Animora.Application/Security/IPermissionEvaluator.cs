@@ -35,4 +35,18 @@ public interface IPermissionEvaluator
 {
     Task<AuthorizationDecision> EvaluateAsync(string permissionCode, AuthorizationSubject subject, object? resource,
         CancellationToken ct);
+
+    /// <summary>
+    /// Resource-free decisions for several codes from ONE stored-membership/role read (same RBAC stage and
+    /// fail-closed rules as <see cref="EvaluateAsync"/>). Returns the subset of <paramref name="permissionCodes"/>
+    /// that is allowed. The default loops, so every implementation stays correct; the stored evaluator batches.
+    /// </summary>
+    async Task<IReadOnlySet<string>> AllowedAsync(IReadOnlyCollection<string> permissionCodes,
+        AuthorizationSubject subject, CancellationToken ct)
+    {
+        var allowed = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var code in permissionCodes)
+            if ((await EvaluateAsync(code, subject, null, ct).ConfigureAwait(false)).Allowed) allowed.Add(code);
+        return allowed;
+    }
 }

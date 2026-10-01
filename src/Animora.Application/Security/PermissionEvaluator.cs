@@ -28,6 +28,42 @@ public sealed class PermissionEvaluator(
     public const string InvalidInputRule = "INVALID_INPUT";
     public const string RbacRule = "RBAC";
 
+    /// <summary>Stage 1 shared by single and batched evaluation: active membership + stored role grants, or null.</summary>
+    private async Task<(StaffMembership Membership, HashSet<string> Grants)?> LoadGrantsAsync(
+        AuthorizationSubject subject, CancellationToken ct)
+    {
+        var membership = await memberships.FindActiveAsync(subject.TenantId, subject.UserId, ct).ConfigureAwait(false);
+        if (membership is null || !membership.IsActive
+            || !string.Equals(membership.TenantId, subject.TenantId, StringComparison.Ordinal)
+            || !string.Equals(membership.UserId, subject.UserId, StringComparison.Ordinal)
+            || membership.Role != subject.Role)
+            return null;
+
+        var role = await roles.FindByRoleAsync(subject.TenantId, membership.Role, ct).ConfigureAwait(false);
+        if (role is null || role.Role != membership.Role
+            || !string.Equals(role.TenantId, subject.TenantId, StringComparison.Ordinal))
+            return null;
+
+        var grants = new HashSet<string>(role.PermissionCodes, StringComparer.Ordinal);
+        grants.UnionWith(membership.ExtraPermissionCodes);
+        grants.ExceptWith(membership.DeniedPermissionCodes);
+        return (membership, grants);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlySet<string>> AllowedAsync(IReadOnlyCollection<string> permissionCodes,
+        AuthorizationSubject subject, CancellationToken ct)
+    {
+        if (subject is null || string.IsNullOrWhiteSpace(subject.TenantId) || string.IsNullOrWhiteSpace(subject.UserId))
+            return new HashSet<string>(StringComparer.Ordinal);
+        var stored = await LoadGrantsAsync(subject, ct).ConfigureAwait(false);
+        var allowed = new HashSet<string>(StringComparer.Ordinal);
+        if (stored is null) return allowed;
+        foreach (var code in permissionCodes)
+            if (PermissionCodes.Exists(code ?? string.Empty) && stored.Value.Grants.Contains(code!)) allowed.Add(code!);
+        return allowed;
+    }
+
     public async Task<AuthorizationDecision> EvaluateAsync(string permissionCode, AuthorizationSubject subject,
         object? resource, CancellationToken ct)
     {
@@ -37,21 +73,9 @@ public sealed class PermissionEvaluator(
             return AuthorizationDecision.Deny(code, InvalidInputRule);
 
         // Stage 1 — RBAC from stored grants.
-        var membership = await memberships.FindActiveAsync(subject.TenantId, subject.UserId, ct).ConfigureAwait(false);
-        if (membership is null || !membership.IsActive
-            || !string.Equals(membership.TenantId, subject.TenantId, StringComparison.Ordinal)
-            || !string.Equals(membership.UserId, subject.UserId, StringComparison.Ordinal)
-            || membership.Role != subject.Role)
-            return AuthorizationDecision.Deny(code, RbacRule);
-
-        var role = await roles.FindByRoleAsync(subject.TenantId, membership.Role, ct).ConfigureAwait(false);
-        if (role is null || role.Role != membership.Role
-            || !string.Equals(role.TenantId, subject.TenantId, StringComparison.Ordinal))
-            return AuthorizationDecision.Deny(code, RbacRule);
-
-        var grants = new HashSet<string>(role.PermissionCodes, StringComparer.Ordinal);
-        grants.UnionWith(membership.ExtraPermissionCodes);
-        grants.ExceptWith(membership.DeniedPermissionCodes);
+        var stored = await LoadGrantsAsync(subject, ct).ConfigureAwait(false);
+        if (stored is null) return AuthorizationDecision.Deny(code, RbacRule);
+        var (membership, grants) = stored.Value;
         if (!grants.Contains(code)) return AuthorizationDecision.Deny(code, RbacRule);
 
         var effective = subject with { Role = membership.Role, Permissions = grants.ToFrozenSet(StringComparer.Ordinal) };

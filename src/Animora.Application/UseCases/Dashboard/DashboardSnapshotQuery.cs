@@ -102,16 +102,20 @@ public sealed class DashboardComposer(IDashboardQueries queries, Animora.Domain.
             return Result<DashboardAccess>.Fail(ErrorCodes.PermissionDenied);
         var subject = new AuthorizationSubject(context.TenantId, context.UserId, FrozenSet<string>.Empty,
             member.Role, installation.DeviceId, IsOffline: false);
-        async Task<bool> Can(string code) => (await permissions.EvaluateAsync(code, subject, null, ct)).Allowed;
-        var finance = await Can(PermissionCodes.FinanceRead);
-        var collections = finance || await Can(PermissionCodes.PaymentsRegister);
-        var inventory = await Can(PermissionCodes.InventoryRead);
-        var sales = await Can(PermissionCodes.SalesRead);
-        var visits = await Can(PermissionCodes.VisitsRead);
-        var vaccination = await Can(PermissionCodes.VaccinationRead);
-        var cheques = await Can(PermissionCodes.ChequesRead);
-        var appointments = await Can(PermissionCodes.AppointmentsRead);
-        var patients = await Can(PermissionCodes.PatientsRead);
+        // One stored-membership/role read for every widget permission (not one per code).
+        var allowed = await permissions.AllowedAsync([PermissionCodes.FinanceRead, PermissionCodes.PaymentsRegister,
+            PermissionCodes.InventoryRead, PermissionCodes.SalesRead, PermissionCodes.VisitsRead,
+            PermissionCodes.VaccinationRead, PermissionCodes.ChequesRead, PermissionCodes.AppointmentsRead,
+            PermissionCodes.PatientsRead], subject, ct);
+        var finance = allowed.Contains(PermissionCodes.FinanceRead);
+        var collections = finance || allowed.Contains(PermissionCodes.PaymentsRegister);
+        var inventory = allowed.Contains(PermissionCodes.InventoryRead);
+        var sales = allowed.Contains(PermissionCodes.SalesRead);
+        var visits = allowed.Contains(PermissionCodes.VisitsRead);
+        var vaccination = allowed.Contains(PermissionCodes.VaccinationRead);
+        var cheques = allowed.Contains(PermissionCodes.ChequesRead);
+        var appointments = allowed.Contains(PermissionCodes.AppointmentsRead);
+        var patients = allowed.Contains(PermissionCodes.PatientsRead);
         var role = member.Role switch
         {
             StaffRole.Doctor => UserRole.Doctor,
