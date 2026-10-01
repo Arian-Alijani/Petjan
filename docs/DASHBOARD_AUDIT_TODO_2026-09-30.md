@@ -3,7 +3,7 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
-- **28 از 44 تسک انجام‌شده؛ 16 تسک باز: D19، D21، D22، D23، D24، D26، D27، D28، D29، D31، D33، D34، D35، D36، D42، D44.**
+- **29 از 44 تسک انجام‌شده؛ 15 تسک باز: D19، D21، D22، D23، D24، D26، D28، D29، D31، D33، D34، D35، D36، D42، D44.**
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
 - باقی‌مانده: D19، D21، D22، D23، D24، D26، D27، D28، D29، D31، D33، D34، D35، D36، D42، D44. پذیرش GUI/Windows بدون شاهد واقعی بسته نمی‌شود.
@@ -346,7 +346,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D26 preserve typed failure semantics"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D27 — آماده‌سازی snapshot می‌تواند UI را نیمه‌به‌روز بگذارد
-- [ ] وضعیت: باز | P2 | گزارش 27 | نتیجه: ریسک ساختار Apply، شکست واقعی مشاهده نشده | وابستگی: D16/D17/D18.
+- [x] وضعیت: انجام‌شده | P2 | گزارش 27 | نتیجه: ریسک ساختار Apply، شکست واقعی مشاهده نشده | وابستگی: D16/D17/D18.
+- شواهد اجرای 2026-10-01: آماده‌سازی کامل presentation (rows، species، geometry، tooltip، totals، slices) پیش از هر تغییر state در `Prepare` انجام می‌شود و `Publish` با backing fieldها و یک notification (`OnPropertyChanged(string.Empty)`) state یکپارچه منتشر می‌کند؛ خطای preparation state و marker قبلی را حفظ می‌کند و cache-hit (همان snapshot) بازسازی/انتشار ندارد. تست `PreparationFailure_KeepsEntirePublishedStateAndAppliedMarker_ThenValidStateReplacesOnce` در `DashboardLifecycleTests`: **21 passed، 0 failed، 8 ثانیه** (فیلتر کلاس، بدون Full build/test). کد در PR #185 merge شده بود؛ این اجرا فقط شاهد و تیک پلن را ثبت می‌کند.
 - شواهد: `DashboardPageViewModel.cs:222–244,293–315`؛ ساخت brush/geometry بعد از تغییر چند collection انجام می‌شود.
 - اقدام: تمام presentation state، rows، geometry، species و formatted totals ابتدا آماده/validate شوند؛ سپس روی UI dispatcher با state واحد یا batch coherent منتشر شوند. ReplaceAll و reuse snapshot حفظ شوند. صرف چند assignment پشت‌سرهم ادعای atomic publication کامل نیست؛ برای observerها نیز ترتیب/یکپارچگی state تعریف شود.
 - پذیرش/بررسی محدود: خطای preparation تزریق‌شده، تمام state قبلی و applied marker را سالم نگه دارد؛ state جدید valid کامل منتشر شود؛ cache-hit بدون تغییر snapshot rows/geometry تازه نسازد؛ stale marker در failure مشخص باشد.
