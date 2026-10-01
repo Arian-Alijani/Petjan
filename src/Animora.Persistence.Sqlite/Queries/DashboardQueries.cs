@@ -83,7 +83,7 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             activity = await feed.OrderByDescending(x => x.Id).Take(80)
                 .Select(x => new DashboardActivity(x.Kind, x.Title, x.EntityId,
                     access.Finance || access.Collections ? x.AmountMinor : 0L,
-                    access.Finance || access.Collections ? x.AmountSign : 0, x.ActorUserId, x.OccurredUtc, x.ActorName)).ToListAsync(ct);
+                    access.Finance || access.Collections ? x.AmountSign : 0, x.ActorUserId, x.OccurredUtc, x.ActorName, x.Status)).ToListAsync(ct);
         }
         if (access.Collections)
         {

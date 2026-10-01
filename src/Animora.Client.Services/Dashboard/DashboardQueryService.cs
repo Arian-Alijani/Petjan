@@ -128,27 +128,33 @@ internal static class DashboardMapping
     private static DashboardStat Stat(string icon, string label, long value) =>
         new(icon, label, value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), null, true);
     private static DashboardListItem Item(DashboardActivity x, TimeZoneInfo zone) =>
-        new("", x.TitleKey,
-            string.Join(" · ", new[] { TimeZoneInfo.ConvertTime(x.OccurredUtc, zone).ToString("HH:mm"),
+        new("", SafeActivityTitle(x), string.Join(" · ", new[] { TimeZoneInfo.ConvertTime(x.OccurredUtc, zone).ToString("HH:mm"),
                 x.ActorName, x.AmountMinor == 0 ? "" : x.AmountMinor.ToString("N0") + " ریال" }.Where(v => v.Length > 0)),
-            KindName(x.Kind), x.AmountSign < 0 ? DashboardTone.Warn : DashboardTone.Info, Icon(x.Kind));
+            KindName(x.Kind), x.AmountSign < 0 ? DashboardTone.Warn : DashboardTone.Info, Icon(x.Kind),
+            x.Kind, x.Status, x.TitleKey);
+
+    // The translation key travels separately; the fallback title is Persian text, never the technical key.
+    private static string SafeActivityTitle(DashboardActivity x) => $"رویداد {KindName(x.Kind)}";
 
     private static DashboardListItem OperationalItem(DashboardOperationalRow row, TimeZoneInfo zone) =>
         new("", string.IsNullOrWhiteSpace(row.Name) ? "بدون عنوان" : row.Name,
-            $"{TimeZoneInfo.ConvertTime(row.AtUtc, zone):MM/dd HH:mm} · {row.OwnerName}" +
-            (row.Kind == "Vaccine" ? $" · {row.Reference}" : ""),
+            $"{TimeZoneInfo.ConvertTime(row.AtUtc, zone):MM/dd HH:mm} · " +
+            (string.IsNullOrWhiteSpace(row.OwnerName) ? "مالک نامشخص" : row.OwnerName) +
+            (row.Kind == "Vaccine" && !string.IsNullOrWhiteSpace(row.Reference) ? $" · {row.Reference}" : ""),
             row.State switch { "Draft" => "پیش‌نویس", "Posted" => "در انتظار پرداخت", "PartiallyPaid" => "پرداخت جزئی",
                 "Ready" => "آماده صدور", "Due" => "موعد واکسن", _ => "عملیات" },
             row.State is "Due" or "PartiallyPaid" ? DashboardTone.Warn : DashboardTone.Info,
-            row.Kind switch { "Invoice" => "IconReceipt", "Visit" => "IconClipboard", "Boarding" => "IconHome", "Vaccine" => "IconSyringe", _ => "IconClipboard" });
+            row.Kind switch { "Invoice" => "IconReceipt", "Visit" => "IconClipboard", "Boarding" => "IconBriefcase", "Vaccine" => "IconSyringe", _ => "IconClipboard" },
+            row.Kind, row.State);
 
     private static DashboardListItem AppointmentItem(DashboardAppointment x, TimeZoneInfo zone) =>
-        new("", x.PetName, $"{TimeZoneInfo.ConvertTime(x.StartUtc, zone):HH:mm} · {x.OwnerName} · {x.DoctorName}",
+        new("", string.IsNullOrWhiteSpace(x.PetName) ? "بیمار نامشخص" : x.PetName,
+            $"{TimeZoneInfo.ConvertTime(x.StartUtc, zone):HH:mm} · {x.OwnerName} · {x.DoctorName}",
             x.State switch { "Scheduled" => "رزرو شده", "Confirmed" => "تأیید شده", "CheckedIn" => "پذیرش شده",
                 "InVisit" => "در حال ویزیت", "Completed" => "تکمیل شده", "Cancelled" => "لغو شده",
                 "NoShow" => "عدم حضور", _ => "نوبت" },
             x.State == "Completed" ? DashboardTone.Ok : x.State is "Cancelled" or "NoShow" ? DashboardTone.Warn : DashboardTone.Info,
-            "IconCalendar");
+            "IconCalendar", "Appointment", x.State);
 
     private static string KindName(string kind) => kind switch
     {

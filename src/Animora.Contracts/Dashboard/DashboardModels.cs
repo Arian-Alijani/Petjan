@@ -80,13 +80,22 @@ public sealed record DashboardRevenuePulse(
 /// subtitle+tag shape re-derived from what each DASH_VIEW_* row visually
 /// shows in Animora-UI/assets/dashboard-views.js.
 /// </summary>
+/// <remarks>
+/// <b>Kind</b> (Appointment, Invoice, Vaccine, Visit, Sale, ...) and <b>Status</b> (the entity's own state name)
+/// are stable, language-independent identifiers that drive icons and tone in presentation.
+/// <b>TitleKey</b> is an optional translation key (<c>history.*</c>); <b>Title</b> is always a safe,
+/// human-readable fallback and is never a technical key or an internal id.
+/// </remarks>
 public sealed record DashboardListItem(
     string AvatarText,
     string Title,
     string Subtitle,
     string TagText,
     DashboardTone TagTone,
-    string? IconKey = null);
+    string? IconKey = null,
+    string Kind = "",
+    string Status = "",
+    string? TitleKey = null);
 
 /// <summary>
 /// Full data set for one role's dashboard render. Two labeled content lists

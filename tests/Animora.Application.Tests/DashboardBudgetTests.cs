@@ -297,6 +297,36 @@ public sealed class DashboardBudgetTests
     }
 
     [Fact]
+    public void Rows_CarryTypedKindStatusAndNeverExposeKeysOrInternalIds()
+    {
+        var at = Window.StartUtc.AddHours(9);
+        var slice = new DashboardSlice([], [new("Sale", "history.future.unknown", "01HINTERNALID", 0, 0, "u", at, "", "Paid"),
+                new("Weird", "history.invoice.posted", "id-2", 5, -1, "u", at, "مدیر", "Done")],
+            [], new Dictionary<string, int>(), 0, 0, 0,
+            Appointments: [new("", "", "", at, "Cancelled")],
+            OpenInvoiceRows: [new("Invoice", "INV-9", "", at, "Posted", "INV-9"), new("Mystery", "", "مالک", at, "???")],
+            ReminderRows: [new("Vaccine", "پیشی", "", at, "Due", "")]);
+        var manager = InvokeMap(UserRole.Manager, slice);
+        Assert.All(manager.SecondaryList, x => Assert.DoesNotContain("history.", x.Title));
+        Assert.All(manager.SecondaryList, x => Assert.DoesNotContain("INTERNALID", x.Subtitle));
+        Assert.Equal("history.future.unknown", manager.SecondaryList[0].TitleKey);
+        Assert.Equal("Paid", manager.SecondaryList[0].Status);
+        Assert.Equal("IconCheque", Icon("Cheque"));
+        var appointment = Assert.Single(manager.PrimaryList);
+        Assert.Equal(("بیمار نامشخص", "Appointment", "Cancelled", Contracts.Dashboard.DashboardTone.Warn),
+            (appointment.Title, appointment.Kind, appointment.Status, appointment.TagTone));
+        var cashier = InvokeMap(UserRole.Cashier, slice);
+        Assert.Equal(("Invoice", "Posted", "IconReceipt"), (cashier.PrimaryList[0].Kind, cashier.PrimaryList[0].Status, cashier.PrimaryList[0].IconKey));
+        Assert.Contains("مالک نامشخص", cashier.PrimaryList[0].Subtitle);
+        Assert.Equal("بدون عنوان", cashier.PrimaryList[1].Title);   // unknown type / empty name do not crash
+        Assert.Equal("عملیات", cashier.PrimaryList[1].TagText);
+        var doctor = InvokeMap(UserRole.Doctor, slice);
+        Assert.Equal(("Vaccine", "IconSyringe"), (doctor.SecondaryList[0].Kind, doctor.SecondaryList[0].IconKey));
+        static string Icon(string kind) => DashboardMapping.Map(UserRole.Manager,
+            new DashboardSlice([], [new(kind, "history.cheque.statuschanged", "x", 0, 0, "", default, "")], [], new Dictionary<string, int>(), 0, 0, 0)).SecondaryList[0].IconKey!;
+    }
+
+    [Fact]
     public async Task ManagerRevenue_EqualsFinanceSameDayFigure()
     {
         const long expected = 7_654_321;
@@ -689,7 +719,7 @@ public sealed class DashboardBudgetTests
     [Fact]
     public void Mapping_UsesRealAppointmentDetailsAndSemanticEventIcons()
     {
-        var slice = new DashboardSlice([], [new("Appointment", "history.appointment.booked", "opaque-id", 0, 0, "", Window.StartUtc, "مدیر")],
+        var slice = new DashboardSlice([], [new("Appointment", "history.appointment.booked", "opaque-id", 0, 0, "", Window.StartUtc, "مدیر", "Done")],
             [new("doctor-id", 5, "دکتر رضایی", 2)], new Dictionary<string, int> { ["Cat"] = 3 }, 0, 0, 0,
             Appointments: [new("پیشی", "مالک", "دکتر رضایی", Window.StartUtc.AddHours(9), "Confirmed")]);
         var snapshot = InvokeMap(UserRole.Manager, slice);
@@ -700,7 +730,9 @@ public sealed class DashboardBudgetTests
         Assert.Equal("تأیید شده", appointment.TagText);
         Assert.Equal("IconCalendar", appointment.IconKey);
         var activity = Assert.Single(snapshot.SecondaryList);
-        Assert.Equal("history.appointment.booked", activity.Title); // Localized by Desktop's existing HistoryText.
+        Assert.Equal("history.appointment.booked", activity.TitleKey); // Localized by Desktop's HistoryText.
+        Assert.DoesNotContain("history.", activity.Title);             // The fallback is never a technical key.
+        Assert.Equal(("Appointment", "Done"), (activity.Kind, activity.Status));
         Assert.DoesNotContain("opaque-id", activity.Subtitle);
         Assert.Equal("نوبت", activity.TagText);
         Assert.Equal("IconCalendar", activity.IconKey);

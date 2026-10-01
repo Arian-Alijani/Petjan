@@ -9,7 +9,7 @@ using System.Collections.Frozen;
 namespace Animora.Application.UseCases.Dashboard;
 
 public sealed record DashboardActivity(string Kind, string TitleKey, string EntityId, long AmountMinor,
-    int AmountSign, string ActorUserId, DateTimeOffset OccurredUtc = default, string ActorName = "");
+    int AmountSign, string ActorUserId, DateTimeOffset OccurredUtc = default, string ActorName = "", string Status = "");
 public sealed record DashboardDay(int LocalDay, long RevenueMinor);
 public sealed record DashboardWorkload(string DoctorId, int Total, string Name = "", int Done = 0);
 public sealed record DashboardAppointment(string PetName, string OwnerName, string DoctorName,
