@@ -12,9 +12,10 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="Padding" Value="20,9" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
         </Style>
@@ -60,8 +61,25 @@
             <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
         </Style>
         <Style Selector="Button.ap-chip:pointerover">
-            <Setter Property="BorderBrush" Value="{StaticResource Muted2Brush}" />
-            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.ap-chip TextBlock.cnt">
+            <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Button.ap-chip.is-active, Button.ap-chip.is-active:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="Button.ap-chip.is-active /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.ap-chip.is-active TextBlock.cnt">
+            <Setter Property="Foreground" Value="#CCFFFFFF" />
         </Style>
 
         <!-- small icon button (nav-btn) -->
@@ -90,7 +108,7 @@
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="32,6,34,6" />
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="MinHeight" Value="44" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="TextBox.ap-search:focus">
@@ -131,16 +149,20 @@
                 </StackPanel>
             </Grid>
 
-            <!-- ═══ unified toolbar (pagebar) ═══ -->
+            <!-- ═══ unified toolbar (pagebar) — same anatomy as Patients/Owners:
+                 tier 1 tabs (fill) + 420px search, tier 2 type+doctor filters
+                 on ONE row, tier 3 date navigation + view switch. ═══ -->
             <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource Line2Brush}"
                     BorderThickness="1" CornerRadius="{StaticResource Radius}"
-                    Padding="12,10">
-                <StackPanel Spacing="8">
-                    <!-- Compact tabs and search, without changing actions or filters. -->
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    BoxShadow="{StaticResource ShadowCard}"
+                    Padding="14,12">
+                <StackPanel Spacing="12">
+
+                    <!-- tier 1 · tabs (stretch) + search (fixed 420) -->
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <Border Grid.Column="0" Background="{StaticResource Bg2Brush}" CornerRadius="12"
-                                Padding="3">
-                            <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="2">
+                                Padding="3" HorizontalAlignment="Stretch">
+                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="2">
                                 <Button Grid.Column="0" HorizontalAlignment="Stretch" Classes="ap-tab" Classes.is-active="{Binding IsCalendarTab}"
                                         Command="{Binding SelectTabCommand}" CommandParameter="cal"
                                         ToolTip.Tip="میان‌بر: ۱">
@@ -174,9 +196,9 @@
                             </Grid>
                         </Border>
 
-                        <!-- search -->
-                        <Grid Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Stretch" MaxWidth="320">
-                            <TextBox x:Name="SearchBox" Classes="ap-search" MinWidth="220"
+                        <!-- search (.pb-search) -->
+                        <Grid Grid.Column="1" Width="420" MinWidth="200" VerticalAlignment="Stretch">
+                            <TextBox x:Name="SearchBox" Classes="ap-search"
                                      PlaceholderText="جستجوی بیمار، مالک یا پزشک…"
                                      Text="{Binding SearchQueryText, Mode=TwoWay}"
                                      KeyDown="OnSearchKeyDown" />
@@ -198,40 +220,42 @@
                                       Data="{StaticResource IconX}" />
                             </Button>
                         </Grid>
-
                     </Grid>
 
-                    <!-- tier 2 · filters (calendar only) -->
-                    <StackPanel Spacing="6" IsVisible="{Binding ShowCalendarChrome}">
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                            <TextBlock Grid.Column="0" Text="نوع نوبت" FontSize="11" VerticalAlignment="Center"
-                                       Foreground="{StaticResource Muted2Brush}" />
-                            <ItemsControl Grid.Column="1" ItemsSource="{Binding TypeChips}">
+                    <!-- tier 2 · appointment type + doctor, ONE row (calendar only) -->
+                    <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                            Padding="0,12,0,0" IsVisible="{Binding ShowCalendarChrome}">
+                        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="10">
+                            <TextBlock Grid.Column="0" Text="نوع نوبت" FontSize="11.5" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                            <ItemsControl Grid.Column="1" ItemsSource="{Binding TypeChips}" VerticalAlignment="Center">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6" />
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="ap:AppointmentTypeChipViewModel">
-                                        <Button Classes="ap-chip" Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).ToggleTypeCommand}"
+                                        <Button Classes="ap-chip" Classes.is-active="{Binding IsActive}"
+                                                Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).ToggleTypeCommand}"
                                                 CommandParameter="{Binding}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                                          Fill="{Binding Type.Accent, Converter={StaticResource HexBrushConverter}}" />
                                                 <TextBlock Text="{Binding Label}" />
-                                                <TextBlock Text="{Binding CountText}" FontSize="10.5"
-                                                           Foreground="{StaticResource Muted2Brush}" />
+                                                <TextBlock Classes="cnt" Text="{Binding CountText}" FontSize="10.5" />
                                             </StackPanel>
                                         </Button>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                        </Grid>
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                            <TextBlock Grid.Column="0" Text="پزشک" FontSize="11" VerticalAlignment="Center"
-                                       Foreground="{StaticResource Muted2Brush}" />
-                            <ItemsControl Grid.Column="1" ItemsSource="{Binding DoctorChips}">
+
+                            <Border Grid.Column="2" Width="1" Height="22" Background="{StaticResource LineBrush}"
+                                    VerticalAlignment="Center" Margin="4,0" />
+
+                            <TextBlock Grid.Column="3" Text="پزشک" FontSize="11.5" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                            <ItemsControl Grid.Column="4" ItemsSource="{Binding DoctorChips}" VerticalAlignment="Center">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" />
@@ -239,87 +263,91 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="ap:AppointmentDoctorChipViewModel">
-                                        <Button Classes="ap-chip" Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).ToggleDoctorCommand}"
+                                        <Button Classes="ap-chip" Classes.is-active="{Binding IsActive}"
+                                                Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).ToggleDoctorCommand}"
                                                 CommandParameter="{Binding}">
                                             <StackPanel Orientation="Horizontal" Spacing="7">
-                                                <Border Width="22" Height="22" CornerRadius="11"
+                                                <Border Width="20" Height="20" CornerRadius="10"
                                                         Background="{Binding Doctor.Accent, Converter={StaticResource HexBrushConverter}}">
                                                     <TextBlock Text="{Binding Initial}" FontSize="10" FontWeight="ExtraBold"
                                                                Foreground="White" HorizontalAlignment="Center"
                                                                VerticalAlignment="Center" />
                                                 </Border>
                                                 <TextBlock Text="{Binding ShortName}" />
-                                                <TextBlock Text="{Binding CountText}" FontSize="10.5"
-                                                           Foreground="{StaticResource Muted2Brush}" />
+                                                <TextBlock Classes="cnt" Text="{Binding CountText}" FontSize="10.5" />
                                             </StackPanel>
                                         </Button>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <Button Grid.Column="2" VerticalAlignment="Center" Classes="ap-chip" Command="{Binding ToggleHideCancelCommand}">
+
+                            <Button Grid.Column="5" VerticalAlignment="Center" Classes="ap-chip"
+                                    Command="{Binding ToggleHideCancelCommand}">
                                 <TextBlock Text="پنهان‌کردن لغوشده‌ها" />
                             </Button>
                         </Grid>
-                    </StackPanel>
-                    <!-- tier 3 · date navigation (calendar only) -->
-                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="14" IsVisible="{Binding ShowCalendarChrome}"
-                          Margin="0,0,0,0">
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Border Background="{StaticResource Bg2Brush}" CornerRadius="8" Padding="2">
+                    </Border>
+
+                    <!-- tier 3 · date navigation + view switch (calendar only) -->
+                    <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                            Padding="0,12,0,0" IsVisible="{Binding ShowCalendarChrome}">
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="14">
+                            <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding RangeMainText}" FontSize="15" FontWeight="ExtraBold"
+                                           Foreground="{StaticResource InkBrush}" />
+                                <TextBlock Text="{Binding RangeSubText}" FontSize="11.5"
+                                           Foreground="{StaticResource MutedBrush}" />
+                            </StackPanel>
+                            <Border Grid.Column="1" Background="{StaticResource Bg2Brush}" CornerRadius="11"
+                                    Padding="3" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="2">
-                                    <Button Classes="ap-icon" Command="{Binding StepPreviousCommand}"
-                                            ToolTip.Tip="بازه قبلی">
-                                        <Path Classes="icon" Width="16" Height="16"
-                                              Stroke="{StaticResource Ink2Brush}"
-                                              Data="{StaticResource IconChevronLeft}" />
+                                    <Button Classes="ap-seg" Classes.is-active="{Binding IsDayView}"
+                                            Command="{Binding SetViewCommand}" CommandParameter="day">
+                                        <TextBlock Text="روز" />
                                     </Button>
-                                    <Button Classes="ap-icon" Command="{Binding StepNextCommand}"
-                                            ToolTip.Tip="بازه بعدی">
-                                        <Path Classes="icon" Width="16" Height="16"
-                                              Stroke="{StaticResource Ink2Brush}"
-                                              Data="{StaticResource IconChevronRight}" />
+                                    <Button Classes="ap-seg" Classes.is-active="{Binding IsWeekView}"
+                                            Command="{Binding SetViewCommand}" CommandParameter="week">
+                                        <TextBlock Text="هفته" />
+                                    </Button>
+                                    <Button Classes="ap-seg" Classes.is-active="{Binding IsMonthViewMode}"
+                                            Command="{Binding SetViewCommand}" CommandParameter="month">
+                                        <TextBlock Text="ماه" />
                                     </Button>
                                 </StackPanel>
                             </Border>
-                            <Button Command="{Binding GoTodayCommand}" Classes="outline" Height="32" Padding="10,0"
-                                    CornerRadius="8" Background="{StaticResource PanelBrush}"
-                                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                    FontSize="12.5" FontWeight="Bold"
-                                    Foreground="{StaticResource Ink2Brush}" Cursor="Hand"
-                                    ToolTip.Tip="بازگشت به امروز (T)">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Path Classes="icon" Width="14" Height="14"
-                                          Stroke="{StaticResource Brand600Brush}"
-                                          Data="{StaticResource IconClock}" />
-                                    <TextBlock Text="امروز" />
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
-                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding RangeMainText}" FontSize="15" FontWeight="ExtraBold"
-                                       Foreground="{StaticResource InkBrush}" />
-                            <TextBlock Text="{Binding RangeSubText}" FontSize="11.5"
-                                       Foreground="{StaticResource MutedBrush}" />
-                        </StackPanel>
-                        <!-- view switch -->
-                        <Border Grid.Column="1" Background="{StaticResource Bg2Brush}" CornerRadius="11"
-                                Padding="3" VerticalAlignment="Center" IsVisible="{Binding ShowCalendarChrome}">
-                            <StackPanel Orientation="Horizontal" Spacing="2">
-                                <Button Classes="ap-seg" Classes.is-active="{Binding IsDayView}"
-                                        Command="{Binding SetViewCommand}" CommandParameter="day">
-                                    <TextBlock Text="روز" />
-                                </Button>
-                                <Button Classes="ap-seg" Classes.is-active="{Binding IsWeekView}"
-                                        Command="{Binding SetViewCommand}" CommandParameter="week">
-                                    <TextBlock Text="هفته" />
-                                </Button>
-                                <Button Classes="ap-seg" Classes.is-active="{Binding IsMonthViewMode}"
-                                        Command="{Binding SetViewCommand}" CommandParameter="month">
-                                    <TextBlock Text="ماه" />
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Border Background="{StaticResource Bg2Brush}" CornerRadius="8" Padding="2">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <Button Classes="ap-icon" Command="{Binding StepPreviousCommand}"
+                                                ToolTip.Tip="بازه قبلی">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{StaticResource Ink2Brush}"
+                                                  Data="{StaticResource IconChevronLeft}" />
+                                        </Button>
+                                        <Button Classes="ap-icon" Command="{Binding StepNextCommand}"
+                                                ToolTip.Tip="بازه بعدی">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{StaticResource Ink2Brush}"
+                                                  Data="{StaticResource IconChevronRight}" />
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                                <Button Command="{Binding GoTodayCommand}" Classes="outline" Height="32" Padding="10,0"
+                                        CornerRadius="8" Background="{StaticResource PanelBrush}"
+                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                        FontSize="12.5" FontWeight="Bold"
+                                        Foreground="{StaticResource Ink2Brush}" Cursor="Hand"
+                                        ToolTip.Tip="بازگشت به امروز (T)">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="14" Height="14"
+                                              Stroke="{StaticResource Brand600Brush}"
+                                              Data="{StaticResource IconClock}" />
+                                        <TextBlock Text="امروز" />
+                                    </StackPanel>
                                 </Button>
                             </StackPanel>
-                        </Border>
-                    </Grid>
+                        </Grid>
+                    </Border>
 
                 </StackPanel>
             </Border>

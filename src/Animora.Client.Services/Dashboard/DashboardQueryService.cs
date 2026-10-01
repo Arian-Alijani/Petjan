@@ -114,7 +114,7 @@ internal static class DashboardMapping
                 Stat("IconReceipt", "فاکتورهای باز (شامل پیش‌نویس)", slice.OpenInvoices), Stat("IconWallet", "در انتظار پرداخت", slice.AwaitingPaymentCount),
                 Stat("IconCheque", "تغییر وضعیت چک امروز", totals.Cheques) },
             _ => new[] { Stat("IconArrowUpRight", "درآمد امروز", today),
-                Stat("IconUsers", "ویزیت امروز", visits), Stat("IconReceipt", "فاکتورهای باز (شامل پیش‌نویس)", slice.OpenInvoices),
+                Stat("IconUsers", "ویزیت امروز", visits), RemainingAppointments(slice),
                 Stat("IconBox", "هشدار موجودی", slice.LowStockCount) },
         };
         if (slice.Access is { } allowed)
@@ -195,8 +195,35 @@ internal static class DashboardMapping
             Math.Clamp(x.Done, 0, x.Total), x.Total, "#0D9488");
     }
 
+    // Manager "today's pace" card: the live active queue (waiting / called / in-visit), with the completion rate from the workload rows
+    // already in the slice (no extra query). Gated like every other appointment stat (IconClock => Appointments).
+    private static DashboardStat RemainingAppointments(DashboardSlice slice)
+    {
+        var total = slice.Workloads.Sum(w => w.Total);
+        var done = slice.Workloads.Sum(w => Math.Clamp(w.Done, 0, w.Total));
+        var stat = Stat("IconClock", "صف فعال امروز", slice.QueueCount);
+        if (total <= 0) return stat;
+        var percent = (int)Math.Round(done * 100.0 / total, MidpointRounding.AwayFromZero);
+        return stat with
+        {
+            Delta = $"{percent.ToString(System.Globalization.CultureInfo.InvariantCulture)}% انجام‌شده",
+            Foot = $"{done.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)} از {total.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)} نوبت امروز انجام شده",
+        };
+    }
+
     private static DashboardStat Stat(string icon, string label, long value) =>
-        new(icon, label, value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), null, true);
+        new(icon, label, value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), null, true, StatTone(icon));
+
+    // Each KPI family gets its own accent so the stat row reads at a glance (money = brand, people = info,
+    // queue/time = lilac, stock/pending = warn, cheques = peach).
+    private static DashboardTone StatTone(string icon) => icon switch
+    {
+        "IconUsers" or "IconCheck" => DashboardTone.Info,
+        "IconClock" or "IconEdit" => DashboardTone.Lilac,
+        "IconBox" or "IconWallet" => DashboardTone.Warn,
+        "IconCheque" or "IconSyringe" => DashboardTone.Peach,
+        _ => DashboardTone.Brand,
+    };
     private static DashboardListItem Item(DashboardActivity x, TimeZoneInfo zone) =>
         new("", SafeActivityTitle(x), string.Join(" · ", new[] { TimeZoneInfo.ConvertTime(x.OccurredUtc, zone).ToString("HH:mm"),
                 x.ActorName, x.AmountMinor == 0 ? "" : x.AmountMinor.ToString("N0") + " تومان" }.Where(v => v.Length > 0)),

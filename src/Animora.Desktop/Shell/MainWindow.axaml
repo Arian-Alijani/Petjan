@@ -68,7 +68,32 @@
             <!-- Page host: blur + round spinner veil, then the page swap, then the veil dissolves. The swap is deferred
                  until the veil is on screen and the veil/spinner animate on the render thread, so a heavy destination
                  page never freezes the transition (PERFORMANCE.md §17). It owns the page ScrollViewer. -->
-            <controls:PageTransitionHost PageContent="{Binding CurrentPage}" />
+            <Grid>
+                <controls:PageTransitionHost PageContent="{Binding CurrentPage}" />
+
+                <!-- Floating dashboard refresh: bottom-left (physical), only on the dashboard.
+                     BoxShadow is a Border property (not a Button property), so the drop
+                     shadow lives on a wrapping Border; the Button stays transparent and
+                     carries the fill + round shape itself. -->
+                <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="24,0,0,24"
+                        Width="48" Height="48" CornerRadius="24"
+                        ZIndex="5"
+                        IsVisible="{Binding IsDashboardPage}"
+                        BoxShadow="{StaticResource ShadowPop}">
+                    <Button Width="48" Height="48" Padding="0" CornerRadius="24"
+                            Cursor="Hand"
+                            Command="{Binding RefreshDashboardCommand}"
+                            Background="{StaticResource Brand600Brush}"
+                            BorderThickness="0"
+                            ToolTip.Tip="تازه‌سازی داشبورد"
+                            AutomationProperties.Name="تازه‌سازی اطلاعات داشبورد">
+                        <Path Classes="icon" Width="22" Height="22"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Stroke="{StaticResource OnAccentBrush}"
+                              Data="{StaticResource IconRefresh}" />
+                    </Button>
+                </Border>
+            </Grid>
         </DockPanel>
         </Grid>
 

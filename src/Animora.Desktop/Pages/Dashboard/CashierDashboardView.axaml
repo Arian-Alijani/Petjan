@@ -17,12 +17,13 @@
                     <TextBlock Classes="card-title" Text="{Binding PrimaryListTitle}" />
                 </StackPanel>
                 <Border Classes="card-header-rule" />
-                <TextBlock Margin="18,14,18,0" Text="{Binding EmptyListText}" IsVisible="{Binding ShowPrimaryEmpty}"
+                <TextBlock Margin="18,18,18,18" HorizontalAlignment="Center" Text="{Binding EmptyListText}" IsVisible="{Binding ShowPrimaryEmpty}"
                            Foreground="{StaticResource MutedBrush}" />
-                <ItemsControl Margin="18,14,18,18" ItemsSource="{Binding PrimaryList}">
+                <ItemsControl Margin="14,12,14,6" ItemsSource="{Binding PrimaryList}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
-                            <Grid Margin="0,0,0,10" ColumnDefinitions="Auto,*,Auto">
+                            <Border Classes="dash-row">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                                 <Border Grid.Column="0"
                                         Width="34"
                                         Height="34"
@@ -36,7 +37,7 @@
                                               Stroke="{StaticResource Brand700Brush}"
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                 </Border>
-                                <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
                                     <TextBlock Text="{Binding Title}" TextWrapping="Wrap"
                                                FontSize="{StaticResource FontSizeSm}"
                                                FontWeight="Bold"
@@ -47,6 +48,7 @@
                                 </StackPanel>
                                 <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
                             </Grid>
+                            </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -59,12 +61,13 @@
                     <TextBlock Classes="card-title" Text="{Binding SecondaryListTitle}" />
                 </StackPanel>
                 <Border Classes="card-header-rule" />
-                <TextBlock Margin="18,14,18,0" Text="{Binding EmptyListText}" IsVisible="{Binding ShowSecondaryEmpty}"
+                <TextBlock Margin="18,18,18,18" HorizontalAlignment="Center" Text="{Binding EmptyListText}" IsVisible="{Binding ShowSecondaryEmpty}"
                            Foreground="{StaticResource MutedBrush}" />
-                <ItemsControl Margin="18,14,18,18" ItemsSource="{Binding SecondaryList}">
+                <ItemsControl Margin="14,12,14,6" ItemsSource="{Binding SecondaryList}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
-                            <Grid Margin="0,0,0,10" ColumnDefinitions="Auto,*,Auto">
+                            <Border Classes="dash-row">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                                 <Border Grid.Column="0"
                                         Width="34"
                                         Height="34"
@@ -78,7 +81,7 @@
                                               Stroke="{StaticResource Brand700Brush}"
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                 </Border>
-                                <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Spacing="1">
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
                                     <TextBlock Text="{Binding Title}" TextWrapping="Wrap"
                                                FontSize="{StaticResource FontSizeSm}"
                                                FontWeight="Bold"
@@ -89,6 +92,7 @@
                                 </StackPanel>
                                 <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
                             </Grid>
+                            </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

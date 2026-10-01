@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell.Search;
@@ -78,6 +79,17 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     private void OnCurrentViewModelChanged(object? sender, EventArgs e) =>
         CurrentPage = _navigation.CurrentViewModel;
+
+    /// <summary>True while the dashboard is the active page (shows the floating refresh button).</summary>
+    public bool IsDashboardPage => CurrentPage is DashboardPageViewModel;
+
+    partial void OnCurrentPageChanged(PageViewModelBase? value) => OnPropertyChanged(nameof(IsDashboardPage));
+
+    [RelayCommand]
+    private Task RefreshDashboardAsync() =>
+        CurrentPage is DashboardPageViewModel dashboard
+            ? dashboard.RefreshCommand.ExecuteAsync(null)
+            : Task.CompletedTask;
 
     // ---- Global page-switch hotkeys -----------------------------------------
 

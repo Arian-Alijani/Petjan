@@ -232,8 +232,11 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private string _speciesTotalSub = string.Empty;
     public string SpeciesTotalSub { get => _speciesTotalSub; private set => SetProperty(ref _speciesTotalSub, value); }
 
+    // A null Foreground binding value erases the text colour entirely (the number vanished after one hover), so the resting state is an explicit ink brush.
+    private static readonly Avalonia.Media.IBrush DefaultCenterBrush = BrushCache.Solid("#101828");
+
     /// <summary>Accent colour of the center value; reverts to ink on blur.</summary>
-    private Avalonia.Media.IBrush? _speciesCenterBrush;
+    private Avalonia.Media.IBrush? _speciesCenterBrush = DefaultCenterBrush;
     public Avalonia.Media.IBrush? SpeciesCenterBrush { get => _speciesCenterBrush; private set => SetProperty(ref _speciesCenterBrush, value); }
 
     /// <summary>Dims the ring/legend while a slice is focused (reference .donut-wrap.dim).</summary>
@@ -309,7 +312,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         SpeciesTotal = _speciesBaseTotal;
         SpeciesTotalLabel = "کل بیماران فعال";
         SpeciesTotalSub = _speciesBaseSub;
-        SpeciesCenterBrush = null;
+        SpeciesCenterBrush = DefaultCenterBrush;
     }
 
     /// <summary>Text equivalent of the donut for screen readers; the chart is never the only way to read the counts.</summary>
@@ -367,7 +370,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         _speciesBaseTotal = _speciesTotal = next.Total;
         _speciesBaseSub = _speciesTotalSub = next.Sub;
         _speciesTotalLabel = "کل بیماران فعال";
-        _speciesCenterBrush = null;
+        _speciesCenterBrush = DefaultCenterBrush;
         _isSpeciesDimmed = false;
         _speciesActiveIndex = -1;
         _speciesSlices = next.Slices;

@@ -95,7 +95,7 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- Title block: accent rail + breadcrumbs + heading -->
+            <!-- Title block: accent rail + heading -->
             <Grid Grid.Column="1"
                   Margin="14,0,0,0"
                   ColumnDefinitions="Auto,*"
@@ -110,25 +110,10 @@
                             Margin="14,0,0,0"
                             VerticalAlignment="Center"
                             Spacing="1">
-                    <ItemsControl ItemsSource="{Binding CurrentPage.Breadcrumbs}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="6" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding}"
-                                           FontSize="10.5"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource MutedBrush}" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
                     <TextBlock Text="{Binding CurrentPage.Title}"
                                TextWrapping="NoWrap"
                                TextTrimming="CharacterEllipsis"
-                               FontSize="17"
+                               FontSize="21"
                                FontWeight="ExtraBold"
                                Foreground="{StaticResource InkBrush}" />
                 </StackPanel>
