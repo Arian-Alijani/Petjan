@@ -29,6 +29,8 @@ public sealed class DashboardRefreshCoordinator<TView> : IDisposable where TView
     private bool _inflightForced;
     private bool _rerunForced;
     private bool _disposed;
+    private bool _active;
+    private DateTimeOffset? _lastTick;
 
     public DashboardRefreshCoordinator(Fetch fetch, Func<DashboardSnapshot, TView> prepare, Action<TView> publish,
         Action<Exception>? onFailed = null)
@@ -51,14 +53,32 @@ public sealed class DashboardRefreshCoordinator<TView> : IDisposable where TView
     /// <summary>The snapshot most recently published.</summary>
     public DashboardSnapshot? Current { get; private set; }
 
+    public DateTimeOffset? LastUpdated { get; private set; }
+
     /// <summary>A visit began: supersede anything in flight and guarantee a refresh for this visit.</summary>
-    public Task ActivateAsync() => Start(force: false, supersede: true);
+    public Task ActivateAsync()
+    {
+        lock (_gate) { _active = true; _lastTick = null; }
+        return Start(force: false, supersede: true);
+    }
+
+    /// <summary>One bounded active-page poll per minute; timestamps are supplied by the scheduler.</summary>
+    public Task TickAsync(DateTimeOffset now)
+    {
+        lock (_gate)
+        {
+            if (!_active || _disposed) return Task.CompletedTask;
+            if (_lastTick is { } last && now - last < TimeSpan.FromMinutes(1)) return Task.CompletedTask;
+            _lastTick = now;
+        }
+        return RefreshAsync(force: true);
+    }
 
     /// <summary>The page was left: cancel in-flight work; its result will never be published.</summary>
     public void Deactivate()
     {
         bool changed;
-        lock (_gate) changed = CancelLocked();
+        lock (_gate) { _active = false; changed = CancelLocked(); }
         if (changed) StateChanged?.Invoke();
     }
 
@@ -74,6 +94,7 @@ public sealed class DashboardRefreshCoordinator<TView> : IDisposable where TView
         {
             changed = CancelLocked();
             Current = null;
+            LastUpdated = null;
         }
         if (changed) StateChanged?.Invoke();
     }
@@ -171,6 +192,7 @@ public sealed class DashboardRefreshCoordinator<TView> : IDisposable where TView
             }
             _publish(view);
             Current = snapshot;
+            LastUpdated = DateTimeOffset.UtcNow;
         }
         catch (OperationCanceledException)
         {

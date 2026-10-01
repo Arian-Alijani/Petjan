@@ -180,6 +180,91 @@ public sealed class DashboardLifecycleTests
         Assert.Equal(["shared", "shared"], p.Applied);
     }
 
+    [Fact]
+    public async Task ActiveTicks_AreMinuteBounded_Coalesced_AndStopOnExit()
+    {
+        var p = new Probe();
+        var activation = p.Coordinator.ActivateAsync();
+        p.Calls[0].Result.SetResult(Snap("initial"));
+        await activation;
+        var midnight = new DateTimeOffset(2026, 10, 2, 0, 0, 0, TimeSpan.Zero);
+        var tick = p.Coordinator.TickAsync(midnight);
+        var repeated = p.Coordinator.TickAsync(midnight.AddSeconds(5));
+        Assert.Equal(2, p.Calls.Count);
+        Assert.True(p.Calls[1].Force);
+        p.Calls[1].Result.SetResult(Snap("next-day"));
+        await Task.WhenAll(tick, repeated);
+        p.Coordinator.Deactivate();
+        await p.Coordinator.TickAsync(midnight.AddHours(2));
+        Assert.Equal(2, p.Calls.Count);
+    }
+
+    [Fact]
+    public async Task ManualRefresh_BypassesWarmDataCache_ButStillAuthorizes()
+    {
+        var sql = new DashboardAuthorizationTests.SqlRecorder();
+        await using var host = await DashboardAuthorizationTests.CreateHostAsync(StaffRole.Manager, sql);
+        var service = new DashboardQueryService(host.Services.GetRequiredService<IServiceScopeFactory>());
+        var initial = await service.GetSnapshotAsync(UserRole.Manager);
+        Assert.Same(initial, await service.GetSnapshotAsync(UserRole.Manager));
+        Assert.NotSame(initial, await service.RefreshSnapshotAsync(UserRole.Manager));
+    }
+
+    [Theory]
+    [InlineData("SESSION_EXPIRED", DashboardFailureKind.SessionExpired, false)]
+    [InlineData("PERMISSION_DENIED", DashboardFailureKind.PermissionDenied, false)]
+    [InlineData("STORE_UNAVAILABLE", DashboardFailureKind.StoreUnavailable, true)]
+    [InlineData("UNEXPECTED", DashboardFailureKind.Unexpected, false)]
+    [InlineData("private owner/financial detail", DashboardFailureKind.Unexpected, false)]
+    public void Failures_AreTypedSafe_AndOnlyRecoverableOnesOfferRetry(string code, DashboardFailureKind kind, bool retry)
+    {
+        var error = new DashboardQueryException(DashboardQueryException.Classify(code), "opaque-correlation");
+        Assert.Equal(kind, error.Kind);
+        Assert.Equal(retry, error.CanRetry);
+        Assert.Equal("opaque-correlation", error.CorrelationId);
+        Assert.DoesNotContain(code, error.UserMessage);
+        Assert.Null(error.InnerException);
+    }
+
+    [Fact]
+    public async Task ExpiredSession_ServiceEmitsSafeTypedFailureWithCorrelation()
+    {
+        await using var host = await DashboardAuthorizationTests.CreateHostAsync(StaffRole.Manager);
+        host.Cache.Set(null);
+        var service = new DashboardQueryService(host.Services.GetRequiredService<IServiceScopeFactory>());
+        var error = await Assert.ThrowsAsync<DashboardQueryException>(() => service.GetSnapshotAsync(UserRole.Manager));
+        Assert.Equal(DashboardFailureKind.SessionExpired, error.Kind);
+        Assert.NotEmpty(error.CorrelationId);
+        Assert.False(error.CanRetry);
+    }
+
+    [Fact]
+    public async Task PreparationFailure_KeepsEntirePublishedStateAndAppliedMarker_ThenValidStateReplacesOnce()
+    {
+        var snapshot = Snap("old");
+        var view = "old-view";
+        var publications = 0;
+        var failures = new List<Exception>();
+        using var coordinator = new DashboardRefreshCoordinator<string>((_, _) => Task.FromResult(snapshot),
+            s => s.HeroTitle == "invalid" ? throw new FormatException("bad presentation") : s.HeroTitle + "-view",
+            s => { view = s; publications++; }, failures.Add);
+        await coordinator.ActivateAsync();
+        var original = coordinator.Current;
+        snapshot = Snap("invalid");
+        await coordinator.RefreshAsync();
+        Assert.Equal("old-view", view);
+        Assert.Same(original, coordinator.Current);
+        Assert.Equal(1, publications);
+        Assert.Single(failures);
+        snapshot = Snap("valid");
+        await coordinator.RefreshAsync();
+        Assert.Equal("valid-view", view);
+        Assert.Same(snapshot, coordinator.Current);
+        Assert.Equal(2, publications);
+        await coordinator.RefreshAsync();
+        Assert.Equal(2, publications); // unchanged cache hit skips preparation and publication
+    }
+
     // ---- service: token reaches the semaphore and the database --------------------------------------------
 
     private sealed class Gatekeeper : DbCommandInterceptor

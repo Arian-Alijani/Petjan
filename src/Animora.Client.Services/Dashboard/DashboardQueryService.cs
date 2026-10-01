@@ -8,6 +8,8 @@ using Animora.Client.Services.Caching;
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Navigation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Animora.Application.Correlation;
 
 namespace Animora.Client.Services.Dashboard;
 
@@ -19,27 +21,38 @@ public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashbo
 
     // Microsoft.Data.Sqlite executes async reads synchronously. Keep the whole scoped read/mapping
     // off the UI thread, not just the continuation after its first SQL call.
-    public Task<DashboardSnapshot> GetSnapshotAsync(UserRole role, CancellationToken ct = default) => Task.Run(async () =>
+    public Task<DashboardSnapshot> GetSnapshotAsync(UserRole role, CancellationToken ct = default) => ReadAsync(role, false, ct);
+
+    public Task<DashboardSnapshot> RefreshSnapshotAsync(UserRole role, CancellationToken ct = default) => ReadAsync(role, true, ct);
+
+    private Task<DashboardSnapshot> ReadAsync(UserRole role, bool force, CancellationToken ct) => Task.Run(async () =>
     {
         // WaitAsync(ct) throws before acquiring, so the release below only ever pairs with a real acquire.
         await _loadGate.WaitAsync(ct).ConfigureAwait(false);
-        try { return await LoadSnapshotAsync(role, ct).ConfigureAwait(false); }
+        try { return await LoadSnapshotAsync(role, force, ct).ConfigureAwait(false); }
+        catch (OperationCanceledException) { throw; }
+        catch (DashboardQueryException) { throw; }
+        catch (Exception ex)
+        {
+            using var scope = scopes.CreateScope();
+            throw Failure(scope.ServiceProvider, ErrorMapping.FromException(ex).Code);
+        }
         finally { _loadGate.Release(); }
     }, ct);
 
-    private async Task<DashboardSnapshot> LoadSnapshotAsync(UserRole role, CancellationToken ct)
+    private async Task<DashboardSnapshot> LoadSnapshotAsync(UserRole role, bool force, CancellationToken ct)
     {
         await using var scope = scopes.CreateAsyncScope();
         var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
         var context = provider.BuildQueryContext();
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw Failure(scope.ServiceProvider, context.Error.Code);
         var policy = await DashboardComposer.ResolveAccessAsync(new DashboardSnapshotQuery(role), context.Value!,
             scope.ServiceProvider.GetRequiredService<IAuthorizationGate>(),
             scope.ServiceProvider.GetRequiredService<SessionContextCache>(),
             scope.ServiceProvider.GetRequiredService<IStaffMembershipRepository>(),
             scope.ServiceProvider.GetRequiredService<IPermissionEvaluator>(),
             scope.ServiceProvider.GetRequiredService<ILocalInstallationIdentity>(), ct);
-        if (policy.IsFailure) throw new InvalidOperationException(policy.Error.Code);
+        if (policy.IsFailure) throw Failure(scope.ServiceProvider, policy.Error.Code);
         var access = policy.Value!;
         ct.ThrowIfCancellationRequested();
         var now = scope.ServiceProvider.GetRequiredService<IClock>().UtcNow;
@@ -48,14 +61,24 @@ public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashbo
         var queries = scope.ServiceProvider.GetRequiredService<IDashboardQueries>();
         var version = await queries.VersionAsync(context.Value!.TenantId, ct);
         var key = $"{context.Value.TenantId}|{context.Value.UserId}|dashboard:{access.CacheKey}|day{window.LocalDay}|v{version}";
-        if (_cache.TryGet(key, out var entry) && entry.Expires > now) return entry.Snapshot;
+        if (!force && _cache.TryGet(key, out var entry) && entry.Expires > now) return entry.Snapshot;
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
             .QueryAsync(new DashboardSnapshotQuery(role, window), context.Value, ct);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw Failure(scope.ServiceProvider, result.Error.Code);
         var snapshot = DashboardMapping.Map(access.Role, result.Value!, zone);
         _cache.Set(key, (now.AddSeconds(60), snapshot));
         return snapshot;
     }
+    private static DashboardQueryException Failure(IServiceProvider services, string code)
+    {
+        var kind = DashboardQueryException.Classify(code);
+        var correlation = services.GetService<ICorrelationContext>()?.CurrentId ?? Guid.NewGuid().ToString("N");
+        // Whitelisted category + opaque correlation only: no exception, payload, identity or SQL in this log.
+        services.GetService<ILogger<DashboardQueryService>>()?.LogWarning(
+            "Dashboard read failed: {FailureKind}; correlation {CorrelationId}", kind, correlation);
+        return new DashboardQueryException(kind, correlation);
+    }
+
 }
 
 internal static class DashboardMapping

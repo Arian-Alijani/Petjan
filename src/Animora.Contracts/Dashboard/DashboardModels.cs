@@ -168,3 +168,36 @@ internal static class DashboardCollections
         return Array.AsReadOnly(copy);
     }
 }
+
+/// <summary>Safe failure categories across the Desktop data seam; cancellation stays OperationCanceledException.</summary>
+public enum DashboardFailureKind { SessionExpired, PermissionDenied, StoreUnavailable, Unexpected }
+
+public sealed class DashboardQueryException : InvalidOperationException
+{
+    public DashboardFailureKind Kind { get; }
+    public string CorrelationId { get; }
+    public bool CanRetry => Kind == DashboardFailureKind.StoreUnavailable;
+    public string UserMessage => Kind switch
+    {
+        DashboardFailureKind.SessionExpired => "نشست شما منقضی شده است؛ دوباره وارد شوید.",
+        DashboardFailureKind.PermissionDenied => "اجازه مشاهده این اطلاعات را ندارید.",
+        DashboardFailureKind.StoreUnavailable => "پایگاه داده در دسترس نیست؛ دوباره تلاش کنید.",
+        _ => "خطای غیرمنتظره در داشبورد؛ شناسه پیگیری را به پشتیبانی بدهید.",
+    };
+
+    public DashboardQueryException(DashboardFailureKind kind, string correlationId) : base(kind.ToString())
+    {
+        Kind = kind;
+        CorrelationId = correlationId;
+    }
+
+    public static DashboardFailureKind Classify(string code) => code switch
+    {
+        "SESSION_EXPIRED" or "UNAUTHENTICATED" or "OFFLINE_CAPABILITY_EXPIRED" => DashboardFailureKind.SessionExpired,
+        "PERMISSION_DENIED" or "PERMISSION_UNKNOWN" or "MEMBERSHIP_NOT_ACTIVE" or "TENANT_SUSPENDED"
+            or "USER_LOCKED_OUT" or "CAPABILITY_NOT_GRANTED" or "CAPABILITY_SNAPSHOT_MISSING"
+            or "CAPABILITY_SNAPSHOT_TAMPERED" => DashboardFailureKind.PermissionDenied,
+        "STORE_UNAVAILABLE" or "STORE_KEY_UNAVAILABLE" or "STORE_CORRUPT" => DashboardFailureKind.StoreUnavailable,
+        _ => DashboardFailureKind.Unexpected,
+    };
+}
