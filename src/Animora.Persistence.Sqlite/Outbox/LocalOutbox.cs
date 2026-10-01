@@ -22,7 +22,8 @@ public sealed class LocalOutbox(
         ArgumentException.ThrowIfNullOrWhiteSpace(messageType);
         ArgumentNullException.ThrowIfNull(payload);
         var json = JsonSerializer.Serialize(payload, payload.GetType());
-        db.Add(OutboxMessage.Create(messageType, json, correlation.CurrentId, clock.UtcNow));
+        db.Add(OutboxMessage.Create(messageType, json, correlation.CurrentId, clock.UtcNow,
+            correlation.Current?.UserId));
         return Task.FromResult(Result.Ok());
     }
 }

@@ -3,6 +3,7 @@ using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Identity;
 using Animora.Application.UseCases.Profile;
+using Animora.Application.UseCases.Dashboard;
 using Animora.Application.UseCases.Visits;
 using Animora.Domain.Identity;
 using Animora.Domain.Results;
@@ -11,6 +12,7 @@ using Animora.Infrastructure.Local;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Maintenance;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Application.Tests;
@@ -277,9 +279,11 @@ internal sealed class LocalIdentityHost : IAsyncDisposable
 {
     private readonly string _directory;
     private ServiceProvider _services;
+    private readonly Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor? _interceptor;
 
-    public LocalIdentityHost()
+    public LocalIdentityHost(Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor? interceptor = null)
     {
+        _interceptor = interceptor;
         _directory = Path.Combine(Path.GetTempPath(), "animora-b03c-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_directory);
         DatabasePath = Path.Combine(_directory, "animora.db");
@@ -373,8 +377,11 @@ internal sealed class LocalIdentityHost : IAsyncDisposable
             o.SeedSampleData = false;
             o.AllowInsecureKeyFallback = true;
         });
+        if (_interceptor is not null)
+            services.AddDbContext<AnimoraLocalDbContext>(options => options.AddInterceptors(_interceptor));
         services.AddScoped<ILocalTenantContext, FixedLocalTenant>();
-        services.AddAnimoraApplication(b => b.AddIdentityUseCases().AddProfileUseCases().AddVisitsUseCases());
+        services.AddAnimoraApplication(b => b.AddIdentityUseCases().AddProfileUseCases().AddVisitsUseCases()
+            .AddDashboardUseCases());
         return services.BuildServiceProvider();
     }
 }

@@ -27,6 +27,13 @@ public static class HistoryText
 
     public static string Title(string key) => Titles.TryGetValue(key, out var value) ? value : key;
 
+    /// <summary>Translates a key; false for null/unknown keys so callers can keep a safe fallback.</summary>
+    public static bool TryTitle(string? key, out string title)
+    {
+        title = string.Empty;
+        return key is not null && Titles.TryGetValue(key, out title!);
+    }
+
     public static string Detail(string args)
     {
         if (string.IsNullOrWhiteSpace(args)) return string.Empty;

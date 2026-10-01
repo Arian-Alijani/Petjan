@@ -230,8 +230,8 @@ public sealed class LocalStoreMaintenance(
 
             var written = 0;
             var messages = await context.Set<OutboxMessage>().AsNoTracking()
-                .OrderBy(x => x.CreatedAtUtc)
-                .Select(x => new { x.MessageType, x.PayloadJson, x.CorrelationId })
+                .OrderBy(x => x.CreatedAtUtc).ThenBy(x => x.Id)
+                .Select(x => new { x.MessageType, x.PayloadJson, x.CorrelationId, x.ActorUserId })
                 .ToListAsync(ct);
             foreach (var message in messages)
             {
@@ -240,7 +240,7 @@ public sealed class LocalStoreMaintenance(
                 var draft = ActivityFeedMapper.Map(source);
                 if (draft is null) continue;
                 context.Set<ActivityEvent>().Add(ActivityFeedWriter.Create(draft, zone,
-                    correlationId: message.CorrelationId));
+                    actor: message.ActorUserId, correlationId: message.CorrelationId));
                 written++;
                 // Keep tracked projections bounded even for a long-lived outbox.
                 if (written % 500 == 0)

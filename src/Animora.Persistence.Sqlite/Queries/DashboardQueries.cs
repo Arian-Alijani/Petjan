@@ -2,10 +2,12 @@ using Animora.Application.UseCases.Dashboard;
 using Animora.Contracts.Navigation;
 using Animora.Domain.Sales;
 using Animora.Domain.Scheduling;
+using Animora.Domain.Clinical;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Entities;
 using Animora.Domain.Patients;
 using Animora.Domain.Identity;
+using Animora.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Persistence.Sqlite.Queries;
@@ -18,13 +20,13 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             .OrderByDescending(x => x.Id).Select(x => x.Id).FirstOrDefaultAsync(ct) ?? string.Empty;
 
     public async Task<DashboardSlice> GetSliceAsync(string tenantId, DashboardDayWindow window,
-        string userId, UserRole role, CancellationToken ct)
+        string userId, DashboardAccess access, CancellationToken ct)
     {
-        var manager = role is UserRole.Manager or UserRole.Receptionist;
+        var role = access.Role;
         var today = window.LocalDay;
         var date = new DateOnly(today / 10000, today / 100 % 100, today % 100).AddDays(-13);
         IReadOnlyList<DashboardDay> facts = [];
-        if (manager)
+        if (access.Finance)
         {
             var start = date.Year * 10000 + date.Month * 100 + date.Day;
             var stored = await db.Set<DailyFinanceFact>().AsNoTracking()
@@ -41,30 +43,89 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             facts = series;
         }
 
-        var feed = db.Set<ActivityEvent>().AsNoTracking()
-            .Where(x => x.TenantId == tenantId && x.LocalDay == today);
-        if (role == UserRole.Doctor) feed = feed.Where(x => x.ActorUserId == userId);
-        // KPIs must describe the whole day, not just the 80-row preview. One aggregate SQL statement.
-        var totals = await feed.GroupBy(x => 1).Select(g => new DashboardActivityTotals(
-            g.Sum(x => x.Title == "history.payment.registered" ? x.AmountMinor : 0L),
-            g.Count(x => x.Title == "history.visit.completed"),
-            g.Count(x => x.Title == "history.vaccine.administered"),
-            g.Count(x => x.Kind == "Cheque"))).SingleOrDefaultAsync(ct)
-            ?? new DashboardActivityTotals(0, 0, 0, 0);
-        var activity = await feed.OrderByDescending(x => x.Id).Take(80)
-            .Select(x => new DashboardActivity(x.Kind, x.Title, x.EntityId, x.AmountMinor,
-                x.AmountSign, x.ActorUserId, x.OccurredUtc, x.ActorName)).ToListAsync(ct);
+        // "Mine" is the doctor responsible for the clinical entity, never the actor of the command that
+        // wrote an audit/activity row (a receptionist may book/complete work for doctor-A).
+        // The audit feed therefore contributes only to non-doctor widgets.
+        DashboardActivityTotals totals;
+        IReadOnlyList<DashboardActivity> activity = [];
+        DashboardReceipts? receipts = null;
+        if (role == UserRole.Doctor)
+        {
+            var visitCount = access.Visits ? await db.Set<Visit>().AsNoTracking()
+                .Where(v => v.TenantId == tenantId && v.DoctorUserId == userId && v.State != VisitState.Cancelled
+                    && v.CompletedUtc != null && v.CompletedUtc >= window.StartUtc && v.CompletedUtc < window.EndUtc)
+                .CountAsync(ct) : 0;
+            // A dose belongs to the doctor who administered it or whose visit it was given in.
+            var vaccineCount = access.Vaccination ? await db.Set<VaccinationRecord>().AsNoTracking()
+                .Where(v => v.TenantId == tenantId && v.AdministeredUtc >= window.StartUtc && v.AdministeredUtc < window.EndUtc
+                    && (v.AdministeredByUserId == userId || (v.VisitId != null
+                        && db.Set<Visit>().Any(x => x.Id == v.VisitId && x.DoctorUserId == userId))))
+                .CountAsync(ct) : 0;
+            totals = new DashboardActivityTotals(0, visitCount, vaccineCount, 0);
+        }
+        else
+        {
+            var feed = db.Set<ActivityEvent>().AsNoTracking()
+                .Where(x => x.TenantId == tenantId && x.LocalDay == today);
+            feed = feed.Where(x => (access.Visits && x.Kind == "Visit")
+                || (access.Vaccination && x.Kind == "Vaccine") || (access.Appointments && x.Kind == "Appointment")
+                || (access.Patients && x.Kind == "Patient") || (access.Inventory && x.Kind == "Inventory")
+                || (access.Sales && x.Kind == "Sale" && x.Title != "history.payment.registered")
+                || (access.Collections && x.Title == "history.payment.registered")
+                || (access.Cheques && x.Kind == "Cheque") || (access.Finance && x.Kind == "Expense"));
+            // KPIs must describe the whole day, not just the 80-row preview. One aggregate SQL statement.
+            totals = await feed.GroupBy(x => 1).Select(g => new DashboardActivityTotals(
+                0L, // Receipts come from the signed Payment ledger, never activity magnitudes.
+                g.Count(x => x.Title == "history.visit.completed"),
+                g.Count(x => x.Title == "history.vaccine.administered"),
+                g.Count(x => x.Kind == "Cheque"))).SingleOrDefaultAsync(ct)
+                ?? new DashboardActivityTotals(0, 0, 0, 0);
+            activity = await feed.OrderByDescending(x => x.Id).Take(80)
+                .Select(x => new DashboardActivity(x.Kind, x.Title, x.EntityId,
+                    access.Finance || access.Collections ? x.AmountMinor : 0L,
+                    access.Finance || access.Collections ? x.AmountSign : 0, x.ActorUserId, x.OccurredUtc, x.ActorName, x.Status)).ToListAsync(ct);
+        }
+        if (access.Collections)
+        {
+            receipts = await db.Set<Payment>().AsNoTracking()
+                .Where(x => x.TenantId == tenantId).NonCreditSettlements(window.StartUtc, window.EndUtc)
+                .GroupBy(x => 1).Select(g => new DashboardReceipts(
+                    g.Sum(x => x.Amount.Minor > 0 ? x.Amount.Minor : 0L),
+                    g.Sum(x => x.Amount.Minor < 0 ? -x.Amount.Minor : 0L), CurrencyScale.Irt))
+                .SingleOrDefaultAsync(ct) ?? new DashboardReceipts(0, 0, CurrencyScale.Irt);
+            totals = totals with { Payments = receipts.Net };
+        }
 
-        var counts = role == UserRole.Doctor ? null : await db.Set<Tenant>().AsNoTracking()
-            .Where(x => x.Id == tenantId).Select(x => new
-            {
-                Open = db.Set<Invoice>().Count(i => i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid),
-                Low = manager ? db.Set<StockOnHandSnapshot>().Count(i => i.TenantId == tenantId && i.OnHandScaled <= 0) : 0
-            }).SingleOrDefaultAsync(ct);
-        var open = counts?.Open ?? 0;
-        var low = counts?.Low ?? 0;
+        // Separate guarded statements: a forbidden source is not part of SQL at all.
+        var openInvoices = db.Set<Invoice>().AsNoTracking().Where(i => i.TenantId == tenantId).OpenInvoices();
+        // One aggregate: open (Draft/Posted/PartiallyPaid, same as the cashier page) and the payable subset.
+        // Payment queue = issued invoices that still need money; drafts are open but not yet payable.
+        var invoiceCounts = access.Sales ? await openInvoices.GroupBy(i => 1).Select(g => new
+        {
+            Open = g.Count(),
+            Awaiting = g.Count(i => i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid),
+        }).SingleOrDefaultAsync(ct) : null;
+        var open = invoiceCounts?.Open ?? 0;
+        var awaitingPayment = invoiceCounts?.Awaiting ?? 0;
+        IReadOnlyList<DashboardOperationalRow> invoiceRows = [];
+        IReadOnlyList<DashboardOperationalRow> readyRows = [];
+        if (access.Sales && role == UserRole.Cashier)
+        {
+            invoiceRows = await (from invoice in openInvoices
+                join owner in db.Set<Owner>().AsNoTracking() on invoice.OwnerId equals owner.Id into owners
+                from owner in owners.DefaultIfEmpty()
+                orderby invoice.IssuedUtc descending, invoice.Id descending
+                select new DashboardOperationalRow("Invoice", invoice.InvoiceNumber,
+                    owner == null ? invoice.GuestName ?? "مشتری مهمان" : owner.FullName,
+                    invoice.IssuedUtc, invoice.State.ToString(), invoice.InvoiceNumber)).Take(8).ToListAsync(ct);
+            readyRows = await ReadyBillingProjection.Query(db).OrderByDescending(h => h.CompletedUtc).ThenBy(h => h.Id)
+                .Take(8).Select(h => new DashboardOperationalRow(h.Source, h.PetName, h.OwnerName,
+                    h.CompletedUtc, "Ready")).ToListAsync(ct);
+        }
+        var low = access.Inventory ? await db.Set<Animora.Domain.Inventory.Product>().AsNoTracking()
+            .Where(i => i.TenantId == tenantId).LowStockProducts(db).CountAsync(ct) : 0;
         IReadOnlyDictionary<string, int> species = new Dictionary<string, int>();
-        if (manager)
+        if (access.Patients && role != UserRole.Doctor)
         {
             var groups = await db.Set<Pet>().AsNoTracking().Where(x => x.Status == PetStatus.Active)
                 .GroupBy(x => x.Species).Select(g => new { Species = g.Key, Count = g.Count() }).ToListAsync(ct);
@@ -72,7 +133,7 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
         }
 
         var appointments = db.Set<Appointment>().AsNoTracking()
-            .Where(x => x.StartUtc >= window.StartUtc && x.StartUtc < window.EndUtc);
+            .Where(x => access.Appointments && x.StartUtc >= window.StartUtc && x.StartUtc < window.EndUtc);
         if (role == UserRole.Doctor) appointments = appointments.Where(x => x.DoctorUserId == userId);
         // Aggregate all appointments, but keep the displayed preview bounded.
         var appointmentCounts = await appointments
@@ -80,10 +141,28 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             .GroupBy(x => x.DoctorUserId)
             .Select(g => new { DoctorId = g.Key, Total = g.Count(),
                 Name = db.Set<User>().Where(u => u.Id == g.Key).Select(u => u.DisplayName).FirstOrDefault(),
-                Done = g.Count(x => x.State == AppointmentState.Completed),
-                Queued = g.Count(x => x.State == AppointmentState.Scheduled || x.State == AppointmentState.Confirmed
-                    || x.State == AppointmentState.CheckedIn) }).ToListAsync(ct);
-        var preview = await (from appointment in appointments
+                Done = g.Count(x => x.State == AppointmentState.Completed) }).ToListAsync(ct);
+        // Active queue = the reception page's derived queue (appointment LEFT JOIN entry UNION walk-ins),
+        // restricted to non-terminal states. Doctor scope uses the assigned doctor, never the actor.
+        var queueCount = 0;
+        if (access.Appointments)
+        {
+            queueCount = await (from a in appointments.Where(a => a.State != AppointmentState.Cancelled
+                    && a.State != AppointmentState.NoShow)
+                join e in db.Set<ReceptionQueueEntry>().AsNoTracking() on a.Id equals e.AppointmentId into entries
+                from e in entries.DefaultIfEmpty()
+                where (e == null && (a.State == AppointmentState.Scheduled || a.State == AppointmentState.Confirmed
+                        || a.State == AppointmentState.CheckedIn || a.State == AppointmentState.InVisit))
+                    || (e != null && (e.State == QueueState.Waiting || e.State == QueueState.Called || e.State == QueueState.InVisit))
+                select a.Id).CountAsync(ct);
+            var walkIns = db.Set<ReceptionQueueEntry>().AsNoTracking().Where(r => r.AppointmentId == null
+                && r.EnqueuedUtc >= window.StartUtc && r.EnqueuedUtc < window.EndUtc
+                && (r.State == QueueState.Waiting || r.State == QueueState.Called || r.State == QueueState.InVisit));
+            if (role == UserRole.Doctor) walkIns = walkIns.Where(r => r.DoctorUserId == userId);
+            queueCount += await walkIns.CountAsync(ct);
+        }
+        var preview = await (from appointment in appointments.Where(a => a.State != AppointmentState.Cancelled
+                && a.State != AppointmentState.NoShow && a.State != AppointmentState.Completed)
             join pet in db.Set<Pet>().AsNoTracking() on appointment.PetId equals pet.Id
             join owner in db.Set<Owner>().AsNoTracking() on appointment.OwnerId equals owner.Id
             join doctor in db.Set<User>().AsNoTracking() on appointment.DoctorUserId equals doctor.Id into doctors
@@ -92,11 +171,29 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             select new DashboardAppointment(pet.Name, owner.FullName,
                 doctor == null ? "پزشک تعیین نشده" : doctor.DisplayName,
                 appointment.StartUtc, appointment.State.ToString())).Take(8).ToListAsync(ct);
-        IReadOnlyList<DashboardWorkload> loads = manager
-            ? appointmentCounts.Where(x => x.DoctorId != null).OrderBy(x => x.Name)
-                .Select(x => new DashboardWorkload(x.DoctorId!, x.Total, x.Name ?? "پزشک", x.Done)).ToArray()
+        IReadOnlyList<DashboardWorkload> loads = access.Workloads
+            ? appointmentCounts.Where(x => x.DoctorId != null)
+                .OrderBy(x => x.Name ?? "\uFFFF", StringComparer.Ordinal).ThenBy(x => x.DoctorId, StringComparer.Ordinal)
+                .Select(x => new DashboardWorkload(x.DoctorId!, x.Total, x.Name ?? string.Empty, x.Done)).ToArray()
             : [];
+        IReadOnlyList<DashboardOperationalRow> reminders = [];
+        if (access.Vaccination && role == UserRole.Doctor)
+        {
+            // Responsibility for a future dose comes from assigned work, never the actor of the prior dose.
+            var assignedPets = appointments.Where(a => a.State != AppointmentState.Cancelled
+                && a.State != AppointmentState.NoShow).Select(a => a.PetId);
+            reminders = await (from vaccine in db.Set<VaccinationRecord>().AsNoTracking()
+                join pet in db.Set<Pet>().AsNoTracking() on vaccine.PetId equals pet.Id
+                join owner in db.Set<Owner>().AsNoTracking() on pet.OwnerId equals owner.Id
+                where vaccine.State != VaccinationState.Skipped && vaccine.NextDueUtc != null
+                    && vaccine.NextDueUtc < window.EndUtc && assignedPets.Contains(vaccine.PetId)
+                    && !db.Set<MedicalHistoryEntry>().Any(h => h.Kind == MedicalHistoryKind.Vaccination
+                        && h.Title == "Dose administered" && h.SourceEntityId == vaccine.Id)
+                orderby vaccine.NextDueUtc, vaccine.Id
+                select new DashboardOperationalRow("Vaccine", pet.Name, owner.FullName,
+                    vaccine.NextDueUtc!.Value, "Due", vaccine.VaccineName)).Take(8).ToListAsync(ct);
+        }
         return new DashboardSlice(facts, activity, loads, species, open, low,
-            appointmentCounts.Sum(x => x.Queued), totals, preview);
+            queueCount, totals, preview, access, receipts, invoiceRows, readyRows, reminders, awaitingPayment);
     }
 }

@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Identity;
@@ -25,12 +28,8 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private readonly INavigationService _navigation;
     private readonly IDashboardQueryService _dashboard;
     private readonly IStoreReadinessGate _readiness;
-
-    [ObservableProperty]
-    private string _heroTitle = string.Empty;
-
-    [ObservableProperty]
-    private string _heroSubtitle = string.Empty;
+    private readonly ICurrentUserContext _currentUser;
+    private string _identityKey;
 
     [ObservableProperty]
     private string _primaryListTitle = string.Empty;
@@ -43,7 +42,11 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         _navigation = navigation;
         _dashboard = dashboard;
         _readiness = readiness;
+        _currentUser = currentUser;
         Role = currentUser.Role;
+        _identityKey = IdentityKey(currentUser);
+        _refresh = new DashboardRefreshCoordinator<DashboardSnapshot>(FetchAsync, snapshot => snapshot, Apply, OnRefreshFailed);
+        _refresh.StateChanged += OnRefreshStateChanged;
 
         Title = "داشبورد";
         Eyebrow = "مرکز فرمان";
@@ -56,46 +59,80 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     [ObservableProperty]
     private string? _loadError;
-    private DashboardSnapshot? _appliedSnapshot;
 
+    private readonly DashboardRefreshCoordinator<DashboardSnapshot> _refresh;
+
+    // Visit lifecycle: activation supersedes any in-flight load and always ends in a refresh; leaving the page
+    // cancels the load through the token down to the database, and its late result is never applied.
     public override void OnNavigatedTo()
     {
-        if (!IsBusy) _ = RefreshCommand.ExecuteAsync(null);
+        SyncIdentity();
+        _ = _refresh.ActivateAsync();
     }
+
+    private static string IdentityKey(ICurrentUserContext user) => $"{user.UserId}|{user.Role}";
+
+    // The page is a singleton, so the signed-in identity can change underneath it (sign-out/in as another user).
+    // A different identity/role resets every piece of state of the previous one before anything is loaded.
+    private void SyncIdentity()
+    {
+        var key = IdentityKey(_currentUser);
+        if (key == _identityKey) return;
+        _identityKey = key;
+        _refresh.Reset();
+        ClearPresentation();
+        Role = _currentUser.Role;
+    }
+
+    private void ClearPresentation()
+    {
+        LoadError = null;
+        Stats.ReplaceAll([]);
+        PrimaryList.ReplaceAll([]);
+        SecondaryList.ReplaceAll([]);
+        DoctorLoads.ReplaceAll([]);
+        Species.ReplaceAll([]);
+        PrimaryListTitle = string.Empty;
+        SecondaryListTitle = string.Empty;
+        HasDoctorWorkload = false;
+        HasSpecies = false;
+        RevenuePulse = null;
+        RevenueAreaGeometry = null;
+        RevenueLineGeometry = null;
+        RevenueZeroLineGeometry = null;
+        RevenueTooltip = string.Empty;
+        SpeciesSlices = System.Array.Empty<Animora.Desktop.Controls.DonutSlice>();
+        SpeciesTotal = string.Empty;
+        SpeciesTotalSub = string.Empty;
+        SpeciesActiveIndex = -1;
+        IsSpeciesDimmed = false;
+        _speciesBaseTotal = string.Empty;
+        _speciesBaseSub = string.Empty;
+    }
+
+    public override void OnNavigatedFrom() => _refresh.Deactivate();
 
     [RelayCommand]
-    private async Task RefreshAsync()
+    private Task RefreshAsync() => _refresh.RefreshAsync();
+
+    private async Task<DashboardSnapshot> FetchAsync(CancellationToken ct, bool force)
     {
-        IsBusy = true;
-        LoadError = null;
-        try
-        {
-            await _readiness.WaitAsync();
-            var snapshot = await _dashboard.GetSnapshotAsync(Role);
-            // A cache hit returns the same immutable snapshot: no row/geometry/notification rebuild.
-            if (!ReferenceEquals(_appliedSnapshot, snapshot))
-            {
-                Apply(snapshot);
-                _appliedSnapshot = snapshot;
-            }
-        }
-        catch (Exception)
-        {
-            LoadError = "بارگذاری داشبورد انجام نشد؛ دوباره تلاش کنید";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        await _readiness.WaitAsync(ct);
+        return await _dashboard.GetSnapshotAsync(Role, ct);
     }
 
-    public UserRole Role { get; }
+    private void OnRefreshStateChanged()
+    {
+        IsBusy = _refresh.IsBusy;
+        if (IsBusy) LoadError = null;
+    }
 
-    public bool IsManager => Role is UserRole.Manager or UserRole.Receptionist;
+    private void OnRefreshFailed(Exception exception) =>
+        LoadError = "بارگذاری داشبورد انجام نشد؛ دوباره تلاش کنید";
 
-    public bool IsCashier => Role == UserRole.Cashier;
-
-    public bool IsDoctor => Role == UserRole.Doctor;
+    /// <summary>Presentation layout role of the current identity; changes (and notifies) when the identity changes.</summary>
+    [ObservableProperty]
+    private UserRole _role;
 
     public RangeObservableCollection<DashboardStat> Stats { get; } = new();
 
@@ -112,9 +149,23 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     [ObservableProperty]
     private DashboardRevenuePulse? _revenuePulse;
 
+    [ObservableProperty]
+    private bool _hasDoctorWorkload;
+
+    [ObservableProperty]
+    private bool _hasSpecies;
+
     /// <summary>Filled area under the revenue line (chart background).</summary>
     [ObservableProperty]
     private Avalonia.Media.Geometry? _revenueAreaGeometry;
+
+    /// <summary>Explicit zero baseline so negative days are visible against it.</summary>
+    [ObservableProperty]
+    private Avalonia.Media.Geometry? _revenueZeroLineGeometry;
+
+    /// <summary>One line per plotted day: Jalali date and the real signed amount (chart tooltip).</summary>
+    [ObservableProperty]
+    private string _revenueTooltip = string.Empty;
 
     /// <summary>The revenue trend line itself.</summary>
     [ObservableProperty]
@@ -155,9 +206,6 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     private string _speciesBaseSub = string.Empty;
 
     public IReadOnlyList<DashboardQuickAction> QuickActions { get; } = DashboardQuickAction.All;
-
-    /// <summary>Hero CTA target — mirrors the reference's most prominent quick tile ("شروع ویزیت").</summary>
-    public DashboardQuickAction PrimaryAction => QuickActions[2];
 
     [RelayCommand]
     private void OpenQuickAction(DashboardQuickAction? action)
@@ -221,8 +269,6 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     private void Apply(DashboardSnapshot snapshot)
     {
-        HeroTitle = snapshot.HeroTitle;
-        HeroSubtitle = snapshot.HeroSubtitle;
         PrimaryListTitle = snapshot.PrimaryListTitle;
         SecondaryListTitle = snapshot.SecondaryListTitle;
 
@@ -234,8 +280,11 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         SecondaryList.ReplaceAll(
             snapshot.SecondaryList.Select(x => new DashboardRowViewModel(x)));
 
+        HasDoctorWorkload = snapshot.DoctorLoads is not null;
+        HasSpecies = snapshot.Species is not null;
         RevenuePulse = snapshot.RevenuePulse;
-        BuildRevenueChart(snapshot.RevenuePulse?.Points);
+        BuildRevenueChart(snapshot.RevenuePulse);
+        RevenueTooltip = RevenueTooltipText(snapshot.RevenuePulse);
 
         DoctorLoads.ReplaceAll(
             (snapshot.DoctorLoads ?? System.Array.Empty<DashboardDoctorLoad>())
@@ -244,37 +293,36 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         ApplySpecies(snapshot.Species ?? System.Array.Empty<DashboardSpecies>());
     }
 
-    // Builds the area + line geometry from the normalized 0..1 pulse series,
-    // over a 500×180 canvas matching the reference pulseChart viewBox.
-    private void BuildRevenueChart(IReadOnlyList<double>? points)
+    private static string RevenueTooltipText(DashboardRevenuePulse? pulse)
     {
-        if (points is null || points.Count < 2)
+        if (pulse is null || pulse.Values.Count == 0 || pulse.Values.Count != pulse.DayLabels.Count) return string.Empty;
+        var lines = new string[pulse.Values.Count];
+        for (var i = 0; i < lines.Length; i++)
+            lines[i] = Localization.PersianNumberFormatter.ToPersianDigits(
+                pulse.DayLabels[i] + ": " + pulse.Values[i].ToString("N0", System.Globalization.CultureInfo.InvariantCulture)) + " تومان";
+        return string.Join('\n', lines);
+    }
+
+    // Builds the area + line + zero-line geometry from the signed, zero-containing pulse domain. The area closes
+    // to the zero baseline (not the canvas bottom), so negative days visibly fall below it.
+    private void BuildRevenueChart(DashboardRevenuePulse? pulse)
+    {
+        var layout = RevenueChartMath.Build(pulse?.Points, pulse?.ZeroLevel ?? 0);
+        if (layout is not { } chart)
         {
             RevenueAreaGeometry = null;
             RevenueLineGeometry = null;
+            RevenueZeroLineGeometry = null;
             return;
         }
 
-        const double width = 500;
-        const double height = 180;
-        const double top = 12;
-        const double bottom = height - 12;
-
-        var step = width / (points.Count - 1);
-        var pts = new Avalonia.Point[points.Count];
-        for (var i = 0; i < points.Count; i++)
-        {
-            var clamped = points[i] < 0 ? 0 : points[i] > 1 ? 1 : points[i];
-            var y = bottom - clamped * (bottom - top);
-            pts[i] = new Avalonia.Point(i * step, y);
-        }
-
+        var count = chart.X.Length;
         // Packed immutable paths avoid a managed PathFigure/LineSegment object per point (§11).
         var line = new Avalonia.Media.StreamGeometry();
         using (var context = line.Open())
         {
-            context.BeginFigure(pts[0], false);
-            for (var i = 1; i < pts.Length; i++) context.LineTo(pts[i]);
+            context.BeginFigure(new Avalonia.Point(chart.X[0], chart.Y[0]), false);
+            for (var i = 1; i < count; i++) context.LineTo(new Avalonia.Point(chart.X[i], chart.Y[i]));
             context.EndFigure(false);
         }
         RevenueLineGeometry = line;
@@ -282,12 +330,21 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         var area = new Avalonia.Media.StreamGeometry();
         using (var context = area.Open())
         {
-            context.BeginFigure(new Avalonia.Point(0, bottom), true);
-            foreach (var p in pts) context.LineTo(p);
-            context.LineTo(new Avalonia.Point(width, bottom));
+            context.BeginFigure(new Avalonia.Point(chart.X[0], chart.ZeroY), true);
+            for (var i = 0; i < count; i++) context.LineTo(new Avalonia.Point(chart.X[i], chart.Y[i]));
+            context.LineTo(new Avalonia.Point(chart.X[count - 1], chart.ZeroY));
             context.EndFigure(true);
         }
         RevenueAreaGeometry = area;
+
+        var zero = new Avalonia.Media.StreamGeometry();
+        using (var context = zero.Open())
+        {
+            context.BeginFigure(new Avalonia.Point(0, chart.ZeroY), false);
+            context.LineTo(new Avalonia.Point(RevenueChartMath.Width, chart.ZeroY));
+            context.EndFigure(false);
+        }
+        RevenueZeroLineGeometry = zero;
     }
 
     private void ApplySpecies(IReadOnlyList<DashboardSpecies> species)
@@ -323,7 +380,8 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         var slices = new System.Collections.Generic.List<Animora.Desktop.Controls.DonutSlice>(species.Count);
         foreach (var s in species)
         {
-            slices.Add(new Animora.Desktop.Controls.DonutSlice(s.Count, s.ColorHex));
+            slices.Add(new Animora.Desktop.Controls.DonutSlice(s.Count,
+                string.IsNullOrEmpty(s.Key) ? s.ColorHex : SpeciesPresentation.For(s.Key, s.Name).ColorHex));
         }
 
         return slices;

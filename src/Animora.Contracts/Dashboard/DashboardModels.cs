@@ -55,10 +55,15 @@ public sealed record DashboardDoctorLoad(
 /// name, patient count and slice colour hex (mirrors SPECIES in
 /// Animora-UI/assets/dashboard.js).
 /// </summary>
+/// <remarks>
+/// <b>Key</b> is the stable, language-independent species identifier (Dog, Cat, ...). Presentation derives the
+/// Persian name, glyph and palette from it; <b>Name</b>/<b>ColorHex</b> remain only as a compatibility fallback.
+/// </remarks>
 public sealed record DashboardSpecies(
     string Name,
     int Count,
-    string ColorHex);
+    string ColorHex,
+    string Key = "");
 
 /// <summary>
 /// The manager "نبض مالی کلینیک" (clinic financial pulse) card data: a big
@@ -68,7 +73,32 @@ public sealed record DashboardSpecies(
 public sealed record DashboardRevenuePulse(
     string Value,
     string Caption,
-    IReadOnlyList<double> Points);
+    IReadOnlyList<double> Points)
+{
+    private readonly IReadOnlyList<double> _points = DashboardCollections.Freeze(Points);
+
+    /// <summary>
+    /// Positions in 0..1 inside the signed domain [min(0,min), max(0,max)] — a negative day is placed below
+    /// the zero level and is never clamped to zero.
+    /// </summary>
+    public IReadOnlyList<double> Points { get => _points; init => _points = DashboardCollections.Freeze(value); }
+
+    /// <summary>Position of zero in the same 0..1 space as <see cref="Points"/> (0 when every value is zero/positive-free).</summary>
+    public double ZeroLevel { get; init; }
+
+    private IReadOnlyList<string> _dayLabels = [];
+
+    /// <summary>Localized calendar label of every plotted day (same order as <see cref="Points"/>), for tooltips.</summary>
+    public IReadOnlyList<string> DayLabels { get => _dayLabels; init => _dayLabels = DashboardCollections.Freeze(value); }
+
+    /// <summary>Short textual equivalent of the chart (range, lowest and highest day) for tooltip/automation.</summary>
+    public string Summary { get; init; } = string.Empty;
+
+    private IReadOnlyList<long> _values = [];
+
+    /// <summary>The real signed minor-unit amount of every plotted day, same order as <see cref="Points"/>.</summary>
+    public IReadOnlyList<long> Values { get => _values; init => _values = DashboardCollections.Freeze(value); }
+}
 
 /// <summary>
 /// One row in a dashboard content list (live queue / alerts / open invoices /
@@ -76,13 +106,22 @@ public sealed record DashboardRevenuePulse(
 /// subtitle+tag shape re-derived from what each DASH_VIEW_* row visually
 /// shows in Animora-UI/assets/dashboard-views.js.
 /// </summary>
+/// <remarks>
+/// <b>Kind</b> (Appointment, Invoice, Vaccine, Visit, Sale, ...) and <b>Status</b> (the entity's own state name)
+/// are stable, language-independent identifiers that drive icons and tone in presentation.
+/// <b>TitleKey</b> is an optional translation key (<c>history.*</c>); <b>Title</b> is always a safe,
+/// human-readable fallback and is never a technical key or an internal id.
+/// </remarks>
 public sealed record DashboardListItem(
     string AvatarText,
     string Title,
     string Subtitle,
     string TagText,
     DashboardTone TagTone,
-    string? IconKey = null);
+    string? IconKey = null,
+    string Kind = "",
+    string Status = "",
+    string? TitleKey = null);
 
 /// <summary>
 /// Full data set for one role's dashboard render. Two labeled content lists
@@ -104,4 +143,28 @@ public sealed record DashboardSnapshot(
     // chart, the doctor-workload card and the species donut/legend.
     DashboardRevenuePulse? RevenuePulse = null,
     IReadOnlyList<DashboardDoctorLoad>? DoctorLoads = null,
-    IReadOnlyList<DashboardSpecies>? Species = null);
+    IReadOnlyList<DashboardSpecies>? Species = null)
+{
+    // Copy once at construction, never at cache-hit. Elements are immutable records.
+    private readonly IReadOnlyList<DashboardStat> _stats = DashboardCollections.Freeze(Stats);
+    public IReadOnlyList<DashboardStat> Stats { get => _stats; init => _stats = DashboardCollections.Freeze(value); }
+    private readonly IReadOnlyList<DashboardListItem> _primaryList = DashboardCollections.Freeze(PrimaryList);
+    public IReadOnlyList<DashboardListItem> PrimaryList { get => _primaryList; init => _primaryList = DashboardCollections.Freeze(value); }
+    private readonly IReadOnlyList<DashboardListItem> _secondaryList = DashboardCollections.Freeze(SecondaryList);
+    public IReadOnlyList<DashboardListItem> SecondaryList { get => _secondaryList; init => _secondaryList = DashboardCollections.Freeze(value); }
+    private readonly IReadOnlyList<DashboardDoctorLoad>? _doctorLoads = DoctorLoads is null ? null : DashboardCollections.Freeze(DoctorLoads);
+    public IReadOnlyList<DashboardDoctorLoad>? DoctorLoads { get => _doctorLoads; init => _doctorLoads = value is null ? null : DashboardCollections.Freeze(value); }
+    private readonly IReadOnlyList<DashboardSpecies>? _species = Species is null ? null : DashboardCollections.Freeze(Species);
+    public IReadOnlyList<DashboardSpecies>? Species { get => _species; init => _species = value is null ? null : DashboardCollections.Freeze(value); }
+}
+
+internal static class DashboardCollections
+{
+    internal static IReadOnlyList<T> Freeze<T>(IReadOnlyList<T> source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var copy = new T[source.Count];
+        for (var i = 0; i < copy.Length; i++) copy[i] = source[i];
+        return Array.AsReadOnly(copy);
+    }
+}

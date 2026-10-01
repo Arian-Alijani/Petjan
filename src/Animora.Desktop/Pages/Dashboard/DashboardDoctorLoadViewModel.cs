@@ -53,15 +53,4 @@ public sealed class DashboardDoctorLoadViewModel
 
     public string CountText { get; }
 
-    private static Color ParseColor(string hex)
-    {
-        try
-        {
-            return Color.Parse(hex);
-        }
-        catch (FormatException)
-        {
-            return Colors.Gray;
-        }
-    }
 }

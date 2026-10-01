@@ -17,6 +17,17 @@ namespace Animora.Persistence.Sqlite.Queries;
 /// <see cref="StockOnHandSnapshot"/> cache (O(1) per key), never a live SUM over the ledger. Tenant
 /// and soft-delete filters are applied automatically by <c>ModelConventions</c>.
 /// </summary>
+internal static class InventoryStockQuery
+{
+    /// <summary>One product, at least one active variant at/below reorder; absent snapshot is zero.</summary>
+    internal static IQueryable<Product> LowStockProducts(this IQueryable<Product> products, AnimoraLocalDbContext db) =>
+        products.Where(p => p.IsActive && p.Variants.Any(v => v.IsActive
+            // ReorderLevel's non-summable converter stores decimal as TEXT; cast both operands
+            // numerically so SQLite cannot compare "10.0" and "10" lexicographically.
+            && (double)(db.Set<StockOnHandSnapshot>().Where(s => s.ProductId == p.Id && s.VariantId == v.VariantId)
+                .Select(s => (long?)s.OnHandScaled).FirstOrDefault() ?? 0L) / 1000d <= (double)v.ReorderLevel.Value));
+}
+
 public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOptions> options)
     : IInventoryQueries
 {
@@ -38,6 +49,8 @@ public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalSto
         {
             q = q.Where(p => p.CategoryId == categoryId);
         }
+
+        if (lowStockOnly) q = q.LowStockProducts(db);
 
         // Bounded, stably-ordered scan; variants auto-include with the aggregate.
         var products = await q.OrderBy(p => p.Name).ThenBy(p => p.Id).Take(MaxCatalogScan).ToListAsync(ct);
@@ -181,6 +194,7 @@ public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalSto
 
     private static bool IsLowStock(ProductReadModel product)
     {
+        if (!product.IsActive) return false;
         for (var i = 0; i < product.Variants.Count; i++)
         {
             var v = product.Variants[i];

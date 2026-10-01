@@ -4,12 +4,33 @@ using Animora.Application.UseCases.Sales.ReadModels;
 using Animora.Domain.Cashier;
 using Animora.Domain.Patients;
 using Animora.Domain.Sales;
+using Animora.Domain.ValueObjects;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace Animora.Persistence.Sqlite.Queries;
+
+/// <summary>
+/// Recorded non-credit settlement, not drawer cash: cheque includes uncleared cheques;
+/// wallet is prepaid balance usage; insurance records insurer settlement. Unknown methods fail closed.
+/// All aggregates use the product currency (toman), with signed reversing payments retained.
+/// </summary>
+internal static class PaymentReceiptQuery
+{
+    internal static IQueryable<Payment> NonCreditSettlements(this IQueryable<Payment> payments,
+        DateTimeOffset fromUtc, DateTimeOffset toUtc) => payments.Where(p =>
+        p.ReceivedUtc >= fromUtc && p.ReceivedUtc < toUtc && p.Amount.Currency == CurrencyScale.Irt
+        && (p.Method == PaymentMethod.Cash || p.Method == PaymentMethod.Card || p.Method == PaymentMethod.Transfer
+            || p.Method == PaymentMethod.Cheque || p.Method == PaymentMethod.Wallet || p.Method == PaymentMethod.Insurance));
+}
+
+internal static class InvoiceOpenQuery
+{
+    internal static IQueryable<Invoice> OpenInvoices(this IQueryable<Invoice> invoices) => invoices.Where(i =>
+        i.State == InvoiceState.Draft || i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid);
+}
 
 public sealed class CashierQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOptions> options) : ICashierQueries
 {
@@ -18,7 +39,7 @@ public sealed class CashierQueries(AnimoraLocalDbContext db, IOptions<LocalStore
         var invoices = db.Set<Invoice>().AsNoTracking();
         invoices = tab switch
         {
-            CashierInvoiceTab.Open => invoices.Where(i => i.State == InvoiceState.Draft || i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid),
+            CashierInvoiceTab.Open => invoices.OpenInvoices(),
             CashierInvoiceTab.Settled => invoices.Where(i => i.State == InvoiceState.Paid),
             CashierInvoiceTab.Void => invoices.Where(i => i.State == InvoiceState.Void || i.State == InvoiceState.Refunded),
             _ => invoices,
@@ -48,7 +69,7 @@ public sealed class CashierQueries(AnimoraLocalDbContext db, IOptions<LocalStore
                 Refunded = db.Set<Invoice>().Where(i => i.State == InvoiceState.Refunded)
                     .Sum(i => (long?)i.PaidTotal.Minor) ?? 0,
                 Count = db.Set<Invoice>().Count(),
-                Collected = db.Set<Payment>().Where(p => p.ReceivedUtc >= fromUtc && p.ReceivedUtc < toUtc)
+                Collected = db.Set<Payment>().AsNoTracking().NonCreditSettlements(fromUtc, toUtc)
                     .Sum(p => (long?)p.Amount.Minor) ?? 0,
                 Variance = db.Set<CashSession>().Where(s => s.ClosedUtc >= fromUtc && s.ClosedUtc < toUtc)
                     .Sum(s => (long?)s.Variance.Minor) ?? 0,
