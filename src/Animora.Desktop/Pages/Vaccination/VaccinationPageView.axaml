@@ -51,6 +51,36 @@
             <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
         </Style>
 
+        <!-- Status tabs (.pb-seg > button) — identical to Boarding's bd-tab / seg-n. -->
+        <Style Selector="Button.vx-tab">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="15,8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Button.vx-tab:pointerover">
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.vx-tab.is-active">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.vx-tab.is-active /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+        </Style>
+        <Style Selector="Border.seg-n">
+            <Setter Property="Background" Value="#0F000000" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="MinWidth" Value="20" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="Padding" Value="6,0" />
+        </Style>
+
         <!-- Filter chips (.pb-chip): pill outline; active = brand fill + white
              text + 2/8 brand shadow. Status filters use the SAME component as
              the Patients species chips (همه گونه‌ها / سگ / گربه …). -->
@@ -247,30 +277,32 @@
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,12,0,0">
                     <Border Grid.Column="0" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
                             Padding="0,12,0,0" Margin="0,-12,0,0">
-                        <ItemsControl ItemsSource="{Binding Segments}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel Orientation="Horizontal" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vx:VaccinationSegmentViewModel">
-                                    <Border Classes="chip" Classes.on="{Binding IsActive}" Margin="0,0,7,0">
-                                        <Button Classes="chiptap"
+                        <!-- status tabs: same segmented track + count pill as the Boarding status tabs
+                             (همه / فعال / ...), replacing the old outlined pill chips. -->
+                        <Border Classes="seg" HorizontalAlignment="Left">
+                            <ItemsControl ItemsSource="{Binding Segments}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" ItemSpacing="2" LineSpacing="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vx:VaccinationSegmentViewModel">
+                                        <Button Classes="vx-tab" Classes.is-active="{Binding IsActive}"
                                                 Command="{Binding #Root.((vx:VaccinationPageViewModel)DataContext).SetSegmentCommand}"
                                                 CommandParameter="{Binding Key}">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <TextBlock Text="{Binding Label}" />
-                                                <Border Classes="cnt">
-                                                    <TextBlock Text="{Binding Count}"
+                                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                                <Border Classes="seg-n" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Count}" FontSize="11" FontWeight="ExtraBold"
                                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                 </Border>
                                             </StackPanel>
                                         </Button>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
                     </Border>
 
                     <!-- trailing control cluster (.pb-tools) -->
