@@ -203,7 +203,7 @@ public sealed class DonutRing : Control
         var total = 0.0;
         foreach (var s in slices)
         {
-            total += s.Value;
+            total += DonutGeometry.Positive(s.Value);
         }
 
         if (total <= 0)
@@ -278,22 +278,20 @@ public sealed class DonutRing : Control
             _arcPens = new Pen?[slices.Count];
         }
 
-        var angle = -90.0;
+        // The gap is capped relative to each segment's own sweep: a positive share is never dropped.
+        var preceding = 0.0;
         for (var i = 0; i < slices.Count; i++)
         {
-            var sweep = (slices[i].Value / total) * 360.0;
-            var a0 = angle + (gapDegrees / 2);
-            var a1 = angle + sweep - (gapDegrees / 2);
-            angle += sweep;
-
-            if (a1 <= a0)
+            var arc = DonutGeometry.ArcFor(slices[i].Value, total, preceding, gapDegrees);
+            preceding += DonutGeometry.Positive(slices[i].Value) / total * 360.0;
+            if (arc is not { } span)
             {
                 _arcGeometries[i] = null;
                 _arcPens[i] = null;
                 continue;
             }
 
-            _arcGeometries[i] = BuildArc(center, radius, a0, a1);
+            _arcGeometries[i] = BuildArc(center, radius, span.Start, span.End);
             _arcPens[i] = new Pen(ParseBrush(slices[i].Color), thickness, lineCap: cap);
         }
     }
@@ -361,30 +359,13 @@ public sealed class DonutRing : Control
         var deg = Math.Atan2(dy, dx) * 180.0 / Math.PI;
         deg = (deg + 90 + 360) % 360;
 
-        var total = 0.0;
-        foreach (var s in slices)
+        var values = new double[slices.Count];
+        for (var i = 0; i < values.Length; i++)
         {
-            total += s.Value;
+            values[i] = slices[i].Value;
         }
 
-        if (total <= 0)
-        {
-            return -1;
-        }
-
-        var acc = 0.0;
-        for (var i = 0; i < slices.Count; i++)
-        {
-            var sweep = slices[i].Value / total * 360.0;
-            if (deg >= acc && deg < acc + sweep)
-            {
-                return i;
-            }
-
-            acc += sweep;
-        }
-
-        return -1;
+        return DonutGeometry.IndexAt(values, deg);
     }
 
     private static StreamGeometry BuildArc(Point center, double radius, double startDeg, double endDeg)

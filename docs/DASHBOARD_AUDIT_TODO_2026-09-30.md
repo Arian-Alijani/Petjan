@@ -3,10 +3,10 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
-- **21 از 44 تسک انجام‌شده: D01، D02، D03، D05، D06، D07، D09، D10، D11، D12، D13، D14، D15، D16، D17، D18، D30، D32، D39، D41، D43. 23 تسک دیگر باز هستند.** (به‌روزرسانی خودکار پس از هر تسک؛ جزئیات هر مورد در بخش خودش ثبت شده است.)
+- **22 از 44 تسک انجام‌شده: D01، D02، D03، D05، D06، D07، D09، D10، D11، D12، D13، D14، D15، D16، D17، D18، D30، D32، D39، D40، D41، D43. 22 تسک دیگر باز هستند.** (به‌روزرسانی خودکار پس از هر تسک؛ جزئیات هر مورد در بخش خودش ثبت شده است.)
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
-- باقی‌مانده: D04، D08، D19، D20، D21، D22، D23، D24، D25، D26، D27، D28، D29، D31، D33، D34، D35، D36، D37، D38، D40، D42، D44. موارد GUI/Windows/contrast/performance که اندازه‌گیری نشده‌اند تیک نخورده‌اند.
+- باقی‌مانده: D04، D08، D19، D20، D21، D22، D23، D24، D25، D26، D27، D28، D29، D31، D33، D34، D35، D36، D37، D38، D42، D44. موارد GUI/Windows/contrast/performance که اندازه‌گیری نشده‌اند تیک نخورده‌اند.
 - متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #181 را توصیف نمی‌کنند. fixture قدیمی ناسازگار در اجرای قبلی فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران. اسکریپت‌های Windows/sandbox/git، migrationها و دیتابیس واقعی کاربر در این جلسه تغییر نکردند.
 
 ## دامنه و نتیجه مرحله تدوین اولیه (تاریخی)
@@ -437,7 +437,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D39 freeze cached snapshot collections"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D40 — gap ثابت donut سهم کوچک را حذف می‌کند
-- [ ] وضعیت: باز | P2 | بدهی چهارم گزارش | نتیجه: قطعی هندسه + بازتولید؛ سهم 1% ناپدید می‌شود.
+- [x] وضعیت: انجام‌شده | P2 | بدهی چهارم گزارش | نتیجه: قطعی هندسه + بازتولید؛ سهم 1% ناپدید می‌شود.
+- شواهد اجرای 2026-10-01: منطق زاویه‌ای DonutRing به `DonutGeometry` خالص منتقل شد و render و hit-test هر دو از آن استفاده می‌کنند: gap حداکثر 50٪ sweep همان قطعه است (سهم 1٪، 0.1٪ و 0.001٪ با gap پیش‌فرض 4.06° حذف نمی‌شوند)، صفر/منفی/NaN در total و قطعه نقش ندارند. تنظیم Finance (gap و RoundCaps خودش) دست‌نخورده است و فقط fallback قطعه‌های ریز تغییر می‌کند. تست‌ها: 1 از 100/1000/100000، عدم overlap، hit-test وسط قطعه، تک‌قطعه 360°، gap صفر، empty/zero/negative. Budget+Authorization: **55 passed، 0 failed، 20 ثانیه**؛ build فقط Desktop: **0 warning/0 error**. screenshot GUI گرفته نشد.
 - شواهد: `DonutRing.cs:178,284–293`؛ پیش‌فرض GapArc=3.4 و Radius=48.
 - اقدام: gap محدود نسبت به sweep مثبت؛ segment مثبت حذف نشود، صفر/negative policy روشن. render و `SliceIndexAt` با geometry جدید هماهنگ؛ shared control Finance نیز با تنظیمات خودش محفوظ بماند. cache geometry/render allocation بدون ضرورت عوض نشوند.
 - پذیرش/بررسی محدود: سهم 1 از 100 و 1 از 1000، تک‌گونه/صفر، dashboard flat و Finance round caps؛ segment و hit-test معتبر بدون overlap ناموجه؛ unit geometry و یک screenshot کوچک، نه بازبینی کل Finance.

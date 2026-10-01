@@ -418,6 +418,47 @@ public sealed class DashboardBudgetTests
         Assert.Contains("داده‌ای", InvokeMap(UserRole.Manager, new DashboardSlice([], [], [], new Dictionary<string, int>(), 0, 0, 0)).RevenuePulse!.Summary);
     }
 
+    [Theory]
+    [InlineData(new double[] { 1, 99 }, 4.058451)]
+    [InlineData(new double[] { 1, 999 }, 4.058451)]
+    [InlineData(new double[] { 1, 99_999 }, 4.058451)]
+    public void Donut_KeepsSmallPositiveSlices_VisibleAndHitTestable(double[] values, double defaultGap)
+    {
+        var total = Desktop.Controls.DonutGeometry.Total(values);
+        var small = Desktop.Controls.DonutGeometry.ArcFor(values[0], total, 0, defaultGap);
+        Assert.NotNull(small);
+        Assert.True(small!.Value.End > small.Value.Start);            // visible, not dropped
+        var big = Desktop.Controls.DonutGeometry.ArcFor(values[1], total, small.Value.SweepEnd, defaultGap);
+        Assert.True(big!.Value.Start >= small.Value.End);             // no overlap between neighbours
+        var mid = (small.Value.SweepStart + small.Value.SweepEnd) / 2;
+        Assert.Equal(0, Desktop.Controls.DonutGeometry.IndexAt(values, mid));
+        Assert.Equal(1, Desktop.Controls.DonutGeometry.IndexAt(values, small.Value.SweepEnd + 0.0001));
+        // The gap is capped relative to the segment's own sweep.
+        Assert.True(small.Value.End - small.Value.Start >= (small.Value.SweepEnd - small.Value.SweepStart) * 0.5 - 1e-9);
+    }
+
+    [Fact]
+    public void Donut_HandlesZeroNegativeNaNAndSingleSegments()
+    {
+        Assert.Null(Desktop.Controls.DonutGeometry.ArcFor(0, 10, 0, 4));
+        Assert.Null(Desktop.Controls.DonutGeometry.ArcFor(-5, 10, 0, 4));
+        Assert.Null(Desktop.Controls.DonutGeometry.ArcFor(double.NaN, 10, 0, 4));
+        Assert.Null(Desktop.Controls.DonutGeometry.ArcFor(5, 0, 0, 4));
+        Assert.Equal(-1, Desktop.Controls.DonutGeometry.IndexAt([], 10));
+        Assert.Equal(-1, Desktop.Controls.DonutGeometry.IndexAt([0, -3], 10));
+        // Negative/NaN entries never distort the total or shift the neighbours.
+        double[] values = [-4, 3, double.NaN, 1];
+        Assert.Equal(4, Desktop.Controls.DonutGeometry.Total(values));
+        Assert.Equal(1, Desktop.Controls.DonutGeometry.IndexAt(values, 10));
+        Assert.Equal(3, Desktop.Controls.DonutGeometry.IndexAt(values, 300));
+        var single = Desktop.Controls.DonutGeometry.ArcFor(7, 7, 0, 3.4)!.Value;
+        Assert.Equal(360, single.SweepEnd - single.SweepStart, 6);
+        Assert.Equal(0, Desktop.Controls.DonutGeometry.IndexAt([7], 359.9));
+        // A zero gap (Finance-style settings) leaves the full sweep.
+        var flat = Desktop.Controls.DonutGeometry.ArcFor(1, 4, 0, 0)!.Value;
+        Assert.Equal(90, flat.End - flat.Start, 6);
+    }
+
     [Fact]
     public async Task ManagerRevenue_EqualsFinanceSameDayFigure()
     {
