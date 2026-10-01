@@ -17,4 +17,7 @@ public interface IDashboardQueryService
     /// <see cref="OperationCanceledException"/> (never a failure outcome) and never yields a result to apply.
     /// </summary>
     Task<DashboardSnapshot> GetSnapshotAsync(UserRole role, CancellationToken ct = default);
+
+    /// <summary>Explicit refresh bypasses the data cache, never live authorization.</summary>
+    Task<DashboardSnapshot> RefreshSnapshotAsync(UserRole role, CancellationToken ct = default) => GetSnapshotAsync(role, ct);
 }
