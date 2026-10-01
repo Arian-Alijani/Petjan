@@ -43,23 +43,48 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             facts = series;
         }
 
-        var feed = db.Set<ActivityEvent>().AsNoTracking()
-            .Where(x => x.TenantId == tenantId && x.LocalDay == today);
-        feed = feed.Where(x => (access.Visits && x.Kind == "Visit")
-            || (access.Vaccination && x.Kind == "Vaccine") || (access.Appointments && x.Kind == "Appointment")
-            || (access.Patients && x.Kind == "Patient") || (access.Inventory && x.Kind == "Inventory")
-            || (access.Sales && x.Kind == "Sale" && x.Title != "history.payment.registered")
-            || (access.Collections && x.Title == "history.payment.registered")
-            || (access.Cheques && x.Kind == "Cheque") || (access.Finance && x.Kind == "Expense"));
-        if (role == UserRole.Doctor) feed = feed.Where(x => x.ActorUserId == userId);
-        // KPIs must describe the whole day, not just the 80-row preview. One aggregate SQL statement.
-        var totals = await feed.GroupBy(x => 1).Select(g => new DashboardActivityTotals(
-            0L, // Receipts come from the signed Payment ledger, never activity magnitudes.
-            g.Count(x => x.Title == "history.visit.completed"),
-            g.Count(x => x.Title == "history.vaccine.administered"),
-            g.Count(x => x.Kind == "Cheque"))).SingleOrDefaultAsync(ct)
-            ?? new DashboardActivityTotals(0, 0, 0, 0);
+        // "Mine" is the doctor responsible for the clinical entity, never the actor of the command that
+        // wrote an audit/activity row (a receptionist may book/complete work for doctor-A).
+        // The audit feed therefore contributes only to non-doctor widgets.
+        DashboardActivityTotals totals;
+        IReadOnlyList<DashboardActivity> activity = [];
         DashboardReceipts? receipts = null;
+        if (role == UserRole.Doctor)
+        {
+            var visitCount = access.Visits ? await db.Set<Visit>().AsNoTracking()
+                .Where(v => v.TenantId == tenantId && v.DoctorUserId == userId && v.State != VisitState.Cancelled
+                    && v.CompletedUtc != null && v.CompletedUtc >= window.StartUtc && v.CompletedUtc < window.EndUtc)
+                .CountAsync(ct) : 0;
+            // A dose belongs to the doctor who administered it or whose visit it was given in.
+            var vaccineCount = access.Vaccination ? await db.Set<VaccinationRecord>().AsNoTracking()
+                .Where(v => v.TenantId == tenantId && v.AdministeredUtc >= window.StartUtc && v.AdministeredUtc < window.EndUtc
+                    && (v.AdministeredByUserId == userId || (v.VisitId != null
+                        && db.Set<Visit>().Any(x => x.Id == v.VisitId && x.DoctorUserId == userId))))
+                .CountAsync(ct) : 0;
+            totals = new DashboardActivityTotals(0, visitCount, vaccineCount, 0);
+        }
+        else
+        {
+            var feed = db.Set<ActivityEvent>().AsNoTracking()
+                .Where(x => x.TenantId == tenantId && x.LocalDay == today);
+            feed = feed.Where(x => (access.Visits && x.Kind == "Visit")
+                || (access.Vaccination && x.Kind == "Vaccine") || (access.Appointments && x.Kind == "Appointment")
+                || (access.Patients && x.Kind == "Patient") || (access.Inventory && x.Kind == "Inventory")
+                || (access.Sales && x.Kind == "Sale" && x.Title != "history.payment.registered")
+                || (access.Collections && x.Title == "history.payment.registered")
+                || (access.Cheques && x.Kind == "Cheque") || (access.Finance && x.Kind == "Expense"));
+            // KPIs must describe the whole day, not just the 80-row preview. One aggregate SQL statement.
+            totals = await feed.GroupBy(x => 1).Select(g => new DashboardActivityTotals(
+                0L, // Receipts come from the signed Payment ledger, never activity magnitudes.
+                g.Count(x => x.Title == "history.visit.completed"),
+                g.Count(x => x.Title == "history.vaccine.administered"),
+                g.Count(x => x.Kind == "Cheque"))).SingleOrDefaultAsync(ct)
+                ?? new DashboardActivityTotals(0, 0, 0, 0);
+            activity = await feed.OrderByDescending(x => x.Id).Take(80)
+                .Select(x => new DashboardActivity(x.Kind, x.Title, x.EntityId,
+                    access.Finance || access.Collections ? x.AmountMinor : 0L,
+                    access.Finance || access.Collections ? x.AmountSign : 0, x.ActorUserId, x.OccurredUtc, x.ActorName, x.Status)).ToListAsync(ct);
+        }
         if (access.Collections)
         {
             receipts = await db.Set<Payment>().AsNoTracking()
@@ -70,14 +95,18 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
                 .SingleOrDefaultAsync(ct) ?? new DashboardReceipts(0, 0, CurrencyScale.Irt);
             totals = totals with { Payments = receipts.Net };
         }
-        var activity = await feed.OrderByDescending(x => x.Id).Take(80)
-            .Select(x => new DashboardActivity(x.Kind, x.Title, x.EntityId,
-                access.Finance || access.Collections ? x.AmountMinor : 0L,
-                access.Finance || access.Collections ? x.AmountSign : 0, x.ActorUserId, x.OccurredUtc, x.ActorName)).ToListAsync(ct);
 
         // Separate guarded statements: a forbidden source is not part of SQL at all.
         var openInvoices = db.Set<Invoice>().AsNoTracking().Where(i => i.TenantId == tenantId).OpenInvoices();
-        var open = access.Sales ? await openInvoices.CountAsync(ct) : 0;
+        // One aggregate: open (Draft/Posted/PartiallyPaid, same as the cashier page) and the payable subset.
+        // Payment queue = issued invoices that still need money; drafts are open but not yet payable.
+        var invoiceCounts = access.Sales ? await openInvoices.GroupBy(i => 1).Select(g => new
+        {
+            Open = g.Count(),
+            Awaiting = g.Count(i => i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid),
+        }).SingleOrDefaultAsync(ct) : null;
+        var open = invoiceCounts?.Open ?? 0;
+        var awaitingPayment = invoiceCounts?.Awaiting ?? 0;
         IReadOnlyList<DashboardOperationalRow> invoiceRows = [];
         IReadOnlyList<DashboardOperationalRow> readyRows = [];
         if (access.Sales && role == UserRole.Cashier)
@@ -112,9 +141,26 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
             .GroupBy(x => x.DoctorUserId)
             .Select(g => new { DoctorId = g.Key, Total = g.Count(),
                 Name = db.Set<User>().Where(u => u.Id == g.Key).Select(u => u.DisplayName).FirstOrDefault(),
-                Done = g.Count(x => x.State == AppointmentState.Completed),
-                Queued = g.Count(x => x.State == AppointmentState.Scheduled || x.State == AppointmentState.Confirmed
-                    || x.State == AppointmentState.CheckedIn) }).ToListAsync(ct);
+                Done = g.Count(x => x.State == AppointmentState.Completed) }).ToListAsync(ct);
+        // Active queue = the reception page's derived queue (appointment LEFT JOIN entry UNION walk-ins),
+        // restricted to non-terminal states. Doctor scope uses the assigned doctor, never the actor.
+        var queueCount = 0;
+        if (access.Appointments)
+        {
+            queueCount = await (from a in appointments.Where(a => a.State != AppointmentState.Cancelled
+                    && a.State != AppointmentState.NoShow)
+                join e in db.Set<ReceptionQueueEntry>().AsNoTracking() on a.Id equals e.AppointmentId into entries
+                from e in entries.DefaultIfEmpty()
+                where (e == null && (a.State == AppointmentState.Scheduled || a.State == AppointmentState.Confirmed
+                        || a.State == AppointmentState.CheckedIn || a.State == AppointmentState.InVisit))
+                    || (e != null && (e.State == QueueState.Waiting || e.State == QueueState.Called || e.State == QueueState.InVisit))
+                select a.Id).CountAsync(ct);
+            var walkIns = db.Set<ReceptionQueueEntry>().AsNoTracking().Where(r => r.AppointmentId == null
+                && r.EnqueuedUtc >= window.StartUtc && r.EnqueuedUtc < window.EndUtc
+                && (r.State == QueueState.Waiting || r.State == QueueState.Called || r.State == QueueState.InVisit));
+            if (role == UserRole.Doctor) walkIns = walkIns.Where(r => r.DoctorUserId == userId);
+            queueCount += await walkIns.CountAsync(ct);
+        }
         var preview = await (from appointment in appointments.Where(a => a.State != AppointmentState.Cancelled
                 && a.State != AppointmentState.NoShow && a.State != AppointmentState.Completed)
             join pet in db.Set<Pet>().AsNoTracking() on appointment.PetId equals pet.Id
@@ -126,8 +172,9 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
                 doctor == null ? "پزشک تعیین نشده" : doctor.DisplayName,
                 appointment.StartUtc, appointment.State.ToString())).Take(8).ToListAsync(ct);
         IReadOnlyList<DashboardWorkload> loads = access.Workloads
-            ? appointmentCounts.Where(x => x.DoctorId != null).OrderBy(x => x.Name)
-                .Select(x => new DashboardWorkload(x.DoctorId!, x.Total, x.Name ?? "پزشک", x.Done)).ToArray()
+            ? appointmentCounts.Where(x => x.DoctorId != null)
+                .OrderBy(x => x.Name ?? "\uFFFF", StringComparer.Ordinal).ThenBy(x => x.DoctorId, StringComparer.Ordinal)
+                .Select(x => new DashboardWorkload(x.DoctorId!, x.Total, x.Name ?? string.Empty, x.Done)).ToArray()
             : [];
         IReadOnlyList<DashboardOperationalRow> reminders = [];
         if (access.Vaccination && role == UserRole.Doctor)
@@ -147,6 +194,6 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
                     vaccine.NextDueUtc!.Value, "Due", vaccine.VaccineName)).Take(8).ToListAsync(ct);
         }
         return new DashboardSlice(facts, activity, loads, species, open, low,
-            appointmentCounts.Sum(x => x.Queued), totals, preview, access, receipts, invoiceRows, readyRows, reminders);
+            queueCount, totals, preview, access, receipts, invoiceRows, readyRows, reminders, awaitingPayment);
     }
 }

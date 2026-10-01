@@ -9,7 +9,7 @@ using System.Collections.Frozen;
 namespace Animora.Application.UseCases.Dashboard;
 
 public sealed record DashboardActivity(string Kind, string TitleKey, string EntityId, long AmountMinor,
-    int AmountSign, string ActorUserId, DateTimeOffset OccurredUtc = default, string ActorName = "");
+    int AmountSign, string ActorUserId, DateTimeOffset OccurredUtc = default, string ActorName = "", string Status = "");
 public sealed record DashboardDay(int LocalDay, long RevenueMinor);
 public sealed record DashboardWorkload(string DoctorId, int Total, string Name = "", int Done = 0);
 public sealed record DashboardAppointment(string PetName, string OwnerName, string DoctorName,
@@ -30,7 +30,7 @@ public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     DashboardAccess? Access = null, DashboardReceipts? Receipts = null,
     IReadOnlyList<DashboardOperationalRow>? OpenInvoiceRows = null,
     IReadOnlyList<DashboardOperationalRow>? ReadyBillingRows = null,
-    IReadOnlyList<DashboardOperationalRow>? ReminderRows = null);
+    IReadOnlyList<DashboardOperationalRow>? ReminderRows = null, int AwaitingPaymentCount = 0);
 
 /// <summary>The local day and its half-open UTC range, resolved once using ClinicCalendar.</summary>
 public sealed record DashboardDayWindow(int LocalDay, DateTimeOffset StartUtc, DateTimeOffset EndUtc)

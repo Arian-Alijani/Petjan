@@ -70,14 +70,14 @@ internal static class DashboardMapping
         var stats = role switch
         {
             UserRole.Doctor => new[] { Stat("IconCheck", "ویزیت‌های من", visits),
-                Stat("IconClock", "صف من", slice.QueueCount), Stat("IconEdit", "در انتظار", slice.QueueCount),
+                Stat("IconClock", "صف فعال من", slice.QueueCount), Stat("IconEdit", "در انتظار", slice.QueueCount),
                 Stat("IconSyringe", "واکسن‌ها", totals.Vaccinations) },
             UserRole.Cashier => new[] { Stat("IconCart", "خالص تسویه غیرنسیه امروز (تومان)", payment) with
                 { Foot = slice.Receipts is { } receipt ? $"دریافت ناخالص: {receipt.Gross:N0} · بازپرداخت: {receipt.Refunds:N0} تومان" : null },
-                Stat("IconReceipt", "فاکتورهای باز", slice.OpenInvoices), Stat("IconClipboard", "صف پرداخت", slice.QueueCount),
+                Stat("IconReceipt", "فاکتورهای باز (شامل پیش‌نویس)", slice.OpenInvoices), Stat("IconWallet", "در انتظار پرداخت", slice.AwaitingPaymentCount),
                 Stat("IconCheque", "تغییر وضعیت چک امروز", totals.Cheques) },
             _ => new[] { Stat("IconArrowUpRight", "درآمد امروز", today),
-                Stat("IconUsers", "ویزیت امروز", visits), Stat("IconReceipt", "فاکتورهای باز", slice.OpenInvoices),
+                Stat("IconUsers", "ویزیت امروز", visits), Stat("IconReceipt", "فاکتورهای باز (شامل پیش‌نویس)", slice.OpenInvoices),
                 Stat("IconBox", "هشدار موجودی", slice.LowStockCount) },
         };
         if (slice.Access is { } allowed)
@@ -85,7 +85,7 @@ internal static class DashboardMapping
             {
                 "IconArrowUpRight" => allowed.Finance,
                 "IconCart" => allowed.Collections,
-                "IconReceipt" => allowed.Sales,
+                "IconReceipt" or "IconWallet" => allowed.Sales,
                 "IconBox" => allowed.Inventory,
                 "IconUsers" or "IconCheck" => allowed.Visits,
                 "IconClock" or "IconEdit" or "IconClipboard" => allowed.Appointments,
@@ -105,41 +105,89 @@ internal static class DashboardMapping
         };
         var manager = role is UserRole.Manager or UserRole.Receptionist;
         var values = slice.RevenueDays.Select(x => x.RevenueMinor).ToArray();
-        var max = values.Length == 0 ? 0 : values.Max();
+        var (points, zeroLevel) = Normalize(values);
         return new DashboardSnapshot(role, "نمای کلی امروز", "آخرین فعالیت‌های کلینیک", stats,
             role == UserRole.Cashier ? "فاکتورهای باز" : "نوبت‌های فعال امروز", primary,
             role switch { UserRole.Cashier => "آماده صدور فاکتور", UserRole.Doctor => "یادآور واکسن بیماران امروز", _ => "فعالیت‌های اخیر" }, secondary,
-            (slice.Access?.Finance ?? manager) ? new DashboardRevenuePulse(today.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), "۱۴ روز اخیر",
-                values.Select(x => max == 0 ? 0d : (double)x / max).ToArray()) : null,
-            (slice.Access?.Workloads ?? manager) ? slice.Workloads.Select(x => new DashboardDoctorLoad(string.IsNullOrEmpty(x.Name) ? "پ" : x.Name[..1], x.Name, "پزشک",
-                x.Done, x.Total, "#0D9488")).ToArray() : null,
-            (slice.Access?.Patients ?? manager) && role != UserRole.Doctor ? slice.Species.Select(x => new DashboardSpecies(SpeciesName(x.Key), x.Value, SpeciesColor(x.Key))).ToArray() : null);
+            (slice.Access?.Finance ?? manager) ? Pulse(slice.RevenueDays, today, points, zeroLevel, values) : null,
+            (slice.Access?.Workloads ?? manager) ? slice.Workloads.Select(Load).ToArray() : null,
+            (slice.Access?.Patients ?? manager) && role != UserRole.Doctor ? slice.Species.OrderByDescending(x => x.Value).ThenBy(x => x.Key, StringComparer.Ordinal)
+                .Select(x => new DashboardSpecies(SpeciesName(x.Key), x.Value, SpeciesColor(x.Key), x.Key)).ToArray() : null);
+    }
+
+    private const string CurrencyLabel = "تومان";
+
+    // Headline = TODAY's revenue; the chart covers the real 14-day window. Dates and signed amounts stay in the DTO.
+    private static DashboardRevenuePulse Pulse(IReadOnlyList<DashboardDay> days, long today, double[] points, double zero, long[] values)
+    {
+        var calendar = new System.Globalization.PersianCalendar();
+        static string Money(long v) => v.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+        string Label(int day)
+        {
+            var date = new DateTime(day / 10000, day / 100 % 100, day % 100, 0, 0, 0, DateTimeKind.Unspecified);
+            return $"{calendar.GetYear(date):0000}/{calendar.GetMonth(date):00}/{calendar.GetDayOfMonth(date):00}";
+        }
+        var labels = days.Select(d => Label(d.LocalDay)).ToArray();
+        var summary = days.Count == 0 ? "داده‌ای برای نمایش وجود ندارد" :
+            $"{labels[0]} تا {labels[^1]} · کمترین {Money(values.Min())} · بیشترین {Money(values.Max())} {CurrencyLabel}";
+        return new DashboardRevenuePulse(today.ToString("N0", System.Globalization.CultureInfo.InvariantCulture),
+            $"درآمد امروز ({CurrencyLabel})", points)
+        { ZeroLevel = zero, Values = values, DayLabels = labels, Summary = summary };
+    }
+
+    /// <summary>
+    /// Signed normalization: the domain always contains zero, so a negative day sits below the zero level and
+    /// an all-negative/all-zero series divides by a non-zero span or yields a flat series — never NaN/Infinity.
+    /// </summary>
+    internal static (double[] Points, double ZeroLevel) Normalize(IReadOnlyList<long> values)
+    {
+        if (values.Count == 0) return ([], 0);
+        double low = Math.Min(0, values.Min()), high = Math.Max(0, values.Max());
+        var span = high - low;
+        if (span <= 0) return (new double[values.Count], 0);
+        return (values.Select(v => (v - low) / span).ToArray(), (0 - low) / span);
+    }
+
+    // Specialty is not modelled, so it is left empty rather than invented. A removed/unnamed doctor gets an
+    // explicit label; the avatar initial is the first text element (never half of a surrogate pair).
+    internal const string UnknownDoctorName = "پزشک نامشخص";
+    private static DashboardDoctorLoad Load(DashboardWorkload x)
+    {
+        var name = string.IsNullOrWhiteSpace(x.Name) ? UnknownDoctorName : x.Name.Trim();
+        return new(System.Globalization.StringInfo.GetNextTextElement(name), name, string.Empty,
+            Math.Clamp(x.Done, 0, x.Total), x.Total, "#0D9488");
     }
 
     private static DashboardStat Stat(string icon, string label, long value) =>
         new(icon, label, value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), null, true);
     private static DashboardListItem Item(DashboardActivity x, TimeZoneInfo zone) =>
-        new("", x.TitleKey,
-            string.Join(" · ", new[] { TimeZoneInfo.ConvertTime(x.OccurredUtc, zone).ToString("HH:mm"),
-                x.ActorName, x.AmountMinor == 0 ? "" : x.AmountMinor.ToString("N0") + " ریال" }.Where(v => v.Length > 0)),
-            KindName(x.Kind), x.AmountSign < 0 ? DashboardTone.Warn : DashboardTone.Info, Icon(x.Kind));
+        new("", SafeActivityTitle(x), string.Join(" · ", new[] { TimeZoneInfo.ConvertTime(x.OccurredUtc, zone).ToString("HH:mm"),
+                x.ActorName, x.AmountMinor == 0 ? "" : x.AmountMinor.ToString("N0") + " تومان" }.Where(v => v.Length > 0)),
+            KindName(x.Kind), x.AmountSign < 0 ? DashboardTone.Warn : DashboardTone.Info, Icon(x.Kind),
+            x.Kind, x.Status, x.TitleKey);
+
+    // The translation key travels separately; the fallback title is Persian text, never the technical key.
+    private static string SafeActivityTitle(DashboardActivity x) => $"رویداد {KindName(x.Kind)}";
 
     private static DashboardListItem OperationalItem(DashboardOperationalRow row, TimeZoneInfo zone) =>
         new("", string.IsNullOrWhiteSpace(row.Name) ? "بدون عنوان" : row.Name,
-            $"{TimeZoneInfo.ConvertTime(row.AtUtc, zone):MM/dd HH:mm} · {row.OwnerName}" +
-            (row.Kind == "Vaccine" ? $" · {row.Reference}" : ""),
+            $"{TimeZoneInfo.ConvertTime(row.AtUtc, zone):MM/dd HH:mm} · " +
+            (string.IsNullOrWhiteSpace(row.OwnerName) ? "مالک نامشخص" : row.OwnerName) +
+            (row.Kind == "Vaccine" && !string.IsNullOrWhiteSpace(row.Reference) ? $" · {row.Reference}" : ""),
             row.State switch { "Draft" => "پیش‌نویس", "Posted" => "در انتظار پرداخت", "PartiallyPaid" => "پرداخت جزئی",
                 "Ready" => "آماده صدور", "Due" => "موعد واکسن", _ => "عملیات" },
             row.State is "Due" or "PartiallyPaid" ? DashboardTone.Warn : DashboardTone.Info,
-            row.Kind switch { "Invoice" => "IconReceipt", "Visit" => "IconClipboard", "Boarding" => "IconHome", "Vaccine" => "IconSyringe", _ => "IconClipboard" });
+            row.Kind switch { "Invoice" => "IconReceipt", "Visit" => "IconClipboard", "Boarding" => "IconBriefcase", "Vaccine" => "IconSyringe", _ => "IconClipboard" },
+            row.Kind, row.State);
 
     private static DashboardListItem AppointmentItem(DashboardAppointment x, TimeZoneInfo zone) =>
-        new("", x.PetName, $"{TimeZoneInfo.ConvertTime(x.StartUtc, zone):HH:mm} · {x.OwnerName} · {x.DoctorName}",
+        new("", string.IsNullOrWhiteSpace(x.PetName) ? "بیمار نامشخص" : x.PetName,
+            $"{TimeZoneInfo.ConvertTime(x.StartUtc, zone):HH:mm} · {x.OwnerName} · {x.DoctorName}",
             x.State switch { "Scheduled" => "رزرو شده", "Confirmed" => "تأیید شده", "CheckedIn" => "پذیرش شده",
                 "InVisit" => "در حال ویزیت", "Completed" => "تکمیل شده", "Cancelled" => "لغو شده",
                 "NoShow" => "عدم حضور", _ => "نوبت" },
             x.State == "Completed" ? DashboardTone.Ok : x.State is "Cancelled" or "NoShow" ? DashboardTone.Warn : DashboardTone.Info,
-            "IconCalendar");
+            "IconCalendar", "Appointment", x.State);
 
     private static string KindName(string kind) => kind switch
     {
@@ -160,6 +208,7 @@ internal static class DashboardMapping
     };
     private static string SpeciesColor(string species) => species switch
     {
-        "Cat" => "#0D9488", "Dog" => "#6366F1", "Bird" => "#F59E0B", "Rabbit" => "#EC4899", _ => "#64748B"
+        "Cat" => "#0D9488", "Dog" => "#6366F1", "Bird" => "#F59E0B", "Rabbit" => "#EC4899",
+        "Rodent" => "#8B5CF6", "Reptile" => "#16A34A", _ => "#64748B"
     };
 }

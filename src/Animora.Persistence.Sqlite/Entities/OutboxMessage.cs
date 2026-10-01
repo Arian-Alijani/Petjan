@@ -41,9 +41,16 @@ public sealed class OutboxMessage
     public DateTimeOffset? ProcessedAtUtc { get; private set; }
     public string? CorrelationId { get; private set; }
 
+    /// <summary>
+    /// The authenticated user whose command produced the event, captured in the same transaction. Rebuilds
+    /// of read projections (activity feed) consume it; null means "unknown" (legacy rows or system work) and
+    /// is never replaced by a guessed actor.
+    /// </summary>
+    public string? ActorUserId { get; private set; }
+
     /// <summary>Appends a new message in the caller's transaction (never calls <c>SaveChanges</c>).</summary>
     internal static OutboxMessage Create(string messageType, string payloadJson, string? correlationId,
-        DateTimeOffset nowUtc) => new()
+        DateTimeOffset nowUtc, string? actorUserId = null) => new()
     {
         Id = IdGenerator.NewId(nowUtc),
         MessageType = messageType,
@@ -51,6 +58,7 @@ public sealed class OutboxMessage
         Status = OutboxStatus.Pending,
         CreatedAtUtc = nowUtc,
         CorrelationId = correlationId,
+        ActorUserId = string.IsNullOrWhiteSpace(actorUserId) ? null : actorUserId,
     };
 
     /// <summary>Marks a relayed message succeeded and releases its claim.</summary>

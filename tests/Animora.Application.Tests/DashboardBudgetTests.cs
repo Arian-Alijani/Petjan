@@ -51,10 +51,10 @@ public sealed class DashboardBudgetTests
     }
 
     [Theory]
-    [InlineData(UserRole.Manager, 10)]
-    [InlineData(UserRole.Doctor, 6)]
-    [InlineData(UserRole.Cashier, 10)]
-    [InlineData(UserRole.Receptionist, 10)]
+    [InlineData(UserRole.Manager, 12)]
+    [InlineData(UserRole.Doctor, 8)]
+    [InlineData(UserRole.Cashier, 12)]
+    [InlineData(UserRole.Receptionist, 12)]
     public async Task Snapshot_StaysWithinRoleCommandBudget(UserRole role, int expectedCommands)
     {
         using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
@@ -145,6 +145,370 @@ public sealed class DashboardBudgetTests
     }
 
     [Fact]
+    public async Task WidgetPreviews_AreBoundedIndependently_AndAggregatesIgnorePreviewLimits()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var owner = Owner.Register(fixture.TenantId, "مالک", "09120000001", fixture.Clock);
+        var pet = Pet.Register(fixture.TenantId, owner.Id, "بیمار", PetSpecies.Dog, fixture.Clock);
+        db.AddRange(owner, pet);
+        for (var i = 0; i < 12; i++)
+        {
+            db.Add(Appointment.Book(fixture.TenantId, pet.Id, owner.Id, "CHECKUP", Window.StartUtc.AddMinutes(60 + i * 5),
+                30, AppointmentSource.Phone, "receptionist", fixture.Clock, "doc-A").Value!);
+            var invoice = Invoice.Create(fixture.TenantId, $"INV-{i:00}", InvoiceKind.DirectSale, Window.StartUtc.AddMinutes(i),
+                "cashier", ownerId: owner.Id, petId: pet.Id).Value!;
+            Assert.True(invoice.AddLine(new InvoiceLine("line", InvoiceLineKind.Service, null, null, null,
+                "Consultation", new Quantity(1, "PCS"), Money.Irt(100), 0, 0, InvoiceLineSource.Manual, null)).IsSuccess);
+            Assert.True(invoice.Post(fixture.Clock).IsSuccess);
+            db.Add(invoice);
+            db.Add(VisitBillingHandoff.Create(fixture.TenantId, $"visit-{i}", owner.Id, pet.Id, "doc-A", Window.StartUtc.AddMinutes(i), "[]"));
+        }
+        for (var i = 0; i < 120; i++)
+            db.Add(ActivityEvent.Create(fixture.TenantId, Window.StartUtc.AddHours(12), Today, "Inventory",
+                "history.inventory.changed", "{}", "Inventory", $"stock-{i}", 0, 0, "Done", "receptionist", "پذیرش", null));
+        await db.SaveChangesAsync();
+        var queries = new DashboardQueries(db);
+        var doctor = await queries.GetSliceAsync(fixture.TenantId, Window, "doc-A", TestAccess(UserRole.Doctor), default);
+        Assert.Equal(8, doctor.Appointments!.Count);
+        Assert.Equal(12, doctor.QueueCount); // The KPI is an aggregate, never derived from the preview.
+        Assert.Equal(doctor.Appointments.OrderBy(x => x.StartUtc).Select(x => x.StartUtc), doctor.Appointments.Select(x => x.StartUtc));
+        var cashier = await queries.GetSliceAsync(fixture.TenantId, Window, "cashier", TestAccess(UserRole.Cashier), default);
+        Assert.Equal(8, cashier.OpenInvoiceRows!.Count);
+        Assert.Equal(8, cashier.ReadyBillingRows!.Count);
+        Assert.Equal(12, cashier.OpenInvoices);
+        var manager = await queries.GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
+        Assert.Equal(80, manager.Activity.Count); // Only the activity widget owns the 80-row preview.
+        Assert.Equal(8, manager.Appointments!.Count);
+        Assert.Equal(8, InvokeMap(UserRole.Manager, manager).PrimaryList.Count);
+    }
+
+    [Fact]
+    public async Task QueueAndPaymentCounters_MatchAuthoritativeStates_NotScheduledAppointments()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var owner = Owner.Register(fixture.TenantId, "مالک", "09120000001", fixture.Clock);
+        var pet = Pet.Register(fixture.TenantId, owner.Id, "بیمار", PetSpecies.Dog, fixture.Clock);
+        db.AddRange(owner, pet);
+        Appointment Book(int minute, string doctor = "doc-A")
+        {
+            var a = Appointment.Book(fixture.TenantId, pet.Id, owner.Id, "CHECKUP", Window.StartUtc.AddHours(8).AddMinutes(minute),
+                30, AppointmentSource.Phone, "receptionist", fixture.Clock, doctor).Value!;
+            db.Add(a);
+            return a;
+        }
+        void Entry(Appointment? appointment, string doctor, int stateSteps)
+        {
+            var e = ReceptionQueueEntry.Create(fixture.TenantId, pet.Id, owner.Id,
+                appointment is null ? QueueSource.WalkIn : QueueSource.Appointment, 1, fixture.Clock, appointment?.Id);
+            if (stateSteps >= 1) Assert.True(e.Call(doctor, fixture.Clock).IsSuccess);
+            if (stateSteps >= 2) Assert.True(e.StartVisit("visit").IsSuccess);
+            if (stateSteps >= 3) Assert.True(e.Close(fixture.Clock).IsSuccess);
+            db.Add(e);
+        }
+        var scheduled = Book(0);                 // active: no entry yet
+        var waiting = Book(30); Entry(waiting, "doc-A", 0);   // active
+        var done = Book(60); Entry(done, "doc-A", 3);         // terminal
+        var other = Book(90, "doc-B");                          // another doctor
+        var cancelled = Book(120); Assert.True(cancelled.Cancel("لغو", fixture.Clock).IsSuccess);
+        Entry(null, "doc-A", 1);                                 // walk-in Called: active
+        Entry(null, "doc-A", 3);                                 // walk-in Done: terminal
+        foreach (var (state, i) in new[] { "Draft", "Posted", "Partial", "Paid" }.Select((x, i) => (x, i)))
+        {
+            var invoice = Invoice.Create(fixture.TenantId, $"Q-{state}", InvoiceKind.DirectSale, Window.StartUtc, "cashier", ownerId: owner.Id).Value!;
+            Assert.True(invoice.AddLine(new InvoiceLine("line", InvoiceLineKind.Service, null, null, null,
+                "Consultation", new Quantity(1, "PCS"), Money.Irt(100), 0, 0, InvoiceLineSource.Manual, null)).IsSuccess);
+            if (i >= 1) Assert.True(invoice.Post(fixture.Clock).IsSuccess);
+            if (i >= 2)
+                Assert.True(invoice.ApplyPayment(Payment.Create(fixture.TenantId, invoice.Id, PaymentMethod.Card,
+                    Money.Irt(i == 3 ? 100 : 10), Window.StartUtc, "cashier").Value!).IsSuccess);
+            db.Add(invoice);
+        }
+        await db.SaveChangesAsync();
+        var queries = new DashboardQueries(db);
+        var manager = await queries.GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
+        var doctor = await queries.GetSliceAsync(fixture.TenantId, Window, "doc-A", TestAccess(UserRole.Doctor), default);
+        var cashier = await queries.GetSliceAsync(fixture.TenantId, Window, "cashier", TestAccess(UserRole.Cashier), default);
+        // scheduled + waiting + other doctor + walk-in called = 4; doctor-A sees 3.
+        Assert.Equal(4, manager.QueueCount);
+        Assert.Equal(3, doctor.QueueCount);
+        Assert.Equal(3, cashier.OpenInvoices);          // Draft + Posted + PartiallyPaid, same as the cashier page.
+        Assert.Equal(2, cashier.AwaitingPaymentCount);  // Draft is open but not yet payable.
+        var cashierStats = InvokeMap(UserRole.Cashier, cashier).Stats;
+        Assert.Equal("2", Assert.Single(cashierStats, x => x.Label == "در انتظار پرداخت").Value);
+        Assert.Contains(cashierStats, x => x.Label.StartsWith("فاکتورهای باز"));
+        Assert.DoesNotContain(cashierStats, x => x.Label == "صف پرداخت");
+        var reference = await scope.ServiceProvider.GetRequiredService<ICashierQueries>().GetTabCountsAsync(default);
+        Assert.Equal(reference.Open, cashier.OpenInvoices);
+        var page = await new ReceptionQueueQueries(db).GetQueueAsync(Window.StartUtc, Window.EndUtc, default);
+        Assert.Equal(manager.QueueCount, page.Count(t => t.State is "Waiting" or "Called" or "InVisit"
+            || (t.Source == "Appointment" && t.State is "Scheduled" or "Confirmed" or "CheckedIn")));
+    }
+
+    [Fact]
+    public async Task DoctorWorkload_UsesRealNamesAndCompletedState_WithStableOrdering()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var owner = Owner.Register(fixture.TenantId, "مالک", "09120000001", fixture.Clock);
+        var pet = Pet.Register(fixture.TenantId, owner.Id, "بیمار", PetSpecies.Dog, fixture.Clock);
+        var named = Animora.Domain.Identity.User.Create(fixture.TenantId, "dr.rezaei", "دکتر رضایی", fixture.Clock);
+        db.AddRange(owner, pet, named);
+        var minute = 0;
+        void Add(string? doctor, Action<Appointment>? shape = null)
+        {
+            var a = Appointment.Book(fixture.TenantId, pet.Id, owner.Id, "CHECKUP", Window.StartUtc.AddHours(8).AddMinutes(minute += 30),
+                30, AppointmentSource.Phone, "receptionist", fixture.Clock, doctor).Value!;
+            shape?.Invoke(a);
+            db.Add(a);
+        }
+        Add(named.Id, a => { Assert.True(a.Confirm().IsSuccess); Assert.True(a.CheckIn(fixture.Clock).IsSuccess);
+            Assert.True(a.StartVisit("visit-1").IsSuccess); Assert.True(a.Complete().IsSuccess); });
+        Add(named.Id);
+        Add(named.Id, a => Assert.True(a.Cancel("لغو", fixture.Clock).IsSuccess));   // excluded from total
+        Add("removed-doctor");                                                       // no valid user row
+        Add(null);                                                                   // unassigned is not a doctor row
+        await db.SaveChangesAsync();
+        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
+        Assert.Equal(2, slice.Workloads.Count);
+        var real = Assert.Single(slice.Workloads, x => x.DoctorId == named.Id);
+        Assert.Equal(("دکتر رضایی", 2, 1), (real.Name, real.Total, real.Done));
+        var removed = Assert.Single(slice.Workloads, x => x.DoctorId == "removed-doctor");
+        Assert.Equal((string.Empty, 1, 0), (removed.Name, removed.Total, removed.Done));
+        var mapped = InvokeMap(UserRole.Manager, slice).DoctorLoads!;
+        Assert.Equal(new[] { "دکتر رضایی", "پزشک نامشخص" }, mapped.Select(x => x.Name).ToArray());
+        Assert.Equal("د", mapped[0].Initial);
+        Assert.Equal(0.5, mapped[0].Ratio);
+        Assert.Equal(0, mapped[1].Ratio);               // zero completed is real, not a hard-coded default
+        Assert.All(mapped, x => Assert.Equal(string.Empty, x.Specialty)); // never an invented specialty
+        // Zero/complete ratios and a surrogate-pair name are safe.
+        var edge = DashboardMapping.Map(UserRole.Manager, new DashboardSlice([], [], [new("d", 0, "\U0001F600 دکتر", 0),
+            new("e", 2, "x", 5)], new Dictionary<string, int>(), 0, 0, 0)).DoctorLoads!;
+        Assert.Equal("\U0001F600", edge[0].Initial);
+        Assert.Equal(0, edge[0].Ratio);
+        Assert.Equal((2, 2), (edge[1].Done, edge[1].Total)); // Done is clamped to Total
+    }
+
+    [Fact]
+    public void Rows_CarryTypedKindStatusAndNeverExposeKeysOrInternalIds()
+    {
+        var at = Window.StartUtc.AddHours(9);
+        var slice = new DashboardSlice([], [new("Sale", "history.future.unknown", "01HINTERNALID", 0, 0, "u", at, "", "Paid"),
+                new("Weird", "history.invoice.posted", "id-2", 5, -1, "u", at, "مدیر", "Done")],
+            [], new Dictionary<string, int>(), 0, 0, 0,
+            Appointments: [new("", "", "", at, "Cancelled")],
+            OpenInvoiceRows: [new("Invoice", "INV-9", "", at, "Posted", "INV-9"), new("Mystery", "", "مالک", at, "???")],
+            ReminderRows: [new("Vaccine", "پیشی", "", at, "Due", "")]);
+        var manager = InvokeMap(UserRole.Manager, slice);
+        Assert.All(manager.SecondaryList, x => Assert.DoesNotContain("history.", x.Title));
+        Assert.All(manager.SecondaryList, x => Assert.DoesNotContain("INTERNALID", x.Subtitle));
+        Assert.Equal("history.future.unknown", manager.SecondaryList[0].TitleKey);
+        Assert.Equal("Paid", manager.SecondaryList[0].Status);
+        Assert.Equal("IconCheque", Icon("Cheque"));
+        var appointment = Assert.Single(manager.PrimaryList);
+        Assert.Equal(("بیمار نامشخص", "Appointment", "Cancelled", Contracts.Dashboard.DashboardTone.Warn),
+            (appointment.Title, appointment.Kind, appointment.Status, appointment.TagTone));
+        var cashier = InvokeMap(UserRole.Cashier, slice);
+        Assert.Equal(("Invoice", "Posted", "IconReceipt"), (cashier.PrimaryList[0].Kind, cashier.PrimaryList[0].Status, cashier.PrimaryList[0].IconKey));
+        Assert.Contains("مالک نامشخص", cashier.PrimaryList[0].Subtitle);
+        Assert.Equal("بدون عنوان", cashier.PrimaryList[1].Title);   // unknown type / empty name do not crash
+        Assert.Equal("عملیات", cashier.PrimaryList[1].TagText);
+        var doctor = InvokeMap(UserRole.Doctor, slice);
+        Assert.Equal(("Vaccine", "IconSyringe"), (doctor.SecondaryList[0].Kind, doctor.SecondaryList[0].IconKey));
+        static string Icon(string kind) => DashboardMapping.Map(UserRole.Manager,
+            new DashboardSlice([], [new(kind, "history.cheque.statuschanged", "x", 0, 0, "", default, "")], [], new Dictionary<string, int>(), 0, 0, 0)).SecondaryList[0].IconKey!;
+    }
+
+    [Fact]
+    public void Species_UseStableKeyPalette_AndDeterministicOrder()
+    {
+        var keys = new[] { "Dog", "Cat", "Bird", "Rodent", "Reptile", "Other", "Hamster" };
+        var looks = keys.Select(k => Desktop.Pages.Dashboard.SpeciesPresentation.For(k)).ToArray();
+        Assert.Equal(new[] { "سگ", "گربه", "پرنده", "جوندگان", "خزندگان", "سایر", "سایر" }, looks.Select(x => x.Name).ToArray());
+        // Every real species has its own colour; only Other/unknown share the neutral colour.
+        Assert.Equal(6, looks.Take(6).Select(x => x.ColorHex).Distinct().Count());
+        Assert.Equal(looks[5].ColorHex, looks[6].ColorHex);
+        Assert.Equal("نام قدیمی", Desktop.Pages.Dashboard.SpeciesPresentation.For("Hamster", "نام قدیمی").Name);
+        Assert.Equal("IconDog", looks[0].IconKey);
+        Assert.Equal("IconPaw", Desktop.Pages.Dashboard.SpeciesPresentation.For(null).IconKey);
+        var forward = new Dictionary<string, int> { ["Cat"] = 3, ["Dog"] = 3, ["Bird"] = 5, ["Other"] = 0 };
+        var reversed = forward.Reverse().ToDictionary(x => x.Key, x => x.Value);
+        string[] Order(Dictionary<string, int> input) => InvokeMap(UserRole.Manager,
+            new DashboardSlice([], [], [], input, 0, 0, 0)).Species!.Select(x => x.Key).ToArray();
+        Assert.Equal(new[] { "Bird", "Cat", "Dog", "Other" }, Order(forward));
+        Assert.Equal(Order(forward), Order(reversed));
+        Assert.Empty(InvokeMap(UserRole.Manager, new DashboardSlice([], [], [], new Dictionary<string, int>(), 0, 0, 0)).Species!);
+        var single = InvokeMap(UserRole.Manager, new DashboardSlice([], [], [], new Dictionary<string, int> { ["Dog"] = 1 }, 0, 0, 0)).Species!;
+        Assert.Equal(("Dog", "سگ"), (single[0].Key, single[0].Name));
+    }
+
+    [Theory]
+    [InlineData(new long[] { 100, -50 }, new[] { 1.0, 0.0 }, 0.3333333333)]
+    [InlineData(new long[] { -100, -50 }, new[] { 0.0, 0.5 }, 1.0)]
+    [InlineData(new long[] { 0, 0, 0 }, new[] { 0.0, 0.0, 0.0 }, 0.0)]
+    [InlineData(new long[] { 5 }, new[] { 1.0 }, 0.0)]
+    [InlineData(new long[] { 0, 9_000_000_000_000_000_000, -9_000_000_000_000_000_000 }, new[] { 0.5, 1.0, 0.0 }, 0.5)]
+    public void RevenueChart_PlacesSignedValuesAroundZero_WithoutClampingOrNaN(long[] values, double[] expected, double zero)
+    {
+        var (points, zeroLevel) = DashboardMapping.Normalize(values);
+        Assert.Equal(expected.Length, points.Length);
+        for (var i = 0; i < expected.Length; i++) Assert.Equal(expected[i], points[i], 6);
+        Assert.Equal(zero, zeroLevel, 6);
+        Assert.All(points, x => Assert.True(double.IsFinite(x) && x is >= 0 and <= 1));
+        var layout = Desktop.Pages.Dashboard.RevenueChartMath.Build(points, zeroLevel);
+        if (points.Length < 2) { Assert.Null(layout); return; }
+        // Canvas y grows downward: a lower value is always drawn lower than a higher one.
+        for (var i = 0; i < values.Length; i++)
+            for (var j = 0; j < values.Length; j++)
+                if (values[i] < values[j]) Assert.True(layout!.Value.Y[i] > layout.Value.Y[j]);
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (values[i] < 0) Assert.True(layout!.Value.Y[i] > layout.Value.ZeroY);
+            if (values[i] > 0) Assert.True(layout!.Value.Y[i] < layout.Value.ZeroY);
+        }
+    }
+
+    [Fact]
+    public void RevenuePulse_KeepsRealSignedAmounts_AndIsFrozen()
+    {
+        var slice = new DashboardSlice([new(20260228, 300), new(20260301, -120)], [], [], new Dictionary<string, int>(), 0, 0, 0);
+        var pulse = InvokeMap(UserRole.Manager, slice).RevenuePulse!;
+        Assert.Equal(new long[] { 300, -120 }, pulse.Values);
+        Assert.Equal("-120", pulse.Value);
+        Assert.True(pulse.Points[1] < pulse.ZeroLevel && pulse.ZeroLevel < pulse.Points[0]);
+        Assert.Throws<NotSupportedException>(() => ((IList<long>)pulse.Values)[0] = 1);
+        Assert.Empty(DashboardMapping.Map(UserRole.Manager, new DashboardSlice([], [], [], new Dictionary<string, int>(), 0, 0, 0)).RevenuePulse!.Points);
+        Assert.Null(Desktop.Pages.Dashboard.RevenueChartMath.Build(new[] { double.NaN, 0.5 }, 0));
+    }
+
+    [Fact]
+    public async Task RevenuePulse_ExposesActual14DayRange_TodayHeadline_AndRealDatesAndAmounts()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        await SeedRevenueFactAsync(fixture, 20260228, 300);
+        await SeedRevenueFactAsync(fixture, Today, -120);
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
+        var pulse = InvokeMap(UserRole.Manager, slice).RevenuePulse!;
+        Assert.Equal(14, pulse.Values.Count);
+        Assert.Equal(14, pulse.DayLabels.Count);
+        Assert.Equal("-120", pulse.Value);                       // headline = today, not the 14-day sum
+        Assert.Contains("امروز", pulse.Caption);
+        Assert.Contains("تومان", pulse.Caption);
+        Assert.NotEqual("۱۴ روز اخیر", pulse.Caption);
+        Assert.Equal("1404/12/10", pulse.DayLabels[^1]);          // 2026-03-01 in the Jalali calendar
+        Assert.Equal("1404/11/27", pulse.DayLabels[0]);           // zero-filled window starts 13 days earlier
+        Assert.Equal(300, pulse.Values[^2]);
+        Assert.Equal(-120, pulse.Values[^1]);
+        Assert.Contains("1404/11/27 تا 1404/12/10", pulse.Summary);
+        Assert.Contains("کمترین -120", pulse.Summary);
+        Assert.Contains("بیشترین 300", pulse.Summary);
+        var xaml = System.IO.File.ReadAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "../../../../../src/Animora.Desktop/Pages/Dashboard/ManagerDashboardView.axaml"));
+        Assert.DoesNotContain("هفته", xaml);                      // no inert range tabs
+        Assert.DoesNotContain("ماه</TextBlock", xaml);
+        Assert.Contains("داده‌ای", InvokeMap(UserRole.Manager, new DashboardSlice([], [], [], new Dictionary<string, int>(), 0, 0, 0)).RevenuePulse!.Summary);
+    }
+
+    [Theory]
+    [InlineData(new double[] { 1, 99 }, 4.058451)]
+    [InlineData(new double[] { 1, 999 }, 4.058451)]
+    [InlineData(new double[] { 1, 99_999 }, 4.058451)]
+    public void Donut_KeepsSmallPositiveSlices_VisibleAndHitTestable(double[] values, double defaultGap)
+    {
+        var total = Desktop.Controls.DonutGeometry.Total(values);
+        var small = Desktop.Controls.DonutGeometry.ArcFor(values[0], total, 0, defaultGap);
+        Assert.NotNull(small);
+        Assert.True(small!.Value.End > small.Value.Start);            // visible, not dropped
+        var big = Desktop.Controls.DonutGeometry.ArcFor(values[1], total, small.Value.SweepEnd, defaultGap);
+        Assert.True(big!.Value.Start >= small.Value.End);             // no overlap between neighbours
+        var mid = (small.Value.SweepStart + small.Value.SweepEnd) / 2;
+        Assert.Equal(0, Desktop.Controls.DonutGeometry.IndexAt(values, mid));
+        Assert.Equal(1, Desktop.Controls.DonutGeometry.IndexAt(values, small.Value.SweepEnd + 0.0001));
+        // The gap is capped relative to the segment's own sweep.
+        Assert.True(small.Value.End - small.Value.Start >= (small.Value.SweepEnd - small.Value.SweepStart) * 0.5 - 1e-9);
+    }
+
+    [Fact]
+    public void Donut_HandlesZeroNegativeNaNAndSingleSegments()
+    {
+        Assert.Null(Desktop.Controls.DonutGeometry.ArcFor(0, 10, 0, 4));
+        Assert.Null(Desktop.Controls.DonutGeometry.ArcFor(-5, 10, 0, 4));
+        Assert.Null(Desktop.Controls.DonutGeometry.ArcFor(double.NaN, 10, 0, 4));
+        Assert.Null(Desktop.Controls.DonutGeometry.ArcFor(5, 0, 0, 4));
+        Assert.Equal(-1, Desktop.Controls.DonutGeometry.IndexAt([], 10));
+        Assert.Equal(-1, Desktop.Controls.DonutGeometry.IndexAt([0, -3], 10));
+        // Negative/NaN entries never distort the total or shift the neighbours.
+        double[] values = [-4, 3, double.NaN, 1];
+        Assert.Equal(4, Desktop.Controls.DonutGeometry.Total(values));
+        Assert.Equal(1, Desktop.Controls.DonutGeometry.IndexAt(values, 10));
+        Assert.Equal(3, Desktop.Controls.DonutGeometry.IndexAt(values, 300));
+        var single = Desktop.Controls.DonutGeometry.ArcFor(7, 7, 0, 3.4)!.Value;
+        Assert.Equal(360, single.SweepEnd - single.SweepStart, 6);
+        Assert.Equal(0, Desktop.Controls.DonutGeometry.IndexAt([7], 359.9));
+        // A zero gap (Finance-style settings) leaves the full sweep.
+        var flat = Desktop.Controls.DonutGeometry.ArcFor(1, 4, 0, 0)!.Value;
+        Assert.Equal(90, flat.End - flat.Start, 6);
+    }
+
+    [Fact]
+    public async Task ActivityActor_IsDurableInOutbox_AndRebuildMatchesLiveWriter()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var correlation = scope.ServiceProvider.GetRequiredService<Animora.Application.Correlation.ICorrelationContext>();
+        var writer = scope.ServiceProvider.GetRequiredService<IActivityFeedWriter>();
+        var outbox = scope.ServiceProvider.GetRequiredService<IOutbox>();
+        Invoice Make(string number)
+        {
+            var invoice = Invoice.Create(fixture.TenantId, number, InvoiceKind.DirectSale, Window.StartUtc.AddHours(9), "cashier", guestName: "G").Value!;
+            Assert.True(invoice.AddLine(new InvoiceLine("line", InvoiceLineKind.Service, null, null, null,
+                "Consultation", new Quantity(1, "PCS"), Money.Irt(100), 0, 0, InvoiceLineSource.Manual, null)).IsSuccess);
+            Assert.True(invoice.Post(fixture.Clock).IsSuccess);
+            return invoice;
+        }
+        async Task Stage(Invoice invoice)
+        {
+            foreach (var source in invoice.DomainEvents)
+            {
+                if (ActivityFeedMapper.Map(source) is { } draft) await writer.WriteAsync(draft, default);
+                Assert.True((await outbox.EnqueueAsync(source.GetType().Name, source)).IsSuccess);
+            }
+        }
+        var live = Make("ACT-1");
+        using (correlation.Begin(new Animora.Application.Correlation.AmbientCorrelation("corr-live", fixture.TenantId, "receptionist", "dev", null)))
+            await Stage(live);
+        var legacy = Make("ACT-2");
+        await Stage(legacy); // no ambient actor: a legacy/system row, actor stays unknown
+        db.AddRange(live, legacy);
+        await db.SaveChangesAsync();
+        Assert.Equal("receptionist", await db.Set<OutboxMessage>().AsNoTracking()
+            .Where(x => x.CorrelationId == "corr-live").Select(x => x.ActorUserId).FirstAsync());
+        async Task<string[]> Snapshot() => (await db.Set<ActivityEvent>().AsNoTracking().OrderBy(x => x.Id).ToListAsync())
+            .Select(x => $"{x.Id}|{x.ActorUserId}|{x.CorrelationId}|{x.TenantId}").ToArray();
+        var before = await Snapshot();
+        var maintenance = scope.ServiceProvider.GetRequiredService<ILocalStoreMaintenance>();
+        Assert.True((await maintenance.RebuildActivityFeedAsync(default)).IsSuccess);
+        var first = await Snapshot();
+        Assert.True((await maintenance.RebuildActivityFeedAsync(default)).IsSuccess);
+        Assert.Equal(first, await Snapshot());                   // deterministic
+        var liveRow = first.Single(x => x.Contains("|corr-live|"));
+        Assert.Contains("|receptionist|", liveRow);
+        Assert.Contains(before.Single(x => x.Contains("|corr-live|")), first);   // live == rebuilt
+        Assert.DoesNotContain(first.Where(x => !x.Contains("|corr-live|")), x => x.Contains("|receptionist|"));
+    }
+
+    [Fact]
     public async Task ManagerRevenue_EqualsFinanceSameDayFigure()
     {
         const long expected = 7_654_321;
@@ -206,7 +570,6 @@ public sealed class DashboardBudgetTests
 
     [Theory]
     [InlineData(UserRole.Manager)]
-    [InlineData(UserRole.Doctor)]
     [InlineData(UserRole.Cashier)]
     public async Task DailyKpis_AreNotTruncatedByRecentActivityLimit(UserRole role)
     {
@@ -233,21 +596,58 @@ public sealed class DashboardBudgetTests
 
         var slice = await new DashboardQueries(db).GetSliceAsync(fixture.TenantId, Window, "user-1", TestAccess(role), default);
         Assert.Equal(80, slice.Activity.Count); // Preview stays cheap; statistics must not use it.
-        Assert.Equal(role == UserRole.Doctor ? 101 : 108, slice.ActivityTotals!.Visits);
-        Assert.Equal(role == UserRole.Doctor ? 0 : 95_000, slice.ActivityTotals.Payments);
+        Assert.Equal(108, slice.ActivityTotals!.Visits);
+        Assert.Equal(95_000, slice.ActivityTotals.Payments);
         Assert.Equal(105, slice.ActivityTotals.Vaccinations);
-        Assert.Equal(role == UserRole.Doctor ? 0 : 90, slice.ActivityTotals.Cheques);
+        Assert.Equal(90, slice.ActivityTotals.Cheques);
         var mapped = InvokeMap(role, slice);
         if (role == UserRole.Manager) Assert.Equal("108", mapped.Stats[1].Value);
-        if (role == UserRole.Doctor)
-        {
-            Assert.Equal("101", mapped.Stats[0].Value);
-            Assert.Equal("105", mapped.Stats[3].Value);
-            Assert.Empty(slice.RevenueDays);
-            Assert.Empty(slice.Workloads);
-            Assert.Empty(slice.Species);
-        }
         if (role == UserRole.Cashier) Assert.Equal("95,000", mapped.Stats[0].Value);
+    }
+
+    [Fact]
+    public async Task DoctorKpis_UseAssignedDoctorAndAdministeringDoctor_NotAuditActor()
+    {
+        using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var owner = Owner.Register(fixture.TenantId, "مالک", "09120000001", fixture.Clock);
+        var pet = Pet.Register(fixture.TenantId, owner.Id, "بیمار", PetSpecies.Dog, fixture.Clock);
+        db.AddRange(owner, pet);
+        Animora.Domain.Clinical.Visit Complete(string doctor)
+        {
+            var visit = Animora.Domain.Clinical.Visit.Open(fixture.TenantId, pet.Id, owner.Id, doctor,
+                Animora.Domain.Clinical.VisitReason.Checkup, new Animora.Persistence.Tests.FakeClock(Window.StartUtc.AddHours(10)));
+            Assert.True(visit.Start().IsSuccess);
+            Assert.True(visit.SetAssessment("ok").IsSuccess);
+            Assert.True(visit.Complete(new Animora.Persistence.Tests.FakeClock(Window.StartUtc.AddHours(10))).IsSuccess);
+            return visit;
+        }
+        var mine = Complete("doc-A");
+        db.AddRange(mine, Complete("doc-B"));
+        // The receptionist is the audit actor of both; the doctor column must decide ownership.
+        foreach (var id in new[] { "v1", "v2", "v3" })
+            db.Add(ActivityEvent.Create(fixture.TenantId, Window.StartUtc.AddHours(10), Today, "Visit",
+                "history.visit.completed", "{}", "Visit", id, 0, 0, "Done", "receptionist", "پذیرش", null));
+        db.Add(Animora.Domain.Clinical.VaccinationRecord.Administer(fixture.TenantId, pet.Id, "DHPP", "A", 1,
+            Window.StartUtc.AddHours(11), "doc-A", fixture.Clock).Value!);
+        db.Add(Animora.Domain.Clinical.VaccinationRecord.Administer(fixture.TenantId, pet.Id, "RABIES", "B", 1,
+            Window.StartUtc.AddHours(11), "receptionist", fixture.Clock, visitId: mine.Id).Value!);
+        db.Add(Animora.Domain.Clinical.VaccinationRecord.Administer(fixture.TenantId, pet.Id, "FVRCP", "C", 1,
+            Window.StartUtc.AddHours(11), "doc-B", fixture.Clock).Value!);
+        await db.SaveChangesAsync();
+        var queries = new DashboardQueries(db);
+        var a = await queries.GetSliceAsync(fixture.TenantId, Window, "doc-A", TestAccess(UserRole.Doctor), default);
+        var b = await queries.GetSliceAsync(fixture.TenantId, Window, "doc-B", TestAccess(UserRole.Doctor), default);
+        var actorOnly = await queries.GetSliceAsync(fixture.TenantId, Window, "receptionist", TestAccess(UserRole.Doctor), default);
+        Assert.Equal((1, 2), (a.ActivityTotals!.Visits, a.ActivityTotals.Vaccinations));
+        Assert.Equal((1, 1), (b.ActivityTotals!.Visits, b.ActivityTotals.Vaccinations));
+        Assert.Equal((0, 1), (actorOnly.ActivityTotals!.Visits, actorOnly.ActivityTotals.Vaccinations));
+        Assert.Empty(a.Activity); // Doctor widgets never expose audit rows authored by other actors.
+        // Audit actor/name remain intact for the manager's explicit activity section.
+        var manager = await queries.GetSliceAsync(fixture.TenantId, Window, "mgr", TestAccess(UserRole.Manager), default);
+        Assert.All(manager.Activity, x => Assert.Equal("receptionist", x.ActorUserId));
     }
 
     [Fact]
@@ -501,7 +901,7 @@ public sealed class DashboardBudgetTests
     [Fact]
     public void Mapping_UsesRealAppointmentDetailsAndSemanticEventIcons()
     {
-        var slice = new DashboardSlice([], [new("Appointment", "history.appointment.booked", "opaque-id", 0, 0, "", Window.StartUtc, "مدیر")],
+        var slice = new DashboardSlice([], [new("Appointment", "history.appointment.booked", "opaque-id", 0, 0, "", Window.StartUtc, "مدیر", "Done")],
             [new("doctor-id", 5, "دکتر رضایی", 2)], new Dictionary<string, int> { ["Cat"] = 3 }, 0, 0, 0,
             Appointments: [new("پیشی", "مالک", "دکتر رضایی", Window.StartUtc.AddHours(9), "Confirmed")]);
         var snapshot = InvokeMap(UserRole.Manager, slice);
@@ -512,7 +912,9 @@ public sealed class DashboardBudgetTests
         Assert.Equal("تأیید شده", appointment.TagText);
         Assert.Equal("IconCalendar", appointment.IconKey);
         var activity = Assert.Single(snapshot.SecondaryList);
-        Assert.Equal("history.appointment.booked", activity.Title); // Localized by Desktop's existing HistoryText.
+        Assert.Equal("history.appointment.booked", activity.TitleKey); // Localized by Desktop's HistoryText.
+        Assert.DoesNotContain("history.", activity.Title);             // The fallback is never a technical key.
+        Assert.Equal(("Appointment", "Done"), (activity.Kind, activity.Status));
         Assert.DoesNotContain("opaque-id", activity.Subtitle);
         Assert.Equal("نوبت", activity.TagText);
         Assert.Equal("IconCalendar", activity.IconKey);

@@ -83,9 +83,9 @@
             <Border Grid.Column="0" Classes="card" Padding="20,18"
                     IsVisible="{Binding RevenuePulse, Converter={x:Static ObjectConverters.IsNotNull}}">
                 <StackPanel Spacing="10">
-                    <Grid ColumnDefinitions="*,Auto">
+                    <Grid ColumnDefinitions="*">
                         <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="نبض مالی کلینیک"
+                            <TextBlock Text="روند درآمد ۱۴ روز اخیر"
                                        FontSize="{StaticResource FontSizeMd}"
                                        FontWeight="ExtraBold"
                                        Foreground="{StaticResource InkBrush}" />
@@ -104,43 +104,13 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- Range tabs (روز/هفته/ماه/سال) — visual match, inert. -->
-                        <Border Grid.Column="1"
-                                VerticalAlignment="Top"
-                                CornerRadius="10"
-                                Padding="3"
-                                Background="{StaticResource Brand50Brush}"
-                                BorderBrush="{StaticResource Line2Brush}"
-                                BorderThickness="1">
-                            <StackPanel Orientation="Horizontal" Spacing="2">
-                                <Border CornerRadius="8" Padding="10,4" Background="{StaticResource PanelBrush}">
-                                    <TextBlock Text="هفته"
-                                               FontSize="{StaticResource FontSizeXs}"
-                                               FontWeight="Bold"
-                                               Foreground="{StaticResource Brand700Brush}" />
-                                </Border>
-                                <Border CornerRadius="8" Padding="10,4">
-                                    <TextBlock Text="روز"
-                                               FontSize="{StaticResource FontSizeXs}"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                </Border>
-                                <Border CornerRadius="8" Padding="10,4">
-                                    <TextBlock Text="ماه"
-                                               FontSize="{StaticResource FontSizeXs}"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                </Border>
-                                <Border CornerRadius="8" Padding="10,4">
-                                    <TextBlock Text="سال"
-                                               FontSize="{StaticResource FontSizeXs}"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                </Border>
-                            </StackPanel>
-                        </Border>
                     </Grid>
 
                     <!-- Area + line chart drawn from the normalized pulse series.
                          Canvas is 500×180 to match the reference viewBox. -->
-                    <Border CornerRadius="12" ClipToBounds="True" Height="180">
+                    <Border CornerRadius="12" ClipToBounds="True" Height="180"
+                            ToolTip.Tip="{Binding RevenueTooltip}"
+                            AutomationProperties.Name="{Binding RevenuePulse.Summary}">
                         <Viewbox Stretch="Fill">
                             <Canvas Width="500" Height="180">
                                 <!-- dashed gridlines -->
@@ -151,7 +121,11 @@
                                 <Line StartPoint="0,120" EndPoint="500,120"
                                       Stroke="{StaticResource Line2Brush}" StrokeThickness="1" StrokeDashArray="3,4" />
 
-                                <!-- filled area under the line -->
+                                <!-- zero baseline: negative days fall below this line -->
+                                <Path Data="{Binding RevenueZeroLineGeometry}"
+                                      Stroke="{StaticResource MutedBrush}" StrokeThickness="1" />
+
+                                <!-- filled area between the line and the zero baseline -->
                                 <Path Data="{Binding RevenueAreaGeometry}">
                                     <Path.Fill>
                                         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">

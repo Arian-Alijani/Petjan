@@ -3785,6 +3785,10 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasMaxLength(26)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ActorUserId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Attempts")
                         .HasColumnType("INTEGER");
 

@@ -33,6 +33,9 @@
     <Compile Include="../../src/Animora.Desktop/Controls/Tone.cs" Link="Navigation/Tone.cs" />
     <Compile Include="../../src/Animora.Desktop/Shell/PageViewModelBase.cs" Link="Navigation/PageViewModelBase.cs" />
     <Compile Include="../../src/Animora.Desktop/Shell/NavPermissions.cs" Link="Navigation/NavPermissions.cs" />
+    <Compile Include="../../src/Animora.Desktop/Pages/Dashboard/SpeciesPresentation.cs" Link="Navigation/SpeciesPresentation.cs" />
+    <Compile Include="../../src/Animora.Desktop/Pages/Dashboard/RevenueChartMath.cs" Link="Navigation/RevenueChartMath.cs" />
+    <Compile Include="../../src/Animora.Desktop/Controls/DonutGeometry.cs" Link="Navigation/DonutGeometry.cs" />
     <EmbeddedResource Include="../../src/Animora.Desktop/App.axaml.cs" LogicalName="C11.AppStartup" />
     <EmbeddedResource Include="../../src/Animora.Desktop/Pages/Profile/ProfilePageView.axaml" LogicalName="Settings.View" />
   </ItemGroup>

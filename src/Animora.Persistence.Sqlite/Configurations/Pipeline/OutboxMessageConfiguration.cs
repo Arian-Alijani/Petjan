@@ -14,6 +14,8 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
         builder.HasKey(e => e.Id);
         builder.Property(e => e.PayloadJson).HasColumnType("TEXT").HasMaxLength(PayloadMaxLength);
 
+        builder.Property(e => e.ActorUserId).HasMaxLength(26);
+
         builder.HasIndex(e => new { e.Status, e.NextAttemptUtc })
             .HasDatabaseName("IX_OutboxMessages_Status_NextAttemptUtc");
         builder.HasIndex(e => e.MessageType).HasDatabaseName("IX_OutboxMessages_MessageType");

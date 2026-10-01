@@ -3,10 +3,10 @@
 ## وضعیت اجرای اصلاحات — 2026-09-30
 
 - ادامه اجرای 2026-10-01 طبق درخواست جدید کاربر: تسک‌های باز به‌صورت مستقل، همراه regression محدود، ثبت شواهد و اجرای `scripts/git/push.sh` دنبال می‌شوند. مبنا main پیشرفته شامل PR #181؛ PR ادامه [#182](https://github.com/Arian-Alijani/Petjan/pull/182). گزارش 2026-09-30 زیر تاریخی است.
-- **11 از 44 تسک انجام‌شده: D01، D02، D03، D11، D13، D14، D15، D32، D39، D41، D43. 33 تسک دیگر باز هستند.** این جلسه 8 تسک جدید را تکمیل کرد؛ checkboxهای زیر مرجع پذیرش‌اند و تکمیل کل فاز ادعا نمی‌شود.
+- **23 از 44 تسک انجام‌شده: D01، D02، D03، D05، D06، D07، D08، D09، D10، D11، D12، D13، D14، D15، D16، D17، D18، D30، D32، D39، D40، D41، D43. 21 تسک دیگر باز هستند.** (به‌روزرسانی خودکار پس از هر تسک؛ جزئیات هر مورد در بخش خودش ثبت شده است.)
 - PR این اجرا: [#181](https://github.com/Arian-Alijani/Petjan/pull/181)، branch: `genspark_ai_developer`؛ ادامه برنچ پیشرفته D01–D03 که در PR تاریخی [#180](https://github.com/Arian-Alijani/Petjan/pull/180) تحویل شده بود. بعد از هر تسک evidence/checkbox ثبت، با main sync و اسکریپت `scripts/git/push.sh` اجرا شد. برای تحویل نهایی فقط commitهای همین اجرا یک‌جا squash شدند؛ commitهای remote قبلی حفظ شدند و پوش نهایی با lease امن از همان اسکریپت انجام شد.
 - خروجی این جلسه: دریافت signed از Payment و علامت صحیح refund، قاعده مشترک غیرCredit داشبورد/صندوق با currency و عنوان صریح، low-stock مشترک product/variant در SQL، عنوان دقیق عملیات چک، حذف اعداد ساختگی/pulse، freeze collections snapshot و حذف presentation مرده. بررسی نهایی فقط `DashboardBudgetTests|DashboardAuthorizationTests|ActivityFeedTests` با `--no-build --no-restore`: **45 passed، 0 failed، 0 skipped، 18 ثانیه اجرای تست** (guard 60 ثانیه). build فقط Desktop: **0 warning/0 error، 96 ثانیه**. warning تاریخی CS8625 در compilation پروژه تست باقی است؛ Full build/Full suite و Windows/GUI اجرا نشده‌اند.
-- باقی‌مانده: D04–D10، D12، D16–D31، D33–D38، D40، D42، D44. مرحله بعد طبق پلن D05 سپس D06/D07/D09/D10 است؛ lifecycle/cache generations/query consistency/index/budget/render/accessibility هنوز تکمیل نشده‌اند. موارد GUI/Windows/contrast/performance تیک نشده‌اند.
+- باقی‌مانده: D04، D19، D20، D21، D22، D23، D24، D25، D26، D27، D28، D29، D31، D33، D34، D35، D36، D37، D38، D42، D44. موارد GUI/Windows/contrast/performance که اندازه‌گیری نشده‌اند تیک نخورده‌اند.
 - متن بخش «دامنه/روش/تفاوت baseline» در ادامه، **گزارش تاریخی تدوین اولیه پلن** است؛ عبارت‌های «تغییر صرفاً سندی» و مانع قدیمی کامپایل، وضعیت PR اجرای #181 را توصیف نمی‌کنند. fixture قدیمی ناسازگار در اجرای قبلی فقط به‌اندازه لازم برای کامپایل regression اصلاح شد؛ نه workflow بیماران. اسکریپت‌های Windows/sandbox/git، migrationها و دیتابیس واقعی کاربر در این جلسه تغییر نکردند.
 
 ## دامنه و نتیجه مرحله تدوین اولیه (تاریخی)
@@ -182,35 +182,40 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(navigation): D05 centralize page admission policy"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D06 — فهرست عملیاتی از رویداد ساخته شده، نه وضعیت جاری
-- [ ] وضعیت: باز | P1 | گزارش 6 | نتیجه: قطعی مدل داده | وابستگی: D01/D02.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 6 | نتیجه: قطعی مدل داده | وابستگی: D01/D02.
+- شواهد اجرای 2026-10-01: فهرست‌های عملیاتی از وضعیت جاری خوانده می‌شوند (Appointment روز، OpenInvoices، ReadyBillingProjection، یادآور واکسن بدون MedicalHistory انجام‌شده) و ActivityFeed فقط در بخش «فعالیت‌ها»ی مدیر/پذیرش می‌ماند. تست `OperationalLists_ReadCurrentState_NotRecentEvents` (رزرو ثبت‌شده قبلی برای امروز، لغوشده حذف، دو پرداخت یک فاکتور = یک ردیف PartiallyPaid، handoff آماده برابر query مرجع فروش، یادآور واقعی، store خالی و deny فروش، 90 رویداد نامرتبط) + کلاس‌های Budget/Authorization: **39 passed، 0 failed، 19 ثانیه**. هر لیست در SQL با `Take(8)` محدود است؛ Full build/test اجرا نشد.
 - شواهد: `DashboardQueries.cs:43–55`؛ `DashboardQueryService.cs:74–85`؛ read modelهای موجود `ReceptionQueueQueries`، `SalesQueries.GetReadyForBillingAsync/GetInvoicesAsync` و `VaccinationQueries.GetDueAsync`.
 - اقدام: projection اختصاصی bounded برای نوبت/صف امروز، فاکتور باز، آماده صدور و یادآور لازم تعریف شود؛ قواعد موجود reuse یا به projection مشترک استخراج شوند، نه fetch کل صفحه و filter حافظه. ActivityFeed فقط در بخش صریح «فعالیت‌ها» استفاده شود؛ هیچ تغییر Command/Domain غیرلازم انجام نشود.
 - پذیرش/بررسی محدود: رزرو دیروز برای امروز حاضر باشد؛ cancelled از صف فعال حذف شود؛ چند پرداخت یک فاکتور را چند ردیف فاکتور نکند؛ ready handoff و reminder واقعی دیده شوند؛ empty store لیست خالی صحیح بدهد؛ اندازه هر لیست در SQL محدود باشد.
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D06 read operational lists from current state"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D07 — داده پزشک با actor به‌جای assigned doctor فیلتر می‌شود
-- [ ] وضعیت: باز | P1 | گزارش 7 | نتیجه: قطعی کد | وابستگی: D06.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 7 | نتیجه: قطعی کد | وابستگی: D06.
+- شواهد اجرای 2026-10-01: KPI «ویزیت‌های من/واکسن‌ها» پزشک اکنون از Visit.DoctorUserId (ویزیت تکمیل‌شده امروز) و VaccinationRecord (پزشک تزریق‌کننده یا پزشک Visit مرتبط) خوانده می‌شود؛ ActorUserId فقط برای audit باقی مانده و feed برای پزشک خوانده/نمایش داده نمی‌شود (primary از Appointment.DoctorUserId و یادآور از نوبت‌های واگذارشده بود). تست `DoctorKpis_UseAssignedDoctorAndAdministeringDoctor_NotAuditActor`: رویدادهای actor=پذیرش برای doc-A و doc-B، doc-A=1 ویزیت/2 واکسن، doc-B=1/1، خود actor=0 ویزیت؛ actor/name برای مدیر دست‌نخورده. کلاس‌های Budget/Authorization: **39 passed، 0 failed، 19 ثانیه**؛ Full build/test اجرا نشد.
 - شواهد: `DashboardQueries.cs:45` در مقابل فیلتر appointment در خط 71؛ `ActivityFeedWriter.cs:19–20`؛ `BookAppointmentCommandHandler`؛ actor فرمان و `DoctorId` دو مفهوم مستقل‌اند.
 - اقدام: هر فهرست/KPI «من» به پزشک مسئول موجودیت بالینی/نوبت/صف مرتبط شود؛ actor فقط برای audit/activity باقی بماند. `ActorUserId = DoctorId` ننویسید؛ درباره واکسن هم administering doctor با مسئولیت آینده یکی فرض نشود.
 - پذیرش/بررسی محدود: نوبت ثبت‌شده توسط پذیرش برای doctor-A در داشبورد A دیده شود، در B نباشد؛ انتقال مسئولیت و walk-in assigned بررسی شوند؛ نام/actor audit دست‌نخورده بماند.
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D07 scope clinical work by assigned doctor"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D08 — rebuild، actor واقعی live را حفظ نمی‌کند
-- [ ] وضعیت: باز | P1 | گزارش 8 | نتیجه: قطعی کد؛ برابری کل مسیر فعلی اثبات نشده.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 8 | نتیجه: قطعی کد؛ برابری کل مسیر فعلی اثبات نشده.
+- شواهد اجرای 2026-10-01: ActorUserId معتبر session در همان transaction روی OutboxMessage ذخیره می‌شود (migration افزایشی _020 + Designer/snapshot؛ migrationهای قبلی دست‌نخورده) و RebuildActivityFeedAsync همان actor/correlation/tenant را از outbox مصرف می‌کند (ترتیب CreatedAtUtc,Id قطعی). سیاست legacy: outbox بدون actor ⇒ actor نامعلوم، هرگز پزشک event حدس زده نمی‌شود. تست `ActivityActor_IsDurableInOutbox_AndRebuildMatchesLiveWriter` روی DB موقت: live writer→save، rebuild، rebuild دوم deterministic، live==rebuilt، ردیف legacy بدون actor. ActivityFeed+Budget+Authorization: **63 passed، 0 failed**؛ دیتابیس واقعی کاربر rebuild/reset نشد.
 - شواهد: `ActivityFeedWriter.cs:19–34`؛ `LocalStoreMaintenance.cs:232–243`؛ `ActivityFeedMapper.cs:42–44`؛ `OutboxMessage` دارای CorrelationId ولی بدون ActorUserId است؛ تست purity مسیر writer را اجرا نمی‌کند.
 - اقدام: provenance actor/tenant از correlation معتبر در همان transaction outbox پایدار شود و rebuild همان metadata را مصرف کند. ابتدا امکان بازیابی مطمئن از metadata موجود بررسی شود؛ اگر نیست migration افزایشی کوچک. برای outbox قدیمی فاقد provenance، actor «نامعلوم» باشد؛ پزشک event را به‌عنوان actor حدس نزنید. rebuild خودکار دیتابیس کاربر برای آزمون ممنوع است.
 - پذیرش/بررسی محدود: با command actor پذیرش و event doctor دیگر، live writer→save و maintenance rebuild روی DB موقت، actor/correlation/tenant یکسان تولید کنند؛ اجرای rebuild دوباره deterministic باشد؛ سیاست legacy صریح تست شود.
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(activity): D08 preserve durable actor provenance"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D09 — سقف مشترک 80 رویداد یک widget دیگر را حذف می‌کند
-- [ ] وضعیت: باز | P1 | گزارش 9 | نتیجه: قطعی + بازتولید حافظه | وابستگی: D06.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 9 | نتیجه: قطعی + بازتولید حافظه | وابستگی: D06.
+- شواهد اجرای 2026-10-01: regression `WidgetPreviews_AreBoundedIndependently_AndAggregatesIgnorePreviewLimits`: 12 نوبت + 12 فاکتور + 12 handoff + 120 رویداد نامرتبط؛ هر preview در SQL حداکثر 8 ردیف با ترتیب پایدار (StartUtc,Id / IssuedUtc,Id / CompletedUtc,Id)، سقف 80 فقط مال بخش «فعالیت‌ها»، و QueueCount/OpenInvoices aggregate مستقل از preview (12). مسیر معیوب filter+Take(8) روی feed در D06/D07 حذف شده بود؛ این تسک تأیید حذف وابستگی است. کلاس Budget: **28 passed، 0 failed، 16 ثانیه**.
 - شواهد: `DashboardQueries.cs:53` و filter سپس `Take(8)` در `DashboardQueryService.cs:74–85`.
 - اقدام: limit/sort مستقل در SQL هر widget؛ limit کلی feed فقط برای preview همان فعالیت‌ها. total/HasMore در صورت لازم مستقل از preview باشد؛ ترتیب دارای tie-breaker ثابت باشد. اگر D06 مسیر معیوب را حذف کرد، این تسک فقط regression و تأیید حذف وابستگی است، نه پیاده‌سازی تکراری.
 - پذیرش/بررسی محدود: 1 نوبت + 80 رویداد نامرتبط، نوبت را حذف نکند؛ هر لیست حداکثر اندازه مصوب داشته باشد؛ aggregate روز از preview مشتق نشود.
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D09 bound widgets independently"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D10 — شمارنده صف معنای صف واقعی/پرداخت را ندارد
-- [ ] وضعیت: باز | P1 | گزارش 10 | نتیجه: قطعی منطق | وابستگی: D06/D07.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 10 | نتیجه: قطعی منطق | وابستگی: D06/D07.
+- شواهد اجرای 2026-10-01: QueueCount اکنون برابر صف مشتق پذیرش است (Appointment LEFT JOIN ReceptionQueueEntry + walk-in): بدون entry فقط Scheduled/Confirmed/CheckedIn/InVisit، با entry فقط Waiting/Called/InVisit؛ Done/Left/Cancelled/NoShow حذف؛ scope پزشک با DoctorUserId. «صف پرداخت» حذف و با «در انتظار پرداخت» (Posted+PartiallyPaid) جایگزین شد؛ «فاکتورهای باز (شامل پیش‌نویس)» با تعریف صفحه صندوق (Draft/Posted/PartiallyPaid) یکی است و با `GetTabCountsAsync.Open` برابر تست شد. تست `QueueAndPaymentCounters_MatchAuthoritativeStates_NotScheduledAppointments` (walk-in/appointment/entry Done، cancelled، پزشک دیگر، Draft/Posted/Partial/Paid) و مقایسه با خروجی `ReceptionQueueQueries`. Budget: دو aggregate جدید (queue، walk-in) و ادغام شمارش فاکتورها؛ سقف command: Manager/Cashier/Receptionist 12، Doctor 8 (D22/D24 دوباره می‌سنجند). Budget+Authorization: **41 passed، 0 failed، 21 ثانیه**. مرز روز با ClinicCalendar window (نه UTC date) است.
 - شواهد: `DashboardQueries.cs:69–81`؛ عنوان cashier در mapping خط 68؛ `ReceptionQueueQueries.cs:19–55`؛ `QueueState`؛ `CashierQueries.GetInvoicesAsync/GetTabCountsAsync`؛ handoffهای آماده billing.
 - اقدام: شمارنده صف فعال پذیرش/پزشک از derived queue مشترک؛ فاکتورهای در انتظار پرداخت و ready-to-bill جدا. تعریف «فاکتور باز» با صفحه صندوق از جمله Draft یکسان و عنوان دقیق شود؛ موعد روز با timezone کلینیک باشد، نه UTC date.
 - پذیرش/بررسی محدود: walk-in، appointment با entry جدید، Waiting/Called/InVisit/Done/Left، cancelled/no-show، draft/partial/paid و handoff آماده fixture کوچک داشته باشند؛ عدد dashboard با query مرجع همان صفحه برابر باشد؛ Scheduled به‌عنوان صف پرداخت نمایش داده نشود.
@@ -225,7 +230,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D11 share the low stock definition"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D12 — workload نام و completed واقعی ندارد
-- [ ] وضعیت: باز | P1 | گزارش 12 | نتیجه: قطعی | وابستگی: D06.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 12 | نتیجه: قطعی | وابستگی: D06.
+- شواهد اجرای 2026-10-01: پذیرش کد remote بررسی و gapهای واقعی بسته شد: ترتیب پایدار (نام ordinal سپس DoctorId؛ بدون‌نام آخر)، پزشک حذف‌شده/بدون‌نام «پزشک نامشخص»، initial با text-element (نه نیمه surrogate)، Done کلمپ به Total، و specialty جعلی «پزشک» حذف شد (خالی). تست `DoctorWorkload_UsesRealNamesAndCompletedState_WithStableOrdering` با User واقعی، Completed/Scheduled/Cancelled، پزشک حذف‌شده، نوبت بدون پزشک، نسبت صفر/نیمه/کامل و نام emoji. Budget+Authorization: **42 passed، 0 failed، 21 ثانیه**.
 - شواهد: `DashboardQueries.cs:73–78`؛ mapping خط 94–95؛ `ManagerDashboardView.axaml:179–227`؛ User.DisplayName و AppointmentState موجودند.
 - اقدام: نام User و initial از text element صحیح؛ Done از Completed واقعی؛ denominator با تعریف صریح workload، بدون cancelled/no-show. تعداد/نام در projection bounded مشترک استخراج شوند؛ specialty ناموجود جعل نشود و وضعیت doctor حذف‌شده نمایش روشن داشته باشد.
 - پذیرش/بررسی محدود: done/total با چند وضعیت معتبر درست، نام به‌جای Id، doctor بدون کار و doctor بدون نام معتبر سیاست مشخص؛ تست نسبت صفر/کامل. هیچ Done=0 ثابت نماند.
@@ -256,21 +262,24 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D15 label cheque activity accurately"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D16 — ردیف‌ها کلید فنی/Id و icon مبتنی بر متن دارند
-- [ ] وضعیت: باز | P1 | گزارش 16 | نتیجه: قطعی presentation | وابستگی: D06.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 16 | نتیجه: قطعی presentation | وابستگی: D06.
+- شواهد اجرای 2026-10-01: DashboardListItem اکنون Kind/Status/TitleKey پایدار دارد؛ Desktop با `HistoryText.TryTitle` ترجمه می‌کند و icon را از Kind انتخاب می‌کند (resolver مبتنی بر Contains متن فارسی حذف شد). عنوان fallback هرگز کلید `history.*` یا Id داخلی نیست («رویداد …»)؛ نام بیمار/مالک ناموجود «بیمار نامشخص/مالک نامشخص»؛ نوع ناشناخته/نام خالی crash نمی‌کند و status واقعی (Cancelled/Posted/Paid/Due) در DTO می‌ماند. تست `Rows_CarryTypedKindStatusAndNeverExposeKeysOrInternalIds` + بروزرسانی mapping test؛ Budget+Authorization: **43 passed، 0 failed، 20 ثانیه**؛ build فقط Desktop: **0 warning/0 error**.
 - شواهد: `DashboardQueryService.cs:101–103`؛ `DashboardRowViewModel.cs:41–74`؛ `Desktop/Localization/HistoryText.cs` الگوی کلید ترجمه دارد، اما Detail فعلی می‌تواند Id خام نشان دهد.
 - اقدام: DTO typed با kind/status، reference نمایشی، نام بیمار/مالک/شماره فاکتور و translation key؛ ترجمه و icon mapping در Desktop با نوع ثابت، نه Contains متن فارسی. برای نام ناموجود fallback امن و قابل‌فهم، نه internal Id؛ status واقعی از read model عملیات یا event در activity بیاید.
 - پذیرش/بررسی محدود: cancelled/paid/unpaid و چند نوع ردیف، فارسی خوانا و icon صحیح؛ تغییر زبان title، icon را تغییر ندهد؛ null/طول بلند و unknown type crash نکنند؛ کلید `history.*` و Id داخلی پیش‌فرض روی UI دیده نشوند.
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D16 render typed localized list rows"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D17 — گونه‌ها نام/icon و رنگ متمایز ندارند
-- [ ] وضعیت: باز | P2 | گزارش 17 | نتیجه: قطعی presentation.
+- [x] وضعیت: انجام‌شده | P2 | گزارش 17 | نتیجه: قطعی presentation.
+- شواهد اجرای 2026-10-01: DashboardSpecies اکنون Key پایدار دارد؛ نام فارسی/icon/رنگ در Desktop از `SpeciesPresentation` (Dog/Cat/Bird/Rabbit/Rodent/Reptile هر یک رنگ و icon مستقل؛ Other/ناشناخته خاکستری خنثی با fallback name) می‌آید و resolver قدیمی مبتنی بر نام ترکیبی «خرگوش و جوندگان» حذف شد. ترتیب legend/ring قطعی است (count نزولی سپس key ordinal) و به ترتیب ورودی وابسته نیست. تست `Species_UseStableKeyPalette_AndDeterministicOrder` (شش رنگ متمایز، unknown، ترتیب forward/reversed، empty و single). Budget+Authorization: **44 passed، 0 failed، 22 ثانیه**؛ build فقط Desktop: **0 warning/0 error**.
 - شواهد: `DashboardQueries.cs:64–66`؛ mapping خط 96؛ `DashboardSpeciesViewModel.cs:33–34,87–94`.
 - اقدام: species key مستقل از نام فارسی، icon و palette ثابت از presentation/tokens؛ ترتیب deterministic با سیاست گونه‌های ناشناخته. backend متن فارسی یا hex را تعیین نکند؛ aggregation active pet و order legend/ring یکسان حفظ شوند.
 - پذیرش/بررسی محدود: Dog/Cat/Bird/Rodent/Other فارسی و icon مشخص داشته باشند؛ رنگ گونه‌های متفاوت متمایز؛ ترتیب با جابه‌جایی ترتیب ورودی عوض نشود؛ unknown species و empty list آزموده شوند.
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D17 map species to a stable localized palette"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D18 — chart درآمد منفی را حذف/تحریف می‌کند
-- [ ] وضعیت: باز | P1 | گزارش 18 | نتیجه: قطعی + بازتولید محاسباتی.
+- [x] وضعیت: انجام‌شده | P1 | گزارش 18 | نتیجه: قطعی + بازتولید محاسباتی.
+- شواهد اجرای 2026-10-01: نرمال‌سازی نمودار اکنون روی دامنه signed شامل صفر انجام می‌شود (`DashboardMapping.Normalize`)؛ مقدار واقعی هر روز در `RevenuePulse.Values` (frozen) و `ZeroLevel` در قرارداد حفظ شد، چیدمان در `RevenueChartMath` (بدون clamp اطلاعات، NaN/Infinity → عدم رسم)، area تا خط صفر بسته می‌شود و خط صفر صریح در View رسم شد. تست‌ها: mixed-sign، all-negative، all-zero، single point، مقدار ±9e18، ترتیب/مکان نسبت به خط صفر، empty و NaN؛ Budget+Authorization: **50 passed، 0 failed، 20 ثانیه**؛ build فقط Desktop: **0 warning/0 error**. screenshot GUI گرفته نشد (تأییدنشده).
 - شواهد: mapping خطوط 87–93؛ `DashboardPageViewModel.cs:249–290`؛ reversal در `FinanceProjectionStore.cs:36–42` ممکن است revenue منفی بدهد.
 - اقدام: مبلغ واقعی signed در قرارداد حفظ و domain نمودار از min/max با احتساب صفر تعیین شود؛ خط صفر مشخص، area به baseline صفر بسته شود؛ کل series منفی/صفر بدون divide-by-zero و بدون clamp اطلاعات مالی رسم شود. geometry فقط هنگام تغییر داده ساخته شود.
 - پذیرش/بررسی محدود: mixed-sign، all-negative، all-zero، single/empty point، مقدار بزرگ؛ ترتیب و مکان نسبت به خط صفر و عدم NaN/Infinity تست شود؛ نمودار منفی نباید شبیه مثبت/صفر شود. screenshot کوتاه فقط برای همین chart، بدون bench کامل.
@@ -354,7 +363,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D29 reflow cards for constrained widths"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D30 — range tabs ظاهری و caption/value ناسازگارند
-- [ ] وضعیت: باز | P2 | گزارش 30 | نتیجه: قطعی | وابستگی: D18.
+- [x] وضعیت: انجام‌شده | P2 | گزارش 30 | نتیجه: قطعی | وابستگی: D18.
+- شواهد اجرای 2026-10-01: تب‌های inert روز/هفته/ماه/سال حذف شدند؛ عنوان «روند درآمد ۱۴ روز اخیر» و headline «درآمد امروز (تومان)» جدا از مجموع 14 روز است. تاریخ جلالی و مبلغ signed هر نقطه در DTO (`DayLabels/Values/Summary`) حفظ و به tooltip و AutomationProperties.Name متنی وصل شد. تست `RevenuePulse_ExposesActual14DayRange_...`: 14 روز zero-filled با پنجره روز کلینیک، تاریخ جلالی ابتدا/انتها، مبلغ منفی، caption و نبود تب inert در XAML. Budget+Authorization: **51 passed، 0 failed، 21 ثانیه**؛ build فقط Desktop: **0 warning/0 error**.
 - شواهد: `ManagerDashboardView.axaml:106–137` inert Borderها؛ query همیشه 14روز؛ Pulse.Value امروز ولی Caption «14 روز اخیر»؛ قرارداد Points تاریخ ندارد.
 - اقدام کم‌هزینه این فاز: tabs روز/هفته/ماه/سال حذف، بازه واقعی «روند درآمد ۱۴ روز اخیر» و مقدار headline «درآمد امروز» با واحد روشن نمایش یابد. تاریخ/مقدار واقعی points در DTO حفظ و tooltip/معادل متنی کوتاه داده شود؛ range selector جدید و queries چهار بازه بدون درخواست لازم نیست.
 - پذیرش/بررسی محدود: هیچ کنترل غیرفعال شبیه interactive selection نماند؛ headline امروز با مجموع 14روز اشتباه نشود؛ 14 روز zero-filled با timezone و تاریخ درست؛ tooltip/متن واحد پول و مبلغ signed مطابق داده واقعی باشند.
@@ -428,7 +438,8 @@ bash scripts/git/push.sh "fix(dashboard): DXX <one verified issue>"
 - پایان تسک: پس از بررسی محدود و sync با main، حتماً اجرا شود: `bash scripts/git/push.sh "fix(dashboard): D39 freeze cached snapshot collections"`؛ سپس PR به‌روزرسانی و لینک گزارش شود.
 
 ### D40 — gap ثابت donut سهم کوچک را حذف می‌کند
-- [ ] وضعیت: باز | P2 | بدهی چهارم گزارش | نتیجه: قطعی هندسه + بازتولید؛ سهم 1% ناپدید می‌شود.
+- [x] وضعیت: انجام‌شده | P2 | بدهی چهارم گزارش | نتیجه: قطعی هندسه + بازتولید؛ سهم 1% ناپدید می‌شود.
+- شواهد اجرای 2026-10-01: منطق زاویه‌ای DonutRing به `DonutGeometry` خالص منتقل شد و render و hit-test هر دو از آن استفاده می‌کنند: gap حداکثر 50٪ sweep همان قطعه است (سهم 1٪، 0.1٪ و 0.001٪ با gap پیش‌فرض 4.06° حذف نمی‌شوند)، صفر/منفی/NaN در total و قطعه نقش ندارند. تنظیم Finance (gap و RoundCaps خودش) دست‌نخورده است و فقط fallback قطعه‌های ریز تغییر می‌کند. تست‌ها: 1 از 100/1000/100000، عدم overlap، hit-test وسط قطعه، تک‌قطعه 360°، gap صفر، empty/zero/negative. Budget+Authorization: **55 passed، 0 failed، 20 ثانیه**؛ build فقط Desktop: **0 warning/0 error**. screenshot GUI گرفته نشد.
 - شواهد: `DonutRing.cs:178,284–293`؛ پیش‌فرض GapArc=3.4 و Radius=48.
 - اقدام: gap محدود نسبت به sweep مثبت؛ segment مثبت حذف نشود، صفر/negative policy روشن. render و `SliceIndexAt` با geometry جدید هماهنگ؛ shared control Finance نیز با تنظیمات خودش محفوظ بماند. cache geometry/render allocation بدون ضرورت عوض نشوند.
 - پذیرش/بررسی محدود: سهم 1 از 100 و 1 از 1000، تک‌گونه/صفر، dashboard flat و Finance round caps؛ segment و hit-test معتبر بدون overlap ناموجه؛ unit geometry و یک screenshot کوچک، نه بازبینی کل Finance.

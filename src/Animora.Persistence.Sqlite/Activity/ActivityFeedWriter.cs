@@ -25,6 +25,9 @@ public sealed class ActivityFeedWriter(
     public static ActivityEvent Create(ActivityEventDraft draft, TimeZoneInfo zone,
         string? actor = null, string? correlationId = null)
     {
+        // Same normalization for the live path and the rebuild: blank means "unknown", the event's own
+        // actor (when it carries one) is the only fallback — a clinician is never guessed.
+        actor = string.IsNullOrWhiteSpace(actor) ? null : actor;
         var day = ClinicCalendar.LocalDay(draft.OccurredUtc.UtcTicks, zone);
         return ActivityEvent.Create(draft.TenantId, draft.OccurredUtc,
             day.Year * 10000 + day.Month * 100 + day.Day,
