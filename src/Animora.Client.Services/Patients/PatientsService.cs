@@ -33,7 +33,7 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
 
         var r = await dispatcher.QueryAsync(
-            new PetDirectoryQuery(query.Search, MapSpecies(query.Species), Status: null, MapSort(query.Sort),
+            new PetDirectoryQuery(query.Search, MapSpecies(query.Species), MapSort(query.Sort),
                 query.Page, ClampPageSize(query.PageSize)),
             qc.Value!);
         if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
@@ -52,7 +52,7 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
 
         var r = await dispatcher.QueryAsync(
-            new OwnerDirectoryQuery(query.Search, MapSpecies(query.Species), Status: null, MapSort(query.Sort),
+            new OwnerDirectoryQuery(query.Search, MapSpecies(query.Species), MapSort(query.Sort),
                 query.Page, ClampPageSize(query.PageSize)),
             qc.Value!);
         if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
@@ -72,38 +72,11 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
 
         var r = await dispatcher.QueryAsync(
-            new PatientsDirectoryFacetsQuery(query.Search, MapSpecies(query.Species), Status: null), qc.Value!);
+            new PatientsDirectoryFacetsQuery(query.Search, MapSpecies(query.Species)), qc.Value!);
         if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
         var m = r.Value!;
         var species = m.SpeciesCounts.ToDictionary(kv => MapSpeciesToContract(kv.Key), kv => kv.Value);
         return new PatientsDirectoryFacets(m.TotalOwners, m.TotalPets, species);
-    }
-
-    // ── Legacy whole-directory enumeration (add-patient wizard's in-modal lookup only) ───────────
-    // Bounded by MaxPageSize; the directory page no longer calls these.
-
-    public async Task<IReadOnlyList<PetSummary>> GetPetsAsync()
-    {
-        await using var scope = scopes.CreateAsyncScope();
-        var (dispatcher, provider) = Resolve(scope);
-        var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
-        return await ReadDirectoryAsync(
-            page => dispatcher.QueryAsync(
-                new PetDirectoryQuery(null, null, null, PatientDirectorySort.Name, page, MaxPageSize), qc.Value!),
-            x => x.ToSummary());
-    }
-
-    public async Task<IReadOnlyList<OwnerSummary>> GetOwnersAsync()
-    {
-        await using var scope = scopes.CreateAsyncScope();
-        var (dispatcher, provider) = Resolve(scope);
-        var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
-        return await ReadDirectoryAsync(
-            page => dispatcher.QueryAsync(
-                new OwnerDirectoryQuery(null, null, null, PatientDirectorySort.Name, page, MaxPageSize), qc.Value!),
-            x => x.ToSummary());
     }
 
     private static int ClampPageSize(int pageSize) => Math.Clamp(pageSize, 1, MaxPageSize);
@@ -115,8 +88,7 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         _ => PatientDirectorySort.Recent,
     };
 
-    // Contracts → Domain species for the server-side filter. Rabbit has no distinct Domain value
-    // (same as the write path in PatientsMapping.ToDomain), so it folds into Other.
+    // Contracts → Domain species for the server-side filter (bijective with the write path).
     private static Animora.Domain.Patients.PetSpecies? MapSpecies(PetSpecies? s) =>
         s is { } v ? v.ToDomain() : null;
 
@@ -126,6 +98,8 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         Animora.Domain.Patients.PetSpecies.Cat => PetSpecies.Cat,
         Animora.Domain.Patients.PetSpecies.Bird => PetSpecies.Bird,
         Animora.Domain.Patients.PetSpecies.Rodent => PetSpecies.Rodent,
+        Animora.Domain.Patients.PetSpecies.Reptile => PetSpecies.Reptile,
+        Animora.Domain.Patients.PetSpecies.Rabbit => PetSpecies.Rabbit,
         _ => PetSpecies.Other,
     };
 
@@ -136,35 +110,16 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         return new PatientsPage<TSummary>(items, batch.TotalCount, batch.Page, batch.PageSize);
     }
 
-    // The Contracts directory is unpaged, but each database read remains bounded. Follow the
-    // EFFECTIVE page size (which can be configured below 200), not the requested size or item count.
-    // Never turn a failed later page into a successful-looking partial directory.
-    private static async Task<IReadOnlyList<TSummary>> ReadDirectoryAsync<TModel, TSummary>(
-        Func<int, Task<Result<PagedResult<TModel>>>> readPage, Func<TModel, TSummary> map)
-    {
-        var items = new List<TSummary>();
-        for (var page = 1; ; page++)
-        {
-            var result = await readPage(page).ConfigureAwait(false);
-            if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
-            var batch = result.Value!;
-            if (batch.Page != page || batch.PageSize < 1)
-                throw new InvalidOperationException("Invalid directory paging metadata.");
-            foreach (var item in batch.Items) items.Add(map(item));
-            if ((long)batch.Page * batch.PageSize >= batch.TotalCount) return items;
-            if (batch.Items.Count == 0)
-                throw new InvalidOperationException("Directory ended before its reported total.");
-        }
-    }
-
     public async Task<OwnerDetail?> GetOwnerAsync(string id)
     {
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) return null;
+        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
         var r = await dispatcher.QueryAsync(new OwnerDetailQuery(id), qc.Value!);
-        return r.IsSuccess && r.Value is { } m ? m.ToDetail() : null;
+        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        // Success + null value is a genuine not-found; auth/session failures throw above.
+        return r.Value is { } m ? m.ToDetail() : null;
     }
 
     public async Task<PetDetail?> GetPetAsync(string id)
@@ -172,10 +127,19 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) return null;
+        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
         var r = await dispatcher.QueryAsync(new PetDetailQuery(id), qc.Value!);
-        return r.IsSuccess && r.Value is { } m ? m.ToDetail() : null;
+        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        // Success + null value is a genuine not-found; auth/session failures throw above.
+        return r.Value is { } m ? m.ToDetail() : null;
     }
+
+    // ── Write methods ─────────────────────────────────────────────────────────────────────────
+    // Perf note (P21): every write below ends with a read-after-write (GetOwnerAsync/GetPetAsync) on
+    // purpose — callers need the fresh DTO, and the command handlers return only Unit/id today.
+    // The re-read is index-backed (IX_WeightEntries_PetId_MeasuredUtc for the last-weight subquery,
+    // IX_Pets_TenantId_OwnerId for the pet count). Returning the projection from the command is a
+    // deferred optimization; revisit only if profiling shows a hot-path problem (e.g. weight append).
 
     public async Task<OwnerDetail> CreateOwnerAsync(NewOwnerRequest request)
     {
@@ -231,8 +195,8 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         var cc = await provider.BuildCommandContextAsync(null, null, null, default);
         if (cc.IsFailure) throw new InvalidOperationException(cc.Error.Code);
         var cmd = new UpdatePetInfoCommand(pet.Id, pet.Name, pet.Breed, pet.Color, pet.Gender.ToDomain(),
-            pet.BirthDate == default ? null : ToUtc(pet.BirthDate), pet.Neutered,
-            string.Join(", ", pet.Allergies), string.Join(", ", pet.ChronicConditions));
+            pet.BirthDate is { } bd ? ToUtc(bd) : null, pet.Neutered,
+            PatientsMapping.JoinList(pet.Allergies), PatientsMapping.JoinList(pet.ChronicConditions));
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
         if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
         return (await GetPetAsync(pet.Id))!;

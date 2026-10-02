@@ -25,6 +25,7 @@ public static class PatientsPresentation
         PetSpecies.Bird => "پرنده",
         PetSpecies.Rabbit => "خرگوش",
         PetSpecies.Rodent => "جوندگان",
+        PetSpecies.Reptile => "خزندگان",
         _ => "سایر",
     };
 
@@ -50,6 +51,7 @@ public static class PatientsPresentation
             PetSpecies.Bird => ("#fffaeb", "#fffaf0"),
             PetSpecies.Rabbit => ("#fbe4f1", "#fff5fb"),
             PetSpecies.Rodent => ("#ddf0e9", "#f3fbf8"),
+            PetSpecies.Reptile => ("#e6f3d9", "#f6fbf0"),
             _ => ("#eff8ff", "#f4f8ff"),
         };
         return Diagonal(from, to);
@@ -77,6 +79,8 @@ public static class PatientsPresentation
     {
         PetStatus.FollowUp => "در حال پیگیری",
         PetStatus.Critical => "بیمار مزمن",
+        PetStatus.Inactive => "غیرفعال",
+        PetStatus.Deceased => "فوت‌شده",
         _ => "سالم",
     };
 
@@ -84,6 +88,8 @@ public static class PatientsPresentation
     {
         PetStatus.FollowUp => Tone.Warn,
         PetStatus.Critical => Tone.Danger,
+        PetStatus.Inactive => Tone.Neutral,
+        PetStatus.Deceased => Tone.Neutral,
         _ => Tone.Ok,
     };
 
@@ -125,14 +131,18 @@ public static class PatientsPresentation
     {
         PetStatus.FollowUp => "در حال پیگیری",
         PetStatus.Critical => "بیمار مزمن",
+        PetStatus.Inactive => "غیرفعال",
+        PetStatus.Deceased => "فوت‌شده",
         _ => "وضعیت پایدار",
     };
 
-    /// <summary>Hero chip tone class (ok/warn/alert).</summary>
+    /// <summary>Hero chip tone class (ok/warn/alert/muted).</summary>
     public static string HeroStatusClass(PetStatus status) => status switch
     {
         PetStatus.FollowUp => "warn",
         PetStatus.Critical => "alert",
+        PetStatus.Inactive => "muted",
+        PetStatus.Deceased => "muted",
         _ => "ok",
     };
 
@@ -164,7 +174,8 @@ public static class PatientsPresentation
         PetSpecies.Bird => ["طوطی کاسکو", "کاکادو", "مرغ عشق", "قناری", "روزلا"],
         PetSpecies.Rabbit => ["لوپ هلندی", "آنقوره", "رکس", "مینی لوپ"],
         PetSpecies.Rodent => ["همستر سوری", "خوکچه هندی", "چینچیلا"],
-        _ => ["لاک‌پشت", "ایگوانا", "مار"],
+        PetSpecies.Reptile => ["لاک‌پشت", "ایگوانا", "مار"],
+        _ => ["سایر"],
     };
 
     /// <summary>Reference taxonomy option lists (patients-data.js).</summary>
@@ -182,7 +193,7 @@ public static class PatientsPresentation
 
     /// <summary>Species display order for the wizard's type tiles (patients-data.js SPECIES order).</summary>
     public static IReadOnlyList<PetSpecies> SpeciesOrder { get; } =
-        [PetSpecies.Cat, PetSpecies.Dog, PetSpecies.Bird, PetSpecies.Rabbit, PetSpecies.Rodent, PetSpecies.Other];
+        [PetSpecies.Cat, PetSpecies.Dog, PetSpecies.Bird, PetSpecies.Rabbit, PetSpecies.Rodent, PetSpecies.Reptile, PetSpecies.Other];
 
     // ---- primitives ----
 

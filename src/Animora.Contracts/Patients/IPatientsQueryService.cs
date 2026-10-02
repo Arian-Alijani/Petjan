@@ -32,14 +32,6 @@ public interface IPatientsQueryService
     /// </summary>
     Task<PatientsDirectoryFacets> GetDirectoryFacetsAsync(PatientsDirectoryQuery query);
 
-    /// <summary>All animals in the directory (bounded enumeration for the add-patient wizard's
-    /// in-modal lookup). Not used by the directory page — prefer <see cref="GetPetsPageAsync"/>.</summary>
-    Task<IReadOnlyList<PetSummary>> GetPetsAsync();
-
-    /// <summary>All owners in the directory (bounded enumeration for the add-patient wizard's
-    /// in-modal lookup). Not used by the directory page — prefer <see cref="GetOwnersPageAsync"/>.</summary>
-    Task<IReadOnlyList<OwnerSummary>> GetOwnersAsync();
-
     /// <summary>Full owner record (profile + live pet roster) for the Owner Sheet, or null when unknown.</summary>
     Task<OwnerDetail?> GetOwnerAsync(string id);
 

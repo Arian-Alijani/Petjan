@@ -95,7 +95,7 @@ public sealed record PetDetail(
     PatientAvatarTone Tone,
     PetStatus Status,
     string OwnerId,
-    DateTime BirthDate,
+    DateTime? BirthDate,
     string Habitat,
     string Behavior,
     string Diet,

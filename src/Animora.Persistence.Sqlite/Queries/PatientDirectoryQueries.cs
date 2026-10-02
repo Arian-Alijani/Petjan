@@ -18,10 +18,10 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
     private LocalStoreOptions Options => options.Value;
 
     public async Task<PagedResult<PetSummaryReadModel>> GetPetsAsync(
-        string? search, PetSpecies? species, PetStatus? status, PatientDirectorySort sort,
+        string? search, PetSpecies? species, PatientDirectorySort sort,
         int page, int pageSize, CancellationToken ct)
     {
-        var filtered = FilterPets(db.Set<Pet>().AsNoTracking(), search, species, status);
+        var filtered = FilterPets(db.Set<Pet>().AsNoTracking(), search, species);
 
         // Stable ORDER BY with a unique id tiebreaker so Skip/Take never drifts. No visit source
         // exists yet in C01, so "Recent" falls back to name-ordered (same as Name) until C03.
@@ -31,21 +31,26 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             _ => filtered.OrderBy(p => p.Name).ThenBy(p => p.Id),
         };
 
+        // Perf note (P07/P08): the latest-weight and pet-count projections below are per-row correlated
+        // subqueries, index-backed by IX_WeightEntries_PetId_MeasuredUtc / IX_Pets_TenantId_OwnerId
+        // (index seek + top-1 / index count, not scans). Denormalizing Pet.CurrentWeightKg and
+        // Owner.PetCount is the future optimization if a measured hot path appears; deferred on purpose
+        // (page size is bounded, local single-clinic DB).
         var projected = ordered
             .Select(p => new PetSummaryReadModel(
                 p.Id, p.Name, p.Species, p.Breed, p.Color, p.Gender, p.Status, p.OwnerId, p.BirthDateUtc,
                 db.Set<WeightEntry>().Where(w => w.PetId == p.Id)
                     .OrderByDescending(w => w.MeasuredUtc).Select(w => (decimal?)w.WeightKg).FirstOrDefault(),
-                null, null,   // LastVisitUtc / LastVisitType arrive with C03; no visit source yet.
+                null, null,   // C03 placeholder — no visit source yet; populated when the Visits context lands. (LastVisitUtc / LastVisitType)
                 p.MicrochipCode));
         return await projected.ToPagedAsync(page, pageSize, Options, ct);
     }
 
     public async Task<PagedResult<OwnerSummaryReadModel>> GetOwnersAsync(
-        string? search, PetSpecies? species, PetStatus? status, PatientDirectorySort sort,
+        string? search, PetSpecies? species, PatientDirectorySort sort,
         int page, int pageSize, CancellationToken ct)
     {
-        var owners = FilterOwners(search, species, status);
+        var owners = FilterOwners(search, species);
 
         var ordered = sort switch
         {
@@ -54,6 +59,11 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             _ => owners.OrderByDescending(o => o.RegisteredUtc).ThenBy(o => o.Id),
         };
 
+        // Perf note (P07/P08): the latest-weight and pet-count projections below are per-row correlated
+        // subqueries, index-backed by IX_WeightEntries_PetId_MeasuredUtc / IX_Pets_TenantId_OwnerId
+        // (index seek + top-1 / index count, not scans). Denormalizing Pet.CurrentWeightKg and
+        // Owner.PetCount is the future optimization if a measured hot path appears; deferred on purpose
+        // (page size is bounded, local single-clinic DB).
         var projected = ordered
             .Select(o => new OwnerSummaryReadModel(
                 o.Id, o.FullName, o.PhonePrimary, o.PhoneSecondary, o.NationalId, o.Address, o.Gender,
@@ -63,52 +73,55 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
     }
 
     public async Task<PatientDirectoryFacetsReadModel> GetFacetsAsync(
-        string? search, PetSpecies? species, PetStatus? status, CancellationToken ct)
+        string? search, PetSpecies? species, CancellationToken ct)
     {
-        // Totals under the active search/species/status filter (owners cross-filtered to those
-        // with a matching pet, exactly like GetOwnersAsync).
-        var totalPets = await FilterPets(db.Set<Pet>().AsNoTracking(), search, species, status).CountAsync(ct);
-        var totalOwners = await FilterOwners(search, species, status).CountAsync(ct);
-
         // Per-species chip counts ignore the species filter (chips show the full taxonomy under
-        // the current text/status filter) — one grouped COUNT, not N queries.
-        var speciesCounts = await FilterPets(db.Set<Pet>().AsNoTracking(), search, species: null, status)
+        // the current text filter) — one grouped COUNT, not N queries.
+        var speciesCounts = await FilterPets(db.Set<Pet>().AsNoTracking(), search, species: null)
             .GroupBy(p => p.Species)
             .Select(g => new { Species = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Species, x => x.Count, ct);
 
+        // Pet total under the active search/species filter is derived from the groups above
+        // (sum of all groups, or the single selected group) — no separate COUNT statement.
+        var totalPets = species is { } sp
+            ? speciesCounts.GetValueOrDefault(sp)
+            : speciesCounts.Values.Sum();
+
+        // Owners are cross-filtered to those with a matching pet, exactly like GetOwnersAsync.
+        var totalOwners = await FilterOwners(search, species).CountAsync(ct);
+
         return new PatientDirectoryFacetsReadModel(totalOwners, totalPets, speciesCounts);
     }
 
-    /// <summary>Shared pet filter (search + species + status) reused by the list page and the
+    /// <summary>Shared pet filter (search + species; search is a prefix match (`term%`, index-usable)) reused by the list page and the
     /// facet/owner cross-filter so every count and every page agree on one predicate.</summary>
     private static IQueryable<Pet> FilterPets(
-        IQueryable<Pet> q, string? search, PetSpecies? species, PetStatus? status)
+        IQueryable<Pet> q, string? search, PetSpecies? species)
     {
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = PersianText.Normalize(search);
-            q = q.Where(p => EF.Functions.Like(p.SearchKey, $"%{term}%"));
+            q = q.Where(p => EF.Functions.Like(p.SearchKey, $"{term}%"));
         }
         if (species is { } sp) q = q.Where(p => p.Species == sp);
-        if (status is { } st) q = q.Where(p => p.Status == st);
         return q;
     }
 
-    /// <summary>Owner filter: text match on the owner's SearchKey, plus — when a species/status
+    /// <summary>Owner filter: prefix match (`term%`, index-usable) on the owner's SearchKey, plus — when a species
     /// filter is active — an EXISTS narrowing to owners with at least one matching pet (the
     /// owner⇄pet cross-filter runs in SQL, never client-side).</summary>
-    private IQueryable<Owner> FilterOwners(string? search, PetSpecies? species, PetStatus? status)
+    private IQueryable<Owner> FilterOwners(string? search, PetSpecies? species)
     {
         var owners = db.Set<Owner>().AsNoTracking();
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = PersianText.Normalize(search);
-            owners = owners.Where(o => EF.Functions.Like(o.SearchKey, $"%{term}%"));
+            owners = owners.Where(o => EF.Functions.Like(o.SearchKey, $"{term}%"));
         }
-        if (species is not null || status is not null)
+        if (species is not null)
         {
-            var matchingPets = FilterPets(db.Set<Pet>().AsNoTracking(), search: null, species, status);
+            var matchingPets = FilterPets(db.Set<Pet>().AsNoTracking(), search: null, species);
             owners = owners.Where(o => matchingPets.Any(p => p.OwnerId == o.Id));
         }
         return owners;
@@ -130,7 +143,8 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
                 p.Id, p.Name, p.Species, p.Breed, p.Color, p.Gender, p.Status, p.OwnerId, p.BirthDateUtc,
                 db.Set<WeightEntry>().Where(w => w.PetId == p.Id)
                     .OrderByDescending(w => w.MeasuredUtc).Select(w => (decimal?)w.WeightKg).FirstOrDefault(),
-                null, null, p.MicrochipCode))
+                null, null,   // C03 placeholder — no visit source yet; populated when the Visits context lands. (LastVisitUtc / LastVisitType)
+                p.MicrochipCode))
             .ToListAsync(ct);
         return new OwnerDetailReadModel(owner, pets);
     }

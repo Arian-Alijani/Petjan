@@ -270,7 +270,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         var age = RelativeDateFormatter.Age(pet.BirthDate);
         AgeText = age.Label;
         AgeLongText = age.Label;
-        BirthText = pet.BirthDate == default ? "—" : $"تولد {JalaliDate.FromDateTime(pet.BirthDate).ToString("short")}";
+        BirthText = pet.BirthDate is { } birthDate ? $"تولد {JalaliDate.FromDateTime(birthDate).ToString("short")}" : "—";
 
         var orderedWeights = pet.Weights.OrderBy(w => w.Date).ToArray();
         CurrentWeightText = WeightValue(orderedWeights);
@@ -503,8 +503,8 @@ public sealed partial class PetFileViewModel : PageViewModelBase
             InfoItems.Add(new("گونه", PatientsPresentation.SpeciesLabel(pet.Species), SpeciesIconKey, false, false));
             InfoItems.Add(new("جنسیت", PatientsPresentation.SexDot(pet.Gender).Title, "IconInfo", false, false));
             InfoItems.Add(new("تاریخ تولد",
-                pet.BirthDate == default ? string.Empty : JalaliDate.FromDateTime(pet.BirthDate).ToString("short"),
-                "IconCake", pet.BirthDate == default, false));
+                pet.BirthDate is { } birthDate ? JalaliDate.FromDateTime(birthDate).ToString("short") : string.Empty,
+                "IconCake", pet.BirthDate is null, false));
             InfoItems.Add(new("سن", age.Label, "IconClock", false, false));
             InfoItems.Add(new("محل زندگی", pet.Habitat, "IconHome2", Empty(pet.Habitat), false));
             InfoItems.Add(new("رفتار", pet.Behavior, "IconSmile", Empty(pet.Behavior), false));
@@ -535,7 +535,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         EditName = pet.Name;
         EditBreed = pet.Breed;
         EditColor = pet.Color;
-        EditBirth = pet.BirthDate == default ? string.Empty : JalaliDate.FromDateTime(pet.BirthDate).ToString("short");
+        EditBirth = pet.BirthDate is { } birthDate ? JalaliDate.FromDateTime(birthDate).ToString("short") : string.Empty;
         EditHabitat = pet.Habitat;
         EditBehavior = pet.Behavior;
         EditDiet = pet.Diet;

@@ -43,7 +43,7 @@ public sealed class UpdateOwnerCommandHandler(IOwnerRepository owners) : IComman
         var owner = await owners.FindAsync(c.OwnerId, ct);
         if (owner is null) return Result<Unit>.Fail(ErrorCodes.OwnerNotFound);
         owner.UpdateContactDetails(c.FullName, c.PhonePrimary, c.PhoneSecondary, c.NationalId,
-            email: null, address: c.Address, city: null, gender: c.Gender, notes: null);
+            email: owner.Email, address: c.Address, city: owner.City, gender: c.Gender, notes: owner.Notes);   // preserve fields this command does not own
         return Result<Unit>.Ok(Unit.Value);   // TransactionBehavior commits the tracked change.
     }
 }

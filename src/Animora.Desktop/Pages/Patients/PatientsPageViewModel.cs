@@ -1,3 +1,4 @@
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Patients;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
@@ -68,18 +69,23 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     // Facet counters for the active query (resolved server-side alongside the page).
     private int _totalOwnerMatches;
     private int _totalPetMatches;
+    private bool _hasLoadedOnce;
 
     // Total matches for the ACTIVE entity (owners or pets) — drives the page math + nav state.
     private int _totalMatchCount;
 
+    private readonly IStoreReadinessGate _readiness;
+
     public PatientsPageViewModel(
         IPatientsQueryService patientsQueryService,
+        IStoreReadinessGate readiness,
         IRecordSheetPresenter presenter,
         IDialogService dialogs,
         IToastService toast,
         IDataChangeNotifier changes)
     {
         _patientsQueryService = patientsQueryService;
+        _readiness = readiness;
         _changes = changes;
         _presenter = presenter;
         _dialogs = dialogs;
@@ -93,6 +99,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         // Owner/pet sheets edit records from over this page; the page's own wizard/add-pet writes reload directly.
         RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Patients);
         _ = ReloadPageAsync();
+        _hasLoadedOnce = true;   // the ctor-started load covers the first navigation (PERFORMANCE.md §13)
     }
 
     public RangeObservableCollection<OwnerCardViewModel> FilteredOwners { get; } = [];
@@ -325,9 +332,20 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             return;
         }
 
-        var detail = await _patientsQueryService.GetOwnerAsync(owner.Id);
+        OwnerDetail? detail;
+        try
+        {
+            detail = await _patientsQueryService.GetOwnerAsync(owner.Id);
+        }
+        catch (InvalidOperationException)
+        {
+            _toast.Show(AccessLostMessage, Tone.Danger);
+            return;
+        }
+
         if (detail is null)
         {
+            _toast.Show("مالک پیدا نشد", Tone.Info);
             return;
         }
 
@@ -346,6 +364,14 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     // Singletons must refresh when returning from another screen that edited these records.
     public override void OnNavigatedTo()
     {
+        // The first navigation is already covered by the load the ctor started — skip it so first entry
+        // does not queue a duplicate load behind the _loadGate. Later visits refresh as before.
+        if (_hasLoadedOnce)
+        {
+            _hasLoadedOnce = false;
+            return;
+        }
+
         if (!IsBusy) _ = ReloadPageAsync();
     }
 
@@ -378,6 +404,15 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         _ => PatientsSortOrder.Recent,
     };
 
+    private const string AccessLostMessage = "دسترسی لازم را ندارید یا نشست منقضی شده؛ دوباره وارد شوید";
+
+    /// <summary>Permission / session / capability failures (as opposed to a store or code fault).</summary>
+    private static bool IsAccessFailure(string code) =>
+        code is "PERMISSION_DENIED" or "PERMISSION_UNKNOWN" or "SESSION_EXPIRED"
+            or "CAPABILITY_NOT_GRANTED" or "CAPABILITY_SNAPSHOT_MISSING" or "CAPABILITY_SNAPSHOT_TAMPERED"
+            or "MEMBERSHIP_NOT_ACTIVE" or "USER_DISABLED" or "USER_LOCKED_OUT" or "TENANT_MISMATCH"
+            or "TENANT_SUSPENDED" or "DEVICE_REVOKED";
+
     /// <returns>False when the load failed (already reported to the user here).</returns>
     private async Task<bool> LoadAsync()
     {
@@ -385,6 +420,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         IsBusy = true;
         try
         {
+            // Wait for the local store (migrations/seed) before the first query — same as every Track C page.
+            await _readiness.WaitAsync();
             var query = CurrentQuery();
 
             // Facets (totals + species counts) resolve alongside the active entity's page. Only the
@@ -411,6 +448,11 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
             NotifyDerived();
             return true;
+        }
+        catch (InvalidOperationException ex) when (IsAccessFailure(ex.Message))
+        {
+            _toast.Show(AccessLostMessage, Tone.Danger);
+            return false;
         }
         catch (Exception)
         {
@@ -460,7 +502,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         foreach (var species in new[]
                  {
                      PetSpecies.Dog, PetSpecies.Cat, PetSpecies.Bird,
-                     PetSpecies.Rabbit, PetSpecies.Rodent, PetSpecies.Other,
+                     PetSpecies.Rabbit, PetSpecies.Rodent, PetSpecies.Reptile, PetSpecies.Other,
                  })
         {
             var count = speciesCounts.GetValueOrDefault(species);

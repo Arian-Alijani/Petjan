@@ -16,6 +16,7 @@ internal static class BoardingMapping
         "Cat" => BoardingSpecies.Cat,
         "Bird" => BoardingSpecies.Bird,
         "Rodent" => BoardingSpecies.Rodent,
+        "Rabbit" => BoardingSpecies.Rabbit,
         _ => BoardingSpecies.Other, // Reptiles and other clinic species have no boarding equivalent.
     };
 

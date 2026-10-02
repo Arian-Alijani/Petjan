@@ -103,6 +103,11 @@ public static class RelativeDateFormatter
         return (label, shortLabel);
     }
 
+    /// <summary>Age for an optional birth date; an unknown birth date renders an em-dash (never a bogus
+    /// «2025 years» computed from <c>default(DateTime)</c>).</summary>
+    public static (string Label, string Short) Age(DateTime? birth) =>
+        birth is { } b ? Age(b) : ("—", "—");
+
     private static int DaysBetween(DateTime date) =>
         (int)Math.Round((DateTime.Today - date.Date).TotalDays);
 

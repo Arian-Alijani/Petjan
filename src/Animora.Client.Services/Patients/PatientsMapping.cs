@@ -13,7 +13,9 @@ internal static class PatientsMapping
     public static PetSummary ToSummary(this PetSummaryReadModel m) => new(
         m.Id, m.Id /*Code*/, m.Name, MapSpecies(m.Species), m.Breed ?? "", m.Color ?? "",
         MapGender(m.Gender), Tone(m.Id), MapStatus(m.Status), m.OwnerId,
-        (m.BirthDateUtc ?? default).UtcDateTime, (double?)m.CurrentWeightKg,
+        m.BirthDateUtc?.UtcDateTime, (double?)m.CurrentWeightKg,
+        // C03 placeholder — no visit source yet; populated when the Visits context lands.
+        // HasVaccines/NextVaccine* stay false/null until the vaccine source arrives.
         m.LastVisitUtc?.UtcDateTime, m.LastVisitType, HasVaccines: false, NextVaccineName: null,
         NextVaccineDate: null, m.MicrochipCode);
 
@@ -35,7 +37,7 @@ internal static class PatientsMapping
 
     public static PetDetail ToDetail(this PetDetailReadModel m) => new(
         m.Id, m.Id, m.Name, MapSpecies(m.Species), m.Breed ?? "", m.Color ?? "", MapGender(m.Gender),
-        Tone(m.Id), MapStatus(m.Status), m.OwnerId, (m.BirthDateUtc ?? default).UtcDateTime,
+        Tone(m.Id), MapStatus(m.Status), m.OwnerId, m.BirthDateUtc?.UtcDateTime,
         Habitat: "", Behavior: "", Diet: "", BloodType: null, Neutered: m.IsNeutered, NeuteredDate: null,
         Insurance: null,
         new MicrochipInfo(m.MicrochipCode, m.MicrochipImplantUtc?.UtcDateTime, null, null),
@@ -44,17 +46,29 @@ internal static class PatientsMapping
         Visits: [], Vaccinations: [], Labs: [], Documents: [], Surgeries: [],
         Allergies: Split(m.AllergyNotes), ChronicConditions: Split(m.ChronicNotes), Notes: null);
 
+    /// <summary>
+    /// Best-effort DISPLAY decomposition of the owner's single identity. The domain stores one
+    /// <c>FullName</c> (source of truth) — it has no separate first/last. First = first token,
+    /// Last = the remainder. Saves re-join with a single space (<c>$"{First} {Last}".Trim()</c>), so
+    /// the split is loss-free on round-trip: multi-part names ("محمد رضا تقوی") and single-token names
+    /// (Last = "") are both preserved verbatim.
+    /// </summary>
     private static (string First, string Last) SplitName(string full)
     {
         var i = full.IndexOf(' ');
         return i < 0 ? (full, "") : (full[..i], full[(i + 1)..]);
     }
 
-    /// <summary>Splits a comma/newline separated clinical note into a trimmed, non-empty list.
-    /// Accepts both the Latin comma ',' and the Persian comma '،' (U+060C) as separators.</summary>
+    /// <summary>Splits a newline-separated clinical note into a trimmed, non-empty list. Commas (Latin or
+    /// Persian) are preserved inside a value so an entry like «دارو، نوع ب» survives a save/reload round-trip.
+    /// Back-compat: rows previously joined with ", " now read as one entry — the text is kept verbatim, only the
+    /// list segmentation differs (pre-release, no production data).</summary>
     private static IReadOnlyList<string> Split(string? notes) => string.IsNullOrWhiteSpace(notes)
         ? []
-        : notes.Split([',', '،', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        : notes.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    /// <summary>Inverse of <see cref="Split"/>: joins list entries with a newline (one entry per line).</summary>
+    public static string JoinList(IEnumerable<string> items) => string.Join('\n', items);
 
     /// <summary>Stable, id-derived avatar tone (sum of char codes mod 6) so the UI colour is reproducible.</summary>
     private static PatientAvatarTone Tone(string id)
@@ -70,6 +84,8 @@ internal static class PatientsMapping
         DomainSpecies.Cat => PetSpecies.Cat,
         DomainSpecies.Bird => PetSpecies.Bird,
         DomainSpecies.Rodent => PetSpecies.Rodent,
+        DomainSpecies.Reptile => PetSpecies.Reptile,
+        DomainSpecies.Rabbit => PetSpecies.Rabbit,
         _ => PetSpecies.Other,
     };
 
@@ -83,8 +99,9 @@ internal static class PatientsMapping
     private static PetStatus MapStatus(DomainPetStatus s) => s switch
     {
         DomainPetStatus.Active => PetStatus.Healthy,
-        DomainPetStatus.Inactive => PetStatus.FollowUp,
-        _ => PetStatus.Critical,
+        DomainPetStatus.Inactive => PetStatus.Inactive,
+        DomainPetStatus.Deceased => PetStatus.Deceased,
+        _ => PetStatus.FollowUp,
     };
 
     private static OwnerGender MapOwnerGender(DomainOwnerGender g) => g switch
@@ -100,7 +117,8 @@ internal static class PatientsMapping
         PetSpecies.Cat => DomainSpecies.Cat,
         PetSpecies.Bird => DomainSpecies.Bird,
         PetSpecies.Rodent => DomainSpecies.Rodent,
-        PetSpecies.Rabbit => DomainSpecies.Other,
+        PetSpecies.Rabbit => DomainSpecies.Rabbit,
+        PetSpecies.Reptile => DomainSpecies.Reptile,
         _ => DomainSpecies.Other,
     };
 

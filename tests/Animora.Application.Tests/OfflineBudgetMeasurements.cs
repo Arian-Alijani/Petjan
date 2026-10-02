@@ -90,7 +90,7 @@ public sealed class OfflineBudgetMeasurements
         using (var scope = fixture.CreateScope())
         {
             var patients = scope.ServiceProvider.GetRequiredService<IPatientDirectoryQueries>();
-            async Task Patients() { var page = await patients.GetPetsAsync(null, null, null, PatientDirectorySort.Recent, 1, 200, default); Assert.Equal(200, page.Items.Count); }
+            async Task Patients() { var page = await patients.GetPetsAsync(null, null, PatientDirectorySort.Recent, 1, 200, default); Assert.Equal(200, page.Items.Count); }
             await Patients();
             metrics["patients_ms"] = await Measure(Patients);
             // The persistence port accepts normalized terms. Include the production handler so

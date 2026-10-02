@@ -12,6 +12,7 @@ public enum PetSpecies
     Bird,
     Rabbit,
     Rodent,
+    Reptile,
     Other,
 }
 
@@ -24,6 +25,12 @@ public enum PetStatus
     Healthy,
     FollowUp,
     Critical,
+
+    /// <summary>Administratively inactive record (not a clinical severity).</summary>
+    Inactive,
+
+    /// <summary>Deceased patient (not a clinical severity — rendered neutral, never as «critical»).</summary>
+    Deceased,
 }
 
 /// <summary>Animal sex, mirrored by the reference's GENDER_MAP (♂/♀/؟).</summary>
@@ -74,7 +81,7 @@ public sealed record PetSummary(
     PatientAvatarTone Tone,
     PetStatus Status,
     string OwnerId,
-    DateTime BirthDate,
+    DateTime? BirthDate,
     double? CurrentWeightKg,
     DateTime? LastVisitDate,
     string? LastVisitType,

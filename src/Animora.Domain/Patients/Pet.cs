@@ -24,6 +24,9 @@ public enum PetSpecies
 
     /// <summary>Anything else; the breed field carries the detail.</summary>
     Other = 5,
+
+    /// <summary>Rabbit (appended after <see cref="Other"/> so persisted integer values never shift).</summary>
+    Rabbit = 6,
 }
 
 /// <summary>Gender recorded for a patient.</summary>
