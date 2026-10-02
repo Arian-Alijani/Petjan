@@ -121,11 +121,11 @@
                                        Foreground="{StaticResource MutedBrush}" />
                             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PhoneText}" FontSize="12.5"
                                        FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="کد نوبت" FontSize="12.5"
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="شناسهٔ نوبت" FontSize="12.5"
                                        Foreground="{StaticResource MutedBrush}" />
                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding CodeText}" FontSize="12.5"
                                        FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="هزینه تخمینی" FontSize="12.5"
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="فاکتور" FontSize="12.5"
                                        Foreground="{StaticResource MutedBrush}" />
                             <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding PriceText}" FontSize="12.5"
                                        FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
@@ -154,10 +154,12 @@
                                 <TextBlock Text="{Binding CreatedText}" FontSize="11"
                                            Foreground="{StaticResource MutedBrush}" />
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="پیامک تأیید ارسال شد" FontSize="12" FontWeight="Bold"
+                            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasRescheduled}">
+                                <TextBlock Text="جابه‌جایی" FontSize="12" FontWeight="Bold"
                                            Foreground="{StaticResource Ink2Brush}" />
-                                <TextBlock Text="· به" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                                <TextBlock Text="·" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                                <TextBlock Text="{Binding RescheduleText}" FontSize="11"
+                                           Foreground="{StaticResource MutedBrush}" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="{Binding StatusTimelineTitle}" FontSize="12" FontWeight="Bold"
@@ -175,7 +177,7 @@
             <Border Grid.Row="2" Classes="dtl-foot">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button Classes="primary" HorizontalAlignment="Stretch"
-                            IsVisible="{Binding !IsDone}" Command="{Binding CheckInCommand}">
+                            IsVisible="{Binding CanCheckIn}" Command="{Binding CheckInCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Path Classes="icon" Width="16" Height="16" Stroke="White"
                                   Data="{StaticResource IconCheck}" />
@@ -183,7 +185,7 @@
                         </StackPanel>
                     </Button>
                     <Button Classes="outline" HorizontalAlignment="Stretch"
-                            IsVisible="{Binding IsDone}" Command="{Binding ViewVisitCommand}">
+                            IsVisible="{Binding CanOpenVisit}" Command="{Binding ViewVisitCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Path Classes="icon" Width="16" Height="16"
                                   Stroke="{Binding $parent[Button].Foreground}"
@@ -191,22 +193,17 @@
                             <TextBlock Text="مشاهده پرونده ویزیت" />
                         </StackPanel>
                     </Button>
-                    <Button Classes="outline" HorizontalAlignment="Stretch" Command="{Binding EditCommand}">
+                    <Button Classes="outline" HorizontalAlignment="Stretch" IsVisible="{Binding CanEdit}"
+                            Command="{Binding EditCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Path Classes="icon" Width="16" Height="16"
                                   Stroke="{Binding $parent[Button].Foreground}"
                                   Data="{StaticResource IconEdit}" />
-                            <TextBlock Text="ویرایش" />
+                            <TextBlock Text="جابه‌جایی" />
                         </StackPanel>
                     </Button>
                     <Button Classes="outline" Width="40" Padding="0" HorizontalContentAlignment="Center"
-                            Command="{Binding SendSmsCommand}" ToolTip.Tip="ارسال یادآور پیامکی">
-                        <Path Classes="icon" Width="16" Height="16"
-                              Stroke="{Binding $parent[Button].Foreground}"
-                              Data="{StaticResource IconSms}" />
-                    </Button>
-                    <Button Classes="outline" Width="40" Padding="0" HorizontalContentAlignment="Center"
-                            Foreground="{StaticResource DangerBrush}"
+                            Foreground="{StaticResource DangerBrush}" IsVisible="{Binding CanCancel}"
                             Command="{Binding CancelAppointmentCommand}" ToolTip.Tip="لغو نوبت">
                         <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource DangerBrush}"
                               Data="{StaticResource IconTrash}" />

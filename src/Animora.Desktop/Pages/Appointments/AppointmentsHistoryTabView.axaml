@@ -242,8 +242,25 @@
                 </ItemsControl>
             </Border>
 
-            <!-- empty -->
-            <StackPanel IsVisible="{Binding !HasHistoryRows}" Spacing="4" Margin="20,70"
+            <!-- loading (first page, nothing to show yet) -->
+            <StackPanel IsVisible="{Binding ShowHistoryLoadingOnly}" Spacing="4" Margin="20,70"
+                        HorizontalAlignment="Center">
+                <TextBlock Text="در حال بارگذاری تاریخچه…" FontSize="14" FontWeight="Bold"
+                           HorizontalAlignment="Center" Foreground="{StaticResource Ink2Brush}" />
+            </StackPanel>
+
+            <!-- failure: distinct from an empty archive, with a retry -->
+            <StackPanel IsVisible="{Binding ShowHistoryFailureOnly}" Spacing="8" Margin="20,70"
+                        HorizontalAlignment="Center">
+                <TextBlock Text="بارگذاری تاریخچه انجام نشد" FontSize="14" FontWeight="Bold"
+                           HorizontalAlignment="Center" Foreground="{StaticResource Ink2Brush}" />
+                <Button Classes="ap-chip" HorizontalAlignment="Center" Command="{Binding RetryHistoryCommand}">
+                    <TextBlock Text="تلاش دوباره" />
+                </Button>
+            </StackPanel>
+
+            <!-- empty (loaded, nothing matched) -->
+            <StackPanel IsVisible="{Binding ShowHistoryEmpty}" Spacing="4" Margin="20,70"
                         HorizontalAlignment="Center">
                 <Border Width="54" Height="54" CornerRadius="16" Background="{StaticResource Bg2Brush}"
                         HorizontalAlignment="Center" Margin="0,0,0,12">
@@ -352,7 +369,7 @@
                                                                 HorizontalAlignment="Right">
                                                         <TextBlock Text="{Binding PriceText}" FontSize="15" FontWeight="ExtraBold"
                                                                    Foreground="{StaticResource InkBrush}" />
-                                                        <TextBlock Text="تومان" FontSize="9.5" VerticalAlignment="Bottom"
+                                                        <TextBlock Text="تومان" FontSize="9.5" VerticalAlignment="Bottom" IsVisible="{Binding HasPrice}"
                                                                    Foreground="{StaticResource Muted2Brush}" />
                                                     </StackPanel>
                                                 </StackPanel>
@@ -365,6 +382,16 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+
+            <!-- paging: the archive is fetched page by page -->
+            <Button Classes="ap-chip" HorizontalAlignment="Center" Margin="0,12"
+                    IsVisible="{Binding HistoryHasMore}" IsEnabled="{Binding !IsHistoryLoading}"
+                    Command="{Binding LoadMoreHistoryCommand}">
+                <TextBlock Text="نمایش نوبت‌های بیشتر" />
+            </Button>
+            <TextBlock IsVisible="{Binding HistoryLoadFailed}" Text="به‌روزرسانی تاریخچه ناموفق بود؛ آخرین داده نمایش داده می‌شود."
+                       FontSize="11.5" HorizontalAlignment="Center" Margin="0,8"
+                       Foreground="{StaticResource MutedBrush}" />
         </StackPanel>
     </Border>
 </UserControl>

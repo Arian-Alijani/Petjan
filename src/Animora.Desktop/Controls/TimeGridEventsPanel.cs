@@ -18,6 +18,9 @@ namespace Animora.Desktop.Controls;
 /// </summary>
 public sealed class TimeGridEventsPanel : Panel
 {
+    /// <summary>Smallest readable card width in a crowded lane cluster (A22).</summary>
+    private const double MinCardWidth = 44;
+
     protected override Size MeasureOverride(Size availableSize)
     {
         var width = double.IsInfinity(availableSize.Width) ? 0 : availableSize.Width;
@@ -27,7 +30,7 @@ public sealed class TimeGridEventsPanel : Panel
             if (child.DataContext is AppointmentEventViewModel vm && width > 0)
             {
                 var laneWidth = width / Math.Max(1, vm.Lanes);
-                child.Measure(new Size(Math.Max(0, laneWidth), Math.Max(0, vm.Height)));
+                child.Measure(new Size(Math.Max(MinCardWidth, laneWidth), Math.Max(0, vm.Height)));
             }
             else
             {
@@ -56,8 +59,9 @@ public sealed class TimeGridEventsPanel : Panel
 
             var laneWidth = finalSize.Width / Math.Max(1, vm.Lanes);
             var rightInset = (vm.Lane * laneWidth) + 4;
-            var width = Math.Max(0, laneWidth - 8);
-            var x = finalSize.Width - rightInset - width;
+            // A22: never shrink a card to nothing in a dense cluster; keep a readable minimum and clamp inside.
+            var width = Math.Min(Math.Max(MinCardWidth, laneWidth - 8), Math.Max(0, finalSize.Width - 8));
+            var x = Math.Max(0, finalSize.Width - rightInset - width);
             child.Arrange(new Rect(x, vm.Top, width, vm.Height));
         }
 

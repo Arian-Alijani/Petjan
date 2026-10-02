@@ -24,7 +24,10 @@ public sealed partial class BookingDetailViewModel : ObservableObject
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
     private readonly Action? _onChanged;
-    private readonly Action<AppointmentEvent>? _onEdit;
+    private readonly Action<AppointmentEvent, string?>? _onEdit;
+    private readonly IClinicClock _clock;
+    private string? _version;
+    private readonly Func<AppointmentEvent, Task>? _onOpenVisit;
 
     private AppointmentEvent _event = null!;
     private IReadOnlyList<AppointmentType> _types = [];
@@ -35,9 +38,13 @@ public sealed partial class BookingDetailViewModel : ObservableObject
         IAppointmentsQueryService catalog,
         IToastService toast,
         IDialogService dialogs,
+        IClinicClock clock,
         Action? onChanged = null,
-        Action<AppointmentEvent>? onEdit = null)
+        Action<AppointmentEvent, string?>? onEdit = null,
+        Func<AppointmentEvent, Task>? onOpenVisit = null)
     {
+        _onOpenVisit = onOpenVisit;
+        _clock = clock;
         _booking = booking;
         _catalog = catalog;
         _toast = toast;
@@ -100,6 +107,12 @@ public sealed partial class BookingDetailViewModel : ObservableObject
     private string _createdText = string.Empty;
 
     [ObservableProperty]
+    private bool _hasRescheduled;
+
+    [ObservableProperty]
+    private string _rescheduleText = string.Empty;
+
+    [ObservableProperty]
     private string _statusTimelineTitle = string.Empty;
 
     [ObservableProperty]
@@ -110,6 +123,21 @@ public sealed partial class BookingDetailViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isDone;
+
+    [ObservableProperty]
+    private bool _canCheckIn;
+
+    [ObservableProperty]
+    private bool _canEdit;
+
+    [ObservableProperty]
+    private bool _canCancel;
+
+    [ObservableProperty]
+    private bool _canOpenVisit;
+
+    private static readonly AppointmentType RemovedType =
+        new("removed", "نوع حذف‌شده", "removed", "#98a2b3", "#eef2f0", "#536b68", "calendar", 30);
 
     /// <summary>Loads (or re-loads) the drawer content from the service.</summary>
     public async Task<bool> LoadAsync(string appointmentId)
@@ -122,6 +150,7 @@ public sealed partial class BookingDetailViewModel : ObservableObject
 
         var a = detail.Event;
         _event = a;
+        _version = detail.Version;
 
         if (_types.Count == 0)
         {
@@ -129,9 +158,10 @@ public sealed partial class BookingDetailViewModel : ObservableObject
             _doctors = await _catalog.GetDoctorsAsync();
         }
 
-        var type = _types.FirstOrDefault(x => x.Id == a.TypeId) ?? _types[0];
-        var doctor = _doctors.FirstOrDefault(x => x.Id == a.DoctorId) ?? _doctors[0];
-        var t = AppointmentsPresentation.Status(a.Status);
+        // A05: never substitute another catalog entry for a missing reference.
+        var type = _types.FirstOrDefault(x => x.Id == a.TypeId) ?? RemovedType;
+        var doctor = _doctors.FirstOrDefault(x => x.Id == a.DoctorId) ?? AppointmentsPresentation.OrphanDoctor(a);
+        var t = AppointmentsPresentation.Lifecycle(a.Lifecycle);
 
         TypeLabel = type.Label;
         TypeAccentBrush = AppointmentsPresentation.Accent(type.Accent);
@@ -140,58 +170,122 @@ public sealed partial class BookingDetailViewModel : ObservableObject
         PetName = a.PetName;
         PetSub = $"{a.PetKind} · مالک: {a.OwnerName}";
         RangeText = AppointmentsPresentation.Range(a.StartMinutes, a.EndMinutes);
-        var isToday = a.Date == DateOnly.FromDateTime(DateTime.Today);
+        var isToday = a.Date == _clock.Today;
         WhenSubText = AppointmentsCalendarMath.DayNames[AppointmentsCalendarMath.WeekIndex(a.Date)] + " " +
                       AppointmentsCalendarMath.Full(a.Date) + (isToday ? " · امروز" : string.Empty);
         DurationText = AppointmentsPresentation.Fa(a.DurationMinutes) + " دقیقه";
         DoctorText = $"{doctor.Name} · {doctor.Specialty}";
         PhoneText = a.OwnerPhone;
+        // A28: the "code" is the raw record id and is labelled as such in the view.
         CodeText = a.Code;
-        PriceText = PersianNumberFormatter.FormatGrouped(a.Total) + " تومان";
+        // A12: only a real linked invoice yields money; otherwise say so instead of showing a zero/estimate.
+        PriceText = a.HasInvoice
+            ? $"{PersianNumberFormatter.FormatGrouped(a.InvoiceTotalMinor!.Value)} تومان · مانده {PersianNumberFormatter.FormatGrouped(a.InvoiceBalanceMinor!.Value)} تومان"
+            : "فاکتوری ثبت نشده است";
+        HasRescheduled = a.RescheduleCount > 0;
+        RescheduleText = $"{AppointmentsPresentation.Fa(a.RescheduleCount)} بار جابه‌جا شد";
         NoteText = string.IsNullOrWhiteSpace(a.Note) ? "یادداشتی ثبت نشده است." : a.Note;
         CreatedText = detail.CreatedText;
         StatusLabel = t.Label;
         StatusTone = t.Tone;
-        IsDone = a.Status == AppointmentStatus.Done;
-        StatusTimelineTitle = a.Status == AppointmentStatus.Done ? "پذیرش انجام شد" : "در انتظار پذیرش";
-        StatusTimelineSub = a.Status == AppointmentStatus.Done ? "ثبت در پرونده" : "پس از حضور مالک";
-        StatusTimelineMuted = a.Status != AppointmentStatus.Done;
+        IsDone = a.IsTerminal;
+        CanCheckIn = a.CanCheckIn;
+        CanEdit = a.CanMove;
+        CanCancel = a.CanCancel;
+        CanOpenVisit = a.CanOpenVisit;
+        (StatusTimelineTitle, StatusTimelineSub, StatusTimelineMuted) = a.Lifecycle switch
+        {
+            AppointmentLifecycle.Scheduled or AppointmentLifecycle.Confirmed =>
+                ("در انتظار پذیرش", "پس از حضور مالک", true),
+            AppointmentLifecycle.CheckedIn =>
+                ("پذیرش انجام شد", a.CheckedInUtc is null ? "ثبت در صف پذیرش" : "ثبت شده در صف پذیرش", false),
+            AppointmentLifecycle.InVisit => ("ویزیت در جریان است", "ثبت در پرونده", false),
+            AppointmentLifecycle.Completed => ("ویزیت انجام شد", "ثبت در پرونده", false),
+            AppointmentLifecycle.NoShow => ("مراجعه نکرد", "عدم مراجعه ثبت شد", false),
+            _ => ("نوبت لغو شد", string.IsNullOrWhiteSpace(a.CancelReason) || a.CancelReason == "cancelled"
+                ? "بدون ذکر دلیل" : a.CancelReason, false),
+        };
         return true;
     }
 
-    [RelayCommand]
-    private async Task CheckIn()
+    private bool _isActing;
+
+    /// <summary>
+    /// Runs one write. The success toast is shown only after the command committed (A10); a rejection keeps the
+    /// drawer open with a localized reason. A read failure after a committed write is reported as such, never as
+    /// a failed write.
+    /// </summary>
+    private async Task<bool> RunWriteAsync(Func<Task> write, string successMessage, Tone tone)
     {
-        await _booking.CheckInAsync(_event.Id);
-        _toast.Show($"بیمار «{_event.PetName}» پذیرش شد.", Tone.Ok);
-        await LoadAsync(_event.Id);
+        if (_isActing)
+        {
+            return false;
+        }
+
+        _isActing = true;
+        try
+        {
+            await write();
+        }
+        catch (Exception ex) when (!AppointmentErrorText.IsCancellation(ex))
+        {
+            _toast.Show(AppointmentErrorText.For(ex), Tone.Danger);
+            // A stale state is the usual reason for a rejection: re-read so the actions match reality.
+            await TryReloadAsync();
+            return false;
+        }
+        finally
+        {
+            _isActing = false;
+        }
+
+        _toast.Show(successMessage, tone);
         _onChanged?.Invoke();
+        await TryReloadAsync();
+        return true;
     }
+
+    private async Task TryReloadAsync()
+    {
+        try
+        {
+            await LoadAsync(_event.Id);
+        }
+        catch (Exception ex) when (!AppointmentErrorText.IsCancellation(ex))
+        {
+            _toast.Show("تغییر ذخیره شد، اما بارگذاری دوبارهٔ جزئیات انجام نشد؛ پنجره را ببندید و دوباره باز کنید.", Tone.Info);
+        }
+    }
+
+    [RelayCommand]
+    private Task CheckIn() =>
+        RunWriteAsync(() => _booking.CheckInAsync(_event.Id, _version), $"بیمار «{_event.PetName}» پذیرش شد.", Tone.Ok);
 
     [RelayCommand]
     private void Edit()
     {
         var ev = _event;
+        var version = _version;
         _dialogs.Close();
-        _onEdit?.Invoke(ev);
+        _onEdit?.Invoke(ev, version);
     }
 
     [RelayCommand]
-    private void SendSms() =>
-        _toast.Show("یادآور پیامکی برای " + _event.OwnerName + " ارسال شد.", Tone.Info);
+    private Task CancelAppointment() =>
+        RunWriteAsync(() => _booking.CancelAsync(_event.Id, _version), "نوبت لغو شد.", Tone.Danger);
 
     [RelayCommand]
-    private async Task CancelAppointment()
+    private async Task ViewVisit()
     {
-        await _booking.CancelAsync(_event.Id);
-        _toast.Show("نوبت لغو شد و به مالک اطلاع داده شد.", Tone.Danger);
-        await LoadAsync(_event.Id);
-        _onChanged?.Invoke();
-    }
+        // A13: navigate to the linked visit, or say truthfully that there is none - never a placeholder toast.
+        if (!_event.CanOpenVisit || _onOpenVisit is null)
+        {
+            _toast.Show("برای این نوبت پروندهٔ ویزیتی ثبت نشده است.", Tone.Info);
+            return;
+        }
 
-    [RelayCommand]
-    private void ViewVisit() =>
-        _toast.Show("انتقال به پرونده ویزیت…", Tone.Info);
+        await _onOpenVisit(_event);
+    }
 
     [RelayCommand]
     private void Close() => _dialogs.Close();

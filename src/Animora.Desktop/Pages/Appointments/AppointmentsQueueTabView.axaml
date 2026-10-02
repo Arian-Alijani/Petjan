@@ -133,7 +133,7 @@
             <ItemsControl ItemsSource="{Binding QueueColumns}" Margin="16">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <UniformGrid Columns="4" />
+                        <UniformGrid Columns="{Binding QueueColumnCount}" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>

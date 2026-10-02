@@ -11,7 +11,8 @@ public interface IAppointmentQueries
     Task<int> GetDoctorBusyCountAsync(string doctorId, long startTicks, long endTicks, CancellationToken ct);
     Task<AppointmentDetailReadModel?> GetDetailAsync(string appointmentId, CancellationToken ct);
     Task<IReadOnlyList<AppointmentEventReadModel>> GetQueueAsync(long startTicks, long endTicks, CancellationToken ct);
-    Task<IReadOnlyList<AppointmentEventReadModel>> GetHistoryAsync(CancellationToken ct);
+    /// <summary>Terminal appointments matching <paramref name="criteria"/>, newest first, one page + whole-scope aggregates.</summary>
+    Task<AppointmentHistoryPageReadModel> GetHistoryPageAsync(AppointmentHistoryCriteria criteria, CancellationToken ct);
     Task<IReadOnlyList<ExistingSlot>> GetDoctorSlotsAsync(string doctorId, long startTicks, long endTicks, string? excludeId, CancellationToken ct);
     Task<(int WorkStartMinute, int WorkEndMinute, int WorkDaysMask)?> GetDoctorWorkingHoursAsync(string doctorId, CancellationToken ct);
     Task<IReadOnlyList<DoctorRosterReadModel>> GetDoctorsAsync(CancellationToken ct);

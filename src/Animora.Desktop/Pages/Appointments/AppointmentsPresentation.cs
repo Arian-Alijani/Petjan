@@ -19,6 +19,19 @@ namespace Animora.Desktop.Pages.Appointments;
 /// </summary>
 public static class AppointmentsPresentation
 {
+    /// <summary>
+    /// A neutral stand-in for an event whose doctor is not in the active roster (unassigned, deactivated or
+    /// removed): keeps the event's own id + name snapshot instead of attributing it to another doctor (A05).
+    /// </summary>
+    public static AppointmentDoctor OrphanDoctor(AppointmentEvent a)
+    {
+        var name = a.IsDoctorUnassigned
+            ? "بدون پزشک"
+            : string.IsNullOrWhiteSpace(a.DoctorName) ? "پزشک نامشخص" : a.DoctorName!;
+        return new AppointmentDoctor(a.DoctorId, name, name, a.IsDoctorUnassigned ? "تخصیص‌نیافته" : "خارج از فهرست فعال",
+            name[..1], "#98a2b3");
+    }
+
     /// <summary>ASCII → Persian digits (delegates to Phase 04's formatter).</summary>
     public static string Fa(long value) => PersianNumberFormatter.ToPersianDigits(value);
 
@@ -88,6 +101,30 @@ public static class AppointmentsPresentation
         AppointmentStatus.Done => ("پذیرش شده", Tone.Ok),
         AppointmentStatus.Cancelled => ("لغو شده", Tone.Danger),
         _ => ("—", Tone.Neutral),
+    };
+
+    /// <summary>Label + tone for the full 7-state lifecycle (A04). Check-in is "admitted"; no-show never is.</summary>
+    public static (string Label, Tone Tone) Lifecycle(AppointmentLifecycle state) => state switch
+    {
+        AppointmentLifecycle.Scheduled => ("در انتظار تأیید", Tone.Warn),
+        AppointmentLifecycle.Confirmed => ("تأیید شده", Tone.Info),
+        AppointmentLifecycle.CheckedIn => ("پذیرش شده", Tone.Ok),
+        AppointmentLifecycle.InVisit => ("در حال ویزیت", Tone.Brand),
+        AppointmentLifecycle.Completed => ("ویزیت انجام شد", Tone.Ok),
+        AppointmentLifecycle.NoShow => ("عدم مراجعه", Tone.Danger),
+        AppointmentLifecycle.Cancelled => ("لغو شده", Tone.Danger),
+        _ => ("—", Tone.Neutral),
+    };
+
+    public static string LifecycleClassKey(AppointmentLifecycle state) => state switch
+    {
+        AppointmentLifecycle.Scheduled => "pending",
+        AppointmentLifecycle.Confirmed => "confirmed",
+        AppointmentLifecycle.CheckedIn => "checkedin",
+        AppointmentLifecycle.InVisit => "invisit",
+        AppointmentLifecycle.Completed => "done",
+        AppointmentLifecycle.NoShow => "noshow",
+        _ => "cancel",
     };
 
     public static string StatusClassKey(AppointmentStatus status) => status switch
