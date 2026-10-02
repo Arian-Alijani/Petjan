@@ -92,14 +92,18 @@
     <Panel>
         <Button Classes="dp-input"
                 Click="OnInputClick">
-            <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0" Classes="dp-val" Text="{Binding #Root.DateText}"
-                           IsVisible="{Binding #Root.HasValue}" />
-                <TextBlock Grid.Column="0" Classes="dp-ph" Text="{Binding #Root.Placeholder}"
-                           IsVisible="{Binding !#Root.HasValue}" />
-                <Path Grid.Column="1" Classes="icon" Width="15" Height="15"
+            <!-- RTL layout: column 0 renders on the right, column 1 on the left. The calendar glyph sits in
+                 column 0 so it anchors to the right edge of the field, with the value/placeholder filling the
+                 remaining space to its left. -->
+            <Grid ColumnDefinitions="Auto,*">
+                <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+                      Margin="0,0,10,0"
                       Stroke="{StaticResource MutedBrush}" VerticalAlignment="Center"
                       Data="{StaticResource IconCalendar}" />
+                <TextBlock Grid.Column="1" Classes="dp-val" Text="{Binding #Root.DateText}"
+                           IsVisible="{Binding #Root.HasValue}" />
+                <TextBlock Grid.Column="1" Classes="dp-ph" Text="{Binding #Root.Placeholder}"
+                           IsVisible="{Binding !#Root.HasValue}" />
             </Grid>
         </Button>
 
