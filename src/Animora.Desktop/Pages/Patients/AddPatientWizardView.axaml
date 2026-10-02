@@ -226,29 +226,30 @@
             <StackPanel IsVisible="{Binding IsStepOne}">
 
                 <!-- wiz-mode seg -->
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="2" Margin="0,0,0,10">
-                    <Border Grid.ColumnSpan="2" Classes="segwrap" />
-                    <Button Grid.Column="0" Classes="segbtn" Classes.on="{Binding IsNewMode}"
-                            Command="{Binding SetModeCommand}" CommandParameter="new">
-                        <StackPanel Orientation="Horizontal" Spacing="6"
-                                    HorizontalAlignment="Center">
-                            <Path Classes="icon" Width="15" Height="15"
-                                  Stroke="{Binding $parent[Button].Foreground}"
-                                  Data="{StaticResource IconUser}" />
-                            <TextBlock Text="مالک جدید" />
-                        </StackPanel>
-                    </Button>
-                    <Button Grid.Column="1" Classes="segbtn" Classes.on="{Binding IsExistingMode}"
-                            Command="{Binding SetModeCommand}" CommandParameter="existing">
-                        <StackPanel Orientation="Horizontal" Spacing="6"
-                                    HorizontalAlignment="Center">
-                            <Path Classes="icon" Width="15" Height="15"
-                                  Stroke="{Binding $parent[Button].Foreground}"
-                                  Data="{StaticResource IconSearch}" />
-                            <TextBlock Text="انتخاب مالک موجود" />
-                        </StackPanel>
-                    </Button>
-                </Grid>
+                <Border Classes="segwrap" Margin="0,0,0,10">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="3">
+                        <Button Grid.Column="0" Classes="segbtn" Classes.on="{Binding IsNewMode}"
+                                Command="{Binding SetModeCommand}" CommandParameter="new">
+                            <StackPanel Orientation="Horizontal" Spacing="6"
+                                        HorizontalAlignment="Center">
+                                <Path Classes="icon" Width="15" Height="15"
+                                      Stroke="{Binding $parent[Button].Foreground}"
+                                      Data="{StaticResource IconUser}" />
+                                <TextBlock Text="مالک جدید" />
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="1" Classes="segbtn" Classes.on="{Binding IsExistingMode}"
+                                Command="{Binding SetModeCommand}" CommandParameter="existing">
+                            <StackPanel Orientation="Horizontal" Spacing="6"
+                                        HorizontalAlignment="Center">
+                                <Path Classes="icon" Width="15" Height="15"
+                                      Stroke="{Binding $parent[Button].Foreground}"
+                                      Data="{StaticResource IconSearch}" />
+                                <TextBlock Text="انتخاب مالک موجود" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
 
                 <!-- wiz-mode-hint -->
                 <Border Background="{StaticResource Brand50Brush}" CornerRadius="11"
@@ -295,22 +296,25 @@
                         </StackPanel>
                     </Grid>
 
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,0,0,14">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,0,0,12">
                         <StackPanel Grid.Column="0" Spacing="6">
                             <TextBlock Classes="flabel" Text="جنسیت مالک" />
-                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
-                                <Button Classes="rpill" Classes.on="{Binding OwnerIsFemale}"
-                                        Content="خانم" Margin="0"
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                <Button Grid.Column="0" Classes="rpill" Classes.on="{Binding OwnerIsFemale}"
+                                        Content="خانم" Margin="0" MinHeight="40"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                         Command="{Binding SetOwnerGenderCommand}" CommandParameter="female" />
-                                <Button Classes="rpill" Classes.on="{Binding !OwnerIsFemale}"
-                                        Content="آقا" Margin="0"
+                                <Button Grid.Column="1" Classes="rpill" Classes.on="{Binding !OwnerIsFemale}"
+                                        Content="آقا" Margin="0" MinHeight="40"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                         Command="{Binding SetOwnerGenderCommand}" CommandParameter="male" />
-                            </StackPanel>
+                            </Grid>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="6">
                             <TextBlock Classes="flabel" Text="نحوه آشنایی" />
                             <ComboBox Classes="qf" ItemsSource="{Binding Referrals}"
-                                      SelectedItem="{Binding Referral}" />
+                                      SelectedItem="{Binding Referral}"
+                                      HorizontalAlignment="Stretch" />
                         </StackPanel>
                     </Grid>
 
@@ -396,8 +400,9 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <TextBlock Text="مالکی با این مشخصات پیدا نشد"
+                                <TextBlock Text="{Binding OwnerEmptyHint}"
                                            IsVisible="{Binding !HasOwnerRows}" FontSize="12"
+                                           TextWrapping="Wrap" TextAlignment="Center"
                                            Foreground="{StaticResource MutedBrush}"
                                            HorizontalAlignment="Center" Padding="22" />
                             </StackPanel>
@@ -444,22 +449,24 @@
                             HorizontalAlignment="Right">
                     <Button Classes="outline" Command="{Binding BackCommand}"
                             IsVisible="{Binding IsStepTwo}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Path Classes="icon" Width="15" Height="15"
-                                  Stroke="{Binding $parent[Button].Foreground}"
-                                  Data="{StaticResource IconChevronRight}" />
-                            <TextBlock Text="بازگشت" />
+                        <!-- icon sits to the LEFT of the label (text first in RTL) -->
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <TextBlock Text="بازگشت" VerticalAlignment="Center" />
+                            <Path Classes="icon" Width="16" Height="16"
+                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="2"
+                                  Data="{StaticResource IconChevronRight}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <Button Classes="primary" Command="{Binding NextCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                        <!-- single minimal icon, always to the LEFT of the label -->
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <TextBlock Text="{Binding NextLabel}" VerticalAlignment="Center" />
+                            <Path Classes="icon" Width="16" Height="16" Stroke="White" StrokeThickness="2"
                                   IsVisible="{Binding IsStepTwo}"
-                                  Data="{StaticResource IconCheck}" />
-                            <TextBlock Text="{Binding NextLabel}" />
-                            <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                                  Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                            <Path Classes="icon" Width="16" Height="16" Stroke="White" StrokeThickness="2"
                                   IsVisible="{Binding IsStepOne}"
-                                  Data="{StaticResource IconChevronLeft}" />
+                                  Data="{StaticResource IconChevronLeft}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>

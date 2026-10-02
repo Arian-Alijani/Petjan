@@ -51,6 +51,7 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
     private readonly bool _closeModalOnly;
     private const int OwnerLookupPageSize = 25;
     private const int SearchDebounceMs = 220;
+    private const int MinSearchChars = 2;
     private IReadOnlyList<OwnerSummary> _owners = [];
     private CancellationTokenSource? _searchCts;
 
@@ -94,15 +95,17 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
         _onCompleted = onCompleted;
         _closeModalOnly = closeModalOnly;
         Referral = PatientsPresentation.Referrals[0];
-        // Non-blocking init (PERFORMANCE.md §4): load the first owner page asynchronously
-        // instead of blocking the UI thread in the constructor.
-        _ = LoadOwnersAsync(debounce: false);
+        // No eager directory load: the existing-owner picker stays empty until the
+        // user types at least MinSearchChars (mirrors the booking panel's lookup),
+        // so we never enumerate the whole owner directory up front.
     }
 
     /// <summary>
     /// Server-side owner lookup: one bounded page (<see cref="OwnerLookupPageSize"/>) driven by the typed
-    /// term, never a whole-directory enumeration. Typing is debounced and a newer keystroke cancels the
-    /// in-flight one so a slow earlier response can't overwrite the latest list.
+    /// term, never a whole-directory enumeration. The search only fires once at least
+    /// <see cref="MinSearchChars"/> characters are typed (mirrors the booking panel), so the picker stays
+    /// empty — no owners loaded — until the user types a name or phone fragment. Typing is debounced and a
+    /// newer keystroke cancels the in-flight one so a slow earlier response can't overwrite the latest list.
     /// </summary>
     private async Task LoadOwnersAsync(bool debounce)
     {
@@ -110,6 +113,16 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
         _searchCts?.Dispose();
         var cts = _searchCts = new CancellationTokenSource();
         var token = cts.Token;
+
+        var normalized = PersianText.Normalize(OwnerSearch);
+        if (normalized.Length < MinSearchChars)
+        {
+            // Not enough to search on yet — clear any previous results and bail.
+            _owners = [];
+            RenderOwnerList();
+            return;
+        }
+
         try
         {
             if (debounce)
@@ -119,7 +132,7 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
 
             var term = OwnerSearch.Trim();
             var page = await _patients.GetOwnersPageAsync(new PatientsDirectoryQuery(
-                term.Length == 0 ? null : term, null, VaccineFilter.All, PatientsSortOrder.Name,
+                term, null, VaccineFilter.All, PatientsSortOrder.Name,
                 Page: 1, PageSize: OwnerLookupPageSize));
             if (token.IsCancellationRequested)
             {
@@ -179,7 +192,11 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
         OnPropertyChanged(nameof(ModeHint));
     }
 
-    partial void OnOwnerSearchChanged(string value) => _ = LoadOwnersAsync(debounce: true);
+    partial void OnOwnerSearchChanged(string value)
+    {
+        OnPropertyChanged(nameof(OwnerEmptyHint));
+        _ = LoadOwnersAsync(debounce: true);
+    }
 
     [RelayCommand]
     private void SetMode(string? mode) => IsExistingMode = mode == "existing";
@@ -283,6 +300,15 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
     }
 
     public bool HasOwnerRows => OwnerRows.Count > 0;
+
+    /// <summary>
+    /// Empty-state copy for the picker: prompts to type when the term is too short, otherwise reports that
+    /// nothing matched. Keeps the «load everything» behaviour out and guides the user to search instead.
+    /// </summary>
+    public string OwnerEmptyHint =>
+        PersianText.Normalize(OwnerSearch).Length < MinSearchChars
+            ? "برای یافتن مالک، حداقل دو حرف از نام یا شماره تماس را وارد کنید"
+            : "مالکی با این مشخصات پیدا نشد";
 
     private static string? Blank(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

@@ -30,6 +30,11 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
+        <Style Selector="TextBlock.dp-ph">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
         <Style Selector="Button.dp-nav">
             <Setter Property="Width" Value="26" />
             <Setter Property="Height" Value="26" />
@@ -87,7 +92,15 @@
     <Panel>
         <Button Classes="dp-input"
                 Click="OnInputClick">
-            <TextBlock Classes="dp-val" Text="{Binding #Root.DateText}" />
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Classes="dp-val" Text="{Binding #Root.DateText}"
+                           IsVisible="{Binding #Root.HasValue}" />
+                <TextBlock Grid.Column="0" Classes="dp-ph" Text="{Binding #Root.Placeholder}"
+                           IsVisible="{Binding !#Root.HasValue}" />
+                <Path Grid.Column="1" Classes="icon" Width="15" Height="15"
+                      Stroke="{StaticResource MutedBrush}" VerticalAlignment="Center"
+                      Data="{StaticResource IconCalendar}" />
+            </Grid>
         </Button>
 
         <Popup IsOpen="{Binding #Root.IsOpen, Mode=TwoWay}"
