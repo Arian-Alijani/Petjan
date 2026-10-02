@@ -92,8 +92,9 @@ internal static class PatientsMapping
     private static PetStatus MapStatus(DomainPetStatus s) => s switch
     {
         DomainPetStatus.Active => PetStatus.Healthy,
-        DomainPetStatus.Inactive => PetStatus.FollowUp,
-        _ => PetStatus.Critical,
+        DomainPetStatus.Inactive => PetStatus.Inactive,
+        DomainPetStatus.Deceased => PetStatus.Deceased,
+        _ => PetStatus.FollowUp,
     };
 
     private static OwnerGender MapOwnerGender(DomainOwnerGender g) => g switch

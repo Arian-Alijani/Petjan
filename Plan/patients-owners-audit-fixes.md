@@ -328,7 +328,7 @@ and the split loss-free for display:
 
 ---
 
-### [ ] T10 — P17 (P2) · Domain Deceased/Inactive map to UI Critical/FollowUp
+### [x] T10 — P17 (P2) · Domain Deceased/Inactive map to UI Critical/FollowUp
 **Root cause (confirmed):** MAP:83-88 `MapStatus`: `Active→Healthy`, `Inactive→FollowUp`, and the
 `_` default (**Deceased**) `→ Critical`. A deceased pet shows the red "critical" clinical pill
 (clinically wrong/distressing); "Inactive"→"FollowUp" conflates administrative inactivity with a

@@ -79,6 +79,8 @@ public static class PatientsPresentation
     {
         PetStatus.FollowUp => "در حال پیگیری",
         PetStatus.Critical => "بیمار مزمن",
+        PetStatus.Inactive => "غیرفعال",
+        PetStatus.Deceased => "فوت‌شده",
         _ => "سالم",
     };
 
@@ -86,6 +88,8 @@ public static class PatientsPresentation
     {
         PetStatus.FollowUp => Tone.Warn,
         PetStatus.Critical => Tone.Danger,
+        PetStatus.Inactive => Tone.Neutral,
+        PetStatus.Deceased => Tone.Neutral,
         _ => Tone.Ok,
     };
 
@@ -127,14 +131,18 @@ public static class PatientsPresentation
     {
         PetStatus.FollowUp => "در حال پیگیری",
         PetStatus.Critical => "بیمار مزمن",
+        PetStatus.Inactive => "غیرفعال",
+        PetStatus.Deceased => "فوت‌شده",
         _ => "وضعیت پایدار",
     };
 
-    /// <summary>Hero chip tone class (ok/warn/alert).</summary>
+    /// <summary>Hero chip tone class (ok/warn/alert/muted).</summary>
     public static string HeroStatusClass(PetStatus status) => status switch
     {
         PetStatus.FollowUp => "warn",
         PetStatus.Critical => "alert",
+        PetStatus.Inactive => "muted",
+        PetStatus.Deceased => "muted",
         _ => "ok",
     };
 
