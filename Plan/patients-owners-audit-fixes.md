@@ -277,7 +277,7 @@ is exactly the "all species" chip number — correct.
 
 ---
 
-### [ ] T08 — P15 (P2) · First-entry double/triple reload
+### [x] T08 — P15 (P2) · First-entry double/triple reload
 **Root cause (confirmed):** ctor fires `UseLoadStatus(ReloadPageAsync)` (VM:92),
 `RefreshOnDataChange(...)` (VM:94) and explicit `_ = ReloadPageAsync()` (VM:95); `OnNavigatedTo`
 (VM:347-350) fires another `ReloadPageAsync` when `!IsBusy`. `_loadGate` serializes but does not

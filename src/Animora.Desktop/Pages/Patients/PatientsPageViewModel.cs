@@ -69,6 +69,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     // Facet counters for the active query (resolved server-side alongside the page).
     private int _totalOwnerMatches;
     private int _totalPetMatches;
+    private bool _hasLoadedOnce;
 
     // Total matches for the ACTIVE entity (owners or pets) — drives the page math + nav state.
     private int _totalMatchCount;
@@ -98,6 +99,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         // Owner/pet sheets edit records from over this page; the page's own wizard/add-pet writes reload directly.
         RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Patients);
         _ = ReloadPageAsync();
+        _hasLoadedOnce = true;   // the ctor-started load covers the first navigation (PERFORMANCE.md §13)
     }
 
     public RangeObservableCollection<OwnerCardViewModel> FilteredOwners { get; } = [];
@@ -362,6 +364,14 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     // Singletons must refresh when returning from another screen that edited these records.
     public override void OnNavigatedTo()
     {
+        // The first navigation is already covered by the load the ctor started — skip it so first entry
+        // does not queue a duplicate load behind the _loadGate. Later visits refresh as before.
+        if (_hasLoadedOnce)
+        {
+            _hasLoadedOnce = false;
+            return;
+        }
+
         if (!IsBusy) _ = ReloadPageAsync();
     }
 
