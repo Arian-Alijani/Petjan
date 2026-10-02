@@ -13,7 +13,7 @@ internal static class PatientsMapping
     public static PetSummary ToSummary(this PetSummaryReadModel m) => new(
         m.Id, m.Id /*Code*/, m.Name, MapSpecies(m.Species), m.Breed ?? "", m.Color ?? "",
         MapGender(m.Gender), Tone(m.Id), MapStatus(m.Status), m.OwnerId,
-        (m.BirthDateUtc ?? default).UtcDateTime, (double?)m.CurrentWeightKg,
+        m.BirthDateUtc?.UtcDateTime, (double?)m.CurrentWeightKg,
         m.LastVisitUtc?.UtcDateTime, m.LastVisitType, HasVaccines: false, NextVaccineName: null,
         NextVaccineDate: null, m.MicrochipCode);
 
@@ -35,7 +35,7 @@ internal static class PatientsMapping
 
     public static PetDetail ToDetail(this PetDetailReadModel m) => new(
         m.Id, m.Id, m.Name, MapSpecies(m.Species), m.Breed ?? "", m.Color ?? "", MapGender(m.Gender),
-        Tone(m.Id), MapStatus(m.Status), m.OwnerId, (m.BirthDateUtc ?? default).UtcDateTime,
+        Tone(m.Id), MapStatus(m.Status), m.OwnerId, m.BirthDateUtc?.UtcDateTime,
         Habitat: "", Behavior: "", Diet: "", BloodType: null, Neutered: m.IsNeutered, NeuteredDate: null,
         Insurance: null,
         new MicrochipInfo(m.MicrochipCode, m.MicrochipImplantUtc?.UtcDateTime, null, null),

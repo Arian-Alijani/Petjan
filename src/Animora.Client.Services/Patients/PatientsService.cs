@@ -236,7 +236,7 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         var cc = await provider.BuildCommandContextAsync(null, null, null, default);
         if (cc.IsFailure) throw new InvalidOperationException(cc.Error.Code);
         var cmd = new UpdatePetInfoCommand(pet.Id, pet.Name, pet.Breed, pet.Color, pet.Gender.ToDomain(),
-            pet.BirthDate == default ? null : ToUtc(pet.BirthDate), pet.Neutered,
+            pet.BirthDate is { } bd ? ToUtc(bd) : null, pet.Neutered,
             PatientsMapping.JoinList(pet.Allergies), PatientsMapping.JoinList(pet.ChronicConditions));
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
         if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);

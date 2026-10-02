@@ -374,7 +374,7 @@ a list separator, and stop splitting on commas:
 
 ---
 
-### [ ] T12 — P19 (P2) · `default(DateTime)` used as a null sentinel for pet birth date
+### [x] T12 — P19 (P2) · `default(DateTime)` used as a null sentinel for pet birth date
 **Root cause (confirmed):** SVC:234 `pet.BirthDate == default ? null : ToUtc(pet.BirthDate)`;
 MAP:16/38 map a null `BirthDateUtc` to `(default).UtcDateTime` (0001-01-01). So "unknown" and a
 genuine min-date are indistinguishable; UI shows 0001-01-01 for unknown births unless special-cased.
