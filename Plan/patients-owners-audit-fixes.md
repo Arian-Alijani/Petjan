@@ -210,7 +210,7 @@ this task's chosen path is removal (documented).
 
 ---
 
-### [ ] T05 — P05 (P1) · Patients page ignores the store-readiness gate
+### [x] T05 — P05 (P1) · Patients page ignores the store-readiness gate
 **Root cause (confirmed):** VM ctor (VM:92-95) kicks `UseLoadStatus(ReloadPageAsync)` +
 `RefreshOnDataChange` + eager `_ = ReloadPageAsync()`. `LoadAsync` (VM:382-384) waits only on
 `_loadGate` (a `SemaphoreSlim`), **never** on `IStoreReadinessGate`. Every other Track C page awaits

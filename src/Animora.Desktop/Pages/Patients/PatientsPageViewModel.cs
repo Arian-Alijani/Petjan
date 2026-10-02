@@ -1,3 +1,4 @@
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Patients;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
@@ -72,14 +73,18 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     // Total matches for the ACTIVE entity (owners or pets) — drives the page math + nav state.
     private int _totalMatchCount;
 
+    private readonly IStoreReadinessGate _readiness;
+
     public PatientsPageViewModel(
         IPatientsQueryService patientsQueryService,
+        IStoreReadinessGate readiness,
         IRecordSheetPresenter presenter,
         IDialogService dialogs,
         IToastService toast,
         IDataChangeNotifier changes)
     {
         _patientsQueryService = patientsQueryService;
+        _readiness = readiness;
         _changes = changes;
         _presenter = presenter;
         _dialogs = dialogs;
@@ -405,6 +410,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         IsBusy = true;
         try
         {
+            // Wait for the local store (migrations/seed) before the first query — same as every Track C page.
+            await _readiness.WaitAsync();
             var query = CurrentQuery();
 
             // Facets (totals + species counts) resolve alongside the active entity's page. Only the
