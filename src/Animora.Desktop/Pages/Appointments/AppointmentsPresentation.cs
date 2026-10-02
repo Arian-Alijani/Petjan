@@ -90,6 +90,30 @@ public static class AppointmentsPresentation
         _ => ("—", Tone.Neutral),
     };
 
+    /// <summary>Label + tone for the full 7-state lifecycle (A04). Check-in is "admitted"; no-show never is.</summary>
+    public static (string Label, Tone Tone) Lifecycle(AppointmentLifecycle state) => state switch
+    {
+        AppointmentLifecycle.Scheduled => ("در انتظار تأیید", Tone.Warn),
+        AppointmentLifecycle.Confirmed => ("تأیید شده", Tone.Info),
+        AppointmentLifecycle.CheckedIn => ("پذیرش شده", Tone.Ok),
+        AppointmentLifecycle.InVisit => ("در حال ویزیت", Tone.Brand),
+        AppointmentLifecycle.Completed => ("ویزیت انجام شد", Tone.Ok),
+        AppointmentLifecycle.NoShow => ("عدم مراجعه", Tone.Danger),
+        AppointmentLifecycle.Cancelled => ("لغو شده", Tone.Danger),
+        _ => ("—", Tone.Neutral),
+    };
+
+    public static string LifecycleClassKey(AppointmentLifecycle state) => state switch
+    {
+        AppointmentLifecycle.Scheduled => "pending",
+        AppointmentLifecycle.Confirmed => "confirmed",
+        AppointmentLifecycle.CheckedIn => "checkedin",
+        AppointmentLifecycle.InVisit => "invisit",
+        AppointmentLifecycle.Completed => "done",
+        AppointmentLifecycle.NoShow => "noshow",
+        _ => "cancel",
+    };
+
     public static string StatusClassKey(AppointmentStatus status) => status switch
     {
         AppointmentStatus.Pending => "pending",

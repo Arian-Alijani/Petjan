@@ -123,15 +123,16 @@ public static class AppointmentPrintDocument
         Dictionary<string, AppointmentDoctor> doctorById)
     {
         var all = o.Appointments;
-        int Count(AppointmentStatus s) => all.Count(a => a.Status == s);
+        int Count(AppointmentLifecycle s) => all.Count(a => a.Lifecycle == s);
 
         sb.Append("<section class=\"summary\"><div class=\"kpis\">");
         Kpi(sb, "کل نوبت‌ها", all.Count, "brand");
         Kpi(sb, "روزهای دارای نوبت", byDay.Count, "ink");
-        Kpi(sb, "تأیید شده", Count(AppointmentStatus.Confirmed), "info");
-        Kpi(sb, "در انتظار تأیید", Count(AppointmentStatus.Pending), "warn");
-        Kpi(sb, "پذیرش شده", Count(AppointmentStatus.Done), "ok");
-        Kpi(sb, "لغو شده", Count(AppointmentStatus.Cancelled), "danger");
+        Kpi(sb, "تأیید شده", Count(AppointmentLifecycle.Confirmed), "info");
+        Kpi(sb, "در انتظار تأیید", Count(AppointmentLifecycle.Scheduled), "warn");
+        Kpi(sb, "پذیرش شده", all.Count(a => a.IsCheckedIn), "ok");
+        Kpi(sb, "عدم مراجعه", Count(AppointmentLifecycle.NoShow), "danger");
+        Kpi(sb, "لغو شده", Count(AppointmentLifecycle.Cancelled), "danger");
         sb.Append("</div>");
 
         var perDoctor = all.GroupBy(a => a.DoctorId).Select(g => (Name: DoctorName(doctorById, g.Key), N: g.Count()))
@@ -216,7 +217,7 @@ public static class AppointmentPrintDocument
               .Append(" تا ").Append(E(AppointmentsPresentation.Time(list.Max(a => a.EndMinutes)))).Append("</span>");
         }
 
-        var cancelled = list.Count(a => a.Status == AppointmentStatus.Cancelled);
+        var cancelled = list.Count(a => a.Lifecycle == AppointmentLifecycle.Cancelled);
         if (cancelled > 0)
         {
             head.Append("<span class=\"pill danger\">").Append(Fa(cancelled)).Append(" لغو</span>");
@@ -324,7 +325,7 @@ public static class AppointmentPrintDocument
         {
             var a = rows[i];
             var type = o.Types.GetValueOrDefault(a.TypeId);
-            var cancelled = a.Status == AppointmentStatus.Cancelled;
+            var cancelled = a.Lifecycle == AppointmentLifecycle.Cancelled;
             sb.Append("<tr").Append(cancelled ? " class=\"x\"" : string.Empty).Append('>');
             if (o.ShowCheckbox)
             {
@@ -373,8 +374,8 @@ public static class AppointmentPrintDocument
 
             if (o.ShowStatus)
             {
-                sb.Append("<td class=\"c-st\"><span class=\"st ").Append(AppointmentsPresentation.StatusClassKey(a.Status))
-                  .Append("\">").Append(E(AppointmentsPresentation.Status(a.Status).Label)).Append("</span></td>");
+                sb.Append("<td class=\"c-st\"><span class=\"st ").Append(AppointmentsPresentation.LifecycleClassKey(a.Lifecycle))
+                  .Append("\">").Append(E(AppointmentsPresentation.Lifecycle(a.Lifecycle).Label)).Append("</span></td>");
             }
 
             if (o.ShowCode)
@@ -494,7 +495,7 @@ table.grid{width:100%;border-collapse:collapse;table-layout:auto}
 .c-doc em{margin-inline-end:1.2mm;vertical-align:middle}
 .type{display:inline-flex;align-items:center;gap:1.2mm;border:.25mm solid;border-radius:99px;padding:0 2mm;font-size:.86em}
 .st{font-size:.82em;font-weight:700;border-radius:99px;padding:.15mm 2mm;display:inline-block}
-.st.confirmed{background:#eff8ff;color:#175cd3}.st.pending{background:#fffaeb;color:#b54708}.st.done{background:#ecfdf3;color:#067647}.st.cancel{background:#fef3f2;color:#b42318}
+.st.confirmed{background:#eff8ff;color:#175cd3}.st.pending{background:#fffaeb;color:#b54708}.st.done,.st.checkedin{background:#ecfdf3;color:#067647}.st.invisit{background:#eef4ff;color:#3538cd}.st.noshow{background:#fef3f2;color:#b42318}.st.cancel{background:#fef3f2;color:#b42318}
 .note{margin-top:.6mm;font-size:.82em;color:#475467;background:#f9fafb;border-inline-start:.6mm solid #d0d5dd;padding:.3mm 1.6mm;border-radius:.6mm}
 .c-memo{width:var(--memo);border-inline-start:.2mm dashed #d0d5dd}
 .c-code{font-size:.85em;color:#475467}

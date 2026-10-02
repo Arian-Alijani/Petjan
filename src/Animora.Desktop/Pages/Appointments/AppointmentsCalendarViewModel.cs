@@ -790,9 +790,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         [
             new QueueStatViewModel("کل", AppointmentsPresentation.Fa(list.Count), Tone.Neutral),
             new QueueStatViewModel(
-                "در انتظار تأیید", AppointmentsPresentation.Fa(list.Count(a => a.Status == AppointmentStatus.Pending)), Tone.Warn),
+                "در انتظار تأیید", AppointmentsPresentation.Fa(list.Count(a => a.Lifecycle == AppointmentLifecycle.Scheduled)), Tone.Warn),
             new QueueStatViewModel(
-                "پذیرش‌شده", AppointmentsPresentation.Fa(list.Count(a => a.Status == AppointmentStatus.Done)), Tone.Ok),
+                "پذیرش‌شده", AppointmentsPresentation.Fa(list.Count(a => a.IsCheckedIn)), Tone.Ok),
             new QueueStatViewModel(
                 "لغوشده", AppointmentsPresentation.Fa(list.Count(a => a.Status == AppointmentStatus.Cancelled)), Tone.Danger),
         ]);
@@ -815,7 +815,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             if (isToday)
             {
                 var live = items
-                    .Where(a => a.Status != AppointmentStatus.Cancelled && a.Status != AppointmentStatus.Done)
+                    .Where(a => !a.IsTerminal)
                     .ToList();
                 nowId = live.FirstOrDefault(a => a.StartMinutes <= nowMinutes && nowMinutes < a.EndMinutes)?.Id;
                 if (nowId is null)
@@ -845,9 +845,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         var list = HistoryList();
         var perDay = list.GroupBy(a => a.Date).ToDictionary(g => g.Key, g => g.Count());
-        var done = list.Count(a => a.Status == AppointmentStatus.Done);
-        var cancel = list.Count(a => a.Status == AppointmentStatus.Cancelled);
-        var noShow = list.Count(a => a.Visit == AppointmentVisitOutcome.NoShow);
+        var done = list.Count(a => a.IsCheckedIn);
+        var cancel = list.Count(a => a.Lifecycle == AppointmentLifecycle.Cancelled);
+        var noShow = list.Count(a => a.Lifecycle == AppointmentLifecycle.NoShow);
         var revPaid = list.Where(a => a.Invoice == AppointmentInvoiceState.Paid).Sum(a => (long)a.Total);
         var revOwed = list.Where(a => a.Invoice == AppointmentInvoiceState.Unpaid).Sum(a => (long)a.Total)
                       + list.Where(a => a.Invoice == AppointmentInvoiceState.Partial).Sum(a => (long)Math.Round(a.Total / 2.0));
@@ -861,7 +861,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         var statuses = new (string Id, string Label)[]
         {
-            ("all", "همه وضعیت‌ها"), ("done", "پذیرش شده"), ("cancel", "لغو شده"),
+            ("all", "همه وضعیت‌ها"), ("done", "پذیرش شده"), ("noshow", "عدم مراجعه"), ("cancel", "لغو شده"),
         };
         HistoryStatusChips.ReplaceAll(statuses.Select(s =>
             new HistoryStatusChipViewModel(s.Id, s.Label) { IsActive = _historyStatus == s.Id }));
@@ -925,7 +925,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var today = DateOnly.FromDateTime(DateTime.Today);
         var tk = today;
         var list = _all.Where(a => Visible(a) && Matches(a) &&
-            (a.Date < tk || (a.Date == tk && (a.Status == AppointmentStatus.Done || a.Status == AppointmentStatus.Cancelled))))
+            (a.Date < tk || (a.Date == tk && a.IsTerminal)))
             .ToList();
 
         switch (_historyScope)
@@ -952,8 +952,12 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         if (_historyStatus != "all")
         {
-            list = list.Where(a => AppointmentsPresentation.StatusClassKey(a.Status) ==
-                (_historyStatus == "done" ? "done" : "cancel")).ToList();
+            list = list.Where(a => _historyStatus switch
+            {
+                "done" => a.IsCheckedIn,
+                "noshow" => a.Lifecycle == AppointmentLifecycle.NoShow,
+                _ => a.Lifecycle == AppointmentLifecycle.Cancelled,
+            }).ToList();
         }
 
         if (_historyDoctor != "all")

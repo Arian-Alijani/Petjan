@@ -83,10 +83,10 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
             TypeChips.Add(new ExportChipViewModel(t.Id, t.Label, AppointmentsPresentation.AccentFromHex(t.Accent), true));
         }
 
-        foreach (var s in new[] { AppointmentStatus.Confirmed, AppointmentStatus.Pending, AppointmentStatus.Done, AppointmentStatus.Cancelled })
+        foreach (var s in new[] { AppointmentLifecycle.Scheduled, AppointmentLifecycle.Confirmed, AppointmentLifecycle.CheckedIn, AppointmentLifecycle.InVisit, AppointmentLifecycle.Completed, AppointmentLifecycle.NoShow, AppointmentLifecycle.Cancelled })
         {
             StatusChips.Add(new ExportChipViewModel(
-                s.ToString(), AppointmentsPresentation.Status(s).Label, Brush(StatusHex(s)), s != AppointmentStatus.Cancelled));
+                s.ToString(), AppointmentsPresentation.Lifecycle(s).Label, Brush(StatusHex(s)), s != AppointmentLifecycle.Cancelled));
         }
 
         string[] wd = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
@@ -672,7 +672,7 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
     {
         var docs = DoctorChips.Where(c => c.IsOn).Select(c => c.Id).ToHashSet();
         var types = TypeChips.Where(c => c.IsOn).Select(c => c.Id).ToHashSet();
-        var statuses = StatusChips.Where(c => c.IsOn).Select(c => Enum.Parse<AppointmentStatus>(c.Id)).ToHashSet();
+        var statuses = StatusChips.Where(c => c.IsOn).Select(c => Enum.Parse<AppointmentLifecycle>(c.Id)).ToHashSet();
         var q = PersianText.Normalize(SearchText);
 
         var inRange = _days.SelectMany(d => _byDay.TryGetValue(d, out var l) ? l : []).ToList();
@@ -685,24 +685,24 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
         var typeAll = TypeChips.Count == 0;
         foreach (var c in DoctorChips)
         {
-            c.CountText = Fa(inRange.Count(a => a.DoctorId == c.Id && (typeAll || types.Contains(a.TypeId)) && statuses.Contains(a.Status) && TextOk(a)));
+            c.CountText = Fa(inRange.Count(a => a.DoctorId == c.Id && (typeAll || types.Contains(a.TypeId)) && statuses.Contains(a.Lifecycle) && TextOk(a)));
         }
 
         foreach (var c in TypeChips)
         {
-            c.CountText = Fa(inRange.Count(a => a.TypeId == c.Id && (docAll || docs.Contains(a.DoctorId)) && statuses.Contains(a.Status) && TextOk(a)));
+            c.CountText = Fa(inRange.Count(a => a.TypeId == c.Id && (docAll || docs.Contains(a.DoctorId)) && statuses.Contains(a.Lifecycle) && TextOk(a)));
         }
 
         foreach (var c in StatusChips)
         {
-            var s = Enum.Parse<AppointmentStatus>(c.Id);
-            c.CountText = Fa(inRange.Count(a => a.Status == s && (docAll || docs.Contains(a.DoctorId)) && (typeAll || types.Contains(a.TypeId)) && TextOk(a)));
+            var s = Enum.Parse<AppointmentLifecycle>(c.Id);
+            c.CountText = Fa(inRange.Count(a => a.Lifecycle == s && (docAll || docs.Contains(a.DoctorId)) && (typeAll || types.Contains(a.TypeId)) && TextOk(a)));
         }
 
         _matches = inRange.Where(a =>
             (docAll || docs.Contains(a.DoctorId)) &&
             (typeAll || types.Contains(a.TypeId) || !_types.ContainsKey(a.TypeId)) &&
-            statuses.Contains(a.Status) &&
+            statuses.Contains(a.Lifecycle) &&
             TextOk(a)).ToList();
 
         var daysWith = _matches.Select(a => a.Date).Distinct().Count();
@@ -841,11 +841,13 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
 
     private static string ToJalali(DateOnly d) => JalaliCalendar.ToIso(JalaliDate.FromDateTime(d.ToDateTime(TimeOnly.MinValue)));
 
-    private static string StatusHex(AppointmentStatus s) => s switch
+    private static string StatusHex(AppointmentLifecycle s) => s switch
     {
-        AppointmentStatus.Confirmed => "#2e90fa",
-        AppointmentStatus.Pending => "#f79009",
-        AppointmentStatus.Done => "#12b76a",
+        AppointmentLifecycle.Confirmed => "#2e90fa",
+        AppointmentLifecycle.Scheduled => "#f79009",
+        AppointmentLifecycle.CheckedIn or AppointmentLifecycle.Completed => "#12b76a",
+        AppointmentLifecycle.InVisit => "#5a67d8",
+        AppointmentLifecycle.NoShow => "#f97066",
         _ => "#f04438",
     };
 

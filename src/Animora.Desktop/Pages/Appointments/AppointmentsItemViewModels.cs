@@ -61,7 +61,7 @@ public sealed class AppointmentEventViewModel
 
     public string Id => Model.Id;
     public string PetName => Model.PetName;
-    public string StatusClass => AppointmentsPresentation.StatusClassKey(Model.Status);
+    public string StatusClass => AppointmentsPresentation.LifecycleClassKey(Model.Lifecycle);
     public string TypeClass => Type.ClassKey;
 
     public string StartText => AppointmentsPresentation.Time(Model.StartMinutes);
@@ -69,8 +69,8 @@ public sealed class AppointmentEventViewModel
     public string TypeLabel => Type.Label;
     public string DoctorShort => Doctor.ShortName;
     public string DoctorName => Doctor.Name;
-    public string StatusLabel => AppointmentsPresentation.Status(Model.Status).Label;
-    public bool ShowFlag => Model.Status != AppointmentStatus.Confirmed;
+    public string StatusLabel => AppointmentsPresentation.Lifecycle(Model.Lifecycle).Label;
+    public bool ShowFlag => Model.Lifecycle != AppointmentLifecycle.Confirmed;
     public bool IsExtraSmall => Tier == EventTier.ExtraSmall;
     public bool IsSmall => Tier == EventTier.Small;
     public bool IsMedium => Tier == EventTier.Medium;
@@ -80,11 +80,12 @@ public sealed class AppointmentEventViewModel
     public IBrush BackgroundBrush => AppointmentsPresentation.TypeBackground(Type);
     public IBrush ForegroundBrush => AppointmentsPresentation.TypeForeground(Type);
     public IBrush AvatarBrush => AppointmentsPresentation.AvatarBrush(Model.AvatarTone);
-    public IBrush FlagBrush => Model.Status switch
+    public IBrush FlagBrush => Model.Lifecycle switch
     {
-        AppointmentStatus.Pending => AppointmentsPresentation.Accent("#b54708"),
-        AppointmentStatus.Done => AppointmentsPresentation.Accent("#027a48"),
-        AppointmentStatus.Cancelled => AppointmentsPresentation.Accent("#d92d20"),
+        AppointmentLifecycle.Scheduled => AppointmentsPresentation.Accent("#b54708"),
+        AppointmentLifecycle.CheckedIn or AppointmentLifecycle.Completed => AppointmentsPresentation.Accent("#027a48"),
+        AppointmentLifecycle.InVisit => AppointmentsPresentation.Accent("#5a67d8"),
+        AppointmentLifecycle.Cancelled or AppointmentLifecycle.NoShow => AppointmentsPresentation.Accent("#d92d20"),
         _ => AppointmentsPresentation.Accent("#98a2b3"),
     };
 
@@ -402,9 +403,9 @@ public sealed class QueueCardViewModel
     public string TypeLabel => Type.Label;
     public string TypeClass => Type.ClassKey;
     public string Line2 => $"{Model.PetKind} · مالک: {Model.OwnerName}";
-    public string StatusLabel => AppointmentsPresentation.Status(Model.Status).Label;
-    public string StatusClass => AppointmentsPresentation.StatusClassKey(Model.Status);
-    public Tone StatusTone => AppointmentsPresentation.Status(Model.Status).Tone;
+    public string StatusLabel => AppointmentsPresentation.Lifecycle(Model.Lifecycle).Label;
+    public string StatusClass => AppointmentsPresentation.LifecycleClassKey(Model.Lifecycle);
+    public Tone StatusTone => AppointmentsPresentation.Lifecycle(Model.Lifecycle).Tone;
     public bool IsLiveNow => Live == QueueLiveBadge.Now;
     public bool IsLiveNext => Live == QueueLiveBadge.Next;
 }
@@ -518,9 +519,9 @@ public sealed class HistoryRowViewModel
     public string TypeLabel => Type.Label;
     public string TypeClass => Type.ClassKey;
     public string Code => Model.Code;
-    public string StatusLabel => AppointmentsPresentation.Status(Model.Status).Label;
-    public string StatusClass => AppointmentsPresentation.StatusClassKey(Model.Status);
-    public Tone StatusTone => AppointmentsPresentation.Status(Model.Status).Tone;
+    public string StatusLabel => AppointmentsPresentation.Lifecycle(Model.Lifecycle).Label;
+    public string StatusClass => AppointmentsPresentation.LifecycleClassKey(Model.Lifecycle);
+    public Tone StatusTone => AppointmentsPresentation.Lifecycle(Model.Lifecycle).Tone;
     public bool HasVisit => Model.Visit != AppointmentVisitOutcome.None;
     public string VisitLabel => AppointmentsPresentation.Visit(Model.Visit).Label;
     public Tone VisitTone => AppointmentsPresentation.Visit(Model.Visit).Tone;

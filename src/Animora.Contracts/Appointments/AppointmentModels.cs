@@ -14,6 +14,22 @@ public enum AppointmentStatus
 }
 
 /// <summary>
+/// The full appointment lifecycle, 1:1 with the domain state machine (A04). <see cref="AppointmentStatus"/> is a
+/// coarse legacy grouping; every label, count and action gate must use this instead so check-in, in-visit,
+/// completed and no-show are never conflated.
+/// </summary>
+public enum AppointmentLifecycle
+{
+    Scheduled,
+    Confirmed,
+    CheckedIn,
+    InVisit,
+    Completed,
+    NoShow,
+    Cancelled,
+}
+
+/// <summary>
 /// The invoice state of a past appointment, mirroring the reference's
 /// <c>invoice</c> field (<c>paid | unpaid | partial | null</c>) that the
 /// history row's financial column renders (<c>INV_META</c>).
@@ -80,10 +96,38 @@ public sealed record AppointmentEvent(
     int Total,
     AppointmentInvoiceState Invoice,
     AppointmentPaymentMethod Payment,
-    AppointmentVisitOutcome Visit)
+    AppointmentVisitOutcome Visit,
+    AppointmentLifecycle Lifecycle = AppointmentLifecycle.Scheduled,
+    string? VisitId = null,
+    DateTimeOffset? CheckedInUtc = null,
+    string? CancelReason = null,
+    string CreatedByUserId = "",
+    int RescheduleCount = 0)
 {
     /// <summary>Start time as minutes from midnight (reference's <c>a.start</c>).</summary>
     public int EndMinutes => StartMinutes + DurationMinutes;
+
+    /// <summary>The patient has arrived (checked in, in visit or finished). A no-show never counts.</summary>
+    public bool IsCheckedIn => Lifecycle is AppointmentLifecycle.CheckedIn or AppointmentLifecycle.InVisit
+        or AppointmentLifecycle.Completed;
+
+    /// <summary>Terminal states: nothing may change any more.</summary>
+    public bool IsTerminal => Lifecycle is AppointmentLifecycle.Completed or AppointmentLifecycle.NoShow
+        or AppointmentLifecycle.Cancelled;
+
+    /// <summary>Mirrors the domain table: only Scheduled/Confirmed can be checked in.</summary>
+    public bool CanCheckIn => Lifecycle is AppointmentLifecycle.Scheduled or AppointmentLifecycle.Confirmed;
+
+    /// <summary>Mirrors the move handler: anything before the visit starts.</summary>
+    public bool CanMove => Lifecycle < AppointmentLifecycle.InVisit;
+
+    /// <summary>Mirrors the cancel handler: a checked-in appointment is rejected by the backend.</summary>
+    public bool CanCancel => Lifecycle is AppointmentLifecycle.Scheduled or AppointmentLifecycle.Confirmed
+        or AppointmentLifecycle.InVisit;
+
+    /// <summary>A linked visit exists to open.</summary>
+    public bool CanOpenVisit => !string.IsNullOrEmpty(VisitId) &&
+        Lifecycle is AppointmentLifecycle.InVisit or AppointmentLifecycle.Completed;
 }
 
 /// <summary>

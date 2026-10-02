@@ -111,6 +111,18 @@ public sealed partial class BookingDetailViewModel : ObservableObject
     [ObservableProperty]
     private bool _isDone;
 
+    [ObservableProperty]
+    private bool _canCheckIn;
+
+    [ObservableProperty]
+    private bool _canEdit;
+
+    [ObservableProperty]
+    private bool _canCancel;
+
+    [ObservableProperty]
+    private bool _canOpenVisit;
+
     /// <summary>Loads (or re-loads) the drawer content from the service.</summary>
     public async Task<bool> LoadAsync(string appointmentId)
     {
@@ -131,7 +143,7 @@ public sealed partial class BookingDetailViewModel : ObservableObject
 
         var type = _types.FirstOrDefault(x => x.Id == a.TypeId) ?? _types[0];
         var doctor = _doctors.FirstOrDefault(x => x.Id == a.DoctorId) ?? _doctors[0];
-        var t = AppointmentsPresentation.Status(a.Status);
+        var t = AppointmentsPresentation.Lifecycle(a.Lifecycle);
 
         TypeLabel = type.Label;
         TypeAccentBrush = AppointmentsPresentation.Accent(type.Accent);
@@ -152,10 +164,23 @@ public sealed partial class BookingDetailViewModel : ObservableObject
         CreatedText = detail.CreatedText;
         StatusLabel = t.Label;
         StatusTone = t.Tone;
-        IsDone = a.Status == AppointmentStatus.Done;
-        StatusTimelineTitle = a.Status == AppointmentStatus.Done ? "پذیرش انجام شد" : "در انتظار پذیرش";
-        StatusTimelineSub = a.Status == AppointmentStatus.Done ? "ثبت در پرونده" : "پس از حضور مالک";
-        StatusTimelineMuted = a.Status != AppointmentStatus.Done;
+        IsDone = a.IsTerminal;
+        CanCheckIn = a.CanCheckIn;
+        CanEdit = a.CanMove;
+        CanCancel = a.CanCancel;
+        CanOpenVisit = a.CanOpenVisit;
+        (StatusTimelineTitle, StatusTimelineSub, StatusTimelineMuted) = a.Lifecycle switch
+        {
+            AppointmentLifecycle.Scheduled or AppointmentLifecycle.Confirmed =>
+                ("در انتظار پذیرش", "پس از حضور مالک", true),
+            AppointmentLifecycle.CheckedIn =>
+                ("پذیرش انجام شد", a.CheckedInUtc is null ? "ثبت در صف پذیرش" : "ثبت شده در صف پذیرش", false),
+            AppointmentLifecycle.InVisit => ("ویزیت در جریان است", "ثبت در پرونده", false),
+            AppointmentLifecycle.Completed => ("ویزیت انجام شد", "ثبت در پرونده", false),
+            AppointmentLifecycle.NoShow => ("مراجعه نکرد", "عدم مراجعه ثبت شد", false),
+            _ => ("نوبت لغو شد", string.IsNullOrWhiteSpace(a.CancelReason) || a.CancelReason == "cancelled"
+                ? "بدون ذکر دلیل" : a.CancelReason, false),
+        };
         return true;
     }
 

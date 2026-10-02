@@ -158,7 +158,7 @@ rescheduling rejected, bad completion counts. STARTVISIT:100–104 already shows
 
 ---
 
-### T03 — [ ] A04 (P1): represent the full lifecycle; stop collapsing 7 states into 4
+### T03 — [x] A04 (P1): represent the full lifecycle; stop collapsing 7 states into 4
 **Why/Evidence:** MAP:14–26 maps 7 domain states → 4 contract statuses (`CheckedIn/InVisit→Confirmed`,
 `Completed/NoShow→Done`). PRESENT:84–99 labels `Done` as "admitted"; CVM:794–795 counts `Done` as
 checked-in; DVM:155–158 derives admission from `Done`; DV:177–210 offers check-in whenever `!IsDone`
