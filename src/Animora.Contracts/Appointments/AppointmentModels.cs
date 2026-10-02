@@ -102,8 +102,12 @@ public sealed record AppointmentEvent(
     DateTimeOffset? CheckedInUtc = null,
     string? CancelReason = null,
     string CreatedByUserId = "",
-    int RescheduleCount = 0)
+    int RescheduleCount = 0,
+    string? DoctorName = null)
 {
+    /// <summary>No doctor is assigned (<see cref="DoctorId"/> is empty): the event still belongs on the calendar.</summary>
+    public bool IsDoctorUnassigned => string.IsNullOrEmpty(DoctorId);
+
     /// <summary>Start time as minutes from midnight (reference's <c>a.start</c>).</summary>
     public int EndMinutes => StartMinutes + DurationMinutes;
 

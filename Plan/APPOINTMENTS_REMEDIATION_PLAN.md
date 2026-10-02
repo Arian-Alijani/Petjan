@@ -239,7 +239,7 @@ history totals/search cover the preload, not the DB.
 
 ---
 
-### T07 — [ ] A05 (P1): preserve event doctor/type identity for unassigned/inactive/removed references
+### T07 — [x] A05 (P1): preserve event doctor/type identity for unassigned/inactive/removed references
 **Why/Evidence:** APT:98–99 allows `DoctorUserId=null`; MAP:22 turns null into `""`. SQL:145–151 returns
 only ACTIVE Doctor memberships; CVM:325–329 builds active IDs from that roster; CVM:449–455 excludes
 every other doctor id; CVM:391–392 uses `.First(...)`; DVM:132–133 falls back to `_doctors[0]`. So

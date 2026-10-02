@@ -599,8 +599,19 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private AppointmentType TypeOf(string id) =>
         _typeById.TryGetValue(id, out var t) ? t : _types.FirstOrDefault(x => x.Id == id) ?? RemovedType;
 
-    private AppointmentDoctor DocOf(string id) =>
-        _doctorById.TryGetValue(id, out var d) ? d : _doctors.First(x => x.Id == id);
+    // A05: an event keeps its own doctor identity. A doctor missing from the active roster (unassigned,
+    // deactivated, removed) gets a neutral stand-in built from the event's snapshot — never another doctor.
+    private AppointmentDoctor DocOf(AppointmentEvent a) =>
+        _doctorById.TryGetValue(a.DoctorId, out var d) ? d : AppointmentsPresentation.OrphanDoctor(a);
+
+    /// <summary>Doctor columns for a day: the roster plus one neutral column per orphan doctor that has events.</summary>
+    private List<AppointmentDoctor> OrphanColumns(IEnumerable<AppointmentEvent> list) =>
+        list.Where(a => !_doctorById.ContainsKey(a.DoctorId))
+            .GroupBy(a => a.DoctorId)
+            .Select(g => AppointmentsPresentation.OrphanDoctor(g.First()))
+            .OrderBy(d => d.Id.Length == 0 ? 1 : 0)
+            .ThenBy(d => d.Name, StringComparer.Ordinal)
+            .ToList();
 
     /// <summary>
     /// Rebuilds the id/date lookup indexes and the per-event search haystack.
@@ -639,7 +650,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
             bucket.Add(a);
 
-            var doc = _doctorById.TryGetValue(a.DoctorId, out var dd) ? dd.Name : string.Empty;
+            var doc = _doctorById.TryGetValue(a.DoctorId, out var dd) ? dd.Name : a.DoctorName ?? string.Empty;
             var type = _typeById.TryGetValue(a.TypeId, out var tt) ? tt.Label : string.Empty;
             _searchHaystack[a.Id] =
                 PersianText.Normalize($"{a.PetName} {a.OwnerName} {a.PetKind} {doc} {type}");
@@ -667,7 +678,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     {
         // Appointments of a removed type have no filter chip, so they must stay visible rather than vanish.
         var typeVisible = !_typeById.ContainsKey(a.TypeId) || _activeTypeIds.Contains(a.TypeId);
-        if (!typeVisible || !_activeDoctorIds.Contains(a.DoctorId))
+        // Orphan doctors (unassigned/inactive) have no filter chip, so they stay visible like removed types.
+        var doctorVisible = !_doctorById.ContainsKey(a.DoctorId) || _activeDoctorIds.Contains(a.DoctorId);
+        if (!typeVisible || !doctorVisible)
         {
             return false;
         }
@@ -823,6 +836,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             var docs = _doctors.Where(d => _activeDoctorIds.Contains(d.Id)).ToList();
             var cols = docs.Count > 0 ? docs : _doctors.ToList();
             var list = OnDate(_cursor);
+            cols.AddRange(OrphanColumns(list));
 
             foreach (var c in cols)
             {
@@ -950,7 +964,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             var laneCount = lanes.Count;
             foreach (var a in cluster)
             {
-                var vm = new AppointmentEventViewModel(a, TypeOf(a.TypeId), DocOf(a.DoctorId), !Matches(a))
+                var vm = new AppointmentEventViewModel(a, TypeOf(a.TypeId), DocOf(a), !Matches(a))
                 {
                     Lane = laneOf[a.Id],
                     Lanes = laneCount,
@@ -1020,7 +1034,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                         "، " + AppointmentsCalendarMath.Full(_queueDay);
 
         var columns = new List<QueueDoctorColumnViewModel>();
-        foreach (var d in _doctors)
+        foreach (var d in _doctors.Concat(OrphanColumns(list)))
         {
             var items = list
                 .Where(a => a.DoctorId == d.Id && (_queueShowCancelled || a.Status != AppointmentStatus.Cancelled))
@@ -1265,7 +1279,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                     rows);
             }
 
-            rows.Add(new HistoryRowViewModel(a, TypeOf(a.TypeId), DocOf(a.DoctorId)));
+            rows.Add(new HistoryRowViewModel(a, TypeOf(a.TypeId), DocOf(a)));
         }
 
         if (current is not null)

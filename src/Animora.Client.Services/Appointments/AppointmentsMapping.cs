@@ -36,7 +36,7 @@ internal static class AppointmentsMapping
                 row.State == AppointmentState.Completed ? AppointmentVisitOutcome.Complete : AppointmentVisitOutcome.None,
             lifecycle, row.VisitId,
             row.CheckedInUtcTicks is { } ticks ? new DateTimeOffset(ticks, TimeSpan.Zero) : null,
-            row.CancelReason, row.CreatedByUserId, row.RescheduleCount);
+            row.CancelReason, row.CreatedByUserId, row.RescheduleCount, row.DoctorName);
     }
 
     /// <summary>

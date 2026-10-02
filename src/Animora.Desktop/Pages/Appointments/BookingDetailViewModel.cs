@@ -123,6 +123,9 @@ public sealed partial class BookingDetailViewModel : ObservableObject
     [ObservableProperty]
     private bool _canOpenVisit;
 
+    private static readonly AppointmentType RemovedType =
+        new("removed", "نوع حذف‌شده", "removed", "#98a2b3", "#eef2f0", "#536b68", "calendar", 30);
+
     /// <summary>Loads (or re-loads) the drawer content from the service.</summary>
     public async Task<bool> LoadAsync(string appointmentId)
     {
@@ -141,8 +144,9 @@ public sealed partial class BookingDetailViewModel : ObservableObject
             _doctors = await _catalog.GetDoctorsAsync();
         }
 
-        var type = _types.FirstOrDefault(x => x.Id == a.TypeId) ?? _types[0];
-        var doctor = _doctors.FirstOrDefault(x => x.Id == a.DoctorId) ?? _doctors[0];
+        // A05: never substitute another catalog entry for a missing reference.
+        var type = _types.FirstOrDefault(x => x.Id == a.TypeId) ?? RemovedType;
+        var doctor = _doctors.FirstOrDefault(x => x.Id == a.DoctorId) ?? AppointmentsPresentation.OrphanDoctor(a);
         var t = AppointmentsPresentation.Lifecycle(a.Lifecycle);
 
         TypeLabel = type.Label;

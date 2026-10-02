@@ -19,6 +19,19 @@ namespace Animora.Desktop.Pages.Appointments;
 /// </summary>
 public static class AppointmentsPresentation
 {
+    /// <summary>
+    /// A neutral stand-in for an event whose doctor is not in the active roster (unassigned, deactivated or
+    /// removed): keeps the event's own id + name snapshot instead of attributing it to another doctor (A05).
+    /// </summary>
+    public static AppointmentDoctor OrphanDoctor(AppointmentEvent a)
+    {
+        var name = a.IsDoctorUnassigned
+            ? "بدون پزشک"
+            : string.IsNullOrWhiteSpace(a.DoctorName) ? "پزشک نامشخص" : a.DoctorName!;
+        return new AppointmentDoctor(a.DoctorId, name, name, a.IsDoctorUnassigned ? "تخصیص‌نیافته" : "خارج از فهرست فعال",
+            name[..1], "#98a2b3");
+    }
+
     /// <summary>ASCII → Persian digits (delegates to Phase 04's formatter).</summary>
     public static string Fa(long value) => PersianNumberFormatter.ToPersianDigits(value);
 
