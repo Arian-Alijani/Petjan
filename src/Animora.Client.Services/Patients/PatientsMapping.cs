@@ -14,6 +14,8 @@ internal static class PatientsMapping
         m.Id, m.Id /*Code*/, m.Name, MapSpecies(m.Species), m.Breed ?? "", m.Color ?? "",
         MapGender(m.Gender), Tone(m.Id), MapStatus(m.Status), m.OwnerId,
         m.BirthDateUtc?.UtcDateTime, (double?)m.CurrentWeightKg,
+        // C03 placeholder — no visit source yet; populated when the Visits context lands.
+        // HasVaccines/NextVaccine* stay false/null until the vaccine source arrives.
         m.LastVisitUtc?.UtcDateTime, m.LastVisitType, HasVaccines: false, NextVaccineName: null,
         NextVaccineDate: null, m.MicrochipCode);
 

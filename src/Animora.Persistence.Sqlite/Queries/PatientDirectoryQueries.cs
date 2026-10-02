@@ -41,7 +41,7 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
                 p.Id, p.Name, p.Species, p.Breed, p.Color, p.Gender, p.Status, p.OwnerId, p.BirthDateUtc,
                 db.Set<WeightEntry>().Where(w => w.PetId == p.Id)
                     .OrderByDescending(w => w.MeasuredUtc).Select(w => (decimal?)w.WeightKg).FirstOrDefault(),
-                null, null,   // LastVisitUtc / LastVisitType arrive with C03; no visit source yet.
+                null, null,   // C03 placeholder — no visit source yet; populated when the Visits context lands. (LastVisitUtc / LastVisitType)
                 p.MicrochipCode));
         return await projected.ToPagedAsync(page, pageSize, Options, ct);
     }
@@ -143,7 +143,8 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
                 p.Id, p.Name, p.Species, p.Breed, p.Color, p.Gender, p.Status, p.OwnerId, p.BirthDateUtc,
                 db.Set<WeightEntry>().Where(w => w.PetId == p.Id)
                     .OrderByDescending(w => w.MeasuredUtc).Select(w => (decimal?)w.WeightKg).FirstOrDefault(),
-                null, null, p.MicrochipCode))
+                null, null,   // C03 placeholder — no visit source yet; populated when the Visits context lands. (LastVisitUtc / LastVisitType)
+                p.MicrochipCode))
             .ToListAsync(ct);
         return new OwnerDetailReadModel(owner, pets);
     }

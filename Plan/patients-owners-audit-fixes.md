@@ -523,7 +523,7 @@ snapshot, and migration 023 → all three places each.
 
 ---
 
-### [ ] T18 — P22 (P2) · Read model dead columns / placeholder projections (keep marked)
+### [x] T18 — P22 (P2) · Read model dead columns / placeholder projections (keep marked)
 **Root cause (confirmed):** `PetSummaryReadModel` carries `LastVisitUtc`/`LastVisitType` always
 projected `null` (SQL:39,132 hardcode `null, null`); MAP:17 maps `HasVaccines:false`,
 `NextVaccine*:null` unconditionally. OCARD:72-81 computes `LastVisitText`/`HasVaccines` from

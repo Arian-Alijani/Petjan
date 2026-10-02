@@ -69,7 +69,8 @@ public sealed class OwnerCardViewModel
 
         SinceText = $"مشتری از {JalaliDate.FromDateTime(owner.Since).ToString("short")}";
 
-        // Owners table: last visit across the owner's pets (none in C01 — no visit source yet).
+        // Owners table: last visit across the owner's pets. LastVisitDate/HasVaccines read from C03-placeholder
+        // fields (no visit/vaccine source yet) and render empty by design; do not add UI implying live data.
         var last = roster
             .Where(p => p.LastVisitDate is not null)
             .OrderByDescending(p => p.LastVisitDate)
