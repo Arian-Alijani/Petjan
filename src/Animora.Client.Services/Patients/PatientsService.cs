@@ -1,6 +1,7 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Patients;
+using Animora.Application.UseCases.Patients.ReadModels;
 using Animora.Domain.Results;
 using Animora.Contracts.Patients;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,73 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
 {
     private const int MaxPageSize = 200; // QueryPaging.HardMaxPageSize
 
+    // ── Server-side directory reads (the C01 scalability path) ───────────────────────────────────
+    // Search/filter/sort/paging are pushed all the way to SQL; each call returns exactly ONE bounded
+    // page (2 SQL commands: COUNT + LIMIT/OFFSET). The whole-table read loop is gone.
+
+    public async Task<PatientsPage<PetSummary>> GetPetsPageAsync(PatientsDirectoryQuery query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        // "Has vaccines" has no data source yet (C01) — it can only ever match zero pets, so short
+        // out without a DB round-trip rather than returning a misleading full list.
+        if (query.Vaccine == VaccineFilter.Has)
+            return PatientsPage<PetSummary>.Empty(query.Page, ClampPageSize(query.PageSize));
+
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider) = Resolve(scope);
+        var qc = provider.BuildQueryContext();
+        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
+
+        var r = await dispatcher.QueryAsync(
+            new PetDirectoryQuery(query.Search, MapSpecies(query.Species), Status: null, MapSort(query.Sort),
+                query.Page, ClampPageSize(query.PageSize)),
+            qc.Value!);
+        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        return ToPage(r.Value!, x => x.ToSummary());
+    }
+
+    public async Task<PatientsPage<OwnerSummary>> GetOwnersPageAsync(PatientsDirectoryQuery query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        if (query.Vaccine == VaccineFilter.Has)
+            return PatientsPage<OwnerSummary>.Empty(query.Page, ClampPageSize(query.PageSize));
+
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider) = Resolve(scope);
+        var qc = provider.BuildQueryContext();
+        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
+
+        var r = await dispatcher.QueryAsync(
+            new OwnerDirectoryQuery(query.Search, MapSpecies(query.Species), Status: null, MapSort(query.Sort),
+                query.Page, ClampPageSize(query.PageSize)),
+            qc.Value!);
+        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        return ToPage(r.Value!, x => x.ToSummary());
+    }
+
+    public async Task<PatientsDirectoryFacets> GetDirectoryFacetsAsync(PatientsDirectoryQuery query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        // "Has vaccines" matches nothing (no source yet) — report zeros without a DB round-trip.
+        if (query.Vaccine == VaccineFilter.Has)
+            return new PatientsDirectoryFacets(0, 0, new Dictionary<PetSpecies, int>());
+
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider) = Resolve(scope);
+        var qc = provider.BuildQueryContext();
+        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
+
+        var r = await dispatcher.QueryAsync(
+            new PatientsDirectoryFacetsQuery(query.Search, MapSpecies(query.Species), Status: null), qc.Value!);
+        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        var m = r.Value!;
+        var species = m.SpeciesCounts.ToDictionary(kv => MapSpeciesToContract(kv.Key), kv => kv.Value);
+        return new PatientsDirectoryFacets(m.TotalOwners, m.TotalPets, species);
+    }
+
+    // ── Legacy whole-directory enumeration (add-patient wizard's in-modal lookup only) ───────────
+    // Bounded by MaxPageSize; the directory page no longer calls these.
+
     public async Task<IReadOnlyList<PetSummary>> GetPetsAsync()
     {
         await using var scope = scopes.CreateAsyncScope();
@@ -21,7 +89,8 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         var qc = provider.BuildQueryContext();
         if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
         return await ReadDirectoryAsync(
-            page => dispatcher.QueryAsync(new PetDirectoryQuery(null, null, null, page, MaxPageSize), qc.Value!),
+            page => dispatcher.QueryAsync(
+                new PetDirectoryQuery(null, null, null, PatientDirectorySort.Name, page, MaxPageSize), qc.Value!),
             x => x.ToSummary());
     }
 
@@ -32,8 +101,39 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         var qc = provider.BuildQueryContext();
         if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
         return await ReadDirectoryAsync(
-            page => dispatcher.QueryAsync(new OwnerDirectoryQuery(null, page, MaxPageSize), qc.Value!),
+            page => dispatcher.QueryAsync(
+                new OwnerDirectoryQuery(null, null, null, PatientDirectorySort.Name, page, MaxPageSize), qc.Value!),
             x => x.ToSummary());
+    }
+
+    private static int ClampPageSize(int pageSize) => Math.Clamp(pageSize, 1, MaxPageSize);
+
+    private static PatientDirectorySort MapSort(PatientsSortOrder sort) => sort switch
+    {
+        PatientsSortOrder.Name => PatientDirectorySort.Name,
+        PatientsSortOrder.Age => PatientDirectorySort.Age,
+        _ => PatientDirectorySort.Recent,
+    };
+
+    // Contracts → Domain species for the server-side filter. Rabbit has no distinct Domain value
+    // (same as the write path in PatientsMapping.ToDomain), so it folds into Other.
+    private static Animora.Domain.Patients.PetSpecies? MapSpecies(PetSpecies? s) =>
+        s is { } v ? v.ToDomain() : null;
+
+    private static PetSpecies MapSpeciesToContract(Animora.Domain.Patients.PetSpecies s) => s switch
+    {
+        Animora.Domain.Patients.PetSpecies.Dog => PetSpecies.Dog,
+        Animora.Domain.Patients.PetSpecies.Cat => PetSpecies.Cat,
+        Animora.Domain.Patients.PetSpecies.Bird => PetSpecies.Bird,
+        Animora.Domain.Patients.PetSpecies.Rodent => PetSpecies.Rodent,
+        _ => PetSpecies.Other,
+    };
+
+    private static PatientsPage<TSummary> ToPage<TModel, TSummary>(
+        PagedResult<TModel> batch, Func<TModel, TSummary> map)
+    {
+        var items = batch.Items.Select(map).ToArray();
+        return new PatientsPage<TSummary>(items, batch.TotalCount, batch.Page, batch.PageSize);
     }
 
     // The Contracts directory is unpaged, but each database read remains bounded. Follow the

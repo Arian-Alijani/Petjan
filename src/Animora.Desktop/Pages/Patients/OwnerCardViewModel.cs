@@ -25,12 +25,16 @@ public sealed record OwnerTagViewModel(string Text, IBrush Background, IBrush Fo
 /// </summary>
 public sealed class OwnerCardViewModel
 {
-    public OwnerCardViewModel(
-        OwnerSummary owner,
-        IReadOnlyList<PetSummary> allPets,
-        IReadOnlyList<PetSummary> matchedPets)
+    /// <summary>
+    /// Builds the card from an <see cref="OwnerSummary"/>. The owner's pet roster is optional: with
+    /// server-side owner paging the page no longer holds every pet in RAM, so <paramref name="pets"/>
+    /// may be empty — the pet count then comes from <see cref="OwnerSummary.PetCount"/> (projected in
+    /// SQL) and the pet chips/preview degrade gracefully instead of forcing an N+1 roster fetch.
+    /// </summary>
+    public OwnerCardViewModel(OwnerSummary owner, IReadOnlyList<PetSummary>? pets = null)
     {
         Owner = owner;
+        var roster = pets ?? [];
 
         Name = $"{owner.FirstName} {owner.LastName}";
         Initials = PatientsPresentation.Initials(owner.FirstName, owner.LastName);
@@ -55,19 +59,18 @@ public sealed class OwnerCardViewModel
             })
             .ToArray();
 
-        // The reference shows the pets that match the active filter, falling
-        // back to the owner's full pet list when the filter excludes them all.
-        var shown = matchedPets.Count > 0 ? matchedPets : allPets;
-        Pets = shown.Select(pet => new OwnerPetChipViewModel(pet, owner)).ToArray();
-        PetCountText = $"{PersianNumberFormatter.ToPersianDigits(allPets.Count)} حیوان ثبت‌شده";
-        PetsPreviewText = allPets.Count == 0
+        // Pet count is the SQL-projected OwnerSummary.PetCount (always accurate), not the roster size.
+        var petCount = owner.PetCount > 0 ? owner.PetCount : roster.Count;
+        Pets = roster.Select(pet => new OwnerPetChipViewModel(pet, owner)).ToArray();
+        PetCountText = $"{PersianNumberFormatter.ToPersianDigits(petCount)} حیوان ثبت‌شده";
+        PetsPreviewText = roster.Count == 0
             ? "—"
-            : string.Join("، ", allPets.Take(2).Select(p => p.Name)) + (allPets.Count > 2 ? "…" : string.Empty);
+            : string.Join("، ", roster.Take(2).Select(p => p.Name)) + (roster.Count > 2 ? "…" : string.Empty);
 
         SinceText = $"مشتری از {JalaliDate.FromDateTime(owner.Since).ToString("short")}";
 
-        // Owners table: last visit across the owner's pets.
-        var last = allPets
+        // Owners table: last visit across the owner's pets (none in C01 — no visit source yet).
+        var last = roster
             .Where(p => p.LastVisitDate is not null)
             .OrderByDescending(p => p.LastVisitDate)
             .FirstOrDefault();
@@ -75,7 +78,7 @@ public sealed class OwnerCardViewModel
             ? RelativeDateFormatter.Since(date)
             : "—";
 
-        HasVaccines = allPets.Any(p => p.HasVaccines);
+        HasVaccines = roster.Any(p => p.HasVaccines);
     }
 
     public OwnerSummary Owner { get; }

@@ -13,6 +13,29 @@ public sealed record OwnerSummaryReadModel(
     string Id, string FullName, string PhonePrimary, string? PhoneSecondary, string? NationalId,
     string? Address, OwnerGender Gender, DateTimeOffset RegisteredUtc, int PetCount);
 
+/// <summary>
+/// Stable server-side sort order for the directory projections. Pushed into the SQL
+/// <c>ORDER BY</c> (always with a unique id tiebreaker) so paging never drifts.
+/// </summary>
+public enum PatientDirectorySort
+{
+    /// <summary>Owners: newest registration first; pets: name A–Z (no visit source yet in C01).</summary>
+    Recent,
+
+    /// <summary>Display name A–Z.</summary>
+    Name,
+
+    /// <summary>Owners: oldest registration first; pets: oldest birth date first (age).</summary>
+    Age,
+}
+
+/// <summary>
+/// Directory facet counts resolved for a given search/vaccine filter: total owners, total pets,
+/// and per-species pet counts for the chip rail. The species map omits species with a zero count.
+/// </summary>
+public sealed record PatientDirectoryFacetsReadModel(
+    int TotalOwners, int TotalPets, IReadOnlyDictionary<PetSpecies, int> SpeciesCounts);
+
 /// <summary>Owner sheet: profile + live pet roster.</summary>
 public sealed record OwnerDetailReadModel(OwnerSummaryReadModel Owner, IReadOnlyList<PetSummaryReadModel> Pets);
 

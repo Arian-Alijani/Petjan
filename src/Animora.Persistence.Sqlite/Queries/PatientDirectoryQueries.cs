@@ -18,19 +18,20 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
     private LocalStoreOptions Options => options.Value;
 
     public async Task<PagedResult<PetSummaryReadModel>> GetPetsAsync(
-        string? search, PetSpecies? species, PetStatus? status, int page, int pageSize, CancellationToken ct)
+        string? search, PetSpecies? species, PetStatus? status, PatientDirectorySort sort,
+        int page, int pageSize, CancellationToken ct)
     {
-        var q = db.Set<Pet>().AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var term = PersianText.Normalize(search);
-            q = q.Where(p => EF.Functions.Like(p.SearchKey, $"%{term}%"));
-        }
-        if (species is { } sp) q = q.Where(p => p.Species == sp);
-        if (status is { } st) q = q.Where(p => p.Status == st);
+        var filtered = FilterPets(db.Set<Pet>().AsNoTracking(), search, species, status);
 
-        var projected = q
-            .OrderBy(p => p.Name).ThenBy(p => p.Id)
+        // Stable ORDER BY with a unique id tiebreaker so Skip/Take never drifts. No visit source
+        // exists yet in C01, so "Recent" falls back to name-ordered (same as Name) until C03.
+        var ordered = sort switch
+        {
+            PatientDirectorySort.Age => filtered.OrderBy(p => p.BirthDateUtc).ThenBy(p => p.Id),
+            _ => filtered.OrderBy(p => p.Name).ThenBy(p => p.Id),
+        };
+
+        var projected = ordered
             .Select(p => new PetSummaryReadModel(
                 p.Id, p.Name, p.Species, p.Breed, p.Color, p.Gender, p.Status, p.OwnerId, p.BirthDateUtc,
                 db.Set<WeightEntry>().Where(w => w.PetId == p.Id)
@@ -41,21 +42,76 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
     }
 
     public async Task<PagedResult<OwnerSummaryReadModel>> GetOwnersAsync(
-        string? search, int page, int pageSize, CancellationToken ct)
+        string? search, PetSpecies? species, PetStatus? status, PatientDirectorySort sort,
+        int page, int pageSize, CancellationToken ct)
     {
-        var q = db.Set<Owner>().AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(search))
+        var owners = FilterOwners(search, species, status);
+
+        var ordered = sort switch
         {
-            var term = PersianText.Normalize(search);
-            q = q.Where(o => EF.Functions.Like(o.SearchKey, $"%{term}%"));
-        }
-        var projected = q
-            .OrderBy(o => o.FullName).ThenBy(o => o.Id)
+            PatientDirectorySort.Name => owners.OrderBy(o => o.FullName).ThenBy(o => o.Id),
+            PatientDirectorySort.Age => owners.OrderBy(o => o.RegisteredUtc).ThenBy(o => o.Id),
+            _ => owners.OrderByDescending(o => o.RegisteredUtc).ThenBy(o => o.Id),
+        };
+
+        var projected = ordered
             .Select(o => new OwnerSummaryReadModel(
                 o.Id, o.FullName, o.PhonePrimary, o.PhoneSecondary, o.NationalId, o.Address, o.Gender,
                 o.RegisteredUtc,
                 db.Set<Pet>().Count(p => p.OwnerId == o.Id)));
         return await projected.ToPagedAsync(page, pageSize, Options, ct);
+    }
+
+    public async Task<PatientDirectoryFacetsReadModel> GetFacetsAsync(
+        string? search, PetSpecies? species, PetStatus? status, CancellationToken ct)
+    {
+        // Totals under the active search/species/status filter (owners cross-filtered to those
+        // with a matching pet, exactly like GetOwnersAsync).
+        var totalPets = await FilterPets(db.Set<Pet>().AsNoTracking(), search, species, status).CountAsync(ct);
+        var totalOwners = await FilterOwners(search, species, status).CountAsync(ct);
+
+        // Per-species chip counts ignore the species filter (chips show the full taxonomy under
+        // the current text/status filter) — one grouped COUNT, not N queries.
+        var speciesCounts = await FilterPets(db.Set<Pet>().AsNoTracking(), search, species: null, status)
+            .GroupBy(p => p.Species)
+            .Select(g => new { Species = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Species, x => x.Count, ct);
+
+        return new PatientDirectoryFacetsReadModel(totalOwners, totalPets, speciesCounts);
+    }
+
+    /// <summary>Shared pet filter (search + species + status) reused by the list page and the
+    /// facet/owner cross-filter so every count and every page agree on one predicate.</summary>
+    private static IQueryable<Pet> FilterPets(
+        IQueryable<Pet> q, string? search, PetSpecies? species, PetStatus? status)
+    {
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = PersianText.Normalize(search);
+            q = q.Where(p => EF.Functions.Like(p.SearchKey, $"%{term}%"));
+        }
+        if (species is { } sp) q = q.Where(p => p.Species == sp);
+        if (status is { } st) q = q.Where(p => p.Status == st);
+        return q;
+    }
+
+    /// <summary>Owner filter: text match on the owner's SearchKey, plus — when a species/status
+    /// filter is active — an EXISTS narrowing to owners with at least one matching pet (the
+    /// owner⇄pet cross-filter runs in SQL, never client-side).</summary>
+    private IQueryable<Owner> FilterOwners(string? search, PetSpecies? species, PetStatus? status)
+    {
+        var owners = db.Set<Owner>().AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = PersianText.Normalize(search);
+            owners = owners.Where(o => EF.Functions.Like(o.SearchKey, $"%{term}%"));
+        }
+        if (species is not null || status is not null)
+        {
+            var matchingPets = FilterPets(db.Set<Pet>().AsNoTracking(), search: null, species, status);
+            owners = owners.Where(o => matchingPets.Any(p => p.OwnerId == o.Id));
+        }
+        return owners;
     }
 
     public async Task<OwnerDetailReadModel?> GetOwnerAsync(string ownerId, CancellationToken ct)

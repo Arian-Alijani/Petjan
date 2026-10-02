@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Animora.Contracts.Patients;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
@@ -10,12 +9,14 @@ using CommunityToolkit.Mvvm.Input;
 namespace Animora.Desktop.Pages.Patients;
 
 /// <summary>
-/// ViewModel for the Patients &amp; Owners directory (Phase 08). Loads the
-/// directory from <see cref="IPatientsQueryService"/> (the sole data seam) and
-/// reproduces the reference's toolbar + list/grid behavior: a search box, a
-/// derived species-chip filter rail, a pets/owners entity switch, a list/grid
-/// layout toggle, a vaccination filter, a sort select, and the derived owner /
-/// pet collections (mirroring <c>petMatches</c>/<c>ownerMatches</c>/<c>sortPets</c>).
+/// ViewModel for the Patients &amp; Owners directory (Phase 08, C01 scalability pass).
+/// <para>
+/// Search, species/vaccine filtering, sorting and paging all run <b>server-side</b>: every toolbar
+/// change rebuilds a <see cref="PatientsDirectoryQuery"/> and asks <see cref="IPatientsQueryService"/>
+/// for exactly one bounded page of the active entity plus the directory facet counts. The page never
+/// materializes the whole table in RAM, never loops over every DB page, and does no client-side
+/// filter/sort/haystack work — so it scales to 50k+ records with a constant memory + 2-query cost.
+/// </para>
 /// </summary>
 public sealed partial class PatientsPageViewModel : PageViewModelBase
 {
@@ -24,20 +25,6 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
-    private IReadOnlyList<PetSummary> _allPets = [];
-    private IReadOnlyList<OwnerSummary> _allOwners = [];
-
-    // O(1) lookup indexes (PERFORMANCE.md §2/§13): rebuilt once per data load in
-    // RebuildIndexes(), never inside ApplyFilter. Mirrors the reference pattern in
-    // AppointmentsCalendarViewModel.RebuildIndexes(). These turn the previous
-    // O(owners × pets) filter into O(owners + pets).
-    private readonly Dictionary<string, OwnerSummary> _ownersById = [];
-    private readonly Dictionary<string, List<PetSummary>> _petsByOwnerId = [];
-
-    // Pre-normalized per-item search haystacks: computed once at load time so the
-    // per-keystroke ApplyFilter never rebuilds a StringBuilder/string per item.
-    private readonly Dictionary<string, string> _petHaystack = [];
-    private readonly Dictionary<string, string> _ownerHaystack = [];
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -57,20 +44,19 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     [ObservableProperty]
     private PetSpecies? _selectedSpecies;
 
-    // ── Pagination (PERFORMANCE.md §1/§13: cap realized rows for fast first
-    // paint on large directories). The filter/sort pipeline runs over ALL
-    // matches so counts stay accurate; only the current page is materialized
-    // into the bound collections. "همه" (All) maps to AllPageSize.
-    private const int AllPageSize = int.MaxValue;
-
-    /// <summary>Selectable page sizes shown in the toolbar dropdown.</summary>
+    /// <summary>Selectable page sizes shown in the toolbar dropdown. "همه" maps to the server page
+    /// ceiling (200) — the directory is always paged now, so there is no unbounded "show all".</summary>
     public IReadOnlyList<PatientsPageSizeOption> PageSizeOptions { get; } =
     [
         new(25, "۲۵ پرونده"),
         new(50, "۵۰ پرونده"),
         new(100, "۱۰۰ پرونده"),
-        new(AllPageSize, "همه"),
+        new(ServerMaxPageSize, "همه"),
     ];
+
+    // The server hard-caps a page at 200 rows (QueryPaging.HardMaxPageSize); mirror it here so the
+    // page math and the requested page size never disagree with what the DB can return.
+    private const int ServerMaxPageSize = 200;
 
     // Default 50 (index 1) — the requested default visible count.
     [ObservableProperty]
@@ -79,8 +65,11 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     [ObservableProperty]
     private int _currentPage = 1;
 
-    // Total matches for the active entity, before paging — drives the page
-    // indicator, nav-button enable state, and the result counter.
+    // Facet counters for the active query (resolved server-side alongside the page).
+    private int _totalOwnerMatches;
+    private int _totalPetMatches;
+
+    // Total matches for the ACTIVE entity (owners or pets) — drives the page math + nav state.
     private int _totalMatchCount;
 
     public PatientsPageViewModel(
@@ -99,10 +88,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         Eyebrow = "مدیریت کلینیک";
         Breadcrumbs.Add("مدیریت کلینیک");
         Breadcrumbs.Add("بیماران");
-        // Non-blocking init (PERFORMANCE.md §4): never .GetAwaiter().GetResult()
-        // on the UI thread. The mock completes synchronously, so this still fills
-        // the directory before the constructor returns, while a real async
-        // backend keeps the shell responsive.
+        // Non-blocking init (PERFORMANCE.md §4): never block the UI thread on the first load.
         UseLoadStatus(ReloadPageAsync);
         // Owner/pet sheets edit records from over this page; the page's own wizard/add-pet writes reload directly.
         RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Patients);
@@ -125,8 +111,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     public string RecentSortLabel => IsOwnersView ? "جدیدترین ثبت" : "جدیدترین ویزیت";
     public string AgeSortLabel => IsOwnersView ? "قدیمی‌ترین ثبت" : "سن";
 
-    // Content-region visibility: the four rendering combinations plus the
-    // shared empty state (reference render() swaps host class + content).
+    // Content-region visibility: the four rendering combinations plus the shared empty state.
     public bool ShowOwnersGrid => IsOwnersView && IsGridView && HasOwners;
     public bool ShowOwnersTable => IsOwnersView && IsListView && HasOwners;
     public bool ShowPetsGrid => IsPetsView && IsGridView && HasPets;
@@ -135,11 +120,10 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     public string EmptyTitle => IsOwnersView ? "مالکی پیدا نشد" : "بیماری پیدا نشد";
 
     // ── Pagination-derived state ──────────────────────────────────────────
-    private int PageSize => SelectedPageSize?.Value ?? 50;
-    private bool ShowAll => PageSize >= AllPageSize;
+    private int PageSize => Math.Clamp(SelectedPageSize?.Value ?? 50, 1, ServerMaxPageSize);
 
     /// <summary>Total number of pages for the active entity (>= 1).</summary>
-    public int PageCount => ShowAll || _totalMatchCount == 0
+    public int PageCount => _totalMatchCount == 0
         ? 1
         : (int)Math.Ceiling(_totalMatchCount / (double)PageSize);
 
@@ -154,7 +138,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         $"صفحه {PersianNumberFormatter.ToPersianDigits(CurrentPage)} از "
         + $"{PersianNumberFormatter.ToPersianDigits(PageCount)}";
 
-    /// <summary>Range caption, e.g. «۵۱ تا ۱۰۰ از ۲۴۰».</summary>
+    /// <summary>Range caption, e.g. «۵۱–۱۰۰ از ۲۴۰».</summary>
     public string PageRangeText
     {
         get
@@ -164,17 +148,12 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
                 return string.Empty;
             }
 
-            var from = ShowAll ? 1 : ((CurrentPage - 1) * PageSize) + 1;
-            var to = ShowAll ? _totalMatchCount : Math.Min(CurrentPage * PageSize, _totalMatchCount);
+            var from = ((CurrentPage - 1) * PageSize) + 1;
+            var to = Math.Min(CurrentPage * PageSize, _totalMatchCount);
             return $"{PersianNumberFormatter.ToPersianDigits(from)}–{PersianNumberFormatter.ToPersianDigits(to)}"
                  + $" از {PersianNumberFormatter.ToPersianDigits(_totalMatchCount)}";
         }
     }
-
-    // Full match totals (before paging) per entity — kept so the counter and
-    // page math reflect every match, not just the realized page slice.
-    private int _totalOwnerMatches;
-    private int _totalPetMatches;
 
     /// <summary>Result counter text (reference toolbar .pb-count).</summary>
     public string ResultCountText => ViewMode == PatientViewMode.Owners
@@ -196,32 +175,32 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         set => Sort = (PatientSort)Math.Clamp(value, 0, 2);
     }
 
-    private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
+    private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
 
-    partial void OnSearchTextChanged(string value) => _searchDebounce.Debounce(ApplyFilter);
+    // Typing re-queries the server; debounced so a burst of keystrokes is one DB round-trip.
+    partial void OnSearchTextChanged(string value) =>
+        _searchDebounce.Debounce(() => ReloadFromFilter());
 
-    partial void OnViewModeChanged(PatientViewMode value) => ApplyFilter();
+    partial void OnViewModeChanged(PatientViewMode value) => ReloadFromFilter();
 
     partial void OnLayoutChanged(PatientLayout value) => NotifyDerived();
 
     partial void OnVaccineFilterChanged(VaccineFilter value)
     {
         OnPropertyChanged(nameof(VaccineFilterIndex));
-        ApplyFilter();
+        ReloadFromFilter();
     }
 
     partial void OnSortChanged(PatientSort value)
     {
         OnPropertyChanged(nameof(SortIndex));
-        ApplyFilter();
+        ReloadFromFilter();
     }
 
-    // Changing page size (or any filter/sort/view) resets to page 1 and re-slices.
-    partial void OnSelectedPageSizeChanged(PatientsPageSizeOption value)
-    {
-        CurrentPage = 1;
-        ApplyFilter();
-    }
+    partial void OnSelectedSpeciesChanged(PetSpecies? value) => ReloadFromFilter();
+
+    // Changing page size resets to page 1 and re-queries.
+    partial void OnSelectedPageSizeChanged(PatientsPageSizeOption value) => ReloadFromFilter();
 
     partial void OnCurrentPageChanged(int value) => NotifyPaginationDerived();
 
@@ -232,7 +211,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         if (CanGoNext)
         {
             CurrentPage++;
-            RematerializePage();
+            _ = ReloadPageAsync();
         }
     }
 
@@ -243,7 +222,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         if (CanGoPrevious)
         {
             CurrentPage--;
-            RematerializePage();
+            _ = ReloadPageAsync();
         }
     }
 
@@ -278,15 +257,12 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     };
 
     [RelayCommand]
-    private void SetSpecies(string? species)
-    {
+    private void SetSpecies(string? species) =>
         SelectedSpecies = string.IsNullOrEmpty(species) || species == "all"
             ? null
             : Enum.TryParse<PetSpecies>(species, ignoreCase: true, out var parsed)
                 ? parsed
                 : null;
-        ApplyFilter();
-    }
 
     [RelayCommand]
     private void ClearSearch() => SearchText = string.Empty;
@@ -294,24 +270,24 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     [RelayCommand]
     private void ResetFilters()
     {
+        // Suppress the per-property reloads so clearing three filters is a single round-trip.
+        _suppressReload = true;
         SearchText = string.Empty;
         SelectedSpecies = null;
         VaccineFilter = VaccineFilter.All;
-        ApplyFilter();
+        _suppressReload = false;
+        ReloadFromFilter();
     }
 
     /// <summary>
-    /// Drill-in: opens the pet file in the centered record sheet (reference
-    /// renders the patient file as <c>.sheet.pet-sheet</c> over the directory,
-    /// not a separate page).
+    /// Drill-in: opens the pet file in the centered record sheet.
     /// </summary>
     [RelayCommand]
     private Task OpenPet(PetSummary? pet) =>
         pet is not null ? _presenter.OpenPetSheetAsync(pet.Id) : Task.CompletedTask;
 
     /// <summary>
-    /// Drill-in: opens the owner file in the centered record sheet (reference
-    /// <c>.sheet.owner-sheet</c>).
+    /// Drill-in: opens the owner file in the centered record sheet.
     /// </summary>
     [RelayCommand]
     private Task OpenOwner(OwnerSummary? owner) =>
@@ -325,12 +301,10 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     [RelayCommand]
     private void AddNewOwnerPet() =>
         _dialogs.ShowModal(new AddPatientWizardViewModel(
-            // The wizard persists a new owner/pet, so reload (which rebuilds the
-            // lookup/haystack indexes) rather than re-filtering stale data.
             _patientsQueryService, _dialogs, () =>
             {
                 _changes.Notify(DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
-                _ = LoadAsync();
+                _ = ReloadPageAsync();
             }), maxWidth: 760);
 
     [RelayCommand]
@@ -363,7 +337,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             {
                 await _patientsQueryService.CreatePetAsync(detail.Id, req);
                 _changes.Notify(DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
-                await LoadAsync();
+                await ReloadPageAsync();
                 _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
             },
             _dialogs), maxWidth: 760);
@@ -378,6 +352,31 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     private Task ReloadPageAsync() => TrackLoadResultAsync(LoadAsync);
 
     private readonly SemaphoreSlim _loadGate = new(1, 1);
+    private bool _suppressReload;
+
+    /// <summary>A filter/sort/view/page-size change: snap back to page 1 and re-query the server.</summary>
+    private void ReloadFromFilter()
+    {
+        if (_suppressReload) return;
+        CurrentPage = 1;
+        _ = ReloadPageAsync();
+    }
+
+    /// <summary>Builds the current directory query from the toolbar state.</summary>
+    private PatientsDirectoryQuery CurrentQuery() => new(
+        Search: SearchText,
+        Species: SelectedSpecies,
+        Vaccine: VaccineFilter,
+        Sort: MapSort(Sort),
+        Page: CurrentPage,
+        PageSize: PageSize);
+
+    private static PatientsSortOrder MapSort(PatientSort sort) => sort switch
+    {
+        PatientSort.Name => PatientsSortOrder.Name,
+        PatientSort.Age => PatientsSortOrder.Age,
+        _ => PatientsSortOrder.Recent,
+    };
 
     /// <returns>False when the load failed (already reported to the user here).</returns>
     private async Task<bool> LoadAsync()
@@ -386,14 +385,31 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         IsBusy = true;
         try
         {
-            // Publish only after BOTH complete. A failed reload must not mix new pets with old owners.
-            var pets = await _patientsQueryService.GetPetsAsync();
-            var owners = await _patientsQueryService.GetOwnersAsync();
-            _allPets = pets;
-            _allOwners = owners;
-            RebuildIndexes();
-            BuildSpeciesChips();
-            ApplyFilter();
+            var query = CurrentQuery();
+
+            // Facets (totals + species counts) resolve alongside the active entity's page. Only the
+            // visible entity's rows are fetched — switching owners⇄pets re-queries on demand.
+            var facetsTask = _patientsQueryService.GetDirectoryFacetsAsync(query);
+            if (IsOwnersView)
+            {
+                var pageTask = _patientsQueryService.GetOwnersPageAsync(query);
+                await Task.WhenAll(facetsTask, pageTask);
+                PublishFacets(facetsTask.Result);
+                PublishOwners(pageTask.Result);
+                FilteredPets.Clear();
+                PetRows.Clear();
+            }
+            else
+            {
+                var pageTask = _patientsQueryService.GetPetsPageAsync(query);
+                await Task.WhenAll(facetsTask, pageTask);
+                PublishFacets(facetsTask.Result);
+                PublishPets(pageTask.Result);
+                FilteredOwners.Clear();
+                OwnerRows.Clear();
+            }
+
+            NotifyDerived();
             return true;
         }
         catch (Exception)
@@ -408,162 +424,38 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         }
     }
 
-    // Full, sorted match sets cached by ApplyFilter so page navigation only
-    // re-slices (RematerializePage) instead of re-running the filter/sort.
-    private IReadOnlyList<PetSummary> _sortedPetMatches = [];
-    private IReadOnlyList<OwnerSummary> _sortedOwnerMatches = [];
-    private ILookup<string, PetSummary> _matchedByOwner =
-        Array.Empty<PetSummary>().ToLookup(p => p.OwnerId);
-
-    private void ApplyFilter()
+    private void PublishFacets(PatientsDirectoryFacets facets)
     {
-        var needle = PersianText.Normalize(SearchText);
-        var matchedPets = _allPets.Where(pet => PetMatches(pet, needle)).ToArray();
-        _matchedByOwner = matchedPets.ToLookup(pet => pet.OwnerId);
-
-        // Owner filtering mirrors the reference's ownerMatches: the owner's own
-        // fields OR any of their pets matching, with species/vaccine filters
-        // requiring at least one matching pet.
-        var matchedOwners = _allOwners
-            .Where(owner => OwnerMatches(owner, needle, _matchedByOwner.Contains(owner.Id)))
-            .ToArray();
-
-        // Sort the FULL match sets once; paging slices from these caches.
-        _sortedPetMatches = SortPets(matchedPets).ToArray();
-        _sortedOwnerMatches = SortOwners(matchedOwners).ToArray();
-        _totalPetMatches = _sortedPetMatches.Count;
-        _totalOwnerMatches = _sortedOwnerMatches.Count;
-
-        // A filter/sort/view change always returns to the first page.
-        CurrentPage = 1;
-        RematerializePage();
-
-        foreach (var chip in SpeciesChips) chip.IsActive = chip.Value == SelectedSpecies;
-    }
-
-    /// <summary>
-    /// Materializes only the current page's slice of the cached match sets into
-    /// the bound collections (card VMs are created here, so off-page records
-    /// never allocate a VM — the core first-paint win). Called on every page or
-    /// page-size change; the expensive filter/sort stays in ApplyFilter.
-    /// </summary>
-    private void RematerializePage()
-    {
-        // Active entity drives the page total used for clamping.
+        _totalOwnerMatches = facets.TotalOwners;
+        _totalPetMatches = facets.TotalPets;
         _totalMatchCount = IsOwnersView ? _totalOwnerMatches : _totalPetMatches;
+
+        // Clamp the requested page into range now that the real total is known (e.g. a filter that
+        // shrank the result set below the current page index).
         CurrentPage = Math.Clamp(CurrentPage, 1, Math.Max(1, PageCount));
 
-        var skip = ShowAll ? 0 : (CurrentPage - 1) * PageSize;
-        var take = ShowAll ? int.MaxValue : PageSize;
+        BuildSpeciesChips(facets.SpeciesCounts);
+    }
 
-        var pagePets = _sortedPetMatches.Skip(skip).Take(take);
-        var pageOwners = _sortedOwnerMatches.Skip(skip).Take(take);
-
-        FilteredPets.ReplaceAll(
-            pagePets.Select(pet => new PetCardViewModel(pet, OwnerById(pet.OwnerId))));
-
-        FilteredOwners.ReplaceAll(
-            pageOwners.Select(owner => new OwnerCardViewModel(
-                owner,
-                PetsOfOwner(owner.Id),
-                _matchedByOwner[owner.Id].ToArray())));
-
-        // Virtualize rows, not individual cards, exactly like the boarding directory.
+    private void PublishOwners(PatientsPage<OwnerSummary> page)
+    {
+        // Server-side owner paging: no pet roster in RAM. OwnerCard renders from OwnerSummary
+        // (PetCount is SQL-projected); the pet chips degrade gracefully (see OwnerCardViewModel).
+        FilteredOwners.ReplaceAll(page.Items.Select(owner => new OwnerCardViewModel(owner)));
         OwnerRows.ReplaceAll(FilteredOwners.Chunk(3).Select(cards => new OwnerCardRowViewModel(cards)));
+    }
+
+    private void PublishPets(PatientsPage<PetSummary> page)
+    {
+        FilteredPets.ReplaceAll(page.Items.Select(pet => new PetCardViewModel(pet, owner: null)));
         PetRows.ReplaceAll(FilteredPets.Chunk(3).Select(cards => new PetCardRowViewModel(cards)));
-
-        NotifyDerived();
     }
 
-    private bool PetMatches(PetSummary pet, string needle)
-    {
-        if (SelectedSpecies is { } species && pet.Species != species)
-        {
-            return false;
-        }
-
-        if (VaccineFilter == VaccineFilter.Has && !pet.HasVaccines)
-        {
-            return false;
-        }
-
-        if (VaccineFilter == VaccineFilter.None && pet.HasVaccines)
-        {
-            return false;
-        }
-
-        if (needle.Length == 0)
-        {
-            return true;
-        }
-
-        // Text match uses the pre-normalized haystack built in RebuildIndexes()
-        // instead of re-joining/normalizing per keystroke (PERFORMANCE.md §2).
-        return _petHaystack.TryGetValue(pet.Id, out var haystack)
-            && PersianText.Contains(haystack, needle);
-    }
-
-    private bool OwnerMatches(OwnerSummary owner, string needle, bool hasPet)
-    {
-
-        // A species/vaccination filter narrows owners to those with a match.
-        if (SelectedSpecies is not null || VaccineFilter != VaccineFilter.All)
-        {
-            return hasPet;
-        }
-
-        if (needle.Length == 0)
-        {
-            return true;
-        }
-
-        // Text match uses the pre-normalized haystack built in RebuildIndexes()
-        // instead of re-joining/normalizing per keystroke (PERFORMANCE.md §2).
-        return (_ownerHaystack.TryGetValue(owner.Id, out var haystack)
-            && PersianText.Contains(haystack, needle)) || hasPet;
-    }
-
-    /// <summary>
-    /// Sorts pets per the reference's <c>sortPets</c>: name = A–Z (Persian),
-    /// age = oldest first, recent = newest last-visit first (missing = 1390/01/01).
-    /// </summary>
-    private IEnumerable<PetSummary> SortPets(IEnumerable<PetSummary> pets)
-    {
-        var list = pets.ToList();
-        switch (Sort)
-        {
-            case PatientSort.Name:
-                list.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCulture));
-                break;
-            case PatientSort.Age:
-                list.Sort((a, b) => a.BirthDate.CompareTo(b.BirthDate));
-                break;
-            default:
-                list.Sort((a, b) =>
-                    (b.LastVisitDate ?? new DateTime(2011, 3, 21)).CompareTo(
-                        a.LastVisitDate ?? new DateTime(2011, 3, 21)));
-                break;
-        }
-
-        return list;
-    }
-
-    private static readonly StringComparer PersianNameComparer =
-        StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("fa-IR"), ignoreCase: true);
-
-    private IEnumerable<OwnerSummary> SortOwners(IEnumerable<OwnerSummary> owners) => Sort switch
-    {
-        PatientSort.Name => owners.OrderBy(o => PersianText.Normalize($"{o.FirstName} {o.LastName}"), PersianNameComparer)
-            .ThenBy(o => o.Id, StringComparer.Ordinal),
-        PatientSort.Age => owners.OrderBy(o => o.Since).ThenBy(o => o.Id, StringComparer.Ordinal),
-        _ => owners.OrderByDescending(o => o.Since).ThenByDescending(o => o.Id, StringComparer.Ordinal),
-    };
-
-    private void BuildSpeciesChips()
+    private void BuildSpeciesChips(IReadOnlyDictionary<PetSpecies, int> speciesCounts)
     {
         SpeciesChips.Clear();
         SpeciesChips.Add(new PatientsSpeciesChipViewModel(
-            null, "همه گونه‌ها", "IconPaw", _allPets.Count));
+            null, "همه گونه‌ها", "IconPaw", _totalPetMatches));
 
         foreach (var species in new[]
                  {
@@ -571,7 +463,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
                      PetSpecies.Rabbit, PetSpecies.Rodent, PetSpecies.Other,
                  })
         {
-            var count = _allPets.Count(p => p.Species == species);
+            var count = speciesCounts.GetValueOrDefault(species);
             if (count == 0)
             {
                 continue;
@@ -597,10 +489,6 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(HasSearchText));
         OnPropertyChanged(nameof(ResultCountText));
 
-        // Entity / layout switches — the XAML binds visibility to these computed
-        // properties, so they must be re-raised whenever ViewMode/Layout or the
-        // filtered collections change; otherwise the toggle only takes effect
-        // after navigating away and back (forcing a full re-render).
         OnPropertyChanged(nameof(IsOwnersView));
         OnPropertyChanged(nameof(RecentSortLabel));
         OnPropertyChanged(nameof(AgeSortLabel));
@@ -608,7 +496,6 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsGridView));
         OnPropertyChanged(nameof(IsListView));
 
-        // The four render combinations + shared empty state.
         OnPropertyChanged(nameof(ShowOwnersGrid));
         OnPropertyChanged(nameof(ShowOwnersTable));
         OnPropertyChanged(nameof(ShowPetsGrid));
@@ -631,50 +518,5 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(PageRangeText));
         NextPageCommand.NotifyCanExecuteChanged();
         PreviousPageCommand.NotifyCanExecuteChanged();
-    }
-
-    private OwnerSummary? OwnerById(string ownerId) =>
-        _ownersById.GetValueOrDefault(ownerId);
-
-    private IReadOnlyList<PetSummary> PetsOfOwner(string ownerId) =>
-        _petsByOwnerId.GetValueOrDefault(ownerId) ?? [];
-
-    /// <summary>
-    /// Rebuilds the owner/pet id indexes and the per-item search haystacks.
-    /// Call once whenever <see cref="_allPets"/>/<see cref="_allOwners"/> change
-    /// (i.e. after every <see cref="LoadAsync"/>) — never inside the filter loop.
-    /// Mirrors <c>AppointmentsCalendarViewModel.RebuildIndexes()</c>. This is what
-    /// keeps <see cref="ApplyFilter"/> at O(owners + pets) instead of O(owners × pets).
-    /// </summary>
-    private void RebuildIndexes()
-    {
-        _ownersById.Clear();
-        _ownerHaystack.Clear();
-        foreach (var owner in _allOwners)
-        {
-            _ownersById[owner.Id] = owner;
-            _ownerHaystack[owner.Id] = PersianText.Normalize(string.Join(' ',
-                owner.FirstName, owner.LastName, owner.File, owner.Mobile1, owner.Mobile2,
-                owner.Phone, owner.NationalId, owner.Address, owner.Referral));
-        }
-
-        _petsByOwnerId.Clear();
-        _petHaystack.Clear();
-        foreach (var pet in _allPets)
-        {
-            if (!_petsByOwnerId.TryGetValue(pet.OwnerId, out var bucket))
-            {
-                bucket = [];
-                _petsByOwnerId[pet.OwnerId] = bucket;
-            }
-
-            bucket.Add(pet);
-
-            var owner = _ownersById.GetValueOrDefault(pet.OwnerId);
-            _petHaystack[pet.Id] = PersianText.Normalize(string.Join(' ',
-                pet.Name, pet.Code, pet.Breed, PatientsPresentation.SpeciesLabel(pet.Species),
-                pet.Color, owner?.FirstName, owner?.LastName, owner?.File,
-                owner?.Mobile1, owner?.Mobile2, owner?.Phone, owner?.NationalId, pet.MicrochipCode));
-        }
     }
 }

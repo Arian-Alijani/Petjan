@@ -22,7 +22,7 @@ internal static class PatientsMapping
         var (first, last) = SplitName(m.FullName);
         return new OwnerSummary(m.Id, m.Id /*File*/, first, last, MapOwnerGender(m.Gender),
             m.PhonePrimary, m.PhoneSecondary, Phone: null, m.NationalId ?? "", m.Address, Referral: null,
-            m.RegisteredUtc.UtcDateTime, Tone(m.Id), Tags: []);
+            m.RegisteredUtc.UtcDateTime, Tone(m.Id), Tags: [], PetCount: m.PetCount);
     }
 
     public static OwnerDetail ToDetail(this OwnerDetailReadModel m)

@@ -104,4 +104,5 @@ public sealed record OwnerSummary(
     string? Referral,
     DateTime Since,
     PatientAvatarTone Tone,
-    IReadOnlyList<string> Tags);
+    IReadOnlyList<string> Tags,
+    int PetCount = 0);

@@ -21,17 +21,6 @@ public enum PatientLayout
 }
 
 /// <summary>
-/// Vaccination filter, mirroring the reference's <c>S.vax</c> select
-/// (all | has | none).
-/// </summary>
-public enum VaccineFilter
-{
-    All,
-    Has,
-    None,
-}
-
-/// <summary>
 /// Sort order for the pets view, mirroring the reference's <c>S.sort</c> select
 /// (recent | name | age).
 /// </summary>
