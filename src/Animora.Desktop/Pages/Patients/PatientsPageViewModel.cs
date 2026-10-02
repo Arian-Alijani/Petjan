@@ -485,7 +485,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         foreach (var species in new[]
                  {
                      PetSpecies.Dog, PetSpecies.Cat, PetSpecies.Bird,
-                     PetSpecies.Rabbit, PetSpecies.Rodent, PetSpecies.Other,
+                     PetSpecies.Rabbit, PetSpecies.Rodent, PetSpecies.Reptile, PetSpecies.Other,
                  })
         {
             var count = speciesCounts.GetValueOrDefault(species);

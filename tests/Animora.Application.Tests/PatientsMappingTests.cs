@@ -33,7 +33,7 @@ public sealed class PatientsMappingTests
         Assert.Equal(PetSpecies.Cat, cat.Species);
 
         Assert.Equal(PetSpecies.Rodent, Pet(DomainPetSpecies.Rodent).ToSummary().Species);
-        Assert.Equal(PetSpecies.Other, Pet(DomainPetSpecies.Reptile).ToSummary().Species);
+        Assert.Equal(PetSpecies.Reptile, Pet(DomainPetSpecies.Reptile).ToSummary().Species);
 
         // Lifecycle → clinical pill.
         Assert.Equal(PetStatus.Healthy, Pet(status: DomainPetStatus.Active).ToSummary().Status);
@@ -138,7 +138,8 @@ public sealed class PatientsMappingTests
     [Fact]
     public void ContractsToDomainConversions_MapRabbitToOtherAndAreRoundTripSafe()
     {
-        Assert.Equal(DomainPetSpecies.Other, PetSpecies.Rabbit.ToDomain());
+        Assert.Equal(DomainPetSpecies.Rabbit, PetSpecies.Rabbit.ToDomain());
+        Assert.Equal(DomainPetSpecies.Reptile, PetSpecies.Reptile.ToDomain());
         Assert.Equal(DomainPetSpecies.Cat, PetSpecies.Cat.ToDomain());
         Assert.Equal(DomainPetGender.Unknown, PetGender.Unknown.ToDomain());
         Assert.Equal(DomainOwnerGender.Male, OwnerGender.Male.ToDomain());

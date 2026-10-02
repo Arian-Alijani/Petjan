@@ -156,7 +156,7 @@ new row. Do not change Contracts/UI in this task.
 
 ---
 
-### [ ] T03 — P03 (P1) · Species enum mismatch (Reptile↔Rabbit) is lossy/asymmetric
+### [x] T03 — P03 (P1) · Species enum mismatch (Reptile↔Rabbit) is lossy/asymmetric
 **Root cause (confirmed):** Domain has `Reptile` (no Rabbit); Contracts has `Rabbit` (no Reptile).
 Maps fold both to Other: MAP:67-74 (`MapSpecies` Domain→Contracts: Reptile → `_` → Other),
 MAP:97-105 (`ToDomain` Contracts→Domain: `Rabbit → Other`), SVC:123-130 (`MapSpeciesToContract`

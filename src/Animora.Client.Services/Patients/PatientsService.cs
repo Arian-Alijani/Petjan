@@ -115,8 +115,7 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         _ => PatientDirectorySort.Recent,
     };
 
-    // Contracts → Domain species for the server-side filter. Rabbit has no distinct Domain value
-    // (same as the write path in PatientsMapping.ToDomain), so it folds into Other.
+    // Contracts → Domain species for the server-side filter (bijective with the write path).
     private static Animora.Domain.Patients.PetSpecies? MapSpecies(PetSpecies? s) =>
         s is { } v ? v.ToDomain() : null;
 
@@ -126,6 +125,8 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         Animora.Domain.Patients.PetSpecies.Cat => PetSpecies.Cat,
         Animora.Domain.Patients.PetSpecies.Bird => PetSpecies.Bird,
         Animora.Domain.Patients.PetSpecies.Rodent => PetSpecies.Rodent,
+        Animora.Domain.Patients.PetSpecies.Reptile => PetSpecies.Reptile,
+        Animora.Domain.Patients.PetSpecies.Rabbit => PetSpecies.Rabbit,
         _ => PetSpecies.Other,
     };
 

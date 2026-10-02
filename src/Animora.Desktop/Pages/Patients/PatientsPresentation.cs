@@ -25,6 +25,7 @@ public static class PatientsPresentation
         PetSpecies.Bird => "پرنده",
         PetSpecies.Rabbit => "خرگوش",
         PetSpecies.Rodent => "جوندگان",
+        PetSpecies.Reptile => "خزندگان",
         _ => "سایر",
     };
 
@@ -50,6 +51,7 @@ public static class PatientsPresentation
             PetSpecies.Bird => ("#fffaeb", "#fffaf0"),
             PetSpecies.Rabbit => ("#fbe4f1", "#fff5fb"),
             PetSpecies.Rodent => ("#ddf0e9", "#f3fbf8"),
+            PetSpecies.Reptile => ("#e6f3d9", "#f6fbf0"),
             _ => ("#eff8ff", "#f4f8ff"),
         };
         return Diagonal(from, to);
@@ -164,7 +166,8 @@ public static class PatientsPresentation
         PetSpecies.Bird => ["طوطی کاسکو", "کاکادو", "مرغ عشق", "قناری", "روزلا"],
         PetSpecies.Rabbit => ["لوپ هلندی", "آنقوره", "رکس", "مینی لوپ"],
         PetSpecies.Rodent => ["همستر سوری", "خوکچه هندی", "چینچیلا"],
-        _ => ["لاک‌پشت", "ایگوانا", "مار"],
+        PetSpecies.Reptile => ["لاک‌پشت", "ایگوانا", "مار"],
+        _ => ["سایر"],
     };
 
     /// <summary>Reference taxonomy option lists (patients-data.js).</summary>
@@ -182,7 +185,7 @@ public static class PatientsPresentation
 
     /// <summary>Species display order for the wizard's type tiles (patients-data.js SPECIES order).</summary>
     public static IReadOnlyList<PetSpecies> SpeciesOrder { get; } =
-        [PetSpecies.Cat, PetSpecies.Dog, PetSpecies.Bird, PetSpecies.Rabbit, PetSpecies.Rodent, PetSpecies.Other];
+        [PetSpecies.Cat, PetSpecies.Dog, PetSpecies.Bird, PetSpecies.Rabbit, PetSpecies.Rodent, PetSpecies.Reptile, PetSpecies.Other];
 
     // ---- primitives ----
 

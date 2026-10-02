@@ -70,6 +70,8 @@ internal static class PatientsMapping
         DomainSpecies.Cat => PetSpecies.Cat,
         DomainSpecies.Bird => PetSpecies.Bird,
         DomainSpecies.Rodent => PetSpecies.Rodent,
+        DomainSpecies.Reptile => PetSpecies.Reptile,
+        DomainSpecies.Rabbit => PetSpecies.Rabbit,
         _ => PetSpecies.Other,
     };
 
@@ -100,7 +102,8 @@ internal static class PatientsMapping
         PetSpecies.Cat => DomainSpecies.Cat,
         PetSpecies.Bird => DomainSpecies.Bird,
         PetSpecies.Rodent => DomainSpecies.Rodent,
-        PetSpecies.Rabbit => DomainSpecies.Other,
+        PetSpecies.Rabbit => DomainSpecies.Rabbit,
+        PetSpecies.Reptile => DomainSpecies.Reptile,
         _ => DomainSpecies.Other,
     };
 

@@ -12,6 +12,7 @@ public enum PetSpecies
     Bird,
     Rabbit,
     Rodent,
+    Reptile,
     Other,
 }
 
