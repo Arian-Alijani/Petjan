@@ -322,7 +322,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
 
         await ApplySettingsAsync();
         BuildKindChips();
-        await ReloadAvailableAsync();
+        // A21: no availability read here - the form is not seeded yet; LoadForNew/LoadForEdit seed it and load once.
     }
 
     // A08: every availability read is an immutable request (doctor/date/duration/start/edit id/mode) with a
@@ -339,7 +339,15 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         string DoctorId, DateOnly Date, int Duration, int Start, string? ExceptId, bool DayOnly,
         IReadOnlyList<string> DoctorIds);
 
-    /// <summary>Fetches the doctor/day slot grid + conflicts into locals, then paints everything if still current.</summary>
+    // A21: each availability dependency is cached against the inputs it was computed for, so a change reloads ONLY
+    // what it invalidates: a start-only click re-checks conflicts; a doctor/duration/day change reloads the slot grid;
+    // a day change refreshes the per-doctor tallies; a month change refreshes the (bounded) month aggregates.
+    private (string Doctor, DateOnly Date, int Duration)? _slotKey;
+    private DateOnly? _busyDate;
+    private readonly Dictionary<DateOnly, IReadOnlyDictionary<DateOnly, int>> _monthCounts = [];
+    private const int MaxCachedMonths = 6;
+
+    /// <summary>Fetches only the invalidated availability parts into locals, then paints everything if still current.</summary>
     private async Task ReloadAvailableAsync()
     {
         var request = new AvailabilityRequest(_doc, _date, _dur, _start, _id, IsDayOnly,
@@ -353,24 +361,37 @@ public sealed partial class BookingPanelViewModel : ObservableObject
 
         try
         {
-            var slots = (await _booking.GetAvailableSlotsAsync(request.DoctorId, request.Date, request.Duration)).ToList();
+            var slotKey = (request.DoctorId, request.Date, request.Duration);
+            var slots = _slotKey == slotKey
+                ? _slots
+                : (await _booking.GetAvailableSlotsAsync(request.DoctorId, request.Date, request.Duration)).ToList();
             cts.Token.ThrowIfCancellationRequested();
+
             // Clock overlaps are meaningless when booking by day only.
             var conflicts = request.DayOnly
                 ? []
                 : (await _booking.GetConflictsAsync(request.Date, request.DoctorId, request.Start, request.Duration,
                     request.ExceptId)).ToList();
             cts.Token.ThrowIfCancellationRequested();
-            var busy = new Dictionary<string, int>();
-            foreach (var id in request.DoctorIds)
+
+            Dictionary<string, int>? busy = null;
+            if (_busyDate != request.Date)
             {
-                busy[id] = await _booking.GetDoctorBusyCountAsync(id, request.Date);
-                cts.Token.ThrowIfCancellationRequested();
+                busy = new Dictionary<string, int>();
+                foreach (var id in request.DoctorIds)
+                {
+                    busy[id] = await _booking.GetDoctorBusyCountAsync(id, request.Date);
+                    cts.Token.ThrowIfCancellationRequested();
+                }
             }
 
-            var ps = AppointmentsCalendarMath.MonthStart(request.Date);
-            var first = AppointmentsCalendarMath.WeekStart(ps);
-            var counts = await _booking.GetDayCountsAsync(first, first.AddDays(41));
+            var monthStart = AppointmentsCalendarMath.MonthStart(request.Date);
+            if (!_monthCounts.TryGetValue(monthStart, out var counts))
+            {
+                var first = AppointmentsCalendarMath.WeekStart(monthStart);
+                counts = await _booking.GetDayCountsAsync(first, first.AddDays(41));
+                cts.Token.ThrowIfCancellationRequested();
+            }
 
             if (generation != _availabilityGeneration)
             {
@@ -378,11 +399,28 @@ public sealed partial class BookingPanelViewModel : ObservableObject
             }
 
             _slots = slots;
+            _slotKey = slotKey;
             _conflicts = conflicts;
-            _busyByDoctor.Clear();
-            foreach (var (id, count) in busy)
+            if (busy is not null)
             {
-                _busyByDoctor[id] = count;
+                _busyByDoctor.Clear();
+                foreach (var (id, count) in busy)
+                {
+                    _busyByDoctor[id] = count;
+                }
+
+                _busyDate = request.Date;
+            }
+
+            if (!_monthCounts.ContainsKey(monthStart))
+            {
+                if (_monthCounts.Count >= MaxCachedMonths)
+                {
+                    _monthCounts.Remove(_monthCounts.Keys.OrderBy(k => Math.Abs(k.DayNumber - monthStart.DayNumber))
+                        .Last());
+                }
+
+                _monthCounts[monthStart] = counts;
             }
 
             _availabilityPending = false;
@@ -967,6 +1005,10 @@ public sealed partial class BookingPanelViewModel : ObservableObject
             _toast.Show(AppointmentErrorText.For(ex), Tone.Danger);
             if (ex is AppointmentOperationException { Category: "Conflict" })
             {
+                // Someone else took the slot: every cached availability part is stale.
+                _slotKey = null;
+                _busyDate = null;
+                _monthCounts.Clear();
                 _ = ReloadAvailableAsync();
             }
 

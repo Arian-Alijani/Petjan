@@ -62,7 +62,9 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
     public async Task<IReadOnlyList<AppointmentEvent>> GetConflictsAsync(
         DateOnly date, string doctorId, int startMinutes, int durationMinutes, string? exceptId)
     {
-        var events = await calendar.GetForRangeAsync(date, date);
+        // A21: read only this doctor's rows for the day instead of every doctor's events.
+        var tz = calendar.GetTimeZone();
+        var events = (await QueryAsync(new AppointmentRangeQuery(date, date, doctorId))).Select(r => r.ToContract(tz));
         return events.Where(e => e.Id != exceptId && e.DoctorId == doctorId &&
             e.Status is AppointmentStatus.Pending or AppointmentStatus.Confirmed &&
             e.StartMinutes < startMinutes + durationMinutes && startMinutes < e.EndMinutes).ToArray();

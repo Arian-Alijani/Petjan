@@ -348,7 +348,7 @@ repeated picker navigation has a fixed memory bound; oversized output rejected e
 
 ---
 
-### T11 — [ ] A20/A21/A22/A27 (P2): scale without speculative rewrites
+### T11 — [x] A20/A21/A22/A27 (P2): scale without speculative rewrites
 **Why/Evidence:** A20: SQL:35–42 materializes every `StartUtc` then GroupBy in memory (C04 wants an
 aggregate). A21: BVM:330–344 refetches slots+conflicts+per-doctor busy-count+month counts on every slot
 click, even start-only (BVM:655–658); BS:60 loads all same-day events for the conflict scan. A22: SQL:24–32

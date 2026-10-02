@@ -23,6 +23,10 @@ public sealed class AppointmentQueries(AnimoraLocalDbContext db) : IAppointmentQ
             r.VisitId, r.CheckedInUtc?.UtcTicks, r.CancelReason, r.CreatedByUserId, r.RescheduleCount,
             r.Source, r.InvoiceTotalMinor, r.InvoicePaidMinor, r.Currency, r.InvoiceState);
 
+    private const int MaxRangeRows = 10_000;
+    private const int MaxSearchLength = 64;
+    private const int MaxSearchTerms = 4;
+
     private static DateTimeOffset Utc(long ticks) => new(ticks, TimeSpan.Zero);
 
     public async Task<IReadOnlyList<AppointmentEventReadModel>> GetRangeAsync(
@@ -32,18 +36,24 @@ public sealed class AppointmentQueries(AnimoraLocalDbContext db) : IAppointmentQ
         var source = db.Set<Appointment>().AsNoTracking()
             .Where(a => a.StartUtc >= start && a.StartUtc < end);
         if (!string.IsNullOrEmpty(doctorId)) source = source.Where(a => a.DoctorUserId == doctorId);
-        return (await Events(source).OrderBy(r => r.StartUtc).ThenBy(r => r.Id).ToListAsync(ct))
+        // A22: a 63-day guard bounds the window; this row ceiling is a defensive cap against a corrupt/imported
+        // clinic so one read can never realize an unbounded set.
+        return (await Events(source).OrderBy(r => r.StartUtc).ThenBy(r => r.Id).Take(MaxRangeRows).ToListAsync(ct))
             .Select(Map).ToArray();
     }
 
     public async Task<IReadOnlyDictionary<long, int>> GetDayCountsRawAsync(long startTicks, long endTicks, CancellationToken ct)
     {
         var start = Utc(startTicks); var end = Utc(endTicks);
-        // One indexed statement. Each UTC instant is bucketed into its local calendar day by the handler.
-        var starts = await db.Set<Appointment>().AsNoTracking()
+        // A20: one indexed GROUP BY/COUNT statement over the UTC instant. The database returns one bucket per distinct
+        // start instant (not one row per appointment); the handler folds those buckets into clinic-local days. The
+        // indexed StartUtc predicate is never wrapped in a date function, so the range scan stays index-driven.
+        var buckets = await db.Set<Appointment>().AsNoTracking()
             .Where(a => a.StartUtc >= start && a.StartUtc < end && a.State != AppointmentState.Cancelled)
-            .Select(a => a.StartUtc).ToListAsync(ct);
-        return starts.GroupBy(d => d.UtcTicks).ToDictionary(g => g.Key, g => g.Count());
+            .GroupBy(a => a.StartUtc)
+            .Select(g => new { Start = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        return buckets.ToDictionary(b => b.Start.UtcTicks, b => b.Count);
     }
 
     public Task<int> GetDoctorBusyCountAsync(string doctorId, long startTicks, long endTicks, CancellationToken ct)
@@ -153,6 +163,10 @@ public sealed class AppointmentQueries(AnimoraLocalDbContext db) : IAppointmentQ
     {
         ct.ThrowIfCancellationRequested();
         var normalized = Animora.Application.Text.PersianText.Normalize(search);
+        // A27: bound the work a broad input can cause. Substring match (names, phone fragments, ids) needs
+        // LIKE '%term%', so the workload budget is: <= MaxSearchLength chars, <= MaxSearchTerms terms, 21 rows out.
+        // Stable-id lookups (patientId / appointmentId) bypass this and stay direct and uncapped.
+        if (normalized.Length > MaxSearchLength) normalized = normalized[..MaxSearchLength];
         // Empty/short input must not enumerate the clinic's records, even outside the UI.
         if (patientId is null && appointmentId is null && normalized.Length < 2) return [];
         var source = from pet in db.Set<Pet>().AsNoTracking()
@@ -167,7 +181,7 @@ public sealed class AppointmentQueries(AnimoraLocalDbContext db) : IAppointmentQ
         {
             // Stored keys already fold Persian/Arabic letters and digits. All filtering
             // stays in SQL; no 500-row preload, client-side scan, or total-count query.
-            foreach (var term in normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            foreach (var term in normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(MaxSearchTerms))
                 source = source.Where(r => r.Pet.SearchKey.Contains(term) ||
                     r.Owner.SearchKey.Contains(term) || r.Pet.Id.Contains(term));
             source = speciesKey switch
