@@ -37,3 +37,4 @@ Database-Sampel/*.bak
 # no product information beyond the corresponding .html (see Animora-UI/README.md).
 Animora-UI/*.srcmap.json
 .sandbox-sdk-install.log
+.sandbox-reinstall.log

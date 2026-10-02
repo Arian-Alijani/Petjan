@@ -13,6 +13,8 @@ public static class PatientsRegistration
         return builder
             .AddQuery<PetDirectoryQuery, PagedResult<PetSummaryReadModel>, PetDirectoryQueryHandler>()
             .AddQuery<OwnerDirectoryQuery, PagedResult<OwnerSummaryReadModel>, OwnerDirectoryQueryHandler>()
+            .AddQuery<PatientsDirectoryFacetsQuery, PatientDirectoryFacetsReadModel,
+                PatientsDirectoryFacetsQueryHandler>()
             .AddQuery<OwnerDetailQuery, OwnerDetailReadModel?, OwnerDetailQueryHandler>()
             .AddQuery<PetDetailQuery, PetDetailReadModel?, PetDetailQueryHandler>()
             .AddCommand<CreateOwnerCommand, string, CreateOwnerCommandHandler>()
