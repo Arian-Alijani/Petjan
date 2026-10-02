@@ -1,5 +1,6 @@
 using Animora.Domain.Identity;
 using Animora.Domain.Patients;
+using Animora.Domain.Sales;
 using Animora.Domain.Scheduling;
 using Animora.Persistence.Sqlite.Context;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,23 @@ internal static class SchedulingProjections
             PetId = pet.Id, PetName = pet.Name, PetSpecies = pet.Species,
             OwnerId = owner.Id, OwnerName = owner.FullName, OwnerPhone = owner.PhonePrimary,
             Note = appointment.Note,
+            VisitId = appointment.VisitId, CheckedInUtc = appointment.CheckedInUtc,
+            CancelReason = appointment.CancelReason, CreatedByUserId = appointment.CreatedByUserId,
+            RescheduleCount = appointment.RescheduleCount, Source = appointment.Source,
+            // Real FK only: Appointment.VisitId -> Invoice.VisitId. NULL when no visit/invoice exists.
+            InvoiceTotalMinor = appointment.VisitId == null ? null : db.Set<Invoice>()
+                .Where(i => i.VisitId == appointment.VisitId && i.State != InvoiceState.Void)
+                .OrderByDescending(i => i.IssuedUtc).Select(i => (long?)i.GrandTotal.Minor).FirstOrDefault(),
+            InvoicePaidMinor = appointment.VisitId == null ? null : db.Set<Invoice>()
+                .Where(i => i.VisitId == appointment.VisitId && i.State != InvoiceState.Void)
+                .OrderByDescending(i => i.IssuedUtc).Select(i => (long?)i.PaidTotal.Minor).FirstOrDefault(),
+            Currency = appointment.VisitId == null ? null : db.Set<Invoice>()
+                .Where(i => i.VisitId == appointment.VisitId && i.State != InvoiceState.Void)
+                .OrderByDescending(i => i.IssuedUtc).Select(i => i.GrandTotal.Currency).FirstOrDefault(),
+            InvoiceState = appointment.VisitId == null ? null : db.Set<Invoice>()
+                .Where(i => i.VisitId == appointment.VisitId && i.State != InvoiceState.Void)
+                .OrderByDescending(i => i.IssuedUtc).Select(i => (InvoiceState?)i.State).FirstOrDefault(),
+            AggregateVersion = appointment.Version,
         };
 }
 
@@ -43,4 +61,15 @@ internal sealed class AppointmentEventProjection
     public string OwnerName { get; init; } = "";
     public string OwnerPhone { get; init; } = "";
     public string? Note { get; init; }
+    public string? VisitId { get; init; }
+    public DateTimeOffset? CheckedInUtc { get; init; }
+    public string? CancelReason { get; init; }
+    public string CreatedByUserId { get; init; } = "";
+    public int RescheduleCount { get; init; }
+    public AppointmentSource Source { get; init; }
+    public long? InvoiceTotalMinor { get; init; }
+    public long? InvoicePaidMinor { get; init; }
+    public string? Currency { get; init; }
+    public InvoiceState? InvoiceState { get; init; }
+    public string? AggregateVersion { get; init; }
 }

@@ -17,7 +17,9 @@ public sealed class AppointmentQueries(AnimoraLocalDbContext db) : IAppointmentQ
     private static AppointmentEventReadModel Map(AppointmentEventProjection r) =>
         new(r.Id, r.StartUtc.UtcTicks, r.DurationMinutes, r.State, r.TypeCode, r.DoctorId,
             r.DoctorName, r.PetId, r.PetName, r.PetSpecies.ToString(), r.OwnerId,
-            r.OwnerName, r.OwnerPhone, r.Note);
+            r.OwnerName, r.OwnerPhone, r.Note,
+            r.VisitId, r.CheckedInUtc?.UtcTicks, r.CancelReason, r.CreatedByUserId, r.RescheduleCount,
+            r.Source, r.InvoiceTotalMinor, r.InvoicePaidMinor, r.Currency, r.InvoiceState);
 
     private static DateTimeOffset Utc(long ticks) => new(ticks, TimeSpan.Zero);
 
@@ -53,7 +55,11 @@ public sealed class AppointmentQueries(AnimoraLocalDbContext db) : IAppointmentQ
     {
         var row = await Events(db.Set<Appointment>().AsNoTracking().Where(a => a.Id == appointmentId))
             .FirstOrDefaultAsync(ct);
-        return row is null ? null : new AppointmentDetailReadModel(Map(row), "");
+        if (row is null) return null;
+        // Creator display name is a real lookup; null (never a guess) when the user is unknown.
+        var creator = string.IsNullOrEmpty(row.CreatedByUserId) ? null : await db.Set<User>().AsNoTracking()
+            .Where(u => u.Id == row.CreatedByUserId).Select(u => u.DisplayName).FirstOrDefaultAsync(ct);
+        return new AppointmentDetailReadModel(Map(row), "", row.AggregateVersion, creator);
     }
 
     public async Task<IReadOnlyList<AppointmentEventReadModel>> GetQueueAsync(long startTicks, long endTicks, CancellationToken ct)

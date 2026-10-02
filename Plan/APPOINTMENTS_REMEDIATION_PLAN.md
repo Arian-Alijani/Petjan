@@ -117,7 +117,7 @@ Each task block has: **Why/Evidence** (the defect), **Do** (exact change + files
 
 ---
 
-### T01 — [ ] Backend data seam: extend projection + read model with provenance & financial linkage
+### T01 — [x] Backend data seam: extend projection + read model with provenance & financial linkage
 **Covers groundwork for:** A05, A12, A13, A28, A29 (all need fields the projection currently drops).
 **Why/Evidence:** PROJ:30–45 omits `VisitId, CheckedInUtc, CancelReason, CreatedByUserId, RescheduleCount, Source`
 and any invoice linkage. RM mirrors only the visible fields. Because the read model has no provenance,
