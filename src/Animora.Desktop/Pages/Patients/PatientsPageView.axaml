@@ -677,7 +677,10 @@
              Row 0 = the lists/empty-state; Row 1 = the pagination footer. -->
         <Grid Grid.Row="1" RowDefinitions="*,Auto">
 
-        <!-- Detailed owner cards, virtualized in three-card rows. -->
+        <!-- Detailed owner cards, virtualized in three-card rows. ItemsRepeater is gone in
+             Avalonia 12 (see BoardingPageView) and no built-in WrapPanel/UniformGrid virtualizes,
+             so virtualization stays at row granularity (a page is bounded to <=200 cards => <=67
+             rows; only visible rows are realized). -->
         <ListBox Classes="records" ItemsSource="{Binding OwnerRows}"
                  IsVisible="{Binding ShowOwnersGrid}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -738,22 +741,30 @@
 
                             <!-- oc-contact: 2-col grid of contact lines + a full-width address -->
                             <StackPanel Margin="16,0,16,12" Spacing="6">
-                                <ItemsControl ItemsSource="{Binding ContactLines}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <UniformGrid Columns="2" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="patients:OwnerContactLineViewModel">
-                                            <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,0,0,6">
-                                                <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
-                                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
-                                                <TextBlock Text="{Binding Value}" Classes="ocline" TextTrimming="CharacterEllipsis" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <!-- Fixed-arity (4) contact lines: explicit 2x2 grid instead of a nested
+                                     ItemsControl per card (PERFORMANCE.md §7 cheap visual tree). -->
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                                    <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" Spacing="7" Margin="0,0,0,6">
+                                        <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
+                                              Data="{Binding ContactLines[0].IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                        <TextBlock Text="{Binding ContactLines[0].Value}" Classes="ocline" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" Spacing="7" Margin="0,0,0,6">
+                                        <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
+                                              Data="{Binding ContactLines[1].IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                        <TextBlock Text="{Binding ContactLines[1].Value}" Classes="ocline" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Spacing="7" Margin="0,0,0,6">
+                                        <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
+                                              Data="{Binding ContactLines[2].IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                        <TextBlock Text="{Binding ContactLines[2].Value}" Classes="ocline" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Spacing="7" Margin="0,0,0,6">
+                                        <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
+                                              Data="{Binding ContactLines[3].IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                        <TextBlock Text="{Binding ContactLines[3].Value}" Classes="ocline" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Grid>
                                 <StackPanel Orientation="Horizontal" Spacing="7">
                                     <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Top"
                                           Data="{StaticResource IconPin}" />

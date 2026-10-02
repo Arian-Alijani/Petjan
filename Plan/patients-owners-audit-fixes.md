@@ -475,7 +475,7 @@ note so a future session does not re-audit:
 
 ---
 
-### [ ] T16 — P11 + P12 (P2) · Grid virtualization defeated by Chunk(3)+UniformGrid + nested ItemsControls
+### [x] T16 — P11 + P12 (P2) · Grid virtualization defeated by Chunk(3)+UniformGrid + nested ItemsControls
 **Root cause (confirmed):** VM `PublishOwners`/`PublishPets` (VM:445,451) do `.Chunk(3)` into
 `*CardRowViewModel`; PV (~686-742) renders each row's `Cards` in a non-virtualizing
 `UniformGrid Columns="3"` inside the virtualized `ListBox`. Virtualization works at *row* granularity,
@@ -503,6 +503,7 @@ alone, build Desktop, and **smoke-run** to confirm the page renders. If it ballo
 push immediately with a clear message and consider splitting owners-grid and pets-grid into two
 pushes. If `ItemsRepeater` is not already referenced, confirm the Avalonia package provides it before
 committing to it (grep existing `ItemsRepeater` usage in the repo for a working precedent).
+**Outcome (done):** `ItemsRepeater` does not exist in Avalonia 12 (precedent: BoardingPageView comment) and no built-in wrap panel virtualizes, so the row-level virtualization is kept (page bounded to ≤200 cards ⇒ ≤67 rows). P12 delivered: owner-card contact lines (fixed arity 4) are now an explicit 2x2 `Grid` instead of a nested `ItemsControl` per card.
 **Files:** PV, VM (+ maybe delete `*CardRowViewModel.cs`), optionally OCARD.
 **Verify:** `scripts/sandbox/build.sh` (Desktop) 0/0, then `scripts/sandbox/run.sh` → `SMOKE RUN OK`.
 **Push:** `scripts/git/push.sh "perf(patients): virtualizing grid (ItemsRepeater) replaces Chunk(3)+UniformGrid [P11,P12]"`
