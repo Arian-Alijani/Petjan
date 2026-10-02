@@ -284,8 +284,8 @@ public sealed class PatientsUseCaseTests
         {
             object? value = query switch
             {
-                OwnerDirectoryQuery q => await queries.GetOwnersAsync(q.Search, q.Page, q.PageSize, ct),
-                PetDirectoryQuery q => await queries.GetPetsAsync(q.Search, q.Species, q.Status, q.Page, q.PageSize, ct),
+                OwnerDirectoryQuery q => await queries.GetOwnersAsync(q.Search, q.Species, q.Status, q.Sort, q.Page, q.PageSize, ct),
+                PetDirectoryQuery q => await queries.GetPetsAsync(q.Search, q.Species, q.Status, q.Sort, q.Page, q.PageSize, ct),
                 OwnerDetailQuery q => await queries.GetOwnerAsync(q.OwnerId, ct),
                 _ => throw new NotSupportedException(),
             };

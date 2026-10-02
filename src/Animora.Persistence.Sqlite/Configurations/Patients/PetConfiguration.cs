@@ -13,5 +13,7 @@ public sealed class PetConfiguration : IEntityTypeConfiguration<Pet>
         builder.HasIndex(e => new { e.TenantId, e.OwnerId }).HasDatabaseName("IX_Pets_TenantId_OwnerId");
         builder.HasIndex(e => new { e.TenantId, e.Name }).HasDatabaseName("IX_Pets_TenantId_Name");
         builder.HasIndex(e => new { e.TenantId, e.SearchKey }).HasDatabaseName("IX_Pets_TenantId_SearchKey");
+        // Backs the directory "Age" sort (OrderBy BirthDateUtc) so it is index-seeked, not file-sorted.
+        builder.HasIndex(e => new { e.TenantId, e.BirthDateUtc }).HasDatabaseName("IX_Pets_TenantId_BirthDateUtc");
     }
 }
