@@ -542,7 +542,7 @@ phase C03) — acceptable, but they read as live features and risk masking a wir
 
 ---
 
-### [ ] T19 — Final verification pass
+### [x] T19 — Final verification pass
 **Do:**
 - `scripts/sandbox/build.sh full` → **0/0**.
 - `scripts/sandbox/run.sh` → `SMOKE RUN OK` (confirms DI + migrations apply; the VM readiness-gate
@@ -556,7 +556,7 @@ phase C03) — acceptable, but they read as live features and risk masking a wir
 
 ---
 
-### [ ] T20 — Sync branches & confirm (NO PR per user instruction — direct to both branches)
+### [x] T20 — Sync branches & confirm (NO PR per user instruction — direct to both branches)
 **User rule:** apply changes **directly**, keep `main` and `genspark_ai_developer` fully synced,
 **do not open a PR**. All task pushes went to `genspark_ai_developer` via `push.sh`. To mirror onto
 `main` without a PR:
