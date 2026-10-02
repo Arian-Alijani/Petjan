@@ -9,10 +9,35 @@ namespace Animora.Contracts.Patients;
 /// </summary>
 public interface IPatientsQueryService
 {
-    /// <summary>All animals in the directory (unfiltered, unsorted).</summary>
+    /// <summary>
+    /// One bounded page of pets matching <paramref name="query"/>. Search, species/vaccine
+    /// filtering, sorting and paging all run server-side; the caller materializes only the
+    /// returned slice (never the whole table). <see cref="PatientsPage{T}.TotalCount"/> reflects
+    /// every match for the page math + result counter.
+    /// </summary>
+    Task<PatientsPage<PetSummary>> GetPetsPageAsync(PatientsDirectoryQuery query);
+
+    /// <summary>
+    /// One bounded page of owners matching <paramref name="query"/>. When a species/vaccine
+    /// filter is active the owner set is narrowed server-side to those with a matching pet, so the
+    /// ViewModel does no cross-entity filtering in RAM.
+    /// </summary>
+    Task<PatientsPage<OwnerSummary>> GetOwnersPageAsync(PatientsDirectoryQuery query);
+
+    /// <summary>
+    /// Directory counters for the active query (total owners, total pets, per-species pet facet
+    /// counts) resolved server-side in one call — drives the result caption and the species chip
+    /// rail without holding the dataset in memory. Species facets ignore the species filter so the
+    /// chips always show the full taxonomy breakdown under the current search/vaccine filter.
+    /// </summary>
+    Task<PatientsDirectoryFacets> GetDirectoryFacetsAsync(PatientsDirectoryQuery query);
+
+    /// <summary>All animals in the directory (bounded enumeration for the add-patient wizard's
+    /// in-modal lookup). Not used by the directory page — prefer <see cref="GetPetsPageAsync"/>.</summary>
     Task<IReadOnlyList<PetSummary>> GetPetsAsync();
 
-    /// <summary>All owners in the directory (unfiltered, unsorted).</summary>
+    /// <summary>All owners in the directory (bounded enumeration for the add-patient wizard's
+    /// in-modal lookup). Not used by the directory page — prefer <see cref="GetOwnersPageAsync"/>.</summary>
     Task<IReadOnlyList<OwnerSummary>> GetOwnersAsync();
 
     /// <summary>Full owner record (profile + live pet roster) for the Owner Sheet, or null when unknown.</summary>
