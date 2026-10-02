@@ -1,6 +1,7 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:patients="using:Animora.Desktop.Pages.Patients"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Patients.PetFormView"
              x:Name="PetForm"
              x:DataType="patients:PetFormViewModel"
@@ -201,7 +202,7 @@
             <StackPanel Grid.Column="1" Spacing="6">
                 <TextBlock Classes="flabel" Text="نژاد" />
                 <ComboBox Classes="pf" ItemsSource="{Binding BreedOptions}"
-                          SelectedItem="{Binding Breed}" />
+                          SelectedItem="{Binding Breed}" HorizontalAlignment="Stretch" />
             </StackPanel>
             <StackPanel Grid.Column="2" Spacing="6">
                 <TextBlock Classes="flabel" Text="رنگ حیوان" />
@@ -213,7 +214,8 @@
         <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,0,0,12">
             <StackPanel Grid.Column="0" Spacing="6">
                 <TextBlock Classes="flabel" Text="تاریخ تولد" />
-                <TextBox Classes="pf" Text="{Binding Birth}" PlaceholderText="۱۴۰۲/۰۴/۲۱" />
+                <controls:JalaliDatePicker DateValue="{Binding Birth, Mode=TwoWay}"
+                                           Placeholder="۱۴۰۲/۰۴/۲۱" HorizontalAlignment="Stretch" />
                 <TextBlock Classes="fhint" Text="سن به‌صورت خودکار محاسبه می‌شود" />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="6">
@@ -233,7 +235,7 @@
             <StackPanel Grid.Column="2" Spacing="6">
                 <TextBlock Classes="flabel" Text="محل زندگی" />
                 <ComboBox Classes="pf" ItemsSource="{Binding Habitats}"
-                          SelectedItem="{Binding Habitat}" />
+                          SelectedItem="{Binding Habitat}" HorizontalAlignment="Stretch" />
             </StackPanel>
         </Grid>
 
@@ -242,12 +244,12 @@
             <StackPanel Grid.Column="0" Spacing="6">
                 <TextBlock Classes="flabel" Text="رفتار حیوان" />
                 <ComboBox Classes="pf" ItemsSource="{Binding Behaviors}"
-                          SelectedItem="{Binding Behavior}" />
+                          SelectedItem="{Binding Behavior}" HorizontalAlignment="Stretch" />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="6">
                 <TextBlock Classes="flabel" Text="جیره غذایی" />
                 <ComboBox Classes="pf" ItemsSource="{Binding Diets}"
-                          SelectedItem="{Binding Diet}" />
+                          SelectedItem="{Binding Diet}" HorizontalAlignment="Stretch" />
             </StackPanel>
             <StackPanel Grid.Column="2" Spacing="6">
                 <TextBlock Classes="flabel" Text="سابقه جراحی" />
@@ -272,7 +274,8 @@
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="6">
                 <TextBlock Classes="flabel" Text="تاریخ کاشت" />
-                <TextBox Classes="pf" Text="{Binding MicrochipDate}" PlaceholderText="۱۴۰۲/۰۹/۰۲" />
+                <controls:JalaliDatePicker DateValue="{Binding MicrochipDate, Mode=TwoWay}"
+                                           Placeholder="۱۴۰۲/۰۹/۰۲" HorizontalAlignment="Stretch" />
             </StackPanel>
             <StackPanel Grid.Column="2" Spacing="6">
                 <TextBlock Classes="flabel" Text=" " />

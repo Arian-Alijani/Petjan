@@ -32,6 +32,14 @@ public partial class JalaliDatePicker : UserControl
     public static readonly StyledProperty<string> DateTextProperty =
         AvaloniaProperty.Register<JalaliDatePicker, string>(nameof(DateText), string.Empty);
 
+    /// <summary>Placeholder text shown in the field while no date is selected.</summary>
+    public static readonly StyledProperty<string> PlaceholderProperty =
+        AvaloniaProperty.Register<JalaliDatePicker, string>(nameof(Placeholder), "انتخاب تاریخ");
+
+    /// <summary>Whether a date is currently selected (drives placeholder vs value display).</summary>
+    public static readonly StyledProperty<bool> HasValueProperty =
+        AvaloniaProperty.Register<JalaliDatePicker, bool>(nameof(HasValue));
+
     /// <summary>«مرداد ۱۴۰۵» — the popup header (the <c>dp-head .t</c>).</summary>
     public static readonly StyledProperty<string> HeaderTextProperty =
         AvaloniaProperty.Register<JalaliDatePicker, string>(nameof(HeaderText), string.Empty);
@@ -73,6 +81,20 @@ public partial class JalaliDatePicker : UserControl
     {
         get => GetValue(HeaderTextProperty);
         private set => SetValue(HeaderTextProperty, value);
+    }
+
+    /// <summary>Placeholder text shown in the field while no date is selected.</summary>
+    public string Placeholder
+    {
+        get => GetValue(PlaceholderProperty);
+        set => SetValue(PlaceholderProperty, value);
+    }
+
+    /// <summary>Whether a date is currently selected.</summary>
+    public bool HasValue
+    {
+        get => GetValue(HasValueProperty);
+        private set => SetValue(HasValueProperty, value);
     }
 
     /// <summary>Whether the popup grid is open.</summary>
@@ -170,7 +192,8 @@ public partial class JalaliDatePicker : UserControl
                 iso == today));
         }
 
-        DateText = string.IsNullOrWhiteSpace(DateValue) ? string.Empty : JalaliCalendar.Short(DateValue);
+        HasValue = !string.IsNullOrWhiteSpace(DateValue);
+        DateText = HasValue ? JalaliCalendar.Short(DateValue) : string.Empty;
         HeaderText =
             $"{PersianMonthNames.Get(_viewMonth)} {PersianNumberFormatter.ToPersianDigits(_viewYear)}";
     }
