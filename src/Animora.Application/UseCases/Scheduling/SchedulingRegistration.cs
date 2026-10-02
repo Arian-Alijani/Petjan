@@ -22,5 +22,15 @@ public static class SchedulingRegistration
         .AddCommand<CancelAppointmentCommand, Unit, CancelAppointmentCommandHandler>()
         .AddCommand<CheckInAppointmentCommand, Unit, CheckInAppointmentCommandHandler>()
         .AddCommand<CreateBookingPatientCommand, string, CreateBookingPatientCommandHandler>()
-        .AddValidator<CreateBookingPatientCommand, CreateBookingPatientCommandValidator>();
+        .AddValidator<CreateBookingPatientCommand, CreateBookingPatientCommandValidator>()
+        .AddQuery<GetAppointmentSettingsQuery, Contracts.Appointments.AppointmentSettings, GetAppointmentSettingsQueryHandler>()
+        .AddCommand<SaveAppointmentSettingsCommand, Unit, SaveAppointmentSettingsCommandHandler>()
+        .AddValidator<SaveAppointmentSettingsCommand, SaveAppointmentSettingsCommandValidator>()
+        .AddCommand<AddAppointmentTypeCommand, Contracts.Appointments.CustomAppointmentType, AddAppointmentTypeCommandHandler>()
+        .AddValidator<AddAppointmentTypeCommand, AddAppointmentTypeCommandValidator>()
+        .AddCommand<RemoveAppointmentTypeCommand, Unit, RemoveAppointmentTypeCommandHandler>()
+        .AddValidator<RemoveAppointmentTypeCommand, RemoveAppointmentTypeCommandValidator>()
+        .AddCommand<SetCalendarModeCommand, Unit, SetCalendarModeCommandHandler>()
+        .AddCommand<SetAppointmentSmsCommand, Unit, SetAppointmentSmsCommandHandler>()
+        .AddValidator<SetAppointmentSmsCommand, SetAppointmentSmsCommandValidator>();
 }

@@ -82,7 +82,16 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+    <StackPanel Spacing="12">
+    <Border Classes="st-card" IsVisible="{Binding IsSettingsReadOnly}">
+        <TextBlock Text="شما فقط اجازهٔ مشاهدهٔ تنظیمات نوبت را دارید؛ تغییر آن‌ها نیازمند دسترسی «تنظیمات · ویرایش» است."
+                   FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" />
+    </Border>
+    <Border Classes="st-card" IsVisible="{Binding HasSettingsRecoveryNotice}">
+        <TextBlock Text="{Binding SettingsRecoveryNotice}" FontSize="12" TextWrapping="Wrap"
+                   Foreground="{StaticResource DangerBrush}" />
+    </Border>
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="16" IsEnabled="{Binding CanEditSettings}">
 
         <!-- ═══ انواع نوبت ═══ -->
         <Border Grid.Column="0" Classes="st-card" VerticalAlignment="Top">
@@ -257,4 +266,5 @@
             </Border>
         </StackPanel>
     </Grid>
+    </StackPanel>
 </UserControl>

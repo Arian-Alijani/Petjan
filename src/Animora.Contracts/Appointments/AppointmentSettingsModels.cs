@@ -34,7 +34,8 @@ public sealed record AppointmentSmsSettings(
 public sealed record AppointmentSettings(
     CalendarMode CalendarMode,
     AppointmentSmsSettings Sms,
-    IReadOnlyList<CustomAppointmentType> CustomTypes)
+    IReadOnlyList<CustomAppointmentType> CustomTypes,
+    string? RecoveryNotice = null)
 {
     public static AppointmentSettings Default { get; } =
         new(CalendarMode.TimeBased, AppointmentSmsSettings.Default, []);

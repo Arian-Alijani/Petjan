@@ -8,6 +8,7 @@ using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Patients;
 using Animora.Contracts.Profile;
+using Animora.Domain.Identity;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.Appointments.Export;
@@ -41,6 +42,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private readonly IPrintService _print;
     private readonly IUserProfileService _profile;
     private readonly ICurrentUserContext _user;
+    private readonly ICapabilityGate _capabilities;
 
     private readonly List<AppointmentDoctor> _doctors = [];
     private readonly List<AppointmentType> _types = [];
@@ -95,8 +97,11 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         IPatientsQueryService patients,
         IPrintService print,
         IUserProfileService profile,
-        ICurrentUserContext user)
+        ICurrentUserContext user,
+        ICapabilityGate capabilities)
     {
+        _capabilities = capabilities;
+        _capabilities.CapabilitiesChanged += OnCapabilitiesChanged;
         _service = service;
         _print = print;
         _profile = profile;
@@ -1066,6 +1071,54 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private bool _newTypeRequiresDoctor = true;
     private bool _applyingSettings;
 
+    /// <summary>
+    /// A17: presentation hint only — whether the signed-in user may change clinic-wide appointment settings. The
+    /// authoritative check is the <c>settings.write</c> permission on every settings use case in Application.
+    /// </summary>
+    public bool CanEditSettings => _capabilities.Can(PermissionCodes.SettingsWrite);
+
+    public bool IsSettingsReadOnly => !CanEditSettings;
+
+    /// <summary>Set when the stored settings file was unreadable and has been quarantined (A26).</summary>
+    public string? SettingsRecoveryNotice { get; private set; }
+
+    public bool HasSettingsRecoveryNotice => !string.IsNullOrEmpty(SettingsRecoveryNotice);
+
+    private void OnCapabilitiesChanged(object? sender, EventArgs e)
+    {
+        void Raise()
+        {
+            OnPropertyChanged(nameof(CanEditSettings));
+            OnPropertyChanged(nameof(IsSettingsReadOnly));
+        }
+
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Raise();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(Raise);
+        }
+    }
+
+    /// <summary>Runs one settings write; a denial/failure is reported instead of escaping as an unhandled fault.</summary>
+    private async Task<bool> TryWriteSettingsAsync(Func<Task> write)
+    {
+        try
+        {
+            await write();
+            return true;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(ex.Message is "PERMISSION_DENIED" or "SESSION_EXPIRED"
+                ? "شما اجازهٔ تغییر تنظیمات نوبت را ندارید."
+                : "ذخیرهٔ تنظیمات انجام نشد؛ دوباره تلاش کنید.", Tone.Danger);
+            return false;
+        }
+    }
+
     public bool CalendarModeIsDayOnly => _calendarMode == CalendarMode.DayOnly;
     public bool CalendarModeIsTimeBased => _calendarMode == CalendarMode.TimeBased;
 
@@ -1141,6 +1194,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _applyingSettings = true;
         try
         {
+            SettingsRecoveryNotice = settings.RecoveryNotice;
+            OnPropertyChanged(nameof(SettingsRecoveryNotice));
+            OnPropertyChanged(nameof(HasSettingsRecoveryNotice));
             _calendarMode = settings.CalendarMode;
             _smsOnBooking = settings.Sms.SendOnBooking;
             _smsReminder = settings.Sms.SendReminder;
@@ -1209,14 +1265,28 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return;
         }
 
-        _ = _settings.SetSmsAsync(new AppointmentSmsSettings(_smsOnBooking, _smsReminder, _smsReminderLeadHours));
+        _ = PersistSmsAsync(new AppointmentSmsSettings(_smsOnBooking, _smsReminder, _smsReminderLeadHours));
+    }
+
+    private async Task PersistSmsAsync(AppointmentSmsSettings sms)
+    {
+        if (!await TryWriteSettingsAsync(() => _settings.SetSmsAsync(sms)))
+        {
+            // Roll the toggles back to what is actually stored.
+            ApplySettings(await _settings.GetAsync());
+        }
     }
 
     [RelayCommand]
     private async Task SetCalendarMode(string? key)
     {
         var mode = key == "day" ? CalendarMode.DayOnly : CalendarMode.TimeBased;
-        if (mode == _calendarMode)
+        if (mode == _calendarMode || !CanEditSettings)
+        {
+            return;
+        }
+
+        if (!await TryWriteSettingsAsync(() => _settings.SetCalendarModeAsync(mode)))
         {
             return;
         }
@@ -1224,7 +1294,6 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _calendarMode = mode;
         OnPropertyChanged(nameof(CalendarModeIsDayOnly));
         OnPropertyChanged(nameof(CalendarModeIsTimeBased));
-        await _settings.SetCalendarModeAsync(mode);
         LockViewForCalendarMode();
         // The calendar tab is cached by its LazyTabHost: repaint it now so it is correct on return.
         Render();
@@ -1246,7 +1315,12 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return;
         }
 
-        await _settings.AddTypeAsync(label, _newTypeDuration, _newTypeRequiresDoctor);
+        if (!CanEditSettings ||
+            !await TryWriteSettingsAsync(() => _settings.AddTypeAsync(label, _newTypeDuration, _newTypeRequiresDoctor)))
+        {
+            return;
+        }
+
         NewTypeLabel = string.Empty;
         _toast.Show($"نوع «{label}» اضافه شد.", Tone.Ok);
         await ReloadTypesAsync();
@@ -1260,7 +1334,11 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return;
         }
 
-        await _settings.RemoveTypeAsync(row.Id);
+        if (!CanEditSettings || !await TryWriteSettingsAsync(() => _settings.RemoveTypeAsync(row.Id)))
+        {
+            return;
+        }
+
         _toast.Show($"نوع «{row.Label}» حذف شد.", Tone.Info);
         await ReloadTypesAsync();
     }

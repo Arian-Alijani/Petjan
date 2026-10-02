@@ -199,7 +199,7 @@ NEW doctor but the write validates/moves the OLD doctor. Edit shows success whil
 
 ---
 
-### T05 — [ ] A17 (P1): route appointment settings through authorized Application use cases
+### T05 — [x] A17 (P1): route appointment settings through authorized Application use cases
 **Why/Evidence:** SS:36–99,132–139 reads/writes JSON directly with no dispatcher/current-user/permission.
 CVM:1201–1260 calls these mutators directly; CV:487–490 exposes the settings tab. ROLEPERM gives
 Doctor/Receptionist `SettingsRead` but NOT `SettingsWrite` (PERM:155/158 define both). So a read-only
