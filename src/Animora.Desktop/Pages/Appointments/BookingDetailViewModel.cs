@@ -25,6 +25,7 @@ public sealed partial class BookingDetailViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly Action? _onChanged;
     private readonly Action<AppointmentEvent>? _onEdit;
+    private readonly Func<AppointmentEvent, Task>? _onOpenVisit;
 
     private AppointmentEvent _event = null!;
     private IReadOnlyList<AppointmentType> _types = [];
@@ -36,8 +37,10 @@ public sealed partial class BookingDetailViewModel : ObservableObject
         IToastService toast,
         IDialogService dialogs,
         Action? onChanged = null,
-        Action<AppointmentEvent>? onEdit = null)
+        Action<AppointmentEvent>? onEdit = null,
+        Func<AppointmentEvent, Task>? onOpenVisit = null)
     {
+        _onOpenVisit = onOpenVisit;
         _booking = booking;
         _catalog = catalog;
         _toast = toast;
@@ -98,6 +101,12 @@ public sealed partial class BookingDetailViewModel : ObservableObject
 
     [ObservableProperty]
     private string _createdText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasRescheduled;
+
+    [ObservableProperty]
+    private string _rescheduleText = string.Empty;
 
     [ObservableProperty]
     private string _statusTimelineTitle = string.Empty;
@@ -162,8 +171,14 @@ public sealed partial class BookingDetailViewModel : ObservableObject
         DurationText = AppointmentsPresentation.Fa(a.DurationMinutes) + " دقیقه";
         DoctorText = $"{doctor.Name} · {doctor.Specialty}";
         PhoneText = a.OwnerPhone;
+        // A28: the "code" is the raw record id and is labelled as such in the view.
         CodeText = a.Code;
-        PriceText = PersianNumberFormatter.FormatGrouped(a.Total) + " تومان";
+        // A12: only a real linked invoice yields money; otherwise say so instead of showing a zero/estimate.
+        PriceText = a.HasInvoice
+            ? $"{PersianNumberFormatter.FormatGrouped(a.InvoiceTotalMinor!.Value)} تومان · مانده {PersianNumberFormatter.FormatGrouped(a.InvoiceBalanceMinor!.Value)} تومان"
+            : "فاکتوری ثبت نشده است";
+        HasRescheduled = a.RescheduleCount > 0;
+        RescheduleText = $"{AppointmentsPresentation.Fa(a.RescheduleCount)} بار جابه‌جا شد";
         NoteText = string.IsNullOrWhiteSpace(a.Note) ? "یادداشتی ثبت نشده است." : a.Note;
         CreatedText = detail.CreatedText;
         StatusLabel = t.Label;
@@ -250,16 +265,21 @@ public sealed partial class BookingDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void SendSms() =>
-        _toast.Show("یادآور پیامکی برای " + _event.OwnerName + " ارسال شد.", Tone.Info);
-
-    [RelayCommand]
     private Task CancelAppointment() =>
         RunWriteAsync(() => _booking.CancelAsync(_event.Id), "نوبت لغو شد.", Tone.Danger);
 
     [RelayCommand]
-    private void ViewVisit() =>
-        _toast.Show("انتقال به پرونده ویزیت…", Tone.Info);
+    private async Task ViewVisit()
+    {
+        // A13: navigate to the linked visit, or say truthfully that there is none - never a placeholder toast.
+        if (!_event.CanOpenVisit || _onOpenVisit is null)
+        {
+            _toast.Show("برای این نوبت پروندهٔ ویزیتی ثبت نشده است.", Tone.Info);
+            return;
+        }
+
+        await _onOpenVisit(_event);
+    }
 
     [RelayCommand]
     private void Close() => _dialogs.Close();

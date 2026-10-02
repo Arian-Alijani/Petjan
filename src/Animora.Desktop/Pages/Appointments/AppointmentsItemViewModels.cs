@@ -536,7 +536,9 @@ public sealed class HistoryRowViewModel
     public bool HasPayment => Model.Payment != AppointmentPaymentMethod.None;
     public string PaymentLabel => AppointmentsPresentation.Payment(Model.Payment).Label;
     public string PaymentIconKey => AppointmentsPresentation.Payment(Model.Payment).IconKey;
-    public string PriceText => PersianNumberFormatter.FormatGrouped(Model.Total);
+    // A12: only a real linked invoice carries an amount; otherwise show an explicit dash, never a fabricated zero.
+    public bool HasPrice => Model.HasInvoice;
+    public string PriceText => Model.HasInvoice ? PersianNumberFormatter.FormatGrouped(Model.InvoiceTotalMinor!.Value) : "—";
 }
 
 /// <summary>One KPI chip in the queue header (reference's <c>qp-k</c>).</summary>

@@ -280,7 +280,7 @@ BVM:817–862 & DVM:162–189 have no local result/error handling → business r
 
 ---
 
-### T09 — [ ] A11/A13/A28 + A12 + A18/A19 (truthful actions & data)
+### T09 — [x] A11/A13/A28 + A12 + A18/A19 (truthful actions & data)
 **Why/Evidence:**
 - **A11 (SMS):** BVM:851–857 shows "confirmation SMS sent"; BS:72–76 ignores the flags; DVM:179–181
   toasts on SendSms; DVM:187 claims owner notification after cancel; DV:157–160 hardcodes a sent-timeline;

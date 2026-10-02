@@ -28,15 +28,26 @@ internal static class AppointmentsMapping
             AppointmentState.NoShow => AppointmentLifecycle.NoShow,
             _ => AppointmentLifecycle.Cancelled
         };
+        // A12: money comes only from the real appointment -> visit -> invoice link; no link means "no money data",
+        // never an invented zero/estimate.
+        var invoice = row.InvoiceState switch
+        {
+            Animora.Domain.Sales.InvoiceState.Paid => AppointmentInvoiceState.Paid,
+            Animora.Domain.Sales.InvoiceState.PartiallyPaid => AppointmentInvoiceState.Partial,
+            Animora.Domain.Sales.InvoiceState.Posted => AppointmentInvoiceState.Unpaid,
+            _ => AppointmentInvoiceState.None
+        };
+        var total = row.InvoiceTotalMinor is { } minor ? (int)Math.Clamp(minor, 0, int.MaxValue) : 0;
         return new AppointmentEvent(row.Id, date, minute, row.DurationMinutes, row.TypeCode,
             row.DoctorId ?? "", row.PetName, row.PetSpecies, row.OwnerName, row.OwnerPhone,
             "blue", row.PetSpecies.ToLowerInvariant(), status, row.Note ?? "", row.Id,
-            0, AppointmentInvoiceState.None, AppointmentPaymentMethod.None,
+            total, invoice, AppointmentPaymentMethod.None,
             row.State == AppointmentState.NoShow ? AppointmentVisitOutcome.NoShow :
                 row.State == AppointmentState.Completed ? AppointmentVisitOutcome.Complete : AppointmentVisitOutcome.None,
             lifecycle, row.VisitId,
             row.CheckedInUtcTicks is { } ticks ? new DateTimeOffset(ticks, TimeSpan.Zero) : null,
-            row.CancelReason, row.CreatedByUserId, row.RescheduleCount, row.DoctorName);
+            row.CancelReason, row.CreatedByUserId, row.RescheduleCount, row.DoctorName,
+            row.InvoiceTotalMinor, row.InvoicePaidMinor);
     }
 
     /// <summary>

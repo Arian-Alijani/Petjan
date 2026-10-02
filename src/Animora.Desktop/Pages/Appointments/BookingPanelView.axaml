@@ -472,11 +472,11 @@
                                                   Stroke="{StaticResource Brand600Brush}"
                                                   Data="{StaticResource IconCalendar}" VerticalAlignment="Top" />
                                             <StackPanel Spacing="3">
-                                                <TextBlock Text="حالت تقویم: فقط روزانه" FontSize="12.5" FontWeight="Bold"
+                                                <TextBlock Text="حالت تقویم: تخصیص خودکار زمان" FontSize="12.5" FontWeight="Bold"
                                                            Foreground="{StaticResource Ink2Brush}" />
                                                 <TextBlock Text="{Binding DayOnlyInfoText}" FontSize="11" TextWrapping="Wrap"
                                                            Foreground="{StaticResource MutedBrush}" />
-                                                <TextBlock Text="نوبت بدون ساعت مشخص ثبت می‌شود و در تقویم همان روز نمایش داده می‌شود."
+                                                <TextBlock Text="فقط روز را انتخاب می‌کنید؛ اولین ساعت آزاد پزشک تخصیص داده می‌شود و همان بازه در تقویم، جزئیات و چاپ نمایش داده می‌شود."
                                                            FontSize="11" TextWrapping="Wrap"
                                                            Foreground="{StaticResource MutedBrush}" />
                                             </StackPanel>
@@ -570,9 +570,9 @@
                                                 <Ellipse Classes="bk-knob" Width="18" Height="18" />
                                             </ToggleButton>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="پیامک تأیید" FontSize="12.5" FontWeight="Bold"
+                                                <TextBlock Text="ثبت ترجیح پیامک تأیید" FontSize="12.5" FontWeight="Bold"
                                                            Foreground="{StaticResource Ink2Brush}" />
-                                                <TextBlock Text="بلافاصله پس از ثبت برای مالک ارسال می‌شود" FontSize="11"
+                                                <TextBlock Text="فقط ترجیح ثبت می‌شود؛ در این نسخه پیامکی ارسال نمی‌شود" FontSize="11"
                                                            Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
                                             </StackPanel>
                                         </Grid>
@@ -584,9 +584,9 @@
                                                 <Ellipse Classes="bk-knob" Width="18" Height="18" />
                                             </ToggleButton>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="یادآور ۲۴ ساعت قبل" FontSize="12.5" FontWeight="Bold"
+                                                <TextBlock Text="ثبت ترجیح یادآور" FontSize="12.5" FontWeight="Bold"
                                                            Foreground="{StaticResource Ink2Brush}" />
-                                                <TextBlock Text="یادآوری خودکار پیش از زمان نوبت" FontSize="11"
+                                                <TextBlock Text="فقط ترجیح ثبت می‌شود؛ در این نسخه پیامکی ارسال نمی‌شود" FontSize="11"
                                                            Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
                                             </StackPanel>
                                         </Grid>
@@ -708,13 +708,6 @@
                                         <TextBlock Grid.Column="0" Text="مدت" FontSize="12"
                                                    Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                                         <TextBlock Grid.Column="1" Text="{Binding SummaryDurationText}" FontSize="12"
-                                                   FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
-                                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                    </Grid>
-                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7">
-                                        <TextBlock Grid.Column="0" Text="هزینه تخمینی" FontSize="12"
-                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1" Text="{Binding SummaryPriceText}" FontSize="12"
                                                    FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>

@@ -9,6 +9,7 @@ using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Patients;
 using Animora.Contracts.Profile;
+using Animora.Contracts.Visits;
 using Animora.Domain.Identity;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
@@ -44,6 +45,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private readonly IUserProfileService _profile;
     private readonly ICurrentUserContext _user;
     private readonly ICapabilityGate _capabilities;
+    private readonly INavigationService _navigation;
+    private readonly IVisitEncounterService _encounters;
 
     private readonly List<AppointmentDoctor> _doctors = [];
     private readonly List<AppointmentType> _types = [];
@@ -115,8 +118,12 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         IPrintService print,
         IUserProfileService profile,
         ICurrentUserContext user,
-        ICapabilityGate capabilities)
+        ICapabilityGate capabilities,
+        INavigationService navigation,
+        IVisitEncounterService encounters)
     {
+        _navigation = navigation;
+        _encounters = encounters;
         _capabilities = capabilities;
         _capabilities.CapabilitiesChanged += OnCapabilitiesChanged;
         _service = service;
@@ -914,7 +921,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 total += list.Count;
             }
 
-            var shown = list.Take(3).Select(a => new MonthEventViewModel(a, TypeOf(a.TypeId), showTime: !CalendarModeIsDayOnly)).ToList();
+            var shown = list.Take(3).Select(a => new MonthEventViewModel(a, TypeOf(a.TypeId), showTime: true)).ToList();
             cells.Add(new MonthCellViewModel(
                 d,
                 isOut,
@@ -1457,7 +1464,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     }
 
     public string SmsReminderHintText =>
-        $"یادآوری خودکار {AppointmentsPresentation.Fa(_smsReminderLeadHours)} ساعت پیش از زمان نوبت ارسال می‌شود";
+        $"ترجیح ثبت‌شده: {AppointmentsPresentation.Fa(_smsReminderLeadHours)} ساعت پیش از نوبت (ارسال پیامک در این نسخه فعال نیست)";
 
     public string NewTypeLabel
     {
@@ -1594,7 +1601,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         LockViewForCalendarMode();
         // The calendar tab is cached by its LazyTabHost: repaint it now so it is correct on return.
         Render();
-        _toast.Show(mode == CalendarMode.DayOnly ? "حالت تقویم: فقط روزانه" : "حالت تقویم: بر اساس ساعت", Tone.Ok);
+        _toast.Show(mode == CalendarMode.DayOnly ? "حالت تقویم: تخصیص خودکار زمان" : "حالت تقویم: بر اساس ساعت", Tone.Ok);
     }
 
     [RelayCommand]
@@ -1902,10 +1909,32 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             _toast,
             _dialogs,
             onChanged: RefreshAfterWrite,
-            onEdit: editEv => _ = OpenEditAsync(editEv));
+            onEdit: editEv => _ = OpenEditAsync(editEv),
+            onOpenVisit: OpenLinkedVisitAsync);
         if (await detail.LoadAsync(ev.Id))
         {
             _dialogs.ShowDrawer(new BookingDetailView { DataContext = detail });
+        }
+    }
+
+    /// <summary>A13: opens the visit linked to an appointment through the existing visit-encounter navigation seam.</summary>
+    private async Task OpenLinkedVisitAsync(AppointmentEvent ev)
+    {
+        if (string.IsNullOrEmpty(ev.VisitId))
+        {
+            _toast.Show("برای این نوبت پروندهٔ ویزیتی ثبت نشده است.", Tone.Info);
+            return;
+        }
+
+        try
+        {
+            var draft = await _encounters.GetAsync(ev.VisitId);
+            _dialogs.Close();
+            await _navigation.NavigateToAsync<Visits.VisitEncounterViewModel>(vm => vm.LoadAsync(draft));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _toast.Show("پروندهٔ ویزیت باز نشد؛ دوباره تلاش کنید.", Tone.Danger);
         }
     }
 
@@ -1975,7 +2004,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var (from, to) = scope.Count > 0 ? (scope.Min(), scope.Max()) : (_cursor, _cursor);
         var vm = new AppointmentExportViewModel(
             _service, _print, _dialogs, _toast, _profile, _user,
-            _doctors.ToList(), _types.ToList(), CalendarModeIsDayOnly, from, to);
+            _doctors.ToList(), _types.ToList(), dayOnly: false, from, to);
         _dialogs.ShowModal(new AppointmentExportView { DataContext = vm }, 980);
     }
 

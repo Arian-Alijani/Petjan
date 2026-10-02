@@ -29,7 +29,10 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
     public async Task<AppointmentDetail?> GetDetailAsync(string appointmentId)
     {
         var row = await QueryAsync(new AppointmentDetailQuery(appointmentId));
-        return row is null ? null : new AppointmentDetail(row.Event.ToContract(calendar.GetTimeZone()), row.CreatedText);
+        if (row is null) return null;
+        // A28: the creator is a real lookup; an unknown creator is labelled as such, never guessed.
+        var created = string.IsNullOrWhiteSpace(row.CreatedByName) ? "نامشخص" : row.CreatedByName!;
+        return new AppointmentDetail(row.Event.ToContract(calendar.GetTimeZone()), created);
     }
 
     public async Task<IReadOnlyList<BookingPatient>> SearchPatientsAsync(

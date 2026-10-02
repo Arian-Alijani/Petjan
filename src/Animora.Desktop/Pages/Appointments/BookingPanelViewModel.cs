@@ -287,9 +287,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private string _summaryDurationText = string.Empty;
 
     [ObservableProperty]
-    private string _summaryPriceText = string.Empty;
-
-    [ObservableProperty]
     private bool _hasConflict;
 
     [ObservableProperty]
@@ -459,7 +456,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         HeadTypeClass = t.ClassKey;
         HeadTypeLabel = t.Label;
         HeadDateText = AppointmentsCalendarMath.Medium(_date);
-        HeadRangeText = IsDayOnly ? "بدون ساعت مشخص" : AppointmentsPresentation.Range(_start, _start + _dur);
+        HeadRangeText = IsDayOnly ? "زمان به‌صورت خودکار تخصیص می‌یابد" : AppointmentsPresentation.Range(_start, _start + _dur);
     }
 
     // ---------------- 1 · type ----------------
@@ -664,9 +661,8 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         SummaryDoctorShort = d.ShortName;
         SummaryDateText = AppointmentsCalendarMath.DayNames[AppointmentsCalendarMath.WeekIndex(_date)] +
                           "، " + AppointmentsCalendarMath.Full(_date);
-        SummaryTimeText = IsDayOnly ? "بدون ساعت" : AppointmentsPresentation.Range(_start, _start + _dur);
+        SummaryTimeText = IsDayOnly ? "تخصیص خودکار" : AppointmentsPresentation.Range(_start, _start + _dur);
         SummaryDurationText = AppointmentsPresentation.Fa(_dur) + " دقیقه";
-        SummaryPriceText = PersianNumberFormatter.FormatGrouped(_dur * 12000L) + " تومان";
 
         var dayCount = _busyByDoctor.GetValueOrDefault(_doc, 0);
         SummaryDayCountText = AppointmentsPresentation.Fa(dayCount) + " نوبت";

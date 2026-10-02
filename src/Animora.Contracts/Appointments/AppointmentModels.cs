@@ -103,8 +103,16 @@ public sealed record AppointmentEvent(
     string? CancelReason = null,
     string CreatedByUserId = "",
     int RescheduleCount = 0,
-    string? DoctorName = null)
+    string? DoctorName = null,
+    long? InvoiceTotalMinor = null,
+    long? InvoicePaidMinor = null)
 {
+    /// <summary>A real (non-void) invoice is linked through the appointment's visit. False means "no money data".</summary>
+    public bool HasInvoice => InvoiceTotalMinor is not null;
+
+    /// <summary>Outstanding balance of the linked invoice, or null when none is linked.</summary>
+    public long? InvoiceBalanceMinor => InvoiceTotalMinor is { } t ? Math.Max(0, t - (InvoicePaidMinor ?? 0)) : null;
+
     /// <summary>No doctor is assigned (<see cref="DoctorId"/> is empty): the event still belongs on the calendar.</summary>
     public bool IsDoctorUnassigned => string.IsNullOrEmpty(DoctorId);
 

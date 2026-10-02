@@ -21,13 +21,16 @@ public sealed record CustomAppointmentType(
     int DurationMinutes,
     bool RequiresDoctor);
 
-/// <summary>SMS preferences for appointments: booking confirmation + reminder lead time.</summary>
+/// <summary>
+/// SMS preferences for appointments: booking confirmation + reminder lead time. These record a local INTENT only -
+/// no delivery pipeline exists yet, so nothing may claim that a message was sent. Defaults are therefore off.
+/// </summary>
 public sealed record AppointmentSmsSettings(
     bool SendOnBooking,
     bool SendReminder,
     int ReminderLeadHours)
 {
-    public static AppointmentSmsSettings Default { get; } = new(true, true, 24);
+    public static AppointmentSmsSettings Default { get; } = new(false, false, 24);
 }
 
 /// <summary>The persisted, clinic-editable appointment preferences.</summary>

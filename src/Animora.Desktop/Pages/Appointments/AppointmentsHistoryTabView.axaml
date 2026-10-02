@@ -369,7 +369,7 @@
                                                                 HorizontalAlignment="Right">
                                                         <TextBlock Text="{Binding PriceText}" FontSize="15" FontWeight="ExtraBold"
                                                                    Foreground="{StaticResource InkBrush}" />
-                                                        <TextBlock Text="تومان" FontSize="9.5" VerticalAlignment="Bottom"
+                                                        <TextBlock Text="تومان" FontSize="9.5" VerticalAlignment="Bottom" IsVisible="{Binding HasPrice}"
                                                                    Foreground="{StaticResource Muted2Brush}" />
                                                     </StackPanel>
                                                 </StackPanel>
