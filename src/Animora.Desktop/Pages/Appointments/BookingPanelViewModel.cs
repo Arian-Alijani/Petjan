@@ -894,7 +894,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         }
 
         var wizard = new AddPatientWizardViewModel(
-            _patients, _dialogs, result => _ = SelectCreatedPatientAsync(result), closeModalOnly: true);
+            _patients, _dialogs, result => _ = SelectCreatedPatientAsync(result), closeModalOnly: true, _toast);
         _dialogs.ShowModal(wizard, maxWidth: 760);
     }
 

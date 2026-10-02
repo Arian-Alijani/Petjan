@@ -208,6 +208,34 @@ public static class PatientsPresentation
             value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture))
         : "—";
 
+    // ---- shared command-failure messaging ----
+    //
+    // The Patients data service surfaces every backend failure as an
+    // InvalidOperationException whose Message is the backend error code. The
+    // create/save flows (wizard, add-pet modal, owner sheet) must catch these and
+    // show a toast — never let them bubble out of an async command, where the
+    // global handler would otherwise treat them as a process crash
+    // ("CRASH_RECOVERY_REQUIRED").
+
+    /// <summary>Shown when a permission / session / capability failure is detected.</summary>
+    public const string AccessLostMessage =
+        "دسترسی لازم را ندارید یا نشست منقضی شده؛ دوباره وارد شوید";
+
+    /// <summary>True for permission / session / capability failures (as opposed to a store or code fault).</summary>
+    public static bool IsAccessFailure(string code) =>
+        code is "PERMISSION_DENIED" or "PERMISSION_UNKNOWN" or "SESSION_EXPIRED"
+            or "CAPABILITY_NOT_GRANTED" or "CAPABILITY_SNAPSHOT_MISSING" or "CAPABILITY_SNAPSHOT_TAMPERED"
+            or "MEMBERSHIP_NOT_ACTIVE" or "USER_DISABLED" or "USER_LOCKED_OUT" or "TENANT_MISMATCH"
+            or "TENANT_SUSPENDED" or "DEVICE_REVOKED";
+
+    /// <summary>
+    /// Maps an <see cref="InvalidOperationException"/> raised by a Patients create/save command to the
+    /// user-facing message to toast: the access-lost copy for permission/session failures, otherwise the
+    /// supplied fallback (a plain "operation failed; try again" line for store/code faults).
+    /// </summary>
+    public static string CommandFailureMessage(System.InvalidOperationException ex, string fallback) =>
+        IsAccessFailure(ex.Message) ? AccessLostMessage : fallback;
+
     // Delegates to the shared, process-wide caches so callers that hit the hot
     // path (card/row builds) never re-allocate a brush per item
     // (PERFORMANCE.md §10).
