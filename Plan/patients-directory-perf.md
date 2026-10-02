@@ -142,7 +142,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 ---
 
-### [ ] Task 1 — Add WeightEntry `(PetId, MeasuredUtc)` index  (fixes Issue 1 / P1)
+### [x] Task 1 — Add WeightEntry `(PetId, MeasuredUtc)` index  (fixes Issue 1 / P1)  ✅ DONE
 **File:** `src/Animora.Persistence.Sqlite/Configurations/Patients/WeightEntryConfiguration.cs`
 **Do:** inside `Configure`, after `HasKey`, add:
 ```csharp
@@ -158,7 +158,7 @@ snapshot (likely `WeightEntries`). Match the migration (Task 4) to whatever the 
 
 ---
 
-### [ ] Task 2 — Add Pet `(TenantId, BirthDateUtc)` + Owner `(TenantId, RegisteredUtc)` indexes  (fixes Issue 8 / P9)
+### [x] Task 2 — Add Pet `(TenantId, BirthDateUtc)` + Owner `(TenantId, RegisteredUtc)` indexes  (fixes Issue 8 / P9)  ✅ DONE
 **Files:**
 - `src/Animora.Persistence.Sqlite/Configurations/Patients/PetConfiguration.cs` — add:
   ```csharp
@@ -195,7 +195,17 @@ say "prefix match (index-usable)" instead of implying contains.
 
 ---
 
-### [ ] Task 4 — EF migration `023` for the new indexes (Tasks 1+2)  (schema realization)
+### [x] Task 4 — EF migration `023` for the new indexes (Tasks 1+2)  (schema realization)  ✅ DONE
+> Hand-wrote `20261002120000_023_PatientsPerfIndexes.cs` + `.Designer.cs` (Designer body copied from the
+> updated snapshot) + updated `AnimoraLocalDbContextModelSnapshot.cs` with the 3 new `HasIndex` entries.
+> WeightEntry table confirmed = `WeightEntries`. `build.sh full` = 0 errors.
+> **Side-effect fix (pushed with this batch):** `build.sh full` surfaced PRE-EXISTING stale test calls
+> (unrelated to indexes) that used the old `IPatientDirectoryQueries` arg counts and a stale
+> `CompleteVisitCommandHandler` ctor. Fixed to current signatures so the solution builds clean:
+> `tests/Animora.Persistence.Tests/PatientDirectoryQueryTests.cs` (+ReadModels using),
+> `tests/Animora.Application.Tests/PatientsUseCaseTests.cs`,
+> `tests/Animora.Application.Tests/OfflineBudgetMeasurements.cs` (+ReadModels using),
+> `tests/Animora.Application.Tests/VisitEncounterUseCaseTests.cs` (added existing `FakeAppointmentRepository`).
 **Why separate task:** EF config `HasIndex` only takes effect once a migration + snapshot exist.
 **Do (preferred — hand-write to avoid design-time tooling flakiness; mirror `__022_DashboardWidgetIndexes.cs`):**
 1. Create `src/Animora.Persistence.Sqlite/Migrations/<ts>_023_PatientsPerfIndexes.cs` (+ `.Designer.cs`),
