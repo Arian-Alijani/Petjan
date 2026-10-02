@@ -25,7 +25,7 @@ public sealed class VisitEncounterUseCaseTests
     }
 
     private CompleteVisitCommandHandler CompleteHandler() =>
-        new(_visits, _history, _handoff, _queue, _pets, new EmptyTriage(), Clock);
+        new(_visits, _history, _handoff, _queue, _pets, new EmptyTriage(), new FakeAppointmentRepository(), Clock);
 
     [Fact]
     public async Task EditingNoteOnCompletedVisit_IsRejected()
