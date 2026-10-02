@@ -100,6 +100,20 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     [ObservableProperty]
     private string _title = "ثبت نوبت جدید";
 
+    /// <summary>
+    /// A02: editing an existing appointment is an explicit reschedule — only date / start / duration are
+    /// persisted by the backend (<c>RescheduleAppointmentCommand</c>). Type, doctor, patient and note are
+    /// therefore read-only in edit mode instead of silently discarding the user's changes.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsIdentityEditable))]
+    private bool _isEditMode;
+
+    /// <summary>True while the type / patient / doctor / note fields may be changed (new bookings only).</summary>
+    public bool IsIdentityEditable => !IsEditMode;
+
+    public string EditLockedHint => "در جابه‌جایی نوبت فقط تاریخ، ساعت و مدت قابل تغییر است؛ نوع، پزشک، بیمار و یادداشت قابل‌ویرایش نیست.";
+
     [ObservableProperty]
     private string _headTypeLabel = string.Empty;
 
@@ -366,8 +380,9 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     // ── render orchestration (reference renderBook + painters) ────────────────
     private void Render()
     {
-        Title = _mode == "edit" ? "ویرایش نوبت" : "ثبت نوبت جدید";
-        SubmitLabel = _mode == "edit" ? "ذخیره تغییرات" : "ثبت نوبت";
+        IsEditMode = _mode == "edit";
+        Title = IsEditMode ? "جابه‌جایی نوبت" : "ثبت نوبت جدید";
+        SubmitLabel = IsEditMode ? "ذخیره زمان جدید" : "ثبت نوبت";
         RenderType();
         RenderPatient();
         RenderDoctors();
@@ -617,7 +632,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     [RelayCommand]
     private async Task SelectType(string? id)
     {
-        if (string.IsNullOrEmpty(id) || _types.All(t => t.Id != id))
+        if (IsEditMode || string.IsNullOrEmpty(id) || _types.All(t => t.Id != id))
         {
             return;
         }
@@ -630,7 +645,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     [RelayCommand]
     private async Task SelectDoctor(string? id)
     {
-        if (string.IsNullOrEmpty(id) || _doctors.All(d => d.Id != id))
+        if (IsEditMode || string.IsNullOrEmpty(id) || _doctors.All(d => d.Id != id))
         {
             return;
         }
@@ -735,7 +750,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     [RelayCommand]
     private void SelectPatient(BookingPatientOptionViewModel? option)
     {
-        if (option is null)
+        if (option is null || IsEditMode)
         {
             return;
         }
@@ -757,6 +772,11 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     [RelayCommand]
     private void ChangePatient()
     {
+        if (IsEditMode)
+        {
+            return;
+        }
+
         _picking = true;
         QueuePatientSearch();
         RenderPatient();
@@ -770,6 +790,11 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     [RelayCommand]
     private void BeginAddPatient()
     {
+        if (IsEditMode)
+        {
+            return;
+        }
+
         var wizard = new AddPatientWizardViewModel(
             _patients, _dialogs, result => _ = SelectCreatedPatientAsync(result), closeModalOnly: true);
         _dialogs.ShowModal(wizard, maxWidth: 760);
@@ -844,7 +869,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
                 _date, start, duration, _type, _doc,
                 p.Name, p.Kind, p.OwnerName, p.Phone, p.AvatarTone, p.SpeciesIconKey,
                 note, SendSms, SendReminder));
-            _toast.Show("تغییرات نوبت ذخیره شد.", Tone.Ok);
+            _toast.Show("زمان جدید نوبت ذخیره شد.", Tone.Ok);
         }
         else
         {
@@ -871,6 +896,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         await _initialLoad;
         StopPatientSearch();
         _mode = "edit";
+        IsEditMode = true;
         _id = ev.Id;
         _type = ev.TypeId;
         _doc = ev.DoctorId;
@@ -893,6 +919,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     {
         await _initialLoad;
         _mode = "new";
+        IsEditMode = false;
         _id = null;
         _type = _types.Count > 0 ? _types[0].Id : "visit";
         _dur = dur ?? TypeOf(_type).DurationMinutes;

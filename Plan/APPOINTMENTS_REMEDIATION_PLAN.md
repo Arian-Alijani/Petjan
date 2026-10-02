@@ -182,7 +182,7 @@ illegal writes, but the UI affordances/summaries are wrong.
 
 ---
 
-### T04 — [ ] A02 (P1): make the edit contract honest (persist every enabled field, validate the final doctor)
+### T04 — [x] A02 (P1): make the edit contract honest (persist every enabled field, validate the final doctor)
 **Why/Evidence:** BVM:618–639,840–847 sends type/doctor/patient/note/notification; PAYLOAD:74–88
 declares them; but `BS.UpdateAsync` (BS:80–85) only dispatches `RescheduleAppointmentCommand(id,date,start,dur)`.
 CMD:86–114 keeps the OLD doctor and has no type/note/patient update. Slot availability is previewed for the

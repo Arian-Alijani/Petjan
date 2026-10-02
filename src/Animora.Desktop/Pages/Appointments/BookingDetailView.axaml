@@ -197,7 +197,7 @@
                             <Path Classes="icon" Width="16" Height="16"
                                   Stroke="{Binding $parent[Button].Foreground}"
                                   Data="{StaticResource IconEdit}" />
-                            <TextBlock Text="ویرایش" />
+                            <TextBlock Text="جابه‌جایی" />
                         </StackPanel>
                     </Button>
                     <Button Classes="outline" Width="40" Padding="0" HorizontalContentAlignment="Center"

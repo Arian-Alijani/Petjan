@@ -80,8 +80,14 @@
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
 
+                        <!-- edit mode: explicit reschedule-only contract (A02) -->
+                        <Border Classes="bk-sec" IsVisible="{Binding IsEditMode}">
+                            <TextBlock Text="{Binding EditLockedHint}" FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{StaticResource MutedBrush}" />
+                        </Border>
+
                         <!-- 1 · type -->
-                        <Border Classes="bk-sec">
+                        <Border Classes="bk-sec" IsEnabled="{Binding IsIdentityEditable}">
                             <StackPanel>
                                 <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
                                     <Border Grid.Column="0" Classes="step"><TextBlock Text="۱" /></Border>
@@ -126,7 +132,7 @@
                         </Border>
 
                         <!-- 2 · patient & owner -->
-                        <Border Classes="bk-sec">
+                        <Border Classes="bk-sec" IsEnabled="{Binding IsIdentityEditable}">
                             <StackPanel>
                                 <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
                                     <Border Grid.Column="0" Classes="step"><TextBlock Text="۲" /></Border>
@@ -315,7 +321,7 @@
                         </Border>
 
                         <!-- 3 · doctor -->
-                        <Border Classes="bk-sec">
+                        <Border Classes="bk-sec" IsEnabled="{Binding IsIdentityEditable}">
                             <StackPanel>
                                 <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
                                     <Border Grid.Column="0" Classes="step"><TextBlock Text="۳" /></Border>
@@ -553,10 +559,10 @@
                                     <TextBlock Grid.Column="3" Text="اختیاری" FontSize="11"
                                                Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                                 </Grid>
-                                <TextBox Text="{Binding NoteText, Mode=TwoWay}" MinHeight="74"
+                                <TextBox Text="{Binding NoteText, Mode=TwoWay}" MinHeight="74" IsEnabled="{Binding IsIdentityEditable}"
                                          CornerRadius="12" Padding="12" AcceptsReturn="True" TextWrapping="Wrap"
                                          PlaceholderText="علت مراجعه، علائم یا توضیح لازم برای پذیرش…" />
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,11,0,0">
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,11,0,0" IsVisible="{Binding IsIdentityEditable}">
                                     <Border Grid.Column="0" Classes="switch-row">
                                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
                                             <ToggleButton Grid.Column="0" Classes="bk-switch"
