@@ -96,7 +96,7 @@ independently pushable. **After every task → run the push command shown.**
 
 ---
 
-### [ ] T01 — P01 (P1) · Owner edit wipes email/city/notes (silent data loss)
+### [x] T01 — P01 (P1) · Owner edit wipes email/city/notes (silent data loss)
 **Root cause (confirmed):** `UpdateOwnerCommand` (UPDOWN:17-18) has **no** Email/City/Notes fields.
 Its handler (UPDOWN:45-46) calls `owner.UpdateContactDetails(..., email: null, ..., city: null,
 notes: null)` — literal nulls — on every edit. `CreateOwnerCommand` handler (CREATE:49-50) has the

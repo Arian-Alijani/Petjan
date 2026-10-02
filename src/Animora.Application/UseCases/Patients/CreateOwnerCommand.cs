@@ -46,6 +46,7 @@ public sealed class CreateOwnerCommandHandler(IOwnerRepository owners, IPetRepos
     public Task<Result<string>> HandleAsync(CreateOwnerCommand c, CommandContext context, CancellationToken ct)
     {
         var owner = Owner.Register(context.TenantId, c.FullName, c.PhonePrimary, clock, c.Gender);
+        // Null email/city/notes are intentional: this is a brand-new owner row.
         owner.UpdateContactDetails(c.FullName, c.PhonePrimary, c.PhoneSecondary, c.NationalId,
             email: null, address: c.Address, city: null, gender: c.Gender, notes: null);
         owners.Add(owner);
