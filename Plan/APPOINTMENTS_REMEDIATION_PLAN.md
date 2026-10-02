@@ -140,7 +140,7 @@ version to journal) are all impossible to fix in the UI without this seam.
 
 ---
 
-### T02 — [ ] A03 (P1): completing a visit must complete its appointment atomically
+### T02 — [x] A03 (P1): completing a visit must complete its appointment atomically
 **Why/Evidence:** COMPLETE:205–239 completes Visit+history+handoff+queue but never transitions the
 appointment. APT:231 `Complete()` has no production caller. Result: finished encounters leave the
 appointment `InVisit` forever → wrong history, occupied slot (SQL:85–86 keeps InVisit occupied),
