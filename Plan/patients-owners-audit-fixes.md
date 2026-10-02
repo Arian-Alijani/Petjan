@@ -425,7 +425,7 @@ instead and document — but default is retire + paged search.
 
 ---
 
-### [ ] T14 — P21 (P2) · Every create/update/weight does a full detail re-read
+### [x] T14 — P21 (P2) · Every create/update/weight does a full detail re-read
 **Root cause (confirmed):** SVC `CreateOwnerAsync` (SVC:194), `CreatePetAsync` (SVC:209),
 `SaveOwnerAsync` (SVC:223), `SavePetInfoAsync` (SVC:238), `AddWeightEntryAsync` (SVC:251) each end
 with `(await GetOwnerAsync(...))!` / `(await GetPetAsync(...))!`. For pets that re-read runs the

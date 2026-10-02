@@ -134,6 +134,13 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         return r.Value is { } m ? m.ToDetail() : null;
     }
 
+    // ── Write methods ─────────────────────────────────────────────────────────────────────────
+    // Perf note (P21): every write below ends with a read-after-write (GetOwnerAsync/GetPetAsync) on
+    // purpose — callers need the fresh DTO, and the command handlers return only Unit/id today.
+    // The re-read is index-backed (IX_WeightEntries_PetId_MeasuredUtc for the last-weight subquery,
+    // IX_Pets_TenantId_OwnerId for the pet count). Returning the projection from the command is a
+    // deferred optimization; revisit only if profiling shows a hot-path problem (e.g. weight append).
+
     public async Task<OwnerDetail> CreateOwnerAsync(NewOwnerRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
