@@ -303,7 +303,7 @@ behavior before editing** (PageViewModelBase) — preserve any base call; curren
 
 ---
 
-### [ ] T09 — P16 (P2) · First/last name split by first space corrupts multi-part names
+### [x] T09 — P16 (P2) · First/last name split by first space corrupts multi-part names
 **Root cause (confirmed):** MAP:47-51 `SplitName` splits `FullName` on the **first** space; SVC:188
 (`CreateOwnerAsync`) and SVC:219 (`SaveOwnerAsync`) recombine `$"{First} {Last}".Trim()`. The domain
 stores one `FullName` (CREATE:48). So "محمد رضا تقوی" round-trips as First="محمد", Last="رضا تقوی";

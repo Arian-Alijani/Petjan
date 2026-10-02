@@ -44,6 +44,13 @@ internal static class PatientsMapping
         Visits: [], Vaccinations: [], Labs: [], Documents: [], Surgeries: [],
         Allergies: Split(m.AllergyNotes), ChronicConditions: Split(m.ChronicNotes), Notes: null);
 
+    /// <summary>
+    /// Best-effort DISPLAY decomposition of the owner's single identity. The domain stores one
+    /// <c>FullName</c> (source of truth) — it has no separate first/last. First = first token,
+    /// Last = the remainder. Saves re-join with a single space (<c>$"{First} {Last}".Trim()</c>), so
+    /// the split is loss-free on round-trip: multi-part names ("محمد رضا تقوی") and single-token names
+    /// (Last = "") are both preserved verbatim.
+    /// </summary>
     private static (string First, string Last) SplitName(string full)
     {
         var i = full.IndexOf(' ');
