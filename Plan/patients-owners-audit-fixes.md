@@ -251,7 +251,7 @@ XML-doc to say "prefix match (index-usable)" instead of implying contains.
 
 ---
 
-### [ ] T07 — P10 (P2) · Facets issue a redundant total-pets COUNT
+### [x] T07 — P10 (P2) · Facets issue a redundant total-pets COUNT
 **Root cause (confirmed):** `GetFacetsAsync` (SQL:65-81) runs 3 statements — `totalPets` CountAsync
 (SQL:70), `totalOwners` CountAsync (SQL:71), species GROUP BY (SQL:75-78). The species GROUP BY is
 computed with `species: null` (full taxonomy under text filter), and its values already **sum** to

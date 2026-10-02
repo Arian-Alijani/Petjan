@@ -65,17 +65,21 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
     public async Task<PatientDirectoryFacetsReadModel> GetFacetsAsync(
         string? search, PetSpecies? species, CancellationToken ct)
     {
-        // Totals under the active search/species filter (owners cross-filtered to those
-        // with a matching pet, exactly like GetOwnersAsync).
-        var totalPets = await FilterPets(db.Set<Pet>().AsNoTracking(), search, species).CountAsync(ct);
-        var totalOwners = await FilterOwners(search, species).CountAsync(ct);
-
         // Per-species chip counts ignore the species filter (chips show the full taxonomy under
         // the current text filter) — one grouped COUNT, not N queries.
         var speciesCounts = await FilterPets(db.Set<Pet>().AsNoTracking(), search, species: null)
             .GroupBy(p => p.Species)
             .Select(g => new { Species = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Species, x => x.Count, ct);
+
+        // Pet total under the active search/species filter is derived from the groups above
+        // (sum of all groups, or the single selected group) — no separate COUNT statement.
+        var totalPets = species is { } sp
+            ? speciesCounts.GetValueOrDefault(sp)
+            : speciesCounts.Values.Sum();
+
+        // Owners are cross-filtered to those with a matching pet, exactly like GetOwnersAsync.
+        var totalOwners = await FilterOwners(search, species).CountAsync(ct);
 
         return new PatientDirectoryFacetsReadModel(totalOwners, totalPets, speciesCounts);
     }
