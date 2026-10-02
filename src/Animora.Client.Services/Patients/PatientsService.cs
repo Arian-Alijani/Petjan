@@ -162,9 +162,11 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) return null;
+        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
         var r = await dispatcher.QueryAsync(new OwnerDetailQuery(id), qc.Value!);
-        return r.IsSuccess && r.Value is { } m ? m.ToDetail() : null;
+        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        // Success + null value is a genuine not-found; auth/session failures throw above.
+        return r.Value is { } m ? m.ToDetail() : null;
     }
 
     public async Task<PetDetail?> GetPetAsync(string id)
@@ -172,9 +174,11 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) return null;
+        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
         var r = await dispatcher.QueryAsync(new PetDetailQuery(id), qc.Value!);
-        return r.IsSuccess && r.Value is { } m ? m.ToDetail() : null;
+        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        // Success + null value is a genuine not-found; auth/session failures throw above.
+        return r.Value is { } m ? m.ToDetail() : null;
     }
 
     public async Task<OwnerDetail> CreateOwnerAsync(NewOwnerRequest request)

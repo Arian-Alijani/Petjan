@@ -121,7 +121,7 @@ new row. Do not change Contracts/UI in this task.
 
 ---
 
-### [ ] T02 — P02 + P06 (P1) · Detail reads swallow auth failure as "not found"; load catch-all flattens every error
+### [x] T02 — P02 + P06 (P1) · Detail reads swallow auth failure as "not found"; load catch-all flattens every error
 **Root cause (confirmed):**
 - SVC `GetOwnerAsync` (SVC:160-168) and `GetPetAsync` (SVC:170-178): on `qc.IsFailure` they
   `return null`, collapsing an auth/session failure into "owner/pet not found". The page reads

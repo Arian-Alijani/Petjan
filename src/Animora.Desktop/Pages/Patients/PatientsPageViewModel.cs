@@ -325,9 +325,20 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             return;
         }
 
-        var detail = await _patientsQueryService.GetOwnerAsync(owner.Id);
+        OwnerDetail? detail;
+        try
+        {
+            detail = await _patientsQueryService.GetOwnerAsync(owner.Id);
+        }
+        catch (InvalidOperationException)
+        {
+            _toast.Show(AccessLostMessage, Tone.Danger);
+            return;
+        }
+
         if (detail is null)
         {
+            _toast.Show("مالک پیدا نشد", Tone.Info);
             return;
         }
 
@@ -378,6 +389,15 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         _ => PatientsSortOrder.Recent,
     };
 
+    private const string AccessLostMessage = "دسترسی لازم را ندارید یا نشست منقضی شده؛ دوباره وارد شوید";
+
+    /// <summary>Permission / session / capability failures (as opposed to a store or code fault).</summary>
+    private static bool IsAccessFailure(string code) =>
+        code is "PERMISSION_DENIED" or "PERMISSION_UNKNOWN" or "SESSION_EXPIRED"
+            or "CAPABILITY_NOT_GRANTED" or "CAPABILITY_SNAPSHOT_MISSING" or "CAPABILITY_SNAPSHOT_TAMPERED"
+            or "MEMBERSHIP_NOT_ACTIVE" or "USER_DISABLED" or "USER_LOCKED_OUT" or "TENANT_MISMATCH"
+            or "TENANT_SUSPENDED" or "DEVICE_REVOKED";
+
     /// <returns>False when the load failed (already reported to the user here).</returns>
     private async Task<bool> LoadAsync()
     {
@@ -411,6 +431,11 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
             NotifyDerived();
             return true;
+        }
+        catch (InvalidOperationException ex) when (IsAccessFailure(ex.Message))
+        {
+            _toast.Show(AccessLostMessage, Tone.Danger);
+            return false;
         }
         catch (Exception)
         {
