@@ -33,8 +33,9 @@ public interface IAppointmentsQueryService
     Task<IReadOnlyList<AppointmentEvent>> GetQueueAsync();
 
     /// <summary>
-    /// The past appointments for the history tab, mirroring the reference's
-    /// <c>histList()</c> (date ≤ today, done/cancel for today).
+    /// One page of the appointment archive (terminal appointments up to today, newest first) matching
+    /// <paramref name="filter"/>, with aggregates over the whole filtered scope. All filtering, paging and
+    /// totals happen in the backend so the archive is never limited to what the calendar preloaded.
     /// </summary>
-    Task<IReadOnlyList<AppointmentEvent>> GetHistoryAsync();
+    Task<AppointmentHistoryPage> GetHistoryAsync(AppointmentHistoryFilter filter, CancellationToken ct = default);
 }

@@ -2,8 +2,10 @@ using Animora.Application.Ports;
 using Animora.Application.UseCases.Scheduling.ReadModels;
 using Animora.Domain.Identity;
 using Animora.Domain.Patients;
+using Animora.Domain.Sales;
 using Animora.Domain.Scheduling;
 using Animora.Persistence.Sqlite.Context;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Persistence.Sqlite.Queries;
@@ -72,14 +74,53 @@ public sealed class AppointmentQueries(AnimoraLocalDbContext db) : IAppointmentQ
         return rows.Select(Map).ToArray();
     }
 
-    public async Task<IReadOnlyList<AppointmentEventReadModel>> GetHistoryAsync(CancellationToken ct)
+    public async Task<AppointmentHistoryPageReadModel> GetHistoryPageAsync(
+        AppointmentHistoryCriteria c, CancellationToken ct)
     {
-        var rows = await Events(db.Set<Appointment>().AsNoTracking().Where(a =>
-            a.State == AppointmentState.Completed || a.State == AppointmentState.NoShow ||
-            a.State == AppointmentState.Cancelled)).OrderByDescending(a => a.StartUtc)
-            .ThenBy(a => a.Id).Take(200).ToListAsync(ct);
-        return rows.Select(Map).ToArray();
+        var to = Utc(c.ToTicks);
+        // Terminal states only; every bound is a plain UTC comparison so the (state, start) index stays usable.
+        var source = db.Set<Appointment>().AsNoTracking().Where(a => a.StartUtc < to &&
+            (a.State == AppointmentState.Completed || a.State == AppointmentState.NoShow ||
+             a.State == AppointmentState.Cancelled));
+        if (c.FromTicks is { } fromTicks) { var from = Utc(fromTicks); source = source.Where(a => a.StartUtc >= from); }
+        if (c.State is { } state) source = source.Where(a => a.State == state);
+        if (c.DoctorId is { } doctorId) source = source.Where(a => a.DoctorUserId == doctorId);
+        if (c.TypeCode is { } typeCode) source = source.Where(a => a.AppointmentTypeCode == typeCode);
+        foreach (var term in c.SearchTerms)
+            source = source.Where(a =>
+                db.Set<Pet>().Any(p => p.Id == a.PetId && p.SearchKey.Contains(term)) ||
+                db.Set<Owner>().Any(o => o.Id == a.OwnerId && o.SearchKey.Contains(term)));
+        source = c.Invoice switch
+        {
+            HistoryInvoiceFilter.Paid => source.Where(InvoiceIs(InvoiceState.Paid)),
+            HistoryInvoiceFilter.Partial => source.Where(InvoiceIs(InvoiceState.PartiallyPaid)),
+            HistoryInvoiceFilter.Unpaid => source.Where(InvoiceIs(InvoiceState.Posted)),
+            HistoryInvoiceFilter.None => source.Where(a => a.VisitId == null || !db.Set<Invoice>().Any(i => i.VisitId == a.VisitId &&
+                (i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid || i.State == InvoiceState.Paid))),
+            _ => source,
+        };
+
+        // Aggregates cover the whole filtered scope, independent of the page that is returned below.
+        var perState = await source.GroupBy(a => a.State)
+            .Select(g => new { State = g.Key, Count = g.Count() }).ToListAsync(ct);
+        int Of(AppointmentState s) => perState.Where(x => x.State == s).Sum(x => x.Count);
+        var events = Events(source);
+        var paid = await events.SumAsync(r => r.InvoicePaidMinor ?? 0, ct);
+        var owed = await events.SumAsync(r =>
+            r.InvoiceState == InvoiceState.Posted || r.InvoiceState == InvoiceState.PartiallyPaid
+                ? (r.InvoiceTotalMinor ?? 0) - (r.InvoicePaidMinor ?? 0) : 0, ct);
+        var summary = new AppointmentHistorySummary(perState.Sum(x => x.Count), Of(AppointmentState.Completed),
+            Of(AppointmentState.Cancelled), Of(AppointmentState.NoShow), paid, owed);
+
+        // One extra row tells the caller whether another page exists without a second count.
+        var rows = await events.OrderByDescending(r => r.StartUtc).ThenBy(r => r.Id)
+            .Skip(c.Skip).Take(c.Take + 1).ToListAsync(ct);
+        return new AppointmentHistoryPageReadModel(rows.Take(c.Take).Select(Map).ToArray(), summary, rows.Count > c.Take);
     }
+
+    // Real FK only (Appointment.VisitId -> Invoice.VisitId); voided invoices never count.
+    private Expression<Func<Appointment, bool>> InvoiceIs(InvoiceState state) => a => a.VisitId != null &&
+        db.Set<Invoice>().Any(i => i.VisitId == a.VisitId && i.State == state);
 
     public async Task<IReadOnlyList<ExistingSlot>> GetDoctorSlotsAsync(
         string doctorId, long startTicks, long endTicks, string? excludeId, CancellationToken ct)

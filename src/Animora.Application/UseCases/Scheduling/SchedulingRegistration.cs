@@ -14,7 +14,7 @@ public static class SchedulingRegistration
         .AddQuery<DoctorBusyCountQuery, int, DoctorBusyCountQueryHandler>()
         .AddQuery<AppointmentDetailQuery, AppointmentDetailReadModel?, AppointmentDetailQueryHandler>()
         .AddQuery<AppointmentQueueQuery, IReadOnlyList<AppointmentEventReadModel>, AppointmentQueueQueryHandler>()
-        .AddQuery<AppointmentHistoryQuery, IReadOnlyList<AppointmentEventReadModel>, AppointmentHistoryQueryHandler>()
+        .AddQuery<AppointmentHistoryQuery, AppointmentHistoryPageReadModel, AppointmentHistoryQueryHandler>()
         .AddQuery<AvailableSlotsQuery, IReadOnlyList<TimeSlotReadModel>, AvailableSlotsQueryHandler>()
         .AddCommand<BookAppointmentCommand, string, BookAppointmentCommandHandler>()
         .AddValidator<BookAppointmentCommand, BookAppointmentCommandValidator>()

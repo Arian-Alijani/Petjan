@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Diagnostics;
@@ -48,6 +49,14 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private readonly List<AppointmentType> _types = [];
     private readonly List<AppointmentEvent> _all = [];
 
+    // A01: events are cached per fixed-size date chunk and fetched on demand for whatever range is on screen,
+    // so nothing depends on a preloaded window around today. Each fetch stays inside the backend's 63-day guard.
+    private const int ChunkDays = 28;
+    private const int ChunksPerRequest = 2; // 56 days per request, below the 63-inclusive-day range guard
+    private const int MaxCachedChunks = 30; // ~840 days; farther chunks are evicted when the cache grows
+    private readonly Dictionary<int, List<AppointmentEvent>> _chunks = [];
+    private int _rangeGeneration;
+
     // Fast lookup indexes rebuilt whenever the underlying collections change.
     // These replace repeated O(n) LINQ scans (First/Where) that made every
     // render pass scale with the total number of appointments.
@@ -85,6 +94,14 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private DateOnly? _historyRangeEnd;
     private DateOnly _historyCalendarCursor;
     private bool _historyCalendarOpen;
+
+    // History archive state (A01): rows come page by page from the backend, with scope-wide totals.
+    private readonly List<AppointmentEvent> _historyRows = [];
+    private AppointmentHistoryTotals _historyTotals = AppointmentHistoryTotals.Empty;
+    private int _historyPage;
+    private int _historyGeneration;
+    private CancellationTokenSource? _historyCts;
+    private bool _historyStale = true;
 
     public AppointmentsCalendarViewModel(
         IAppointmentsQueryService service,
@@ -223,10 +240,20 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     partial void OnHasMonthEventsChanged(bool value) => OnPropertyChanged(nameof(ShowMonthEmptyState));
 
     /// <summary>Show the time-grid empty state when there are no visible events.</summary>
-    public bool ShowGridEmptyState => !HasGridEvents;
+    public bool ShowGridEmptyState => !HasGridEvents && !IsRangeUnsettled;
 
     /// <summary>Show the month-grid empty state when there are no visible events.</summary>
-    public bool ShowMonthEmptyState => !HasMonthEvents;
+    public bool ShowMonthEmptyState => !HasMonthEvents && !IsRangeUnsettled;
+
+    /// <summary>True while the visible range is still being fetched: grids must not claim "no appointments".</summary>
+    [ObservableProperty]
+    private bool _isRangeUnsettled;
+
+    partial void OnIsRangeUnsettledChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowGridEmptyState));
+        OnPropertyChanged(nameof(ShowMonthEmptyState));
+    }
 
     // ── derived view flags ───────────────────────────────────────────────────
     public bool IsCalendarTab => _activeTab == "cal";
@@ -294,27 +321,24 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _isLoading = true;
         IsBusy = true;
 
-        // Yield once before the (currently synchronous, mock-backed) fetch +
-        // render pipeline runs. The mocks resolve via Task.FromResult, so
-        // without this the whole load — including the render pass below —
-        // would execute inline on the UI thread inside the DI constructor
-        // call that triggers navigation, making the very click that opens
-        // this page block until everything finishes. Yielding lets the
-        // dispatcher process the pending navigation/layout work first, so the
-        // shell paints before the heavier work runs.
+        // Yield once before the fetch + render pipeline runs so the click that opens this page paints first.
         await Task.Yield();
         await _readiness.WaitAsync();
 
-        _doctors.Clear();
-        _doctors.AddRange(await _service.GetDoctorsAsync());
-        _types.Clear();
-        _types.AddRange(await _service.GetTypesAsync());
+        // Everything is fetched into locals first and swapped in only when the whole load succeeded, so a failure
+        // keeps the previous snapshot instead of leaving the page half-cleared.
+        var doctors = await _service.GetDoctorsAsync();
+        var types = await _service.GetTypesAsync();
         ApplySettings(await _settings.GetAsync());
         LockViewForCalendarMode();
-        _all.Clear();
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        _all.AddRange(await _service.GetForRangeAsync(today.AddDays(-40), today.AddDays(20)));
-        _all.AddRange(await _service.GetForRangeAsync(today.AddDays(21), today.AddDays(40)));
+        var fresh = await FetchChunksAsync(NeededChunks());
+
+        _doctors.Clear();
+        _doctors.AddRange(doctors);
+        _types.Clear();
+        _types.AddRange(types);
+        ReplaceChunks(fresh);
+        _historyStale = true;
 
         RebuildIndexes();
 
@@ -369,11 +393,193 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 break;
             case "hist":
                 RenderHistory();
+                RefreshHistory();
                 break;
             default:
                 Render();
                 break;
         }
+    }
+
+    // ── range loading (A01) ──────────────────────────────────────────────────
+    private static int ChunkOf(DateOnly day) => day.DayNumber / ChunkDays;
+
+    private static DateOnly ChunkStart(int chunk) => DateOnly.FromDayNumber(chunk * ChunkDays);
+
+    private (DateOnly Start, DateOnly End) CalendarRange()
+    {
+        switch (_viewMode)
+        {
+            case "day":
+                return (_cursor, _cursor);
+            case "week":
+                var ws = AppointmentsCalendarMath.WeekStart(_cursor);
+                return (ws, ws.AddDays(6));
+            default:
+                // The month grid paints the out-of-month leading/trailing days too (6 weeks at most).
+                var first = AppointmentsCalendarMath.WeekStart(AppointmentsCalendarMath.MonthStart(_cursor));
+                return (first, first.AddDays(41));
+        }
+    }
+
+    private (DateOnly Start, DateOnly End)[] QueueRanges()
+    {
+        var first = DateOnly.FromDateTime(DateTime.Today).AddDays(_queueOffset * 7);
+        return [(first, first.AddDays(13)), (_queueDay, _queueDay)];
+    }
+
+    private (DateOnly Start, DateOnly End) HistoryCalendarRange()
+    {
+        var first = AppointmentsCalendarMath.WeekStart(AppointmentsCalendarMath.MonthStart(_historyCalendarCursor));
+        return (first, first.AddDays(41));
+    }
+
+    /// <summary>Every range the visible tabs need right now; a full reload refreshes exactly these.</summary>
+    private List<(DateOnly Start, DateOnly End)> NeededRanges()
+    {
+        var ranges = new List<(DateOnly, DateOnly)> { CalendarRange() };
+        ranges.AddRange(QueueRanges());
+        if (_historyCalendarOpen)
+        {
+            ranges.Add(HistoryCalendarRange());
+        }
+
+        return ranges;
+    }
+
+    private HashSet<int> NeededChunks() => ChunksOf(NeededRanges());
+
+    private static HashSet<int> ChunksOf(IEnumerable<(DateOnly Start, DateOnly End)> ranges)
+    {
+        var set = new HashSet<int>();
+        foreach (var (start, end) in ranges)
+        {
+            for (var c = ChunkOf(start); c <= ChunkOf(end); c++)
+            {
+                set.Add(c);
+            }
+        }
+
+        return set;
+    }
+
+    /// <summary>
+    /// Fetches the given chunks from the backend in contiguous runs (each run within the 63-day guard).
+    /// Pure with respect to the cache: the caller decides when to publish the result.
+    /// </summary>
+    private async Task<Dictionary<int, List<AppointmentEvent>>> FetchChunksAsync(IEnumerable<int> wanted)
+    {
+        var result = new Dictionary<int, List<AppointmentEvent>>();
+        var ordered = wanted.Distinct().OrderBy(c => c).ToList();
+        var i = 0;
+        while (i < ordered.Count)
+        {
+            var run = new List<int> { ordered[i++] };
+            while (i < ordered.Count && ordered[i] == run[^1] + 1 && run.Count < ChunksPerRequest)
+            {
+                run.Add(ordered[i++]);
+            }
+
+            foreach (var c in run)
+            {
+                result[c] = [];
+            }
+
+            var events = await _service.GetForRangeAsync(ChunkStart(run[0]), ChunkStart(run[^1] + 1).AddDays(-1));
+            foreach (var e in events)
+            {
+                if (result.TryGetValue(ChunkOf(e.Date), out var bucket))
+                {
+                    bucket.Add(e);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Replaces the whole cache with a freshly fetched set (reload / after a write).</summary>
+    private void ReplaceChunks(Dictionary<int, List<AppointmentEvent>> fresh)
+    {
+        _chunks.Clear();
+        foreach (var (key, value) in fresh)
+        {
+            _chunks[key] = value;
+        }
+    }
+
+    private void MergeChunks(Dictionary<int, List<AppointmentEvent>> fetched, HashSet<int> keep)
+    {
+        foreach (var (key, value) in fetched)
+        {
+            _chunks[key] = value;
+        }
+
+        if (_chunks.Count <= MaxCachedChunks)
+        {
+            return;
+        }
+
+        // Bounded cache: drop the chunks farthest from what is on screen.
+        var center = keep.Count > 0 ? (int)keep.Average() : ChunkOf(_cursor);
+        foreach (var key in _chunks.Keys.Where(k => !keep.Contains(k))
+                     .OrderByDescending(k => Math.Abs(k - center)).ToList())
+        {
+            if (_chunks.Count <= MaxCachedChunks)
+            {
+                break;
+            }
+
+            _chunks.Remove(key);
+        }
+    }
+
+    /// <summary>
+    /// Paints <paramref name="render"/> for the ranges now on screen, fetching any chunk that is not cached yet.
+    /// While a fetch is outstanding the grids show neither an empty-state nor stale data as final
+    /// (<see cref="IsRangeUnsettled"/>); a failure surfaces through the page's load status with a retry.
+    /// </summary>
+    private void ShowRange(Action render, params (DateOnly Start, DateOnly End)[] ranges)
+    {
+        var needed = ChunksOf(ranges);
+        render();
+        if (needed.All(_chunks.ContainsKey))
+        {
+            IsRangeUnsettled = false;
+            return;
+        }
+
+        IsRangeUnsettled = true;
+        _ = TrackLoadResultAsync(() => LoadMissingAsync(needed, render));
+    }
+
+    private async Task<bool> LoadMissingAsync(HashSet<int> needed, Action render)
+    {
+        var generation = Interlocked.Increment(ref _rangeGeneration);
+        try
+        {
+            var fetched = await FetchChunksAsync(needed.Where(c => !_chunks.ContainsKey(c)));
+            MergeChunks(fetched, needed);
+            RebuildIndexes();
+        }
+        catch (Exception)
+        {
+            if (generation == _rangeGeneration)
+            {
+                IsRangeUnsettled = false;
+            }
+
+            return false;
+        }
+
+        // A newer navigation owns the screen now; its own load paints it.
+        if (generation == _rangeGeneration)
+        {
+            IsRangeUnsettled = false;
+            render();
+        }
+
+        return true;
     }
 
     private static IReadOnlyList<HistorySelectOption> BuildSelectOptions(
@@ -413,6 +619,12 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         foreach (var d in _doctors)
         {
             _doctorById[d.Id] = d;
+        }
+
+        _all.Clear();
+        foreach (var chunk in _chunks.Values)
+        {
+            _all.AddRange(chunk);
         }
 
         _byDate.Clear();
@@ -843,19 +1055,161 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     }
 
     // ── history tab ──────────────────────────────────────────────────────────
+    // A01: the archive is a backend query (range / status / doctor / type / invoice / search, paged, with
+    // scope-wide totals) - never derived from the calendar's cached window.
+    [ObservableProperty]
+    private bool _isHistoryLoading;
+
+    [ObservableProperty]
+    private bool _historyLoadFailed;
+
+    [ObservableProperty]
+    private bool _historyHasMore;
+
+    /// <summary>Loaded + nothing matched: distinct from loading and from a failed load.</summary>
+    public bool ShowHistoryEmpty => !HasHistoryRows && !IsHistoryLoading && !HistoryLoadFailed;
+
+    public bool ShowHistoryLoadingOnly => !HasHistoryRows && IsHistoryLoading;
+
+    public bool ShowHistoryFailureOnly => !HasHistoryRows && HistoryLoadFailed && !IsHistoryLoading;
+
+    partial void OnIsHistoryLoadingChanged(bool value) => NotifyHistoryStateChanged();
+
+    partial void OnHistoryLoadFailedChanged(bool value) => NotifyHistoryStateChanged();
+
+    partial void OnHasHistoryRowsChanged(bool value) => NotifyHistoryStateChanged();
+
+    private void NotifyHistoryStateChanged()
+    {
+        OnPropertyChanged(nameof(ShowHistoryEmpty));
+        OnPropertyChanged(nameof(ShowHistoryLoadingOnly));
+        OnPropertyChanged(nameof(ShowHistoryFailureOnly));
+    }
+
+    private (DateOnly? From, DateOnly? To) HistoryDateScope()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        switch (_historyScope)
+        {
+            case "today":
+                return (today, today);
+            case "7":
+                return (today.AddDays(-7), today);
+            case "30":
+                return (today.AddDays(-30), today);
+            case "month":
+                return (AppointmentsCalendarMath.MonthStart(today), today);
+            case "range" when _historyRangeStart is not null && _historyRangeEnd is not null:
+                var lo = _historyRangeStart.Value <= _historyRangeEnd.Value ? _historyRangeStart.Value : _historyRangeEnd.Value;
+                var hi = _historyRangeStart.Value <= _historyRangeEnd.Value ? _historyRangeEnd.Value : _historyRangeStart.Value;
+                return (lo, hi);
+            default:
+                return (null, null);
+        }
+    }
+
+    private AppointmentHistoryFilter BuildHistoryFilter(int page)
+    {
+        var (from, to) = HistoryDateScope();
+        return new AppointmentHistoryFilter(
+            from,
+            to,
+            _historyStatus switch
+            {
+                "done" => AppointmentHistoryStatusFilter.Completed,
+                "noshow" => AppointmentHistoryStatusFilter.NoShow,
+                "cancel" => AppointmentHistoryStatusFilter.Cancelled,
+                _ => AppointmentHistoryStatusFilter.All,
+            },
+            _historyDoctor == "all" ? null : _historyDoctor,
+            _historyType == "all" ? null : _historyType,
+            _historyInvoice switch
+            {
+                "paid" => AppointmentInvoiceFilter.Paid,
+                "unpaid" => AppointmentInvoiceFilter.Unpaid,
+                "partial" => AppointmentInvoiceFilter.Partial,
+                "none" => AppointmentInvoiceFilter.None,
+                _ => AppointmentInvoiceFilter.All,
+            },
+            _searchQuery.Length == 0 ? null : _searchQuery,
+            page);
+    }
+
+    /// <summary>Reloads the archive from page 0 for the current filters; a newer call supersedes an older one.</summary>
+    private void RefreshHistory() => _ = TrackLoadResultAsync(() => LoadHistoryAsync(0));
+
+    /// <summary>A scope/status/doctor/type/invoice change: repaint the chips now, reload rows + totals from the backend.</summary>
+    private void ApplyHistoryFilters()
+    {
+        RenderHistory();
+        RefreshHistory();
+    }
+
+    [RelayCommand]
+    private void RetryHistory() => RefreshHistory();
+
+    [RelayCommand]
+    private void LoadMoreHistory()
+    {
+        if (HistoryHasMore && !IsHistoryLoading)
+        {
+            _ = TrackLoadResultAsync(() => LoadHistoryAsync(_historyPage + 1));
+        }
+    }
+
+    private async Task<bool> LoadHistoryAsync(int page)
+    {
+        var generation = Interlocked.Increment(ref _historyGeneration);
+        _historyCts?.Cancel();
+        var cts = _historyCts = new CancellationTokenSource();
+        IsHistoryLoading = true;
+        try
+        {
+            var result = await _service.GetHistoryAsync(BuildHistoryFilter(page), cts.Token);
+            if (generation != _historyGeneration)
+            {
+                return true; // superseded: the newer request owns the screen
+            }
+
+            if (page == 0)
+            {
+                _historyRows.Clear();
+            }
+
+            _historyRows.AddRange(result.Items);
+            _historyTotals = result.Totals;
+            _historyPage = page;
+            HistoryHasMore = result.HasMore;
+            HistoryLoadFailed = false;
+            _historyStale = false;
+            IsHistoryLoading = false;
+            RenderHistory();
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return true;
+        }
+        catch (Exception)
+        {
+            if (generation == _historyGeneration)
+            {
+                // Keep whatever was loaded; surface a retryable failure instead of an empty archive.
+                HistoryLoadFailed = true;
+                IsHistoryLoading = false;
+            }
+
+            return false;
+        }
+    }
+
     private void RenderHistory()
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var tk = today;
 
-        var list = HistoryList();
+        var list = _historyRows;
         var perDay = list.GroupBy(a => a.Date).ToDictionary(g => g.Key, g => g.Count());
-        var done = list.Count(a => a.IsCheckedIn);
-        var cancel = list.Count(a => a.Lifecycle == AppointmentLifecycle.Cancelled);
-        var noShow = list.Count(a => a.Lifecycle == AppointmentLifecycle.NoShow);
-        var revPaid = list.Where(a => a.Invoice == AppointmentInvoiceState.Paid).Sum(a => (long)a.Total);
-        var revOwed = list.Where(a => a.Invoice == AppointmentInvoiceState.Unpaid).Sum(a => (long)a.Total)
-                      + list.Where(a => a.Invoice == AppointmentInvoiceState.Partial).Sum(a => (long)Math.Round(a.Total / 2.0));
+        var totals = _historyTotals;
 
         var scopes = new (string Id, string Label)[]
         {
@@ -873,17 +1227,17 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         HistoryStats.ReplaceAll(
         [
-            new HistoryStatViewModel("IconRows", AppointmentsPresentation.Fa(list.Count), "کل نوبت‌ها", Tone.Neutral),
-            new HistoryStatViewModel("IconCheck", AppointmentsPresentation.Fa(done), "پذیرش شده", Tone.Ok),
-            new HistoryStatViewModel("IconX", AppointmentsPresentation.Fa(cancel), "لغو شده", Tone.Danger),
-            new HistoryStatViewModel("IconAlert", AppointmentsPresentation.Fa(noShow), "عدم مراجعه", Tone.Warn),
+            new HistoryStatViewModel("IconRows", AppointmentsPresentation.Fa(totals.Total), "کل نوبت‌ها", Tone.Neutral),
+            new HistoryStatViewModel("IconCheck", AppointmentsPresentation.Fa(totals.Completed), "پذیرش شده", Tone.Ok),
+            new HistoryStatViewModel("IconX", AppointmentsPresentation.Fa(totals.Cancelled), "لغو شده", Tone.Danger),
+            new HistoryStatViewModel("IconAlert", AppointmentsPresentation.Fa(totals.NoShow), "عدم مراجعه", Tone.Warn),
             new HistoryStatViewModel(
-                "IconWallet", PersianNumberFormatter.FormatGrouped(revPaid), "درآمد وصولی (تومان)", Tone.Ok),
+                "IconWallet", PersianNumberFormatter.FormatGrouped(totals.PaidAmount), "درآمد وصولی (تومان)", Tone.Ok),
             new HistoryStatViewModel(
-                "IconAlert", PersianNumberFormatter.FormatGrouped(revOwed), "مطالبات معوق (تومان)", Tone.Danger),
+                "IconAlert", PersianNumberFormatter.FormatGrouped(totals.OwedAmount), "مطالبات معوق (تومان)", Tone.Danger),
         ]);
 
-        HistoryTotalText = AppointmentsPresentation.Fa(list.Count) + " نوبت" +
+        HistoryTotalText = AppointmentsPresentation.Fa(totals.Total) + " نوبت" +
                            (string.IsNullOrEmpty(_searchQuery) ? string.Empty : $" · نتیجهٔ «{_searchQuery}»");
 
         var groups = new List<HistoryDayGroupViewModel>();
@@ -925,77 +1279,6 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         RenderHistoryCalendar();
     }
 
-    private List<AppointmentEvent> HistoryList()
-    {
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        var tk = today;
-        var list = _all.Where(a => Visible(a) && Matches(a) &&
-            (a.Date < tk || (a.Date == tk && a.IsTerminal)))
-            .ToList();
-
-        switch (_historyScope)
-        {
-            case "today":
-                list = list.Where(a => a.Date == tk).ToList();
-                break;
-            case "7":
-                list = list.Where(a => a.Date >= tk.AddDays(-7)).ToList();
-                break;
-            case "30":
-                list = list.Where(a => a.Date >= tk.AddDays(-30)).ToList();
-                break;
-            case "month":
-                var m = AppointmentsCalendarMath.Month(tk);
-                list = list.Where(a => AppointmentsCalendarMath.Month(a.Date) == m).ToList();
-                break;
-            case "range" when _historyRangeStart is not null && _historyRangeEnd is not null:
-                var lo = _historyRangeStart.Value <= _historyRangeEnd.Value ? _historyRangeStart.Value : _historyRangeEnd.Value;
-                var hi = _historyRangeStart.Value <= _historyRangeEnd.Value ? _historyRangeEnd.Value : _historyRangeStart.Value;
-                list = list.Where(a => a.Date >= lo && a.Date <= hi).ToList();
-                break;
-        }
-
-        if (_historyStatus != "all")
-        {
-            list = list.Where(a => _historyStatus switch
-            {
-                "done" => a.IsCheckedIn,
-                "noshow" => a.Lifecycle == AppointmentLifecycle.NoShow,
-                _ => a.Lifecycle == AppointmentLifecycle.Cancelled,
-            }).ToList();
-        }
-
-        if (_historyDoctor != "all")
-        {
-            list = list.Where(a => a.DoctorId == _historyDoctor).ToList();
-        }
-
-        if (_historyType != "all")
-        {
-            list = list.Where(a => a.TypeId == _historyType).ToList();
-        }
-
-        if (_historyInvoice != "all")
-        {
-            list = _historyInvoice == "none"
-                ? list.Where(a => a.Invoice == AppointmentInvoiceState.None).ToList()
-                : list.Where(a => InvoiceKey(a.Invoice) == _historyInvoice).ToList();
-        }
-
-        return list
-            .OrderByDescending(a => a.Date)
-            .ThenByDescending(a => a.StartMinutes)
-            .ToList();
-    }
-
-    private static string InvoiceKey(AppointmentInvoiceState state) => state switch
-    {
-        AppointmentInvoiceState.Paid => "paid",
-        AppointmentInvoiceState.Unpaid => "unpaid",
-        AppointmentInvoiceState.Partial => "partial",
-        _ => "none",
-    };
-
     private void RenderHistoryCalendar()
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
@@ -1005,7 +1288,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var yNum = AppointmentsCalendarMath.Year(monthStart);
         var gridStart = monthStart.AddDays(-AppointmentsCalendarMath.WeekIndex(monthStart));
 
-        var histDates = _all.Where(a => a.Date <= today).Select(a => a.Date).ToHashSet();
+        var histDates = _all.Where(a => a.Date <= today && a.IsTerminal).Select(a => a.Date).ToHashSet();
         var lo = _historyRangeStart is not null && _historyRangeEnd is not null
             ? (_historyRangeStart.Value <= _historyRangeEnd.Value ? _historyRangeStart.Value : _historyRangeEnd.Value) : (DateOnly?)null;
         var hi = _historyRangeStart is not null && _historyRangeEnd is not null
@@ -1399,11 +1682,15 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         if (key == "queue")
         {
-            RenderQueue();
+            ShowRange(RenderQueue, QueueRanges());
         }
         else if (key == "hist")
         {
             RenderHistory();
+            if (_historyStale)
+            {
+                RefreshHistory();
+            }
         }
     }
 
@@ -1420,14 +1707,14 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsDayView));
         OnPropertyChanged(nameof(IsWeekView));
         OnPropertyChanged(nameof(IsMonthViewMode));
-        Render();
+        ShowRange(Render, CalendarRange());
     }
 
     [RelayCommand]
     private void GoToday()
     {
         _cursor = DateOnly.FromDateTime(DateTime.Today);
-        Render();
+        ShowRange(Render, CalendarRange());
     }
 
     [RelayCommand]
@@ -1454,7 +1741,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 : AppointmentsCalendarMath.MonthStart(d.AddDays(-1));
         }
 
-        Render();
+        ShowRange(Render, CalendarRange());
     }
 
     [RelayCommand]
@@ -1527,6 +1814,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _normalizedQuery = _searchQuery.Length == 0
             ? string.Empty
             : PersianText.Normalize(_searchQuery);
+        _historyStale = true;
         RenderActiveTab();
     }
 
@@ -1618,15 +1906,11 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private async Task RefreshAfterChangeAsync()
     {
-        _all.Clear();
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        _all.AddRange(await _service.GetForRangeAsync(today.AddDays(-40), today.AddDays(20)));
-        _all.AddRange(await _service.GetForRangeAsync(today.AddDays(21), today.AddDays(40)));
+        // Refetch exactly what is on screen into locals, then swap: a failed read keeps the previous data.
+        var fresh = await FetchChunksAsync(NeededChunks());
+        ReplaceChunks(fresh);
+        _historyStale = true;
         RebuildIndexes();
-
-        // Only the active tab needs to re-render immediately; the other two
-        // are behind a LazyTabHost and re-render from the fresh _all/_byDate
-        // data the moment SelectTab activates them (same as ApplySearch).
         RenderActiveTab();
     }
 
@@ -1655,14 +1939,14 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         _queueDay = day.Day;
-        RenderQueue();
+        ShowRange(RenderQueue, QueueRanges());
     }
 
     [RelayCommand]
     private void ShiftQueueWeek(string? dir)
     {
         _queueOffset = Math.Max(0, _queueOffset + (dir == "-1" ? -1 : 1));
-        RenderQueue();
+        ShowRange(RenderQueue, QueueRanges());
     }
 
     [RelayCommand]
@@ -1677,7 +1961,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private void QueueGoToday()
     {
         _queueDay = DateOnly.FromDateTime(DateTime.Today);
-        RenderQueue();
+        ShowRange(RenderQueue, QueueRanges());
     }
 
     // ── history commands ─────────────────────────────────────────────────────
@@ -1691,7 +1975,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         _historyScope = chip.Id;
         _historyCalendarOpen = false;
-        RenderHistory();
+        ApplyHistoryFilters();
     }
 
     [RelayCommand]
@@ -1703,7 +1987,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         _historyStatus = chip.Id;
-        RenderHistory();
+        ApplyHistoryFilters();
     }
 
     [RelayCommand]
@@ -1715,7 +1999,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             _historyRangeStart = null;
         }
 
-        RenderHistory();
+        ShowRange(RenderHistory, HistoryCalendarRange());
     }
 
     [RelayCommand]
@@ -1724,14 +2008,14 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var d = AppointmentsCalendarMath.MonthStart(_historyCalendarCursor);
         _historyCalendarCursor = dir == "-1" ? AppointmentsCalendarMath.MonthStart(d.AddDays(-1))
             : AppointmentsCalendarMath.MonthStart(d.AddDays(35));
-        RenderHistory();
+        ShowRange(RenderHistoryCalendar, HistoryCalendarRange());
     }
 
     [RelayCommand]
     private void HistoryCalendarToday()
     {
         _historyCalendarCursor = DateOnly.FromDateTime(DateTime.Today);
-        RenderHistory();
+        ShowRange(RenderHistoryCalendar, HistoryCalendarRange());
     }
 
     [RelayCommand]
@@ -1742,6 +2026,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         if (_historyScope == "range")
         {
             _historyScope = "30";
+            ApplyHistoryFilters();
+            return;
         }
 
         RenderHistory();
@@ -1775,7 +2061,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         {
             _historyScope = "range";
             _historyCalendarOpen = false;
-            RenderHistory();
+            ApplyHistoryFilters();
         }
     }
 
@@ -1788,7 +2074,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return;
         }
 
-        RenderHistory();
+        ApplyHistoryFilters();
     }
 
     [RelayCommand]
@@ -1811,7 +2097,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsQueueTab));
         OnPropertyChanged(nameof(IsHistoryTab));
         OnPropertyChanged(nameof(ShowCalendarChrome));
-        Render();
+        ShowRange(Render, CalendarRange());
     }
 
     public string SelectedHistoryDoctor
@@ -1821,7 +2107,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         {
             if (SetProperty(ref _historyDoctor, value))
             {
-                RenderHistory();
+                ApplyHistoryFilters();
             }
         }
     }
@@ -1833,7 +2119,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         {
             if (SetProperty(ref _historyType, value))
             {
-                RenderHistory();
+                ApplyHistoryFilters();
             }
         }
     }
@@ -1845,7 +2131,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         {
             if (SetProperty(ref _historyInvoice, value))
             {
-                RenderHistory();
+                ApplyHistoryFilters();
             }
         }
     }

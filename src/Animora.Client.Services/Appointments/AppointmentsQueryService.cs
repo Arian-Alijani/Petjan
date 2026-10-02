@@ -3,6 +3,7 @@ using Animora.Application.Dispatch;
 using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Scheduling;
+using Animora.Application.UseCases.Scheduling.ReadModels;
 using Animora.Contracts.Appointments;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -60,9 +61,33 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes, IAppoi
         return (await QueryAsync(new AppointmentQueueQuery())).Select(r => r.ToContract(tz)).ToArray();
     }
 
-    public async Task<IReadOnlyList<AppointmentEvent>> GetHistoryAsync()
+    public async Task<AppointmentHistoryPage> GetHistoryAsync(AppointmentHistoryFilter filter, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(filter);
         var tz = GetTimeZone();
-        return (await QueryAsync(new AppointmentHistoryQuery())).Select(r => r.ToContract(tz)).ToArray();
+        var page = await QueryAsync(new AppointmentHistoryQuery(
+            filter.From, filter.To,
+            filter.Status switch
+            {
+                AppointmentHistoryStatusFilter.Completed => AppointmentHistoryStatus.Completed,
+                AppointmentHistoryStatusFilter.NoShow => AppointmentHistoryStatus.NoShow,
+                AppointmentHistoryStatusFilter.Cancelled => AppointmentHistoryStatus.Cancelled,
+                _ => AppointmentHistoryStatus.All,
+            },
+            filter.DoctorId, filter.TypeId,
+            filter.Invoice switch
+            {
+                AppointmentInvoiceFilter.None => HistoryInvoiceFilter.None,
+                AppointmentInvoiceFilter.Unpaid => HistoryInvoiceFilter.Unpaid,
+                AppointmentInvoiceFilter.Partial => HistoryInvoiceFilter.Partial,
+                AppointmentInvoiceFilter.Paid => HistoryInvoiceFilter.Paid,
+                _ => HistoryInvoiceFilter.All,
+            },
+            filter.Search, filter.Page, filter.PageSize), ct);
+        var s = page.Summary;
+        return new AppointmentHistoryPage(
+            page.Items.Select(r => r.ToContract(tz)).ToArray(),
+            new AppointmentHistoryTotals(s.Total, s.Completed, s.Cancelled, s.NoShow, s.PaidMinor, s.OwedMinor),
+            page.HasMore);
     }
 }

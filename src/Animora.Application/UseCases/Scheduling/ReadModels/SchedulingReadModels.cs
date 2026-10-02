@@ -25,3 +25,28 @@ public sealed record DoctorRosterReadModel(string Id, string Name, string Specia
 
 public sealed record BookingPatientReadModel(string Id, string OwnerId, string Name, string Species,
     string OwnerName, string Phone);
+
+/// <summary>Invoice bucket a history row falls into (A01): Paid/PartiallyPaid/Posted map to paid/partial/unpaid.</summary>
+public enum HistoryInvoiceFilter
+{
+    All,
+    None,
+    Unpaid,
+    Partial,
+    Paid,
+}
+
+/// <summary>Persistence-level history filter: UTC half-open bounds, so no date function wraps an indexed column.</summary>
+public sealed record AppointmentHistoryCriteria(
+    long? FromTicks, long ToTicks, AppointmentState? State, string? DoctorId, string? TypeCode,
+    HistoryInvoiceFilter Invoice, IReadOnlyList<string> SearchTerms, int Skip, int Take);
+
+/// <summary>
+/// Aggregates over the WHOLE filtered scope (never just the loaded page). Money is in minor units of the
+/// invoice currency and only counts invoices really linked to the appointment's visit.
+/// </summary>
+public sealed record AppointmentHistorySummary(
+    int Total, int Completed, int Cancelled, int NoShow, long PaidMinor, long OwedMinor);
+
+public sealed record AppointmentHistoryPageReadModel(
+    IReadOnlyList<AppointmentEventReadModel> Items, AppointmentHistorySummary Summary, bool HasMore);

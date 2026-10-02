@@ -31,8 +31,8 @@ internal sealed class BookingQueriesFake : IAppointmentQueries
     public Task<AppointmentDetailReadModel?> GetDetailAsync(string appointmentId, CancellationToken ct) => Task.FromResult<AppointmentDetailReadModel?>(null);
     public Task<IReadOnlyList<AppointmentEventReadModel>> GetQueueAsync(long startTicks, long endTicks, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<AppointmentEventReadModel>>([]);
-    public Task<IReadOnlyList<AppointmentEventReadModel>> GetHistoryAsync(CancellationToken ct) =>
-        Task.FromResult<IReadOnlyList<AppointmentEventReadModel>>([]);
+    public Task<AppointmentHistoryPageReadModel> GetHistoryPageAsync(AppointmentHistoryCriteria criteria, CancellationToken ct) =>
+        Task.FromResult(new AppointmentHistoryPageReadModel([], new(0, 0, 0, 0, 0, 0), false));
     public Task<IReadOnlyList<DoctorRosterReadModel>> GetDoctorsAsync(CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<DoctorRosterReadModel>>([]);
     public Task<IReadOnlyList<BookingPatientReadModel>> GetPatientsAsync(string search, string speciesKey, int limit, string? patientId, string? appointmentId, CancellationToken ct) =>

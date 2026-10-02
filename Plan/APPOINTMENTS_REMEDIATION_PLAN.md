@@ -219,7 +219,7 @@ exempt it from local authorization.
 
 ---
 
-### T06 — [ ] A01 (P1): load the actually-selected range; use the real history query
+### T06 — [x] A01 (P1): load the actually-selected range; use the real history query
 **Why/Evidence:** CVM:309–312 preloads only `today±40` days; `Step()` (CVM:1357–1375) + queue nav
 (CVM:1579–1583) only re-render, never re-query. History (CVM:923–979) derives `all`/custom scopes from
 the in-memory `_all` preload; the real `GetHistoryAsync` (SQL:69–75) is unused. Result: appointments

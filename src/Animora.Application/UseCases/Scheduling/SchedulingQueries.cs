@@ -100,13 +100,74 @@ public sealed class AppointmentQueueQueryHandler(IAppointmentQueries queries, IC
     }
 }
 
-[RequiresPermission(PermissionCodes.AppointmentsRead)]
-public sealed record AppointmentHistoryQuery : IQuery<IReadOnlyList<AppointmentEventReadModel>>;
-public sealed class AppointmentHistoryQueryHandler(IAppointmentQueries queries)
-    : IQueryHandler<AppointmentHistoryQuery, IReadOnlyList<AppointmentEventReadModel>>
+public enum AppointmentHistoryStatus
 {
-    public async Task<Result<IReadOnlyList<AppointmentEventReadModel>>> HandleAsync(AppointmentHistoryQuery q, QueryContext context, CancellationToken ct) =>
-        Result<IReadOnlyList<AppointmentEventReadModel>>.Ok(await queries.GetHistoryAsync(ct));
+    All,
+    Completed,
+    NoShow,
+    Cancelled,
+}
+
+/// <summary>
+/// Parameterized archive read (A01): local-day range, status, doctor, type, invoice bucket and a text search,
+/// all resolved in SQL, paged, with aggregates computed over the whole filtered scope. History never reaches
+/// past the end of the clinic's current day. <see cref="DoctorId"/> null means every doctor.
+/// </summary>
+[RequiresPermission(PermissionCodes.AppointmentsRead)]
+public sealed record AppointmentHistoryQuery(
+    DateOnly? From = null, DateOnly? To = null,
+    AppointmentHistoryStatus Status = AppointmentHistoryStatus.All,
+    string? DoctorId = null, string? TypeCode = null,
+    HistoryInvoiceFilter Invoice = HistoryInvoiceFilter.All,
+    string? Search = null, int Page = 0, int PageSize = AppointmentHistoryQuery.DefaultPageSize)
+    : IQuery<AppointmentHistoryPageReadModel>
+{
+    public const int DefaultPageSize = 50;
+    public const int MaxPageSize = 100;
+    public const int MaxSearchTerms = 5;
+    public const int MaxSearchLength = 64;
+}
+
+public sealed class AppointmentHistoryQueryHandler(IAppointmentQueries queries, IClinicTimeZoneProvider zones, IClock clock)
+    : IQueryHandler<AppointmentHistoryQuery, AppointmentHistoryPageReadModel>
+{
+    private static readonly AppointmentHistoryPageReadModel Empty = new([], new(0, 0, 0, 0, 0, 0), false);
+
+    public async Task<Result<AppointmentHistoryPageReadModel>> HandleAsync(
+        AppointmentHistoryQuery q, QueryContext context, CancellationToken ct)
+    {
+        var tz = zones.GetClinicTimeZone();
+        var today = ClinicCalendar.LocalDay(clock.UtcNow.UtcTicks, tz);
+        var to = q.To is { } requested && requested < today ? requested : today;
+        if (q.From is { } from && from > to) return Result<AppointmentHistoryPageReadModel>.Ok(Empty);
+
+        var size = Math.Clamp(q.PageSize, 1, AppointmentHistoryQuery.MaxPageSize);
+        var terms = SearchTerms(q.Search);
+        var criteria = new AppointmentHistoryCriteria(
+            q.From is { } f ? ClinicCalendar.ToUtcTicks(f, 0, tz) : null,
+            ClinicCalendar.ToUtcTicks(to.AddDays(1), 0, tz),
+            q.Status switch
+            {
+                AppointmentHistoryStatus.Completed => AppointmentState.Completed,
+                AppointmentHistoryStatus.NoShow => AppointmentState.NoShow,
+                AppointmentHistoryStatus.Cancelled => AppointmentState.Cancelled,
+                _ => null,
+            },
+            string.IsNullOrWhiteSpace(q.DoctorId) ? null : q.DoctorId,
+            string.IsNullOrWhiteSpace(q.TypeCode) ? null : q.TypeCode,
+            q.Invoice, terms, Math.Max(0, q.Page) * size, size);
+        return Result<AppointmentHistoryPageReadModel>.Ok(await queries.GetHistoryPageAsync(criteria, ct));
+    }
+
+    /// <summary>Normalized, bounded search terms (length and count capped so a pasted blob cannot fan out).</summary>
+    internal static IReadOnlyList<string> SearchTerms(string? search)
+    {
+        var normalized = Animora.Application.Text.PersianText.Normalize(search);
+        if (normalized.Length > AppointmentHistoryQuery.MaxSearchLength)
+            normalized = normalized[..AppointmentHistoryQuery.MaxSearchLength];
+        return normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Take(AppointmentHistoryQuery.MaxSearchTerms).ToArray();
+    }
 }
 
 [RequiresPermission(PermissionCodes.AppointmentsRead)]
