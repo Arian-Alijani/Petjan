@@ -236,7 +236,7 @@ init (migrations/seed) → may hit a not-ready store → caught → spurious fai
 
 ---
 
-### [ ] T06 — P09 (P2) · Leading-wildcard LIKE defeats the SearchKey index
+### [x] T06 — P09 (P2) · Leading-wildcard LIKE defeats the SearchKey index
 **Root cause (confirmed):** SQL:91 `EF.Functions.Like(p.SearchKey, $"%{term}%")` (pets) and SQL:107
 (owners) use a leading `%` → `IX_Pets_TenantId_SearchKey` / `IX_Owners_TenantId_SearchKey` (both
 exist) are unusable → full-table scan per debounced keystroke (220 ms, VM:178). Biggest typing-latency

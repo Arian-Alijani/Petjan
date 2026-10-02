@@ -80,7 +80,7 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
         return new PatientDirectoryFacetsReadModel(totalOwners, totalPets, speciesCounts);
     }
 
-    /// <summary>Shared pet filter (search + species) reused by the list page and the
+    /// <summary>Shared pet filter (search + species; search is a prefix match (`term%`, index-usable)) reused by the list page and the
     /// facet/owner cross-filter so every count and every page agree on one predicate.</summary>
     private static IQueryable<Pet> FilterPets(
         IQueryable<Pet> q, string? search, PetSpecies? species)
@@ -88,13 +88,13 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = PersianText.Normalize(search);
-            q = q.Where(p => EF.Functions.Like(p.SearchKey, $"%{term}%"));
+            q = q.Where(p => EF.Functions.Like(p.SearchKey, $"{term}%"));
         }
         if (species is { } sp) q = q.Where(p => p.Species == sp);
         return q;
     }
 
-    /// <summary>Owner filter: text match on the owner's SearchKey, plus — when a species
+    /// <summary>Owner filter: prefix match (`term%`, index-usable) on the owner's SearchKey, plus — when a species
     /// filter is active — an EXISTS narrowing to owners with at least one matching pet (the
     /// owner⇄pet cross-filter runs in SQL, never client-side).</summary>
     private IQueryable<Owner> FilterOwners(string? search, PetSpecies? species)
@@ -103,7 +103,7 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = PersianText.Normalize(search);
-            owners = owners.Where(o => EF.Functions.Like(o.SearchKey, $"%{term}%"));
+            owners = owners.Where(o => EF.Functions.Like(o.SearchKey, $"{term}%"));
         }
         if (species is not null)
         {
