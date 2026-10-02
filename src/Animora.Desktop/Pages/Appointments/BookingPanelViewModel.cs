@@ -328,7 +328,87 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         await ReloadAvailableAsync();
     }
 
-    /// <summary>Reads the clinic's appointment preferences: calendar mode + default SMS switches.</summary>
+    // A08: every availability read is an immutable request (doctor/date/duration/start/edit id/mode) with a
+    // generation. A newer request supersedes (cancels) the older one and only the current generation may apply,
+    // so rapid doctor/date/duration changes can never paint a stale slot grid. Submit stays disabled while a
+    // result is pending or has failed.
+    private int _availabilityGeneration;
+    private CancellationTokenSource? _availabilityCts;
+    private bool _availabilityPending;
+    private bool _availabilityFailed;
+    private bool _isSubmitting;
+
+    private sealed record AvailabilityRequest(
+        string DoctorId, DateOnly Date, int Duration, int Start, string? ExceptId, bool DayOnly,
+        IReadOnlyList<string> DoctorIds);
+
+    /// <summary>Fetches the doctor/day slot grid + conflicts into locals, then paints everything if still current.</summary>
+    private async Task ReloadAvailableAsync()
+    {
+        var request = new AvailabilityRequest(_doc, _date, _dur, _start, _id, IsDayOnly,
+            _doctors.Select(d => d.Id).ToArray());
+        var generation = Interlocked.Increment(ref _availabilityGeneration);
+        _availabilityCts?.Cancel();
+        var cts = _availabilityCts = new CancellationTokenSource();
+        _availabilityPending = true;
+        _availabilityFailed = false;
+        CanSubmit = false;
+
+        try
+        {
+            var slots = (await _booking.GetAvailableSlotsAsync(request.DoctorId, request.Date, request.Duration)).ToList();
+            cts.Token.ThrowIfCancellationRequested();
+            // Clock overlaps are meaningless when booking by day only.
+            var conflicts = request.DayOnly
+                ? []
+                : (await _booking.GetConflictsAsync(request.Date, request.DoctorId, request.Start, request.Duration,
+                    request.ExceptId)).ToList();
+            cts.Token.ThrowIfCancellationRequested();
+            var busy = new Dictionary<string, int>();
+            foreach (var id in request.DoctorIds)
+            {
+                busy[id] = await _booking.GetDoctorBusyCountAsync(id, request.Date);
+                cts.Token.ThrowIfCancellationRequested();
+            }
+
+            var ps = AppointmentsCalendarMath.MonthStart(request.Date);
+            var first = AppointmentsCalendarMath.WeekStart(ps);
+            var counts = await _booking.GetDayCountsAsync(first, first.AddDays(41));
+
+            if (generation != _availabilityGeneration)
+            {
+                return;
+            }
+
+            _slots = slots;
+            _conflicts = conflicts;
+            _busyByDoctor.Clear();
+            foreach (var (id, count) in busy)
+            {
+                _busyByDoctor[id] = count;
+            }
+
+            _availabilityPending = false;
+            RenderCalendar(counts);
+            Render();
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer request; that request owns the state now.
+        }
+        catch (Exception ex)
+        {
+            if (generation == _availabilityGeneration)
+            {
+                _availabilityPending = false;
+                _availabilityFailed = true;
+                CanSubmit = false;
+                _toast.Show(AppointmentErrorText.For(ex), Tone.Danger);
+            }
+        }
+    }
+
+    /// <summary>Reads the clinic's appointment preferences: calendar mode + default notification preferences.</summary>
     private async Task ApplySettingsAsync()
     {
         var settings = await _settings.GetAsync();
@@ -338,24 +418,6 @@ public sealed partial class BookingPanelViewModel : ObservableObject
             SendSms = settings.Sms.SendOnBooking;
             SendReminder = settings.Sms.SendReminder;
         }
-    }
-
-    /// <summary>Fetches the doctor/day slot grid + conflicts, then paints everything.</summary>
-    private async Task ReloadAvailableAsync()
-    {
-        _slots = (await _booking.GetAvailableSlotsAsync(_doc, _date, _dur)).ToList();
-        // Clock overlaps are meaningless when booking by day only.
-        _conflicts = IsDayOnly
-            ? []
-            : (await _booking.GetConflictsAsync(_date, _doc, _start, _dur, _id)).ToList();
-        _busyByDoctor.Clear();
-        foreach (var d in _doctors)
-        {
-            _busyByDoctor[d.Id] = await _booking.GetDoctorBusyCountAsync(d.Id, _date);
-        }
-
-        await RenderCalendarAsync();
-        Render();
     }
 
     private void BuildKindChips()
@@ -508,13 +570,11 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private readonly Dictionary<string, int> _busyByDoctor = [];
 
     // ---------------- 4 · calendar + slots ----------------
-    private async Task RenderCalendarAsync()
+    private void RenderCalendar(IReadOnlyDictionary<DateOnly, int> counts)
     {
         var ps = AppointmentsCalendarMath.MonthStart(_date);
         var first = AppointmentsCalendarMath.WeekStart(ps);
         var month = AppointmentsCalendarMath.Month(ps);
-
-        var counts = await _booking.GetDayCountsAsync(first, first.AddDays(41));
 
         CalendarDays.Clear();
         for (var i = 0; i < 42; i++)
@@ -625,7 +685,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
 
 
         FreeOkText = $"این بازه برای {d.ShortName} آزاد است.";
-        CanSubmit = HasSelectedPatient;
+        CanSubmit = HasSelectedPatient && !_availabilityPending && !_availabilityFailed && !_isSubmitting;
     }
 
     // ── commands ─────────────────────────────────────────────────────────────
@@ -841,6 +901,11 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     [RelayCommand]
     private async Task Submit()
     {
+        if (_isSubmitting)
+        {
+            return;
+        }
+
         if (_selectedPatient is null)
         {
             _toast.Show("لطفاً ابتدا بیمار را انتخاب کنید.", Tone.Danger);
@@ -849,37 +914,72 @@ public sealed partial class BookingPanelViewModel : ObservableObject
             return;
         }
 
-        var p = _selectedPatient;
-        var start = _start;
-        var duration = _dur;
-        if (IsDayOnly)
+        if (_availabilityPending || _availabilityFailed)
         {
-            if (await ResolveDayOnlySlotAsync() is not { } resolved)
+            _toast.Show("وضعیت زمان‌های آزاد هنوز مشخص نیست؛ لحظه‌ای بعد دوباره تلاش کنید.", Tone.Info);
+            return;
+        }
+
+        var p = _selectedPatient;
+        _isSubmitting = true;
+        CanSubmit = false;
+        try
+        {
+            var start = _start;
+            var duration = _dur;
+            if (IsDayOnly)
             {
+                if (await ResolveDayOnlySlotAsync() is not { } resolved)
+                {
+                    return;
+                }
+
+                (start, duration) = resolved;
+            }
+
+            var note = (NoteText ?? string.Empty).Trim();
+            if (_mode == "edit" && _id is not null)
+            {
+                await _booking.UpdateAsync(_id, new UpdateAppointmentRequest(
+                    _date, start, duration, _type, _doc,
+                    p.Name, p.Kind, p.OwnerName, p.Phone, p.AvatarTone, p.SpeciesIconKey,
+                    note, SendSms, SendReminder));
+                _toast.Show("زمان جدید نوبت ذخیره شد.", Tone.Ok);
+            }
+            else
+            {
+                await _booking.CreateAsync(new NewAppointmentRequest(
+                    _date, start, duration, _type, _doc,
+                    p.Name, p.Kind, p.OwnerName, p.Phone, p.AvatarTone, p.SpeciesIconKey,
+                    note, SendSms, SendReminder, p.Id));
+                _toast.Show($"نوبت {p.Name} ثبت شد.", Tone.Ok);
+            }
+        }
+        catch (Exception ex) when (!AppointmentErrorText.IsCancellation(ex))
+        {
+            if (ex is AppointmentOperationException { WriteCommitted: true })
+            {
+                // The write is durable: report it, close the panel and let the page re-read.
+                _toast.Show(AppointmentErrorText.For(ex), Tone.Info);
+                StopPatientSearch();
+                _dialogs.Close();
+                Saved?.Invoke();
                 return;
             }
 
-            (start, duration) = resolved;
-        }
+            // Business rejection / store failure: keep the form open with all input intact.
+            _toast.Show(AppointmentErrorText.For(ex), Tone.Danger);
+            if (ex is AppointmentOperationException { Category: "Conflict" })
+            {
+                _ = ReloadAvailableAsync();
+            }
 
-        var note = (NoteText ?? string.Empty).Trim();
-        if (_mode == "edit" && _id is not null)
-        {
-            await _booking.UpdateAsync(_id, new UpdateAppointmentRequest(
-                _date, start, duration, _type, _doc,
-                p.Name, p.Kind, p.OwnerName, p.Phone, p.AvatarTone, p.SpeciesIconKey,
-                note, SendSms, SendReminder));
-            _toast.Show("زمان جدید نوبت ذخیره شد.", Tone.Ok);
+            return;
         }
-        else
+        finally
         {
-            await _booking.CreateAsync(new NewAppointmentRequest(
-                _date, start, duration, _type, _doc,
-                p.Name, p.Kind, p.OwnerName, p.Phone, p.AvatarTone, p.SpeciesIconKey,
-                note, SendSms, SendReminder, p.Id));
-            _toast.Show(SendSms
-                ? $"نوبت {p.Name} ثبت و پیامک تأیید ارسال شد."
-                : $"نوبت {p.Name} ثبت شد.", Tone.Ok);
+            _isSubmitting = false;
+            CanSubmit = HasSelectedPatient && !_availabilityPending && !_availabilityFailed;
         }
 
         StopPatientSearch();

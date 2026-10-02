@@ -143,7 +143,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         UseLoadStatus(ReloadPageAsync);
         // A completed encounter closes its appointment; patient edits change the names shown.
-        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Visits, DataDomain.Patients);
+        RefreshOnDataChange(changes, RequestRefresh, DataDomain.Visits, DataDomain.Patients);
         _ = ReloadPageAsync();
     }
 
@@ -1694,7 +1694,13 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsSettingsTab));
         OnPropertyChanged(nameof(ShowCalendarChrome));
 
-        if (key == "queue")
+        // A07: tab views are rebuilt lazily, so a write made while another tab was active must show up the moment
+        // this tab is activated again - always render the target tab instead of trusting its cached subtree.
+        if (key == "cal")
+        {
+            ShowRange(Render, CalendarRange());
+        }
+        else if (key == "queue")
         {
             ShowRange(RenderQueue, QueueRanges());
         }
@@ -1911,21 +1917,51 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
     }
 
-    /// <summary>A booking write also feeds the visits queue, the patient directory and the dashboard; reload this page too.</summary>
+    /// <summary>
+    /// A write made from this page's own sheets/drawer. It only announces the change: the page's own subscription
+    /// (<see cref="RefreshOnDataChange"/>) turns it - together with any simultaneous Visits/Patients notification -
+    /// into exactly one coalesced reload (A06). There is deliberately no second, untracked refetch path.
+    /// </summary>
     private void RefreshAfterWrite()
     {
         _changes.Notify(DataDomain.Appointments, DataDomain.Visits, DataDomain.Patients, DataDomain.Dashboard);
-        _ = RefreshAfterChangeAsync();
+
+        // A page that is not the current one ignores notifications; make sure the write is still reflected.
+        if (!IsCurrentPage)
+        {
+            RequestRefresh();
+        }
     }
 
-    private async Task RefreshAfterChangeAsync()
+    // A06: every refresh trigger (external notifications, local writes) funnels through here. Triggers raised in the
+    // same dispatch tick collapse into ONE queued reload; the reload builds a complete snapshot from locals and
+    // commits it once (LoadAsync), keeping the last good snapshot when any read fails.
+    private int _refreshQueued;
+
+    private void RequestRefresh()
     {
-        // Refetch exactly what is on screen into locals, then swap: a failed read keeps the previous data.
-        var fresh = await FetchChunksAsync(NeededChunks());
-        ReplaceChunks(fresh);
-        _historyStale = true;
-        RebuildIndexes();
-        RenderActiveTab();
+        if (Interlocked.Exchange(ref _refreshQueued, 1) == 1)
+        {
+            return;
+        }
+
+        _ = RunQueuedRefreshAsync();
+    }
+
+    private async Task RunQueuedRefreshAsync()
+    {
+        // Let every notification of the current tick arrive before the single reload starts.
+        await Task.Yield();
+        Interlocked.Exchange(ref _refreshQueued, 0);
+
+        // A load already running may predate this write: wait for it (bounded) so the single reload below is
+        // never swallowed by the re-entrancy guard of LoadAsync.
+        for (var i = 0; i < 100 && (IsLoadInFlight || _isLoading); i++)
+        {
+            await Task.Delay(50);
+        }
+
+        await ReloadPageAsync();
     }
 
     /// <summary>

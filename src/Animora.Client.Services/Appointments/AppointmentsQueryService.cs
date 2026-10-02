@@ -18,9 +18,11 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes, IAppoi
         await using var scope = scopes.CreateAsyncScope();
         var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
         var context = provider.BuildQueryContext();
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure)
+            throw new AppointmentOperationException(context.Error.Code, context.Error.Category, context.Detail);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().QueryAsync(query, context.Value!, ct);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure)
+            throw new AppointmentOperationException(result.Error.Code, result.Error.Category, result.Detail);
         return result.Value!;
     }
 

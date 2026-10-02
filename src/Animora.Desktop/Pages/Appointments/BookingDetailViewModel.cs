@@ -188,14 +188,58 @@ public sealed partial class BookingDetailViewModel : ObservableObject
         return true;
     }
 
-    [RelayCommand]
-    private async Task CheckIn()
+    private bool _isActing;
+
+    /// <summary>
+    /// Runs one write. The success toast is shown only after the command committed (A10); a rejection keeps the
+    /// drawer open with a localized reason. A read failure after a committed write is reported as such, never as
+    /// a failed write.
+    /// </summary>
+    private async Task<bool> RunWriteAsync(Func<Task> write, string successMessage, Tone tone)
     {
-        await _booking.CheckInAsync(_event.Id);
-        _toast.Show($"بیمار «{_event.PetName}» پذیرش شد.", Tone.Ok);
-        await LoadAsync(_event.Id);
+        if (_isActing)
+        {
+            return false;
+        }
+
+        _isActing = true;
+        try
+        {
+            await write();
+        }
+        catch (Exception ex) when (!AppointmentErrorText.IsCancellation(ex))
+        {
+            _toast.Show(AppointmentErrorText.For(ex), Tone.Danger);
+            // A stale state is the usual reason for a rejection: re-read so the actions match reality.
+            await TryReloadAsync();
+            return false;
+        }
+        finally
+        {
+            _isActing = false;
+        }
+
+        _toast.Show(successMessage, tone);
         _onChanged?.Invoke();
+        await TryReloadAsync();
+        return true;
     }
+
+    private async Task TryReloadAsync()
+    {
+        try
+        {
+            await LoadAsync(_event.Id);
+        }
+        catch (Exception ex) when (!AppointmentErrorText.IsCancellation(ex))
+        {
+            _toast.Show("تغییر ذخیره شد، اما بارگذاری دوبارهٔ جزئیات انجام نشد؛ پنجره را ببندید و دوباره باز کنید.", Tone.Info);
+        }
+    }
+
+    [RelayCommand]
+    private Task CheckIn() =>
+        RunWriteAsync(() => _booking.CheckInAsync(_event.Id), $"بیمار «{_event.PetName}» پذیرش شد.", Tone.Ok);
 
     [RelayCommand]
     private void Edit()
@@ -210,13 +254,8 @@ public sealed partial class BookingDetailViewModel : ObservableObject
         _toast.Show("یادآور پیامکی برای " + _event.OwnerName + " ارسال شد.", Tone.Info);
 
     [RelayCommand]
-    private async Task CancelAppointment()
-    {
-        await _booking.CancelAsync(_event.Id);
-        _toast.Show("نوبت لغو شد و به مالک اطلاع داده شد.", Tone.Danger);
-        await LoadAsync(_event.Id);
-        _onChanged?.Invoke();
-    }
+    private Task CancelAppointment() =>
+        RunWriteAsync(() => _booking.CancelAsync(_event.Id), "نوبت لغو شد.", Tone.Danger);
 
     [RelayCommand]
     private void ViewVisit() =>

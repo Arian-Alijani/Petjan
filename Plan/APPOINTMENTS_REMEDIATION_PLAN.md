@@ -255,7 +255,7 @@ a different doctor / throws on empty roster. Removed TYPE similarly falls back t
 
 ---
 
-### T08 — [ ] A06 (P1) + A07/A08/A10 (P2): one coalescing refresh/snapshot coordinator
+### T08 — [x] A06 (P1) + A07/A08/A10 (P2): one coalescing refresh/snapshot coordinator
 **Why/Evidence (A06):** CVM:124 subscribes to Visits+Patients; CVM:1531–1543 fires both notifications then
 also calls `RefreshAfterChangeAsync()`. NOTIFY:18,35–40 dispatches synchronously on the UI thread;
 BASE:95–102 runs tracked loads. CVM:303–312 & 1539–1542 clear/mutate shared `_all` around awaits; only
