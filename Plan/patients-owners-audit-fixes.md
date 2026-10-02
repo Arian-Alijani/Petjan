@@ -354,7 +354,7 @@ status→tone mapping lives in XAML converters, update those too (grep for the e
 
 ---
 
-### [ ] T11 — P18 (P2) · Allergies/chronic conditions round-trip through a joined string
+### [x] T11 — P18 (P2) · Allergies/chronic conditions round-trip through a joined string
 **Root cause (confirmed):** write SVC:234-235 `string.Join(", ", pet.Allergies)` /
 `string.Join(", ", pet.ChronicConditions)`; read MAP:55-57 `Split` on `[',', '،', '\n']`. A single
 entry containing a comma ("دارو، نوع ب") is split into two on read → count drift across save/reload.

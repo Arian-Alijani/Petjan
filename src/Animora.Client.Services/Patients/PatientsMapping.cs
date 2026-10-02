@@ -57,11 +57,16 @@ internal static class PatientsMapping
         return i < 0 ? (full, "") : (full[..i], full[(i + 1)..]);
     }
 
-    /// <summary>Splits a comma/newline separated clinical note into a trimmed, non-empty list.
-    /// Accepts both the Latin comma ',' and the Persian comma '،' (U+060C) as separators.</summary>
+    /// <summary>Splits a newline-separated clinical note into a trimmed, non-empty list. Commas (Latin or
+    /// Persian) are preserved inside a value so an entry like «دارو، نوع ب» survives a save/reload round-trip.
+    /// Back-compat: rows previously joined with ", " now read as one entry — the text is kept verbatim, only the
+    /// list segmentation differs (pre-release, no production data).</summary>
     private static IReadOnlyList<string> Split(string? notes) => string.IsNullOrWhiteSpace(notes)
         ? []
-        : notes.Split([',', '،', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        : notes.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    /// <summary>Inverse of <see cref="Split"/>: joins list entries with a newline (one entry per line).</summary>
+    public static string JoinList(IEnumerable<string> items) => string.Join('\n', items);
 
     /// <summary>Stable, id-derived avatar tone (sum of char codes mod 6) so the UI colour is reproducible.</summary>
     private static PatientAvatarTone Tone(string id)
