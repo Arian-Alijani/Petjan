@@ -322,7 +322,7 @@ either change real behavior or are clearly labeled unavailable.
 
 ---
 
-### T10 — [ ] A14/A15/A16 (P2): complete & bounded export
+### T10 — [x] A14/A15/A16 (P2): complete & bounded export
 **Why/Evidence:** EV:30 permits 186 days, EV:545–549 clamps to it, EV:566–575 fetches `missing.Min..Max`
 in one request — but QUERY:15–16,43–47 rejects span >62 days (63 inclusive) → A14 (long/sparse export fails).
 A15: EV:509–519 changes `_days` + loads without clearing/gating `CanExport`; EV:577–595 sets Warning then

@@ -341,7 +341,11 @@
 
                             <Border Background="{StaticResource WarnBgBrush}" CornerRadius="10" Padding="10,7"
                                     IsVisible="{Binding HasWarning}">
-                                <TextBlock Text="{Binding Warning}" FontSize="11.5" Foreground="{StaticResource WarnBrush}" TextWrapping="Wrap" />
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="{Binding Warning}" FontSize="11.5" Foreground="{StaticResource WarnBrush}" TextWrapping="Wrap" />
+                                    <Button Classes="ghost sm" Content="تلاش دوباره" HorizontalAlignment="Left"
+                                            IsVisible="{Binding HasLoadFailure}" Command="{Binding RetryLoadCommand}" />
+                                </StackPanel>
                             </Border>
                         </StackPanel>
                     </Border>

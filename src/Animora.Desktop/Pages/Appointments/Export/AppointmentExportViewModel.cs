@@ -26,8 +26,28 @@ namespace Animora.Desktop.Pages.Appointments.Export;
 /// </summary>
 public sealed partial class AppointmentExportViewModel : ObservableObject
 {
-    /// <summary>Hard cap so a mistaken range can't produce a thousand-page print.</summary>
+    /// <summary>Hard cap on SELECTED days so a mistaken range can't produce a thousand-page print (A14: this is a
+    /// count of chosen days, independent of how far apart they are).</summary>
     public const int MaxDays = 186;
+
+    /// <summary>
+    /// Widest single backend read, in INCLUSIVE days. The backend rejects <c>end - start &gt; 62</c> (= 63 inclusive
+    /// days), so every fetch window is partitioned to stay inside it without relaxing the backend bound.
+    /// </summary>
+    public const int MaxWindowDays = 63;
+
+    /// <summary>Nearby missing days are merged into one read when the gap between them is at most this many days.</summary>
+    private const int MaxMergeGapDays = 7;
+
+    /// <summary>Loaded-day cache bound (events + precomputed search text); the active selection is never evicted.</summary>
+    private const int MaxCachedDays = 400;
+
+    /// <summary>Count-only bound for the picker's per-day dots (LRU).</summary>
+    private const int MaxPickerCountDays = 366;
+
+    /// <summary>Explicit output caps: an oversized selection is rejected instead of freezing the UI.</summary>
+    public const int MaxOutputRows = 20000;
+    private const int MaxOutputChars = 40_000_000;
 
     private readonly IAppointmentsQueryService _service;
     private readonly IPrintService _print;
@@ -40,9 +60,21 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
     private readonly bool _dayOnly;
     private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Today);
 
-    // Loaded appointments per day + which days have been fetched (so re-filtering never re-queries).
-    private readonly Dictionary<DateOnly, List<AppointmentEvent>> _byDay = [];
+    // Loaded appointments per day (with their precomputed normalized search text) + which days have been fetched
+    // (so re-filtering never re-queries). Bounded by MaxCachedDays; an empty list means "known empty", a missing
+    // key means "not loaded" (A15).
+    private sealed record ExportRow(AppointmentEvent Event, string Text);
+
+    private readonly Dictionary<DateOnly, List<ExportRow>> _byDay = [];
     private readonly HashSet<DateOnly> _loaded = [];
+    private Queue<DateOnly> _loadOrder = new();
+    private readonly OrderedDictionary<DateOnly, int> _pickerCounts = [];
+    private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(160));
+    private int _pickerVersion;
+    private bool _loadFailed;
+    private string _rangeWarning = string.Empty;
+    private string _loadWarning = string.Empty;
+    private string _limitWarning = string.Empty;
     private readonly HashSet<DateOnly> _picked = [];
     private readonly HashSet<int> _weekdays = [0, 1, 2, 3, 4, 5, 6];
     private int _loadVersion;
@@ -180,7 +212,7 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
     [ObservableProperty]
     private string _searchText = string.Empty;
 
-    partial void OnSearchTextChanged(string value) => Recompute();
+    partial void OnSearchTextChanged(string value) => _searchDebounce.Debounce(Recompute);
 
     public bool IsMultiDoctorClinic => _doctors.Count > 1;
 
@@ -270,6 +302,21 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
     private bool _canExport;
 
     public bool HasWarning => Warning.Length > 0;
+
+    /// <summary>A read failed: output stays disabled until the user retries (A15).</summary>
+    public bool HasLoadFailure => _loadFailed;
+
+    private void SetLoadFailed(bool failed)
+    {
+        _loadFailed = failed;
+        OnPropertyChanged(nameof(HasLoadFailure));
+    }
+
+    private void UpdateWarning() =>
+        Warning = string.Join(" ", new[] { _rangeWarning, _loadWarning, _limitWarning }.Where(w => w.Length > 0));
+
+    [RelayCommand]
+    private void RetryLoad() => Refresh();
 
     partial void OnWarningChanged(string value) => OnPropertyChanged(nameof(HasWarning));
 
@@ -463,6 +510,11 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
     private async Task Print()
     {
         var html = await BuildHtmlAsync(autoPrint: true);
+        if (html is null)
+        {
+            return;
+        }
+
         if (await _print.OpenHtmlAsync(FileStem(), html))
         {
             _toast.Show("پیش‌نمایش چاپ در مرورگر باز شد.", Tone.Ok);
@@ -478,6 +530,11 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
     private async Task Save()
     {
         var html = await BuildHtmlAsync(autoPrint: false);
+        if (html is null)
+        {
+            return;
+        }
+
         if (await _dialogs.SaveTextFileAsync(FileStem() + ".html", html, "html"))
         {
             _toast.Show("فایل خروجی ذخیره شد.", Tone.Ok);
@@ -514,7 +571,10 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
         }
 
         _days = ResolveDays(out var warning);
-        Warning = warning;
+        _rangeWarning = warning;
+        // The previous output no longer matches this selection: disable it immediately, before any await (A15).
+        CanExport = false;
+        UpdateWarning();
         RangeText = AppointmentPrintDocument.RangeText(_days);
         _ = EnsureLoadedAsync(_days);
     }
@@ -563,56 +623,169 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Partitions the missing days into bounded contiguous read windows (A14): each window spans at most
+    /// <see cref="MaxWindowDays"/> inclusive days, and days that are far apart (a gap above
+    /// <see cref="MaxMergeGapDays"/>) go to separate windows so the sparse middle is never fetched.
+    /// </summary>
+    internal static List<(DateOnly From, DateOnly To)> PartitionWindows(IEnumerable<DateOnly> missing)
+    {
+        var windows = new List<(DateOnly From, DateOnly To)>();
+        DateOnly? start = null;
+        var prev = default(DateOnly);
+        foreach (var day in missing.Distinct().OrderBy(d => d))
+        {
+            if (start is { } s &&
+                day.DayNumber - prev.DayNumber <= MaxMergeGapDays &&
+                day.DayNumber - s.DayNumber + 1 <= MaxWindowDays)
+            {
+                prev = day;
+                continue;
+            }
+
+            if (start is { } open)
+            {
+                windows.Add((open, prev));
+            }
+
+            start = day;
+            prev = day;
+        }
+
+        if (start is { } last)
+        {
+            windows.Add((last, prev));
+        }
+
+        return windows;
+    }
+
+    private bool IsSelectionComplete() => !_loadFailed && !IsLoading && _days.All(_loaded.Contains);
+
     private async Task EnsureLoadedAsync(IReadOnlyList<DateOnly> days)
     {
         var version = ++_loadVersion;
+        SetLoadFailed(false);
+        _loadWarning = string.Empty;
         var missing = days.Where(d => !_loaded.Contains(d)).ToList();
-        if (missing.Count > 0)
+        if (missing.Count == 0)
         {
-            IsLoading = true;
-            try
+            IsLoading = false;
+            UpdateWarning();
+            Recompute();
+            return;
+        }
+
+        IsLoading = true;
+        UpdateWarning();
+        Recompute();
+
+        // Everything is fetched into locals; the whole batch is applied only if no newer selection superseded it.
+        var fetched = new Dictionary<DateOnly, List<ExportRow>>();
+        try
+        {
+            foreach (var (from, to) in PartitionWindows(missing))
             {
-                await FetchAsync(missing.Min(), missing.Max());
-            }
-            catch (Exception)
-            {
-                if (version == _loadVersion)
+                if (version != _loadVersion)
                 {
-                    Warning = "خواندن نوبت‌ها ناموفق بود. دوباره تلاش کنید.";
+                    return;
                 }
+
+                await FetchWindowAsync(from, to, fetched);
             }
-            finally
+        }
+        catch (Exception)
+        {
+            if (version == _loadVersion)
             {
-                if (version == _loadVersion)
-                {
-                    IsLoading = false;
-                }
+                SetLoadFailed(true);
+                _loadWarning = "خواندن نوبت‌ها ناموفق بود؛ خروجی غیرفعال است. دوباره تلاش کنید.";
+                IsLoading = false;
+                UpdateWarning();
+                Recompute();
+            }
+
+            return;
+        }
+
+        if (version != _loadVersion)
+        {
+            return;
+        }
+
+        foreach (var (day, rows) in fetched)
+        {
+            _byDay[day] = rows;
+            if (_loaded.Add(day))
+            {
+                _loadOrder.Enqueue(day);
             }
         }
 
-        if (version == _loadVersion)
+        TrimCache();
+        IsLoading = false;
+        UpdateWarning();
+        Recompute();
+        ApplyPickerCounts();
+    }
+
+    private async Task FetchWindowAsync(DateOnly from, DateOnly to, Dictionary<DateOnly, List<ExportRow>> into)
+    {
+        var rows = await _service.GetForRangeAsync(from, to);
+
+        // Search text is normalized once per row here (off the UI thread), never per keystroke.
+        var built = await Task.Run(() => rows.Select(a => new ExportRow(a, PersianText.Normalize(
+            $"{a.PetName} {a.OwnerName} {a.OwnerPhone} {a.PetKind} {a.Code} {a.Note}"))).ToList());
+
+        for (var x = from; x <= to; x = x.AddDays(1))
         {
-            Recompute();
+            into[x] = [];
+        }
+
+        foreach (var row in built)
+        {
+            if (into.TryGetValue(row.Event.Date, out var list))
+            {
+                list.Add(row);
+            }
         }
     }
 
-    private async Task FetchAsync(DateOnly from, DateOnly to)
+    /// <summary>Evicts the oldest loaded days beyond <see cref="MaxCachedDays"/>; the active selection is kept.</summary>
+    private void TrimCache()
     {
-        var rows = await _service.GetForRangeAsync(from, to);
-        for (var x = from; x <= to; x = x.AddDays(1))
+        if (_loaded.Count <= MaxCachedDays)
         {
-            _byDay.Remove(x);
-            _loaded.Add(x);
+            return;
         }
 
-        foreach (var a in rows)
+        var keep = _days.ToHashSet();
+        var survivors = new Queue<DateOnly>();
+        while (_loadOrder.Count > 0)
         {
-            if (!_byDay.TryGetValue(a.Date, out var l))
+            var day = _loadOrder.Dequeue();
+            if (_loaded.Count > MaxCachedDays && !keep.Contains(day))
             {
-                _byDay[a.Date] = l = [];
+                _loaded.Remove(day);
+                _byDay.Remove(day);
             }
+            else
+            {
+                survivors.Enqueue(day);
+            }
+        }
 
-            l.Add(a);
+        _loadOrder = survivors;
+    }
+
+    private int CountFor(DateOnly day) =>
+        _byDay.TryGetValue(day, out var l) ? l.Count : _pickerCounts.GetValueOrDefault(day);
+
+    private void ApplyPickerCounts()
+    {
+        foreach (var c in PickerCells)
+        {
+            c.Count = CountFor(c.Date);
         }
     }
 
@@ -623,24 +796,49 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
             return;
         }
 
+        var version = ++_pickerVersion;
         var from = PickerCells[0].Date;
         var to = PickerCells[^1].Date;
-        if (Enumerable.Range(0, to.DayNumber - from.DayNumber + 1).Any(i => !_loaded.Contains(from.AddDays(i))))
+        var span = to.DayNumber - from.DayNumber + 1;
+        var unknown = Enumerable.Range(0, span).Select(i => from.AddDays(i))
+            .Any(d => !_loaded.Contains(d) && !_pickerCounts.ContainsKey(d));
+        if (unknown)
         {
+            // Count-only: the picker never retains events, so navigating months has a fixed memory bound.
+            IReadOnlyList<AppointmentEvent> rows;
             try
             {
-                await FetchAsync(from, to);
+                rows = await _service.GetForRangeAsync(from, to);
             }
             catch (Exception)
             {
                 return;
             }
+
+            if (version != _pickerVersion)
+            {
+                return;
+            }
+
+            var counts = rows.GroupBy(a => a.Date).ToDictionary(g => g.Key, g => g.Count());
+            for (var i = 0; i < span; i++)
+            {
+                var day = from.AddDays(i);
+                if (_loaded.Contains(day))
+                {
+                    continue;
+                }
+
+                _pickerCounts.Remove(day);
+                _pickerCounts[day] = counts.GetValueOrDefault(day);
+                while (_pickerCounts.Count > MaxPickerCountDays)
+                {
+                    _pickerCounts.RemoveAt(0);
+                }
+            }
         }
 
-        foreach (var c in PickerCells)
-        {
-            c.Count = _byDay.TryGetValue(c.Date, out var l) ? l.Count : 0;
-        }
+        ApplyPickerCounts();
     }
 
     private void RebuildPickerGrid()
@@ -659,7 +857,7 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
                 AppointmentsCalendarMath.IsFriday(d))
             {
                 IsSelected = _picked.Contains(d),
-                Count = _byDay.TryGetValue(d, out var l) ? l.Count : 0,
+                Count = CountFor(d),
             });
         }
 
@@ -667,51 +865,100 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
         OnPropertyChanged(nameof(PickerTitle));
     }
 
-    /// <summary>Filter change only: re-filter the already-loaded days (no I/O).</summary>
+    /// <summary>
+    /// Filter change only: re-filter the already-loaded days (no I/O). One pass over the in-range rows computes the
+    /// result list and all three facet counts (A16); search text is precomputed per row, never re-normalized here.
+    /// Output is enabled only when the selection is complete (A15).
+    /// </summary>
     private void Recompute()
     {
         var docs = DoctorChips.Where(c => c.IsOn).Select(c => c.Id).ToHashSet();
         var types = TypeChips.Where(c => c.IsOn).Select(c => c.Id).ToHashSet();
         var statuses = StatusChips.Where(c => c.IsOn).Select(c => Enum.Parse<AppointmentLifecycle>(c.Id)).ToHashSet();
         var q = PersianText.Normalize(SearchText);
-
-        var inRange = _days.SelectMany(d => _byDay.TryGetValue(d, out var l) ? l : []).ToList();
-        bool TextOk(AppointmentEvent a) => q.Length == 0 ||
-            PersianText.Normalize($"{a.PetName} {a.OwnerName} {a.OwnerPhone} {a.PetKind} {a.Code} {a.Note}").Contains(q, StringComparison.Ordinal);
-
-        // Chip counts: each group counts against all *other* active filters, so the user sees
-        // what toggling that chip would add/remove.
         var docAll = DoctorChips.Count == 0;
         var typeAll = TypeChips.Count == 0;
+
+        var docCounts = new Dictionary<string, int>();
+        var typeCounts = new Dictionary<string, int>();
+        var statusCounts = new Dictionary<AppointmentLifecycle, int>();
+        var matches = new List<AppointmentEvent>();
+
+        foreach (var day in _days)
+        {
+            if (!_byDay.TryGetValue(day, out var rows))
+            {
+                continue;
+            }
+
+            foreach (var row in rows)
+            {
+                var a = row.Event;
+                if (q.Length > 0 && !row.Text.Contains(q, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                // Each facet counts against all *other* active filters, so the user sees what toggling a chip changes.
+                var docOk = docAll || docs.Contains(a.DoctorId);
+                var typeOk = typeAll || types.Contains(a.TypeId);
+                var statusOk = statuses.Contains(a.Lifecycle);
+                if (typeOk && statusOk)
+                {
+                    docCounts[a.DoctorId] = docCounts.GetValueOrDefault(a.DoctorId) + 1;
+                }
+
+                if (docOk && statusOk)
+                {
+                    typeCounts[a.TypeId] = typeCounts.GetValueOrDefault(a.TypeId) + 1;
+                }
+
+                if (docOk && typeOk)
+                {
+                    statusCounts[a.Lifecycle] = statusCounts.GetValueOrDefault(a.Lifecycle) + 1;
+                }
+
+                if (docOk && (typeOk || !_types.ContainsKey(a.TypeId)) && statusOk)
+                {
+                    matches.Add(a);
+                }
+            }
+        }
+
         foreach (var c in DoctorChips)
         {
-            c.CountText = Fa(inRange.Count(a => a.DoctorId == c.Id && (typeAll || types.Contains(a.TypeId)) && statuses.Contains(a.Lifecycle) && TextOk(a)));
+            c.CountText = Fa(docCounts.GetValueOrDefault(c.Id));
         }
 
         foreach (var c in TypeChips)
         {
-            c.CountText = Fa(inRange.Count(a => a.TypeId == c.Id && (docAll || docs.Contains(a.DoctorId)) && statuses.Contains(a.Lifecycle) && TextOk(a)));
+            c.CountText = Fa(typeCounts.GetValueOrDefault(c.Id));
         }
 
         foreach (var c in StatusChips)
         {
-            var s = Enum.Parse<AppointmentLifecycle>(c.Id);
-            c.CountText = Fa(inRange.Count(a => a.Lifecycle == s && (docAll || docs.Contains(a.DoctorId)) && (typeAll || types.Contains(a.TypeId)) && TextOk(a)));
+            c.CountText = Fa(statusCounts.GetValueOrDefault(Enum.Parse<AppointmentLifecycle>(c.Id)));
         }
 
-        _matches = inRange.Where(a =>
-            (docAll || docs.Contains(a.DoctorId)) &&
-            (typeAll || types.Contains(a.TypeId) || !_types.ContainsKey(a.TypeId)) &&
-            statuses.Contains(a.Lifecycle) &&
-            TextOk(a)).ToList();
+        _matches = matches;
 
         var daysWith = _matches.Select(a => a.Date).Distinct().Count();
         var printedDays = IncludeEmptyDays ? _days.Count : daysWith;
-        SummaryMain = $"{Fa(_matches.Count)} نوبت";
+        var complete = IsSelectionComplete();
+        var tooLarge = _matches.Count > MaxOutputRows;
+        _limitWarning = tooLarge
+            ? $"حداکثر {Fa(MaxOutputRows)} نوبت در یک خروجی ممکن است؛ بازه یا فیلترها را محدودتر کنید."
+            : string.Empty;
+        UpdateWarning();
+
+        SummaryMain = complete ? $"{Fa(_matches.Count)} نوبت" : IsLoading ? "در حال بارگذاری…" : "ناقص";
         SummarySub = _days.Count == 0
             ? "روزی انتخاب نشده است"
-            : $"{Fa(printedDays)} روز در خروجی · {Fa(docs.Count)} پزشک · تخمین {Fa(EstimatePages(printedDays))} صفحه";
-        CanExport = _days.Count > 0 && (_matches.Count > 0 || IncludeEmptyDays) && (docAll || docs.Count > 0);
+            : !complete
+                ? (_loadFailed ? "خواندن نوبت‌ها ناموفق بود؛ خروجی غیرفعال است" : "خروجی پس از بارگذاری کامل فعال می‌شود")
+                : $"{Fa(printedDays)} روز در خروجی · {Fa(docs.Count)} پزشک · تخمین {Fa(EstimatePages(printedDays))} صفحه";
+        CanExport = complete && !tooLarge && _days.Count > 0 && (_matches.Count > 0 || IncludeEmptyDays) &&
+                    (docAll || docs.Count > 0);
     }
 
     /// <summary>Rough page estimate so users know before printing whether A3/compact is worth it.</summary>
@@ -755,8 +1002,24 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
 
     partial void OnIncludeSummaryChanged(bool value) => Recompute();
 
-    private Task<string> BuildHtmlAsync(bool autoPrint)
+    /// <summary>
+    /// Builds the document from an immutable snapshot of the inputs taken now - only after the selection is known to
+    /// be complete (A15). Returns null (after telling the user) when it is incomplete or over the output caps (A16).
+    /// </summary>
+    private async Task<string?> BuildHtmlAsync(bool autoPrint)
     {
+        if (!IsSelectionComplete())
+        {
+            _toast.Show("بارگذاری نوبت‌ها کامل نیست؛ پس از اتمام یا تلاش دوباره، خروجی بگیرید.", Tone.Danger);
+            return null;
+        }
+
+        if (_matches.Count > MaxOutputRows)
+        {
+            _toast.Show("تعداد نوبت‌ها بیش از حد مجاز خروجی است؛ بازه را محدودتر کنید.", Tone.Danger);
+            return null;
+        }
+
         var docIds = DoctorChips.Where(c => c.IsOn).Select(c => c.Id).ToHashSet();
         var doctors = _doctors.Where(d => docIds.Contains(d.Id)).ToList();
 
@@ -764,8 +1027,8 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
         // builder labels them «بدون پزشک». Multi-doctor framing when >1 doctor actually appears.
         var options = new AppointmentPrintOptions
         {
-            Days = _days,
-            Appointments = _matches,
+            Days = _days.ToArray(),
+            Appointments = _matches.ToArray(),
             Doctors = doctors.Count > 0 ? doctors : _doctors,
             Types = _types,
             AllDoctors = docIds.Count == _doctors.Count,
@@ -791,7 +1054,14 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
         };
 
         // Base64 font embedding + string building is CPU work; keep it off the UI thread.
-        return Task.Run(() => AppointmentPrintDocument.Build(options, _print.EmbeddedFontCss));
+        var html = await Task.Run(() => AppointmentPrintDocument.Build(options, _print.EmbeddedFontCss));
+        if (html.Length > MaxOutputChars)
+        {
+            _toast.Show("حجم خروجی بیش از حد مجاز است؛ بازه یا ستون‌ها را محدودتر کنید.", Tone.Danger);
+            return null;
+        }
+
+        return html;
     }
 
     private string FileStem()
