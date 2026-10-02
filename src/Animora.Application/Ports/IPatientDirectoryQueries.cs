@@ -8,18 +8,18 @@ namespace Animora.Application.Ports;
 public interface IPatientDirectoryQueries
 {
     Task<PagedResult<PetSummaryReadModel>> GetPetsAsync(
-        string? search, PetSpecies? species, PetStatus? status, PatientDirectorySort sort,
+        string? search, PetSpecies? species, PatientDirectorySort sort,
         int page, int pageSize, CancellationToken ct);
 
     Task<PagedResult<OwnerSummaryReadModel>> GetOwnersAsync(
-        string? search, PetSpecies? species, PetStatus? status, PatientDirectorySort sort,
+        string? search, PetSpecies? species, PatientDirectorySort sort,
         int page, int pageSize, CancellationToken ct);
 
     /// <summary>Directory facet counts (total owners, total pets, per-species pet counts) for the
-    /// given search/species/status filter. The species breakdown ignores <paramref name="species"/>
-    /// so the chip rail always shows the full taxonomy under the current text/status filter.</summary>
+    /// given search/species filter. The species breakdown ignores <paramref name="species"/>
+    /// so the chip rail always shows the full taxonomy under the current text filter.</summary>
     Task<PatientDirectoryFacetsReadModel> GetFacetsAsync(
-        string? search, PetSpecies? species, PetStatus? status, CancellationToken ct);
+        string? search, PetSpecies? species, CancellationToken ct);
 
     Task<OwnerDetailReadModel?> GetOwnerAsync(string ownerId, CancellationToken ct);
 

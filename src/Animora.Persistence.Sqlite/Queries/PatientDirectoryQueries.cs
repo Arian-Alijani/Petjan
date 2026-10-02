@@ -18,10 +18,10 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
     private LocalStoreOptions Options => options.Value;
 
     public async Task<PagedResult<PetSummaryReadModel>> GetPetsAsync(
-        string? search, PetSpecies? species, PetStatus? status, PatientDirectorySort sort,
+        string? search, PetSpecies? species, PatientDirectorySort sort,
         int page, int pageSize, CancellationToken ct)
     {
-        var filtered = FilterPets(db.Set<Pet>().AsNoTracking(), search, species, status);
+        var filtered = FilterPets(db.Set<Pet>().AsNoTracking(), search, species);
 
         // Stable ORDER BY with a unique id tiebreaker so Skip/Take never drifts. No visit source
         // exists yet in C01, so "Recent" falls back to name-ordered (same as Name) until C03.
@@ -42,10 +42,10 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
     }
 
     public async Task<PagedResult<OwnerSummaryReadModel>> GetOwnersAsync(
-        string? search, PetSpecies? species, PetStatus? status, PatientDirectorySort sort,
+        string? search, PetSpecies? species, PatientDirectorySort sort,
         int page, int pageSize, CancellationToken ct)
     {
-        var owners = FilterOwners(search, species, status);
+        var owners = FilterOwners(search, species);
 
         var ordered = sort switch
         {
@@ -63,16 +63,16 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
     }
 
     public async Task<PatientDirectoryFacetsReadModel> GetFacetsAsync(
-        string? search, PetSpecies? species, PetStatus? status, CancellationToken ct)
+        string? search, PetSpecies? species, CancellationToken ct)
     {
-        // Totals under the active search/species/status filter (owners cross-filtered to those
+        // Totals under the active search/species filter (owners cross-filtered to those
         // with a matching pet, exactly like GetOwnersAsync).
-        var totalPets = await FilterPets(db.Set<Pet>().AsNoTracking(), search, species, status).CountAsync(ct);
-        var totalOwners = await FilterOwners(search, species, status).CountAsync(ct);
+        var totalPets = await FilterPets(db.Set<Pet>().AsNoTracking(), search, species).CountAsync(ct);
+        var totalOwners = await FilterOwners(search, species).CountAsync(ct);
 
         // Per-species chip counts ignore the species filter (chips show the full taxonomy under
-        // the current text/status filter) — one grouped COUNT, not N queries.
-        var speciesCounts = await FilterPets(db.Set<Pet>().AsNoTracking(), search, species: null, status)
+        // the current text filter) — one grouped COUNT, not N queries.
+        var speciesCounts = await FilterPets(db.Set<Pet>().AsNoTracking(), search, species: null)
             .GroupBy(p => p.Species)
             .Select(g => new { Species = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Species, x => x.Count, ct);
@@ -80,10 +80,10 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
         return new PatientDirectoryFacetsReadModel(totalOwners, totalPets, speciesCounts);
     }
 
-    /// <summary>Shared pet filter (search + species + status) reused by the list page and the
+    /// <summary>Shared pet filter (search + species) reused by the list page and the
     /// facet/owner cross-filter so every count and every page agree on one predicate.</summary>
     private static IQueryable<Pet> FilterPets(
-        IQueryable<Pet> q, string? search, PetSpecies? species, PetStatus? status)
+        IQueryable<Pet> q, string? search, PetSpecies? species)
     {
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -91,14 +91,13 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             q = q.Where(p => EF.Functions.Like(p.SearchKey, $"%{term}%"));
         }
         if (species is { } sp) q = q.Where(p => p.Species == sp);
-        if (status is { } st) q = q.Where(p => p.Status == st);
         return q;
     }
 
-    /// <summary>Owner filter: text match on the owner's SearchKey, plus — when a species/status
+    /// <summary>Owner filter: text match on the owner's SearchKey, plus — when a species
     /// filter is active — an EXISTS narrowing to owners with at least one matching pet (the
     /// owner⇄pet cross-filter runs in SQL, never client-side).</summary>
-    private IQueryable<Owner> FilterOwners(string? search, PetSpecies? species, PetStatus? status)
+    private IQueryable<Owner> FilterOwners(string? search, PetSpecies? species)
     {
         var owners = db.Set<Owner>().AsNoTracking();
         if (!string.IsNullOrWhiteSpace(search))
@@ -106,9 +105,9 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             var term = PersianText.Normalize(search);
             owners = owners.Where(o => EF.Functions.Like(o.SearchKey, $"%{term}%"));
         }
-        if (species is not null || status is not null)
+        if (species is not null)
         {
-            var matchingPets = FilterPets(db.Set<Pet>().AsNoTracking(), search: null, species, status);
+            var matchingPets = FilterPets(db.Set<Pet>().AsNoTracking(), search: null, species);
             owners = owners.Where(o => matchingPets.Any(p => p.OwnerId == o.Id));
         }
         return owners;

@@ -88,24 +88,24 @@ public sealed class PatientDirectoryQueryTests
 
         var queries = QueriesFor(fixture, db);
 
-        var all = await queries.GetPetsAsync(null, null, null, PatientDirectorySort.Recent, 1, 50, default);
+        var all = await queries.GetPetsAsync(null, null, PatientDirectorySort.Recent, 1, 50, default);
         Assert.Equal(2, all.TotalCount);
 
         // Search by name (the term is normalized the same way as the stored key).
-        var found = await queries.GetPetsAsync("رکس", null, null, PatientDirectorySort.Recent, 1, 50, default);
+        var found = await queries.GetPetsAsync("رکس", null, PatientDirectorySort.Recent, 1, 50, default);
         var row = Assert.Single(found.Items);
         Assert.Equal(rex.Id, row.Id);
         Assert.Null(row.LastVisitUtc);   // C03 supplies visits; none exist yet.
 
         // Species filter uses the domain enum.
-        var dogs = await queries.GetPetsAsync(null, PetSpecies.Dog, null, PatientDirectorySort.Recent, 1, 50, default);
+        var dogs = await queries.GetPetsAsync(null, PetSpecies.Dog, PatientDirectorySort.Recent, 1, 50, default);
         Assert.Equal(rex.Id, Assert.Single(dogs.Items).Id);
 
         // One SELECT + one COUNT at most: the latest-weight join is part of the same statement, never per-row.
         var (counting, counter) = fixture.CreateCountingContext();
         try
         {
-            var counted = await QueriesFor(fixture, counting).GetPetsAsync(null, null, null, PatientDirectorySort.Recent, 1, 50, default);
+            var counted = await QueriesFor(fixture, counting).GetPetsAsync(null, null, PatientDirectorySort.Recent, 1, 50, default);
             Assert.Equal(2, counted.TotalCount);
             Assert.True(counter.Count <= 2, $"expected <=2 SQL commands, saw {counter.Count}.");
         }
@@ -131,13 +131,13 @@ public sealed class PatientDirectoryQueryTests
 
         var queries = QueriesFor(fixture, db);
 
-        var page1 = await queries.GetOwnersAsync(null, null, null, PatientDirectorySort.Recent, 1, 1, default);
+        var page1 = await queries.GetOwnersAsync(null, null, PatientDirectorySort.Recent, 1, 1, default);
         Assert.Equal(2, page1.TotalCount);
         Assert.Single(page1.Items);
         Assert.Equal(1, page1.Page);
         Assert.Equal(1, page1.PageSize);
 
-        var ownerB = (await queries.GetOwnersAsync("ب ب", null, null, PatientDirectorySort.Recent, 1, 10, default)).Items.Single();
+        var ownerB = (await queries.GetOwnersAsync("ب ب", null, PatientDirectorySort.Recent, 1, 10, default)).Items.Single();
         Assert.Equal(b.Id, ownerB.Id);
         Assert.Equal(1, ownerB.PetCount);
 
@@ -167,13 +167,13 @@ public sealed class PatientDirectoryQueryTests
         var queries = QueriesFor(fixture, db);
 
         // Ask for far more than the hard ceiling; the result page is capped at 200 rows.
-        var page = await queries.GetPetsAsync(null, null, null, PatientDirectorySort.Recent, 1, 500, default);
+        var page = await queries.GetPetsAsync(null, null, PatientDirectorySort.Recent, 1, 500, default);
         Assert.Equal(205, page.TotalCount);
         Assert.Equal(200, page.PageSize);
         Assert.Equal(200, page.Items.Count);
 
         // Owners directory clamps identically.
-        var owners = await queries.GetOwnersAsync(null, null, null, PatientDirectorySort.Recent, 1, 1000, default);
+        var owners = await queries.GetOwnersAsync(null, null, PatientDirectorySort.Recent, 1, 1000, default);
         Assert.Equal(200, owners.PageSize);
     }
 

@@ -185,7 +185,7 @@ the missing member to **each** enum so the map is bijective:
 
 ---
 
-### [ ] T04 — P04 (P1) · Dead clinical-status filter plumbed end-to-end but never wired
+### [x] T04 — P04 (P1) · Dead clinical-status filter plumbed end-to-end but never wired
 **Root cause (confirmed):** `PetStatus? status` is a parameter on SQL `GetPetsAsync`/`GetOwnersAsync`/
 `GetFacetsAsync` (SQL:21,45,66) and the Application query records, but **every** caller passes
 `Status: null` (SVC:36,55,75). VM has no status field; the toolbar exposes species+vaccine+sort only.

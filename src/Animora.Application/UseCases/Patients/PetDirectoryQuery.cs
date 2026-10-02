@@ -6,10 +6,10 @@ using Animora.Domain.Results;
 
 namespace Animora.Application.UseCases.Patients;
 
-/// <summary>Paged pet directory with optional search + species/status filters and a stable
+/// <summary>Paged pet directory with optional search + species filter and a stable
 /// server-side sort (C01).</summary>
 public sealed record PetDirectoryQuery(
-    string? Search, PetSpecies? Species, PetStatus? Status, PatientDirectorySort Sort, int Page, int PageSize)
+    string? Search, PetSpecies? Species, PatientDirectorySort Sort, int Page, int PageSize)
     : IQuery<PagedResult<PetSummaryReadModel>>;
 
 public sealed class PetDirectoryQueryHandler(IPatientDirectoryQueries queries)
@@ -19,5 +19,5 @@ public sealed class PetDirectoryQueryHandler(IPatientDirectoryQueries queries)
         PetDirectoryQuery query, QueryContext context, CancellationToken ct) =>
         Result<PagedResult<PetSummaryReadModel>>.Ok(
             await queries.GetPetsAsync(
-                query.Search, query.Species, query.Status, query.Sort, query.Page, query.PageSize, ct));
+                query.Search, query.Species, query.Sort, query.Page, query.PageSize, ct));
 }

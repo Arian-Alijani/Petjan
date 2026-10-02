@@ -33,7 +33,7 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
 
         var r = await dispatcher.QueryAsync(
-            new PetDirectoryQuery(query.Search, MapSpecies(query.Species), Status: null, MapSort(query.Sort),
+            new PetDirectoryQuery(query.Search, MapSpecies(query.Species), MapSort(query.Sort),
                 query.Page, ClampPageSize(query.PageSize)),
             qc.Value!);
         if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
@@ -52,7 +52,7 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
 
         var r = await dispatcher.QueryAsync(
-            new OwnerDirectoryQuery(query.Search, MapSpecies(query.Species), Status: null, MapSort(query.Sort),
+            new OwnerDirectoryQuery(query.Search, MapSpecies(query.Species), MapSort(query.Sort),
                 query.Page, ClampPageSize(query.PageSize)),
             qc.Value!);
         if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
@@ -72,7 +72,7 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
 
         var r = await dispatcher.QueryAsync(
-            new PatientsDirectoryFacetsQuery(query.Search, MapSpecies(query.Species), Status: null), qc.Value!);
+            new PatientsDirectoryFacetsQuery(query.Search, MapSpecies(query.Species)), qc.Value!);
         if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
         var m = r.Value!;
         var species = m.SpeciesCounts.ToDictionary(kv => MapSpeciesToContract(kv.Key), kv => kv.Value);
@@ -90,7 +90,7 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
         return await ReadDirectoryAsync(
             page => dispatcher.QueryAsync(
-                new PetDirectoryQuery(null, null, null, PatientDirectorySort.Name, page, MaxPageSize), qc.Value!),
+                new PetDirectoryQuery(null, null, PatientDirectorySort.Name, page, MaxPageSize), qc.Value!),
             x => x.ToSummary());
     }
 
@@ -102,7 +102,7 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
         return await ReadDirectoryAsync(
             page => dispatcher.QueryAsync(
-                new OwnerDirectoryQuery(null, null, null, PatientDirectorySort.Name, page, MaxPageSize), qc.Value!),
+                new OwnerDirectoryQuery(null, null, PatientDirectorySort.Name, page, MaxPageSize), qc.Value!),
             x => x.ToSummary());
     }
 
