@@ -41,3 +41,13 @@ public enum PatientSort
     Name,
     Age,
 }
+
+/// <summary>
+/// A selectable "records per page" option for the directory toolbar. <see cref="Value"/>
+/// is the page size (<c>int.MaxValue</c> = show all); <see cref="Label"/> is the
+/// Persian caption shown in the dropdown.
+/// </summary>
+public sealed record PatientsPageSizeOption(int Value, string Label)
+{
+    public override string ToString() => Label;
+}

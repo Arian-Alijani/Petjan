@@ -181,6 +181,38 @@
             <Setter Property="TextElement.Foreground" Value="{StaticResource Brand700Brush}" />
         </Style>
 
+        <!-- Pagination nav buttons (.pgbtn): minimal outlined pills matching
+             the toolbar selects; brand tint on hover, dimmed when disabled. -->
+        <Style Selector="Button.pgbtn">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="13,7" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.pgbtn Path">
+            <Setter Property="Stroke" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Button.pgbtn:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="Button.pgbtn:pointerover TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.pgbtn:pointerover Path">
+            <Setter Property="Stroke" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Button.pgbtn:disabled">
+            <Setter Property="Opacity" Value="0.42" />
+            <Setter Property="Cursor" Value="Arrow" />
+        </Style>
+
         <!-- Owner card / pet card hover affordances on the clickable surface. -->
         <Style Selector="Path.reveal">
             <Setter Property="Opacity" Value="0" />
@@ -600,6 +632,11 @@
                             <ComboBoxItem Content="نام (الفبا)" />
                             <ComboBoxItem Content="{Binding AgeSortLabel}" />
                         </ComboBox>
+                        <!-- records-per-page select (initial-load perf cap) -->
+                        <ComboBox Classes="pbselect" MinWidth="120"
+                                  ItemsSource="{Binding PageSizeOptions}"
+                                  SelectedItem="{Binding SelectedPageSize}"
+                                  ToolTip.Tip="تعداد نمایش در هر صفحه" />
                         <Border Classes="seg">
                             <StackPanel Orientation="Horizontal" Spacing="2">
                                 <Border Classes="segitem" Classes.on="{Binding IsListView}">
@@ -636,8 +673,9 @@
              reference's render(): owners/pets × list(rows)/grid(boxes).
              RTL: "start" = Right, "end" = Left.
              All four lists are ListBoxes (VirtualizingStackPanel + own
-             ScrollViewer) so only visible rows are realized. -->
-        <Grid Grid.Row="1">
+             ScrollViewer) so only visible rows are realized.
+             Row 0 = the lists/empty-state; Row 1 = the pagination footer. -->
+        <Grid Grid.Row="1" RowDefinitions="*,Auto">
 
         <!-- Detailed owner cards, virtualized in three-card rows. -->
         <ListBox Classes="records" ItemsSource="{Binding OwnerRows}"
@@ -1118,6 +1156,52 @@
                     </StackPanel>
                 </Button>
             </StackPanel>
+        </Border>
+
+        <!-- ── pagination footer ────────────────────────────────────────
+             Only shown when the matches span more than one page. RTL: the
+             "previous" control sits at the start (right) and points right
+             (IconChevronRight); "next" sits at the end (left) and points left
+             (IconChevronLeft) — same convention as the calendar stepper. -->
+        <Border Grid.Row="1" IsVisible="{Binding ShowPagination}"
+                Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                CornerRadius="{StaticResource Radius}"
+                BoxShadow="{StaticResource ShadowCard}"
+                Padding="14,10" Margin="0,14,0,0">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <!-- range caption (start / right) -->
+                <TextBlock Grid.Column="0" Text="{Binding PageRangeText}" FontSize="12"
+                           Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+
+                <!-- nav cluster (end / left) -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center">
+                    <Button Classes="pgbtn" Command="{Binding PreviousPageCommand}"
+                            ToolTip.Tip="صفحه قبل">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Data="{StaticResource IconChevronRight}" />
+                            <TextBlock Text="قبلی" />
+                        </StackPanel>
+                    </Button>
+                    <Border Background="{StaticResource Bg2Brush}"
+                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                            CornerRadius="10" Padding="12,6" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding PageIndicatorText}" FontSize="12.5"
+                                   FontWeight="SemiBold" Foreground="{StaticResource InkBrush}"
+                                   VerticalAlignment="Center" />
+                    </Border>
+                    <Button Classes="pgbtn" Command="{Binding NextPageCommand}"
+                            ToolTip.Tip="صفحه بعد">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="بعدی" />
+                            <Path Classes="icon" Width="15" Height="15"
+                                  Data="{StaticResource IconChevronLeft}" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
         </Border>
 
         </Grid>
