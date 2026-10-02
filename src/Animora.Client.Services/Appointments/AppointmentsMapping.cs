@@ -18,12 +18,36 @@ internal static class AppointmentsMapping
             AppointmentState.Completed or AppointmentState.NoShow => AppointmentStatus.Done,
             _ => AppointmentStatus.Confirmed
         };
+        var lifecycle = row.State switch
+        {
+            AppointmentState.Scheduled => AppointmentLifecycle.Scheduled,
+            AppointmentState.Confirmed => AppointmentLifecycle.Confirmed,
+            AppointmentState.CheckedIn => AppointmentLifecycle.CheckedIn,
+            AppointmentState.InVisit => AppointmentLifecycle.InVisit,
+            AppointmentState.Completed => AppointmentLifecycle.Completed,
+            AppointmentState.NoShow => AppointmentLifecycle.NoShow,
+            _ => AppointmentLifecycle.Cancelled
+        };
+        // A12: money comes only from the real appointment -> visit -> invoice link; no link means "no money data",
+        // never an invented zero/estimate.
+        var invoice = row.InvoiceState switch
+        {
+            Animora.Domain.Sales.InvoiceState.Paid => AppointmentInvoiceState.Paid,
+            Animora.Domain.Sales.InvoiceState.PartiallyPaid => AppointmentInvoiceState.Partial,
+            Animora.Domain.Sales.InvoiceState.Posted => AppointmentInvoiceState.Unpaid,
+            _ => AppointmentInvoiceState.None
+        };
+        var total = row.InvoiceTotalMinor is { } minor ? (int)Math.Clamp(minor, 0, int.MaxValue) : 0;
         return new AppointmentEvent(row.Id, date, minute, row.DurationMinutes, row.TypeCode,
             row.DoctorId ?? "", row.PetName, row.PetSpecies, row.OwnerName, row.OwnerPhone,
             "blue", row.PetSpecies.ToLowerInvariant(), status, row.Note ?? "", row.Id,
-            0, AppointmentInvoiceState.None, AppointmentPaymentMethod.None,
+            total, invoice, AppointmentPaymentMethod.None,
             row.State == AppointmentState.NoShow ? AppointmentVisitOutcome.NoShow :
-                row.State == AppointmentState.Completed ? AppointmentVisitOutcome.Complete : AppointmentVisitOutcome.None);
+                row.State == AppointmentState.Completed ? AppointmentVisitOutcome.Complete : AppointmentVisitOutcome.None,
+            lifecycle, row.VisitId,
+            row.CheckedInUtcTicks is { } ticks ? new DateTimeOffset(ticks, TimeSpan.Zero) : null,
+            row.CancelReason, row.CreatedByUserId, row.RescheduleCount, row.DoctorName,
+            row.InvoiceTotalMinor, row.InvoicePaidMinor);
     }
 
     /// <summary>
@@ -32,7 +56,8 @@ internal static class AppointmentsMapping
     /// </summary>
     internal static AppointmentDoctor ToContract(this DoctorRosterReadModel row, int index) =>
         new(row.Id, row.Name, row.Name, row.Specialty,
-            row.Name.Length > 0 ? row.Name[..1] : "?", AppointmentColorPalette.ByIndex(index));
+            row.Name.Length > 0 ? row.Name[..1] : "?", AppointmentColorPalette.ByIndex(index),
+            row.WorkStartMinute, row.WorkEndMinute, row.WorkDaysMask);
 
     internal static BookingPatient ToContract(this BookingPatientReadModel row) =>
         new(row.Id, row.Name, row.Species, row.OwnerName, row.Phone,

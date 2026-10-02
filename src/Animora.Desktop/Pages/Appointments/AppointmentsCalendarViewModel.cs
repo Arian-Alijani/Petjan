@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Patients;
 using Animora.Contracts.Profile;
+using Animora.Contracts.Visits;
+using Animora.Domain.Identity;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.Appointments.Export;
@@ -41,10 +44,25 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private readonly IPrintService _print;
     private readonly IUserProfileService _profile;
     private readonly ICurrentUserContext _user;
+    private readonly ICapabilityGate _capabilities;
+    private readonly INavigationService _navigation;
+    private readonly IVisitEncounterService _encounters;
+    private readonly IClinicClock _clock;
+    private readonly Avalonia.Threading.DispatcherTimer _clockTimer = new() { Interval = TimeSpan.FromMinutes(1) };
+    private ClinicMoment _lastMoment;
+    private TimeGridWindow _window = TimeGridWindow.Default;
 
     private readonly List<AppointmentDoctor> _doctors = [];
     private readonly List<AppointmentType> _types = [];
     private readonly List<AppointmentEvent> _all = [];
+
+    // A01: events are cached per fixed-size date chunk and fetched on demand for whatever range is on screen,
+    // so nothing depends on a preloaded window around today. Each fetch stays inside the backend's 63-day guard.
+    private const int ChunkDays = 28;
+    private const int ChunksPerRequest = 2; // 56 days per request, below the 63-inclusive-day range guard
+    private const int MaxCachedChunks = 30; // ~840 days; farther chunks are evicted when the cache grows
+    private readonly Dictionary<int, List<AppointmentEvent>> _chunks = [];
+    private int _rangeGeneration;
 
     // Fast lookup indexes rebuilt whenever the underlying collections change.
     // These replace repeated O(n) LINQ scans (First/Where) that made every
@@ -84,6 +102,14 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private DateOnly _historyCalendarCursor;
     private bool _historyCalendarOpen;
 
+    // History archive state (A01): rows come page by page from the backend, with scope-wide totals.
+    private readonly List<AppointmentEvent> _historyRows = [];
+    private AppointmentHistoryTotals _historyTotals = AppointmentHistoryTotals.Empty;
+    private int _historyPage;
+    private int _historyGeneration;
+    private CancellationTokenSource? _historyCts;
+    private bool _historyStale = true;
+
     public AppointmentsCalendarViewModel(
         IAppointmentsQueryService service,
         IStoreReadinessGate readiness,
@@ -95,8 +121,19 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         IPatientsQueryService patients,
         IPrintService print,
         IUserProfileService profile,
-        ICurrentUserContext user)
+        ICurrentUserContext user,
+        ICapabilityGate capabilities,
+        INavigationService navigation,
+        IVisitEncounterService encounters,
+        IClinicClock clock)
     {
+        _clock = clock;
+        _lastMoment = clock.Now;
+        _clockTimer.Tick += OnClockTick;
+        _navigation = navigation;
+        _encounters = encounters;
+        _capabilities = capabilities;
+        _capabilities.CapabilitiesChanged += OnCapabilitiesChanged;
         _service = service;
         _print = print;
         _profile = profile;
@@ -114,14 +151,14 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         Breadcrumbs.Add("مرکز فرمان");
         Breadcrumbs.Add("نوبت‌ها");
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = _clock.Today;
         _cursor = today;
         _queueDay = today;
         _historyCalendarCursor = today;
 
         UseLoadStatus(ReloadPageAsync);
         // A completed encounter closes its appointment; patient edits change the names shown.
-        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Visits, DataDomain.Patients);
+        RefreshOnDataChange(changes, RequestRefresh, DataDomain.Visits, DataDomain.Patients);
         _ = ReloadPageAsync();
     }
 
@@ -141,14 +178,17 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     /// <summary>The 7-month-grid weekday header labels.</summary>
     public IReadOnlyList<string> MonthWeekdayHeaders { get; } = AppointmentsCalendarMath.DayNames;
 
-    /// <summary>Hour labels for the time-grid gutter (07:00 … 21:00). Populated
-    /// once during load; the gutter binds it declaratively.</summary>
-    public RangeObservableCollection<string> HourLabels { get; } = [];
+    /// <summary>Hour rows of the time grid (gutter label + separator), rebuilt from the visible window on every render.</summary>
+    public RangeObservableCollection<HourRowViewModel> HourRows { get; } = [];
 
     // Queue tab
     public RangeObservableCollection<QueueDayViewModel> QueueDays { get; } = [];
     public RangeObservableCollection<QueueDoctorColumnViewModel> QueueColumns { get; } = [];
     public RangeObservableCollection<QueueStatViewModel> QueueStats { get; } = [];
+
+    /// <summary>Doctor columns per row in the queue tab (A25).</summary>
+    [ObservableProperty]
+    private int _queueColumnCount = 1;
 
     // History tab
     public RangeObservableCollection<HistoryScopeChipViewModel> HistoryScopeChips { get; } = [];
@@ -218,10 +258,20 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     partial void OnHasMonthEventsChanged(bool value) => OnPropertyChanged(nameof(ShowMonthEmptyState));
 
     /// <summary>Show the time-grid empty state when there are no visible events.</summary>
-    public bool ShowGridEmptyState => !HasGridEvents;
+    public bool ShowGridEmptyState => !HasGridEvents && !IsRangeUnsettled;
 
     /// <summary>Show the month-grid empty state when there are no visible events.</summary>
-    public bool ShowMonthEmptyState => !HasMonthEvents;
+    public bool ShowMonthEmptyState => !HasMonthEvents && !IsRangeUnsettled;
+
+    /// <summary>True while the visible range is still being fetched: grids must not claim "no appointments".</summary>
+    [ObservableProperty]
+    private bool _isRangeUnsettled;
+
+    partial void OnIsRangeUnsettledChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowGridEmptyState));
+        OnPropertyChanged(nameof(ShowMonthEmptyState));
+    }
 
     // ── derived view flags ───────────────────────────────────────────────────
     public bool IsCalendarTab => _activeTab == "cal";
@@ -255,6 +305,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     /// </summary>
     public override void OnNavigatedTo()
     {
+        // A24: the minute timer runs only while the page is visible.
+        _clockTimer.Start();
+
         // The constructor's initial load is still in flight on the very first visit.
         if (IsLoadInFlight)
         {
@@ -262,6 +315,78 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         _ = ReloadPageAsync();
+    }
+
+    /// <summary>Leaving the page stops the minute timer; it is restarted on the next visit (A24).</summary>
+    public override void OnNavigatedFrom()
+    {
+        _clockTimer.Stop();
+    }
+
+    // A24: advances the time-derived state (now line, now/next badges, "today" markers) without user interaction.
+    // Only the clinic-local minute/day is compared, so a device-timezone change never moves the clinic day.
+    private void OnClockTick(object? sender, EventArgs e)
+    {
+        if (_isLoading)
+        {
+            return;
+        }
+
+        var previous = _lastMoment;
+        var moment = _clock.Now;
+        if (moment == previous)
+        {
+            return;
+        }
+
+        _lastMoment = moment;
+        if (moment.Today != previous.Today)
+        {
+            // Views parked on yesterday's "today" follow the clinic into the new day.
+            if (_cursor == previous.Today) _cursor = moment.Today;
+            if (_queueDay == previous.Today) _queueDay = moment.Today;
+            _historyCalendarCursor = moment.Today;
+            _historyStale = true;
+            ShowRange(RenderActiveTabForClock, ActiveRanges());
+            return;
+        }
+
+        RenderActiveTabForClock();
+    }
+
+    private void RenderActiveTabForClock()
+    {
+        switch (_activeTab)
+        {
+            case "cal":
+                Render();
+                break;
+            case "queue":
+                RenderQueue();
+                break;
+        }
+    }
+
+    private (DateOnly Start, DateOnly End)[] ActiveRanges() => _activeTab switch
+    {
+        "queue" => QueueRanges(),
+        _ => [CalendarRange()],
+    };
+
+    // The first load resolves the clinic zone; the constructor may have seeded the cursors with the fallback zone's day.
+    private void SyncClinicDay()
+    {
+        var today = _clock.Today;
+        var seeded = _lastMoment.Today;
+        _lastMoment = _clock.Now;
+        if (today == seeded)
+        {
+            return;
+        }
+
+        if (_cursor == seeded) _cursor = today;
+        if (_queueDay == seeded) _queueDay = today;
+        if (_historyCalendarCursor == seeded) _historyCalendarCursor = today;
     }
 
     // LoadAsync has no cleanup of its own: a failure must release the re-entrancy guard so a retry can run.
@@ -289,27 +414,28 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _isLoading = true;
         IsBusy = true;
 
-        // Yield once before the (currently synchronous, mock-backed) fetch +
-        // render pipeline runs. The mocks resolve via Task.FromResult, so
-        // without this the whole load — including the render pass below —
-        // would execute inline on the UI thread inside the DI constructor
-        // call that triggers navigation, making the very click that opens
-        // this page block until everything finishes. Yielding lets the
-        // dispatcher process the pending navigation/layout work first, so the
-        // shell paints before the heavier work runs.
+        // Yield once before the fetch + render pipeline runs so the click that opens this page paints first.
         await Task.Yield();
         await _readiness.WaitAsync();
 
-        _doctors.Clear();
-        _doctors.AddRange(await _service.GetDoctorsAsync());
-        _types.Clear();
-        _types.AddRange(await _service.GetTypesAsync());
+        // A23/A24: resolve the clinic timezone off the UI path once; today/now below are clinic-local from here on.
+        await _clock.HydrateAsync();
+        SyncClinicDay();
+
+        // Everything is fetched into locals first and swapped in only when the whole load succeeded, so a failure
+        // keeps the previous snapshot instead of leaving the page half-cleared.
+        var doctors = await _service.GetDoctorsAsync();
+        var types = await _service.GetTypesAsync();
         ApplySettings(await _settings.GetAsync());
         LockViewForCalendarMode();
-        _all.Clear();
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        _all.AddRange(await _service.GetForRangeAsync(today.AddDays(-40), today.AddDays(20)));
-        _all.AddRange(await _service.GetForRangeAsync(today.AddDays(21), today.AddDays(40)));
+        var fresh = await FetchChunksAsync(NeededChunks());
+
+        _doctors.Clear();
+        _doctors.AddRange(doctors);
+        _types.Clear();
+        _types.AddRange(types);
+        ReplaceChunks(fresh);
+        _historyStale = true;
 
         RebuildIndexes();
 
@@ -327,9 +453,6 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         {
             _activeDoctorIds.Add(d.Id);
         }
-
-        HourLabels.ReplaceAll(
-            Enumerable.Range(7, 15).Select(h => AppointmentsPresentation.HourLabel(h * 60)));
 
         HistoryDoctorOptions = BuildSelectOptions("همه پزشکان", _doctors.Select(d => (d.Id, d.ShortName)));
         HistoryTypeOptions = BuildSelectOptions("همه انواع نوبت", _types.Select(t => (t.Id, t.Label)));
@@ -364,11 +487,193 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 break;
             case "hist":
                 RenderHistory();
+                RefreshHistory();
                 break;
             default:
                 Render();
                 break;
         }
+    }
+
+    // ── range loading (A01) ──────────────────────────────────────────────────
+    private static int ChunkOf(DateOnly day) => day.DayNumber / ChunkDays;
+
+    private static DateOnly ChunkStart(int chunk) => DateOnly.FromDayNumber(chunk * ChunkDays);
+
+    private (DateOnly Start, DateOnly End) CalendarRange()
+    {
+        switch (_viewMode)
+        {
+            case "day":
+                return (_cursor, _cursor);
+            case "week":
+                var ws = AppointmentsCalendarMath.WeekStart(_cursor);
+                return (ws, ws.AddDays(6));
+            default:
+                // The month grid paints the out-of-month leading/trailing days too (6 weeks at most).
+                var first = AppointmentsCalendarMath.WeekStart(AppointmentsCalendarMath.MonthStart(_cursor));
+                return (first, first.AddDays(41));
+        }
+    }
+
+    private (DateOnly Start, DateOnly End)[] QueueRanges()
+    {
+        var first = _clock.Today.AddDays(_queueOffset * 7);
+        return [(first, first.AddDays(13)), (_queueDay, _queueDay)];
+    }
+
+    private (DateOnly Start, DateOnly End) HistoryCalendarRange()
+    {
+        var first = AppointmentsCalendarMath.WeekStart(AppointmentsCalendarMath.MonthStart(_historyCalendarCursor));
+        return (first, first.AddDays(41));
+    }
+
+    /// <summary>Every range the visible tabs need right now; a full reload refreshes exactly these.</summary>
+    private List<(DateOnly Start, DateOnly End)> NeededRanges()
+    {
+        var ranges = new List<(DateOnly, DateOnly)> { CalendarRange() };
+        ranges.AddRange(QueueRanges());
+        if (_historyCalendarOpen)
+        {
+            ranges.Add(HistoryCalendarRange());
+        }
+
+        return ranges;
+    }
+
+    private HashSet<int> NeededChunks() => ChunksOf(NeededRanges());
+
+    private static HashSet<int> ChunksOf(IEnumerable<(DateOnly Start, DateOnly End)> ranges)
+    {
+        var set = new HashSet<int>();
+        foreach (var (start, end) in ranges)
+        {
+            for (var c = ChunkOf(start); c <= ChunkOf(end); c++)
+            {
+                set.Add(c);
+            }
+        }
+
+        return set;
+    }
+
+    /// <summary>
+    /// Fetches the given chunks from the backend in contiguous runs (each run within the 63-day guard).
+    /// Pure with respect to the cache: the caller decides when to publish the result.
+    /// </summary>
+    private async Task<Dictionary<int, List<AppointmentEvent>>> FetchChunksAsync(IEnumerable<int> wanted)
+    {
+        var result = new Dictionary<int, List<AppointmentEvent>>();
+        var ordered = wanted.Distinct().OrderBy(c => c).ToList();
+        var i = 0;
+        while (i < ordered.Count)
+        {
+            var run = new List<int> { ordered[i++] };
+            while (i < ordered.Count && ordered[i] == run[^1] + 1 && run.Count < ChunksPerRequest)
+            {
+                run.Add(ordered[i++]);
+            }
+
+            foreach (var c in run)
+            {
+                result[c] = [];
+            }
+
+            var events = await _service.GetForRangeAsync(ChunkStart(run[0]), ChunkStart(run[^1] + 1).AddDays(-1));
+            foreach (var e in events)
+            {
+                if (result.TryGetValue(ChunkOf(e.Date), out var bucket))
+                {
+                    bucket.Add(e);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Replaces the whole cache with a freshly fetched set (reload / after a write).</summary>
+    private void ReplaceChunks(Dictionary<int, List<AppointmentEvent>> fresh)
+    {
+        _chunks.Clear();
+        foreach (var (key, value) in fresh)
+        {
+            _chunks[key] = value;
+        }
+    }
+
+    private void MergeChunks(Dictionary<int, List<AppointmentEvent>> fetched, HashSet<int> keep)
+    {
+        foreach (var (key, value) in fetched)
+        {
+            _chunks[key] = value;
+        }
+
+        if (_chunks.Count <= MaxCachedChunks)
+        {
+            return;
+        }
+
+        // Bounded cache: drop the chunks farthest from what is on screen.
+        var center = keep.Count > 0 ? (int)keep.Average() : ChunkOf(_cursor);
+        foreach (var key in _chunks.Keys.Where(k => !keep.Contains(k))
+                     .OrderByDescending(k => Math.Abs(k - center)).ToList())
+        {
+            if (_chunks.Count <= MaxCachedChunks)
+            {
+                break;
+            }
+
+            _chunks.Remove(key);
+        }
+    }
+
+    /// <summary>
+    /// Paints <paramref name="render"/> for the ranges now on screen, fetching any chunk that is not cached yet.
+    /// While a fetch is outstanding the grids show neither an empty-state nor stale data as final
+    /// (<see cref="IsRangeUnsettled"/>); a failure surfaces through the page's load status with a retry.
+    /// </summary>
+    private void ShowRange(Action render, params (DateOnly Start, DateOnly End)[] ranges)
+    {
+        var needed = ChunksOf(ranges);
+        render();
+        if (needed.All(_chunks.ContainsKey))
+        {
+            IsRangeUnsettled = false;
+            return;
+        }
+
+        IsRangeUnsettled = true;
+        _ = TrackLoadResultAsync(() => LoadMissingAsync(needed, render));
+    }
+
+    private async Task<bool> LoadMissingAsync(HashSet<int> needed, Action render)
+    {
+        var generation = Interlocked.Increment(ref _rangeGeneration);
+        try
+        {
+            var fetched = await FetchChunksAsync(needed.Where(c => !_chunks.ContainsKey(c)));
+            MergeChunks(fetched, needed);
+            RebuildIndexes();
+        }
+        catch (Exception)
+        {
+            if (generation == _rangeGeneration)
+            {
+                IsRangeUnsettled = false;
+            }
+
+            return false;
+        }
+
+        // A newer navigation owns the screen now; its own load paints it.
+        if (generation == _rangeGeneration)
+        {
+            IsRangeUnsettled = false;
+            render();
+        }
+
+        return true;
     }
 
     private static IReadOnlyList<HistorySelectOption> BuildSelectOptions(
@@ -388,8 +693,19 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private AppointmentType TypeOf(string id) =>
         _typeById.TryGetValue(id, out var t) ? t : _types.FirstOrDefault(x => x.Id == id) ?? RemovedType;
 
-    private AppointmentDoctor DocOf(string id) =>
-        _doctorById.TryGetValue(id, out var d) ? d : _doctors.First(x => x.Id == id);
+    // A05: an event keeps its own doctor identity. A doctor missing from the active roster (unassigned,
+    // deactivated, removed) gets a neutral stand-in built from the event's snapshot — never another doctor.
+    private AppointmentDoctor DocOf(AppointmentEvent a) =>
+        _doctorById.TryGetValue(a.DoctorId, out var d) ? d : AppointmentsPresentation.OrphanDoctor(a);
+
+    /// <summary>Doctor columns for a day: the roster plus one neutral column per orphan doctor that has events.</summary>
+    private List<AppointmentDoctor> OrphanColumns(IEnumerable<AppointmentEvent> list) =>
+        list.Where(a => !_doctorById.ContainsKey(a.DoctorId))
+            .GroupBy(a => a.DoctorId)
+            .Select(g => AppointmentsPresentation.OrphanDoctor(g.First()))
+            .OrderBy(d => d.Id.Length == 0 ? 1 : 0)
+            .ThenBy(d => d.Name, StringComparer.Ordinal)
+            .ToList();
 
     /// <summary>
     /// Rebuilds the id/date lookup indexes and the per-event search haystack.
@@ -410,6 +726,12 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             _doctorById[d.Id] = d;
         }
 
+        _all.Clear();
+        foreach (var chunk in _chunks.Values)
+        {
+            _all.AddRange(chunk);
+        }
+
         _byDate.Clear();
         _searchHaystack.Clear();
         foreach (var a in _all)
@@ -422,7 +744,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
             bucket.Add(a);
 
-            var doc = _doctorById.TryGetValue(a.DoctorId, out var dd) ? dd.Name : string.Empty;
+            var doc = _doctorById.TryGetValue(a.DoctorId, out var dd) ? dd.Name : a.DoctorName ?? string.Empty;
             var type = _typeById.TryGetValue(a.TypeId, out var tt) ? tt.Label : string.Empty;
             _searchHaystack[a.Id] =
                 PersianText.Normalize($"{a.PetName} {a.OwnerName} {a.PetKind} {doc} {type}");
@@ -450,7 +772,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     {
         // Appointments of a removed type have no filter chip, so they must stay visible rather than vanish.
         var typeVisible = !_typeById.ContainsKey(a.TypeId) || _activeTypeIds.Contains(a.TypeId);
-        if (!typeVisible || !_activeDoctorIds.Contains(a.DoctorId))
+        // Orphan doctors (unassigned/inactive) have no filter chip, so they stay visible like removed types.
+        var doctorVisible = !_doctorById.ContainsKey(a.DoctorId) || _activeDoctorIds.Contains(a.DoctorId);
+        if (!typeVisible || !doctorVisible)
         {
             return false;
         }
@@ -504,7 +828,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         {
             RangeMainText = AppointmentsCalendarMath.Full(_cursor);
             var sub = AppointmentsCalendarMath.DayNames[AppointmentsCalendarMath.WeekIndex(_cursor)];
-            if (_cursor == DateOnly.FromDateTime(DateTime.Today))
+            if (_cursor == _clock.Today)
             {
                 sub += " · امروز";
             }
@@ -592,8 +916,15 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private void RenderTimeGrid()
     {
         IsMonthView = false;
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        var nowMinutes = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
+        var today = _clock.Today;
+        var nowMinutes = _clock.Now.Minutes;
+
+        // A25: the visible hours follow the doctors' schedules and whatever is booked in this scope, so an early or
+        // late appointment can never sit outside the grid.
+        var scopeEvents = _viewMode == "day"
+            ? OnDate(_cursor)
+            : Enumerable.Range(0, 7).SelectMany(i => OnDate(AppointmentsCalendarMath.WeekStart(_cursor).AddDays(i))).ToList();
+        var hourRows = ApplyWindow(AppointmentsLayout.Fit(_doctors, scopeEvents));
 
         // Build the whole column set first, then commit in a single Reset
         // (PERFORMANCE.md §5). The packing/lane logic is unchanged — only the
@@ -606,6 +937,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             var docs = _doctors.Where(d => _activeDoctorIds.Contains(d.Id)).ToList();
             var cols = docs.Count > 0 ? docs : _doctors.ToList();
             var list = OnDate(_cursor);
+            cols.AddRange(OrphanColumns(list));
 
             foreach (var c in cols)
             {
@@ -616,6 +948,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                     evs,
                     isClosed: false,
                     nowTop: _cursor == today ? NowTop(nowMinutes) : null,
+                    _window,
+                    hourRows,
                     isFirst: built.Count == 0));
             }
         }
@@ -632,33 +966,44 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                     new AppointmentColumnHeaderViewModel(
                         d,
                         isToday: d == today,
-                        isFriday: AppointmentsCalendarMath.IsFriday(d)),
+                        isOffDay: IsOffDay(d)),
                     Pack(list),
-                    isClosed: AppointmentsCalendarMath.IsFriday(d),
+                    isClosed: IsOffDay(d),
                     nowTop: d == today ? NowTop(nowMinutes) : null,
+                    _window,
+                    hourRows,
                     isFirst: built.Count == 0));
             }
         }
 
         Columns.ReplaceAll(built);
+        OnPropertyChanged(nameof(GridMinWidth));
         HasGridEvents = total > 0;
     }
 
-    private static double? NowTop(int nowMinutes)
-    {
-        if (nowMinutes < AppointmentsLayout.DayStartMinutes || nowMinutes > AppointmentsLayout.DayEndMinutes)
-        {
-            return null;
-        }
+    private double? NowTop(int nowMinutes) => _window.Contains(nowMinutes) ? _window.OffsetOf(nowMinutes) : null;
 
-        return AppointmentsLayout.MinuteToPx(nowMinutes - AppointmentsLayout.DayStartMinutes);
+    // The grid's single geometry source (A25): hour rows, column height and minimum width all derive from it.
+    private IReadOnlyList<HourRowViewModel> ApplyWindow(TimeGridWindow window)
+    {
+        _window = window;
+        var rows = Enumerable.Range(0, window.HourCount).Select(i =>
+            new HourRowViewModel(AppointmentsPresentation.HourLabel(window.StartMinutes + i * 60), i == 0)).ToList();
+        HourRows.ReplaceAll(rows);
+        return rows;
     }
+
+    /// <summary>Narrowest the time grid may get before it scrolls horizontally instead of squeezing columns.</summary>
+    public double GridMinWidth => AppointmentsLayout.GutterWidth + (Columns.Count * AppointmentsLayout.MinColumnWidth);
+
+    // A25: a day is off only when no doctor's schedule covers it.
+    private bool IsOffDay(DateOnly day) => AppointmentsSchedule.IsOffDay(_doctors, day);
 
     // ── month grid ───────────────────────────────────────────────────────────
     private void RenderMonth()
     {
         IsMonthView = true;
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = _clock.Today;
         var ms = AppointmentsCalendarMath.MonthStart(_cursor);
         var first = AppointmentsCalendarMath.WeekStart(ms);
         var mNum = AppointmentsCalendarMath.Month(ms);
@@ -683,12 +1028,12 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 total += list.Count;
             }
 
-            var shown = list.Take(3).Select(a => new MonthEventViewModel(a, TypeOf(a.TypeId), showTime: !CalendarModeIsDayOnly)).ToList();
+            var shown = list.Take(3).Select(a => new MonthEventViewModel(a, TypeOf(a.TypeId), showTime: true)).ToList();
             cells.Add(new MonthCellViewModel(
                 d,
                 isOut,
                 isToday: d == today,
-                isFriday: AppointmentsCalendarMath.IsFriday(d),
+                isOffDay: IsOffDay(d),
                 shown,
                 hiddenCount: Math.Max(0, list.Count - 3),
                 isFirstInRow: i % 7 == 0));
@@ -733,7 +1078,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             var laneCount = lanes.Count;
             foreach (var a in cluster)
             {
-                var vm = new AppointmentEventViewModel(a, TypeOf(a.TypeId), DocOf(a.DoctorId), !Matches(a))
+                var vm = new AppointmentEventViewModel(a, TypeOf(a.TypeId), DocOf(a), !Matches(a), _window)
                 {
                     Lane = laneOf[a.Id],
                     Lanes = laneCount,
@@ -765,8 +1110,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     // ── queue tab ────────────────────────────────────────────────────────────
     private void RenderQueue()
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        var nowMinutes = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
+        var today = _clock.Today;
+        var nowMinutes = _clock.Now.Minutes;
         var tk = today;
 
         var days = Enumerable.Range(0, 14).Select(i => today.AddDays(_queueOffset * 7 + i)).ToList();
@@ -778,7 +1123,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return new QueueDayViewModel(
                 d,
                 isToday: d == tk,
-                isClosed: AppointmentsCalendarMath.IsFriday(d),
+                isClosed: IsOffDay(d),
                 count: n)
             {
                 IsActive = d == _queueDay,
@@ -790,9 +1135,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         [
             new QueueStatViewModel("کل", AppointmentsPresentation.Fa(list.Count), Tone.Neutral),
             new QueueStatViewModel(
-                "در انتظار تأیید", AppointmentsPresentation.Fa(list.Count(a => a.Status == AppointmentStatus.Pending)), Tone.Warn),
+                "در انتظار تأیید", AppointmentsPresentation.Fa(list.Count(a => a.Lifecycle == AppointmentLifecycle.Scheduled)), Tone.Warn),
             new QueueStatViewModel(
-                "پذیرش‌شده", AppointmentsPresentation.Fa(list.Count(a => a.Status == AppointmentStatus.Done)), Tone.Ok),
+                "پذیرش‌شده", AppointmentsPresentation.Fa(list.Count(a => a.IsCheckedIn)), Tone.Ok),
             new QueueStatViewModel(
                 "لغوشده", AppointmentsPresentation.Fa(list.Count(a => a.Status == AppointmentStatus.Cancelled)), Tone.Danger),
         ]);
@@ -803,7 +1148,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                         "، " + AppointmentsCalendarMath.Full(_queueDay);
 
         var columns = new List<QueueDoctorColumnViewModel>();
-        foreach (var d in _doctors)
+        foreach (var d in _doctors.Concat(OrphanColumns(list)))
         {
             var items = list
                 .Where(a => a.DoctorId == d.Id && (_queueShowCancelled || a.Status != AppointmentStatus.Cancelled))
@@ -815,7 +1160,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             if (isToday)
             {
                 var live = items
-                    .Where(a => a.Status != AppointmentStatus.Cancelled && a.Status != AppointmentStatus.Done)
+                    .Where(a => !a.IsTerminal)
                     .ToList();
                 nowId = live.FirstOrDefault(a => a.StartMinutes <= nowMinutes && nowMinutes < a.EndMinutes)?.Id;
                 if (nowId is null)
@@ -835,22 +1180,167 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         QueueColumns.ReplaceAll(columns);
+        // A25: one column per doctor up to four across; a larger roster wraps into further rows instead of squeezing
+        // every column below a readable width.
+        QueueColumnCount = Math.Clamp(columns.Count, 1, 4);
     }
 
     // ── history tab ──────────────────────────────────────────────────────────
+    // A01: the archive is a backend query (range / status / doctor / type / invoice / search, paged, with
+    // scope-wide totals) - never derived from the calendar's cached window.
+    [ObservableProperty]
+    private bool _isHistoryLoading;
+
+    [ObservableProperty]
+    private bool _historyLoadFailed;
+
+    [ObservableProperty]
+    private bool _historyHasMore;
+
+    /// <summary>Loaded + nothing matched: distinct from loading and from a failed load.</summary>
+    public bool ShowHistoryEmpty => !HasHistoryRows && !IsHistoryLoading && !HistoryLoadFailed;
+
+    public bool ShowHistoryLoadingOnly => !HasHistoryRows && IsHistoryLoading;
+
+    public bool ShowHistoryFailureOnly => !HasHistoryRows && HistoryLoadFailed && !IsHistoryLoading;
+
+    partial void OnIsHistoryLoadingChanged(bool value) => NotifyHistoryStateChanged();
+
+    partial void OnHistoryLoadFailedChanged(bool value) => NotifyHistoryStateChanged();
+
+    partial void OnHasHistoryRowsChanged(bool value) => NotifyHistoryStateChanged();
+
+    private void NotifyHistoryStateChanged()
+    {
+        OnPropertyChanged(nameof(ShowHistoryEmpty));
+        OnPropertyChanged(nameof(ShowHistoryLoadingOnly));
+        OnPropertyChanged(nameof(ShowHistoryFailureOnly));
+    }
+
+    private (DateOnly? From, DateOnly? To) HistoryDateScope()
+    {
+        var today = _clock.Today;
+        switch (_historyScope)
+        {
+            case "today":
+                return (today, today);
+            case "7":
+                return (today.AddDays(-7), today);
+            case "30":
+                return (today.AddDays(-30), today);
+            case "month":
+                return (AppointmentsCalendarMath.MonthStart(today), today);
+            case "range" when _historyRangeStart is not null && _historyRangeEnd is not null:
+                var lo = _historyRangeStart.Value <= _historyRangeEnd.Value ? _historyRangeStart.Value : _historyRangeEnd.Value;
+                var hi = _historyRangeStart.Value <= _historyRangeEnd.Value ? _historyRangeEnd.Value : _historyRangeStart.Value;
+                return (lo, hi);
+            default:
+                return (null, null);
+        }
+    }
+
+    private AppointmentHistoryFilter BuildHistoryFilter(int page)
+    {
+        var (from, to) = HistoryDateScope();
+        return new AppointmentHistoryFilter(
+            from,
+            to,
+            _historyStatus switch
+            {
+                "done" => AppointmentHistoryStatusFilter.Completed,
+                "noshow" => AppointmentHistoryStatusFilter.NoShow,
+                "cancel" => AppointmentHistoryStatusFilter.Cancelled,
+                _ => AppointmentHistoryStatusFilter.All,
+            },
+            _historyDoctor == "all" ? null : _historyDoctor,
+            _historyType == "all" ? null : _historyType,
+            _historyInvoice switch
+            {
+                "paid" => AppointmentInvoiceFilter.Paid,
+                "unpaid" => AppointmentInvoiceFilter.Unpaid,
+                "partial" => AppointmentInvoiceFilter.Partial,
+                "none" => AppointmentInvoiceFilter.None,
+                _ => AppointmentInvoiceFilter.All,
+            },
+            _searchQuery.Length == 0 ? null : _searchQuery,
+            page);
+    }
+
+    /// <summary>Reloads the archive from page 0 for the current filters; a newer call supersedes an older one.</summary>
+    private void RefreshHistory() => _ = TrackLoadResultAsync(() => LoadHistoryAsync(0));
+
+    /// <summary>A scope/status/doctor/type/invoice change: repaint the chips now, reload rows + totals from the backend.</summary>
+    private void ApplyHistoryFilters()
+    {
+        RenderHistory();
+        RefreshHistory();
+    }
+
+    [RelayCommand]
+    private void RetryHistory() => RefreshHistory();
+
+    [RelayCommand]
+    private void LoadMoreHistory()
+    {
+        if (HistoryHasMore && !IsHistoryLoading)
+        {
+            _ = TrackLoadResultAsync(() => LoadHistoryAsync(_historyPage + 1));
+        }
+    }
+
+    private async Task<bool> LoadHistoryAsync(int page)
+    {
+        var generation = Interlocked.Increment(ref _historyGeneration);
+        _historyCts?.Cancel();
+        var cts = _historyCts = new CancellationTokenSource();
+        IsHistoryLoading = true;
+        try
+        {
+            var result = await _service.GetHistoryAsync(BuildHistoryFilter(page), cts.Token);
+            if (generation != _historyGeneration)
+            {
+                return true; // superseded: the newer request owns the screen
+            }
+
+            if (page == 0)
+            {
+                _historyRows.Clear();
+            }
+
+            _historyRows.AddRange(result.Items);
+            _historyTotals = result.Totals;
+            _historyPage = page;
+            HistoryHasMore = result.HasMore;
+            HistoryLoadFailed = false;
+            _historyStale = false;
+            IsHistoryLoading = false;
+            RenderHistory();
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return true;
+        }
+        catch (Exception)
+        {
+            if (generation == _historyGeneration)
+            {
+                // Keep whatever was loaded; surface a retryable failure instead of an empty archive.
+                HistoryLoadFailed = true;
+                IsHistoryLoading = false;
+            }
+
+            return false;
+        }
+    }
+
     private void RenderHistory()
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        var tk = today;
+        var today = _clock.Today;
 
-        var list = HistoryList();
+        var list = _historyRows;
         var perDay = list.GroupBy(a => a.Date).ToDictionary(g => g.Key, g => g.Count());
-        var done = list.Count(a => a.Status == AppointmentStatus.Done);
-        var cancel = list.Count(a => a.Status == AppointmentStatus.Cancelled);
-        var noShow = list.Count(a => a.Visit == AppointmentVisitOutcome.NoShow);
-        var revPaid = list.Where(a => a.Invoice == AppointmentInvoiceState.Paid).Sum(a => (long)a.Total);
-        var revOwed = list.Where(a => a.Invoice == AppointmentInvoiceState.Unpaid).Sum(a => (long)a.Total)
-                      + list.Where(a => a.Invoice == AppointmentInvoiceState.Partial).Sum(a => (long)Math.Round(a.Total / 2.0));
+        var totals = _historyTotals;
 
         var scopes = new (string Id, string Label)[]
         {
@@ -861,24 +1351,24 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         var statuses = new (string Id, string Label)[]
         {
-            ("all", "همه وضعیت‌ها"), ("done", "پذیرش شده"), ("cancel", "لغو شده"),
+            ("all", "همه وضعیت‌ها"), ("done", "پذیرش شده"), ("noshow", "عدم مراجعه"), ("cancel", "لغو شده"),
         };
         HistoryStatusChips.ReplaceAll(statuses.Select(s =>
             new HistoryStatusChipViewModel(s.Id, s.Label) { IsActive = _historyStatus == s.Id }));
 
         HistoryStats.ReplaceAll(
         [
-            new HistoryStatViewModel("IconRows", AppointmentsPresentation.Fa(list.Count), "کل نوبت‌ها", Tone.Neutral),
-            new HistoryStatViewModel("IconCheck", AppointmentsPresentation.Fa(done), "پذیرش شده", Tone.Ok),
-            new HistoryStatViewModel("IconX", AppointmentsPresentation.Fa(cancel), "لغو شده", Tone.Danger),
-            new HistoryStatViewModel("IconAlert", AppointmentsPresentation.Fa(noShow), "عدم مراجعه", Tone.Warn),
+            new HistoryStatViewModel("IconRows", AppointmentsPresentation.Fa(totals.Total), "کل نوبت‌ها", Tone.Neutral),
+            new HistoryStatViewModel("IconCheck", AppointmentsPresentation.Fa(totals.Completed), "پذیرش شده", Tone.Ok),
+            new HistoryStatViewModel("IconX", AppointmentsPresentation.Fa(totals.Cancelled), "لغو شده", Tone.Danger),
+            new HistoryStatViewModel("IconAlert", AppointmentsPresentation.Fa(totals.NoShow), "عدم مراجعه", Tone.Warn),
             new HistoryStatViewModel(
-                "IconWallet", PersianNumberFormatter.FormatGrouped(revPaid), "درآمد وصولی (تومان)", Tone.Ok),
+                "IconWallet", PersianNumberFormatter.FormatGrouped(totals.PaidAmount), "درآمد وصولی (تومان)", Tone.Ok),
             new HistoryStatViewModel(
-                "IconAlert", PersianNumberFormatter.FormatGrouped(revOwed), "مطالبات معوق (تومان)", Tone.Danger),
+                "IconAlert", PersianNumberFormatter.FormatGrouped(totals.OwedAmount), "مطالبات معوق (تومان)", Tone.Danger),
         ]);
 
-        HistoryTotalText = AppointmentsPresentation.Fa(list.Count) + " نوبت" +
+        HistoryTotalText = AppointmentsPresentation.Fa(totals.Total) + " نوبت" +
                            (string.IsNullOrEmpty(_searchQuery) ? string.Empty : $" · نتیجهٔ «{_searchQuery}»");
 
         var groups = new List<HistoryDayGroupViewModel>();
@@ -906,7 +1396,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                     rows);
             }
 
-            rows.Add(new HistoryRowViewModel(a, TypeOf(a.TypeId), DocOf(a.DoctorId)));
+            rows.Add(new HistoryRowViewModel(a, TypeOf(a.TypeId), DocOf(a)));
         }
 
         if (current is not null)
@@ -920,83 +1410,16 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         RenderHistoryCalendar();
     }
 
-    private List<AppointmentEvent> HistoryList()
-    {
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        var tk = today;
-        var list = _all.Where(a => Visible(a) && Matches(a) &&
-            (a.Date < tk || (a.Date == tk && (a.Status == AppointmentStatus.Done || a.Status == AppointmentStatus.Cancelled))))
-            .ToList();
-
-        switch (_historyScope)
-        {
-            case "today":
-                list = list.Where(a => a.Date == tk).ToList();
-                break;
-            case "7":
-                list = list.Where(a => a.Date >= tk.AddDays(-7)).ToList();
-                break;
-            case "30":
-                list = list.Where(a => a.Date >= tk.AddDays(-30)).ToList();
-                break;
-            case "month":
-                var m = AppointmentsCalendarMath.Month(tk);
-                list = list.Where(a => AppointmentsCalendarMath.Month(a.Date) == m).ToList();
-                break;
-            case "range" when _historyRangeStart is not null && _historyRangeEnd is not null:
-                var lo = _historyRangeStart.Value <= _historyRangeEnd.Value ? _historyRangeStart.Value : _historyRangeEnd.Value;
-                var hi = _historyRangeStart.Value <= _historyRangeEnd.Value ? _historyRangeEnd.Value : _historyRangeStart.Value;
-                list = list.Where(a => a.Date >= lo && a.Date <= hi).ToList();
-                break;
-        }
-
-        if (_historyStatus != "all")
-        {
-            list = list.Where(a => AppointmentsPresentation.StatusClassKey(a.Status) ==
-                (_historyStatus == "done" ? "done" : "cancel")).ToList();
-        }
-
-        if (_historyDoctor != "all")
-        {
-            list = list.Where(a => a.DoctorId == _historyDoctor).ToList();
-        }
-
-        if (_historyType != "all")
-        {
-            list = list.Where(a => a.TypeId == _historyType).ToList();
-        }
-
-        if (_historyInvoice != "all")
-        {
-            list = _historyInvoice == "none"
-                ? list.Where(a => a.Invoice == AppointmentInvoiceState.None).ToList()
-                : list.Where(a => InvoiceKey(a.Invoice) == _historyInvoice).ToList();
-        }
-
-        return list
-            .OrderByDescending(a => a.Date)
-            .ThenByDescending(a => a.StartMinutes)
-            .ToList();
-    }
-
-    private static string InvoiceKey(AppointmentInvoiceState state) => state switch
-    {
-        AppointmentInvoiceState.Paid => "paid",
-        AppointmentInvoiceState.Unpaid => "unpaid",
-        AppointmentInvoiceState.Partial => "partial",
-        _ => "none",
-    };
-
     private void RenderHistoryCalendar()
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = _clock.Today;
 
         var monthStart = AppointmentsCalendarMath.MonthStart(_historyCalendarCursor);
         var mNum = AppointmentsCalendarMath.Month(monthStart);
         var yNum = AppointmentsCalendarMath.Year(monthStart);
         var gridStart = monthStart.AddDays(-AppointmentsCalendarMath.WeekIndex(monthStart));
 
-        var histDates = _all.Where(a => a.Date <= today).Select(a => a.Date).ToHashSet();
+        var histDates = _all.Where(a => a.Date <= today && a.IsTerminal).Select(a => a.Date).ToHashSet();
         var lo = _historyRangeStart is not null && _historyRangeEnd is not null
             ? (_historyRangeStart.Value <= _historyRangeEnd.Value ? _historyRangeStart.Value : _historyRangeEnd.Value) : (DateOnly?)null;
         var hi = _historyRangeStart is not null && _historyRangeEnd is not null
@@ -1017,7 +1440,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 isOut,
                 isToday: d == today,
                 hasHistory: histDates.Contains(d) && !isOut,
-                isFriday: AppointmentsCalendarMath.IsFriday(d),
+                isOffDay: IsOffDay(d),
                 isPast: d <= today,
                 inRange,
                 edge));
@@ -1062,6 +1485,54 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private bool _newTypeRequiresDoctor = true;
     private bool _applyingSettings;
 
+    /// <summary>
+    /// A17: presentation hint only — whether the signed-in user may change clinic-wide appointment settings. The
+    /// authoritative check is the <c>settings.write</c> permission on every settings use case in Application.
+    /// </summary>
+    public bool CanEditSettings => _capabilities.Can(PermissionCodes.SettingsWrite);
+
+    public bool IsSettingsReadOnly => !CanEditSettings;
+
+    /// <summary>Set when the stored settings file was unreadable and has been quarantined (A26).</summary>
+    public string? SettingsRecoveryNotice { get; private set; }
+
+    public bool HasSettingsRecoveryNotice => !string.IsNullOrEmpty(SettingsRecoveryNotice);
+
+    private void OnCapabilitiesChanged(object? sender, EventArgs e)
+    {
+        void Raise()
+        {
+            OnPropertyChanged(nameof(CanEditSettings));
+            OnPropertyChanged(nameof(IsSettingsReadOnly));
+        }
+
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Raise();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(Raise);
+        }
+    }
+
+    /// <summary>Runs one settings write; a denial/failure is reported instead of escaping as an unhandled fault.</summary>
+    private async Task<bool> TryWriteSettingsAsync(Func<Task> write)
+    {
+        try
+        {
+            await write();
+            return true;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(ex.Message is "PERMISSION_DENIED" or "SESSION_EXPIRED"
+                ? "شما اجازهٔ تغییر تنظیمات نوبت را ندارید."
+                : "ذخیرهٔ تنظیمات انجام نشد؛ دوباره تلاش کنید.", Tone.Danger);
+            return false;
+        }
+    }
+
     public bool CalendarModeIsDayOnly => _calendarMode == CalendarMode.DayOnly;
     public bool CalendarModeIsTimeBased => _calendarMode == CalendarMode.TimeBased;
 
@@ -1103,7 +1574,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     }
 
     public string SmsReminderHintText =>
-        $"یادآوری خودکار {AppointmentsPresentation.Fa(_smsReminderLeadHours)} ساعت پیش از زمان نوبت ارسال می‌شود";
+        $"ترجیح ثبت‌شده: {AppointmentsPresentation.Fa(_smsReminderLeadHours)} ساعت پیش از نوبت (ارسال پیامک در این نسخه فعال نیست)";
 
     public string NewTypeLabel
     {
@@ -1137,6 +1608,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _applyingSettings = true;
         try
         {
+            SettingsRecoveryNotice = settings.RecoveryNotice;
+            OnPropertyChanged(nameof(SettingsRecoveryNotice));
+            OnPropertyChanged(nameof(HasSettingsRecoveryNotice));
             _calendarMode = settings.CalendarMode;
             _smsOnBooking = settings.Sms.SendOnBooking;
             _smsReminder = settings.Sms.SendReminder;
@@ -1205,14 +1679,28 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return;
         }
 
-        _ = _settings.SetSmsAsync(new AppointmentSmsSettings(_smsOnBooking, _smsReminder, _smsReminderLeadHours));
+        _ = PersistSmsAsync(new AppointmentSmsSettings(_smsOnBooking, _smsReminder, _smsReminderLeadHours));
+    }
+
+    private async Task PersistSmsAsync(AppointmentSmsSettings sms)
+    {
+        if (!await TryWriteSettingsAsync(() => _settings.SetSmsAsync(sms)))
+        {
+            // Roll the toggles back to what is actually stored.
+            ApplySettings(await _settings.GetAsync());
+        }
     }
 
     [RelayCommand]
     private async Task SetCalendarMode(string? key)
     {
         var mode = key == "day" ? CalendarMode.DayOnly : CalendarMode.TimeBased;
-        if (mode == _calendarMode)
+        if (mode == _calendarMode || !CanEditSettings)
+        {
+            return;
+        }
+
+        if (!await TryWriteSettingsAsync(() => _settings.SetCalendarModeAsync(mode)))
         {
             return;
         }
@@ -1220,11 +1708,10 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _calendarMode = mode;
         OnPropertyChanged(nameof(CalendarModeIsDayOnly));
         OnPropertyChanged(nameof(CalendarModeIsTimeBased));
-        await _settings.SetCalendarModeAsync(mode);
         LockViewForCalendarMode();
         // The calendar tab is cached by its LazyTabHost: repaint it now so it is correct on return.
         Render();
-        _toast.Show(mode == CalendarMode.DayOnly ? "حالت تقویم: فقط روزانه" : "حالت تقویم: بر اساس ساعت", Tone.Ok);
+        _toast.Show(mode == CalendarMode.DayOnly ? "حالت تقویم: تخصیص خودکار زمان" : "حالت تقویم: بر اساس ساعت", Tone.Ok);
     }
 
     [RelayCommand]
@@ -1242,7 +1729,12 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return;
         }
 
-        await _settings.AddTypeAsync(label, _newTypeDuration, _newTypeRequiresDoctor);
+        if (!CanEditSettings ||
+            !await TryWriteSettingsAsync(() => _settings.AddTypeAsync(label, _newTypeDuration, _newTypeRequiresDoctor)))
+        {
+            return;
+        }
+
         NewTypeLabel = string.Empty;
         _toast.Show($"نوع «{label}» اضافه شد.", Tone.Ok);
         await ReloadTypesAsync();
@@ -1256,7 +1748,11 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return;
         }
 
-        await _settings.RemoveTypeAsync(row.Id);
+        if (!CanEditSettings || !await TryWriteSettingsAsync(() => _settings.RemoveTypeAsync(row.Id)))
+        {
+            return;
+        }
+
         _toast.Show($"نوع «{row.Label}» حذف شد.", Tone.Info);
         await ReloadTypesAsync();
     }
@@ -1315,13 +1811,23 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsSettingsTab));
         OnPropertyChanged(nameof(ShowCalendarChrome));
 
-        if (key == "queue")
+        // A07: tab views are rebuilt lazily, so a write made while another tab was active must show up the moment
+        // this tab is activated again - always render the target tab instead of trusting its cached subtree.
+        if (key == "cal")
         {
-            RenderQueue();
+            ShowRange(Render, CalendarRange());
+        }
+        else if (key == "queue")
+        {
+            ShowRange(RenderQueue, QueueRanges());
         }
         else if (key == "hist")
         {
             RenderHistory();
+            if (_historyStale)
+            {
+                RefreshHistory();
+            }
         }
     }
 
@@ -1338,14 +1844,14 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsDayView));
         OnPropertyChanged(nameof(IsWeekView));
         OnPropertyChanged(nameof(IsMonthViewMode));
-        Render();
+        ShowRange(Render, CalendarRange());
     }
 
     [RelayCommand]
     private void GoToday()
     {
-        _cursor = DateOnly.FromDateTime(DateTime.Today);
-        Render();
+        _cursor = _clock.Today;
+        ShowRange(Render, CalendarRange());
     }
 
     [RelayCommand]
@@ -1372,7 +1878,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 : AppointmentsCalendarMath.MonthStart(d.AddDays(-1));
         }
 
-        Render();
+        ShowRange(Render, CalendarRange());
     }
 
     [RelayCommand]
@@ -1445,6 +1951,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         _normalizedQuery = _searchQuery.Length == 0
             ? string.Empty
             : PersianText.Normalize(_searchQuery);
+        _historyStale = true;
         RenderActiveTab();
     }
 
@@ -1498,7 +2005,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private async Task OpenNewBookingAsync(DateOnly? date)
     {
-        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients);
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients, _clock);
         panel.Saved += RefreshAfterWrite;
         await panel.LoadForNewAsync(date, null, null, null);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
@@ -1511,41 +2018,90 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             _service,
             _toast,
             _dialogs,
+            _clock,
             onChanged: RefreshAfterWrite,
-            onEdit: editEv => _ = OpenEditAsync(editEv));
+            onEdit: (editEv, version) => _ = OpenEditAsync(editEv, version),
+            onOpenVisit: OpenLinkedVisitAsync);
         if (await detail.LoadAsync(ev.Id))
         {
             _dialogs.ShowDrawer(new BookingDetailView { DataContext = detail });
         }
     }
 
-    private async Task OpenEditAsync(AppointmentEvent ev)
+    /// <summary>A13: opens the visit linked to an appointment through the existing visit-encounter navigation seam.</summary>
+    private async Task OpenLinkedVisitAsync(AppointmentEvent ev)
     {
-        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients);
+        if (string.IsNullOrEmpty(ev.VisitId))
+        {
+            _toast.Show("برای این نوبت پروندهٔ ویزیتی ثبت نشده است.", Tone.Info);
+            return;
+        }
+
+        try
+        {
+            var draft = await _encounters.GetAsync(ev.VisitId);
+            _dialogs.Close();
+            await _navigation.NavigateToAsync<Visits.VisitEncounterViewModel>(vm => vm.LoadAsync(draft));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _toast.Show("پروندهٔ ویزیت باز نشد؛ دوباره تلاش کنید.", Tone.Danger);
+        }
+    }
+
+    private async Task OpenEditAsync(AppointmentEvent ev, string? version)
+    {
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients, _clock);
         panel.Saved += RefreshAfterWrite;
-        await panel.LoadForEditAsync(ev);
+        await panel.LoadForEditAsync(ev, version);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
     }
 
-    /// <summary>A booking write also feeds the visits queue, the patient directory and the dashboard; reload this page too.</summary>
+    /// <summary>
+    /// A write made from this page's own sheets/drawer. It only announces the change: the page's own subscription
+    /// (<see cref="RefreshOnDataChange"/>) turns it - together with any simultaneous Visits/Patients notification -
+    /// into exactly one coalesced reload (A06). There is deliberately no second, untracked refetch path.
+    /// </summary>
     private void RefreshAfterWrite()
     {
         _changes.Notify(DataDomain.Appointments, DataDomain.Visits, DataDomain.Patients, DataDomain.Dashboard);
-        _ = RefreshAfterChangeAsync();
+
+        // A page that is not the current one ignores notifications; make sure the write is still reflected.
+        if (!IsCurrentPage)
+        {
+            RequestRefresh();
+        }
     }
 
-    private async Task RefreshAfterChangeAsync()
-    {
-        _all.Clear();
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        _all.AddRange(await _service.GetForRangeAsync(today.AddDays(-40), today.AddDays(20)));
-        _all.AddRange(await _service.GetForRangeAsync(today.AddDays(21), today.AddDays(40)));
-        RebuildIndexes();
+    // A06: every refresh trigger (external notifications, local writes) funnels through here. Triggers raised in the
+    // same dispatch tick collapse into ONE queued reload; the reload builds a complete snapshot from locals and
+    // commits it once (LoadAsync), keeping the last good snapshot when any read fails.
+    private int _refreshQueued;
 
-        // Only the active tab needs to re-render immediately; the other two
-        // are behind a LazyTabHost and re-render from the fresh _all/_byDate
-        // data the moment SelectTab activates them (same as ApplySearch).
-        RenderActiveTab();
+    private void RequestRefresh()
+    {
+        if (Interlocked.Exchange(ref _refreshQueued, 1) == 1)
+        {
+            return;
+        }
+
+        _ = RunQueuedRefreshAsync();
+    }
+
+    private async Task RunQueuedRefreshAsync()
+    {
+        // Let every notification of the current tick arrive before the single reload starts.
+        await Task.Yield();
+        Interlocked.Exchange(ref _refreshQueued, 0);
+
+        // A load already running may predate this write: wait for it (bounded) so the single reload below is
+        // never swallowed by the re-entrancy guard of LoadAsync.
+        for (var i = 0; i < 100 && (IsLoadInFlight || _isLoading); i++)
+        {
+            await Task.Delay(50);
+        }
+
+        await ReloadPageAsync();
     }
 
     /// <summary>
@@ -1558,8 +2114,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var scope = ScopeDates();
         var (from, to) = scope.Count > 0 ? (scope.Min(), scope.Max()) : (_cursor, _cursor);
         var vm = new AppointmentExportViewModel(
-            _service, _print, _dialogs, _toast, _profile, _user,
-            _doctors.ToList(), _types.ToList(), CalendarModeIsDayOnly, from, to);
+            _service, _print, _dialogs, _toast, _profile, _user, _clock,
+            _doctors.ToList(), _types.ToList(), dayOnly: false, from, to);
         _dialogs.ShowModal(new AppointmentExportView { DataContext = vm }, 980);
     }
 
@@ -1573,14 +2129,14 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         _queueDay = day.Day;
-        RenderQueue();
+        ShowRange(RenderQueue, QueueRanges());
     }
 
     [RelayCommand]
     private void ShiftQueueWeek(string? dir)
     {
         _queueOffset = Math.Max(0, _queueOffset + (dir == "-1" ? -1 : 1));
-        RenderQueue();
+        ShowRange(RenderQueue, QueueRanges());
     }
 
     [RelayCommand]
@@ -1594,8 +2150,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     [RelayCommand]
     private void QueueGoToday()
     {
-        _queueDay = DateOnly.FromDateTime(DateTime.Today);
-        RenderQueue();
+        _queueDay = _clock.Today;
+        ShowRange(RenderQueue, QueueRanges());
     }
 
     // ── history commands ─────────────────────────────────────────────────────
@@ -1609,7 +2165,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         _historyScope = chip.Id;
         _historyCalendarOpen = false;
-        RenderHistory();
+        ApplyHistoryFilters();
     }
 
     [RelayCommand]
@@ -1621,7 +2177,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         _historyStatus = chip.Id;
-        RenderHistory();
+        ApplyHistoryFilters();
     }
 
     [RelayCommand]
@@ -1633,7 +2189,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             _historyRangeStart = null;
         }
 
-        RenderHistory();
+        ShowRange(RenderHistory, HistoryCalendarRange());
     }
 
     [RelayCommand]
@@ -1642,14 +2198,14 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var d = AppointmentsCalendarMath.MonthStart(_historyCalendarCursor);
         _historyCalendarCursor = dir == "-1" ? AppointmentsCalendarMath.MonthStart(d.AddDays(-1))
             : AppointmentsCalendarMath.MonthStart(d.AddDays(35));
-        RenderHistory();
+        ShowRange(RenderHistoryCalendar, HistoryCalendarRange());
     }
 
     [RelayCommand]
     private void HistoryCalendarToday()
     {
-        _historyCalendarCursor = DateOnly.FromDateTime(DateTime.Today);
-        RenderHistory();
+        _historyCalendarCursor = _clock.Today;
+        ShowRange(RenderHistoryCalendar, HistoryCalendarRange());
     }
 
     [RelayCommand]
@@ -1660,6 +2216,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         if (_historyScope == "range")
         {
             _historyScope = "30";
+            ApplyHistoryFilters();
+            return;
         }
 
         RenderHistory();
@@ -1693,7 +2251,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         {
             _historyScope = "range";
             _historyCalendarOpen = false;
-            RenderHistory();
+            ApplyHistoryFilters();
         }
     }
 
@@ -1706,7 +2264,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return;
         }
 
-        RenderHistory();
+        ApplyHistoryFilters();
     }
 
     [RelayCommand]
@@ -1729,7 +2287,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsQueueTab));
         OnPropertyChanged(nameof(IsHistoryTab));
         OnPropertyChanged(nameof(ShowCalendarChrome));
-        Render();
+        ShowRange(Render, CalendarRange());
     }
 
     public string SelectedHistoryDoctor
@@ -1739,7 +2297,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         {
             if (SetProperty(ref _historyDoctor, value))
             {
-                RenderHistory();
+                ApplyHistoryFilters();
             }
         }
     }
@@ -1751,7 +2309,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         {
             if (SetProperty(ref _historyType, value))
             {
-                RenderHistory();
+                ApplyHistoryFilters();
             }
         }
     }
@@ -1763,7 +2321,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         {
             if (SetProperty(ref _historyInvoice, value))
             {
-                RenderHistory();
+                ApplyHistoryFilters();
             }
         }
     }

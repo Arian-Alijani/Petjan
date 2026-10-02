@@ -80,8 +80,14 @@
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
 
+                        <!-- edit mode: explicit reschedule-only contract (A02) -->
+                        <Border Classes="bk-sec" IsVisible="{Binding IsEditMode}">
+                            <TextBlock Text="{Binding EditLockedHint}" FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{StaticResource MutedBrush}" />
+                        </Border>
+
                         <!-- 1 · type -->
-                        <Border Classes="bk-sec">
+                        <Border Classes="bk-sec" IsEnabled="{Binding IsIdentityEditable}">
                             <StackPanel>
                                 <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
                                     <Border Grid.Column="0" Classes="step"><TextBlock Text="۱" /></Border>
@@ -126,7 +132,7 @@
                         </Border>
 
                         <!-- 2 · patient & owner -->
-                        <Border Classes="bk-sec">
+                        <Border Classes="bk-sec" IsEnabled="{Binding IsIdentityEditable}">
                             <StackPanel>
                                 <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
                                     <Border Grid.Column="0" Classes="step"><TextBlock Text="۲" /></Border>
@@ -315,7 +321,7 @@
                         </Border>
 
                         <!-- 3 · doctor -->
-                        <Border Classes="bk-sec">
+                        <Border Classes="bk-sec" IsEnabled="{Binding IsIdentityEditable}">
                             <StackPanel>
                                 <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
                                     <Border Grid.Column="0" Classes="step"><TextBlock Text="۳" /></Border>
@@ -423,7 +429,7 @@
                                                                 Classes.out="{Binding IsOut}"
                                                                 Classes.today="{Binding IsToday}"
                                                                 Classes.on="{Binding IsSelected}"
-                                                                Classes.off="{Binding IsFriday}"
+                                                                Classes.off="{Binding IsOffDay}"
                                                                 ToolTip.Tip="{Binding TooltipText}"
                                                                 Command="{Binding #Root.((ap:BookingPanelViewModel)DataContext).SelectDateCommand}"
                                                                 CommandParameter="{Binding DayKey}">
@@ -466,11 +472,11 @@
                                                   Stroke="{StaticResource Brand600Brush}"
                                                   Data="{StaticResource IconCalendar}" VerticalAlignment="Top" />
                                             <StackPanel Spacing="3">
-                                                <TextBlock Text="حالت تقویم: فقط روزانه" FontSize="12.5" FontWeight="Bold"
+                                                <TextBlock Text="حالت تقویم: تخصیص خودکار زمان" FontSize="12.5" FontWeight="Bold"
                                                            Foreground="{StaticResource Ink2Brush}" />
                                                 <TextBlock Text="{Binding DayOnlyInfoText}" FontSize="11" TextWrapping="Wrap"
                                                            Foreground="{StaticResource MutedBrush}" />
-                                                <TextBlock Text="نوبت بدون ساعت مشخص ثبت می‌شود و در تقویم همان روز نمایش داده می‌شود."
+                                                <TextBlock Text="فقط روز را انتخاب می‌کنید؛ اولین ساعت آزاد پزشک تخصیص داده می‌شود و همان بازه در تقویم، جزئیات و چاپ نمایش داده می‌شود."
                                                            FontSize="11" TextWrapping="Wrap"
                                                            Foreground="{StaticResource MutedBrush}" />
                                             </StackPanel>
@@ -553,10 +559,10 @@
                                     <TextBlock Grid.Column="3" Text="اختیاری" FontSize="11"
                                                Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                                 </Grid>
-                                <TextBox Text="{Binding NoteText, Mode=TwoWay}" MinHeight="74"
+                                <TextBox Text="{Binding NoteText, Mode=TwoWay}" MinHeight="74" IsEnabled="{Binding IsIdentityEditable}"
                                          CornerRadius="12" Padding="12" AcceptsReturn="True" TextWrapping="Wrap"
                                          PlaceholderText="علت مراجعه، علائم یا توضیح لازم برای پذیرش…" />
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,11,0,0">
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,11,0,0" IsVisible="{Binding IsIdentityEditable}">
                                     <Border Grid.Column="0" Classes="switch-row">
                                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
                                             <ToggleButton Grid.Column="0" Classes="bk-switch"
@@ -564,9 +570,9 @@
                                                 <Ellipse Classes="bk-knob" Width="18" Height="18" />
                                             </ToggleButton>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="پیامک تأیید" FontSize="12.5" FontWeight="Bold"
+                                                <TextBlock Text="ثبت ترجیح پیامک تأیید" FontSize="12.5" FontWeight="Bold"
                                                            Foreground="{StaticResource Ink2Brush}" />
-                                                <TextBlock Text="بلافاصله پس از ثبت برای مالک ارسال می‌شود" FontSize="11"
+                                                <TextBlock Text="فقط ترجیح ثبت می‌شود؛ در این نسخه پیامکی ارسال نمی‌شود" FontSize="11"
                                                            Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
                                             </StackPanel>
                                         </Grid>
@@ -578,9 +584,9 @@
                                                 <Ellipse Classes="bk-knob" Width="18" Height="18" />
                                             </ToggleButton>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="یادآور ۲۴ ساعت قبل" FontSize="12.5" FontWeight="Bold"
+                                                <TextBlock Text="ثبت ترجیح یادآور" FontSize="12.5" FontWeight="Bold"
                                                            Foreground="{StaticResource Ink2Brush}" />
-                                                <TextBlock Text="یادآوری خودکار پیش از زمان نوبت" FontSize="11"
+                                                <TextBlock Text="فقط ترجیح ثبت می‌شود؛ در این نسخه پیامکی ارسال نمی‌شود" FontSize="11"
                                                            Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
                                             </StackPanel>
                                         </Grid>
@@ -702,13 +708,6 @@
                                         <TextBlock Grid.Column="0" Text="مدت" FontSize="12"
                                                    Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                                         <TextBlock Grid.Column="1" Text="{Binding SummaryDurationText}" FontSize="12"
-                                                   FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
-                                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                    </Grid>
-                                    <Grid ColumnDefinitions="Auto,*" Margin="0,7">
-                                        <TextBlock Grid.Column="0" Text="هزینه تخمینی" FontSize="12"
-                                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1" Text="{Binding SummaryPriceText}" FontSize="12"
                                                    FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
                                                    HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>

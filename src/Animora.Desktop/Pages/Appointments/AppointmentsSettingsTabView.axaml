@@ -82,7 +82,16 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+    <StackPanel Spacing="12">
+    <Border Classes="st-card" IsVisible="{Binding IsSettingsReadOnly}">
+        <TextBlock Text="شما فقط اجازهٔ مشاهدهٔ تنظیمات نوبت را دارید؛ تغییر آن‌ها نیازمند دسترسی «تنظیمات · ویرایش» است."
+                   FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" />
+    </Border>
+    <Border Classes="st-card" IsVisible="{Binding HasSettingsRecoveryNotice}">
+        <TextBlock Text="{Binding SettingsRecoveryNotice}" FontSize="12" TextWrapping="Wrap"
+                   Foreground="{StaticResource DangerBrush}" />
+    </Border>
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="16" IsEnabled="{Binding CanEditSettings}">
 
         <!-- ═══ انواع نوبت ═══ -->
         <Border Grid.Column="0" Classes="st-card" VerticalAlignment="Top">
@@ -109,10 +118,11 @@
                                       SelectedValueBinding="{ReflectionBinding Value}"
                                       ItemTemplate="{StaticResource SettingNumberOptionTemplate}" />
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <ToggleButton Classes="bk-switch" IsChecked="{Binding NewTypeRequiresDoctor, Mode=TwoWay}">
+                                <ToggleButton Classes="bk-switch" IsChecked="{Binding NewTypeRequiresDoctor, Mode=TwoWay}"
+                                              IsEnabled="False">
                                     <Ellipse Classes="bk-knob" Width="18" Height="18" />
                                 </ToggleButton>
-                                <TextBlock Text="نیاز به پزشک" FontSize="12.5" FontWeight="SemiBold"
+                                <TextBlock Text="نیاز به پزشک (در این نسخه همیشه فعال است)" FontSize="12.5" FontWeight="SemiBold"
                                            Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Grid>
@@ -194,9 +204,9 @@
                             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
                                 <Border Grid.Column="0" Classes="st-radio" VerticalAlignment="Top" Margin="0,2,0,0" />
                                 <StackPanel Grid.Column="1" Spacing="3">
-                                    <TextBlock Text="فقط روزانه" FontSize="13" FontWeight="Bold"
+                                    <TextBlock Text="تخصیص خودکار زمان" FontSize="13" FontWeight="Bold"
                                                Foreground="{StaticResource InkBrush}" />
-                                    <TextBlock Text="نوبت فقط برای یک روز ثبت می‌شود، بدون ساعت مشخص؛ تقویم ماهانه نمایش داده می‌شود."
+                                    <TextBlock Text="فقط روز انتخاب می‌شود؛ اولین ساعت آزاد پزشک تخصیص می‌یابد و همان بازه همه‌جا نمایش داده می‌شود. تقویم ماهانه فعال است."
                                                FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" />
                                 </StackPanel>
                             </Grid>
@@ -211,7 +221,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="9">
                         <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource Brand700Brush}"
                               Data="{StaticResource IconSms}" VerticalAlignment="Center" />
-                        <TextBlock Text="پیامک" FontSize="15" FontWeight="ExtraBold"
+                        <TextBlock Text="ترجیحات پیامک (فقط ثبت می‌شود، ارسال نمی‌شود)" FontSize="15" FontWeight="ExtraBold"
                                    Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
                     </StackPanel>
 
@@ -221,9 +231,9 @@
                                 <Ellipse Classes="bk-knob" Width="18" Height="18" />
                             </ToggleButton>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="پیامک ثبت نوبت" FontSize="12.5" FontWeight="Bold"
+                                <TextBlock Text="ترجیح پیامک ثبت نوبت" FontSize="12.5" FontWeight="Bold"
                                            Foreground="{StaticResource Ink2Brush}" />
-                                <TextBlock Text="بلافاصله پس از ثبت نوبت برای مالک ارسال می‌شود" FontSize="11"
+                                <TextBlock Text="پیش‌فرض فرم ثبت نوبت؛ در این نسخه ارسال پیامک انجام نمی‌شود" FontSize="11"
                                            Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
                             </StackPanel>
                         </Grid>
@@ -236,7 +246,7 @@
                                     <Ellipse Classes="bk-knob" Width="18" Height="18" />
                                 </ToggleButton>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="پیامک یادآوری" FontSize="12.5" FontWeight="Bold"
+                                    <TextBlock Text="ترجیح پیامک یادآوری" FontSize="12.5" FontWeight="Bold"
                                                Foreground="{StaticResource Ink2Brush}" />
                                     <TextBlock Text="{Binding SmsReminderHintText}" FontSize="11" TextWrapping="Wrap"
                                                Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
@@ -257,4 +267,5 @@
             </Border>
         </StackPanel>
     </Grid>
+    </StackPanel>
 </UserControl>

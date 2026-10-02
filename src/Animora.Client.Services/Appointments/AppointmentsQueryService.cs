@@ -3,6 +3,7 @@ using Animora.Application.Dispatch;
 using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Scheduling;
+using Animora.Application.UseCases.Scheduling.ReadModels;
 using Animora.Contracts.Appointments;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,16 +18,21 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes, IAppoi
         await using var scope = scopes.CreateAsyncScope();
         var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
         var context = provider.BuildQueryContext();
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure)
+            throw new AppointmentOperationException(context.Error.Code, context.Error.Category, context.Detail);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().QueryAsync(query, context.Value!, ct);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure)
+            throw new AppointmentOperationException(result.Error.Code, result.Error.Category, result.Detail);
         return result.Value!;
     }
 
-    internal TimeZoneInfo GetTimeZone()
+    // A23: the singleton provider hydrates the zone asynchronously and caches it, so no caller ever runs a
+    // synchronous database read on its own thread.
+    internal async Task<TimeZoneInfo> GetTimeZoneAsync(CancellationToken ct = default)
     {
-        using var scope = scopes.CreateScope();
-        return scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
+        await using var scope = scopes.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>()
+            .GetClinicTimeZoneAsync(ct).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<AppointmentDoctor>> GetDoctorsAsync() =>
@@ -50,19 +56,43 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes, IAppoi
 
     public async Task<IReadOnlyList<AppointmentEvent>> GetForRangeAsync(DateOnly start, DateOnly end)
     {
-        var tz = GetTimeZone();
+        var tz = await GetTimeZoneAsync();
         return (await QueryAsync(new AppointmentRangeQuery(start, end))).Select(r => r.ToContract(tz)).ToArray();
     }
 
     public async Task<IReadOnlyList<AppointmentEvent>> GetQueueAsync()
     {
-        var tz = GetTimeZone();
+        var tz = await GetTimeZoneAsync();
         return (await QueryAsync(new AppointmentQueueQuery())).Select(r => r.ToContract(tz)).ToArray();
     }
 
-    public async Task<IReadOnlyList<AppointmentEvent>> GetHistoryAsync()
+    public async Task<AppointmentHistoryPage> GetHistoryAsync(AppointmentHistoryFilter filter, CancellationToken ct = default)
     {
-        var tz = GetTimeZone();
-        return (await QueryAsync(new AppointmentHistoryQuery())).Select(r => r.ToContract(tz)).ToArray();
+        ArgumentNullException.ThrowIfNull(filter);
+        var tz = await GetTimeZoneAsync(ct);
+        var page = await QueryAsync(new AppointmentHistoryQuery(
+            filter.From, filter.To,
+            filter.Status switch
+            {
+                AppointmentHistoryStatusFilter.Completed => AppointmentHistoryStatus.Completed,
+                AppointmentHistoryStatusFilter.NoShow => AppointmentHistoryStatus.NoShow,
+                AppointmentHistoryStatusFilter.Cancelled => AppointmentHistoryStatus.Cancelled,
+                _ => AppointmentHistoryStatus.All,
+            },
+            filter.DoctorId, filter.TypeId,
+            filter.Invoice switch
+            {
+                AppointmentInvoiceFilter.None => HistoryInvoiceFilter.None,
+                AppointmentInvoiceFilter.Unpaid => HistoryInvoiceFilter.Unpaid,
+                AppointmentInvoiceFilter.Partial => HistoryInvoiceFilter.Partial,
+                AppointmentInvoiceFilter.Paid => HistoryInvoiceFilter.Paid,
+                _ => HistoryInvoiceFilter.All,
+            },
+            filter.Search, filter.Page, filter.PageSize), ct);
+        var s = page.Summary;
+        return new AppointmentHistoryPage(
+            page.Items.Select(r => r.ToContract(tz)).ToArray(),
+            new AppointmentHistoryTotals(s.Total, s.Completed, s.Cancelled, s.NoShow, s.PaidMinor, s.OwedMinor),
+            page.HasMore);
     }
 }

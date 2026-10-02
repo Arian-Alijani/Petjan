@@ -317,7 +317,11 @@ public partial class App : global::Avalonia.Application
         // in-memory event store backs both mocks (the calendar sees events the
         // panel creates/edits), so it is a singleton — as are both services.
         // Clinic-editable appointment preferences (custom types, calendar mode, SMS) — local JSON, singleton cache.
+        // A17: settings are read/written through authorized Application use cases over this durable store port.
+        services.AddSingleton<Animora.Application.Ports.IAppointmentSettingsStore, AppointmentSettingsFileStore>();
         services.AddSingleton<IAppointmentSettingsService, AppointmentSettingsService>();
+        // A24: clinic-local today/now for the appointments UI (clock + clinic timezone), never device time.
+        services.AddSingleton<IClinicClock, ClinicClockService>();
         services.AddSingleton<AppointmentsQueryService>();
         services.AddSingleton<IAppointmentsQueryService>(p => p.GetRequiredService<AppointmentsQueryService>());
         services.AddSingleton<IAppointmentBookingService, AppointmentBookingService>();

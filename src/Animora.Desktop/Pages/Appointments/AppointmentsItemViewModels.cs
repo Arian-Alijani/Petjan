@@ -17,15 +17,17 @@ namespace Animora.Desktop.Pages.Appointments;
 /// </summary>
 public sealed class AppointmentEventViewModel
 {
-    public AppointmentEventViewModel(AppointmentEvent model, AppointmentType type, AppointmentDoctor doctor, bool dimmed)
+    public AppointmentEventViewModel(AppointmentEvent model, AppointmentType type, AppointmentDoctor doctor, bool dimmed,
+        TimeGridWindow window)
     {
         Model = model;
         Type = type;
         Doctor = doctor;
 
-        var topMinutes = model.StartMinutes - AppointmentsLayout.DayStartMinutes;
-        Top = AppointmentsLayout.MinuteToPx(topMinutes) + 1;
-        var raw = AppointmentsLayout.MinuteToPx(model.DurationMinutes) - 3;
+        Top = window.OffsetOf(model.StartMinutes) + 1;
+        // A25: a card never extends past the visible window (an appointment running to/over midnight is clipped).
+        var visibleMinutes = Math.Max(0, Math.Min(model.EndMinutes, window.EndMinutes) - Math.Max(model.StartMinutes, window.StartMinutes));
+        var raw = AppointmentsLayout.MinuteToPx(visibleMinutes) - 3;
         Height = Math.Max(raw, AppointmentsLayout.MinEventHeight);
         Tier = Height < 36 ? EventTier.ExtraSmall : Height < 64 ? EventTier.Small : EventTier.Medium;
         IsDimmed = dimmed;
@@ -61,7 +63,7 @@ public sealed class AppointmentEventViewModel
 
     public string Id => Model.Id;
     public string PetName => Model.PetName;
-    public string StatusClass => AppointmentsPresentation.StatusClassKey(Model.Status);
+    public string StatusClass => AppointmentsPresentation.LifecycleClassKey(Model.Lifecycle);
     public string TypeClass => Type.ClassKey;
 
     public string StartText => AppointmentsPresentation.Time(Model.StartMinutes);
@@ -69,8 +71,8 @@ public sealed class AppointmentEventViewModel
     public string TypeLabel => Type.Label;
     public string DoctorShort => Doctor.ShortName;
     public string DoctorName => Doctor.Name;
-    public string StatusLabel => AppointmentsPresentation.Status(Model.Status).Label;
-    public bool ShowFlag => Model.Status != AppointmentStatus.Confirmed;
+    public string StatusLabel => AppointmentsPresentation.Lifecycle(Model.Lifecycle).Label;
+    public bool ShowFlag => Model.Lifecycle != AppointmentLifecycle.Confirmed;
     public bool IsExtraSmall => Tier == EventTier.ExtraSmall;
     public bool IsSmall => Tier == EventTier.Small;
     public bool IsMedium => Tier == EventTier.Medium;
@@ -80,11 +82,12 @@ public sealed class AppointmentEventViewModel
     public IBrush BackgroundBrush => AppointmentsPresentation.TypeBackground(Type);
     public IBrush ForegroundBrush => AppointmentsPresentation.TypeForeground(Type);
     public IBrush AvatarBrush => AppointmentsPresentation.AvatarBrush(Model.AvatarTone);
-    public IBrush FlagBrush => Model.Status switch
+    public IBrush FlagBrush => Model.Lifecycle switch
     {
-        AppointmentStatus.Pending => AppointmentsPresentation.Accent("#b54708"),
-        AppointmentStatus.Done => AppointmentsPresentation.Accent("#027a48"),
-        AppointmentStatus.Cancelled => AppointmentsPresentation.Accent("#d92d20"),
+        AppointmentLifecycle.Scheduled => AppointmentsPresentation.Accent("#b54708"),
+        AppointmentLifecycle.CheckedIn or AppointmentLifecycle.Completed => AppointmentsPresentation.Accent("#027a48"),
+        AppointmentLifecycle.InVisit => AppointmentsPresentation.Accent("#5a67d8"),
+        AppointmentLifecycle.Cancelled or AppointmentLifecycle.NoShow => AppointmentsPresentation.Accent("#d92d20"),
         _ => AppointmentsPresentation.Accent("#98a2b3"),
     };
 
@@ -167,12 +170,12 @@ public sealed class AppointmentColumnHeaderViewModel
         CountText = AppointmentsPresentation.Fa(count) + " نوبت";
     }
 
-    public AppointmentColumnHeaderViewModel(DateOnly day, bool isToday, bool isFriday)
+    public AppointmentColumnHeaderViewModel(DateOnly day, bool isToday, bool isOffDay)
     {
         IsDay = true;
         Day = day;
         IsToday = isToday;
-        IsFriday = isFriday;
+        IsOffDay = isOffDay;
         WeekdayText = AppointmentsCalendarMath.DayNames[AppointmentsCalendarMath.WeekIndex(day)];
         DayNumberText = AppointmentsCalendarMath.DayNumber(day);
     }
@@ -195,7 +198,7 @@ public sealed class AppointmentColumnHeaderViewModel
 
     public DateOnly Day { get; }
     public bool IsToday { get; }
-    public bool IsFriday { get; }
+    public bool IsOffDay { get; }
     public string WeekdayText { get; } = string.Empty;
     public string DayNumberText { get; } = string.Empty;
 
@@ -218,8 +221,12 @@ public sealed class AppointmentColumnViewModel
         IReadOnlyList<AppointmentEventViewModel> events,
         bool isClosed,
         double? nowTop,
+        TimeGridWindow window,
+        IReadOnlyList<HourRowViewModel> hourRows,
         bool isFirst = false)
     {
+        GridHeight = window.TotalHeight;
+        HourRows = hourRows;
         Header = header;
         Events = events;
         IsClosed = isClosed;
@@ -231,6 +238,12 @@ public sealed class AppointmentColumnViewModel
 
     public AppointmentColumnHeaderViewModel Header { get; }
     public IReadOnlyList<AppointmentEventViewModel> Events { get; }
+
+    /// <summary>Body height of this column - the shared window geometry (A25).</summary>
+    public double GridHeight { get; }
+
+    /// <summary>The visible hour rows (separator lines) of this column.</summary>
+    public IReadOnlyList<HourRowViewModel> HourRows { get; }
     public bool IsClosed { get; }
     public double? NowTop { get; }
     public bool HasNow { get; }
@@ -256,7 +269,7 @@ public sealed class MonthCellViewModel
         DateOnly day,
         bool isOut,
         bool isToday,
-        bool isFriday,
+        bool isOffDay,
         IReadOnlyList<MonthEventViewModel> events,
         int hiddenCount,
         bool isFirstInRow = false)
@@ -264,7 +277,7 @@ public sealed class MonthCellViewModel
         Day = day;
         IsOut = isOut;
         IsToday = isToday;
-        IsFriday = isFriday;
+        IsOffDay = isOffDay;
         Events = events;
         HiddenCount = hiddenCount;
         HasMore = hiddenCount > 0;
@@ -274,7 +287,7 @@ public sealed class MonthCellViewModel
     public DateOnly Day { get; }
     public bool IsOut { get; }
     public bool IsToday { get; }
-    public bool IsFriday { get; }
+    public bool IsOffDay { get; }
     public IReadOnlyList<MonthEventViewModel> Events { get; }
     public int HiddenCount { get; }
     public bool HasMore { get; }
@@ -290,7 +303,7 @@ public sealed class MonthCellViewModel
     /// <summary>The out/friday cell background (transparent otherwise), matching the reference.</summary>
     public IBrush CellBackground =>
         IsOut ? AppointmentsPresentation.Accent("#fafbfa")
-        : IsFriday ? AppointmentsPresentation.Accent("#fbfcfb")
+        : IsOffDay ? AppointmentsPresentation.Accent("#fbfcfb")
         : Brushes.Transparent;
 
     /// <summary>The day-number text brush (muted ink on out-of-month days).</summary>
@@ -402,9 +415,9 @@ public sealed class QueueCardViewModel
     public string TypeLabel => Type.Label;
     public string TypeClass => Type.ClassKey;
     public string Line2 => $"{Model.PetKind} · مالک: {Model.OwnerName}";
-    public string StatusLabel => AppointmentsPresentation.Status(Model.Status).Label;
-    public string StatusClass => AppointmentsPresentation.StatusClassKey(Model.Status);
-    public Tone StatusTone => AppointmentsPresentation.Status(Model.Status).Tone;
+    public string StatusLabel => AppointmentsPresentation.Lifecycle(Model.Lifecycle).Label;
+    public string StatusClass => AppointmentsPresentation.LifecycleClassKey(Model.Lifecycle);
+    public Tone StatusTone => AppointmentsPresentation.Lifecycle(Model.Lifecycle).Tone;
     public bool IsLiveNow => Live == QueueLiveBadge.Now;
     public bool IsLiveNext => Live == QueueLiveBadge.Next;
 }
@@ -518,9 +531,9 @@ public sealed class HistoryRowViewModel
     public string TypeLabel => Type.Label;
     public string TypeClass => Type.ClassKey;
     public string Code => Model.Code;
-    public string StatusLabel => AppointmentsPresentation.Status(Model.Status).Label;
-    public string StatusClass => AppointmentsPresentation.StatusClassKey(Model.Status);
-    public Tone StatusTone => AppointmentsPresentation.Status(Model.Status).Tone;
+    public string StatusLabel => AppointmentsPresentation.Lifecycle(Model.Lifecycle).Label;
+    public string StatusClass => AppointmentsPresentation.LifecycleClassKey(Model.Lifecycle);
+    public Tone StatusTone => AppointmentsPresentation.Lifecycle(Model.Lifecycle).Tone;
     public bool HasVisit => Model.Visit != AppointmentVisitOutcome.None;
     public string VisitLabel => AppointmentsPresentation.Visit(Model.Visit).Label;
     public Tone VisitTone => AppointmentsPresentation.Visit(Model.Visit).Tone;
@@ -535,7 +548,9 @@ public sealed class HistoryRowViewModel
     public bool HasPayment => Model.Payment != AppointmentPaymentMethod.None;
     public string PaymentLabel => AppointmentsPresentation.Payment(Model.Payment).Label;
     public string PaymentIconKey => AppointmentsPresentation.Payment(Model.Payment).IconKey;
-    public string PriceText => PersianNumberFormatter.FormatGrouped(Model.Total);
+    // A12: only a real linked invoice carries an amount; otherwise show an explicit dash, never a fabricated zero.
+    public bool HasPrice => Model.HasInvoice;
+    public string PriceText => Model.HasInvoice ? PersianNumberFormatter.FormatGrouped(Model.InvoiceTotalMinor!.Value) : "—";
 }
 
 /// <summary>One KPI chip in the queue header (reference's <c>qp-k</c>).</summary>
@@ -591,7 +606,7 @@ public sealed partial class HistoryCalendarCellViewModel : ObservableObject
         bool isOut,
         bool isToday,
         bool hasHistory,
-        bool isFriday,
+        bool isOffDay,
         bool isPast,
         bool inRange,
         bool edge)
@@ -600,7 +615,7 @@ public sealed partial class HistoryCalendarCellViewModel : ObservableObject
         IsOut = isOut;
         IsToday = isToday;
         HasHistory = hasHistory;
-        IsFriday = isFriday;
+        IsOffDay = isOffDay;
         IsPast = isPast;
         InRange = inRange;
         Edge = edge;
@@ -610,7 +625,7 @@ public sealed partial class HistoryCalendarCellViewModel : ObservableObject
     public bool IsOut { get; }
     public bool IsToday { get; }
     public bool HasHistory { get; }
-    public bool IsFriday { get; }
+    public bool IsOffDay { get; }
     public bool IsPast { get; }
     public bool InRange { get; }
     public bool Edge { get; }

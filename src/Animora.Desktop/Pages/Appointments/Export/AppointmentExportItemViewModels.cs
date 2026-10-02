@@ -38,13 +38,13 @@ public sealed partial class ExportChipViewModel : ObservableObject
 /// <summary>One cell of the multi-day picker month grid.</summary>
 public sealed partial class ExportDayCellViewModel : ObservableObject
 {
-    public ExportDayCellViewModel(DateOnly date, string label, bool inMonth, bool isToday, bool isFriday)
+    public ExportDayCellViewModel(DateOnly date, string label, bool inMonth, bool isToday, bool isOffDay)
     {
         Date = date;
         Label = label;
         InMonth = inMonth;
         IsToday = isToday;
-        IsFriday = isFriday;
+        IsOffDay = isOffDay;
     }
 
     public DateOnly Date { get; }
@@ -55,7 +55,7 @@ public sealed partial class ExportDayCellViewModel : ObservableObject
 
     public bool IsToday { get; }
 
-    public bool IsFriday { get; }
+    public bool IsOffDay { get; }
 
     [ObservableProperty]
     private bool _isSelected;

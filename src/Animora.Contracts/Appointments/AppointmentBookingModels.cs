@@ -40,9 +40,10 @@ public sealed record TimeSlot(int Minutes, bool IsFree);
 /// The full detail of an existing appointment shown by the detail drawer,
 /// mirroring everything the reference's <c>detailHtml(a)</c> reads: the
 /// appointment itself plus the human "created by" line
-/// (<c>a.created</c> — «ثبت توسط پذیرش»).
+/// (<c>a.created</c> — «ثبت توسط پذیرش»). <c>Version</c> is the opaque concurrency token observed at read time;
+/// it must be handed back to move/cancel/check-in so the journal records what the caller saw (A29).
 /// </summary>
-public sealed record AppointmentDetail(AppointmentEvent Event, string CreatedText);
+public sealed record AppointmentDetail(AppointmentEvent Event, string CreatedText, string? Version = null);
 
 /// <summary>
 /// Payload to create a new appointment (the reference's new-booking branch in
@@ -85,4 +86,5 @@ public sealed record UpdateAppointmentRequest(
     string SpeciesIconKey,
     string Note,
     bool SendSms,
-    bool SendReminder);
+    bool SendReminder,
+    string? ExpectedVersion = null);

@@ -75,9 +75,12 @@ public interface IAppointmentBookingService
     /// </summary>
     Task<AppointmentEvent> UpdateAsync(string appointmentId, UpdateAppointmentRequest request);
 
-    /// <summary>Cancels an appointment (the reference's <c>act('cancel')</c>).</summary>
-    Task CancelAsync(string appointmentId);
+    /// <summary>
+    /// Cancels an appointment (the reference's <c>act('cancel')</c>). <paramref name="expectedVersion"/> is the
+    /// <see cref="AppointmentDetail.Version"/> the caller observed (A29).
+    /// </summary>
+    Task CancelAsync(string appointmentId, string? expectedVersion = null);
 
     /// <summary>Marks an appointment as admitted/done (the reference's <c>act('checkin')</c>).</summary>
-    Task CheckInAsync(string appointmentId);
+    Task CheckInAsync(string appointmentId, string? expectedVersion = null);
 }

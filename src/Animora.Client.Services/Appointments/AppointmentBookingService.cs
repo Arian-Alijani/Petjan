@@ -13,21 +13,36 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
 {
     private Task<T> QueryAsync<T>(IQuery<T> query) => calendar.QueryAsync(query);
 
-    private async Task<T> SendAsync<T>(ICommand<T> command)
+    /// <summary>
+    /// A29: the caller-observed version token rides into the durable journal envelope. A mutation of an existing
+    /// appointment passes what it read; a new aggregate (booking) deliberately passes none. The token is opaque -
+    /// only a numeric token can be journaled, anything else is dropped rather than guessed.
+    /// </summary>
+    private static long? JournalVersion(string? token) =>
+        long.TryParse(token, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var v)
+            ? v : null;
+
+    private async Task<T> SendAsync<T>(ICommand<T> command, string? expectedVersion = null)
     {
         await using var scope = scopes.CreateAsyncScope();
         var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
-        var context = await provider.BuildCommandContextAsync(null, null, null, default);
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        var context = await provider.BuildCommandContextAsync(null, null, JournalVersion(expectedVersion), default);
+        if (context.IsFailure)
+            throw new AppointmentOperationException(context.Error.Code, context.Error.Category, context.Detail);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().SendAsync(command, context.Value!);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure)
+            throw new AppointmentOperationException(result.Error.Code, result.Error.Category, result.Detail);
         return result.Value!;
     }
 
     public async Task<AppointmentDetail?> GetDetailAsync(string appointmentId)
     {
         var row = await QueryAsync(new AppointmentDetailQuery(appointmentId));
-        return row is null ? null : new AppointmentDetail(row.Event.ToContract(calendar.GetTimeZone()), row.CreatedText);
+        if (row is null) return null;
+        // A28: the creator is a real lookup; an unknown creator is labelled as such, never guessed.
+        var created = string.IsNullOrWhiteSpace(row.CreatedByName) ? "نامشخص" : row.CreatedByName!;
+        return new AppointmentDetail(row.Event.ToContract(await calendar.GetTimeZoneAsync()), created,
+            row.AggregateVersion);
     }
 
     public async Task<IReadOnlyList<BookingPatient>> SearchPatientsAsync(
@@ -57,7 +72,9 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
     public async Task<IReadOnlyList<AppointmentEvent>> GetConflictsAsync(
         DateOnly date, string doctorId, int startMinutes, int durationMinutes, string? exceptId)
     {
-        var events = await calendar.GetForRangeAsync(date, date);
+        // A21: read only this doctor's rows for the day instead of every doctor's events.
+        var tz = await calendar.GetTimeZoneAsync();
+        var events = (await QueryAsync(new AppointmentRangeQuery(date, date, doctorId))).Select(r => r.ToContract(tz));
         return events.Where(e => e.Id != exceptId && e.DoctorId == doctorId &&
             e.Status is AppointmentStatus.Pending or AppointmentStatus.Confirmed &&
             e.StartMinutes < startMinutes + durationMinutes && startMinutes < e.EndMinutes).ToArray();
@@ -74,29 +91,51 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
         var patient = await ResolvePatientAsync(request.PatientId);
         var id = await SendAsync(new BookAppointmentCommand(request.Date, request.StartMinutes,
             request.DurationMinutes, request.TypeId, request.DoctorId, patient.Id, patient.OwnerId, request.Note));
-        return (await GetDetailAsync(id))!.Event;
+        return await ReadCommittedAsync(id);
     }
 
     public async Task<AppointmentEvent> UpdateAsync(string appointmentId, UpdateAppointmentRequest request)
     {
         await SendAsync(new RescheduleAppointmentCommand(appointmentId, request.Date,
-            request.StartMinutes, request.DurationMinutes));
-        return (await GetDetailAsync(appointmentId))!.Event;
+            request.StartMinutes, request.DurationMinutes), request.ExpectedVersion);
+        return await ReadCommittedAsync(appointmentId);
     }
 
-    public async Task CancelAsync(string appointmentId) =>
-        _ = await SendAsync(new CancelAppointmentCommand(appointmentId, "cancelled by reception"));
+    /// <summary>
+    /// Re-reads a just-written appointment. The write is already durable here, so a failing read is reported as
+    /// "committed" (A10) instead of masquerading as a failed write.
+    /// </summary>
+    private async Task<AppointmentEvent> ReadCommittedAsync(string appointmentId)
+    {
+        try
+        {
+            return (await GetDetailAsync(appointmentId))?.Event
+                ?? throw new AppointmentOperationException("APPOINTMENT_NOT_FOUND", "NotFound", writeCommitted: true);
+        }
+        catch (AppointmentOperationException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            throw new AppointmentOperationException("APPOINTMENT_READ_FAILED", "Infrastructure", ex.Message,
+                writeCommitted: true);
+        }
+    }
 
-    public async Task CheckInAsync(string appointmentId) =>
-        _ = await SendAsync(new CheckInAppointmentCommand(appointmentId));
+    public async Task CancelAsync(string appointmentId, string? expectedVersion = null) =>
+        _ = await SendAsync(new CancelAppointmentCommand(appointmentId, "cancelled by reception"), expectedVersion);
+
+    public async Task CheckInAsync(string appointmentId, string? expectedVersion = null) =>
+        _ = await SendAsync(new CheckInAppointmentCommand(appointmentId), expectedVersion);
 
     private async Task<Animora.Application.UseCases.Scheduling.ReadModels.BookingPatientReadModel> ResolvePatientAsync(
         string patientId)
     {
-        if (string.IsNullOrWhiteSpace(patientId)) throw new InvalidOperationException("Patient not selected.");
+        if (string.IsNullOrWhiteSpace(patientId)) throw new AppointmentOperationException("PATIENT_NOT_SELECTED", "Validation");
         // Resolve the selected identity directly; duplicate names and records beyond
         // the old 500-row window must not cause incorrect or ambiguous bookings.
         return (await QueryAsync(new BookingPatientsQuery(PatientId: patientId))).SingleOrDefault()
-            ?? throw new InvalidOperationException("Patient not found.");
+            ?? throw new AppointmentOperationException("PATIENT_NOT_FOUND", "NotFound");
     }
 }

@@ -34,6 +34,11 @@ public sealed class LocalStoreMaintenance(
     private const string StampFormat = "yyyyMMdd-HHmmss";
     private static readonly string[] SideSuffixes = ["", "-wal", "-shm"];
 
+    // A26: clinic configuration (custom appointment types, calendar mode, SMS intent) lives outside the database, so a
+    // backup carries it as a sidecar next to the .db and a restore puts it back.
+    internal const string SettingsSidecarSuffix = ".appointment-settings.json";
+    private static readonly string[] BackupSuffixes = [.. SideSuffixes, SettingsSidecarSuffix];
+
     // Process-wide: a corrupt store detected during a rebuild must not trigger another rebuild.
     private static int _rebuilding;
 
@@ -54,6 +59,7 @@ public sealed class LocalStoreMaintenance(
                 source.BackupDatabase(destination);
             }
             ct.ThrowIfCancellationRequested();
+            await ExportSettingsAsync(target, ct);
             var check = QuickCheck(target);
             if (check != "ok")
             {
@@ -90,6 +96,9 @@ public sealed class LocalStoreMaintenance(
             if (initialized.IsFailure)
                 return Result.Fail(ErrorCodes.StoreRestoreFailed,
                     $"{initialized.Error.Code}: {initialized.Detail}; previous store kept in {quarantine}");
+            // A26: the backup's clinic configuration comes back with its data; the zone is re-read from the restored tenant.
+            await ImportSettingsAsync(backupPath, ct);
+            services.GetService<IClinicTimeZoneProvider>()?.Invalidate();
             // C06: a restored backup may predate or disagree with the snapshot cache — re-prove it from the ledger.
             var snapshots = await RebuildStockSnapshotsAsync(ct);
             if (snapshots.IsFailure)
@@ -117,6 +126,7 @@ public sealed class LocalStoreMaintenance(
             var quarantine = MoveToQuarantine();
             var initialized = await InitializeAsync(ct);
             if (initialized.IsFailure) return initialized;
+            services.GetService<IClinicTimeZoneProvider>()?.Invalidate();
             // C06: the rebuilt store's on-hand cache must equal its (freshly seeded) ledger.
             var snapshots = await RebuildStockSnapshotsAsync(ct);
             if (snapshots.IsFailure) return Result<LocalStoreDiagnostics>.Fail(snapshots.Error, snapshots.Detail);
@@ -321,9 +331,27 @@ public sealed class LocalStoreMaintenance(
         foreach (var file in stale) DeleteBackupFiles(file);
     }
 
+    // The settings store lives in the client layer; absent (headless/tests) means there is nothing to package.
+    // A failure to package never fails the database backup itself - the database is the source of truth.
+    private async Task ExportSettingsAsync(string target, CancellationToken ct)
+    {
+        if (services.GetService<IAppointmentSettingsStore>() is not { } store) return;
+        try { await store.ExportToAsync(target + SettingsSidecarSuffix, ct); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
+    private async Task ImportSettingsAsync(string backupPath, CancellationToken ct)
+    {
+        if (services.GetService<IAppointmentSettingsStore>() is not { } store) return;
+        var sidecar = backupPath + SettingsSidecarSuffix;
+        if (!File.Exists(sidecar)) return;
+        try { await store.ImportFromAsync(sidecar, ct); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
     private static void DeleteBackupFiles(string path)
     {
-        foreach (var suffix in SideSuffixes)
+        foreach (var suffix in BackupSuffixes)
             if (File.Exists(path + suffix)) File.Delete(path + suffix);
     }
 

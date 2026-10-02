@@ -46,6 +46,9 @@ public sealed record AppointmentPrintOptions
     /// <summary>True when every clinic doctor is included (header says «همه پزشکان»).</summary>
     public bool AllDoctors { get; init; }
 
+    /// <summary>Clinic-local moment the document is prepared at (A24); never the device's local time.</summary>
+    public Animora.Contracts.Appointments.ClinicMoment PreparedAt { get; init; }
+
     public string ClinicName { get; init; } = string.Empty;
 
     public string PreparedBy { get; init; } = string.Empty;

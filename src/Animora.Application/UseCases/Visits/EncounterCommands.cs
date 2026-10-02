@@ -204,7 +204,8 @@ public sealed class CompleteVisitCommandValidator : IValidator<CompleteVisitComm
 
 public sealed class CompleteVisitCommandHandler(IVisitRepository visits, IMedicalHistoryRepository history,
     IVisitBillingHandoffWriter handoffs, IReceptionQueueRepository queue, IPetRepository pets,
-    ITriageQueries triage, IClock clock) : ICommandHandler<CompleteVisitCommand, EncounterSummaryReadModel>
+    ITriageQueries triage, IAppointmentRepository appointments, IClock clock)
+    : ICommandHandler<CompleteVisitCommand, EncounterSummaryReadModel>
 {
     public async Task<Result<EncounterSummaryReadModel>> HandleAsync(CompleteVisitCommand c,
         CommandContext context, CancellationToken ct)
@@ -225,6 +226,18 @@ public sealed class CompleteVisitCommandHandler(IVisitRepository visits, IMedica
         handoffs.Add(context.TenantId, visit.Id, visit.OwnerId, visit.PetId, visit.DoctorUserId, completedUtc, snapshot);
         var entry = await queue.FindByVisitAsync(visit.Id, ct);
         if (entry?.State == QueueState.InVisit) entry.Close(clock);
+        // A03: an appointment-backed encounter completes its appointment in the same unit of work.
+        // Walk-in visits have no AppointmentId and are unaffected. A failure rolls the whole UoW back.
+        if (!string.IsNullOrEmpty(visit.AppointmentId))
+        {
+            var appointment = await appointments.FindAsync(visit.AppointmentId, ct);
+            if (appointment is not null && appointment.VisitId == visit.Id &&
+                appointment.State == AppointmentState.InVisit)
+            {
+                var done = appointment.Complete();
+                if (done.IsFailure) return Result<EncounterSummaryReadModel>.Fail(done.Error);
+            }
+        }
         var ready = visit.MarkReadyForInvoice();
         if (ready.IsFailure) return Result<EncounterSummaryReadModel>.Fail(ready.Error);
         var subtotal = visit.ServiceLines.Aggregate(0L,
