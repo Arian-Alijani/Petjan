@@ -510,7 +510,7 @@ committing to it (grep existing `ItemsRepeater` usage in the repo for a working 
 
 ---
 
-### [ ] T17 — P13 (P2) · Age/Recent sort indexes — VERIFY ONLY (already shipped)
+### [x] T17 — P13 (P2) · Age/Recent sort indexes — VERIFY ONLY (already shipped)
 **Status:** `IX_Pets_TenantId_BirthDateUtc` (PETCFG) and `IX_Owners_TenantId_RegisteredUtc` (OWNCFG)
 already exist, created by migration `023_PatientsPerfIndexes`. The directory sorts (SQL:30
 `BirthDateUtc`, SQL:53-54 `RegisteredUtc`) are therefore index-backed. **No code change.**
