@@ -31,6 +31,11 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             _ => filtered.OrderBy(p => p.Name).ThenBy(p => p.Id),
         };
 
+        // Perf note (P07/P08): the latest-weight and pet-count projections below are per-row correlated
+        // subqueries, index-backed by IX_WeightEntries_PetId_MeasuredUtc / IX_Pets_TenantId_OwnerId
+        // (index seek + top-1 / index count, not scans). Denormalizing Pet.CurrentWeightKg and
+        // Owner.PetCount is the future optimization if a measured hot path appears; deferred on purpose
+        // (page size is bounded, local single-clinic DB).
         var projected = ordered
             .Select(p => new PetSummaryReadModel(
                 p.Id, p.Name, p.Species, p.Breed, p.Color, p.Gender, p.Status, p.OwnerId, p.BirthDateUtc,
@@ -54,6 +59,11 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             _ => owners.OrderByDescending(o => o.RegisteredUtc).ThenBy(o => o.Id),
         };
 
+        // Perf note (P07/P08): the latest-weight and pet-count projections below are per-row correlated
+        // subqueries, index-backed by IX_WeightEntries_PetId_MeasuredUtc / IX_Pets_TenantId_OwnerId
+        // (index seek + top-1 / index count, not scans). Denormalizing Pet.CurrentWeightKg and
+        // Owner.PetCount is the future optimization if a measured hot path appears; deferred on purpose
+        // (page size is bounded, local single-clinic DB).
         var projected = ordered
             .Select(o => new OwnerSummaryReadModel(
                 o.Id, o.FullName, o.PhonePrimary, o.PhoneSecondary, o.NationalId, o.Address, o.Gender,

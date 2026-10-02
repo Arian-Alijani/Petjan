@@ -451,7 +451,7 @@ read model (they return `Unit`/id today). That is a cross-layer change. **Chosen
 
 ---
 
-### [ ] T15 — P07 + P08 (P2) · Correlated last-weight & pet-count subqueries (denormalization decision)
+### [x] T15 — P07 + P08 (P2) · Correlated last-weight & pet-count subqueries (denormalization decision)
 **Root cause (confirmed):** SQL:37-38 (directory) + SQL:131-132 (owner sheet) project each pet's
 latest weight via a per-row correlated subquery on `WeightEntry`. SQL:61 (directory) + SQL:123
 (owner detail) run `Count(p => p.OwnerId == o.Id)` per owner row.
