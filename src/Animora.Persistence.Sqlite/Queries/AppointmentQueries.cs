@@ -21,7 +21,17 @@ public sealed class AppointmentQueries(AnimoraLocalDbContext db) : IAppointmentQ
             r.DoctorName, r.PetId, r.PetName, r.PetSpecies.ToString(), r.OwnerId,
             r.OwnerName, r.OwnerPhone, r.Note,
             r.VisitId, r.CheckedInUtc?.UtcTicks, r.CancelReason, r.CreatedByUserId, r.RescheduleCount,
-            r.Source, r.InvoiceTotalMinor, r.InvoicePaidMinor, r.Currency, r.InvoiceState);
+            r.Source, r.InvoiceTotalMinor, r.InvoicePaidMinor, r.Currency, r.InvoiceState, ObservedVersion(r));
+
+    /// <summary>
+    /// A29: the opaque concurrency token a caller observed at read time. The server-issued <c>Version</c> when the row
+    /// has one; otherwise the local row stamp (<c>UpdatedAt</c> ticks), which changes on every local write. It is
+    /// carried into the command journal for conflict *detection* only — never business logic (A-RULE 004/010).
+    /// </summary>
+    private static string ObservedVersion(AppointmentEventProjection r) =>
+        string.IsNullOrWhiteSpace(r.AggregateVersion)
+            ? r.UpdatedAt.UtcTicks.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : r.AggregateVersion!;
 
     private const int MaxRangeRows = 10_000;
     private const int MaxSearchLength = 64;
@@ -71,7 +81,7 @@ public sealed class AppointmentQueries(AnimoraLocalDbContext db) : IAppointmentQ
         // Creator display name is a real lookup; null (never a guess) when the user is unknown.
         var creator = string.IsNullOrEmpty(row.CreatedByUserId) ? null : await db.Set<User>().AsNoTracking()
             .Where(u => u.Id == row.CreatedByUserId).Select(u => u.DisplayName).FirstOrDefaultAsync(ct);
-        return new AppointmentDetailReadModel(Map(row), "", row.AggregateVersion, creator);
+        return new AppointmentDetailReadModel(Map(row), "", ObservedVersion(row), creator);
     }
 
     public async Task<IReadOnlyList<AppointmentEventReadModel>> GetQueueAsync(long startTicks, long endTicks, CancellationToken ct)
@@ -208,6 +218,7 @@ public sealed class AppointmentQueries(AnimoraLocalDbContext db) : IAppointmentQ
             where membership.Role == StaffRole.Doctor && membership.Status == MembershipStatus.Active
             join doctor in db.Set<User>().AsNoTracking() on membership.UserId equals doctor.Id
             orderby doctor.DisplayName
-            select new DoctorRosterReadModel(doctor.Id, doctor.DisplayName, ""))
+            select new DoctorRosterReadModel(doctor.Id, doctor.DisplayName, "",
+                membership.WorkStartMinute, membership.WorkEndMinute, membership.WorkDaysMask))
             .ToListAsync(ct);
 }

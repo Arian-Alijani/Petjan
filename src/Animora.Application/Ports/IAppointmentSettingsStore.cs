@@ -25,4 +25,17 @@ public interface IAppointmentSettingsStore
     Task SetCalendarModeAsync(CalendarMode mode, CancellationToken ct);
 
     Task SetSmsAsync(AppointmentSmsSettings sms, CancellationToken ct);
+
+    /// <summary>
+    /// Writes a copy of the persisted settings to <paramref name="destinationPath"/> so a database backup carries the
+    /// clinic's custom types / mode with it (A26). Returns false when nothing was ever customised (no file to copy).
+    /// </summary>
+    Task<bool> ExportToAsync(string destinationPath, CancellationToken ct);
+
+    /// <summary>
+    /// Replaces the persisted settings with the copy at <paramref name="sourcePath"/> after a database restore (A26).
+    /// The previous file is kept aside, never deleted; an unreadable source leaves the current settings untouched and
+    /// returns false.
+    /// </summary>
+    Task<bool> ImportFromAsync(string sourcePath, CancellationToken ct);
 }

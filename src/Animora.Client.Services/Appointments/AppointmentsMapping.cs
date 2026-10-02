@@ -56,7 +56,8 @@ internal static class AppointmentsMapping
     /// </summary>
     internal static AppointmentDoctor ToContract(this DoctorRosterReadModel row, int index) =>
         new(row.Id, row.Name, row.Name, row.Specialty,
-            row.Name.Length > 0 ? row.Name[..1] : "?", AppointmentColorPalette.ByIndex(index));
+            row.Name.Length > 0 ? row.Name[..1] : "?", AppointmentColorPalette.ByIndex(index),
+            row.WorkStartMinute, row.WorkEndMinute, row.WorkDaysMask);
 
     internal static BookingPatient ToContract(this BookingPatientReadModel row) =>
         new(row.Id, row.Name, row.Species, row.OwnerName, row.Phone,

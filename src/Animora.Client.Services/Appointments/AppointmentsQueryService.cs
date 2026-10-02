@@ -26,10 +26,13 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes, IAppoi
         return result.Value!;
     }
 
-    internal TimeZoneInfo GetTimeZone()
+    // A23: the singleton provider hydrates the zone asynchronously and caches it, so no caller ever runs a
+    // synchronous database read on its own thread.
+    internal async Task<TimeZoneInfo> GetTimeZoneAsync(CancellationToken ct = default)
     {
-        using var scope = scopes.CreateScope();
-        return scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
+        await using var scope = scopes.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>()
+            .GetClinicTimeZoneAsync(ct).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<AppointmentDoctor>> GetDoctorsAsync() =>
@@ -53,20 +56,20 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes, IAppoi
 
     public async Task<IReadOnlyList<AppointmentEvent>> GetForRangeAsync(DateOnly start, DateOnly end)
     {
-        var tz = GetTimeZone();
+        var tz = await GetTimeZoneAsync();
         return (await QueryAsync(new AppointmentRangeQuery(start, end))).Select(r => r.ToContract(tz)).ToArray();
     }
 
     public async Task<IReadOnlyList<AppointmentEvent>> GetQueueAsync()
     {
-        var tz = GetTimeZone();
+        var tz = await GetTimeZoneAsync();
         return (await QueryAsync(new AppointmentQueueQuery())).Select(r => r.ToContract(tz)).ToArray();
     }
 
     public async Task<AppointmentHistoryPage> GetHistoryAsync(AppointmentHistoryFilter filter, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(filter);
-        var tz = GetTimeZone();
+        var tz = await GetTimeZoneAsync(ct);
         var page = await QueryAsync(new AppointmentHistoryQuery(
             filter.From, filter.To,
             filter.Status switch

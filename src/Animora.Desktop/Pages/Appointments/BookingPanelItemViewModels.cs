@@ -148,14 +148,14 @@ public sealed partial class BookingDurationOptionViewModel : ObservableObject
 public sealed class BookingCalendarDayViewModel
 {
     public BookingCalendarDayViewModel(
-        DateOnly day, bool isOut, bool isSelected, bool isToday, bool isFriday, int count)
+        DateOnly day, bool isOut, bool isSelected, bool isToday, bool isOffDay, int count)
     {
         Day = day;
         DayKey = day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         IsOut = isOut;
         IsSelected = isSelected;
         IsToday = isToday;
-        IsFriday = isFriday;
+        IsOffDay = isOffDay;
         Count = count;
         NumberText = AppointmentsCalendarMath.DayNumber(day);
         HasDot = count > 0 && !isOut;
@@ -169,7 +169,7 @@ public sealed class BookingCalendarDayViewModel
     public bool IsOut { get; }
     public bool IsSelected { get; }
     public bool IsToday { get; }
-    public bool IsFriday { get; }
+    public bool IsOffDay { get; }
     public int Count { get; }
     public string NumberText { get; }
     public bool HasDot { get; }

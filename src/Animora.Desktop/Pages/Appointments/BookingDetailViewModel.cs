@@ -24,7 +24,9 @@ public sealed partial class BookingDetailViewModel : ObservableObject
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
     private readonly Action? _onChanged;
-    private readonly Action<AppointmentEvent>? _onEdit;
+    private readonly Action<AppointmentEvent, string?>? _onEdit;
+    private readonly IClinicClock _clock;
+    private string? _version;
     private readonly Func<AppointmentEvent, Task>? _onOpenVisit;
 
     private AppointmentEvent _event = null!;
@@ -36,11 +38,13 @@ public sealed partial class BookingDetailViewModel : ObservableObject
         IAppointmentsQueryService catalog,
         IToastService toast,
         IDialogService dialogs,
+        IClinicClock clock,
         Action? onChanged = null,
-        Action<AppointmentEvent>? onEdit = null,
+        Action<AppointmentEvent, string?>? onEdit = null,
         Func<AppointmentEvent, Task>? onOpenVisit = null)
     {
         _onOpenVisit = onOpenVisit;
+        _clock = clock;
         _booking = booking;
         _catalog = catalog;
         _toast = toast;
@@ -146,6 +150,7 @@ public sealed partial class BookingDetailViewModel : ObservableObject
 
         var a = detail.Event;
         _event = a;
+        _version = detail.Version;
 
         if (_types.Count == 0)
         {
@@ -165,7 +170,7 @@ public sealed partial class BookingDetailViewModel : ObservableObject
         PetName = a.PetName;
         PetSub = $"{a.PetKind} · مالک: {a.OwnerName}";
         RangeText = AppointmentsPresentation.Range(a.StartMinutes, a.EndMinutes);
-        var isToday = a.Date == DateOnly.FromDateTime(DateTime.Today);
+        var isToday = a.Date == _clock.Today;
         WhenSubText = AppointmentsCalendarMath.DayNames[AppointmentsCalendarMath.WeekIndex(a.Date)] + " " +
                       AppointmentsCalendarMath.Full(a.Date) + (isToday ? " · امروز" : string.Empty);
         DurationText = AppointmentsPresentation.Fa(a.DurationMinutes) + " دقیقه";
@@ -254,19 +259,20 @@ public sealed partial class BookingDetailViewModel : ObservableObject
 
     [RelayCommand]
     private Task CheckIn() =>
-        RunWriteAsync(() => _booking.CheckInAsync(_event.Id), $"بیمار «{_event.PetName}» پذیرش شد.", Tone.Ok);
+        RunWriteAsync(() => _booking.CheckInAsync(_event.Id, _version), $"بیمار «{_event.PetName}» پذیرش شد.", Tone.Ok);
 
     [RelayCommand]
     private void Edit()
     {
         var ev = _event;
+        var version = _version;
         _dialogs.Close();
-        _onEdit?.Invoke(ev);
+        _onEdit?.Invoke(ev, version);
     }
 
     [RelayCommand]
     private Task CancelAppointment() =>
-        RunWriteAsync(() => _booking.CancelAsync(_event.Id), "نوبت لغو شد.", Tone.Danger);
+        RunWriteAsync(() => _booking.CancelAsync(_event.Id, _version), "نوبت لغو شد.", Tone.Danger);
 
     [RelayCommand]
     private async Task ViewVisit()

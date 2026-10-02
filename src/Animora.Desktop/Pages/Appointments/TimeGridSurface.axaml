@@ -19,15 +19,25 @@
       and the 15 header separators — is declared once here instead of being
       re-created on every render.
     -->
+    <UserControl.Resources>
+        <!-- Hour-gutter width, shared by the header row and the body (keep equal to AppointmentsLayout.GutterWidth). -->
+        <GridLength x:Key="TgGutterWidth">56</GridLength>
+    </UserControl.Resources>
     <UserControl.Styles>
         <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/AppointmentsGridStyles.axaml" />
     </UserControl.Styles>
 
-    <!-- host: full-width single column, Auto header row + scrolling * body row -->
-    <Grid ColumnDefinitions="*" RowDefinitions="Auto,*">
+    <!-- host: horizontal scroll only when the columns would drop below a readable width (A25), then an Auto header
+         row + a vertically scrolling * body row; hour rows + height come from each column (TimeGridWindow). -->
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+    <Grid ColumnDefinitions="*" RowDefinitions="Auto,*" MinWidth="{Binding GridMinWidth}">
 
         <!-- ═══ header row — empty gutter cell + one header per column ═══ -->
-        <Grid Grid.Row="0" ColumnDefinitions="56,*">
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="{StaticResource TgGutterWidth}" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
             <Border Grid.Column="0" Classes="tg-hcell first" />
             <ItemsControl Grid.Column="1" ItemsSource="{Binding Columns}">
                 <ItemsControl.ItemsPanel>
@@ -40,7 +50,7 @@
                         <Border Classes="tg-hcell"
                                 Classes.first="{Binding IsFirst}"
                                 Classes.today="{Binding Header.IsToday}"
-                                Classes.off="{Binding Header.IsFriday}">
+                                Classes.off="{Binding Header.IsOffDay}">
                           <Panel>
                             <!-- doctor header (day view) -->
                             <StackPanel Orientation="Horizontal" Spacing="7"
@@ -104,20 +114,24 @@
         <ScrollViewer Grid.Row="1"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
-            <Grid ColumnDefinitions="56,*">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{StaticResource TgGutterWidth}" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
 
                 <!-- hour gutter (07:00 … 21:00) — fixed, declared once -->
                 <Border Grid.Column="0" Classes="tg-gutter">
-                    <ItemsControl ItemsSource="{Binding HourLabels}">
+                    <ItemsControl ItemsSource="{Binding HourRows}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <StackPanel />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="x:String">
-                                <Border Classes="tg-gutter-hour" Height="78">
-                                    <TextBlock Text="{Binding}"
+                            <DataTemplate x:DataType="ap:HourRowViewModel">
+                                <Border Classes="tg-gutter-hour" Height="{Binding Height}">
+                                    <TextBlock Text="{Binding Label}"
                                                FontSize="10.5" FontWeight="Normal"
                                                Foreground="{StaticResource Muted2Brush}"
                                                HorizontalAlignment="Left"
@@ -141,26 +155,22 @@
                             <Border Classes="tg-col"
                                     Classes.first="{Binding IsFirst}"
                                     Classes.off="{Binding IsClosed}"
-                                    MinWidth="0">
-                                <Panel Height="1170">
-                                    <!-- hour separators (first row suppresses its top border) -->
-                                    <StackPanel>
-                                        <Border Classes="tg-hour first" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                        <Border Classes="tg-hour" Height="78" />
-                                    </StackPanel>
+                                    MinWidth="132">
+                                <Panel Height="{Binding GridHeight}">
+                                    <!-- hour separators, one per visible hour row (first row suppresses its top border) -->
+                                    <ItemsControl ItemsSource="{Binding HourRows}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="ap:HourRowViewModel">
+                                                <Border Classes="tg-hour" Classes.first="{Binding IsFirst}"
+                                                        Height="{Binding Height}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
 
                                     <!-- click-to-create layer (beneath the cards) -->
                                     <Button Background="Transparent"
@@ -175,7 +185,7 @@
                                     <ItemsControl ItemsSource="{Binding Events}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <controls:TimeGridEventsPanel Height="1170" />
+                                                <controls:TimeGridEventsPanel Height="{Binding GridHeight}" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
@@ -310,4 +320,5 @@
         <ap:CalendarEmptyState Grid.Row="1"
                                IsVisible="{Binding !HasGridEvents}" />
     </Grid>
+    </ScrollViewer>
 </UserControl>

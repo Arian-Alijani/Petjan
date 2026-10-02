@@ -12,7 +12,8 @@ public sealed record AppointmentEventReadModel(
     string CreatedByUserId = "", int RescheduleCount = 0,
     AppointmentSource Source = AppointmentSource.Phone,
     long? InvoiceTotalMinor = null, long? InvoicePaidMinor = null, string? Currency = null,
-    InvoiceState? InvoiceState = null);
+    InvoiceState? InvoiceState = null,
+    string? AggregateVersion = null);
 
 /// <summary>
 /// Appointment detail. <paramref name="AggregateVersion"/> is the opaque concurrency token observed at read
@@ -21,7 +22,13 @@ public sealed record AppointmentEventReadModel(
 public sealed record AppointmentDetailReadModel(AppointmentEventReadModel Event, string CreatedText,
     string? AggregateVersion = null, string? CreatedByName = null);
 public sealed record TimeSlotReadModel(int Minutes, bool IsFree);
-public sealed record DoctorRosterReadModel(string Id, string Name, string Specialty);
+/// <summary>
+/// Active doctor roster row. The working window/weekday mask come from the doctor's membership (A25) so the calendar
+/// derives its visible hours and closed days from the real schedule: minutes since local midnight, bit 0 = Saturday
+/// … bit 6 = Friday.
+/// </summary>
+public sealed record DoctorRosterReadModel(string Id, string Name, string Specialty,
+    int WorkStartMinute = 480, int WorkEndMinute = 1200, int WorkDaysMask = 0b0111111);
 
 public sealed record BookingPatientReadModel(string Id, string OwnerId, string Name, string Species,
     string OwnerName, string Phone);

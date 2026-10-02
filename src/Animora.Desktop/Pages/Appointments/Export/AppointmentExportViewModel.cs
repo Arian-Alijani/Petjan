@@ -58,7 +58,8 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
     private readonly IReadOnlyList<AppointmentDoctor> _doctors;
     private readonly Dictionary<string, AppointmentType> _types;
     private readonly bool _dayOnly;
-    private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Today);
+    private readonly IClinicClock _clock;
+    private readonly DateOnly _today;
 
     // Loaded appointments per day (with their precomputed normalized search text) + which days have been fetched
     // (so re-filtering never re-queries). Bounded by MaxCachedDays; an empty list means "known empty", a missing
@@ -89,12 +90,15 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
         IToastService toast,
         IUserProfileService profile,
         ICurrentUserContext user,
+        IClinicClock clock,
         IReadOnlyList<AppointmentDoctor> doctors,
         IReadOnlyList<AppointmentType> types,
         bool dayOnly,
         DateOnly initialStart,
         DateOnly initialEnd)
     {
+        _clock = clock;
+        _today = clock.Today;
         _service = service;
         _print = print;
         _dialogs = dialogs;
@@ -854,7 +858,7 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
                 AppointmentsCalendarMath.DayNumber(d),
                 AppointmentsCalendarMath.Month(d) == month,
                 d == _today,
-                AppointmentsCalendarMath.IsFriday(d))
+                AppointmentsSchedule.IsOffDay(_doctors, d))
             {
                 IsSelected = _picked.Contains(d),
                 Count = CountFor(d),
@@ -1027,6 +1031,7 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
         // builder labels them «بدون پزشک». Multi-doctor framing when >1 doctor actually appears.
         var options = new AppointmentPrintOptions
         {
+            PreparedAt = _clock.Now,
             Days = _days.ToArray(),
             Appointments = _matches.ToArray(),
             Doctors = doctors.Count > 0 ? doctors : _doctors,

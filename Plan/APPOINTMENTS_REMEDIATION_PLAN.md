@@ -375,7 +375,7 @@ or render zero-width events; large-clinic search has a documented workload budge
 
 ---
 
-### T12 — [ ] A23/A24/A25/A26/A29 (P2): platform & UX consistency + journal metadata
+### T12 — [x] A23/A24/A25/A26/A29 (P2): platform & UX consistency + journal metadata
 **Why/Evidence:** A23: SS:36–45,120,137–138 does sync `File.*` before returning completed Tasks; QS:51–54
 calls `GetTimeZone()` before first await; TZ:14–17 does sync EF `.FirstOrDefault()` → UI-thread blocking.
 A24: CVM:117,310,595–596,768–769,925 / BVM:80,518 / DVM:143 use `DateTime.Today/Now` (device-local) while

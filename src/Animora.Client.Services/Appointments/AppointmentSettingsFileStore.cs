@@ -30,6 +30,8 @@ public sealed class AppointmentSettingsFileStore : IAppointmentSettingsStore
     private readonly string _path;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private AppointmentSettings? _cache;
+    // True when the file exists but could not be read (IO/permission): the next write moves it aside first.
+    private bool _unreadableOriginal;
 
     public AppointmentSettingsFileStore(IOptions<LocalStoreOptions> store)
         : this(Path.Combine(store.Value.DataDirectory, FileName)) { }
@@ -109,25 +111,30 @@ public sealed class AppointmentSettingsFileStore : IAppointmentSettingsStore
         finally { _gate.Release(); }
     }
 
-    // Callers hold _gate.
+    // Callers hold _gate. All file-system work runs on the thread pool: the first awaited call of a UI-triggered
+    // settings operation must never stat/read/move files on the dispatcher thread (A23).
     private async Task<AppointmentSettings> LoadAsync(CancellationToken ct)
     {
         if (_cache is not null) return _cache;
-        if (!File.Exists(_path)) return _cache = AppointmentSettings.Default;
         try
         {
-            var text = await File.ReadAllTextAsync(_path, ct).ConfigureAwait(false);
+            var text = await Task.Run<string?>(async () =>
+                File.Exists(_path) ? await File.ReadAllTextAsync(_path, ct).ConfigureAwait(false) : null, ct)
+                .ConfigureAwait(false);
+            if (text is null) return _cache = AppointmentSettings.Default;
             var loaded = JsonSerializer.Deserialize<AppointmentSettings>(text, Json);
             if (loaded is not null) return _cache = Normalize(loaded);
-            return _cache = Quarantine("empty settings file");
+            return _cache = await QuarantineAsync(ct).ConfigureAwait(false);
         }
-        catch (JsonException ex)
+        catch (JsonException)
         {
-            return _cache = Quarantine(ex.Message);
+            return _cache = await QuarantineAsync(ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Transient/permission failure: do not touch the file, serve defaults for this process, and tell the user.
+            // The original stays untouched; PersistAsync preserves it before the first write replaces it.
+            _unreadableOriginal = true;
             return _cache = AppointmentSettings.Default with
             {
                 RecoveryNotice = "فایل تنظیمات نوبت خوانده نشد؛ مقادیر پیش‌فرض نمایش داده می‌شود.",
@@ -136,13 +143,12 @@ public sealed class AppointmentSettingsFileStore : IAppointmentSettingsStore
     }
 
     // Moves the unreadable original aside (never overwrites it) and serves defaults with a visible notice.
-    private AppointmentSettings Quarantine(string reason)
+    private Task<AppointmentSettings> QuarantineAsync(CancellationToken ct) => Task.Run(() =>
     {
-        _ = reason;
         var notice = "فایل تنظیمات نوبت آسیب‌دیده بود؛ نسخهٔ اصلی کنار فایل نگه داشته شد و مقادیر پیش‌فرض بارگذاری شد.";
         try
         {
-            var corrupt = $"{_path}.corrupt-{DateTime.UtcNow:yyyyMMddHHmmss}";
+            var corrupt = $"{_path}.corrupt-{DateTime.UtcNow:yyyyMMddHHmmssfff}";
             File.Move(_path, corrupt, overwrite: false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -150,17 +156,69 @@ public sealed class AppointmentSettingsFileStore : IAppointmentSettingsStore
             notice = "فایل تنظیمات نوبت آسیب‌دیده است و قابل انتقال نبود؛ مقادیر پیش‌فرض نمایش داده می‌شود.";
         }
         return AppointmentSettings.Default with { RecoveryNotice = notice };
-    }
+    }, ct);
 
     // Callers hold _gate.
     private async Task PersistAsync(AppointmentSettings settings, CancellationToken ct)
     {
-        var directory = Path.GetDirectoryName(_path);
-        if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
         var clean = settings with { RecoveryNotice = null };
-        var temp = _path + ".tmp";
-        await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(clean, Json), ct).ConfigureAwait(false);
-        File.Move(temp, _path, overwrite: true);
+        var json = JsonSerializer.Serialize(clean, Json);
+        await Task.Run(async () =>
+        {
+            var directory = Path.GetDirectoryName(_path);
+            if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+            // A26: a file we could not read is never silently overwritten - keep it beside the new one.
+            if (_unreadableOriginal && File.Exists(_path))
+                File.Move(_path, $"{_path}.unreadable-{DateTime.UtcNow:yyyyMMddHHmmssfff}", overwrite: false);
+            var temp = _path + ".tmp";
+            await File.WriteAllTextAsync(temp, json, ct).ConfigureAwait(false);
+            File.Move(temp, _path, overwrite: true);
+        }, ct).ConfigureAwait(false);
+        _unreadableOriginal = false;
         _cache = clean;
+    }
+
+    public async Task<bool> ExportToAsync(string destinationPath, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return await Task.Run(async () =>
+            {
+                if (!File.Exists(_path)) return false;
+                var bytes = await File.ReadAllBytesAsync(_path, ct).ConfigureAwait(false);
+                await File.WriteAllBytesAsync(destinationPath, bytes, ct).ConfigureAwait(false);
+                return true;
+            }, ct).ConfigureAwait(false);
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task<bool> ImportFromAsync(string sourcePath, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var restored = await Task.Run<AppointmentSettings?>(async () =>
+            {
+                if (!File.Exists(sourcePath)) return null;
+                var text = await File.ReadAllTextAsync(sourcePath, ct).ConfigureAwait(false);
+                try { return JsonSerializer.Deserialize<AppointmentSettings>(text, Json) is { } parsed ? Normalize(parsed) : null; }
+                catch (JsonException) { return null; }
+            }, ct).ConfigureAwait(false);
+            if (restored is null) return false;
+
+            // Keep the settings being replaced next to the live file; a restore never destroys data.
+            await Task.Run(() =>
+            {
+                if (File.Exists(_path))
+                    File.Move(_path, $"{_path}.replaced-{DateTime.UtcNow:yyyyMMddHHmmssfff}", overwrite: false);
+            }, ct).ConfigureAwait(false);
+            await PersistAsync(restored, ct).ConfigureAwait(false);
+            return true;
+        }
+        finally { _gate.Release(); }
     }
 }

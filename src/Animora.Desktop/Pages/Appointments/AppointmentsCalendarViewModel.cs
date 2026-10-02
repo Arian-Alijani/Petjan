@@ -47,6 +47,10 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private readonly ICapabilityGate _capabilities;
     private readonly INavigationService _navigation;
     private readonly IVisitEncounterService _encounters;
+    private readonly IClinicClock _clock;
+    private readonly Avalonia.Threading.DispatcherTimer _clockTimer = new() { Interval = TimeSpan.FromMinutes(1) };
+    private ClinicMoment _lastMoment;
+    private TimeGridWindow _window = TimeGridWindow.Default;
 
     private readonly List<AppointmentDoctor> _doctors = [];
     private readonly List<AppointmentType> _types = [];
@@ -120,8 +124,12 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         ICurrentUserContext user,
         ICapabilityGate capabilities,
         INavigationService navigation,
-        IVisitEncounterService encounters)
+        IVisitEncounterService encounters,
+        IClinicClock clock)
     {
+        _clock = clock;
+        _lastMoment = clock.Now;
+        _clockTimer.Tick += OnClockTick;
         _navigation = navigation;
         _encounters = encounters;
         _capabilities = capabilities;
@@ -143,7 +151,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         Breadcrumbs.Add("مرکز فرمان");
         Breadcrumbs.Add("نوبت‌ها");
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = _clock.Today;
         _cursor = today;
         _queueDay = today;
         _historyCalendarCursor = today;
@@ -170,14 +178,17 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     /// <summary>The 7-month-grid weekday header labels.</summary>
     public IReadOnlyList<string> MonthWeekdayHeaders { get; } = AppointmentsCalendarMath.DayNames;
 
-    /// <summary>Hour labels for the time-grid gutter (07:00 … 21:00). Populated
-    /// once during load; the gutter binds it declaratively.</summary>
-    public RangeObservableCollection<string> HourLabels { get; } = [];
+    /// <summary>Hour rows of the time grid (gutter label + separator), rebuilt from the visible window on every render.</summary>
+    public RangeObservableCollection<HourRowViewModel> HourRows { get; } = [];
 
     // Queue tab
     public RangeObservableCollection<QueueDayViewModel> QueueDays { get; } = [];
     public RangeObservableCollection<QueueDoctorColumnViewModel> QueueColumns { get; } = [];
     public RangeObservableCollection<QueueStatViewModel> QueueStats { get; } = [];
+
+    /// <summary>Doctor columns per row in the queue tab (A25).</summary>
+    [ObservableProperty]
+    private int _queueColumnCount = 1;
 
     // History tab
     public RangeObservableCollection<HistoryScopeChipViewModel> HistoryScopeChips { get; } = [];
@@ -294,6 +305,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     /// </summary>
     public override void OnNavigatedTo()
     {
+        // A24: the minute timer runs only while the page is visible.
+        _clockTimer.Start();
+
         // The constructor's initial load is still in flight on the very first visit.
         if (IsLoadInFlight)
         {
@@ -301,6 +315,78 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         _ = ReloadPageAsync();
+    }
+
+    /// <summary>Leaving the page stops the minute timer; it is restarted on the next visit (A24).</summary>
+    public override void OnNavigatedFrom()
+    {
+        _clockTimer.Stop();
+    }
+
+    // A24: advances the time-derived state (now line, now/next badges, "today" markers) without user interaction.
+    // Only the clinic-local minute/day is compared, so a device-timezone change never moves the clinic day.
+    private void OnClockTick(object? sender, EventArgs e)
+    {
+        if (_isLoading)
+        {
+            return;
+        }
+
+        var previous = _lastMoment;
+        var moment = _clock.Now;
+        if (moment == previous)
+        {
+            return;
+        }
+
+        _lastMoment = moment;
+        if (moment.Today != previous.Today)
+        {
+            // Views parked on yesterday's "today" follow the clinic into the new day.
+            if (_cursor == previous.Today) _cursor = moment.Today;
+            if (_queueDay == previous.Today) _queueDay = moment.Today;
+            _historyCalendarCursor = moment.Today;
+            _historyStale = true;
+            ShowRange(RenderActiveTabForClock, ActiveRanges());
+            return;
+        }
+
+        RenderActiveTabForClock();
+    }
+
+    private void RenderActiveTabForClock()
+    {
+        switch (_activeTab)
+        {
+            case "cal":
+                Render();
+                break;
+            case "queue":
+                RenderQueue();
+                break;
+        }
+    }
+
+    private (DateOnly Start, DateOnly End)[] ActiveRanges() => _activeTab switch
+    {
+        "queue" => QueueRanges(),
+        _ => [CalendarRange()],
+    };
+
+    // The first load resolves the clinic zone; the constructor may have seeded the cursors with the fallback zone's day.
+    private void SyncClinicDay()
+    {
+        var today = _clock.Today;
+        var seeded = _lastMoment.Today;
+        _lastMoment = _clock.Now;
+        if (today == seeded)
+        {
+            return;
+        }
+
+        if (_cursor == seeded) _cursor = today;
+        if (_queueDay == seeded) _queueDay = today;
+        if (_historyCalendarCursor == seeded) _historyCalendarCursor = today;
     }
 
     // LoadAsync has no cleanup of its own: a failure must release the re-entrancy guard so a retry can run.
@@ -331,6 +417,10 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         // Yield once before the fetch + render pipeline runs so the click that opens this page paints first.
         await Task.Yield();
         await _readiness.WaitAsync();
+
+        // A23/A24: resolve the clinic timezone off the UI path once; today/now below are clinic-local from here on.
+        await _clock.HydrateAsync();
+        SyncClinicDay();
 
         // Everything is fetched into locals first and swapped in only when the whole load succeeded, so a failure
         // keeps the previous snapshot instead of leaving the page half-cleared.
@@ -363,9 +453,6 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         {
             _activeDoctorIds.Add(d.Id);
         }
-
-        HourLabels.ReplaceAll(
-            Enumerable.Range(7, 15).Select(h => AppointmentsPresentation.HourLabel(h * 60)));
 
         HistoryDoctorOptions = BuildSelectOptions("همه پزشکان", _doctors.Select(d => (d.Id, d.ShortName)));
         HistoryTypeOptions = BuildSelectOptions("همه انواع نوبت", _types.Select(t => (t.Id, t.Label)));
@@ -431,7 +518,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private (DateOnly Start, DateOnly End)[] QueueRanges()
     {
-        var first = DateOnly.FromDateTime(DateTime.Today).AddDays(_queueOffset * 7);
+        var first = _clock.Today.AddDays(_queueOffset * 7);
         return [(first, first.AddDays(13)), (_queueDay, _queueDay)];
     }
 
@@ -741,7 +828,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         {
             RangeMainText = AppointmentsCalendarMath.Full(_cursor);
             var sub = AppointmentsCalendarMath.DayNames[AppointmentsCalendarMath.WeekIndex(_cursor)];
-            if (_cursor == DateOnly.FromDateTime(DateTime.Today))
+            if (_cursor == _clock.Today)
             {
                 sub += " · امروز";
             }
@@ -829,8 +916,15 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private void RenderTimeGrid()
     {
         IsMonthView = false;
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        var nowMinutes = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
+        var today = _clock.Today;
+        var nowMinutes = _clock.Now.Minutes;
+
+        // A25: the visible hours follow the doctors' schedules and whatever is booked in this scope, so an early or
+        // late appointment can never sit outside the grid.
+        var scopeEvents = _viewMode == "day"
+            ? OnDate(_cursor)
+            : Enumerable.Range(0, 7).SelectMany(i => OnDate(AppointmentsCalendarMath.WeekStart(_cursor).AddDays(i))).ToList();
+        var hourRows = ApplyWindow(AppointmentsLayout.Fit(_doctors, scopeEvents));
 
         // Build the whole column set first, then commit in a single Reset
         // (PERFORMANCE.md §5). The packing/lane logic is unchanged — only the
@@ -854,6 +948,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                     evs,
                     isClosed: false,
                     nowTop: _cursor == today ? NowTop(nowMinutes) : null,
+                    _window,
+                    hourRows,
                     isFirst: built.Count == 0));
             }
         }
@@ -870,33 +966,44 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                     new AppointmentColumnHeaderViewModel(
                         d,
                         isToday: d == today,
-                        isFriday: AppointmentsCalendarMath.IsFriday(d)),
+                        isOffDay: IsOffDay(d)),
                     Pack(list),
-                    isClosed: AppointmentsCalendarMath.IsFriday(d),
+                    isClosed: IsOffDay(d),
                     nowTop: d == today ? NowTop(nowMinutes) : null,
+                    _window,
+                    hourRows,
                     isFirst: built.Count == 0));
             }
         }
 
         Columns.ReplaceAll(built);
+        OnPropertyChanged(nameof(GridMinWidth));
         HasGridEvents = total > 0;
     }
 
-    private static double? NowTop(int nowMinutes)
-    {
-        if (nowMinutes < AppointmentsLayout.DayStartMinutes || nowMinutes > AppointmentsLayout.DayEndMinutes)
-        {
-            return null;
-        }
+    private double? NowTop(int nowMinutes) => _window.Contains(nowMinutes) ? _window.OffsetOf(nowMinutes) : null;
 
-        return AppointmentsLayout.MinuteToPx(nowMinutes - AppointmentsLayout.DayStartMinutes);
+    // The grid's single geometry source (A25): hour rows, column height and minimum width all derive from it.
+    private IReadOnlyList<HourRowViewModel> ApplyWindow(TimeGridWindow window)
+    {
+        _window = window;
+        var rows = Enumerable.Range(0, window.HourCount).Select(i =>
+            new HourRowViewModel(AppointmentsPresentation.HourLabel(window.StartMinutes + i * 60), i == 0)).ToList();
+        HourRows.ReplaceAll(rows);
+        return rows;
     }
+
+    /// <summary>Narrowest the time grid may get before it scrolls horizontally instead of squeezing columns.</summary>
+    public double GridMinWidth => AppointmentsLayout.GutterWidth + (Columns.Count * AppointmentsLayout.MinColumnWidth);
+
+    // A25: a day is off only when no doctor's schedule covers it.
+    private bool IsOffDay(DateOnly day) => AppointmentsSchedule.IsOffDay(_doctors, day);
 
     // ── month grid ───────────────────────────────────────────────────────────
     private void RenderMonth()
     {
         IsMonthView = true;
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = _clock.Today;
         var ms = AppointmentsCalendarMath.MonthStart(_cursor);
         var first = AppointmentsCalendarMath.WeekStart(ms);
         var mNum = AppointmentsCalendarMath.Month(ms);
@@ -926,7 +1033,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 d,
                 isOut,
                 isToday: d == today,
-                isFriday: AppointmentsCalendarMath.IsFriday(d),
+                isOffDay: IsOffDay(d),
                 shown,
                 hiddenCount: Math.Max(0, list.Count - 3),
                 isFirstInRow: i % 7 == 0));
@@ -971,7 +1078,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             var laneCount = lanes.Count;
             foreach (var a in cluster)
             {
-                var vm = new AppointmentEventViewModel(a, TypeOf(a.TypeId), DocOf(a), !Matches(a))
+                var vm = new AppointmentEventViewModel(a, TypeOf(a.TypeId), DocOf(a), !Matches(a), _window)
                 {
                     Lane = laneOf[a.Id],
                     Lanes = laneCount,
@@ -1003,8 +1110,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     // ── queue tab ────────────────────────────────────────────────────────────
     private void RenderQueue()
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        var nowMinutes = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
+        var today = _clock.Today;
+        var nowMinutes = _clock.Now.Minutes;
         var tk = today;
 
         var days = Enumerable.Range(0, 14).Select(i => today.AddDays(_queueOffset * 7 + i)).ToList();
@@ -1016,7 +1123,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             return new QueueDayViewModel(
                 d,
                 isToday: d == tk,
-                isClosed: AppointmentsCalendarMath.IsFriday(d),
+                isClosed: IsOffDay(d),
                 count: n)
             {
                 IsActive = d == _queueDay,
@@ -1073,6 +1180,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         QueueColumns.ReplaceAll(columns);
+        // A25: one column per doctor up to four across; a larger roster wraps into further rows instead of squeezing
+        // every column below a readable width.
+        QueueColumnCount = Math.Clamp(columns.Count, 1, 4);
     }
 
     // ── history tab ──────────────────────────────────────────────────────────
@@ -1109,7 +1219,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private (DateOnly? From, DateOnly? To) HistoryDateScope()
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = _clock.Today;
         switch (_historyScope)
         {
             case "today":
@@ -1226,7 +1336,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private void RenderHistory()
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = _clock.Today;
 
         var list = _historyRows;
         var perDay = list.GroupBy(a => a.Date).ToDictionary(g => g.Key, g => g.Count());
@@ -1302,7 +1412,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private void RenderHistoryCalendar()
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = _clock.Today;
 
         var monthStart = AppointmentsCalendarMath.MonthStart(_historyCalendarCursor);
         var mNum = AppointmentsCalendarMath.Month(monthStart);
@@ -1330,7 +1440,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                 isOut,
                 isToday: d == today,
                 hasHistory: histDates.Contains(d) && !isOut,
-                isFriday: AppointmentsCalendarMath.IsFriday(d),
+                isOffDay: IsOffDay(d),
                 isPast: d <= today,
                 inRange,
                 edge));
@@ -1740,7 +1850,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     [RelayCommand]
     private void GoToday()
     {
-        _cursor = DateOnly.FromDateTime(DateTime.Today);
+        _cursor = _clock.Today;
         ShowRange(Render, CalendarRange());
     }
 
@@ -1895,7 +2005,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
     private async Task OpenNewBookingAsync(DateOnly? date)
     {
-        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients);
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients, _clock);
         panel.Saved += RefreshAfterWrite;
         await panel.LoadForNewAsync(date, null, null, null);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
@@ -1908,8 +2018,9 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             _service,
             _toast,
             _dialogs,
+            _clock,
             onChanged: RefreshAfterWrite,
-            onEdit: editEv => _ = OpenEditAsync(editEv),
+            onEdit: (editEv, version) => _ = OpenEditAsync(editEv, version),
             onOpenVisit: OpenLinkedVisitAsync);
         if (await detail.LoadAsync(ev.Id))
         {
@@ -1938,11 +2049,11 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
     }
 
-    private async Task OpenEditAsync(AppointmentEvent ev)
+    private async Task OpenEditAsync(AppointmentEvent ev, string? version)
     {
-        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients);
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients, _clock);
         panel.Saved += RefreshAfterWrite;
-        await panel.LoadForEditAsync(ev);
+        await panel.LoadForEditAsync(ev, version);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
     }
 
@@ -2003,7 +2114,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         var scope = ScopeDates();
         var (from, to) = scope.Count > 0 ? (scope.Min(), scope.Max()) : (_cursor, _cursor);
         var vm = new AppointmentExportViewModel(
-            _service, _print, _dialogs, _toast, _profile, _user,
+            _service, _print, _dialogs, _toast, _profile, _user, _clock,
             _doctors.ToList(), _types.ToList(), dayOnly: false, from, to);
         _dialogs.ShowModal(new AppointmentExportView { DataContext = vm }, 980);
     }
@@ -2039,7 +2150,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     [RelayCommand]
     private void QueueGoToday()
     {
-        _queueDay = DateOnly.FromDateTime(DateTime.Today);
+        _queueDay = _clock.Today;
         ShowRange(RenderQueue, QueueRanges());
     }
 
@@ -2093,7 +2204,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     [RelayCommand]
     private void HistoryCalendarToday()
     {
-        _historyCalendarCursor = DateOnly.FromDateTime(DateTime.Today);
+        _historyCalendarCursor = _clock.Today;
         ShowRange(RenderHistoryCalendar, HistoryCalendarRange());
     }
 

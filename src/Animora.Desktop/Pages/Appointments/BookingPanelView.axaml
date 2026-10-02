@@ -429,7 +429,7 @@
                                                                 Classes.out="{Binding IsOut}"
                                                                 Classes.today="{Binding IsToday}"
                                                                 Classes.on="{Binding IsSelected}"
-                                                                Classes.off="{Binding IsFriday}"
+                                                                Classes.off="{Binding IsOffDay}"
                                                                 ToolTip.Tip="{Binding TooltipText}"
                                                                 Command="{Binding #Root.((ap:BookingPanelViewModel)DataContext).SelectDateCommand}"
                                                                 CommandParameter="{Binding DayKey}">

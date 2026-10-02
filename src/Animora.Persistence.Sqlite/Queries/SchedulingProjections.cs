@@ -41,7 +41,7 @@ internal static class SchedulingProjections
             InvoiceState = appointment.VisitId == null ? null : db.Set<Invoice>()
                 .Where(i => i.VisitId == appointment.VisitId && i.State != InvoiceState.Void)
                 .OrderByDescending(i => i.IssuedUtc).Select(i => (InvoiceState?)i.State).FirstOrDefault(),
-            AggregateVersion = appointment.Version,
+            AggregateVersion = appointment.Version, UpdatedAt = appointment.UpdatedAt,
         };
 }
 
@@ -72,4 +72,5 @@ internal sealed class AppointmentEventProjection
     public string? Currency { get; init; }
     public InvoiceState? InvoiceState { get; init; }
     public string? AggregateVersion { get; init; }
+    public DateTimeOffset UpdatedAt { get; init; }
 }

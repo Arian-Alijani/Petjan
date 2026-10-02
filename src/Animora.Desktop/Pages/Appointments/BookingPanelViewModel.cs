@@ -52,6 +52,8 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private string? _id;
     private string _type = "visit";
     private BookingPatient? _selectedPatient;
+    private readonly IClinicClock _clock;
+    private string? _expectedVersion;
     private string _doc = "d1";
     private DateOnly _date;
     private int _start = 570;
@@ -68,8 +70,10 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         IToastService toast,
         IDialogService dialogs,
         IAppointmentSettingsService settings,
-        IPatientsQueryService patients)
+        IPatientsQueryService patients,
+        IClinicClock clock)
     {
+        _clock = clock;
         _settings = settings;
         _patients = patients;
         _booking = booking;
@@ -77,7 +81,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         _catalog = catalog;
         _toast = toast;
         _dialogs = dialogs;
-        _date = DateOnly.FromDateTime(DateTime.Today);
+        _date = _clock.Today;
         _initialLoad = LoadAsync();
     }
 
@@ -625,8 +629,8 @@ public sealed partial class BookingPanelViewModel : ObservableObject
                 d,
                 isOut,
                 isSelected: d == _date,
-                isToday: d == DateOnly.FromDateTime(DateTime.Today),
-                isFriday: AppointmentsCalendarMath.IsFriday(d),
+                isToday: d == _clock.Today,
+                isOffDay: !DocOf(_doc).WorksOn(d),
                 count: counts.GetValueOrDefault(d, 0)));
         }
 
@@ -816,21 +820,21 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     [RelayCommand]
     private async Task GoToday()
     {
-        _date = DateOnly.FromDateTime(DateTime.Today);
+        _date = _clock.Today;
         await ReloadAvailableAsync();
     }
 
     [RelayCommand]
     private async Task GoTomorrow()
     {
-        _date = DateOnly.FromDateTime(DateTime.Today).AddDays(1);
+        _date = _clock.Today.AddDays(1);
         await ReloadAvailableAsync();
     }
 
     [RelayCommand]
     private async Task GoNextWeek()
     {
-        _date = DateOnly.FromDateTime(DateTime.Today).AddDays(7);
+        _date = _clock.Today.AddDays(7);
         await ReloadAvailableAsync();
     }
 
@@ -977,7 +981,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
                 await _booking.UpdateAsync(_id, new UpdateAppointmentRequest(
                     _date, start, duration, _type, _doc,
                     p.Name, p.Kind, p.OwnerName, p.Phone, p.AvatarTone, p.SpeciesIconKey,
-                    note, SendSms, SendReminder));
+                    note, SendSms, SendReminder, _expectedVersion));
                 _toast.Show("زمان جدید نوبت ذخیره شد.", Tone.Ok);
             }
             else
@@ -1029,10 +1033,11 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     /// Opens the panel pre-filled for an existing appointment (the reference's
     /// <c>S.book({ edit })</c>).
     /// </summary>
-    public async Task LoadForEditAsync(AppointmentEvent ev)
+    public async Task LoadForEditAsync(AppointmentEvent ev, string? version = null)
     {
         await _initialLoad;
         StopPatientSearch();
+        _expectedVersion = version;
         _mode = "edit";
         IsEditMode = true;
         _id = ev.Id;
@@ -1056,6 +1061,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     public async Task LoadForNewAsync(DateOnly? date, int? start, int? dur, string? doctorId)
     {
         await _initialLoad;
+        _expectedVersion = null; // a new aggregate has no observed version
         _mode = "new";
         IsEditMode = false;
         _id = null;
@@ -1067,7 +1073,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         QueryText = string.Empty;
         QueuePatientSearch();
         _kindFilter = "all";
-        _date = date ?? DateOnly.FromDateTime(DateTime.Today);
+        _date = date ?? _clock.Today;
         _start = start ?? 570;
         _doc = doctorId ?? (_doctors.Count > 0 ? _doctors[0].Id : "d1");
         await ApplySettingsAsync();

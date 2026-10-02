@@ -317,7 +317,7 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="ex:ExportDayCellViewModel">
                                                 <Button Classes="pday" Classes.sel="{Binding IsSelected}" Classes.out="{Binding !InMonth}"
-                                                        Classes.today="{Binding IsToday}" Classes.fri="{Binding IsFriday}"
+                                                        Classes.today="{Binding IsToday}" Classes.fri="{Binding IsOffDay}"
                                                         Command="{Binding #Root.((ex:AppointmentExportViewModel)DataContext).TogglePickDayCommand}"
                                                         CommandParameter="{Binding}">
                                                     <StackPanel Spacing="1" HorizontalAlignment="Center">

@@ -13,11 +13,20 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
 {
     private Task<T> QueryAsync<T>(IQuery<T> query) => calendar.QueryAsync(query);
 
-    private async Task<T> SendAsync<T>(ICommand<T> command)
+    /// <summary>
+    /// A29: the caller-observed version token rides into the durable journal envelope. A mutation of an existing
+    /// appointment passes what it read; a new aggregate (booking) deliberately passes none. The token is opaque -
+    /// only a numeric token can be journaled, anything else is dropped rather than guessed.
+    /// </summary>
+    private static long? JournalVersion(string? token) =>
+        long.TryParse(token, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var v)
+            ? v : null;
+
+    private async Task<T> SendAsync<T>(ICommand<T> command, string? expectedVersion = null)
     {
         await using var scope = scopes.CreateAsyncScope();
         var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
-        var context = await provider.BuildCommandContextAsync(null, null, null, default);
+        var context = await provider.BuildCommandContextAsync(null, null, JournalVersion(expectedVersion), default);
         if (context.IsFailure)
             throw new AppointmentOperationException(context.Error.Code, context.Error.Category, context.Detail);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().SendAsync(command, context.Value!);
@@ -32,7 +41,8 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
         if (row is null) return null;
         // A28: the creator is a real lookup; an unknown creator is labelled as such, never guessed.
         var created = string.IsNullOrWhiteSpace(row.CreatedByName) ? "نامشخص" : row.CreatedByName!;
-        return new AppointmentDetail(row.Event.ToContract(calendar.GetTimeZone()), created);
+        return new AppointmentDetail(row.Event.ToContract(await calendar.GetTimeZoneAsync()), created,
+            row.AggregateVersion);
     }
 
     public async Task<IReadOnlyList<BookingPatient>> SearchPatientsAsync(
@@ -63,7 +73,7 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
         DateOnly date, string doctorId, int startMinutes, int durationMinutes, string? exceptId)
     {
         // A21: read only this doctor's rows for the day instead of every doctor's events.
-        var tz = calendar.GetTimeZone();
+        var tz = await calendar.GetTimeZoneAsync();
         var events = (await QueryAsync(new AppointmentRangeQuery(date, date, doctorId))).Select(r => r.ToContract(tz));
         return events.Where(e => e.Id != exceptId && e.DoctorId == doctorId &&
             e.Status is AppointmentStatus.Pending or AppointmentStatus.Confirmed &&
@@ -87,7 +97,7 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
     public async Task<AppointmentEvent> UpdateAsync(string appointmentId, UpdateAppointmentRequest request)
     {
         await SendAsync(new RescheduleAppointmentCommand(appointmentId, request.Date,
-            request.StartMinutes, request.DurationMinutes));
+            request.StartMinutes, request.DurationMinutes), request.ExpectedVersion);
         return await ReadCommittedAsync(appointmentId);
     }
 
@@ -113,11 +123,11 @@ public sealed class AppointmentBookingService(IServiceScopeFactory scopes, Appoi
         }
     }
 
-    public async Task CancelAsync(string appointmentId) =>
-        _ = await SendAsync(new CancelAppointmentCommand(appointmentId, "cancelled by reception"));
+    public async Task CancelAsync(string appointmentId, string? expectedVersion = null) =>
+        _ = await SendAsync(new CancelAppointmentCommand(appointmentId, "cancelled by reception"), expectedVersion);
 
-    public async Task CheckInAsync(string appointmentId) =>
-        _ = await SendAsync(new CheckInAppointmentCommand(appointmentId));
+    public async Task CheckInAsync(string appointmentId, string? expectedVersion = null) =>
+        _ = await SendAsync(new CheckInAppointmentCommand(appointmentId), expectedVersion);
 
     private async Task<Animora.Application.UseCases.Scheduling.ReadModels.BookingPatientReadModel> ResolvePatientAsync(
         string patientId)

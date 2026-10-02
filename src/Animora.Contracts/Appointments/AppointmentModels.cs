@@ -153,7 +153,14 @@ public sealed record AppointmentDoctor(
     string ShortName,
     string Specialty,
     string Initial,
-    string Accent);
+    string Accent,
+    int WorkStartMinute = 480,
+    int WorkEndMinute = 1200,
+    int WorkDaysMask = 0b0111111)
+{
+    /// <summary>Does this doctor work on <paramref name="day"/>? Bit 0 is Saturday … bit 6 is Friday (A25).</summary>
+    public bool WorksOn(DateOnly day) => (WorkDaysMask & (1 << (((int)day.DayOfWeek + 1) % 7))) != 0;
+}
 
 /// <summary>
 /// An appointment type, mirroring a row of the reference's <c>TYPES</c> table:

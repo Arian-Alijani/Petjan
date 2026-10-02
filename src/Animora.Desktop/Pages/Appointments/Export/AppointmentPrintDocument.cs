@@ -102,7 +102,7 @@ public static class AppointmentPrintDocument
             Meta(sb, "پزشکان", o.AllDoctors ? "همه پزشکان" : string.Join("، ", o.Doctors.Select(d => d.ShortName.Length > 0 ? d.ShortName : d.Name)));
         }
 
-        Meta(sb, "تاریخ تهیه", NowText());
+        Meta(sb, "تاریخ تهیه", NowText(o));
         if (!string.IsNullOrWhiteSpace(o.PreparedBy))
         {
             Meta(sb, "تهیه‌کننده", o.PreparedBy);
@@ -397,7 +397,7 @@ public static class AppointmentPrintDocument
     private static void AppendFooter(StringBuilder sb, AppointmentPrintOptions o)
     {
         sb.Append("<footer class=\"doc-foot\"><span>").Append(E(string.IsNullOrWhiteSpace(o.ClinicName) ? "Animora" : o.ClinicName))
-          .Append(" · ").Append(E(o.Title)).Append("</span><span>تهیه شده در ").Append(E(NowText()))
+          .Append(" · ").Append(E(o.Title)).Append("</span><span>تهیه شده در ").Append(E(NowText(o)))
           .Append("</span><span class=\"sign\">امضا / مهر: </span></footer>");
     }
 
@@ -537,10 +537,11 @@ tr.x .c-pet b,tr.x .c-owner b{text-decoration:line-through}
         return contiguous ? span : $"{Fa(days.Count)} روز منتخب ({span})";
     }
 
-    private static string NowText()
+    private static string NowText(AppointmentPrintOptions o)
     {
-        var now = DateTime.Now;
-        return $"{JalaliDate.FromDateTime(now).ToString("short")} · {Fa(now.ToString("HH:mm", CultureInfo.InvariantCulture))}";
+        var at = o.PreparedAt;
+        var time = $"{at.Minutes / 60:00}:{at.Minutes % 60:00}";
+        return $"{JalaliDate.FromDateTime(at.Today.ToDateTime(TimeOnly.MinValue)).ToString("short")} · {Fa(time)}";
     }
 
     private static string PaperLabel(AppointmentPrintOptions o) => $"{o.Paper} {(o.Landscape ? "افقی" : "عمودی")}";
