@@ -398,7 +398,7 @@ If the diff grows large, push immediately.
 
 ---
 
-### [ ] T13 — P20 + P14 (P2) · Unbounded directory contract + wizard full-enumeration
+### [x] T13 — P20 + P14 (P2) · Unbounded directory contract + wizard full-enumeration
 **Root cause (confirmed):** SVC `GetPetsAsync`/`GetOwnersAsync` (SVC:85-107) route to
 `ReadDirectoryAsync` (SVC:142-158) which loops `page++` until `page*pageSize >= total` — only the
 page size (200) is bounded, not the total row count. WIZ:102-103 (`AddPatientWizardViewModel`) calls

@@ -49,8 +49,10 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly Action<AddPatientWizardResult> _onCompleted;
     private readonly bool _closeModalOnly;
-    private IReadOnlyList<OwnerSummary> _allOwners = [];
-    private IReadOnlyList<PetSummary> _allPets = [];
+    private const int OwnerLookupPageSize = 25;
+    private const int SearchDebounceMs = 220;
+    private IReadOnlyList<OwnerSummary> _owners = [];
+    private CancellationTokenSource? _searchCts;
 
     [ObservableProperty] private int _step = 1;
     [ObservableProperty] private bool _isExistingMode;
@@ -92,16 +94,53 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
         _onCompleted = onCompleted;
         _closeModalOnly = closeModalOnly;
         Referral = PatientsPresentation.Referrals[0];
-        // Non-blocking init (PERFORMANCE.md §4): load the owner/pet lookups
-        // asynchronously instead of blocking the UI thread in the constructor.
-        _ = LoadLookupsAsync();
+        // Non-blocking init (PERFORMANCE.md §4): load the first owner page asynchronously
+        // instead of blocking the UI thread in the constructor.
+        _ = LoadOwnersAsync(debounce: false);
     }
 
-    private async Task LoadLookupsAsync()
+    /// <summary>
+    /// Server-side owner lookup: one bounded page (<see cref="OwnerLookupPageSize"/>) driven by the typed
+    /// term, never a whole-directory enumeration. Typing is debounced and a newer keystroke cancels the
+    /// in-flight one so a slow earlier response can't overwrite the latest list.
+    /// </summary>
+    private async Task LoadOwnersAsync(bool debounce)
     {
-        _allOwners = await _patients.GetOwnersAsync();
-        _allPets = await _patients.GetPetsAsync();
-        RenderOwnerList();
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        var cts = _searchCts = new CancellationTokenSource();
+        var token = cts.Token;
+        try
+        {
+            if (debounce)
+            {
+                await Task.Delay(SearchDebounceMs, token);
+            }
+
+            var term = OwnerSearch.Trim();
+            var page = await _patients.GetOwnersPageAsync(new PatientsDirectoryQuery(
+                term.Length == 0 ? null : term, null, VaccineFilter.All, PatientsSortOrder.Name,
+                Page: 1, PageSize: OwnerLookupPageSize));
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _owners = page.Items;
+            RenderOwnerList();
+        }
+        catch (OperationCanceledException)
+        {
+            // superseded by a newer keystroke — nothing to render.
+        }
+        catch (InvalidOperationException)
+        {
+            if (!token.IsCancellationRequested)
+            {
+                _owners = [];
+                RenderOwnerList();
+            }
+        }
     }
 
     public PetFormViewModel Pet { get; } = new();
@@ -140,7 +179,7 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
         OnPropertyChanged(nameof(ModeHint));
     }
 
-    partial void OnOwnerSearchChanged(string value) => RenderOwnerList();
+    partial void OnOwnerSearchChanged(string value) => _ = LoadOwnersAsync(debounce: true);
 
     [RelayCommand]
     private void SetMode(string? mode) => IsExistingMode = mode == "existing";
@@ -226,20 +265,10 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
 
     private void RenderOwnerList()
     {
-        var needle = PersianText.Normalize(OwnerSearch);
-        var petCounts = _allPets.ToLookup(p => p.OwnerId);
-        var rows = new List<WizardOwnerRowViewModel>();
-        foreach (var owner in _allOwners)
+        var rows = new List<WizardOwnerRowViewModel>(_owners.Count);
+        foreach (var owner in _owners)
         {
-            var count = petCounts[owner.Id].Count();
-            var haystack = PersianText.Normalize(
-                $"{owner.FirstName} {owner.LastName} {owner.File} {owner.Mobile1} {owner.NationalId}");
-            if (needle.Length > 0 && !PersianText.Contains(haystack, needle))
-            {
-                continue;
-            }
-
-            var row = new WizardOwnerRowViewModel(owner, count);
+            var row = new WizardOwnerRowViewModel(owner, owner.PetCount);
             if (SelectedOwner is not null && SelectedOwner.Owner.Id == owner.Id)
             {
                 row.IsPicked = true;
@@ -247,6 +276,7 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
 
             rows.Add(row);
         }
+
         OwnerRows.ReplaceAll(rows);
 
         OnPropertyChanged(nameof(HasOwnerRows));

@@ -79,33 +79,6 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         return new PatientsDirectoryFacets(m.TotalOwners, m.TotalPets, species);
     }
 
-    // ── Legacy whole-directory enumeration (add-patient wizard's in-modal lookup only) ───────────
-    // Bounded by MaxPageSize; the directory page no longer calls these.
-
-    public async Task<IReadOnlyList<PetSummary>> GetPetsAsync()
-    {
-        await using var scope = scopes.CreateAsyncScope();
-        var (dispatcher, provider) = Resolve(scope);
-        var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
-        return await ReadDirectoryAsync(
-            page => dispatcher.QueryAsync(
-                new PetDirectoryQuery(null, null, PatientDirectorySort.Name, page, MaxPageSize), qc.Value!),
-            x => x.ToSummary());
-    }
-
-    public async Task<IReadOnlyList<OwnerSummary>> GetOwnersAsync()
-    {
-        await using var scope = scopes.CreateAsyncScope();
-        var (dispatcher, provider) = Resolve(scope);
-        var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
-        return await ReadDirectoryAsync(
-            page => dispatcher.QueryAsync(
-                new OwnerDirectoryQuery(null, null, PatientDirectorySort.Name, page, MaxPageSize), qc.Value!),
-            x => x.ToSummary());
-    }
-
     private static int ClampPageSize(int pageSize) => Math.Clamp(pageSize, 1, MaxPageSize);
 
     private static PatientDirectorySort MapSort(PatientsSortOrder sort) => sort switch
@@ -135,27 +108,6 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
     {
         var items = batch.Items.Select(map).ToArray();
         return new PatientsPage<TSummary>(items, batch.TotalCount, batch.Page, batch.PageSize);
-    }
-
-    // The Contracts directory is unpaged, but each database read remains bounded. Follow the
-    // EFFECTIVE page size (which can be configured below 200), not the requested size or item count.
-    // Never turn a failed later page into a successful-looking partial directory.
-    private static async Task<IReadOnlyList<TSummary>> ReadDirectoryAsync<TModel, TSummary>(
-        Func<int, Task<Result<PagedResult<TModel>>>> readPage, Func<TModel, TSummary> map)
-    {
-        var items = new List<TSummary>();
-        for (var page = 1; ; page++)
-        {
-            var result = await readPage(page).ConfigureAwait(false);
-            if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
-            var batch = result.Value!;
-            if (batch.Page != page || batch.PageSize < 1)
-                throw new InvalidOperationException("Invalid directory paging metadata.");
-            foreach (var item in batch.Items) items.Add(map(item));
-            if ((long)batch.Page * batch.PageSize >= batch.TotalCount) return items;
-            if (batch.Items.Count == 0)
-                throw new InvalidOperationException("Directory ended before its reported total.");
-        }
     }
 
     public async Task<OwnerDetail?> GetOwnerAsync(string id)

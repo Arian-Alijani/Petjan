@@ -196,7 +196,7 @@ public sealed class PatientsUseCaseTests
     [Theory]
     [InlineData(200)]
     [InlineData(37)]
-    public async Task DirectoryService_ReadsAllPagesAndOwnerRelations_AfterReopeningStore(int pageSize)
+    public async Task DirectoryService_PagesCoverEveryRowAndOwnerRelations_AfterReopeningStore(int pageSize)
     {
         using var fixture = new Animora.Persistence.Tests.LocalStoreTestFixture(
             configureOptions: options => options.MaxPageSize = pageSize,
@@ -225,8 +225,8 @@ public sealed class PatientsUseCaseTests
 
         using var reopened = fixture.BuildProvider();
         var service = new PatientsService(reopened.GetRequiredService<IServiceScopeFactory>());
-        var owners = await service.GetOwnersAsync();
-        var pets = await service.GetPetsAsync();
+        var owners = await ReadAllPagesAsync(q => service.GetOwnersPageAsync(q), pageSize);
+        var pets = await ReadAllPagesAsync(q => service.GetPetsPageAsync(q), pageSize);
         Assert.Equal(405, owners.Count);
         Assert.Equal(610, pets.Count);
         Assert.Equal(405, owners.Select(o => o.Id).Distinct().Count());
@@ -246,22 +246,38 @@ public sealed class PatientsUseCaseTests
         });
         await fixture.MigrateAsync();
         var service = new PatientsService(fixture.Services.GetRequiredService<IServiceScopeFactory>());
-        Assert.Empty(await service.GetOwnersAsync());
-        Assert.Empty(await service.GetPetsAsync());
+        Assert.Empty((await service.GetOwnersPageAsync(FirstPage())).Items);
+        Assert.Empty((await service.GetPetsPageAsync(FirstPage())).Items);
     }
 
     [Fact]
-    public async Task DirectoryService_FailedLaterPageIsNotReturnedAsPartialSuccess()
+    public async Task DirectoryService_FailedPageSurfacesErrorCodeInsteadOfEmptyResult()
     {
         var services = new ServiceCollection();
         services.AddSingleton<IDispatcher>(new FailedDirectoryDispatcher());
         services.AddSingleton<ICurrentUserProvider, DirectoryUserProvider>();
         using var provider = services.BuildServiceProvider();
         var service = new PatientsService(provider.GetRequiredService<IServiceScopeFactory>());
-        var ownersError = await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetOwnersAsync());
-        var petsError = await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetPetsAsync());
+        var ownersError = await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetOwnersPageAsync(FirstPage(page: 2)));
+        var petsError = await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetPetsPageAsync(FirstPage(page: 2)));
         Assert.Equal(ErrorCodes.StoreUnavailable.Code, ownersError.Message);
         Assert.Equal(ErrorCodes.StoreUnavailable.Code, petsError.Message);
+    }
+
+    private static Animora.Contracts.Patients.PatientsDirectoryQuery FirstPage(int page = 1, int pageSize = 200) =>
+        new(null, null, Animora.Contracts.Patients.VaccineFilter.All, Animora.Contracts.Patients.PatientsSortOrder.Name, page, pageSize);
+
+    // Walks the paged API the way a caller would (no unpaged whole-directory member exists any more).
+    private static async Task<List<T>> ReadAllPagesAsync<T>(
+        Func<Animora.Contracts.Patients.PatientsDirectoryQuery, Task<Animora.Contracts.Patients.PatientsPage<T>>> read, int pageSize)
+    {
+        var items = new List<T>();
+        for (var page = 1; ; page++)
+        {
+            var batch = await read(FirstPage(page, pageSize));
+            items.AddRange(batch.Items);
+            if (items.Count >= batch.TotalCount || batch.Items.Count == 0) return items;
+        }
     }
 
     private sealed class DirectoryUserProvider : ICurrentUserProvider
