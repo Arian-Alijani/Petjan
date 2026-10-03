@@ -209,16 +209,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         IsBusy = false;
     }
 
-    private async Task ReloadAsync()
-    {
-        Stats.ReplaceAll((await _service.GetStatsAsync()).Select(stat => new CashierStatViewModel(stat)));
-        Tabs.ReplaceAll((await _service.GetTabCountsAsync()).Select(count => new CashierTabViewModel(count)));
-
-        _invoices.Clear();
-        _invoices.AddRange(await _service.GetInvoicesAsync());
-
-        RenderList();
-    }
+    private Task ReloadAsync() => ReloadStatsAsync();
 
     private void BuildMethods()
     {
@@ -687,6 +678,10 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
         _invoices.Clear();
         _invoices.AddRange(await _service.GetInvoicesAsync());
+
+        // Always re-render the sidebar from the fresh data, independent of whether a detail is
+        // still shown, so a void/refund moves the row to its new bucket without a second click (X20).
+        RenderList();
     }
 
     private static long ParseLong(string? text)

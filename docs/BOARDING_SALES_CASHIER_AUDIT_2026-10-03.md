@@ -21,7 +21,7 @@
 - [x] X17 — DONE: Sales TakePaymentAsync re-reads the posted invoice and caps against the post-time due (Cashier already read due after post)
 - [x] X18 — DONE: Sales ready list and invoice sidebar are virtualized ListBoxes (same pattern as Cashier)
 - [x] X19 — DONE: all rebuilt sidebar/line/payment/catalog/owner/pet/day-cell/item/stat/tab/option lists are RangeObservableCollection + ReplaceAll (single Reset)
-- [ ] X20
+- [x] X20 — DONE: ReloadStatsAsync always re-renders the sidebar list (ReloadAsync now delegates to it)
 - [ ] X21
 - [ ] X22
 - [ ] X23
@@ -207,7 +207,7 @@
 - **Fix:** make these `RangeObservableCollection<T>` and call `ReplaceAll(...)` (as Cashier's `InvoiceRows`/`Stats` already do).
 - **Acceptance:** a list rebuild raises a single `Reset`.
 
-### X20 — P2 · Consistency · Cashier list not re-rendered after a mutation reloads invoices
+### ✅ X20 — P2 · Consistency · Cashier list not re-rendered after a mutation reloads invoices
 - **Evidence:** C.VM `ReloadStatsAsync` (600–610) refetches `Stats`, `Tabs`, and `_invoices` but does **not** call `RenderList()`. After `Pay/Void/Refund`, `RefreshAsync` (586–598) calls `ReloadStatsAsync` then re-shows the detail, but the left list is only re-rendered inside `ShowDetail` → `RenderList` (344–361). Inline line/discount mutations go through `RunMutationAsync` (569–579) → `ShowDetail` → `RenderList` (ok), but the footer `Pay/Void/Refund` path refreshes `_invoices` and relies on the subsequent `ShowDetail` (via `RefreshAsync`) to render — if the detail refetch returns null (`ShowEmptyDetail`, 594–597) the list is **not** re-rendered and shows stale rows/state pills.
 - **Failure:** after voiding the selected invoice (detail becomes terminal/empty) the sidebar can still show the pre-void state/tab bucket until the next interaction.
 - **Fix:** call `RenderList()` in `ReloadStatsAsync` (or in `RefreshAsync` after the reload), independent of whether a detail is shown.
