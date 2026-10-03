@@ -3,6 +3,7 @@ using Animora.Contracts.Visits;
 using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Avalonia.Media;
@@ -235,8 +236,26 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(PickedPatientGlyph));
     }
 
+    /// <summary>
+    /// Runs an awaited seam call inside a single guard so a backend <see cref="Result"/> failure
+    /// (surfaced by the Client.Services seam as <see cref="InvalidOperationException"/> carrying the
+    /// error code) becomes a <see cref="Tone.Danger"/> toast instead of escaping onto the UI
+    /// dispatcher, where it would be treated as a process crash. Mirrors Patients (V01).
+    /// </summary>
+    private async Task RunGuardedAsync(Func<Task> action, string fallbackMessage)
+    {
+        try
+        {
+            await action();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(PatientsPresentation.CommandFailureMessage(ex, fallbackMessage), Tone.Danger);
+        }
+    }
+
     [RelayCommand]
-    private async Task SelectDoctorAsync(DoctorTileViewModel? tile)
+    private Task SelectDoctorAsync(DoctorTileViewModel? tile) => RunGuardedAsync(async () =>
     {
         if (tile is null || ReferenceEquals(tile, SelectedDoctor))
         {
@@ -255,7 +274,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         BuildChips();
         BuildBookedRows();
         NotifyState();
-    }
+    }, "بارگذاری نوبت‌های پزشک ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
     private void SetMode(string? mode)
@@ -324,7 +343,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private async Task StartFromTicketAsync(BookedRowViewModel? row)
+    private Task StartFromTicketAsync(BookedRowViewModel? row) => RunGuardedAsync(async () =>
     {
         if (row is null)
         {
@@ -334,10 +353,10 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         var draft = await _service.StartFromTicketAsync(row.TicketId);
         _toast.Show($"ویزیت « {draft.PatientName} » آغاز شد (نمونه طراحی)", Tone.Ok);
         await _navigation.NavigateToAsync<VisitEncounterViewModel>(vm => vm.LoadAsync(draft));
-    }
+    }, "شروع ویزیت از نوبت ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
-    private async Task StartNewAsync()
+    private Task StartNewAsync() => RunGuardedAsync(async () =>
     {
         if (SelectedDoctor is null || PickedPatient is null)
         {
@@ -360,7 +379,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         var draft = await _service.StartNewAsync(request);
         _toast.Show($"ویزیت جدید بدون نوبت برای « {PickedPatient.Name} » آغاز شد (نمونه طراحی)", Tone.Ok);
         await _navigation.NavigateToAsync<VisitEncounterViewModel>(vm => vm.LoadAsync(draft));
-    }
+    }, "شروع ویزیت جدید ناموفق بود؛ دوباره تلاش کنید");
 
     private void SelectType(VisitTypeOptionViewModel? option)
     {

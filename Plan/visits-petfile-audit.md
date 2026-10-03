@@ -152,7 +152,11 @@ Status legend: `[ ]` pending · `[~]` in progress · `[x]` done.
 After finishing a task, mark it `[x]`, then **push** (locked rule).
 
 ### Task 1 — V01 · Guard all Visits async commands (crash root cause)
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. Added `RunGuardedAsync(Func<Task>, string)` to EVM and TVM (reuses
+  `PatientsPresentation.CommandFailureMessage`); wrapped EVM `NextStepAsync/PreviousStepAsync/
+  SaveDraftAsync/BackToGate/RemoveRxLineAsync/NextVisit` and TVM `SelectDoctorAsync/StartFromTicketAsync/
+  StartNewAsync` (commands now return `RunGuardedAsync(async () => {…}, fallback)`). `using
+  Animora.Desktop.Pages.Patients;` added to both VMs.
 - **Priority:** P1 · **Push message:** `fix(visits): guard async commands so backend failures toast instead of crashing (V01)`
 - **Goal:** No awaited seam call in a Visits RelayCommand may let an `InvalidOperationException`
   escape to the dispatcher. Reuse the Patients pattern.

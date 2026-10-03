@@ -6,6 +6,7 @@ using Animora.Contracts.Identity;
 using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Avalonia.Media;
@@ -321,8 +322,27 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         }
     }
 
+    /// <summary>
+    /// Runs an awaited seam call inside a single guard so a backend <see cref="Result"/> failure
+    /// (surfaced by the Client.Services seam as <see cref="InvalidOperationException"/> carrying the
+    /// error code) becomes a <see cref="Tone.Danger"/> toast instead of escaping onto the UI
+    /// dispatcher, where <c>GlobalExceptionHandler</c> would treat it as a process crash
+    /// (CRASH_RECOVERY_REQUIRED). Mirrors the Patients page convention (V01).
+    /// </summary>
+    private async Task RunGuardedAsync(Func<Task> action, string fallbackMessage)
+    {
+        try
+        {
+            await action();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(PatientsPresentation.CommandFailureMessage(ex, fallbackMessage), Tone.Danger);
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanAdvance))]
-    private async Task NextStepAsync()
+    private Task NextStepAsync() => RunGuardedAsync(async () =>
     {
         if (CurrentStep == EncounterStep.Review)
         {
@@ -332,10 +352,10 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
         await PersistAsync();
         CurrentStep = (EncounterStep)((int)CurrentStep + 1);
-    }
+    }, "ادامهٔ ویزیت ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
-    private async Task PreviousStepAsync()
+    private Task PreviousStepAsync() => RunGuardedAsync(async () =>
     {
         if (CurrentStep == EncounterStep.Vitals)
         {
@@ -344,7 +364,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
         await PersistAsync();
         CurrentStep = (EncounterStep)((int)CurrentStep - 1);
-    }
+    }, "بازگشت به مرحلهٔ قبل ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
     private void GoToStep(EncounterStepViewModel? step)
@@ -359,22 +379,22 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     }
 
     [RelayCommand(CanExecute = nameof(CanEditVisit))]
-    private async Task SaveDraftAsync()
+    private Task SaveDraftAsync() => RunGuardedAsync(async () =>
     {
         await PersistAsync();
         await _service.FlushAsync();
         _toast.Show("پیش‌نویس ویزیت ذخیره شد.", Tone.Ok);
-    }
+    }, "ذخیرهٔ پیش‌نویس ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
-    private async Task BackToGate()
+    private Task BackToGate() => RunGuardedAsync(async () =>
     {
         await _service.FlushAsync();
         _navigation.NavigateTo<VisitsTriagePageViewModel>();
-    }
+    }, "بازگشت به صفحهٔ ویزیت ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand(CanExecute = nameof(CanEditVisit))]
-    private async Task RemoveRxLineAsync(RxLineViewModel? line)
+    private Task RemoveRxLineAsync(RxLineViewModel? line) => RunGuardedAsync(async () =>
     {
         if (line is null)
         {
@@ -392,14 +412,14 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         }
 
         RecomputeSubtotal();
-    }
+    }, "حذف ردیف ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
-    private async Task NextVisit()
+    private Task NextVisit() => RunGuardedAsync(async () =>
     {
         await _service.FlushAsync();
         _navigation.NavigateTo<VisitsTriagePageViewModel>();
-    }
+    }, "رفتن به ویزیت بعدی ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
     private void HandoffToCashier()
