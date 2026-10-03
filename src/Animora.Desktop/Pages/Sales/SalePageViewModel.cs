@@ -222,7 +222,17 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             return;
         }
 
-        var detail = await _service.GetInvoiceAsync(id);
+        InvoiceDetail? detail;
+        try
+        {
+            detail = await _service.GetInvoiceAsync(id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowFailure(ex, "بازکردن فاکتور ناموفق بود؛ دوباره تلاش کنید");
+            return;
+        }
+
         if (detail is null)
         {
             return;
@@ -270,26 +280,36 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         }
         catch (InvalidOperationException ex)
         {
-            _toast.Show(
-                Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(
-                    ex, "صدور فاکتور از ویزیت ناموفق بود؛ از فهرست «آمادهٔ صدور» دوباره تلاش کنید"),
-                Tone.Danger);
+            ShowFailure(ex, "صدور فاکتور از ویزیت ناموفق بود؛ از فهرست «آمادهٔ صدور» دوباره تلاش کنید");
         }
     }
+
+    /// <summary>Surfaces a typed backend failure as a danger toast instead of letting it escape onto the UI dispatcher (X09).</summary>
+    private void ShowFailure(InvalidOperationException ex, string fallback) =>
+        _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, fallback), Tone.Danger);
 
     [RelayCommand]
     private async Task NewBlankInvoice()
     {
-        var detail = await _service.CreateBlankAsync(InvoiceKind.Sale);
-        NotifyInvoicesChanged();
-        _segment = "invoices";
-        OnPropertyChanged(nameof(IsReadySegment));
-        OnPropertyChanged(nameof(IsInvoicesSegment));
+        InvoiceDetail detail;
+        try
+        {
+            detail = await _service.CreateBlankAsync(InvoiceKind.Sale);
+            NotifyInvoicesChanged();
+            _segment = "invoices";
+            OnPropertyChanged(nameof(IsReadySegment));
+            OnPropertyChanged(nameof(IsInvoicesSegment));
 
-        await ReloadListsAsync();
-        RenderSidebar();
-        ShowInvoice(detail);
-        await RefreshKpisAsync();
+            await ReloadListsAsync();
+            RenderSidebar();
+            ShowInvoice(detail);
+            await RefreshKpisAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowFailure(ex, "ایجاد فاکتور جدید ناموفق بود؛ دوباره تلاش کنید");
+            return;
+        }
 
         // A blank sale needs an owner/guest before items are added (mirrors the
         // reference's picker-first flow for walk-in sales).
@@ -376,16 +396,23 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             return;
         }
 
-        var detail = await _service.VoidAsync(SelectedInvoice.Id);
-        if (detail is null)
+        try
         {
-            _toast.Show("خطا در ابطال", Tone.Danger);
-            return;
-        }
+            var detail = await _service.VoidAsync(SelectedInvoice.Id);
+            if (detail is null)
+            {
+                _toast.Show("خطا در ابطال", Tone.Danger);
+                return;
+            }
 
-        _toast.Show($"فاکتور «{detail.Id}» ابطال شد", Tone.Ok);
-        NotifyInvoicesChanged();
-        await RefreshAfterMutationAsync();
+            _toast.Show($"فاکتور «{detail.Id}» ابطال شد", Tone.Ok);
+            NotifyInvoicesChanged();
+            await RefreshAfterMutationAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowFailure(ex, "ابطال فاکتور ناموفق بود؛ دوباره تلاش کنید");
+        }
     }
 
     [RelayCommand]

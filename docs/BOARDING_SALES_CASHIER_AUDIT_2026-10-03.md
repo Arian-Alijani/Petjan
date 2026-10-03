@@ -10,7 +10,7 @@
 - [x] X06 — DONE: Applied amount carried on Sales/Cashier refund+pay results; toasts show ledger amount (Cashier refund also clamped)
 - [x] X07 — DONE: success screen refreshes _paid from the post-payment invoice
 - [x] X08 — DONE: BoardingHistoryCriteria applies range/kinds/species/search in SQL; totals over filtered set
-- [ ] X09
+- [x] X09 — DONE: Sales/Cashier mutation + load commands wrapped; typed failures surface as danger toasts, modals stay open
 - [ ] X10
 - [ ] X11
 - [ ] X12
@@ -137,7 +137,7 @@
 - **Fix:** extend `BoardingHistoryQuery` + its persistence to accept range/kinds/species and apply them server-side (match the Sales history query surface).
 - **Acceptance:** selecting «۷ روز اخیر» + kind «پرداخت» changes both rows and summary totals.
 
-### X09 — P1 · Crash risk · Non-Boarding mutation commands have no error handling either
+### ✅ X09 — P1 · Crash risk · Non-Boarding mutation commands have no error handling either
 - **Evidence:** No try/catch around the awaited service calls in: S.VM `NewBlankInvoice` (280–298), `VoidAsync` (372–389), `SelectInvoice` (217–240); S.PAY `PayAsync` is guarded by `result.Ok` (ok) but S.CAT `AddAsync` (211–224), S.OWN `SelectOwnerAsync/SelectGuestAsync` (69–92) are not; C.VM `Pay/Void/Refund/AddLine/SetDiscount/SetInsurance/Recalculate` (428–567) are not; S.IVVM `VoidConfirmed`/`DeleteConfirmed` are `async void` (see X10). Sales/Cashier services return a `*Result.Ok` for *some* ops but **throw** for others (`AddLineAsync`, `PickOwnerAsync`, `Ensure(...)` at C.SVC:155–158, `RequireDetailAsync` throwing `INVOICE_NOT_FOUND`).
 - **Failure:** the throwing ops (add line, pick owner, any `Require`/`Ensure` miss) escape onto the UI dispatcher as an unhandled exception. The mix of "returns Result" and "throws" across one service is inconsistent, so callers cannot uniformly guard.
 - **Fix:** make each service method's failure mode uniform (prefer returning a result), and wrap every command-invoking `RelayCommand` in try/catch → danger toast. Reuse `PatientsPresentation.CommandFailureMessage` as S.VM already does.

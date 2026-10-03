@@ -217,7 +217,19 @@ public sealed partial class CatalogModalViewModel : ObservableObject
             return;
         }
 
-        await _service.AddLineAsync(_invoiceId, item, 1);
+        try
+        {
+            await _service.AddLineAsync(_invoiceId, item, 1);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(
+                Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(
+                    ex, "افزودن آیتم ناموفق بود؛ دوباره تلاش کنید"),
+                Tone.Danger);
+            return;
+        }
+
         _toast.Show($"«{item.Title}» به فاکتور افزوده شد", Tone.Ok);
         _onChanged?.Invoke();
         await RefreshRecentAsync();

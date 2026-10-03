@@ -322,14 +322,21 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
             return;
         }
 
-        var detail = await _service.GetDetailAsync(id);
-        if (detail is null)
+        try
         {
-            return;
-        }
+            var detail = await _service.GetDetailAsync(id);
+            if (detail is null)
+            {
+                return;
+            }
 
-        ResetPayment();
-        ShowDetail(detail);
+            ResetPayment();
+            ShowDetail(detail);
+        }
+        catch (System.InvalidOperationException ex)
+        {
+            ShowFailure(ex, "بازکردن فاکتور ناموفق بود؛ دوباره تلاش کنید");
+        }
     }
 
     private void ResetPayment()
@@ -441,20 +448,28 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
         var id = Detail.Id;
         var request = new CashierPayRequest(ActiveMethod, amount, PayReferenceText, PayNoteText);
-        var result = await _service.PayAsync(id, request);
 
-        if (!result.Ok)
+        try
         {
-            _toast.Show(result.Error ?? "خطا در ثبت پرداخت", Tone.Danger);
-            return;
+            var result = await _service.PayAsync(id, request);
+
+            if (!result.Ok)
+            {
+                _toast.Show(result.Error ?? "خطا در ثبت پرداخت", Tone.Danger);
+                return;
+            }
+
+            var verb = result.Invoice?.State == CashierInvoiceState.Settled ? "تسویه شد" : "پرداخت ثبت شد";
+            _toast.Show($"{verb} · {CashierPresentation.Money(result.Applied)}", Tone.Ok);
+
+            ResetPayment();
+            NotifyInvoicesChanged();
+            await RefreshAsync(id);
         }
-
-        var verb = result.Invoice?.State == CashierInvoiceState.Settled ? "تسویه شد" : "پرداخت ثبت شد";
-        _toast.Show($"{verb} · {CashierPresentation.Money(result.Applied)}", Tone.Ok);
-
-        ResetPayment();
-        NotifyInvoicesChanged();
-        await RefreshAsync(id);
+        catch (System.InvalidOperationException ex)
+        {
+            ShowFailure(ex, "ثبت پرداخت ناموفق بود؛ دوباره تلاش کنید");
+        }
     }
 
     [RelayCommand]
@@ -466,16 +481,23 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         }
 
         var id = Detail.Id;
-        var result = await _service.VoidAsync(id);
-        if (!result.Ok)
+        try
         {
-            _toast.Show(result.Error ?? "خطا در ابطال", Tone.Danger);
-            return;
-        }
+            var result = await _service.VoidAsync(id);
+            if (!result.Ok)
+            {
+                _toast.Show(result.Error ?? "خطا در ابطال", Tone.Danger);
+                return;
+            }
 
-        _toast.Show("فاکتور ابطال شد", Tone.Ok);
-        NotifyInvoicesChanged();
-        await RefreshAsync(id);
+            _toast.Show("فاکتور ابطال شد", Tone.Ok);
+            NotifyInvoicesChanged();
+            await RefreshAsync(id);
+        }
+        catch (System.InvalidOperationException ex)
+        {
+            ShowFailure(ex, "ابطال فاکتور ناموفق بود؛ دوباره تلاش کنید");
+        }
     }
 
     [RelayCommand]
@@ -493,17 +515,24 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
             amount = Detail.Detail.Paid;
         }
 
-        var result = await _service.RefundAsync(id, new CashierRefundRequest(amount));
-        if (!result.Ok)
+        try
         {
-            _toast.Show(result.Error ?? "خطا در عودت", Tone.Danger);
-            return;
-        }
+            var result = await _service.RefundAsync(id, new CashierRefundRequest(amount));
+            if (!result.Ok)
+            {
+                _toast.Show(result.Error ?? "خطا در عودت", Tone.Danger);
+                return;
+            }
 
-        _toast.Show($"عودت ثبت شد · {CashierPresentation.Money(result.Applied)}", Tone.Ok);
-        RefundAmountText = string.Empty;
-        NotifyInvoicesChanged();
-        await RefreshAsync(id);
+            _toast.Show($"عودت ثبت شد · {CashierPresentation.Money(result.Applied)}", Tone.Ok);
+            RefundAmountText = string.Empty;
+            NotifyInvoicesChanged();
+            await RefreshAsync(id);
+        }
+        catch (System.InvalidOperationException ex)
+        {
+            ShowFailure(ex, "ثبت عودت ناموفق بود؛ دوباره تلاش کنید");
+        }
     }
 
     [RelayCommand]
@@ -525,8 +554,10 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
             return;
         }
 
-        await RunMutationAsync(() => _service.AddLineAsync(Detail.Id, SelectedCatalogOption.Id));
-        SelectedCatalogOption = null;
+        if (await RunMutationAsync(() => _service.AddLineAsync(Detail.Id, SelectedCatalogOption.Id)))
+        {
+            SelectedCatalogOption = null;
+        }
     }
 
     [RelayCommand]
@@ -553,17 +584,51 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         await RunMutationAsync(() => _service.SetInsuranceAsync(Detail.Id, insurerId));
     }
 
-    private async Task RunMutationAsync(System.Func<Task<CashierInvoiceDetail>> mutation)
+    /// <summary>
+    /// Runs one inline invoice edit. A backend failure is surfaced as a danger toast (and the detail is
+    /// re-read so the controls drop any rejected edit) instead of escaping onto the UI dispatcher (X09).
+    /// </summary>
+    private async Task<bool> RunMutationAsync(System.Func<Task<CashierInvoiceDetail>> mutation)
     {
         if (Detail is null)
         {
-            return;
+            return false;
         }
 
-        var updated = await mutation();
-        ShowDetail(updated);
-        await ReloadStatsAsync();
+        var id = Detail.Id;
+        try
+        {
+            var updated = await mutation();
+            ShowDetail(updated);
+            await ReloadStatsAsync();
+            return true;
+        }
+        catch (System.InvalidOperationException ex)
+        {
+            ShowFailure(ex, "ویرایش فاکتور ناموفق بود؛ دوباره تلاش کنید");
+            await TryRestoreDetailAsync(id);
+            return false;
+        }
     }
+
+    private async Task TryRestoreDetailAsync(string id)
+    {
+        try
+        {
+            var detail = await _service.GetDetailAsync(id);
+            if (detail is not null)
+            {
+                ShowDetail(detail);
+            }
+        }
+        catch (System.InvalidOperationException)
+        {
+            // The failure toast was already shown; the next refresh re-syncs the panel.
+        }
+    }
+
+    private void ShowFailure(System.InvalidOperationException ex, string fallback) =>
+        _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, fallback), Tone.Danger);
 
     /// <summary>A payment/void/refund moves stock-linked invoices, the ledger, the sales list and the dashboard KPIs.</summary>
     private void NotifyInvoicesChanged() => _changes.Notify(

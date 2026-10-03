@@ -77,7 +77,11 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
 
         var pick = new OwnerPickResult(
             false, row.Id, row.FullName, row.PetName, row.Mobile);
-        await _service.PickOwnerAsync(_invoiceId, pick);
+        if (!await TryPickAsync(pick))
+        {
+            return;
+        }
+
         _dialogs.Close();
         _toast.Show($"مشتری «{row.FullName}» انتخاب شد", Tone.Ok);
         _onPicked?.Invoke();
@@ -86,9 +90,31 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
     [RelayCommand]
     private async Task SelectGuestAsync()
     {
-        await _service.PickOwnerAsync(_invoiceId, new OwnerPickResult(true, string.Empty, string.Empty, string.Empty, string.Empty));
+        if (!await TryPickAsync(new OwnerPickResult(true, string.Empty, string.Empty, string.Empty, string.Empty)))
+        {
+            return;
+        }
+
         _dialogs.Close();
         _onPicked?.Invoke();
+    }
+
+    /// <summary>Assigns the pick; a backend failure keeps the picker open with a danger toast (X09).</summary>
+    private async Task<bool> TryPickAsync(OwnerPickResult pick)
+    {
+        try
+        {
+            await _service.PickOwnerAsync(_invoiceId, pick);
+            return true;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(
+                Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(
+                    ex, "انتخاب مشتری ناموفق بود؛ دوباره تلاش کنید"),
+                Tone.Danger);
+            return false;
+        }
     }
 
     [RelayCommand]
