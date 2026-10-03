@@ -37,8 +37,8 @@
 - [x] X33 — DONE: transfer hint guillemets balanced («pet» — «owner»)
 - [x] X34 — DONE: each Boarding read operation (stays, detail, history) resolves dispatcher + clock + zone + services through ONE DI scope instead of a scope per read
 - [x] X35 — DONE: RefreshCards short-circuits when data version + (tab, species, normalized query) are unchanged; query normalized once per filter; re-selecting the current tab is a no-op
-- [ ] X36
-- [ ] X37
+- [x] X36 — DONE: day cells index consumed items by date once (O(nights + items), no per-day allocation)
+- [x] X37 — DONE: Add/RemoveItem return the updated StayDetail which the modal applies locally (one detail round trip); page refresh scoped to the stay list
 - [ ] X38
 - [x] X39 — DONE: no double/UI money math left for line subtotals (shared with X26; print helpers deleted)
 - [ ] X40
@@ -303,13 +303,13 @@
 - **Fix:** hoist the normalized query out of the predicate; short-circuit when `(tab, species, query)` is unchanged (PERF §13).
 - **Acceptance:** re-selecting the current tab does no rebuild; one normalization per filter.
 
-### X36 — P2 · §2 · Boarding detail builds per-day item lists with O(days×items) LINQ
+### ✅ X36 — P2 · §2 · Boarding detail builds per-day item lists with O(days×items) LINQ
 - **Evidence:** B.DET:240–251 loops `for i in 0..nights` and inside each iteration does `items.Where(it => it.At == date).ToList()` — O(nights × items) with a `ToList` allocation per day.
 - **Failure:** for a long stay with many consumed items this is quadratic with per-day allocations; runs on every detail open and after each add/remove (via `LoadAsync`).
 - **Fix:** group items by date once (`ILookup`/`Dictionary`) before the loop and index into it.
 - **Acceptance:** day-cell build is O(nights + items) with no per-day allocation.
 
-### X37 — P2 · §4 pattern · Detail mutations reload via full `LoadAsync` instead of applying the returned detail
+### ✅ X37 — P2 · §4 pattern · Detail mutations reload via full `LoadAsync` instead of applying the returned detail
 - **Evidence:** B.DET `AddItemAsync`/`RemoveItemAsync` (311–336) call the service then `await LoadAsync()` (full detail refetch + full rebuild of header/timeline/day-cells/items/totals) and then `_onChanged` which reloads the whole page (B.VM `RefreshAfterWrite` → `RefreshAfterChangeAsync`, 294–308: stays + rooms + services + history).
 - **Failure:** adding one consumed item triggers a detail refetch + a full page reload (stays/rooms/services/history) — many round trips for a single-line change.
 - **Fix:** have the add/remove service return the updated detail and `Apply` it locally; debounce/scope the page refresh to Boarding data only.

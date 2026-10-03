@@ -287,6 +287,23 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         _ = RefreshAfterChangeAsync();
     }
 
+    /// <summary>
+    /// Consumed-item add/remove only changes the stay list (costs/badges): refresh that
+    /// scope instead of stays + rooms + services + history (X37).
+    /// </summary>
+    private void RefreshAfterItemChange()
+    {
+        _changes.Notify(DataDomain.Boarding, DataDomain.Cashier, DataDomain.History, DataDomain.Dashboard);
+        _ = RefreshStaysOnlyAsync();
+    }
+
+    private async Task RefreshStaysOnlyAsync()
+    {
+        await ReloadStaysAsync();
+        RefreshTabCounts();
+        RefreshCards();
+    }
+
     private async Task RefreshAfterChangeAsync()
     {
         await ReloadStaysAsync();
@@ -360,7 +377,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         _dialogs.ShowModal(
             new StayDetailModalViewModel(
                 _service, _toast, _dialogs, _print, stayId,
-                onChanged: RefreshAfterWrite,
+                onChanged: RefreshAfterItemChange,
                 onTransfer: stay => ShowTransfer(stay),
                 onCheckout: stay => ShowCheckout(stay),
                 onGotoCashier: GotoCashier),

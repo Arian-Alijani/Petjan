@@ -76,16 +76,20 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
         return row.ToContract(services, now, zone);
     }
 
-    public async Task AddItemAsync(string stayId, string itemRef, int quantity) =>
+    public async Task<StayDetail> AddItemAsync(string stayId, string itemRef, int quantity)
+    {
         _ = await SendAsync(new AddStayItemCommand(stayId, itemRef, quantity));
+        return await GetDetailAsync(stayId) ?? throw new InvalidOperationException("STAY_NOT_FOUND");
+    }
 
-    public async Task RemoveItemAsync(string stayId, int index)
+    public async Task<StayDetail> RemoveItemAsync(string stayId, int index)
     {
         var detail = await QueryAsync(new BoardingStayDetailQuery(stayId));
         if (detail is null) throw new InvalidOperationException("STAY_NOT_FOUND");
         var item = detail.Items.ElementAtOrDefault(index);
         if (item is null) throw new InvalidOperationException("STAY_ITEM_INDEX_STALE");
         _ = await SendAsync(new RemoveStayItemCommand(stayId, index, item.ItemId));
+        return await GetDetailAsync(stayId) ?? throw new InvalidOperationException("STAY_NOT_FOUND");
     }
 
     public async Task TransferAsync(string stayId) =>

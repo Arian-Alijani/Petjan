@@ -28,15 +28,15 @@ public interface IBoardingQueryService
     /// <summary>
     /// Records a consumed line (service/good) against an active stay, mirroring
     /// the reference's add-row handler (which re-opens the detail modal after
-    /// the mutation).
+    /// the mutation). Returns the updated detail so callers apply it without a refetch (X37).
     /// </summary>
-    Task AddItemAsync(string stayId, string itemRef, int quantity);
+    Task<StayDetail> AddItemAsync(string stayId, string itemRef, int quantity);
 
     /// <summary>
     /// Removes a consumed line by its index, mirroring the reference's
-    /// <c>[data-rm]</c> handler.
+    /// <c>[data-rm]</c> handler. Returns the updated detail (X37).
     /// </summary>
-    Task RemoveItemAsync(string stayId, int index);
+    Task<StayDetail> RemoveItemAsync(string stayId, int index);
 
     /// <summary>
     /// Marks a stay's invoice as transferred to the cashier, mirroring the

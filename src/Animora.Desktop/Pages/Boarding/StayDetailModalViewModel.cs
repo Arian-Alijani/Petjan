@@ -200,6 +200,12 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
             return;
         }
 
+        Apply(detail);
+    }
+
+    /// <summary>Renders a detail snapshot (initial load, or the detail a mutation returned — X37).</summary>
+    private void Apply(StayDetail detail)
+    {
         _stay = detail.Stay;
         var stay = detail.Stay;
         var items = detail.Items;
@@ -243,18 +249,26 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         ElapsedText = $"{BoardingPresentation.Fa(elapsed)} از {BoardingPresentation.Fa(nights)} شب گذشته";
         DayLabelBrush = BoardingPresentation.DayLabelBrush(overdue, remaining);
 
+        // Items are counted per date once, so the day-cell build is O(nights + items)
+        // with no per-day list allocation (X36).
+        var itemsPerDay = new Dictionary<DateOnly, int>();
+        foreach (var it in items)
+        {
+            itemsPerDay[it.At] = itemsPerDay.GetValueOrDefault(it.At) + 1;
+        }
+
         var dayCells = new List<BoardingDayCellViewModel>(Math.Max(nights, 0));
         for (var i = 0; i < nights; i++)
         {
             var date = stay.CheckIn.AddDays(i);
             var isPast = i < elapsed;
             var isToday = date == _today && stay.Status == BoardingStatus.Active;
-            var dayItems = items.Where(it => it.At == date).ToList();
+            var dayItemCount = itemsPerDay.GetValueOrDefault(date);
             var tooltip = BoardingPresentation.Long(date)
-                + (dayItems.Count > 0
-                    ? $" — {BoardingPresentation.Fa(dayItems.Count)} مورد مصرفی"
+                + (dayItemCount > 0
+                    ? $" — {BoardingPresentation.Fa(dayItemCount)} مورد مصرفی"
                     : string.Empty);
-            dayCells.Add(new BoardingDayCellViewModel(i + 1, date, isPast, isToday, dayItems.Count > 0, tooltip));
+            dayCells.Add(new BoardingDayCellViewModel(i + 1, date, isPast, isToday, dayItemCount > 0, tooltip));
         }
 
         DayCells.ReplaceAll(dayCells);
@@ -317,9 +331,10 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     [RelayCommand]
     private async Task RemoveItemAsync(int index)
     {
+        StayDetail detail;
         try
         {
-            await _service.RemoveItemAsync(StayId, index);
+            detail = await _service.RemoveItemAsync(StayId, index);
         }
         catch (InvalidOperationException ex)
         {
@@ -329,7 +344,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         }
 
         _toast.Show("مورد حذف شد", Tone.Warn);
-        await LoadAsync();
+        Apply(detail);
         _onChanged?.Invoke();
     }
 
@@ -343,9 +358,10 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         }
 
         var quantity = int.TryParse(PersianNumberFormatter.ToAsciiDigits(AddQuantityText), out var q) ? q : 1;
+        StayDetail detail;
         try
         {
-            await _service.AddItemAsync(StayId, SelectedAddOption.Item.Ref, Math.Max(1, quantity));
+            detail = await _service.AddItemAsync(StayId, SelectedAddOption.Item.Ref, Math.Max(1, quantity));
         }
         catch (InvalidOperationException ex)
         {
@@ -356,7 +372,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         _toast.Show($"«{SelectedAddOption.Item.Title}» به اقلام «{PetName}» اضافه شد");
         SelectedAddOption = null;
         AddQuantityText = "1";
-        await LoadAsync();
+        Apply(detail);
         _onChanged?.Invoke();
     }
 
