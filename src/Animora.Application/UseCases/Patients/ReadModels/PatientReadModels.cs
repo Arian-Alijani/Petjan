@@ -36,6 +36,17 @@ public enum PatientDirectorySort
 public sealed record PatientDirectoryFacetsReadModel(
     int TotalOwners, int TotalPets, IReadOnlyDictionary<PetSpecies, int> SpeciesCounts);
 
+/// <summary>
+/// One clinical event (visit or recorded vaccine dose) of one of an owner's pets. <paramref name="Code"/> is the
+/// visit-reason name for a visit and the vaccine name for a dose; the client maps it to display text.
+/// </summary>
+public sealed record OwnerClinicalEventRow(
+    string Id, bool IsVisit, string PetId, string PetName, string Code, string? Detail, DateTimeOffset OccurredUtc, DateTimeOffset? NextDueUtc = null);
+
+/// <summary>Newest clinical events of an owner (bounded) plus the real totals over the whole history.</summary>
+public sealed record OwnerClinicalActivityReadModel(
+    IReadOnlyList<OwnerClinicalEventRow> Events, int VisitCount, int VaccineCount);
+
 /// <summary>Owner sheet: profile + live pet roster.</summary>
 public sealed record OwnerDetailReadModel(OwnerSummaryReadModel Owner, IReadOnlyList<PetSummaryReadModel> Pets);
 

@@ -35,6 +35,12 @@ public interface IPatientsQueryService
     /// <summary>Full owner record (profile + live pet roster) for the Owner Sheet, or null when unknown.</summary>
     Task<OwnerDetail?> GetOwnerAsync(string id);
 
+    /// <summary>
+    /// The owner's unified cross-section activity (invoices, reminder SMS, vaccine doses, visits), newest
+    /// first and bounded server-side, plus the real per-source counts. Merged in the service, not the ViewModel.
+    /// </summary>
+    Task<OwnerActivityFeed> GetOwnerActivityAsync(string ownerId);
+
     /// <summary>Full pet record (profile + weight/visit/vaccination/document collections) for the Pet File, or null when unknown.</summary>
     Task<PetDetail?> GetPetAsync(string id);
 

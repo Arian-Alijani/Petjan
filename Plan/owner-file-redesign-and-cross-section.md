@@ -322,7 +322,7 @@ hard-coded `"۰"` must become the real count from D3 (or the owner's pets' visit
 
 ### Phase 4 — Unified activity + Vaccination↔Appointments (Task B core)
 
-- [ ] **T8 — Owner activity feed (seam, merges T4/T6 + visits/vaccines).**
+- [x] **T8 — Owner activity feed (seam, merges T4/T6 + visits/vaccines).**
   Add `Task<IReadOnlyList<OwnerActivityEntry>> GetOwnerActivityAsync(string ownerId)` to
   `IPatientsQueryService` + DTO `OwnerActivityEntry(DateTime When, OwnerActivityKind Kind, string Title,
   string Subtitle, string? Amount)` and `enum OwnerActivityKind { Invoice, Sms, Vaccine, Visit }`.

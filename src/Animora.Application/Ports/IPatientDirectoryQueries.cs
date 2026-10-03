@@ -23,5 +23,8 @@ public interface IPatientDirectoryQueries
 
     Task<OwnerDetailReadModel?> GetOwnerAsync(string ownerId, CancellationToken ct);
 
+    /// <summary>The owner's newest visits + vaccine doses (merged, newest first, at most <paramref name="take"/>) and their total counts.</summary>
+    Task<OwnerClinicalActivityReadModel> GetOwnerClinicalActivityAsync(string ownerId, int take, CancellationToken ct);
+
     Task<PetDetailReadModel?> GetPetAsync(string petId, CancellationToken ct);
 }
