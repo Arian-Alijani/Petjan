@@ -432,17 +432,14 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     }, "رفتن به ویزیت بعدی ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
-    private void HandoffToCashier()
+    private Task HandoffToCashierAsync() => RunGuardedAsync(async () =>
     {
-        // Reference (visit.js #doneToCashierBtn): toast then navigate to the
-        // cashier/sale screen. Per the roadmap's decision log this product flow
-        // targets Sale/POS (sale-page.js buildFromEncounter is the real
-        // encounter→invoice function), so the completed encounter id is handed
-        // to SalePageViewModel which issues the invoice from it (Phase 29 wiring).
-        _toast.Show("انتقال به صندوق (نمونه طراحی).", Tone.Ok);
-        _navigation.NavigateTo<Animora.Desktop.Pages.Sales.SalePageViewModel>(
-            vm => vm.BuildFromEncounterCommand.Execute(_encounterId));
-    }
+        // The completed encounter id is handed to SalePageViewModel, which issues the invoice from it
+        // (sale-page.js buildFromEncounter parity). The awaitable path means a failed hand-off toasts
+        // on the Sales page rather than escaping from a fire-and-forget command.
+        await _navigation.NavigateToAsync<Animora.Desktop.Pages.Sales.SalePageViewModel>(
+            vm => vm.BuildFromEncounterAsync(_encounterId));
+    }, "انتقال به صندوق ناموفق بود؛ دوباره تلاش کنید");
 
     private async Task CompleteAsync()
     {

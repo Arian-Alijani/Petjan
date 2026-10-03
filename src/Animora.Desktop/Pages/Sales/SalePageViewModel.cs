@@ -240,24 +240,41 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private async Task BuildFromEncounter(string? encounterId)
+    private Task BuildFromEncounter(string? encounterId) => BuildFromEncounterAsync(encounterId);
+
+    /// <summary>
+    /// Issues the invoice for a completed encounter. Awaitable so the visits hand-off can await it
+    /// through navigation; a backend failure (e.g. no hand-off owns the id) is surfaced as a danger
+    /// toast instead of escaping onto the UI dispatcher as a crash (V05).
+    /// </summary>
+    public async Task BuildFromEncounterAsync(string? encounterId)
     {
         if (string.IsNullOrEmpty(encounterId))
         {
             return;
         }
 
-        var detail = await _service.CreateFromEncounterAsync(encounterId);
-        _segment = "invoices";
-        OnPropertyChanged(nameof(IsReadySegment));
-        OnPropertyChanged(nameof(IsInvoicesSegment));
+        try
+        {
+            var detail = await _service.CreateFromEncounterAsync(encounterId);
+            _segment = "invoices";
+            OnPropertyChanged(nameof(IsReadySegment));
+            OnPropertyChanged(nameof(IsInvoicesSegment));
 
-        NotifyInvoicesChanged();
-        await ReloadListsAsync();
-        RenderSidebar();
-        ShowInvoice(detail);
-        await RefreshKpisAsync();
-        _toast.Show($"فاکتور «{detail.Id}» از ویزیت صادر شد — آمادهٔ دریافت پرداخت", Tone.Ok);
+            NotifyInvoicesChanged();
+            await ReloadListsAsync();
+            RenderSidebar();
+            ShowInvoice(detail);
+            await RefreshKpisAsync();
+            _toast.Show($"فاکتور «{detail.Id}» از ویزیت صادر شد — آمادهٔ دریافت پرداخت", Tone.Ok);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(
+                Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(
+                    ex, "صدور فاکتور از ویزیت ناموفق بود؛ از فهرست «آمادهٔ صدور» دوباره تلاش کنید"),
+                Tone.Danger);
+        }
     }
 
     [RelayCommand]

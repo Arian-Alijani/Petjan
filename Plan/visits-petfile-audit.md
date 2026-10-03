@@ -252,7 +252,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** walk-in without phone blocked with a field message; no crash at "شروع ویزیت".
 
 ### Task 5 — V05 + V14 · Awaitable cashier hand-off & correct done copy
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. EVM `HandoffToCashierAsync` (guarded) awaits `NavigateToAsync<SalePageViewModel>(vm => vm.BuildFromEncounterAsync(id))`; new public awaitable `SalePageViewModel.BuildFromEncounterAsync` catches backend failures → danger toast on Sales page (the relay command delegates to it). DoneStepView copy reworded and the stub label + stale toast removed (binding name unchanged: `HandoffToCashierCommand`).
 - **Priority:** P1 · **Push message:** `fix(visits): make cashier handoff awaitable and correct done-screen copy (V05,V14)`
 - **Goal:** A missing/failed handoff shows a toast on the Sales page; the done screen never crashes;
   done copy matches the real handoff state.
