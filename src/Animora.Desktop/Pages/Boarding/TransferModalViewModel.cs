@@ -72,7 +72,16 @@ public sealed partial class TransferModalViewModel : ObservableObject
     [RelayCommand]
     private async Task ConfirmAsync()
     {
-        await _service.TransferAsync(_stay.Id);
+        try
+        {
+            await _service.TransferAsync(_stay.Id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, "انتقال به صندوق ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            return;
+        }
+
         _dialogs.Close();
         _toast.Show($"فاکتور «{_stay.PetName}» به مبلغ {TotalText} به صندوق منتقل شد (نمونه طراحی)");
         _onTransferred?.Invoke();

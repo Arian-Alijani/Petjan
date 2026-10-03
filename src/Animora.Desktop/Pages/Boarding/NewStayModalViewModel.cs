@@ -284,7 +284,16 @@ public sealed partial class NewStayModalViewModel : ObservableObject
             petName, species, breed, owner, phone, patientId, room,
             checkIn.Value, checkOut.Value, Math.Max(0, rate), paymentMode, NoteText);
 
-        var stay = await _service.CreateStayAsync(request);
+        BoardingStay stay;
+        try
+        {
+            stay = await _service.CreateStayAsync(request);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, "ثبت پذیرش ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            return;
+        }
 
         var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
         _dialogs.Close();

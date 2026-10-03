@@ -3,7 +3,7 @@
 ## Progress checklist (updated after every task)
 
 - [x] X01 — DONE: WalkInBoarder find-or-create owner/pet + PaymentMode persisted (migration 024)
-- [ ] X02
+- [x] X02 — DONE: try/catch + danger toast on create/checkout/transfer/add/remove
 - [ ] X03
 - [ ] X04
 - [ ] X05
@@ -91,7 +91,7 @@
 - **Fix:** either extend `CreateBoardingStayCommand` + the Boarding domain to accept the manual-entry identity + payment mode, or remove the manual tab and make `PatientId` required at the picker. Do not accept fields the seam silently drops.
 - **Acceptance:** a manual walk-in persists pet/owner/species/breed/phone; the selected payment mode round-trips on reopen.
 
-### X02 — P0 · False confirmation · Boarding writes claim success unconditionally (no error handling)
+### ✅ X02 — P0 · False confirmation · Boarding writes claim success unconditionally (no error handling)
 - **Evidence:** B.NEW:287–292 `await CreateStayAsync(...)` then unconditionally `Close()` + success toast; no try/catch. Same shape: B.CHK:50–55 (checkout), B.TR:73–78 (transfer), B.DET:311–336 (add/remove item). B.SVC `QueryAsync`/`SendAsync` (B.SVC:15–35) **throw `ServiceException` on failure**.
 - **Failure:** any authorization/validation/capacity failure throws out of an `async` `RelayCommand` onto the UI dispatcher → unhandled exception (crash/stutter) *and* the toast fires only on the success path, so a partial failure can both crash and have already shown "ثبت شد". For checkout/transfer the user believes the room is freed / invoice sent when it was not.
 - **Fix:** wrap each mutation in try/catch, surface the typed error as a danger toast (the pattern already exists at S.VM:257–277 `BuildFromEncounterAsync`), and only close + toast success after the awaited call returns without error.

@@ -311,7 +311,17 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     [RelayCommand]
     private async Task RemoveItemAsync(int index)
     {
-        await _service.RemoveItemAsync(StayId, index);
+        try
+        {
+            await _service.RemoveItemAsync(StayId, index);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, "حذف مورد ناموفق بود؛ فهرست به‌روز شد، دوباره تلاش کنید"), Tone.Danger);
+            await LoadAsync();
+            return;
+        }
+
         _toast.Show("مورد حذف شد (نمونه طراحی)", Tone.Warn);
         await LoadAsync();
         _onChanged?.Invoke();
@@ -327,7 +337,16 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         }
 
         var quantity = int.TryParse(PersianNumberFormatter.ToAsciiDigits(AddQuantityText), out var q) ? q : 1;
-        await _service.AddItemAsync(StayId, SelectedAddOption.Item.Ref, Math.Max(1, quantity));
+        try
+        {
+            await _service.AddItemAsync(StayId, SelectedAddOption.Item.Ref, Math.Max(1, quantity));
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, "افزودن مورد ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            return;
+        }
+
         _toast.Show($"«{SelectedAddOption.Item.Title}» به اقلام «{PetName}» اضافه شد (نمونه طراحی)");
         SelectedAddOption = null;
         AddQuantityText = "1";
