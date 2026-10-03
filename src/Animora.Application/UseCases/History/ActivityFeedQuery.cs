@@ -7,7 +7,7 @@ namespace Animora.Application.UseCases.History;
 
 public sealed record ActivityRow(string Id, DateTimeOffset OccurredUtc, string Kind, string TitleKey,
     string DetailArgsJson, string EntityType, string EntityId, long AmountMinor, int AmountSign,
-    string Status, string ActorUserId, string ActorName);
+    string Status, string ActorUserId, string ActorName, string DetailText = "");
 
 public sealed record ActivityPage(IReadOnlyList<ActivityRow> Items, int TotalCount, long IncomeTotal, long ExpenseTotal);
 

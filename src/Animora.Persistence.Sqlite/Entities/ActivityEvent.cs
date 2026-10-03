@@ -43,6 +43,16 @@ public sealed class ActivityEvent
     /// <summary>JSON arguments for the localized detail line (e.g. {"number":"04-000123"}); may be empty.</summary>
     public string DetailArgsJson { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// Resolved display lines, one <c>Key=Value</c> per line (ASCII key, e.g. <c>Pet=Rex</c>, <c>Owner=…</c>),
+    /// filled once at write time so the feed never shows raw ULIDs and never re-parses JSON per row. The
+    /// Persian label for each key lives in the Desktop <c>HistoryText</c>. Empty for legacy/no-arg rows.
+    /// </summary>
+    public string DetailText { get; private set; } = string.Empty;
+
+    /// <summary>Compact free-text search column: the resolved names (values of <see cref="DetailText"/>).</summary>
+    public string SearchText { get; private set; } = string.Empty;
+
     /// <summary>Source aggregate type tag (e.g. "Invoice", "Pet", "Cheque").</summary>
     public string EntityType { get; private set; } = string.Empty;
 
@@ -85,7 +95,9 @@ public sealed class ActivityEvent
         string actorUserId,
         string actorName,
         string? correlationId,
-        string? eventId = null)
+        string? eventId = null,
+        string? detailText = null,
+        string? searchText = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(kind);
@@ -109,6 +121,8 @@ public sealed class ActivityEvent
             ActorUserId = actorUserId ?? string.Empty,
             ActorName = actorName ?? string.Empty,
             CorrelationId = correlationId,
+            DetailText = detailText ?? string.Empty,
+            SearchText = searchText ?? string.Empty,
         };
     }
 }

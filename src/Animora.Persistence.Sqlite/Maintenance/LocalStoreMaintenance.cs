@@ -249,8 +249,10 @@ public sealed class LocalStoreMaintenance(
                 if (source is null || source.TenantId != tenantId) continue;
                 var draft = ActivityFeedMapper.Map(source);
                 if (draft is null) continue;
+                var (detail, search) = await ActivityDetailResolver.ResolveAsync(context, draft.DetailArgsJson, ct);
                 context.Set<ActivityEvent>().Add(ActivityFeedWriter.Create(draft, zone,
-                    actor: message.ActorUserId, correlationId: message.CorrelationId));
+                    actor: message.ActorUserId, correlationId: message.CorrelationId,
+                    detailText: detail, searchText: search));
                 written++;
                 // Keep tracked projections bounded even for a long-lived outbox.
                 if (written % 500 == 0)

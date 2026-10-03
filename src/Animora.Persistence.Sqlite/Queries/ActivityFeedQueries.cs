@@ -32,8 +32,7 @@ public sealed class ActivityFeedQueries(AnimoraLocalDbContext db) : IActivityFee
         if (kinds.Length > 0) query = query.Where(x => kinds.Contains(x.Kind));
         var search = f.Search?.Trim();
         if (!string.IsNullOrEmpty(search)) query = query.Where(x =>
-            x.Title.Contains(search) || x.DetailArgsJson.Contains(search) ||
-            x.EntityId.Contains(search) || x.ActorName.Contains(search));
+            x.SearchText.Contains(search) || x.Title.Contains(search) || x.ActorName.Contains(search));
         return query;
     }
 
@@ -48,7 +47,7 @@ public sealed class ActivityFeedQueries(AnimoraLocalDbContext db) : IActivityFee
     private static IQueryable<ActivityRow> Project(IQueryable<ActivityEvent> q) => q.Select(x =>
         new ActivityRow(x.Id, x.OccurredUtc, x.Kind, x.Title, x.DetailArgsJson,
             x.EntityType, x.EntityId, x.AmountMinor, x.AmountSign, x.Status,
-            x.ActorUserId, x.ActorName));
+            x.ActorUserId, x.ActorName, x.DetailText));
 
     public async Task<ActivityPage> PageAsync(string tenantId, HistoryFilter filter, CancellationToken ct)
     {

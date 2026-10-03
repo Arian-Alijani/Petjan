@@ -45,7 +45,7 @@ internal static class HistoryMapping
         var cal = new PersianCalendar();
         return new HistoryEvent(row.Id, Enum.Parse<HistoryEventKind>(row.Kind),
             $"{cal.GetYear(local.DateTime):0000}/{cal.GetMonth(local.DateTime):00}/{cal.GetDayOfMonth(local.DateTime):00}",
-            local.ToString("HH:mm", CultureInfo.InvariantCulture), row.TitleKey, row.DetailArgsJson,
+            local.ToString("HH:mm", CultureInfo.InvariantCulture), row.TitleKey, row.DetailText,
             row.EntityType + ":" + row.EntityId, row.AmountMinor, row.AmountSign,
             Enum.Parse<HistoryEventStatus>(row.Status),
             string.IsNullOrWhiteSpace(row.ActorUserId) ? ActorRef.System :

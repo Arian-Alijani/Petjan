@@ -229,7 +229,7 @@ can collapse to DEFAULT), P2-12 (tone/icon/glyph derived from mutable names → 
 dimension; duplicate/blank SKU is caught client-side with an inline error before send.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "fix(inventory): persist category/code/attr, guard SKU, drop glyph edit (P1-5,P1-6,P2-13,P2-12)"`
 
-### T6 — [ ] History feed stores resolved display names at write time (P1-2, P2-8, P2-2)
+### T6 — [x] History feed stores resolved display names at write time (P1-2, P2-8, P2-2)
 **Findings:** P1-2 (detail renders raw ULIDs instead of pet/owner/product names — the whole audit-trail value defeated),
 P2-8 (`HistoryText.Detail` re-parses arg JSON per row per render on the UI thread), P2-2 (search `LIKE %term%` over the
 opaque JSON blob is a full scan that matches nothing useful).

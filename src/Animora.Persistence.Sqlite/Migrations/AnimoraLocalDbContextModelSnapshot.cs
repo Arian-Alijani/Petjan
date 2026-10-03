@@ -3367,6 +3367,11 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasMaxLength(400)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DetailText")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EntityId")
                         .IsRequired()
                         .HasMaxLength(26)
@@ -3387,6 +3392,11 @@ namespace Animora.Persistence.Sqlite.Migrations
 
                     b.Property<long>("OccurredUtc")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("SearchText")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Status")
                         .IsRequired()
