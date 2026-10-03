@@ -49,7 +49,13 @@ internal static class VisitsMapping
             row.IsUrgent, row.IsSynthetic, row.AtMinutes, row.DurationMinutes, row.Note, row.SourceTicketId);
     }
 
-    private static string Initial(string value) => value.Length == 0 ? string.Empty : value[..1];
+    // First user-perceived character (text element), so a leading surrogate pair / combining sequence is never split.
+    private static string Initial(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        var e = System.Globalization.StringInfo.GetTextElementEnumerator(value);
+        return e.MoveNext() ? (string)e.Current : string.Empty;
+    }
     private static string Icon(string kind) => kind switch
     {
         "Dog" => "dog", "Cat" => "cat", "Bird" => "bird", "Rabbit" => "rabbit", _ => "paw",

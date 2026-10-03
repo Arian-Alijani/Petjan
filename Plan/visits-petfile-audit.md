@@ -448,7 +448,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** tiles show real specialty (if available) and an in-visit indicator.
 
 ### Task 15 — V16 · Unicode-safe avatar initial
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. `VisitsMapping.Initial` now returns the first text element via `StringInfo.GetTextElementEnumerator` (surrogate-pair / combining-mark safe).
 - **Priority:** P2 · **Push message:** `fix(visits): take first text element for avatar initial to avoid surrogate split (V16)`
 - **Goal:** Avatar initials render correctly for non-BMP leading characters.
 - **Current:** `VisitsMapping.Initial(value) => value.Length == 0 ? "" : value[..1]` (VMAP line 35) —
