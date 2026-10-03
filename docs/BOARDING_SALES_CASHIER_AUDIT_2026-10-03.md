@@ -14,7 +14,7 @@
 - [x] X10 — DONE: InvoiceViewer void/delete converted to awaitable Task handlers guarded by GuardAsync (also guards edit/return/discount/insurance); no async void left in the three screens
 - [x] X11 — DONE: Boarding settings: removed fake rate/toggle/add/edit stubs and hardcoded constants; tab now shows live rooms+services only
 - [x] X12 — DONE: removed the (نمونه طراحی) suffix from every real boarding mutation toast
-- [ ] X13
+- [x] X13 — DONE: Real print preview (invoice, payment receipt, day report, stay bill) via IPrintService + shared PrintDocumentBuilder; Cashier export = real CSV save; no false success toasts
 - [ ] X14
 - [ ] X15
 - [ ] X16
@@ -161,7 +161,7 @@
 - **Fix:** drop the "(نمونه طراحی)" suffix from every toast whose underlying call is a real mutation.
 - **Acceptance:** real mutations show a plain success message; the phrase survives only where the action is a genuine stub (ideally nowhere — see X11/X13).
 
-### X13 — P1 · Non-functional buttons · Print / Export are stubs across all three screens
+### ✅ X13 — P1 · Non-functional buttons · Print / Export are stubs across all three screens
 - **Evidence:** B.DET:339 `Print`; S.VM:433 `PrintDay`; S.PAY:273 `Print`; S.IVVM:552 `Print`; C.VM:522,525,528 `Print`/`PrintInvoice`/`Export` — all `_toast.Show("… (نمونه طراحی)" | "نسخهٔ بعدی" | "به‌زودی")`.
 - **Failure:** every receipt/invoice print and the Excel export are inert; the cashier's day-report, payment receipt, and invoice print do nothing. For a cashier/accounting product these are core, not cosmetic.
 - **Fix:** implement a print/export path (even a minimal PDF/HTML receipt), or disable+label the buttons as unavailable rather than claiming an action occurred.

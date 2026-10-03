@@ -30,6 +30,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
+    private readonly IPrintService _print;
     private readonly List<ReadyEncounterRef> _readyEncounters = [];
     private readonly List<InvoiceSummary> _invoices = [];
 
@@ -67,9 +68,10 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private bool _hasReadyVisitBadge;
 
     public SalePageViewModel(ISalesQueryService service, IStoreReadinessGate readiness,
-        IToastService toast, IDialogService dialogs, IDataChangeNotifier changes)
+        IToastService toast, IDialogService dialogs, IDataChangeNotifier changes, IPrintService print)
     {
         _service = service;
+        _print = print;
         _changes = changes;
         _readiness = readiness;
         _toast = toast;
@@ -83,7 +85,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         Segments.Add(new SaleSegmentViewModel("ready", "صف ویزیت"));
         Segments.Add(new SaleSegmentViewModel("invoices", "فاکتورها"));
 
-        History = new SaleHistoryViewModel(service, toast, dialogs, NotifyInvoicesChanged);
+        History = new SaleHistoryViewModel(service, toast, dialogs, print, NotifyInvoicesChanged);
 
         UseLoadStatus(ReloadPageAsync);
         // The ready-visit queue is fed by completed encounters; the cashier settles the same invoices.
@@ -363,7 +365,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         }
 
         _dialogs.ShowModal(
-            new PaymentModalViewModel(_service, _toast, _dialogs, SelectedInvoice.Id, RefreshAfterMutation),
+            new PaymentModalViewModel(_service, _toast, _dialogs, _print, SelectedInvoice.Id, RefreshAfterMutation),
             520);
     }
 
@@ -457,8 +459,13 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         }
     }
 
+    /// <summary>Opens the day report (every loaded invoice + the headline KPIs) in the print preview (X13).</summary>
     [RelayCommand]
-    private void PrintDay() => _toast.Show("گزارش روز به چاپگر ارسال شد (نمونه طراحی)", Tone.Ok);
+    private async Task PrintDay()
+    {
+        var html = SalesPrintDocuments.DayReport(_invoices, Kpi, _print.EmbeddedFontCss);
+        await _print.OpenWithToastAsync(_toast, "sales-day-report", html);
+    }
 
     private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
 

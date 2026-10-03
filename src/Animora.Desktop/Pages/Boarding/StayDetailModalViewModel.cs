@@ -24,6 +24,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     private readonly IBoardingQueryService _service;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
+    private readonly IPrintService _print;
     private readonly Action? _onChanged;
     private readonly Action<BoardingStay>? _onTransfer;
     private readonly Action<BoardingStay>? _onCheckout;
@@ -35,6 +36,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         IBoardingQueryService service,
         IToastService toast,
         IDialogService dialogs,
+        IPrintService print,
         string stayId,
         Action? onChanged = null,
         Action<BoardingStay>? onTransfer = null,
@@ -44,6 +46,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         _service = service;
         _toast = toast;
         _dialogs = dialogs;
+        _print = print;
         _onChanged = onChanged;
         _onTransfer = onTransfer;
         _onCheckout = onCheckout;
@@ -354,8 +357,30 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         _onChanged?.Invoke();
     }
 
+    /// <summary>Opens the stay bill (fresh read, so it matches the persisted state) in the print preview (X13).</summary>
     [RelayCommand]
-    private void Print() => _toast.Show("چاپ صورتحساب — نسخه بعدی (نمونه طراحی)", Tone.Info);
+    private async Task Print()
+    {
+        try
+        {
+            var detail = await _service.GetDetailAsync(StayId);
+            if (detail is null)
+            {
+                _toast.Show("اقامت پیدا نشد؛ صفحه را به‌روز کنید", Tone.Danger);
+                return;
+            }
+
+            await _print.OpenWithToastAsync(
+                _toast, $"boarding-{StayId}", BoardingPrintDocuments.StayBill(detail, _print.EmbeddedFontCss));
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(
+                Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(
+                    ex, "چاپ صورتحساب ناموفق بود؛ دوباره تلاش کنید"),
+                Tone.Danger);
+        }
+    }
 
     [RelayCommand]
     private void Transfer()

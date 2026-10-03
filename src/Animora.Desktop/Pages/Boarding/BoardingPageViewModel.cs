@@ -28,6 +28,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
+    private readonly IPrintService _print;
     private readonly INavigationService _navigation;
 
     private readonly List<BoardingStay> _stays = [];
@@ -39,8 +40,9 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private BoardingSpecies? _species;
 
     public BoardingPageViewModel(IBoardingQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs, INavigationService navigation,
-        IDataChangeNotifier changes)
+        IDataChangeNotifier changes, IPrintService print)
     {
+        _print = print;
         _service = service;
         _changes = changes;
         _readiness = readiness;
@@ -354,7 +356,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private void ShowDetail(string stayId) =>
         _dialogs.ShowModal(
             new StayDetailModalViewModel(
-                _service, _toast, _dialogs, stayId,
+                _service, _toast, _dialogs, _print, stayId,
                 onChanged: RefreshAfterWrite,
                 onTransfer: stay => ShowTransfer(stay),
                 onCheckout: stay => ShowCheckout(stay),

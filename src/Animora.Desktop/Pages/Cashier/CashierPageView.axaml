@@ -302,7 +302,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Path Classes="icon" Width="14" Height="14" Stroke="White"
                               Data="{StaticResource IconDownload}" />
-                        <TextBlock Text="خروجی اکسل" />
+                        <TextBlock Text="خروجی اکسل (CSV)" />
                     </StackPanel>
                 </Button>
             </StackPanel>

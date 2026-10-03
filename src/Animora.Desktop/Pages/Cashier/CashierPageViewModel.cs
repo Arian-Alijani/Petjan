@@ -31,15 +31,20 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
+    private readonly IPrintService _print;
+    private readonly IDialogService _dialogs;
 
     private readonly List<CashierInvoice> _invoices = [];
+    private List<CashierInvoice> _visibleInvoices = [];
     private bool _suppressSelects;
 
     private CashierTab _tab = CashierTab.Open;
 
     public CashierPageViewModel(ICashierService service, IStoreReadinessGate readiness, IToastService toast,
-        IDataChangeNotifier changes)
+        IDataChangeNotifier changes, IPrintService print, IDialogService dialogs)
     {
+        _print = print;
+        _dialogs = dialogs;
         _service = service;
         _changes = changes;
         _readiness = readiness;
@@ -295,6 +300,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
             .ThenByDescending(i => i.Id, System.StringComparer.Ordinal)
             .ToList();
 
+        _visibleInvoices = sorted;
         InvoiceRows.ReplaceAll(sorted.Select(inv => new CashierInvoiceRowViewModel(inv)
         {
             IsActive = Detail is not null && Detail.Id == inv.Id,
@@ -536,13 +542,42 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void Print() => _toast.Show("گزینهٔ چاپ در نسخهٔ بعدی فعال می‌شود (نمونه طراحی)", Tone.Info);
+    private Task Print() => PrintSelectedInvoiceAsync();
 
     [RelayCommand]
-    private void PrintInvoice() => _toast.Show("گزینهٔ چاپ در نسخهٔ بعدی فعال می‌شود (نمونه طراحی)", Tone.Info);
+    private Task PrintInvoice() => PrintSelectedInvoiceAsync();
 
+    /// <summary>Opens the selected invoice in the print preview; with nothing selected it says so instead of faking success (X13).</summary>
+    private async Task PrintSelectedInvoiceAsync()
+    {
+        if (Detail is null)
+        {
+            _toast.Show("ابتدا یک فاکتور را برای چاپ انتخاب کنید", Tone.Warn);
+            return;
+        }
+
+        var html = CashierPrintDocuments.Invoice(Detail.Detail, _print.EmbeddedFontCss);
+        await _print.OpenWithToastAsync(_toast, $"cashier-invoice-{Detail.Id}", html);
+    }
+
+    /// <summary>Saves the invoices currently listed (active tab + search) as a UTF-8 CSV that Excel opens directly (X13).</summary>
     [RelayCommand]
-    private void Export() => _toast.Show("خروجی اکسل به‌زودی (نمونه طراحی)", Tone.Info);
+    private async Task Export()
+    {
+        if (_visibleInvoices.Count == 0)
+        {
+            _toast.Show("فاکتوری برای خروجی وجود ندارد", Tone.Warn);
+            return;
+        }
+
+        var csv = CashierPrintDocuments.InvoicesCsv(_visibleInvoices);
+        var name = "cashier-invoices-" + JalaliCalendar.Today.Replace('/', '-') + ".csv";
+        var saved = await _dialogs.SaveTextFileAsync(name, csv, "csv");
+        if (saved)
+        {
+            _toast.Show("خروجی فاکتورها ذخیره شد", Tone.Ok);
+        }
+    }
 
     // ── Inline add-line / discount / insurance ──────────────────────────
 

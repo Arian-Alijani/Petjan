@@ -28,6 +28,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private readonly ISalesQueryService _service;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
+    private readonly IPrintService _print;
     private readonly string _invoiceId;
     private readonly Action? _onChanged;
 
@@ -37,12 +38,14 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         ISalesQueryService service,
         IToastService toast,
         IDialogService dialogs,
+        IPrintService print,
         string invoiceId,
         Action? onChanged = null)
     {
         _service = service;
         _toast = toast;
         _dialogs = dialogs;
+        _print = print;
         _invoiceId = invoiceId;
         _onChanged = onChanged;
 
@@ -477,7 +480,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private void TakePayment()
     {
         _dialogs.Close();
-        _dialogs.ShowModal(new PaymentModalViewModel(_service, _toast, _dialogs, _invoiceId, OnChanged), 520);
+        _dialogs.ShowModal(new PaymentModalViewModel(_service, _toast, _dialogs, _print, _invoiceId, OnChanged), 520);
     }
 
     [RelayCommand]
@@ -579,8 +582,18 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         }
     }
 
+    /// <summary>Opens the loaded invoice in the print preview (X13).</summary>
     [RelayCommand]
-    private void Print() => _toast.Show("فاکتور به چاپگر ارسال شد (نمونه طراحی)", Tone.Ok);
+    private async Task Print()
+    {
+        if (_detail is null)
+        {
+            return;
+        }
+
+        await _print.OpenWithToastAsync(
+            _toast, $"invoice-{_detail.Id}", SalesPrintDocuments.Invoice(_detail, _print.EmbeddedFontCss));
+    }
 
     [RelayCommand]
     private void Close() => _dialogs.Close();

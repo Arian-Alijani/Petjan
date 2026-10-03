@@ -142,6 +142,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private readonly IPatientsQueryService _patients;
     private readonly IRecordSheetPresenter _presenter;
     private readonly IDialogService _dialogs;
+    private readonly IPrintService _print;
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
     private readonly ISalesQueryService _sales;
@@ -170,8 +171,10 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         IToastService toast,
         IDataChangeNotifier changes,
         ISalesQueryService sales,
-        IVaccinationService vaccination)
+        IVaccinationService vaccination,
+        IPrintService print)
     {
+        _print = print;
         _sales = sales;
         _vaccination = vaccination;
         _patients = patients;
@@ -438,7 +441,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         var ownerId = _owner?.Id;
         _dialogs.ShowSheet(
             new InvoiceViewerViewModel(
-                _sales, _toast, _dialogs, row.Id,
+                _sales, _toast, _dialogs, _print, row.Id,
                 () =>
                 {
                     if (ownerId is not null)

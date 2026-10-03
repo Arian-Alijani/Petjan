@@ -23,23 +23,27 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     private readonly ISalesQueryService _service;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
+    private readonly IPrintService _print;
     private readonly string _invoiceId;
     private readonly Action? _onChanged;
 
     private long _due;
     private long _total;
     private long _paid;
+    private PaymentResult? _lastResult;
 
     public PaymentModalViewModel(
         ISalesQueryService service,
         IToastService toast,
         IDialogService dialogs,
+        IPrintService print,
         string invoiceId,
         Action? onChanged = null)
     {
         _service = service;
         _toast = toast;
         _dialogs = dialogs;
+        _print = print;
         _invoiceId = invoiceId;
         _onChanged = onChanged;
 
@@ -234,6 +238,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     private async Task ShowSettlementSuccessAsync(PaymentResult result)
     {
         var detail = result.Invoice;
+        _lastResult = result;
         // Refund-from-success must offer what was actually collected, not the pre-payment paid value.
         _paid = detail.Paid;
         var readyCount = await GetReadyCountAsync();
@@ -272,8 +277,19 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         _dialogs.ShowModal(new RefundModalViewModel(_service, _toast, _dialogs, _invoiceId, _paid, _onChanged), 480);
     }
 
+    /// <summary>Opens the payment receipt (the settled invoice + this payment) in the print preview (X13).</summary>
     [RelayCommand]
-    private void Print() => _toast.Show("رسید به چاپگر ارسال شد (نمونه طراحی)", Tone.Ok);
+    private async Task Print()
+    {
+        if (_lastResult is null)
+        {
+            return;
+        }
+
+        var html = SalesPrintDocuments.Invoice(
+            _lastResult.Invoice, _print.EmbeddedFontCss, "رسید پرداخت", _lastResult.Applied);
+        await _print.OpenWithToastAsync(_toast, $"receipt-{_lastResult.Invoice.Id}", html);
+    }
 
     [RelayCommand]
     private void Close() => _dialogs.Close();
