@@ -64,14 +64,6 @@ public sealed record StayDetail(
     IReadOnlyList<BoardingStayItem> Items);
 
 /// <summary>
-/// Confirmation payload for a checkout. The reference's <c>openCheckoutModal</c>
-/// renders no editable fields — only a summary line and a warning banner — so
-/// this request intentionally carries nothing; it exists so the seam keeps the
-/// same signature a future backend would need (R-18).
-/// </summary>
-public sealed record CheckoutRequest;
-
-/// <summary>
 /// The payload the new-stay modal submits, mirroring the fields
 /// <c>openNewStayModal</c>'s «ثبت پذیرش» handler collects (pet/owner identity,
 /// room, dates, nightly rate, payment mode, care note).

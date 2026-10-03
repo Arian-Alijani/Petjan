@@ -75,7 +75,7 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
     public async Task TransferAsync(string stayId) =>
         _ = await SendAsync(new TransferStayRoomCommand(stayId));
 
-    public async Task CheckoutAsync(string stayId, CheckoutRequest request) =>
+    public async Task CheckoutAsync(string stayId) =>
         _ = await SendAsync(new CheckoutStayCommand(stayId));
 
     public async Task<BoardingStay> CreateStayAsync(NewStayRequest request)

@@ -33,7 +33,7 @@
 - [x] X29 — DONE: Cashier list is queried per tab + search with SQL ordering and paging (50/page, «نمایش بیشتر»); no more whole-table load on every mutation
 - [x] X30 — DONE: Modal initial loads run through ModalLoadGuard: typed failure -> danger toast + modal closes; not-found cases toast instead of closing silently
 - [x] X31 — DONE: OwnerPickResult reduced to the fields that affect the outcome (IsGuest, OwnerId); guest pick documented as keeping the draft's guest customer
-- [ ] X32
+- [x] X32 — DONE: removed the empty CheckoutRequest payload; CheckoutAsync(stayId) matches the real capability
 - [ ] X33
 - [ ] X34
 - [ ] X35
@@ -279,7 +279,7 @@
 - **Fix:** drop the unused fields from the request, or persist them; make the guest branch explicit server-side if "guest" must be recorded.
 - **Acceptance:** the request carries only fields that affect the outcome.
 
-### X32 — P2 · Consistency · Boarding `CheckoutRequest` is an empty payload the command ignores
+### ✅ X32 — P2 · Consistency · Boarding `CheckoutRequest` is an empty payload the command ignores
 - **Evidence:** B.CONTR:72 `public sealed record CheckoutRequest;` (empty by design), B.SVC:76–77 `CheckoutAsync(stayId, request)` ignores `request` entirely and sends `CheckoutStayCommand(stayId)`.
 - **Failure:** harmless today but the parameter invites callers to think checkout accepts options. Minor seam noise.
 - **Fix:** either remove the unused parameter, or document it as a reserved placeholder (it is already commented as such — acceptable if left, but flag for future).

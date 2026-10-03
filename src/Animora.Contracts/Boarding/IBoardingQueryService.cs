@@ -48,7 +48,7 @@ public interface IBoardingQueryService
     /// Ends a stay («تخلیه»), mirroring the reference's checkout confirm
     /// (<c>st.status = 'done'</c>).
     /// </summary>
-    Task CheckoutAsync(string stayId, CheckoutRequest request);
+    Task CheckoutAsync(string stayId);
 
     /// <summary>
     /// Creates a new stay («ثبت پذیرش») and returns it, mirroring the

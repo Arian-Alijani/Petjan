@@ -51,7 +51,7 @@ public sealed partial class CheckoutModalViewModel : ObservableObject
     {
         try
         {
-            await _service.CheckoutAsync(_stay.Id, new CheckoutRequest());
+            await _service.CheckoutAsync(_stay.Id);
         }
         catch (InvalidOperationException ex)
         {
