@@ -469,7 +469,19 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
 
-    partial void OnSearchTextChanged(string value) => _searchDebounce.Debounce(RenderSidebar);
+    partial void OnSearchTextChanged(string value) => _searchDebounce.Debounce(RenderSidebarIfQueryChanged);
+
+    // The normalized query the sidebar was last rendered for; a keystroke that does not change it
+    // (whitespace, an Arabic/Persian variant of the same letter) needs no rebuild (PERFORMANCE.md §13).
+    private string _renderedQuery = string.Empty;
+
+    private void RenderSidebarIfQueryChanged()
+    {
+        if (!string.Equals(PersianText.Normalize(SearchText), _renderedQuery, System.StringComparison.Ordinal))
+        {
+            RenderSidebar();
+        }
+    }
 
     // ── Loading ─────────────────────────────────────────────────────────
 
@@ -539,6 +551,10 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     private void RenderSidebar()
     {
+        // Normalize the query once per render, not once per row (PERFORMANCE.md §2).
+        var query = PersianText.Normalize(SearchText);
+        _renderedQuery = query;
+
         var readyCt = _readyEncounters.Count;
         var openCt = _invoices.Count(i => i.State is InvoiceState.Draft or InvoiceState.Partial);
 
@@ -555,12 +571,12 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         {
             InvoiceRows.ReplaceAll([]);
             ReadyList.ReplaceAll(
-                _readyEncounters.Where(MatchesEncounter).Select(enc => new ReadyEncounterItemViewModel(enc)));
+                _readyEncounters.Where(enc => MatchesEncounter(enc, query)).Select(enc => new ReadyEncounterItemViewModel(enc)));
         }
         else
         {
             ReadyList.ReplaceAll([]);
-            var filtered = _invoices.Where(MatchesInvoice).ToList();
+            var filtered = _invoices.Where(inv => MatchesInvoice(inv, query)).ToList();
             var rows = new List<SaleSidebarRowViewModel>(filtered.Count + 3);
             AddGroup(rows, "باز و در انتظار", filtered.Where(i => i.State is InvoiceState.Draft or InvoiceState.Partial));
             AddGroup(rows, "تسویه‌شده", filtered.Where(i => i.State == InvoiceState.Settled));
@@ -588,16 +604,14 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         }
     }
 
-    private bool MatchesInvoice(InvoiceSummary inv)
+    private static bool MatchesInvoice(InvoiceSummary inv, string q)
     {
-        var q = PersianText.Normalize(SearchText);
         return q.Length == 0 || PersianText.Contains(
             PersianText.Normalize($"{inv.Id} {inv.OwnerName} {inv.PetName} {inv.Phone}"), q);
     }
 
-    private bool MatchesEncounter(ReadyEncounterRef enc)
+    private static bool MatchesEncounter(ReadyEncounterRef enc, string q)
     {
-        var q = PersianText.Normalize(SearchText);
         return q.Length == 0 || PersianText.Contains(
             PersianText.Normalize($"{enc.Id} {enc.OwnerName} {enc.PetName} {enc.DoctorShort}"), q);
     }

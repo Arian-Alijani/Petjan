@@ -22,7 +22,7 @@
 - [x] X18 — DONE: Sales ready list and invoice sidebar are virtualized ListBoxes (same pattern as Cashier)
 - [x] X19 — DONE: all rebuilt sidebar/line/payment/catalog/owner/pet/day-cell/item/stat/tab/option lists are RangeObservableCollection + ReplaceAll (single Reset)
 - [x] X20 — DONE: ReloadStatsAsync always re-renders the sidebar list (ReloadAsync now delegates to it)
-- [ ] X21
+- [x] X21 — DONE: Sales sidebar normalizes the query once per render and skips the debounced rebuild when the normalized query is unchanged; Cashier/Boarding already hoist the query
 - [ ] X22
 - [ ] X23
 - [ ] X24
@@ -213,7 +213,7 @@
 - **Fix:** call `RenderList()` in `ReloadStatsAsync` (or in `RefreshAsync` after the reload), independent of whether a detail is shown.
 - **Acceptance:** post-void the list row moves to «ابطال» and tab counts update without a second click.
 
-### X21 — P2 · §13 · Sidebar re-render runs full filter+group on every keystroke
+### ✅ X21 — P2 · §13 · Sidebar re-render runs full filter+group on every keystroke
 - **Evidence:** S.VM:438 `OnSearchTextChanged` debounces `RenderSidebar`, which recomputes seg counts, filters, groups, and rebuilds two `ObservableCollection`s from scratch (506–556). No short-circuit when the normalized query is unchanged; `MatchesInvoice`/`MatchesEncounter` (558–570) re-`Normalize` the query **per row** instead of once.
 - **Failure:** O(rows) normalization allocations per keystroke on top of the non-virtualized rebuild (X18/X19).
 - **Fix:** normalize the query once per render (hoist out of the per-row predicate, PERF §2), and skip the rebuild when inputs are unchanged (PERF §13). Same per-row `Normalize` hoist applies to C.VM:286–291 and B.VM:237–240.
