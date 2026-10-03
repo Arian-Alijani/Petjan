@@ -86,6 +86,6 @@ public interface ICashierService
     /// <summary>Sets (or clears) the invoice's insurance org (mirrors <c>#cs-ins</c>).</summary>
     Task<CashierInvoiceDetail> SetInsuranceAsync(string invoiceId, string? insurerId);
 
-    /// <summary>Recomputes an invoice's cached totals (mirrors <c>data-action="refresh"</c>).</summary>
-    Task<CashierInvoiceDetail> RecalculateAsync(string invoiceId);
+    // There is deliberately no "recalculate" member: totals are domain-authoritative and recomputed by
+    // the aggregate after every mutation (Invoice.RecalculateTotals), so a manual refresh cannot change them.
 }

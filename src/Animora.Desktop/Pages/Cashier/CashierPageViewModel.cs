@@ -426,19 +426,6 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
     // ── Footer actions ──────────────────────────────────────────────────
 
     [RelayCommand]
-    private async Task Recalculate()
-    {
-        if (Detail is null)
-        {
-            return;
-        }
-
-        var updated = await _service.RecalculateAsync(Detail.Id);
-        ShowDetail(updated);
-        _toast.Show("فاکتور باز محاسبه شد", Tone.Ok);
-    }
-
-    [RelayCommand]
     private async Task Pay()
     {
         if (Detail is null)

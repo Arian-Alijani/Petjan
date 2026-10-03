@@ -147,8 +147,6 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
         return await RequireDetailAsync(invoiceId);
     }
 
-    public Task<CashierInvoiceDetail> RecalculateAsync(string invoiceId) => RequireDetailAsync(invoiceId);
-
     private async Task<CashierInvoiceDetail> RequireDetailAsync(string id) =>
         await GetDetailAsync(id) ?? throw new InvalidOperationException("INVOICE_NOT_FOUND");
 

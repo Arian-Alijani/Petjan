@@ -5,7 +5,7 @@
 - [x] X01 — DONE: WalkInBoarder find-or-create owner/pet + PaymentMode persisted (migration 024)
 - [x] X02 — DONE: try/catch + danger toast on create/checkout/transfer/add/remove
 - [x] X03 — DONE: shared ClinicDayWindow used by Sales KPIs and Cashier stats
-- [ ] X04
+- [x] X04 — DONE: removed the no-op recalculate button/command/seam (totals are domain-authoritative)
 - [ ] X05
 - [ ] X06
 - [ ] X07
@@ -107,7 +107,7 @@
 
 ## P1 — lost input / broken flow / wrong state
 
-### X04 — P1 · Dead action · `RecalculateAsync` recomputes nothing but reports success
+### ✅ X04 — P1 · Dead action · `RecalculateAsync` recomputes nothing but reports success
 - **Evidence:** C.SVC:150 `RecalculateAsync(id) => RequireDetailAsync(id)` — a plain re-read, no command. C.VM:428–439 awaits it and toasts «فاکتور باز محاسبه شد».
 - **Failure:** the «بازمحاسبه» button promises a recalculation; it only refetches the already-current detail. If totals were ever stale this does not fix them; the success claim is false.
 - **Fix:** either dispatch a real recompute command, or remove the button and its toast. If totals are always server-authoritative, document that and drop the control.
