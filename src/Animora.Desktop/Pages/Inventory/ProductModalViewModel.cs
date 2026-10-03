@@ -114,20 +114,8 @@ public sealed partial class ProductModalViewModel : ObservableObject
     [ObservableProperty] private string _singlePriceText = "۰";
     [ObservableProperty] private string _singleExpiryText = string.Empty;
 
-    [RelayCommand]
-    private void DecrementSingle()
-    {
-        var stock = Math.Max(0, ParseSingleStock() - 1);
-        SingleStockText = PersianNumberFormatter.ToPersianDigits(stock);
-    }
-
-    [RelayCommand]
-    private void IncrementSingle()
-    {
-        var stock = ParseSingleStock() + 1;
-        SingleStockText = PersianNumberFormatter.ToPersianDigits(stock);
-    }
-
+    // On-hand stock is a projection of stock movements: it is shown here read-only and changes only through
+    // the «تغییر موجودی» modal (a reasoned movement), never through the product info save (P0-2).
     private int ParseSingleStock() =>
         int.TryParse(PersianNumberFormatter.ToAsciiDigits(SingleStockText), out var v) ? v : 0;
 
@@ -324,7 +312,7 @@ public sealed partial class ProductModalViewModel : ObservableObject
 
     private InventoryVariantCardViewModel MakeCard(ProductVariant variant)
     {
-        var card = new InventoryVariantCardViewModel(variant, RaiseVariantState);
+        var card = new InventoryVariantCardViewModel(variant);
         return card;
     }
 

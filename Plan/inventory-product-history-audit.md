@@ -161,7 +161,7 @@ catch (ServiceException ex) { _toast.Show(MapError(ex), Tone.Danger); } // keep 
 Creating a multi-variant product with M options → M variants persisted, each independently stockable.
 **Build:** fast build 0/0. **Push:** `scripts/git/push.sh -b genspark_ai_developer "fix(inventory): persist opening stock + multi-variant on product create (P0-1,P2-14)"`
 
-### T2 — [ ] Product modal single-unit / variant stock edit (P0-2)
+### T2 — [x] Product modal single-unit / variant stock edit (P0-2)
 **Finding:** P0-2 — Info-tab stock stepper (`SingleStockText`, `IncrementSingle`/`DecrementSingle`) and Variants-tab
 card `StockText` are read into `ProductVariant.Stock` and sent via `SaveProductInfoAsync`, but
 `UpdateProductInfoCommand.ApplyVariants` (I.CMD 120–219) has **no stock field / no movement** → stock edits are
