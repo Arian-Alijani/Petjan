@@ -358,7 +358,7 @@ hard-coded `"۰"` must become the real count from D3 (or the owner's pets' visit
 
 ### Phase 5 — Verify & clean up
 
-- [ ] **T12 — Final build + targeted smoke.**
+- [x] **T12 — Final build + targeted smoke.**
   `scripts/sandbox/build.sh full` → 0 warnings / 0 errors. `scripts/sandbox/run.sh` → SMOKE RUN OK
   (owner file opens, sections populate, copy works, no binding errors in console). Fix any fallout.
   **Push:** `test: full build + smoke green after owner-file + cross-section work [T12]`.
