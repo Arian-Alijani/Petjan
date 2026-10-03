@@ -348,7 +348,7 @@ hard-coded `"۰"` must become the real count from D3 (or the owner's pets' visit
   `scripts/sandbox/build.sh full` once, 0/0. If startup/shell/DI touched, `scripts/sandbox/run.sh` →
   SMOKE RUN OK. **Push:** `feat(appointments): surface recurring-vaccine boosters with distinct styling [T10]`.
 
-- [ ] **T11 — Consistency pass (Task B real-world scenarios).**
+- [x] **T11 — Consistency pass (Task B real-world scenarios).**
   Verify the full loop with real seeded data: record a recurring vaccine → it appears in Appointments
   (T10) → the reminder SMS appears in the owner file (T7) → invoices for the owner appear (T5) →
   the activity feed reflects all of it (T9). Fix any `DataChangeNotifier` gaps so sections refresh

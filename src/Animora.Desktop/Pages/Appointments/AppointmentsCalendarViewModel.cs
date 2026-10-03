@@ -161,7 +161,10 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         UseLoadStatus(ReloadPageAsync);
         // A completed encounter closes its appointment; patient edits change the names shown.
-        RefreshOnDataChange(changes, RequestRefresh, DataDomain.Visits, DataDomain.Patients);
+        // Vaccination: a recorded dose / next-due date changes the booster entries; Sales: a payment changes the
+        // invoice state shown on a card.
+        RefreshOnDataChange(changes, RequestRefresh, DataDomain.Visits, DataDomain.Patients, DataDomain.Vaccination,
+            DataDomain.Sales);
         _ = ReloadPageAsync();
     }
 
