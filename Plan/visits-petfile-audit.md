@@ -490,7 +490,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** VMs can branch on error category; existing message-matching still works.
 
 ### Task 18 — V19 · Await tasks instead of `.Result` in Patients load
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. Both branches now `await facetsTask`/`await pageTask` after `WhenAll` instead of reading `.Result`.
 - **Priority:** P3 · **Push message:** `refactor(patients): await tasks after WhenAll instead of .Result (V19)`
 - **Goal:** No `.Result`/`.Wait()` on potentially-incomplete tasks in UI code.
 - **Current:** `PatientsPageViewModel` reads `facetsTask.Result`/`pageTask.Result` after
