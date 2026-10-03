@@ -41,7 +41,7 @@ public sealed partial class TransferModalViewModel : ObservableObject
 
         HintLead = "فاکتور «";
         HintPet = stay.PetName;
-        HintMiddle = "» — ";
+        HintMiddle = "» — «";
         HintOwner = stay.OwnerName;
         HintTail = "» به صورت پیش‌نویس در صندوق ایجاد می‌شود:";
 

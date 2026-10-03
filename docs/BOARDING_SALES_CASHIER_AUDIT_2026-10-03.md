@@ -34,7 +34,7 @@
 - [x] X30 — DONE: Modal initial loads run through ModalLoadGuard: typed failure -> danger toast + modal closes; not-found cases toast instead of closing silently
 - [x] X31 — DONE: OwnerPickResult reduced to the fields that affect the outcome (IsGuest, OwnerId); guest pick documented as keeping the draft's guest customer
 - [x] X32 — DONE: removed the empty CheckoutRequest payload; CheckoutAsync(stayId) matches the real capability
-- [ ] X33
+- [x] X33 — DONE: transfer hint guillemets balanced («pet» — «owner»)
 - [ ] X34
 - [ ] X35
 - [ ] X36
@@ -285,7 +285,7 @@
 - **Fix:** either remove the unused parameter, or document it as a reserved placeholder (it is already commented as such — acceptable if left, but flag for future).
 - **Acceptance:** signature matches actual capability, or the placeholder intent is explicit.
 
-### X33 — P2 · Markup correctness · Transfer modal hint has mismatched quote glyphs
+### ✅ X33 — P2 · Markup correctness · Transfer modal hint has mismatched quote glyphs
 - **Evidence:** B.TR:42–46 builds the hint as `HintLead="فاکتور «"`, `HintPet=PetName`, `HintMiddle="» — "`, `HintOwner=OwnerName`, `HintTail="» به صورت پیش‌نویس …"`. The owner name is wrapped by a trailing `»` (HintTail) with no matching opening `«`, and the pet already closed with `»` in HintMiddle.
 - **Failure:** the rendered sentence reads «فاکتور «{pet}» — {owner}» …» — the owner is closed by a `»` that never opened; visually wrong Persian punctuation.
 - **Fix:** balance the guillemets (open before owner or drop the stray `»`).
