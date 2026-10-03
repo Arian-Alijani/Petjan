@@ -3,6 +3,7 @@ using Animora.Application.Ports;
 using Animora.Application.Text;
 using Animora.Application.UseCases.Patients.ReadModels;
 using Animora.Domain.Clinical;
+using Animora.Domain.Identity;
 using Animora.Domain.Patients;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Options;
