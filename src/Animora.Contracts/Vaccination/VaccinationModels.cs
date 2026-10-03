@@ -82,6 +82,19 @@ public sealed record SmsTemplate(
     string Body);
 
 /// <summary>
+/// One reminder SMS recorded for a pet of an owner — exactly what is persisted
+/// (when, pet, vaccine, channel and the composed text); nothing is invented.
+/// </summary>
+public sealed record OwnerSmsReminder(
+    string Id,
+    DateTime When,
+    string PetId,
+    string PetName,
+    string VaccineName,
+    string Channel,
+    string? Body);
+
+/// <summary>
 /// The composed SMS preview returned by
 /// <see cref="IVaccinationService.BuildSmsPreviewAsync"/>: the rendered body
 /// plus its character count and derived SMS-segment count (70 chars/segment),

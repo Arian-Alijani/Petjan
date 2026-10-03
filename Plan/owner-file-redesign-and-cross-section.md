@@ -301,7 +301,7 @@ hard-coded `"۰"` must become the real count from D3 (or the owner's pets' visit
 
 ### Phase 3 — SMS reminders across sections (Task A5)
 
-- [ ] **T6 — Expose owner-scoped SMS reminder history (seam).**
+- [x] **T6 — Expose owner-scoped SMS reminder history (seam).**
   - `IVaccinationService`: add `Task<IReadOnlyList<OwnerSmsReminder>> GetSmsHistoryForOwnerAsync(string ownerId)`
     and a new DTO `OwnerSmsReminder(DateTime When, string PetName, string VaccineName, string Channel, string? Body)`
     in `VaccinationModels.cs`.

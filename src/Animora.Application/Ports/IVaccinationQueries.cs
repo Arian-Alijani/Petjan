@@ -10,6 +10,10 @@ public sealed record VaccinationDueRow(string Id, string PetId, string PetName, 
 public sealed record VaccinationHistoryRow(string Id, string? RecordId, string PetName, string Species,
     string OwnerName, string Title, string? Detail, DateTimeOffset OccurredUtc, string ActorId);
 
+/// <summary>One reminder SMS recorded for a pet of one owner (owner file).</summary>
+public sealed record OwnerSmsReminderRow(string Id, string? RecordId, string PetId, string PetName,
+    string VaccineName, string? Body, DateTimeOffset SentUtc);
+
 public sealed record SmsTemplateReadModel(string Id, string Name, string Channel, string Body);
 
 public interface IVaccinationQueries
@@ -18,6 +22,7 @@ public interface IVaccinationQueries
     Task<(IReadOnlyList<VaccinationHistoryRow> Items, int Total)> GetHistoryAsync(
         DateTimeOffset? fromUtc, DateTimeOffset? toUtc, string? search, bool oldest,
         IReadOnlyCollection<string>? titles, int page, int pageSize, CancellationToken ct);
+    Task<IReadOnlyList<OwnerSmsReminderRow>> GetOwnerSmsRemindersAsync(string ownerId, int take, CancellationToken ct);
     Task<IReadOnlyList<SmsTemplateReadModel>> GetTemplatesAsync(CancellationToken ct);
     Task<VaccinationDueRow?> GetRecordAsync(string id, DateOnly localDay, CancellationToken ct);
     Task<bool> HasNextDoseAsync(string petId, string vaccineCode, int doseNumber, CancellationToken ct);

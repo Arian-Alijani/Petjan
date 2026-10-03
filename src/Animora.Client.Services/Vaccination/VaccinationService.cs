@@ -45,6 +45,14 @@ public sealed class VaccinationService(IServiceScopeFactory scopes, OperationIdF
         return (await FindAsync(recordId)) with { SmsState = SmsState.Sent };
     }
 
+    public async Task<IReadOnlyList<OwnerSmsReminder>> GetSmsHistoryForOwnerAsync(string ownerId)
+    {
+        if (string.IsNullOrWhiteSpace(ownerId)) return [];
+        var rows = await QueryAsync(new OwnerSmsRemindersQuery(ownerId));
+        return rows.Select(r => new OwnerSmsReminder(r.Id, r.SentUtc.LocalDateTime, r.PetId, r.PetName,
+            r.VaccineName, "SMS", r.Body)).ToArray();
+    }
+
     public async Task<VaccinationHistoryPage> GetHistoryAsync(VaccinationHistoryFilter filter)
     {
         var page = await QueryAsync(new VaccinationHistoryQuery(filter));

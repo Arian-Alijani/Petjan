@@ -66,6 +66,8 @@ public sealed class VaccinationUseCaseTests
             Task.FromResult<IReadOnlyList<VaccinationDueRow>>([]);
         public Task<VaccinationDueRow?> GetRecordAsync(string id, DateOnly localDay, CancellationToken ct) =>
             Task.FromResult<VaccinationDueRow?>(null);
+        public Task<IReadOnlyList<OwnerSmsReminderRow>> GetOwnerSmsRemindersAsync(string ownerId, int take, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<OwnerSmsReminderRow>>([]);
         public Task<IReadOnlyList<SmsTemplateReadModel>> GetTemplatesAsync(CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<SmsTemplateReadModel>>([]);
         public Task<(IReadOnlyList<VaccinationHistoryRow> Items, int Total)> GetHistoryAsync(

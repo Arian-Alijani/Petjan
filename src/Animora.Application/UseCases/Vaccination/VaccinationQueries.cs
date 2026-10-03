@@ -46,6 +46,20 @@ public sealed class SmsTemplatesQueryHandler(IVaccinationQueries queries)
         Result<IReadOnlyList<SmsTemplateReadModel>>.Ok(await queries.GetTemplatesAsync(ct));
 }
 
+/// <summary>The reminder SMS messages recorded for one owner's pets, newest first (bounded).</summary>
+[RequiresPermission(PermissionCodes.VaccinationRead)]
+public sealed record OwnerSmsRemindersQuery(string OwnerId, int Take = 50)
+    : IQuery<IReadOnlyList<OwnerSmsReminderRow>>;
+
+public sealed class OwnerSmsRemindersQueryHandler(IVaccinationQueries queries)
+    : IQueryHandler<OwnerSmsRemindersQuery, IReadOnlyList<OwnerSmsReminderRow>>
+{
+    public async Task<Result<IReadOnlyList<OwnerSmsReminderRow>>> HandleAsync(OwnerSmsRemindersQuery query,
+        QueryContext context, CancellationToken ct) =>
+        Result<IReadOnlyList<OwnerSmsReminderRow>>.Ok(await queries.GetOwnerSmsRemindersAsync(
+            query.OwnerId, Math.Clamp(query.Take, 1, 200), ct));
+}
+
 public sealed record VaccinationHistoryPageReadModel(IReadOnlyList<VaccinationHistoryRow> Items, int TotalCount);
 
 [RequiresPermission(PermissionCodes.VaccinationRead)]

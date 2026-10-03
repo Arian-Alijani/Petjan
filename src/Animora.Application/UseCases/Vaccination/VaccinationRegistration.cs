@@ -9,6 +9,7 @@ public static class VaccinationRegistration
         .AddQuery<VaccinationDueQuery, IReadOnlyList<VaccinationDueRow>, VaccinationDueQueryHandler>()
         .AddQuery<VaccinationCatalogQuery, IReadOnlyList<VaccineCatalogReadModel>, VaccinationCatalogQueryHandler>()
         .AddQuery<SmsTemplatesQuery, IReadOnlyList<SmsTemplateReadModel>, SmsTemplatesQueryHandler>()
+        .AddQuery<OwnerSmsRemindersQuery, IReadOnlyList<OwnerSmsReminderRow>, OwnerSmsRemindersQueryHandler>()
         .AddQuery<VaccinationHistoryQuery, VaccinationHistoryPageReadModel, VaccinationHistoryQueryHandler>()
         .AddCommand<MarkVaccinationDoneCommand, string, MarkVaccinationDoneCommandHandler>()
         .AddValidator<MarkVaccinationDoneCommand, MarkVaccinationDoneCommandValidator>()
