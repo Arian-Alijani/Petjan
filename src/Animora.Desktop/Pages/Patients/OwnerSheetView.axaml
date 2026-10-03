@@ -113,37 +113,6 @@
         <ScrollViewer Grid.Row="1" Padding="22">
             <StackPanel Spacing="22" MaxWidth="680" HorizontalAlignment="Center">
 
-                <!-- od-cta — view mode only -->
-                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8" IsVisible="{Binding IsViewing}">
-                    <Button Grid.Column="0" Classes="odbtn" Command="{Binding CallCommand}"
-                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Path Classes="icon" Width="15" Height="15"
-                                  Stroke="{Binding $parent[Button].Foreground}"
-                                  Data="{StaticResource IconPhone}" />
-                            <TextBlock Text="تماس" />
-                        </StackPanel>
-                    </Button>
-                    <Button Grid.Column="1" Classes="odbtn" Command="{Binding SmsCommand}"
-                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Path Classes="icon" Width="15" Height="15"
-                                  Stroke="{Binding $parent[Button].Foreground}"
-                                  Data="{StaticResource IconSms}" />
-                            <TextBlock Text="پیامک" />
-                        </StackPanel>
-                    </Button>
-                    <Button Grid.Column="2" Classes="odbtn" Command="{Binding RemindCommand}"
-                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Path Classes="icon" Width="15" Height="15"
-                                  Stroke="{Binding $parent[Button].Foreground}"
-                                  Data="{StaticResource IconBell}" />
-                            <TextBlock Text="یادآوری" />
-                        </StackPanel>
-                    </Button>
-                </Grid>
-
                 <!-- od-grid -->
                 <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
                       ColumnSpacing="14" RowSpacing="14">

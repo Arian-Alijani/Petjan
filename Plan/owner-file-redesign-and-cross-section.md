@@ -248,7 +248,7 @@ hard-coded `"۰"` must become the real count from D3 (or the owner's pets' visit
 
 ### Phase 1 — Owner File redesign (Task A, UI-first, no seam changes yet)
 
-- [ ] **T1 — Remove fake actions.**
+- [x] **T1 — Remove fake actions.**
   In `OwnerSheetViewModel.cs` delete the `Call`, `Sms` and `Remind` `[RelayCommand]` methods.
   In `OwnerSheetView.axaml` delete the entire `od-cta` button grid (the
   `<Grid ColumnDefinitions="*,*,*" … IsVisible="{Binding IsViewing}">` block, ~lines 117-145).

@@ -258,21 +258,6 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private void Close() => _dialogs.Close();
 
     [RelayCommand]
-    private void Call()
-    {
-        if (_owner is not null)
-        {
-            _toast.Show($"در حال برقراری تماس با {Fa(_owner.Mobile1)}", Tone.Info);
-        }
-    }
-
-    [RelayCommand]
-    private void Sms() => _toast.Show("پیامک برای مالک ارسال شد", Tone.Info);
-
-    [RelayCommand]
-    private void Remind() => _toast.Show("یادآوری برای مالک ثبت شد", Tone.Info);
-
-    [RelayCommand]
     private void AddPet()
     {
         if (_owner is null)
