@@ -480,43 +480,111 @@
                         <TextBlock Classes="odsec" Text="خلاصه فعالیت" />
                         <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
                                 BorderThickness="1" CornerRadius="16" ClipToBounds="True">
-                            <Grid ColumnDefinitions="*,*,*">
-                                <Border Grid.Column="0" Padding="12,18">
-                                    <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="{Binding VisitsCountText}" FontSize="20"
-                                                   FontWeight="ExtraBold"
-                                                   Foreground="{StaticResource InkBrush}"
-                                                   HorizontalAlignment="Center" />
-                                        <TextBlock Text="ویزیت ثبت‌شده" FontSize="12"
-                                                   Foreground="{StaticResource MutedBrush}"
-                                                   HorizontalAlignment="Center" Margin="0,4,0,0" />
-                                    </StackPanel>
-                                </Border>
-                                <Border Grid.Column="1" Padding="12,18"
-                                        BorderBrush="{StaticResource Line2Brush}"
-                                        BorderThickness="1,0,1,0">
-                                    <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="{Binding PetsCountText}" FontSize="20"
-                                                   FontWeight="ExtraBold"
-                                                   Foreground="{StaticResource InkBrush}"
-                                                   HorizontalAlignment="Center" />
-                                        <TextBlock Text="حیوان فعال" FontSize="12"
-                                                   Foreground="{StaticResource MutedBrush}"
-                                                   HorizontalAlignment="Center" Margin="0,4,0,0" />
-                                    </StackPanel>
-                                </Border>
-                                <Border Grid.Column="2" Padding="12,18">
-                                    <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="{Binding LastVisitText}" FontSize="20"
-                                                   FontWeight="ExtraBold"
-                                                   Foreground="{StaticResource InkBrush}"
-                                                   HorizontalAlignment="Center" />
-                                        <TextBlock Text="آخرین مراجعه" FontSize="12"
-                                                   Foreground="{StaticResource MutedBrush}"
-                                                   HorizontalAlignment="Center" Margin="0,4,0,0" />
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
+                            <StackPanel>
+                                <Grid ColumnDefinitions="*,*,*,*,*">
+                                    <Border Grid.Column="0" Padding="12,18">
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <TextBlock Text="{Binding VisitsCountText}" FontSize="20"
+                                                       FontWeight="ExtraBold" HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="ویزیت ثبت‌شده" FontSize="12" Margin="0,4,0,0"
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="1" Padding="12,18" BorderBrush="{StaticResource Line2Brush}"
+                                            BorderThickness="1,0,0,0">
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <TextBlock Text="{Binding VaccinesCountText}" FontSize="20"
+                                                       FontWeight="ExtraBold" HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="واکسن تزریق‌شده" FontSize="12" Margin="0,4,0,0"
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" Padding="12,18" BorderBrush="{StaticResource Line2Brush}"
+                                            BorderThickness="1,0,0,0">
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <TextBlock Text="{Binding InvoicesCountText}" FontSize="20"
+                                                       FontWeight="ExtraBold" HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="فاکتور" FontSize="12" Margin="0,4,0,0"
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="3" Padding="12,18" BorderBrush="{StaticResource Line2Brush}"
+                                            BorderThickness="1,0,0,0">
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <TextBlock Text="{Binding PetsCountText}" FontSize="20"
+                                                       FontWeight="ExtraBold" HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="حیوان فعال" FontSize="12" Margin="0,4,0,0"
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="4" Padding="12,18" BorderBrush="{StaticResource Line2Brush}"
+                                            BorderThickness="1,0,0,0">
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <TextBlock Text="{Binding LastActivityText}" FontSize="20"
+                                                       FontWeight="ExtraBold" HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="آخرین فعالیت" FontSize="12" Margin="0,4,0,0"
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding Activity}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="patients:OwnerActivityRowViewModel">
+                                            <Border BorderBrush="{StaticResource Line2Brush}"
+                                                    BorderThickness="0,1,0,0" Padding="16,12">
+                                                <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="13">
+                                                    <Border Grid.Column="0" Width="36" Height="36" CornerRadius="11"
+                                                            Background="{StaticResource Bg2Brush}">
+                                                        <Path Classes="icon" Width="17" Height="17"
+                                                              Stroke="{StaticResource Ink2Brush}"
+                                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                              HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Title}" FontSize="13.5"
+                                                                   FontWeight="Bold" TextTrimming="CharacterEllipsis"
+                                                                   Foreground="{StaticResource InkBrush}" />
+                                                        <TextBlock Text="{Binding Subtitle}" FontSize="12"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center"
+                                                                IsVisible="{Binding HasAmount}">
+                                                        <TextBlock Text="{Binding AmountText}" FontSize="13.5"
+                                                                   FontWeight="ExtraBold" HorizontalAlignment="Left"
+                                                                   Foreground="{StaticResource InkBrush}" />
+                                                        <TextBlock Text="تومان" FontSize="10.5"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="3" Spacing="4" VerticalAlignment="Center"
+                                                                MinWidth="84">
+                                                        <controls:Badge Text="{Binding KindLabel}"
+                                                                        Tone="{Binding KindTone}"
+                                                                        HorizontalAlignment="Left" />
+                                                        <TextBlock Text="{Binding WhenText}" FontSize="11.5"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="فعالیتی ثبت نشده" IsVisible="{Binding !HasActivity}"
+                                           FontSize="12" Foreground="{StaticResource MutedBrush}"
+                                           HorizontalAlignment="Center" Padding="0,4,0,22" />
+                            </StackPanel>
                         </Border>
                     </StackPanel>
                 </Grid>

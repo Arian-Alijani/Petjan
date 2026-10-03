@@ -332,7 +332,7 @@ hard-coded `"۰"` must become the real count from D3 (or the owner's pets' visit
   not the VM. `scripts/sandbox/build.sh full` once, 0/0.
   **Push:** `feat(patients): GetOwnerActivityAsync unified cross-section owner feed [T8]`.
 
-- [ ] **T9 — Owner File "خلاصه فعالیت" → real activity feed (consume T8).**
+- [x] **T9 — Owner File "خلاصه فعالیت" → real activity feed (consume T8).**
   Replace the fake 3-stat block (incl. hard-coded `VisitsCountText="۰"`) with: real counts
   (invoices, visits, pets, last activity) **and** a compact recent-activity list from T8 (icon per
   `OwnerActivityKind`, title/subtitle/amount, Jalali date). Minimal & modern. Build 0/0.

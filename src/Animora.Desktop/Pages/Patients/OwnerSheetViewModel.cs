@@ -99,6 +99,38 @@ public sealed class OwnerSmsRowViewModel
     public bool HasBody { get; }
 }
 
+/// <summary>One line of the owner's recent cross-section activity feed (visit / vaccine / invoice / SMS).</summary>
+public sealed class OwnerActivityRowViewModel
+{
+    public OwnerActivityRowViewModel(OwnerActivityEntry entry)
+    {
+        Entry = entry;
+        Title = entry.Title;
+        Subtitle = entry.Subtitle;
+        var when = PersianNumberFormatter.ToPersianDigits(JalaliDate.FromDateTime(entry.When).ToString("short"));
+        WhenText = when;
+        HasAmount = entry.Amount is not null;
+        AmountText = entry.Amount is { } a ? SalePresentation.Money(a) : string.Empty;
+        (IconKey, KindLabel, KindTone) = entry.Kind switch
+        {
+            OwnerActivityKind.Invoice => ("IconReceipt", "فاکتور", Tone.Info),
+            OwnerActivityKind.Sms => ("IconSms", "پیامک", Tone.Lilac),
+            OwnerActivityKind.Vaccine => ("IconSyringe", "واکسن", Tone.Ok),
+            _ => ("IconClipboard", "ویزیت", Tone.Brand),
+        };
+    }
+
+    public OwnerActivityEntry Entry { get; }
+    public string Title { get; }
+    public string Subtitle { get; }
+    public string WhenText { get; }
+    public bool HasAmount { get; }
+    public string AmountText { get; }
+    public string IconKey { get; }
+    public string KindLabel { get; }
+    public Tone KindTone { get; }
+}
+
 /// <summary>
 /// Backs the Owner Sheet (Phase 09, patients-page.js <c>renderOwnerSheet</c>):
 /// the owner's identity/contact/address blocks (view ↔ inline edit), the owner's
@@ -189,8 +221,13 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
 
     // ---- activity ----
     public string VisitsCountText { get; private set; } = "۰";
+    public string VaccinesCountText { get; private set; } = "۰";
     public string PetsCountText { get; private set; } = "۰";
-    public string LastVisitText { get; private set; } = "—";
+    public string LastActivityText { get; private set; } = "—";
+
+    public ObservableCollection<OwnerActivityRowViewModel> Activity { get; } = [];
+
+    public bool HasActivity => Activity.Count > 0;
 
     public bool HasPets => Pets.Count > 0;
     public bool IsViewing => !IsEditing;
@@ -209,7 +246,25 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         }
 
         Apply(detail);
-        await Task.WhenAll(LoadInvoicesAsync(detail.Id), LoadSmsAsync(detail.Id));
+        await Task.WhenAll(LoadInvoicesAsync(detail.Id), LoadSmsAsync(detail.Id), LoadActivityAsync(detail.Id));
+    }
+
+    private async Task LoadActivityAsync(string ownerId)
+    {
+        var feed = await _patients.GetOwnerActivityAsync(ownerId);
+        Activity.Clear();
+        foreach (var entry in feed.Entries)
+        {
+            Activity.Add(new OwnerActivityRowViewModel(entry));
+        }
+
+        VisitsCountText = Fa(feed.VisitCount.ToString());
+        VaccinesCountText = Fa(feed.VaccineCount.ToString());
+        LastActivityText = feed.LastActivityAt is { } at ? RelativeDateFormatter.Since(at) : "—";
+        OnPropertyChanged(nameof(VisitsCountText));
+        OnPropertyChanged(nameof(VaccinesCountText));
+        OnPropertyChanged(nameof(LastActivityText));
+        OnPropertyChanged(nameof(HasActivity));
     }
 
     private async Task LoadSmsAsync(string ownerId)
@@ -268,12 +323,6 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         }
 
         PetsCountText = Fa(owner.Pets.Count.ToString());
-        VisitsCountText = "۰"; // visits live in another context (Phase 10/11); none yet
-        var last = owner.Pets
-            .Where(p => p.LastVisitDate is not null)
-            .OrderByDescending(p => p.LastVisitDate)
-            .FirstOrDefault();
-        LastVisitText = last?.LastVisitDate is { } date ? RelativeDateFormatter.Since(date) : "—";
 
         Title = Name;
 
@@ -293,9 +342,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         OnPropertyChanged(nameof(PhoneText));
         OnPropertyChanged(nameof(AddressText));
         OnPropertyChanged(nameof(ReferralText));
-        OnPropertyChanged(nameof(VisitsCountText));
         OnPropertyChanged(nameof(PetsCountText));
-        OnPropertyChanged(nameof(LastVisitText));
         OnPropertyChanged(nameof(HasPets));
     }
 
