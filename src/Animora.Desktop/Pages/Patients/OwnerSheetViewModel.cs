@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Patients;
+using Animora.Contracts.Sales;
+using Animora.Desktop.Pages.Sales;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -42,6 +44,37 @@ public sealed class OwnerSheetPetRowViewModel
     public Tone StatusTone { get; }
 }
 
+/// <summary>One row of the owner file's «فاکتورها» card — a real invoice registered for this owner.</summary>
+public sealed class OwnerInvoiceRowViewModel
+{
+    public OwnerInvoiceRowViewModel(InvoiceSummary invoice)
+    {
+        Invoice = invoice;
+        Id = invoice.Id;
+        var number = string.IsNullOrWhiteSpace(invoice.Number) ? invoice.Id : invoice.Number;
+        Title = $"فاکتور {PersianNumberFormatter.ToPersianDigits(number)}";
+        var kind = invoice.Kind == InvoiceKind.Visit ? "از ویزیت" : "فروش";
+        var when = invoice.IssuedAt is { } d ? JalaliDate.FromDateTime(d).ToString("short") : "—";
+        var pet = string.IsNullOrWhiteSpace(invoice.PetName) ? string.Empty : $" · {invoice.PetName}";
+        SubText = $"{PersianNumberFormatter.ToPersianDigits(when)} · {kind}{pet}";
+        TotalText = SalePresentation.Money(invoice.Total);
+        HasDue = invoice.Due > 0 && invoice.State is InvoiceState.Draft or InvoiceState.Partial;
+        DueText = $"مانده {SalePresentation.Money(invoice.Due)}";
+        StateText = SalePresentation.StateLabel(invoice.State);
+        StateTone = SalePresentation.StateTone(invoice.State);
+    }
+
+    public InvoiceSummary Invoice { get; }
+    public string Id { get; }
+    public string Title { get; }
+    public string SubText { get; }
+    public string TotalText { get; }
+    public bool HasDue { get; }
+    public string DueText { get; }
+    public string StateText { get; }
+    public Tone StateTone { get; }
+}
+
 /// <summary>
 /// Backs the Owner Sheet (Phase 09, patients-page.js <c>renderOwnerSheet</c>):
 /// the owner's identity/contact/address blocks (view ↔ inline edit), the owner's
@@ -55,6 +88,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
+    private readonly ISalesQueryService _sales;
 
     private OwnerDetail? _owner;
 
@@ -77,8 +111,10 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         IRecordSheetPresenter presenter,
         IDialogService dialogs,
         IToastService toast,
-        IDataChangeNotifier changes)
+        IDataChangeNotifier changes,
+        ISalesQueryService sales)
     {
+        _sales = sales;
         _patients = patients;
         _changes = changes;
         _presenter = presenter;
@@ -92,6 +128,11 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     }
 
     public ObservableCollection<OwnerSheetPetRowViewModel> Pets { get; } = [];
+
+    public ObservableCollection<OwnerInvoiceRowViewModel> Invoices { get; } = [];
+
+    public bool HasInvoices => Invoices.Count > 0;
+    public string InvoicesCountText { get; private set; } = "۰";
 
     public IReadOnlyList<string> Referrals => PatientsPresentation.Referrals;
 
@@ -136,6 +177,21 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         }
 
         Apply(detail);
+        await LoadInvoicesAsync(detail.Id);
+    }
+
+    private async Task LoadInvoicesAsync(string ownerId)
+    {
+        var invoices = await _sales.GetInvoicesForOwnerAsync(ownerId);
+        Invoices.Clear();
+        foreach (var invoice in invoices)
+        {
+            Invoices.Add(new OwnerInvoiceRowViewModel(invoice));
+        }
+
+        InvoicesCountText = Fa(Invoices.Count.ToString());
+        OnPropertyChanged(nameof(InvoicesCountText));
+        OnPropertyChanged(nameof(HasInvoices));
     }
 
     private void Apply(OwnerDetail owner)
@@ -276,6 +332,29 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
                 _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
             },
             _dialogs, _toast));
+    }
+
+    [RelayCommand]
+    private void OpenInvoice(OwnerInvoiceRowViewModel? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        var ownerId = _owner?.Id;
+        _dialogs.ShowSheet(
+            new InvoiceViewerViewModel(
+                _sales, _toast, _dialogs, row.Id,
+                () =>
+                {
+                    if (ownerId is not null)
+                    {
+                        _ = LoadInvoicesAsync(ownerId);
+                    }
+                }),
+            1040,
+            720);
     }
 
     [RelayCommand]

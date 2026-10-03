@@ -288,7 +288,7 @@ hard-coded `"۰"` must become the real count from D3 (or the owner's pets' visit
     touched non-Desktop projects, expect 0/0.
   **Push:** `feat(sales): GetInvoicesForOwnerAsync owner-scoped invoice query [T4]`.
 
-- [ ] **T5 — Owner File invoices section (consume T4).**
+- [x] **T5 — Owner File invoices section (consume T4).**
   The owner file VM takes `ISalesQueryService` via ctor DI (add the parameter + App.axaml.cs is
   already wiring `OwnerSheetViewModel`'s deps — verify it resolves `ISalesQueryService`, which is
   registered). In `LoadAsync` (after owner loads) call `GetInvoicesForOwnerAsync(owner.Id)` and
