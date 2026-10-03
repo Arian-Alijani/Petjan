@@ -18,6 +18,7 @@ public static class SalesRegistration
             // ── Reads ─────────────────────────────────────────────────────────────
             .AddQuery<ReadyForBillingQuery, IReadOnlyList<ReadyForBillingReadModel>, ReadyForBillingQueryHandler>()
             .AddQuery<InvoiceListQuery, PagedResult<InvoiceSummaryReadModel>, InvoiceListQueryHandler>()
+            .AddQuery<OwnerInvoicesQuery, IReadOnlyList<InvoiceSummaryReadModel>, OwnerInvoicesQueryHandler>()
             .AddQuery<InvoiceDetailQuery, InvoiceDetailReadModel?, InvoiceDetailQueryHandler>()
             .AddQuery<SalesCatalogQuery, SalesCatalogReadModel, SalesCatalogQueryHandler>()
             .AddQuery<InsurersQuery, IReadOnlyList<InsurerReadModel>, InsurersQueryHandler>()

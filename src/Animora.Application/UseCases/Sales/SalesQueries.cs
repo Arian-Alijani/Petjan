@@ -39,6 +39,22 @@ public sealed class InvoiceListQueryHandler(ISalesQueries queries)
             query.Search, query.Page, query.PageSize, ct));
 }
 
+/// <summary>The newest invoices registered for one owner (owner file); bounded by <paramref name="Take"/>.</summary>
+[RequiresPermission(PermissionCodes.SalesRead)]
+public sealed record OwnerInvoicesQuery(string OwnerId, int Take = 50)
+    : IQuery<IReadOnlyList<InvoiceSummaryReadModel>>;
+
+public sealed class OwnerInvoicesQueryHandler(ISalesQueries queries)
+    : IQueryHandler<OwnerInvoicesQuery, IReadOnlyList<InvoiceSummaryReadModel>>
+{
+    private const int HardMaxTake = 200;
+
+    public async Task<Result<IReadOnlyList<InvoiceSummaryReadModel>>> HandleAsync(
+        OwnerInvoicesQuery query, QueryContext context, CancellationToken ct) =>
+        Result<IReadOnlyList<InvoiceSummaryReadModel>>.Ok(await queries.GetOwnerInvoicesAsync(
+            query.OwnerId, Math.Clamp(query.Take, 1, HardMaxTake), ct));
+}
+
 /// <summary>One invoice with its lines, payments, adjustments and its settlement verdict (R-B16).</summary>
 [RequiresPermission(PermissionCodes.SalesRead)]
 public sealed record InvoiceDetailQuery(string InvoiceId) : IQuery<InvoiceDetailReadModel?>;

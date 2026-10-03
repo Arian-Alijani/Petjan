@@ -276,7 +276,7 @@ hard-coded `"۰"` must become the real count from D3 (or the owner's pets' visit
 
 ### Phase 2 — Invoices across sections (Task A6 + Task B invoices)
 
-- [ ] **T4 — Expose owner-scoped invoices (seam).**
+- [x] **T4 — Expose owner-scoped invoices (seam).**
   - `ISalesQueryService`: add `Task<IReadOnlyList<InvoiceSummary>> GetInvoicesForOwnerAsync(string ownerId)`.
   - `Animora.Application`: add a query (e.g. `OwnerInvoicesQuery(ownerId)`) + handler that filters by
     `Invoice.OwnerId == ownerId` (column exists — `src/Animora.Domain/Sales/Invoice.cs:105`).
