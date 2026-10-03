@@ -23,7 +23,7 @@
 - [x] X19 — DONE: all rebuilt sidebar/line/payment/catalog/owner/pet/day-cell/item/stat/tab/option lists are RangeObservableCollection + ReplaceAll (single Reset)
 - [x] X20 — DONE: ReloadStatsAsync always re-renders the sidebar list (ReloadAsync now delegates to it)
 - [x] X21 — DONE: Sales sidebar normalizes the query once per render and skips the debounced rebuild when the normalized query is unchanged; Cashier/Boarding already hoist the query
-- [ ] X22
+- [x] X22 — DONE: Owner picker search is debounced (200 ms) and guarded by a generation token so stale responses cannot overwrite newer rows
 - [ ] X23
 - [ ] X24
 - [ ] X25
@@ -219,7 +219,7 @@
 - **Fix:** normalize the query once per render (hoist out of the per-row predicate, PERF §2), and skip the rebuild when inputs are unchanged (PERF §13). Same per-row `Normalize` hoist applies to C.VM:286–291 and B.VM:237–240.
 - **Acceptance:** one normalization per render; no rebuild when the query is unchanged.
 
-### X22 — P2 · §2/§13 · Owner picker queries the backend on every keystroke, no debounce/guard
+### ✅ X22 — P2 · §2/§13 · Owner picker queries the backend on every keystroke, no debounce/guard
 - **Evidence:** S.OWN:54 `OnQueryChanged => _ = SearchAsync()` with no `Debouncer` (every other search field debounces: S.VM:436, C.VM:132, B.VM:339, B.HIST:39). No generation token, so out-of-order responses can clobber (contrast B.HIST:397–423 stale-guard).
 - **Failure:** a `GetOwnersAsync` round trip per character; a slow early response can overwrite a newer one, showing results for a stale query.
 - **Fix:** add a `Debouncer` (~160–220 ms) and a generation token like B.HIST.

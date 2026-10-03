@@ -51,11 +51,24 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
     [ObservableProperty]
     private bool _showNoResult;
 
-    partial void OnQueryChanged(string value) => _ = SearchAsync();
+    // Typing is debounced (like every other search field) so a fast typist issues one lookup, not one per
+    // character (PERFORMANCE.md §2/§13).
+    private readonly Debouncer _queryDebounce = new(TimeSpan.FromMilliseconds(200));
+
+    // Monotonic request token: a slow earlier response must never overwrite a newer query's rows.
+    private int _generation;
+
+    partial void OnQueryChanged(string value) => _queryDebounce.Debounce(() => _ = SearchAsync());
 
     private async Task SearchAsync()
     {
+        var token = ++_generation;
         var owners = await _service.GetOwnersAsync(Query.Trim());
+        if (token != _generation)
+        {
+            return;
+        }
+
         Rows.ReplaceAll(owners.Select(o => new OwnerRowViewModel(o)));
 
         HasRows = Rows.Count > 0;
