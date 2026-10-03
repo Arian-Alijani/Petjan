@@ -81,7 +81,9 @@ internal static class InventoryMapping
         "GoodsReceipt" => "خرید " + PersianFormat.Digits(row.SourceEntityId ?? string.Empty),
         "Invoice" => "فروش " + PersianFormat.Digits(row.SourceEntityId ?? string.Empty),
         "Seed" => "موجودی اولیه",
-        null or "" => row.Reason ?? "حرکت انبار",
+        null or "" => string.Equals(row.Reason, "OpeningBalance", StringComparison.Ordinal)
+            ? "موجودی اولیه"
+            : row.Reason ?? "حرکت انبار",
         _ => row.SourceEntityType,
     };
 

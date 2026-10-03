@@ -132,8 +132,14 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
     {
         ArgumentNullException.ThrowIfNull(request);
         var attributeName = AttributeNameOf(request.AttributeName, request.Variants);
-        var variants = ToInputs(request.Variants, attributeName);
-        if (variants.Length == 0)
+        var variants = ToInputs(request.Variants, attributeName, withOpeningStock: true);
+        if (variants.Length == 0 && request.AttributeOptions.Count > 0)
+        {
+            // A multi-variant product: one variant per declared option, sharing the dimension. Every option
+            // gets its own unique SKU and starts independently stockable at zero.
+            variants = FromOptions(request.Code, attributeName, request.AttributeOptions);
+        }
+        else if (variants.Length == 0)
         {
             // A stock-tracked product always keeps at least one variant (VARIANT_REQUIRED): a single-unit
             // product is created with one implicit DEFAULT variant, exactly as the domain models it.
@@ -180,7 +186,29 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
             BridgeAdjustReason));
     }
 
-    private static ProductVariantInput[] ToInputs(IReadOnlyList<ContractVariant> variants, string attributeName)
+    /// <summary>Expands a multi-variant product's declared options into one variant input each.</summary>
+    private static ProductVariantInput[] FromOptions(string code, string attributeName, IReadOnlyList<string> options)
+    {
+        var inputs = new List<ProductVariantInput>(options.Count);
+        var used = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < options.Count; i++)
+        {
+            var option = options[i].Trim();
+            if (option.Length == 0) continue;
+
+            var sku = SkuFor(code, option);
+            if (!used.Add(sku))
+            {
+                sku = $"{sku}-{i + 1}";
+                used.Add(sku);
+            }
+            inputs.Add(new ProductVariantInput(null, sku, attributeName, option, 0L, 0L, 0L));
+        }
+        return inputs.ToArray();
+    }
+
+    private static ProductVariantInput[] ToInputs(
+        IReadOnlyList<ContractVariant> variants, string attributeName, bool withOpeningStock = false)
     {
         var inputs = new ProductVariantInput[variants.Count];
         for (var i = 0; i < variants.Count; i++)
@@ -190,7 +218,8 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
                 string.IsNullOrEmpty(variant.Id) ? null : variant.Id,
                 string.IsNullOrWhiteSpace(variant.Sku) ? SkuFor(variant.Label, (i + 1).ToString()) : variant.Sku,
                 attributeName, variant.Label, variant.Cost, variant.Price,
-                InventoryMapping.IntToScaled(variant.ReorderPoint));
+                InventoryMapping.IntToScaled(variant.ReorderPoint),
+                OpeningStockScaled: withOpeningStock ? InventoryMapping.IntToScaled(Math.Max(0, variant.Stock)) : 0L);
         }
         return inputs;
     }

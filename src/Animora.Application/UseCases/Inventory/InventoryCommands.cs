@@ -27,7 +27,8 @@ public sealed record ProductVariantInput(
     long CostMinor,
     long SaleMinor,
     long ReorderLevelScaled,
-    string? Barcode = null);
+    string? Barcode = null,
+    long OpeningStockScaled = 0L);
 
 /// <summary>Creates a product together with its variants. Returns the new product id.</summary>
 [RequiresPermission(PermissionCodes.InventoryAdjust)]
@@ -72,7 +73,8 @@ public sealed class CreateProductCommandValidator : IValidator<CreateProductComm
     }
 }
 
-public sealed class CreateProductCommandHandler(IProductRepository products, IClock clock)
+public sealed class CreateProductCommandHandler(
+    IProductRepository products, IStockMovementRepository movements, IClock clock)
     : ICommandHandler<CreateProductCommand, string>
 {
     public async Task<Result<string>> HandleAsync(CreateProductCommand c, CommandContext context, CancellationToken ct)
@@ -102,6 +104,24 @@ public sealed class CreateProductCommandHandler(IProductRepository products, ICl
         if (created.IsFailure) return Result<string>.Fail(created.Error, created.Detail);
 
         var product = created.Value!;
+
+        // Opening stock is an explicit first movement (on-hand is a projection of movements). It is
+        // added in the same unit of work as the product, so create + opening balance commit atomically.
+        for (var i = 0; i < variantInputs.Count; i++)
+        {
+            var opening = variantInputs[i].OpeningStockScaled;
+            if (opening < 0L)
+                return Result<string>.Fail(ErrorCodes.StockWouldGoNegative, "Opening stock cannot be negative.");
+            if (opening == 0L) continue;
+
+            var movement = StockMovement.Create(
+                context.TenantId, product.Id, variants[i].VariantId, MovementKind.AdjustmentIn,
+                new Quantity(opening / 1000m, unit), Money.Irt(variantInputs[i].CostMinor), clock.UtcNow,
+                context.UserId, operationId: context.OperationId, reason: AdjustmentReasons.OpeningBalance);
+            if (movement.IsFailure) return Result<string>.Fail(movement.Error, movement.Detail);
+            movements.Add(movement.Value!);
+        }
+
         products.Add(product);
         return Result<string>.Ok(product.Id);
     }

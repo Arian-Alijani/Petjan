@@ -138,7 +138,7 @@ catch (ServiceException ex) { _toast.Show(MapError(ex), Tone.Danger); } // keep 
 
 ## TASKS
 
-### T1 — [ ] Opening stock persists on product create (P0-1, P2-14)
+### T1 — [x] Opening stock persists on product create (P0-1, P2-14)
 **Findings:** P0-1 (new product's initial stock silently discarded), P2-14 (multi-variant create collapses to one DEFAULT variant, options dropped).
 **Root cause (verified):**
 - P.NEW `CreateAsync` parses «موجودی اولیه» into `ProductVariant.Stock`, but I.SVC `ToInputs` maps to

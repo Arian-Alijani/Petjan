@@ -16,6 +16,28 @@ namespace Animora.Desktop.Pages.Inventory;
 /// </summary>
 public static class InventoryPresentation
 {
+    /// <summary>
+    /// The Persian toast for a failed Inventory mutation. Known domain codes get a specific message; access
+    /// and unknown failures defer to the shared Patients mapping (access-lost copy / the caller's fallback).
+    /// </summary>
+    public static string MutationFailureMessage(InvalidOperationException ex, string fallback)
+    {
+        if (ex is Animora.Client.Services.ServiceException se)
+        {
+            switch (se.Code)
+            {
+                case "PRODUCT_SKU_DUPLICATE": return "کد/شناسه تکراری است؛ کد دیگری انتخاب کنید";
+                case "PRODUCT_HAS_STOCK": return "کالا هنوز موجودی یا گردش اخیر دارد و حذف نمی‌شود";
+                case "STOCK_WOULD_GO_NEGATIVE": return "موجودی نمی‌تواند منفی شود";
+                case "PRODUCT_NOT_FOUND": return "کالا پیدا نشد؛ فهرست را به‌روز کنید";
+                case "VARIANT_NOT_FOUND": return "تنوع پیدا نشد؛ فهرست را به‌روز کنید";
+                case "ADJUSTMENT_REASON_INVALID": return "دلیل تغییر موجودی معتبر نیست";
+            }
+        }
+
+        return Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, fallback);
+    }
+
     /// <summary>A solid fill brush from a hex string (shared via <see cref="BrushCache"/>).</summary>
     public static IBrush Fill(string hex) => BrushCache.Solid(hex);
 

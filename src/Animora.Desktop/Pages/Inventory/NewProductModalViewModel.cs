@@ -156,9 +156,19 @@ public sealed partial class NewProductModalViewModel : ObservableObject
             attributeOptions,
             variants);
 
-        await _service.CreateProductAsync(request);
+        try
+        {
+            await _service.CreateProductAsync(request);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Keep the modal open so the user can correct the form; never claim success.
+            _toast.Show(InventoryPresentation.MutationFailureMessage(ex, "ساخت کالا ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            return;
+        }
+
         _dialogs.Close();
-        _toast.Show("کالا ساخته شد (نمونه طراحی)");
+        _toast.Show("کالا ساخته شد", Tone.Ok);
         _onCreated?.Invoke();
     }
 
