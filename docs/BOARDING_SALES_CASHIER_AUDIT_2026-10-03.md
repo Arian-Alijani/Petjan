@@ -29,7 +29,7 @@
 - [x] X25 — DONE: removed the dead key parameter of Resolve; the three design-token brushes are cached statics
 - [x] X26 — DONE: line Gross/Subtotal now come from InvoiceLineReadModel (domain Money.ApplyPercent) through the Sales/Cashier contracts; UI/print recomputation removed
 - [x] X27 — DONE: Edit/remove line carry the rendered LineId end-to-end (contracts, Sales+Cashier services, VMs); a concurrent change fails with INVOICE_LINE_INDEX_STALE and a clear toast instead of hitting another line
-- [ ] X28
+- [x] X28 — DONE: Sales KPIs reuse the page's loaded invoices + ready queue; only the settled-today query is issued by GetKpisAsync
 - [ ] X29
 - [ ] X30
 - [ ] X31
@@ -255,7 +255,7 @@
 - **Fix:** pass the `LineId` the row was built from (carry it on the row VM) and have the command match by id, rejecting if the id is gone (stale) rather than re-deriving from a possibly-changed index.
 - **Acceptance:** a line edit after a concurrent insert/remove either hits the intended line by id or fails with a "stale" message.
 
-### X28 — P2 · Duplicate work · KPIs refetch the invoice list already loaded by the page
+### ✅ X28 — P2 · Duplicate work · KPIs refetch the invoice list already loaded by the page
 - **Evidence:** S.VM `ReloadListsAsync` (481–488) fetches `GetInvoicesAsync()`, and `RefreshKpisAsync` (490–502) → S.SVC:105–132 `GetKpisAsync` runs **another** `InvoiceListQuery(null,1,200)` plus `ReadyForBillingQuery` (also already fetched via `GetReadyEncountersAsync`). So a page refresh issues the invoice-list and ready queries twice each.
 - **Failure:** redundant dispatcher round trips per refresh/mutation; `GetKpisAsync` re-enumerates 200 invoices to sum open due that the page already has in `_invoices`.
 - **Fix:** compute open-count/open-due from the already-loaded `_invoices`, or have one call return list+KPIs; avoid re-issuing the same queries.

@@ -535,7 +535,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     private async Task RefreshKpisAsync()
     {
-        Kpi = await _service.GetKpisAsync();
+        Kpi = await _service.GetKpisAsync(_invoices, _readyEncounters.Count);
         SettledTodayText = SalePresentation.Money(Kpi.SettledTodayTotal);
         OpenDueText = SalePresentation.Money(Kpi.OpenDueTotal);
 

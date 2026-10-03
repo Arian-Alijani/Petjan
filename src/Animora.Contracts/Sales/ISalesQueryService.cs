@@ -54,9 +54,11 @@ public interface ISalesQueryService
     /// <summary>
     /// The three inline mini-KPIs above the workspace (mirrors
     /// <c>renderKPIs()</c>): settled-today sum, open receivables sum + count and
-    /// the ready-visit count.
+    /// the ready-visit count. The page already holds the invoice list and the ready queue, so it passes them in:
+    /// only the settled-today figure needs its own query; open count/due are summed from
+    /// <paramref name="invoices"/> and the ready count is <paramref name="readyVisitCount"/> (X28).
     /// </summary>
-    Task<SaleKpiSnapshot> GetKpisAsync();
+    Task<SaleKpiSnapshot> GetKpisAsync(IReadOnlyList<InvoiceSummary> invoices, int readyVisitCount);
 
     // ── Phase 21 — catalog picker, payment, void/refund, owner picker ──────
 

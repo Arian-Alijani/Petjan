@@ -102,33 +102,30 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         return list;
     }
 
-    public async Task<SaleKpiSnapshot> GetKpisAsync()
+    public async Task<SaleKpiSnapshot> GetKpisAsync(IReadOnlyList<InvoiceSummary> invoices, int readyVisitCount)
     {
+        ArgumentNullException.ThrowIfNull(invoices);
         var (now, zone) = Calendar();
         var (from, to) = Animora.Client.Services.ClinicDayWindow.Of(now, zone);
 
+        // Only the settled-today figure is a query of its own; the open receivables and the ready count come
+        // from the lists the page has already loaded, so a refresh issues each underlying query once (X28).
         var kpi = await QueryAsync(new SaleKpiQuery(from, to));
-        var open = await QueryAsync(new InvoiceListQuery(null, 1, MaxPageSize));
-        var ready = await QueryAsync(new ReadyForBillingQuery());
 
         long openDue = 0;
         var openCount = 0;
-        if (open.IsSuccess && open.Value is not null)
+        for (var i = 0; i < invoices.Count; i++)
         {
-            foreach (var invoice in open.Value.Items)
+            // Contract Draft covers domain Draft+Posted; Partial is PartiallyPaid — the same "open" set as before.
+            if (invoices[i].State is ContractInvoiceState.Draft or ContractInvoiceState.Partial)
             {
-                if (invoice.State is DomainInvoiceState.Draft or DomainInvoiceState.Posted
-                    or DomainInvoiceState.PartiallyPaid)
-                {
-                    openDue += invoice.DueMinor;
-                    openCount++;
-                }
+                openDue += invoices[i].Due;
+                openCount++;
             }
         }
 
         var revenue = kpi.IsSuccess && kpi.Value is not null ? kpi.Value.RevenueMinor : 0L;
-        var readyCount = ready.IsSuccess && ready.Value is not null ? ready.Value.Count : 0;
-        return new SaleKpiSnapshot(revenue, openDue, openCount, readyCount);
+        return new SaleKpiSnapshot(revenue, openDue, openCount, Math.Max(0, readyVisitCount));
     }
 
     public async Task<CatalogSnapshot> GetCatalogAsync()
