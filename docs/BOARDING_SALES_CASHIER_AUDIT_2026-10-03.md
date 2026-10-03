@@ -4,7 +4,7 @@
 
 - [x] X01 — DONE: WalkInBoarder find-or-create owner/pet + PaymentMode persisted (migration 024)
 - [x] X02 — DONE: try/catch + danger toast on create/checkout/transfer/add/remove
-- [ ] X03
+- [x] X03 — DONE: shared ClinicDayWindow used by Sales KPIs and Cashier stats
 - [ ] X04
 - [ ] X05
 - [ ] X06
@@ -97,7 +97,7 @@
 - **Fix:** wrap each mutation in try/catch, surface the typed error as a danger toast (the pattern already exists at S.VM:257–277 `BuildFromEncounterAsync`), and only close + toast success after the awaited call returns without error.
 - **Acceptance:** a forced service failure shows a danger toast, keeps the modal open, and does not crash.
 
-### X03 — P0 · Money/time correctness · Cashier "today" stats ignore the clinic time zone
+### ✅ X03 — P0 · Money/time correctness · Cashier "today" stats ignore the clinic time zone
 - **Evidence:** C.SVC:40–43 `GetStatsAsync` computes the day window from `DateTimeOffset.UtcNow.UtcDate` directly. The Sales equivalent (S.SVC:105–132 + `ClinicDayWindow` S.SVC:412–417) correctly converts through `IClinicTimeZoneProvider`.
 - **Failure:** "دریافتی" (collected today) and "مغایرت صندوق" are bucketed on UTC midnight, not clinic-local midnight. For any non-UTC clinic (Iran is UTC+3:30) payments in the 3.5-hour boundary land in the wrong day; the drawer-variance figure is wrong every evening. Two screens reporting the same day disagree.
 - **Fix:** resolve `IClock` + `IClinicTimeZoneProvider` in C.SVC and build the window with the same helper Sales uses; share one `ClinicDayWindow`.

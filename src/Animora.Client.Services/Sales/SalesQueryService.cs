@@ -105,7 +105,7 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     public async Task<SaleKpiSnapshot> GetKpisAsync()
     {
         var (now, zone) = Calendar();
-        var (from, to) = ClinicDayWindow(now, zone);
+        var (from, to) = Animora.Client.Services.ClinicDayWindow.Of(now, zone);
 
         var kpi = await QueryAsync(new SaleKpiQuery(from, to));
         var open = await QueryAsync(new InvoiceListQuery(null, 1, MaxPageSize));
@@ -406,14 +406,6 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         var clock = scope.ServiceProvider.GetRequiredService<IClock>();
         var zone = scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
         return (clock.UtcNow, zone);
-    }
-
-    /// <summary>The UTC window covering one clinic-local day (the settled-today KPI window).</summary>
-    private static (DateTimeOffset From, DateTimeOffset To) ClinicDayWindow(DateTimeOffset now, TimeZoneInfo tz)
-    {
-        var local = TimeZoneInfo.ConvertTime(now, tz).Date;
-        var start = new DateTimeOffset(DateTime.SpecifyKind(local, DateTimeKind.Unspecified), tz.GetUtcOffset(local));
-        return (start.ToUniversalTime(), start.AddDays(1).ToUniversalTime());
     }
 
     /// <summary>

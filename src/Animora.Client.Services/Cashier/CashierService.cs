@@ -38,9 +38,9 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 
     public async Task<IReadOnlyList<CashierStat>> GetStatsAsync()
     {
-        var now = DateTimeOffset.UtcNow;
-        var from = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
-        var result = await QueryAsync(new CashierStatsQuery(from, from.AddDays(1)));
+        // Same clinic-local day window the Sales KPIs use, so both screens agree on "today".
+        var (from, to) = ClinicDayWindow.Today(scopes);
+        var result = await QueryAsync(new CashierStatsQuery(from, to));
         if (result.IsFailure || result.Value is null) return [];
         var stats = result.Value;
         return [
