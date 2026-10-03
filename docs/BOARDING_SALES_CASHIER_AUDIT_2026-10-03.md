@@ -19,7 +19,7 @@
 - [x] X15 — DONE: CreateBlankAsync no longer takes an ignored kind parameter (blank document is always a counter sale)
 - [x] X16 — DONE: New stay requires a selected room (literal A-1 fallback removed); server-side CreateBoardingStayCommand already rejects occupied/unavailable rooms and the failure is toasted
 - [x] X17 — DONE: Sales TakePaymentAsync re-reads the posted invoice and caps against the post-time due (Cashier already read due after post)
-- [ ] X18
+- [x] X18 — DONE: Sales ready list and invoice sidebar are virtualized ListBoxes (same pattern as Cashier)
 - [ ] X19
 - [ ] X20
 - [ ] X21
@@ -195,7 +195,7 @@
 
 ## P2 — perf / resilience / consistency / maintainability
 
-### X18 — P2 · PERF §6 · Sales sidebar and ready list are not virtualized
+### ✅ X18 — P2 · PERF §6 · Sales sidebar and ready list are not virtualized
 - **Evidence:** S.VIEW:930 `ReadyList` and S.VIEW:1006 `InvoiceRows` are bound to plain `ItemsControl` (no virtualizing panel). `GetInvoicesAsync` loads up to `MaxPageSize=200` (S.SVC:62–72) and the ready queue is unbounded. The Cashier invoice list (C.VIEW:402 `ListBox.records`) and the Boarding grid (B.VIEW:326) *are* virtualized — Sales is the outlier.
 - **Failure:** every invoice/ready row is realized eagerly; with hundreds of invoices the sidebar builds the full visual tree on each `RenderSidebar()` (which also runs on every debounced keystroke, X21).
 - **Fix:** host both lists in a virtualizing `ListBox`/`ItemsRepeater` with a bound-active style, matching the Cashier pattern.
