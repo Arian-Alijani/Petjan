@@ -60,12 +60,12 @@ public sealed class VisitEncounterService(IServiceScopeFactory scopes, Operation
     {
         await using var scope = scopes.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>().BuildQueryContext();
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         var key = $"{context.Value!.TenantId}|{context.Value.UserId}|rxcatalog|v1";
         if (_catalog.TryGet(key, out var cached)) return cached;
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
             .QueryAsync(new RxCatalogQuery(), context.Value);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
         var rows = (IReadOnlyList<RxCatalogItem>)result.Value!.Select(r => r.ToContract()).ToArray();
         _catalog.Set(key, rows);
         return rows;
@@ -83,9 +83,9 @@ public sealed class VisitEncounterService(IServiceScopeFactory scopes, Operation
     {
         await using var scope = scopes.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>().BuildQueryContext();
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().QueryAsync(query, context.Value!);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
         return result.Value!;
     }
 
@@ -94,9 +94,9 @@ public sealed class VisitEncounterService(IServiceScopeFactory scopes, Operation
         await using var scope = scopes.CreateAsyncScope();
         var context = await scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>()
             .BuildCommandContextAsync(operationId, null, null, default);
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().SendAsync(command, context.Value!);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
         return result.Value!;
     }
 
@@ -105,8 +105,8 @@ public sealed class VisitEncounterService(IServiceScopeFactory scopes, Operation
         await using var scope = scopes.CreateAsyncScope();
         var context = await scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>()
             .BuildCommandContextAsync(null, null, null, ct);
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().SendAsync(command, context.Value!, ct);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
     }
 }

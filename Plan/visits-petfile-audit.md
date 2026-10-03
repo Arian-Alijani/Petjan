@@ -471,7 +471,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** background refresh updates the rail without flashing empty or losing selection.
 
 ### Task 17 — V18 · Typed service exception carrying error category
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. New `Animora.Client.Services.ServiceException : InvalidOperationException` (Code + Category, Message stays the bare code) is now thrown by every seam `throw new InvalidOperationException(x.Error.Code)` site (12 services, ~66 sites) so all existing catches/string matches keep working; `PatientsPresentation.CommandFailureMessage` (used by the Visits guards) also branches on `ServiceException.Category` (Forbidden → access-lost copy; other categories keep the caller's contextual fallback).
 - **Priority:** P2 · **Push message:** `refactor(services): throw typed ServiceException with error category from seam (V18)`
 - **Goal:** VMs branch on error category, not message text.
 - **Current:** TSVC (44,46,56,58) and ESVC (62,67,85,87,96,98,107,109) throw

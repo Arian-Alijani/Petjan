@@ -154,7 +154,7 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 
     private static void Ensure(Result<Unit> result)
     {
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
     }
 
     private async Task<Result<T>> QueryAsync<T>(IQuery<T> query)

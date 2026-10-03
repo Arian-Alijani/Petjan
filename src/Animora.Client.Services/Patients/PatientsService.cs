@@ -33,13 +33,13 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
+        if (qc.IsFailure) throw new ServiceException(qc.Error);
 
         var r = await dispatcher.QueryAsync(
             new PetDirectoryQuery(query.Search, MapSpecies(query.Species), MapSort(query.Sort),
                 query.Page, ClampPageSize(query.PageSize)),
             qc.Value!);
-        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        if (r.IsFailure) throw new ServiceException(r.Error);
         return ToPage(r.Value!, x => x.ToSummary());
     }
 
@@ -52,13 +52,13 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
+        if (qc.IsFailure) throw new ServiceException(qc.Error);
 
         var r = await dispatcher.QueryAsync(
             new OwnerDirectoryQuery(query.Search, MapSpecies(query.Species), MapSort(query.Sort),
                 query.Page, ClampPageSize(query.PageSize)),
             qc.Value!);
-        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        if (r.IsFailure) throw new ServiceException(r.Error);
         return ToPage(r.Value!, x => x.ToSummary());
     }
 
@@ -72,11 +72,11 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
+        if (qc.IsFailure) throw new ServiceException(qc.Error);
 
         var r = await dispatcher.QueryAsync(
             new PatientsDirectoryFacetsQuery(query.Search, MapSpecies(query.Species)), qc.Value!);
-        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        if (r.IsFailure) throw new ServiceException(r.Error);
         var m = r.Value!;
         var species = m.SpeciesCounts.ToDictionary(kv => MapSpeciesToContract(kv.Key), kv => kv.Value);
         return new PatientsDirectoryFacets(m.TotalOwners, m.TotalPets, species);
@@ -118,9 +118,9 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
+        if (qc.IsFailure) throw new ServiceException(qc.Error);
         var r = await dispatcher.QueryAsync(new OwnerDetailQuery(id), qc.Value!);
-        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        if (r.IsFailure) throw new ServiceException(r.Error);
         // Success + null value is a genuine not-found; auth/session failures throw above.
         return r.Value is { } m ? m.ToDetail() : null;
     }
@@ -131,7 +131,7 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
+        if (qc.IsFailure) throw new ServiceException(qc.Error);
         var zone = scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
         DateTime Local(DateTimeOffset utc) => TimeZoneInfo.ConvertTime(utc, zone).DateTime;
 
@@ -203,9 +203,9 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
+        if (qc.IsFailure) throw new ServiceException(qc.Error);
         var r = await dispatcher.QueryAsync(new PetDetailQuery(id), qc.Value!);
-        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        if (r.IsFailure) throw new ServiceException(r.Error);
         // Success + null value is a genuine not-found; auth/session failures throw above.
         return r.Value is { } m ? m.ToDetail() : null;
     }
@@ -223,14 +223,14 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var cc = await provider.BuildCommandContextAsync(null, null, null, default);
-        if (cc.IsFailure) throw new InvalidOperationException(cc.Error.Code);
+        if (cc.IsFailure) throw new ServiceException(cc.Error);
         var p = request.Pet;
         var cmd = new CreateOwnerCommand(FullName: $"{request.FirstName} {request.LastName}".Trim(),
             request.Mobile1, request.Gender.ToDomain(), request.Mobile2, request.NationalId, request.Address,
             p?.Name, p?.Species.ToDomain(), p?.Breed, p?.Color, p?.Gender.ToDomain(),
             ToUtc(p?.BirthDate), p?.MicrochipCode, ToUtc(p?.MicrochipDate), p?.Neutered ?? false);
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
-        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetOwnerAsync(r.Value!))!;
     }
 
@@ -240,12 +240,12 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var cc = await provider.BuildCommandContextAsync(null, null, null, default);
-        if (cc.IsFailure) throw new InvalidOperationException(cc.Error.Code);
+        if (cc.IsFailure) throw new ServiceException(cc.Error);
         var cmd = new CreatePetCommand(ownerId, request.Name, request.Species.ToDomain(), request.Breed,
             request.Color, request.Gender.ToDomain(), ToUtc(request.BirthDate), request.MicrochipCode,
             ToUtc(request.MicrochipDate), request.Neutered);
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
-        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetPetAsync(r.Value!))!;
     }
 
@@ -255,11 +255,11 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var cc = await provider.BuildCommandContextAsync(null, null, null, default);
-        if (cc.IsFailure) throw new InvalidOperationException(cc.Error.Code);
+        if (cc.IsFailure) throw new ServiceException(cc.Error);
         var cmd = new UpdateOwnerCommand(owner.Id, $"{owner.FirstName} {owner.LastName}".Trim(),
             owner.Mobile1, owner.Gender.ToDomain(), owner.Mobile2, owner.NationalId, owner.Address);
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
-        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetOwnerAsync(owner.Id))!;
     }
 
@@ -269,12 +269,12 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var cc = await provider.BuildCommandContextAsync(null, null, null, default);
-        if (cc.IsFailure) throw new InvalidOperationException(cc.Error.Code);
+        if (cc.IsFailure) throw new ServiceException(cc.Error);
         var cmd = new UpdatePetInfoCommand(pet.Id, pet.Name, pet.Breed, pet.Color, pet.Gender.ToDomain(),
             pet.BirthDate is { } bd ? ToUtc(bd) : null, pet.Neutered,
             PatientsMapping.JoinList(pet.Allergies), PatientsMapping.JoinList(pet.ChronicConditions));
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
-        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetPetAsync(pet.Id))!;
     }
 
@@ -284,10 +284,10 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var cc = await provider.BuildCommandContextAsync(null, null, null, default);
-        if (cc.IsFailure) throw new InvalidOperationException(cc.Error.Code);
+        if (cc.IsFailure) throw new ServiceException(cc.Error);
         var cmd = new AddWeightEntryCommand(petId, (decimal)entry.WeightKg, ToUtc(entry.Date)!.Value, null);
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
-        if (r.IsFailure) throw new InvalidOperationException(r.Error.Code);
+        if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetPetAsync(petId))!;
     }
 

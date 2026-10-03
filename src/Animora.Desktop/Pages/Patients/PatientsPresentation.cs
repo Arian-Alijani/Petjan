@@ -234,7 +234,22 @@ public static class PatientsPresentation
     /// supplied fallback (a plain "operation failed; try again" line for store/code faults).
     /// </summary>
     public static string CommandFailureMessage(System.InvalidOperationException ex, string fallback) =>
-        IsAccessFailure(ex.Message) ? AccessLostMessage : fallback;
+        IsAccessFailure(ex.Message) ? AccessLostMessage : CategoryMessage(ex) ?? fallback;
+
+    /// <summary>
+    /// Shared category → UX mapping (V18). Only a typed <see cref="Animora.Client.Services.ServiceException"/>
+    /// carries a category; other <see cref="System.InvalidOperationException"/>s fall through to the caller's
+    /// fallback. Message text is never inspected here.
+    /// </summary>
+    private static string? CategoryMessage(System.InvalidOperationException ex) =>
+        ex is Animora.Client.Services.ServiceException se
+            ? se.Category switch
+            {
+                Animora.Domain.Results.ErrorCode.Forbidden => AccessLostMessage,
+                // NotFound / Conflict / Validation keep the caller's context-specific fallback on purpose.
+                _ => null,
+            }
+            : null;
 
     // Delegates to the shared, process-wide caches so callers that hit the hot
     // path (card/row builds) never re-allocate a brush per item

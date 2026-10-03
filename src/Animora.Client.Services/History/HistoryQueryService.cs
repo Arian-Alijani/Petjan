@@ -19,7 +19,7 @@ public sealed class HistoryQueryService(IServiceScopeFactory scopes) : IHistoryQ
         if (context.IsFailure) return new HistoryPage([], 0, 0, 0);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
             .QueryAsync(new ActivityFeedQuery(filter), context.Value!);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
         var zone = scope.ServiceProvider.GetRequiredService<Animora.Application.Ports.IClinicTimeZoneProvider>().GetClinicTimeZone();
         return new HistoryPage(result.Value!.Items.Select(x => HistoryMapping.Map(x, zone)).ToArray(),
             result.Value.TotalCount, result.Value.IncomeTotal, result.Value.ExpenseTotal);
@@ -29,10 +29,10 @@ public sealed class HistoryQueryService(IServiceScopeFactory scopes) : IHistoryQ
     {
         await using var scope = scopes.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>().BuildQueryContext();
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
             .QueryAsync(new ActivityExportQuery(filter), context.Value!);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
         return await CsvWriter.WriteAsync(result.Value!);
     }
 }
