@@ -26,13 +26,32 @@
             <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
             <Setter Property="FontWeight" Value="Medium" />
         </Style>
+
+        <!-- section label (matches PetFile panelhead typography) -->
         <Style Selector="TextBlock.odsec">
-            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="ExtraBold" />
-            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
+
+        <!-- card shell (mirrors PetFile .panel) -->
+        <Style Selector="Border.panel">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+        <Style Selector="Border.panelhead">
+            <Setter Property="Padding" Value="16,14" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+        </Style>
+
         <Style Selector="Border.odrow">
-            <Setter Property="Padding" Value="14,15" />
+            <Setter Property="Padding" Value="16,15" />
             <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
             <Setter Property="BorderThickness" Value="0,0,0,1" />
         </Style>
@@ -45,13 +64,28 @@
         <Style Selector="Border.odrow:last-child">
             <Setter Property="BorderThickness" Value="0" />
         </Style>
+
+        <!-- hover affordance on list rows -->
+        <Style Selector="Button.odlist">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="16,13" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.odlist:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+
         <Style Selector="Button.odbtn">
             <Setter Property="Background" Value="White" />
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Height" Value="36" />
-            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Padding" Value="16,0" />
             <Setter Property="FontSize" Value="12.5" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
@@ -69,65 +103,82 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="Auto,*,Auto" Background="{StaticResource BgBrush}">
+    <Grid RowDefinitions="*,Auto" Background="{StaticResource BgBrush}">
 
-        <!-- sheet-head -->
-        <Border Grid.Row="0" Background="White" BorderBrush="{StaticResource Line2Brush}"
-                BorderThickness="0,0,0,1" Padding="24,20">
-            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="18" MaxWidth="1120">
-                <Border Grid.Column="0" Width="72" Height="72" CornerRadius="22"
-                        Background="{Binding ToneBrush}">
-                    <TextBlock Text="{Binding Initials}" Foreground="White" FontSize="24"
-                               FontWeight="ExtraBold" HorizontalAlignment="Center"
-                               VerticalAlignment="Center" />
-                </Border>
-                <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Name}" FontSize="22" FontWeight="ExtraBold"
-                               Foreground="{StaticResource InkBrush}" />
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                        <TextBlock Text="{Binding FileText}" FontSize="13" FontWeight="Bold"
-                                   Foreground="{StaticResource Ink2Brush}" />
-                        <TextBlock Text="·" FontSize="13" Foreground="{StaticResource Muted2Brush}" />
-                        <TextBlock Text="{Binding GenderLabel}" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{StaticResource MutedBrush}" />
-                        <TextBlock Text="·" FontSize="13" Foreground="{StaticResource Muted2Brush}" />
-                        <TextBlock Text="{Binding SinceText}" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{StaticResource MutedBrush}" />
-                        <Border IsVisible="{Binding IsEditing}" Background="{StaticResource Brand50Brush}"
-                                CornerRadius="20" Padding="9,3">
-                            <StackPanel Orientation="Horizontal" Spacing="5">
-                                <Path Classes="icon" Width="12" Height="12"
-                                      Stroke="{StaticResource Brand700Brush}"
-                                      Data="{StaticResource IconEdit}" />
-                                <TextBlock Text="حالت ویرایش" FontSize="10.5" FontWeight="Bold"
-                                           Foreground="{StaticResource Brand700Brush}" />
-                            </StackPanel>
+        <!-- sheet-body — page sized to match PetFileView (single scroll, 1120 max, 22/20 margins) -->
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Margin="22,20,22,24" MaxWidth="1120">
+
+                <!-- ══ hero (modern gradient — consistent with PetFileView) ══ -->
+                <Border CornerRadius="22" Padding="24,22" Margin="0,0,0,16" ClipToBounds="True">
+                    <Border.Background>
+                        <RadialGradientBrush Center="88%,-30%" GradientOrigin="88%,-30%"
+                                             RadiusX="130%" RadiusY="150%">
+                            <GradientStop Color="#14b8a6" Offset="0" />
+                            <GradientStop Color="#104a43" Offset="0.55" />
+                            <GradientStop Color="#0c3631" Offset="1" />
+                        </RadialGradientBrush>
+                    </Border.Background>
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="18">
+                        <Border Grid.Column="0" Width="84" Height="84" CornerRadius="26"
+                                Background="{Binding ToneBrush}" BorderBrush="#33FFFFFF" BorderThickness="1">
+                            <TextBlock Text="{Binding Initials}" Foreground="White" FontSize="30"
+                                       FontWeight="ExtraBold" HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
                         </Border>
-                    </StackPanel>
-                </StackPanel>
-                <Button Grid.Column="2" Width="40" Height="40" Padding="0" CornerRadius="12" VerticalAlignment="Top"
-                        Background="White" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                        Command="{Binding CloseCommand}" ToolTip.Tip="بستن پرونده">
-                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
-                          Data="{StaticResource IconX}" HorizontalAlignment="Center"
-                          VerticalAlignment="Center" />
-                </Button>
-            </Grid>
-        </Border>
-
-        <!-- sheet-body -->
-        <ScrollViewer Grid.Row="1" Padding="24,22,24,26">
-            <StackPanel Spacing="22" MaxWidth="1120" HorizontalAlignment="Center">
+                        <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" FontSize="27" FontWeight="ExtraBold"
+                                       Foreground="White" />
+                            <TextBlock Text="{Binding FileText}" FontSize="12" Foreground="#a9ccc6" />
+                            <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,11,0,0">
+                                <Border CornerRadius="20" Padding="11,5" Background="#1CFFFFFF"
+                                        BorderBrush="#24FFFFFF" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="13" Height="13" Stroke="#eaf6f3"
+                                              Data="{StaticResource IconUser}" />
+                                        <TextBlock Text="{Binding GenderLabel}" FontSize="11.5"
+                                                   FontWeight="SemiBold" Foreground="#eaf6f3" />
+                                    </StackPanel>
+                                </Border>
+                                <Border CornerRadius="20" Padding="11,5" Background="#1CFFFFFF"
+                                        BorderBrush="#24FFFFFF" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="13" Height="13" Stroke="#eaf6f3"
+                                              Data="{StaticResource IconHistory}" />
+                                        <TextBlock Text="{Binding SinceText}" FontSize="11.5"
+                                                   FontWeight="SemiBold" Foreground="#eaf6f3" />
+                                    </StackPanel>
+                                </Border>
+                                <Border CornerRadius="20" Padding="11,5"
+                                        Background="#2E88D6AB" BorderBrush="#4C58D6AB" BorderThickness="1"
+                                        IsVisible="{Binding IsEditing}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Path Classes="icon" Width="13" Height="13" Stroke="#c9f4e5"
+                                              Data="{StaticResource IconEdit}" />
+                                        <TextBlock Text="حالت ویرایش" FontSize="11.5"
+                                                   FontWeight="SemiBold" Foreground="#c9f4e5" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                        <Button Grid.Column="2" Width="40" Height="40" Padding="0" CornerRadius="12"
+                                VerticalAlignment="Top" Background="#1FFFFFFF" BorderBrush="#33FFFFFF"
+                                BorderThickness="1" Command="{Binding CloseCommand}" ToolTip.Tip="بستن پرونده">
+                            <Path Classes="icon" Width="16" Height="16" Stroke="White"
+                                  Data="{StaticResource IconX}" HorizontalAlignment="Center"
+                                  VerticalAlignment="Center" />
+                        </Button>
+                    </Grid>
+                </Border>
 
                 <!-- od-grid -->
                 <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
-                      ColumnSpacing="20" RowSpacing="22">
+                      ColumnSpacing="16" RowSpacing="18">
 
                     <!-- identity -->
                     <StackPanel Grid.Row="0" Grid.Column="0" Spacing="10">
                         <TextBlock Classes="odsec" Text="اطلاعات هویتی" />
-                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
-                                BorderThickness="1" CornerRadius="16" ClipToBounds="True">
+                        <Border Classes="panel">
                             <StackPanel>
                                 <Border Classes="odrow">
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
@@ -192,8 +243,7 @@
                     <!-- contact -->
                     <StackPanel Grid.Row="0" Grid.Column="1" Spacing="10">
                         <TextBlock Classes="odsec" Text="راه‌های ارتباطی" />
-                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
-                                BorderThickness="1" CornerRadius="16" ClipToBounds="True">
+                        <Border Classes="panel">
                             <StackPanel>
                                 <Border Classes="odrow copyable" Tag="{Binding Mobile1Text}" PointerPressed="OnCopyRowPressed">
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
@@ -244,8 +294,7 @@
                     <!-- address (span) -->
                     <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="10">
                         <TextBlock Classes="odsec" Text="نشانی و نحوه آشنایی" />
-                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
-                                BorderThickness="1" CornerRadius="16" ClipToBounds="True">
+                        <Border Classes="panel">
                             <StackPanel>
                                 <Border Classes="odrow copyable" Tag="{Binding AddressText}" PointerPressed="OnCopyRowPressed">
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
@@ -292,15 +341,12 @@
                             </Button>
                         </Grid>
 
-                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
-                                BorderThickness="1" CornerRadius="16" ClipToBounds="True">
+                        <Border Classes="panel">
                             <StackPanel>
                                 <ItemsControl ItemsSource="{Binding Pets}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="patients:OwnerSheetPetRowViewModel">
-                                            <Button Background="Transparent" BorderThickness="0"
-                                                    Padding="16,13" HorizontalAlignment="Stretch"
-                                                    HorizontalContentAlignment="Stretch"
+                                            <Button Classes="odlist"
                                                     Command="{Binding #Root.((patients:OwnerSheetViewModel)DataContext).OpenPetCommand}"
                                                     CommandParameter="{Binding}">
                                                 <Grid ColumnDefinitions="42,*,Auto,Auto" ColumnSpacing="13">
@@ -353,15 +399,12 @@
                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
                         </StackPanel>
-                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
-                                BorderThickness="1" CornerRadius="16" ClipToBounds="True">
+                        <Border Classes="panel">
                             <StackPanel>
                                 <ItemsControl ItemsSource="{Binding Invoices}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="patients:OwnerInvoiceRowViewModel">
-                                            <Button Background="Transparent" BorderThickness="0"
-                                                    Padding="16,13" HorizontalAlignment="Stretch"
-                                                    HorizontalContentAlignment="Stretch"
+                                            <Button Classes="odlist"
                                                     Command="{Binding #Root.((patients:OwnerSheetViewModel)DataContext).OpenInvoiceCommand}"
                                                     CommandParameter="{Binding}">
                                                 <Grid ColumnDefinitions="42,*,Auto,Auto,Auto" ColumnSpacing="14">
@@ -428,8 +471,7 @@
                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
                         </StackPanel>
-                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
-                                BorderThickness="1" CornerRadius="16" ClipToBounds="True">
+                        <Border Classes="panel">
                             <StackPanel>
                                 <ItemsControl ItemsSource="{Binding SmsMessages}">
                                     <ItemsControl.ItemTemplate>
@@ -478,8 +520,7 @@
                     <!-- activity (span) -->
                     <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Spacing="10">
                         <TextBlock Classes="odsec" Text="خلاصه فعالیت" />
-                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
-                                BorderThickness="1" CornerRadius="16" ClipToBounds="True">
+                        <Border Classes="panel">
                             <StackPanel>
                                 <Grid ColumnDefinitions="*,*,*,*,*">
                                     <Border Grid.Column="0" Padding="12,18">
@@ -592,12 +633,13 @@
         </ScrollViewer>
 
         <!-- sheet-foot -->
-        <Border Grid.Row="2" Background="White" BorderBrush="{StaticResource Line2Brush}"
-                BorderThickness="0,1,0,0" Padding="24,13">
-            <StackPanel Orientation="Horizontal" Spacing="8">
+        <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource Line2Brush}"
+                BorderThickness="0,1,0,0" Padding="22,14">
+            <StackPanel Orientation="Horizontal" Spacing="10" MaxWidth="1120"
+                        HorizontalAlignment="Center">
                 <Button Classes="odbtn primary" Height="42" Command="{Binding SaveCommand}"
-                        IsVisible="{Binding IsEditing}" HorizontalAlignment="Stretch" Width="200">
-                    <StackPanel Orientation="Horizontal" Spacing="6"
+                        IsVisible="{Binding IsEditing}" Width="210">
+                    <StackPanel Orientation="Horizontal" Spacing="7"
                                 HorizontalAlignment="Center">
                         <Path Classes="icon" Width="15" Height="15" Stroke="White"
                               Data="{StaticResource IconCheck}" />
@@ -605,12 +647,12 @@
                     </StackPanel>
                 </Button>
                 <Button Classes="odbtn" Height="42" Command="{Binding CancelEditCommand}"
-                        IsVisible="{Binding IsEditing}" Width="120">
+                        IsVisible="{Binding IsEditing}" Width="130">
                     <TextBlock Text="انصراف" HorizontalAlignment="Center" />
                 </Button>
                 <Button Classes="odbtn primary" Height="42" Command="{Binding EditCommand}"
-                        IsVisible="{Binding IsViewing}" Width="200">
-                    <StackPanel Orientation="Horizontal" Spacing="6"
+                        IsVisible="{Binding IsViewing}" Width="210">
+                    <StackPanel Orientation="Horizontal" Spacing="7"
                                 HorizontalAlignment="Center">
                         <Path Classes="icon" Width="15" Height="15" Stroke="White"
                               Data="{StaticResource IconEdit}" />
@@ -618,7 +660,7 @@
                     </StackPanel>
                 </Button>
                 <Button Classes="odbtn" Height="42" Command="{Binding CloseCommand}"
-                        IsVisible="{Binding IsViewing}" Width="120">
+                        IsVisible="{Binding IsViewing}" Width="130">
                     <TextBlock Text="بستن" HorizontalAlignment="Center" />
                 </Button>
             </StackPanel>
