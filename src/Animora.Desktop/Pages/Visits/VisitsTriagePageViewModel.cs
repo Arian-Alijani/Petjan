@@ -184,22 +184,34 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         try
         {
             await _readiness.WaitAsync();
+            // Fetch everything BEFORE touching the bound collection, then swap the rail in one synchronous
+            // pass: there is no await between Clear and the re-add, so the UI never renders an empty rail
+            // or a lost selection mid-refresh (V17, PERFORMANCE.md §5).
             var doctors = await _service.GetDoctorsAsync();
+            var patients = await _service.GetPatientsAsync();
             var selectedId = SelectedDoctor?.Doctor.Id;
-            Doctors.Clear();
-            foreach (var doctor in doctors)
+
+            var tiles = doctors.Select(d => new DoctorTileViewModel(d)).ToList();
+            var restored = selectedId is null ? null : tiles.FirstOrDefault(t => t.Doctor.Id == selectedId);
+            if (restored is not null)
             {
-                Doctors.Add(new DoctorTileViewModel(doctor));
+                restored.IsSelected = true;
+            }
+
+            Doctors.Clear();
+            foreach (var tile in tiles)
+            {
+                Doctors.Add(tile);
             }
 
             // Preserve the current selection across a reload so a background
             // refresh does not reset the doctor the user is working with.
             if (selectedId is not null)
             {
-                SelectedDoctor = Doctors.FirstOrDefault(d => d.Doctor.Id == selectedId);
+                SelectedDoctor = restored;
             }
 
-            _allPatients = await _service.GetPatientsAsync();
+            _allPatients = patients;
             NotifyState();
         }
         finally

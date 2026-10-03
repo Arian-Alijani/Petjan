@@ -459,7 +459,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** avatar initials render correctly for non-BMP leading characters.
 
 ### Task 16 — V17 · Triage reload without empty flash
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. `LoadAsync` now awaits doctors + patients first, builds the new tile list locally (re-marking the restored selection as selected) and swaps the collection in one synchronous pass with no await between Clear and re-add; `_isLoading` guard kept.
 - **Priority:** P2 · **Push message:** `fix(visits): swap doctor rail in one pass to avoid empty flash on refresh (V17)`
 - **Goal:** Background refresh updates the rail without flashing empty or visibly losing selection.
 - **Current:** `LoadAsync` (TVM 173–206) calls `Doctors.Clear()` (186) BEFORE the await returns, then
