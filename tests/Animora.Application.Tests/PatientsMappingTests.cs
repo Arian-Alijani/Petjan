@@ -82,7 +82,7 @@ public sealed class PatientsMappingTests
         Assert.Equal(4.0, detail.Weights[0].WeightKg);
         Assert.Equal(new[] { "پنی سیلین", "گردو", "مرغ" }, detail.Allergies);
         Assert.Equal(new[] { "دیابت" }, detail.ChronicConditions);
-        Assert.Empty(detail.Visits);
+        Assert.Empty(detail.Visits);   // no visits supplied → empty list
         Assert.Empty(detail.Vaccinations);
         Assert.Empty(detail.Documents);
         Assert.Null(detail.Notes);
@@ -145,5 +145,23 @@ public sealed class PatientsMappingTests
         Assert.Equal(DomainOwnerGender.Male, OwnerGender.Male.ToDomain());
         // Round trip through the mapping preserves the species name.
         Assert.Equal(PetSpecies.Dog, Pet(DomainPetSpecies.Dog).ToSummary().Species);
+    }
+
+    [Fact]
+    public void PetDetail_MapsVisitHistoryNewestFirstWithInvoiceLink()
+    {
+        var when = new DateTimeOffset(2026, 9, 1, 8, 0, 0, TimeSpan.Zero);
+        var detail = new PetDetailReadModel("P1", "رکس", DomainPetSpecies.Dog, null, null,
+            DomainPetGender.Male, DomainPetStatus.Active, "OW1", null, false, null, null, null, null, [],
+            [new PetVisitReadModel("V1", "Illness", when, "دکتر الف", "سرفه", "معاینه ریه", "برونشیت",
+                ["آموکسی‌سیلین"], 12.5m, 38.5m, 450_000, "INV-1")]).ToDetail();
+
+        var visit = Assert.Single(detail.Visits);
+        Assert.Equal("بیماری", visit.Type);
+        Assert.Equal("برونشیت", visit.Diagnosis);
+        Assert.Equal(450_000, visit.Cost);
+        Assert.Equal("INV-1", visit.InvoiceId);
+        Assert.Equal(12.5, visit.WeightKg);
+        Assert.Equal(["آموکسی‌سیلین"], visit.Prescriptions);
     }
 }

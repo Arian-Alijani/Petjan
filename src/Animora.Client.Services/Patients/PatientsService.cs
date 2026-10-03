@@ -196,17 +196,7 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
 
     private static readonly OwnerActivityFeed Empty = new([], 0, 0, 0, 0, null);
 
-    private static string VisitReasonLabel(string reason) => reason switch
-    {
-        "Checkup" => "معاینه عمومی",
-        "Illness" => "بیماری",
-        "Injury" => "سانحه",
-        "Vaccination" => "واکسیناسیون",
-        "Surgery" => "جراحی",
-        "Dental" => "دندان‌پزشکی",
-        "Followup" => "پیگیری",
-        _ => "عمومی",
-    };
+    private static string VisitReasonLabel(string reason) => PatientsMapping.VisitReasonLabel(reason);
 
     public async Task<PetDetail?> GetPetAsync(string id)
     {

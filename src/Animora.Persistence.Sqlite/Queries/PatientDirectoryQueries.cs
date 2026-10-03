@@ -194,8 +194,48 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             .Where(w => w.PetId == petId).OrderBy(w => w.MeasuredUtc)
             .Select(w => new PetWeightReadModel(w.MeasuredUtc, w.WeightKg)).ToListAsync(ct);
 
+        var visits = await GetPetVisitsAsync(petId, ct);
+
         return new PetDetailReadModel(pet.Id, pet.Name, pet.Species, pet.Breed, pet.Color, pet.Gender,
             pet.Status, pet.OwnerId, pet.BirthDateUtc, pet.IsNeutered, pet.MicrochipCode,
-            pet.MicrochipImplantUtc, pet.AllergyNotes, pet.ChronicNotes, weights);
+            pet.MicrochipImplantUtc, pet.AllergyNotes, pet.ChronicNotes, weights, visits);
+    }
+
+    private const int PetVisitTake = 50;
+
+    /// <summary>Newest <see cref="PetVisitTake"/> non-cancelled visits of the pet (index IX_Visits pet lookup).
+    /// Entities are materialised un-tracked because prescriptions/service lines are JSON columns; the doctor
+    /// display names are resolved in one extra bounded query instead of a per-row join.</summary>
+    private async Task<IReadOnlyList<PetVisitReadModel>> GetPetVisitsAsync(string petId, CancellationToken ct)
+    {
+        var rows = await db.Set<Visit>().AsNoTracking()
+            .Where(v => v.PetId == petId && v.State != VisitState.Cancelled)
+            .OrderByDescending(v => v.StartedUtc).ThenBy(v => v.Id)
+            .Take(PetVisitTake).ToListAsync(ct);
+        if (rows.Count == 0) return [];
+
+        var doctorIds = rows.Select(v => v.DoctorUserId).Distinct().ToList();
+        var doctors = await db.Set<User>().AsNoTracking().Where(u => doctorIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName }).ToListAsync(ct);
+        var names = doctors.ToDictionary(d => d.Id, d => d.DisplayName);
+
+        return rows.Select(v => new PetVisitReadModel(
+            v.Id, v.Reason.ToString(), v.CompletedUtc ?? v.StartedUtc,
+            names.GetValueOrDefault(v.DoctorUserId, string.Empty), v.ChiefComplaint, v.DoctorNotes, v.Diagnosis,
+            v.Prescriptions.Select(p => p.DrugName).ToList(), v.Vitals?.WeightKg, v.Vitals?.TemperatureC,
+            SubtotalOf(v), v.InvoiceId)).ToList();
+    }
+
+    private static long SubtotalOf(Visit v)
+    {
+        try
+        {
+            return v.ServiceLines.Aggregate(0L,
+                (total, line) => checked(total + checked((long)(line.UnitPrice.Minor * line.Quantity.Value))));
+        }
+        catch (OverflowException)
+        {
+            return 0;
+        }
     }
 }

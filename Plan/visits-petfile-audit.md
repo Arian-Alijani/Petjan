@@ -275,7 +275,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
   the actual "ready for invoice" handoff model.
 
 ### Task 6 — V06 · Populate the pet-file Visits tab
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. New `PetVisitReadModel` + optional last ctor param `PetDetailReadModel.Visits`; `GetPetAsync` loads newest-50 non-cancelled visits (JSON lines → subtotal via checked arithmetic, doctor names resolved in one bounded query); `PatientsMapping.ToDetail` maps them to `VisitSummaryRef` (new optional `InvoiceId`, Persian reason label shared with owner feed); pet-file visit row shows weight/total/invoice. Mapping unit test added. The pet file is a modal sheet re-loaded on open, so no extra refresh subscription was needed.
 - **Priority:** P1 · **Push message:** `feat(patients): populate pet-file visits tab from medical history (V06)`
 - **Goal:** Completing a visit makes it (date, type, diagnosis, total, invoice link) appear in the pet
   file's Visits tab and updates the "last visit" summary.

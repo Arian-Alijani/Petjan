@@ -43,8 +43,30 @@ internal static class PatientsMapping
         new MicrochipInfo(m.MicrochipCode, m.MicrochipImplantUtc?.UtcDateTime, null, null),
         new PetVitals(0, 0, 0, ""),
         m.Weights.Select(w => new WeightEntry(w.MeasuredUtc.UtcDateTime, (double)w.WeightKg)).ToList(),
-        Visits: [], Vaccinations: [], Labs: [], Documents: [], Surgeries: [],
+        Visits: (m.Visits ?? []).Select(ToVisitRef).ToList(), Vaccinations: [], Labs: [], Documents: [], Surgeries: [],
         Allergies: Split(m.AllergyNotes), ChronicConditions: Split(m.ChronicNotes), Notes: null);
+
+    private static VisitSummaryRef ToVisitRef(PetVisitReadModel v)
+    {
+        var complaint = v.ChiefComplaint ?? string.Empty;
+        return new VisitSummaryRef(
+            v.Id, VisitReasonLabel(v.ReasonCode), v.OccurredUtc.UtcDateTime, v.DoctorName,
+            complaint, v.DoctorNotes ?? string.Empty, v.Diagnosis ?? string.Empty, v.Prescriptions,
+            (double)(v.WeightKg ?? 0m), (double)(v.TemperatureC ?? 0m), v.Total, v.InvoiceId);
+    }
+
+    /// <summary>Persian display label of a <c>VisitReason</c> name (shared wording with the owner activity feed).</summary>
+    internal static string VisitReasonLabel(string reason) => reason switch
+    {
+        "Checkup" => "معاینه عمومی",
+        "Illness" => "بیماری",
+        "Injury" => "سانحه",
+        "Vaccination" => "واکسیناسیون",
+        "Surgery" => "جراحی",
+        "Dental" => "دندان‌پزشکی",
+        "Followup" => "پیگیری",
+        _ => "عمومی",
+    };
 
     /// <summary>
     /// Best-effort DISPLAY decomposition of the owner's single identity. The domain stores one

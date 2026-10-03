@@ -447,10 +447,19 @@ public sealed partial class PetFileViewModel : PageViewModelBase
             Visits.Add(new VisitRowViewModel(
                 v.Type, v.Reason, JalaliDate.FromDateTime(v.Date).ToString("short"), v.Vet,
                 PatientsPresentation.VisitDotVax(v.Type), v.Exam, v.Diagnosis, v.Prescriptions,
-                $"وزن {Fa(Number(v.WeightKg))} کیلو"));
+                VisitStatsText(v)));
         }
 
         OnPropertyChanged(nameof(HasVisits));
+    }
+
+    private static string VisitStatsText(VisitSummaryRef v)
+    {
+        var parts = new List<string>();
+        if (v.WeightKg > 0) parts.Add($"وزن {Fa(Number(v.WeightKg))} کیلو");
+        if (v.Cost > 0) parts.Add($"مبلغ {Animora.Desktop.Pages.Visits.VisitsPresentation.Money(v.Cost)}");
+        if (!string.IsNullOrEmpty(v.InvoiceId)) parts.Add($"فاکتور {v.InvoiceId}");
+        return parts.Count == 0 ? "—" : string.Join(" · ", parts);
     }
 
     private void BuildVaccinations(PetDetail pet)
