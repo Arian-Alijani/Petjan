@@ -348,7 +348,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** a walk-in for a new same-named pet creates a distinct record with the correct species.
 
 ### Task 9 — V09 · Explain disabled finish button (permission)
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. Permission gate moved from `CanAdvance` (now diagnosis-only on the last step) to a run-time check in `CompleteAsync` that toasts «اجازهٔ تکمیل ویزیت را ندارید.» before touching the seam.
 - **Priority:** P1 · **Push message:** `fix(visits): explain missing completion permission instead of inert button (V09)`
 - **Goal:** Lacking `visits.complete` produces a visible localized explanation, not a dead button.
 - **Current:** `CanAdvance` (EVM 65) disables `NextStepCommand` on the last step unless

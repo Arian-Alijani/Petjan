@@ -63,7 +63,9 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     public bool CanEditVisit => _capabilities.Can("visits.write");
     private bool CanFinishVisit() => _capabilities.Can("visits.complete");
-    private bool CanAdvance() => !IsLastStep || (CanFinishVisit() && !string.IsNullOrWhiteSpace(DiagnosisText));
+    // The permission dimension is enforced at run time (CompleteAsync toasts the reason) so the button is
+    // never an unexplained dead control; only the diagnosis gate disables it (V02/V09).
+    private bool CanAdvance() => !IsLastStep || !string.IsNullOrWhiteSpace(DiagnosisText);
 
     private EncounterDraft _draft = EmptyDraft();
     private string _encounterId = string.Empty;
@@ -443,7 +445,12 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     private async Task CompleteAsync()
     {
-        if (!CanFinishVisit()) return;
+        if (!CanFinishVisit())
+        {
+            _toast.Show("اجازهٔ تکمیل ویزیت را ندارید.", Tone.Danger);
+            return;
+        }
+
         await PersistAsync();
         var summary = await _service.CompleteAsync(_encounterId);
 
