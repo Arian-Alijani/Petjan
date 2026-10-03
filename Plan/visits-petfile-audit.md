@@ -363,7 +363,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** a user without `visits.complete` sees a localized explanation at the final step.
 
 ### Task 10 — V10 · Catalog-picker add: feedback + consistent reset
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. `AddPickedLine` toasts «اجازهٔ ویرایش ویزیت را ندارید.» when denied; both picker change hooks reset the selection in `finally` so it is cleared regardless of outcome (the async add's failure is already toasted by `AddPickedLineAsync`).
 - **Priority:** P2 · **Push message:** `fix(visits): toast on denied line add and reset picker in finally (V10)`
 - **Goal:** Denied/failed adds give feedback and leave the picker and line list consistent.
 - **Current:** `AddPickedLine` (EVM 307–310) runs only `if (CanEditVisit)` → read-only users get no

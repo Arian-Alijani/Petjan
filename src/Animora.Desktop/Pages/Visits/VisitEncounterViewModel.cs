@@ -294,20 +294,16 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     partial void OnSelectedServiceToAddChanged(RxCatalogOptionViewModel? value)
     {
-        if (value is not null)
-        {
-            AddPickedLine(value.Item);
-            SelectedServiceToAdd = null;
-        }
+        if (value is null) return;
+        try { AddPickedLine(value.Item); }
+        finally { SelectedServiceToAdd = null; }
     }
 
     partial void OnSelectedItemToAddChanged(RxCatalogOptionViewModel? value)
     {
-        if (value is not null)
-        {
-            AddPickedLine(value.Item);
-            SelectedItemToAdd = null;
-        }
+        if (value is null) return;
+        try { AddPickedLine(value.Item); }
+        finally { SelectedItemToAdd = null; }
     }
 
     /// <summary>
@@ -319,7 +315,13 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     /// </summary>
     private void AddPickedLine(RxCatalogItem item)
     {
-        if (CanEditVisit) _ = AddPickedLineAsync(item);
+        if (!CanEditVisit)
+        {
+            _toast.Show("اجازهٔ ویرایش ویزیت را ندارید.", Tone.Danger);
+            return;
+        }
+
+        _ = AddPickedLineAsync(item);
     }
 
     private async Task AddPickedLineAsync(RxCatalogItem item)
