@@ -99,17 +99,20 @@ public interface ISalesQueryService
     /// Edits an editable invoice line's quantity and per-line discount
     /// (mirrors the reference's inline line editors). Records a full
     /// «ویرایش ردیف» audit entry so the change appears in the invoice's change
-    /// log and the cashier ledger. Returns the recomputed detail, or
+    /// log and the cashier ledger. <paramref name="lineId"/> is the id of the line the user saw: when the
+    /// invoice changed in between (the line moved or is gone) the call fails with
+    /// <c>INVOICE_LINE_INDEX_STALE</c> instead of editing a different line. Returns the recomputed detail, or
     /// <c>null</c> when the invoice is unknown or not editable.
     /// </summary>
-    Task<InvoiceDetail?> EditLineAsync(string invoiceId, int lineIndex, int quantity, int discountPercent);
+    Task<InvoiceDetail?> EditLineAsync(string invoiceId, int lineIndex, string lineId, int quantity, int discountPercent);
 
     /// <summary>
     /// Removes a line from an editable invoice and records a «حذف ردیف» audit
-    /// entry. Returns the recomputed detail, or <c>null</c> when the invoice is
+    /// entry. <paramref name="lineId"/> identifies the line the user saw; a stale index fails with
+    /// <c>INVOICE_LINE_INDEX_STALE</c>. Returns the recomputed detail, or <c>null</c> when the invoice is
     /// unknown or not editable.
     /// </summary>
-    Task<InvoiceDetail?> RemoveLineAsync(string invoiceId, int lineIndex);
+    Task<InvoiceDetail?> RemoveLineAsync(string invoiceId, int lineIndex, string lineId);
 
     /// <summary>
     /// Soft-deletes an invoice (records a «حذف فاکتور» audit entry and moves the

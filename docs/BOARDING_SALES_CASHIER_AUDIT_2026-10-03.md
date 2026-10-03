@@ -28,7 +28,7 @@
 - [x] X24 — DONE: Highlight is located on a length-preserving PersianText.Fold copy (same folding as the filter) and sliced from the original title
 - [x] X25 — DONE: removed the dead key parameter of Resolve; the three design-token brushes are cached statics
 - [x] X26 — DONE: line Gross/Subtotal now come from InvoiceLineReadModel (domain Money.ApplyPercent) through the Sales/Cashier contracts; UI/print recomputation removed
-- [ ] X27
+- [x] X27 — DONE: Edit/remove line carry the rendered LineId end-to-end (contracts, Sales+Cashier services, VMs); a concurrent change fails with INVOICE_LINE_INDEX_STALE and a clear toast instead of hitting another line
 - [ ] X28
 - [ ] X29
 - [ ] X30
@@ -249,7 +249,7 @@
 - **Fix:** have the detail read model carry each line's computed subtotal; bind to it instead of recomputing.
 - **Acceptance:** displayed line subtotals come from the server and sum to the invoice total exactly.
 
-### X27 — P2 · Resilience · Index-based line removal races the live list
+### ✅ X27 — P2 · Resilience · Index-based line removal races the live list
 - **Evidence:** B.SVC:64–71 `RemoveItemAsync(stayId, index)` re-reads detail and maps `index`→`ItemId` (good), but S.SVC `EditLineAsync`/`RemoveLineAsync` (209–226) and C.SVC `UpdateLineAsync`/`RemoveLineAsync` (112–129) resolve `LineId` from a fresh `InvoiceDetailQuery` at mutation time while the UI passed an `index` captured at render time. If the list changed between render and click (concurrent write / refresh), the index points at a different line.
 - **Failure:** editing/removing "line 2" can hit the wrong line after an interleaving change; the guard only checks bounds, not identity equality with what the user saw.
 - **Fix:** pass the `LineId` the row was built from (carry it on the row VM) and have the command match by id, rejecting if the id is gone (stale) rather than re-deriving from a possibly-changed index.

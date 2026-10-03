@@ -122,7 +122,7 @@ internal static class SalesMapping
         return new ContractInvoiceLine(index, row.Title, kind, row.UnitPriceMinor,
             (int)Math.Round(row.Quantity), (int)Math.Round(row.DiscountPercent), isCustom,
             row.CatalogItemId ?? string.Empty, IconFor(row.Kind, isCustom),
-            kind == ContractLineKind.Item ? "کالا" : "خدمت", row.GrossMinor, row.SubtotalMinor);
+            kind == ContractLineKind.Item ? "کالا" : "خدمت", row.GrossMinor, row.SubtotalMinor, row.LineId);
     }
 
     private static InvoicePayment ToContract(this InvoicePaymentReadModel row, TimeZoneInfo tz) =>

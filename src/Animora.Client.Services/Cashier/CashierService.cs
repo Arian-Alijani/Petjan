@@ -120,22 +120,18 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
             result.IsSuccess ? amount : 0);
     }
 
-    public async Task<CashierInvoiceDetail> UpdateLineAsync(string invoiceId, int lineIndex, int quantity, int discountPercent)
+    // Addressed by the LineId the user saw (X27): a concurrent insert/remove makes the domain answer
+    // INVOICE_LINE_INDEX_STALE instead of silently editing whichever line now sits at that index.
+    public async Task<CashierInvoiceDetail> UpdateLineAsync(
+        string invoiceId, int lineIndex, string lineId, int quantity, int discountPercent)
     {
-        var current = await RequireDetailAsync(invoiceId);
-        if (lineIndex < 0 || lineIndex >= current.Lines.Count) throw new ArgumentOutOfRangeException(nameof(lineIndex));
-        var model = await QueryAsync(new InvoiceDetailQuery(invoiceId));
-        var lineId = model.Value!.Lines[lineIndex].LineId;
         Ensure(await SendAsync(new EditInvoiceLineCommand(invoiceId, lineIndex, lineId, quantity, discountPercent)));
         return await RequireDetailAsync(invoiceId);
     }
 
-    public async Task<CashierInvoiceDetail> RemoveLineAsync(string invoiceId, int lineIndex)
+    public async Task<CashierInvoiceDetail> RemoveLineAsync(string invoiceId, int lineIndex, string lineId)
     {
-        var model = await QueryAsync(new InvoiceDetailQuery(invoiceId));
-        if (model.IsFailure || model.Value is null || lineIndex < 0 || lineIndex >= model.Value.Lines.Count)
-            throw new ArgumentOutOfRangeException(nameof(lineIndex));
-        Ensure(await SendAsync(new RemoveInvoiceLineCommand(invoiceId, lineIndex, model.Value.Lines[lineIndex].LineId)));
+        Ensure(await SendAsync(new RemoveInvoiceLineCommand(invoiceId, lineIndex, lineId)));
         return await RequireDetailAsync(invoiceId);
     }
 

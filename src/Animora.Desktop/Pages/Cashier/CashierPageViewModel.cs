@@ -357,8 +357,12 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         RaiseDerived();
     }
 
+    // The lines as last rendered; edit/remove callbacks resolve the LineId from this snapshot (X27).
+    private System.Collections.Generic.IReadOnlyList<CashierInvoiceLine> _shownLines = [];
+
     private void ShowEmptyDetail()
     {
+        _shownLines = [];
         Detail = null;
         HasDetail = false;
         Lines.Clear();
@@ -368,6 +372,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     private void BuildLines(CashierInvoiceDetail detail)
     {
+        _shownLines = detail.Lines;
         // Batched rebuild (PERFORMANCE.md §5): a single Reset, not one
         // notification per invoice line.
         Lines.ReplaceAll(detail.Lines.Select(line =>
@@ -382,12 +387,23 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
             new CashierPaymentViewModel(payment)));
     }
 
-    private void OnLineEdited(int index, int quantity, int discountPercent) =>
+    // Each edit is bound to the LineId of the row the cashier saw (X27), so a concurrent change surfaces as a
+    // stale-line failure instead of editing a different line.
+    private void OnLineEdited(int index, int quantity, int discountPercent)
+    {
+        var lineId = LineIdOf(index);
         _ = RunMutationAsync(() =>
-            _service.UpdateLineAsync(Detail!.Id, index, quantity, discountPercent));
+            _service.UpdateLineAsync(Detail!.Id, index, lineId, quantity, discountPercent));
+    }
 
-    private void OnLineRemoved(int index) =>
-        _ = RunMutationAsync(() => _service.RemoveLineAsync(Detail!.Id, index));
+    private void OnLineRemoved(int index)
+    {
+        var lineId = LineIdOf(index);
+        _ = RunMutationAsync(() => _service.RemoveLineAsync(Detail!.Id, index, lineId));
+    }
+
+    private string LineIdOf(int index) =>
+        _shownLines.FirstOrDefault(l => l.Index == index)?.LineId ?? string.Empty;
 
     // ── Payment panel ───────────────────────────────────────────────────
 

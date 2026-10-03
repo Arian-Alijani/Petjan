@@ -121,7 +121,8 @@ public sealed record CashierInvoiceLine(
     long UnitPrice,
     int Quantity,
     int DiscountPercent,
-    long Subtotal = 0);
+    long Subtotal = 0,
+    string LineId = "");
 
 /// <summary>
 /// One historical payment of an invoice, mirroring what

@@ -328,6 +328,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private void OnLineEdited(int index, int quantity, int discountPercent)
     {
         var title = LineTitle(index);
+        var lineId = LineIdOf(index);
 
         // Ask before applying. If the user cancels, we snap the row's editable
         // fields back to the invoice's canonical values so the sheet never shows
@@ -353,7 +354,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             "مبلغ ردیف و جمع فاکتور بازمحاسبه و در تاریخچه تغییرات ثبت می‌شود.",
             "بله، اعمال کن",
             "انصراف",
-            () => _ = MutateAsync(() => _service.EditLineAsync(_invoiceId, index, quantity, discountPercent))), 480);
+            () => _ = MutateAsync(() => _service.EditLineAsync(_invoiceId, index, lineId, quantity, discountPercent))), 480);
 
         // Snap the editable fields back to canonical values immediately: if the
         // user cancels, the sheet shows no un-applied edit; if they confirm, the
@@ -364,6 +365,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private void OnLineRemoved(int index)
     {
         var title = LineTitle(index);
+        var lineId = LineIdOf(index);
         _dialogs.ShowModal(new ConfirmDialogViewModel(
             _dialogs,
             "danger",
@@ -375,7 +377,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             "این تغییر در تاریخچه تغییرات ثبت می‌شود.",
             "بله، حذف کن",
             "انصراف",
-            () => _ = MutateAsync(() => _service.RemoveLineAsync(_invoiceId, index))), 480);
+            () => _ = MutateAsync(() => _service.RemoveLineAsync(_invoiceId, index, lineId))), 480);
     }
 
     private void OnLineReturned(int index, int quantity)
@@ -394,6 +396,11 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             "انصراف",
             () => _ = ReturnLineAsync(index, quantity)), 480);
     }
+
+    // The id of the line as it was rendered: the edit/remove is bound to this row, not to whatever
+    // sits at the index by the time the user confirms (X27).
+    private string LineIdOf(int index) =>
+        _detail?.Lines.FirstOrDefault(l => l.Index == index)?.LineId ?? string.Empty;
 
     private string LineTitle(int index) =>
         _detail?.Lines.FirstOrDefault(l => l.Index == index)?.Title ?? "ردیف";

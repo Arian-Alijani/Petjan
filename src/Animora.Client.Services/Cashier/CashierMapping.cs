@@ -45,7 +45,7 @@ internal static class CashierMapping
         var lines = row.Lines.Select((line, index) => new CashierInvoiceLine(index,
             line.Kind == InvoiceLineKind.Service ? CashierLineKind.Service : CashierLineKind.Item,
             line.Title, line.UnitPriceMinor, (int)line.Quantity, (int)line.DiscountPercent,
-            line.SubtotalMinor)).ToArray();
+            line.SubtotalMinor, line.LineId)).ToArray();
         var payments = row.Payments.Select(p => new CashierPayment(
             p.Method switch
             {

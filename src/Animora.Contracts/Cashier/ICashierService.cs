@@ -72,10 +72,13 @@ public interface ICashierService
     /// reference's inline line-edit + discount/insurance bindings), returning
     /// the recomputed detail.
     /// </summary>
-    Task<CashierInvoiceDetail> UpdateLineAsync(string invoiceId, int lineIndex, int quantity, int discountPercent);
+    Task<CashierInvoiceDetail> UpdateLineAsync(string invoiceId, int lineIndex, string lineId, int quantity, int discountPercent);
 
-    /// <summary>Removes a line from an editable invoice (mirrors <c>data-act="rm"</c>).</summary>
-    Task<CashierInvoiceDetail> RemoveLineAsync(string invoiceId, int lineIndex);
+    /// <summary>
+    /// Removes a line from an editable invoice (mirrors <c>data-act="rm"</c>). <paramref name="lineId"/> is the id of
+    /// the line the user saw; a stale index fails with <c>INVOICE_LINE_INDEX_STALE</c> rather than hitting another line.
+    /// </summary>
+    Task<CashierInvoiceDetail> RemoveLineAsync(string invoiceId, int lineIndex, string lineId);
 
     /// <summary>Adds a catalog line to an editable invoice (mirrors <c>#cs-add-line-btn</c>).</summary>
     Task<CashierInvoiceDetail> AddLineAsync(string invoiceId, string catalogItemId);

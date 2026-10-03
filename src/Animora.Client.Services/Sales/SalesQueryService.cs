@@ -206,22 +206,21 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         return await RequireDetailAsync(invoiceId);
     }
 
-    public async Task<InvoiceDetail?> EditLineAsync(string invoiceId, int lineIndex, int quantity, int discountPercent)
+    // Line edits are addressed by the LineId the user saw, not a freshly re-derived index: the domain rejects a
+    // mismatch with INVOICE_LINE_INDEX_STALE, which surfaces as a typed ServiceException (X27).
+    public async Task<InvoiceDetail?> EditLineAsync(
+        string invoiceId, int lineIndex, string lineId, int quantity, int discountPercent)
     {
-        var current = await ReadModelAsync(invoiceId);
-        var line = LineAt(current, lineIndex);
-        if (line is null) return null;
-        _ = await SendAsync(new EditInvoiceLineCommand(invoiceId, lineIndex, line.LineId,
+        var sent = await SendAsync(new EditInvoiceLineCommand(invoiceId, lineIndex, lineId,
             Math.Max(1, quantity), Math.Clamp(discountPercent, 0, 100)));
+        if (sent.IsFailure) throw new ServiceException(sent.Error);
         return await ReadDetailAsync(invoiceId);
     }
 
-    public async Task<InvoiceDetail?> RemoveLineAsync(string invoiceId, int lineIndex)
+    public async Task<InvoiceDetail?> RemoveLineAsync(string invoiceId, int lineIndex, string lineId)
     {
-        var current = await ReadModelAsync(invoiceId);
-        var line = LineAt(current, lineIndex);
-        if (line is null) return null;
-        _ = await SendAsync(new RemoveInvoiceLineCommand(invoiceId, lineIndex, line.LineId));
+        var sent = await SendAsync(new RemoveInvoiceLineCommand(invoiceId, lineIndex, lineId));
+        if (sent.IsFailure) throw new ServiceException(sent.Error);
         return await ReadDetailAsync(invoiceId);
     }
 

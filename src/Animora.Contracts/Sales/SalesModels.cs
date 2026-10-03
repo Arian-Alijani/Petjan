@@ -205,7 +205,8 @@ public sealed record InvoiceLine(
     string IconKey,
     string KindLabel,
     long Gross = 0,
-    long Subtotal = 0);
+    long Subtotal = 0,
+    string LineId = "");
 
 /// <summary>
 /// One historical payment of an invoice, mirroring what <c>renderHistory</c>
