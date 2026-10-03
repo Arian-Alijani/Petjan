@@ -394,14 +394,12 @@ public sealed record OwnerRef(
 
 /// <summary>
 /// The result of <see cref="ISalesQueryService.PickOwnerAsync"/>: either a
-/// chosen owner (with an id) or a guest selection (empty id).
+/// chosen owner (with an id) or a guest selection (empty id). Carries only the
+/// fields that affect the outcome: a guest pick keeps the draft's existing guest
+/// customer (a draft is created as guest, so there is nothing to persist), an
+/// owner pick assigns <see cref="OwnerId"/> to the invoice.
 /// </summary>
-public sealed record OwnerPickResult(
-    bool IsGuest,
-    string OwnerId,
-    string OwnerName,
-    string PetName,
-    string Phone);
+public sealed record OwnerPickResult(bool IsGuest, string OwnerId);
 
 /// <summary>
 /// A snapshot of the three inline mini-KPIs above the invoice workspace,

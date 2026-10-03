@@ -32,7 +32,7 @@
 - [x] X28 — DONE: Sales KPIs reuse the page's loaded invoices + ready queue; only the settled-today query is issued by GetKpisAsync
 - [x] X29 — DONE: Cashier list is queried per tab + search with SQL ordering and paging (50/page, «نمایش بیشتر»); no more whole-table load on every mutation
 - [x] X30 — DONE: Modal initial loads run through ModalLoadGuard: typed failure -> danger toast + modal closes; not-found cases toast instead of closing silently
-- [ ] X31
+- [x] X31 — DONE: OwnerPickResult reduced to the fields that affect the outcome (IsGuest, OwnerId); guest pick documented as keeping the draft's guest customer
 - [ ] X32
 - [ ] X33
 - [ ] X34
@@ -273,7 +273,7 @@
 - **Fix:** wrap `LoadAsync` bodies in try/catch → danger toast + close, and show a loading/failed state instead of a blank modal.
 - **Acceptance:** a forced load failure shows an error and does not leave an empty modal.
 
-### X31 — P2 · UX/state · `OwnerPickResult` identity fields are dropped by the seam
+### ✅ X31 — P2 · UX/state · `OwnerPickResult` identity fields are dropped by the seam
 - **Evidence:** S.OWN:78–80 passes `OwnerName/PetName/Mobile` in `OwnerPickResult`, but S.SVC:243–251 `PickOwnerAsync` uses only `pick.OwnerId` (sends `AssignInvoiceOwnerCommand(invoiceId, OwnerId, null)`); the display fields are ignored, and for a guest pick nothing is sent at all.
 - **Failure:** fields that look meaningful are inert (latent trap like X15); a guest selection is a no-op server-side, so a draft created as guest stays guest with no explicit record of the choice.
 - **Fix:** drop the unused fields from the request, or persist them; make the guest branch explicit server-side if "guest" must be recorded.

@@ -84,8 +84,7 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
             return;
         }
 
-        var pick = new OwnerPickResult(
-            false, row.Id, row.FullName, row.PetName, row.Mobile);
+        var pick = new OwnerPickResult(false, row.Id);
         if (!await TryPickAsync(pick))
         {
             return;
@@ -99,7 +98,7 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
     [RelayCommand]
     private async Task SelectGuestAsync()
     {
-        if (!await TryPickAsync(new OwnerPickResult(true, string.Empty, string.Empty, string.Empty, string.Empty)))
+        if (!await TryPickAsync(new OwnerPickResult(true, string.Empty)))
         {
             return;
         }
