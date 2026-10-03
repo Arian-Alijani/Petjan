@@ -12,11 +12,11 @@ namespace Animora.Contracts.Cashier;
 public interface ICashierService
 {
     /// <summary>
-    /// Every invoice, mirroring <c>C().INVOICES</c> (the list <c>renderList</c>
-    /// filters by tab). Newest-first ordering is applied by the ViewModel to
-    /// match the reference's sort.
+    /// One page of the invoice list for <paramref name="tab"/> (mirrors <c>renderList</c>), narrowed by the
+    /// optional <paramref name="search"/> text. Filtering, ordering (open states first, then newest first) and
+    /// paging all happen in the query, so the cost is bounded by the page size however many invoices exist (X29).
     /// </summary>
-    Task<IReadOnlyList<CashierInvoice>> GetInvoicesAsync();
+    Task<CashierInvoicePage> GetInvoicesAsync(CashierTab tab, string? search, int page, int pageSize);
 
     /// <summary>
     /// The full detail of one invoice (mirrors <c>C().invoice(id)</c> plus the

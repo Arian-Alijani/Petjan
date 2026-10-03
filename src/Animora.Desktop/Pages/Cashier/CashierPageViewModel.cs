@@ -35,7 +35,12 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
     private readonly IDialogService _dialogs;
 
     private readonly List<CashierInvoice> _invoices = [];
-    private List<CashierInvoice> _visibleInvoices = [];
+
+    // Server-side paging (X29): _invoices holds only the pages loaded for the active tab + search.
+    private const int ListPageSize = 50;
+    private const int ListHardMax = 200;
+    private int _listTotal;
+    private int _listGeneration;
     private bool _suppressSelects;
 
     private CashierTab _tab = CashierTab.Open;
@@ -136,7 +141,22 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
 
-    partial void OnSearchTextChanged(string value) => _searchDebounce.Debounce(RenderList);
+    private string _appliedSearch = string.Empty;
+
+    partial void OnSearchTextChanged(string value) => _searchDebounce.Debounce(ApplySearchIfChanged);
+
+    // The search runs in the query, but only when the normalized text actually changed (PERFORMANCE.md §13).
+    private void ApplySearchIfChanged()
+    {
+        var normalized = PersianText.Normalize(SearchText);
+        if (string.Equals(normalized, _appliedSearch, System.StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _appliedSearch = normalized;
+        _ = ReloadListSafeAsync(append: false);
+    }
 
     partial void OnSelectedDiscountOptionChanged(CashierDiscountOptionViewModel? value)
     {
@@ -157,6 +177,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
     private void RaiseDerived()
     {
         OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(CanLoadMore));
         OnPropertyChanged(nameof(ShowPaymentPanel));
         OnPropertyChanged(nameof(ShowDetailPlaceholder));
     }
@@ -251,17 +272,71 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
         _tab = tab;
         SearchText = string.Empty;
+        _appliedSearch = string.Empty;
+        _searchDebounce.Cancel();
         ShowEmptyDetail();
+        foreach (var t in Tabs)
+        {
+            t.IsActive = t.Tab == _tab;
+        }
+
+        _ = ReloadListSafeAsync(append: false);
+    }
+
+    /// <summary>
+    /// Fetches the active tab's rows from the query (X29): the first page (or as many rows as are already shown,
+    /// so a post-mutation refresh keeps the user's place) or, with <paramref name="append"/>, the next page.
+    /// Filtering, ordering and paging all happen in SQL; a generation token drops a slower stale response.
+    /// </summary>
+    private async Task ReloadListAsync(bool append)
+    {
+        var token = ++_listGeneration;
+        var search = string.IsNullOrEmpty(_appliedSearch) ? null : _appliedSearch;
+
+        CashierInvoicePage page;
+        if (append)
+        {
+            var next = _invoices.Count / ListPageSize + 1;
+            page = await _service.GetInvoicesAsync(_tab, search, next, ListPageSize);
+        }
+        else
+        {
+            var size = System.Math.Clamp(_invoices.Count, ListPageSize, ListHardMax);
+            page = await _service.GetInvoicesAsync(_tab, search, 1, size);
+        }
+
+        if (token != _listGeneration)
+        {
+            return;
+        }
+
+        if (!append)
+        {
+            _invoices.Clear();
+        }
+
+        _invoices.AddRange(page.Items);
+        _listTotal = page.TotalCount;
         RenderList();
     }
 
-    private bool TabMatches(CashierInvoice inv) => _tab switch
+    private async Task ReloadListSafeAsync(bool append)
     {
-        CashierTab.Open => inv.State is CashierInvoiceState.Draft or CashierInvoiceState.Partial,
-        CashierTab.Settled => inv.State == CashierInvoiceState.Settled,
-        CashierTab.Void => inv.State is CashierInvoiceState.Void or CashierInvoiceState.Refunded,
-        _ => true,
-    };
+        try
+        {
+            await ReloadListAsync(append);
+        }
+        catch (System.InvalidOperationException ex)
+        {
+            ShowFailure(ex, "بارگذاری فهرست فاکتورها ناموفق بود؛ دوباره تلاش کنید");
+        }
+    }
+
+    /// <summary>Whether more rows exist beyond the pages already loaded for the active tab + search.</summary>
+    public bool CanLoadMore => _invoices.Count < _listTotal;
+
+    [RelayCommand]
+    private Task LoadMore() => ReloadListSafeAsync(append: true);
 
     private void RenderList()
     {
@@ -270,22 +345,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
             tab.IsActive = tab.Tab == _tab;
         }
 
-        var rows = _invoices.Where(TabMatches);
-
-        var q = PersianText.Normalize(SearchText);
-        if (q.Length > 0)
-        {
-            rows = rows.Where(i => PersianText.Contains(
-                PersianText.Normalize($"{i.Id} {i.OwnerName} {i.PetName}"), q));
-        }
-
-        var sorted = rows
-            .OrderBy(i => StateOrder(i.State))
-            .ThenByDescending(i => i.Id, System.StringComparer.Ordinal)
-            .ToList();
-
-        _visibleInvoices = sorted;
-        InvoiceRows.ReplaceAll(sorted.Select(inv => new CashierInvoiceRowViewModel(inv)
+        InvoiceRows.ReplaceAll(_invoices.Select(inv => new CashierInvoiceRowViewModel(inv)
         {
             IsActive = Detail is not null && Detail.Id == inv.Id,
         }));
@@ -293,14 +353,14 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         RaiseDerived();
     }
 
-    private static int StateOrder(CashierInvoiceState state) => state switch
+    // Selection only changes which row is highlighted — no rebuild of the page's rows (PERFORMANCE.md §13).
+    private void MarkActiveRow()
     {
-        CashierInvoiceState.Draft => 0,
-        CashierInvoiceState.Partial => 1,
-        CashierInvoiceState.Settled => 2,
-        CashierInvoiceState.Void => 3,
-        _ => 4,
-    };
+        foreach (var row in InvoiceRows)
+        {
+            row.IsActive = Detail is not null && Detail.Id == row.Id;
+        }
+    }
 
     // ── Selection ───────────────────────────────────────────────────────
 
@@ -353,7 +413,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
         BuildLines(detail);
         BuildPayments(detail);
-        RenderList();
+        MarkActiveRow();
         RaiseDerived();
     }
 
@@ -564,13 +624,13 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
     [RelayCommand]
     private async Task Export()
     {
-        if (_visibleInvoices.Count == 0)
+        if (_invoices.Count == 0)
         {
             _toast.Show("فاکتوری برای خروجی وجود ندارد", Tone.Warn);
             return;
         }
 
-        var csv = CashierPrintDocuments.InvoicesCsv(_visibleInvoices);
+        var csv = CashierPrintDocuments.InvoicesCsv(_invoices);
         var name = "cashier-invoices-" + JalaliCalendar.Today.Replace('/', '-') + ".csv";
         var saved = await _dialogs.SaveTextFileAsync(name, csv, "csv");
         if (saved)
@@ -692,12 +752,9 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         Tabs.ReplaceAll(
             (await _service.GetTabCountsAsync()).Select(count => new CashierTabViewModel(count)));
 
-        _invoices.Clear();
-        _invoices.AddRange(await _service.GetInvoicesAsync());
-
-        // Always re-render the sidebar from the fresh data, independent of whether a detail is
+        // Always re-query and re-render the sidebar from the fresh data, independent of whether a detail is
         // still shown, so a void/refund moves the row to its new bucket without a second click (X20).
-        RenderList();
+        await ReloadListAsync(append: false);
     }
 
     private static long ParseLong(string? text)

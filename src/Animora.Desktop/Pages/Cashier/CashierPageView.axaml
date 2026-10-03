@@ -457,6 +457,12 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
 
+                    <Button Classes="outline" Margin="12,8" HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            IsVisible="{Binding CanLoadMore}"
+                            Command="{Binding LoadMoreCommand}"
+                            Content="نمایش فاکتورهای بیشتر" />
+
                     <!-- .cs-empty: 40/24, centered, 56 ico tile. -->
                     <StackPanel IsVisible="{Binding IsEmpty}" Spacing="10" Margin="24,40"
                                 HorizontalAlignment="Center">

@@ -110,6 +110,16 @@ public sealed record CashierInvoice(
     long Due);
 
 /// <summary>
+/// One page of the cashier invoice list (X29): the rows of the requested tab/search plus the total number of
+/// matches, so the screen can offer «بیشتر» without ever holding the whole table.
+/// </summary>
+public sealed record CashierInvoicePage(
+    IReadOnlyList<CashierInvoice> Items,
+    int TotalCount,
+    int Page,
+    int PageSize);
+
+/// <summary>
 /// One line of an invoice's detail, mirroring what <c>renderLines</c> renders:
 /// its kind, title, unit price, quantity, per-line discount percent and the
 /// derived subtotal (<c>qty × price × (100 − discPct) / 100</c>).

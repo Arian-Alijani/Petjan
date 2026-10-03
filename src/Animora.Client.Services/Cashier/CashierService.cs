@@ -17,17 +17,24 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 {
     private const int PageSize = 200;
 
-    public async Task<IReadOnlyList<CashierInvoice>> GetInvoicesAsync()
+    public async Task<CashierInvoicePage> GetInvoicesAsync(CashierTab tab, string? search, int page, int pageSize)
     {
-        var items = new List<CashierInvoice>();
-        for (var page = 1; ; page++)
+        var applicationTab = tab switch
         {
-            var result = await QueryAsync(new CashierInvoiceListQuery(Animora.Application.Ports.CashierInvoiceTab.All, page, PageSize));
-            if (result.IsFailure || result.Value is null) break;
-            foreach (var row in result.Value.Items) items.Add(row.ToContract(Math.Max(0, row.TotalMinor - row.DueMinor)));
-            if (items.Count >= result.Value.TotalCount || result.Value.Items.Count == 0) break;
-        }
-        return items;
+            CashierTab.Open => Animora.Application.Ports.CashierInvoiceTab.Open,
+            CashierTab.Settled => Animora.Application.Ports.CashierInvoiceTab.Settled,
+            CashierTab.Void => Animora.Application.Ports.CashierInvoiceTab.Void,
+            _ => Animora.Application.Ports.CashierInvoiceTab.All,
+        };
+        var size = Math.Clamp(pageSize, 1, PageSize);
+        var result = await QueryAsync(new CashierInvoiceListQuery(applicationTab, Math.Max(1, page), size,
+            string.IsNullOrWhiteSpace(search) ? null : search.Trim()));
+        if (result.IsFailure || result.Value is null) return new CashierInvoicePage([], 0, Math.Max(1, page), size);
+
+        var rows = result.Value.Items;
+        var items = new List<CashierInvoice>(rows.Count);
+        for (var i = 0; i < rows.Count; i++) items.Add(rows[i].ToContract(Math.Max(0, rows[i].TotalMinor - rows[i].DueMinor)));
+        return new CashierInvoicePage(items, result.Value.TotalCount, result.Value.Page, size);
     }
 
     public async Task<CashierInvoiceDetail?> GetDetailAsync(string invoiceId)

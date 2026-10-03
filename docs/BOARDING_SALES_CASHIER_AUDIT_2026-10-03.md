@@ -30,7 +30,7 @@
 - [x] X26 — DONE: line Gross/Subtotal now come from InvoiceLineReadModel (domain Money.ApplyPercent) through the Sales/Cashier contracts; UI/print recomputation removed
 - [x] X27 — DONE: Edit/remove line carry the rendered LineId end-to-end (contracts, Sales+Cashier services, VMs); a concurrent change fails with INVOICE_LINE_INDEX_STALE and a clear toast instead of hitting another line
 - [x] X28 — DONE: Sales KPIs reuse the page's loaded invoices + ready queue; only the settled-today query is issued by GetKpisAsync
-- [ ] X29
+- [x] X29 — DONE: Cashier list is queried per tab + search with SQL ordering and paging (50/page, «نمایش بیشتر»); no more whole-table load on every mutation
 - [ ] X30
 - [ ] X31
 - [ ] X32
@@ -261,7 +261,7 @@
 - **Fix:** compute open-count/open-due from the already-loaded `_invoices`, or have one call return list+KPIs; avoid re-issuing the same queries.
 - **Acceptance:** a page refresh issues each underlying query once.
 
-### X29 — P2 · Scaling · Cashier invoice list pages the whole table into memory every reload
+### ✅ X29 — P2 · Scaling · Cashier invoice list pages the whole table into memory every reload
 - **Evidence:** C.SVC:20–31 `GetInvoicesAsync` loops `CashierInvoiceListQuery(All, page, 200)` until exhausted, materializing **all** invoices; called on initial load *and* on every mutation via `ReloadStatsAsync` (C.VM:608–609).
 - **Failure:** O(total invoices) fetched + mapped on each pay/void/refund/line-edit; unbounded growth over a clinic's lifetime. Filtering/sorting/paging is then redone client-side (C.VM:277–304).
 - **Fix:** query server-side by tab + page + search and bind one page (the history tab already does this via `SalesHistoryQuery`); do not pull the whole table for the list.
