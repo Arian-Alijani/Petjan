@@ -47,7 +47,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         _invoiceId = invoiceId;
         _onChanged = onChanged;
 
-        _ = LoadAsync();
+        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری کاتالوگ ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
 
     public RangeObservableCollection<CatalogFilterViewModel> Filters { get; } = [];

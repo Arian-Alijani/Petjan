@@ -38,7 +38,7 @@ public sealed partial class NewStayModalViewModel : ObservableObject
         PaymentOptions.Add(new BoardingPaymentOptionViewModel(BoardingPaymentMode.Postpaid, "پس‌پرداخت", "تسویه موقع تحویل") { IsSelected = true });
         PaymentOptions.Add(new BoardingPaymentOptionViewModel(BoardingPaymentMode.Prepaid, "پیش‌پرداخت", "قبل از اقامت"));
 
-        _ = LoadAsync();
+        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری پذیرش ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
 
     // ── mode switch ─────────────────────────────────────────────────────────

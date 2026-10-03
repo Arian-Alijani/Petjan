@@ -31,7 +31,7 @@
 - [x] X27 — DONE: Edit/remove line carry the rendered LineId end-to-end (contracts, Sales+Cashier services, VMs); a concurrent change fails with INVOICE_LINE_INDEX_STALE and a clear toast instead of hitting another line
 - [x] X28 — DONE: Sales KPIs reuse the page's loaded invoices + ready queue; only the settled-today query is issued by GetKpisAsync
 - [x] X29 — DONE: Cashier list is queried per tab + search with SQL ordering and paging (50/page, «نمایش بیشتر»); no more whole-table load on every mutation
-- [ ] X30
+- [x] X30 — DONE: Modal initial loads run through ModalLoadGuard: typed failure -> danger toast + modal closes; not-found cases toast instead of closing silently
 - [ ] X31
 - [ ] X32
 - [ ] X33
@@ -267,7 +267,7 @@
 - **Fix:** query server-side by tab + page + search and bind one page (the history tab already does this via `SalesHistoryQuery`); do not pull the whole table for the list.
 - **Acceptance:** the list fetch is bounded to one page regardless of total invoice count.
 
-### X30 — P2 · §4/startup · Modal VMs fire-and-forget `LoadAsync` with no failure surface
+### ✅ X30 — P2 · §4/startup · Modal VMs fire-and-forget `LoadAsync` with no failure surface
 - **Evidence:** constructors kick `_ = LoadAsync()` with no catch: B.NEW:41, B.DET:53, S.PAY:52, S.CAT:50, S.IVVM:49, S.OWN:40. If the load throws (service failure), the modal opens blank with no error and the exception is swallowed/escapes.
 - **Failure:** a failed detail/catalog/owner load shows an empty modal with no explanation; `PaymentModalViewModel.LoadAsync` closes silently on null (S.PAY:124–127) which looks like the button did nothing.
 - **Fix:** wrap `LoadAsync` bodies in try/catch → danger toast + close, and show a loading/failed state instead of a blank modal.

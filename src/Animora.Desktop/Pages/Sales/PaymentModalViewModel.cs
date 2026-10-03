@@ -53,7 +53,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         Methods.Add(new PaymentMethodOptionViewModel(PaymentMethod.Credit));
         Methods.Add(new PaymentMethodOptionViewModel(PaymentMethod.Mixed));
 
-        _ = LoadAsync();
+        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری فاکتور ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
 
     public ObservableCollection<PaymentMethodOptionViewModel> Methods { get; } = [];
@@ -127,6 +127,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         var detail = await _service.GetInvoiceAsync(_invoiceId);
         if (detail is null)
         {
+            _toast.Show("فاکتور موردنظر یافت نشد", Tone.Warn);
             _dialogs.Close();
             return;
         }

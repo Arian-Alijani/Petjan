@@ -37,7 +37,7 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
         _invoiceId = invoiceId;
         _onPicked = onPicked;
 
-        _ = SearchAsync();
+        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری فهرست مشتریان ناموفق بود؛ دوباره تلاش کنید", SearchAsync);
     }
 
     public RangeObservableCollection<OwnerRowViewModel> Rows { get; } = [];

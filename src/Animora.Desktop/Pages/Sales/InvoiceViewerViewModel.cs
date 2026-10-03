@@ -49,7 +49,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         _invoiceId = invoiceId;
         _onChanged = onChanged;
 
-        _ = LoadAsync();
+        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری فاکتور ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
 
     public RangeObservableCollection<InvoiceViewerLineViewModel> Lines { get; } = [];
@@ -234,6 +234,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         var detail = await _service.GetInvoiceAsync(_invoiceId);
         if (detail is null)
         {
+            _toast.Show("فاکتور موردنظر یافت نشد", Tone.Warn);
             _dialogs.Close();
             return;
         }

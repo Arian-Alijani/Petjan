@@ -53,7 +53,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         _onGotoCashier = onGotoCashier;
         StayId = stayId;
 
-        _ = LoadAsync();
+        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری جزئیات اقامت ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
 
     public string StayId { get; }
@@ -194,6 +194,9 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         var detail = await _service.GetDetailAsync(StayId);
         if (detail is null)
         {
+            // Never leave an empty modal behind: say what happened and close it (X30).
+            _toast.Show("اقامت موردنظر یافت نشد", Tone.Warn);
+            _dialogs.Close();
             return;
         }
 
