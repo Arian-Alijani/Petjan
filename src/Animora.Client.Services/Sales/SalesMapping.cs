@@ -12,7 +12,6 @@ using ContractInvoiceState = Animora.Contracts.Sales.InvoiceState;
 using ContractInvoiceLine = Animora.Contracts.Sales.InvoiceLine;
 using ContractLineKind = Animora.Contracts.Sales.InvoiceLineKind;
 using ContractPaymentMethod = Animora.Contracts.Sales.PaymentMethod;
-using ContractPaymentMethodEnum = Animora.Contracts.Sales.PaymentMethod;
 using DomainAdjustmentKind = Animora.Domain.Sales.AdjustmentKind;
 using DomainDiscountKind = Animora.Domain.Sales.DiscountKind;
 using DomainInvoiceKind = Animora.Domain.Sales.InvoiceKind;
@@ -355,15 +354,6 @@ internal static class SalesMapping
         var taxable = row.SubtotalMinor - row.DiscountMinor;
         return taxable <= 0 || row.TaxMinor <= 0 ? 0 : (int)Math.Round(row.TaxMinor * 100.0 / taxable);
     }
-
-    internal static DomainPaymentMethod ToDomain(this ContractPaymentMethodEnum method) => method switch
-    {
-        ContractPaymentMethodEnum.Cash => DomainPaymentMethod.Cash,
-        ContractPaymentMethodEnum.Card => DomainPaymentMethod.Card,
-        ContractPaymentMethodEnum.Cheque => DomainPaymentMethod.Cheque,
-        ContractPaymentMethodEnum.Credit => DomainPaymentMethod.Credit,
-        _ => DomainPaymentMethod.Card,
-    };
 
     private static ContractPaymentMethod ContractPaymentMethodOf(DomainPaymentMethod method) => method switch
     {

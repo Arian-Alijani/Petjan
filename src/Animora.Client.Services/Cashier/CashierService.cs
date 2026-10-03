@@ -3,6 +3,7 @@ using Animora.Application.Security;
 using Animora.Application.UseCases.Cashier;
 using Animora.Application.UseCases.Sales;
 using Animora.Application.UseCases.Sales.ReadModels;
+using Animora.Client.Services.Payments;
 using Animora.Contracts.Cashier;
 using Animora.Domain.Results;
 using Animora.Domain.Sales;
@@ -85,28 +86,10 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 
     public async Task<CashierActionResult> PayAsync(string invoiceId, CashierPayRequest request)
     {
-        var current = await GetDetailAsync(invoiceId);
-        if (current is null) return new(false, "INVOICE_NOT_FOUND", null);
-        if (current.State == CashierInvoiceState.Draft)
-        {
-            var post = await SendAsync(new PostInvoiceCommand(invoiceId));
-            if (post.IsFailure) return new(false, post.Error.Code, current);
-        }
-        var method = request.Method switch
-        {
-            CashierPaymentMethod.Cash => PaymentMethod.Cash,
-            CashierPaymentMethod.Card => PaymentMethod.Card,
-            CashierPaymentMethod.Cheque => PaymentMethod.Cheque,
-            CashierPaymentMethod.Credit => PaymentMethod.Credit,
-            _ => PaymentMethod.Transfer,
-        };
-        // Same rule as the Sales payment path: never register more than the balance due.
-        var due = (await GetDetailAsync(invoiceId))?.Due ?? 0;
-        var amount = Math.Min(Math.Max(0, request.Amount), Math.Max(0, due));
-        if (amount <= 0) return new(false, ErrorCodes.PaymentExceedsDue.Code, await GetDetailAsync(invoiceId));
-        var paid = await SendAsync(new RegisterPaymentCommand(invoiceId, method, Money.Irt(amount), request.Reference));
-        return new(paid.IsSuccess, paid.IsFailure ? paid.Error.Code : null, await GetDetailAsync(invoiceId),
-            paid.IsSuccess ? amount : 0);
+        // One shared pay-on-post / cap-to-due path for Sales and Cashier (X41).
+        var outcome = await InvoicePaymentCore.PayAsync(invoiceId, InvoicePaymentCore.ToDomain(request.Method),
+            request.Amount, request.Reference, command => SendAsync(command), () => ReadModelAsync(invoiceId));
+        return new(outcome.Ok, outcome.Error, await GetDetailAsync(invoiceId), outcome.Applied);
     }
 
     public async Task<CashierActionResult> VoidAsync(string invoiceId)
@@ -117,14 +100,9 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 
     public async Task<CashierActionResult> RefundAsync(string invoiceId, CashierRefundRequest request)
     {
-        var current = await GetDetailAsync(invoiceId);
-        if (current is null) return new(false, "INVOICE_NOT_FOUND", null);
-        // Same rule as the Sales refund path: the clinic never returns more than it received.
-        var amount = Math.Min(Math.Max(0, request.Amount), Math.Max(0, current.Paid));
-        if (amount <= 0) return new(false, ErrorCodes.AdjustmentExceedsPaid.Code, current);
-        var result = await SendAsync(new RefundInvoiceCommand(invoiceId, Money.Irt(amount), "بازپرداخت در صندوق"));
-        return new(result.IsSuccess, result.IsFailure ? result.Error.Code : null, await GetDetailAsync(invoiceId),
-            result.IsSuccess ? amount : 0);
+        var outcome = await InvoicePaymentCore.RefundAsync(invoiceId, request.Amount, "بازپرداخت در صندوق",
+            command => SendAsync(command), () => ReadModelAsync(invoiceId));
+        return new(outcome.Ok, outcome.Error, await GetDetailAsync(invoiceId), outcome.Applied);
     }
 
     // Addressed by the LineId the user saw (X27): a concurrent insert/remove makes the domain answer
@@ -159,6 +137,12 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
     {
         Ensure(await SendAsync(new SetInvoiceInsuranceCommand(invoiceId, insurerId)));
         return await RequireDetailAsync(invoiceId);
+    }
+
+    private async Task<InvoiceDetailReadModel?> ReadModelAsync(string invoiceId)
+    {
+        var result = await QueryAsync(new InvoiceDetailQuery(invoiceId));
+        return result.IsSuccess ? result.Value : null;
     }
 
     private async Task<CashierInvoiceDetail> RequireDetailAsync(string id) =>

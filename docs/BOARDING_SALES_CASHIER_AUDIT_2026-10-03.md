@@ -42,7 +42,7 @@
 - [x] X38 — DONE: every mock-era comment in the three screens (VMs, View code-behind, Contracts) now names the real service
 - [x] X39 — DONE: no double/UI money math left for line subtotals (shared with X26; print helpers deleted)
 - [x] X40 — DONE: ready-count read catches only typed service failures, traces + warns, and keeps the last known count instead of forcing 0
-- [ ] X41
+- [x] X41 — DONE: one shared InvoicePaymentCore (pay-on-post, post-time due cap, refund cap, typed codes, single method mapping) now backs both SalesQueryService and CashierService
 
 ## Scope and method
 
@@ -333,7 +333,7 @@
 - **Fix:** catch narrowly (or let the caller decide), and keep the last known count rather than forcing 0 on error.
 - **Acceptance:** a backend failure does not silently masquerade as an empty queue.
 
-### X41 — P2 · Maintainability · Payment/method logic duplicated across Sales and Cashier
+### ✅ X41 — P2 · Maintainability · Payment/method logic duplicated across Sales and Cashier
 - **Evidence:** two parallel payment stacks: S.PAY/S.SVC (`PaymentMethod`, cap-to-due, settlement) and C.VM/C.SVC (`CashierPaymentMethod`, no cap, different method→domain switch at C.SVC:88–95 mapping `Mixed→Transfer`, `Credit→Credit`). Preset amounts differ (S.PAY: due/half/zero; C.VM:240 fixed 50k–1M literals). Method enums are separate (`PaymentMethod` vs `CashierPaymentMethod`).
 - **Failure:** the same business operation (take payment, pick method) has two implementations that already diverge (X05 cap, X06 toast, mapping of Mixed), so fixes must be applied twice and drift silently (as they have).
 - **Fix:** extract one payment service/method model shared by both screens; both pages call it.

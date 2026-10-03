@@ -4,6 +4,7 @@ using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Sales;
 using Animora.Application.UseCases.Sales.ReadModels;
+using Animora.Client.Services.Payments;
 using Animora.Contracts.Sales;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
@@ -261,44 +262,15 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     public async Task<PaymentResult> TakePaymentAsync(string invoiceId, PaymentRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var current = await ReadModelAsync(invoiceId);
-        if (current is null) return new PaymentResult(false, "INVOICE_NOT_FOUND", 0, false, null!);
-
-        if (current.Summary.State is DomainInvoiceState.Void or DomainInvoiceState.Refunded)
-        {
-            return new PaymentResult(false, "INVOICE_IMMUTABLE", 0, false, await RequireDetailAsync(invoiceId));
-        }
-
-        // Pay-on-post: a draft becomes a real posted document the moment money moves (one logical op).
-        if (current.Summary.State == DomainInvoiceState.Draft)
-        {
-            var posted = await SendAsync(new PostInvoiceCommand(invoiceId));
-            if (posted.IsFailure)
-            {
-                return new PaymentResult(false, "INVOICE_NOT_POSTED", 0, false, await RequireDetailAsync(invoiceId));
-            }
-
-            // Posting can finalise the payable total (tax / rounding / insurance), so the cap below must use the
-            // POSTED due, not the pre-post draft figure (X17).
-            current = await ReadModelAsync(invoiceId) ?? current;
-        }
-
-        var due = current.Summary.DueMinor;
-        var amount = Math.Min(Math.Max(0, request.Amount), Math.Max(0, due));
-        if (amount <= 0)
-        {
-            return new PaymentResult(false, "PAYMENT_EXCEEDS_DUE", 0, false, await RequireDetailAsync(invoiceId));
-        }
-
-        var sent = await SendAsync(new RegisterPaymentCommand(invoiceId, request.Method.ToDomain(),
-            Money.Irt(amount)));
-        if (sent.IsFailure)
-        {
-            return new PaymentResult(false, "PAYMENT_FAILED", 0, false, await RequireDetailAsync(invoiceId));
-        }
+        // One shared pay-on-post / cap-to-due path for Sales and Cashier (X41).
+        var outcome = await InvoicePaymentCore.PayAsync(invoiceId, InvoicePaymentCore.ToDomain(request.Method),
+            request.Amount, null, command => SendAsync(command), () => ReadModelAsync(invoiceId));
+        if (outcome.Error == "INVOICE_NOT_FOUND") return new PaymentResult(false, outcome.Error, 0, false, null!);
 
         var updated = await RequireDetailAsync(invoiceId);
-        return new PaymentResult(true, null, amount, updated.State == ContractInvoiceState.Settled, updated);
+        return outcome.Ok
+            ? new PaymentResult(true, null, outcome.Applied, updated.State == ContractInvoiceState.Settled, updated)
+            : new PaymentResult(false, outcome.Error, 0, false, updated);
     }
 
     public async Task<InvoiceDetail?> VoidAsync(string invoiceId)
@@ -314,25 +286,14 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     public async Task<RefundResult> RefundAsync(string invoiceId, RefundRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var current = await ReadModelAsync(invoiceId);
-        if (current is null) return new RefundResult(false, "INVOICE_NOT_FOUND", null!);
-        if (current.Summary.State is not (DomainInvoiceState.PartiallyPaid or DomainInvoiceState.Paid))
-        {
-            return new RefundResult(false, "INVOICE_IMMUTABLE", await RequireDetailAsync(invoiceId));
-        }
+        var outcome = await InvoicePaymentCore.RefundAsync(invoiceId, request.Amount, DefaultReason,
+            command => SendAsync(command), () => ReadModelAsync(invoiceId));
+        if (outcome.Error == "INVOICE_NOT_FOUND") return new RefundResult(false, outcome.Error, null!);
 
-        var amount = Math.Min(Math.Max(0, request.Amount), current.PaidMinor);
-        if (amount <= 0)
-        {
-            return new RefundResult(false, "ADJUSTMENT_EXCEEDS_PAID", await RequireDetailAsync(invoiceId));
-        }
-
-        var sent = await SendAsync(new RefundInvoiceCommand(invoiceId, Money.Irt(amount), DefaultReason));
-        if (sent.IsFailure)
-        {
-            return new RefundResult(false, "REFUND_FAILED", await RequireDetailAsync(invoiceId));
-        }
-        return new RefundResult(true, null, await RequireDetailAsync(invoiceId), amount);
+        var updated = await RequireDetailAsync(invoiceId);
+        return outcome.Ok
+            ? new RefundResult(true, null, updated, outcome.Applied)
+            : new RefundResult(false, outcome.Error, updated);
     }
 
     public async Task<LineReturnResult> ReturnLineAsync(string invoiceId, LineReturnRequest request)
