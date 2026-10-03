@@ -278,7 +278,15 @@ public sealed partial class NewStayModalViewModel : ObservableObject
 
         var rate = long.TryParse(PersianNumberFormatter.ToAsciiDigits(DailyRateText), out var parsed) ? parsed : 0;
         var paymentMode = PaymentOptions.FirstOrDefault(p => p.IsSelected)?.Mode ?? BoardingPaymentMode.Postpaid;
-        var room = SelectedRoomOption?.Room.Id ?? RoomOptions.FirstOrDefault()?.Room.Id ?? "A-1";
+        // X16: a real, selected room is required (no literal fallback id). Occupancy/capacity is enforced
+        // server-side by CreateBoardingStayCommand (ROOM_AT_CAPACITY / ROOM_UNAVAILABLE) and surfaces below as a danger toast.
+        if (SelectedRoomOption is null)
+        {
+            _toast.Show("یک اتاق انتخاب کنید", Tone.Danger);
+            return;
+        }
+
+        var room = SelectedRoomOption.Room.Id;
 
         var request = new NewStayRequest(
             petName, species, breed, owner, phone, patientId, room,

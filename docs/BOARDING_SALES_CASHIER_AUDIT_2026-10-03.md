@@ -17,7 +17,7 @@
 - [x] X13 — DONE: Real print preview (invoice, payment receipt, day report, stay bill) via IPrintService + shared PrintDocumentBuilder; Cashier export = real CSV save; no false success toasts
 - [x] X14 — DONE: BoardingStayClassification is the single overdue/leaving/current derivation feeding card chrome, status pill, detail modal and tab predicate (also fixes always-zero overdue day count)
 - [x] X15 — DONE: CreateBlankAsync no longer takes an ignored kind parameter (blank document is always a counter sale)
-- [ ] X16
+- [x] X16 — DONE: New stay requires a selected room (literal A-1 fallback removed); server-side CreateBoardingStayCommand already rejects occupied/unavailable rooms and the failure is toasted
 - [x] X17 — DONE: Sales TakePaymentAsync re-reads the posted invoice and caps against the post-time due (Cashier already read due after post)
 - [ ] X18
 - [ ] X19
@@ -179,7 +179,7 @@
 - **Fix:** honor `kind` in the command, or remove the parameter from the Contracts member until supported.
 - **Acceptance:** `CreateBlankAsync(kind)` either produces that kind or the parameter does not exist.
 
-### X16 — P1 · Capacity/room not validated on new stay
+### ✅ X16 — P1 · Capacity/room not validated on new stay
 - **Evidence:** B.NEW:281 picks the room id with a fallback to `"A-1"` literal; no occupancy/capacity check before `CreateStayAsync`. Rooms carry occupancy (B.CONTR around `RoomInfo`), but the modal never consults it.
 - **Failure:** two stays can be booked into the same room/slot; the hardcoded `"A-1"` fallback can target a non-existent/occupied room if the rooms list is empty or the selection is lost.
 - **Fix:** require a valid selected room, validate availability against live occupancy (server-side in the create command), and remove the `"A-1"` literal fallback.
