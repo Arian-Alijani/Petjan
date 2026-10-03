@@ -32,13 +32,15 @@ public sealed class TriageQueries(AnimoraLocalDbContext db) : ITriageQueries
     public async Task<IReadOnlyList<BookedAppointmentReadModel>> GetBookedForDoctorAsync(
         string doctorId, DateTimeOffset startUtc, DateTimeOffset endUtc, CancellationToken ct)
     {
+        // V04: the previous shape left-joined ReceptionQueueEntry (GroupJoin + DefaultIfEmpty) and
+        // then applied two further inner joins + a projection, which EF Core SQLite can fail to
+        // translate (crash on ToListAsync for doctors that actually have booked rows). Restructured to
+        // two inner joins for pet/owner and a pair of correlated subqueries for the optional queue row,
+        // so the whole statement translates cleanly.
         var booked = from appointment in db.Set<Appointment>().AsNoTracking()
                      where appointment.DoctorUserId == doctorId
                          && appointment.StartUtc >= startUtc && appointment.StartUtc < endUtc
                          && appointment.State != AppointmentState.Cancelled
-                     join row in db.Set<ReceptionQueueEntry>().AsNoTracking()
-                         on appointment.Id equals row.AppointmentId into rows
-                     from queue in rows.DefaultIfEmpty()
                      join pet in db.Set<Pet>().AsNoTracking() on appointment.PetId equals pet.Id
                      join owner in db.Set<Owner>().AsNoTracking() on appointment.OwnerId equals owner.Id
                      orderby appointment.StartUtc, appointment.Id
@@ -46,8 +48,9 @@ public sealed class TriageQueries(AnimoraLocalDbContext db) : ITriageQueries
                          appointment.StartUtc.Hour * 60 + appointment.StartUtc.Minute,
                          appointment.DurationMinutes, pet.Id, pet.Name, pet.Species.ToString(),
                          owner.FullName, owner.PhonePrimary, appointment.AppointmentTypeCode,
-                         queue != null && queue.Priority > 0,
-                         queue == null ? "Waiting" : queue.State.ToString());
+                         db.Set<ReceptionQueueEntry>().Any(q => q.AppointmentId == appointment.Id && q.Priority > 0),
+                         db.Set<ReceptionQueueEntry>().Where(q => q.AppointmentId == appointment.Id)
+                             .Select(q => q.State.ToString()).FirstOrDefault() ?? "Waiting");
         return await booked.ToListAsync(ct);
     }
 

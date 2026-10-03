@@ -184,7 +184,11 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
   no crash report for a handled domain failure. Access-failure codes show `AccessLostMessage`.
 
 ### Task 2 — V04 · Fix `GetBookedForDoctorAsync` query translation
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. Removed the GroupJoin+`DefaultIfEmpty` left join; now two inner joins
+  (pet/owner) + two correlated subqueries on `ReceptionQueueEntry` (`.Any(q => q.AppointmentId ==
+  appointment.Id && q.Priority > 0)` and `.Where(...).Select(q => q.State.ToString()).FirstOrDefault()
+  ?? "Waiting"`). Verified `ReceptionQueueEntry.AppointmentId` is `string?`, `State` is `QueueState`,
+  `Priority` is int. Ctor arg order unchanged.
 - **Priority:** P1 · **Push message:** `fix(visits): restructure booked-for-doctor query to avoid left-join-then-join (V04)`
 - **Goal:** Selecting a doctor with ≥1 booked appointment must not throw an EF translation error.
 - **Current (SQLT 32–52):** left join `ReceptionQueueEntry` via `.DefaultIfEmpty()` THEN inner joins
