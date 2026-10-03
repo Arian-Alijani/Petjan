@@ -513,14 +513,28 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private void RecomputeSubtotal()
     {
         long total = 0;
-        foreach (var line in ServiceLines)
+        try
         {
-            total += line.LineTotal;
-        }
+            // Same checked arithmetic as the backend (EncounterCommands) so UI and invoice never disagree.
+            checked
+            {
+                foreach (var line in ServiceLines)
+                {
+                    total += line.LineTotal;
+                }
 
-        foreach (var line in ItemLines)
+                foreach (var line in ItemLines)
+                {
+                    total += line.LineTotal;
+                }
+
+                _ = total + TaxOf(total);
+            }
+        }
+        catch (OverflowException)
         {
-            total += line.LineTotal;
+            _toast.Show("مبلغ ردیف‌ها از حد مجاز بیشتر است؛ تعداد یا قیمت را اصلاح کنید.", Tone.Danger);
+            return;
         }
 
         _subtotal = total;

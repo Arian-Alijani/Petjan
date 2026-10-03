@@ -379,7 +379,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** denied/failed adds give feedback; picker and line list stay consistent.
 
 ### Task 11 — V11 · Clamp quantity & checked UI subtotal
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. `RxLineViewModel.QuantityText` clamps to 1..9999 (`MaxQuantity`, oversized digit strings → max); `LineTotal` uses checked arithmetic (saturating); EVM `RecomputeSubtotal` sums/taxes inside `checked` and on overflow toasts + keeps the previous subtotal.
 - **Priority:** P2 · **Push message:** `fix(visits): clamp quantity and compute checked subtotal to prevent overflow (V11)`
 - **Goal:** Extreme quantities are clamped/validated; UI subtotal matches backend and never overflows.
 - **Current:** `RxLineViewModel.QuantityText` setter clamps only lower bound `Math.Max(1, parsed)`
