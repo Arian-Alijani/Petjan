@@ -96,8 +96,8 @@ public sealed partial class CashierInvoiceRowViewModel : ObservableObject
         };
 
         DueStatusBrush = terminal
-            ? Resolve("MutedBrush", "#667085")
-            : (inv.Due > 0 ? Resolve("DangerBrush", "#d92d20") : Resolve("OkBrush", "#027a48"));
+            ? MutedInk
+            : (inv.Due > 0 ? DangerInk : OkInk);
 
         RemainingText = inv.State == CashierInvoiceState.Settled ? "—" : CashierPresentation.Money(inv.Due);
     }
@@ -125,7 +125,13 @@ public sealed partial class CashierInvoiceRowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isActive;
 
-    private static IBrush Resolve(string key, string fallback) => BrushCache.Solid(fallback);
+    // Design-token literals (same values as MutedBrush / DangerBrush / OkBrush in the theme). They are cached
+    // once and shared by every row; the row VM is theme-agnostic and does not look resources up at runtime.
+    private static readonly IBrush MutedInk = BrushCache.Solid("#667085");
+
+    private static readonly IBrush DangerInk = BrushCache.Solid("#d92d20");
+
+    private static readonly IBrush OkInk = BrushCache.Solid("#027a48");
 }
 
 /// <summary>

@@ -26,7 +26,7 @@
 - [x] X22 — DONE: Owner picker search is debounced (200 ms) and guarded by a generation token so stale responses cannot overwrite newer rows
 - [x] X23 — DONE: Catalog add promotes the item in the recent strip locally; no full catalog refetch/row rebuild per add
 - [x] X24 — DONE: Highlight is located on a length-preserving PersianText.Fold copy (same folding as the filter) and sliced from the original title
-- [ ] X25
+- [x] X25 — DONE: removed the dead key parameter of Resolve; the three design-token brushes are cached statics
 - [ ] X26
 - [ ] X27
 - [ ] X28
@@ -237,7 +237,7 @@
 - **Fix:** compute the highlight span on the normalized text/offset used for matching, or normalize both consistently.
 - **Acceptance:** every matched row highlights the matched substring.
 
-### X25 — P2 · Dead code / theme bypass · `CashierInvoiceRowViewModel.Resolve` ignores its key
+### ✅ X25 — P2 · Dead code / theme bypass · `CashierInvoiceRowViewModel.Resolve` ignores its key
 - **Evidence:** C.ITEM:128 `private static IBrush Resolve(string key, string fallback) => BrushCache.Solid(fallback);` — the `key` (e.g. "DangerBrush") is never used; it always returns the hardcoded hex fallback (C.ITEM:98–100).
 - **Failure:** the theme/token brushes are never consulted; a theme change to danger/ok/muted will not affect these rows. Misleading API (looks like a resource lookup).
 - **Fix:** either resolve the real themed brush by key, or delete the `key` parameter and call `BrushCache.Solid(hex)` directly and document the literals as design tokens.
