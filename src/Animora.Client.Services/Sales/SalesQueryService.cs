@@ -183,7 +183,7 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         return await RequireDetailAsync(id ?? throw new InvalidOperationException("INVOICE_NOT_FOUND"));
     }
 
-    public async Task<InvoiceDetail> CreateBlankAsync(InvoiceKind kind)
+    public async Task<InvoiceDetail> CreateBlankAsync()
     {
         // A blank counter sale starts as a guest; the picker then assigns a real owner.
         var created = await SendAsync(new CreateBlankInvoiceCommand(null, "مشتری مهمان", null));
@@ -281,6 +281,10 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
             {
                 return new PaymentResult(false, "INVOICE_NOT_POSTED", 0, false, await RequireDetailAsync(invoiceId));
             }
+
+            // Posting can finalise the payable total (tax / rounding / insurance), so the cap below must use the
+            // POSTED due, not the pre-post draft figure (X17).
+            current = await ReadModelAsync(invoiceId) ?? current;
         }
 
         var due = current.Summary.DueMinor;

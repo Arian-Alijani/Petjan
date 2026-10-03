@@ -16,9 +16,9 @@
 - [x] X12 — DONE: removed the (نمونه طراحی) suffix from every real boarding mutation toast
 - [x] X13 — DONE: Real print preview (invoice, payment receipt, day report, stay bill) via IPrintService + shared PrintDocumentBuilder; Cashier export = real CSV save; no false success toasts
 - [x] X14 — DONE: BoardingStayClassification is the single overdue/leaving/current derivation feeding card chrome, status pill, detail modal and tab predicate (also fixes always-zero overdue day count)
-- [ ] X15
+- [x] X15 — DONE: CreateBlankAsync no longer takes an ignored kind parameter (blank document is always a counter sale)
 - [ ] X16
-- [ ] X17
+- [x] X17 — DONE: Sales TakePaymentAsync re-reads the posted invoice and caps against the post-time due (Cashier already read due after post)
 - [ ] X18
 - [ ] X19
 - [ ] X20
@@ -173,7 +173,7 @@
 - **Fix:** compute `overdue`/`leaving`/`remaining` once in a single helper and feed the card, the pill, and the tab predicate from it. Remove the duplicated inline logic.
 - **Acceptance:** for every stay, tab membership, status pill, and card tone are derived from one classification and never contradict.
 
-### X15 — P1 · Blank-invoice kind ignored
+### ✅ X15 — P1 · Blank-invoice kind ignored
 - **Evidence:** S.SVC:186–192 `CreateBlankAsync(InvoiceKind kind)` ignores `kind` and always sends `CreateBlankInvoiceCommand(null, "مشتری مهمان", null)`. S.VM:281–283 only ever calls it with `InvoiceKind.Sale`, but the parameter is part of the seam.
 - **Failure:** any future caller requesting a non-Sale blank (e.g. a purchase/return document) silently gets a Sale. A parameter that cannot affect the outcome is a latent correctness trap.
 - **Fix:** honor `kind` in the command, or remove the parameter from the Contracts member until supported.
@@ -185,7 +185,7 @@
 - **Fix:** require a valid selected room, validate availability against live occupancy (server-side in the create command), and remove the `"A-1"` literal fallback.
 - **Acceptance:** booking an occupied/over-capacity room is rejected with a clear message; no literal room id in the UI.
 
-### X17 — P1 · Due read before post can be stale (payment)
+### ✅ X17 — P1 · Due read before post can be stale (payment)
 - **Evidence:** S.SVC:265–302 `TakePaymentAsync` reads `current.Summary.DueMinor` (line 286) from the pre-post read model, then (for a draft) runs `PostInvoiceCommand` (277–284), then caps `amount` against the **pre-post** `due`.
 - **Failure:** if posting changes the payable total (tax/rounding/insurance finalized at post), the cap uses the wrong due; an otherwise-full settlement can be under/over by the post delta.
 - **Fix:** re-read the due after posting and cap against the posted figure (or have the command return the posted due).

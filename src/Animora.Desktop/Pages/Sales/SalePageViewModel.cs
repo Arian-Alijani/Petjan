@@ -296,7 +296,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         InvoiceDetail detail;
         try
         {
-            detail = await _service.CreateBlankAsync(InvoiceKind.Sale);
+            detail = await _service.CreateBlankAsync();
             NotifyInvoicesChanged();
             _segment = "invoices";
             OnPropertyChanged(nameof(IsReadySegment));

@@ -39,10 +39,11 @@ public interface ISalesQueryService
     Task<InvoiceDetail> CreateFromEncounterAsync(string encounterId);
 
     /// <summary>
-    /// Creates a new empty invoice — for a walk-in/guest direct sale (mirrors
-    /// <c>newBlankInvoice()</c>) — and returns its detail.
+    /// Creates a new empty counter-sale invoice — for a walk-in/guest direct sale (mirrors
+    /// <c>newBlankInvoice()</c>) — and returns its detail. A blank document is always a sale;
+    /// visit/stay invoices come from <see cref="CreateFromEncounterAsync"/> (X15: no ignored kind parameter).
     /// </summary>
-    Task<InvoiceDetail> CreateBlankAsync(InvoiceKind kind);
+    Task<InvoiceDetail> CreateBlankAsync();
 
     /// <summary>
     /// The insurance orgs offered in the invoice's «پوشش بیمه» select
