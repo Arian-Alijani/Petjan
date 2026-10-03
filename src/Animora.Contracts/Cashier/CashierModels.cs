@@ -223,7 +223,12 @@ public sealed record CashierRefundRequest(long Amount);
 /// The result of <see cref="ICashierService.RefundAsync"/> / a void, mirroring
 /// the reference flow's <c>{ ok, error, entity }</c> return.
 /// </summary>
+/// <param name="Ok">Whether the action was applied.</param>
+/// <param name="Error">Machine-readable error code when <paramref name="Ok"/> is false.</param>
+/// <param name="Invoice">The invoice as it is after the action (null when it no longer exists).</param>
+/// <param name="Applied">The money actually recorded by a pay/refund (after clamping to due/paid), 0 otherwise.</param>
 public sealed record CashierActionResult(
     bool Ok,
     string? Error,
-    CashierInvoiceDetail? Invoice);
+    CashierInvoiceDetail? Invoice,
+    long Applied = 0);

@@ -93,8 +93,13 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
             CashierPaymentMethod.Credit => PaymentMethod.Credit,
             _ => PaymentMethod.Transfer,
         };
-        var paid = await SendAsync(new RegisterPaymentCommand(invoiceId, method, Money.Irt(request.Amount), request.Reference));
-        return new(paid.IsSuccess, paid.IsFailure ? paid.Error.Code : null, await GetDetailAsync(invoiceId));
+        // Same rule as the Sales payment path: never register more than the balance due.
+        var due = (await GetDetailAsync(invoiceId))?.Due ?? 0;
+        var amount = Math.Min(Math.Max(0, request.Amount), Math.Max(0, due));
+        if (amount <= 0) return new(false, ErrorCodes.PaymentExceedsDue.Code, await GetDetailAsync(invoiceId));
+        var paid = await SendAsync(new RegisterPaymentCommand(invoiceId, method, Money.Irt(amount), request.Reference));
+        return new(paid.IsSuccess, paid.IsFailure ? paid.Error.Code : null, await GetDetailAsync(invoiceId),
+            paid.IsSuccess ? amount : 0);
     }
 
     public async Task<CashierActionResult> VoidAsync(string invoiceId)
