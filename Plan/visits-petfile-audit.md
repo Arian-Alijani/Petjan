@@ -310,7 +310,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
   type, diagnosis, total and invoice link; the "last visit" summary updates.
 
 ### Task 7 — V07 · Resolve last-visit for pet/owner summaries
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. `GetPetsAsync` and `GetOwnerAsync` now project LastVisitUtc/LastVisitType via correlated top-1 subqueries over non-cancelled visits (same source as the owner activity feed); `ToSummary` maps the reason code to its Persian label; C03 placeholders removed.
 - **Priority:** P1 · **Push message:** `fix(patients): resolve last-visit date/type for pet summaries (V07)`
 - **Goal:** Pet summaries and the pet file agree on last-visit date/type with the owner activity feed.
 - **Current:** `PetSummaryReadModel` built with `null, null` for `LastVisitUtc`/`LastVisitType` at

@@ -14,9 +14,10 @@ internal static class PatientsMapping
         m.Id, m.Id /*Code*/, m.Name, MapSpecies(m.Species), m.Breed ?? "", m.Color ?? "",
         MapGender(m.Gender), Tone(m.Id), MapStatus(m.Status), m.OwnerId,
         m.BirthDateUtc?.UtcDateTime, (double?)m.CurrentWeightKg,
-        // C03 placeholder — no visit source yet; populated when the Visits context lands.
+        // LastVisitUtc/LastVisitType come from the latest visit (reason code mapped to its Persian label).
         // HasVaccines/NextVaccine* stay false/null until the vaccine source arrives.
-        m.LastVisitUtc?.UtcDateTime, m.LastVisitType, HasVaccines: false, NextVaccineName: null,
+        m.LastVisitUtc?.UtcDateTime, m.LastVisitType is { } reason ? VisitReasonLabel(reason) : null,
+        HasVaccines: false, NextVaccineName: null,
         NextVaccineDate: null, m.MicrochipCode);
 
     public static OwnerSummary ToSummary(this OwnerSummaryReadModel m)

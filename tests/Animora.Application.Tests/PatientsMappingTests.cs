@@ -57,7 +57,7 @@ public sealed class PatientsMappingTests
         Assert.Equal("OW1", s.OwnerId);
         Assert.Equal(new DateTime(2020, 2, 3), s.BirthDate);
         Assert.Equal(5.5, s.CurrentWeightKg);
-        Assert.Null(s.LastVisitDate);      // C03 territory.
+        Assert.Null(s.LastVisitDate);      // read model carries no visit in this fixture.
         Assert.False(s.HasVaccines);       // C03 territory.
         Assert.Equal("MC-1", s.MicrochipCode);
         // Deterministic, id-derived tone: stable across calls.
