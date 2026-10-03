@@ -2,7 +2,11 @@ using Animora.Domain.Clinical;
 
 namespace Animora.Client.Services.Visits;
 
-/// <summary>Trailing-edge note buffer. Flush awaits both pending and already-running writes.</summary>
+/// <summary>
+/// Trailing-edge note buffer. Flush awaits both pending and already-running writes and <b>propagates</b> the first
+/// write failure (after attempting every remaining write) so the caller can report it instead of showing a false
+/// "saved" (V13). A failed background write stays tracked until the next flush observes it.
+/// </summary>
 public sealed class DebounceBuffer : IAsyncDisposable
 {
     private sealed record Pending(Func<CancellationToken, Task> Write, CancellationTokenSource Delay);
@@ -62,14 +66,36 @@ public sealed class DebounceBuffer : IAsyncDisposable
             running = _running.ToArray();
             _running.Clear();
         }
-        await Task.WhenAll(running);
-        foreach (var item in pending) await WriteAsync(item.Write, ct);
+
+        // Observe every outcome — one failed write must not stop the others from being attempted.
+        List<Exception>? failures = null;
+        foreach (var task in running)
+        {
+            try { await task.WaitAsync(ct); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex) { (failures ??= []).Add(ex); }
+        }
+
+        foreach (var item in pending)
+        {
+            try { await WriteAsync(item.Write, ct); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex) { (failures ??= []).Add(ex); }
+        }
+
+        if (failures is { Count: > 0 })
+        {
+            // Rethrow the original (first) exception with its type intact so seam-level
+            // InvalidOperationException(code) keeps flowing into the ViewModel guards.
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failures[0]).Throw();
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
         lock (_gate) _disposed = true;
-        await FlushAsync();
+        try { await FlushAsync(); }
+        catch (Exception) { /* shutdown flush is best-effort; interactive flushes already surfaced failures */ }
         _writeGate.Dispose();
     }
 }

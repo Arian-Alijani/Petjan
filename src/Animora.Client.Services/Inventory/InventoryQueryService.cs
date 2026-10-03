@@ -258,9 +258,9 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider, _) = Resolve(scope);
         var context = await provider.BuildCommandContextAsync(null, null, null, default);
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         var result = await dispatcher.SendAsync(command, context.Value!);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
         return result.Value!;
     }
 

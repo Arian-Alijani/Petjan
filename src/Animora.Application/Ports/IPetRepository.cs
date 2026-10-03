@@ -14,6 +14,12 @@ public interface IPetRepository
     /// </summary>
     Task<Pet?> FindByOwnerAndNameAsync(string ownerId, string name, CancellationToken ct = default);
 
+    /// <summary>
+    /// Every pet of the owner whose (trimmed) name equals <paramref name="name"/>, oldest first. Lets a caller
+    /// tell an unambiguous single match from several same-named animals (walk-in disambiguation, V08).
+    /// </summary>
+    Task<IReadOnlyList<Pet>> ListByOwnerAndNameAsync(string ownerId, string name, CancellationToken ct = default);
+
     void Add(Pet entity);
     void AddRange(IEnumerable<Pet> entities);
 }

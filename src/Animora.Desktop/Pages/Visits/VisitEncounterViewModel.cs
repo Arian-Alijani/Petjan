@@ -6,6 +6,7 @@ using Animora.Contracts.Identity;
 using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Avalonia.Media;
@@ -62,7 +63,9 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     public bool CanEditVisit => _capabilities.Can("visits.write");
     private bool CanFinishVisit() => _capabilities.Can("visits.complete");
-    private bool CanAdvance() => !IsLastStep || CanFinishVisit();
+    // The permission dimension is enforced at run time (CompleteAsync toasts the reason) so the button is
+    // never an unexplained dead control; only the diagnosis gate disables it (V02/V09).
+    private bool CanAdvance() => !IsLastStep || !string.IsNullOrWhiteSpace(DiagnosisText);
 
     private EncounterDraft _draft = EmptyDraft();
     private string _encounterId = string.Empty;
@@ -229,6 +232,9 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     public bool IsItemsEmpty => ItemLines.Count == 0;
 
     // ---- review note panels (reference renderReview's two «—»-fallback cards) ----
+    /// <summary>True on the plan step while the mandatory diagnosis is still empty (V02).</summary>
+    public bool IsDiagnosisMissing => IsPlanStep && string.IsNullOrWhiteSpace(DiagnosisText);
+
     public string DiagnosisDisplay => string.IsNullOrWhiteSpace(DiagnosisText) ? "—" : DiagnosisText;
     public string PlanDisplay => string.IsNullOrWhiteSpace(PlanText) ? "—" : PlanText;
 
@@ -279,22 +285,25 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         NotifyState();
     }
 
+    partial void OnDiagnosisTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(DiagnosisDisplay));
+        OnPropertyChanged(nameof(IsDiagnosisMissing));
+        NextStepCommand.NotifyCanExecuteChanged();
+    }
+
     partial void OnSelectedServiceToAddChanged(RxCatalogOptionViewModel? value)
     {
-        if (value is not null)
-        {
-            AddPickedLine(value.Item);
-            SelectedServiceToAdd = null;
-        }
+        if (value is null) return;
+        try { AddPickedLine(value.Item); }
+        finally { SelectedServiceToAdd = null; }
     }
 
     partial void OnSelectedItemToAddChanged(RxCatalogOptionViewModel? value)
     {
-        if (value is not null)
-        {
-            AddPickedLine(value.Item);
-            SelectedItemToAdd = null;
-        }
+        if (value is null) return;
+        try { AddPickedLine(value.Item); }
+        finally { SelectedItemToAdd = null; }
     }
 
     /// <summary>
@@ -306,7 +315,13 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     /// </summary>
     private void AddPickedLine(RxCatalogItem item)
     {
-        if (CanEditVisit) _ = AddPickedLineAsync(item);
+        if (!CanEditVisit)
+        {
+            _toast.Show("اجازهٔ ویرایش ویزیت را ندارید.", Tone.Danger);
+            return;
+        }
+
+        _ = AddPickedLineAsync(item);
     }
 
     private async Task AddPickedLineAsync(RxCatalogItem item)
@@ -321,8 +336,27 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         }
     }
 
+    /// <summary>
+    /// Runs an awaited seam call inside a single guard so a backend <see cref="Result"/> failure
+    /// (surfaced by the Client.Services seam as <see cref="InvalidOperationException"/> carrying the
+    /// error code) becomes a <see cref="Tone.Danger"/> toast instead of escaping onto the UI
+    /// dispatcher, where <c>GlobalExceptionHandler</c> would treat it as a process crash
+    /// (CRASH_RECOVERY_REQUIRED). Mirrors the Patients page convention (V01).
+    /// </summary>
+    private async Task RunGuardedAsync(Func<Task> action, string fallbackMessage)
+    {
+        try
+        {
+            await action();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(PatientsPresentation.CommandFailureMessage(ex, fallbackMessage), Tone.Danger);
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanAdvance))]
-    private async Task NextStepAsync()
+    private Task NextStepAsync() => RunGuardedAsync(async () =>
     {
         if (CurrentStep == EncounterStep.Review)
         {
@@ -330,21 +364,29 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
             return;
         }
 
-        await PersistAsync();
+        if (!await PersistAsync())
+        {
+            return;
+        }
+
         CurrentStep = (EncounterStep)((int)CurrentStep + 1);
-    }
+    }, "ادامهٔ ویزیت ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
-    private async Task PreviousStepAsync()
+    private Task PreviousStepAsync() => RunGuardedAsync(async () =>
     {
         if (CurrentStep == EncounterStep.Vitals)
         {
             return;
         }
 
-        await PersistAsync();
+        if (!await PersistAsync())
+        {
+            return;
+        }
+
         CurrentStep = (EncounterStep)((int)CurrentStep - 1);
-    }
+    }, "بازگشت به مرحلهٔ قبل ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
     private void GoToStep(EncounterStepViewModel? step)
@@ -359,22 +401,26 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     }
 
     [RelayCommand(CanExecute = nameof(CanEditVisit))]
-    private async Task SaveDraftAsync()
+    private Task SaveDraftAsync() => RunGuardedAsync(async () =>
     {
-        await PersistAsync();
+        if (!await PersistAsync())
+        {
+            return;
+        }
+
         await _service.FlushAsync();
         _toast.Show("پیش‌نویس ویزیت ذخیره شد.", Tone.Ok);
-    }
+    }, "ذخیرهٔ پیش‌نویس ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
-    private async Task BackToGate()
+    private Task BackToGate() => RunGuardedAsync(async () =>
     {
         await _service.FlushAsync();
         _navigation.NavigateTo<VisitsTriagePageViewModel>();
-    }
+    }, "بازگشت به صفحهٔ ویزیت ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand(CanExecute = nameof(CanEditVisit))]
-    private async Task RemoveRxLineAsync(RxLineViewModel? line)
+    private Task RemoveRxLineAsync(RxLineViewModel? line) => RunGuardedAsync(async () =>
     {
         if (line is null)
         {
@@ -392,32 +438,38 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         }
 
         RecomputeSubtotal();
-    }
+    }, "حذف ردیف ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
-    private async Task NextVisit()
+    private Task NextVisit() => RunGuardedAsync(async () =>
     {
         await _service.FlushAsync();
         _navigation.NavigateTo<VisitsTriagePageViewModel>();
-    }
+    }, "رفتن به ویزیت بعدی ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
-    private void HandoffToCashier()
+    private Task HandoffToCashierAsync() => RunGuardedAsync(async () =>
     {
-        // Reference (visit.js #doneToCashierBtn): toast then navigate to the
-        // cashier/sale screen. Per the roadmap's decision log this product flow
-        // targets Sale/POS (sale-page.js buildFromEncounter is the real
-        // encounter→invoice function), so the completed encounter id is handed
-        // to SalePageViewModel which issues the invoice from it (Phase 29 wiring).
-        _toast.Show("انتقال به صندوق (نمونه طراحی).", Tone.Ok);
-        _navigation.NavigateTo<Animora.Desktop.Pages.Sales.SalePageViewModel>(
-            vm => vm.BuildFromEncounterCommand.Execute(_encounterId));
-    }
+        // The completed encounter id is handed to SalePageViewModel, which issues the invoice from it
+        // (sale-page.js buildFromEncounter parity). The awaitable path means a failed hand-off toasts
+        // on the Sales page rather than escaping from a fire-and-forget command.
+        await _navigation.NavigateToAsync<Animora.Desktop.Pages.Sales.SalePageViewModel>(
+            vm => vm.BuildFromEncounterAsync(_encounterId));
+    }, "انتقال به صندوق ناموفق بود؛ دوباره تلاش کنید");
 
     private async Task CompleteAsync()
     {
-        if (!CanFinishVisit()) return;
-        await PersistAsync();
+        if (!CanFinishVisit())
+        {
+            _toast.Show("اجازهٔ تکمیل ویزیت را ندارید.", Tone.Danger);
+            return;
+        }
+
+        if (!await PersistAsync())
+        {
+            return;
+        }
+
         var summary = await _service.CompleteAsync(_encounterId);
 
         // A completed encounter feeds the sales/cashier queues, the history ledger and the patient's file.
@@ -458,33 +510,68 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         RecomputeSubtotal();
     }
 
-    private async Task PersistAsync()
+    /// <summary>
+    /// Saves every wizard field through the seam. Returns <see langword="false"/> (after a toast) when a vitals
+    /// field is filled but not a valid non-negative number, so nothing is silently stored as 0 (V12).
+    /// </summary>
+    private async Task<bool> PersistAsync()
     {
-        if (!CanEditVisit) return;
-        await _service.SaveVitalsAsync(_encounterId, BuildVitals());
+        if (!CanEditVisit) return true;
+        if (!TryBuildVitals(out var vitals))
+        {
+            _toast.Show("مقدار علائم حیاتی نامعتبر است؛ فقط عدد غیرمنفی وارد کنید.", Tone.Danger);
+            return false;
+        }
+
+        await _service.SaveVitalsAsync(_encounterId, vitals);
         await _service.SaveHistoryNoteAsync(_encounterId, HistoryText);
         await _service.SaveExamNoteAsync(_encounterId, ExamText);
         await _service.SaveDiagnosisAsync(_encounterId, DiagnosisText);
         await _service.SavePlanAsync(_encounterId, PlanText);
+        return true;
     }
 
-    private Vitals BuildVitals() => new(
-        WeightKg: ParseDouble(WeightText),
-        TemperatureCelsius: ParseDouble(TemperatureText),
-        PulseBpm: (int)ParseDouble(PulseText),
-        RespirationRate: (int)ParseDouble(RespirationText));
+    private bool TryBuildVitals(out Vitals vitals)
+    {
+        var ok = TryParseNullable(WeightText, out var weight)
+            & TryParseNullable(TemperatureText, out var temperature)
+            & TryParseNullable(PulseText, out var pulse)
+            & TryParseNullable(RespirationText, out var respiration)
+            & FitsInt(pulse) & FitsInt(respiration);
+        vitals = ok
+            ? new Vitals(weight, temperature, pulse is { } p ? (int)Math.Round(p) : null,
+                respiration is { } r ? (int)Math.Round(r) : null)
+            : Vitals.Empty;
+        return ok;
+    }
+
+    private static bool FitsInt(double? value) => value is null || value <= int.MaxValue;
 
     private void RecomputeSubtotal()
     {
         long total = 0;
-        foreach (var line in ServiceLines)
+        try
         {
-            total += line.LineTotal;
-        }
+            // Same checked arithmetic as the backend (EncounterCommands) so UI and invoice never disagree.
+            checked
+            {
+                foreach (var line in ServiceLines)
+                {
+                    total += line.LineTotal;
+                }
 
-        foreach (var line in ItemLines)
+                foreach (var line in ItemLines)
+                {
+                    total += line.LineTotal;
+                }
+
+                _ = total + TaxOf(total);
+            }
+        }
+        catch (OverflowException)
         {
-            total += line.LineTotal;
+            _toast.Show("مبلغ ردیف‌ها از حد مجاز بیشتر است؛ تعداد یا قیمت را اصلاح کنید.", Tone.Danger);
+            return;
         }
 
         _subtotal = total;
@@ -512,6 +599,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsVitalsStep));
         OnPropertyChanged(nameof(IsHistoryStep));
         OnPropertyChanged(nameof(IsPlanStep));
+        OnPropertyChanged(nameof(IsDiagnosisMissing));
         OnPropertyChanged(nameof(IsRxStep));
         OnPropertyChanged(nameof(IsReviewStep));
         OnPropertyChanged(nameof(IsDoneStep));
@@ -526,12 +614,27 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private static long TaxOf(long subtotal) =>
         (long)Math.Round(subtotal * TaxRate, MidpointRounding.AwayFromZero);
 
-    private static double ParseDouble(string text)
+    /// <summary>
+    /// Empty text → <see langword="null"/> (not recorded, valid). Otherwise the value must be a finite,
+    /// non-negative number; anything else is invalid (returns <see langword="false"/>).
+    /// </summary>
+    private static bool TryParseNullable(string text, out double? value)
     {
-        var ascii = PersianNumberFormatter.ToAsciiDigits(text).Replace(',', '.');
-        return double.TryParse(ascii, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : 0;
+        value = null;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return true;
+        }
+
+        var ascii = PersianNumberFormatter.ToAsciiDigits(text).Trim().Replace(',', '.').Replace('٫', '.');
+        if (double.TryParse(ascii, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            && double.IsFinite(parsed) && parsed >= 0)
+        {
+            value = parsed;
+            return true;
+        }
+
+        return false;
     }
 
     private static EncounterDraft EmptyDraft() => new(

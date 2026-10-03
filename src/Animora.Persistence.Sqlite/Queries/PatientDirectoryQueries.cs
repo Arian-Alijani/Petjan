@@ -24,8 +24,8 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
     {
         var filtered = FilterPets(db.Set<Pet>().AsNoTracking(), search, species);
 
-        // Stable ORDER BY with a unique id tiebreaker so Skip/Take never drifts. No visit source
-        // exists yet in C01, so "Recent" falls back to name-ordered (same as Name) until C03.
+        // Stable ORDER BY with a unique id tiebreaker so Skip/Take never drifts. "Recent" stays name-ordered
+        // (same as Name); the last-visit columns below are display-only.
         var ordered = sort switch
         {
             PatientDirectorySort.Age => filtered.OrderBy(p => p.BirthDateUtc).ThenBy(p => p.Id),
@@ -42,7 +42,12 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
                 p.Id, p.Name, p.Species, p.Breed, p.Color, p.Gender, p.Status, p.OwnerId, p.BirthDateUtc,
                 db.Set<WeightEntry>().Where(w => w.PetId == p.Id)
                     .OrderByDescending(w => w.MeasuredUtc).Select(w => (decimal?)w.WeightKg).FirstOrDefault(),
-                null, null,   // C03 placeholder — no visit source yet; populated when the Visits context lands. (LastVisitUtc / LastVisitType)
+                // Latest non-cancelled visit (same source/ordering as GetOwnerClinicalActivityAsync) — correlated
+                // top-1 subqueries, index-backed by the Visits pet lookup. (LastVisitUtc / LastVisitType)
+                db.Set<Visit>().Where(v => v.PetId == p.Id && v.State != VisitState.Cancelled)
+                    .OrderByDescending(v => v.StartedUtc).Select(v => (DateTimeOffset?)v.StartedUtc).FirstOrDefault(),
+                db.Set<Visit>().Where(v => v.PetId == p.Id && v.State != VisitState.Cancelled)
+                    .OrderByDescending(v => v.StartedUtc).Select(v => v.Reason.ToString()).FirstOrDefault(),
                 p.MicrochipCode));
         return await projected.ToPagedAsync(page, pageSize, Options, ct);
     }
@@ -176,7 +181,12 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
                 p.Id, p.Name, p.Species, p.Breed, p.Color, p.Gender, p.Status, p.OwnerId, p.BirthDateUtc,
                 db.Set<WeightEntry>().Where(w => w.PetId == p.Id)
                     .OrderByDescending(w => w.MeasuredUtc).Select(w => (decimal?)w.WeightKg).FirstOrDefault(),
-                null, null,   // C03 placeholder — no visit source yet; populated when the Visits context lands. (LastVisitUtc / LastVisitType)
+                // Latest non-cancelled visit (same source/ordering as GetOwnerClinicalActivityAsync) — correlated
+                // top-1 subqueries, index-backed by the Visits pet lookup. (LastVisitUtc / LastVisitType)
+                db.Set<Visit>().Where(v => v.PetId == p.Id && v.State != VisitState.Cancelled)
+                    .OrderByDescending(v => v.StartedUtc).Select(v => (DateTimeOffset?)v.StartedUtc).FirstOrDefault(),
+                db.Set<Visit>().Where(v => v.PetId == p.Id && v.State != VisitState.Cancelled)
+                    .OrderByDescending(v => v.StartedUtc).Select(v => v.Reason.ToString()).FirstOrDefault(),
                 p.MicrochipCode))
             .ToListAsync(ct);
         return new OwnerDetailReadModel(owner, pets);
@@ -194,8 +204,48 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             .Where(w => w.PetId == petId).OrderBy(w => w.MeasuredUtc)
             .Select(w => new PetWeightReadModel(w.MeasuredUtc, w.WeightKg)).ToListAsync(ct);
 
+        var visits = await GetPetVisitsAsync(petId, ct);
+
         return new PetDetailReadModel(pet.Id, pet.Name, pet.Species, pet.Breed, pet.Color, pet.Gender,
             pet.Status, pet.OwnerId, pet.BirthDateUtc, pet.IsNeutered, pet.MicrochipCode,
-            pet.MicrochipImplantUtc, pet.AllergyNotes, pet.ChronicNotes, weights);
+            pet.MicrochipImplantUtc, pet.AllergyNotes, pet.ChronicNotes, weights, visits);
+    }
+
+    private const int PetVisitTake = 50;
+
+    /// <summary>Newest <see cref="PetVisitTake"/> non-cancelled visits of the pet (index IX_Visits pet lookup).
+    /// Entities are materialised un-tracked because prescriptions/service lines are JSON columns; the doctor
+    /// display names are resolved in one extra bounded query instead of a per-row join.</summary>
+    private async Task<IReadOnlyList<PetVisitReadModel>> GetPetVisitsAsync(string petId, CancellationToken ct)
+    {
+        var rows = await db.Set<Visit>().AsNoTracking()
+            .Where(v => v.PetId == petId && v.State != VisitState.Cancelled)
+            .OrderByDescending(v => v.StartedUtc).ThenBy(v => v.Id)
+            .Take(PetVisitTake).ToListAsync(ct);
+        if (rows.Count == 0) return [];
+
+        var doctorIds = rows.Select(v => v.DoctorUserId).Distinct().ToList();
+        var doctors = await db.Set<User>().AsNoTracking().Where(u => doctorIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName }).ToListAsync(ct);
+        var names = doctors.ToDictionary(d => d.Id, d => d.DisplayName);
+
+        return rows.Select(v => new PetVisitReadModel(
+            v.Id, v.Reason.ToString(), v.CompletedUtc ?? v.StartedUtc,
+            names.GetValueOrDefault(v.DoctorUserId, string.Empty), v.ChiefComplaint, v.DoctorNotes, v.Diagnosis,
+            v.Prescriptions.Select(p => p.DrugName).ToList(), v.Vitals?.WeightKg, v.Vitals?.TemperatureC,
+            SubtotalOf(v), v.InvoiceId)).ToList();
+    }
+
+    private static long SubtotalOf(Visit v)
+    {
+        try
+        {
+            return v.ServiceLines.Aggregate(0L,
+                (total, line) => checked(total + checked((long)(line.UnitPrice.Minor * line.Quantity.Value))));
+        }
+        catch (OverflowException)
+        {
+            return 0;
+        }
     }
 }

@@ -54,6 +54,9 @@ public sealed class PatientsUseCaseTests
             Task.FromResult(Items.TryGetValue(id, out var p) ? p : null);
         public Task<Pet?> FindByOwnerAndNameAsync(string ownerId, string name, System.Threading.CancellationToken ct = default) =>
             Task.FromResult(Items.Values.FirstOrDefault(p => p.OwnerId == ownerId && p.Name == name));
+        public Task<System.Collections.Generic.IReadOnlyList<Pet>> ListByOwnerAndNameAsync(string ownerId, string name, System.Threading.CancellationToken ct = default) =>
+            Task.FromResult<System.Collections.Generic.IReadOnlyList<Pet>>(
+                Items.Values.Where(p => p.OwnerId == ownerId && p.Name == name).ToList());
         public Task<Pet> RequireAsync(string id, System.Threading.CancellationToken ct = default) =>
             FindAsync(id, ct).ContinueWith(t => t.Result!);
         public void Add(Pet entity) => Items[entity.Id] = entity;

@@ -47,7 +47,8 @@ public sealed record DoctorRailInfo(
     string Initials,
     string Accent,
     int AppointmentCount,
-    int WalkInCount);
+    int WalkInCount,
+    bool HasVisitInProgress = false);
 
 /// <summary>
 /// One row of a doctor's booked-appointment list for today — the shape

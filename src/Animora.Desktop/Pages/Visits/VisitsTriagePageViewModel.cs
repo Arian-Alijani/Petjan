@@ -3,6 +3,7 @@ using Animora.Contracts.Visits;
 using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Avalonia.Media;
@@ -130,7 +131,9 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 
     public bool HasPickedPatient => PickedPatient is not null;
     public bool HasNoPickedPatient => PickedPatient is null;
-    public bool CanStartNew => PickedPatient is not null;
+    public bool CanStartNew => PickedPatient is not null
+        && !string.IsNullOrWhiteSpace(PickedPatient.Phone)
+        && !string.IsNullOrWhiteSpace(PickedPatient.OwnerName);
     public bool HasPatientMatches => PatientMatches.Count > 0;
     public bool HasPatientSearch => PatientSearchText.Trim().Length > 0;
 
@@ -181,22 +184,34 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         try
         {
             await _readiness.WaitAsync();
+            // Fetch everything BEFORE touching the bound collection, then swap the rail in one synchronous
+            // pass: there is no await between Clear and the re-add, so the UI never renders an empty rail
+            // or a lost selection mid-refresh (V17, PERFORMANCE.md §5).
             var doctors = await _service.GetDoctorsAsync();
+            var patients = await _service.GetPatientsAsync();
             var selectedId = SelectedDoctor?.Doctor.Id;
-            Doctors.Clear();
-            foreach (var doctor in doctors)
+
+            var tiles = doctors.Select(d => new DoctorTileViewModel(d)).ToList();
+            var restored = selectedId is null ? null : tiles.FirstOrDefault(t => t.Doctor.Id == selectedId);
+            if (restored is not null)
             {
-                Doctors.Add(new DoctorTileViewModel(doctor));
+                restored.IsSelected = true;
+            }
+
+            Doctors.Clear();
+            foreach (var tile in tiles)
+            {
+                Doctors.Add(tile);
             }
 
             // Preserve the current selection across a reload so a background
             // refresh does not reset the doctor the user is working with.
             if (selectedId is not null)
             {
-                SelectedDoctor = Doctors.FirstOrDefault(d => d.Doctor.Id == selectedId);
+                SelectedDoctor = restored;
             }
 
-            _allPatients = await _service.GetPatientsAsync();
+            _allPatients = patients;
             NotifyState();
         }
         finally
@@ -235,8 +250,26 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(PickedPatientGlyph));
     }
 
+    /// <summary>
+    /// Runs an awaited seam call inside a single guard so a backend <see cref="Result"/> failure
+    /// (surfaced by the Client.Services seam as <see cref="InvalidOperationException"/> carrying the
+    /// error code) becomes a <see cref="Tone.Danger"/> toast instead of escaping onto the UI
+    /// dispatcher, where it would be treated as a process crash. Mirrors Patients (V01).
+    /// </summary>
+    private async Task RunGuardedAsync(Func<Task> action, string fallbackMessage)
+    {
+        try
+        {
+            await action();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(PatientsPresentation.CommandFailureMessage(ex, fallbackMessage), Tone.Danger);
+        }
+    }
+
     [RelayCommand]
-    private async Task SelectDoctorAsync(DoctorTileViewModel? tile)
+    private Task SelectDoctorAsync(DoctorTileViewModel? tile) => RunGuardedAsync(async () =>
     {
         if (tile is null || ReferenceEquals(tile, SelectedDoctor))
         {
@@ -255,7 +288,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         BuildChips();
         BuildBookedRows();
         NotifyState();
-    }
+    }, "بارگذاری نوبت‌های پزشک ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
     private void SetMode(string? mode)
@@ -299,19 +332,23 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     [RelayCommand]
     private void SaveNewPatient()
     {
-        if (string.IsNullOrWhiteSpace(NewPatientName) || string.IsNullOrWhiteSpace(NewPatientKind))
+        // The backend rejects a walk-in without an owner name/phone (WalkInPhoneRequired), so block it here.
+        if (string.IsNullOrWhiteSpace(NewPatientName) || string.IsNullOrWhiteSpace(NewPatientKind)
+            || string.IsNullOrWhiteSpace(NewPatientOwner) || string.IsNullOrWhiteSpace(NewPatientPhone))
         {
-            _toast.Show("نام و نژاد حیوان الزامی است.", Tone.Danger);
+            _toast.Show("نام، نژاد، نام صاحب و شمارهٔ تماس الزامی است.", Tone.Danger);
             return;
         }
 
         PickedPatient = new VisitPatientRef(
+            // Placeholder id only: the backend discards it and re-resolves the owner by phone and the pet by
+            // name + species when the visit starts (StartNewVisitCommandHandler).
             Id: $"np-{Guid.NewGuid():N}"[..10],
             Name: NewPatientName.Trim(),
             Kind: NewPatientKind.Trim(),
             OwnerName: NewPatientOwner.Trim(),
             Phone: NewPatientPhone.Trim(),
-            IconKey: "dog");
+            IconKey: VisitsPresentation.IconKeyForKind(NewPatientKind));
 
         IsNewPatientFormOpen = false;
         NewPatientName = string.Empty;
@@ -324,7 +361,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private async Task StartFromTicketAsync(BookedRowViewModel? row)
+    private Task StartFromTicketAsync(BookedRowViewModel? row) => RunGuardedAsync(async () =>
     {
         if (row is null)
         {
@@ -332,12 +369,12 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         }
 
         var draft = await _service.StartFromTicketAsync(row.TicketId);
-        _toast.Show($"ویزیت « {draft.PatientName} » آغاز شد (نمونه طراحی)", Tone.Ok);
+        _toast.Show($"ویزیت « {draft.PatientName} » آغاز شد.", Tone.Ok);
         await _navigation.NavigateToAsync<VisitEncounterViewModel>(vm => vm.LoadAsync(draft));
-    }
+    }, "شروع ویزیت از نوبت ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
-    private async Task StartNewAsync()
+    private Task StartNewAsync() => RunGuardedAsync(async () =>
     {
         if (SelectedDoctor is null || PickedPatient is null)
         {
@@ -358,9 +395,9 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
             Note: NoteText);
 
         var draft = await _service.StartNewAsync(request);
-        _toast.Show($"ویزیت جدید بدون نوبت برای « {PickedPatient.Name} » آغاز شد (نمونه طراحی)", Tone.Ok);
+        _toast.Show($"ویزیت جدید بدون نوبت برای « {PickedPatient.Name} » آغاز شد.", Tone.Ok);
         await _navigation.NavigateToAsync<VisitEncounterViewModel>(vm => vm.LoadAsync(draft));
-    }
+    }, "شروع ویزیت جدید ناموفق بود؛ دوباره تلاش کنید");
 
     private void SelectType(VisitTypeOptionViewModel? option)
     {

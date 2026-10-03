@@ -17,9 +17,9 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
         await using var scope = scopes.CreateAsyncScope();
         var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
         var context = provider.BuildQueryContext();
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().QueryAsync(query, context.Value!);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
         return result.Value!;
     }
 
@@ -28,9 +28,9 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
         await using var scope = scopes.CreateAsyncScope();
         var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
         var context = await provider.BuildCommandContextAsync(null, null, null, default);
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().SendAsync(command, context.Value!);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
         return result.Value!;
     }
 

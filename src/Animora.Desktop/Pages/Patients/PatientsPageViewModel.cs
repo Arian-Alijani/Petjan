@@ -429,8 +429,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             {
                 var pageTask = _patientsQueryService.GetOwnersPageAsync(query);
                 await Task.WhenAll(facetsTask, pageTask);
-                PublishFacets(facetsTask.Result);
-                PublishOwners(pageTask.Result);
+                PublishFacets(await facetsTask);
+                PublishOwners(await pageTask);
                 FilteredPets.Clear();
                 PetRows.Clear();
             }
@@ -438,8 +438,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             {
                 var pageTask = _patientsQueryService.GetPetsPageAsync(query);
                 await Task.WhenAll(facetsTask, pageTask);
-                PublishFacets(facetsTask.Result);
-                PublishPets(pageTask.Result);
+                PublishFacets(await facetsTask);
+                PublishPets(await pageTask);
                 FilteredOwners.Clear();
                 OwnerRows.Clear();
             }

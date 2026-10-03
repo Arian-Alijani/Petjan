@@ -20,6 +20,14 @@ public sealed class PetRepository(AnimoraLocalDbContext db) : IPetRepository
             .FirstOrDefaultAsync(e => e.OwnerId == ownerId && e.Name == trimmed, ct);
     }
 
+    public async Task<IReadOnlyList<Pet>> ListByOwnerAndNameAsync(string ownerId, string name, CancellationToken ct = default)
+    {
+        var trimmed = name.Trim();
+        return await db.Set<Pet>().AsTracking()
+            .Where(e => e.OwnerId == ownerId && e.Name == trimmed)
+            .OrderBy(e => e.Id).ToListAsync(ct);
+    }
+
     public void Add(Pet entity) => db.Set<Pet>().Add(entity);
     public void AddRange(IEnumerable<Pet> entities) => db.Set<Pet>().AddRange(entities);
 }

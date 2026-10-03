@@ -48,7 +48,19 @@ public sealed partial class RxLineViewModel : ObservableObject
         ? VisitsPresentation.Fill("#0e7566")
         : VisitsPresentation.Fill("#7b5cc4");
 
-    public long LineTotal => Line.UnitPrice * _quantity;
+    /// <summary>Largest quantity a single line accepts — keeps <c>price × qty</c> far inside <c>long</c> (V11).</summary>
+    public const int MaxQuantity = 9999;
+
+    /// <summary>Unit price × quantity with the same <c>checked</c> arithmetic the backend uses; saturates at
+    /// <see cref="long.MaxValue"/> instead of wrapping when a pathological price would overflow.</summary>
+    public long LineTotal
+    {
+        get
+        {
+            try { return checked(Line.UnitPrice * _quantity); }
+            catch (OverflowException) { return long.MaxValue; }
+        }
+    }
 
     public string LineTotalText => VisitsPresentation.Money(LineTotal);
 
@@ -65,7 +77,7 @@ public sealed partial class RxLineViewModel : ObservableObject
     /// <summary>
     /// The quantity input's text. Displays Persian digits (reference
     /// <c>toFa(entry.qty)</c>); setting it parses either Persian or ASCII digits,
-    /// clamps to ≥ 1 and writes through to the shared line.
+    /// clamps to 1..<see cref="MaxQuantity"/> and writes through to the shared line.
     /// </summary>
     public string QuantityText
     {
@@ -73,10 +85,10 @@ public sealed partial class RxLineViewModel : ObservableObject
         set
         {
             var ascii = PersianNumberFormatter.ToAsciiDigits(value).Trim();
-            var parsed = int.TryParse(ascii, out var number) ? number : 1;
+            var parsed = int.TryParse(ascii, out var number) ? number : (ascii.Length > 0 && ascii.All(char.IsAsciiDigit) ? MaxQuantity : 1);
 
-            // Reference clamps to ≥ 1 (Math.max(1, parseInt(...) || 1)).
-            var clamped = Math.Max(1, parsed);
+            // Reference clamps to ≥ 1 (Math.max(1, parseInt(...) || 1)); the upper bound is ours.
+            var clamped = Math.Clamp(parsed, 1, MaxQuantity);
             _quantity = clamped;
             Line.Quantity = clamped;
 

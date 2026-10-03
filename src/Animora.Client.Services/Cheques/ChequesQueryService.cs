@@ -80,7 +80,7 @@ public sealed class ChequesQueryService(IServiceScopeFactory scopes) : IChequesQ
             SupplierId: request.Direction == ContractDirection.Out ? request.Party : null,
             BankName: bank?.Name ?? request.BankKey, BankBranch: request.Branch, AccountNumber: request.Account,
             SayadId: request.Sayad, Note: request.Note));
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
         return (await GetAllAsync()).First(c => c.Id == result.Value);
     }
 
@@ -108,12 +108,12 @@ public sealed class ChequesQueryService(IServiceScopeFactory scopes) : IChequesQ
                 // The domain rejects an already-in-portfolio cheque; only advance a registered one.
                 var moved = await SendAsync(new ChangeChequeStatusCommand(id, ChequeState.InPortfolio));
                 if (moved.IsFailure && moved.Error != ErrorCodes.ChequeInvalidTransition)
-                    throw new InvalidOperationException(moved.Error.Code);
+                    throw new ServiceException(moved.Error);
             }
         }
         var result = await SendAsync(new BulkChangeChequeStatusCommand(ids, target,
             target is ChequeState.Bounced or ChequeState.Returned or ChequeState.Cancelled ? "ثبت تغییر وضعیت" : null));
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
         var failed = result.Value!.Where(r => !r.Succeeded).ToArray();
         if (failed.Length != 0)
             throw new InvalidOperationException(string.Join(", ", failed.Select(r => $"{r.ChequeId}: {r.Error}")));
@@ -121,7 +121,7 @@ public sealed class ChequesQueryService(IServiceScopeFactory scopes) : IChequesQ
 
     private static void Ensure(Result<Unit> result)
     {
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
     }
 
     private async Task<Result<T>> QueryAsync<T>(IQuery<T> query)

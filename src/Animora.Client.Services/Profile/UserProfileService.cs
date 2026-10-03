@@ -40,14 +40,14 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider, _) = Resolve(scope);
         var context = await provider.BuildCommandContextAsync(null, null, null, default).ConfigureAwait(false);
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [AppSettingsKeys.ProfilePhone] = profile.Phone ?? string.Empty,
             [AppSettingsKeys.ProfileEmail] = profile.Email ?? string.Empty,
         };
         var result = await dispatcher.SendAsync(new SaveUserProfileCommand(values), context.Value!).ConfigureAwait(false);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
     }
 
     public async Task<AppSettings> GetSettingsAsync()
@@ -66,18 +66,18 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider, _) = Resolve(scope);
         var context = await provider.BuildCommandContextAsync(null, null, null, default).ConfigureAwait(false);
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         var result = await dispatcher
             .SendAsync(new SaveAppSettingsCommand(ProfileMapping.ToPreferenceBag(settings)), context.Value!)
             .ConfigureAwait(false);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
     }
 
     public async Task<ClinicAccountStatus> GetAccountStatusAsync()
     {
         await using var scope = scopes.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>().BuildQueryContext();
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         // Licensing and SMS integrations are not implemented yet. Unknown is not an active/free subscription.
         var source = scope.ServiceProvider.GetService<IClinicAccountStatusSource>();
         return source is null ? new ClinicAccountStatus() : await source.GetAsync().ConfigureAwait(false);
@@ -88,9 +88,9 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider, _) = Resolve(scope);
         var context = provider.BuildQueryContext();
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         var result = await dispatcher.QueryAsync(new StaffDirectoryQuery(), context.Value!);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
         var model = result.Value!;
         return new StaffDirectory(
             model.Members.Select(m => new StaffAccount(m.MembershipId, m.UserId, m.Name, m.Username,
@@ -122,9 +122,9 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider, _) = Resolve(scope);
         var context = await provider.BuildCommandContextAsync(null, null, null, default);
-        if (context.IsFailure) throw new InvalidOperationException(context.Error.Code);
+        if (context.IsFailure) throw new ServiceException(context.Error);
         var result = await dispatcher.SendAsync(command, context.Value!);
-        if (result.IsFailure) throw new InvalidOperationException(result.Error.Code);
+        if (result.IsFailure) throw new ServiceException(result.Error);
     }
 
     private static (IDispatcher Dispatcher, ICurrentUserProvider Provider, IClinicTimeZoneProvider Zones) Resolve(

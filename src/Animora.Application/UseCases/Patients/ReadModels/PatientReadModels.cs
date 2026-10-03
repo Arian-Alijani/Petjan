@@ -50,12 +50,23 @@ public sealed record OwnerClinicalActivityReadModel(
 /// <summary>Owner sheet: profile + live pet roster.</summary>
 public sealed record OwnerDetailReadModel(OwnerSummaryReadModel Owner, IReadOnlyList<PetSummaryReadModel> Pets);
 
-/// <summary>Pet file: profile + weight history (visits/vaccinations arrive in C03).</summary>
+/// <summary>Pet file: profile + weight history + bounded newest-first visit history (vaccinations arrive in C03).</summary>
 public sealed record PetDetailReadModel(
     string Id, string Name, PetSpecies Species, string? Breed, string? Color, PetGender Gender,
     PetStatus Status, string OwnerId, DateTimeOffset? BirthDateUtc, bool IsNeutered, string? MicrochipCode,
     DateTimeOffset? MicrochipImplantUtc, string? AllergyNotes, string? ChronicNotes,
-    IReadOnlyList<PetWeightReadModel> Weights);
+    IReadOnlyList<PetWeightReadModel> Weights,
+    IReadOnlyList<PetVisitReadModel>? Visits = null);
+
+/// <summary>
+/// One non-cancelled visit of a pet for the pet-file Visits tab. <paramref name="ReasonCode"/> is the
+/// <c>VisitReason</c> name (the client maps it to display text); <paramref name="Total"/> is the billable
+/// subtotal of the visit's service lines in minor units (tax is applied by the invoice, not here).
+/// </summary>
+public sealed record PetVisitReadModel(
+    string Id, string ReasonCode, DateTimeOffset OccurredUtc, string DoctorName, string? ChiefComplaint,
+    string? DoctorNotes, string? Diagnosis, IReadOnlyList<string> Prescriptions, decimal? WeightKg,
+    decimal? TemperatureC, long Total, string? InvoiceId);
 
 /// <summary>One appended weight reading for the pet-file chart/rows.</summary>
 public sealed record PetWeightReadModel(DateTimeOffset MeasuredUtc, decimal WeightKg);

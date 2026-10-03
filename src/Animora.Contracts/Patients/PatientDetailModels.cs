@@ -57,7 +57,8 @@ public sealed record VisitSummaryRef(
     IReadOnlyList<string> Prescriptions,
     double WeightKg,
     double Temperature,
-    long Cost);
+    long Cost,
+    string? InvoiceId = null);
 
 /// <summary>
 /// Minimal read-only vaccination reference for the pet file's vaccinations tab,

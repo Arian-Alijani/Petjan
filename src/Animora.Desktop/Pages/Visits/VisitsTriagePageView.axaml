@@ -291,8 +291,15 @@
                                                            Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                             </Border>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                                                <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="ExtraBold"
-                                                           Foreground="{StaticResource InkBrush}" />
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="ExtraBold"
+                                                               Foreground="{StaticResource InkBrush}" />
+                                                    <Border IsVisible="{Binding HasVisitInProgress}" Padding="6,1" CornerRadius="999"
+                                                            Background="{StaticResource Brand50Brush}" VerticalAlignment="Center">
+                                                        <TextBlock Text="در ویزیت" FontSize="10" FontWeight="ExtraBold"
+                                                                   Foreground="{StaticResource Brand700Brush}" />
+                                                    </Border>
+                                                </StackPanel>
                                                 <TextBlock Text="{Binding Specialty}" FontSize="11.5" FontWeight="Bold"
                                                            Foreground="{StaticResource MutedBrush}" />
                                             </StackPanel>
