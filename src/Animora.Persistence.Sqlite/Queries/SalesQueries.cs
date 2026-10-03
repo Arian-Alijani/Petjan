@@ -87,6 +87,12 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             .ToPagedAsync(page, pageSize, options.Value, ct);
     }
 
+    public async Task<IReadOnlyList<InvoiceSummaryReadModel>> GetOwnerInvoicesAsync(
+        string ownerId, int take, CancellationToken ct) =>
+        await ProjectInvoices(db.Set<Invoice>().AsNoTracking().Where(i => i.OwnerId == ownerId)
+                .OrderByDescending(i => i.IssuedUtc).ThenByDescending(i => i.Id).Take(take))
+            .ToListAsync(ct);
+
     public async Task<InvoiceDetailReadModel?> GetInvoiceAsync(string invoiceId, CancellationToken ct)
     {
         var invoice = db.Set<Invoice>().AsNoTracking().Where(i => i.Id == invoiceId);

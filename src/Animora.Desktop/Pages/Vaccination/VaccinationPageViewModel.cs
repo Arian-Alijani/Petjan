@@ -429,7 +429,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
             return;
         }
 
-        _dialogs.ShowModal(new SmsComposeViewModel(_service, row.Record, _templates, _dialogs, _toast, Refresh));
+        _dialogs.ShowModal(new SmsComposeViewModel(_service, row.Record, _templates, _dialogs, _toast, OnSmsSent));
     }
 
     [RelayCommand]
@@ -452,10 +452,17 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     // Re-opens the compose drawer for a record chosen from the detail sheet
     // (mirrors the reference's `openSmsCompose` fired from inside the drawer).
     private void OpenSmsComposeById(VaccinationRecord record) =>
-        _dialogs.ShowModal(new SmsComposeViewModel(_service, record, _templates, _dialogs, _toast, Refresh));
+        _dialogs.ShowModal(new SmsComposeViewModel(_service, record, _templates, _dialogs, _toast, OnSmsSent));
 
     // Marks a record done when triggered from the detail sheet (mirrors the
     // reference's `vaxMarkDone` fired from inside the drawer).
+    // A sent reminder is a persisted fact shown in the owner file and the activity feed.
+    private void OnSmsSent()
+    {
+        NotifyVaccinationChanged();
+        Refresh();
+    }
+
     private void NotifyVaccinationChanged() =>
         _changes.Notify(DataDomain.Vaccination, DataDomain.History, DataDomain.Patients, DataDomain.Dashboard);
 

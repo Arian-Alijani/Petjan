@@ -2,6 +2,7 @@ using Animora.Application.Abstractions;
 using Animora.Application.Ports;
 using Animora.Application.Text;
 using Animora.Application.UseCases.Patients.ReadModels;
+using Animora.Domain.Clinical;
 using Animora.Domain.Patients;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Options;
@@ -125,6 +126,38 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             owners = owners.Where(o => matchingPets.Any(p => p.OwnerId == o.Id));
         }
         return owners;
+    }
+
+    public async Task<OwnerClinicalActivityReadModel> GetOwnerClinicalActivityAsync(
+        string ownerId, int take, CancellationToken ct)
+    {
+        var visits = db.Set<Visit>().AsNoTracking()
+            .Where(v => v.OwnerId == ownerId && v.State != VisitState.Cancelled);
+        var doses = from v in db.Set<VaccinationRecord>().AsNoTracking()
+                    join p in db.Set<Pet>().AsNoTracking() on v.PetId equals p.Id
+                    where p.OwnerId == ownerId
+                    select v;
+
+        var visitCount = await visits.CountAsync(ct);
+        var doseCount = await doses.CountAsync(ct);
+
+        // Each source is bounded to `take` newest rows; the merged list is trimmed to `take` below.
+        var visitRows = await (from v in visits
+                               join p in db.Set<Pet>().AsNoTracking() on v.PetId equals p.Id
+                               orderby v.StartedUtc descending, v.Id
+                               select new OwnerClinicalEventRow(v.Id, true, p.Id, p.Name, v.Reason.ToString(),
+                                   v.Diagnosis ?? v.ChiefComplaint, v.StartedUtc))
+            .Take(take).ToListAsync(ct);
+        var doseRows = await (from v in doses
+                              join p in db.Set<Pet>().AsNoTracking() on v.PetId equals p.Id
+                              orderby v.AdministeredUtc descending, v.Id
+                              select new OwnerClinicalEventRow(v.Id, false, p.Id, p.Name, v.VaccineName,
+                                  null, v.AdministeredUtc, v.NextDueUtc))
+            .Take(take).ToListAsync(ct);
+
+        var merged = visitRows.Concat(doseRows)
+            .OrderByDescending(e => e.OccurredUtc).ThenBy(e => e.Id).Take(take).ToList();
+        return new OwnerClinicalActivityReadModel(merged, visitCount, doseCount);
     }
 
     public async Task<OwnerDetailReadModel?> GetOwnerAsync(string ownerId, CancellationToken ct)

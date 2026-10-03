@@ -312,7 +312,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             {
                 _changes.Notify(DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
                 _ = ReloadPageAsync();
-            }), maxWidth: 760);
+            }, _toast), maxWidth: 760);
 
     [RelayCommand]
     private void CallOwner(OwnerSummary? owner)
@@ -358,7 +358,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
                 await ReloadPageAsync();
                 _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
             },
-            _dialogs), maxWidth: 760);
+            _dialogs, _toast), maxWidth: 760);
     }
 
     // Singletons must refresh when returning from another screen that edited these records.
@@ -404,14 +404,12 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         _ => PatientsSortOrder.Recent,
     };
 
-    private const string AccessLostMessage = "دسترسی لازم را ندارید یا نشست منقضی شده؛ دوباره وارد شوید";
+    // Delegate to the shared helpers (PatientsPresentation) so the wizard, add-pet modal and owner sheet
+    // all classify command failures the same way.
+    private const string AccessLostMessage = PatientsPresentation.AccessLostMessage;
 
     /// <summary>Permission / session / capability failures (as opposed to a store or code fault).</summary>
-    private static bool IsAccessFailure(string code) =>
-        code is "PERMISSION_DENIED" or "PERMISSION_UNKNOWN" or "SESSION_EXPIRED"
-            or "CAPABILITY_NOT_GRANTED" or "CAPABILITY_SNAPSHOT_MISSING" or "CAPABILITY_SNAPSHOT_TAMPERED"
-            or "MEMBERSHIP_NOT_ACTIVE" or "USER_DISABLED" or "USER_LOCKED_OUT" or "TENANT_MISMATCH"
-            or "TENANT_SUSPENDED" or "DEVICE_REVOKED";
+    private static bool IsAccessFailure(string code) => PatientsPresentation.IsAccessFailure(code);
 
     /// <returns>False when the load failed (already reported to the user here).</returns>
     private async Task<bool> LoadAsync()

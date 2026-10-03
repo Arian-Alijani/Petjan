@@ -16,6 +16,7 @@ public static class PatientsRegistration
             .AddQuery<PatientsDirectoryFacetsQuery, PatientDirectoryFacetsReadModel,
                 PatientsDirectoryFacetsQueryHandler>()
             .AddQuery<OwnerDetailQuery, OwnerDetailReadModel?, OwnerDetailQueryHandler>()
+            .AddQuery<OwnerClinicalActivityQuery, OwnerClinicalActivityReadModel, OwnerClinicalActivityQueryHandler>()
             .AddQuery<PetDetailQuery, PetDetailReadModel?, PetDetailQueryHandler>()
             .AddCommand<CreateOwnerCommand, string, CreateOwnerCommandHandler>()
             .AddValidator<CreateOwnerCommand, CreateOwnerCommandValidator>()

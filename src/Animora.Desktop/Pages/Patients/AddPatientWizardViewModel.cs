@@ -1,5 +1,7 @@
+using System;
 using System.Collections.ObjectModel;
 using Animora.Contracts.Patients;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -49,6 +51,7 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly Action<AddPatientWizardResult> _onCompleted;
     private readonly bool _closeModalOnly;
+    private readonly IToastService? _toast;
     private const int OwnerLookupPageSize = 25;
     private const int SearchDebounceMs = 220;
     private const int MinSearchChars = 2;
@@ -75,8 +78,9 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
     public AddPatientWizardViewModel(
         IPatientsQueryService patients,
         IDialogService dialogs,
-        Action onCompleted)
-        : this(patients, dialogs, _ => onCompleted(), closeModalOnly: false)
+        Action onCompleted,
+        IToastService? toast = null)
+        : this(patients, dialogs, _ => onCompleted(), closeModalOnly: false, toast)
     {
     }
 
@@ -88,12 +92,14 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
         IPatientsQueryService patients,
         IDialogService dialogs,
         Action<AddPatientWizardResult> onCompleted,
-        bool closeModalOnly)
+        bool closeModalOnly,
+        IToastService? toast = null)
     {
         _patients = patients;
         _dialogs = dialogs;
         _onCompleted = onCompleted;
         _closeModalOnly = closeModalOnly;
+        _toast = toast;
         Referral = PatientsPresentation.Referrals[0];
         // No eager directory load: the existing-owner picker stays empty until the
         // user types at least MinSearchChars (mirrors the booking panel's lookup),
@@ -258,22 +264,57 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
 
     private async Task CommitAsync()
     {
-        AddPatientWizardResult result;
-        if (IsExistingMode && SelectedOwner is not null)
+        // Minimal required fields (a new owner needs at least a first name + mobile; every pet needs a
+        // name). Guarding here keeps obviously-incomplete payloads from reaching the backend and keeps the
+        // user on the form with a hint instead of a silent no-op.
+        if (!IsExistingMode &&
+            (string.IsNullOrWhiteSpace(FirstName) || string.IsNullOrWhiteSpace(Mobile1)))
         {
-            var pet = await _patients.CreatePetAsync(SelectedOwner.Owner.Id, Pet.BuildRequest());
-            result = new AddPatientWizardResult(SelectedOwner.Owner.Id, pet.Id, pet.Name);
+            _toast?.Show("نام و شماره تماس مالک را کامل کنید", Tone.Warn);
+            return;
         }
-        else
+
+        if (!Pet.IsValid)
         {
-            var owner = new NewOwnerRequest(
-                FirstName.Trim(), LastName.Trim(),
-                OwnerIsFemale ? OwnerGender.Female : OwnerGender.Male,
-                NationalId.Trim(), Mobile1.Trim(), Blank(Mobile2), Blank(Phone), Blank(Address),
-                Blank(Referral), Pet.BuildRequest());
-            var created = await _patients.CreateOwnerAsync(owner);
-            var firstPet = created.Pets.Count > 0 ? created.Pets[0] : null;
-            result = new AddPatientWizardResult(created.Id, firstPet?.Id, firstPet?.Name ?? string.Empty);
+            _toast?.Show("نام حیوان را وارد کنید", Tone.Warn);
+            return;
+        }
+
+        AddPatientWizardResult result;
+
+        // The create commands surface backend failures as InvalidOperationException (error code in the
+        // message). Catch them here and toast — if they escaped this async command the global handler would
+        // treat the failure as a process crash ("CRASH_RECOVERY_REQUIRED").
+        try
+        {
+            if (IsExistingMode && SelectedOwner is not null)
+            {
+                var pet = await _patients.CreatePetAsync(SelectedOwner.Owner.Id, Pet.BuildRequest());
+                result = new AddPatientWizardResult(SelectedOwner.Owner.Id, pet.Id, pet.Name);
+            }
+            else
+            {
+                var owner = new NewOwnerRequest(
+                    FirstName.Trim(), LastName.Trim(),
+                    OwnerIsFemale ? OwnerGender.Female : OwnerGender.Male,
+                    NationalId.Trim(), Mobile1.Trim(), Blank(Mobile2), Blank(Phone), Blank(Address),
+                    Blank(Referral), Pet.BuildRequest());
+                var created = await _patients.CreateOwnerAsync(owner);
+                var firstPet = created.Pets.Count > 0 ? created.Pets[0] : null;
+                result = new AddPatientWizardResult(created.Id, firstPet?.Id, firstPet?.Name ?? string.Empty);
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast?.Show(
+                PatientsPresentation.CommandFailureMessage(ex, "ثبت پرونده انجام نشد؛ دوباره تلاش کنید"),
+                Tone.Danger);
+            return;
+        }
+        catch (Exception)
+        {
+            _toast?.Show("ثبت پرونده انجام نشد؛ دوباره تلاش کنید", Tone.Danger);
+            return;
         }
 
         CloseSelf();

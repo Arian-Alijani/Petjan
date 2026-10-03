@@ -71,6 +71,19 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         return list;
     }
 
+    public async Task<IReadOnlyList<InvoiceSummary>> GetInvoicesForOwnerAsync(string ownerId)
+    {
+        if (string.IsNullOrWhiteSpace(ownerId)) return [];
+        var result = await QueryAsync(new OwnerInvoicesQuery(ownerId));
+        if (result.IsFailure || result.Value is null) return [];
+
+        var (_, zone) = Calendar();
+        var rows = result.Value;
+        var list = new List<InvoiceSummary>(rows.Count);
+        for (var i = 0; i < rows.Count; i++) list.Add(rows[i].ToContract(zone));
+        return list;
+    }
+
     public async Task<InvoiceDetail?> GetInvoiceAsync(string invoiceId)
     {
         var result = await QueryAsync(new InvoiceDetailQuery(invoiceId));

@@ -8,6 +8,8 @@ public interface ISalesQueries
 {
     Task<IReadOnlyList<ReadyForBillingReadModel>> GetReadyForBillingAsync(CancellationToken ct);
     Task<PagedResult<InvoiceSummaryReadModel>> GetInvoicesAsync(string? search, int page, int pageSize, CancellationToken ct);
+    /// <summary>The newest <paramref name="take"/> invoices of one owner (bounded, newest first).</summary>
+    Task<IReadOnlyList<InvoiceSummaryReadModel>> GetOwnerInvoicesAsync(string ownerId, int take, CancellationToken ct);
     Task<InvoiceDetailReadModel?> GetInvoiceAsync(string invoiceId, CancellationToken ct);
     Task<SalesCatalogReadModel> GetCatalogAsync(CancellationToken ct);
     Task<IReadOnlyList<InsurerReadModel>> GetInsurersAsync(CancellationToken ct);

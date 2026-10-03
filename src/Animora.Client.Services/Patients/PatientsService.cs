@@ -1,6 +1,9 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Security;
+using Animora.Application.Ports;
 using Animora.Application.UseCases.Patients;
+using Animora.Application.UseCases.Sales;
+using Animora.Application.UseCases.Vaccination;
 using Animora.Application.UseCases.Patients.ReadModels;
 using Animora.Domain.Results;
 using Animora.Contracts.Patients;
@@ -121,6 +124,89 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         // Success + null value is a genuine not-found; auth/session failures throw above.
         return r.Value is { } m ? m.ToDetail() : null;
     }
+
+    public async Task<OwnerActivityFeed> GetOwnerActivityAsync(string ownerId)
+    {
+        if (string.IsNullOrWhiteSpace(ownerId)) return Empty;
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider) = Resolve(scope);
+        var qc = provider.BuildQueryContext();
+        if (qc.IsFailure) throw new InvalidOperationException(qc.Error.Code);
+        var zone = scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
+        DateTime Local(DateTimeOffset utc) => TimeZoneInfo.ConvertTime(utc, zone).DateTime;
+
+        // Sequential on one scope (a DbContext is not thread-safe). A source the current user may not read
+        // (permission failure) simply contributes nothing — it never hides the other sections.
+        var clinical = await dispatcher.QueryAsync(new OwnerClinicalActivityQuery(ownerId, Take), qc.Value!);
+        var invoices = await dispatcher.QueryAsync(new OwnerInvoicesQuery(ownerId, Take), qc.Value!);
+        var sms = await dispatcher.QueryAsync(new OwnerSmsRemindersQuery(ownerId, Take), qc.Value!);
+
+        var entries = new List<OwnerActivityEntry>();
+        var visitCount = 0;
+        var vaccineCount = 0;
+        if (clinical.IsSuccess && clinical.Value is { } c)
+        {
+            visitCount = c.VisitCount;
+            vaccineCount = c.VaccineCount;
+            foreach (var e in c.Events)
+            {
+                entries.Add(e.IsVisit
+                    ? new OwnerActivityEntry(Local(e.OccurredUtc), OwnerActivityKind.Visit,
+                        $"ویزیت {VisitReasonLabel(e.Code)} · {e.PetName}",
+                        string.IsNullOrWhiteSpace(e.Detail) ? "ویزیت ثبت شد" : e.Detail!, null, e.PetId)
+                    : new OwnerActivityEntry(Local(e.OccurredUtc), OwnerActivityKind.Vaccine,
+                        $"واکسن {e.Code} · {e.PetName}",
+                        e.NextDueUtc is { } due ? $"نوبت بعدی: {Local(due):yyyy/MM/dd}" : "دوز تزریق شد",
+                        null, e.PetId));
+            }
+        }
+
+        var invoiceCount = 0;
+        if (invoices.IsSuccess && invoices.Value is { } inv)
+        {
+            invoiceCount = inv.Count;
+            foreach (var i in inv)
+            {
+                var number = string.IsNullOrWhiteSpace(i.Number) ? i.Id : i.Number;
+                entries.Add(new OwnerActivityEntry(Local(i.IssuedUtc), OwnerActivityKind.Invoice,
+                    $"فاکتور {number}", string.IsNullOrWhiteSpace(i.PetName) ? "فاکتور ثبت شد" : i.PetName,
+                    i.TotalMinor, i.Id));
+            }
+        }
+
+        var smsCount = 0;
+        if (sms.IsSuccess && sms.Value is { } messages)
+        {
+            smsCount = messages.Count;
+            foreach (var m in messages)
+            {
+                entries.Add(new OwnerActivityEntry(Local(m.SentUtc), OwnerActivityKind.Sms,
+                    string.IsNullOrWhiteSpace(m.VaccineName) ? $"پیامک یادآوری · {m.PetName}"
+                        : $"پیامک یادآوری {m.VaccineName} · {m.PetName}",
+                    string.IsNullOrWhiteSpace(m.Body) ? "پیامک ارسال شد" : m.Body!, null, m.PetId));
+            }
+        }
+
+        var merged = entries.OrderByDescending(e => e.When).Take(Take).ToArray();
+        return new OwnerActivityFeed(merged, visitCount, vaccineCount, invoiceCount, smsCount,
+            merged.Length > 0 ? merged[0].When : null);
+    }
+
+    private const int Take = 50;
+
+    private static readonly OwnerActivityFeed Empty = new([], 0, 0, 0, 0, null);
+
+    private static string VisitReasonLabel(string reason) => reason switch
+    {
+        "Checkup" => "معاینه عمومی",
+        "Illness" => "بیماری",
+        "Injury" => "سانحه",
+        "Vaccination" => "واکسیناسیون",
+        "Surgery" => "جراحی",
+        "Dental" => "دندان‌پزشکی",
+        "Followup" => "پیگیری",
+        _ => "عمومی",
+    };
 
     public async Task<PetDetail?> GetPetAsync(string id)
     {

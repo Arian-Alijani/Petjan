@@ -49,6 +49,12 @@ public interface IVaccinationService
     Task<VaccinationRecord> SendSmsAsync(string recordId, string message);
 
     /// <summary>
+    /// The reminder SMS messages recorded for the pets of <paramref name="ownerId"/>,
+    /// newest first and bounded server-side (owner file «پیامک‌های ارسال‌شده»).
+    /// </summary>
+    Task<IReadOnlyList<OwnerSmsReminder>> GetSmsHistoryForOwnerAsync(string ownerId);
+
+    /// <summary>
     /// One ordered page of the vaccination history ledger (administered /
     /// scheduled / SMS-sent / rescheduled) plus the total computed over the
     /// <b>whole</b> filtered set. The service filters/sorts/pages on the caller's

@@ -71,6 +71,45 @@ public sealed record VaccinationSummaryRef(
     string Vet,
     string Site);
 
+/// <summary>The cross-section kind of one <see cref="OwnerActivityEntry"/>.</summary>
+public enum OwnerActivityKind
+{
+    /// <summary>An invoice registered for the owner (Sales).</summary>
+    Invoice,
+
+    /// <summary>A reminder SMS recorded for one of the owner's pets (Vaccination).</summary>
+    Sms,
+
+    /// <summary>A vaccine dose recorded for one of the owner's pets.</summary>
+    Vaccine,
+
+    /// <summary>A visit (encounter) of one of the owner's pets.</summary>
+    Visit,
+}
+
+/// <summary>
+/// One line of the owner's unified, read-only activity feed. <see cref="Amount"/> is set for invoices only;
+/// <see cref="RefId"/> is the invoice id / pet id the line points to (for navigation).
+/// </summary>
+public sealed record OwnerActivityEntry(
+    DateTime When,
+    OwnerActivityKind Kind,
+    string Title,
+    string Subtitle,
+    long? Amount = null,
+    string? RefId = null);
+
+/// <summary>
+/// The owner's cross-section activity: the newest merged entries (bounded) and the real counts per source.
+/// </summary>
+public sealed record OwnerActivityFeed(
+    IReadOnlyList<OwnerActivityEntry> Entries,
+    int VisitCount,
+    int VaccineCount,
+    int InvoiceCount,
+    int SmsCount,
+    DateTime? LastActivityAt);
+
 /// <summary>Minimal read-only lab/imaging reference for the documents tab.</summary>
 public sealed record LabSummaryRef(string Name, DateTime Date, string Result, LabStatus Status);
 

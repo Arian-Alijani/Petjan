@@ -1,5 +1,8 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Patients;
+using Animora.Contracts.Sales;
+using Animora.Contracts.Vaccination;
+using Animora.Desktop.Pages.Sales;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -42,6 +45,92 @@ public sealed class OwnerSheetPetRowViewModel
     public Tone StatusTone { get; }
 }
 
+/// <summary>One row of the owner file's «فاکتورها» card — a real invoice registered for this owner.</summary>
+public sealed class OwnerInvoiceRowViewModel
+{
+    public OwnerInvoiceRowViewModel(InvoiceSummary invoice)
+    {
+        Invoice = invoice;
+        Id = invoice.Id;
+        var number = string.IsNullOrWhiteSpace(invoice.Number) ? invoice.Id : invoice.Number;
+        Title = $"فاکتور {PersianNumberFormatter.ToPersianDigits(number)}";
+        var kind = invoice.Kind == InvoiceKind.Visit ? "از ویزیت" : "فروش";
+        var when = invoice.IssuedAt is { } d ? JalaliDate.FromDateTime(d).ToString("short") : "—";
+        var pet = string.IsNullOrWhiteSpace(invoice.PetName) ? string.Empty : $" · {invoice.PetName}";
+        SubText = $"{PersianNumberFormatter.ToPersianDigits(when)} · {kind}{pet}";
+        TotalText = SalePresentation.Money(invoice.Total);
+        HasDue = invoice.Due > 0 && invoice.State is InvoiceState.Draft or InvoiceState.Partial;
+        DueText = $"مانده {SalePresentation.Money(invoice.Due)}";
+        StateText = SalePresentation.StateLabel(invoice.State);
+        StateTone = SalePresentation.StateTone(invoice.State);
+    }
+
+    public InvoiceSummary Invoice { get; }
+    public string Id { get; }
+    public string Title { get; }
+    public string SubText { get; }
+    public string TotalText { get; }
+    public bool HasDue { get; }
+    public string DueText { get; }
+    public string StateText { get; }
+    public Tone StateTone { get; }
+}
+
+/// <summary>One row of «پیامک‌های ارسال‌شده» — a reminder SMS recorded for one of the owner's pets.</summary>
+public sealed class OwnerSmsRowViewModel
+{
+    public OwnerSmsRowViewModel(OwnerSmsReminder sms)
+    {
+        var date = PersianNumberFormatter.ToPersianDigits(JalaliDate.FromDateTime(sms.When).ToString("short"));
+        var time = PersianNumberFormatter.ToPersianDigits(sms.When.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture));
+        Title = string.IsNullOrWhiteSpace(sms.VaccineName)
+            ? $"یادآوری برای {sms.PetName}"
+            : $"یادآوری واکسن {sms.VaccineName} · {sms.PetName}";
+        WhenText = $"{date} · {time}";
+        Channel = sms.Channel;
+        BodyText = string.IsNullOrWhiteSpace(sms.Body) ? string.Empty : sms.Body.Trim();
+        HasBody = BodyText.Length > 0;
+    }
+
+    public string Title { get; }
+    public string WhenText { get; }
+    public string Channel { get; }
+    public string BodyText { get; }
+    public bool HasBody { get; }
+}
+
+/// <summary>One line of the owner's recent cross-section activity feed (visit / vaccine / invoice / SMS).</summary>
+public sealed class OwnerActivityRowViewModel
+{
+    public OwnerActivityRowViewModel(OwnerActivityEntry entry)
+    {
+        Entry = entry;
+        Title = entry.Title;
+        Subtitle = entry.Subtitle;
+        var when = PersianNumberFormatter.ToPersianDigits(JalaliDate.FromDateTime(entry.When).ToString("short"));
+        WhenText = when;
+        HasAmount = entry.Amount is not null;
+        AmountText = entry.Amount is { } a ? SalePresentation.Money(a) : string.Empty;
+        (IconKey, KindLabel, KindTone) = entry.Kind switch
+        {
+            OwnerActivityKind.Invoice => ("IconReceipt", "فاکتور", Tone.Info),
+            OwnerActivityKind.Sms => ("IconSms", "پیامک", Tone.Lilac),
+            OwnerActivityKind.Vaccine => ("IconSyringe", "واکسن", Tone.Ok),
+            _ => ("IconClipboard", "ویزیت", Tone.Brand),
+        };
+    }
+
+    public OwnerActivityEntry Entry { get; }
+    public string Title { get; }
+    public string Subtitle { get; }
+    public string WhenText { get; }
+    public bool HasAmount { get; }
+    public string AmountText { get; }
+    public string IconKey { get; }
+    public string KindLabel { get; }
+    public Tone KindTone { get; }
+}
+
 /// <summary>
 /// Backs the Owner Sheet (Phase 09, patients-page.js <c>renderOwnerSheet</c>):
 /// the owner's identity/contact/address blocks (view ↔ inline edit), the owner's
@@ -55,6 +144,8 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
+    private readonly ISalesQueryService _sales;
+    private readonly IVaccinationService _vaccination;
 
     private OwnerDetail? _owner;
 
@@ -77,8 +168,12 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         IRecordSheetPresenter presenter,
         IDialogService dialogs,
         IToastService toast,
-        IDataChangeNotifier changes)
+        IDataChangeNotifier changes,
+        ISalesQueryService sales,
+        IVaccinationService vaccination)
     {
+        _sales = sales;
+        _vaccination = vaccination;
         _patients = patients;
         _changes = changes;
         _presenter = presenter;
@@ -92,6 +187,16 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     }
 
     public ObservableCollection<OwnerSheetPetRowViewModel> Pets { get; } = [];
+
+    public ObservableCollection<OwnerInvoiceRowViewModel> Invoices { get; } = [];
+
+    public ObservableCollection<OwnerSmsRowViewModel> SmsMessages { get; } = [];
+
+    public bool HasSms => SmsMessages.Count > 0;
+    public string SmsCountText { get; private set; } = "۰";
+
+    public bool HasInvoices => Invoices.Count > 0;
+    public string InvoicesCountText { get; private set; } = "۰";
 
     public IReadOnlyList<string> Referrals => PatientsPresentation.Referrals;
 
@@ -116,8 +221,13 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
 
     // ---- activity ----
     public string VisitsCountText { get; private set; } = "۰";
+    public string VaccinesCountText { get; private set; } = "۰";
     public string PetsCountText { get; private set; } = "۰";
-    public string LastVisitText { get; private set; } = "—";
+    public string LastActivityText { get; private set; } = "—";
+
+    public ObservableCollection<OwnerActivityRowViewModel> Activity { get; } = [];
+
+    public bool HasActivity => Activity.Count > 0;
 
     public bool HasPets => Pets.Count > 0;
     public bool IsViewing => !IsEditing;
@@ -136,6 +246,53 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         }
 
         Apply(detail);
+        await Task.WhenAll(LoadInvoicesAsync(detail.Id), LoadSmsAsync(detail.Id), LoadActivityAsync(detail.Id));
+    }
+
+    private async Task LoadActivityAsync(string ownerId)
+    {
+        var feed = await _patients.GetOwnerActivityAsync(ownerId);
+        Activity.Clear();
+        foreach (var entry in feed.Entries)
+        {
+            Activity.Add(new OwnerActivityRowViewModel(entry));
+        }
+
+        VisitsCountText = Fa(feed.VisitCount.ToString());
+        VaccinesCountText = Fa(feed.VaccineCount.ToString());
+        LastActivityText = feed.LastActivityAt is { } at ? RelativeDateFormatter.Since(at) : "—";
+        OnPropertyChanged(nameof(VisitsCountText));
+        OnPropertyChanged(nameof(VaccinesCountText));
+        OnPropertyChanged(nameof(LastActivityText));
+        OnPropertyChanged(nameof(HasActivity));
+    }
+
+    private async Task LoadSmsAsync(string ownerId)
+    {
+        var messages = await _vaccination.GetSmsHistoryForOwnerAsync(ownerId);
+        SmsMessages.Clear();
+        foreach (var message in messages)
+        {
+            SmsMessages.Add(new OwnerSmsRowViewModel(message));
+        }
+
+        SmsCountText = Fa(SmsMessages.Count.ToString());
+        OnPropertyChanged(nameof(SmsCountText));
+        OnPropertyChanged(nameof(HasSms));
+    }
+
+    private async Task LoadInvoicesAsync(string ownerId)
+    {
+        var invoices = await _sales.GetInvoicesForOwnerAsync(ownerId);
+        Invoices.Clear();
+        foreach (var invoice in invoices)
+        {
+            Invoices.Add(new OwnerInvoiceRowViewModel(invoice));
+        }
+
+        InvoicesCountText = Fa(Invoices.Count.ToString());
+        OnPropertyChanged(nameof(InvoicesCountText));
+        OnPropertyChanged(nameof(HasInvoices));
     }
 
     private void Apply(OwnerDetail owner)
@@ -166,12 +323,6 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         }
 
         PetsCountText = Fa(owner.Pets.Count.ToString());
-        VisitsCountText = "۰"; // visits live in another context (Phase 10/11); none yet
-        var last = owner.Pets
-            .Where(p => p.LastVisitDate is not null)
-            .OrderByDescending(p => p.LastVisitDate)
-            .FirstOrDefault();
-        LastVisitText = last?.LastVisitDate is { } date ? RelativeDateFormatter.Since(date) : "—";
 
         Title = Name;
 
@@ -191,9 +342,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         OnPropertyChanged(nameof(PhoneText));
         OnPropertyChanged(nameof(AddressText));
         OnPropertyChanged(nameof(ReferralText));
-        OnPropertyChanged(nameof(VisitsCountText));
         OnPropertyChanged(nameof(PetsCountText));
-        OnPropertyChanged(nameof(LastVisitText));
         OnPropertyChanged(nameof(HasPets));
     }
 
@@ -258,21 +407,6 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private void Close() => _dialogs.Close();
 
     [RelayCommand]
-    private void Call()
-    {
-        if (_owner is not null)
-        {
-            _toast.Show($"در حال برقراری تماس با {Fa(_owner.Mobile1)}", Tone.Info);
-        }
-    }
-
-    [RelayCommand]
-    private void Sms() => _toast.Show("پیامک برای مالک ارسال شد", Tone.Info);
-
-    [RelayCommand]
-    private void Remind() => _toast.Show("یادآوری برای مالک ثبت شد", Tone.Info);
-
-    [RelayCommand]
     private void AddPet()
     {
         if (_owner is null)
@@ -290,15 +424,48 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
                 await LoadAsync(owner.Id);
                 _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
             },
-            _dialogs));
+            _dialogs, _toast));
+    }
+
+    [RelayCommand]
+    private void OpenInvoice(OwnerInvoiceRowViewModel? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        var ownerId = _owner?.Id;
+        _dialogs.ShowSheet(
+            new InvoiceViewerViewModel(
+                _sales, _toast, _dialogs, row.Id,
+                () =>
+                {
+                    if (ownerId is not null)
+                    {
+                        _ = LoadInvoicesAsync(ownerId);
+                    }
+                }),
+            1040,
+            720);
     }
 
     [RelayCommand]
     private Task OpenPet(OwnerSheetPetRowViewModel? row) =>
         row is not null ? _presenter.OpenPetSheetAsync(row.Pet.Id) : Task.CompletedTask;
 
+    /// <summary>True when <paramref name="value"/> is real data (not blank / the «ثبت نشده» placeholder) and the sheet is not being edited.</summary>
+    public bool CanCopy(string? value) =>
+        IsViewing && !string.IsNullOrWhiteSpace(value) && value != NotRecorded && value != "—";
+
+    /// <summary>Confirms a successful clipboard copy (the clipboard itself is written by the view).</summary>
+    public void NotifyCopied(string? label) =>
+        _toast.Show(string.IsNullOrWhiteSpace(label) ? "کپی شد" : $"{label} کپی شد", Tone.Ok);
+
+    private const string NotRecorded = "ثبت نشده";
+
     private static string OrRecorded(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "ثبت نشده" : value;
+        string.IsNullOrWhiteSpace(value) ? NotRecorded : value;
 
     private static string? NullIfBlank(string value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

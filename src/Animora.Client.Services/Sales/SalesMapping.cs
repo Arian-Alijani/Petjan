@@ -69,9 +69,11 @@ internal static class SalesMapping
 
     // ── Sidebar / queue ─────────────────────────────────────────────────────
 
-    internal static InvoiceSummary ToContract(this InvoiceSummaryReadModel row) =>
+    internal static InvoiceSummary ToContract(this InvoiceSummaryReadModel row, TimeZoneInfo? tz = null) =>
         new(row.Id, KindOf(row.Kind), StateOf(row.State), row.OwnerName, row.PetName, row.Phone,
-            row.TotalMinor, row.DueMinor, ToneOf(row.OwnerId ?? row.Id), FirstChar(row.OwnerName));
+            row.TotalMinor, row.DueMinor, ToneOf(row.OwnerId ?? row.Id), FirstChar(row.OwnerName),
+            row.Number,
+            tz is null ? row.IssuedUtc.UtcDateTime : TimeZoneInfo.ConvertTime(row.IssuedUtc, tz).DateTime);
 
     internal static ReadyEncounterRef ToContract(this ReadyForBillingReadModel row, TimeZoneInfo tz)
     {

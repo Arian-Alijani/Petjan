@@ -21,6 +21,12 @@ public interface ISalesQueryService
     Task<IReadOnlyList<InvoiceSummary>> GetInvoicesAsync();
 
     /// <summary>
+    /// The invoices registered for one owner (owner file), newest first and
+    /// bounded server-side — never the full ledger.
+    /// </summary>
+    Task<IReadOnlyList<InvoiceSummary>> GetInvoicesForOwnerAsync(string ownerId);
+
+    /// <summary>
     /// The full detail of one invoice (mirrors <c>C().invoice(id)</c> plus the
     /// recomputed totals), or <c>null</c> when the id is unknown.
     /// </summary>

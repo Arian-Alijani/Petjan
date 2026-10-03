@@ -79,6 +79,36 @@ public sealed class VaccinationQueries(AnimoraLocalDbContext db) : IVaccinationQ
         return (rows, total);
     }
 
+    public async Task<IReadOnlyList<VaccinationBoosterRow>> GetPendingBoostersAsync(
+        DateTimeOffset fromUtc, DateTimeOffset toUtc, int take, CancellationToken ct) =>
+        await (from v in db.Set<VaccinationRecord>().AsNoTracking()
+               join p in db.Set<Pet>().AsNoTracking() on v.PetId equals p.Id
+               join o in db.Set<Owner>().AsNoTracking() on p.OwnerId equals o.Id
+               where v.State != VaccinationState.Skipped && v.NextDueUtc != null &&
+                     v.NextDueUtc >= fromUtc && v.NextDueUtc < toUtc
+                     // Done = an explicit "Dose administered" history entry, or the next dose already recorded.
+                     && !db.Set<MedicalHistoryEntry>().Any(h => h.Kind == MedicalHistoryKind.Vaccination &&
+                            h.Title == "Dose administered" && h.SourceEntityId == v.Id)
+                     && !db.Set<VaccinationRecord>().Any(n => n.PetId == v.PetId &&
+                            n.VaccineCode == v.VaccineCode && n.DoseNumber == v.DoseNumber + 1)
+               orderby v.NextDueUtc, v.Id
+               select new VaccinationBoosterRow(v.Id, p.Id, p.Name, p.Species.ToString(), o.Id, o.FullName,
+                   o.PhonePrimary, v.VaccineCode, v.VaccineName, v.DoseNumber, v.NextDueUtc!.Value))
+            .Take(take).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<OwnerSmsReminderRow>> GetOwnerSmsRemindersAsync(
+        string ownerId, int take, CancellationToken ct) =>
+        await (from h in db.Set<MedicalHistoryEntry>().AsNoTracking()
+               join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
+               join v in db.Set<VaccinationRecord>().AsNoTracking() on h.SourceEntityId equals v.Id into vs
+               from v in vs.DefaultIfEmpty()
+               where p.OwnerId == ownerId && h.Kind == MedicalHistoryKind.Vaccination &&
+                     h.Title == "Reminder produced"
+               orderby h.OccurredUtc descending, h.Id
+               select new OwnerSmsReminderRow(h.Id, h.SourceEntityId, p.Id, p.Name,
+                   v == null ? "" : v.VaccineName, h.Detail, h.OccurredUtc))
+            .Take(take).ToListAsync(ct);
+
     public async Task<IReadOnlyList<SmsTemplateReadModel>> GetTemplatesAsync(CancellationToken ct) =>
         await db.Set<SmsTemplateRow>().AsNoTracking().OrderBy(t => t.Id)
             .Select(t => new SmsTemplateReadModel(t.Id, t.Name, t.Channel, t.Body)).ToListAsync(ct);

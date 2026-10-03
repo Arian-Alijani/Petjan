@@ -75,6 +75,10 @@
     <Style Selector="Button.ev-card.tier-md">
         <Setter Property="Padding" Value="9,4" />
     </Style>
+    <Style Selector="Button.ev-card.booster">
+        <Setter Property="FontStyle" Value="Italic" />
+        <Setter Property="Opacity" Value="0.92" />
+    </Style>
     <Style Selector="Button.ev-card.cancelled">
         <Setter Property="Opacity" Value="0.62" />
     </Style>

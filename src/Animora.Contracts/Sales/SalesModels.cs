@@ -184,7 +184,9 @@ public sealed record InvoiceSummary(
     long Total,
     long Due,
     string AvatarTone,
-    string PetInitial);
+    string PetInitial,
+    string Number = "",
+    DateTime? IssuedAt = null);
 
 /// <summary>
 /// One line of an invoice, mirroring what <c>renderLine</c> renders: its title,
