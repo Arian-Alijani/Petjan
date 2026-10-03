@@ -15,7 +15,7 @@
 - [x] X11 — DONE: Boarding settings: removed fake rate/toggle/add/edit stubs and hardcoded constants; tab now shows live rooms+services only
 - [x] X12 — DONE: removed the (نمونه طراحی) suffix from every real boarding mutation toast
 - [x] X13 — DONE: Real print preview (invoice, payment receipt, day report, stay bill) via IPrintService + shared PrintDocumentBuilder; Cashier export = real CSV save; no false success toasts
-- [ ] X14
+- [x] X14 — DONE: BoardingStayClassification is the single overdue/leaving/current derivation feeding card chrome, status pill, detail modal and tab predicate (also fixes always-zero overdue day count)
 - [ ] X15
 - [ ] X16
 - [ ] X17
@@ -167,7 +167,7 @@
 - **Fix:** implement a print/export path (even a minimal PDF/HTML receipt), or disable+label the buttons as unavailable rather than claiming an action occurred.
 - **Acceptance:** each button produces an artifact or is visibly disabled; no false success toast.
 
-### X14 — P1 · Wrong card classification · `IsStayLeaving` vs card `leaving` disagree
+### ✅ X14 — P1 · Wrong card classification · `IsStayLeaving` vs card `leaving` disagree
 - **Evidence:** B.ITEM:126 computes card `leaving = Status==Active && remaining<=1 && !overdue` where `remaining = Max(0, CheckOut-today)`. The tab/count predicate B.ITEM:210–213 `IsStayLeaving` uses `Max(0, Days(CheckOut, today)) <= 1 && !IsStayOverdue`. `remaining` in the card is clamped and the two `overdue` inputs differ subtly (the card passes its own `overdue`, the static uses `IsStayOverdue`). A stay with `CheckOut == today` is `remaining==0` → card treats it as leaving/urgent, but the status pill path (B.ITEM:232–237) maps `remaining 0` to «تخلیه امروز» (warn) not «فردا تخلیه».
 - **Failure:** the same stay can be counted under the «تخلیه امروز» tab (X via `TabMatches` "leaving") while its card chrome is driven by the urgent (warn) branch, and the tab count (`TabMatches` B.VM:211–225) uses yet another combination. Card border/progress tone, status pill, and the tab it falls under can disagree.
 - **Fix:** compute `overdue`/`leaving`/`remaining` once in a single helper and feed the card, the pill, and the tab predicate from it. Remove the duplicated inline logic.

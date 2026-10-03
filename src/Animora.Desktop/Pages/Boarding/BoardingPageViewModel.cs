@@ -210,18 +210,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     private bool TabMatches(BoardingStay stay, string tab)
     {
-        var overdue = BoardingStayCardViewModel.IsStayOverdue(stay, _today);
-        var leaving = BoardingStayCardViewModel.IsStayLeaving(stay, _today);
-
-        return tab switch
-        {
-            "all" => true,
-            "current" => stay.Status == BoardingStatus.Active && !leaving && !overdue,
-            "overdue" => overdue,
-            "leaving" => leaving && !overdue,
-            "done" => stay.Status == BoardingStatus.Done,
-            _ => true,
-        };
+        return BoardingStayClassification.Of(stay, _today).MatchesTab(tab);
     }
 
     private List<BoardingStay> Filtered()
@@ -241,7 +230,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
                 }
                 return true;
             })
-            .OrderBy(stay => BoardingStayCardViewModel.IsStayOverdue(stay, _today) ? 0 : 1)
+            .OrderBy(stay => BoardingStayClassification.Of(stay, _today).IsOverdue ? 0 : 1)
             .ThenBy(stay => stay.Status == BoardingStatus.Done ? 1 : 0)
             .ThenBy(stay => stay.CheckOut)
             .ToList();

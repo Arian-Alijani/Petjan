@@ -201,10 +201,11 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         var stay = detail.Stay;
         var items = detail.Items;
 
-        var nights = Math.Max(1, Days(stay.CheckOut, stay.CheckIn));
-        var elapsed = Math.Min(Math.Max(0, Days(_today, stay.CheckIn)), nights);
-        var remaining = stay.Status == BoardingStatus.Done ? 0 : Math.Max(0, Days(stay.CheckOut, _today));
-        var overdue = stay.Status == BoardingStatus.Active && stay.CheckOut < _today;
+        var cls = BoardingStayClassification.Of(stay, _today);
+        var nights = cls.Nights;
+        var elapsed = cls.Elapsed;
+        var remaining = cls.Remaining;
+        var overdue = cls.IsOverdue;
         var percent = Math.Min(100, (int)Math.Round(elapsed / (double)nights * 100));
 
         // Header
@@ -234,7 +235,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         OwnerPhoneText = stay.OwnerPhone;
 
         // Stay-days timeline
-        DayLabel = BuildDayLabel(stay, overdue, remaining, elapsed);
+        DayLabel = BuildDayLabel(stay, cls);
         ProgressBrush = BoardingPresentation.ProgressBarBrush(overdue, false, percent);
         ElapsedText = $"{BoardingPresentation.Fa(elapsed)} از {BoardingPresentation.Fa(nights)} شب گذشته";
         DayLabelBrush = BoardingPresentation.DayLabelBrush(overdue, remaining);
@@ -279,20 +280,20 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         IsDone = stay.Status == BoardingStatus.Done;
     }
 
-    private static string BuildDayLabel(BoardingStay stay, bool overdue, int remaining, int elapsed)
+    private static string BuildDayLabel(BoardingStay stay, BoardingStayClassification cls)
     {
         if (stay.Status == BoardingStatus.Done)
         {
             return "اقامت به پایان رسیده";
         }
 
-        if (overdue)
+        if (cls.IsOverdue)
         {
-            return $"{BoardingPresentation.Fa(Math.Abs(remaining))} روز عقب‌افتاده";
+            return $"{BoardingPresentation.Fa(cls.OverdueDays)} روز عقب‌افتاده";
         }
 
-        return $"{BoardingPresentation.Fa(elapsed)} روز گذشته · "
-            + (remaining == 0 ? "امروز تخلیه" : $"{BoardingPresentation.Fa(remaining)} روز مانده");
+        return $"{BoardingPresentation.Fa(cls.Elapsed)} روز گذشته · "
+            + (cls.Remaining == 0 ? "امروز تخلیه" : $"{BoardingPresentation.Fa(cls.Remaining)} روز مانده");
     }
 
     /// <summary>Reference: the add-row select opens its grouped option list.</summary>
@@ -403,5 +404,4 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     [RelayCommand]
     private void Close() => _dialogs.Close();
 
-    private static int Days(DateOnly to, DateOnly from) => to.DayNumber - from.DayNumber;
 }
