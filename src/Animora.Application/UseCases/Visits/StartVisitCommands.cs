@@ -164,10 +164,15 @@ public sealed class StartNewVisitCommandHandler(
             owner = Owner.Register(context.TenantId, c.OwnerName, c.OwnerPhone, clock);
             owners.Add(owner);
         }
-        var pet = await pets.FindByOwnerAndNameAsync(owner.Id, c.PatientName, ct);
+        // Reuse an existing animal only when it is an unambiguous single same-named match of the SAME species;
+        // otherwise register a distinct record so two animals' histories never merge (V08). A code/chip
+        // selector for explicit disambiguation is a UI follow-up.
+        var species = PetSpeciesParser.Parse(c.PatientKind);
+        var sameName = await pets.ListByOwnerAndNameAsync(owner.Id, c.PatientName, ct);
+        var pet = sameName.Count == 1 && sameName[0].Species == species ? sameName[0] : null;
         if (pet is null)
         {
-            pet = Pet.Register(context.TenantId, owner.Id, c.PatientName, PetSpecies.Other, clock);
+            pet = Pet.Register(context.TenantId, owner.Id, c.PatientName, species, clock);
             pets.Add(pet);
         }
         var number = await ReceptionTicketWork.NextTicketNumberAsync(queue, clock, ct);
@@ -187,4 +192,23 @@ public sealed class StartNewVisitCommandHandler(
         var draft = await StartVisitFromTicketCommandHandler.DraftAsync(visit, ticketId, null, entry, pet, owner, queries, ct);
         return Result<EncounterDraftReadModel>.Ok(draft with { TypeId = c.TypeId });
     }
+}
+
+/// <summary>Maps the free-text patient kind entered at triage (Persian or English) to a <see cref="PetSpecies"/>.</summary>
+internal static class PetSpeciesParser
+{
+    public static PetSpecies Parse(string? kind)
+    {
+        var k = (kind ?? string.Empty).Trim().ToLowerInvariant();
+        if (k.Length == 0) return PetSpecies.Other;
+        if (Enum.TryParse<PetSpecies>(k, ignoreCase: true, out var exact) && Enum.IsDefined(exact)) return exact;
+        if (Has(k, "سگ", "dog", "puppy", "ژرمن", "هاسکی", "پاگ", "گلدن", "تریر", "پودل")) return PetSpecies.Dog;
+        if (Has(k, "گربه", "cat", "kitten", "پرشین", "اسکاتیش", "بنگال", "رگدال")) return PetSpecies.Cat;
+        if (Has(k, "پرنده", "bird", "طوطی", "کاناری", "مرغ", "عروس هلندی", "کوکتیل")) return PetSpecies.Bird;
+        if (Has(k, "جونده", "rodent", "خرگوش", "همستر", "خوکچه", "موش", "rabbit", "hamster")) return PetSpecies.Rodent;
+        if (Has(k, "خزنده", "reptile", "مار", "لاک‌پشت", "لاکپشت", "مارمولک", "ایگوانا")) return PetSpecies.Reptile;
+        return PetSpecies.Other;
+    }
+
+    private static bool Has(string value, params string[] needles) => needles.Any(value.Contains);
 }

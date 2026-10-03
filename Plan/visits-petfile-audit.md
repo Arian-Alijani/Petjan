@@ -329,7 +329,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** pet cards/lists show real last-visit date/type matching the owner activity feed.
 
 ### Task 8 — V08 · Walk-in pet disambiguation & species
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. `StartNewVisitCommandHandler` now maps `PatientKind` → `PetSpecies` (new internal `PetSpeciesParser`, Persian/English, default Other) and reuses an existing pet only for an unambiguous single same-name match of the same species (new `IPetRepository.ListByOwnerAndNameAsync`, impl + test doubles); otherwise a distinct pet is registered. Chip/code selector remains a UI follow-up.
 - **Priority:** P1 · **Push message:** `fix(visits): carry species and stop silent same-name pet reuse for walk-ins (V08)`
 - **Goal:** A walk-in for a new same-named pet creates a distinct record with the correct species;
   history never merges across animals.
