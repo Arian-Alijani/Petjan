@@ -19,7 +19,7 @@ namespace Animora.Desktop.Pages.Sales;
 /// page (via <see cref="IDialogService.ShowSheet"/>), shows its full detail —
 /// header, lines, totals, payment history and the «تاریخچه تغییرات» audit trail —
 /// and offers the edit / delete / void / refund / pay actions. Every mutation is
-/// routed through <see cref="ISalesQueryService"/> so the mock records the change
+/// routed through <see cref="ISalesQueryService"/> so the Sales service records the change
 /// (with its full detail) in the audit trail and the cashier ledger, then the
 /// viewer reloads and notifies the caller so the page/ledger refresh too.
 /// </summary>

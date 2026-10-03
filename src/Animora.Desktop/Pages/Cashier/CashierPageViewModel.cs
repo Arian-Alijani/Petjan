@@ -23,7 +23,7 @@ namespace Animora.Desktop.Pages.Cashier;
 /// <c>renderPaymentPanel</c>, payment history via <c>renderPaymentHistory</c>
 /// and the footer actions via <c>renderActions</c>). All data flows through
 /// <see cref="ICashierService"/> (the single backend swap point, R-18) — no
-/// sample data or mock branching leaks into this public shape.
+/// sample-data branching leaks into this public shape.
 /// </summary>
 public sealed partial class CashierPageViewModel : PageViewModelBase
 {

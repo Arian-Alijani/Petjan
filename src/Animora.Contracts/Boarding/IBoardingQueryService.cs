@@ -2,9 +2,8 @@ namespace Animora.Contracts.Boarding;
 
 /// <summary>
 /// Data seam for the Boarding screen (عرض اقامت‌ها). The desktop ViewModel
-/// depends only on this interface; the in-memory
-/// <c>MockBoardingQueryService</c> is the single swappable implementation a
-/// future backend replaces (R-18) — no ViewModel or View change is required to
+/// depends only on this interface; the real
+/// <c>BoardingQueryService</c> (Animora.Client.Services) is the implementation behind it (R-18) — no ViewModel or View change is required to
 /// do so. The stay read model and every mutation the board, detail modal,
 /// transfer/checkout/new-stay modals and the History/Settings tabs perform live
 /// behind this one seam.

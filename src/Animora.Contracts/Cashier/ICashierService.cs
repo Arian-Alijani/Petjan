@@ -2,9 +2,8 @@ namespace Animora.Contracts.Cashier;
 
 /// <summary>
 /// Data seam for the Cashier (invoice &amp; payment management) screen. The
-/// desktop ViewModel depends only on this interface; the in-memory
-/// <c>MockCashierService</c> is the single swappable implementation a future
-/// backend replaces (R-18). The shape mirrors what
+/// desktop ViewModel depends only on this interface; the real
+/// <c>CashierService</c> (Animora.Client.Services) is the implementation behind it (R-18). The shape mirrors what
 /// <c>Animora-UI/assets/cashier.js</c> renders: the status-tab filtered invoice
 /// list, the overview stats, and the detail panel (lines/totals/payment
 /// panel/payment history/actions).

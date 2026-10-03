@@ -272,7 +272,7 @@ public sealed record InvoiceDetail(
 /// <summary>
 /// One catalog entry offered by the picker, mirroring the reference's
 /// <c>catalogAllItems()</c> rows: a service or physical item with its kind,
-/// category group (label + key) and price. The icon is resolved by the mock
+/// category group (label + key) and price. The icon is resolved by the Sales service
 /// (mirrors the reference's <c>CAT_ICON</c> map) so the View stays free of
 /// catalog literals.
 /// </summary>

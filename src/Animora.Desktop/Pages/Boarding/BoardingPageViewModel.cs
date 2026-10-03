@@ -19,7 +19,7 @@ namespace Animora.Desktop.Pages.Boarding;
 /// and Settings (<c>renderSettingsRooms</c>/<c>renderSettingsSvcs</c>) content,
 /// and the detail / transfer / checkout / new-stay modal flows. All data flows
 /// through <see cref="IBoardingQueryService"/> (the single backend swap point,
-/// R-18) — no sample data or mock branching leaks into this public shape.
+/// R-18) — no sample-data branching leaks into this public shape.
 /// </summary>
 public sealed partial class BoardingPageViewModel : PageViewModelBase
 {

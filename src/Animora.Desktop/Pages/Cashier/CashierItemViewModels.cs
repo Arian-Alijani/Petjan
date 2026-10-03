@@ -137,7 +137,7 @@ public sealed partial class CashierInvoiceRowViewModel : ObservableObject
 /// <summary>
 /// One editable line row of the detail panel (mirrors <c>renderLines</c>): the
 /// kind tag, title, quantity/discount editors and the derived subtotal. Writes
-/// its edits back through the supplied callback so the mock recomputes.
+/// its edits back through the supplied callback so the Cashier service recomputes the invoice.
 /// </summary>
 public sealed partial class CashierLineViewModel : ObservableObject
 {

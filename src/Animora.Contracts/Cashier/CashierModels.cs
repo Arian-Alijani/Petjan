@@ -197,7 +197,7 @@ public sealed record CashierInvoiceDetail(
 /// <summary>
 /// One overview stat card, mirroring what <c>renderStats</c> renders: a tone,
 /// icon key, label, formatted value and footnote. The icon key is resolved by
-/// the mock so the View stays free of screen literals.
+/// the Cashier service so the View stays free of screen literals.
 /// </summary>
 public sealed record CashierStat(
     string Tone,

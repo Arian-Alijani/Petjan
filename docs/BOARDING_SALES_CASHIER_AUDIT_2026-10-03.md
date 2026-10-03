@@ -39,7 +39,7 @@
 - [x] X35 — DONE: RefreshCards short-circuits when data version + (tab, species, normalized query) are unchanged; query normalized once per filter; re-selecting the current tab is a no-op
 - [x] X36 — DONE: day cells index consumed items by date once (O(nights + items), no per-day allocation)
 - [x] X37 — DONE: Add/RemoveItem return the updated StayDetail which the modal applies locally (one detail round trip); page refresh scoped to the stay list
-- [ ] X38
+- [x] X38 — DONE: every mock-era comment in the three screens (VMs, View code-behind, Contracts) now names the real service
 - [x] X39 — DONE: no double/UI money math left for line subtotals (shared with X26; print helpers deleted)
 - [ ] X40
 - [ ] X41
@@ -315,7 +315,7 @@
 - **Fix:** have the add/remove service return the updated detail and `Apply` it locally; debounce/scope the page refresh to Boarding data only.
 - **Acceptance:** adding an item does one detail round trip and a scoped refresh.
 
-### X38 — P2 · Stale comment / doc drift · Comments still reference removed mocks
+### ✅ X38 — P2 · Stale comment / doc drift · Comments still reference removed mocks
 - **Evidence:** C.ITEM:135,141 "Writes its edits back … so the **mock** recomputes"; S.IVVM:23 "routed through `ISalesQueryService` so the **mock** records…". AGENTS.md states the `Mocks/` folder was removed (Track C) and services are real.
 - **Failure:** misleading docs; a reader may assume a mock still mediates these writes.
 - **Fix:** update the comments to reference the real service.

@@ -19,7 +19,7 @@ namespace Animora.Desktop.Pages.Sales;
 /// <c>renderLine</c>, totals, terminal banner and payment history), plus the
 /// inline mini-KPIs (<c>renderKPIs</c>). All data flows through
 /// <see cref="ISalesQueryService"/> (the single backend swap point, R-18) — no
-/// sample data or mock branching leaks into this public shape. The catalog
+/// sample-data branching leaks into this public shape. The catalog
 /// picker and payment modal are Phase 21; this phase shows the read-only invoice
 /// display plus the empty work surface's funnel.
 /// </summary>
