@@ -264,7 +264,7 @@ hard-coded `"۰"` must become the real count from D3 (or the owner's pets' visit
   (`Line2Brush`), rounded (`CornerRadius=14`), muted labels + bold values (existing `odk`/`odv`
   styles). Build 0/0. **Push:** `feat(owner-file): resize to pet-file scale, modern layout [T2]`.
 
-- [ ] **T3 — Copy-on-click helper + wiring.**
+- [x] **T3 — Copy-on-click helper + wiring.**
   Add a reusable copy affordance. Implement with the codebase-proven TopLevel pattern:
   `TopLevel.GetTopLevel(control)?.Clipboard?.SetTextAsync(text)`. Cleanest: a small attached
   behaviour or a code-behind handler in `OwnerSheetView.axaml.cs` that, on click/tap of a value,

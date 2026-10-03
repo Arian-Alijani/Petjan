@@ -282,8 +282,18 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private Task OpenPet(OwnerSheetPetRowViewModel? row) =>
         row is not null ? _presenter.OpenPetSheetAsync(row.Pet.Id) : Task.CompletedTask;
 
+    /// <summary>True when <paramref name="value"/> is real data (not blank / the «ثبت نشده» placeholder) and the sheet is not being edited.</summary>
+    public bool CanCopy(string? value) =>
+        IsViewing && !string.IsNullOrWhiteSpace(value) && value != NotRecorded && value != "—";
+
+    /// <summary>Confirms a successful clipboard copy (the clipboard itself is written by the view).</summary>
+    public void NotifyCopied(string? label) =>
+        _toast.Show(string.IsNullOrWhiteSpace(label) ? "کپی شد" : $"{label} کپی شد", Tone.Ok);
+
+    private const string NotRecorded = "ثبت نشده";
+
     private static string OrRecorded(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "ثبت نشده" : value;
+        string.IsNullOrWhiteSpace(value) ? NotRecorded : value;
 
     private static string? NullIfBlank(string value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

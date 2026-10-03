@@ -36,6 +36,12 @@
             <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
             <Setter Property="BorderThickness" Value="0,0,0,1" />
         </Style>
+        <Style Selector="Border.copyable[IsPointerOver=True]">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="Border.copyable">
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
         <Style Selector="Border.odrow:last-child">
             <Setter Property="BorderThickness" Value="0" />
         </Style>
@@ -141,14 +147,18 @@
                                                    IsVisible="{Binding IsViewing}" />
                                     </Grid>
                                 </Border>
-                                <Border Classes="odrow">
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Border Classes="odrow copyable" Tag="{Binding NationalIdText}" PointerPressed="OnCopyRowPressed">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                         <TextBlock Grid.Column="0" Classes="odk" Text="کد ملی" />
                                         <TextBlock Grid.Column="1" Classes="odv" Text="{Binding NationalIdText}"
                                                    IsVisible="{Binding IsViewing}" />
                                         <TextBox Grid.Column="1" Text="{Binding EditNationalId}" Width="240"
                                                  HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
                                                  FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                        <Path Grid.Column="2" Classes="icon copyicon" Width="14" Height="14"
+                                              Stroke="{StaticResource Muted2Brush}" VerticalAlignment="Center"
+                                              IsVisible="{Binding IsViewing}"
+                                              Data="{StaticResource IconCopy}" />
                                     </Grid>
                                 </Border>
                                 <Border Classes="odrow">
@@ -165,10 +175,14 @@
                                         </StackPanel>
                                     </Grid>
                                 </Border>
-                                <Border Classes="odrow">
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Border Classes="odrow copyable" Tag="{Binding File}" PointerPressed="OnCopyRowPressed">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                         <TextBlock Grid.Column="0" Classes="odk" Text="شماره پرونده" />
                                         <TextBlock Grid.Column="1" Classes="odv" Text="{Binding File}" />
+                                        <Path Grid.Column="2" Classes="icon copyicon" Width="14" Height="14"
+                                              Stroke="{StaticResource Muted2Brush}" VerticalAlignment="Center"
+                                              IsVisible="{Binding IsViewing}"
+                                              Data="{StaticResource IconCopy}" />
                                     </Grid>
                                 </Border>
                             </StackPanel>
@@ -181,34 +195,46 @@
                         <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
                                 BorderThickness="1" CornerRadius="16" ClipToBounds="True">
                             <StackPanel>
-                                <Border Classes="odrow">
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Border Classes="odrow copyable" Tag="{Binding Mobile1Text}" PointerPressed="OnCopyRowPressed">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                         <TextBlock Grid.Column="0" Classes="odk" Text="موبایل اول" />
                                         <TextBlock Grid.Column="1" Classes="odv" Text="{Binding Mobile1Text}"
                                                    IsVisible="{Binding IsViewing}" />
                                         <TextBox Grid.Column="1" Text="{Binding EditMobile1}" Width="240"
                                                  HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
                                                  FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                        <Path Grid.Column="2" Classes="icon copyicon" Width="14" Height="14"
+                                              Stroke="{StaticResource Muted2Brush}" VerticalAlignment="Center"
+                                              IsVisible="{Binding IsViewing}"
+                                              Data="{StaticResource IconCopy}" />
                                     </Grid>
                                 </Border>
-                                <Border Classes="odrow">
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Border Classes="odrow copyable" Tag="{Binding Mobile2Text}" PointerPressed="OnCopyRowPressed">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                         <TextBlock Grid.Column="0" Classes="odk" Text="موبایل دوم" />
                                         <TextBlock Grid.Column="1" Classes="odv" Text="{Binding Mobile2Text}"
                                                    IsVisible="{Binding IsViewing}" />
                                         <TextBox Grid.Column="1" Text="{Binding EditMobile2}" Width="240"
                                                  HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
                                                  FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                        <Path Grid.Column="2" Classes="icon copyicon" Width="14" Height="14"
+                                              Stroke="{StaticResource Muted2Brush}" VerticalAlignment="Center"
+                                              IsVisible="{Binding IsViewing}"
+                                              Data="{StaticResource IconCopy}" />
                                     </Grid>
                                 </Border>
-                                <Border Classes="odrow">
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Border Classes="odrow copyable" Tag="{Binding PhoneText}" PointerPressed="OnCopyRowPressed">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                         <TextBlock Grid.Column="0" Classes="odk" Text="تلفن ثابت" />
                                         <TextBlock Grid.Column="1" Classes="odv" Text="{Binding PhoneText}"
                                                    IsVisible="{Binding IsViewing}" />
                                         <TextBox Grid.Column="1" Text="{Binding EditPhone}" Width="240"
                                                  HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
                                                  FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                        <Path Grid.Column="2" Classes="icon copyicon" Width="14" Height="14"
+                                              Stroke="{StaticResource Muted2Brush}" VerticalAlignment="Center"
+                                              IsVisible="{Binding IsViewing}"
+                                              Data="{StaticResource IconCopy}" />
                                     </Grid>
                                 </Border>
                             </StackPanel>
@@ -221,12 +247,16 @@
                         <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
                                 BorderThickness="1" CornerRadius="16" ClipToBounds="True">
                             <StackPanel>
-                                <Border Classes="odrow">
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Border Classes="odrow copyable" Tag="{Binding AddressText}" PointerPressed="OnCopyRowPressed">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                         <TextBlock Grid.Column="0" Classes="odk" Text="آدرس"
                                                    VerticalAlignment="Top" />
                                         <TextBlock Grid.Column="1" Classes="odv" Text="{Binding AddressText}"
                                                    TextWrapping="Wrap" TextAlignment="Left" />
+                                        <Path Grid.Column="2" Classes="icon copyicon" Width="14" Height="14"
+                                              Stroke="{StaticResource Muted2Brush}" VerticalAlignment="Center"
+                                              IsVisible="{Binding IsViewing}"
+                                              Data="{StaticResource IconCopy}" />
                                     </Grid>
                                 </Border>
                                 <Border Classes="odrow">
