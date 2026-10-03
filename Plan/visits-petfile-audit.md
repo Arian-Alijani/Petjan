@@ -394,7 +394,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** extreme quantities clamped; UI subtotal matches backend; no overflow.
 
 ### Task 12 — V12 · Nullable vitals parsing
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. Contracts `Vitals` fields are now nullable (null = not recorded); EVM `TryBuildVitals`/`TryParseNullable` map empty→null, reject invalid/negative input with a Persian toast (`PersistAsync` now returns bool and callers stop), and `VisitEncounterService.SaveVitalsAsync` forwards nulls to `SaveVisitVitalsCommand`.
 - **Priority:** P2 · **Push message:** `fix(visits): parse vitals as nullable to distinguish unset from invalid (V12)`
 - **Goal:** Empty vitals persist as null; invalid vitals prompt correction instead of silently 0.
 - **Current:** `ParseDouble` returns `0` for unparseable text (EVM 529–535); `BuildVitals` casts

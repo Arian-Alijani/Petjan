@@ -72,16 +72,16 @@ public sealed class RxLine
 
 /// <summary>
 /// The four vital-sign readings the reference's <c>renderVitals</c> step
-/// captures (weight, temperature, pulse, respiration). Zero means "not yet
-/// recorded", matching the reference's <c>{ w: 0, t: 0, p: 0, r: 0 }</c> default.
+/// captures (weight, temperature, pulse, respiration). <see langword="null"/> means "not
+/// recorded" (distinct from an invalid entry, which the wizard rejects before it gets here).
 /// </summary>
 public sealed record Vitals(
-    double WeightKg,
-    double TemperatureCelsius,
-    int PulseBpm,
-    int RespirationRate)
+    double? WeightKg,
+    double? TemperatureCelsius,
+    int? PulseBpm,
+    int? RespirationRate)
 {
-    public static Vitals Empty { get; } = new(0, 0, 0, 0);
+    public static Vitals Empty { get; } = new(null, null, null, null);
 }
 
 /// <summary>

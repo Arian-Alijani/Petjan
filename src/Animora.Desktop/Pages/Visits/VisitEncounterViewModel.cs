@@ -364,7 +364,11 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
             return;
         }
 
-        await PersistAsync();
+        if (!await PersistAsync())
+        {
+            return;
+        }
+
         CurrentStep = (EncounterStep)((int)CurrentStep + 1);
     }, "ادامهٔ ویزیت ناموفق بود؛ دوباره تلاش کنید");
 
@@ -376,7 +380,11 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
             return;
         }
 
-        await PersistAsync();
+        if (!await PersistAsync())
+        {
+            return;
+        }
+
         CurrentStep = (EncounterStep)((int)CurrentStep - 1);
     }, "بازگشت به مرحلهٔ قبل ناموفق بود؛ دوباره تلاش کنید");
 
@@ -395,7 +403,11 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     [RelayCommand(CanExecute = nameof(CanEditVisit))]
     private Task SaveDraftAsync() => RunGuardedAsync(async () =>
     {
-        await PersistAsync();
+        if (!await PersistAsync())
+        {
+            return;
+        }
+
         await _service.FlushAsync();
         _toast.Show("پیش‌نویس ویزیت ذخیره شد.", Tone.Ok);
     }, "ذخیرهٔ پیش‌نویس ناموفق بود؛ دوباره تلاش کنید");
@@ -453,7 +465,11 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
             return;
         }
 
-        await PersistAsync();
+        if (!await PersistAsync())
+        {
+            return;
+        }
+
         var summary = await _service.CompleteAsync(_encounterId);
 
         // A completed encounter feeds the sales/cashier queues, the history ledger and the patient's file.
@@ -494,21 +510,42 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         RecomputeSubtotal();
     }
 
-    private async Task PersistAsync()
+    /// <summary>
+    /// Saves every wizard field through the seam. Returns <see langword="false"/> (after a toast) when a vitals
+    /// field is filled but not a valid non-negative number, so nothing is silently stored as 0 (V12).
+    /// </summary>
+    private async Task<bool> PersistAsync()
     {
-        if (!CanEditVisit) return;
-        await _service.SaveVitalsAsync(_encounterId, BuildVitals());
+        if (!CanEditVisit) return true;
+        if (!TryBuildVitals(out var vitals))
+        {
+            _toast.Show("مقدار علائم حیاتی نامعتبر است؛ فقط عدد غیرمنفی وارد کنید.", Tone.Danger);
+            return false;
+        }
+
+        await _service.SaveVitalsAsync(_encounterId, vitals);
         await _service.SaveHistoryNoteAsync(_encounterId, HistoryText);
         await _service.SaveExamNoteAsync(_encounterId, ExamText);
         await _service.SaveDiagnosisAsync(_encounterId, DiagnosisText);
         await _service.SavePlanAsync(_encounterId, PlanText);
+        return true;
     }
 
-    private Vitals BuildVitals() => new(
-        WeightKg: ParseDouble(WeightText),
-        TemperatureCelsius: ParseDouble(TemperatureText),
-        PulseBpm: (int)ParseDouble(PulseText),
-        RespirationRate: (int)ParseDouble(RespirationText));
+    private bool TryBuildVitals(out Vitals vitals)
+    {
+        var ok = TryParseNullable(WeightText, out var weight)
+            & TryParseNullable(TemperatureText, out var temperature)
+            & TryParseNullable(PulseText, out var pulse)
+            & TryParseNullable(RespirationText, out var respiration)
+            & FitsInt(pulse) & FitsInt(respiration);
+        vitals = ok
+            ? new Vitals(weight, temperature, pulse is { } p ? (int)Math.Round(p) : null,
+                respiration is { } r ? (int)Math.Round(r) : null)
+            : Vitals.Empty;
+        return ok;
+    }
+
+    private static bool FitsInt(double? value) => value is null || value <= int.MaxValue;
 
     private void RecomputeSubtotal()
     {
@@ -577,12 +614,27 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private static long TaxOf(long subtotal) =>
         (long)Math.Round(subtotal * TaxRate, MidpointRounding.AwayFromZero);
 
-    private static double ParseDouble(string text)
+    /// <summary>
+    /// Empty text → <see langword="null"/> (not recorded, valid). Otherwise the value must be a finite,
+    /// non-negative number; anything else is invalid (returns <see langword="false"/>).
+    /// </summary>
+    private static bool TryParseNullable(string text, out double? value)
     {
-        var ascii = PersianNumberFormatter.ToAsciiDigits(text).Replace(',', '.');
-        return double.TryParse(ascii, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : 0;
+        value = null;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return true;
+        }
+
+        var ascii = PersianNumberFormatter.ToAsciiDigits(text).Trim().Replace(',', '.').Replace('٫', '.');
+        if (double.TryParse(ascii, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            && double.IsFinite(parsed) && parsed >= 0)
+        {
+            value = parsed;
+            return true;
+        }
+
+        return false;
     }
 
     private static EncounterDraft EmptyDraft() => new(

@@ -23,7 +23,8 @@ public sealed class VisitEncounterService(IServiceScopeFactory scopes, Operation
     {
         ArgumentNullException.ThrowIfNull(vitals);
         return SendAsync(new SaveVisitVitalsCommand(encounterId,
-            (decimal)vitals.WeightKg, (decimal)vitals.TemperatureCelsius,
+            vitals.WeightKg is { } w ? (decimal)w : null,
+            vitals.TemperatureCelsius is { } t ? (decimal)t : null,
             vitals.PulseBpm, vitals.RespirationRate));
     }
 
