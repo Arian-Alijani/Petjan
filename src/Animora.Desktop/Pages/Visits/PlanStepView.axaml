@@ -15,6 +15,8 @@
         <StackPanel Spacing="6" Margin="0,0,0,12">
             <TextBlock Classes="fld-label" Text="تشخیص" />
             <TextBox Classes="fld-input" Text="{Binding DiagnosisText}" PlaceholderText="مثلاً: عفونت قسمت فوقانی تنفسی" />
+            <TextBlock Classes="sec-hint" Foreground="{StaticResource DangerBrush}" Text="تشخیص الزامی است"
+                       IsVisible="{Binding IsDiagnosisMissing}" />
         </StackPanel>
         <StackPanel Spacing="6">
             <TextBlock Classes="fld-label" Text="طرح درمان" />

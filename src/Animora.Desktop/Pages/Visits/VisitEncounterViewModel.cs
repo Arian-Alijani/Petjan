@@ -63,7 +63,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     public bool CanEditVisit => _capabilities.Can("visits.write");
     private bool CanFinishVisit() => _capabilities.Can("visits.complete");
-    private bool CanAdvance() => !IsLastStep || CanFinishVisit();
+    private bool CanAdvance() => !IsLastStep || (CanFinishVisit() && !string.IsNullOrWhiteSpace(DiagnosisText));
 
     private EncounterDraft _draft = EmptyDraft();
     private string _encounterId = string.Empty;
@@ -230,6 +230,9 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     public bool IsItemsEmpty => ItemLines.Count == 0;
 
     // ---- review note panels (reference renderReview's two «—»-fallback cards) ----
+    /// <summary>True on the plan step while the mandatory diagnosis is still empty (V02).</summary>
+    public bool IsDiagnosisMissing => IsPlanStep && string.IsNullOrWhiteSpace(DiagnosisText);
+
     public string DiagnosisDisplay => string.IsNullOrWhiteSpace(DiagnosisText) ? "—" : DiagnosisText;
     public string PlanDisplay => string.IsNullOrWhiteSpace(PlanText) ? "—" : PlanText;
 
@@ -278,6 +281,13 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         }
 
         NotifyState();
+    }
+
+    partial void OnDiagnosisTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(DiagnosisDisplay));
+        OnPropertyChanged(nameof(IsDiagnosisMissing));
+        NextStepCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedServiceToAddChanged(RxCatalogOptionViewModel? value)
@@ -532,6 +542,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsVitalsStep));
         OnPropertyChanged(nameof(IsHistoryStep));
         OnPropertyChanged(nameof(IsPlanStep));
+        OnPropertyChanged(nameof(IsDiagnosisMissing));
         OnPropertyChanged(nameof(IsRxStep));
         OnPropertyChanged(nameof(IsReviewStep));
         OnPropertyChanged(nameof(IsDoneStep));

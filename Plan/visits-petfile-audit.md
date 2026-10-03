@@ -221,7 +221,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
   (V01 already prevents the crash even if a translation edge remains.)
 
 ### Task 3 — V02 · Require diagnosis before completion
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. Last-step `CanAdvance` also requires non-empty diagnosis; `OnDiagnosisTextChanged` re-evaluates the command; new `IsDiagnosisMissing` drives an inline «تشخیص الزامی است» hint in PlanStepView.
 - **Priority:** P1 · **Push message:** `fix(visits): gate visit completion on non-empty diagnosis (V02)`
 - **Goal:** The final-step primary button is disabled until a diagnosis is entered; happy path never
   throws `VISIT_INCOMPLETE`.
