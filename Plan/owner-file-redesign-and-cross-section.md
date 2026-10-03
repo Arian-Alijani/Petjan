@@ -338,7 +338,7 @@ hard-coded `"۰"` must become the real count from D3 (or the owner's pets' visit
   `OwnerActivityKind`, title/subtitle/amount, Jalali date). Minimal & modern. Build 0/0.
   **Push:** `feat(owner-file): real activity feed replacing stub stats [T9]`.
 
-- [ ] **T10 — Recurring vaccine shows in Appointments (seam + styling).**
+- [x] **T10 — Recurring vaccine shows in Appointments (seam + styling).**
   Implement D4 (prefer the read-time synthetic "booster due" projection from `VaccinationRecord.NextDueUtc`).
   Steps: (a) confirm `IAppointmentsQueryService` calendar query entry point; (b) surface due boosters
   as calendar entries for their due day with a **distinct style** — add a "واکسن یادآور" category/badge

@@ -195,6 +195,7 @@
                                                         Classes.tier-sm="{Binding IsSmall}"
                                                         Classes.tier-md="{Binding IsMedium}"
                                                         Classes.cancelled="{Binding IsCancelled}"
+                                                        Classes.booster="{Binding IsBooster}"
                                                         MinHeight="{Binding Height}"
                                                         Background="{Binding BackgroundBrush}"
                                                         BorderBrush="{Binding AccentBrush}"

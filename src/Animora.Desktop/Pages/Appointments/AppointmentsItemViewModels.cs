@@ -78,6 +78,9 @@ public sealed class AppointmentEventViewModel
     public bool IsMedium => Tier == EventTier.Medium;
     public bool IsCancelled => Model.Status == AppointmentStatus.Cancelled;
 
+    /// <summary>A read-only recurring-vaccine reminder entry (styled distinctly from real bookings).</summary>
+    public bool IsBooster => Model.IsVaccineBooster;
+
     public IBrush AccentBrush => AppointmentsPresentation.TypeAccent(Type);
     public IBrush BackgroundBrush => AppointmentsPresentation.TypeBackground(Type);
     public IBrush ForegroundBrush => AppointmentsPresentation.TypeForeground(Type);

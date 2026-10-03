@@ -1,3 +1,4 @@
+using Animora.Application.Ports;
 using Animora.Application.Time;
 using Animora.Application.UseCases.Scheduling.ReadModels;
 using Animora.Contracts.Appointments;
@@ -49,6 +50,34 @@ internal static class AppointmentsMapping
             row.CancelReason, row.CreatedByUserId, row.RescheduleCount, row.DoctorName,
             row.InvoiceTotalMinor, row.InvoicePaidMinor);
     }
+
+    /// <summary>Default minute a booster entry is shown at when its due instant carries no time of day.</summary>
+    private const int BoosterDefaultStartMinute = 9 * 60;
+
+    /// <summary>
+    /// Projects a pending recurring-vaccine booster into a read-only calendar entry. The id is prefixed
+    /// (<c>vb:</c>) so it can never collide with a stored appointment; nothing is persisted.
+    /// </summary>
+    internal static AppointmentEvent ToBoosterEvent(this VaccinationBoosterRow row, TimeZoneInfo tz)
+    {
+        var ticks = row.NextDueUtc.UtcTicks;
+        var date = ClinicCalendar.LocalDay(ticks, tz);
+        var minute = ClinicCalendar.MinutesFromDayStart(ticks, date, tz);
+        if (minute <= 0) minute = BoosterDefaultStartMinute;
+        return new AppointmentEvent(BoosterIdPrefix + row.Id, date, minute, 30, AppointmentTypeIds.VaccineBooster,
+            "", row.PetName, row.Species, row.OwnerName, row.OwnerPhone,
+            "blue", row.Species.ToLowerInvariant(), AppointmentStatus.Pending,
+            $"{row.VaccineName} - دوز {row.DoseNumber}", row.Id,
+            0, AppointmentInvoiceState.None, AppointmentPaymentMethod.None, AppointmentVisitOutcome.None,
+            PetId: row.PetId, IsVaccineBooster: true, VaccineName: row.VaccineName);
+    }
+
+    internal const string BoosterIdPrefix = "vb:";
+
+    /// <summary>The synthetic, non-bookable type the booster entries render with (distinct accent + syringe).</summary>
+    internal static AppointmentType BoosterType { get; } = new(
+        AppointmentTypeIds.VaccineBooster, "یادآور واکسن تکرارشونده", "vaccine-booster", "#0E9F6E",
+        AppointmentColorPalette.Tint("#0E9F6E"), AppointmentColorPalette.Shade("#0E9F6E"), "IconSyringe", 30);
 
     /// <summary>
     /// Maps a roster row. <paramref name="index"/> is the doctor's position in the roster so each

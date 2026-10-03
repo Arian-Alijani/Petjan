@@ -46,6 +46,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private readonly ICurrentUserContext _user;
     private readonly ICapabilityGate _capabilities;
     private readonly INavigationService _navigation;
+    private readonly IRecordSheetPresenter _presenter;
     private readonly IVisitEncounterService _encounters;
     private readonly IClinicClock _clock;
     private readonly Avalonia.Threading.DispatcherTimer _clockTimer = new() { Interval = TimeSpan.FromMinutes(1) };
@@ -125,8 +126,10 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         ICapabilityGate capabilities,
         INavigationService navigation,
         IVisitEncounterService encounters,
-        IClinicClock clock)
+        IClinicClock clock,
+        IRecordSheetPresenter presenter)
     {
+        _presenter = presenter;
         _clock = clock;
         _lastMoment = clock.Now;
         _clockTimer.Tick += OnClockTick;
@@ -455,7 +458,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         HistoryDoctorOptions = BuildSelectOptions("همه پزشکان", _doctors.Select(d => (d.Id, d.ShortName)));
-        HistoryTypeOptions = BuildSelectOptions("همه انواع نوبت", _types.Select(t => (t.Id, t.Label)));
+        HistoryTypeOptions = BuildSelectOptions("همه انواع نوبت", _types.Where(t => t.Id != AppointmentTypeIds.VaccineBooster).Select(t => (t.Id, t.Label)));
         HistoryInvoiceOptions =
         [
             new("all", "همه فاکتورها"),
@@ -1978,6 +1981,14 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             MonthEventViewModel m => m.Model,
             _ => null,
         };
+
+        // A booster is a read-only projection of a vaccination record: it has no booking detail, so it opens
+        // the pet file (where the vaccination history and the next dose live).
+        if (ev is { IsVaccineBooster: true, PetId: { Length: > 0 } petId })
+        {
+            await _presenter.OpenPetSheetAsync(petId);
+            return;
+        }
 
         if (ev is not null)
         {

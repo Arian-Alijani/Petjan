@@ -4,6 +4,7 @@ using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Scheduling;
 using Animora.Application.UseCases.Scheduling.ReadModels;
+using Animora.Application.UseCases.Vaccination;
 using Animora.Contracts.Appointments;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -45,10 +46,9 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes, IAppoi
     public async Task<IReadOnlyList<AppointmentType>> GetTypesAsync()
     {
         var custom = (await settings.GetAsync()).CustomTypes;
-        if (custom.Count == 0) return AppointmentsMapping.Types;
-
-        var types = new List<AppointmentType>(AppointmentsMapping.Types.Count + custom.Count);
+        var types = new List<AppointmentType>(AppointmentsMapping.Types.Count + custom.Count + 1);
         types.AddRange(AppointmentsMapping.Types);
+        types.Add(AppointmentsMapping.BoosterType);
         foreach (var c in custom)
             types.Add(AppointmentsMapping.BuildType(c.Id, c.Label, c.Id, c.ColorHex, c.DurationMinutes));
         return types;
@@ -57,7 +57,26 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes, IAppoi
     public async Task<IReadOnlyList<AppointmentEvent>> GetForRangeAsync(DateOnly start, DateOnly end)
     {
         var tz = await GetTimeZoneAsync();
-        return (await QueryAsync(new AppointmentRangeQuery(start, end))).Select(r => r.ToContract(tz)).ToArray();
+        var events = (await QueryAsync(new AppointmentRangeQuery(start, end))).Select(r => r.ToContract(tz)).ToList();
+        events.AddRange(await GetBoosterEventsAsync(start, end, tz));
+        return events;
+    }
+
+    /// <summary>
+    /// Pending recurring-vaccine boosters in range as read-only calendar entries. Strictly additive: a
+    /// failure here (no vaccination permission, range too wide) must never break the appointment calendar.
+    /// </summary>
+    private async Task<IReadOnlyList<AppointmentEvent>> GetBoosterEventsAsync(DateOnly start, DateOnly end, TimeZoneInfo tz)
+    {
+        try
+        {
+            var rows = await QueryAsync(new VaccinationBoostersRangeQuery(start, end));
+            return rows.Select(r => r.ToBoosterEvent(tz)).ToArray();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return [];
+        }
     }
 
     public async Task<IReadOnlyList<AppointmentEvent>> GetQueueAsync()

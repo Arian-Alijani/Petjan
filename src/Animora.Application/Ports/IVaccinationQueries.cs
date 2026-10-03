@@ -10,6 +10,11 @@ public sealed record VaccinationDueRow(string Id, string PetId, string PetName, 
 public sealed record VaccinationHistoryRow(string Id, string? RecordId, string PetName, string Species,
     string OwnerName, string Title, string? Detail, DateTimeOffset OccurredUtc, string ActorId);
 
+/// <summary>A pending recurring dose: a vaccine whose next-due instant falls in a window and is not yet given.</summary>
+public sealed record VaccinationBoosterRow(string Id, string PetId, string PetName, string Species,
+    string OwnerId, string OwnerName, string OwnerPhone, string VaccineCode, string VaccineName,
+    int DoseNumber, DateTimeOffset NextDueUtc);
+
 /// <summary>One reminder SMS recorded for a pet of one owner (owner file).</summary>
 public sealed record OwnerSmsReminderRow(string Id, string? RecordId, string PetId, string PetName,
     string VaccineName, string? Body, DateTimeOffset SentUtc);
@@ -22,6 +27,8 @@ public interface IVaccinationQueries
     Task<(IReadOnlyList<VaccinationHistoryRow> Items, int Total)> GetHistoryAsync(
         DateTimeOffset? fromUtc, DateTimeOffset? toUtc, string? search, bool oldest,
         IReadOnlyCollection<string>? titles, int page, int pageSize, CancellationToken ct);
+    /// <summary>Pending (not yet administered, not skipped) doses whose next-due instant is in [fromUtc, toUtc), bounded.</summary>
+    Task<IReadOnlyList<VaccinationBoosterRow>> GetPendingBoostersAsync(DateTimeOffset fromUtc, DateTimeOffset toUtc, int take, CancellationToken ct);
     Task<IReadOnlyList<OwnerSmsReminderRow>> GetOwnerSmsRemindersAsync(string ownerId, int take, CancellationToken ct);
     Task<IReadOnlyList<SmsTemplateReadModel>> GetTemplatesAsync(CancellationToken ct);
     Task<VaccinationDueRow?> GetRecordAsync(string id, DateOnly localDay, CancellationToken ct);

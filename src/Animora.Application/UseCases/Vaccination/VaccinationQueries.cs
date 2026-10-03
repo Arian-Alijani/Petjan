@@ -2,6 +2,7 @@ using System.Globalization;
 using Animora.Application.Abstractions;
 using Animora.Application.Ports;
 using Animora.Application.Security;
+using Animora.Application.Time;
 using Animora.Contracts.Vaccination;
 using Animora.Domain.Clinical;
 using Animora.Domain.Identity;
@@ -44,6 +45,33 @@ public sealed class SmsTemplatesQueryHandler(IVaccinationQueries queries)
     public async Task<Result<IReadOnlyList<SmsTemplateReadModel>>> HandleAsync(SmsTemplatesQuery query,
         QueryContext context, CancellationToken ct) =>
         Result<IReadOnlyList<SmsTemplateReadModel>>.Ok(await queries.GetTemplatesAsync(ct));
+}
+
+/// <summary>
+/// Recurring-vaccine boosters that fall due in a local-day window — the Appointments calendar projects these as
+/// read-time «booster due» entries (the vaccination record stays the single source of truth).
+/// </summary>
+[RequiresPermission(PermissionCodes.AppointmentsRead)]
+public sealed record VaccinationBoostersRangeQuery(DateOnly Start, DateOnly End)
+    : IQuery<IReadOnlyList<VaccinationBoosterRow>>;
+
+public sealed class VaccinationBoostersRangeQueryHandler(
+    IVaccinationQueries queries, IClinicTimeZoneProvider zones)
+    : IQueryHandler<VaccinationBoostersRangeQuery, IReadOnlyList<VaccinationBoosterRow>>
+{
+    private const int MaxRows = 500;
+
+    public async Task<Result<IReadOnlyList<VaccinationBoosterRow>>> HandleAsync(
+        VaccinationBoostersRangeQuery query, QueryContext context, CancellationToken ct)
+    {
+        if (query.End.DayNumber < query.Start.DayNumber || query.End.DayNumber - query.Start.DayNumber > 62)
+            return Result<IReadOnlyList<VaccinationBoosterRow>>.Fail(ErrorCodes.AppointmentRangeTooWide);
+        var tz = zones.GetClinicTimeZone();
+        var from = new DateTimeOffset(ClinicCalendar.ToUtcTicks(query.Start, 0, tz), TimeSpan.Zero);
+        var to = new DateTimeOffset(ClinicCalendar.ToUtcTicks(query.End.AddDays(1), 0, tz), TimeSpan.Zero);
+        return Result<IReadOnlyList<VaccinationBoosterRow>>.Ok(
+            await queries.GetPendingBoostersAsync(from, to, MaxRows, ct));
+    }
 }
 
 /// <summary>The reminder SMS messages recorded for one owner's pets, newest first (bounded).</summary>

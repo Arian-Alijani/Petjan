@@ -105,7 +105,10 @@ public sealed record AppointmentEvent(
     int RescheduleCount = 0,
     string? DoctorName = null,
     long? InvoiceTotalMinor = null,
-    long? InvoicePaidMinor = null)
+    long? InvoicePaidMinor = null,
+    string? PetId = null,
+    bool IsVaccineBooster = false,
+    string? VaccineName = null)
 {
     /// <summary>A real (non-void) invoice is linked through the appointment's visit. False means "no money data".</summary>
     public bool HasInvoice => InvoiceTotalMinor is not null;
@@ -167,6 +170,15 @@ public sealed record AppointmentDoctor(
 /// the label, the CSS class key (<c>visit</c>/<c>vaccine</c>/…), the accent /
 /// background / foreground palette and the default duration in minutes.
 /// </summary>
+public static class AppointmentTypeIds
+{
+    /// <summary>
+    /// Synthetic read-time type of a recurring-vaccine «booster due» entry (derived from a vaccination record's
+    /// next-due date). It is not bookable and never stored as an appointment.
+    /// </summary>
+    public const string VaccineBooster = "VACCINE_BOOSTER";
+}
+
 public sealed record AppointmentType(
     string Id,
     string Label,
