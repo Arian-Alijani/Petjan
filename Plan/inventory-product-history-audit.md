@@ -193,7 +193,7 @@ one `AdjustStockAsync` per changed row (N reads + N commands).
 open and save cannot corrupt the absolute result; multi-variant adjust uses one scope.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "fix(inventory): reasoned, atomic, delta-native stock adjust (P1-7,P1-11)"`
 
-### T4 — [ ] Remove «نمونه طراحی» + guard every mutation toast (P0-3)
+### T4 — [x] Remove «نمونه طراحی» + guard every mutation toast (P0-3)
 **Finding:** P0-3 — all real C06 mutations still carry the Phase-18 mock suffix «نمونه طراحی» AND fire
 `_dialogs.Close()`+toast after an unguarded `await` (see §0.4, §0.6).
 **Fix (do for ALL of these):**

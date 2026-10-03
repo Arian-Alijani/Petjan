@@ -509,18 +509,37 @@ public sealed partial class ProductModalViewModel : ObservableObject
             HasAttribute ? _attribute?.Name : null,
             CurrentVariants());
 
-        await _service.SaveProductInfoAsync(_product.Id, update);
+        try
+        {
+            await _service.SaveProductInfoAsync(_product.Id, update);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Keep the modal open so the edits are not lost; never claim success.
+            _toast.Show(InventoryPresentation.MutationFailureMessage(ex, "ذخیره تغییرات ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            return;
+        }
+
         _dialogs.Close();
-        _toast.Show("تغییرات ذخیره شد (نمونه طراحی)");
+        _toast.Show("تغییرات ذخیره شد", Tone.Ok);
         _onChanged?.Invoke();
     }
 
     [RelayCommand]
     private async Task DeleteAsync()
     {
-        await _service.DeleteProductAsync(_product.Id);
+        try
+        {
+            await _service.DeleteProductAsync(_product.Id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(InventoryPresentation.MutationFailureMessage(ex, "حذف کالا ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            return;
+        }
+
         _dialogs.Close();
-        _toast.Show("کالا حذف شد (نمونه طراحی)");
+        _toast.Show("کالا حذف شد", Tone.Ok);
         _onChanged?.Invoke();
     }
 
