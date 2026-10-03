@@ -412,7 +412,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** empty vitals persist as null; invalid vitals prompt correction.
 
 ### Task 13 — V13 · Surface draft-persistence failures
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. `DebounceBuffer.FlushAsync` now observes every running/pending write, attempts all of them, and rethrows the first failure with its original type (via ExceptionDispatchInfo) so `SaveDraftAsync`/`CompleteAsync` (already behind the V01 guard) toast instead of showing «ذخیره شد»; faulted background writes stay tracked until observed; shutdown `DisposeAsync` flush is best-effort.
 - **Priority:** P2 · **Push message:** `fix(visits): propagate buffered draft-save failures to the UI (V13)`
 - **Goal:** A failed draft save is reported, not silently dropped; "پیش‌نویس ذخیره شد" only shows
   after a confirmed write.
