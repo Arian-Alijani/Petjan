@@ -255,7 +255,7 @@ hard-coded `"۰"` must become the real count from D3 (or the owner's pets' visit
   Remove any now-unused `IconSms`/`IconPhone`/`IconBell` references in that block only.
   Build desktop (`scripts/sandbox/build.sh`, 0/0). **Push:** `fix(owner-file): remove fake call/sms/remind actions [T1]`.
 
-- [ ] **T2 — Enlarge to Pet-File scale.**
+- [x] **T2 — Enlarge to Pet-File scale.**
   In `OwnerSheetView.axaml` raise the body `StackPanel MaxWidth="680"` → **≈1120** to match
   `PetFileView` (`MaxWidth="1120"`), enlarge the header avatar (44→~72), bump section header /
   value font sizes a step, and widen the section grid to use the extra width (e.g. identity+contact
