@@ -20,7 +20,10 @@ public sealed partial class DoctorTileViewModel : ObservableObject
     {
         Doctor = doctor;
         Name = doctor.Name;
-        Specialty = doctor.Specialty;
+        // No specialty field exists on the staff/user records yet, so the rail falls back to the plain role
+        // label rather than inventing a specialty.
+        Specialty = string.IsNullOrWhiteSpace(doctor.Specialty) ? "پزشک" : doctor.Specialty;
+        HasVisitInProgress = doctor.HasVisitInProgress;
         Initials = doctor.Initials;
         AvatarBrush = VisitsPresentation.Fill(doctor.Accent);
         MetricCount = PersianNumberFormatter.ToPersianDigits(doctor.AppointmentCount);
@@ -32,4 +35,7 @@ public sealed partial class DoctorTileViewModel : ObservableObject
     public string Initials { get; }
     public IBrush AvatarBrush { get; }
     public string MetricCount { get; }
+
+    /// <summary>True while the doctor has an in-progress visit — drives the «در ویزیت» badge.</summary>
+    public bool HasVisitInProgress { get; }
 }

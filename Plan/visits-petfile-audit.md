@@ -430,7 +430,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** a failed draft save is reported; success copy only after a confirmed write.
 
 ### Task 14 — V15 · Triage doctor rail: real specialty + in-visit badge
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. No specialty/title field exists on User/StaffMembership, so none is invented: the rail query still yields blank and the tile falls back to the role label «پزشک». `DoctorRailInfo` gained optional `HasVisitInProgress` (mapped from the existing query flag) → «در ویزیت» badge on the tile; accent is now a stable FNV-1a id-hash palette pick (`VisitsMapping.AccentFor`, also used by the encounter draft).
 - **Priority:** P2 · **Push message:** `fix(visits): show real specialty and in-visit indicator on doctor rail (V15)`
 - **Goal:** Tiles show real specialty and an in-visit indicator; stable per-doctor accent.
 - **Current:** `GetDoctorRailAsync` (SQLT 16–30) returns `string.Empty` for specialty (line 23) and
