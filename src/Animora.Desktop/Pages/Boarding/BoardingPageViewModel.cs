@@ -145,10 +145,8 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private bool _hasStays;
 
     // ── Settings tab ────────────────────────────────────────────────────────
-    public ObservableCollection<BoardingRateRowViewModel> RateRows { get; } = [];
     public RangeObservableCollection<BoardingRoomTileViewModel> RoomTiles { get; } = [];
     public RangeObservableCollection<BoardingServiceRowViewModel> ServiceRows { get; } = [];
-    public ObservableCollection<BoardingSettingToggleViewModel> SettingToggles { get; } = [];
 
     partial void OnActiveSectionChanged(string value)
     {
@@ -265,20 +263,6 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     private void BuildSettings()
     {
-        if (RateRows.Count == 0)
-        {
-            RateRows.Add(new BoardingRateRowViewModel("IconDog", "سگ — اتاق معمولی", "بر اساس اندازه — متوسط", "۸۰۰٬۰۰۰"));
-            RateRows.Add(new BoardingRateRowViewModel("IconDog", "سگ — سوئیت VIP", "فضای بزرگ‌تر", "۱٬۲۰۰٬۰۰۰"));
-            RateRows.Add(new BoardingRateRowViewModel("IconCat", "گربه — اتاق معمولی", "اتاق استاندارد", "۵۵۰٬۰۰۰"));
-            RateRows.Add(new BoardingRateRowViewModel("IconBird", "پرنده", "قفس اختصاصی", "۳۲۰٬۰۰۰"));
-            RateRows.Add(new BoardingRateRowViewModel("IconRabbit", "خرگوش / جونده", "قفس کوچک", "۳۸۰٬۰۰۰"));
-
-            SettingToggles.Add(new BoardingSettingToggleViewModel("پیامک پذیرش", "پیامک تأیید پذیرش", "پس از ثبت اقامت به مالک ارسال شود", true));
-            SettingToggles.Add(new BoardingSettingToggleViewModel("یادآور تخلیه", "یادآور یک روز قبل از تخلیه", "پیامک به مالک برای آمادگی تحویل", true));
-            SettingToggles.Add(new BoardingSettingToggleViewModel("انتقال خودکار", "انتقال خودکار فاکتور به صندوق", "پس از تخلیه فاکتور آماده ارسال به صندوق", false));
-            SettingToggles.Add(new BoardingSettingToggleViewModel("هشدار ظرفیت", "هشدار ظرفیت پر", "اعلان هنگام تکمیل ظرفیت پانسیون", true));
-        }
-
         _ = RefreshRoomsAsync();
     }
 
@@ -416,25 +400,4 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
             new NewStayModalViewModel(_service, _toast, _dialogs,
                 onCreated: RefreshAfterWrite),
             maxWidth: 580);
-
-    // ── settings actions (reference bdSettingsSave/bdAddRoom/bdAddService/bdEditSvc) ──
-
-    [RelayCommand]
-    private void SaveRates() => _toast.Show("نرخ‌های شبانه ذخیره شد (نمونه طراحی)");
-
-    [RelayCommand]
-    private void SaveGeneral() => _toast.Show("تنظیمات عمومی ذخیره شد (نمونه طراحی)");
-
-    [RelayCommand]
-    private void AddRoom() => _toast.Show("افزودن اتاق (نمونه طراحی)", Tone.Info);
-
-    [RelayCommand]
-    private void AddService() => _toast.Show("افزودن خدمت (نمونه طراحی)", Tone.Info);
-
-    [RelayCommand]
-    private void EditService(BoardingServiceRowViewModel? service)
-    {
-        if (service is null) return;
-        _toast.Show($"ویرایش «{service.Title}» (نمونه طراحی)", Tone.Info);
-    }
 }

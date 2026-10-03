@@ -12,7 +12,7 @@
 - [x] X08 — DONE: BoardingHistoryCriteria applies range/kinds/species/search in SQL; totals over filtered set
 - [x] X09 — DONE: Sales/Cashier mutation + load commands wrapped; typed failures surface as danger toasts, modals stay open
 - [x] X10 — DONE: InvoiceViewer void/delete converted to awaitable Task handlers guarded by GuardAsync (also guards edit/return/discount/insurance); no async void left in the three screens
-- [ ] X11
+- [x] X11 — DONE: Boarding settings: removed fake rate/toggle/add/edit stubs and hardcoded constants; tab now shows live rooms+services only
 - [ ] X12
 - [ ] X13
 - [ ] X14
@@ -149,7 +149,7 @@
 - **Fix:** convert to `private Task`-returning methods invoked as `() => _ = VoidConfirmedAsync()` from the confirm callback (the rest of the file already uses this pattern), and add try/catch.
 - **Acceptance:** no `async void` remains in the three screens; a failing void surfaces a toast.
 
-### X11 — P1 · Fake persistence · Boarding settings actions are design-sample stubs
+### ✅ X11 — P1 · Fake persistence · Boarding settings actions are design-sample stubs
 - **Evidence:** B.VM:422–439 `SaveRates`, `SaveGeneral`, `AddRoom`, `AddService`, `EditService` all just `_toast.Show("… (نمونه طراحی)")`. The rate rows + toggles are hardcoded literals in B.VM:266–280 (`BuildSettings`) — not loaded from any service.
 - **Failure:** the entire Boarding «تنظیمات» tab is non-functional: nightly rates, SMS/auto-transfer/capacity toggles, add-room, add/edit-service do nothing and are seeded from UI-side constants. This violates the AGENTS.md "no sample data in `Pages/**`" rule and misleads the operator (a toast says "ذخیره شد").
 - **Fix:** back the settings tab with real Contracts+service members (read + write), or hide the tab until implemented. Remove the `(نمونه طراحی)` toasts and the hardcoded `RateRows`/`SettingToggles`.
