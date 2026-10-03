@@ -28,9 +28,23 @@ public static class PersianText
             return string.Empty;
         }
 
-        var text = value.Trim();
-        var buffer = new StringBuilder(text.Length);
-        foreach (var ch in text)
+        return Fold(value.Trim());
+    }
+
+    /// <summary>
+    /// The same character folding as <see cref="Normalize"/> but <b>without trimming</b>, so the result has
+    /// exactly the length of <paramref name="value"/> and every index maps 1:1 back to the original text.
+    /// Use it when a match found in the folded text must be sliced out of the original (search highlight).
+    /// </summary>
+    public static string Fold(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        var buffer = new StringBuilder(value.Length);
+        foreach (var ch in value)
         {
             switch (ch)
             {

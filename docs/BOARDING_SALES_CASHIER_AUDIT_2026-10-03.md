@@ -24,8 +24,8 @@
 - [x] X20 — DONE: ReloadStatsAsync always re-renders the sidebar list (ReloadAsync now delegates to it)
 - [x] X21 — DONE: Sales sidebar normalizes the query once per render and skips the debounced rebuild when the normalized query is unchanged; Cashier/Boarding already hoist the query
 - [x] X22 — DONE: Owner picker search is debounced (200 ms) and guarded by a generation token so stale responses cannot overwrite newer rows
-- [ ] X23
-- [ ] X24
+- [x] X23 — DONE: Catalog add promotes the item in the recent strip locally; no full catalog refetch/row rebuild per add
+- [x] X24 — DONE: Highlight is located on a length-preserving PersianText.Fold copy (same folding as the filter) and sliced from the original title
 - [ ] X25
 - [ ] X26
 - [ ] X27
@@ -225,13 +225,13 @@
 - **Fix:** add a `Debouncer` (~160–220 ms) and a generation token like B.HIST.
 - **Acceptance:** typing "علی" issues ≤1–2 queries and always shows the latest query's results.
 
-### X23 — P2 · §2/§13 · Catalog refetches the whole catalog after each add, just for "recent"
+### ✅ X23 — P2 · §2/§13 · Catalog refetches the whole catalog after each add, just for "recent"
 - **Evidence:** S.CAT:211–224 `AddAsync` → `RefreshRecentAsync` (235–241) calls `GetCatalogAsync()` again (full items+filters+recent) only to refresh the recent strip, then `Render()` rebuilds all rows.
 - **Failure:** a full catalog round trip + full row rebuild on every single add; on a fast POS flow this stutters.
 - **Fix:** update the recent list locally (promote the just-added item) or expose a lightweight `GetRecentAsync`; avoid re-pulling the whole catalog.
 - **Acceptance:** adding an item does not refetch the full catalog.
 
-### X24 — P2 · Correctness · Catalog highlight uses a different matcher than the filter
+### ✅ X24 — P2 · Correctness · Catalog highlight uses a different matcher than the filter
 - **Evidence:** S.CAT filtering uses `PersianText.Normalize` + `PersianText.Contains` (131–135), but the highlight split uses `item.Title.IndexOf(match, CurrentCultureIgnoreCase)` on the **raw** title (S.CAT:315–317).
 - **Failure:** rows that match only after Persian normalization (Arabic yeh/kaf, diacritics, Persian digits) are shown but not highlighted, or highlighted at the wrong offset.
 - **Fix:** compute the highlight span on the normalized text/offset used for matching, or normalize both consistently.
