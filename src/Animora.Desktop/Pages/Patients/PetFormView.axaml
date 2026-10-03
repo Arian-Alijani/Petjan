@@ -120,9 +120,13 @@
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Padding" Value="13,8" />
+            <!-- Single-line row now (sub-caption removed): fix the height to 42 to match the
+                 adjacent Jalali date field, and center its content vertically. -->
+            <Setter Property="Height" Value="42" />
+            <Setter Property="Padding" Value="13,0" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="Button.swrow:pointerover">
             <Setter Property="Background" Value="White" />
@@ -281,12 +285,9 @@
                 <TextBlock Classes="flabel" Text=" " />
                 <Button Classes="swrow" Command="{Binding ToggleNeuteredCommand}">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="عقیم شده است" FontSize="12.5" FontWeight="Bold"
-                                       Foreground="{StaticResource InkBrush}" />
-                            <TextBlock Text="وضعیت عقیم‌سازی" FontSize="10.5"
-                                       Foreground="{StaticResource MutedBrush}" />
-                        </StackPanel>
+                        <TextBlock Grid.Column="0" Text="عقیم شده است" FontSize="12.5" FontWeight="Bold"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource InkBrush}" />
                         <Border Grid.Column="1" Classes="swtrack" Classes.on="{Binding Neutered}">
                             <Border Classes="swknob" />
                         </Border>

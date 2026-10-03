@@ -290,7 +290,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
                 await LoadAsync(owner.Id);
                 _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
             },
-            _dialogs));
+            _dialogs, _toast));
     }
 
     [RelayCommand]
