@@ -73,7 +73,7 @@ public sealed partial class RefundModalViewModel : ObservableObject
         }
 
         _dialogs.Close();
-        _toast.Show($"مبلغ {SalePresentation.Money(amount)} تومان عودت شد", Tone.Ok);
+        _toast.Show($"مبلغ {SalePresentation.Money(result.Applied)} تومان عودت شد", Tone.Ok);
         _onRefunded?.Invoke();
     }
 

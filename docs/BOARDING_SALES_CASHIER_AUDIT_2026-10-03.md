@@ -6,8 +6,8 @@
 - [x] X02 — DONE: try/catch + danger toast on create/checkout/transfer/add/remove
 - [x] X03 — DONE: shared ClinicDayWindow used by Sales KPIs and Cashier stats
 - [x] X04 — DONE: removed the no-op recalculate button/command/seam (totals are domain-authoritative)
-- [ ] X05
-- [ ] X06
+- [x] X05 — DONE: Cashier PayAsync clamps to due, returns Applied
+- [x] X06 — DONE: Applied amount carried on Sales/Cashier refund+pay results; toasts show ledger amount (Cashier refund also clamped)
 - [ ] X07
 - [ ] X08
 - [ ] X09
@@ -113,13 +113,13 @@
 - **Fix:** either dispatch a real recompute command, or remove the button and its toast. If totals are always server-authoritative, document that and drop the control.
 - **Acceptance:** either a measurable recompute occurs, or the affordance no longer exists.
 
-### X05 — P1 · Overpayment · Cashier `PayAsync` does not cap amount to due
+### ✅ X05 — P1 · Overpayment · Cashier `PayAsync` does not cap amount to due
 - **Evidence:** C.VM:449–457 sends the raw parsed amount (or `Detail.Due` when blank). C.SVC:79–98 `PayAsync` forwards `Money.Irt(request.Amount)` to `RegisterPaymentCommand` with **no `Math.Min(amount, due)`**. Contrast S.SVC:286–291 which caps `amount = Math.Min(request.Amount, due)` and rejects `<= 0` with `PAYMENT_EXCEEDS_DUE`.
 - **Failure:** a cashier can register a payment larger than the balance; whether it over-pays or throws depends solely on domain guards. Behavior diverges from the Sales payment path for the same operation.
 - **Fix:** cap and validate in C.SVC exactly as S.SVC does (clamp to `[1, due]`, return a typed error otherwise); or centralize payment in one service both pages call.
 - **Acceptance:** an amount above due is clamped (or rejected) identically on both screens.
 
-### X06 — P1 · Wrong amount shown · Refund success toast reports the requested amount, not the applied amount
+### ✅ X06 — P1 · Wrong amount shown · Refund success toast reports the requested amount, not the applied amount
 - **Evidence:** S.REF:65–77 toasts `SalePresentation.Money(amount)` using the user-entered value, but S.SVC:314–336 `RefundAsync` applies `Math.Min(request.Amount, current.PaidMinor)`. C.VM:494–517 has the same shape (toasts `amount`, C.SVC:106–110 does not clamp at all → see X05).
 - **Failure:** entering more than the paid amount shows "X عودت شد" for X while the ledger credited less (Sales) or an unclamped value (Cashier). The receipt the user reads is wrong.
 - **Fix:** display the amount returned by the result (`result.Invoice` paid delta), not the input; have the result carry the actually-applied figure.

@@ -350,10 +350,15 @@ public sealed record RefundRequest(long Amount);
 /// The result of <see cref="ISalesQueryService.RefundAsync"/>, mirroring
 /// <c>FLOW.refund</c>'s <c>{ ok, error, entity }</c> return.
 /// </summary>
+/// <param name="Ok">Whether the refund was applied.</param>
+/// <param name="Error">Machine-readable error code when <paramref name="Ok"/> is false.</param>
+/// <param name="Invoice">The invoice as it is after the refund.</param>
+/// <param name="Applied">The amount actually returned (after clamping to the paid amount); 0 on failure.</param>
 public sealed record RefundResult(
     bool Ok,
     string? Error,
-    InvoiceDetail Invoice);
+    InvoiceDetail Invoice,
+    long Applied = 0);
 
 /// <summary>
 /// A single-line return request: the line to return and how many units of it

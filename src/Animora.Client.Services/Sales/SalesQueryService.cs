@@ -332,7 +332,7 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         {
             return new RefundResult(false, "REFUND_FAILED", await RequireDetailAsync(invoiceId));
         }
-        return new RefundResult(true, null, await RequireDetailAsync(invoiceId));
+        return new RefundResult(true, null, await RequireDetailAsync(invoiceId), amount);
     }
 
     public async Task<LineReturnResult> ReturnLineAsync(string invoiceId, LineReturnRequest request)

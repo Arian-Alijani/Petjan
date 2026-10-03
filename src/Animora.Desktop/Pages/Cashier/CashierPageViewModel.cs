@@ -450,7 +450,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         }
 
         var verb = result.Invoice?.State == CashierInvoiceState.Settled ? "تسویه شد" : "پرداخت ثبت شد";
-        _toast.Show($"{verb} · {CashierPresentation.Money(amount)}", Tone.Ok);
+        _toast.Show($"{verb} · {CashierPresentation.Money(result.Applied)}", Tone.Ok);
 
         ResetPayment();
         NotifyInvoicesChanged();
@@ -500,7 +500,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
             return;
         }
 
-        _toast.Show($"عودت ثبت شد · {CashierPresentation.Money(amount)}", Tone.Ok);
+        _toast.Show($"عودت ثبت شد · {CashierPresentation.Money(result.Applied)}", Tone.Ok);
         RefundAmountText = string.Empty;
         NotifyInvoicesChanged();
         await RefreshAsync(id);

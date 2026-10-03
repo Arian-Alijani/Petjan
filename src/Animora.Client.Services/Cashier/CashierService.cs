@@ -110,8 +110,14 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 
     public async Task<CashierActionResult> RefundAsync(string invoiceId, CashierRefundRequest request)
     {
-        var result = await SendAsync(new RefundInvoiceCommand(invoiceId, Money.Irt(request.Amount), "بازپرداخت در صندوق"));
-        return new(result.IsSuccess, result.IsFailure ? result.Error.Code : null, await GetDetailAsync(invoiceId));
+        var current = await GetDetailAsync(invoiceId);
+        if (current is null) return new(false, "INVOICE_NOT_FOUND", null);
+        // Same rule as the Sales refund path: the clinic never returns more than it received.
+        var amount = Math.Min(Math.Max(0, request.Amount), Math.Max(0, current.Paid));
+        if (amount <= 0) return new(false, ErrorCodes.AdjustmentExceedsPaid.Code, current);
+        var result = await SendAsync(new RefundInvoiceCommand(invoiceId, Money.Irt(amount), "بازپرداخت در صندوق"));
+        return new(result.IsSuccess, result.IsFailure ? result.Error.Code : null, await GetDetailAsync(invoiceId),
+            result.IsSuccess ? amount : 0);
     }
 
     public async Task<CashierInvoiceDetail> UpdateLineAsync(string invoiceId, int lineIndex, int quantity, int discountPercent)
