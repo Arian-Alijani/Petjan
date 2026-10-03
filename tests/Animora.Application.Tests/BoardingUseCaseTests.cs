@@ -132,6 +132,6 @@ internal sealed class BoardingQueriesFake(params Room[] rooms) : IBoardingQuerie
         Task.FromResult<IReadOnlyList<BoardingKnownPetReadModel>>([]);
     public Task<BoardingKnownPetReadModel?> FindPetAsync(string petId, CancellationToken ct) =>
         Task.FromResult<BoardingKnownPetReadModel?>(null);
-    public Task<BoardingHistoryResult> GetHistoryAsync(string? search, string sort, int page, int pageSize, CancellationToken ct) =>
+    public Task<BoardingHistoryResult> GetHistoryAsync(BoardingHistoryCriteria criteria, CancellationToken ct) =>
         Task.FromResult(new BoardingHistoryResult([], 0, 0, 0));
 }

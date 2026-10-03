@@ -1,3 +1,4 @@
+using Animora.Application.UseCases.Boarding.ReadModels;
 using Animora.Domain.Boarding;
 using Animora.Domain.Patients;
 using Animora.Domain.ValueObjects;
@@ -66,13 +67,13 @@ public sealed class BoardingQueryTests
         await db.SaveChangesAsync();
 
         var query = new BoardingQueries(db);
-        var oldest = await query.GetHistoryAsync(null, "Oldest", 1, 500, default);
-        var newest = await query.GetHistoryAsync(null, "Newest", 1, 500, default);
+        var oldest = await query.GetHistoryAsync(new BoardingHistoryCriteria(null, "Oldest", 1, 500), default);
+        var newest = await query.GetHistoryAsync(new BoardingHistoryCriteria(null, "Newest", 1, 500), default);
         Assert.Equal(205, oldest.TotalCount);
         Assert.Equal(200, oldest.Items.Count);
         Assert.Equal(200, newest.Items.Count);
         Assert.True(oldest.Items[0].OccurredUtc < newest.Items[0].OccurredUtc);
-        Assert.Equal(5, (await query.GetHistoryAsync(null, "Newest", 2, 500, default)).Items.Count);
+        Assert.Equal(5, (await query.GetHistoryAsync(new BoardingHistoryCriteria(null, "Newest", 2, 500), default)).Items.Count);
     }
 
     private static BoardingStay Stay(LocalStoreTestFixture fixture, string roomId, string petId, string ownerId, int daysAgo)

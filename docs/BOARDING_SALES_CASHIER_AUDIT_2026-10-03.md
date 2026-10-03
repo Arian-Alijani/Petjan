@@ -9,7 +9,7 @@
 - [x] X05 — DONE: Cashier PayAsync clamps to due, returns Applied
 - [x] X06 — DONE: Applied amount carried on Sales/Cashier refund+pay results; toasts show ledger amount (Cashier refund also clamped)
 - [x] X07 — DONE: success screen refreshes _paid from the post-payment invoice
-- [ ] X08
+- [x] X08 — DONE: BoardingHistoryCriteria applies range/kinds/species/search in SQL; totals over filtered set
 - [ ] X09
 - [ ] X10
 - [ ] X11
@@ -131,7 +131,7 @@
 - **Fix:** pass `result.Invoice.Paid` (post-payment) into the refund modal, not the cached `_paid`.
 - **Acceptance:** refund max on the success screen equals the amount just collected.
 
-### X08 — P1 · Lost filters · Boarding history ignores date range, kinds, and species
+### ✅ X08 — P1 · Lost filters · Boarding history ignores date range, kinds, and species
 - **Evidence:** B.HIST:402–404 builds `BoardingHistoryFilter(FromDate, ToDate, Search, _selectedKinds, _species, _sort, page, size)`. B.SVC:99–106 `GetHistoryAsync` passes only `filter.Search, filter.Sort, filter.Page, filter.PageSize` to `BoardingHistoryQuery` — `FromDate/ToDate/Kinds/Species` are dropped. (Sales does honor them: S.SVC:151–168.)
 - **Failure:** every range chip, kind chip, and the species select in the Boarding history toolbar is inert; the summary totals (inflow/outflow/net) are computed over the unfiltered set, so the figures shown next to an active filter are wrong.
 - **Fix:** extend `BoardingHistoryQuery` + its persistence to accept range/kinds/species and apply them server-side (match the Sales history query surface).

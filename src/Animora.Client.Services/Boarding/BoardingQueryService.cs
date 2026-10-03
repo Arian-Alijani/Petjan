@@ -3,6 +3,7 @@ using Animora.Application.Dispatch;
 using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Boarding;
+using Animora.Application.UseCases.Boarding.ReadModels;
 using Animora.Contracts.Boarding;
 using StayPaymentMode = Animora.Domain.Boarding.StayPaymentMode;
 using Animora.Domain.Time;
@@ -107,9 +108,18 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
 
     public async Task<BoardingHistoryPage> GetHistoryAsync(BoardingHistoryFilter filter)
     {
-        var history = await QueryAsync(new BoardingHistoryQuery(filter.Search, filter.Sort.ToString(),
-            filter.Page, filter.PageSize));
+        ArgumentNullException.ThrowIfNull(filter);
         var (_, zone) = Calendar();
+        var kinds = filter.Kinds;
+        var all = kinds.Count == 0;
+        var criteria = new BoardingHistoryCriteria(filter.Search, filter.Sort.ToString(), filter.Page,
+            filter.PageSize,
+            ClinicDayWindow.ParseJalali(filter.FromDate, zone, endOfDay: false),
+            ClinicDayWindow.ParseJalali(filter.ToDate, zone, endOfDay: true),
+            IncludeCheckIn: all || kinds.Contains(BoardingHistoryKind.CheckIn),
+            IncludeCheckOut: all || kinds.Contains(BoardingHistoryKind.CheckOut),
+            Species: filter.Species is { } species ? BoardingMapping.PetSpeciesFilter(species) : null);
+        var history = await QueryAsync(new BoardingHistoryQuery(criteria));
         return new BoardingHistoryPage(history.Items.Select(r => r.ToContract(zone)).ToArray(),
             history.TotalCount, history.InflowMinor, history.OutflowMinor);
     }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Animora.Application.Ports;
 using Animora.Domain.Time;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,5 +27,34 @@ internal static class ClinicDayWindow
         var now = scope.ServiceProvider.GetRequiredService<IClock>().UtcNow;
         var zone = scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
         return Of(now, zone);
+    }
+
+    /// <summary>
+    /// Parses an ASCII Jalali <c>yyyy/MM/dd</c> bound from the history filter into a UTC instant, honouring
+    /// the clinic zone. An empty/unparseable value yields <c>null</c> (unbounded on that side).
+    /// </summary>
+    public static DateTimeOffset? ParseJalali(string value, TimeZoneInfo tz, bool endOfDay)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var parts = value.Split('/');
+        if (parts.Length != 3) return null;
+        if (!int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var year)
+            || !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var month)
+            || !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var day))
+        {
+            return null;
+        }
+
+        try
+        {
+            var calendar = new PersianCalendar();
+            var local = calendar.ToDateTime(year, month, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, 0, 0);
+            var unspecified = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
+            return new DateTimeOffset(unspecified, tz.GetUtcOffset(unspecified)).ToUniversalTime();
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return null;
+        }
     }
 }

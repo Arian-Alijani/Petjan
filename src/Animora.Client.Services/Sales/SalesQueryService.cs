@@ -152,8 +152,8 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     {
         ArgumentNullException.ThrowIfNull(filter);
         var (_, zone) = Calendar();
-        var from = ParseJalali(filter.FromDate, zone, endOfDay: false);
-        var to = ParseJalali(filter.ToDate, zone, endOfDay: true);
+        var from = Animora.Client.Services.ClinicDayWindow.ParseJalali(filter.FromDate, zone, endOfDay: false);
+        var to = Animora.Client.Services.ClinicDayWindow.ParseJalali(filter.ToDate, zone, endOfDay: true);
         var kind = filter.Kinds.Count == 1 ? SalesMapping.HistoryFilterKind(filter.Kinds.First()) : null;
 
         var result = await QueryAsync(new SalesHistoryQuery(from, to, filter.Search, kind,
@@ -406,35 +406,6 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         var clock = scope.ServiceProvider.GetRequiredService<IClock>();
         var zone = scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
         return (clock.UtcNow, zone);
-    }
-
-    /// <summary>
-    /// Parses an ASCII Jalali <c>yyyy/MM/dd</c> bound from the history filter into a UTC instant, honouring
-    /// the clinic zone. An empty/unparseable value yields <c>null</c> (unbounded on that side).
-    /// </summary>
-    private static DateTimeOffset? ParseJalali(string value, TimeZoneInfo tz, bool endOfDay)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return null;
-        var parts = value.Split('/');
-        if (parts.Length != 3) return null;
-        if (!int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var year)
-            || !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var month)
-            || !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var day))
-        {
-            return null;
-        }
-
-        try
-        {
-            var calendar = new PersianCalendar();
-            var local = calendar.ToDateTime(year, month, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, 0, 0);
-            var unspecified = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
-            return new DateTimeOffset(unspecified, tz.GetUtcOffset(unspecified)).ToUniversalTime();
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            return null;
-        }
     }
 
     private static (IDispatcher Dispatcher, ICurrentUserProvider Provider, IClinicTimeZoneProvider Zones) Resolve(

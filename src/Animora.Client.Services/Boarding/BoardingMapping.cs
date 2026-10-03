@@ -31,6 +31,14 @@ internal static class BoardingMapping
         _ => Domain.Patients.PetSpecies.Other,
     };
 
+    /// <summary>The clinic species a boarding species filter stands for ("Other" covers reptiles too).</summary>
+    internal static IReadOnlyList<PetSpecies> PetSpeciesFilter(BoardingSpecies? species) => species switch
+    {
+        null => [],
+        BoardingSpecies.Other => [Domain.Patients.PetSpecies.Other, Domain.Patients.PetSpecies.Reptile],
+        var s => [PetSpecies(s.Value)],
+    };
+
     internal static ContractStay ToContract(this StayListItemReadModel row,
         IReadOnlyList<BoardingServiceDef> services, DateTimeOffset now, TimeZoneInfo tz)
     {
