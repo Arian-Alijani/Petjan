@@ -50,7 +50,7 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1        # no network telemetry
 export DOTNET_NOLOGO=1                       # quieter, faster startup
 export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 export DOTNET_gcServer=0                      # workstation GC (low RAM)
-export DOTNET_GCHeapHardLimit=0x24000000      # ~576 MiB hard cap on GC heap (B03c: Desktop now compiles XAML against the full backend graph)
+export DOTNET_GCHeapHardLimit="${DOTNET_GCHeapHardLimit:-0x24000000}"      # ~576 MiB hard cap on GC heap (B03c: Desktop now compiles XAML against the full backend graph)
 
 # MSBuild flags reused by build/test/run. Single process + no shared compiler
 # server keeps peak memory well under the 985 MiB ceiling.

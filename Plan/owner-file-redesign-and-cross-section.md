@@ -313,7 +313,7 @@ hard-coded `"۰"` must become the real count from D3 (or the owner's pets' visit
   - `scripts/sandbox/build.sh full` once (non-Desktop touched), 0/0.
   **Push:** `feat(vaccination): GetSmsHistoryForOwnerAsync owner reminder history [T6]`.
 
-- [ ] **T7 — Owner File "پیامک‌های ارسال‌شده" section (consume T6).**
+- [x] **T7 — Owner File "پیامک‌های ارسال‌شده" section (consume T6).**
   Inject `IVaccinationService` into the owner file VM (verify DI registration exists). In `LoadAsync`
   call `GetSmsHistoryForOwnerAsync(owner.Id)`, clear+add into
   `ObservableCollection<OwnerSmsRowViewModel>` (Jalali date via `JalaliDate`, pet + vaccine, channel

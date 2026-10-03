@@ -120,7 +120,7 @@
             <StackPanel Spacing="22" MaxWidth="1120" HorizontalAlignment="Center">
 
                 <!-- od-grid -->
-                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
                       ColumnSpacing="20" RowSpacing="22">
 
                     <!-- identity -->
@@ -416,8 +416,67 @@
                         </Border>
                     </StackPanel>
 
-                    <!-- activity (span) -->
+                    <!-- sms (span) -->
                     <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Spacing="10">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <TextBlock Classes="odsec" Text="پیامک‌های ارسال‌شده" />
+                            <Border Background="{StaticResource Bg2Brush}" CornerRadius="7"
+                                    MinWidth="20" Height="20" Padding="6,0">
+                                <TextBlock Text="{Binding SmsCountText}" FontSize="11"
+                                           FontWeight="ExtraBold"
+                                           Foreground="{StaticResource Ink2Brush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </StackPanel>
+                        <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
+                                BorderThickness="1" CornerRadius="16" ClipToBounds="True">
+                            <StackPanel>
+                                <ItemsControl ItemsSource="{Binding SmsMessages}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="patients:OwnerSmsRowViewModel">
+                                            <Border Classes="odrow" Padding="16,13">
+                                                <Grid ColumnDefinitions="42,*,Auto" ColumnSpacing="14">
+                                                    <Border Grid.Column="0" Width="42" Height="42"
+                                                            CornerRadius="13" VerticalAlignment="Top"
+                                                            Background="{StaticResource Brand50Brush}">
+                                                        <Path Classes="icon" Width="20" Height="20"
+                                                              Stroke="{StaticResource Brand700Brush}"
+                                                              Data="{StaticResource IconSms}"
+                                                              HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Spacing="3">
+                                                        <TextBlock Text="{Binding Title}" FontSize="14.5"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{StaticResource InkBrush}" />
+                                                        <TextBlock Text="{Binding BodyText}"
+                                                                   IsVisible="{Binding HasBody}"
+                                                                   FontSize="12.5" TextWrapping="Wrap"
+                                                                   Foreground="{StaticResource Ink2Brush}" />
+                                                        <TextBlock Text="{Binding WhenText}" FontSize="12"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                    </StackPanel>
+                                                    <Border Grid.Column="2" Background="{StaticResource Bg2Brush}"
+                                                            CornerRadius="8" Padding="9,3"
+                                                            VerticalAlignment="Top">
+                                                        <TextBlock Text="{Binding Channel}" FontSize="11"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{StaticResource Ink2Brush}" />
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="پیامکی ارسال نشده" IsVisible="{Binding !HasSms}"
+                                           FontSize="12" Foreground="{StaticResource MutedBrush}"
+                                           HorizontalAlignment="Center" Padding="22" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- activity (span) -->
+                    <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Spacing="10">
                         <TextBlock Classes="odsec" Text="خلاصه فعالیت" />
                         <Border Background="White" BorderBrush="{StaticResource Line2Brush}"
                                 BorderThickness="1" CornerRadius="16" ClipToBounds="True">

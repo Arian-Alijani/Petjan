@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Patients;
 using Animora.Contracts.Sales;
+using Animora.Contracts.Vaccination;
 using Animora.Desktop.Pages.Sales;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
@@ -75,6 +76,29 @@ public sealed class OwnerInvoiceRowViewModel
     public Tone StateTone { get; }
 }
 
+/// <summary>One row of «پیامک‌های ارسال‌شده» — a reminder SMS recorded for one of the owner's pets.</summary>
+public sealed class OwnerSmsRowViewModel
+{
+    public OwnerSmsRowViewModel(OwnerSmsReminder sms)
+    {
+        var date = PersianNumberFormatter.ToPersianDigits(JalaliDate.FromDateTime(sms.When).ToString("short"));
+        var time = PersianNumberFormatter.ToPersianDigits(sms.When.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture));
+        Title = string.IsNullOrWhiteSpace(sms.VaccineName)
+            ? $"یادآوری برای {sms.PetName}"
+            : $"یادآوری واکسن {sms.VaccineName} · {sms.PetName}";
+        WhenText = $"{date} · {time}";
+        Channel = sms.Channel;
+        BodyText = string.IsNullOrWhiteSpace(sms.Body) ? string.Empty : sms.Body.Trim();
+        HasBody = BodyText.Length > 0;
+    }
+
+    public string Title { get; }
+    public string WhenText { get; }
+    public string Channel { get; }
+    public string BodyText { get; }
+    public bool HasBody { get; }
+}
+
 /// <summary>
 /// Backs the Owner Sheet (Phase 09, patients-page.js <c>renderOwnerSheet</c>):
 /// the owner's identity/contact/address blocks (view ↔ inline edit), the owner's
@@ -89,6 +113,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
     private readonly ISalesQueryService _sales;
+    private readonly IVaccinationService _vaccination;
 
     private OwnerDetail? _owner;
 
@@ -112,9 +137,11 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         IDialogService dialogs,
         IToastService toast,
         IDataChangeNotifier changes,
-        ISalesQueryService sales)
+        ISalesQueryService sales,
+        IVaccinationService vaccination)
     {
         _sales = sales;
+        _vaccination = vaccination;
         _patients = patients;
         _changes = changes;
         _presenter = presenter;
@@ -130,6 +157,11 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     public ObservableCollection<OwnerSheetPetRowViewModel> Pets { get; } = [];
 
     public ObservableCollection<OwnerInvoiceRowViewModel> Invoices { get; } = [];
+
+    public ObservableCollection<OwnerSmsRowViewModel> SmsMessages { get; } = [];
+
+    public bool HasSms => SmsMessages.Count > 0;
+    public string SmsCountText { get; private set; } = "۰";
 
     public bool HasInvoices => Invoices.Count > 0;
     public string InvoicesCountText { get; private set; } = "۰";
@@ -177,7 +209,21 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         }
 
         Apply(detail);
-        await LoadInvoicesAsync(detail.Id);
+        await Task.WhenAll(LoadInvoicesAsync(detail.Id), LoadSmsAsync(detail.Id));
+    }
+
+    private async Task LoadSmsAsync(string ownerId)
+    {
+        var messages = await _vaccination.GetSmsHistoryForOwnerAsync(ownerId);
+        SmsMessages.Clear();
+        foreach (var message in messages)
+        {
+            SmsMessages.Add(new OwnerSmsRowViewModel(message));
+        }
+
+        SmsCountText = Fa(SmsMessages.Count.ToString());
+        OnPropertyChanged(nameof(SmsCountText));
+        OnPropertyChanged(nameof(HasSms));
     }
 
     private async Task LoadInvoicesAsync(string ownerId)
