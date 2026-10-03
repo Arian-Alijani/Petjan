@@ -30,6 +30,7 @@ public static class CommandTypes
 
     // Inventory.
     public const string InventoryStockAdjust = "inventory.stock.adjust";
+    public const string InventoryStockSet = "inventory.stock.set";
     public const string InventoryReceiptPost = "inventory.receipt.post";
 
     // Purchasing.
@@ -98,7 +99,7 @@ public static class CommandTypes
         SalesInvoiceDiscountSet, SalesInvoiceInsuranceSet, SalesInvoiceOwnerSet, SalesInvoiceDelete,
         SalesInvoiceLineReturn,
         CashierSessionOpen, CashierSessionClose, CashierMovementRecord,
-        InventoryStockAdjust, InventoryReceiptPost,
+        InventoryStockAdjust, InventoryStockSet, InventoryReceiptPost,
         PurchasingOrderSubmit,
         InventoryProductCreate, InventoryProductUpdate, InventoryVariantAdd, InventoryProductDelete,
         PurchasingOrderCreate, PurchasingReceiptRecord, PurchasingOrderCancel,

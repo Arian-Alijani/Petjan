@@ -21,13 +21,6 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
 {
     private const int MaxPageSize = 200; // QueryPaging.HardMaxPageSize
 
-    /// <summary>
-    /// The reason recorded for a stock adjustment raised through the Contracts seam. The Contracts request
-    /// carries only an absolute target stock (no reason field), so the service bridges to the richer
-    /// <see cref="AdjustStockCommand"/> using the neutral <c>Correction</c> code.
-    /// </summary>
-    private const string BridgeAdjustReason = AdjustmentReasons.Correction;
-
     public async Task<IReadOnlyList<ContractProduct>> GetProductsAsync()
     {
         await using var scope = scopes.CreateAsyncScope();
@@ -161,29 +154,22 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
     public async Task DeleteProductAsync(string productId) =>
         _ = await SendAsync(new DeleteProductCommand(productId));
 
-    public async Task AdjustStockAsync(string productId, string variantId, StockAdjustRequest request)
+    public async Task AdjustStockAsync(string productId, StockAdjustRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var detail = await GetDetailAsync(productId);
-        var current = 0;
-        if (detail is not null)
+        if (request.Lines.Count == 0) return;
+
+        // Delta-native and atomic: absolute targets go to the handler, which reads the fresh on-hand inside
+        // its own unit of work (no client read-modify-write gap) and records one reasoned movement per change.
+        var lines = new StockTargetLine[request.Lines.Count];
+        for (var i = 0; i < lines.Length; i++)
         {
-            for (var i = 0; i < detail.Product.Variants.Count; i++)
-            {
-                if (string.Equals(detail.Product.Variants[i].Id, variantId, StringComparison.Ordinal))
-                {
-                    current = detail.Product.Variants[i].Stock;
-                    break;
-                }
-            }
+            lines[i] = new StockTargetLine(request.Lines[i].VariantId,
+                InventoryMapping.IntToScaled(Math.Max(0, request.Lines[i].Stock)));
         }
 
-        // Contracts carries an absolute target; the command takes a signed delta (see BridgeAdjustReason).
-        var target = Math.Max(0, request.Stock);
-        var delta = target - current;
-        if (delta == 0) return;
-        _ = await SendAsync(new AdjustStockCommand(productId, variantId, InventoryMapping.IntToScaled(delta),
-            BridgeAdjustReason));
+        var reason = string.IsNullOrWhiteSpace(request.Reason) ? AdjustmentReasons.Correction : request.Reason;
+        _ = await SendAsync(new SetStockCommand(productId, lines, reason, request.Note));
     }
 
     /// <summary>Expands a multi-variant product's declared options into one variant input each.</summary>

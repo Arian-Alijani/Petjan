@@ -123,8 +123,26 @@ public sealed record NewProductRequest(
     IReadOnlyList<string> AttributeOptions,
     IReadOnlyList<ProductVariant> Variants);
 
+/// <summary>One variant's absolute target on-hand in a <see cref="StockAdjustRequest"/>.</summary>
+public sealed record StockAdjustLine(string VariantId, int Stock);
+
 /// <summary>
-/// A request to set one variant's on-hand stock, mirroring the stock-adjust
-/// modal's «ثبت موجودی» (the delta is logged as a history event).
+/// A request to set the on-hand stock of one or more of a product's variants, mirroring the stock-adjust
+/// modal's «ثبت موجودی». <see cref="Reason"/> is the stable reason code recorded on every resulting movement
+/// (<c>Count</c>, <c>Damage</c>, <c>Expiry</c>, <c>Theft</c>, <c>Correction</c>). The whole request is applied
+/// atomically, with the delta computed against the freshly-read on-hand at write time.
 /// </summary>
-public sealed record StockAdjustRequest(int Stock);
+public sealed record StockAdjustRequest(
+    IReadOnlyList<StockAdjustLine> Lines,
+    string Reason = StockAdjustReasons.Correction,
+    string? Note = null);
+
+/// <summary>The reason codes a stock adjustment may carry (mirrors the domain's declared set).</summary>
+public static class StockAdjustReasons
+{
+    public const string Count = "Count";
+    public const string Damage = "Damage";
+    public const string Expiry = "Expiry";
+    public const string Theft = "Theft";
+    public const string Correction = "Correction";
+}

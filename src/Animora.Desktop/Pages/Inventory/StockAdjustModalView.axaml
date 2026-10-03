@@ -86,6 +86,16 @@
         <!-- ═══ body (.adjust-list) ═══ -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="22,18,22,18" Spacing="10">
+                <TextBlock Text="دلیل تغییر موجودی" FontSize="12" FontWeight="Bold"
+                           Foreground="{StaticResource MutedBrush}" />
+                <ComboBox ItemsSource="{Binding ReasonOptions}" SelectedItem="{Binding SelectedReason}"
+                          HorizontalAlignment="Stretch" Margin="0,0,0,6">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="inv:AdjustReasonOption">
+                            <TextBlock Text="{Binding Label}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
                 <ItemsControl ItemsSource="{Binding Rows}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="inv:InventoryAdjustRowViewModel">

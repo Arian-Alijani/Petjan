@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Inventory;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
 using Avalonia.Media;
@@ -37,6 +38,7 @@ public sealed partial class StockAdjustModalViewModel : ObservableObject
         _toast = toast;
         _dialogs = dialogs;
         _onChanged = onChanged;
+        _selectedReason = ReasonOptions[0];
         _ = LoadAsync(productId);
     }
 
@@ -78,23 +80,57 @@ public sealed partial class StockAdjustModalViewModel : ObservableObject
         }
     }
 
+    /// <summary>The selectable reasons (Count/Damage/Expiry/Theft/Correction); <c>Correction</c> is the default.</summary>
+    public IReadOnlyList<AdjustReasonOption> ReasonOptions { get; } =
+    [
+        new(StockAdjustReasons.Correction, "اصلاح موجودی"),
+        new(StockAdjustReasons.Count, "شمارش انبار"),
+        new(StockAdjustReasons.Damage, "خرابی / شکستگی"),
+        new(StockAdjustReasons.Expiry, "انقضا"),
+        new(StockAdjustReasons.Theft, "مفقودی / سرقت"),
+    ];
+
+    [ObservableProperty] private AdjustReasonOption? _selectedReason;
+
     [RelayCommand]
     private async Task SaveAsync()
     {
+        var lines = new List<StockAdjustLine>(Rows.Count);
         foreach (var row in Rows)
         {
             var stock = row.ReadStock();
             if (stock != row.OriginalStock)
             {
-                await _service.AdjustStockAsync(_product.Id, row.Id, new StockAdjustRequest(stock));
+                lines.Add(new StockAdjustLine(row.Id, stock));
             }
         }
 
+        if (lines.Count == 0)
+        {
+            _dialogs.Close();
+            return;
+        }
+
+        var reason = SelectedReason?.Code ?? StockAdjustReasons.Correction;
+        try
+        {
+            // One atomic command for the whole product, the reason recorded on every movement.
+            await _service.AdjustStockAsync(_product.Id, new StockAdjustRequest(lines, reason));
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(InventoryPresentation.MutationFailureMessage(ex, "به‌روزرسانی موجودی ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            return;
+        }
+
         _dialogs.Close();
-        _toast.Show("موجودی به‌روزرسانی شد (نمونه طراحی)");
+        _toast.Show("موجودی به‌روزرسانی شد", Tone.Ok);
         _onChanged?.Invoke();
     }
 
     [RelayCommand]
     private void Cancel() => _dialogs.Close();
 }
+
+/// <summary>One selectable reason in the stock-adjust modal.</summary>
+public sealed record AdjustReasonOption(string Code, string Label);

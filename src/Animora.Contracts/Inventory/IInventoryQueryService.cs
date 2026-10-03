@@ -50,8 +50,8 @@ public interface IInventoryQueryService
     Task DeleteProductAsync(string productId);
 
     /// <summary>
-    /// Sets a variant's on-hand stock and logs the delta as a history entry,
-    /// mirroring the stock-adjust modal's «ثبت موجودی» handler.
+    /// Sets the on-hand stock of one or more of a product's variants in one atomic command and records a
+    /// reasoned movement per changed variant, mirroring the stock-adjust modal's «ثبت موجودی».
     /// </summary>
-    Task AdjustStockAsync(string productId, string variantId, StockAdjustRequest request);
+    Task AdjustStockAsync(string productId, StockAdjustRequest request);
 }

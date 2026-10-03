@@ -176,7 +176,7 @@ against its loaded on-hand and emit an `AdjustStockCommand` per non-zero delta (
 actually moves stock with a movement recorded — never a silent no-op with a success toast.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "fix(inventory): stop silent stock-edit loss in product modal (P0-2)"`
 
-### T3 — [ ] Reason selector + delta-native, atomic stock adjust (P1-11, P1-7)
+### T3 — [x] Reason selector + delta-native, atomic stock adjust (P1-11, P1-7)
 **Findings:** P1-11 (every manual adjustment recorded as `Correction`, reason lost), P1-7 (absolute-target bridge
 read-modify-write race + per-row scope/round-trip).
 **Root cause (verified):** I.SVC line 29 `BridgeAdjustReason = Correction`; `AdjustStockAsync` reads current via

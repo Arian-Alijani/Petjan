@@ -433,3 +433,104 @@ public sealed class AdjustStockCommandHandler(
         return false;
     }
 }
+
+/// <summary>One variant's absolute target on-hand, at the store's ×1000 quantity scale.</summary>
+public sealed record StockTargetLine(string VariantId, long TargetScaled);
+
+/// <summary>
+/// Sets the on-hand of one or more of a product's variants to absolute targets in a single atomic command.
+/// The delta is computed inside the handler against freshly-read on-hand (same unit of work), so a
+/// concurrent sale between the caller's read and this write cannot corrupt the result. One reasoned
+/// <see cref="StockMovement"/> is recorded per variant whose target differs from its current on-hand.
+/// </summary>
+[RequiresPermission(PermissionCodes.InventoryAdjust)]
+[Auditable(AuditCategory.Inventory, CommandTypes.InventoryStockSet)]
+public sealed record SetStockCommand(
+    string ProductId,
+    IReadOnlyList<StockTargetLine> Lines,
+    string ReasonCode,
+    string? Note = null) : ICommand<Unit>, IJournaledCommand
+{
+    /// <inheritdoc />
+    public string CommandTypeName => CommandTypes.InventoryStockSet;
+
+    /// <inheritdoc />
+    public string AggregateTypeName => "Product";
+
+    /// <inheritdoc />
+    public string? AggregateIdOrNull => ProductId;
+}
+
+public sealed class SetStockCommandValidator : IValidator<SetStockCommand>
+{
+    public ValueTask<IReadOnlyList<ValidationFailure>> ValidateAsync(SetStockCommand c, CancellationToken ct)
+    {
+        var failures = new List<ValidationFailure>();
+        if (Rules.Required(c.ProductId, nameof(c.ProductId)) is { } product) failures.Add(product);
+        if (Rules.Required(c.ReasonCode, nameof(c.ReasonCode)) is { } reason) failures.Add(reason);
+        if (c.Lines is null || c.Lines.Count == 0) failures.Add(new ValidationFailure(nameof(c.Lines), Rules.RequiredCode));
+        else
+        {
+            for (var i = 0; i < c.Lines.Count; i++)
+            {
+                if (Rules.Required(c.Lines[i].VariantId, nameof(c.Lines)) is { } variant) failures.Add(variant);
+                if (c.Lines[i].TargetScaled < 0L)
+                    failures.Add(new ValidationFailure(nameof(c.Lines), Rules.NonNegativeQuantityCode));
+            }
+        }
+
+        return ValueTask.FromResult<IReadOnlyList<ValidationFailure>>(failures);
+    }
+}
+
+public sealed class SetStockCommandHandler(
+    IProductRepository products, IStockMovementRepository movements, IInventoryQueries queries, IClock clock)
+    : ICommandHandler<SetStockCommand, Unit>
+{
+    public async Task<Result<Unit>> HandleAsync(SetStockCommand c, CommandContext context, CancellationToken ct)
+    {
+        if (!AdjustmentReasons.IsValid(c.ReasonCode))
+            return Result<Unit>.Fail(ErrorCodes.AdjustmentReasonInvalid,
+                $"'{c.ReasonCode}' is not a declared adjustment reason.");
+
+        var product = await products.FindAsync(c.ProductId, ct);
+        if (product is null) return Result<Unit>.Fail(ErrorCodes.ProductNotFound);
+
+        var now = clock.UtcNow;
+        var pending = new List<StockMovement>(c.Lines.Count);
+        for (var i = 0; i < c.Lines.Count; i++)
+        {
+            var line = c.Lines[i];
+            if (!HasVariant(product, line.VariantId))
+                return Result<Unit>.Fail(ErrorCodes.VariantNotFound,
+                    $"Variant '{line.VariantId}' is not on product '{product.Id}'.");
+            if (line.TargetScaled < 0L)
+                return Result<Unit>.Fail(ErrorCodes.StockWouldGoNegative, "Target on-hand cannot be negative.");
+
+            var current = await queries.GetOnHandScaledAsync(product.Id, line.VariantId, ct);
+            var delta = line.TargetScaled - current;
+            if (delta == 0L) continue;
+
+            var kind = delta > 0L ? MovementKind.AdjustmentIn : MovementKind.AdjustmentOut;
+            var created = StockMovement.Create(
+                context.TenantId, product.Id, line.VariantId, kind, new Quantity(delta / 1000m, product.UnitCode),
+                Money.Irt(0), now, context.UserId, operationId: context.OperationId, reason: c.ReasonCode);
+            if (created.IsFailure) return Result<Unit>.Fail(created.Error, created.Detail);
+            pending.Add(created.Value!);
+        }
+
+        // Nothing is added until every line validated, so a failing line leaves the whole batch unrecorded.
+        for (var i = 0; i < pending.Count; i++) movements.Add(pending[i]);
+        return Result<Unit>.Ok(Unit.Value);
+    }
+
+    private static bool HasVariant(Product product, string variantId)
+    {
+        for (var i = 0; i < product.Variants.Count; i++)
+        {
+            if (string.Equals(product.Variants[i].VariantId, variantId, StringComparison.Ordinal)) return true;
+        }
+
+        return false;
+    }
+}
