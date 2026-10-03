@@ -36,7 +36,7 @@
 - [x] X32 — DONE: removed the empty CheckoutRequest payload; CheckoutAsync(stayId) matches the real capability
 - [x] X33 — DONE: transfer hint guillemets balanced («pet» — «owner»)
 - [x] X34 — DONE: each Boarding read operation (stays, detail, history) resolves dispatcher + clock + zone + services through ONE DI scope instead of a scope per read
-- [ ] X35
+- [x] X35 — DONE: RefreshCards short-circuits when data version + (tab, species, normalized query) are unchanged; query normalized once per filter; re-selecting the current tab is a no-op
 - [ ] X36
 - [ ] X37
 - [ ] X38
@@ -297,7 +297,7 @@
 - **Fix:** resolve clock/zone once per operation (already partly done) and batch the stays+rooms+services reads; cache the clinic zone for the session (it is stable).
 - **Acceptance:** a write-refresh issues the minimal set of reads; zone is resolved once.
 
-### X35 — P2 · §13 · Boarding page rebuilds rows+row-groups on every tab/species/search change
+### ✅ X35 — P2 · §13 · Boarding page rebuilds rows+row-groups on every tab/species/search change
 - **Evidence:** B.VM `RefreshCards` (250–264) re-runs `Filtered()` (LINQ with per-row `Normalize`, 227–248), rebuilds `FilteredStays`, then re-chunks into `StayRows` groups of 3 — on every tab click (`SetTab` 318–325), species change (166–171), and debounced keystroke (341–345).
 - **Failure:** full filter+sort+chunk+two `ReplaceAll`s per interaction even when the result set is unchanged; `Filtered()` normalizes the query per row (PERF §2).
 - **Fix:** hoist the normalized query out of the predicate; short-circuit when `(tab, species, query)` is unchanged (PERF §13).

@@ -36,6 +36,8 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     // Reference page state: S.tab, S.query, S.species, S.section.
     private string _tab = "all";
+    private int _staysVersion;
+    private (int, string, BoardingSpecies?, string)? _renderedKey;
     private string _searchQuery = string.Empty;
     private BoardingSpecies? _species;
 
@@ -194,8 +196,10 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     private async Task ReloadStaysAsync()
     {
+        var fresh = await _service.GetStaysAsync();
         _stays.Clear();
-        _stays.AddRange(await _service.GetStaysAsync());
+        _stays.AddRange(fresh);
+        _staysVersion++;
     }
 
     private void RefreshTabCounts()
@@ -213,10 +217,8 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         return BoardingStayClassification.Of(stay, _today).MatchesTab(tab);
     }
 
-    private List<BoardingStay> Filtered()
+    private List<BoardingStay> Filtered(string query)
     {
-        var query = PersianText.Normalize(_searchQuery);
-
         return _stays
             .Where(stay =>
             {
@@ -236,9 +238,21 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
             .ToList();
     }
 
+    /// <summary>
+    /// Rebuilds the card grid. Skips the filter+sort+chunk pass when neither the data
+    /// (<see cref="_staysVersion"/>) nor the (tab, species, query) selection changed
+    /// since the last render (PERF §13).
+    /// </summary>
     private void RefreshCards()
     {
-        var rows = Filtered();
+        var key = (_staysVersion, _tab, _species, PersianText.Normalize(_searchQuery));
+        if (_renderedKey is { } last && last.Equals(key))
+        {
+            return;
+        }
+        _renderedKey = key;
+
+        var rows = Filtered(key.Item4);
         var cards = rows.Select(stay => new BoardingStayCardViewModel(stay, _today)).ToList();
         FilteredStays.ReplaceAll(cards);
 
@@ -293,7 +307,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     [RelayCommand]
     private void SetTab(string? key)
     {
-        if (string.IsNullOrEmpty(key)) return;
+        if (string.IsNullOrEmpty(key) || key == _tab) return;
         _tab = key;
         RefreshTabCounts();
         RefreshCards();
