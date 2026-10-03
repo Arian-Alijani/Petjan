@@ -501,7 +501,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** no `.Result` on potentially-incomplete tasks.
 
 ### Task 19 — V20 + V21 · Remove "(نمونه طراحی)" on real flows & fix new-patient icon
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. Removed «(نمونه طراحی)» from the two triage start toasts (cashier hand-off + done copy were already cleaned in Task 5); new `VisitsPresentation.IconKeyForKind` derives the new-patient icon from the entered kind (replacing hardcoded "dog"); synthetic `np-` id kept with a comment that the backend discards it.
 - **Priority:** P3 · **Push message:** `fix(visits): drop design-sample labels on real flows and derive new-patient icon from kind (V20,V21)`
 - **Goal:** Real persisted actions report real success copy; the picked-patient card shows an icon
   consistent with the entered species.

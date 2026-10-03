@@ -341,12 +341,14 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         }
 
         PickedPatient = new VisitPatientRef(
+            // Placeholder id only: the backend discards it and re-resolves the owner by phone and the pet by
+            // name + species when the visit starts (StartNewVisitCommandHandler).
             Id: $"np-{Guid.NewGuid():N}"[..10],
             Name: NewPatientName.Trim(),
             Kind: NewPatientKind.Trim(),
             OwnerName: NewPatientOwner.Trim(),
             Phone: NewPatientPhone.Trim(),
-            IconKey: "dog");
+            IconKey: VisitsPresentation.IconKeyForKind(NewPatientKind));
 
         IsNewPatientFormOpen = false;
         NewPatientName = string.Empty;
@@ -367,7 +369,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         }
 
         var draft = await _service.StartFromTicketAsync(row.TicketId);
-        _toast.Show($"ویزیت « {draft.PatientName} » آغاز شد (نمونه طراحی)", Tone.Ok);
+        _toast.Show($"ویزیت « {draft.PatientName} » آغاز شد.", Tone.Ok);
         await _navigation.NavigateToAsync<VisitEncounterViewModel>(vm => vm.LoadAsync(draft));
     }, "شروع ویزیت از نوبت ناموفق بود؛ دوباره تلاش کنید");
 
@@ -393,7 +395,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
             Note: NoteText);
 
         var draft = await _service.StartNewAsync(request);
-        _toast.Show($"ویزیت جدید بدون نوبت برای « {PickedPatient.Name} » آغاز شد (نمونه طراحی)", Tone.Ok);
+        _toast.Show($"ویزیت جدید بدون نوبت برای « {PickedPatient.Name} » آغاز شد.", Tone.Ok);
         await _navigation.NavigateToAsync<VisitEncounterViewModel>(vm => vm.LoadAsync(draft));
     }, "شروع ویزیت جدید ناموفق بود؛ دوباره تلاش کنید");
 

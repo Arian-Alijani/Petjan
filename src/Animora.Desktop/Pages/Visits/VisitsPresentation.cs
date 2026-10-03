@@ -17,6 +17,23 @@ namespace Animora.Desktop.Pages.Visits;
 public static class VisitsPresentation
 {
     /// <summary>
+    /// Maps the free-text kind a receptionist types for a new walk-in patient (Persian or English,
+    /// e.g. «سگ», «پرشین», "Cat") to the <c>ic</c> discriminator the avatar helpers expect (V21).
+    /// </summary>
+    public static string IconKeyForKind(string? kind)
+    {
+        var k = (kind ?? string.Empty).Trim().ToLowerInvariant();
+        if (k.Length == 0) return "paw";
+        if (HasAny(k, "خرگوش", "rabbit")) return "rabbit";
+        if (HasAny(k, "گربه", "cat", "kitten", "پرشین", "اسکاتیش", "بنگال", "رگدال")) return "cat";
+        if (HasAny(k, "پرنده", "bird", "طوطی", "کاناری", "کوکتیل", "مرغ")) return "bird";
+        if (HasAny(k, "سگ", "dog", "puppy", "ژرمن", "هاسکی", "پاگ", "گلدن", "تریر", "پودل")) return "dog";
+        return "paw";
+    }
+
+    private static bool HasAny(string value, params string[] needles) => needles.Any(value.Contains);
+
+    /// <summary>
     /// Pet glyph key for a visit's <c>ic</c> discriminator, mirroring the
     /// reference's <c>petIcClass</c> (falls back to the cat glyph for any
     /// unrecognised species).
