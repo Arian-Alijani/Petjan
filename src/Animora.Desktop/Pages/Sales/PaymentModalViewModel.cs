@@ -234,6 +234,8 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     private async Task ShowSettlementSuccessAsync(PaymentResult result)
     {
         var detail = result.Invoice;
+        // Refund-from-success must offer what was actually collected, not the pre-payment paid value.
+        _paid = detail.Paid;
         var readyCount = await GetReadyCountAsync();
         ReceiptNo = string.IsNullOrEmpty(detail.ReceiptNo) ? "—" : detail.ReceiptNo;
         SuccessCustomer = detail.IsGuest || detail.OwnerName.Length == 0

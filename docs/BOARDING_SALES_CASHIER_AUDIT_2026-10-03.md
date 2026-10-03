@@ -8,7 +8,7 @@
 - [x] X04 — DONE: removed the no-op recalculate button/command/seam (totals are domain-authoritative)
 - [x] X05 — DONE: Cashier PayAsync clamps to due, returns Applied
 - [x] X06 — DONE: Applied amount carried on Sales/Cashier refund+pay results; toasts show ledger amount (Cashier refund also clamped)
-- [ ] X07
+- [x] X07 — DONE: success screen refreshes _paid from the post-payment invoice
 - [ ] X08
 - [ ] X09
 - [ ] X10
@@ -125,7 +125,7 @@
 - **Fix:** display the amount returned by the result (`result.Invoice` paid delta), not the input; have the result carry the actually-applied figure.
 - **Acceptance:** toast amount equals the ledger entry for a deliberate over-refund attempt.
 
-### X07 — P1 · Stale balance · Refund-from-success uses the pre-payment paid value
+### ✅ X07 — P1 · Stale balance · Refund-from-success uses the pre-payment paid value
 - **Evidence:** S.PAY:29–31 caches `_paid` from the invoice **at load** (before the payment). S.PAY:266–271 `RefundFromSuccess` opens `RefundModalViewModel(..., _paid, ...)`. For a freshly-settled invoice loaded as unpaid, `_paid` was `0`.
 - **Failure:** immediately after settling, "عودت" offers a max-refund of the stale (often 0) amount, so the just-collected money cannot be refunded from the success screen.
 - **Fix:** pass `result.Invoice.Paid` (post-payment) into the refund modal, not the cached `_paid`.
