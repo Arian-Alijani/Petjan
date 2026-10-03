@@ -1,5 +1,49 @@
 # Boarding / Sales / Cashier audit — 2026-10-03
 
+## Progress checklist (updated after every task)
+
+- [x] X01 — DONE: WalkInBoarder find-or-create owner/pet + PaymentMode persisted (migration 024)
+- [ ] X02
+- [ ] X03
+- [ ] X04
+- [ ] X05
+- [ ] X06
+- [ ] X07
+- [ ] X08
+- [ ] X09
+- [ ] X10
+- [ ] X11
+- [ ] X12
+- [ ] X13
+- [ ] X14
+- [ ] X15
+- [ ] X16
+- [ ] X17
+- [ ] X18
+- [ ] X19
+- [ ] X20
+- [ ] X21
+- [ ] X22
+- [ ] X23
+- [ ] X24
+- [ ] X25
+- [ ] X26
+- [ ] X27
+- [ ] X28
+- [ ] X29
+- [ ] X30
+- [ ] X31
+- [ ] X32
+- [ ] X33
+- [ ] X34
+- [ ] X35
+- [ ] X36
+- [ ] X37
+- [ ] X38
+- [ ] X39
+- [ ] X40
+- [ ] X41
+
 ## Scope and method
 
 - Screens: **Boarding (پانسیون)**, **Sales / POS (فروش و صندوق)**, **Cashier (صندوق و مالی)**. Static source review only — **no build, tests, app run, benchmarks, or DB execution** (per task). Findings describe code behavior; timing, race frequency, and rendered layout are unmeasured.
@@ -41,7 +85,7 @@
 
 ## P0 — data/money/crash
 
-### X01 — P0 · Silent data loss · New-stay drops 6 of its fields; manual entry cannot work
+### ✅ X01 — P0 · Silent data loss · New-stay drops 6 of its fields; manual entry cannot work
 - **Evidence:** B.CONTR:91–103 declares `NewStayRequest(PetName, Species, Breed, OwnerName, OwnerPhone, PatientId, Room, CheckIn, CheckOut, DailyRate, PaymentMode, Note)`. B.NEW:283–287 fills all of them. B.SVC:79–84 `CreateStayAsync` dispatches `CreateBoardingStayCommand(request.PatientId, request.Room, request.CheckIn, request.CheckOut, request.DailyRate, request.Note)` — `PetName, Species, Breed, OwnerName, OwnerPhone, PaymentMode` are never passed.
 - **Failure:** the «پذیرش دستی» (manual) path (B.NEW:249–263) collects pet/owner identity for a walk-in with no `PatientId`; all of it is discarded, so the stay is created with empty identity or the command fails on a null patient. `PaymentMode` chosen in the modal (B.NEW:280) is ignored — every stay posts with the domain default. The toast still reports success (see X02).
 - **Fix:** either extend `CreateBoardingStayCommand` + the Boarding domain to accept the manual-entry identity + payment mode, or remove the manual tab and make `PatientId` required at the picker. Do not accept fields the seam silently drops.

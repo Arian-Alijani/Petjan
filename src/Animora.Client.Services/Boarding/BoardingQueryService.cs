@@ -4,6 +4,7 @@ using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Boarding;
 using Animora.Contracts.Boarding;
+using StayPaymentMode = Animora.Domain.Boarding.StayPaymentMode;
 using Animora.Domain.Time;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -78,8 +79,16 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
 
     public async Task<BoardingStay> CreateStayAsync(NewStayRequest request)
     {
+        // A request without a patient file is a manual walk-in: carry the typed identity so the
+        // backend can find-or-create the owner and pet instead of silently dropping it.
+        var walkIn = string.IsNullOrWhiteSpace(request.PatientId)
+            ? new WalkInBoarder(request.PetName, BoardingMapping.PetSpecies(request.Species), request.Breed,
+                request.OwnerName, request.OwnerPhone)
+            : null;
         var id = await SendAsync(new CreateBoardingStayCommand(request.PatientId, request.Room,
-            request.CheckIn, request.CheckOut, request.DailyRate, request.Note));
+            request.CheckIn, request.CheckOut, request.DailyRate, request.Note,
+            request.PaymentMode == BoardingPaymentMode.Prepaid ? StayPaymentMode.Prepaid : StayPaymentMode.Postpaid,
+            walkIn));
         return (await GetDetailAsync(id))?.Stay ?? throw new InvalidOperationException("STAY_NOT_FOUND");
     }
 

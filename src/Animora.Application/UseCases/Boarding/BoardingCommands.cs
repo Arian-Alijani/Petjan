@@ -9,6 +9,7 @@ using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Boarding;
 using Animora.Domain.Identity;
+using Animora.Domain.Patients;
 using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
@@ -19,48 +20,99 @@ namespace Animora.Application.UseCases.Boarding;
 [RequiresPermission(PermissionCodes.BoardingManage)]
 [Auditable(AuditCategory.Clinical, CommandTypes.BoardingStayCreate)]
 public sealed record CreateBoardingStayCommand(string PetId, string RoomId, DateOnly CheckIn,
-    DateOnly CheckOut, long DailyRateMinor, string? CareNote) : ICommand<string>, IJournaledCommand
+    DateOnly CheckOut, long DailyRateMinor, string? CareNote,
+    StayPaymentMode PaymentMode = StayPaymentMode.Postpaid,
+    WalkInBoarder? WalkIn = null) : ICommand<string>, IJournaledCommand
 {
     public string CommandTypeName => CommandTypes.BoardingStayCreate;
     public string AggregateTypeName => "BoardingStay";
     public string? AggregateIdOrNull => null;
 }
+/// <summary>
+/// Identity of a boarder who has no patient file yet (manual admission). The handler finds or
+/// creates the owner (by phone) and the pet (by owner + name), so no typed field is dropped.
+/// </summary>
+public sealed record WalkInBoarder(string PetName, PetSpecies Species, string? Breed,
+    string OwnerName, string OwnerPhone);
+
 public sealed class CreateBoardingStayCommandValidator : IValidator<CreateBoardingStayCommand>
 {
     public ValueTask<IReadOnlyList<ValidationFailure>> ValidateAsync(CreateBoardingStayCommand c, CancellationToken ct)
     {
         var failures = new List<ValidationFailure>();
-        if (Rules.Required(c.PetId, nameof(c.PetId)) is { } pet) failures.Add(pet);
+        if (c.WalkIn is null)
+        {
+            if (Rules.Required(c.PetId, nameof(c.PetId)) is { } pet) failures.Add(pet);
+        }
+        else
+        {
+            if (Rules.Required(c.WalkIn.PetName, nameof(c.WalkIn.PetName)) is { } name) failures.Add(name);
+            if (Rules.Required(c.WalkIn.OwnerName, nameof(c.WalkIn.OwnerName)) is { } owner) failures.Add(owner);
+            if (Rules.Required(c.WalkIn.OwnerPhone, nameof(c.WalkIn.OwnerPhone)) is { } phone) failures.Add(phone);
+        }
         if (Rules.Required(c.RoomId, nameof(c.RoomId)) is { } room) failures.Add(room);
         return ValueTask.FromResult<IReadOnlyList<ValidationFailure>>(failures);
     }
 }
 public sealed class CreateBoardingStayCommandHandler(IBoardingRepository repository,
-    IBoardingQueries queries, IClinicTimeZoneProvider zones, IClock clock)
+    IBoardingQueries queries, IOwnerRepository owners, IPetRepository pets,
+    IClinicTimeZoneProvider zones, IClock clock)
     : ICommandHandler<CreateBoardingStayCommand, string>
 {
     public async Task<Result<string>> HandleAsync(CreateBoardingStayCommand c, CommandContext context, CancellationToken ct)
     {
         if (c.CheckOut <= c.CheckIn || c.DailyRateMinor < 0)
             return Result<string>.Fail(ErrorCodes.StayDatesInvalid);
-        var pet = await queries.FindPetAsync(c.PetId, ct);
-        if (pet is null) return Result<string>.Fail(ErrorCodes.PetNotFound);
         var room = await queries.FindRoomAsync(c.RoomId, ct);
         if (room is null || room.Status is RoomStatus.Maintenance or RoomStatus.Retired)
             return Result<string>.Fail(ErrorCodes.RoomUnavailable);
         if (await queries.CountActiveStaysInRoomAsync(room.Id, ct) >= room.Capacity)
             return Result<string>.Fail(ErrorCodes.RoomAtCapacity);
+        string petId, ownerId;
+        if (c.WalkIn is { } walkIn)
+        {
+            (petId, ownerId) = await ResolveWalkInAsync(walkIn, context, ct);
+        }
+        else
+        {
+            var pet = await queries.FindPetAsync(c.PetId, ct);
+            if (pet is null) return Result<string>.Fail(ErrorCodes.PetNotFound);
+            (petId, ownerId) = (pet.Id, pet.OwnerId);
+        }
         var tz = zones.GetClinicTimeZone();
         var from = new DateTimeOffset(ClinicCalendar.ToUtcTicks(c.CheckIn, 0, tz), TimeSpan.Zero);
         var until = new DateTimeOffset(ClinicCalendar.ToUtcTicks(c.CheckOut, 0, tz), TimeSpan.Zero);
-        var created = BoardingStay.Reserve(context.TenantId, pet.Id, pet.OwnerId, room.Id,
-            from, until, Money.Irt(c.DailyRateMinor), c.CareNote);
+        var created = BoardingStay.Reserve(context.TenantId, petId, ownerId, room.Id,
+            from, until, Money.Irt(c.DailyRateMinor), c.CareNote, paymentMode: c.PaymentMode);
         if (created.IsFailure) return Result<string>.Fail(created.Error, created.Detail);
         var stay = created.Value!;
         var activated = stay.Activate(clock);
         if (activated.IsFailure) return Result<string>.Fail(activated.Error, activated.Detail);
         repository.Add(stay);
         return Result<string>.Ok(stay.Id);
+    }
+
+    // Reuses an existing owner (same normalized phone) and pet (same owner + name) so a repeat
+    // walk-in never duplicates the file; only creates what is missing.
+    private async Task<(string PetId, string OwnerId)> ResolveWalkInAsync(WalkInBoarder walkIn,
+        CommandContext context, CancellationToken ct)
+    {
+        var owner = await owners.FindByPhoneAsync(Owner.NormalizePhone(walkIn.OwnerPhone), ct);
+        if (owner is null)
+        {
+            owner = Owner.Register(context.TenantId, walkIn.OwnerName, walkIn.OwnerPhone, clock);
+            owners.Add(owner);
+        }
+        var petName = walkIn.PetName.Trim();
+        var pet = await pets.FindByOwnerAndNameAsync(owner.Id, petName, ct);
+        if (pet is null)
+        {
+            var breed = string.IsNullOrWhiteSpace(walkIn.Breed) ? null : walkIn.Breed.Trim();
+            pet = Pet.Register(context.TenantId, owner.Id, petName, walkIn.Species, clock,
+                PetGender.Unknown, null, breed);
+            pets.Add(pet);
+        }
+        return (pet.Id, owner.Id);
     }
 }
 

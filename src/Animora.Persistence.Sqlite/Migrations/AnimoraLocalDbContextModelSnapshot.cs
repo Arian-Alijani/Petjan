@@ -112,6 +112,9 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasMaxLength(26)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("PaymentMode")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("PetId")
                         .IsRequired()
                         .HasMaxLength(26)
