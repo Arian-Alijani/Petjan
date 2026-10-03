@@ -131,7 +131,9 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 
     public bool HasPickedPatient => PickedPatient is not null;
     public bool HasNoPickedPatient => PickedPatient is null;
-    public bool CanStartNew => PickedPatient is not null;
+    public bool CanStartNew => PickedPatient is not null
+        && !string.IsNullOrWhiteSpace(PickedPatient.Phone)
+        && !string.IsNullOrWhiteSpace(PickedPatient.OwnerName);
     public bool HasPatientMatches => PatientMatches.Count > 0;
     public bool HasPatientSearch => PatientSearchText.Trim().Length > 0;
 
@@ -318,9 +320,11 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     [RelayCommand]
     private void SaveNewPatient()
     {
-        if (string.IsNullOrWhiteSpace(NewPatientName) || string.IsNullOrWhiteSpace(NewPatientKind))
+        // The backend rejects a walk-in without an owner name/phone (WalkInPhoneRequired), so block it here.
+        if (string.IsNullOrWhiteSpace(NewPatientName) || string.IsNullOrWhiteSpace(NewPatientKind)
+            || string.IsNullOrWhiteSpace(NewPatientOwner) || string.IsNullOrWhiteSpace(NewPatientPhone))
         {
-            _toast.Show("نام و نژاد حیوان الزامی است.", Tone.Danger);
+            _toast.Show("نام، نژاد، نام صاحب و شمارهٔ تماس الزامی است.", Tone.Danger);
             return;
         }
 

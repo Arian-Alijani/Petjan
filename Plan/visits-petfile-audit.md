@@ -239,7 +239,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** last-step button disabled with empty diagnosis; no `VISIT_INCOMPLETE` on happy path.
 
 ### Task 4 — V03 · Require phone for walk-in visits
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. `SaveNewPatient` now requires name, kind, owner name and phone (backend validator/`WalkInPhoneRequired` parity); `CanStartNew` additionally requires picked patient phone + owner name so the start button stays disabled for incomplete walk-ins.
 - **Priority:** P1 · **Push message:** `fix(visits): require phone for walk-in new patient before starting (V03)`
 - **Goal:** A walk-in without a phone is blocked with a field message, not a crash.
 - **Backend contract:** START 159–160 returns `WalkInPhoneRequired` on empty `OwnerPhone`.
