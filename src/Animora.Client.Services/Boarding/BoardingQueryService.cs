@@ -14,15 +14,30 @@ namespace Animora.Client.Services.Boarding;
 /// <summary>Real boarding seam: every operation owns a scope over the dispatcher.</summary>
 public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardingQueryService
 {
-    private async Task<T> QueryAsync<T>(IQuery<T> query)
+    private Task<T> QueryAsync<T>(IQuery<T> query) => QueryAsync(query, null);
+
+    /// <summary>
+    /// Runs a query, reusing <paramref name="shared"/> when supplied so one operation
+    /// (stays + services + clock + zone) resolves its dependencies through a single
+    /// DI scope instead of one scope per read (X34).
+    /// </summary>
+    private async Task<T> QueryAsync<T>(IQuery<T> query, IServiceProvider? shared)
     {
-        await using var scope = scopes.CreateAsyncScope();
-        var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
-        var context = provider.BuildQueryContext();
-        if (context.IsFailure) throw new ServiceException(context.Error);
-        var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().QueryAsync(query, context.Value!);
-        if (result.IsFailure) throw new ServiceException(result.Error);
-        return result.Value!;
+        AsyncServiceScope? own = shared is null ? scopes.CreateAsyncScope() : null;
+        try
+        {
+            var services = shared ?? own!.Value.ServiceProvider;
+            var provider = services.GetRequiredService<ICurrentUserProvider>();
+            var context = provider.BuildQueryContext();
+            if (context.IsFailure) throw new ServiceException(context.Error);
+            var result = await services.GetRequiredService<IDispatcher>().QueryAsync(query, context.Value!);
+            if (result.IsFailure) throw new ServiceException(result.Error);
+            return result.Value!;
+        }
+        finally
+        {
+            if (own is { } scope) await scope.DisposeAsync();
+        }
     }
 
     private async Task<T> SendAsync<T>(ICommand<T> command)
@@ -36,27 +51,28 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
         return result.Value!;
     }
 
-    private (DateTimeOffset Now, TimeZoneInfo Zone) Calendar()
-    {
-        using var scope = scopes.CreateScope();
-        return (scope.ServiceProvider.GetRequiredService<IClock>().UtcNow,
-            scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone());
-    }
+    private static (DateTimeOffset Now, TimeZoneInfo Zone) Calendar(IServiceProvider services) =>
+        (services.GetRequiredService<IClock>().UtcNow,
+            services.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone());
 
     public async Task<IReadOnlyList<BoardingStay>> GetStaysAsync()
     {
-        var rows = await QueryAsync(new BoardingStayListQuery());
-        var services = await QueryAsync(new BoardingServicesQuery());
-        var (now, zone) = Calendar();
+        await using var scope = scopes.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+        var rows = await QueryAsync(new BoardingStayListQuery(), sp);
+        var services = await QueryAsync(new BoardingServicesQuery(), sp);
+        var (now, zone) = Calendar(sp);
         return rows.Select(r => r.ToContract(services, now, zone)).ToArray();
     }
 
     public async Task<StayDetail?> GetDetailAsync(string stayId)
     {
-        var row = await QueryAsync(new BoardingStayDetailQuery(stayId));
+        await using var scope = scopes.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+        var row = await QueryAsync(new BoardingStayDetailQuery(stayId), sp);
         if (row is null) return null;
-        var services = await QueryAsync(new BoardingServicesQuery());
-        var (now, zone) = Calendar();
+        var services = await QueryAsync(new BoardingServicesQuery(), sp);
+        var (now, zone) = Calendar(sp);
         return row.ToContract(services, now, zone);
     }
 
@@ -109,7 +125,9 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
     public async Task<BoardingHistoryPage> GetHistoryAsync(BoardingHistoryFilter filter)
     {
         ArgumentNullException.ThrowIfNull(filter);
-        var (_, zone) = Calendar();
+        await using var scope = scopes.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+        var (_, zone) = Calendar(sp);
         var kinds = filter.Kinds;
         var all = kinds.Count == 0;
         var criteria = new BoardingHistoryCriteria(filter.Search, filter.Sort.ToString(), filter.Page,
@@ -119,7 +137,7 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
             IncludeCheckIn: all || kinds.Contains(BoardingHistoryKind.CheckIn),
             IncludeCheckOut: all || kinds.Contains(BoardingHistoryKind.CheckOut),
             Species: filter.Species is { } species ? BoardingMapping.PetSpeciesFilter(species) : null);
-        var history = await QueryAsync(new BoardingHistoryQuery(criteria));
+        var history = await QueryAsync(new BoardingHistoryQuery(criteria), sp);
         return new BoardingHistoryPage(history.Items.Select(r => r.ToContract(zone)).ToArray(),
             history.TotalCount, history.InflowMinor, history.OutflowMinor);
     }

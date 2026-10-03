@@ -35,7 +35,7 @@
 - [x] X31 — DONE: OwnerPickResult reduced to the fields that affect the outcome (IsGuest, OwnerId); guest pick documented as keeping the draft's guest customer
 - [x] X32 — DONE: removed the empty CheckoutRequest payload; CheckoutAsync(stayId) matches the real capability
 - [x] X33 — DONE: transfer hint guillemets balanced («pet» — «owner»)
-- [ ] X34
+- [x] X34 — DONE: each Boarding read operation (stays, detail, history) resolves dispatcher + clock + zone + services through ONE DI scope instead of a scope per read
 - [ ] X35
 - [ ] X36
 - [ ] X37
@@ -291,7 +291,7 @@
 - **Fix:** balance the guillemets (open before owner or drop the stray `»`).
 - **Acceptance:** the hint renders with balanced «…» around each quoted name.
 
-### X34 — P2 · §2 · Boarding stays map recomputes services/calendar per list build
+### ✅ X34 — P2 · §2 · Boarding stays map recomputes services/calendar per list build
 - **Evidence:** B.SVC:44–50 `GetStaysAsync` runs `BoardingServicesQuery` and `Calendar()` then `rows.Select(r => r.ToContract(services, now, zone))`; `GetDetailAsync` (52–59) and `GetHistoryAsync` (99–106) each independently call `Calendar()` (a fresh scope + two service resolves) per call.
 - **Failure:** every stay refresh resolves the clock + zone through a new DI scope; `RefreshAfterChangeAsync` (B.VM:301–308) calls stays + rooms + services sequentially (3+ round trips) on each write.
 - **Fix:** resolve clock/zone once per operation (already partly done) and batch the stays+rooms+services reads; cache the clinic zone for the session (it is stable).
