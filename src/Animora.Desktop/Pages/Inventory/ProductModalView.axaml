@@ -320,6 +320,8 @@
                         <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,10">
                             <TextBlock Classes="fld" Text="کد کالا" />
                             <TextBox Classes="inp" FontFamily="monospace" Text="{Binding Code}" />
+                            <TextBlock Text="{Binding CodeError}" IsVisible="{Binding HasCodeError}" FontSize="11"
+                                       Margin="0,4,0,0" Foreground="{StaticResource DangerBrush}" />
                         </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,10">
                             <TextBlock Classes="fld" Text="برند" />
@@ -337,11 +339,6 @@
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
-                        </StackPanel>
-                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,0,10">
-                            <TextBlock Classes="fld" Text="نماد" />
-                            <TextBox Classes="inp" Text="{Binding Glyph}" FontSize="20"
-                                     TextAlignment="Center" />
                         </StackPanel>
                     </Grid>
 

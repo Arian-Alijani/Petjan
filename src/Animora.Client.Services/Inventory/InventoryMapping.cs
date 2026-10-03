@@ -51,7 +51,7 @@ internal static class InventoryMapping
     }
 
     internal static CategoryInfo ToContract(this CategoryReadModel row) =>
-        new(row.Id, row.Name, ToneOf(row.Id), IconOf(row.Name));
+        new(row.Id, row.Name, ToneOf(row.Id), IconOf(row.Id));
 
     internal static Contracts.Inventory.StockMovement ToContract(this MovementReadModel row, TimeZoneInfo zone)
     {
@@ -112,13 +112,13 @@ internal static class InventoryMapping
     }
 
     /// <summary>
-    /// The category glyph key. Categories carry no icon column, so it is derived from the display name the
-    /// same deterministic way as <see cref="ToneOf"/>; the View resolves the key to a glyph.
+    /// The category glyph key. Categories carry no icon column, so it is derived from the immutable id the
+    /// same deterministic way as <see cref="ToneOf"/> (a rename never re-skins); the View resolves the key.
     /// </summary>
-    private static string IconOf(string name)
+    private static string IconOf(string id)
     {
         var sum = 0;
-        for (var i = 0; i < name.Length; i++) sum = (sum + name[i]) % CategoryIcons.Length;
+        for (var i = 0; i < id.Length; i++) sum = (sum + id[i]) % CategoryIcons.Length;
         return CategoryIcons[sum];
     }
 

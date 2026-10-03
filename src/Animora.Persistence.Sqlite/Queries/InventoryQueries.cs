@@ -133,6 +133,10 @@ public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalSto
         return row ?? 0L;
     }
 
+    public async Task<bool> ProductSkuExistsAsync(string sku, string excludeProductId, CancellationToken ct) =>
+        await db.Set<Product>().AsNoTracking()
+            .AnyAsync(p => p.Sku == sku && p.Id != excludeProductId, ct);
+
     public async Task<long> GetProductOnHandScaledAsync(string productId, CancellationToken ct)
     {
         var rows = await db.Set<StockOnHandSnapshot>().AsNoTracking()

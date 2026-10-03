@@ -145,7 +145,9 @@ public sealed record UpdateProductInfoCommand(
     IReadOnlyList<ProductVariantInput> Variants,
     string? Brand = null,
     string? Notes = null,
-    long? ReorderLevelScaled = null) : ICommand<Unit>, IJournaledCommand
+    long? ReorderLevelScaled = null,
+    string? CategoryId = null,
+    string? Sku = null) : ICommand<Unit>, IJournaledCommand
 {
     /// <inheritdoc />
     public string CommandTypeName => CommandTypes.InventoryProductUpdate;
@@ -169,7 +171,8 @@ public sealed class UpdateProductInfoCommandValidator : IValidator<UpdateProduct
     }
 }
 
-public sealed class UpdateProductInfoCommandHandler(IProductRepository products, IClock clock)
+public sealed class UpdateProductInfoCommandHandler(
+    IProductRepository products, IInventoryQueries queries, IClock clock)
     : ICommandHandler<UpdateProductInfoCommand, Unit>
 {
     public async Task<Result<Unit>> HandleAsync(UpdateProductInfoCommand c, CommandContext context, CancellationToken ct)
@@ -182,6 +185,23 @@ public sealed class UpdateProductInfoCommandHandler(IProductRepository products,
 
         var priced = product.SetPrices(Money.Irt(c.DefaultCostMinor), Money.Irt(c.DefaultSaleMinor));
         if (priced.IsFailure) return Result<Unit>.Fail(priced.Error, priced.Detail);
+
+        if (!string.IsNullOrWhiteSpace(c.CategoryId)
+            && !string.Equals(product.CategoryId, c.CategoryId.Trim(), StringComparison.Ordinal))
+        {
+            var reclassified = product.Reclassify(c.CategoryId);
+            if (reclassified.IsFailure) return Result<Unit>.Fail(reclassified.Error, reclassified.Detail);
+        }
+
+        if (!string.IsNullOrWhiteSpace(c.Sku)
+            && !string.Equals(product.Sku, c.Sku.Trim(), StringComparison.Ordinal))
+        {
+            var sku = c.Sku.Trim();
+            if (await queries.ProductSkuExistsAsync(sku, product.Id, ct))
+                return Result<Unit>.Fail(ErrorCodes.ProductSkuDuplicate, $"Product code '{sku}' is already in use.");
+            var renamed = product.ChangeSku(sku);
+            if (renamed.IsFailure) return Result<Unit>.Fail(renamed.Error, renamed.Detail);
+        }
 
         if (c.ReorderLevelScaled is { } level)
         {

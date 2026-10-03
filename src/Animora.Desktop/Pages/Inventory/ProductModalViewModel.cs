@@ -47,6 +47,13 @@ public sealed partial class ProductModalViewModel : ObservableObject
     // ── header ──────────────────────────────────────────────────────────────
     [ObservableProperty] private string _categoryLabel = string.Empty;
     [ObservableProperty] private string _code = string.Empty;
+
+    /// <summary>Inline validation message under the code field (blank/duplicate SKU), empty when valid.</summary>
+    [ObservableProperty] private string _codeError = string.Empty;
+
+    public bool HasCodeError => CodeError.Length > 0;
+
+    partial void OnCodeErrorChanged(string value) => OnPropertyChanged(nameof(HasCodeError));
     [ObservableProperty] private string _brand = string.Empty;
     [ObservableProperty] private string _description = string.Empty;
     [ObservableProperty] private string _glyph = "📦";
@@ -63,7 +70,11 @@ public sealed partial class ProductModalViewModel : ObservableObject
     partial void OnBrandChanged(string value) => OnPropertyChanged(nameof(SubLine));
     partial void OnDescriptionChanged(string value) => OnPropertyChanged(nameof(SubLine));
     partial void OnCategoryLabelChanged(string value) => OnPropertyChanged(nameof(EyebrowLine));
-    partial void OnCodeChanged(string value) => OnPropertyChanged(nameof(EyebrowLine));
+    partial void OnCodeChanged(string value)
+    {
+        OnPropertyChanged(nameof(EyebrowLine));
+        CodeError = string.Empty;
+    }
 
     // ── tab strip ───────────────────────────────────────────────────────────
     [ObservableProperty] private string _activeTab = "info";
@@ -307,8 +318,20 @@ public sealed partial class ProductModalViewModel : ObservableObject
     private ProductVariant MakeVariant(string label, int index) => new(
         "v_" + Guid.NewGuid().ToString("N")[..6],
         label,
-        $"{Code}-{(index + 1).ToString().PadLeft(2, '0')}",
+        UniqueVariantSku(index),
         0, 5, 0, 0, null);
+
+    /// <summary>A variant SKU not already used by a card in this modal (deletions can leave index gaps).</summary>
+    private string UniqueVariantSku(int index)
+    {
+        for (var n = index + 1; n < index + 1000; n++)
+        {
+            var candidate = $"{Code}-{n.ToString().PadLeft(2, '0')}";
+            if (!_variantCards.Any(c => string.Equals(c.Sku, candidate, StringComparison.Ordinal))) return candidate;
+        }
+
+        return $"{Code}-{Guid.NewGuid().ToString("N")[..4]}";
+    }
 
     private InventoryVariantCardViewModel MakeCard(ProductVariant variant)
     {
@@ -499,15 +522,31 @@ public sealed partial class ProductModalViewModel : ObservableObject
     [RelayCommand]
     private async Task SaveAsync()
     {
+        if (Name.Trim().Length == 0)
+        {
+            _toast.Show("نام کالا را وارد کنید", Tone.Danger);
+            return;
+        }
+
+        var variants = CurrentVariants();
+        var codeError = ValidateSkus(variants);
+        CodeError = codeError ?? string.Empty;
+        if (codeError is not null)
+        {
+            _toast.Show(codeError, Tone.Danger);
+            return;
+        }
+
+        // The glyph is derived from the product kind on the read side, so it is never edited here.
         var update = new ProductInfoUpdate(
             Name.Trim(),
             Code.Trim(),
             Brand.Trim(),
             SelectedCategory?.Id ?? _product.CategoryId,
-            string.IsNullOrWhiteSpace(Glyph) ? "📦" : Glyph.Trim(),
+            _product.Glyph,
             Description.Trim(),
             HasAttribute ? _attribute?.Name : null,
-            CurrentVariants());
+            variants);
 
         try
         {
@@ -516,6 +555,11 @@ public sealed partial class ProductModalViewModel : ObservableObject
         catch (InvalidOperationException ex)
         {
             // Keep the modal open so the edits are not lost; never claim success.
+            if (ex is Animora.Client.Services.ServiceException { Code: "PRODUCT_SKU_DUPLICATE" })
+            {
+                CodeError = "این کد قبلاً استفاده شده است";
+            }
+
             _toast.Show(InventoryPresentation.MutationFailureMessage(ex, "ذخیره تغییرات ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
             return;
         }
@@ -523,6 +567,22 @@ public sealed partial class ProductModalViewModel : ObservableObject
         _dialogs.Close();
         _toast.Show("تغییرات ذخیره شد", Tone.Ok);
         _onChanged?.Invoke();
+    }
+
+    /// <summary>Client-side SKU guard: the product code and every variant SKU must be present and unique in the modal.</summary>
+    private string? ValidateSkus(List<ProductVariant> variants)
+    {
+        if (Code.Trim().Length == 0) return "کد کالا را وارد کنید";
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var variant in variants)
+        {
+            var sku = variant.Sku.Trim();
+            if (sku.Length == 0) return "کد تنوع نمی‌تواند خالی باشد";
+            if (!seen.Add(sku)) return "کد تنوع‌ها نباید تکراری باشد";
+        }
+
+        return null;
     }
 
     [RelayCommand]

@@ -262,6 +262,8 @@ internal sealed class InventoryQueriesFake : IInventoryQueries
         Task.FromResult(OnHandScaled);
     public Task<long> GetProductOnHandScaledAsync(string productId, CancellationToken ct) =>
         Task.FromResult(ProductOnHandScaled);
+    public Task<bool> ProductSkuExistsAsync(string sku, string excludeProductId, CancellationToken ct) =>
+        Task.FromResult(false);
     public Task<int> CountMovementsSinceAsync(string productId, DateTimeOffset sinceUtc, CancellationToken ct) =>
         Task.FromResult(MovementsSince);
 }

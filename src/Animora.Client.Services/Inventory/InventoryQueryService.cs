@@ -69,10 +69,17 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
     public async Task SaveProductInfoAsync(string productId, ProductInfoUpdate update)
     {
         ArgumentNullException.ThrowIfNull(update);
-        var attributeName = AttributeNameOf(update.AttributeName, update.Variants);
+
+        // A multi-variant product must keep its dimension even when the caller did not re-send the name:
+        // fall back to the dimension already stored on the product (P2-13).
+        var existingName = string.IsNullOrWhiteSpace(update.AttributeName) && update.Variants.Count > 1
+            ? (await GetDetailAsync(productId))?.Product.Attribute?.Name
+            : null;
+        var attributeName = AttributeNameOf(update.AttributeName, update.Variants, existingName);
         var variants = ToInputs(update.Variants, attributeName);
         _ = await SendAsync(new UpdateProductInfoCommand(productId, update.Name, Lowest(update.Variants, cost: true),
-            Lowest(update.Variants, cost: false), variants, update.Brand, update.Description));
+            Lowest(update.Variants, cost: false), variants, update.Brand, update.Description,
+            CategoryId: update.CategoryId, Sku: update.Code));
     }
 
     public async Task<ContractVariant> AddVariantAsync(string productId, NewVariantRequest request)
@@ -83,7 +90,7 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
         // Read the product first: the new variant must join the product's own dimension, and its SKU must be
         // unique inside the product (the domain refuses a duplicate with PRODUCT_SKU_DUPLICATE).
         var detail = await GetDetailAsync(productId);
-        var attributeName = AttributeNameOf(detail?.Product.Attribute?.Name, detail?.Product.Variants);
+        var attributeName = AttributeNameOf(detail?.Product.Attribute?.Name, detail?.Product.Variants, null);
         var sku = UniqueSku(productId, label, detail?.Product.Variants);
 
         var variantId = await SendAsync(
@@ -124,12 +131,13 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
     public async Task<ContractProduct> CreateProductAsync(NewProductRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var attributeName = AttributeNameOf(request.AttributeName, request.Variants);
+        var attributeName = AttributeNameOf(request.AttributeName, request.Variants, null);
         var variants = ToInputs(request.Variants, attributeName, withOpeningStock: true);
         if (variants.Length == 0 && request.AttributeOptions.Count > 0)
         {
             // A multi-variant product: one variant per declared option, sharing the dimension. Every option
             // gets its own unique SKU and starts independently stockable at zero.
+            attributeName = string.IsNullOrWhiteSpace(request.AttributeName) ? "تنوع" : request.AttributeName.Trim();
             variants = FromOptions(request.Code, attributeName, request.AttributeOptions);
         }
         else if (variants.Length == 0)
@@ -212,12 +220,15 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
 
     /// <summary>
     /// The dimension the product's variants share: the request's own attribute name when it has one, else the
-    /// name already on the product's variants, else the domain's implicit single-variant dimension.
+    /// dimension already stored on the product (<paramref name="existing"/>), else — for a genuinely
+    /// multi-variant set — a generic «تنوع» dimension so it never collapses to the implicit single-variant
+    /// <c>DEFAULT</c> dimension (which the read side treats as "no variants").
     /// </summary>
-    private static string AttributeNameOf(string? requested, IReadOnlyList<ContractVariant>? variants)
+    private static string AttributeNameOf(string? requested, IReadOnlyList<ContractVariant>? variants, string? existing)
     {
         if (!string.IsNullOrWhiteSpace(requested)) return requested.Trim();
-        return DomainProductVariant.DefaultAttributeName;
+        if (!string.IsNullOrWhiteSpace(existing)) return existing.Trim();
+        return variants is { Count: > 1 } ? "تنوع" : DomainProductVariant.DefaultAttributeName;
     }
 
     /// <summary>Lowest variant cost (or sale) price, used as the product-level default.</summary>

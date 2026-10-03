@@ -209,7 +209,7 @@ open and save cannot corrupt the absolute result; multi-variant adjust uses one 
 danger toast and leaves the modal open instead of crashing.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "fix(inventory): drop mock-suffix + guard mutation toasts (P0-3)"`
 
-### T5 — [ ] Product modal persists category, code, attribute name; drop editable glyph (P1-5, P1-6, P2-13, P2-12)
+### T5 — [x] Product modal persists category, code, attribute name; drop editable glyph (P1-5, P1-6, P2-13, P2-12)
 **Findings:** P1-5 (`ProductInfoUpdate.CategoryId/.Code/.Glyph/.AttributeName` edited in UI but `UpdateProductInfoCommand`
 accepts only Name/Brand/Notes/prices/reorder/variants → category & code changes silently dropped; glyph is UI-derived),
 P1-6 (variant SKU not uniqueness-guarded before send), P2-13 (`AttributeNameOf` ignores existing dimension → multi-variant

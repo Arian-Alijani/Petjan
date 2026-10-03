@@ -307,6 +307,27 @@ public sealed class Product : AggregateRoot
         return Result.Ok();
     }
 
+    /// <summary>Moves the product to another category.</summary>
+    public Result Reclassify(string categoryId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(categoryId);
+
+        CategoryId = categoryId.Trim();
+        return Result.Ok();
+    }
+
+    /// <summary>
+    /// Changes the product code (SKU). Tenant-wide uniqueness is enforced by the caller against the catalogue
+    /// (<c>PRODUCT_SKU_DUPLICATE</c>) and, as a last line of defence, by the unique store index.
+    /// </summary>
+    public Result ChangeSku(string sku)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sku);
+
+        Sku = sku.Trim();
+        return Result.Ok();
+    }
+
     /// <summary>Retires the product from pickers; its ledger and history stay intact.</summary>
     public Result Deactivate()
     {

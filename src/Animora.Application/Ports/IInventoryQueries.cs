@@ -29,6 +29,9 @@ public interface IInventoryQueries
     /// <summary>Total scaled on-hand across every variant of a product; 0 when none.</summary>
     Task<long> GetProductOnHandScaledAsync(string productId, CancellationToken ct);
 
+    /// <summary>Whether another product (not <paramref name="excludeProductId"/>) already uses <paramref name="sku"/>.</summary>
+    Task<bool> ProductSkuExistsAsync(string sku, string excludeProductId, CancellationToken ct);
+
     /// <summary>How many movements the product has had since <paramref name="sinceUtc"/>.</summary>
     Task<int> CountMovementsSinceAsync(string productId, DateTimeOffset sinceUtc, CancellationToken ct);
 }
