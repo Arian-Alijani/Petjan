@@ -395,7 +395,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private string LineTitle(int index) =>
         _detail?.Lines.FirstOrDefault(l => l.Index == index)?.Title ?? "ردیف";
 
-    private async Task ReturnLineAsync(int index, int quantity)
+    private Task ReturnLineAsync(int index, int quantity) => GuardAsync("برگشت کالا ناموفق بود؛ دوباره تلاش کنید", async () =>
     {
         var result = await _service.ReturnLineAsync(_invoiceId, new LineReturnRequest(index, quantity));
         if (!result.Ok)
@@ -409,9 +409,9 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             ? $"کالا برگشت خورد و {SalePresentation.Money(result.Refunded)} تومان عودت شد"
             : "کالا از فاکتور برگشت خورد", Tone.Ok);
         OnChanged();
-    }
+    });
 
-    private async Task MutateAsync(Func<Task<InvoiceDetail?>> mutation)
+    private Task MutateAsync(Func<Task<InvoiceDetail?>> mutation) => GuardAsync("ویرایش فاکتور ناموفق بود؛ دوباره تلاش کنید", async () =>
     {
         var updated = await mutation();
         if (updated is not null)
@@ -420,7 +420,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         }
 
         _onChanged?.Invoke();
-    }
+    });
 
     [RelayCommand]
     private void ApplyDiscount()
@@ -445,7 +445,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             () => _ = ApplyDiscountAsync(kind, value)), 480);
     }
 
-    private async Task ApplyDiscountAsync(DiscountKind kind, int value)
+    private Task ApplyDiscountAsync(DiscountKind kind, int value) => GuardAsync("اعمال تخفیف ناموفق بود؛ دوباره تلاش کنید", async () =>
     {
         var updated = await _service.SetDiscountAsync(_invoiceId, new DiscountChangeRequest(kind, value));
         if (updated is not null)
@@ -453,9 +453,9 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             Apply(updated);
             _onChanged?.Invoke();
         }
-    }
+    });
 
-    private async Task ApplyInsuranceAsync(string? insurerId)
+    private Task ApplyInsuranceAsync(string? insurerId) => GuardAsync("تغییر بیمه ناموفق بود؛ دوباره تلاش کنید", async () =>
     {
         var updated = await _service.SetInsuranceAsync(_invoiceId, insurerId);
         if (updated is not null)
@@ -463,7 +463,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             Apply(updated);
             _onChanged?.Invoke();
         }
-    }
+    });
 
     private static int ParseIntStatic(string? text, int fallback)
     {
@@ -501,10 +501,14 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             "این عمل غیرقابل بازگشت است و در تاریخچه تغییرات ثبت می‌شود.",
             "بله، ابطال کن",
             "انصراف",
-            VoidConfirmed), 480);
+            () => _ = VoidConfirmedAsync()), 480);
     }
 
-    private async void VoidConfirmed()
+    /// <summary>
+    /// Awaitable void handler (PERF §4 — no <c>async void</c>): a backend failure becomes a danger
+    /// toast via <see cref="GuardAsync"/> instead of vanishing or crashing the process (X10).
+    /// </summary>
+    private Task VoidConfirmedAsync() => GuardAsync("ابطال فاکتور ناموفق بود؛ دوباره تلاش کنید", async () =>
     {
         var detail = await _service.VoidAsync(_invoiceId);
         if (detail is null)
@@ -516,7 +520,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         Apply(detail);
         _toast.Show($"فاکتور «{detail.Id}» ابطال شد", Tone.Ok);
         OnChanged();
-    }
+    });
 
     [RelayCommand]
     private void DeleteInvoice()
@@ -532,10 +536,10 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             "فاکتور از لیست فعال حذف می‌شود، اما با تمام جزئیات در تاریخچه ثبت و قابل پیگیری می‌ماند.",
             "بله، حذف کن",
             "انصراف",
-            DeleteConfirmed), 480);
+            () => _ = DeleteConfirmedAsync()), 480);
     }
 
-    private async void DeleteConfirmed()
+    private Task DeleteConfirmedAsync() => GuardAsync("حذف فاکتور ناموفق بود؛ دوباره تلاش کنید", async () =>
     {
         var detail = await _service.DeleteInvoiceAsync(_invoiceId);
         if (detail is null)
@@ -547,6 +551,32 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         Apply(detail);
         _toast.Show($"فاکتور «{detail.Id}» حذف شد و در تاریخچه ثبت گردید", Tone.Ok);
         OnChanged();
+    });
+
+    /// <summary>
+    /// Runs a confirmed viewer mutation: a typed backend failure is toasted as a danger message and the
+    /// sheet re-reads the invoice so it never shows an un-applied edit (X09/X10).
+    /// </summary>
+    private async Task GuardAsync(string fallback, Func<Task> action)
+    {
+        try
+        {
+            await action();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(
+                Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, fallback),
+                Tone.Danger);
+            try
+            {
+                await ReloadAsync();
+            }
+            catch (InvalidOperationException)
+            {
+                // The failure toast was already shown; the next action re-syncs the sheet.
+            }
+        }
     }
 
     [RelayCommand]

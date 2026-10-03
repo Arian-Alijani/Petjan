@@ -11,7 +11,7 @@
 - [x] X07 — DONE: success screen refreshes _paid from the post-payment invoice
 - [x] X08 — DONE: BoardingHistoryCriteria applies range/kinds/species/search in SQL; totals over filtered set
 - [x] X09 — DONE: Sales/Cashier mutation + load commands wrapped; typed failures surface as danger toasts, modals stay open
-- [ ] X10
+- [x] X10 — DONE: InvoiceViewer void/delete converted to awaitable Task handlers guarded by GuardAsync (also guards edit/return/discount/insurance); no async void left in the three screens
 - [ ] X11
 - [ ] X12
 - [ ] X13
@@ -143,7 +143,7 @@
 - **Fix:** make each service method's failure mode uniform (prefer returning a result), and wrap every command-invoking `RelayCommand` in try/catch → danger toast. Reuse `PatientsPresentation.CommandFailureMessage` as S.VM already does.
 - **Acceptance:** forcing each mutation to fail shows a danger toast and never crashes.
 
-### X10 — P1 · §4 violation · `async void` command handlers lose exceptions
+### ✅ X10 — P1 · §4 violation · `async void` command handlers lose exceptions
 - **Evidence:** S.IVVM:507 `private async void VoidConfirmed()` and S.IVVM:538 `private async void DeleteConfirmed()`. PERF §4: "never `async void` … cannot be awaited, loses exceptions, and cannot be tested."
 - **Failure:** an exception in void/delete is lost (no toast, no logging) or crashes the process; the confirm-dialog callback cannot await completion before the sheet refreshes.
 - **Fix:** convert to `private Task`-returning methods invoked as `() => _ = VoidConfirmedAsync()` from the confirm callback (the rest of the file already uses this pattern), and add try/catch.
