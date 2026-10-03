@@ -517,7 +517,7 @@ After finishing a task, mark it `[x]`, then **push** (locked rule).
 - **Acceptance:** real actions report real copy; picked-patient card icon matches entered species.
 
 ### Task 20 — FINAL · Delete the audit file
-- **Status:** `[ ]`
+- **Status:** `[x]` — DONE. Deleted `docs/VISITS_PETFILE_AUDIT_2026-10-03.md`; nothing else touched.
 - **Priority:** closing · **Push message:** `chore(docs): remove completed visits/pet-file audit (2026-10-03)`
 - **Goal:** Remove the now-implemented audit document. Touch NOTHING else (no other docs, no roadmap).
 - **Do:** `rm docs/VISITS_PETFILE_AUDIT_2026-10-03.md` then push. (This Plan file stays until the user
