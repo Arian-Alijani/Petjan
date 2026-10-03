@@ -27,7 +27,7 @@
 - [x] X23 — DONE: Catalog add promotes the item in the recent strip locally; no full catalog refetch/row rebuild per add
 - [x] X24 — DONE: Highlight is located on a length-preserving PersianText.Fold copy (same folding as the filter) and sliced from the original title
 - [x] X25 — DONE: removed the dead key parameter of Resolve; the three design-token brushes are cached statics
-- [ ] X26
+- [x] X26 — DONE: line Gross/Subtotal now come from InvoiceLineReadModel (domain Money.ApplyPercent) through the Sales/Cashier contracts; UI/print recomputation removed
 - [ ] X27
 - [ ] X28
 - [ ] X29
@@ -40,7 +40,7 @@
 - [ ] X36
 - [ ] X37
 - [ ] X38
-- [ ] X39
+- [x] X39 — DONE: no double/UI money math left for line subtotals (shared with X26; print helpers deleted)
 - [ ] X40
 - [ ] X41
 
@@ -243,7 +243,7 @@
 - **Fix:** either resolve the real themed brush by key, or delete the `key` parameter and call `BrushCache.Solid(hex)` directly and document the literals as design tokens.
 - **Acceptance:** either theme tokens drive the color, or the dead parameter is gone.
 
-### X26 — P2 · Layering · Line subtotals are recomputed client-side (business logic in UI)
+### ✅ X26 — P2 · Layering · Line subtotals are recomputed client-side (business logic in UI)
 - **Evidence:** C.ITEM:154 and S.IVVM:664–665 compute `Round(unit*qty*(100-disc)/100)` in the ViewModel. AGENTS.md: ViewModels must not hold business rules; totals are the domain's job.
 - **Failure:** the UI's rounding can diverge from the domain's (MidpointRounding, insurance/tax interaction), showing a per-line subtotal that does not sum to the server total. Duplicated formula to maintain in two places.
 - **Fix:** have the detail read model carry each line's computed subtotal; bind to it instead of recomputing.
@@ -321,7 +321,7 @@
 - **Fix:** update the comments to reference the real service.
 - **Acceptance:** no "mock" reference remains in these three screens' comments.
 
-### X39 — P2 · Precision · `double` arithmetic for money subtotals
+### ✅ X39 — P2 · Precision · `double` arithmetic for money subtotals
 - **Evidence:** C.ITEM:154 and S.IVVM:664 use `line.UnitPrice * line.Quantity * (100 - disc) / 100.0` in `double` then `Math.Round(..., AwayFromZero)` implicitly. B.PRES money formatting takes `long` (good), but the line math is floating.
 - **Failure:** `double` on large Rial amounts can lose precision beyond 2^53 and round differently than the domain's integer/`Money` math (see X26), producing off-by-one Rial discrepancies.
 - **Fix:** do line math in integer/`Money` units server-side (ties to X26) and bind the result.

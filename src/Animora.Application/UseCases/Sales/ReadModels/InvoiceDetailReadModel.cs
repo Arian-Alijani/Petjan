@@ -5,7 +5,20 @@ namespace Animora.Application.UseCases.Sales.ReadModels;
 
 public sealed record InvoiceLineReadModel(string LineId, InvoiceLineKind Kind, string? ProductId,
     string? VariantId, string? CatalogItemId, string Title, decimal Quantity, long UnitPriceMinor,
-    decimal DiscountPercent, decimal TaxPercent);
+    decimal DiscountPercent, decimal TaxPercent)
+{
+    /// <summary><c>quantity × unit price</c> before any discount, through the domain's single rounding boundary.</summary>
+    public long GrossMinor => Gross().Minor;
+
+    /// <summary>The line's own discount amount (X26/X39: computed by the domain rules, never by the UI).</summary>
+    public long DiscountMinor => Gross().ApplyPercent(DiscountPercent).Minor;
+
+    /// <summary>Gross minus the line discount, before tax — what the screens show as the line subtotal.</summary>
+    public long SubtotalMinor => GrossMinor - DiscountMinor;
+
+    private Animora.Domain.ValueObjects.Money Gross() =>
+        Animora.Domain.ValueObjects.Money.Irt(UnitPriceMinor).ApplyPercent(Quantity * 100m);
+}
 
 public sealed record InvoicePaymentReadModel(string Id, PaymentMethod Method, long AmountMinor,
     DateTimeOffset ReceivedUtc, string? Note);

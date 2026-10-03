@@ -646,7 +646,7 @@ public sealed partial class InvoiceViewerLineViewModel : ObservableObject
         _quantityText = SalePresentation.Fa(line.Quantity);
         _discountText = SalePresentation.Fa(line.DiscountPercent);
         (TagBackground, TagForeground) = SalePresentation.LineTagBrushes(line.Kind, line.IsCustom);
-        SubtotalText = SalePresentation.Money(Subtotal(line));
+        SubtotalText = SalePresentation.Money(line.Subtotal);
     }
 
     public int Index { get; }
@@ -703,9 +703,6 @@ public sealed partial class InvoiceViewerLineViewModel : ObservableObject
 
     /// <summary>Returns the whole line quantity in one tap (mirrors «برگشت زدن فقط یک جنس»).</summary>
     public void Return() => _onReturn(Index, _quantity);
-
-    private static long Subtotal(InvoiceLine line) =>
-        (long)Math.Round(line.UnitPrice * line.Quantity * (100 - line.DiscountPercent) / 100.0);
 
     private static int ParseInt(string? text, int fallback)
     {

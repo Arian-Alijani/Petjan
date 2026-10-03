@@ -120,7 +120,8 @@ public sealed record CashierInvoiceLine(
     string Title,
     long UnitPrice,
     int Quantity,
-    int DiscountPercent);
+    int DiscountPercent,
+    long Subtotal = 0);
 
 /// <summary>
 /// One historical payment of an invoice, mirroring what

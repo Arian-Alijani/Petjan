@@ -203,7 +203,9 @@ public sealed record InvoiceLine(
     bool IsCustom,
     string Ref,
     string IconKey,
-    string KindLabel);
+    string KindLabel,
+    long Gross = 0,
+    long Subtotal = 0);
 
 /// <summary>
 /// One historical payment of an invoice, mirroring what <c>renderHistory</c>

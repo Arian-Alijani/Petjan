@@ -33,7 +33,7 @@ public static class CashierPrintDocuments
             CashierPresentation.Money(l.UnitPrice),
             CashierPresentation.Fa(l.Quantity),
             CashierPresentation.Fa(l.DiscountPercent) + "٪",
-            CashierPresentation.Money(LineSubtotal(l)),
+            CashierPresentation.Money(l.Subtotal),
         }).ToList();
 
         var totals = new List<PrintTotal> { new("جمع اقلام", CashierPresentation.Money(d.Base) + Unit) };
@@ -93,13 +93,6 @@ public static class CashierPrintDocuments
         }
 
         return sb.ToString();
-    }
-
-    /// <summary>Per-line total in integer math, rounded half away from zero (X39).</summary>
-    internal static long LineSubtotal(CashierInvoiceLine l)
-    {
-        var numerator = l.UnitPrice * l.Quantity * (100 - l.DiscountPercent);
-        return numerator >= 0 ? (numerator + 50) / 100 : -((-numerator + 50) / 100);
     }
 
     private static string Csv(string? value)

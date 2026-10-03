@@ -44,7 +44,7 @@ public static class SalesPrintDocuments
             SalePresentation.Money(l.UnitPrice),
             SalePresentation.Fa(l.Quantity),
             SalePresentation.Fa(l.DiscountPercent) + "٪",
-            SalePresentation.Money(LineSubtotal(l)),
+            SalePresentation.Money(l.Subtotal),
         }).ToList();
 
         var totals = new List<PrintTotal> { new("جمع اقلام", SalePresentation.Money(d.Base) + Unit) };
@@ -115,13 +115,6 @@ public static class SalesPrintDocuments
                 new PrintTotal("فاکتورهای باز", SalePresentation.Fa(kpi.OpenCount)),
             ],
             fontCss);
-    }
-
-    /// <summary>Per-line total: <c>unit × qty × (100 − discount%) / 100</c>, integer math rounded away from zero (X39).</summary>
-    internal static long LineSubtotal(InvoiceLine l)
-    {
-        var numerator = l.UnitPrice * l.Quantity * (100 - l.DiscountPercent);
-        return numerator >= 0 ? (numerator + 50) / 100 : -((-numerator + 50) / 100);
     }
 
     private static string Digits(string text) => Animora.Desktop.Localization.PersianNumberFormatter.ToPersianDigits(text);

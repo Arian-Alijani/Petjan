@@ -157,8 +157,8 @@ public sealed partial class CashierLineViewModel : ObservableObject
         _quantityText = CashierPresentation.Fa(line.Quantity);
         _discountText = CashierPresentation.Fa(line.DiscountPercent);
 
-        var sub = (long)Math.Round(line.UnitPrice * line.Quantity * (100 - line.DiscountPercent) / 100.0);
-        SubtotalText = CashierPresentation.Money(sub);
+        // The domain computes the line subtotal (single rounding boundary); the UI only formats it (X26/X39).
+        SubtotalText = CashierPresentation.Money(line.Subtotal);
 
         IsEditable = editable;
     }
