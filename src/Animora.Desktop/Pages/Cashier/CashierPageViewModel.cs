@@ -70,15 +70,15 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     public RangeObservableCollection<CashierPaymentViewModel> Payments { get; } = [];
 
-    public ObservableCollection<CashierMethodViewModel> Methods { get; } = [];
+    public RangeObservableCollection<CashierMethodViewModel> Methods { get; } = [];
 
-    public ObservableCollection<CashierPresetViewModel> Presets { get; } = [];
+    public RangeObservableCollection<CashierPresetViewModel> Presets { get; } = [];
 
     public RangeObservableCollection<CashierCatalogOptionViewModel> CatalogOptions { get; } = [];
 
-    public ObservableCollection<CashierInsurerOptionViewModel> InsurerOptions { get; } = [];
+    public RangeObservableCollection<CashierInsurerOptionViewModel> InsurerOptions { get; } = [];
 
-    public ObservableCollection<CashierDiscountOptionViewModel> DiscountOptions { get; } = [];
+    public RangeObservableCollection<CashierDiscountOptionViewModel> DiscountOptions { get; } = [];
 
     public string SearchPlaceholder => "جستجو در فاکتورها، مالکین یا حیوانات…";
 
@@ -197,12 +197,13 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         CatalogOptions.ReplaceAll(
             (await _service.GetCatalogItemsAsync()).Select(item => new CashierCatalogOptionViewModel(item)));
 
-        InsurerOptions.Clear();
-        InsurerOptions.Add(new CashierInsurerOptionViewModel(new CashierInsurer(string.Empty, string.Empty, 0), true));
-        foreach (var insurer in await _service.GetInsurersAsync())
+        var insurers = new List<CashierInsurerOptionViewModel>
         {
-            InsurerOptions.Add(new CashierInsurerOptionViewModel(insurer, false));
-        }
+            new(new CashierInsurer(string.Empty, string.Empty, 0), true),
+        };
+        insurers.AddRange(
+            (await _service.GetInsurersAsync()).Select(insurer => new CashierInsurerOptionViewModel(insurer, false)));
+        InsurerOptions.ReplaceAll(insurers);
 
         await ReloadAsync();
         IsBusy = false;
@@ -210,17 +211,8 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     private async Task ReloadAsync()
     {
-        Stats.Clear();
-        foreach (var stat in await _service.GetStatsAsync())
-        {
-            Stats.Add(new CashierStatViewModel(stat));
-        }
-
-        Tabs.Clear();
-        foreach (var count in await _service.GetTabCountsAsync())
-        {
-            Tabs.Add(new CashierTabViewModel(count));
-        }
+        Stats.ReplaceAll((await _service.GetStatsAsync()).Select(stat => new CashierStatViewModel(stat)));
+        Tabs.ReplaceAll((await _service.GetTabCountsAsync()).Select(count => new CashierTabViewModel(count)));
 
         _invoices.Clear();
         _invoices.AddRange(await _service.GetInvoicesAsync());
@@ -230,29 +222,30 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     private void BuildMethods()
     {
-        Methods.Clear();
-        Methods.Add(new CashierMethodViewModel(CashierPaymentMethod.Cash, "نقدی", "IconWallet"));
-        Methods.Add(new CashierMethodViewModel(CashierPaymentMethod.Card, "کارت", "IconCreditCard"));
-        Methods.Add(new CashierMethodViewModel(CashierPaymentMethod.Cheque, "چک", "IconCheque"));
-        Methods.Add(new CashierMethodViewModel(CashierPaymentMethod.Credit, "نسیه", "IconHourglass"));
-        Methods.Add(new CashierMethodViewModel(CashierPaymentMethod.Mixed, "ترکیبی", "IconLayers"));
+        Methods.ReplaceAll(
+        [
+            new CashierMethodViewModel(CashierPaymentMethod.Cash, "نقدی", "IconWallet"),
+            new CashierMethodViewModel(CashierPaymentMethod.Card, "کارت", "IconCreditCard"),
+            new CashierMethodViewModel(CashierPaymentMethod.Cheque, "چک", "IconCheque"),
+            new CashierMethodViewModel(CashierPaymentMethod.Credit, "نسیه", "IconHourglass"),
+            new CashierMethodViewModel(CashierPaymentMethod.Mixed, "ترکیبی", "IconLayers"),
+        ]);
         SetMethod(CashierPaymentMethod.Cash);
     }
 
     private void BuildPresets()
     {
-        Presets.Clear();
-        foreach (var preset in new long[] { 50_000, 100_000, 200_000, 500_000, 1_000_000 })
-        {
-            Presets.Add(new CashierPresetViewModel(CashierPresentation.Money(preset), preset, false));
-        }
+        Presets.ReplaceAll(new long[] { 50_000, 100_000, 200_000, 500_000, 1_000_000 }
+            .Select(preset => new CashierPresetViewModel(CashierPresentation.Money(preset), preset, false)));
     }
 
     private void BuildDiscountOptions()
     {
-        DiscountOptions.Clear();
-        DiscountOptions.Add(new CashierDiscountOptionViewModel(CashierDiscountKind.Percent, "درصد (%)"));
-        DiscountOptions.Add(new CashierDiscountOptionViewModel(CashierDiscountKind.Amount, "مبلغ (ریال)"));
+        DiscountOptions.ReplaceAll(
+        [
+            new CashierDiscountOptionViewModel(CashierDiscountKind.Percent, "درصد (%)"),
+            new CashierDiscountOptionViewModel(CashierDiscountKind.Amount, "مبلغ (ریال)"),
+        ]);
     }
 
     // ── Tabs / list ─────────────────────────────────────────────────────

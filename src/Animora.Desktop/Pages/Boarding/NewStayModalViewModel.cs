@@ -62,7 +62,7 @@ public sealed partial class NewStayModalViewModel : ObservableObject
     }
 
     // ── existing-file picker ────────────────────────────────────────────────
-    public ObservableCollection<BoardingKnownPetViewModel> KnownPets { get; } = [];
+    public RangeObservableCollection<BoardingKnownPetViewModel> KnownPets { get; } = [];
 
     [ObservableProperty]
     private string _patientQueryText = string.Empty;
@@ -107,14 +107,8 @@ public sealed partial class NewStayModalViewModel : ObservableObject
     private void ApplyPetFilter()
     {
         var query = PersianText.Normalize(PatientQueryText);
-        KnownPets.Clear();
-        foreach (var pet in _allPets)
-        {
-            if (query.Length == 0 || pet.SearchText.Contains(query, StringComparison.Ordinal))
-            {
-                KnownPets.Add(pet);
-            }
-        }
+        KnownPets.ReplaceAll(_allPets.Where(
+            pet => query.Length == 0 || pet.SearchText.Contains(query, StringComparison.Ordinal)));
     }
 
     [RelayCommand]

@@ -20,7 +20,7 @@
 - [x] X16 — DONE: New stay requires a selected room (literal A-1 fallback removed); server-side CreateBoardingStayCommand already rejects occupied/unavailable rooms and the failure is toasted
 - [x] X17 — DONE: Sales TakePaymentAsync re-reads the posted invoice and caps against the post-time due (Cashier already read due after post)
 - [x] X18 — DONE: Sales ready list and invoice sidebar are virtualized ListBoxes (same pattern as Cashier)
-- [ ] X19
+- [x] X19 — DONE: all rebuilt sidebar/line/payment/catalog/owner/pet/day-cell/item/stat/tab/option lists are RangeObservableCollection + ReplaceAll (single Reset)
 - [ ] X20
 - [ ] X21
 - [ ] X22
@@ -201,7 +201,7 @@
 - **Fix:** host both lists in a virtualizing `ListBox`/`ItemsRepeater` with a bound-active style, matching the Cashier pattern.
 - **Acceptance:** only visible rows are realized; frame time is flat as the invoice count grows.
 
-### X19 — P2 · PERF §5 · `Clear()`+`Add()` loops on bound collections
+### ✅ X19 — P2 · PERF §5 · `Clear()`+`Add()` loops on bound collections
 - **Evidence:** plain `ObservableCollection` rebuilt item-by-item: S.VM `Lines`/`Payments` in `ShowInvoice` (588–598) and `ReadyList`/`InvoiceRows` in `RenderSidebar` (520–536); S.CAT `Rows`/`Recent` (140–164); S.OWN `Rows` (59–63); B.NEW `KnownPets` (110–117); B.DET `DayCells`/`Items` (239–263); C.VM `Stats`/`Tabs`/`InsurerOptions` in `ReloadAsync`/`LoadAsync` (208–218, 195–200). `RangeObservableCollection.ReplaceAll` exists and is used elsewhere (C.VM:298, B.VM:254).
 - **Failure:** each rebuild raises one `CollectionChanged` + layout pass per item (O(n) notification storm) instead of one `Reset`.
 - **Fix:** make these `RangeObservableCollection<T>` and call `ReplaceAll(...)` (as Cashier's `InvoiceRows`/`Stats` already do).

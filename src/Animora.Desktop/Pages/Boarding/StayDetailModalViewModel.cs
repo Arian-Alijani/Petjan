@@ -128,7 +128,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     [ObservableProperty]
     private IBrush _dayLabelBrush = Brushes.Transparent;
 
-    public ObservableCollection<BoardingDayCellViewModel> DayCells { get; } = [];
+    public RangeObservableCollection<BoardingDayCellViewModel> DayCells { get; } = [];
 
     // ── note ────────────────────────────────────────────────────────────────
     [ObservableProperty]
@@ -138,7 +138,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     private string _noteText = string.Empty;
 
     // ── consumed items ──────────────────────────────────────────────────────
-    public ObservableCollection<BoardingConsumedRowViewModel> Items { get; } = [];
+    public RangeObservableCollection<BoardingConsumedRowViewModel> Items { get; } = [];
 
     [ObservableProperty]
     private bool _hasItems;
@@ -240,7 +240,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         ElapsedText = $"{BoardingPresentation.Fa(elapsed)} از {BoardingPresentation.Fa(nights)} شب گذشته";
         DayLabelBrush = BoardingPresentation.DayLabelBrush(overdue, remaining);
 
-        DayCells.Clear();
+        var dayCells = new List<BoardingDayCellViewModel>(Math.Max(nights, 0));
         for (var i = 0; i < nights; i++)
         {
             var date = stay.CheckIn.AddDays(i);
@@ -251,8 +251,10 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
                 + (dayItems.Count > 0
                     ? $" — {BoardingPresentation.Fa(dayItems.Count)} مورد مصرفی"
                     : string.Empty);
-            DayCells.Add(new BoardingDayCellViewModel(i + 1, date, isPast, isToday, dayItems.Count > 0, tooltip));
+            dayCells.Add(new BoardingDayCellViewModel(i + 1, date, isPast, isToday, dayItems.Count > 0, tooltip));
         }
+
+        DayCells.ReplaceAll(dayCells);
 
         // Note
         HasNote = !string.IsNullOrWhiteSpace(stay.Note);
@@ -260,11 +262,8 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
 
         // Consumed items
         IsEditable = stay.Status == BoardingStatus.Active;
-        Items.Clear();
-        for (var i = 0; i < items.Count; i++)
-        {
-            Items.Add(new BoardingConsumedRowViewModel(i, items[i], IsEditable));
-        }
+        var editable = IsEditable;
+        Items.ReplaceAll(items.Select((item, i) => new BoardingConsumedRowViewModel(i, item, editable)));
 
         HasItems = items.Count > 0;
         ItemsCountText = $"{BoardingPresentation.Fa(items.Count)} مورد";

@@ -40,7 +40,7 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
         _ = SearchAsync();
     }
 
-    public ObservableCollection<OwnerRowViewModel> Rows { get; } = [];
+    public RangeObservableCollection<OwnerRowViewModel> Rows { get; } = [];
 
     [ObservableProperty]
     private string _query = string.Empty;
@@ -56,11 +56,7 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
     private async Task SearchAsync()
     {
         var owners = await _service.GetOwnersAsync(Query.Trim());
-        Rows.Clear();
-        foreach (var o in owners)
-        {
-            Rows.Add(new OwnerRowViewModel(o));
-        }
+        Rows.ReplaceAll(owners.Select(o => new OwnerRowViewModel(o)));
 
         HasRows = Rows.Count > 0;
         ShowNoResult = Rows.Count == 0;

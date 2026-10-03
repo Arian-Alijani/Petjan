@@ -50,11 +50,11 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         _ = LoadAsync();
     }
 
-    public ObservableCollection<CatalogFilterViewModel> Filters { get; } = [];
+    public RangeObservableCollection<CatalogFilterViewModel> Filters { get; } = [];
 
-    public ObservableCollection<CatalogRecentChipViewModel> Recent { get; } = [];
+    public RangeObservableCollection<CatalogRecentChipViewModel> Recent { get; } = [];
 
-    public ObservableCollection<CatalogRowViewModel> Rows { get; } = [];
+    public RangeObservableCollection<CatalogRowViewModel> Rows { get; } = [];
 
     [ObservableProperty]
     private string _query = string.Empty;
@@ -86,11 +86,8 @@ public sealed partial class CatalogModalViewModel : ObservableObject
 
     private void BuildFilters()
     {
-        Filters.Clear();
-        foreach (var f in _filterRefs)
-        {
-            Filters.Add(new CatalogFilterViewModel(f) { IsActive = f.Key == _filterKey });
-        }
+        Filters.ReplaceAll(
+            _filterRefs.Select(f => new CatalogFilterViewModel(f) { IsActive = f.Key == _filterKey }));
 
         OnPropertyChanged(nameof(HasFilters));
     }
@@ -137,20 +134,21 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         _visible.Clear();
         _visible.AddRange(list);
 
-        Rows.Clear();
+        var built = new List<CatalogRowViewModel>(_visible.Count);
         for (var i = 0; i < _visible.Count; i++)
         {
             var (bg, fg) = SalePresentation.LineTagBrushes(
                 _visible[i].Kind == "svc" ? InvoiceLineKind.Service : InvoiceLineKind.Item, false);
-            var row = new CatalogRowViewModel(_visible[i], bg, fg, q)
+            built.Add(new CatalogRowViewModel(_visible[i], bg, fg, q)
             {
                 IsHighlighted = i == HighlightIndex,
-            };
-            Rows.Add(row);
+            });
         }
 
+        Rows.ReplaceAll(built);
+
         HasRows = Rows.Count > 0;
-        Recent.Clear();
+        var chips = new List<CatalogRecentChipViewModel>();
         if (norm.Length == 0)
         {
             foreach (var r in _recent)
@@ -158,10 +156,12 @@ public sealed partial class CatalogModalViewModel : ObservableObject
                 var item = _all.FirstOrDefault(x => x.Kind == r.Kind && x.Id == r.Ref);
                 if (item is not null)
                 {
-                    Recent.Add(new CatalogRecentChipViewModel(item));
+                    chips.Add(new CatalogRecentChipViewModel(item));
                 }
             }
         }
+
+        Recent.ReplaceAll(chips);
 
         OnPropertyChanged(nameof(HasRecent));
         CountText = Rows.Count > 0 ? $"{SalePresentation.Fa(Rows.Count)} نتیجه" : string.Empty;

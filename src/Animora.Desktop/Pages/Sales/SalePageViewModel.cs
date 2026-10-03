@@ -105,14 +105,14 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     public ObservableCollection<SaleSegmentViewModel> Segments { get; } = [];
 
-    public ObservableCollection<ReadyEncounterItemViewModel> ReadyList { get; } = [];
+    public RangeObservableCollection<ReadyEncounterItemViewModel> ReadyList { get; } = [];
 
     /// <summary>Sidebar invoice rows — group headers interleaved with cards.</summary>
-    public ObservableCollection<SaleSidebarRowViewModel> InvoiceRows { get; } = [];
+    public RangeObservableCollection<SaleSidebarRowViewModel> InvoiceRows { get; } = [];
 
-    public ObservableCollection<InvoiceLineViewModel> Lines { get; } = [];
+    public RangeObservableCollection<InvoiceLineViewModel> Lines { get; } = [];
 
-    public ObservableCollection<InvoicePaymentViewModel> Payments { get; } = [];
+    public RangeObservableCollection<InvoicePaymentViewModel> Payments { get; } = [];
 
     public string SearchPlaceholder => "جستجو در ویزیت، فاکتور یا مالک…";
 
@@ -551,28 +551,27 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             seg.IsPulsing = seg.Key == "ready" ? readyCt > 0 : openCt > 0;
         }
 
-        ReadyList.Clear();
-        InvoiceRows.Clear();
-
         if (_segment == "ready")
         {
-            foreach (var enc in _readyEncounters.Where(MatchesEncounter))
-            {
-                ReadyList.Add(new ReadyEncounterItemViewModel(enc));
-            }
+            InvoiceRows.ReplaceAll([]);
+            ReadyList.ReplaceAll(
+                _readyEncounters.Where(MatchesEncounter).Select(enc => new ReadyEncounterItemViewModel(enc)));
         }
         else
         {
+            ReadyList.ReplaceAll([]);
             var filtered = _invoices.Where(MatchesInvoice).ToList();
-            AddGroup("باز و در انتظار", filtered.Where(i => i.State is InvoiceState.Draft or InvoiceState.Partial));
-            AddGroup("تسویه‌شده", filtered.Where(i => i.State == InvoiceState.Settled));
-            AddGroup("ابطال و عودت", filtered.Where(i => i.State is InvoiceState.Void or InvoiceState.Refunded));
+            var rows = new List<SaleSidebarRowViewModel>(filtered.Count + 3);
+            AddGroup(rows, "باز و در انتظار", filtered.Where(i => i.State is InvoiceState.Draft or InvoiceState.Partial));
+            AddGroup(rows, "تسویه‌شده", filtered.Where(i => i.State == InvoiceState.Settled));
+            AddGroup(rows, "ابطال و عودت", filtered.Where(i => i.State is InvoiceState.Void or InvoiceState.Refunded));
+            InvoiceRows.ReplaceAll(rows);
         }
 
         RaiseDerived();
     }
 
-    private void AddGroup(string label, IEnumerable<InvoiceSummary> list)
+    private void AddGroup(List<SaleSidebarRowViewModel> target, string label, IEnumerable<InvoiceSummary> list)
     {
         var items = list.ToList();
         if (items.Count == 0)
@@ -580,12 +579,12 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             return;
         }
 
-        InvoiceRows.Add(SaleSidebarRowViewModel.Header(label, items.Count));
+        target.Add(SaleSidebarRowViewModel.Header(label, items.Count));
         foreach (var summary in items)
         {
             var row = SaleSidebarRowViewModel.Card(new InvoiceItemViewModel(summary));
             row.IsActive = SelectedInvoice is not null && row.InvoiceId == SelectedInvoice.Id;
-            InvoiceRows.Add(row);
+            target.Add(row);
         }
     }
 
@@ -608,8 +607,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private void ShowEmptyWork()
     {
         SelectedInvoice = null;
-        Lines.Clear();
-        Payments.Clear();
+        Lines.ReplaceAll([]);
+        Payments.ReplaceAll([]);
         HasSelectedInvoice = false;
         RaiseDerived();
     }
@@ -619,17 +618,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         SelectedInvoice = new SaleInvoiceViewModel(detail);
         HasSelectedInvoice = true;
 
-        Lines.Clear();
-        foreach (var line in detail.Lines)
-        {
-            Lines.Add(new InvoiceLineViewModel(line));
-        }
-
-        Payments.Clear();
-        foreach (var payment in detail.Payments)
-        {
-            Payments.Add(new InvoicePaymentViewModel(payment));
-        }
+        Lines.ReplaceAll(detail.Lines.Select(line => new InvoiceLineViewModel(line)));
+        Payments.ReplaceAll(detail.Payments.Select(payment => new InvoicePaymentViewModel(payment)));
 
         foreach (var row in InvoiceRows)
         {
