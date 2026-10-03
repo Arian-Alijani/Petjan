@@ -41,7 +41,7 @@
 - [x] X37 — DONE: Add/RemoveItem return the updated StayDetail which the modal applies locally (one detail round trip); page refresh scoped to the stay list
 - [x] X38 — DONE: every mock-era comment in the three screens (VMs, View code-behind, Contracts) now names the real service
 - [x] X39 — DONE: no double/UI money math left for line subtotals (shared with X26; print helpers deleted)
-- [ ] X40
+- [x] X40 — DONE: ready-count read catches only typed service failures, traces + warns, and keeps the last known count instead of forcing 0
 - [ ] X41
 
 ## Scope and method
@@ -327,7 +327,7 @@
 - **Fix:** do line math in integer/`Money` units server-side (ties to X26) and bind the result.
 - **Acceptance:** no `double` money math in the UI; subtotals match the domain to the Rial.
 
-### X40 — P2 · Resilience · `ReadyCount`/`GetReadyCount` swallow all exceptions silently
+### ✅ X40 — P2 · Resilience · `ReadyCount`/`GetReadyCount` swallow all exceptions silently
 - **Evidence:** S.PAY:253–264 `GetReadyCountAsync` `catch { return 0; }` (bare catch). While defensive, it hides a real backend failure as "0 ready", and the success screen then shows «فاکتور جدید» instead of the next-visit CTA.
 - **Failure:** a transient failure is indistinguishable from "no ready visits"; masks errors that should at least be logged.
 - **Fix:** catch narrowly (or let the caller decide), and keep the last known count rather than forcing 0 on error.

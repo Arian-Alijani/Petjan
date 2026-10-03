@@ -31,6 +31,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     private long _total;
     private long _paid;
     private PaymentResult? _lastResult;
+    private int _lastReadyCount;
 
     public PaymentModalViewModel(
         ISalesQueryService service,
@@ -258,17 +259,25 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         ShowSuccess = true;
     }
 
+    /// <summary>
+    /// Reads the ready-visit queue size. Only typed service failures are caught (X40): the
+    /// failure is traced and surfaced as a warning, and the last known count is kept instead
+    /// of masquerading as an empty queue.
+    /// </summary>
     private async Task<int> GetReadyCountAsync()
     {
         try
         {
             var list = await _service.GetReadyEncountersAsync();
-            return list.Count;
+            _lastReadyCount = list.Count;
         }
-        catch
+        catch (InvalidOperationException ex)
         {
-            return 0;
+            System.Diagnostics.Trace.TraceWarning("Ready-visit count failed: " + ex.Message);
+            _toast.Show("شمارش ویزیت‌های آمادهٔ صدور فاکتور ممکن نشد", Tone.Warn);
         }
+
+        return _lastReadyCount;
     }
 
     [RelayCommand]
