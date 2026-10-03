@@ -297,7 +297,7 @@ public sealed partial class NewStayModalViewModel : ObservableObject
 
         var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
         _dialogs.Close();
-        _toast.Show($"پذیرش «{petName}» برای {BoardingPresentation.Fa(nights)} شب ثبت شد (نمونه طراحی)");
+        _toast.Show($"پذیرش «{petName}» برای {BoardingPresentation.Fa(nights)} شب ثبت شد");
         _onCreated?.Invoke();
     }
 

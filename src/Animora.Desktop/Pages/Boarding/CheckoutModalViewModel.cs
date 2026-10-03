@@ -60,7 +60,7 @@ public sealed partial class CheckoutModalViewModel : ObservableObject
         }
 
         _dialogs.Close();
-        _toast.Show($"«{_stay.PetName}» تخلیه شد — اتاق {RoomText} آزاد است (نمونه طراحی)", Tone.Ok);
+        _toast.Show($"«{_stay.PetName}» تخلیه شد — اتاق {RoomText} آزاد است", Tone.Ok);
         _onCheckedOut?.Invoke();
     }
 

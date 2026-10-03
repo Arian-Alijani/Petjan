@@ -13,7 +13,7 @@
 - [x] X09 — DONE: Sales/Cashier mutation + load commands wrapped; typed failures surface as danger toasts, modals stay open
 - [x] X10 — DONE: InvoiceViewer void/delete converted to awaitable Task handlers guarded by GuardAsync (also guards edit/return/discount/insurance); no async void left in the three screens
 - [x] X11 — DONE: Boarding settings: removed fake rate/toggle/add/edit stubs and hardcoded constants; tab now shows live rooms+services only
-- [ ] X12
+- [x] X12 — DONE: removed the (نمونه طراحی) suffix from every real boarding mutation toast
 - [ ] X13
 - [ ] X14
 - [ ] X15
@@ -155,7 +155,7 @@
 - **Fix:** back the settings tab with real Contracts+service members (read + write), or hide the tab until implemented. Remove the `(نمونه طراحی)` toasts and the hardcoded `RateRows`/`SettingToggles`.
 - **Acceptance:** rates/toggles load from and persist to the backend; no `نمونه طراحی` string remains.
 
-### X12 — P1 · Misleading success · `(نمونه طراحی)` appended to real success toasts
+### ✅ X12 — P1 · Misleading success · `(نمونه طراحی)` appended to real success toasts
 - **Evidence:** real backend mutations append "(نمونه طراحی)" to their success toast: B.CHK:54 (checkout — real `CheckoutAsync`), B.TR:77 (transfer — real `TransferAsync`), B.NEW:291 (create stay — real `CreateStayAsync`), B.DET:315,331 (remove/add item — real). The services these call are the real SQLite-backed implementations (Track C complete).
 - **Failure:** operations that genuinely persist tell the user they are a "design sample", eroding trust and contradicting the real behavior. (Distinct from X11, where the action truly is a stub.)
 - **Fix:** drop the "(نمونه طراحی)" suffix from every toast whose underlying call is a real mutation.

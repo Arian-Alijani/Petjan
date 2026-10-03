@@ -322,7 +322,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
             return;
         }
 
-        _toast.Show("مورد حذف شد (نمونه طراحی)", Tone.Warn);
+        _toast.Show("مورد حذف شد", Tone.Warn);
         await LoadAsync();
         _onChanged?.Invoke();
     }
@@ -347,7 +347,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
             return;
         }
 
-        _toast.Show($"«{SelectedAddOption.Item.Title}» به اقلام «{PetName}» اضافه شد (نمونه طراحی)");
+        _toast.Show($"«{SelectedAddOption.Item.Title}» به اقلام «{PetName}» اضافه شد");
         SelectedAddOption = null;
         AddQuantityText = "1";
         await LoadAsync();

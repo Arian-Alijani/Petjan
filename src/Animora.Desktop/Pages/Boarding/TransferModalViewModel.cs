@@ -83,7 +83,7 @@ public sealed partial class TransferModalViewModel : ObservableObject
         }
 
         _dialogs.Close();
-        _toast.Show($"فاکتور «{_stay.PetName}» به مبلغ {TotalText} به صندوق منتقل شد (نمونه طراحی)");
+        _toast.Show($"فاکتور «{_stay.PetName}» به مبلغ {TotalText} به صندوق منتقل شد");
         _onTransferred?.Invoke();
     }
 
