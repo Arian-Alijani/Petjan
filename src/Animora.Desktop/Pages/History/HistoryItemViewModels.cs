@@ -95,32 +95,35 @@ public sealed class HistoryEventRowViewModel : IHistoryRowView
     /// Opens the unified record screen for this row's entity (injected from the page VM, routed through
     /// <see cref="Services.IHistoryRecordOpener"/>). Null for inert rows.
     /// </param>
-    public HistoryEventRowViewModel(HistoryEvent ev, Func<string, string, Task>? open = null)
+    public HistoryEventRowViewModel(HistoryEvent ev, Func<string, string, string?, Task>? open = null)
     {
         Title = ev.Title;
         Detail = ev.Detail;
         HasDetail = !string.IsNullOrEmpty(ev.Detail);
         Time = string.IsNullOrEmpty(ev.Time) ? "—" : HistoryPresentation.FaText(ev.Time);
 
-        // ev.Entity arrives as "Type:Id" (e.g. "Invoice:01J…"). Split it: the type drives navigation and
-        // a readable Persian label, the id is passed to the opener. Never show the raw ULID to the user.
+        // ev.Entity arrives as "Type:Id" (e.g. "Invoice:01J…"), or "Payment:<paymentId>:<invoiceId>" for
+        // payment rows. Split it: the type drives navigation and a readable Persian label, the id (and the
+        // owning invoice id, when present) is passed to the opener. Never show the raw ULID to the user.
         var raw = ev.Entity ?? string.Empty;
-        var colon = raw.IndexOf(':');
-        if (colon > 0)
+        var parts = raw.Split(':', 3);
+        if (parts.Length >= 2 && parts[0].Length > 0)
         {
-            EntityType = raw[..colon];
-            EntityId = raw[(colon + 1)..];
+            EntityType = parts[0];
+            EntityId = parts[1];
+            InvoiceId = parts.Length == 3 && parts[2].Length > 0 ? parts[2] : null;
         }
         else
         {
             EntityType = string.Empty;
             EntityId = raw;
+            InvoiceId = null;
         }
 
         Entity = string.IsNullOrEmpty(EntityType) ? "—" : HistoryText.EntityLabel(EntityType);
         CanOpen = !string.IsNullOrEmpty(EntityType) && !string.IsNullOrEmpty(EntityId);
         OpenCommand = new AsyncRelayCommand(
-            () => open is not null && CanOpen ? open(EntityType, EntityId) : Task.CompletedTask,
+            () => open is not null && CanOpen ? open(EntityType, EntityId, InvoiceId) : Task.CompletedTask,
             () => CanOpen && open is not null);
 
         // The audit "who" (R1).
@@ -160,6 +163,9 @@ public sealed class HistoryEventRowViewModel : IHistoryRowView
 
     /// <summary>The feed entity's id (never shown raw to the user).</summary>
     public string EntityId { get; }
+
+    /// <summary>For <c>Payment</c> rows: the owning invoice id the unified invoice sheet opens; otherwise null.</summary>
+    public string? InvoiceId { get; }
 
     /// <summary>True when this row maps to an openable record (non-empty type + id).</summary>
     public bool CanOpen { get; }

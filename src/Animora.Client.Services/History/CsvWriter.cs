@@ -26,7 +26,7 @@ public static class CsvWriter
                 ct.ThrowIfCancellationRequested();
                 string[] values =
                 [
-                    row.Date, row.Time, labels.Title(row.Title), labels.Detail(row.Detail), row.Entity,
+                    row.Date, row.Time, labels.Title(row.Title), labels.Detail(row.Detail), EntityTag(row.Entity),
                     row.Amount.ToString(CultureInfo.InvariantCulture),
                     row.AmountSign.ToString(CultureInfo.InvariantCulture),
                     labels.Status(row.Status), row.Actor.Name,
@@ -35,6 +35,15 @@ public static class CsvWriter
             }
         }
         return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    /// <summary>Keeps the export's entity column at <c>Type:Id</c> (drops the UI-only third <c>:InvoiceId</c> segment of payment rows).</summary>
+    private static string EntityTag(string entity)
+    {
+        var first = entity.IndexOf(':');
+        if (first < 0) return entity;
+        var second = entity.IndexOf(':', first + 1);
+        return second < 0 ? entity : entity[..second];
     }
 
     private static string Escape(string value) => value.IndexOfAny([',', '"', '\r', '\n']) < 0

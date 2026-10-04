@@ -485,7 +485,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
             {
                 Title = HistoryText.Title(e.Title),
                 Detail = HistoryText.Detail(e.Detail),
-            }, (type, id) => _opener.OpenAsync(type, id))).ToList();
+            }, (type, id, invoiceId) => _opener.OpenAsync(type, id, invoiceId))).ToList();
             var net = dayNets is not null && dayNets.TryGetValue(group.Key, out var fullDayNet) ? fullDayNet : 0;
 
             groups.Add(new HistoryDayGroupViewModel(
