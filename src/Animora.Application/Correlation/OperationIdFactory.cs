@@ -24,11 +24,16 @@ public sealed class OperationIdFactory
         Span<byte> hash = stackalloc byte[32];
         SHA256.HashData(Encoding.UTF8.GetBytes(seed), hash);
 
-        // Fold the 256-bit hash into a 26-char Crockford base32 id (130 bits), matching ULID width.
+        // Fold the 256-bit hash into a 26-char Crockford base32 id, matching ULID width/shape so it
+        // passes Rules.UlidFormat (the OperationId validator in SessionCurrentUserProvider). A real ULID
+        // encodes 128 bits in 26 base32 chars, so the leading char carries only 3 bits and must be '0'..'7';
+        // masking every other char with 0x1F while masking the first with 0x07 keeps the id deterministic
+        // AND valid. The Alphabet already omits I/L/O/U, the other UlidFormat requirement.
         var chars = new char[26];
         for (var i = 0; i < 26; i++)
         {
-            chars[i] = Alphabet[hash[i % hash.Length] & 0x1F];
+            var mask = i == 0 ? 0x07 : 0x1F;
+            chars[i] = Alphabet[hash[i % hash.Length] & mask];
         }
 
         return new string(chars);
