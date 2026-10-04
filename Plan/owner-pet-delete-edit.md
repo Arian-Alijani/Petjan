@@ -310,7 +310,7 @@ commands do not break `RolePermissionMatrixTests` or wire tests.
   implement both in `PatientsService.cs` (copy the write-method shape in §2). Push:
   `scripts/git/push.sh "feat(patients): expose DeletePetAsync/DeleteOwnerAsync on patients service"`
 
-- [ ] **T5 — Pet File UI delete.**
+- [x] **T5 — Pet File UI delete.**
   Add `DeleteCommand` to `PetFileViewModel.cs` (confirm dialog → `DeletePetAsync` → notify →
   close sheet → toast) and a red "حذف بیمار" button to `PetFileView.axaml`. Push:
   `scripts/git/push.sh "feat(patients): delete pet from Pet File with confirm"`

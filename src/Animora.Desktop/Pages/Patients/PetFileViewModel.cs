@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Animora.Contracts.Patients;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.Sales.Shared;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Avalonia.Media;
@@ -688,6 +689,61 @@ public sealed partial class PetFileViewModel : PageViewModelBase
 
     [RelayCommand]
     private void Close() => _dialogs.Close();
+
+    // ---- delete (soft) ----
+
+    /// <summary>
+    /// Asks for confirmation, then tombstones the pet via <see cref="IPatientsQueryService.DeletePetAsync"/>.
+    /// The confirm modal sits on top of this sheet; on confirm it closes itself first, then the sheet
+    /// is closed here once the command has succeeded so a failure leaves the file open.
+    /// </summary>
+    [RelayCommand]
+    private void Delete()
+    {
+        if (_pet is null)
+        {
+            return;
+        }
+
+        var petId = _pet.Id;
+        var petName = _pet.Name;
+        _dialogs.ShowModal(new ConfirmDialogViewModel(
+            _dialogs,
+            "danger",
+            "IconTrash",
+            "حذف پرونده بیمار",
+            "پرونده ",
+            $"«{petName}»",
+            " از فهرست بیماران حذف شود؟",
+            "این پرونده از فهرست و پرونده مالک حذف می‌شود؛ سوابق ویزیت و واکسیناسیون در تاریخچه باقی می‌ماند.",
+            "بله، حذف کن",
+            "انصراف",
+            () => _ = DeleteConfirmedAsync(petId)), 480);
+    }
+
+    private async Task DeleteConfirmedAsync(string petId)
+    {
+        try
+        {
+            await _patients.DeletePetAsync(petId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(
+                PatientsPresentation.CommandFailureMessage(ex, "حذف پرونده بیمار انجام نشد؛ دوباره تلاش کنید"),
+                Controls.Tone.Danger);
+            return;
+        }
+        catch (Exception)
+        {
+            _toast.Show("حذف پرونده بیمار انجام نشد؛ دوباره تلاش کنید", Controls.Tone.Danger);
+            return;
+        }
+
+        _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
+        _dialogs.Close();
+        _toast.Show("پرونده بیمار حذف شد", Controls.Tone.Ok);
+    }
 
     // ---- helpers ----
 
