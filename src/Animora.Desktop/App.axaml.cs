@@ -354,6 +354,7 @@ public partial class App : global::Avalonia.Application
 
         // C07: scope-per-call Sales service over the local journaled dispatcher.
         services.AddSingleton<ISalesQueryService, SalesQueryService>();
+        services.AddSingleton<IServiceRateService, ServiceRateService>();
         services.AddSingleton<SalePageViewModel>();
 
         // Phase 22: Cashier (invoice & payment management). Stateful in-memory

@@ -48,7 +48,7 @@ Line resolution when billing: `Persistence/Repositories/SalesDraftData.FindCatal
 - Seed: in `LocalSeeder` add new marker block `"sales.services.default"` creating clinic service products: «ویزیت عمومی» 500_000, «ویزیت تخصصی» 900_000, «تزریق» 150_000, «پانسمان» 250_000, «سونوگرافی» 1_200_000, «جراحی سرپایی» 3_000_000 (only for existing installs too — marker guarded, runs on every start). Also add data migration like `Migrations/20261004120000__027_PersianCategoryNames.cs` (attribute-only, no Designer) renaming BoardingServiceDefs Titles WALK→«پیاده‌روی اضافه», DIET→«رژیم غذایی ویژه», BATH→«حمام», GROOM→«آرایش و نظافت», PLAY→«بازی», CARE→«مراقبت ویژه» (WHERE Title=English) and change seed titles to Persian.
 - Push `feat(sales): service-rate catalogue commands, queries and default services`.
 
-### T3 ⬜ Contracts + Client service
+### T3 ✅ Contracts + Client service
 - `Contracts/Sales/IServiceRateService.cs`: `Task<IReadOnlyList<ServiceRate>> GetAsync(); Task CreateAsync(NewServiceRate r); Task UpdateAsync(ServiceRate r);` records `ServiceRate(string Id, ServiceRateSource Source, string Title, long Price, bool IsActive)`, `enum ServiceRateSource { Clinic, Boarding }`, `NewServiceRate(ServiceRateSource Source, string Title, long Price)`.
 - `Client.Services/Sales/ServiceRateService.cs` (copy QueryAsync/SendAsync pattern of `SalesQueryService` L324-340; throw `InvalidOperationException(error.Code)` on failure as other services do / `ServiceException`). Register `services.AddSingleton<IServiceRateService, ServiceRateService>();` in App.axaml.cs near L356.
 - Push.
