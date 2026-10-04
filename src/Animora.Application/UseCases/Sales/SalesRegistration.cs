@@ -25,6 +25,7 @@ public static class SalesRegistration
             .AddQuery<SaleKpiQuery, SaleKpiReadModel, SaleKpiQueryHandler>()
             .AddQuery<SalesHistoryQuery, CashierHistoryPageReadModel, SalesHistoryQueryHandler>()
             .AddQuery<OwnerLookupQuery, IReadOnlyList<OwnerLookupReadModel>, OwnerLookupQueryHandler>()
+            .AddQuery<ServiceRatesQuery, IReadOnlyList<ServiceRateReadModel>, ServiceRatesQueryHandler>()
             // ── Draft editing ─────────────────────────────────────────────────────
             .AddCommand<CreateInvoiceFromVisitCommand, string, CreateInvoiceFromVisitCommandHandler>()
             .AddValidator<CreateInvoiceFromVisitCommand, CreateInvoiceFromVisitCommandValidator>()
@@ -58,6 +59,13 @@ public static class SalesRegistration
             .AddCommand<RefundInvoiceCommand, Unit, RefundInvoiceCommandHandler>()
             .AddValidator<RefundInvoiceCommand, RefundInvoiceCommandValidator>()
             .AddCommand<ReturnInvoiceLineCommand, Unit, ReturnInvoiceLineCommandHandler>()
-            .AddValidator<ReturnInvoiceLineCommand, ReturnInvoiceLineCommandValidator>();
+            .AddValidator<ReturnInvoiceLineCommand, ReturnInvoiceLineCommandValidator>()
+            // ── Service-rate catalogue («نرخ خدمات») ──────────────────────────────
+            .AddCommand<CreateServiceRateCommand, string, CreateServiceRateCommandHandler>()
+            .AddValidator<CreateServiceRateCommand, CreateServiceRateCommandValidator>()
+            .AddCommand<CreateBoardingServiceRateCommand, string, CreateBoardingServiceRateCommandHandler>()
+            .AddValidator<CreateBoardingServiceRateCommand, CreateBoardingServiceRateCommandValidator>()
+            .AddCommand<UpdateServiceRateCommand, Unit, UpdateServiceRateCommandHandler>()
+            .AddValidator<UpdateServiceRateCommand, UpdateServiceRateCommandValidator>();
     }
 }

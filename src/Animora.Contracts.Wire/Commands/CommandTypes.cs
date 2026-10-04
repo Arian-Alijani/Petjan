@@ -44,6 +44,8 @@ public static class CommandTypes
     public const string InventoryCategoryCreate = "inventory.category.create";
     public const string InventoryCategoryRename = "inventory.category.rename";
     public const string InventoryCategoryDelete = "inventory.category.delete";
+    public const string SalesServiceRateCreate = "sales.service-rate.create";
+    public const string SalesServiceRateUpdate = "sales.service-rate.update";
     public const string PurchasingOrderCreate = "purchasing.order.create";
     public const string PurchasingReceiptRecord = "purchasing.receipt.record";
     public const string PurchasingOrderCancel = "purchasing.order.cancel";
@@ -108,6 +110,7 @@ public static class CommandTypes
         PurchasingOrderSubmit,
         InventoryProductCreate, InventoryProductUpdate, InventoryVariantAdd, InventoryProductDelete,
         InventoryCategoryCreate, InventoryCategoryRename, InventoryCategoryDelete,
+        SalesServiceRateCreate, SalesServiceRateUpdate,
         PurchasingOrderCreate, PurchasingReceiptRecord, PurchasingOrderCancel,
         FinancePeriodClose, FinanceExpensePost, FinanceChequeTransition,
         FinanceChequeCreate, FinanceChequeUpdate, FinanceChequeDelete, FinanceChequeStatus,

@@ -3,6 +3,7 @@ using Animora.Domain.Boarding;
 using Animora.Domain.Finance;
 using Animora.Domain.Identity;
 using Animora.Domain.Inventory;
+using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Sales;
 using Animora.Domain.Time;
@@ -48,6 +49,7 @@ public sealed class LocalSeeder(
     public const string RoomsKey = "boarding.rooms";
     public const string ServicesKey = "boarding.services";
     public const string InsurersKey = "sales.insurers";
+    public const string DefaultServicesKey = "sales.services.default";
     public const string SmsTemplatesKey = "vaccination.sms.templates";
     private const int SchemaVersion = 1;
 
@@ -62,6 +64,14 @@ public sealed class LocalSeeder(
         ("SRV", "خدمات"), ("SUPP", "مکمل‌ها"), ("GROOM", "آرایش و نظافت"), ("TOY", "اسباب‌بازی"),
         ("HYG", "بهداشتی"), ("LAB", "ملزومات آزمایشگاه"), ("SURG", "مصرفی جراحی"),
         ("EQUIP", "تجهیزات"),
+    ];
+
+    // Default clinic service rates («نرخ خدمات»), IRT. Editable afterwards from the Sales «نرخ خدمات» tab.
+    private static readonly (string Sku, string Title, long Price)[] DefaultServices =
+    [
+        ("SRV-VISIT", "ویزیت عمومی", 500_000), ("SRV-SPEC", "ویزیت تخصصی", 900_000),
+        ("SRV-INJ", "تزریق", 150_000), ("SRV-DRESS", "پانسمان", 250_000),
+        ("SRV-SONO", "سونوگرافی", 1_200_000), ("SRV-SURG", "جراحی سرپایی", 3_000_000),
     ];
 
     public async Task<Result> SeedAsync(CancellationToken ct = default)
@@ -90,12 +100,12 @@ public sealed class LocalSeeder(
             (RoomsKey, () => AddAll(Enumerable.Range(1, 8).Select(RoomFor))),
             (ServicesKey, () => AddRange(new[]
             {
-                BoardingServiceDef.Create(tenantId, "WALK", "Extra walk", Animora.Domain.ValueObjects.Money.Irt(60_000), BoardingServiceBilling.PerDay),
-                BoardingServiceDef.Create(tenantId, "DIET", "Special diet", Animora.Domain.ValueObjects.Money.Irt(90_000), BoardingServiceBilling.PerDay),
-                BoardingServiceDef.Create(tenantId, "BATH", "Bath", Animora.Domain.ValueObjects.Money.Irt(150_000), BoardingServiceBilling.PerStay),
-                BoardingServiceDef.Create(tenantId, "GROOM", "Grooming", Animora.Domain.ValueObjects.Money.Irt(180_000), BoardingServiceBilling.PerStay),
-                BoardingServiceDef.Create(tenantId, "PLAY", "Play session", Animora.Domain.ValueObjects.Money.Irt(50_000), BoardingServiceBilling.PerUse),
-                BoardingServiceDef.Create(tenantId, "CARE", "Extra care", Animora.Domain.ValueObjects.Money.Irt(75_000), BoardingServiceBilling.PerUse),
+                BoardingServiceDef.Create(tenantId, "WALK", "پیاده‌روی اضافه", Animora.Domain.ValueObjects.Money.Irt(60_000), BoardingServiceBilling.PerDay),
+                BoardingServiceDef.Create(tenantId, "DIET", "رژیم غذایی ویژه", Animora.Domain.ValueObjects.Money.Irt(90_000), BoardingServiceBilling.PerDay),
+                BoardingServiceDef.Create(tenantId, "BATH", "حمام", Animora.Domain.ValueObjects.Money.Irt(150_000), BoardingServiceBilling.PerStay),
+                BoardingServiceDef.Create(tenantId, "GROOM", "آرایش و نظافت", Animora.Domain.ValueObjects.Money.Irt(180_000), BoardingServiceBilling.PerStay),
+                BoardingServiceDef.Create(tenantId, "PLAY", "بازی", Animora.Domain.ValueObjects.Money.Irt(50_000), BoardingServiceBilling.PerUse),
+                BoardingServiceDef.Create(tenantId, "CARE", "مراقبت ویژه", Animora.Domain.ValueObjects.Money.Irt(75_000), BoardingServiceBilling.PerUse),
             })),
             (InsurersKey, () => AddRange(new[]
             {
@@ -124,6 +134,10 @@ public sealed class LocalSeeder(
             var outcome = await RunBlockAsync(key, add, ct);
             if (outcome.IsFailure) return outcome;
         }
+
+        // Marker-guarded, so it also reaches installs seeded before the service catalogue existed.
+        var services = await SeedDefaultServicesAsync(tenantId, ct);
+        if (services.IsFailure) return services;
 
         // C01: optional, deterministic sample owners/pets so the Patients screens are testable on a fresh
         // store. Behind LocalStoreOptions.SeedSampleData, in its own idempotent marker-guarded block.
@@ -194,6 +208,25 @@ public sealed class LocalSeeder(
 
         Result<Room> RoomFor(int n) => Room.Create(tenantId, $"R-{n:D2}", $"Room {n:D2}",
             n switch { 7 => RoomType.Isolation, 8 => RoomType.Vip, _ => RoomType.Standard }, capacity: 1);
+    }
+
+    private async Task<Result> SeedDefaultServicesAsync(string tenantId, CancellationToken ct)
+    {
+        if (await IsAppliedAsync(DefaultServicesKey, ct)) return Result.Ok();
+        var categories = db.Set<ProductCategory>().AsNoTracking().Where(c => c.IsActive);
+        var categoryId = await categories.Where(c => c.Code == "SRV").Select(c => c.Id).FirstOrDefaultAsync(ct)
+            ?? await categories.OrderBy(c => c.SortOrder).Select(c => c.Id).FirstOrDefaultAsync(ct);
+        if (categoryId is null) return Result.Ok(); // nothing to attach to yet; retried on the next start.
+
+        return await RunBlockAsync(DefaultServicesKey, () => AddAll(DefaultServices.Select(service =>
+        {
+            var price = Animora.Domain.ValueObjects.Money.Irt(service.Price);
+            var variant = new ProductVariant(IdGenerator.NewId(clock.UtcNow), service.Sku + "-1",
+                ProductVariant.DefaultAttributeName, service.Sku, Animora.Domain.ValueObjects.Money.Irt(0), price,
+                Animora.Domain.ValueObjects.Quantity.Zero("PCS"), null, true);
+            return Product.Create(tenantId, service.Sku, service.Title, categoryId, ProductKind.Service, "PCS",
+                Animora.Domain.ValueObjects.Money.Irt(0), price, [variant], trackStock: false);
+        })), ct);
     }
 
     private async Task<Result> RunBlockAsync(string key, Func<Result> addRows, CancellationToken ct)

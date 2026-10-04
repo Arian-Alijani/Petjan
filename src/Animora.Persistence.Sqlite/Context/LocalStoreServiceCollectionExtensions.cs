@@ -93,6 +93,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<IPurchasingQueries, PurchasingQueries>();
         // C07: sales read projections, transactional posting/draft facts and per-tenant invoice numbering.
         services.TryAddScoped<ISalesQueries, SalesQueries>();
+        services.TryAddScoped<IServiceRateQueries, ServiceRateQueries>();
         services.TryAddScoped<ICashierQueries, CashierQueries>();
         services.TryAddScoped<IChequeQueries, ChequeQueries>();
         services.TryAddScoped<ISalesDraftData, SalesDraftData>();
@@ -118,6 +119,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IReceptionQueueRepository, ReceptionQueueRepository>();
         services.AddScoped<IBoardingRepository, BoardingRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IBoardingServiceRepository, BoardingServiceRepository>();
         services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
         services.AddScoped<IStockMovementRepository, StockMovementRepository>();
         services.AddScoped<IPurchasingRepository, PurchasingRepository>();

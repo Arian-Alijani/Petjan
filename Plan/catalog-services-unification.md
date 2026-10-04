@@ -36,7 +36,7 @@ Line resolution when billing: `Persistence/Repositories/SalesDraftData.FindCatal
 4. `SalesQueries.GetCatalogAsync`: LEFT JOIN category (`join c ... into cs from c in cs.DefaultIfEmpty()`, label `c == null ? "سایر" : c.DisplayName`), Take(500)→1000.
 5. `build.sh` → push `fix(catalog): show every active product in boarding/visit/sales pickers`.
 
-### T2 ⬜ Backend: service-rate catalogue (Application + Persistence)
+### T2 ✅ Backend: service-rate catalogue (Application + Persistence)
 - New file `Application/UseCases/Sales/ServiceRateCommands.cs`:
   - `ServiceRateReadModel(string Id, string Source /*"Clinic"|"Boarding"*/, string Title, long PriceMinor, bool IsActive, string? Billing)`.
   - `ServiceRatesQuery : IQuery<IReadOnlyList<ServiceRateReadModel>>` `[RequiresPermission(SalesRead)]` → port `IServiceRateQueries.GetAsync` (new file `Application/Ports/IServiceRateQueries.cs`; impl `Persistence/Queries/ServiceRateQueries.cs`: Products Kind==Service (incl. inactive, not Deleted) + all BoardingServiceDefs, ordered Source,Title).
