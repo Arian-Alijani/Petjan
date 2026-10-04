@@ -29,7 +29,7 @@ public sealed class DashboardProductionPathTests
         var zone = scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
         var window = DashboardDayWindow.For(ClinicCalendar.LocalDay(host.Clock.UtcNow.UtcTicks, zone), zone);
         await Task.CompletedTask;
-        return (window, host.Cache.Current!.UserId);
+        return (window, host.Cache.Current!.UserId!);
     }
 
     [Fact]

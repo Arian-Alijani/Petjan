@@ -328,7 +328,7 @@ brushes, amountText/brush, statusLabel/brush/bg, and an `OpenCommand`).
 - **Build:** `scripts/sandbox/build.sh` → 0/0.
 - **Push:** `scripts/git/push.sh "style(history): unify tab toolbars with main page"`
 
-### ☐ T11 — Consistency + regression sweep (targeted, no full test run)
+### ☑ T11 — Consistency + regression sweep (targeted, no full test run)
 - Re-read each touched view/VM to confirm: (a) rows clickable everywhere, (b) palettes identical,
   (c) no leftover forked color/money helpers, (d) Appointments history untouched/unbroken,
   (e) DI resolves (no manual `new HistoryPageViewModel`), (f) `EnsureLoaded`/`Refresh`/`OnInvoiceChanged`

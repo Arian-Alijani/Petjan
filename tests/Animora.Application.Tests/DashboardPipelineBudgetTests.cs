@@ -83,7 +83,7 @@ public sealed class DashboardPipelineBudgetTests(ITestOutputHelper output)
             using var scope = host.Services.CreateScope();
             var evaluator = scope.ServiceProvider.GetRequiredService<IPermissionEvaluator>();
             var session = host.Cache.Current!;
-            var subject = new AuthorizationSubject(Animora.Domain.Identity.Tenant.LocalDefaultId, session.UserId, new HashSet<string>(),
+            var subject = new AuthorizationSubject(Animora.Domain.Identity.Tenant.LocalDefaultId, session.UserId!, new HashSet<string>(),
                 session.Role!.Value, "device", false);
             var batched = await evaluator.AllowedAsync(codes, subject, default);
             foreach (var code in codes)
