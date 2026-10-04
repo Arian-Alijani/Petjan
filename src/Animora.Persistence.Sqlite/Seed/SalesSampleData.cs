@@ -22,7 +22,7 @@ namespace Animora.Persistence.Sqlite.Seed;
 /// Seeds <b>30 invoices</b> across the whole lifecycle — draft, posted (unpaid), partially paid, paid and
 /// void — with the payments, credit-note adjustments and matching <see cref="MovementKind.Sale"/> /
 /// <see cref="MovementKind.ReturnIn"/> stock movements each state implies. Every posted invoice is assigned a
-/// real <c>{yy}-{seq:000000}</c> number and carries a matching <see cref="PendingCommand"/> settlement row so
+/// real <c>INV-{YY}-{seq:000000}</c> number and carries a matching <see cref="PendingCommand"/> settlement row so
 /// the cashier, finance and history screens render real data (including the <c>LocallyPosted</c> chip) on a
 /// fresh store. The two numbering counters (<c>invoice</c> and <c>command</c>) are advanced past the sample
 /// rows, so the first live posting continues at the next value and never collides on the unique indexes.
@@ -99,7 +99,6 @@ public sealed class SalesSampleData(
         var separator = periods.PeriodCode.IndexOf('-');
         var jalaliYear = separator < 0 ? periods.PeriodCode : periods.PeriodCode[..separator];
         if (jalaliYear.Length != 4) jalaliYear = "1400";
-        var yy = jalaliYear[^2..];
 
         var sequence = 0L;
         var localSequence = 0L;
@@ -133,7 +132,8 @@ public sealed class SalesSampleData(
             }
 
             sequence++;
-            var number = string.Create(CultureInfo.InvariantCulture, $"{yy}-{sequence:000000}");
+            var number = Animora.Application.Numbering.DocumentNumber.Format(
+                Animora.Application.Numbering.DocumentNumber.InvoicePrefix, jalaliYear, sequence);
             invoice.AssignInvoiceNumber(number);
             var posted = invoice.Post(clock);
             if (posted.IsFailure) continue;

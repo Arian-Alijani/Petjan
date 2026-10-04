@@ -70,21 +70,6 @@
             <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="16,14" />
         </Style>
-        <Style Selector="Button.addopt">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="Padding" Value="14,8" />
-            <Setter Property="FontSize" Value="12.5" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-            <Setter Property="HorizontalContentAlignment" Value="Left" />
-        </Style>
-        <Style Selector="Button.addopt:pointerover">
-            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
-            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
-        </Style>
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
@@ -361,61 +346,17 @@
                                        Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                         </StackPanel>
 
-                        <!-- add row (.bd-add-row: 1fr 72px auto) — the reference's
-                             grouped <select> (خدمات پانسیون / خدمات کلینیک / کالاها),
-                             re-drawn as a grouped popup picker since Avalonia has no
-                             native optgroup select. -->
-                        <Grid ColumnDefinitions="*,72,Auto" ColumnSpacing="8" Margin="0,10,0,0"
-                              IsVisible="{Binding IsEditable}">
-                            <Button Grid.Column="0" Name="AddPickerButton" Classes="outline"
-                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                    Command="{Binding ToggleAddDropdownCommand}" FontSize="12.5">
-                                <TextBlock Text="{Binding AddSelectionText}" VerticalAlignment="Center" />
-                            </Button>
-                            <TextBox Grid.Column="1" Text="{Binding AddQuantityText}" FontSize="12.5" />
-                            <Button Grid.Column="2" Classes="primary" Command="{Binding AddItemCommand}">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Path Classes="icon" Width="14" Height="14" Stroke="White"
-                                          Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
-                                    <TextBlock Text="افزودن" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </Button>
-                        </Grid>
-
-                        <!-- grouped optgroup dropdown -->
-                        <Popup IsOpen="{Binding IsAddDropdownOpen}" PlacementTarget="{Binding #AddPickerButton}"
-                               Placement="BottomEdgeAlignedLeft" VerticalOffset="4" IsLightDismissEnabled="True"
-                               IsVisible="{Binding IsEditable}">
-                            <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
-                                    BorderThickness="1" CornerRadius="{StaticResource RadiusSm}"
-                                    BoxShadow="{StaticResource ShadowPop}" MinWidth="260" MaxHeight="320"
-                                    ClipToBounds="True">
-                                <ScrollViewer>
-                                    <ItemsControl ItemsSource="{Binding AddGroups}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="boarding:BoardingAddGroupViewModel">
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding Label}" FontSize="11" FontWeight="ExtraBold"
-                                                               Foreground="{StaticResource Brand700Brush}"
-                                                               Margin="14,8,14,4" />
-                                                    <ItemsControl ItemsSource="{Binding Options}">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate x:DataType="boarding:BoardingAddOptionViewModel">
-                                                                <Button Classes="addopt"
-                                                                        Command="{Binding #Root.((boarding:StayDetailModalViewModel)DataContext).SelectAddOptionCommand}"
-                                                                        CommandParameter="{Binding}">
-                                                                    <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
-                                                                </Button>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Border>
-                        </Popup>
+                        <!-- add row: opens the dedicated catalog modal (same as Sales) instead of a
+                             popup nested inside this clipped modal panel. -->
+                        <Button Classes="primary" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center" Margin="0,10,0,0"
+                                IsVisible="{Binding IsEditable}" Command="{Binding OpenCatalogCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                                      Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                                <TextBlock Text="افزودن خدمت یا کالا" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Border>
 

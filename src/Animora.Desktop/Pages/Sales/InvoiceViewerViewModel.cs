@@ -411,7 +411,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         var result = await _service.ReturnLineAsync(_invoiceId, new LineReturnRequest(index, quantity));
         if (!result.Ok)
         {
-            _toast.Show(result.Error ?? "خطا در برگشت کالا", Tone.Danger);
+            _toast.Show(Animora.Desktop.Localization.ErrorMessages.ForResult(result.Error, "خطا در برگشت کالا"), Tone.Danger);
             return;
         }
 

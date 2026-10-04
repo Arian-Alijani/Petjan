@@ -1,0 +1,202 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:boarding="using:Animora.Desktop.Pages.Boarding"
+             x:Class="Animora.Desktop.Pages.Boarding.BoardingCatalogModalView"
+             x:Name="Root"
+             x:DataType="boarding:BoardingCatalogModalViewModel"
+             Width="500"
+             MaxWidth="500"
+             MaxHeight="720"
+             FlowDirection="RightToLeft">
+
+    <!-- Boarding catalog picker — same look/behavior as the Sales catalog modal
+         (Pages/Sales/CatalogModalView.axaml), fed by the boarding selectable-items source. -->
+    <UserControl.Styles>
+        <Style Selector="Button.catf">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.catf:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.catf.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Border.catf-ct">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="MinWidth" Value="18" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Padding" Value="5,0" />
+        </Style>
+        <Style Selector="Border.catf-ct.on">
+            <Setter Property="Background" Value="#33ffffff" />
+        </Style>
+        <Style Selector="Button.cat-row">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="4,1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.cat-row:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+
+        <!-- ═══ head ═══ -->
+        <Border Grid.Row="0" Padding="22,18,22,12"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="افزودن خدمت یا کالا" FontSize="16" FontWeight="ExtraBold"
+                               Foreground="{StaticResource InkBrush}" />
+                    <TextBlock Text="{Binding Subtitle}" FontSize="11.5"
+                               Foreground="{StaticResource MutedBrush}" />
+                </StackPanel>
+                <Button Grid.Column="1" Width="32" Height="32" Padding="0"
+                        Background="{StaticResource BgBrush}" BorderThickness="0" CornerRadius="8"
+                        VerticalAlignment="Top" Command="{Binding BackCommand}" Cursor="Hand">
+                    <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource MutedBrush}"
+                          Data="{StaticResource IconX}" HorizontalAlignment="Center"
+                          VerticalAlignment="Center" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- ═══ search + quantity ═══ -->
+        <Grid Grid.Row="1" Margin="22,14,22,10" ColumnDefinitions="*,72" ColumnSpacing="8">
+            <Grid Grid.Column="0">
+                <TextBox Text="{Binding Query}" MinHeight="0"
+                         Padding="44,11,16,11" FontSize="14" FontWeight="Medium"
+                         BorderBrush="{StaticResource Brand400Brush}" BorderThickness="1.5"
+                         CornerRadius="12" Background="{StaticResource PanelBrush}"
+                         PlaceholderText="جستجوی نام یا دستهٔ خدمت و کالا…"
+                         VerticalContentAlignment="Center" />
+                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Muted2Brush}"
+                      Data="{StaticResource IconSearch}" HorizontalAlignment="Right"
+                      VerticalAlignment="Center" Margin="0,0,16,0" IsHitTestVisible="False" />
+            </Grid>
+            <TextBox Grid.Column="1" Text="{Binding QuantityText}" MinHeight="0" Padding="8,11"
+                     FontSize="14" FontWeight="Bold" CornerRadius="12"
+                     HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                     ToolTip.Tip="تعداد" />
+        </Grid>
+
+        <!-- ═══ filters ═══ -->
+        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Hidden"
+                      VerticalScrollBarVisibility="Disabled" Padding="22,4,22,12">
+            <ItemsControl ItemsSource="{Binding Filters}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="6" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="boarding:BoardingCatalogFilterViewModel">
+                        <Button Classes="catf" Classes.on="{Binding IsActive}"
+                                Command="{Binding $parent[UserControl].((boarding:BoardingCatalogModalViewModel)DataContext).SetFilterCommand}"
+                                CommandParameter="{Binding Key}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                <Border Classes="catf-ct" Classes.on="{Binding IsActive}">
+                                    <TextBlock Text="{Binding CountText}" FontSize="10"
+                                               FontWeight="ExtraBold"
+                                               Foreground="{StaticResource Muted2Brush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- ═══ body ═══ -->
+        <ScrollViewer Grid.Row="3" Padding="12,8,12,12" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <ItemsControl ItemsSource="{Binding Rows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="boarding:BoardingCatalogRowViewModel">
+                            <Button Classes="cat-row"
+                                    Command="{Binding $parent[UserControl].((boarding:BoardingCatalogModalViewModel)DataContext).AddCommand}"
+                                    CommandParameter="{Binding Ref}">
+                                <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="12">
+                                    <Border Grid.Column="0" Width="36" Height="36" CornerRadius="10"
+                                            Background="{Binding IcoBackground}">
+                                        <Path Classes="icon" Width="16" Height="16"
+                                              Stroke="{Binding IcoForeground}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="{Binding Title}" FontSize="13.5" FontWeight="Bold"
+                                                   Foreground="{StaticResource InkBrush}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Border Background="{Binding IcoBackground}" CornerRadius="4"
+                                                    Padding="6,1">
+                                                <TextBlock Text="{Binding KindLabel}" FontSize="9.5"
+                                                           FontWeight="Bold"
+                                                           Foreground="{Binding IcoForeground}" />
+                                            </Border>
+                                            <TextBlock Text="{Binding GroupLabel}" FontSize="11"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2" Text="{Binding PriceText}" FontSize="12.5"
+                                               FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"
+                                               VerticalAlignment="Center" />
+                                    <Border Grid.Column="3" Width="30" Height="30" CornerRadius="8"
+                                            Background="{StaticResource Brand600Brush}"
+                                            VerticalAlignment="Center">
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                                              StrokeThickness="2.5" Data="{StaticResource IconPlus}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock IsVisible="{Binding !HasRows}" Text="هیچ آیتمی با این جستجو یافت نشد"
+                           FontSize="13" Foreground="{StaticResource MutedBrush}"
+                           HorizontalAlignment="Center" Margin="24,60" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ═══ foot ═══ -->
+        <Border Grid.Row="4" Padding="22,10" Background="{StaticResource BgBrush}"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding CountText}" FontSize="11" FontWeight="Bold"
+                               Foreground="{StaticResource Brand700Brush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding AddedText}" FontSize="11" FontWeight="Bold"
+                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                </StackPanel>
+                <Button Grid.Column="1" Classes="primary" Command="{Binding BackCommand}"
+                        Content="بازگشت به اقامت" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

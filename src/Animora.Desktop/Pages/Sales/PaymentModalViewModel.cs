@@ -218,7 +218,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
 
         if (!result.Ok)
         {
-            _toast.Show(result.Error ?? "خطا در ثبت پرداخت", Tone.Danger);
+            _toast.Show(Animora.Desktop.Localization.ErrorMessages.ForResult(result.Error, "خطا در ثبت پرداخت"), Tone.Danger);
             return;
         }
 

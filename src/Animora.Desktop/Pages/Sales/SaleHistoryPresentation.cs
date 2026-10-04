@@ -64,18 +64,17 @@ public static class SaleHistoryPresentation
     public static string KindBg(CashierHistoryKind kind) => HistoryPresentation.ToneBg(KindTone(kind));
 
     /// <summary>
-    /// All kinds in the chip row's declared order — accepts, payments/settlement,
-    /// the audit edits and the terminal cancel/refund/delete.
+    /// All kinds in the chip row's declared order — accepts, payments/settlement and the
+    /// terminal cancel/refund. Only kinds the ledger projection can emit are offered, so no chip is
+    /// ever permanently empty («ویرایش»/«حذف» are audit events, not ledger rows).
     /// </summary>
     public static IReadOnlyList<CashierHistoryKind> AllKinds { get; } =
     [
         CashierHistoryKind.Accepted,
         CashierHistoryKind.Paid,
         CashierHistoryKind.Settled,
-        CashierHistoryKind.Edited,
         CashierHistoryKind.Cancelled,
         CashierHistoryKind.Refunded,
-        CashierHistoryKind.Deleted,
     ];
 
     /// <summary>The signed-amount brush (delegated: inflow = ok, outflow = danger).</summary>

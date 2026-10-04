@@ -245,7 +245,7 @@ public static class PatientsPresentation
         ex is Animora.Client.Services.ServiceException se
             ? se.Code == "INVOICE_LINE_INDEX_STALE"
                 ? StaleInvoiceLineMessage
-                : se.Category switch
+                : Animora.Desktop.Localization.ErrorMessages.TryGet(se.Code) ?? se.Category switch
                 {
                     Animora.Domain.Results.ErrorCode.Forbidden => AccessLostMessage,
                     // NotFound / Conflict / Validation keep the caller's context-specific fallback on purpose.

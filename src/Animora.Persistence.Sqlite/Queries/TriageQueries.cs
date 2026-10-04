@@ -37,10 +37,14 @@ public sealed class TriageQueries(AnimoraLocalDbContext db) : ITriageQueries
         // translate (crash on ToListAsync for doctors that actually have booked rows). Restructured to
         // two inner joins for pet/owner and a pair of correlated subqueries for the optional queue row,
         // so the whole statement translates cleanly.
+        // T2: only rows StartVisitFromTicket can actually start (NoShow/Completed are rejected with
+        // TICKET_STATE_INVALID), mirroring the doctor-rail query above.
         var booked = from appointment in db.Set<Appointment>().AsNoTracking()
                      where appointment.DoctorUserId == doctorId
                          && appointment.StartUtc >= startUtc && appointment.StartUtc < endUtc
                          && appointment.State != AppointmentState.Cancelled
+                         && appointment.State != AppointmentState.NoShow
+                         && appointment.State != AppointmentState.Completed
                      join pet in db.Set<Pet>().AsNoTracking() on appointment.PetId equals pet.Id
                      join owner in db.Set<Owner>().AsNoTracking() on appointment.OwnerId equals owner.Id
                      orderby appointment.StartUtc, appointment.Id

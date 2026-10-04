@@ -301,7 +301,12 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         }
         catch (Exception ex)
         {
-            _toast.Show($"افزودن «{item.Title}» ناموفق بود: {ex.Message}", Tone.Danger);
+            var reason = ex is Animora.Client.Services.ServiceException se
+                ? Animora.Desktop.Localization.ErrorMessages.TryGet(se.Code)
+                : null;
+            _toast.Show(reason is null
+                ? $"افزودن «{item.Title}» ناموفق بود."
+                : $"افزودن «{item.Title}» ناموفق بود: {reason}", Tone.Danger);
         }
     }
 

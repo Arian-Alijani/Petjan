@@ -14,6 +14,12 @@ public interface IVisitsTriageService
 
     IReadOnlyList<VisitTypeInfo> GetVisitTypes();
 
+    /// <summary>
+    /// Built-in visit types (Persian labels) merged with the clinic's custom types from
+    /// Settings → Appointments, so the visit-type filter stays in sync with the appointment settings.
+    /// </summary>
+    Task<IReadOnlyList<VisitTypeInfo>> GetVisitTypesAsync();
+
     Task<IReadOnlyList<VisitPatientRef>> GetPatientsAsync();
 
     Task<EncounterDraft> StartFromTicketAsync(string ticketId);

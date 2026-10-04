@@ -1,4 +1,4 @@
-using System.Globalization;
+using Animora.Application.Numbering;
 using Animora.Application.Ports;
 using Animora.Persistence.Sqlite.Commands;
 using Animora.Persistence.Sqlite.Context;
@@ -23,19 +23,13 @@ public sealed class ExpenseNumberAllocator(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var period = periodCodes.For(issuedUtc).PeriodCode;
-        var separator = period.IndexOf('-');
-        var jalaliYear = separator < 0 ? period : period[..separator];
-        if (jalaliYear.Length != 4)
-            throw new InvalidOperationException($"Invalid Jalali period code '{period}'.");
+        var jalaliYear = DocumentNumber.JalaliYearOf(periodCodes.For(issuedUtc).PeriodCode);
 
         var sequence = await PipelineSql.NextSequenceAsync(
             db,
             $"expense:{tenantId}:{jalaliYear}",
             ct).ConfigureAwait(false);
 
-        return string.Create(
-            CultureInfo.InvariantCulture,
-            $"EXP-{jalaliYear[^2..]}-{sequence:000000}");
+        return DocumentNumber.Format(DocumentNumber.ExpensePrefix, jalaliYear, sequence);
     }
 }

@@ -25,7 +25,7 @@ public sealed class InvoiceNumberAllocatorTests
 
         var numbers = await Task.WhenAll(tasks);
         Assert.Equal(200, numbers.Distinct(StringComparer.Ordinal).Count());
-        Assert.All(numbers, number => Assert.StartsWith("04-", number, StringComparison.Ordinal));
+        Assert.All(numbers, number => Assert.StartsWith("INV-04-", number, StringComparison.Ordinal));
     }
 
     [Fact]

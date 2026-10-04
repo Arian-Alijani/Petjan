@@ -88,7 +88,8 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
     {
         // One shared pay-on-post / cap-to-due path for Sales and Cashier (X41).
         var outcome = await InvoicePaymentCore.PayAsync(invoiceId, InvoicePaymentCore.ToDomain(request.Method),
-            request.Amount, request.Reference, command => SendAsync(command), () => ReadModelAsync(invoiceId));
+            request.Amount, request.Reference, command => SendAsync(command), () => ReadModelAsync(invoiceId),
+            () => CashSessionAutoOpen.EnsureOpenAsync(scopes));
         return new(outcome.Ok, outcome.Error, await GetDetailAsync(invoiceId), outcome.Applied);
     }
 

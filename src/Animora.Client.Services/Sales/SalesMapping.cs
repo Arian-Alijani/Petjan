@@ -256,7 +256,7 @@ internal static class SalesMapping
     internal static CashierHistoryEntry ToContract(this CashierHistoryReadModel row, TimeZoneInfo tz)
     {
         var kind = HistoryKindOf(row.Kind);
-        var state = StateForKind(kind);
+        var state = StateOf(row.InvoiceState);
         return new CashierHistoryEntry(row.Id, kind, HistoryKindLabel(kind), row.InvoiceId, row.OwnerName,
             string.Empty, Jalali(row.OccurredUtc, tz), HhMm(row.OccurredUtc, tz),
             Math.Abs(row.AmountMinor), Math.Sign(row.AmountMinor), state, StateText(state), string.Empty,
@@ -265,6 +265,7 @@ internal static class SalesMapping
 
     internal static CashierHistoryKind HistoryKindOf(string kind) => kind switch
     {
+        "Payment" => CashierHistoryKind.Paid,
         "Refund" => CashierHistoryKind.Refunded,
         "Void" => CashierHistoryKind.Cancelled,
         _ => CashierHistoryKind.Accepted,
@@ -289,17 +290,20 @@ internal static class SalesMapping
         CashierHistoryKind.Refunded => "Refund",
         CashierHistoryKind.Cancelled => "Void",
         CashierHistoryKind.Accepted => "Accepted",
-        CashierHistoryKind.Edited => "Edited",
-        CashierHistoryKind.Deleted => "Deleted",
+        // «ویرایش» / «حذف» are audit-trail events the cashier ledger never projects, so they have no wire kind.
         _ => null,
     };
 
-    private static ContractInvoiceState StateForKind(CashierHistoryKind kind) => kind switch
+    /// <summary>
+    /// The wire kind filter for a multi-select: distinct projected kinds joined by commas, or <c>null</c>
+    /// (no restriction) when nothing is selected or the selection already covers every projected kind.
+    /// </summary>
+    internal static string? HistoryFilterKinds(IReadOnlyCollection<CashierHistoryKind> kinds)
     {
-        CashierHistoryKind.Cancelled => ContractInvoiceState.Void,
-        CashierHistoryKind.Refunded => ContractInvoiceState.Refunded,
-        _ => ContractInvoiceState.Draft,
-    };
+        if (kinds.Count == 0) return null;
+        var wire = kinds.Select(HistoryFilterKind).Where(k => k is not null).Distinct(StringComparer.Ordinal).ToArray();
+        return wire.Length is 0 or >= 4 ? null : string.Join(',', wire);
+    }
 
     internal static string StateText(ContractInvoiceState state) => state switch
     {
@@ -364,7 +368,7 @@ internal static class SalesMapping
         _ => ContractPaymentMethod.Cash,
     };
 
-    private static string MethodLabel(DomainPaymentMethod method) => method switch
+    internal static string MethodLabel(DomainPaymentMethod method) => method switch
     {
         DomainPaymentMethod.Cash or DomainPaymentMethod.Wallet => "نقدی",
         DomainPaymentMethod.Card or DomainPaymentMethod.Transfer => "کارت",

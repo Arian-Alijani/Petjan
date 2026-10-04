@@ -48,7 +48,7 @@ internal static class ClinicDayWindow
         try
         {
             var calendar = new PersianCalendar();
-            var local = calendar.ToDateTime(year, month, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, 0, 0);
+            var local = calendar.ToDateTime(year, month, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
             var unspecified = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
             return new DateTimeOffset(unspecified, tz.GetUtcOffset(unspecified)).ToUniversalTime();
         }

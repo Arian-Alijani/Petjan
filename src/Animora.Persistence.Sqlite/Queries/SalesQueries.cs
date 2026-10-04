@@ -182,14 +182,14 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
                        from owner in owners.DefaultIfEmpty()
                        select new CashierHistoryReadModel(p.Id, i.Id, i.InvoiceNumber, p.ReceivedUtc,
                            p.Amount.Minor < 0 ? "Refund" : "Payment", p.Amount.Minor,
-                           owner == null ? i.GuestName ?? "" : owner.FullName);
+                           owner == null ? i.GuestName ?? "" : owner.FullName, i.State);
         var invoices = from i in db.Set<Invoice>().AsNoTracking()
                        join owner in db.Set<Owner>().AsNoTracking() on i.OwnerId equals owner.Id into owners
                        from owner in owners.DefaultIfEmpty()
                        where i.State != InvoiceState.Draft
                        select new CashierHistoryReadModel(i.Id, i.Id, i.InvoiceNumber,
                            i.PostedUtc ?? i.IssuedUtc, i.State == InvoiceState.Void ? "Void" : "Accepted",
-                           0L, owner == null ? i.GuestName ?? "" : owner.FullName);
+                           0L, owner == null ? i.GuestName ?? "" : owner.FullName, i.State);
         var rows = payments.Concat(invoices);
         if (fromUtc is { } from) rows = rows.Where(r => r.OccurredUtc >= from);
         if (toUtc is { } to) rows = rows.Where(r => r.OccurredUtc < to);
@@ -199,7 +199,12 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             rows = rows.Where(r => EF.Functions.Like(r.Number, "%" + term + "%") ||
                 EF.Functions.Like(r.OwnerName, "%" + term + "%"));
         }
-        if (!string.IsNullOrWhiteSpace(kind)) rows = rows.Where(r => r.Kind == kind);
+        if (!string.IsNullOrWhiteSpace(kind))
+        {
+            // `kind` is one projection kind or a comma-separated set (multi-select chips).
+            var kinds = kind.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            rows = kinds.Length == 1 ? rows.Where(r => r.Kind == kinds[0]) : rows.Where(r => kinds.Contains(r.Kind));
+        }
         var totals = await rows.GroupBy(r => 1).Select(g => new
         {
             Inflow = g.Sum(r => r.AmountMinor > 0 ? r.AmountMinor : 0),

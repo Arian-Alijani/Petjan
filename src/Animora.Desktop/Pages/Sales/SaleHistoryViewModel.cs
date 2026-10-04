@@ -39,6 +39,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     private readonly ISalesQueryService _service;
     private readonly IHistoryRecordOpener _opener;
     private readonly Action? _onInvoiceChanged;
+    private readonly IToastService? _toast;
     private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
 
     private readonly HashSet<CashierHistoryKind> _selectedKinds = [];
@@ -64,8 +65,9 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     /// </param>
     /// <param name="onInvoiceChanged">Raised after the invoice sheet mutates an invoice (page-level refresh).</param>
     public SaleHistoryViewModel(ISalesQueryService service, IHistoryRecordOpener opener,
-        Action? onInvoiceChanged = null)
+        Action? onInvoiceChanged = null, IToastService? toast = null)
     {
+        _toast = toast;
         _service = service;
         _opener = opener;
         _onInvoiceChanged = onInvoiceChanged;
@@ -422,6 +424,17 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
             }
 
             ApplyPage(page);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Distinguish "backend failed" from "genuinely no rows": clear the list on purpose and say why.
+            if (token == _generation)
+            {
+                Rows.ReplaceAll([]);
+                HasRows = false;
+                IsEmpty = true;
+                _toast?.Show("بارگذاری تاریخچه ناموفق بود؛ دوباره تلاش کنید.", Tone.Danger);
+            }
         }
         finally
         {
