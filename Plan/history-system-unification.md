@@ -296,7 +296,7 @@ brushes, amountText/brush, statusLabel/brush/bg, and an `OpenCommand`).
 - **Build:** `scripts/sandbox/build.sh` → 0/0.
 - **Push:** `scripts/git/push.sh "feat(history): sales tab uses shared row + seam open"`
 
-### ☐ T8 — Boarding tab: shared row template + row open
+### ☑ T8 — Boarding tab: shared row template + row open
 - **`Pages/Boarding/BoardingHistoryItemViewModels.cs` → row VM:** implement `IHistoryRowView`
   (badge/actor/amount/status via `HistoryPresentation`); add `OpenCommand` routing through
   `IHistoryRecordOpener.OpenAsync("Stay", StayId)`.

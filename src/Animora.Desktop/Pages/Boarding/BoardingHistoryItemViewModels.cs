@@ -1,8 +1,13 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Windows.Input;
 using Animora.Contracts.Boarding;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Pages.History;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Animora.Desktop.Pages.Boarding;
 
@@ -96,14 +101,19 @@ public sealed partial class BoardingHistoryRangeViewModel : ObservableObject
 }
 
 /// <summary>
-/// One ledger row of the boarding history table: the kind badge, the pet +
-/// note lock-up, date/time, the signed amount, the night count and the actor.
-/// Every display string + brush is computed once in the constructor
+/// One ledger row of the boarding «تاریخچه» tab, rendered through the shared
+/// <c>HistoryRowTemplate</c> (<see cref="IHistoryRowView"/>) so it is pixel-identical to the
+/// main History page: kind badge, time, title («پذیرش · پتیار») + room/nights/note detail, the
+/// owner, actor, signed amount, the kind chip and the species pill. Clicking the row opens the
+/// Boarding workspace via <see cref="OpenCommand"/> (routed through <c>IHistoryRecordOpener</c>
+/// with the stay id). Every display string + brush is computed once in the constructor
 /// (PERFORMANCE.md §9) — the template only binds.
 /// </summary>
-public sealed class BoardingHistoryRowViewModel
+public sealed class BoardingHistoryRowViewModel : IHistoryRowView
 {
-    public BoardingHistoryRowViewModel(BoardingHistoryEntry entry)
+    /// <param name="entry">The ledger entry.</param>
+    /// <param name="openStay">Opens the unified record screen for <paramref name="entry"/>'s stay.</param>
+    public BoardingHistoryRowViewModel(BoardingHistoryEntry entry, Func<string, Task>? openStay = null)
     {
         Id = entry.Id;
         StayId = entry.StayId;
@@ -112,27 +122,32 @@ public sealed class BoardingHistoryRowViewModel
 
         PetName = entry.PetName;
         OwnerName = string.IsNullOrEmpty(entry.OwnerName) ? "—" : entry.OwnerName;
-        RoomText = "اتاق " + entry.RoomLabel;
+        RoomText = string.IsNullOrEmpty(entry.RoomLabel) ? string.Empty : "اتاق " + HistoryPresentation.FaText(entry.RoomLabel);
 
         SpeciesIconKey = BoardingHistoryPresentation.SpeciesIconKey(entry.Species);
         SpeciesLabel = BoardingHistoryPresentation.SpeciesLabel(entry.Species);
 
+        var kindTone = BoardingHistoryPresentation.KindTone(entry.Kind);
         IconKey = BoardingHistoryPresentation.KindIcon(entry.Kind);
-        BadgeBrush = BoardingHistoryPresentation.Fill(BoardingHistoryPresentation.KindBg(entry.Kind));
-        BadgeIconBrush = BoardingHistoryPresentation.Fill(BoardingHistoryPresentation.KindColor(entry.Kind));
-        KindTone = BoardingHistoryPresentation.KindTone(entry.Kind);
+        BadgeBrush = HistoryPresentation.ToneBgBrush(kindTone);
+        BadgeIconBrush = HistoryPresentation.ToneBrush(kindTone);
+        KindTone = kindTone;
 
-        DateText = BoardingHistoryPresentation.FaText(entry.Date);
-        TimeText = string.IsNullOrEmpty(entry.Time) ? "—" : BoardingHistoryPresentation.FaText(entry.Time);
+        // Status chip = the stay-lifecycle kind; category pill = the pet's species.
+        StatusBrush = BadgeIconBrush;
+        StatusBgBrush = BadgeBrush;
+        CategoryLabel = SpeciesLabel;
+        CategoryColorBrush = HistoryPresentation.ToneBrush(Tone.Lilac);
+        CategoryBgBrush = HistoryPresentation.ToneBgBrush(Tone.Lilac);
 
-        NightsText = entry.Nights > 0
-            ? BoardingHistoryPresentation.Fa(entry.Nights) + " شب"
-            : "—";
+        DateText = HistoryPresentation.FaText(entry.Date);
+        TimeText = string.IsNullOrEmpty(entry.Time) ? "—" : HistoryPresentation.FaText(entry.Time);
+
+        NightsText = entry.Nights > 0 ? HistoryPresentation.Fa(entry.Nights) + " شب" : "—";
 
         HasAmount = entry.Amount != 0 && entry.AmountSign != 0;
         AmountText = HistoryPresentation.SignedAmount(entry.Amount, entry.AmountSign);
-
-        AmountBrush = BoardingHistoryPresentation.AmountBrush(entry.AmountSign);
+        AmountBrush = HistoryPresentation.AmountBrush(HasAmount ? entry.AmountSign : 0);
 
         // The audit "who" (R1).
         ActorName = entry.Actor.Name;
@@ -141,6 +156,20 @@ public sealed class BoardingHistoryRowViewModel
 
         // «پتیار · یادداشت» subtitle, or just the pet when there is no note.
         Subtitle = string.IsNullOrEmpty(Note) ? PetName : PetName + " · " + Note;
+
+        // Shared-row surface: title «پذیرش · پتیار»; detail «اتاق ۳ · ۲ شب · یادداشت».
+        Title = string.IsNullOrEmpty(PetName) ? KindLabel : KindLabel + " · " + PetName;
+        var parts = new List<string>(3);
+        if (!string.IsNullOrEmpty(RoomText)) parts.Add(RoomText);
+        if (entry.Nights > 0) parts.Add(NightsText);
+        if (!string.IsNullOrEmpty(Note)) parts.Add(Note);
+        Detail = string.Join(" · ", parts);
+        HasDetail = Detail.Length > 0;
+
+        CanOpen = !string.IsNullOrEmpty(StayId) && openStay is not null;
+        OpenCommand = new AsyncRelayCommand(
+            () => CanOpen ? openStay!(StayId) : Task.CompletedTask,
+            () => CanOpen);
     }
 
     public string Id { get; }
@@ -189,4 +218,37 @@ public sealed class BoardingHistoryRowViewModel
     public string ActorInitials { get; }
 
     public string ActorRole { get; }
+
+    // ── IHistoryRowView (shared row template surface) ────────────────────
+
+    public string Title { get; }
+
+    public string Detail { get; }
+
+    public bool HasDetail { get; }
+
+    /// <inheritdoc cref="TimeText"/>
+    public string Time => TimeText;
+
+    /// <summary>The party column: the owner.</summary>
+    public string Entity => OwnerName;
+
+    public string CategoryLabel { get; }
+
+    public IBrush CategoryColorBrush { get; }
+
+    public IBrush CategoryBgBrush { get; }
+
+    /// <summary>The status chip: the stay-lifecycle kind («پذیرش» / «تخلیه» / …).</summary>
+    public string StatusLabel => KindLabel;
+
+    public IBrush StatusBrush { get; }
+
+    public IBrush StatusBgBrush { get; }
+
+    /// <summary>True when the row has a stay to open.</summary>
+    public bool CanOpen { get; }
+
+    /// <summary>Opens the unified record screen for this stay.</summary>
+    public ICommand OpenCommand { get; }
 }

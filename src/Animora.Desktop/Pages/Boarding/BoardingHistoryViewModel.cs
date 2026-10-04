@@ -37,6 +37,7 @@ public sealed partial class BoardingHistoryViewModel : ObservableObject
     private static readonly int[] PageSizes = [25, 50, 100];
 
     private readonly IBoardingQueryService _service;
+    private readonly IHistoryRecordOpener _opener;
     private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
 
     private readonly HashSet<BoardingHistoryKind> _selectedKinds = [];
@@ -56,12 +57,19 @@ public sealed partial class BoardingHistoryViewModel : ObservableObject
     // longer matches is discarded (a newer query has superseded it).
     private int _generation;
 
-    public BoardingHistoryViewModel(IBoardingQueryService service)
+    /// <param name="service">The boarding read seam (ledger query).</param>
+    /// <param name="opener">The unified record opener shared with the main History page (row click → stay).</param>
+    public BoardingHistoryViewModel(IBoardingQueryService service, IHistoryRecordOpener opener)
     {
         _service = service;
+        _opener = opener;
         BuildRangeChips();
         BuildKindChips();
     }
+
+    /// <summary>Opens the unified record screen for a ledger row's stay via <see cref="IHistoryRecordOpener"/>.</summary>
+    private Task OpenStayAsync(string stayId) =>
+        string.IsNullOrEmpty(stayId) ? Task.CompletedTask : _opener.OpenAsync("Stay", stayId);
 
     public RangeObservableCollection<BoardingHistoryRowViewModel> Rows { get; } = [];
 
@@ -439,7 +447,7 @@ public sealed partial class BoardingHistoryViewModel : ObservableObject
             return;
         }
 
-        Rows.ReplaceAll(page.Items.Select(entry => new BoardingHistoryRowViewModel(entry)));
+        Rows.ReplaceAll(page.Items.Select(entry => new BoardingHistoryRowViewModel(entry, OpenStayAsync)));
 
         HasRows = page.TotalCount > 0;
         IsEmpty = page.TotalCount == 0;

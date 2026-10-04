@@ -42,7 +42,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private BoardingSpecies? _species;
 
     public BoardingPageViewModel(IBoardingQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs, INavigationService navigation,
-        IDataChangeNotifier changes, IPrintService print)
+        IDataChangeNotifier changes, IPrintService print, IHistoryRecordOpener historyOpener)
     {
         _print = print;
         _service = service;
@@ -52,7 +52,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         _dialogs = dialogs;
         _navigation = navigation;
 
-        History = new BoardingHistoryViewModel(service);
+        History = new BoardingHistoryViewModel(service, historyOpener);
 
         Title = "پانسیون";
         Eyebrow = "مدیریت کلینیک";
