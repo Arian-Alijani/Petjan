@@ -50,7 +50,7 @@ switch over `ServiceException.Code` / result error code → Persian, used by bot
 | ID | Title | Status |
 |----|-------|--------|
 | T1 | Visit-type filters show English → use Persian labels from appointment settings | ☑ DONE |
-| T2 | "Start visit" often fails — root-cause & fix | ☐ TODO |
+| T2 | "Start visit" often fails — root-cause & fix | ☑ DONE |
 | T3 | Pay / full-settle shows raw `CASH_SESSION_REQUIRED` in Sales & Cashier | ☐ TODO |
 | T4 | Boarding add product/service picker opens *behind* (clipped) — make it a modal like Sales | ☐ TODO |
 | T5 | All displayed statuses/texts must be Persian (enum/code leaks) | ☐ TODO |
@@ -125,7 +125,7 @@ Two gaps:
 
 ---
 
-## T2 — "Start visit" frequently fails with a generic failure toast
+## T2 — ☑ DONE — "Start visit" frequently fails with a generic failure toast
 
 **Symptom (user):** Clicking **شروع ویزیت (start visit)** often shows "شروع ویزیت ناموفق بود".
 
