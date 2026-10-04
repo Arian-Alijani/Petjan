@@ -132,7 +132,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     private string _summaryNetText = string.Empty;
 
     [ObservableProperty]
-    private IBrush _summaryNetBrush = HistoryPresentation.Fill("#027a48");
+    private IBrush _summaryNetBrush = HistoryPresentation.AmountBrush(1);
 
     [ObservableProperty]
     private string _pageText = "۰ / ۰";
@@ -458,7 +458,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         SummaryIncomeText = "+" + HistoryPresentation.Money(income) + " ت";
         SummaryExpenseText = "−" + HistoryPresentation.Money(expense) + " ت";
         SummaryNetText = (net >= 0 ? "+" : "−") + HistoryPresentation.Money(Math.Abs(net)) + " ت";
-        SummaryNetBrush = HistoryPresentation.Fill(net >= 0 ? "#027a48" : "#d92d20");
+        SummaryNetBrush = HistoryPresentation.AmountBrush(net >= 0 ? 1 : -1);
 
         PageText = $"{HistoryPresentation.Fa(_page)} / {HistoryPresentation.Fa(totalPages)}";
         HasPrev = _page > 1;

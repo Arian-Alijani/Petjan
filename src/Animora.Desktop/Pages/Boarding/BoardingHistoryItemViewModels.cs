@@ -1,5 +1,6 @@
 using Animora.Contracts.Boarding;
 using Animora.Desktop.Controls;
+using Animora.Desktop.Pages.History;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -13,10 +14,8 @@ namespace Animora.Desktop.Pages.Boarding;
 public sealed partial class BoardingHistoryKindChipViewModel : ObservableObject
 {
     private static readonly IBrush s_inactiveBackground = Brushes.Transparent;
-    private static readonly IBrush s_inactiveBorder =
-        BoardingHistoryPresentation.Fill("#e4e7ec");
-    private static readonly IBrush s_mutedLabel =
-        BoardingHistoryPresentation.Fill("#475467");
+    private static readonly IBrush s_inactiveBorder = HistoryPresentation.ChipLineBrush;
+    private static readonly IBrush s_mutedLabel = HistoryPresentation.ChipMutedInkBrush;
 
     public BoardingHistoryKindChipViewModel(BoardingHistoryKind kind)
     {
@@ -130,17 +129,8 @@ public sealed class BoardingHistoryRowViewModel
             ? BoardingHistoryPresentation.Fa(entry.Nights) + " شب"
             : "—";
 
-        var hasAmount = entry.Amount != 0 && entry.AmountSign != 0;
-        HasAmount = hasAmount;
-        if (!hasAmount)
-        {
-            AmountText = "—";
-        }
-        else
-        {
-            var sign = entry.AmountSign < 0 ? "−" : "+";
-            AmountText = sign + BoardingHistoryPresentation.Money(entry.Amount) + " ت";
-        }
+        HasAmount = entry.Amount != 0 && entry.AmountSign != 0;
+        AmountText = HistoryPresentation.SignedAmount(entry.Amount, entry.AmountSign);
 
         AmountBrush = BoardingHistoryPresentation.AmountBrush(entry.AmountSign);
 

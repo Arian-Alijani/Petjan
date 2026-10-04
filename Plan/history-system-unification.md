@@ -254,7 +254,7 @@ brushes, amountText/brush, statusLabel/brush/bg, and an `OpenCommand`).
 - **Build:** `scripts/sandbox/build.sh` → 0/0.
 - **Push:** `scripts/git/push.sh "feat(history): main feed rows are clickable → open record"`
 
-### ☐ T5 — Make `HistoryPresentation` the single palette authority
+### ☑ T5 — Make `HistoryPresentation` the single palette authority
 - Audit `Pages/Sales/SaleHistoryPresentation.cs`, `Pages/Boarding/BoardingHistoryPresentation.cs`,
   `Pages/Vaccination/VaccinationHistoryPresentation.cs` for duplicated color/money/digit/day-label logic.
 - Refactor each to **delegate** to `HistoryPresentation` for: `Fill`, `Money`, `Fa`, `FaText`, `DayLabel`,

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Animora.Contracts.Sales;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.History;
 using Animora.Desktop.Services;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -139,7 +140,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     private string _summaryNetText = string.Empty;
 
     [ObservableProperty]
-    private IBrush _summaryNetBrush = SaleHistoryPresentation.Fill("#027a48");
+    private IBrush _summaryNetBrush = HistoryPresentation.AmountBrush(1);
 
     [ObservableProperty]
     private string _pageText = "۰ / ۰";
@@ -472,7 +473,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
         SummaryInflowText = "+" + SaleHistoryPresentation.Money(inflow) + " ت";
         SummaryOutflowText = "−" + SaleHistoryPresentation.Money(outflow) + " ت";
         SummaryNetText = (net >= 0 ? "+" : "−") + SaleHistoryPresentation.Money(Math.Abs(net)) + " ت";
-        SummaryNetBrush = SaleHistoryPresentation.Fill(net >= 0 ? "#027a48" : "#d92d20");
+        SummaryNetBrush = HistoryPresentation.AmountBrush(net >= 0 ? 1 : -1);
 
         PageText = $"{SaleHistoryPresentation.Fa(_page)} / {SaleHistoryPresentation.Fa(totalPages)}";
         HasPrev = _page > 1;

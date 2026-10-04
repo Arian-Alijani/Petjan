@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Animora.Contracts.Boarding;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.History;
 using Animora.Desktop.Services;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -114,7 +115,7 @@ public sealed partial class BoardingHistoryViewModel : ObservableObject
     private string _summaryNetText = string.Empty;
 
     [ObservableProperty]
-    private IBrush _summaryNetBrush = BoardingHistoryPresentation.Fill("#027a48");
+    private IBrush _summaryNetBrush = HistoryPresentation.AmountBrush(1);
 
     [ObservableProperty]
     private string _pageText = "۰ / ۰";
@@ -456,7 +457,7 @@ public sealed partial class BoardingHistoryViewModel : ObservableObject
         SummaryInflowText = "+" + BoardingHistoryPresentation.Money(inflow) + " ت";
         SummaryOutflowText = "−" + BoardingHistoryPresentation.Money(outflow) + " ت";
         SummaryNetText = (net >= 0 ? "+" : "−") + BoardingHistoryPresentation.Money(Math.Abs(net)) + " ت";
-        SummaryNetBrush = BoardingHistoryPresentation.Fill(net >= 0 ? "#027a48" : "#d92d20");
+        SummaryNetBrush = HistoryPresentation.AmountBrush(net >= 0 ? 1 : -1);
 
         PageText = $"{BoardingHistoryPresentation.Fa(_page)} / {BoardingHistoryPresentation.Fa(totalPages)}";
         HasPrev = _page > 1;

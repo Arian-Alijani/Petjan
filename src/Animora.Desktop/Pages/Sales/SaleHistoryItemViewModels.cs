@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Animora.Contracts.Sales;
 using Animora.Desktop.Controls;
+using Animora.Desktop.Pages.History;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -14,10 +15,8 @@ namespace Animora.Desktop.Pages.Sales;
 public sealed partial class SaleHistoryKindChipViewModel : ObservableObject
 {
     private static readonly IBrush s_inactiveBackground = Brushes.Transparent;
-    private static readonly IBrush s_inactiveBorder =
-        SaleHistoryPresentation.Fill("#e4e7ec");
-    private static readonly IBrush s_mutedLabel =
-        SaleHistoryPresentation.Fill("#475467");
+    private static readonly IBrush s_inactiveBorder = HistoryPresentation.ChipLineBrush;
+    private static readonly IBrush s_mutedLabel = HistoryPresentation.ChipMutedInkBrush;
 
     public SaleHistoryKindChipViewModel(CashierHistoryKind kind)
     {
@@ -125,17 +124,8 @@ public sealed class SaleHistoryRowViewModel
         DateText = SaleHistoryPresentation.FaText(entry.Date);
         TimeText = string.IsNullOrEmpty(entry.Time) ? "—" : SaleHistoryPresentation.FaText(entry.Time);
 
-        var hasAmount = entry.Amount != 0 && entry.AmountSign != 0;
-        HasAmount = hasAmount;
-        if (!hasAmount)
-        {
-            AmountText = "—";
-        }
-        else
-        {
-            var sign = entry.AmountSign < 0 ? "−" : "+";
-            AmountText = sign + SaleHistoryPresentation.Money(entry.Amount) + " ت";
-        }
+        HasAmount = entry.Amount != 0 && entry.AmountSign != 0;
+        AmountText = HistoryPresentation.SignedAmount(entry.Amount, entry.AmountSign);
 
         AmountBrush = SaleHistoryPresentation.AmountBrush(entry.AmountSign);
 

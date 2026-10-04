@@ -1,38 +1,35 @@
 using System.Collections.Generic;
 using Animora.Contracts.Boarding;
 using Animora.Desktop.Controls;
-using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.History;
 using Avalonia.Media;
 
 namespace Animora.Desktop.Pages.Boarding;
 
 /// <summary>
-/// Presentation adapters for the «تاریخچه» ledger of the Boarding screen: the
-/// event-kind registry (label / icon key / tone / accent colors) and the shared
-/// money/fa/date formatters. Mirrors
-/// <see cref="Animora.Desktop.Pages.Sales.SaleHistoryPresentation"/> so the
-/// Boarding ledger renders identically to the Sales/History ones. Kept here so
-/// the ViewModel and View stay free of hardcoded literals and the Contracts stay
-/// free of UI resources.
+/// Presentation adapters for the «تاریخچه» ledger of the Boarding screen. Only
+/// the Boarding-specific kind registry (icon / tone / chip order) and the
+/// species helpers live here — every colour, money, digit and brush helper
+/// <b>delegates</b> to <see cref="HistoryPresentation"/>, the single palette
+/// authority shared by the main History page and all three in-page tabs.
 /// </summary>
 public static class BoardingHistoryPresentation
 {
-    // ── Formatting ───────────────────────────────────────────────────────
+    // ── Formatting (delegated) ───────────────────────────────────────────
 
     /// <summary>Persian digits for a plain integer.</summary>
-    public static string Fa(long value) => BoardingPresentation.Fa((int)value);
+    public static string Fa(long value) => HistoryPresentation.Fa(value);
 
     /// <summary>Persian digits for arbitrary text, preserving non-digit characters.</summary>
-    public static string FaText(string? text) =>
-        PersianNumberFormatter.ToPersianDigits(text ?? string.Empty);
+    public static string FaText(string? text) => HistoryPresentation.FaText(text);
 
-    /// <summary>The reference's <c>money(n)</c> — a Persian-grouped integer + «ریال».</summary>
-    public static string Money(long value) => BoardingPresentation.Money(value);
+    /// <summary>A Persian-grouped integer (no unit) — identical to the main History page.</summary>
+    public static string Money(long value) => HistoryPresentation.Money(value);
 
     /// <summary>A shared solid fill brush from a hex string (PERFORMANCE.md §10).</summary>
-    public static IBrush Fill(string hex) => BrushCache.Solid(hex);
+    public static IBrush Fill(string hex) => HistoryPresentation.Fill(hex);
 
-    // ── Kind registry ────────────────────────────────────────────────────
+    // ── Kind registry (Boarding-specific) ────────────────────────────────
 
     /// <summary>Icon resource key per kind (maps to Resources/Theme/Icons.axaml).</summary>
     public static string KindIcon(BoardingHistoryKind kind) => kind switch
@@ -45,29 +42,7 @@ public static class BoardingHistoryPresentation
         _ => "IconTimeline",
     };
 
-    /// <summary>The kind's accent text color.</summary>
-    public static string KindColor(BoardingHistoryKind kind) => kind switch
-    {
-        BoardingHistoryKind.CheckIn => "#1570cd",
-        BoardingHistoryKind.ItemAdded => "#027a48",
-        BoardingHistoryKind.ItemRemoved => "#b54708",
-        BoardingHistoryKind.Transferred => "#7b5cc4",
-        BoardingHistoryKind.CheckOut => "#027a48",
-        _ => "#667085",
-    };
-
-    /// <summary>The kind icon badge's background (the matching <c>--*-bg</c> token).</summary>
-    public static string KindBg(BoardingHistoryKind kind) => kind switch
-    {
-        BoardingHistoryKind.CheckIn => "#eff8ff",
-        BoardingHistoryKind.ItemAdded => "#ecfdf3",
-        BoardingHistoryKind.ItemRemoved => "#fffaeb",
-        BoardingHistoryKind.Transferred => "#f4f3ff",
-        BoardingHistoryKind.CheckOut => "#ecfdf3",
-        _ => "#f1f5f6",
-    };
-
-    /// <summary>The kind's Phase 02 <see cref="Tone"/>, for the status pill.</summary>
+    /// <summary>The kind's <see cref="Tone"/> — the one input every colour below derives from.</summary>
     public static Tone KindTone(BoardingHistoryKind kind) => kind switch
     {
         BoardingHistoryKind.CheckIn => Tone.Info,
@@ -77,6 +52,12 @@ public static class BoardingHistoryPresentation
         BoardingHistoryKind.CheckOut => Tone.Ok,
         _ => Tone.Neutral,
     };
+
+    /// <summary>The kind's accent text color (shared tone palette).</summary>
+    public static string KindColor(BoardingHistoryKind kind) => HistoryPresentation.ToneColor(KindTone(kind));
+
+    /// <summary>The kind icon badge's background (shared tone palette).</summary>
+    public static string KindBg(BoardingHistoryKind kind) => HistoryPresentation.ToneBg(KindTone(kind));
 
     /// <summary>All kinds in the chip row's declared order (the stay lifecycle).</summary>
     public static IReadOnlyList<BoardingHistoryKind> AllKinds { get; } =
@@ -88,9 +69,8 @@ public static class BoardingHistoryPresentation
         BoardingHistoryKind.CheckOut,
     ];
 
-    /// <summary>The signed-amount brush (inflow = ok, outflow = danger).</summary>
-    public static IBrush AmountBrush(int amountSign) =>
-        Fill(amountSign < 0 ? "#d92d20" : amountSign > 0 ? "#027a48" : "#667085");
+    /// <summary>The signed-amount brush (delegated: inflow = ok, outflow = danger).</summary>
+    public static IBrush AmountBrush(int amountSign) => HistoryPresentation.AmountBrush(amountSign);
 
     // ── Species (reused from the Boarding screen's presentation) ─────────
 

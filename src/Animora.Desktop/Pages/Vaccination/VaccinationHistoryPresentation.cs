@@ -1,36 +1,32 @@
 using System.Collections.Generic;
 using Animora.Contracts.Vaccination;
 using Animora.Desktop.Controls;
-using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.History;
 using Avalonia.Media;
 
 namespace Animora.Desktop.Pages.Vaccination;
 
 /// <summary>
-/// Presentation adapters for the «تاریخچه» section of the Vaccination screen:
-/// the event-kind registry (label / icon key / tone / accent colors) and the
-/// shared fa/date formatters. Mirrors
-/// <see cref="Animora.Desktop.Pages.Sales.SaleHistoryPresentation"/> so the
-/// Vaccination ledger renders identically to the Boarding/Sales/History ones.
-/// Kept here so the ViewModel and View stay free of hardcoded literals and the
-/// Contracts stay free of UI resources.
+/// Presentation adapters for the «تاریخچه» section of the Vaccination screen.
+/// Only the Vaccination-specific kind registry (icon / tone / chip order) lives
+/// here — every colour, digit and brush helper <b>delegates</b> to
+/// <see cref="HistoryPresentation"/>, the single palette authority shared by
+/// the main History page and all three in-page history tabs.
 /// </summary>
 public static class VaccinationHistoryPresentation
 {
-    // ── Formatting ───────────────────────────────────────────────────────
+    // ── Formatting (delegated) ───────────────────────────────────────────
 
     /// <summary>Persian digits for a plain integer.</summary>
-    public static string Fa(long value) =>
-        PersianNumberFormatter.ToPersianDigits(value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    public static string Fa(long value) => HistoryPresentation.Fa(value);
 
     /// <summary>Persian digits for arbitrary text, preserving non-digit characters.</summary>
-    public static string FaText(string? text) =>
-        PersianNumberFormatter.ToPersianDigits(text ?? string.Empty);
+    public static string FaText(string? text) => HistoryPresentation.FaText(text);
 
     /// <summary>A shared solid fill brush from a hex string (PERFORMANCE.md §10).</summary>
-    public static IBrush Fill(string hex) => BrushCache.Solid(hex);
+    public static IBrush Fill(string hex) => HistoryPresentation.Fill(hex);
 
-    // ── Kind registry ────────────────────────────────────────────────────
+    // ── Kind registry (Vaccination-specific) ─────────────────────────────
 
     /// <summary>Icon resource key per kind (maps to Resources/Theme/Icons.axaml).</summary>
     public static string KindIcon(VaccinationHistoryKind kind) => kind switch
@@ -42,27 +38,7 @@ public static class VaccinationHistoryPresentation
         _ => "IconTimeline",
     };
 
-    /// <summary>The kind's accent text color.</summary>
-    public static string KindColor(VaccinationHistoryKind kind) => kind switch
-    {
-        VaccinationHistoryKind.Administered => "#027a48",
-        VaccinationHistoryKind.Scheduled => "#1570cd",
-        VaccinationHistoryKind.SmsSent => "#7b5cc4",
-        VaccinationHistoryKind.Rescheduled => "#b54708",
-        _ => "#667085",
-    };
-
-    /// <summary>The kind icon badge's background (the matching <c>--*-bg</c> token).</summary>
-    public static string KindBg(VaccinationHistoryKind kind) => kind switch
-    {
-        VaccinationHistoryKind.Administered => "#ecfdf3",
-        VaccinationHistoryKind.Scheduled => "#eff8ff",
-        VaccinationHistoryKind.SmsSent => "#f4f3ff",
-        VaccinationHistoryKind.Rescheduled => "#fffaeb",
-        _ => "#f1f5f6",
-    };
-
-    /// <summary>The kind's Phase 02 <see cref="Tone"/>, for the status pill.</summary>
+    /// <summary>The kind's <see cref="Tone"/> — the one input every colour below derives from.</summary>
     public static Tone KindTone(VaccinationHistoryKind kind) => kind switch
     {
         VaccinationHistoryKind.Administered => Tone.Ok,
@@ -71,6 +47,12 @@ public static class VaccinationHistoryPresentation
         VaccinationHistoryKind.Rescheduled => Tone.Warn,
         _ => Tone.Neutral,
     };
+
+    /// <summary>The kind's accent text color (shared tone palette).</summary>
+    public static string KindColor(VaccinationHistoryKind kind) => HistoryPresentation.ToneColor(KindTone(kind));
+
+    /// <summary>The kind icon badge's background (shared tone palette).</summary>
+    public static string KindBg(VaccinationHistoryKind kind) => HistoryPresentation.ToneBg(KindTone(kind));
 
     /// <summary>All kinds in the chip row's declared order (the record lifecycle).</summary>
     public static IReadOnlyList<VaccinationHistoryKind> AllKinds { get; } =

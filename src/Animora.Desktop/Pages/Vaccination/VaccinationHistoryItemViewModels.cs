@@ -1,5 +1,6 @@
 using Animora.Contracts.Vaccination;
 using Animora.Desktop.Controls;
+using Animora.Desktop.Pages.History;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -13,10 +14,8 @@ namespace Animora.Desktop.Pages.Vaccination;
 public sealed partial class VaccinationHistoryKindChipViewModel : ObservableObject
 {
     private static readonly IBrush s_inactiveBackground = Brushes.Transparent;
-    private static readonly IBrush s_inactiveBorder =
-        VaccinationHistoryPresentation.Fill("#e4e7ec");
-    private static readonly IBrush s_mutedLabel =
-        VaccinationHistoryPresentation.Fill("#475467");
+    private static readonly IBrush s_inactiveBorder = HistoryPresentation.ChipLineBrush;
+    private static readonly IBrush s_mutedLabel = HistoryPresentation.ChipMutedInkBrush;
 
     public VaccinationHistoryKindChipViewModel(VaccinationHistoryKind kind)
     {

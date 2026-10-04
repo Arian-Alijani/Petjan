@@ -77,10 +77,10 @@ public sealed partial class HistoryCategoryChipViewModel : ObservableObject
     public IBrush ChipBackground => IsActive ? BackgroundBrush : Brushes.Transparent;
 
     /// <summary>Chip border: the kind's accent colour when active, a muted line otherwise.</summary>
-    public IBrush ChipBorder => IsActive ? ColorBrush : HistoryPresentation.Fill("#e4e7ec");
+    public IBrush ChipBorder => IsActive ? ColorBrush : HistoryPresentation.ChipLineBrush;
 
     /// <summary>Label colour: the kind's accent when active, a muted ink otherwise.</summary>
-    public IBrush LabelBrush => IsActive ? ColorBrush : HistoryPresentation.Fill("#475467");
+    public IBrush LabelBrush => IsActive ? ColorBrush : HistoryPresentation.ChipMutedInkBrush;
 }
 
 /// <summary>
@@ -136,19 +136,9 @@ public sealed class HistoryEventRowViewModel : IHistoryRowView
         CategoryColorBrush = HistoryPresentation.Fill(HistoryPresentation.KindColor(ev.Kind));
         CategoryBgBrush = HistoryPresentation.Fill(HistoryPresentation.KindBg(ev.Kind));
 
-        var hasAmount = ev.Amount != 0 || ev.AmountSign != 0;
-        HasAmount = hasAmount;
-        if (!hasAmount)
-        {
-            AmountText = "—";
-            AmountBrush = HistoryPresentation.Fill("#667085");
-        }
-        else
-        {
-            var sign = ev.AmountSign < 0 ? "−" : "+";
-            AmountText = sign + HistoryPresentation.Money(ev.Amount);
-            AmountBrush = HistoryPresentation.Fill(ev.AmountSign < 0 ? "#d92d20" : "#027a48");
-        }
+        HasAmount = ev.Amount != 0 && ev.AmountSign != 0;
+        AmountText = HistoryPresentation.SignedAmount(ev.Amount, ev.AmountSign);
+        AmountBrush = HistoryPresentation.AmountBrush(HasAmount ? ev.AmountSign : 0);
 
         StatusLabel = HistoryPresentation.StatusLabel(ev.Status);
         StatusBrush = HistoryPresentation.Fill(HistoryPresentation.StatusColor(ev.Status));
@@ -226,13 +216,13 @@ public sealed class HistoryDayGroupViewModel
         HasNet = net != 0;
         if (HasNet)
         {
-            NetText = (net > 0 ? "+" : "−") + HistoryPresentation.Money(System.Math.Abs(net)) + " ت";
-            NetBrush = HistoryPresentation.Fill(net >= 0 ? "#027a48" : "#d92d20");
+            NetText = HistoryPresentation.SignedAmount(System.Math.Abs(net), net > 0 ? 1 : -1);
+            NetBrush = HistoryPresentation.AmountBrush(net > 0 ? 1 : -1);
         }
         else
         {
             NetText = string.Empty;
-            NetBrush = HistoryPresentation.Fill("#667085");
+            NetBrush = HistoryPresentation.MutedBrush;
         }
     }
 
