@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Animora.Contracts.History;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Globalization;
 using Animora.Contracts.History;
 using Animora.Desktop.Controls;

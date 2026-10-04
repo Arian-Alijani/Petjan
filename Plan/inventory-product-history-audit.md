@@ -372,7 +372,7 @@ P.MODVIEW, P.ADJVIEW, H.VIEW. Then fast-build and fix any binding errors surface
 **Acceptance:** All three screens compile with compiled bindings on; build is 0 warnings / 0 errors.
 **Build:** fast 0/0 (expect to iterate here — surfaced binding errors are the point). **Push:** `scripts/git/push.sh "perf(inventory,history): x:CompileBindings on all three screens (P2-1)"`
 
-### T17 — [ ] Remove redundant explicit System.* usings in History files (P2-20)
+### T17 — [x] Remove redundant explicit System.* usings in History files (P2-20)
 **Finding:** P2-20 — H.VM/H.ITEM/H.PRES import `System`, `System.Collections.Generic`, `System.Linq` etc. explicitly
 (e.g. H.VM lines 1–4) though `Directory.Build.props` has `ImplicitUsings enable`; Inventory files don't. Consistency only.
 **Fix:** Remove the redundant explicit `System.*` usings in the History files to match the implicit-usings convention used
