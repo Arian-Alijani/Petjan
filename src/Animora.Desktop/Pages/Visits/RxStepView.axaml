@@ -21,14 +21,33 @@
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
                         <Path Grid.Column="0" Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
                               Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
-                        <ComboBox Grid.Column="1" Classes="rx-add" ItemsSource="{Binding ServiceCatalog}"
-                                  SelectedItem="{Binding SelectedServiceToAdd}" PlaceholderText="افزودن خدمت…">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="visits:RxCatalogOptionViewModel">
-                                    <TextBlock Text="{Binding Display}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
+                        <Button Grid.Column="1" Name="ServicePickerButton" Classes="rx-pick"
+                                Command="{Binding ToggleServicePickerCommand}">
+                            <TextBlock Text="افزودن خدمت…" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                        </Button>
+                        <Popup IsOpen="{Binding IsServicePickerOpen}" PlacementTarget="{Binding #ServicePickerButton}"
+                               Placement="BottomEdgeAlignedRight" VerticalOffset="8" IsLightDismissEnabled="True">
+                            <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                                    BorderThickness="1" CornerRadius="{StaticResource RadiusSm}"
+                                    BoxShadow="{StaticResource ShadowPop}" MinWidth="260" MaxHeight="280"
+                                    ClipToBounds="True" FlowDirection="RightToLeft">
+                                <ScrollViewer>
+                                    <StackPanel>
+                                        <ItemsControl ItemsSource="{Binding ServiceCatalog}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="visits:RxCatalogOptionViewModel">
+                                                    <Button Classes="rx-opt"
+                                                            Command="{Binding #Root.((visits:VisitEncounterViewModel)DataContext).PickCatalogOptionCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <TextBlock Text="{Binding Display}" VerticalAlignment="Center" />
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
                     </Grid>
                 </Border>
                 <TextBlock Classes="rx-empty" IsVisible="{Binding IsServicesEmpty}" Text="هیچ خدمتی افزوده نشده" />
@@ -70,14 +89,33 @@
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
                         <Path Grid.Column="0" Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
                               Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
-                        <ComboBox Grid.Column="1" Classes="rx-add" ItemsSource="{Binding ItemCatalog}"
-                                  SelectedItem="{Binding SelectedItemToAdd}" PlaceholderText="افزودن کالا…">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="visits:RxCatalogOptionViewModel">
-                                    <TextBlock Text="{Binding Display}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
+                        <Button Grid.Column="1" Name="ItemPickerButton" Classes="rx-pick"
+                                Command="{Binding ToggleItemPickerCommand}">
+                            <TextBlock Text="افزودن کالا…" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                        </Button>
+                        <Popup IsOpen="{Binding IsItemPickerOpen}" PlacementTarget="{Binding #ItemPickerButton}"
+                               Placement="BottomEdgeAlignedRight" VerticalOffset="8" IsLightDismissEnabled="True">
+                            <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                                    BorderThickness="1" CornerRadius="{StaticResource RadiusSm}"
+                                    BoxShadow="{StaticResource ShadowPop}" MinWidth="260" MaxHeight="280"
+                                    ClipToBounds="True" FlowDirection="RightToLeft">
+                                <ScrollViewer>
+                                    <StackPanel>
+                                        <ItemsControl ItemsSource="{Binding ItemCatalog}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="visits:RxCatalogOptionViewModel">
+                                                    <Button Classes="rx-opt"
+                                                            Command="{Binding #Root.((visits:VisitEncounterViewModel)DataContext).PickCatalogOptionCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <TextBlock Text="{Binding Display}" VerticalAlignment="Center" />
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
                     </Grid>
                 </Border>
                 <TextBlock Classes="rx-empty" IsVisible="{Binding IsItemsEmpty}" Text="هیچ کالایی افزوده نشده" />

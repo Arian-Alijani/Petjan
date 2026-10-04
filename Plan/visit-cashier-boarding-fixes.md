@@ -177,7 +177,7 @@ catch (InvalidOperationException ex) { _toast.Show(PatientsPresentation.CommandF
 
 ## TASKS
 
-### T1 — [ ] رفع دراپ‌داون محصول/خدمات در ویزیت که «زیر می‌ماند و انتخاب نمی‌شود»
+### T1 — [x] رفع دراپ‌داون محصول/خدمات در ویزیت که «زیر می‌ماند و انتخاب نمی‌شود»
 **ریشه (از §0.6):** دو `ComboBox.rx-add` در RX.VIEW (خدمات + کالا) داخل `Border.field-search` و در یک `StackPanel`
 بلند درون `ScrollViewer` و `Border.wz-card` با `ClipToBounds=True`. chrome ComboBox صفر شده. popup یا زیر rowهای بعدی
 می‌رود یا کلیک به آیتم نمی‌رسد.
