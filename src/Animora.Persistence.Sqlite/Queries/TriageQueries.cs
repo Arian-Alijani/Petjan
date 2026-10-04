@@ -21,9 +21,15 @@ public sealed class TriageQueries(AnimoraLocalDbContext db) : ITriageQueries
                       join user in db.Set<User>().AsNoTracking() on membership.UserId equals user.Id
                       orderby user.DisplayName, user.Id
                       select new DoctorRailReadModel(user.Id, user.DisplayName, string.Empty,
+                          // The rail metric must equal the number of rows the booked list can actually show
+                          // for this doctor today, so it uses the exact same "active/bookable" filter as
+                          // GetBookedForDoctorAsync below (Completed is excluded, like NoShow/Cancelled).
+                          // Otherwise a doctor whose today's appointments are all Completed showed a non-zero
+                          // count over an empty "نوبت‌های رزرو شده" list (V: count/list divergence).
                           db.Set<Appointment>().Count(a => a.DoctorUserId == user.Id
                               && a.StartUtc >= startUtc && a.StartUtc < endUtc
-                              && a.State != AppointmentState.Cancelled && a.State != AppointmentState.NoShow),
+                              && a.State != AppointmentState.Cancelled && a.State != AppointmentState.NoShow
+                              && a.State != AppointmentState.Completed),
                           db.Set<Visit>().Any(v => v.DoctorUserId == user.Id && v.State == VisitState.InProgress),
                           null);
         return await doctors.ToListAsync(ct);
