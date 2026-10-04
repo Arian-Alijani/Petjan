@@ -14,12 +14,19 @@ namespace Animora.Persistence.Sqlite.Queries;
 /// products created from the Inventory «کالای جدید» form (all stored as <see cref="ProductKind.PetShop"/>) never
 /// appeared in the item picker and the popup looked empty.
 /// </summary>
+/// <remarks>
+/// Services (the rows added from the Sales «نرخ خدمات» / cashier screen, all stored as stock-free
+/// <see cref="ProductKind.Service"/> products) are ordered <b>first</b>, so they can never be pushed out of the
+/// bounded 1000-row window by a large goods catalogue — a service added in Sales always loads here and stays
+/// addable during a visit.
+/// </remarks>
 public sealed class RxCatalogQueries(AnimoraLocalDbContext db) : IRxCatalogQueries
 {
     public async Task<IReadOnlyList<RxCatalogItemReadModel>> GetAsync(CancellationToken ct = default) =>
         await db.Set<Product>().AsNoTracking()
             .Where(p => p.IsActive)
-            .OrderBy(p => p.Name).ThenBy(p => p.Id).Take(1000)
+            .OrderByDescending(p => p.Kind == ProductKind.Service)
+            .ThenBy(p => p.Name).ThenBy(p => p.Id).Take(1000)
             .Select(p => new RxCatalogItemReadModel(
                 p.Kind == ProductKind.Service ? "Service" : "Item", p.Id, p.Name,
                 p.DefaultSalePrice.Minor)).ToListAsync(ct);
