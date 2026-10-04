@@ -10,7 +10,36 @@ public sealed record CategoryInfo(
     string Id,
     string Label,
     string Tone,
-    string IconKey);
+    string IconKey,
+    int ProductCount = 0);
+
+/// <summary>The list screen's stock-status filter chip (کم‌موجود / در دسترس), applied server-side.</summary>
+public enum ProductStockFilter
+{
+    /// <summary>No stock filter.</summary>
+    All,
+
+    /// <summary>Products with at least one variant at/below its reorder point (low or out).</summary>
+    Low,
+
+    /// <summary>Products with no variant at/below its reorder point.</summary>
+    Ok,
+}
+
+/// <summary>One server-side catalog page request: filters, search term and the page window.</summary>
+/// <param name="Search">Name / code / variant-SKU search term, or null.</param>
+/// <param name="CategoryId">Category filter, or null for all categories.</param>
+/// <param name="Stock">Stock-status filter.</param>
+/// <param name="Page">1-based page index.</param>
+/// <param name="PageSize">Rows per page (clamped by the backend).</param>
+public sealed record ProductListQuery(
+    string? Search, string? CategoryId, ProductStockFilter Stock, int Page, int PageSize);
+
+/// <summary>One catalog page plus the totals the sub-nav and pager need.</summary>
+/// <param name="Items">The page's products.</param>
+/// <param name="TotalCount">Products matching the request's filters (pager).</param>
+/// <param name="CatalogTotal">All products regardless of filters (sub-nav count).</param>
+public sealed record ProductPage(IReadOnlyList<Product> Items, int TotalCount, int CatalogTotal);
 
 /// <summary>
 /// A stock unit / label dimension a product's variants are offered in — the

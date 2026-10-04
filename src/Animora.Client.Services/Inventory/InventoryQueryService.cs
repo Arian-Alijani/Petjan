@@ -21,22 +21,36 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
 {
     private const int MaxPageSize = 200; // QueryPaging.HardMaxPageSize
 
-    public async Task<IReadOnlyList<ContractProduct>> GetProductsAsync()
+    public async Task<ProductPage> GetProductsAsync(ProductListQuery query)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider, _) = Resolve(scope);
         var context = provider.BuildQueryContext();
-        if (context.IsFailure) return [];
+        if (context.IsFailure) return new ProductPage([], 0, 0);
 
-        // Unpaged Contracts member → page 1 at the max page size (documented; CONVENTIONS §10 item 2).
+        var search = string.IsNullOrWhiteSpace(query.Search) ? null : Animora.Application.Text.PersianText.NormalizeDigits(query.Search.Trim());
+        var category = string.IsNullOrWhiteSpace(query.CategoryId) ? null : query.CategoryId;
+        var size = Math.Clamp(query.PageSize, 1, MaxPageSize);
         var result = await dispatcher.QueryAsync(
-            new ProductCatalogQuery(null, null, false, 1, MaxPageSize), context.Value!);
-        if (result.IsFailure) return [];
+            new ProductCatalogQuery(search, category, query.Stock == ProductStockFilter.Low,
+                Math.Max(1, query.Page), size, query.Stock == ProductStockFilter.Ok), context.Value!);
+        if (result.IsFailure) throw new ServiceException(result.Error);
 
         var rows = result.Value!.Items;
         var products = new List<ContractProduct>(rows.Count);
         for (var i = 0; i < rows.Count; i++) products.Add(rows[i].ToContract());
-        return products;
+
+        // The sub-nav shows the whole catalog size; an unfiltered request already carries it.
+        var catalogTotal = result.Value.TotalCount;
+        if (search is not null || category is not null || query.Stock != ProductStockFilter.All)
+        {
+            var all = await dispatcher.QueryAsync(new ProductCatalogQuery(null, null, false, 1, 1), context.Value!);
+            catalogTotal = all.IsSuccess ? all.Value!.TotalCount : result.Value.TotalCount;
+        }
+
+        return new ProductPage(products, result.Value.TotalCount, catalogTotal);
     }
 
     public async Task<IReadOnlyList<CategoryInfo>> GetCategoriesAsync()

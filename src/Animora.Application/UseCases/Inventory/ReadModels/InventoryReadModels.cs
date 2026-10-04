@@ -30,8 +30,8 @@ public sealed record ProductReadModel(
     bool IsActive,
     IReadOnlyList<ProductVariantReadModel> Variants);
 
-/// <summary>A product category for the filter chips / settings list.</summary>
-public sealed record CategoryReadModel(string Id, string Name, string ParentId);
+/// <summary>A product category for the filter chips / settings list, with its product count.</summary>
+public sealed record CategoryReadModel(string Id, string Name, string ParentId, int ProductCount = 0);
 
 /// <summary>One stock-movement ledger entry for the product history tab.</summary>
 public sealed record MovementReadModel(

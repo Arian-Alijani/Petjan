@@ -269,7 +269,7 @@ them onto the page; H.VM just renders. If server-side per-day is deferred, scope
 **Acceptance:** A day with more events than one page shows the same full-day net on every page it appears on.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "fix(history): page-independent day-group nets server-side (P1-8,P2-7)"`
 
-### T9 — [ ] Inventory server-side filter/sort/page (P1-1, P2-4, P2-6, P2-11)
+### T9 — [x] Inventory server-side filter/sort/page (P1-1, P2-4, P2-6, P2-11)
 **Findings:** P1-1 (I.VM loads up to 200 products then filters client-side per keystroke/chip; backend already supports
 server-side `search`/`categoryId`/`lowStockOnly` but they're passed null/null/false → product #201 invisible),
 P2-4 (I.QRY `GetCatalogAsync` scans 1000 rows then slices page in memory), P2-6 (rows rebuild all derived brushes/strings

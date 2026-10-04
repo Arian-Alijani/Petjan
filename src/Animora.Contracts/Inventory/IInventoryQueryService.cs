@@ -9,11 +9,10 @@ namespace Animora.Contracts.Inventory;
 public interface IInventoryQueryService
 {
     /// <summary>
-    /// The clinic's product catalog, mirroring the reference's
-    /// <c>INV.PRODUCTS</c> collection that the product table, sub-nav counts and
-    /// category settings derive from.
+    /// One page of the clinic's product catalog. Search, category / stock filters, ordering and paging all run
+    /// server-side, so the screen never holds (or silently truncates) the whole catalog.
     /// </summary>
-    Task<IReadOnlyList<Product>> GetProductsAsync();
+    Task<ProductPage> GetProductsAsync(ProductListQuery query);
 
     /// <summary>
     /// The product categories, mirroring the reference's <c>INV.CATS</c> — the

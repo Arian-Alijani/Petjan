@@ -30,7 +30,13 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
 
-    private readonly List<Product> _products = [];
+    // Server-side paging: _loaded holds only the pages fetched for the active category / stock / search filters.
+    private const int ListPageSize = 50;
+    private const int ListHardMax = 200;
+    private readonly List<Product> _loaded = [];
+    private int _listTotal;
+    private int _catalogTotal;
+    private int _listGeneration;
     private readonly List<CategoryInfo> _categories = [];
     private readonly IStoreReadinessGate _readiness;
 
@@ -62,6 +68,8 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
         UseLoadStatus(ReloadPageAsync);
         // Stock moves with sales, payments and purchases.
+        // A hidden page is never reloaded behind the user's back (the base class gates on visibility); the
+        // entry hook re-reads on the next visit, and a visible refresh re-reads only the rows already shown.
         RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Sales, DataDomain.Cashier, DataDomain.Purchasing);
     }
 
@@ -117,26 +125,96 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     {
         await _readiness.WaitAsync();
         IsBusy = true;
+        try
+        {
+            _categories.Clear();
+            _categories.AddRange(await _service.GetCategoriesAsync());
 
-        _categories.Clear();
-        _categories.AddRange(await _service.GetCategoriesAsync());
+            await FetchListAsync(append: false);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
 
-        _products.Clear();
-        _products.AddRange(await _service.GetProductsAsync());
+        RenderAll();
+    }
 
-        IsBusy = false;
-
+    /// <summary>Rebuilds every section derived from the loaded categories + current page window.</summary>
+    private void RenderAll()
+    {
         BuildSubnavCounts();
         BuildFilterChips();
-        RefreshProducts();
+        RenderProducts();
         BuildSettings();
     }
+
+    /// <summary>
+    /// Fetches the active filters' rows from the query: the first page (or as many rows as are already shown,
+    /// so a refresh keeps the user's place) or, with <paramref name="append"/>, the next page. Filtering,
+    /// ordering and paging all run in SQL; a generation token drops a slower stale response.
+    /// </summary>
+    private async Task FetchListAsync(bool append)
+    {
+        var token = ++_listGeneration;
+        var search = _search.Length == 0 ? null : _search;
+        var category = _catFilter == "all" ? null : _catFilter;
+        var stock = _stockFilter switch
+        {
+            "low" => ProductStockFilter.Low,
+            "ok" => ProductStockFilter.Ok,
+            _ => ProductStockFilter.All,
+        };
+
+        ProductPage page;
+        if (append)
+        {
+            var next = _loaded.Count / ListPageSize + 1;
+            page = await _service.GetProductsAsync(new ProductListQuery(search, category, stock, next, ListPageSize));
+        }
+        else
+        {
+            var size = Math.Clamp(_loaded.Count, ListPageSize, ListHardMax);
+            page = await _service.GetProductsAsync(new ProductListQuery(search, category, stock, 1, size));
+        }
+
+        if (token != _listGeneration)
+        {
+            return; // a newer query superseded this one - drop the stale result
+        }
+
+        if (!append) _loaded.Clear();
+        _loaded.AddRange(page.Items);
+        _listTotal = page.TotalCount;
+        _catalogTotal = page.CatalogTotal;
+    }
+
+    /// <summary>Re-queries after a filter / search change and re-renders the list (not the settings tab).</summary>
+    private async Task ReloadListAsync(bool append)
+    {
+        try
+        {
+            await FetchListAsync(append);
+            BuildSubnavCounts();
+            RenderProducts();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(InventoryPresentation.MutationFailureMessage(ex, "بارگذاری فهرست کالاها ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+        }
+    }
+
+    /// <summary>Whether more rows exist beyond the pages already loaded for the active filters.</summary>
+    public bool CanLoadMore => _loaded.Count < _listTotal;
+
+    [RelayCommand]
+    private Task LoadMore() => ReloadListAsync(append: true);
 
     private void BuildSubnavCounts()
     {
         foreach (var tab in Tabs)
         {
-            var count = tab.Key == "products" ? _products.Count : _categories.Count;
+            var count = tab.Key == "products" ? _catalogTotal : _categories.Count;
             tab.CountText = PersianNumberFormatter.ToPersianDigits(count);
             tab.IsActive = tab.Key == _subnav;
         }
@@ -170,65 +248,29 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     }
 
     /// <summary>
-    /// Applies the reference's <c>renderProducts</c> filters (category, stock
-    /// status, and the name/code/SKU search) and rebuilds the row list.
+    /// Rebuilds the row list from the loaded page window (reference <c>renderProducts</c>). Category, stock
+    /// status and search were already applied by the query, so rows only change when the window changes.
     /// </summary>
-    private void RefreshProducts()
+    private void RenderProducts()
     {
-        var query = PersianText.Normalize(_search);
-
-        IEnumerable<Product> items = _products;
-
-        if (_catFilter != "all")
+        FilteredProducts.ReplaceAll(_loaded.Select(product =>
         {
-            items = items.Where(p => p.CategoryId == _catFilter);
-        }
-
-        if (_stockFilter == "low")
-        {
-            items = items.Where(p => StockStatus(p) != "ok");
-        }
-        else if (_stockFilter == "ok")
-        {
-            items = items.Where(p => StockStatus(p) == "ok");
-        }
-
-        if (query.Length > 0)
-        {
-            items = items.Where(p =>
-            {
-                if (PersianText.Normalize(p.Name).Contains(query, StringComparison.Ordinal)) return true;
-                if (PersianText.Normalize(p.Code).Contains(query, StringComparison.Ordinal)) return true;
-                return p.Variants.Any(v => PersianText.Normalize(v.Sku).Contains(query, StringComparison.Ordinal));
-            });
-        }
-
-        FilteredProducts.ReplaceAll(items.Select(product =>
-        {
-            var category = _categories.FirstOrDefault(c => c.Id == product.CategoryId) ?? _categories[0];
+            var category = _categories.FirstOrDefault(c => c.Id == product.CategoryId)
+                           ?? (_categories.Count > 0 ? _categories[0] : new CategoryInfo(product.CategoryId, string.Empty, "teal", string.Empty));
             var hasVariants = product.Variants.Count > 1;
             return new InventoryProductRowViewModel(product, category, hasVariants);
         }));
 
-        // Preserve any previously-expanded row state across a re-render.
         HasProducts = FilteredProducts.Count > 0;
-    }
-
-    /// <summary>Mirrors the reference's <c>stockStatus(p)</c>.</summary>
-    private static string StockStatus(Product product)
-    {
-        var lowCount = product.Variants.Count(v => v.Stock <= v.ReorderPoint);
-        if (lowCount == product.Variants.Count) return "out";
-        return lowCount > 0 ? "low" : "ok";
+        OnPropertyChanged(nameof(CanLoadMore));
     }
 
     private void BuildSettings()
     {
         CategoryRows.ReplaceAll(_categories.Select(category =>
         {
-            var count = _products.Count(p => p.CategoryId == category.Id);
             return new InventoryCategoryRowViewModel(
-                category.Id, category.Label, category.Tone, category.IconKey, count);
+                category.Id, category.Label, category.Tone, category.IconKey, category.ProductCount);
         }));
 
         SettingsCountText =
@@ -271,7 +313,9 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
         BuildSubnavCounts();
         BuildFilterChips();
-        RefreshProducts();
+        if (key == "settings") return;
+
+        _ = ReloadListAsync(append: false);
     }
 
     [RelayCommand]
@@ -280,7 +324,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         if (string.IsNullOrEmpty(id)) return;
         _catFilter = id;
         BuildFilterChips();
-        RefreshProducts();
+        _ = ReloadListAsync(append: false);
     }
 
     [RelayCommand]
@@ -289,7 +333,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         if (string.IsNullOrEmpty(key)) return;
         _stockFilter = key;
         BuildFilterChips();
-        RefreshProducts();
+        _ = ReloadListAsync(append: false);
     }
 
     // The bound search box drives the filter through the ViewModel: update the
@@ -302,8 +346,11 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
     public void ApplySearch(string? text)
     {
-        _search = text?.Trim() ?? string.Empty;
-        RefreshProducts();
+        var normalized = text?.Trim() ?? string.Empty;
+        if (string.Equals(normalized, _search, StringComparison.Ordinal)) return;
+
+        _search = normalized;
+        _ = ReloadListAsync(append: false);
     }
 
     [RelayCommand]
@@ -386,16 +433,18 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private async Task ReloadAsync()
     {
         IsBusy = true;
-        _categories.Clear();
-        _categories.AddRange(await _service.GetCategoriesAsync());
-        _products.Clear();
-        _products.AddRange(await _service.GetProductsAsync());
-        IsBusy = false;
+        try
+        {
+            _categories.Clear();
+            _categories.AddRange(await _service.GetCategoriesAsync());
+            await FetchListAsync(append: false);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
 
-        BuildSubnavCounts();
-        BuildFilterChips();
-        RefreshProducts();
-        BuildSettings();
+        RenderAll();
     }
 
     // ── settings actions (reference new-cat / save-settings / del-cat) ──────
@@ -420,7 +469,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     {
         if (row is null) return;
 
-        if (_products.Any(p => p.CategoryId == row.Id))
+        if (_categories.Any(c => c.Id == row.Id && c.ProductCount > 0))
         {
             _toast.Show("این دسته دارای کالاست و حذف نمی‌شود", Tone.Warn);
             return;

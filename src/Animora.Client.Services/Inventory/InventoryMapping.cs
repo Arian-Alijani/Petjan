@@ -51,7 +51,7 @@ internal static class InventoryMapping
     }
 
     internal static CategoryInfo ToContract(this CategoryReadModel row) =>
-        new(row.Id, row.Name, ToneOf(row.Id), IconOf(row.Id));
+        new(row.Id, row.Name, ToneOf(row.Id), IconOf(row.Id), row.ProductCount);
 
     internal static Contracts.Inventory.StockMovement ToContract(this MovementReadModel row, TimeZoneInfo zone)
     {

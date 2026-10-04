@@ -634,6 +634,12 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+
+                <Button Classes="outline" Margin="12,8" HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        IsVisible="{Binding CanLoadMore}"
+                        Command="{Binding LoadMoreCommand}"
+                        Content="نمایش کالاهای بیشتر" />
             </StackPanel>
         </Border>
 
