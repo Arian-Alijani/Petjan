@@ -110,7 +110,19 @@
             <Setter Property="BorderThickness" Value="0,1,0,0" />
             <Setter Property="Padding" Value="16,11" />
         </Style>
-        <Style Selector="Border.hy-row:pointerover">
+        <!-- clickable row wrapper: flat (no button chrome), hand cursor, opens the record -->
+        <Style Selector="Button.hy-row-btn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.hy-row-btn /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.hy-row-btn:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
         </Style>
 
@@ -455,7 +467,10 @@
                                     <ItemsControl ItemsSource="{Binding Rows}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="hy:HistoryEventRowViewModel">
-                                                <Border Classes="hy-row" ToolTip.Tip="{Binding Title}">
+                                                <Button Classes="hy-row-btn" Command="{Binding OpenCommand}"
+                                                        IsEnabled="{Binding CanOpen}"
+                                                        ToolTip.Tip="{Binding Title}">
+                                                <Border Classes="hy-row">
                                                     <Grid ColumnDefinitions="36,80,*,150,130,120,120,110" ColumnSpacing="0">
                                                         <Border Grid.Column="0" Classes="hy-cat-badge"
                                                                 Background="{Binding BadgeBrush}"
@@ -523,6 +538,7 @@
                                                         </Border>
                                                     </Grid>
                                                 </Border>
+                                                </Button>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
