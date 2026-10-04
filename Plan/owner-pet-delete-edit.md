@@ -321,7 +321,7 @@ commands do not break `RolePermissionMatrixTests` or wire tests.
   and a per-row trash button to `OwnerSheetView.axaml`. Push:
   `scripts/git/push.sh "feat(patients): delete owner (cascade) and remove a pet from Owner Sheet"`
 
-- [ ] **T7 — Verify edit completeness (Task 2 of the brief).**
+- [x] **T7 — Verify edit completeness (Task 2 of the brief).**
   Confirm owner & pet edit already cover all intended fields and work end-to-end — **no guessing,
   read the existing edit paths once**:
   - Owner edit: `OwnerSheetViewModel.SaveAsync` (L381) builds `OwnerDetail with { FirstName,

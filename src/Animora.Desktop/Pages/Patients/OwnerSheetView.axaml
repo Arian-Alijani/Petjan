@@ -296,11 +296,8 @@
                                 <Border Classes="odrow copyable" Tag="{Binding PhoneText}" PointerPressed="OnCopyRowPressed">
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                         <TextBlock Grid.Column="0" Classes="odk" Text="تلفن ثابت" />
-                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding PhoneText}"
-                                                   IsVisible="{Binding IsViewing}" />
-                                        <TextBox Grid.Column="1" Text="{Binding EditPhone}" Width="240"
-                                                 HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
-                                                 FontSize="12.5" Padding="10,7" CornerRadius="9" />
+                                        <!-- Read-only: the domain Owner has no landline field, so an edit box would silently drop input. -->
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding PhoneText}" />
                                         <Path Grid.Column="2" Classes="icon copyicon" Width="14" Height="14"
                                               Stroke="{StaticResource Muted2Brush}" VerticalAlignment="Center"
                                               IsVisible="{Binding IsViewing}"
@@ -321,7 +318,12 @@
                                         <TextBlock Grid.Column="0" Classes="odk" Text="آدرس"
                                                    VerticalAlignment="Top" />
                                         <TextBlock Grid.Column="1" Classes="odv" Text="{Binding AddressText}"
-                                                   TextWrapping="Wrap" TextAlignment="Left" />
+                                                   TextWrapping="Wrap" TextAlignment="Left"
+                                                   IsVisible="{Binding IsViewing}" />
+                                        <TextBox Grid.Column="1" Text="{Binding EditAddress}" MinWidth="240"
+                                                 HorizontalAlignment="Stretch" IsVisible="{Binding IsEditing}"
+                                                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64"
+                                                 FontSize="12.5" Padding="10,7" CornerRadius="9" />
                                         <Path Grid.Column="2" Classes="icon copyicon" Width="14" Height="14"
                                               Stroke="{StaticResource Muted2Brush}" VerticalAlignment="Center"
                                               IsVisible="{Binding IsViewing}"
