@@ -305,6 +305,11 @@ public partial class App : global::Avalonia.Application
         services.AddTransient<OwnerSheetViewModel>();
         services.AddTransient<PetFileViewModel>();
 
+        // Unified History: one seam that turns any history-feed row (main page + the
+        // Vaccination/Boarding/Sales tabs) into the same record screen the rest of the
+        // app opens — invoice sheet, pet/owner sheet, or the destination page.
+        services.AddSingleton<IHistoryRecordOpener, HistoryRecordOpener>();
+
         // C02: real triage gate, backed by the local store.
         services.AddSingleton<IVisitsTriageService, VisitsTriageService>();
         services.AddSingleton<VisitsTriagePageViewModel>();
