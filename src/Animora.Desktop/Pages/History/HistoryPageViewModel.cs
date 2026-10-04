@@ -33,6 +33,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
+    private readonly IHistoryRecordOpener _opener;
     private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
 
     private readonly HashSet<HistoryEventKind> _selectedKinds = [];
@@ -49,12 +50,14 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     // longer matches is discarded (a newer query has superseded it).
     private int _generation;
 
-    public HistoryPageViewModel(IHistoryQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs)
+    public HistoryPageViewModel(IHistoryQueryService service, IStoreReadinessGate readiness, IToastService toast,
+        IDialogService dialogs, IHistoryRecordOpener opener)
     {
         _service = service;
         _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
+        _opener = opener;
 
         Title = "تاریخچه";
         Eyebrow = "دفتر رویدادهای مدیریتی";
@@ -482,7 +485,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
             {
                 Title = HistoryText.Title(e.Title),
                 Detail = HistoryText.Detail(e.Detail),
-            })).ToList();
+            }, (type, id) => _opener.OpenAsync(type, id))).ToList();
             var net = dayNets is not null && dayNets.TryGetValue(group.Key, out var fullDayNet) ? fullDayNet : 0;
 
             groups.Add(new HistoryDayGroupViewModel(

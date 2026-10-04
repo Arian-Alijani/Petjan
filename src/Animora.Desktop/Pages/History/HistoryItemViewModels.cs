@@ -1,6 +1,11 @@
+using System;
+using System.Threading.Tasks;
+using System.Windows.Input;
 using Animora.Contracts.History;
+using Animora.Desktop.Localization;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Animora.Desktop.Pages.History;
 
@@ -83,15 +88,40 @@ public sealed partial class HistoryCategoryChipViewModel : ObservableObject
 /// badge, time, description lines, party entity, the audit «کاربر» (actor),
 /// signed amount and status chip.
 /// </summary>
-public sealed class HistoryEventRowViewModel
+public sealed class HistoryEventRowViewModel : IHistoryRowView
 {
-    public HistoryEventRowViewModel(HistoryEvent ev)
+    /// <param name="ev">The ledger event (its <c>Entity</c> is a <c>Type:Id</c> pair).</param>
+    /// <param name="open">
+    /// Opens the unified record screen for this row's entity (injected from the page VM, routed through
+    /// <see cref="Services.IHistoryRecordOpener"/>). Null for inert rows.
+    /// </param>
+    public HistoryEventRowViewModel(HistoryEvent ev, Func<string, string, Task>? open = null)
     {
         Title = ev.Title;
         Detail = ev.Detail;
         HasDetail = !string.IsNullOrEmpty(ev.Detail);
         Time = string.IsNullOrEmpty(ev.Time) ? "—" : HistoryPresentation.FaText(ev.Time);
-        Entity = string.IsNullOrEmpty(ev.Entity) ? "—" : ev.Entity;
+
+        // ev.Entity arrives as "Type:Id" (e.g. "Invoice:01J…"). Split it: the type drives navigation and
+        // a readable Persian label, the id is passed to the opener. Never show the raw ULID to the user.
+        var raw = ev.Entity ?? string.Empty;
+        var colon = raw.IndexOf(':');
+        if (colon > 0)
+        {
+            EntityType = raw[..colon];
+            EntityId = raw[(colon + 1)..];
+        }
+        else
+        {
+            EntityType = string.Empty;
+            EntityId = raw;
+        }
+
+        Entity = string.IsNullOrEmpty(EntityType) ? "—" : HistoryText.EntityLabel(EntityType);
+        CanOpen = !string.IsNullOrEmpty(EntityType) && !string.IsNullOrEmpty(EntityId);
+        OpenCommand = new AsyncRelayCommand(
+            () => open is not null && CanOpen ? open(EntityType, EntityId) : Task.CompletedTask,
+            () => CanOpen && open is not null);
 
         // The audit "who" (R1).
         ActorName = ev.Actor.Name;
@@ -134,6 +164,18 @@ public sealed class HistoryEventRowViewModel
     public string Time { get; }
 
     public string Entity { get; }
+
+    /// <summary>The feed entity's source-aggregate tag (e.g. "Invoice", "Pet"); drives navigation.</summary>
+    public string EntityType { get; }
+
+    /// <summary>The feed entity's id (never shown raw to the user).</summary>
+    public string EntityId { get; }
+
+    /// <summary>True when this row maps to an openable record (non-empty type + id).</summary>
+    public bool CanOpen { get; }
+
+    /// <summary>Opens the unified record screen for this row (invoice sheet / pet sheet / page).</summary>
+    public ICommand OpenCommand { get; }
 
     /// <summary>The audit "who" — the user who performed the recorded action (R1).</summary>
     public string ActorName { get; }
