@@ -1,4 +1,4 @@
-using System.Globalization;
+using Animora.Application.Numbering;
 using Animora.Application.Ports;
 using Animora.Persistence.Sqlite.Commands;
 using Animora.Persistence.Sqlite.Context;
@@ -8,7 +8,8 @@ namespace Animora.Persistence.Sqlite.Sales;
 
 /// <summary>
 /// Allocates invoice numbers atomically from <c>LocalSequenceCounters</c>. The counter participates in
-/// the ambient database transaction, so a failed posting cannot consume or expose a number.
+/// the ambient database transaction, so a failed posting cannot consume or expose a number. Format:
+/// <c>INV-YY-NNNNNN</c> (see <see cref="DocumentNumber"/>); the counter key is unchanged so numbering continues.
 /// </summary>
 public sealed class InvoiceNumberAllocator(
     AnimoraLocalDbContext db,
@@ -21,19 +22,13 @@ public sealed class InvoiceNumberAllocator(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var period = periodCodes.For(issuedUtc).PeriodCode;
-        var separator = period.IndexOf('-');
-        var jalaliYear = separator < 0 ? period : period[..separator];
-        if (jalaliYear.Length != 4)
-            throw new InvalidOperationException($"Invalid Jalali period code '{period}'.");
+        var jalaliYear = DocumentNumber.JalaliYearOf(periodCodes.For(issuedUtc).PeriodCode);
 
         var sequence = await PipelineSql.NextSequenceAsync(
             db,
             $"invoice:{tenantId}:{jalaliYear}",
             ct).ConfigureAwait(false);
 
-        return string.Create(
-            CultureInfo.InvariantCulture,
-            $"{jalaliYear[^2..]}-{sequence:000000}");
+        return DocumentNumber.Format(DocumentNumber.InvoicePrefix, jalaliYear, sequence);
     }
 }

@@ -54,7 +54,7 @@ switch over `ServiceException.Code` / result error code → Persian, used by bot
 | T3 | Pay / full-settle shows raw `CASH_SESSION_REQUIRED` in Sales & Cashier | ☑ DONE |
 | T4 | Boarding add product/service picker opens *behind* (clipped) — make it a modal like Sales | ☑ DONE |
 | T5 | All displayed statuses/texts must be Persian (enum/code leaks) | ☑ DONE |
-| T6 | Standardize & unify invoice / file / all such numbers | ☐ TODO |
+| T6 | Standardize & unify invoice / file / all such numbers | ☑ DONE |
 | T7 | Verify Sales & Cashier history shows data correctly | ☐ TODO |
 | T8 | **Final:** delete this plan file | ☐ TODO |
 
@@ -297,7 +297,7 @@ invoice/item/status surfaces. Build 0/0.
 
 ---
 
-## T6 — Standardize & unify invoice / file / all such numbers
+## T6 — ☑ DONE — Standardize & unify invoice / file / all such numbers
 
 **Symptom (user):** Invoice numbers, file/record numbers, and all such identifiers must be
 standardized, unified and sensible.
@@ -334,6 +334,8 @@ Implementation notes:
   tolerant of both.
 - Verify display sites (`SalePresentation.cs`, `CashierPresentation.cs`, print documents) render the
   number via Persian digits where appropriate and don't assume a fixed length.
+
+**Decision (done):** reception ticket = per-day queue position (`ReceptionQueueEntry.TicketNumber`), kept as-is. `DocumentNumber` (Application/Numbering) owns the format; old rows untouched.
 
 **Acceptance:** New invoices/expenses/journals (and tickets if in scope) share the
 `PREFIX-YY-NNNNNN` shape; one helper owns the format; old data untouched; build 0/0.

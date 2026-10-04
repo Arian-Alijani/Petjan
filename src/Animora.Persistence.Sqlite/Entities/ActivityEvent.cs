@@ -40,7 +40,7 @@ public sealed class ActivityEvent
     /// <summary>Localization key for the primary line (ASCII only, e.g. "history.invoice.posted").</summary>
     public string Title { get; private set; } = string.Empty;
 
-    /// <summary>JSON arguments for the localized detail line (e.g. {"number":"04-000123"}); may be empty.</summary>
+    /// <summary>JSON arguments for the localized detail line (e.g. {"number":"INV-04-000123"}); may be empty.</summary>
     public string DetailArgsJson { get; private set; } = string.Empty;
 
     /// <summary>
