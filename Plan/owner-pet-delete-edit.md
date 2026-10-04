@@ -346,7 +346,7 @@ commands do not break `RolePermissionMatrixTests` or wire tests.
     `scripts/git/push.sh "fix(patients): persist all editable owner/pet fields on save"`
     (If no change is needed, note it in this file and skip the push for T7.)
 
-- [ ] **T8 — (Optional, only if fast & SDK present) focused delete test** in
+- [x] **T8 — (Optional, only if fast & SDK present) focused delete test** in
   `PatientsUseCaseTests.cs`. Skip if it risks a long build. If added, push:
   `scripts/git/push.sh "test(patients): cover owner/pet soft-delete"`
 
