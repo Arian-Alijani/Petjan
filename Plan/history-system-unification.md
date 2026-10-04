@@ -307,7 +307,7 @@ brushes, amountText/brush, statusLabel/brush/bg, and an `OpenCommand`).
 - **Build:** `scripts/sandbox/build.sh` → 0/0.
 - **Push:** `scripts/git/push.sh "feat(history): boarding tab uses shared row + open"`
 
-### ☐ T9 — Vaccination tab: shared row template + row open
+### ☑ T9 — Vaccination tab: shared row template + row open
 - **`Pages/Vaccination/VaccinationHistoryItemViewModels.cs` → row VM:** implement `IHistoryRowView`;
   add `OpenCommand` routing through `IHistoryRecordOpener.OpenAsync("Vaccination", RecordId)` (or
   `"Pet"` + petId if the pet file is the more useful unified target — pick Pet file if RecordId has no

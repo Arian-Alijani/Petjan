@@ -47,7 +47,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     private int _pageCount = 1;
 
     public VaccinationPageViewModel(IVaccinationService service, IStoreReadinessGate readiness,
-        IDialogService dialogs, IToastService toast, IDataChangeNotifier changes)
+        IDialogService dialogs, IToastService toast, IDataChangeNotifier changes, IHistoryRecordOpener historyOpener)
     {
         _service = service;
         _changes = changes;
@@ -55,7 +55,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         _dialogs = dialogs;
         _toast = toast;
 
-        History = new VaccinationHistoryViewModel(service);
+        History = new VaccinationHistoryViewModel(service, historyOpener);
 
         Title = "واکسیناسیون";
         Eyebrow = "مراقبت";

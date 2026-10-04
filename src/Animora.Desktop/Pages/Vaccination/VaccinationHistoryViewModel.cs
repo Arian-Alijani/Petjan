@@ -35,6 +35,7 @@ public sealed partial class VaccinationHistoryViewModel : ObservableObject
     private static readonly int[] PageSizes = [25, 50, 100];
 
     private readonly IVaccinationService _service;
+    private readonly IHistoryRecordOpener _opener;
     private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
 
     private readonly HashSet<VaccinationHistoryKind> _selectedKinds = [];
@@ -53,12 +54,19 @@ public sealed partial class VaccinationHistoryViewModel : ObservableObject
     // longer matches is discarded (a newer query has superseded it).
     private int _generation;
 
-    public VaccinationHistoryViewModel(IVaccinationService service)
+    /// <param name="service">The vaccination read seam (ledger query).</param>
+    /// <param name="opener">The unified record opener shared with the main History page (row click → record).</param>
+    public VaccinationHistoryViewModel(IVaccinationService service, IHistoryRecordOpener opener)
     {
         _service = service;
+        _opener = opener;
         BuildRangeChips();
         BuildKindChips();
     }
+
+    /// <summary>Opens the unified record screen for a ledger row's vaccination record via <see cref="IHistoryRecordOpener"/>.</summary>
+    private Task OpenRecordAsync(string recordId) =>
+        string.IsNullOrEmpty(recordId) ? Task.CompletedTask : _opener.OpenAsync("Vaccination", recordId);
 
     public RangeObservableCollection<VaccinationHistoryRowViewModel> Rows { get; } = [];
 
@@ -404,7 +412,7 @@ public sealed partial class VaccinationHistoryViewModel : ObservableObject
             return;
         }
 
-        Rows.ReplaceAll(page.Items.Select(entry => new VaccinationHistoryRowViewModel(entry)));
+        Rows.ReplaceAll(page.Items.Select(entry => new VaccinationHistoryRowViewModel(entry, OpenRecordAsync)));
 
         HasRows = page.TotalCount > 0;
         IsEmpty = page.TotalCount == 0;
