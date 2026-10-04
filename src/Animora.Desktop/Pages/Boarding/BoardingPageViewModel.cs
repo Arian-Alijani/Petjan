@@ -379,7 +379,8 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
                 _service, _toast, _dialogs, _print, stayId,
                 onChanged: RefreshAfterItemChange,
                 onCheckout: stay => ShowCheckout(stay),
-                onGotoCashier: GotoCashier),
+                onGotoCashier: GotoCashier,
+                onReopen: () => ShowDetail(stayId)),
             maxWidth: 680);
 
     /// <summary>

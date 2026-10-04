@@ -52,7 +52,7 @@ switch over `ServiceException.Code` / result error code → Persian, used by bot
 | T1 | Visit-type filters show English → use Persian labels from appointment settings | ☑ DONE |
 | T2 | "Start visit" often fails — root-cause & fix | ☑ DONE |
 | T3 | Pay / full-settle shows raw `CASH_SESSION_REQUIRED` in Sales & Cashier | ☑ DONE |
-| T4 | Boarding add product/service picker opens *behind* (clipped) — make it a modal like Sales | ☐ TODO |
+| T4 | Boarding add product/service picker opens *behind* (clipped) — make it a modal like Sales | ☑ DONE |
 | T5 | All displayed statuses/texts must be Persian (enum/code leaks) | ☐ TODO |
 | T6 | Standardize & unify invoice / file / all such numbers | ☐ TODO |
 | T7 | Verify Sales & Cashier history shows data correctly | ☐ TODO |
@@ -225,7 +225,7 @@ code. Build 0/0.
 
 ---
 
-## T4 — Boarding "add product/service" picker opens behind / won't open; make it a modal like Sales
+## T4 — ☑ DONE — Boarding "add product/service" picker opens behind / won't open; make it a modal like Sales
 
 **Symptom (user):** On a boarded animal's stay, the control to pick a product/service "goes
 underneath" and never opens. Wanted: same open behavior as the Sales/Cashier catalog picker.

@@ -83,40 +83,6 @@ public sealed partial class BoardingConsumedRowViewModel : ObservableObject
 }
 
 /// <summary>
-/// One <c>&lt;optgroup&gt;</c> of the detail modal's add row, mirroring the
-/// reference's three catalogs (خدمات پانسیون / خدمات کلینیک / کالاها).
-/// </summary>
-public sealed class BoardingAddGroupViewModel
-{
-    public BoardingAddGroupViewModel(string label, IReadOnlyList<BoardingSelectableItem> items)
-    {
-        Label = label;
-        Options = items
-            .Select(i => new BoardingAddOptionViewModel(i))
-            .ToList();
-    }
-
-    public string Label { get; }
-    public IReadOnlyList<BoardingAddOptionViewModel> Options { get; }
-}
-
-/// <summary>
-/// One selectable add-row option, mirroring the reference's
-/// <c>&lt;option value="kind:ref"&gt;{title} · {money(price)}&lt;/option&gt;</c>.
-/// </summary>
-public sealed class BoardingAddOptionViewModel
-{
-    public BoardingAddOptionViewModel(BoardingSelectableItem item)
-    {
-        Item = item;
-        Text = $"{item.Title} · {BoardingPresentation.Money(item.Price)}";
-    }
-
-    public BoardingSelectableItem Item { get; }
-    public string Text { get; }
-}
-
-/// <summary>
 /// One payment-mode radio of the new-stay modal, mirroring the reference's
 /// <c>.bd-pay-opt</c> pair («پس‌پرداخت» default / «پیش‌پرداخت»).
 /// </summary>

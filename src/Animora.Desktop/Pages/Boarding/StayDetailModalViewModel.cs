@@ -28,6 +28,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     private readonly Action? _onChanged;
     private readonly Action<BoardingStay>? _onCheckout;
     private readonly Action? _onGotoCashier;
+    private readonly Action? _onReopen;
 
     private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Today);
 
@@ -39,7 +40,8 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         string stayId,
         Action? onChanged = null,
         Action<BoardingStay>? onCheckout = null,
-        Action? onGotoCashier = null)
+        Action? onGotoCashier = null,
+        Action? onReopen = null)
     {
         _service = service;
         _toast = toast;
@@ -48,6 +50,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         _onChanged = onChanged;
         _onCheckout = onCheckout;
         _onGotoCashier = onGotoCashier;
+        _onReopen = onReopen;
         StayId = stayId;
 
         _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری جزئیات اقامت ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
@@ -145,27 +148,6 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isEditable;
-
-    public ObservableCollection<BoardingAddGroupViewModel> AddGroups { get; } = [];
-
-    [ObservableProperty]
-    private BoardingAddOptionViewModel? _selectedAddOption;
-
-    /// <summary>
-    /// The add-row picker's button text — the reference's select placeholder
-    /// «افزودن خدمت یا کالا…» until a line is chosen, then the option's text.
-    /// </summary>
-    public string AddSelectionText => SelectedAddOption?.Text ?? "افزودن خدمت یا کالا…";
-
-    partial void OnSelectedAddOptionChanged(BoardingAddOptionViewModel? value) =>
-        OnPropertyChanged(nameof(AddSelectionText));
-
-    /// <summary>Reference optgroup dropdown visibility (data-driven, toggled by the button).</summary>
-    [ObservableProperty]
-    private bool _isAddDropdownOpen;
-
-    [ObservableProperty]
-    private string _addQuantityText = "1";
 
     // ── totals ──────────────────────────────────────────────────────────────
     [ObservableProperty]
@@ -309,22 +291,6 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
             + (cls.Remaining == 0 ? "امروز تخلیه" : $"{BoardingPresentation.Fa(cls.Remaining)} روز مانده");
     }
 
-    /// <summary>Reference: the add-row select opens its grouped option list.</summary>
-    [RelayCommand]
-    private void ToggleAddDropdown() => IsAddDropdownOpen = !IsAddDropdownOpen;
-
-    [RelayCommand]
-    private void SelectAddOption(BoardingAddOptionViewModel? option)
-    {
-        if (option is null)
-        {
-            return;
-        }
-
-        SelectedAddOption = option;
-        IsAddDropdownOpen = false;
-    }
-
     [RelayCommand]
     private async Task RemoveItemAsync(int index)
     {
@@ -345,35 +311,24 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         _onChanged?.Invoke();
     }
 
+    /// <summary>
+    /// Opens the add-line picker as its own centered modal (like the Sales catalog) instead of a popup nested in
+    /// this modal, whose clipped panel hid it. «بازگشت» there re-opens this modal with a fresh read.
+    /// </summary>
     [RelayCommand]
-    private async Task AddItemAsync()
+    private void OpenCatalog()
     {
-        if (SelectedAddOption is null)
+        if (!IsEditable)
         {
-            _toast.Show("ابتدا یک مورد انتخاب کنید", Tone.Danger);
             return;
         }
 
-        var quantity = int.TryParse(PersianNumberFormatter.ToAsciiDigits(AddQuantityText), out var q) ? q : 1;
-        StayDetail detail;
-        try
-        {
-            detail = await _service.AddItemAsync(StayId, SelectedAddOption.Item.Ref, Math.Max(1, quantity));
-        }
-        catch (InvalidOperationException ex)
-        {
-            _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, "افزودن مورد ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
-            // The stay may have changed state elsewhere (checked out / not editable): re-read so the
-            // add row and the totals reflect the persisted truth instead of a stale editable view.
-            await LoadAsync();
-            return;
-        }
-
-        _toast.Show($"«{SelectedAddOption.Item.Title}» به اقلام «{PetName}» اضافه شد");
-        SelectedAddOption = null;
-        AddQuantityText = "1";
-        Apply(detail);
-        _onChanged?.Invoke();
+        _dialogs.ShowModal(
+            new BoardingCatalogModalViewModel(
+                _service, _toast, _dialogs, StayId, PetName,
+                onChanged: _onChanged,
+                onBack: _onReopen),
+            maxWidth: 500);
     }
 
     /// <summary>Opens the stay bill (fresh read, so it matches the persisted state) in the print preview (X13).</summary>
