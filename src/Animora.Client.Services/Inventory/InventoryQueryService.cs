@@ -119,6 +119,12 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
     public async Task<ContractProduct> CreateProductAsync(NewProductRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        // The product code (SKU) is optional in the «کالای جدید» form, but the domain requires a non-empty SKU
+        // (CreateProductCommand's Required(Sku) validation). When the user leaves it blank we synthesize a stable,
+        // readable auto-code so creation never fails with a generic "ساخت کالا ناموفق بود" on an empty field.
+        var code = string.IsNullOrWhiteSpace(request.Code) ? AutoSku(request.Name) : request.Code.Trim();
+
         var attributeName = AttributeNameOf(request.AttributeName, request.Variants, null);
         var variants = ToInputs(request.Variants, attributeName, withOpeningStock: true);
         if (variants.Length == 0 && request.AttributeOptions.Count > 0)
@@ -126,25 +132,42 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
             // A multi-variant product: one variant per declared option, sharing the dimension. Every option
             // gets its own unique SKU and starts independently stockable at zero.
             attributeName = string.IsNullOrWhiteSpace(request.AttributeName) ? "تنوع" : request.AttributeName.Trim();
-            variants = FromOptions(request.Code, attributeName, request.AttributeOptions);
+            variants = FromOptions(code, attributeName, request.AttributeOptions);
         }
         else if (variants.Length == 0)
         {
             // A stock-tracked product always keeps at least one variant (VARIANT_REQUIRED): a single-unit
             // product is created with one implicit DEFAULT variant, exactly as the domain models it.
-            variants = [new ProductVariantInput(null, SkuFor(request.Code, "1"), DomainProductVariant.DefaultAttributeName,
-                request.Code, 0L, 0L, 0L)];
+            variants = [new ProductVariantInput(null, SkuFor(code, "1"), DomainProductVariant.DefaultAttributeName,
+                code, 0L, 0L, 0L)];
             attributeName = DomainProductVariant.DefaultAttributeName;
         }
 
         var productId = await SendAsync(new CreateProductCommand(
-            request.Code, request.Name, request.CategoryId, "PCS", ProductKind.PetShop,
+            code, request.Name, request.CategoryId, "PCS", ProductKind.PetShop,
             Lowest(request.Variants, cost: true), Lowest(request.Variants, cost: false), variants,
             request.Brand, Notes: request.Description));
 
         var detail = await GetDetailAsync(productId);
-        return detail?.Product ?? new ContractProduct(productId, request.Code, request.Name, request.Brand,
+        return detail?.Product ?? new ContractProduct(productId, code, request.Name, request.Brand,
             request.CategoryId, request.Description, null, []);
+    }
+
+    /// <summary>
+    /// Builds a non-empty fallback SKU when the user leaves the product code blank: the ASCII letters/digits of the
+    /// name (so it stays human-readable) plus a short unique suffix so two codeless products never collide on the
+    /// domain's per-SKU uniqueness invariant. Falls back to a pure «AN-xxxxxx» code when the name has no ASCII run.
+    /// </summary>
+    private static string AutoSku(string name)
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        var builder = new System.Text.StringBuilder(12);
+        foreach (var c in name ?? string.Empty)
+        {
+            if (char.IsLetterOrDigit(c) && c < 128) builder.Append(char.ToUpperInvariant(c));
+            if (builder.Length >= 6) break;
+        }
+        return builder.Length == 0 ? $"AN-{suffix}" : $"{builder}-{suffix}";
     }
 
     public async Task DeleteProductAsync(string productId) =>
