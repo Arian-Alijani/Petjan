@@ -59,7 +59,7 @@ Line resolution when billing: `Persistence/Repositories/SalesDraftData.FindCatal
 - New `Pages/Sales/ServiceRatesViewModel.cs` + `ServiceRatesView.axaml(.cs)`: toolbar (search box, filter chips همه/خدمات کلینیک/خدمات پانسیون, button «خدمت جدید»), list rows (title, source badge, price `SalePresentation.Money`, active toggle, edit button). Inline edit modal `ServiceRateEditModalViewModel/View` (Title, Price, Source select on create only, IsActive) → save → `Notify(DataDomain.Sales, DataDomain.Boarding, DataDomain.Visits)`, reload. Register modal in ViewFactory. Style: reuse classes from `SaleHistoryView.axaml` toolbar (`sw-panel`, etc.).
 - `build.sh` → push `feat(sales): «نرخ خدمات» tab to add/edit clinic & boarding service rates`.
 
-### T5 ⬜ Integration check (read-only, short)
+### T5 ✅ Integration check (read-only, short)
 - Visit picker: services now listed (seeded) with filter "svc"; new product appears without restart (T1). Boarding picker shows PetShop items + clinic services. Sales picker shows services (DEFAULT variant). Deactivated service hidden everywhere (all queries filter IsActive). Quick `build.sh` only. Push if anything changed.
 
 ### T6 ⬜ Delete this plan file
