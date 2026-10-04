@@ -247,7 +247,7 @@ H.TEXT `Detail` (37–49) renders them verbatim; H.VM `RenderFeed` (447–451) c
 no per-row `JsonDocument.Parse` on render.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "feat(history): store+index resolved names at write time (P1-2,P2-8,P2-2)"`
 
-### T7 — [ ] History CSV export matches the on-screen ledger (P1-3)
+### T7 — [x] History CSV export matches the on-screen ledger (P1-3)
 **Finding:** P1-3 — H.CSV `WriteAsync` (19–22) writes `OccurredUtc.ToString("yyyy/MM/dd")`+`"HH:mm"` (Gregorian, UTC,
 not clinic-local Jalali), raw `DetailArgsJson`, and `TitleKey`; H.VM `ExportCsvAsync` (468–487) then does a fragile
 post-hoc string `Replace` of the header + 14 known title keys over the whole CSV body. Exported ledger ≠ on-screen ledger.

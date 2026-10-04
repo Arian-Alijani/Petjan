@@ -25,7 +25,7 @@ public sealed class HistoryQueryService(IServiceScopeFactory scopes) : IHistoryQ
             result.Value.TotalCount, result.Value.IncomeTotal, result.Value.ExpenseTotal);
     }
 
-    public async Task<string> ExportCsvAsync(HistoryFilter filter)
+    public async Task<string> ExportCsvAsync(HistoryFilter filter, HistoryCsvLabels labels)
     {
         await using var scope = scopes.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>().BuildQueryContext();
@@ -33,7 +33,9 @@ public sealed class HistoryQueryService(IServiceScopeFactory scopes) : IHistoryQ
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
             .QueryAsync(new ActivityExportQuery(filter), context.Value!);
         if (result.IsFailure) throw new ServiceException(result.Error);
-        return await CsvWriter.WriteAsync(result.Value!);
+        var zone = scope.ServiceProvider.GetRequiredService<Animora.Application.Ports.IClinicTimeZoneProvider>().GetClinicTimeZone();
+        var events = result.Value!.Select(x => HistoryMapping.Map(x, zone)).ToArray();
+        return await CsvWriter.WriteAsync(events, labels);
     }
 }
 

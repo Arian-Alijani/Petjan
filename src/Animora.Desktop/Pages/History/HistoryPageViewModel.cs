@@ -465,20 +465,18 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
 
     // ── CSV export (over the whole filtered set) ─────────────────────────
 
+    private static readonly HistoryCsvLabels _csvLabels = new(
+        ["تاریخ", "زمان", "عنوان", "جزئیات", "موجودیت", "مبلغ", "علامت", "وضعیت", "کاربر"],
+        HistoryText.Title,
+        HistoryText.Detail,
+        HistoryPresentation.StatusLabel);
+
     [RelayCommand]
     private async Task ExportCsvAsync()
     {
         var filter = new HistoryFilter(
             FromDate, ToDate, _selectedKinds.ToArray(), SearchText.Trim(), _sort, 1, _pageSize);
-        var csv = await _service.ExportCsvAsync(filter);
-        csv = csv.Replace("Date,Time,Title,Detail,Entity,Amount,Sign,Status,Actor",
-            "تاریخ,زمان,عنوان,جزئیات,موجودیت,مبلغ,علامت,وضعیت,کاربر", StringComparison.Ordinal);
-        foreach (var key in new[] { "history.pet.registered", "history.visit.completed",
-            "history.vaccine.administered", "history.appointment.booked", "history.appointment.cancelled",
-            "history.stay.activated", "history.stay.checkedout", "history.goods.received",
-            "history.stock.adjusted", "history.invoice.posted", "history.payment.registered",
-            "history.invoice.refunded", "history.cheque.statuschanged", "history.expense.recorded" })
-            csv = csv.Replace(key, HistoryText.Title(key), StringComparison.Ordinal);
+        var csv = await _service.ExportCsvAsync(filter, _csvLabels);
 
         var suggested = "history-" + JalaliCalendar.Today.Replace('/', '-') + ".csv";
         var saved = await _dialogs.SaveTextFileAsync(suggested, csv, "csv");
