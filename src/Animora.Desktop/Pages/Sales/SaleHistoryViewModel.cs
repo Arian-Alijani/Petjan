@@ -37,8 +37,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     private static readonly int[] PageSizes = [25, 50, 100];
 
     private readonly ISalesQueryService _service;
-    private readonly IToastService _toast;
-    private readonly IDialogService _dialogs;
+    private readonly IHistoryRecordOpener _opener;
     private readonly Action? _onInvoiceChanged;
     private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
 
@@ -58,39 +57,32 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     // longer matches is discarded (a newer query has superseded it).
     private int _generation;
 
-    private readonly IPrintService _print;
-
-    public SaleHistoryViewModel(ISalesQueryService service, IToastService toast, IDialogService dialogs,
-        IPrintService print, Action? onInvoiceChanged = null)
+    /// <param name="service">The sales read seam (ledger query).</param>
+    /// <param name="opener">
+    /// The unified record opener — the one place that knows the invoice sheet, shared with the main
+    /// History page so a row here opens the exact same screen as صندوق / the Owner sheet.
+    /// </param>
+    /// <param name="onInvoiceChanged">Raised after the invoice sheet mutates an invoice (page-level refresh).</param>
+    public SaleHistoryViewModel(ISalesQueryService service, IHistoryRecordOpener opener,
+        Action? onInvoiceChanged = null)
     {
-        _print = print;
-        _onInvoiceChanged = onInvoiceChanged;
         _service = service;
-        _toast = toast;
-        _dialogs = dialogs;
+        _opener = opener;
+        _onInvoiceChanged = onInvoiceChanged;
         BuildRangeChips();
         BuildKindChips();
     }
 
     /// <summary>
-    /// Opens the center-screen invoice viewer for a ledger row's invoice, over
-    /// the page. The viewer can edit/void/delete the invoice; each mutation is
-    /// recorded in the audit trail, so refreshing the ledger afterwards shows
-    /// the new «ویرایش»/«حذف» rows with their full detail.
+    /// Opens the unified invoice sheet for a ledger row's invoice through
+    /// <see cref="IHistoryRecordOpener"/>. The sheet can edit/void/delete the invoice; each
+    /// mutation is recorded in the audit trail, so refreshing the ledger afterwards shows the
+    /// new «ویرایش»/«حذف» rows with their full detail.
     /// </summary>
-    [RelayCommand]
-    private void OpenInvoice(string? invoiceId)
-    {
-        if (string.IsNullOrEmpty(invoiceId))
-        {
-            return;
-        }
-
-        _dialogs.ShowSheet(
-            new InvoiceViewerViewModel(_service, _toast, _dialogs, _print, invoiceId, OnInvoiceChanged),
-            1040,
-            720);
-    }
+    private Task OpenInvoiceAsync(string invoiceId) =>
+        string.IsNullOrEmpty(invoiceId)
+            ? Task.CompletedTask
+            : _opener.OpenAsync("Invoice", invoiceId, onChanged: OnInvoiceChanged);
 
     public RangeObservableCollection<SaleHistoryRowViewModel> Rows { get; } = [];
 
@@ -455,7 +447,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
             return;
         }
 
-        Rows.ReplaceAll(page.Items.Select(entry => new SaleHistoryRowViewModel(entry)));
+        Rows.ReplaceAll(page.Items.Select(entry => new SaleHistoryRowViewModel(entry, OpenInvoiceAsync)));
 
         HasRows = page.TotalCount > 0;
         IsEmpty = page.TotalCount == 0;

@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 
 namespace Animora.Desktop.Services;
@@ -27,5 +28,12 @@ public interface IHistoryRecordOpener
     /// <paramref name="entityId"/> is not the invoice). Pass it here when known; falls back to
     /// <paramref name="entityId"/> otherwise.
     /// </param>
-    Task OpenAsync(string entityType, string entityId, string? invoiceId = null);
+    /// <param name="entityType">The feed/tab entity tag (ordinal, case-sensitive: "Invoice", "Pet", "Stay", …).</param>
+    /// <param name="entityId">The record id (never shown raw to the user).</param>
+    /// <param name="invoiceId">For "Payment" rows: the owning invoice id (the feed's EntityId is the payment id).</param>
+    /// <param name="onChanged">
+    /// Raised after a sheet-hosted record (the invoice sheet) mutates its record, so the calling
+    /// history surface can refresh its ledger (Sales tab «ویرایش»/«حذف» rows, page totals).
+    /// </param>
+    Task OpenAsync(string entityType, string entityId, string? invoiceId = null, Action? onChanged = null);
 }

@@ -280,7 +280,7 @@ brushes, amountText/brush, statusLabel/brush/bg, and an `OpenCommand`).
 - **Build:** `scripts/sandbox/build.sh` → 0/0.
 - **Push:** `scripts/git/push.sh "feat(history): shared clickable history-row template"`
 
-### ☐ T7 — Sales tab: reuse the shared row template + confirm invoice open via the seam
+### ☑ T7 — Sales tab: reuse the shared row template + confirm invoice open via the seam
 - **`Pages/Sales/SaleHistoryItemViewModels.cs` → `SaleHistoryRowViewModel`:** implement `IHistoryRowView`
   (add any missing members: actor initials/role, badge brushes via `HistoryPresentation`); expose
   `OpenCommand` that routes through `IHistoryRecordOpener.OpenAsync("Invoice", InvoiceId)` **OR** keep the

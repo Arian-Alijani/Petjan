@@ -27,7 +27,7 @@ public sealed class HistoryRecordOpener(
     IRecordSheetPresenter sheets,
     INavigationService navigation) : IHistoryRecordOpener
 {
-    public Task OpenAsync(string entityType, string entityId, string? invoiceId = null)
+    public Task OpenAsync(string entityType, string entityId, string? invoiceId = null, Action? onChanged = null)
     {
         if (string.IsNullOrWhiteSpace(entityType))
         {
@@ -37,11 +37,11 @@ public sealed class HistoryRecordOpener(
         switch (entityType)
         {
             case "Invoice":
-                return OpenInvoice(entityId);
+                return OpenInvoice(entityId, onChanged);
 
             case "Payment":
                 // The feed's EntityId is the payment id; the sheet needs the owning invoice id.
-                return OpenInvoice(string.IsNullOrWhiteSpace(invoiceId) ? entityId : invoiceId);
+                return OpenInvoice(string.IsNullOrWhiteSpace(invoiceId) ? entityId : invoiceId, onChanged);
 
             case "Pet":
                 return string.IsNullOrWhiteSpace(entityId) ? Task.CompletedTask : sheets.OpenPetSheetAsync(entityId);
@@ -84,14 +84,14 @@ public sealed class HistoryRecordOpener(
         }
     }
 
-    private Task OpenInvoice(string invoiceId)
+    private Task OpenInvoice(string invoiceId, Action? onChanged)
     {
         if (string.IsNullOrWhiteSpace(invoiceId))
         {
             return Task.CompletedTask;
         }
 
-        dialogs.ShowSheet(new InvoiceViewerViewModel(sales, toast, dialogs, print, invoiceId), 1040, 720);
+        dialogs.ShowSheet(new InvoiceViewerViewModel(sales, toast, dialogs, print, invoiceId, onChanged), 1040, 720);
         return Task.CompletedTask;
     }
 }

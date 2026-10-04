@@ -68,7 +68,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private bool _hasReadyVisitBadge;
 
     public SalePageViewModel(ISalesQueryService service, IStoreReadinessGate readiness,
-        IToastService toast, IDialogService dialogs, IDataChangeNotifier changes, IPrintService print)
+        IToastService toast, IDialogService dialogs, IDataChangeNotifier changes, IPrintService print,
+        IHistoryRecordOpener historyOpener)
     {
         _service = service;
         _print = print;
@@ -85,7 +86,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         Segments.Add(new SaleSegmentViewModel("ready", "صف ویزیت"));
         Segments.Add(new SaleSegmentViewModel("invoices", "فاکتورها"));
 
-        History = new SaleHistoryViewModel(service, toast, dialogs, print, NotifyInvoicesChanged);
+        History = new SaleHistoryViewModel(service, historyOpener, NotifyInvoicesChanged);
 
         UseLoadStatus(ReloadPageAsync);
         // The ready-visit queue is fed by completed encounters; the cashier settles the same invoices.
