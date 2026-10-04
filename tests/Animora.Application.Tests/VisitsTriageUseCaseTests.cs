@@ -5,6 +5,7 @@ using Animora.Application.Security;
 using Animora.Application.UseCases.Reception;
 using Animora.Application.UseCases.Reception.ReadModels;
 using Animora.Application.UseCases.Visits;
+using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Clinical;
 using Animora.Domain.Identity;
@@ -77,6 +78,20 @@ public sealed class VisitsTriageUseCaseTests
         Assert.Equal(a, b);
         Assert.NotEqual(a, other);
         Assert.Equal(26, a.Length);
+    }
+
+    [Fact]
+    public void DeterministicOperationId_IsAlwaysAValidUlid_SoTheCommandContextBuilds()
+    {
+        // Regression: a deterministic OperationId whose leading char fell outside '0'..'7' failed
+        // Rules.UlidFormat in SessionCurrentUserProvider, so "start visit from ticket" was rejected
+        // before reaching the handler ("شروع ویزیت از نوبت ناموفق بود") while walk-in (null id) worked.
+        var factory = new OperationIdFactory();
+        for (var i = 0; i < 500; i++)
+        {
+            var id = factory.Deterministic($"visit-start:apt:{Guid.NewGuid():N}");
+            Assert.Null(Rules.UlidFormat(id, "operationId"));
+        }
     }
 
     [Fact]
