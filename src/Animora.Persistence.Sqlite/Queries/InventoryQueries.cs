@@ -45,13 +45,18 @@ public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalSto
     private const int MaxCatalogScan = 1000; // Bounded scan before in-memory low-stock paging (the unfiltered/ok paths page in SQL).
     private const int MaxMovementHistory = 100;
 
+    // The «خدمات» catalogue lives in Sales/Cashier/Visits, not the warehouse. Its code is "SRV" and its rows
+    // are stock-free <see cref="ProductKind.Service"/> products. Inventory («انبار و کالا») must never show the
+    // service category chip/row nor the service products, so both are filtered out of every inventory read.
+    private const string ServiceCategoryCode = "SRV";
+
     private LocalStoreOptions Options => options.Value;
 
     public async Task<PagedResult<ProductReadModel>> GetCatalogAsync(
         string? search, string? categoryId, bool lowStockOnly, int page, int pageSize, CancellationToken ct,
         bool okStockOnly = false)
     {
-        var q = db.Set<Product>().AsNoTracking();
+        var q = db.Set<Product>().AsNoTracking().Where(p => p.Kind != ProductKind.Service);
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
@@ -137,10 +142,12 @@ public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalSto
     public async Task<IReadOnlyList<CategoryReadModel>> GetCategoriesAsync(CancellationToken ct)
     {
         var counts = await db.Set<Product>().AsNoTracking()
+            .Where(p => p.Kind != ProductKind.Service)
             .GroupBy(p => p.CategoryId)
             .Select(g => new { CategoryId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.CategoryId, x => x.Count, ct);
-        var rows = await db.Set<ProductCategory>().AsNoTracking().Where(c => c.IsActive)
+        var rows = await db.Set<ProductCategory>().AsNoTracking()
+            .Where(c => c.IsActive && c.Code != ServiceCategoryCode)
             .OrderBy(c => c.SortOrder).ThenBy(c => c.Code)
             .Select(c => new { c.Id, c.DisplayName, ParentId = c.ParentCategoryId ?? string.Empty })
             .ToListAsync(ct);
