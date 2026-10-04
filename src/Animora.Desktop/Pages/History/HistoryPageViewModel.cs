@@ -211,7 +211,18 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
             new HistoryRangeViewModel("all", "همه", string.Empty, string.Empty),
         ]);
 
-        // Default to the last 30 days (mirrors the reference's initial period).
+        ApplyDefaultRange();
+    }
+
+    /// <summary>
+    /// The screen's one opening range — the last 30 days (mirrors the reference's
+    /// initial period). Used both when the page opens and by «پاک‌سازی فیلترها»
+    /// (P2-17) so a reset lands on exactly the same window instead of an
+    /// unbounded «همه» that can pull the entire feed.
+    /// </summary>
+    private void ApplyDefaultRange()
+    {
+        var today = JalaliCalendar.Today;
         _suppressDateReload = true;
         FromDate = JalaliCalendar.AddDays(today, -29);
         ToDate = today;
@@ -313,13 +324,14 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     private void ResetFilters()
     {
         _selectedKinds.Clear();
+
+        SearchText = string.Empty;
+        // Clearing the text re-arms the search debounce; cancel it so the single
+        // explicit reload below is the only round-trip.
         _searchDebounce.Cancel();
 
-        _suppressDateReload = true;
-        SearchText = string.Empty;
-        FromDate = string.Empty;
-        ToDate = string.Empty;
-        _suppressDateReload = false;
+        // Restore the exact opening state: last-30 range (not unbounded «همه»).
+        ApplyDefaultRange();
 
         HasSearchValue = false;
         foreach (var chip in CategoryChips)
@@ -328,7 +340,6 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
 
         SyncAllKindsFlag();
-        SyncRangeChips();
         _ = ReloadSafeAsync(resetPage: true);
     }
 

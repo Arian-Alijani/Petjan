@@ -356,7 +356,7 @@ with the same literals → list filter and row badge can drift.
 **Acceptance:** One status rule, two call sites; changing the threshold changes both filter and badge together.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "refactor(inventory): single stock-status helper (P2-16)"`
 
-### T15 — [ ] History range reset consistent with open default (P2-17)
+### T15 — [x] History range reset consistent with open default (P2-17)
 **Finding:** P2-17 — H.VM `BuildRangeChips` (214–219) opens on "last 30 days" but `ResetFilters` (313–333) sets
 `FromDate=ToDate=""` (unbounded "همه") → reset ≠ open default; all-time reset can pull a large feed.
 **Fix:** Make `ResetFilters` restore the same last-30 default the screen opens with (or make the default explicit and
