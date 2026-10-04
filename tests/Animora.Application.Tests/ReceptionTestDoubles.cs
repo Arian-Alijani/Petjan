@@ -106,6 +106,9 @@ internal sealed class FakePets : IPetRepository
     public Task<IReadOnlyList<Pet>> ListByOwnerAndNameAsync(string ownerId, string name, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<Pet>>(Items.Values.Where(p => p.OwnerId == ownerId && p.Name == name).ToList());
 
+    public Task<IReadOnlyList<Pet>> ListByOwnerAsync(string ownerId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<Pet>>(Items.Values.Where(p => p.OwnerId == ownerId && !p.Deleted).ToList());
+
     public void Add(Pet entity) => Items[entity.Id] = entity;
 
     public void AddRange(IEnumerable<Pet> entities)

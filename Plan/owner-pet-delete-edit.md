@@ -291,7 +291,7 @@ commands do not break `RolePermissionMatrixTests` or wire tests.
 
 > Status legend: `[ ]` todo · `[x]` done. Update as you go.
 
-- [ ] **T1 — Repo port: add `ListByOwnerAsync`.**
+- [x] **T1 — Repo port: add `ListByOwnerAsync`.**
   Edit `IPetRepository.cs` (add method) + `PetRepository.cs` (impl, see §2). Push:
   `scripts/git/push.sh "feat(patients): add IPetRepository.ListByOwnerAsync for owner cascade"`
 
