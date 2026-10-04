@@ -4,6 +4,7 @@
              x:Class="Animora.Desktop.Pages.Inventory.StockAdjustModalView"
              x:Name="Root"
              x:DataType="inv:StockAdjustModalViewModel"
+             x:CompileBindings="True"
              Width="480"
              MaxWidth="480"
              MaxHeight="720"

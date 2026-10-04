@@ -364,7 +364,7 @@ identical across open + reset). Prefer resetting to last-30.
 **Acceptance:** «پاک‌سازی فیلترها» returns the range to exactly the state the screen opened in.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "fix(history): reset restores last-30 default (P2-17)"`
 
-### T16 — [ ] Add x:CompileBindings to the three screens' XAML (P2-1)
+### T16 — [x] Add x:CompileBindings to the three screens' XAML (P2-1)
 **Finding:** P2-1 — none of I.VIEW, P.* views, H.VIEW set `x:CompileBindings` (grep: zero), so bindings fall back to
 reflection and typos fail silently at runtime. `x:DataType` is already present.
 **Fix:** Add `x:CompileBindings="True"` at each `UserControl`/`DataTemplate` root in: I.VIEW, I.SETVIEW, P.NEWVIEW,

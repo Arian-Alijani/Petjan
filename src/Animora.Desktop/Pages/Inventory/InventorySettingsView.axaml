@@ -4,6 +4,7 @@
              x:Class="Animora.Desktop.Pages.Inventory.InventorySettingsView"
              x:Name="Root"
              x:DataType="inv:InventoryPageViewModel"
+             x:CompileBindings="True"
              FlowDirection="RightToLeft">
 
     <!-- Settings sub-view — re-draws Animora-UI/assets/inventory.js

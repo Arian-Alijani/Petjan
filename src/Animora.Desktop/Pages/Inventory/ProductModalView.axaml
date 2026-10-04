@@ -4,6 +4,7 @@
              x:Class="Animora.Desktop.Pages.Inventory.ProductModalView"
              x:Name="Root"
              x:DataType="inv:ProductModalViewModel"
+             x:CompileBindings="True"
              Width="680"
              MaxWidth="680"
              MaxHeight="760"

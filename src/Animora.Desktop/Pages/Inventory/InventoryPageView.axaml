@@ -4,6 +4,7 @@
              x:Class="Animora.Desktop.Pages.Inventory.InventoryPageView"
              x:Name="Root"
              x:DataType="inv:InventoryPageViewModel"
+             x:CompileBindings="True"
              FlowDirection="RightToLeft">
     <UserControl.Styles>
         <!-- ═══ Unified toolbar (styles.css .pagebar) ═══ -->
