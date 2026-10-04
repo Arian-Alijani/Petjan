@@ -337,7 +337,7 @@ brushes, amountText/brush, statusLabel/brush/bg, and an `OpenCommand`).
 - If any heavy fix is applied here, push it immediately with a clear message before finishing.
 - **Push:** `scripts/git/push.sh "test(history): consistency + regression sweep"`
 
-### ☐ T12 — Final visual/data coherence verification
+### ☑ T12 — Final visual/data coherence verification
 - Confirm against §2.5 acceptance list, item by item (read the code paths; no long smoke).
 - Fix any residual mismatch found; push each fix.
 - **Push:** `scripts/git/push.sh "chore(history): finalize unified history system"`
