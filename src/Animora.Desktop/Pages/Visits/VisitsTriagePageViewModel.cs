@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Animora.Contracts.Patients;
 using Animora.Contracts.Visits;
 using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
@@ -25,6 +26,9 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
     private readonly INavigationService _navigation;
+    private readonly IPatientsQueryService _patients;
+    private readonly IDialogService _dialogs;
+    private readonly IDataChangeNotifier _changes;
 
     [ObservableProperty]
     private DoctorTileViewModel? _selectedDoctor;
@@ -54,33 +58,22 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     [ObservableProperty]
     private string _patientSearchText = string.Empty;
 
-    // Inline "new patient (no record)" form (mirrors the reference's #newPatForm).
-    [ObservableProperty]
-    private bool _isNewPatientFormOpen;
-
-    [ObservableProperty]
-    private string _newPatientName = string.Empty;
-
-    [ObservableProperty]
-    private string _newPatientKind = string.Empty;
-
-    [ObservableProperty]
-    private string _newPatientOwner = string.Empty;
-
-    [ObservableProperty]
-    private string _newPatientPhone = string.Empty;
-
     public VisitsTriagePageViewModel(
         IVisitsTriageService service,
         IStoreReadinessGate readiness,
         IToastService toast,
         INavigationService navigation,
-        IDataChangeNotifier changes)
+        IDataChangeNotifier changes,
+        IPatientsQueryService patients,
+        IDialogService dialogs)
     {
         _service = service;
         _readiness = readiness;
         _toast = toast;
         _navigation = navigation;
+        _patients = patients;
+        _dialogs = dialogs;
+        _changes = changes;
         Title = "ویزیت و پرونده پزشکی";
         Eyebrow = "پرونده الکترونیک سلامت";
         Breadcrumbs.Add("مدیریت کلینیک");
@@ -328,38 +321,68 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         PatientSearchText = string.Empty;
     }
 
+    /// <summary>
+    /// Opens the standard add-owner/add-pet wizard — the exact same modal the Patients page launches
+    /// (<see cref="AddPatientWizardViewModel"/>, 760-wide) — instead of the old inline «بدون سابقه» form.
+    /// The wizard is opened in nested mode (<c>closeModalOnly: true</c>): it persists a real owner/pet
+    /// record and, on success, hands back the created ids so this page can immediately pick that patient
+    /// for the new visit (no re-search needed).
+    /// </summary>
     [RelayCommand]
-    private void RegisterNewPatient() => IsNewPatientFormOpen = !IsNewPatientFormOpen;
+    private void RegisterNewPatient() =>
+        _dialogs.ShowModal(
+            new AddPatientWizardViewModel(
+                _patients,
+                _dialogs,
+                result => _ = OnPatientCreatedAsync(result),
+                closeModalOnly: true,
+                _toast),
+            maxWidth: 760);
 
-    [RelayCommand]
-    private void SaveNewPatient()
+    /// <summary>
+    /// Wizard-completion handler: fetches the freshly-created pet (and its owner) and selects it as the
+    /// visit's patient, then fans the change out to the directory-backed pages so their lists refresh.
+    /// </summary>
+    private async Task OnPatientCreatedAsync(AddPatientWizardResult result)
     {
-        // The backend rejects a walk-in without an owner name/phone (WalkInPhoneRequired), so block it here.
-        if (string.IsNullOrWhiteSpace(NewPatientName) || string.IsNullOrWhiteSpace(NewPatientKind)
-            || string.IsNullOrWhiteSpace(NewPatientOwner) || string.IsNullOrWhiteSpace(NewPatientPhone))
+        // A new patient directory entry affects the dashboard, appointments and this page's own patient list.
+        _changes.Notify(DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Patients, DataDomain.Visits);
+
+        await RunGuardedAsync(async () =>
         {
-            _toast.Show("نام، نژاد، نام صاحب و شمارهٔ تماس الزامی است.", Tone.Danger);
-            return;
-        }
+            // Refresh the local patient directory so a later search / re-pick sees the new pet too.
+            _allPatients = await _service.GetPatientsAsync();
 
-        PickedPatient = new VisitPatientRef(
-            // Placeholder id only: the backend discards it and re-resolves the owner by phone and the pet by
-            // name + species when the visit starts (StartNewVisitCommandHandler).
-            Id: $"np-{Guid.NewGuid():N}"[..10],
-            Name: NewPatientName.Trim(),
-            Kind: NewPatientKind.Trim(),
-            OwnerName: NewPatientOwner.Trim(),
-            Phone: NewPatientPhone.Trim(),
-            IconKey: VisitsPresentation.IconKeyForKind(NewPatientKind));
+            if (string.IsNullOrEmpty(result.PetId))
+            {
+                return;
+            }
 
-        IsNewPatientFormOpen = false;
-        NewPatientName = string.Empty;
-        NewPatientKind = string.Empty;
-        NewPatientOwner = string.Empty;
-        NewPatientPhone = string.Empty;
-        PatientMatches.Clear();
-        OnPropertyChanged(nameof(HasPatientMatches));
-        OnPropertyChanged(nameof(HasPatientSearch));
+            var pet = await _patients.GetPetAsync(result.PetId);
+            if (pet is null)
+            {
+                return;
+            }
+
+            var owner = await _patients.GetOwnerAsync(result.OwnerId);
+            var ownerName = owner is null ? string.Empty : $"{owner.FirstName} {owner.LastName}".Trim();
+            var ownerPhone = owner?.Mobile1 ?? string.Empty;
+            var kind = string.IsNullOrWhiteSpace(pet.Breed) ? pet.Species.ToString() : pet.Breed.Trim();
+
+            PickedPatient = new VisitPatientRef(
+                Id: pet.Id,
+                Name: pet.Name,
+                Kind: kind,
+                OwnerName: ownerName,
+                Phone: ownerPhone,
+                IconKey: VisitsPresentation.IconKeyForKind(kind));
+
+            PatientSearchText = string.Empty;
+            PatientMatches.Clear();
+            OnPropertyChanged(nameof(HasPatientMatches));
+            OnPropertyChanged(nameof(HasPatientSearch));
+            _toast.Show($"بیمار « {pet.Name} » ثبت و برای ویزیت انتخاب شد.", Tone.Ok);
+        }, "ثبت بیمار جدید انجام شد اما انتخاب خودکار ناموفق بود؛ از جستجو انتخاب کنید");
     }
 
     [RelayCommand]
