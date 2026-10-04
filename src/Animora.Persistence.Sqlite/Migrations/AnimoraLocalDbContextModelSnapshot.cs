@@ -1741,10 +1741,9 @@ namespace Animora.Persistence.Sqlite.Migrations
                                 .HasColumnType("TEXT")
                                 .HasColumnName("ReorderLevelUnit");
 
-                            b1.Property<string>("Value")
-                                .IsRequired()
-                                .HasColumnType("TEXT")
-                                .HasColumnName("ReorderLevelValue");
+                            b1.Property<long>("Value")
+                                .HasColumnType("INTEGER")
+                                .HasColumnName("ReorderLevelScaled");
                         });
 
                     b.ComplexProperty(typeof(Dictionary<string, object>), "SalePrice", "Animora.Domain.Inventory.ProductVariant.SalePrice#Money", b1 =>

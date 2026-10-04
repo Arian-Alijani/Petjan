@@ -33,10 +33,10 @@ internal static class InventoryStockQuery
 
     private static Expression<Func<Product, bool>> LowStockPredicate(AnimoraLocalDbContext db) =>
         p => p.IsActive && p.Variants.Any(v => v.IsActive
-            // ReorderLevel's non-summable converter stores decimal as TEXT; cast both operands
-            // numerically so SQLite cannot compare "10.0" and "10" lexicographically.
-            && (double)(db.Set<StockOnHandSnapshot>().Where(s => s.TenantId == p.TenantId && s.ProductId == p.Id && s.VariantId == v.VariantId)
-                .Select(s => (long?)s.OnHandScaled).FirstOrDefault() ?? 0L) / 1000d <= (double)v.ReorderLevel.Value);
+            // Both sides are exact INTEGER x1000 columns (snapshot OnHandScaled vs the variant's ReorderLevelScaled):
+            // a plain integer compare, no float cast, indexable by the snapshot's key.
+            && (db.Set<StockOnHandSnapshot>().Where(s => s.TenantId == p.TenantId && s.ProductId == p.Id && s.VariantId == v.VariantId)
+                .Select(s => (long?)s.OnHandScaled).FirstOrDefault() ?? 0L) <= (long)v.ReorderLevel.Value);
 }
 
 public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOptions> options)

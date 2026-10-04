@@ -289,7 +289,7 @@ per keystroke), P2-11 (`RefreshOnDataChange` reloads whole catalog on any Sales/
 changes don't trigger a full catalog refetch.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "perf(inventory): server-side filter/sort/page + visibility-gated refresh (P1-1,P2-4,P2-6,P2-11)"`
 
-### T10 — [ ] Inventory low-stock integer compare + reachable filter (P2-3)
+### T10 — [x] Inventory low-stock integer compare + reachable filter (P2-3)
 **Finding:** P2-3 — I.QRY `InventoryStockQuery.LowStockProducts` (23–28) runs a correlated per-variant
 `StockOnHandSnapshot` subquery with `(double)` casts on both sides (reorder stored as TEXT) → perf + float-compare
 correctness smell; also effectively dead until T9 pushes `lowStockOnly`.
