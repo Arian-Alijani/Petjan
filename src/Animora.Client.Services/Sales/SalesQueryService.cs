@@ -152,7 +152,7 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         var (_, zone) = Calendar();
         var from = Animora.Client.Services.ClinicDayWindow.ParseJalali(filter.FromDate, zone, endOfDay: false);
         var to = Animora.Client.Services.ClinicDayWindow.ParseJalali(filter.ToDate, zone, endOfDay: true);
-        var kind = filter.Kinds.Count == 1 ? SalesMapping.HistoryFilterKind(filter.Kinds.First()) : null;
+        var kind = SalesMapping.HistoryFilterKinds(filter.Kinds);
 
         var result = await QueryAsync(new SalesHistoryQuery(from, to, filter.Search, kind,
             filter.Sort.ToString(), filter.Page, filter.PageSize));

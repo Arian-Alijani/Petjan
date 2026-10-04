@@ -55,7 +55,7 @@ switch over `ServiceException.Code` / result error code → Persian, used by bot
 | T4 | Boarding add product/service picker opens *behind* (clipped) — make it a modal like Sales | ☑ DONE |
 | T5 | All displayed statuses/texts must be Persian (enum/code leaks) | ☑ DONE |
 | T6 | Standardize & unify invoice / file / all such numbers | ☑ DONE |
-| T7 | Verify Sales & Cashier history shows data correctly | ☐ TODO |
+| T7 | Verify Sales & Cashier history shows data correctly | ☑ DONE |
 | T8 | **Final:** delete this plan file | ☐ TODO |
 
 ---
@@ -344,7 +344,7 @@ Implementation notes:
 
 ---
 
-## T7 — Verify Sales & Cashier history shows data correctly
+## T7 — ☑ DONE — Verify Sales & Cashier history shows data correctly
 
 **Symptom (user):** Ensure the **history (تاریخچه)** section in Sales & Cashier works and actually
 displays data.
