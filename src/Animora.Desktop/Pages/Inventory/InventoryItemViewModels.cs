@@ -250,3 +250,13 @@ public sealed partial class InventoryProductRowViewModel : ObservableObject
 
     partial void OnIsExpandedChanged(bool value) => OnPropertyChanged(nameof(RowBackground));
 }
+
+/// <summary>
+/// A selectable records-per-page option for the inventory list (mirrors
+/// <c>PatientsPageSizeOption</c>): <see cref="Value"/> is the page size (200 = the server ceiling,
+/// shown as «همه»); <see cref="Label"/> is the Persian caption shown in the dropdown.
+/// </summary>
+public sealed record InventoryPageSizeOption(int Value, string Label)
+{
+    public override string ToString() => Label;
+}
