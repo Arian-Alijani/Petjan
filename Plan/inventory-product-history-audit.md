@@ -402,7 +402,7 @@ files were touched in T1–T18, so the smoke run was not required; full-solution
 **Done (2026-10-04) — superseded by owner instruction:** the repo owner asked for **no PR**; `genspark_ai_developer` is applied
 directly to `main` (fast-forward, no history loss) after each task. Both branches point at the same commit.
 
-### T20 — [ ] FINAL TASK — delete the source audit file
+### T20 — [x] FINAL TASK — delete the source audit file
 **What:** Delete **only** `docs/INVENTORY_PRODUCT_HISTORY_AUDIT_2026-10-03.md`. Do **not** touch any other docs, the
 roadmap, or this plan's siblings.
 **Do:** `git rm docs/INVENTORY_PRODUCT_HISTORY_AUDIT_2026-10-03.md`
