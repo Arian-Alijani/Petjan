@@ -16,8 +16,8 @@ public partial class SalePageView : UserControl
     /// as one; on the cashier tab it keeps the usual 14px gap.
     /// </summary>
     public static readonly IValueConverter TabRowMarginConverter =
-        new FuncValueConverter<bool, Thickness>(isHistory =>
-            isHistory ? new Thickness(0) : new Thickness(0, 0, 0, 14));
+        new FuncValueConverter<bool, Thickness>(isFlush =>
+            isFlush ? new Thickness(0) : new Thickness(0, 0, 0, 14));
 
     /// <summary>
     /// Corner radius of the workspace tab row. On the history tab the row's
@@ -27,6 +27,6 @@ public partial class SalePageView : UserControl
     /// rounded pill look, matching the Patients/Owners segmented switch.
     /// </summary>
     public static readonly IValueConverter TabRowCornerConverter =
-        new FuncValueConverter<bool, CornerRadius>(isHistory =>
-            isHistory ? new CornerRadius(12, 12, 0, 0) : new CornerRadius(12));
+        new FuncValueConverter<bool, CornerRadius>(isFlush =>
+            isFlush ? new CornerRadius(12, 12, 0, 0) : new CornerRadius(12));
 }

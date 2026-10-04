@@ -53,7 +53,7 @@ Line resolution when billing: `Persistence/Repositories/SalesDraftData.FindCatal
 - `Client.Services/Sales/ServiceRateService.cs` (copy QueryAsync/SendAsync pattern of `SalesQueryService` L324-340; throw `InvalidOperationException(error.Code)` on failure as other services do / `ServiceException`). Register `services.AddSingleton<IServiceRateService, ServiceRateService>();` in App.axaml.cs near L356.
 - Push.
 
-### T4 ⬜ Desktop: «نرخ خدمات» tab
+### T4 ✅ Desktop: «نرخ خدمات» tab
 - `SalePageViewModel`: workspace "rates", `IsRatesTab`, `IsFlushTab => IsHistoryTab || IsRatesTab`, child `Rates = new ServiceRatesViewModel(IServiceRateService, toast, dialogs, changes)` (add ctor param; DI resolves), `Rates.EnsureLoaded()` on activation; raise property changes in SetWorkspace.
 - View: tab grid → `"*,*,*"`, 3rd button `CommandParameter="rates"`, icon IconTag, text «نرخ خدمات»; switch converters binding to `IsFlushTab`; add `<sales:ServiceRatesView DataContext="{Binding Rates}" IsVisible="{...IsRatesTab}"/>` after history view.
 - New `Pages/Sales/ServiceRatesViewModel.cs` + `ServiceRatesView.axaml(.cs)`: toolbar (search box, filter chips همه/خدمات کلینیک/خدمات پانسیون, button «خدمت جدید»), list rows (title, source badge, price `SalePresentation.Money`, active toggle, edit button). Inline edit modal `ServiceRateEditModalViewModel/View` (Title, Price, Source select on create only, IsActive) → save → `Notify(DataDomain.Sales, DataDomain.Boarding, DataDomain.Visits)`, reload. Register modal in ViewFactory. Style: reuse classes from `SaleHistoryView.axaml` toolbar (`sw-panel`, etc.).

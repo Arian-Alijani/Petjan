@@ -1,0 +1,124 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sales="using:Animora.Desktop.Pages.Sales"
+             x:Class="Animora.Desktop.Pages.Sales.ServiceRatesView"
+             x:Name="Root"
+             x:DataType="sales:ServiceRatesViewModel"
+             FlowDirection="RightToLeft">
+    <!-- «نرخ خدمات» tab. Toolbar chrome reuses the unified History styles (.hy-*) so it fuses with the
+         workspace tab row exactly like the «تاریخچه» tab does. -->
+    <UserControl.Styles>
+        <Style Selector="Border.sr-row">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="16,12" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+        <Style Selector="Border.sr-row.off">
+            <Setter Property="Opacity" Value="0.6" />
+        </Style>
+        <Style Selector="Border.sr-badge">
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="9,3" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Border.sr-badge.boarding">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel>
+        <!-- ═══ Toolbar ═══ -->
+        <Border Classes="hy-toolbar">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Spacing="12">
+                    <Border Classes="hy-search" HorizontalAlignment="Stretch">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                                  VerticalAlignment="Center" Stroke="{StaticResource MutedBrush}"
+                                  Data="{StaticResource IconSearch}" IsHitTestVisible="False" />
+                            <TextBox Grid.Column="1" Classes="hy-search" Text="{Binding SearchText}"
+                                     PlaceholderText="{Binding SearchPlaceholder}" />
+                            <Button Grid.Column="2" Classes="hy-search-clear"
+                                    IsVisible="{Binding HasSearchValue}"
+                                    Command="{Binding ClearSearchCommand}">
+                                <Path Classes="icon" Width="11" Height="11"
+                                      Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconX}" />
+                            </Button>
+                        </Grid>
+                    </Border>
+                    <ItemsControl ItemsSource="{Binding Filters}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="6" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sales:ServiceRateFilterViewModel">
+                                <Button Classes="hy-chip" Classes.on="{Binding IsActive}"
+                                        Content="{Binding Label}"
+                                        Command="{Binding #Root.((sales:ServiceRatesViewModel)DataContext).SetFilterCommand}"
+                                        CommandParameter="{Binding Key}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <Button Grid.Column="1" Classes="primary" VerticalAlignment="Top"
+                        Command="{Binding AddServiceCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                              StrokeThickness="2.5" Data="{StaticResource IconPlus}" />
+                        <TextBlock Text="خدمت جدید" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+
+        <TextBlock Text="{Binding SummaryText}" FontSize="12" FontWeight="Bold"
+                   Foreground="{StaticResource MutedBrush}" Margin="4,0,4,10" />
+
+        <!-- ═══ Rows ═══ -->
+        <ItemsControl ItemsSource="{Binding Rows}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="sales:ServiceRateRowViewModel">
+                    <Border Classes="sr-row" Classes.off="{Binding IsInactive}">
+                        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="14">
+                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="ExtraBold"
+                                           Foreground="{StaticResource InkBrush}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding BillingText}" FontSize="11.5"
+                                           Foreground="{StaticResource MutedBrush}"
+                                           IsVisible="{Binding IsBoarding}" />
+                            </StackPanel>
+                            <Border Grid.Column="1" Classes="sr-badge" Classes.boarding="{Binding IsBoarding}"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding SourceText}" FontSize="11.5" FontWeight="Bold"
+                                           Foreground="{StaticResource Brand700Brush}" />
+                            </Border>
+                            <TextBlock Grid.Column="2" Text="{Binding PriceText}" FontSize="14"
+                                       FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"
+                                       MinWidth="130" TextAlignment="Left" VerticalAlignment="Center" />
+                            <Button Grid.Column="3" Classes="hy-pager" Content="{Binding ToggleText}"
+                                    Command="{Binding ToggleCommand}" VerticalAlignment="Center" />
+                            <Button Grid.Column="4" Classes="hy-pager" Command="{Binding EditCommand}"
+                                    ToolTip.Tip="ویرایش خدمت" VerticalAlignment="Center">
+                                <Path Classes="icon" Width="14" Height="14"
+                                      Stroke="{Binding $parent[Button].Foreground}"
+                                      Data="{StaticResource IconEdit}" />
+                            </Button>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Border IsVisible="{Binding IsEmpty}" Classes="sr-row" Padding="24">
+            <TextBlock Text="خدمتی یافت نشد. با «خدمت جدید» یک خدمت اضافه کنید." FontSize="13"
+                       HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+        </Border>
+    </StackPanel>
+</UserControl>

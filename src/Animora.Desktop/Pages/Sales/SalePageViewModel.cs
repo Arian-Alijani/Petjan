@@ -69,7 +69,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     public SalePageViewModel(ISalesQueryService service, IStoreReadinessGate readiness,
         IToastService toast, IDialogService dialogs, IDataChangeNotifier changes, IPrintService print,
-        IHistoryRecordOpener historyOpener)
+        IHistoryRecordOpener historyOpener, IServiceRateService serviceRates)
     {
         _service = service;
         _print = print;
@@ -87,6 +87,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         Segments.Add(new SaleSegmentViewModel("invoices", "فاکتورها"));
 
         History = new SaleHistoryViewModel(service, historyOpener, NotifyInvoicesChanged, toast);
+        Rates = new ServiceRatesViewModel(serviceRates, toast, dialogs, changes);
 
         UseLoadStatus(ReloadPageAsync);
         // The ready-visit queue is fed by completed encounters; the cashier settles the same invoices.
@@ -100,9 +101,17 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     /// </summary>
     public SaleHistoryViewModel History { get; }
 
+    /// <summary>The «نرخ خدمات» tab's ViewModel (clinic + boarding service rates); loads lazily on first activation.</summary>
+    public ServiceRatesViewModel Rates { get; }
+
     public bool IsCashierTab => _workspace == "cashier";
 
     public bool IsHistoryTab => _workspace == "history";
+
+    public bool IsRatesTab => _workspace == "rates";
+
+    /// <summary>True on the tabs whose toolbar sits flush under the tab row (history, rates).</summary>
+    public bool IsFlushTab => IsHistoryTab || IsRatesTab;
 
     public ObservableCollection<SaleSegmentViewModel> Segments { get; } = [];
 
@@ -181,8 +190,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     /// <summary>
     /// Switches the top-level workspace tab — «صندوق» (the POS surface) or
-    /// «تاریخچه» (the cashier ledger). The history tab loads lazily on first
-    /// activation (PERFORMANCE.md §12).
+    /// «تاریخچه» (the cashier ledger) or «نرخ خدمات» (service rates). The history
+    /// and rates tabs load lazily on first activation (PERFORMANCE.md §12).
     /// </summary>
     [RelayCommand]
     private void SetWorkspace(string? key)
@@ -195,10 +204,16 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         _workspace = key;
         OnPropertyChanged(nameof(IsCashierTab));
         OnPropertyChanged(nameof(IsHistoryTab));
+        OnPropertyChanged(nameof(IsRatesTab));
+        OnPropertyChanged(nameof(IsFlushTab));
 
         if (IsHistoryTab)
         {
             History.EnsureLoaded();
+        }
+        else if (IsRatesTab)
+        {
+            Rates.EnsureLoaded();
         }
     }
 
