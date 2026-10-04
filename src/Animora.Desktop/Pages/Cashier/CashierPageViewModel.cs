@@ -521,7 +521,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
             if (!result.Ok)
             {
-                _toast.Show(result.Error ?? "خطا در ثبت پرداخت", Tone.Danger);
+                _toast.Show(Animora.Desktop.Localization.ErrorMessages.ForResult(result.Error, "خطا در ثبت پرداخت"), Tone.Danger);
                 return;
             }
 
@@ -552,7 +552,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
             var result = await _service.VoidAsync(id);
             if (!result.Ok)
             {
-                _toast.Show(result.Error ?? "خطا در ابطال", Tone.Danger);
+                _toast.Show(Animora.Desktop.Localization.ErrorMessages.ForResult(result.Error, "خطا در ابطال"), Tone.Danger);
                 return;
             }
 
@@ -586,7 +586,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
             var result = await _service.RefundAsync(id, new CashierRefundRequest(amount));
             if (!result.Ok)
             {
-                _toast.Show(result.Error ?? "خطا در عودت", Tone.Danger);
+                _toast.Show(Animora.Desktop.Localization.ErrorMessages.ForResult(result.Error, "خطا در عودت"), Tone.Danger);
                 return;
             }
 

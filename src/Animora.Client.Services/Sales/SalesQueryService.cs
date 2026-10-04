@@ -264,7 +264,8 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         ArgumentNullException.ThrowIfNull(request);
         // One shared pay-on-post / cap-to-due path for Sales and Cashier (X41).
         var outcome = await InvoicePaymentCore.PayAsync(invoiceId, InvoicePaymentCore.ToDomain(request.Method),
-            request.Amount, null, command => SendAsync(command), () => ReadModelAsync(invoiceId));
+            request.Amount, null, command => SendAsync(command), () => ReadModelAsync(invoiceId),
+            () => CashSessionAutoOpen.EnsureOpenAsync(scopes));
         if (outcome.Error == "INVOICE_NOT_FOUND") return new PaymentResult(false, outcome.Error, 0, false, null!);
 
         var updated = await RequireDetailAsync(invoiceId);

@@ -51,7 +51,7 @@ switch over `ServiceException.Code` / result error code → Persian, used by bot
 |----|-------|--------|
 | T1 | Visit-type filters show English → use Persian labels from appointment settings | ☑ DONE |
 | T2 | "Start visit" often fails — root-cause & fix | ☑ DONE |
-| T3 | Pay / full-settle shows raw `CASH_SESSION_REQUIRED` in Sales & Cashier | ☐ TODO |
+| T3 | Pay / full-settle shows raw `CASH_SESSION_REQUIRED` in Sales & Cashier | ☑ DONE |
 | T4 | Boarding add product/service picker opens *behind* (clipped) — make it a modal like Sales | ☐ TODO |
 | T5 | All displayed statuses/texts must be Persian (enum/code leaks) | ☐ TODO |
 | T6 | Standardize & unify invoice / file / all such numbers | ☐ TODO |
@@ -170,7 +170,7 @@ succeeds; failures show a specific Persian reason, never a bare English code. Bu
 
 ---
 
-## T3 — Pay / full-settle shows raw `CASH_SESSION_REQUIRED` in Sales & Cashier
+## T3 — ☑ DONE — Pay / full-settle shows raw `CASH_SESSION_REQUIRED` in Sales & Cashier
 
 **Symptom (user):** Pressing **پرداخت (pay)** / **تسویه کامل (full settle)** in **Sales (فروش)** and
 **Cashier (صندوق)** pops a notification reading like "cash session required" (user wrote it

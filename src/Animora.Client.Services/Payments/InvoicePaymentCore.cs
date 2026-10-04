@@ -45,7 +45,9 @@ internal static class InvoicePaymentCore
 
     /// <summary>
     /// Registers a payment: posts a draft first (one logical operation), re-reads the POSTED due (X17), clamps
-    /// the requested amount to <c>[1, due]</c> and dispatches <see cref="RegisterPaymentCommand"/>.
+    /// the requested amount to <c>[1, due]</c> and dispatches <see cref="RegisterPaymentCommand"/>. When
+    /// <paramref name="ensureCashSession"/> is supplied it runs just before a Cash payment so the drawer
+    /// session exists.
     /// </summary>
     public static async Task<PaymentOutcome> PayAsync(
         string invoiceId,
@@ -53,7 +55,8 @@ internal static class InvoicePaymentCore
         long requestedAmount,
         string? reference,
         Func<ICommand<Unit>, Task<Result<Unit>>> send,
-        Func<Task<InvoiceDetailReadModel?>> read)
+        Func<Task<InvoiceDetailReadModel?>> read,
+        Func<Task>? ensureCashSession = null)
     {
         var current = await read();
         if (current is null) return new(false, "INVOICE_NOT_FOUND", 0);
@@ -66,7 +69,7 @@ internal static class InvoicePaymentCore
         if (current.Summary.State == InvoiceState.Draft)
         {
             var posted = await send(new PostInvoiceCommand(invoiceId));
-            if (posted.IsFailure) return new(false, "INVOICE_NOT_POSTED", 0);
+            if (posted.IsFailure) return new(false, posted.Error.Code, 0);
 
             // Posting can finalise the payable total (tax / rounding / insurance): cap against the POSTED due.
             current = await read() ?? current;
@@ -74,6 +77,9 @@ internal static class InvoicePaymentCore
 
         var amount = Math.Min(Math.Max(0, requestedAmount), Math.Max(0, current.Summary.DueMinor));
         if (amount <= 0) return new(false, ErrorCodes.PaymentExceedsDue.Code, 0);
+
+        // Cash needs an open drawer session; the single-operator desktop flow opens one on demand (T3).
+        if (method == PaymentMethod.Cash && ensureCashSession is not null) await ensureCashSession();
 
         var registered = await send(new RegisterPaymentCommand(invoiceId, method, Money.Irt(amount), reference));
         return registered.IsFailure

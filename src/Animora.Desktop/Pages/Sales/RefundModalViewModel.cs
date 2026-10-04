@@ -68,7 +68,7 @@ public sealed partial class RefundModalViewModel : ObservableObject
         var result = await _service.RefundAsync(_invoiceId, new RefundRequest(amount));
         if (!result.Ok)
         {
-            _toast.Show(result.Error ?? "خطا در عودت", Tone.Danger);
+            _toast.Show(Animora.Desktop.Localization.ErrorMessages.ForResult(result.Error, "خطا در عودت"), Tone.Danger);
             return;
         }
 
