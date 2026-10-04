@@ -286,6 +286,24 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         }
     }
 
+    /// <summary>
+    /// Opens the page on the «صف ویزیت» (ready-to-invoice) queue. Used by the visit / boarding
+    /// hand-off: the doctor's account only marks the encounter ready, and the cashier issues the
+    /// invoice from this list under the cashier's own <c>SalesDraft</c> permission. The page's own
+    /// <see cref="OnNavigatedTo"/> reload then refreshes the queue contents.
+    /// </summary>
+    public void ShowReadyQueue()
+    {
+        _segment = "ready";
+        SearchText = string.Empty;
+        OnPropertyChanged(nameof(IsReadySegment));
+        OnPropertyChanged(nameof(IsInvoicesSegment));
+        if (_pageLoaded)
+        {
+            RenderSidebar();
+        }
+    }
+
     /// <summary>Surfaces a typed backend failure as a danger toast instead of letting it escape onto the UI dispatcher (X09).</summary>
     private void ShowFailure(InvalidOperationException ex, string fallback) =>
         _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, fallback), Tone.Danger);

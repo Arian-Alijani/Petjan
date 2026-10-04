@@ -205,7 +205,7 @@ catch (InvalidOperationException ex) { _toast.Show(PatientsPresentation.CommandF
 **Build:** fast 0/0. **Push (اولین push، شاخه را می‌سازد):**
 `scripts/git/push.sh -b genspark_ai_developer "fix(visits): make Rx service/item picker open above layout and selectable"`
 
-### T2 — [ ] هماهنگ‌سازی صدور فاکتور ویزیت با مدل صندوقِ جدا (آمادهٔ آنلاین)
+### T2 — [x] هماهنگ‌سازی صدور فاکتور ویزیت با مدل صندوقِ جدا (آمادهٔ آنلاین)
 **ریشه (از §0.6):** معماری backend درست است (Complete → handoff → صندوق از «آمادهٔ صدور» فاکتور می‌سازد). اما
 `DONE.VIEW` دکمهٔ «رفتن به صندوق» → `EVM.HandoffToCashierAsync` → `BuildFromEncounterAsync` → مستقیماً
 `CreateInvoiceFromVisitCommand` را از همان اکانت دکتر می‌فرستد. چون این فرمان `[RequiresPermission(SalesDraft)]` است،

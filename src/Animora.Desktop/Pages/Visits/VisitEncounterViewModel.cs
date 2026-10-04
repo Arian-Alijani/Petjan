@@ -377,13 +377,13 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     }, "رفتن به ویزیت بعدی ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
-    private Task HandoffToCashierAsync() => RunGuardedAsync(async () =>
+    private Task HandoffToCashierAsync() => RunGuardedAsync(() =>
     {
-        // The completed encounter id is handed to SalePageViewModel, which issues the invoice from it
-        // (sale-page.js buildFromEncounter parity). The awaitable path means a failed hand-off toasts
-        // on the Sales page rather than escaping from a fire-and-forget command.
-        await _navigation.NavigateToAsync<Animora.Desktop.Pages.Sales.SalePageViewModel>(
-            vm => vm.BuildFromEncounterAsync(_encounterId));
+        // Completing the visit already queued it as «آمادهٔ صدور». Invoice issuing is the cashier's
+        // job (SalesDraft permission), so this only opens the cashier page on that ready queue —
+        // it never issues an invoice from the doctor's account.
+        _navigation.NavigateTo<Animora.Desktop.Pages.Sales.SalePageViewModel>(vm => vm.ShowReadyQueue());
+        return Task.CompletedTask;
     }, "انتقال به صندوق ناموفق بود؛ دوباره تلاش کنید");
 
     private async Task CompleteAsync()
