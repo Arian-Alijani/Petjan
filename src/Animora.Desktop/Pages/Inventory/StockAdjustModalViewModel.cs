@@ -39,7 +39,7 @@ public sealed partial class StockAdjustModalViewModel : ObservableObject
         _dialogs = dialogs;
         _onChanged = onChanged;
         _selectedReason = ReasonOptions[0];
-        _ = LoadAsync(productId);
+        _ = LoadSafeAsync(productId);
     }
 
     [ObservableProperty] private string _categoryLabel = string.Empty;
@@ -55,6 +55,24 @@ public sealed partial class StockAdjustModalViewModel : ObservableObject
     partial void OnCodeChanged(string value) => OnPropertyChanged(nameof(EyebrowLine));
 
     public ObservableCollection<InventoryAdjustRowViewModel> Rows { get; } = [];
+
+    /// <summary>Observed initial load (P2-9): a seam failure toasts and closes the modal instead of escaping the ctor task.</summary>
+    private async Task LoadSafeAsync(string productId)
+    {
+        try
+        {
+            await LoadAsync(productId);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _toast.Show(
+                ex is InvalidOperationException ioe
+                    ? InventoryPresentation.MutationFailureMessage(ioe, "بارگذاری موجودی کالا ناموفق بود؛ دوباره تلاش کنید")
+                    : "بارگذاری موجودی کالا ناموفق بود؛ دوباره تلاش کنید",
+                Tone.Danger);
+            _dialogs.Close();
+        }
+    }
 
     private async Task LoadAsync(string productId)
     {

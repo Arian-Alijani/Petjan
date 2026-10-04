@@ -39,7 +39,7 @@ public sealed partial class NewProductModalViewModel : ObservableObject
         TypeOptions.Add(new InventoryProductTypeOptionViewModel(
             "yes", "IconLayers", "چند‌تنوعی", "وزن، سایز یا دوز مختلف"));
 
-        _ = LoadAsync();
+        _ = LoadSafeAsync();
     }
 
     // ── base info ───────────────────────────────────────────────────────────
@@ -88,6 +88,24 @@ public sealed partial class NewProductModalViewModel : ObservableObject
     // ── variant setup ───────────────────────────────────────────────────────
     [ObservableProperty] private string _attributeName = string.Empty;
     [ObservableProperty] private string _attributeOptionsText = string.Empty;
+
+    /// <summary>Observed initial load (P2-9): a seam failure toasts and closes the modal instead of escaping the ctor task.</summary>
+    private async Task LoadSafeAsync()
+    {
+        try
+        {
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _toast.Show(
+                ex is InvalidOperationException ioe
+                    ? InventoryPresentation.MutationFailureMessage(ioe, "بارگذاری دسته‌ها ناموفق بود؛ دوباره تلاش کنید")
+                    : "بارگذاری دسته‌ها ناموفق بود؛ دوباره تلاش کنید",
+                Tone.Danger);
+            _dialogs.Close();
+        }
+    }
 
     private async Task LoadAsync()
     {

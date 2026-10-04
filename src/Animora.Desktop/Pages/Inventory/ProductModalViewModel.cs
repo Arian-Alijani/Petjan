@@ -44,7 +44,7 @@ public sealed partial class ProductModalViewModel : ObservableObject
         _toast = toast;
         _dialogs = dialogs;
         _onChanged = onChanged;
-        _ = LoadAsync(productId);
+        _ = LoadSafeAsync(productId);
     }
 
     // ── header ──────────────────────────────────────────────────────────────
@@ -407,6 +407,28 @@ public sealed partial class ProductModalViewModel : ObservableObject
     }
 
     // ── load / save / delete ────────────────────────────────────────────────
+    /// <summary>
+    /// Observed initial load: a seam failure (<see cref="InvalidOperationException"/> /
+    /// <c>ServiceException</c>) surfaces as a danger toast and closes the modal instead of
+    /// escaping the constructor's fire-and-forget task (X09 guard precedent, P2-9).
+    /// </summary>
+    private async Task LoadSafeAsync(string productId)
+    {
+        try
+        {
+            await LoadAsync(productId);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _toast.Show(
+                ex is InvalidOperationException ioe
+                    ? InventoryPresentation.MutationFailureMessage(ioe, "بارگذاری جزئیات کالا ناموفق بود؛ دوباره تلاش کنید")
+                    : "بارگذاری جزئیات کالا ناموفق بود؛ دوباره تلاش کنید",
+                Tone.Danger);
+            _dialogs.Close();
+        }
+    }
+
     private async Task LoadAsync(string productId)
     {
         var detail = await _service.GetDetailAsync(productId);
