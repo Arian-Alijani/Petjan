@@ -59,8 +59,6 @@ public sealed partial class ProductModalViewModel : ObservableObject
     partial void OnCodeErrorChanged(string value) => OnPropertyChanged(nameof(HasCodeError));
     [ObservableProperty] private string _brand = string.Empty;
     [ObservableProperty] private string _description = string.Empty;
-    [ObservableProperty] private string _glyph = "📦";
-    [ObservableProperty] private IBrush _thumbBrush = InventoryPresentation.ThumbBrush("a");
 
     [ObservableProperty] private string _name = string.Empty;
 
@@ -451,8 +449,6 @@ public sealed partial class ProductModalViewModel : ObservableObject
         Name = _product.Name;
         Brand = _product.Brand;
         Description = _product.Description;
-        Glyph = _product.Glyph;
-        ThumbBrush = InventoryPresentation.ThumbBrush(_product.Tone);
         SelectedCategory = CategoryOptions.FirstOrDefault(c => c.Id == _product.CategoryId);
 
         // variant cards
@@ -615,13 +611,11 @@ public sealed partial class ProductModalViewModel : ObservableObject
             return;
         }
 
-        // The glyph is derived from the product kind on the read side, so it is never edited here.
         var update = new ProductInfoUpdate(
             Name.Trim(),
             Code.Trim(),
             Brand.Trim(),
             SelectedCategory?.Id ?? _product.CategoryId,
-            _product.Glyph,
             Description.Trim(),
             HasAttribute ? _attribute?.Name : null,
             variants);

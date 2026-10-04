@@ -49,7 +49,6 @@ public sealed partial class NewProductModalViewModel : ObservableObject
     [ObservableProperty] private string _name = string.Empty;
     [ObservableProperty] private string _codeText = string.Empty;
     [ObservableProperty] private string _brand = string.Empty;
-    [ObservableProperty] private string _glyph = "📦";
     [ObservableProperty] private string _description = string.Empty;
 
     public ObservableCollection<CategoryOptionViewModel> CategoryOptions { get; } = [];
@@ -129,7 +128,6 @@ public sealed partial class NewProductModalViewModel : ObservableObject
 
         var code = CodeText.Trim();
         var brand = Brand.Trim();
-        var glyph = string.IsNullOrWhiteSpace(Glyph) ? "📦" : Glyph.Trim();
         var categoryId = SelectedCategory?.Id ?? CategoryOptions.FirstOrDefault()?.Id ?? "med";
 
         IReadOnlyList<string> attributeOptions = [];
@@ -169,7 +167,7 @@ public sealed partial class NewProductModalViewModel : ObservableObject
         }
 
         var request = new NewProductRequest(
-            code, name, brand, categoryId, glyph, Description.Trim(),
+            code, name, brand, categoryId, Description.Trim(),
             HasVariants ? AttributeName.Trim() : null,
             attributeOptions,
             variants);

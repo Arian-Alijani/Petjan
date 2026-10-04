@@ -185,7 +185,8 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         if (!append) _loaded.Clear();
         _loaded.AddRange(page.Items);
         _listTotal = page.TotalCount;
-        _catalogTotal = page.CatalogTotal;
+        // The sub-nav's catalog size is the sum of the per-category counts already loaded — no extra query.
+        _catalogTotal = _categories.Sum(c => c.ProductCount);
     }
 
     /// <summary>Re-queries after a filter / search change and re-renders the list (not the settings tab).</summary>
@@ -259,7 +260,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         FilteredProducts.ReplaceAll(_loaded.Select(product =>
         {
             var category = _categories.FirstOrDefault(c => c.Id == product.CategoryId)
-                           ?? (_categories.Count > 0 ? _categories[0] : new CategoryInfo(product.CategoryId, string.Empty, "teal", string.Empty));
+                           ?? (_categories.Count > 0 ? _categories[0] : new CategoryInfo(product.CategoryId, string.Empty, "teal"));
             var hasVariants = product.Variants.Count > 1;
             return new InventoryProductRowViewModel(product, category, hasVariants);
         }));
@@ -273,7 +274,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         CategoryRows.ReplaceAll(_categories.Select(category =>
         {
             return new InventoryCategoryRowViewModel(
-                category.Id, category.Label, category.Tone, category.IconKey, category.ProductCount);
+                category.Id, category.Label, category.Tone, category.ProductCount);
         }));
 
         SettingsCountText =

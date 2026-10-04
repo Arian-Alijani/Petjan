@@ -145,8 +145,6 @@ public sealed partial class InventoryProductRowViewModel : ObservableObject
     public InventoryProductRowViewModel(Product product, CategoryInfo category, bool hasVariants)
     {
         Product = product;
-        Glyph = product.Glyph;
-        ThumbBrush = InventoryPresentation.ThumbBrush(product.Tone);
         Name = product.Name;
         Brand = product.Brand;
         Code = product.Code;
@@ -200,10 +198,6 @@ public sealed partial class InventoryProductRowViewModel : ObservableObject
     }
 
     public Product Product { get; }
-
-    public string Glyph { get; }
-
-    public IBrush ThumbBrush { get; }
 
     public string Name { get; }
 

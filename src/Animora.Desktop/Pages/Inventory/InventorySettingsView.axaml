@@ -61,13 +61,8 @@
                         <DataTemplate x:DataType="inv:InventoryCategoryRowViewModel">
                             <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,14">
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
-                                    <Border Grid.Column="0" Width="44" Height="44" CornerRadius="14"
-                                            Background="{Binding IconBackground}" VerticalAlignment="Center">
-                                        <Path Classes="icon" Width="21" Height="21"
-                                              Stroke="{Binding IconForeground}" VerticalAlignment="Center"
-                                              HorizontalAlignment="Center"
-                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
-                                    </Border>
+                                    <Border Grid.Column="0" Width="10" Height="10" CornerRadius="5"
+                                            Background="{Binding ToneBrush}" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="13.5"
                                                FontWeight="Bold" Foreground="{StaticResource InkBrush}"
                                                VerticalAlignment="Center" TextWrapping="Wrap" />

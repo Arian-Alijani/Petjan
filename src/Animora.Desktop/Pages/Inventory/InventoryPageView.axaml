@@ -452,10 +452,6 @@
 
                                         <!-- product cell -->
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="12,12">
-                                            <Border Width="42" Height="42" CornerRadius="12" Background="{Binding ThumbBrush}">
-                                                <TextBlock Text="{Binding Glyph}" FontSize="20"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                            </Border>
                                             <StackPanel VerticalAlignment="Center" Spacing="2">
                                                 <TextBlock Text="{Binding Name}" FontSize="13.5" FontWeight="Bold"
                                                            Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" />

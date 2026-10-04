@@ -200,12 +200,8 @@
                     <GradientStop Color="#fafcfb" Offset="1" />
                 </LinearGradientBrush>
             </Border.Background>
-            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
-                <Border Grid.Column="0" Width="50" Height="50" CornerRadius="12" Background="{Binding ThumbBrush}">
-                    <TextBlock Text="{Binding Glyph}" FontSize="24" HorizontalAlignment="Center"
-                               VerticalAlignment="Center" />
-                </Border>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
                     <TextBlock Text="{Binding EyebrowLine}" FontSize="11" FontWeight="Bold"
                                Foreground="{StaticResource Brand600Brush}" LetterSpacing="1" Margin="0,0,0,4" />
                     <TextBlock Text="{Binding Name}" FontSize="18" FontWeight="ExtraBold"
@@ -213,7 +209,7 @@
                     <TextBlock Text="{Binding SubLine}" FontSize="12.5" Margin="0,4,0,0"
                                Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
                 </StackPanel>
-                <Button Grid.Column="2" Classes="var-del" Width="36" Height="36"
+                <Button Grid.Column="1" Classes="var-del" Width="36" Height="36"
                         Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
                         BorderThickness="1" CornerRadius="10" VerticalAlignment="Top"
                         Command="{Binding CancelCommand}" ToolTip.Tip="بستن">

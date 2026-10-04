@@ -45,8 +45,6 @@ public sealed partial class StockAdjustModalViewModel : ObservableObject
     [ObservableProperty] private string _categoryLabel = string.Empty;
     [ObservableProperty] private string _code = string.Empty;
     [ObservableProperty] private string _productName = string.Empty;
-    [ObservableProperty] private string _glyph = "📦";
-    [ObservableProperty] private IBrush _thumbBrush = InventoryPresentation.ThumbBrush("a");
 
     /// <summary>The header eyebrow: «category · code» (reference <c>${cat.label} · ${p.code}</c>).</summary>
     public string EyebrowLine => $"{CategoryLabel} · {Code}";
@@ -84,8 +82,6 @@ public sealed partial class StockAdjustModalViewModel : ObservableObject
         }
 
         _product = detail.Product;
-        Glyph = _product.Glyph;
-        ThumbBrush = InventoryPresentation.ThumbBrush(_product.Tone);
         Code = _product.Code;
         ProductName = _product.Name;
 

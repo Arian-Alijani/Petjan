@@ -58,10 +58,10 @@ public sealed class LocalSeeder(
     // C06: 12 categories (MED/VAC/FOOD/ACC/SRV plus SUPP/GROOM/TOY/HYG/LAB/SURG/EQUIP).
     private static readonly (string Code, string Name)[] Categories =
     [
-        ("MED", "Medicines"), ("VAC", "Vaccines"), ("FOOD", "Food"), ("ACC", "Accessories"),
-        ("SRV", "Services"), ("SUPP", "Supplements"), ("GROOM", "Grooming"), ("TOY", "Toys"),
-        ("HYG", "Hygiene"), ("LAB", "Lab supplies"), ("SURG", "Surgical consumables"),
-        ("EQUIP", "Equipment"),
+        ("MED", "داروها"), ("VAC", "واکسن‌ها"), ("FOOD", "غذا و خوراک"), ("ACC", "لوازم جانبی"),
+        ("SRV", "خدمات"), ("SUPP", "مکمل‌ها"), ("GROOM", "آرایش و نظافت"), ("TOY", "اسباب‌بازی"),
+        ("HYG", "بهداشتی"), ("LAB", "ملزومات آزمایشگاه"), ("SURG", "مصرفی جراحی"),
+        ("EQUIP", "تجهیزات"),
     ];
 
     public async Task<Result> SeedAsync(CancellationToken ct = default)

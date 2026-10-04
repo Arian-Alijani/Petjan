@@ -1,16 +1,13 @@
 namespace Animora.Contracts.Inventory;
 
 /// <summary>
-/// A product category, mirroring a row of the reference's <c>INV.CATS</c>
-/// (Animora-UI/assets/inventory-data.js). <see cref="Tone"/> drives the
-/// categorical chip/tag color and <see cref="IconKey"/> the category glyph, both
-/// resolved by the View (this contract stays free of UI resources).
+/// A product category. <see cref="Tone"/> drives the categorical tag color, resolved by the View (this
+/// contract stays free of UI resources). Categories carry no icon.
 /// </summary>
 public sealed record CategoryInfo(
     string Id,
     string Label,
     string Tone,
-    string IconKey,
     int ProductCount = 0);
 
 /// <summary>The list screen's stock-status filter chip (کم‌موجود / در دسترس), applied server-side.</summary>
@@ -35,11 +32,10 @@ public enum ProductStockFilter
 public sealed record ProductListQuery(
     string? Search, string? CategoryId, ProductStockFilter Stock, int Page, int PageSize);
 
-/// <summary>One catalog page plus the totals the sub-nav and pager need.</summary>
+/// <summary>One catalog page plus the filtered total the pager needs.</summary>
 /// <param name="Items">The page's products.</param>
 /// <param name="TotalCount">Products matching the request's filters (pager).</param>
-/// <param name="CatalogTotal">All products regardless of filters (sub-nav count).</param>
-public sealed record ProductPage(IReadOnlyList<Product> Items, int TotalCount, int CatalogTotal);
+public sealed record ProductPage(IReadOnlyList<Product> Items, int TotalCount);
 
 /// <summary>
 /// A stock unit / label dimension a product's variants are offered in — the
@@ -70,11 +66,9 @@ public sealed record ProductVariant(
 /// <summary>
 /// A product in the inventory catalog, mirroring the shape the reference's
 /// <c>renderProductRow</c> / <c>findVariant</c> read from <c>INV.PRODUCTS</c>:
-/// its code, name/brand, category, thumbnail glyph + tone, one or more
-/// <see cref="Variants"/>, and the optional variant <see cref="Attribute"/>
-/// (the «تنوع» dimension). <see cref="Glyph"/> is the product thumbnail's
-/// emoji character exactly as the reference carries it (<c>p.icon</c>).
-/// All pricing/stock figures are derived from the variants by the query
+/// its code, name/brand, category, one or more <see cref="Variants"/>, and the
+/// optional variant <see cref="Attribute"/> (the «تنوع» dimension). Products
+/// carry no icon/thumbnail. All pricing/stock figures are derived from the variants by the query
 /// service — never stored twice.
 /// </summary>
 public sealed record Product(
@@ -83,8 +77,6 @@ public sealed record Product(
     string Name,
     string Brand,
     string CategoryId,
-    string Glyph,
-    string Tone,
     string Description,
     UnitInfo? Attribute,
     IReadOnlyList<ProductVariant> Variants);
@@ -126,7 +118,6 @@ public sealed record ProductInfoUpdate(
     string Code,
     string Brand,
     string CategoryId,
-    string Glyph,
     string Description,
     string? AttributeName,
     IReadOnlyList<ProductVariant> Variants);
@@ -145,7 +136,6 @@ public sealed record NewProductRequest(
     string Name,
     string Brand,
     string CategoryId,
-    string Glyph,
     string Description,
     string? AttributeName,
     IReadOnlyList<string> AttributeOptions,

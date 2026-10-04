@@ -28,7 +28,7 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider, _) = Resolve(scope);
         var context = provider.BuildQueryContext();
-        if (context.IsFailure) return new ProductPage([], 0, 0);
+        if (context.IsFailure) return new ProductPage([], 0);
 
         var search = string.IsNullOrWhiteSpace(query.Search) ? null : Animora.Application.Text.PersianText.NormalizeDigits(query.Search.Trim());
         var category = string.IsNullOrWhiteSpace(query.CategoryId) ? null : query.CategoryId;
@@ -42,15 +42,7 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
         var products = new List<ContractProduct>(rows.Count);
         for (var i = 0; i < rows.Count; i++) products.Add(rows[i].ToContract());
 
-        // The sub-nav shows the whole catalog size; an unfiltered request already carries it.
-        var catalogTotal = result.Value.TotalCount;
-        if (search is not null || category is not null || query.Stock != ProductStockFilter.All)
-        {
-            var all = await dispatcher.QueryAsync(new ProductCatalogQuery(null, null, false, 1, 1), context.Value!);
-            catalogTotal = all.IsSuccess ? all.Value!.TotalCount : result.Value.TotalCount;
-        }
-
-        return new ProductPage(products, result.Value.TotalCount, catalogTotal);
+        return new ProductPage(products, result.Value.TotalCount);
     }
 
     public async Task<IReadOnlyList<CategoryInfo>> GetCategoriesAsync()
@@ -143,7 +135,7 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
 
         var detail = await GetDetailAsync(productId);
         return detail?.Product ?? new ContractProduct(productId, request.Code, request.Name, request.Brand,
-            request.CategoryId, "📦", "a", request.Description, null, []);
+            request.CategoryId, request.Description, null, []);
     }
 
     public async Task DeleteProductAsync(string productId) =>

@@ -1,26 +1,22 @@
 using Animora.Desktop.Localization;
 using Avalonia.Media;
-using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Animora.Desktop.Pages.Inventory;
 
 /// <summary>
-/// One category row of the read-only «دسته‌بندی کالاها» overview: the tone icon tile, the name and the live
-/// product count. Tone and icon are derived from the immutable category id, so they are display-only.
+/// One category row of the «دسته‌بندی کالاها» settings list: a tone dot, the name and the live product count.
+/// Tone is derived from the immutable category id, so it is display-only. Categories carry no icon.
 /// </summary>
 public sealed class InventoryCategoryRowViewModel
 {
-    public InventoryCategoryRowViewModel(string id, string label, string tone, string iconKey, int productCount)
+    public InventoryCategoryRowViewModel(string id, string label, string tone, int productCount)
     {
         Id = id;
         Label = label;
         Tone = tone;
-        IconKey = iconKey;
+        ProductCount = productCount;
         CountText = $"{PersianNumberFormatter.ToPersianDigits(productCount)} کالا";
-
-        var (bg, fg) = InventoryPresentation.CategoryIconTile(tone);
-        IconBackground = bg;
-        IconForeground = fg;
+        ToneBrush = InventoryPresentation.ChipDot(tone);
     }
 
     public string Id { get; }
@@ -29,11 +25,9 @@ public sealed class InventoryCategoryRowViewModel
 
     public string Tone { get; }
 
-    public string IconKey { get; }
+    public int ProductCount { get; }
 
     public string CountText { get; }
 
-    public IBrush IconBackground { get; }
-
-    public IBrush IconForeground { get; }
+    public IBrush ToneBrush { get; }
 }

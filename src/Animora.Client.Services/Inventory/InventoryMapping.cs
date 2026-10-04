@@ -19,7 +19,7 @@ internal static class InventoryMapping
     /// already-recorded movement's expiry is not surfaced here.
     /// </summary>
     internal static ContractProduct ToContract(this ProductReadModel row) =>
-        new(row.Id, row.Sku, row.Name, row.Brand, row.CategoryId, GlyphOf(row.Kind), ToneOf(row.Id),
+        new(row.Id, row.Sku, row.Name, row.Brand, row.CategoryId,
             row.Notes ?? string.Empty, AttributeOf(row.Variants), VariantsOf(row.Variants));
 
     internal static IReadOnlyList<ContractVariant> VariantsOf(IReadOnlyList<ProductVariantReadModel> variants)
@@ -51,7 +51,7 @@ internal static class InventoryMapping
     }
 
     internal static CategoryInfo ToContract(this CategoryReadModel row) =>
-        new(row.Id, row.Name, ToneOf(row.Id), IconOf(row.Id), row.ProductCount);
+        new(row.Id, row.Name, ToneOf(row.Id), row.ProductCount);
 
     internal static Contracts.Inventory.StockMovement ToContract(this MovementReadModel row, TimeZoneInfo zone)
     {
@@ -87,18 +87,6 @@ internal static class InventoryMapping
         _ => row.SourceEntityType,
     };
 
-    /// <summary>The product thumbnail glyph, keyed off the catalogue kind (the reference's <c>p.icon</c>).</summary>
-    private static string GlyphOf(string kind) => kind switch
-    {
-        "Medicine" => "💊",
-        "Vaccine" => "💉",
-        "Food" => "🥫",
-        "Consumable" => "🧴",
-        "Equipment" => "🩺",
-        "Service" => "📋",
-        _ => "🎾", // PetShop retail article.
-    };
-
     /// <summary>
     /// The UI tone key (<c>a</c>…<c>f</c>). The domain has no presentation column, so the tone is a stable
     /// derivation of the row id — the same row always renders the same tint (PERFORMANCE.md §2: no LINQ
@@ -109,17 +97,6 @@ internal static class InventoryMapping
         var sum = 0;
         for (var i = 0; i < id.Length; i++) sum = (sum + id[i]) % 6;
         return ToneAlphabet[sum];
-    }
-
-    /// <summary>
-    /// The category glyph key. Categories carry no icon column, so it is derived from the immutable id the
-    /// same deterministic way as <see cref="ToneOf"/> (a rename never re-skins); the View resolves the key.
-    /// </summary>
-    private static string IconOf(string id)
-    {
-        var sum = 0;
-        for (var i = 0; i < id.Length; i++) sum = (sum + id[i]) % CategoryIcons.Length;
-        return CategoryIcons[sum];
     }
 
     internal static int ScaledToInt(long scaled) =>
@@ -135,9 +112,6 @@ internal static class InventoryMapping
     }
 
     private static readonly string[] ToneAlphabet = ["a", "b", "c", "d", "e", "f"];
-
-    private static readonly string[] CategoryIcons =
-        ["IconFlask", "IconBone", "IconSyringe", "IconTools", "IconBath", "IconBox"];
 }
 
 /// <summary>
