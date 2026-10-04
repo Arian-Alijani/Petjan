@@ -702,50 +702,9 @@
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Brand700Brush}"
                                                       Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
-                                                <TextBlock Text="ثبت بیمار جدید (بدون سابقه در سیستم)" />
+                                                <TextBlock Text="ثبت مالک و بیمار جدید" />
                                             </StackPanel>
                                         </Button>
-
-                                        <Grid IsVisible="{Binding IsNewPatientFormOpen}" Margin="0,10,0,0"
-                                              ColumnDefinitions="*,*" ColumnSpacing="12"
-                                              RowDefinitions="Auto,Auto,Auto">
-                                            <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6" Margin="0,0,0,12">
-                                                <TextBlock Classes="fld-label" Text="نام حیوان" />
-                                                <TextBox Classes="fld-input" Text="{Binding NewPatientName}" PlaceholderText="مثلاً: میلو" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6" Margin="0,0,0,12">
-                                                <TextBlock Classes="fld-label" Text="گونه / نژاد" />
-                                                <TextBox Classes="fld-input" Text="{Binding NewPatientKind}" PlaceholderText="مثلاً: سگ پامرانین" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Row="1" Grid.Column="0" Spacing="6" Margin="0,0,0,12">
-                                                <TextBlock Classes="fld-label" Text="نام مالک" />
-                                                <TextBox Classes="fld-input" Text="{Binding NewPatientOwner}" PlaceholderText="مثلاً: رضا کریمی" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6" Margin="0,0,0,12">
-                                                <TextBlock Classes="fld-label" Text="شماره تماس" />
-                                                <TextBox Classes="fld-input" Text="{Binding NewPatientPhone}" PlaceholderText="۰۹۱۲…"
-                                                         FlowDirection="LeftToRight" TextAlignment="Left" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Row="2" Grid.Column="0" Spacing="6">
-                                                <TextBlock Classes="fld-label" Text="نوع حیوان (برای آیکن)" />
-                                                <ComboBox SelectedIndex="0" HorizontalAlignment="Stretch">
-                                                    <ComboBoxItem Content="سگ" />
-                                                    <ComboBoxItem Content="گربه" />
-                                                    <ComboBoxItem Content="پرنده" />
-                                                    <ComboBoxItem Content="خرگوش" />
-                                                </ComboBox>
-                                            </StackPanel>
-                                            <StackPanel Grid.Row="2" Grid.Column="1" VerticalAlignment="Bottom"
-                                                        HorizontalAlignment="Left">
-                                                <Button Classes="go-btn small" Command="{Binding SaveNewPatientCommand}">
-                                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                                        <Path Classes="icon" Width="14" Height="14" Stroke="White"
-                                                              Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
-                                                        <TextBlock Text="ثبت بیمار" />
-                                                    </StackPanel>
-                                                </Button>
-                                            </StackPanel>
-                                        </Grid>
                                     </StackPanel>
 
                                     <Border IsVisible="{Binding HasPickedPatient}" Padding="14,12" CornerRadius="12"
