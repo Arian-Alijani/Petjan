@@ -28,6 +28,13 @@ public sealed class PetRepository(AnimoraLocalDbContext db) : IPetRepository
             .OrderBy(e => e.Id).ToListAsync(ct);
     }
 
+    // Tracked so the cascade soft-delete flips persist; the global SoftDelete filter already
+    // excludes tombstoned rows.
+    public async Task<IReadOnlyList<Pet>> ListByOwnerAsync(string ownerId, CancellationToken ct = default) =>
+        await db.Set<Pet>().AsTracking()
+            .Where(e => e.OwnerId == ownerId)
+            .OrderBy(e => e.Id).ToListAsync(ct);
+
     public void Add(Pet entity) => db.Set<Pet>().Add(entity);
     public void AddRange(IEnumerable<Pet> entities) => db.Set<Pet>().AddRange(entities);
 }

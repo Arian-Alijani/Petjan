@@ -3,6 +3,7 @@ using Animora.Contracts.Patients;
 using Animora.Contracts.Sales;
 using Animora.Contracts.Vaccination;
 using Animora.Desktop.Pages.Sales;
+using Animora.Desktop.Pages.Sales.Shared;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -456,6 +457,112 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     [RelayCommand]
     private Task OpenPet(OwnerSheetPetRowViewModel? row) =>
         row is not null ? _presenter.OpenPetSheetAsync(row.Pet.Id) : Task.CompletedTask;
+
+    // ---- delete (soft) ----
+    // Both deletes are tombstones (hidden everywhere, history/sync intact). The confirm modal sits on
+    // top of this sheet and closes itself on confirm; the sheet/roster is only touched after the
+    // command succeeded, so a failure leaves the user exactly where they were.
+
+    /// <summary>Deletes the owner <b>and every pet they own</b> (cascade), then closes the sheet.</summary>
+    [RelayCommand]
+    private void Delete()
+    {
+        if (_owner is null)
+        {
+            return;
+        }
+
+        var ownerId = _owner.Id;
+        var ownerName = $"{_owner.FirstName} {_owner.LastName}".Trim();
+        var petCount = Pets.Count;
+        var note = petCount > 0
+            ? $"همراه با این مالک، {PersianNumberFormatter.ToPersianDigits(petCount.ToString())} حیوان ثبت‌شده برای او نیز از فهرست بیماران حذف می‌شود. سوابق مالی و درمانی در تاریخچه باقی می‌ماند."
+            : "سوابق مالی و درمانی در تاریخچه باقی می‌ماند.";
+
+        _dialogs.ShowModal(new ConfirmDialogViewModel(
+            _dialogs,
+            "danger",
+            "IconTrash",
+            "حذف پرونده مالک",
+            "پرونده ",
+            $"«{ownerName}»",
+            " و همه حیوانات او حذف شود؟",
+            note,
+            "بله، حذف کن",
+            "انصراف",
+            () => _ = DeleteOwnerConfirmedAsync(ownerId)), 480);
+    }
+
+    private async Task DeleteOwnerConfirmedAsync(string ownerId)
+    {
+        const string fallback = "حذف پرونده مالک انجام نشد؛ دوباره تلاش کنید";
+        try
+        {
+            await _patients.DeleteOwnerAsync(ownerId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(PatientsPresentation.CommandFailureMessage(ex, fallback), Tone.Danger);
+            return;
+        }
+        catch (Exception)
+        {
+            _toast.Show(fallback, Tone.Danger);
+            return;
+        }
+
+        _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
+        _dialogs.Close();
+        _toast.Show("پرونده مالک و حیوانات مرتبط حذف شد", Tone.Ok);
+    }
+
+    /// <summary>Deletes one pet from the owner's roster and refreshes the sheet so the row disappears.</summary>
+    [RelayCommand]
+    private void DeletePet(OwnerSheetPetRowViewModel? row)
+    {
+        if (row is null || _owner is null)
+        {
+            return;
+        }
+
+        var ownerId = _owner.Id;
+        var petId = row.Pet.Id;
+        _dialogs.ShowModal(new ConfirmDialogViewModel(
+            _dialogs,
+            "danger",
+            "IconTrash",
+            "حذف حیوان",
+            "پرونده ",
+            $"«{row.Name}»",
+            " از فهرست حیوانات این مالک حذف شود؟",
+            "سوابق ویزیت و واکسیناسیون در تاریخچه باقی می‌ماند.",
+            "بله، حذف کن",
+            "انصراف",
+            () => _ = DeletePetConfirmedAsync(ownerId, petId)), 480);
+    }
+
+    private async Task DeletePetConfirmedAsync(string ownerId, string petId)
+    {
+        const string fallback = "حذف حیوان انجام نشد؛ دوباره تلاش کنید";
+        try
+        {
+            await _patients.DeletePetAsync(petId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(PatientsPresentation.CommandFailureMessage(ex, fallback), Tone.Danger);
+            return;
+        }
+        catch (Exception)
+        {
+            _toast.Show(fallback, Tone.Danger);
+            return;
+        }
+
+        _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
+        await LoadAsync(ownerId);
+        _toast.Show("حیوان از پرونده مالک حذف شد", Tone.Ok);
+    }
 
     /// <summary>True when <paramref name="value"/> is real data (not blank / the «ثبت نشده» placeholder) and the sheet is not being edited.</summary>
     public bool CanCopy(string? value) =>

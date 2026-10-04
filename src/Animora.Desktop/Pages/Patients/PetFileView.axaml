@@ -43,6 +43,14 @@
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
         </Style>
+        <!-- danger variant of .miniact: red text/border, soft red wash on hover (delete pet) -->
+        <Style Selector="Button.miniact.danger">
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
+        </Style>
+        <Style Selector="Button.miniact.danger:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
+        </Style>
         <Style Selector="TextBlock.dt">
             <Setter Property="FontSize" Value="10.5" />
             <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
@@ -581,6 +589,15 @@
                                                   Stroke="{Binding $parent[Button].Foreground}"
                                                   Data="{StaticResource IconEdit}" />
                                             <TextBlock Text="ویرایش" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="miniact danger" Command="{Binding DeleteCommand}"
+                                            IsVisible="{Binding !IsEditingInfo}" ToolTip.Tip="حذف پرونده بیمار">
+                                        <StackPanel Orientation="Horizontal" Spacing="5">
+                                            <Path Classes="icon" Width="13" Height="13"
+                                                  Stroke="{StaticResource DangerBrush}"
+                                                  Data="{StaticResource IconTrash}" />
+                                            <TextBlock Text="حذف بیمار" />
                                         </StackPanel>
                                     </Button>
                                 </StackPanel>

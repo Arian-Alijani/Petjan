@@ -291,6 +291,31 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         return (await GetPetAsync(petId))!;
     }
 
+    // Deletes are soft (tombstone) and return nothing — the record is gone from every read after
+    // this call, so there is no fresh DTO to hand back (no read-after-write here).
+
+    public async Task DeletePetAsync(string petId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(petId);
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider) = Resolve(scope);
+        var cc = await provider.BuildCommandContextAsync(null, null, null, default);
+        if (cc.IsFailure) throw new ServiceException(cc.Error);
+        var r = await dispatcher.SendAsync(new DeletePetCommand(petId), cc.Value!);
+        if (r.IsFailure) throw new ServiceException(r.Error);
+    }
+
+    public async Task DeleteOwnerAsync(string ownerId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider) = Resolve(scope);
+        var cc = await provider.BuildCommandContextAsync(null, null, null, default);
+        if (cc.IsFailure) throw new ServiceException(cc.Error);
+        var r = await dispatcher.SendAsync(new DeleteOwnerCommand(ownerId), cc.Value!);
+        if (r.IsFailure) throw new ServiceException(r.Error);
+    }
+
     /// <summary>
     /// Wraps a UI <see cref="DateTime"/> (Kind=Unspecified) as a UTC-offset value. A value already carrying
     /// Kind=Utc/Local is re-tagged as unspecified first, because <see cref="DateTimeOffset"/> rejects an

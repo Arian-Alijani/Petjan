@@ -20,6 +20,12 @@ public interface IPetRepository
     /// </summary>
     Task<IReadOnlyList<Pet>> ListByOwnerAndNameAsync(string ownerId, string name, CancellationToken ct = default);
 
+    /// <summary>
+    /// Every live (non-tombstoned) pet belonging to the owner, tracked so callers can mutate them
+    /// in the same unit of work. Backs the owner soft-delete cascade (C01).
+    /// </summary>
+    Task<IReadOnlyList<Pet>> ListByOwnerAsync(string ownerId, CancellationToken ct = default);
+
     void Add(Pet entity);
     void AddRange(IEnumerable<Pet> entities);
 }
