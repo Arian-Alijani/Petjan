@@ -714,6 +714,15 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+
+                    <TextBlock Text="{Binding HistoryWindowText}" FontSize="11.5" HorizontalAlignment="Center"
+                               Foreground="{StaticResource MutedBrush}" Margin="0,10,0,0"
+                               IsVisible="{Binding HasHistory}" />
+                    <Button Classes="outline" Margin="0,8,0,0" HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            IsVisible="{Binding CanLoadMoreHistory}"
+                            Command="{Binding LoadMoreHistoryCommand}"
+                            Content="نمایش رخدادهای بیشتر" />
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>

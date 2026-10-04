@@ -131,11 +131,10 @@ public sealed record ProductInfoUpdate(
     string? AttributeName,
     IReadOnlyList<ProductVariant> Variants);
 
-/// <summary>
-/// A request to append one manually-authored variant (reference
-/// <c>makeVariant(p, 'تنوع جدید', …)</c> behind the variants tab's «تنوع دستی»).
-/// </summary>
-public sealed record NewVariantRequest(string Label);
+/// <summary>One page of a product's stock-movement ledger plus the total number of movements.</summary>
+/// <param name="Items">The page's movements, newest first.</param>
+/// <param name="TotalCount">All movements the product has.</param>
+public sealed record MovementPage(IReadOnlyList<StockMovement> Items, int TotalCount);
 
 /// <summary>
 /// A request to create a new product from the modal, mirroring the reference's

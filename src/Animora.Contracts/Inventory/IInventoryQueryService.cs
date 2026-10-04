@@ -34,13 +34,10 @@ public interface IInventoryQueryService
     Task SaveProductInfoAsync(string productId, ProductInfoUpdate update);
 
     /// <summary>
-    /// Appends one variant to a product, mirroring <c>makeVariant</c> invoked by
-    /// the variants tab's «تنوع دستی» action.
+    /// One page of the product's stock-movement ledger (newest first), for the History tab. Paged so the
+    /// audit trail is never silently truncated; the tab asks for the next page with «نمایش بیشتر».
     /// </summary>
-    Task<ProductVariant> AddVariantAsync(string productId, NewVariantRequest request);
-
-    /// <summary>The product's stock-movement ledger (newest first), for the History tab.</summary>
-    Task<IReadOnlyList<StockMovement>> GetHistoryAsync(string productId);
+    Task<MovementPage> GetHistoryAsync(string productId, int page, int pageSize);
 
     /// <summary>Creates a product from the new-product modal, mirroring <c>openNewProductModal</c>'s create handler.</summary>
     Task<Product> CreateProductAsync(NewProductRequest request);

@@ -299,7 +299,7 @@ the compare is integer `<=` with no cast; OR precompute a per-variant `IsLow` fl
 **Depends on:** T9 (wiring). **Acceptance:** Low-stock chip returns correct products via an integer/boolean indexed filter, no float cast.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "perf(inventory): integer/indexed low-stock filter (P2-3)"`
 
-### T11 — [ ] Product-modal History tab paging + refresh after adjust (P2-5, P1-4, P1-10)
+### T11 — [x] Product-modal History tab paging + refresh after adjust (P2-5, P1-4, P1-10)
 **Findings:** P2-5 (`GetDetailAsync` caps movement history at 100 with no "load more" → audit tab silently truncated),
 P1-4 (modal History tab built once in `LoadAsync`/`BuildHistory`, no refresh hook; after a stock adjust the open modal is
 stale), P1-10 (`GetHistoryAsync` + `AddVariantAsync` implemented in I.SVC but never called from Desktop — dead surface).

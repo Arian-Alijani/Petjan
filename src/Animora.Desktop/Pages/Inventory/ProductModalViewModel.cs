@@ -27,7 +27,10 @@ public sealed partial class ProductModalViewModel : ObservableObject
 
     private Product _product = null!;
     private UnitInfo? _attribute;
+    private const int HistoryPageSize = 50;
     private readonly List<StockMovement> _movements = [];
+    private int _movementTotal;
+    private int _historyGeneration;
     private readonly List<InventoryHistoryItemViewModel> _allHistory = [];
 
     public ProductModalViewModel(
@@ -88,6 +91,10 @@ public sealed partial class ProductModalViewModel : ObservableObject
         OnPropertyChanged(nameof(IsInfoTab));
         OnPropertyChanged(nameof(IsVariantsTab));
         OnPropertyChanged(nameof(IsHistoryTab));
+
+        // The ledger moves while the modal is open (sales, purchases, adjustments): re-read it each time the tab
+        // is opened so the timeline never shows a stale snapshot.
+        if (value == "history" && _product is not null) _ = ReloadHistorySafeAsync(append: false);
     }
 
     [RelayCommand]
@@ -411,9 +418,6 @@ public sealed partial class ProductModalViewModel : ObservableObject
 
         _product = detail.Product;
         _attribute = _product.Attribute;
-        _movements.Clear();
-        _movements.AddRange(detail.Movements);
-
         foreach (var category in await _service.GetCategoriesAsync())
         {
             CategoryOptions.Add(new CategoryOptionViewModel(category));
@@ -451,9 +455,59 @@ public sealed partial class ProductModalViewModel : ObservableObject
         }
 
         RebuildKpis();
-        BuildHistory();
+        await ReloadHistorySafeAsync(append: false);
         RaiseVariantState();
     }
+
+    /// <summary>
+    /// Reads the movement ledger page by page: the first page (or as many rows as are already shown, so a refresh
+    /// keeps the user's place) or, with <paramref name="append"/>, the next page. A generation token drops a
+    /// slower stale response.
+    /// </summary>
+    private async Task ReloadHistoryAsync(bool append)
+    {
+        var token = ++_historyGeneration;
+        MovementPage page;
+        if (append)
+        {
+            page = await _service.GetHistoryAsync(_product.Id, _movements.Count / HistoryPageSize + 1, HistoryPageSize);
+        }
+        else
+        {
+            var size = Math.Clamp(_movements.Count, HistoryPageSize, 200);
+            page = await _service.GetHistoryAsync(_product.Id, 1, size);
+        }
+
+        if (token != _historyGeneration) return;
+
+        if (!append) _movements.Clear();
+        _movements.AddRange(page.Items);
+        _movementTotal = page.TotalCount;
+        BuildHistory();
+    }
+
+    private async Task ReloadHistorySafeAsync(bool append)
+    {
+        try
+        {
+            await ReloadHistoryAsync(append);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(InventoryPresentation.MutationFailureMessage(ex, "بارگذاری تاریخچه کالا ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+        }
+    }
+
+    /// <summary>Whether older movements exist beyond the pages already loaded.</summary>
+    public bool CanLoadMoreHistory => _movements.Count < _movementTotal;
+
+    /// <summary>«نشان‌داده‌شده N از M» - the loaded window versus the whole ledger.</summary>
+    public string HistoryWindowText => _movementTotal == 0
+        ? string.Empty
+        : $"نمایش {PersianNumberFormatter.ToPersianDigits(_movements.Count)} از {PersianNumberFormatter.ToPersianDigits(_movementTotal)} رخداد";
+
+    [RelayCommand]
+    private Task LoadMoreHistory() => ReloadHistorySafeAsync(append: true);
 
     private void RebuildKpis()
     {
@@ -487,6 +541,8 @@ public sealed partial class ProductModalViewModel : ObservableObject
         HistoryAdjustCountText = PersianNumberFormatter.ToPersianDigits(adjustCount);
 
         ApplyHistoryFilter();
+        OnPropertyChanged(nameof(CanLoadMoreHistory));
+        OnPropertyChanged(nameof(HistoryWindowText));
     }
 
     /// <summary>The edited variants projected from the current fields (single block on a single product).</summary>

@@ -96,50 +96,23 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
             CategoryId: update.CategoryId, Sku: update.Code));
     }
 
-    public async Task<ContractVariant> AddVariantAsync(string productId, NewVariantRequest request)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        var label = request.Label ?? string.Empty;
-
-        // Read the product first: the new variant must join the product's own dimension, and its SKU must be
-        // unique inside the product (the domain refuses a duplicate with PRODUCT_SKU_DUPLICATE).
-        var detail = await GetDetailAsync(productId);
-        var attributeName = AttributeNameOf(detail?.Product.Attribute?.Name, detail?.Product.Variants, null);
-        var sku = UniqueSku(productId, label, detail?.Product.Variants);
-
-        var variantId = await SendAsync(
-            new AddProductVariantCommand(productId, sku, attributeName, label, 0L, 0L));
-
-        var refreshed = await GetDetailAsync(productId);
-        if (refreshed is not null)
-        {
-            for (var i = 0; i < refreshed.Product.Variants.Count; i++)
-            {
-                if (string.Equals(refreshed.Product.Variants[i].Id, variantId, StringComparison.Ordinal))
-                {
-                    return refreshed.Product.Variants[i];
-                }
-            }
-        }
-        return new ContractVariant(variantId, label, sku, 0, 0, 0, 0, null);
-    }
-
-    public async Task<IReadOnlyList<Contracts.Inventory.StockMovement>> GetHistoryAsync(string productId)
+    public async Task<MovementPage> GetHistoryAsync(string productId, int page, int pageSize)
     {
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider, zones) = Resolve(scope);
         var context = provider.BuildQueryContext();
-        if (context.IsFailure) return [];
+        if (context.IsFailure) return new MovementPage([], 0);
 
         var result = await dispatcher.QueryAsync(
-            new StockMovementHistoryQuery(productId, 1, MaxPageSize), context.Value!);
-        if (result.IsFailure) return [];
+            new StockMovementHistoryQuery(productId, Math.Max(1, page), Math.Clamp(pageSize, 1, MaxPageSize)),
+            context.Value!);
+        if (result.IsFailure) throw new ServiceException(result.Error);
 
         var zone = zones.GetClinicTimeZone();
         var rows = result.Value!.Items;
         var movements = new List<Contracts.Inventory.StockMovement>(rows.Count);
         for (var i = 0; i < rows.Count; i++) movements.Add(rows[i].ToContract(zone));
-        return movements;
+        return new MovementPage(movements, result.Value.TotalCount);
     }
 
     public async Task<ContractProduct> CreateProductAsync(NewProductRequest request)
@@ -255,29 +228,6 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
             if (lowest == 0L || value < lowest) lowest = value;
         }
         return lowest;
-    }
-
-    /// <summary>A SKU for a new variant: product-scoped, ordinal-unique, tolerant of an empty label.</summary>
-    private static string UniqueSku(string productId, string label, IReadOnlyList<ContractVariant>? existing)
-    {
-        var baseSku = SkuFor(productId, label);
-        if (existing is null || !ContainsSku(existing, baseSku)) return baseSku;
-
-        for (var suffix = 2; suffix < 1000; suffix++)
-        {
-            var candidate = $"{baseSku}-{suffix}";
-            if (!ContainsSku(existing, candidate)) return candidate;
-        }
-        return baseSku + "-" + Guid.NewGuid().ToString("N")[..4];
-    }
-
-    private static bool ContainsSku(IReadOnlyList<ContractVariant> variants, string sku)
-    {
-        for (var i = 0; i < variants.Count; i++)
-        {
-            if (string.Equals(variants[i].Sku, sku, StringComparison.Ordinal)) return true;
-        }
-        return false;
     }
 
     private static string SkuFor(string seed, string label)
