@@ -375,19 +375,10 @@
                 </Grid>
 
                 <!-- tier 2 · settings controls (renderSettings) -->
-                <Grid IsVisible="{Binding IsSettingsTab}" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <Grid IsVisible="{Binding IsSettingsTab}">
                     <TextBlock Grid.Column="0" Text="{Binding SettingsCountText}" FontSize="12"
                                Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"
                                TextWrapping="Wrap" LineHeight="18" />
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Button Classes="primary" Command="{Binding AddCategoryCommand}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Path Classes="icon" Width="14" Height="14" Stroke="White"
-                                      Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
-                                <TextBlock Text="دسته جدید" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
                 </Grid>
             </StackPanel>
         </Border>

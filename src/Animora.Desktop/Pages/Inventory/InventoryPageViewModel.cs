@@ -99,7 +99,6 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
     // ── Settings sub-view ───────────────────────────────────────────────────
     public RangeObservableCollection<InventoryCategoryRowViewModel> CategoryRows { get; } = [];
-    public ObservableCollection<InventorySettingToggleViewModel> SettingToggles { get; } = [];
 
     [ObservableProperty]
     private string _settingsCountText = string.Empty;
@@ -278,17 +277,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         }));
 
         SettingsCountText =
-            $"{PersianNumberFormatter.ToPersianDigits(_categories.Count)} دسته فعال · تنظیمات دسته‌بندی و برچسب کالاها را اینجا مدیریت کنید.";
-
-        if (SettingToggles.Count == 0)
-        {
-            SettingToggles.Add(new InventorySettingToggleViewModel(
-                "هشدار کم‌موجودی", "نمایش نشان هشدار وقتی موجودی به نقطه سفارش رسید.", true));
-            SettingToggles.Add(new InventorySettingToggleViewModel(
-                "ردیابی تاریخ انقضا", "نمایش ستون انقضا و هشدار نزدیک شدن به تاریخ.", true));
-            SettingToggles.Add(new InventorySettingToggleViewModel(
-                "کد کالای خودکار", "تولید خودکار کد هنگام ساخت کالای جدید.", false));
-        }
+            $"{PersianNumberFormatter.ToPersianDigits(_categories.Count)} دسته فعال کالا · مدیریت دسته‌ها در این نسخه فقط‌خواندنی است.";
     }
 
     // ── commands ────────────────────────────────────────────────────────────
@@ -466,36 +455,5 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         }
 
         RenderAll();
-    }
-
-    // ── settings actions (reference new-cat / save-settings / del-cat) ──────
-
-    [RelayCommand]
-    private void AddCategory() => _toast.Show("افزودن دسته — نمونه طراحی");
-
-    [RelayCommand]
-    private void SaveSettings() => _toast.Show("تنظیمات ذخیره شد — نمونه طراحی");
-
-    [RelayCommand]
-    private void PickTone(InventoryToneOptionViewModel? option)
-    {
-        if (option is null) return;
-
-        var row = CategoryRows.FirstOrDefault(r => r.ToneOptions.Contains(option));
-        row?.ApplyTone(option.Tone);
-    }
-
-    [RelayCommand]
-    private void DeleteCategory(InventoryCategoryRowViewModel? row)
-    {
-        if (row is null) return;
-
-        if (_categories.Any(c => c.Id == row.Id && c.ProductCount > 0))
-        {
-            _toast.Show("این دسته دارای کالاست و حذف نمی‌شود", Tone.Warn);
-            return;
-        }
-
-        _toast.Show("دسته حذف شد — نمونه طراحی");
     }
 }

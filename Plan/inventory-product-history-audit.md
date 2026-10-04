@@ -333,7 +333,7 @@ wrapped in `TrackLoadAsync`; H.VM `ReloadAsync` has try/finally but no catch; al
 toast; no unobserved faulting task; page overrun doesn't trigger an extra round-trip.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "fix(inventory,history): stale-guard, try/finally IsBusy, observed reloads (P2-9,P2-10,P2-18,P2-19)"`
 
-### T13 — [ ] Inventory category settings: wire or remove the stubs (P1-9, P2-15)
+### T13 — [x] Inventory category settings: wire or remove the stubs (P1-9, P2-15)
 **Findings:** P1-9 (the whole «تنظیمات کالاها» tab — add/rename/retone/delete category + 3 toggles (low-stock alert,
 expiry tracking, auto-code) — is design-only: every action toasts «نمونه طراحی» or mutates a throwaway VM;
 `DeleteCategory` guards "has products" client-side then toasts success without deleting), P2-15 (toggles/tone are pure
