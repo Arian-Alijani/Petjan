@@ -191,7 +191,7 @@ brushes, amountText/brush, statusLabel/brush/bg, and an `OpenCommand`).
 > Build only after code-heavy tasks (noted per task). Each task line gives the exact files + edit.
 > Push command shown per task.
 
-### ☐ T1 — Create the shared record-opener seam `IHistoryRecordOpener`
+### ☑ T1 — Create the shared record-opener seam `IHistoryRecordOpener`
 - **New file** `src/Animora.Desktop/Services/IHistoryRecordOpener.cs`:
   `interface IHistoryRecordOpener { Task OpenAsync(string entityType, string entityId, string? invoiceId = null); }`
   with XML-doc explaining it opens the one unified screen per the §2.1 table.
@@ -200,7 +200,7 @@ brushes, amountText/brush, statusLabel/brush/bg, and an `OpenCommand`).
 - No build needed (interface only, but may build with T2).
 - **Push:** `scripts/git/push.sh "feat(history): add IHistoryRecordOpener seam"`
 
-### ☐ T2 — Implement `HistoryRecordOpener` + register in DI
+### ☑ T2 — Implement `HistoryRecordOpener` + register in DI
 - **New file** `src/Animora.Desktop/Services/HistoryRecordOpener.cs` implementing §2.1 exactly.
   - Ctor deps (all DI singletons/available): `ISalesQueryService sales, IToastService toast,
     IDialogService dialogs, IPrintService print, IRecordSheetPresenter sheets, INavigationService nav`.
@@ -223,7 +223,7 @@ brushes, amountText/brush, statusLabel/brush/bg, and an `OpenCommand`).
 - **Build:** `scripts/sandbox/build.sh` → 0/0.
 - **Push:** `scripts/git/push.sh "feat(history): implement HistoryRecordOpener + DI"`
 
-### ☐ T3 — Make main History rows carry identity + an OpenCommand
+### ☑ T3 — Make main History rows carry identity + an OpenCommand
 - **`src/Animora.Contracts/History/HistoryModels.cs`:** the row already has `Entity` as `"Type:Id"`.
   Keep the wire shape but the Desktop must split it. (Do NOT change the record signature unless needed;
   splitting on the client is enough. If cleaner, add `string EntityType`, `string EntityId` params — but
@@ -245,7 +245,7 @@ brushes, amountText/brush, statusLabel/brush/bg, and an `OpenCommand`).
 - **Build:** `scripts/sandbox/build.sh` → 0/0.
 - **Push:** `scripts/git/push.sh "feat(history): main rows carry entity id + open command"`
 
-### ☐ T4 — Wire the click on the main History page view
+### ☑ T4 — Wire the click on the main History page view
 - **`src/Animora.Desktop/Pages/History/HistoryPageView.axaml`:** wrap each event row in a `Button`
   (or add `Tapped`/`PointerPressed` → command) styled flat (no default chrome), `Cursor="Hand"`, bound to
   `OpenCommand`. Match the existing row look (reuse existing inner layout; only the outer wrapper becomes
