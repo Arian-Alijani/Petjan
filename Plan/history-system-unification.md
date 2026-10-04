@@ -319,7 +319,7 @@ brushes, amountText/brush, statusLabel/brush/bg, and an `OpenCommand`).
 - **Build:** `scripts/sandbox/build.sh` → 0/0.
 - **Push:** `scripts/git/push.sh "feat(history): vaccination tab uses shared row + open"`
 
-### ☐ T10 — Align the three tab toolbars/chrome with the main page
+### ☑ T10 — Align the three tab toolbars/chrome with the main page
 - Make the period chips, kind chips, summary bar, pager, search box and sort/page-size selects on all
   three tabs visually match `HistoryPageView.axaml` (same classes/styles, spacing, RTL). Extract common
   chip/toolbar styles into `Resources/Controls/HistoryRow.axaml` (or a sibling `History.axaml`) if that

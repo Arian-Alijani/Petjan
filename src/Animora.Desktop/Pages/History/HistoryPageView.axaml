@@ -170,13 +170,13 @@
                         <Border Classes="hy-empty-icon" HorizontalAlignment="Center">
                             <Path Classes="icon" Width="26" Height="26"
                                   Stroke="{StaticResource Muted2Brush}"
-                                  Data="{StaticResource IconReceipt}"
+                                  Data="{StaticResource IconHistory}"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <TextBlock Text="رویدادی در این بازه ثبت نشده است" FontSize="15"
                                    FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
                                    HorizontalAlignment="Center" />
-                        <TextBlock Text="بازه زمانی یا فیلتر را تغییر دهید." FontSize="13"
+                        <TextBlock Text="بازهٔ تاریخ، نوع رویداد یا عبارت جستجو را تغییر دهید." FontSize="13"
                                    Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" />
                     </StackPanel>
                 </Border>

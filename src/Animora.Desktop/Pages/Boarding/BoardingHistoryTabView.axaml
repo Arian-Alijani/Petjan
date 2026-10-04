@@ -172,10 +172,10 @@
                         <Border Classes="hy-empty-icon" HorizontalAlignment="Center">
                             <Path Classes="icon" Width="26" Height="26"
                                   Stroke="{StaticResource Muted2Brush}"
-                                  Data="{StaticResource IconTimeline}"
+                                  Data="{StaticResource IconHistory}"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
-                        <TextBlock Text="هیچ رویدادی در این بازه یافت نشد" FontSize="15"
+                        <TextBlock Text="رویدادی در این بازه ثبت نشده است" FontSize="15"
                                    FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
                                    HorizontalAlignment="Center" />
                         <TextBlock Text="بازهٔ تاریخ، نوع رویداد یا عبارت جستجو را تغییر دهید." FontSize="13"

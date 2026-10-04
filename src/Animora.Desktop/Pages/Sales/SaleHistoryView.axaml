@@ -166,7 +166,7 @@
                                   Data="{StaticResource IconHistory}"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
-                        <TextBlock Text="رکوردی در این بازه ثبت نشده است" FontSize="15"
+                        <TextBlock Text="رویدادی در این بازه ثبت نشده است" FontSize="15"
                                    FontWeight="Bold" Foreground="{StaticResource Ink2Brush}"
                                    HorizontalAlignment="Center" />
                         <TextBlock Text="بازهٔ تاریخ، نوع رویداد یا عبارت جستجو را تغییر دهید." FontSize="13"
