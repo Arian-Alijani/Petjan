@@ -46,6 +46,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
     private readonly ICapabilityGate _capabilities;
+    private readonly IDialogService _dialogs;
 
     public bool CanEditVisit => _capabilities.Can("visits.write");
     private bool CanFinishVisit() => _capabilities.Can("visits.complete");
@@ -89,16 +90,6 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     [ObservableProperty]
     private string _planText = string.Empty;
 
-    // ---- Step 4: rx add-pickers (reference renderRx) ----
-    // The two catalog pickers are explicit Popup overlays (same pattern as the Boarding
-    // stay-detail add dropdown) instead of ComboBoxes: a chrome-less ComboBox nested in the
-    // scrolling, ClipToBounds wizard card opened its list underneath the layout.
-    [ObservableProperty]
-    private bool _isServicePickerOpen;
-
-    [ObservableProperty]
-    private bool _isItemPickerOpen;
-
     // ---- Step 6: done summary (reference renderDone) ----
     [ObservableProperty]
     private string _donePatientName = string.Empty;
@@ -117,7 +108,8 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         INavigationService navigation,
         IToastService toast,
         ICapabilityGate capabilities,
-        IDataChangeNotifier changes)
+        IDataChangeNotifier changes,
+        IDialogService dialogs)
     {
         _service = service;
         _changes = changes;
@@ -125,6 +117,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         _navigation = navigation;
         _toast = toast;
         _capabilities = capabilities;
+        _dialogs = dialogs;
 
         Title = "ویزیت و پرونده پزشکی";
         Eyebrow = "پرونده الکترونیک سلامت";
@@ -134,9 +127,10 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     }
 
     // ---- collections ----
-    public ObservableCollection<RxCatalogOptionViewModel> ServiceCatalog { get; } = [];
-
-    public ObservableCollection<RxCatalogOptionViewModel> ItemCatalog { get; } = [];
+    // The billable catalog, kept as the raw contract rows so the shared Sales
+    // catalog picker (CatalogModalViewModel) can be fed a snapshot and the chosen
+    // row can be mapped back to an RxCatalogItem for the encounter's rx list.
+    private readonly List<RxCatalogItem> _catalog = [];
 
     public ObservableCollection<RxLineViewModel> ServiceLines { get; } = [];
 
@@ -221,17 +215,8 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         HistoryText = _draft.Note;
 
         var catalog = await _service.GetCatalogAsync();
-        ServiceCatalog.Clear();
-        ItemCatalog.Clear();
-        foreach (var item in catalog.Where(c => c.Kind == RxCatalogKind.Service))
-        {
-            ServiceCatalog.Add(new RxCatalogOptionViewModel(item));
-        }
-
-        foreach (var item in catalog.Where(c => c.Kind == RxCatalogKind.Item))
-        {
-            ItemCatalog.Add(new RxCatalogOptionViewModel(item));
-        }
+        _catalog.Clear();
+        _catalog.AddRange(catalog);
 
         CurrentStep = EncounterStep.Form;
         RecomputeSubtotal();
@@ -250,39 +235,19 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         CompleteVisitCommand.NotifyCanExecuteChanged();
     }
 
-    partial void OnIsServicePickerOpenChanged(bool value)
-    {
-        if (value) IsItemPickerOpen = false;
-    }
-
-    partial void OnIsItemPickerOpenChanged(bool value)
-    {
-        if (value) IsServicePickerOpen = false;
-    }
-
-    [RelayCommand]
-    private void ToggleServicePicker() => IsServicePickerOpen = !IsServicePickerOpen;
-
-    [RelayCommand]
-    private void ToggleItemPicker() => IsItemPickerOpen = !IsItemPickerOpen;
-
-    /// <summary>Adds the catalog option the user clicked in either picker popup and closes both.</summary>
-    [RelayCommand]
-    private void PickCatalogOption(RxCatalogOptionViewModel? option)
-    {
-        IsServicePickerOpen = false;
-        IsItemPickerOpen = false;
-        if (option is null) return;
-        AddPickedLine(option.Item);
-    }
-
     /// <summary>
-    /// Adds the line a catalog picker just chose. The picker command is
-    /// synchronous, so the async add is started here and faults are observed + surfaced instead of
-    /// escaping on the fire-and-forget path (PERFORMANCE.md §4: never block the UI
-    /// thread).
+    /// Opens the shared Sales catalog picker (<see cref="Animora.Desktop.Pages.Sales.CatalogModalViewModel"/>)
+    /// pre-filtered to services — the exact same drawer the Sale/Cashier «افزودن آیتم»
+    /// opens — so services are added to the encounter the same way they are added to an invoice.
     /// </summary>
-    private void AddPickedLine(RxCatalogItem item)
+    [RelayCommand]
+    private void AddService() => OpenCatalogPicker("svc");
+
+    /// <summary>Opens the shared catalog picker pre-filtered to goods («افزودن کالا»).</summary>
+    [RelayCommand]
+    private void AddItem() => OpenCatalogPicker("item");
+
+    private void OpenCatalogPicker(string initialFilter)
     {
         if (!CanEditVisit)
         {
@@ -290,24 +255,61 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
             return;
         }
 
-        _ = AddPickedLineAsync(item);
+        _dialogs.ShowModal(
+            new Animora.Desktop.Pages.Sales.CatalogModalViewModel(
+                loadCatalog: () => Task.FromResult(BuildCatalogSnapshot()),
+                addItem: AddCatalogSelectionAsync,
+                toast: _toast,
+                dialogs: _dialogs,
+                onChanged: null,
+                initialFilter: initialFilter),
+            500);
     }
 
-    private async Task AddPickedLineAsync(RxCatalogItem item)
+    /// <summary>
+    /// Projects the encounter's billable catalog onto the Sales
+    /// <see cref="Animora.Contracts.Sales.CatalogSnapshot"/> the shared picker renders: every
+    /// service/item row, the «همه / خدمات / دارو و کالا» filter chips with counts, and no recent strip
+    /// (the encounter catalog has no recency store).
+    /// </summary>
+    private Animora.Contracts.Sales.CatalogSnapshot BuildCatalogSnapshot()
     {
-        try
+        var items = _catalog
+            .Select(c => new Animora.Contracts.Sales.CatalogItem(
+                Id: c.Id,
+                Kind: c.Kind == RxCatalogKind.Service ? "svc" : "item",
+                Title: c.Title,
+                GroupLabel: c.Kind == RxCatalogKind.Service ? "خدمت" : "دارو و کالا",
+                GroupKey: c.Kind == RxCatalogKind.Service ? "svc" : "item",
+                Price: c.Price,
+                IconKey: c.Kind == RxCatalogKind.Service ? "IconClipboard" : "IconBox"))
+            .ToList();
+
+        var serviceCount = items.Count(i => i.Kind == "svc");
+        var itemCount = items.Count - serviceCount;
+        var filters = new List<Animora.Contracts.Sales.CatalogFilterRef>
         {
-            await AddLineAsync(item);
-        }
-        catch (Exception ex)
+            new("all", "همه", items.Count),
+            new("svc", "خدمات", serviceCount),
+            new("item", "دارو و کالا", itemCount),
+        };
+
+        return new Animora.Contracts.Sales.CatalogSnapshot(items, filters, []);
+    }
+
+    /// <summary>
+    /// Maps a row chosen in the shared picker back to the encounter's
+    /// <see cref="RxCatalogItem"/> and appends it to the rx list through the visit seam.
+    /// </summary>
+    private Task AddCatalogSelectionAsync(Animora.Contracts.Sales.CatalogItem selection)
+    {
+        var item = _catalog.FirstOrDefault(c => c.Id == selection.Id);
+        if (item is null)
         {
-            var reason = ex is Animora.Client.Services.ServiceException se
-                ? Animora.Desktop.Localization.ErrorMessages.TryGet(se.Code)
-                : null;
-            _toast.Show(reason is null
-                ? $"افزودن «{item.Title}» ناموفق بود."
-                : $"افزودن «{item.Title}» ناموفق بود: {reason}", Tone.Danger);
+            return Task.CompletedTask;
         }
+
+        return AddLineAsync(item);
     }
 
     /// <summary>
