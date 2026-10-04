@@ -30,9 +30,10 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
 
-    // Server-side paging: _loaded holds only the pages fetched for the active category / stock / search filters.
-    private const int ListPageSize = 50;
-    private const int ListHardMax = 200;
+    // Server-side paging: _loaded holds exactly ONE page for the active category / stock / search filters
+    // (previous/next replaces the window — nothing is appended or kept across pages, same as the Patients page).
+    // The server hard-caps a page at 200 rows (QueryPaging.HardMaxPageSize); "همه" maps to that ceiling.
+    private const int ServerMaxPageSize = 200;
     private readonly List<Product> _loaded = [];
     private int _listTotal;
     private int _catalogTotal;
@@ -97,6 +98,80 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     [ObservableProperty]
     private bool _hasProducts;
 
+    // ── Pagination (mirrors PatientsPageViewModel) ─────────────────────────
+    public IReadOnlyList<InventoryPageSizeOption> PageSizeOptions { get; } =
+    [
+        new(25, "۲۵ کالا"),
+        new(50, "۵۰ کالا"),
+        new(100, "۱۰۰ کالا"),
+        new(ServerMaxPageSize, "همه"),
+    ];
+
+    [ObservableProperty]
+    private InventoryPageSizeOption _selectedPageSize = new(50, "۵۰ کالا");
+
+    [ObservableProperty]
+    private int _currentPage = 1;
+
+    private int PageSize => Math.Clamp(SelectedPageSize?.Value ?? 50, 1, ServerMaxPageSize);
+
+    /// <summary>Total number of pages for the active filters (>= 1).</summary>
+    public int PageCount => _listTotal == 0 ? 1 : (int)Math.Ceiling(_listTotal / (double)PageSize);
+
+    /// <summary>Only paginate when the matches span more than one page.</summary>
+    public bool ShowPagination => HasProducts && PageCount > 1;
+
+    public bool CanGoPrevious => CurrentPage > 1;
+    public bool CanGoNext => CurrentPage < PageCount;
+
+    /// <summary>«صفحه ۲ از ۵»</summary>
+    public string PageIndicatorText =>
+        $"صفحه {PersianNumberFormatter.ToPersianDigits(CurrentPage)} از {PersianNumberFormatter.ToPersianDigits(PageCount)}";
+
+    /// <summary>«۵۱–۱۰۰ از ۲۴۰ کالا»</summary>
+    public string PageRangeText
+    {
+        get
+        {
+            if (_listTotal == 0) return string.Empty;
+            var from = ((CurrentPage - 1) * PageSize) + 1;
+            var to = Math.Min(CurrentPage * PageSize, _listTotal);
+            return $"{PersianNumberFormatter.ToPersianDigits(from)}–{PersianNumberFormatter.ToPersianDigits(to)}"
+                 + $" از {PersianNumberFormatter.ToPersianDigits(_listTotal)} کالا";
+        }
+    }
+
+    // Changing the page size snaps back to page 1 and re-queries.
+    partial void OnSelectedPageSizeChanged(InventoryPageSizeOption value) => ReloadFromFilter();
+
+    [RelayCommand(CanExecute = nameof(CanGoNext))]
+    private void NextPage()
+    {
+        if (!CanGoNext) return;
+        CurrentPage++;
+        _ = ReloadListAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanGoPrevious))]
+    private void PreviousPage()
+    {
+        if (!CanGoPrevious) return;
+        CurrentPage--;
+        _ = ReloadListAsync();
+    }
+
+    private void NotifyPaginationDerived()
+    {
+        OnPropertyChanged(nameof(PageCount));
+        OnPropertyChanged(nameof(ShowPagination));
+        OnPropertyChanged(nameof(CanGoPrevious));
+        OnPropertyChanged(nameof(CanGoNext));
+        OnPropertyChanged(nameof(PageIndicatorText));
+        OnPropertyChanged(nameof(PageRangeText));
+        NextPageCommand.NotifyCanExecuteChanged();
+        PreviousPageCommand.NotifyCanExecuteChanged();
+    }
+
     // ── Settings sub-view ───────────────────────────────────────────────────
     public RangeObservableCollection<InventoryCategoryRowViewModel> CategoryRows { get; } = [];
 
@@ -129,7 +204,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
             _categories.Clear();
             _categories.AddRange(await _service.GetCategoriesAsync());
 
-            await FetchListAsync(append: false);
+            await FetchListAsync();
         }
         finally
         {
@@ -149,11 +224,10 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     }
 
     /// <summary>
-    /// Fetches the active filters' rows from the query: the first page (or as many rows as are already shown,
-    /// so a refresh keeps the user's place) or, with <paramref name="append"/>, the next page. Filtering,
-    /// ordering and paging all run in SQL; a generation token drops a slower stale response.
+    /// Fetches exactly the current page of the active filters' rows. Filtering, ordering and paging all run
+    /// in SQL; a generation token drops a slower stale response. The previous window is always replaced.
     /// </summary>
-    private async Task FetchListAsync(bool append)
+    private async Task FetchListAsync()
     {
         var token = ++_listGeneration;
         var search = _search.Length == 0 ? null : _search;
@@ -165,36 +239,36 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
             _ => ProductStockFilter.All,
         };
 
-        ProductPage page;
-        if (append)
-        {
-            var next = _loaded.Count / ListPageSize + 1;
-            page = await _service.GetProductsAsync(new ProductListQuery(search, category, stock, next, ListPageSize));
-        }
-        else
-        {
-            var size = Math.Clamp(_loaded.Count, ListPageSize, ListHardMax);
-            page = await _service.GetProductsAsync(new ProductListQuery(search, category, stock, 1, size));
-        }
+        var page = await _service.GetProductsAsync(new ProductListQuery(search, category, stock, CurrentPage, PageSize));
 
         if (token != _listGeneration)
         {
             return; // a newer query superseded this one - drop the stale result
         }
 
-        if (!append) _loaded.Clear();
+        _loaded.Clear();
         _loaded.AddRange(page.Items);
         _listTotal = page.TotalCount;
+
+        // Clamp into range now that the real total is known (e.g. a filter shrank the result set below
+        // the current page index) and re-fetch that last valid page.
+        var clamped = Math.Clamp(CurrentPage, 1, Math.Max(1, PageCount));
+        if (clamped != CurrentPage)
+        {
+            CurrentPage = clamped;
+            await FetchListAsync();
+            return;
+        }
         // The sub-nav's catalog size is the sum of the per-category counts already loaded — no extra query.
         _catalogTotal = _categories.Sum(c => c.ProductCount);
     }
 
-    /// <summary>Re-queries after a filter / search change and re-renders the list (not the settings tab).</summary>
-    private async Task ReloadListAsync(bool append)
+    /// <summary>Re-queries after a filter / search / page change and re-renders the list (not the settings tab).</summary>
+    private async Task ReloadListAsync()
     {
         try
         {
-            await FetchListAsync(append);
+            await FetchListAsync();
             BuildSubnavCounts();
             RenderProducts();
         }
@@ -208,11 +282,12 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         }
     }
 
-    /// <summary>Whether more rows exist beyond the pages already loaded for the active filters.</summary>
-    public bool CanLoadMore => _loaded.Count < _listTotal;
-
-    [RelayCommand]
-    private Task LoadMore() => ReloadListAsync(append: true);
+    /// <summary>A filter / search / page-size change: snap back to page 1 and re-query.</summary>
+    private void ReloadFromFilter()
+    {
+        CurrentPage = 1;
+        _ = ReloadListAsync();
+    }
 
     private void BuildSubnavCounts()
     {
@@ -266,7 +341,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         }));
 
         HasProducts = FilteredProducts.Count > 0;
-        OnPropertyChanged(nameof(CanLoadMore));
+        NotifyPaginationDerived();
     }
 
     private void BuildSettings()
@@ -398,7 +473,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         BuildFilterChips();
         if (key == "settings") return;
 
-        _ = ReloadListAsync(append: false);
+        ReloadFromFilter();
     }
 
     [RelayCommand]
@@ -407,7 +482,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         if (string.IsNullOrEmpty(id)) return;
         _catFilter = id;
         BuildFilterChips();
-        _ = ReloadListAsync(append: false);
+        ReloadFromFilter();
     }
 
     [RelayCommand]
@@ -416,7 +491,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         if (string.IsNullOrEmpty(key)) return;
         _stockFilter = key;
         BuildFilterChips();
-        _ = ReloadListAsync(append: false);
+        ReloadFromFilter();
     }
 
     // The bound search box drives the filter through the ViewModel: update the
@@ -433,7 +508,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         if (string.Equals(normalized, _search, StringComparison.Ordinal)) return;
 
         _search = normalized;
-        _ = ReloadListAsync(append: false);
+        ReloadFromFilter();
     }
 
     [RelayCommand]
@@ -537,7 +612,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         {
             _categories.Clear();
             _categories.AddRange(await _service.GetCategoriesAsync());
-            await FetchListAsync(append: false);
+            await FetchListAsync();
         }
         finally
         {
