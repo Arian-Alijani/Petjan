@@ -266,7 +266,7 @@ brushes, amountText/brush, statusLabel/brush/bg, and an `OpenCommand`).
 - **Build:** `scripts/sandbox/build.sh` → 0/0.
 - **Push:** `scripts/git/push.sh "refactor(history): single palette authority across tabs"`
 
-### ☐ T6 — Extract one shared history-row visual template
+### ☑ T6 — Extract one shared history-row visual template
 - Create `src/Animora.Desktop/Resources/Controls/HistoryRow.axaml` (ResourceDictionary) with a
   `DataTemplate` (or a small `HistoryRowControl`) rendering: kind icon badge, title+detail, time, entity,
   actor (name/initials/role), signed amount, status chip, **clickable wrapper (Hand cursor)**.
