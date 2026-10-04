@@ -316,7 +316,7 @@ stale), P1-10 (`GetHistoryAsync` + `AddVariantAsync` implemented in I.SVC but ne
 no dead seam method remains unreferenced.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "feat(inventory): paged+refreshing modal history, resolve dead seam (P2-5,P1-4,P1-10)"`
 
-### T12 — [ ] Inventory resilience: stale-guard, try/finally IsBusy, observed reloads (P2-10, P2-19, P2-9)
+### T12 — [x] Inventory resilience: stale-guard, try/finally IsBusy, observed reloads (P2-10, P2-19, P2-9)
 **Findings:** P2-10 (History has a `_generation` stale-response token; Inventory has none → overlapping reloads can land
 stale data), P2-19 (I.VM `LoadAsync`/`ReloadAsync` toggle `IsBusy` without try/finally → stuck spinner on throw),
 P2-9 (`_ = ReloadAsync()` fire-and-forget discards across I.VM + H.VM swallow `ServiceException`; I.VM `ReloadAsync` not

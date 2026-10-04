@@ -198,9 +198,13 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
             BuildSubnavCounts();
             RenderProducts();
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _toast.Show(InventoryPresentation.MutationFailureMessage(ex, "بارگذاری فهرست کالاها ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            _toast.Show(
+                ex is InvalidOperationException ioe
+                    ? InventoryPresentation.MutationFailureMessage(ioe, "بارگذاری فهرست کالاها ناموفق بود؛ دوباره تلاش کنید")
+                    : "بارگذاری فهرست کالاها ناموفق بود؛ دوباره تلاش کنید",
+                Tone.Danger);
         }
     }
 
@@ -427,7 +431,24 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private void Refresh()
     {
         _changes.Notify(DataDomain.Inventory, DataDomain.Dashboard);
-        _ = ReloadAsync();
+        _ = ReloadSafeAsync();
+    }
+
+    /// <summary>Post-mutation reload that never leaves a faulting task unobserved: a failure surfaces as a danger toast.</summary>
+    private async Task ReloadSafeAsync()
+    {
+        try
+        {
+            await ReloadAsync();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _toast.Show(
+                ex is InvalidOperationException ioe
+                    ? InventoryPresentation.MutationFailureMessage(ioe, "به‌روزرسانی فهرست کالاها ناموفق بود؛ دوباره تلاش کنید")
+                    : "به‌روزرسانی فهرست کالاها ناموفق بود؛ دوباره تلاش کنید",
+                Tone.Danger);
+        }
     }
 
     private async Task ReloadAsync()

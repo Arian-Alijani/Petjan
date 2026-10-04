@@ -155,7 +155,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
             {
                 _sort = (HistorySort)clamped;
                 OnPropertyChanged();
-                _ = ReloadAsync(resetPage: true);
+                _ = ReloadSafeAsync(resetPage: true);
             }
         }
     }
@@ -172,7 +172,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
             {
                 _pageSize = size;
                 OnPropertyChanged();
-                _ = ReloadAsync(resetPage: true);
+                _ = ReloadSafeAsync(resetPage: true);
             }
         }
     }
@@ -180,7 +180,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     partial void OnSearchTextChanged(string value)
     {
         HasSearchValue = !string.IsNullOrWhiteSpace(value);
-        _searchDebounce.Debounce(() => _ = ReloadAsync(resetPage: true));
+        _searchDebounce.Debounce(() => _ = ReloadSafeAsync(resetPage: true));
     }
 
     partial void OnFromDateChanged(string value) => OnDateRangeEdited();
@@ -195,7 +195,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
 
         SyncRangeChips();
-        _ = ReloadAsync(resetPage: true);
+        _ = ReloadSafeAsync(resetPage: true);
     }
 
     // ── Chip builders ────────────────────────────────────────────────────
@@ -254,7 +254,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         _suppressDateReload = false;
 
         SyncRangeChips();
-        _ = ReloadAsync(resetPage: true);
+        _ = ReloadSafeAsync(resetPage: true);
     }
 
     [RelayCommand]
@@ -266,7 +266,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         _suppressDateReload = false;
 
         SyncRangeChips();
-        _ = ReloadAsync(resetPage: true);
+        _ = ReloadSafeAsync(resetPage: true);
     }
 
     [RelayCommand]
@@ -283,7 +283,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
 
         SyncAllKindsFlag();
-        _ = ReloadAsync(resetPage: true);
+        _ = ReloadSafeAsync(resetPage: true);
     }
 
     /// <summary>«همه» — activate every kind filter at once (or clear them when all are already on).</summary>
@@ -303,7 +303,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
 
         SyncAllKindsFlag();
-        _ = ReloadAsync(resetPage: true);
+        _ = ReloadSafeAsync(resetPage: true);
     }
 
     [RelayCommand]
@@ -329,7 +329,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
 
         SyncAllKindsFlag();
         SyncRangeChips();
-        _ = ReloadAsync(resetPage: true);
+        _ = ReloadSafeAsync(resetPage: true);
     }
 
     [RelayCommand]
@@ -341,7 +341,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
 
         _page--;
-        _ = ReloadAsync(resetPage: false);
+        _ = ReloadSafeAsync(resetPage: false);
     }
 
     [RelayCommand]
@@ -353,10 +353,30 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
 
         _page++;
-        _ = ReloadAsync(resetPage: false);
+        _ = ReloadSafeAsync(resetPage: false);
     }
 
     // ── Loading ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Fire-and-forget entry for filter / paging changes: a failing reload is observed here (danger toast, spinner
+    /// released by <see cref="ReloadAsync"/>'s finally) instead of faulting an unobserved task.
+    /// </summary>
+    private async Task ReloadSafeAsync(bool resetPage)
+    {
+        try
+        {
+            await ReloadAsync(resetPage);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _toast.Show(
+                ex is InvalidOperationException ioe
+                    ? Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ioe, "بارگذاری تاریخچه ناموفق بود؛ دوباره تلاش کنید")
+                    : "بارگذاری تاریخچه ناموفق بود؛ دوباره تلاش کنید",
+                Tone.Danger);
+        }
+    }
 
     private async Task ReloadAsync(bool resetPage)
     {
@@ -371,14 +391,23 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
 
         try
         {
-            var filter = new HistoryFilter(
-                FromDate, ToDate, _selectedKinds.ToArray(), SearchText.Trim(), _sort, _page, _pageSize);
-
-            var page = await _service.GetPageAsync(filter);
-
+            var page = await QueryPageAsync();
             if (token != _generation)
             {
                 return; // a newer reload superseded this one — drop the stale result
+            }
+
+            // The set can shrink under the user (data changed elsewhere): clamp to the last page and re-query once
+            // inside this same awaited reload, instead of a re-entrant fire-and-forget round trip.
+            var totalPages = TotalPages(page.TotalCount);
+            if (_page > totalPages)
+            {
+                _page = totalPages;
+                page = await QueryPageAsync();
+                if (token != _generation)
+                {
+                    return;
+                }
             }
 
             ApplyPage(page);
@@ -392,16 +421,14 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
     }
 
+    private Task<HistoryPage> QueryPageAsync() => _service.GetPageAsync(new HistoryFilter(
+        FromDate, ToDate, _selectedKinds.ToArray(), SearchText.Trim(), _sort, _page, _pageSize));
+
+    private int TotalPages(int totalCount) => Math.Max(1, (int)Math.Ceiling(totalCount / (double)_pageSize));
+
     private void ApplyPage(HistoryPage page)
     {
-        var totalPages = Math.Max(1, (int)Math.Ceiling(page.TotalCount / (double)_pageSize));
-
-        if (_page > totalPages)
-        {
-            _page = totalPages;
-            _ = ReloadAsync(resetPage: false);
-            return;
-        }
+        var totalPages = TotalPages(page.TotalCount);
 
         RenderFeed(page.Items, page.DayNets);
 
