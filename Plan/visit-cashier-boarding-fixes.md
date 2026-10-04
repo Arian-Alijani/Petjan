@@ -278,7 +278,7 @@ toast دروغ می‌دهد؛ در کلینیک تک‌اتاقه `RoomNoneAvai
 این تسک را رد کن و در باکس `[x]` با یادداشت «subsumed by T3» بگذار (نیازی به push خالی نیست).
 **Build:** fast 0/0 (اگر کدی عوض شد). **Push (اگر تغییر بود):** `scripts/git/push.sh "chore(boarding): remove stale Transferred UI remnants"`
 
-### T5 — [ ] تأیید نهایی هماهنگی سه جریان (focused، بدون full test)
+### T5 — [x] تأیید نهایی هماهنگی سه جریان (focused، بدون full test) *(verified by code reading: no extra changes needed)*
 **هدف:** با خواندن کد (نه full test)، این زنجیره‌ها را end-to-end تأیید کن:
 - ویزیت: Rx picker کار می‌کند (T1) → Complete → Done → «رفتن به صندوق» → صف Ready صندوق (T2).
 - پانسیون: افزودن خدمت (T3) → تخلیه → handoff → صف Ready صندوق → فاکتور (T3).
@@ -287,7 +287,7 @@ toast دروغ می‌دهد؛ در کلینیک تک‌اتاقه `RoomNoneAvai
 **اگر در تأیید، ناهماهنگی باقی‌مانده پیدا شد**، آن را اصلاح و push کن (پیام واضح).
 **Build:** fast 0/0 نهایی. **Push (اگر تغییر بود):** `scripts/git/push.sh "test(flows): verify visit+boarding cashier handoff coherence"`
 
-### T6 — [ ] بیلد سریع نهایی و اطمینان از ۰/۰
+### T6 — [x] بیلد سریع نهایی و اطمینان از ۰/۰
 `scripts/sandbox/build.sh` → باید ۰ warning / ۰ error. اگر startup/DI/shell لمس شده بود، `scripts/sandbox/run.sh`
 اسموک بزن تا `SMOKE RUN OK`. هر اصلاح لازم را push کن.
 **Push (اگر تغییر بود):** `scripts/git/push.sh "chore: fast build green after visit/cashier/boarding fixes"`
