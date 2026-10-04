@@ -305,7 +305,7 @@ commands do not break `RolePermissionMatrixTests` or wire tests.
   handlers) per §2. Register all four in `PatientsRegistration.cs`. Push:
   `scripts/git/push.sh "feat(patients): soft-delete owner (cascade pets) and pet commands"`
 
-- [ ] **T4 — Contracts + client service.**
+- [x] **T4 — Contracts + client service.**
   Add `DeletePetAsync(string)` and `DeleteOwnerAsync(string)` to `IPatientsQueryService.cs`;
   implement both in `PatientsService.cs` (copy the write-method shape in §2). Push:
   `scripts/git/push.sh "feat(patients): expose DeletePetAsync/DeleteOwnerAsync on patients service"`

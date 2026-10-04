@@ -58,4 +58,17 @@ public interface IPatientsQueryService
 
     /// <summary>Creates a new owner (and optionally their first pet); returns the created owner.</summary>
     Task<OwnerDetail> CreateOwnerAsync(NewOwnerRequest request);
+
+    /// <summary>
+    /// Removes a pet from the directory (soft-delete tombstone — the record is hidden everywhere, not
+    /// physically erased, so history and sync stay intact). Throws when the pet is unknown or the
+    /// caller lacks the pet-edit permission.
+    /// </summary>
+    Task DeletePetAsync(string petId);
+
+    /// <summary>
+    /// Removes an owner <b>and every pet they own</b> from the directory (soft-delete cascade in one
+    /// unit of work). Throws when the owner is unknown or the caller lacks the owner-edit permission.
+    /// </summary>
+    Task DeleteOwnerAsync(string ownerId);
 }
