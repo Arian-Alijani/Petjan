@@ -53,7 +53,7 @@ switch over `ServiceException.Code` / result error code → Persian, used by bot
 | T2 | "Start visit" often fails — root-cause & fix | ☑ DONE |
 | T3 | Pay / full-settle shows raw `CASH_SESSION_REQUIRED` in Sales & Cashier | ☑ DONE |
 | T4 | Boarding add product/service picker opens *behind* (clipped) — make it a modal like Sales | ☑ DONE |
-| T5 | All displayed statuses/texts must be Persian (enum/code leaks) | ☐ TODO |
+| T5 | All displayed statuses/texts must be Persian (enum/code leaks) | ☑ DONE |
 | T6 | Standardize & unify invoice / file / all such numbers | ☐ TODO |
 | T7 | Verify Sales & Cashier history shows data correctly | ☐ TODO |
 | T8 | **Final:** delete this plan file | ☐ TODO |
@@ -265,7 +265,7 @@ to the stay; failures show Persian. Build 0/0. This is a larger change — **pus
 
 ---
 
-## T5 — All displayed statuses/texts must be Persian (enum/code leaks)
+## T5 — ☑ DONE — All displayed statuses/texts must be Persian (enum/code leaks)
 
 **Symptom (user):** Some statuses/texts (invoice items, states, etc.) still render English.
 

@@ -53,7 +53,7 @@ internal static class CashierMapping
                 PaymentMethod.Card => CashierPaymentMethod.Card,
                 PaymentMethod.Cheque => CashierPaymentMethod.Cheque,
                 _ => CashierPaymentMethod.Credit,
-            }, p.Method.ToString(), string.Empty, p.Note ?? string.Empty,
+            }, Sales.SalesMapping.MethodLabel(p.Method), string.Empty, p.Note ?? string.Empty,
             Date(p.ReceivedUtc), p.AmountMinor)).ToArray();
         return new CashierInvoiceDetail(summary.Id, state, Label(state), summary.OwnerName, summary.PetName,
             summary.Phone, Date(summary.IssuedUtc), summary.State == InvoiceState.Draft,

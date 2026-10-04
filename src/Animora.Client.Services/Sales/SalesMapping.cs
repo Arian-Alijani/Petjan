@@ -364,7 +364,7 @@ internal static class SalesMapping
         _ => ContractPaymentMethod.Cash,
     };
 
-    private static string MethodLabel(DomainPaymentMethod method) => method switch
+    internal static string MethodLabel(DomainPaymentMethod method) => method switch
     {
         DomainPaymentMethod.Cash or DomainPaymentMethod.Wallet => "نقدی",
         DomainPaymentMethod.Card or DomainPaymentMethod.Transfer => "کارت",
