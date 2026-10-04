@@ -100,36 +100,56 @@ public sealed class BoardingQueries(AnimoraLocalDbContext db) : IBoardingQueries
              pet.Breed ?? "", owner.FullName, owner.PhonePrimary, owner.Id))
         .FirstOrDefaultAsync(ct);
 
-    public async Task<BoardingHistoryResult> GetHistoryAsync(
-        string? search, string sort, int page, int pageSize, CancellationToken ct)
+    public async Task<BoardingHistoryResult> GetHistoryAsync(BoardingHistoryCriteria criteria, CancellationToken ct)
     {
-        // Filter and sort on the entity source first so EF never has to translate a predicate or a
-        // sort key that reaches into the constructed read model (r.Stay.State / r.Stay.CheckInUtc
-        // would both fail translation once BoardingStay is embedded in a non-entity type).
+        // Every filter is applied on the entity source so EF never has to translate a predicate or a
+        // sort key that reaches into the constructed read model (r.Stay.State would fail translation).
         var stays = db.Set<BoardingStay>().AsNoTracking().Where(s => s.State != StayState.Reserved);
+
+        // History rows carry two kinds today: CheckIn (stay still active) and CheckOut (finished).
+        if (!criteria.IncludeCheckIn && !criteria.IncludeCheckOut) return Empty();
+        if (!criteria.IncludeCheckIn) stays = stays.Where(s => s.State != StayState.Active);
+        if (!criteria.IncludeCheckOut) stays = stays.Where(s => s.State == StayState.Active);
+
+        if (criteria.FromUtc is { } from) stays = stays.Where(s => s.CheckInUtc >= from);
+        if (criteria.ToUtc is { } to) stays = stays.Where(s => s.CheckInUtc <= to);
+
+        if (criteria.Species is { Count: > 0 } species)
+        {
+            var wanted = species.ToArray();
+            stays = stays.Where(s => db.Set<Pet>().Any(p => p.Id == s.PetId && wanted.Contains(p.Species)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(criteria.Search))
+        {
+            var term = "%" + criteria.Search.Trim() + "%";
+            stays = stays.Where(s =>
+                db.Set<Pet>().Any(p => p.Id == s.PetId && EF.Functions.Like(p.Name, term)) ||
+                db.Set<Owner>().Any(o => o.Id == s.OwnerId && EF.Functions.Like(o.FullName, term)) ||
+                db.Set<Room>().Any(r => r.Id == s.RoomId && EF.Functions.Like(r.Code, term)));
+        }
+
+        // Summary totals describe the whole filtered set, not just the visible page. A stay's recorded
+        // amount (frozen checkout total) is money charged to the owner, i.e. inflow; nothing flows out.
+        var total = await stays.CountAsync(ct);
+        var inflow = await stays.SumAsync(s => s.FrozenTotalMinor ?? 0L, ct);
+
         // The room rate is the persisted price snapshot; totals are derived in the handler.
-        stays = sort switch
+        var ordered = criteria.Sort switch
         {
             "Oldest" => stays.OrderBy(s => s.CheckInUtc).ThenBy(s => s.Id),
             "AmountAsc" => stays.OrderBy(s => s.DailyRate.Minor).ThenBy(s => s.Id),
             "AmountDesc" => stays.OrderByDescending(s => s.DailyRate.Minor).ThenBy(s => s.Id),
             _ => stays.OrderByDescending(s => s.CheckInUtc).ThenBy(s => s.Id),
         };
-        // The name filter needs the joined pet/owner/room labels, so it is applied on the projection;
-        // it only touches the read model's own top-level members, which EF can translate.
-        var query = Project(stays);
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var term = "%" + search.Trim() + "%";
-            query = query.Where(r => EF.Functions.Like(r.PetName, term) ||
-                EF.Functions.Like(r.OwnerName, term) || EF.Functions.Like(r.RoomLabel, term));
-        }
-        var total = await query.CountAsync(ct);
-        var rows = await query.Skip((Math.Max(1, page) - 1) * Math.Clamp(pageSize, 1, 200))
-            .Take(Math.Clamp(pageSize, 1, 200)).ToListAsync(ct);
+        var pageSize = Math.Clamp(criteria.PageSize, 1, 200);
+        var rows = await Project(ordered.Skip((Math.Max(1, criteria.Page) - 1) * pageSize).Take(pageSize))
+            .ToListAsync(ct);
         return new BoardingHistoryResult(rows.Select(r => new BoardingHistoryRowReadModel(
             r.Stay.Id, r.Stay.Id, r.PetName, r.Species, r.OwnerName, r.RoomLabel,
             r.Stay.CheckInUtc, r.Stay.State == StayState.Active ? "CheckIn" : "CheckOut",
-            r.Stay.FrozenTotalMinor ?? 0, "")).ToArray(), total, 0, 0);
+            r.Stay.FrozenTotalMinor ?? 0, "")).ToArray(), total, inflow, 0);
     }
+
+    private static BoardingHistoryResult Empty() => new([], 0, 0, 0);
 }

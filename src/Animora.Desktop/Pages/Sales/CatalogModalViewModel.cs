@@ -47,14 +47,14 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         _invoiceId = invoiceId;
         _onChanged = onChanged;
 
-        _ = LoadAsync();
+        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری کاتالوگ ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
 
-    public ObservableCollection<CatalogFilterViewModel> Filters { get; } = [];
+    public RangeObservableCollection<CatalogFilterViewModel> Filters { get; } = [];
 
-    public ObservableCollection<CatalogRecentChipViewModel> Recent { get; } = [];
+    public RangeObservableCollection<CatalogRecentChipViewModel> Recent { get; } = [];
 
-    public ObservableCollection<CatalogRowViewModel> Rows { get; } = [];
+    public RangeObservableCollection<CatalogRowViewModel> Rows { get; } = [];
 
     [ObservableProperty]
     private string _query = string.Empty;
@@ -86,11 +86,8 @@ public sealed partial class CatalogModalViewModel : ObservableObject
 
     private void BuildFilters()
     {
-        Filters.Clear();
-        foreach (var f in _filterRefs)
-        {
-            Filters.Add(new CatalogFilterViewModel(f) { IsActive = f.Key == _filterKey });
-        }
+        Filters.ReplaceAll(
+            _filterRefs.Select(f => new CatalogFilterViewModel(f) { IsActive = f.Key == _filterKey }));
 
         OnPropertyChanged(nameof(HasFilters));
     }
@@ -137,20 +134,21 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         _visible.Clear();
         _visible.AddRange(list);
 
-        Rows.Clear();
+        var built = new List<CatalogRowViewModel>(_visible.Count);
         for (var i = 0; i < _visible.Count; i++)
         {
             var (bg, fg) = SalePresentation.LineTagBrushes(
                 _visible[i].Kind == "svc" ? InvoiceLineKind.Service : InvoiceLineKind.Item, false);
-            var row = new CatalogRowViewModel(_visible[i], bg, fg, q)
+            built.Add(new CatalogRowViewModel(_visible[i], bg, fg, q)
             {
                 IsHighlighted = i == HighlightIndex,
-            };
-            Rows.Add(row);
+            });
         }
 
+        Rows.ReplaceAll(built);
+
         HasRows = Rows.Count > 0;
-        Recent.Clear();
+        var chips = new List<CatalogRecentChipViewModel>();
         if (norm.Length == 0)
         {
             foreach (var r in _recent)
@@ -158,10 +156,12 @@ public sealed partial class CatalogModalViewModel : ObservableObject
                 var item = _all.FirstOrDefault(x => x.Kind == r.Kind && x.Id == r.Ref);
                 if (item is not null)
                 {
-                    Recent.Add(new CatalogRecentChipViewModel(item));
+                    chips.Add(new CatalogRecentChipViewModel(item));
                 }
             }
         }
+
+        Recent.ReplaceAll(chips);
 
         OnPropertyChanged(nameof(HasRecent));
         CountText = Rows.Count > 0 ? $"{SalePresentation.Fa(Rows.Count)} نتیجه" : string.Empty;
@@ -217,10 +217,22 @@ public sealed partial class CatalogModalViewModel : ObservableObject
             return;
         }
 
-        await _service.AddLineAsync(_invoiceId, item, 1);
+        try
+        {
+            await _service.AddLineAsync(_invoiceId, item, 1);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(
+                Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(
+                    ex, "افزودن آیتم ناموفق بود؛ دوباره تلاش کنید"),
+                Tone.Danger);
+            return;
+        }
+
         _toast.Show($"«{item.Title}» به فاکتور افزوده شد", Tone.Ok);
         _onChanged?.Invoke();
-        await RefreshRecentAsync();
+        PromoteRecent(item);
     }
 
     [RelayCommand]
@@ -232,12 +244,30 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         }
     }
 
-    private async Task RefreshRecentAsync()
+    /// <summary>
+    /// Moves the just-added item to the front of the recent strip locally (X23): the full catalog is not
+    /// re-pulled per add, and only the small recent chip list is rebuilt, not the whole row list.
+    /// </summary>
+    private void PromoteRecent(CatalogItem item)
     {
-        var snapshot = await _service.GetCatalogAsync();
-        _recent.Clear();
-        _recent.AddRange(snapshot.Recent);
-        Render();
+        _recent.RemoveAll(r => r.Kind == item.Kind && r.Ref == item.Id);
+        _recent.Insert(0, new RecentItemRef(item.Kind, item.Id));
+        const int maxRecent = 10;
+        if (_recent.Count > maxRecent)
+        {
+            _recent.RemoveRange(maxRecent, _recent.Count - maxRecent);
+        }
+
+        if (Query.Trim().Length > 0)
+        {
+            return;
+        }
+
+        Recent.ReplaceAll(_recent
+            .Select(r => _all.FirstOrDefault(x => x.Kind == r.Kind && x.Id == r.Ref))
+            .Where(x => x is not null)
+            .Select(x => new CatalogRecentChipViewModel(x!)));
+        OnPropertyChanged(nameof(HasRecent));
     }
 
     [RelayCommand]
@@ -310,11 +340,13 @@ public sealed partial class CatalogRowViewModel : ObservableObject
         IcoBackground = icoBackground;
         IcoForeground = icoForeground;
 
-        // Highlight-on-search: split the title into before / match / after.
-        var match = query.Trim();
+        // Highlight-on-search: split the title into before / match / after. The match is located with the
+        // same folding the filter uses (Persian digits, Arabic yeh/kaf, case) on a length-preserving copy,
+        // so every row the filter keeps highlights the right span of the original title (X24).
+        var match = PersianText.Fold(query.Trim());
         var idx = match.Length == 0
             ? -1
-            : item.Title.IndexOf(match, StringComparison.CurrentCultureIgnoreCase);
+            : PersianText.Fold(item.Title).IndexOf(match, StringComparison.Ordinal);
 
         if (idx >= 0)
         {

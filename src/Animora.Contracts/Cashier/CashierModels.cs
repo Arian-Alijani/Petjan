@@ -110,6 +110,16 @@ public sealed record CashierInvoice(
     long Due);
 
 /// <summary>
+/// One page of the cashier invoice list (X29): the rows of the requested tab/search plus the total number of
+/// matches, so the screen can offer «بیشتر» without ever holding the whole table.
+/// </summary>
+public sealed record CashierInvoicePage(
+    IReadOnlyList<CashierInvoice> Items,
+    int TotalCount,
+    int Page,
+    int PageSize);
+
+/// <summary>
 /// One line of an invoice's detail, mirroring what <c>renderLines</c> renders:
 /// its kind, title, unit price, quantity, per-line discount percent and the
 /// derived subtotal (<c>qty × price × (100 − discPct) / 100</c>).
@@ -120,7 +130,9 @@ public sealed record CashierInvoiceLine(
     string Title,
     long UnitPrice,
     int Quantity,
-    int DiscountPercent);
+    int DiscountPercent,
+    long Subtotal = 0,
+    string LineId = "");
 
 /// <summary>
 /// One historical payment of an invoice, mirroring what
@@ -185,7 +197,7 @@ public sealed record CashierInvoiceDetail(
 /// <summary>
 /// One overview stat card, mirroring what <c>renderStats</c> renders: a tone,
 /// icon key, label, formatted value and footnote. The icon key is resolved by
-/// the mock so the View stays free of screen literals.
+/// the Cashier service so the View stays free of screen literals.
 /// </summary>
 public sealed record CashierStat(
     string Tone,
@@ -223,7 +235,12 @@ public sealed record CashierRefundRequest(long Amount);
 /// The result of <see cref="ICashierService.RefundAsync"/> / a void, mirroring
 /// the reference flow's <c>{ ok, error, entity }</c> return.
 /// </summary>
+/// <param name="Ok">Whether the action was applied.</param>
+/// <param name="Error">Machine-readable error code when <paramref name="Ok"/> is false.</param>
+/// <param name="Invoice">The invoice as it is after the action (null when it no longer exists).</param>
+/// <param name="Applied">The money actually recorded by a pay/refund (after clamping to due/paid), 0 otherwise.</param>
 public sealed record CashierActionResult(
     bool Ok,
     string? Error,
-    CashierInvoiceDetail? Invoice);
+    CashierInvoiceDetail? Invoice,
+    long Applied = 0);

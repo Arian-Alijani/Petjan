@@ -17,7 +17,8 @@ public sealed record ProductCatalogQuery(
     string? CategoryId = null,
     bool LowStockOnly = false,
     int Page = 1,
-    int PageSize = 50) : IQuery<PagedResult<ProductReadModel>>;
+    int PageSize = 50,
+    bool OkStockOnly = false) : IQuery<PagedResult<ProductReadModel>>;
 
 public sealed class ProductCatalogQueryHandler(IInventoryQueries queries)
     : IQueryHandler<ProductCatalogQuery, PagedResult<ProductReadModel>>
@@ -25,7 +26,7 @@ public sealed class ProductCatalogQueryHandler(IInventoryQueries queries)
     public async Task<Result<PagedResult<ProductReadModel>>> HandleAsync(
         ProductCatalogQuery query, QueryContext context, CancellationToken ct) =>
         Result<PagedResult<ProductReadModel>>.Ok(await queries.GetCatalogAsync(
-            query.Search, query.CategoryId, query.LowStockOnly, query.Page, query.PageSize, ct));
+            query.Search, query.CategoryId, query.LowStockOnly, query.Page, query.PageSize, ct, query.OkStockOnly));
 }
 
 /// <summary>One product with its variants (snapshot on-hand) and its last 100 movements.</summary>

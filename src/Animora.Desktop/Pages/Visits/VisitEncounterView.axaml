@@ -81,74 +81,14 @@
             <Setter Property="ClipToBounds" Value="True" />
         </Style>
 
-        <!-- ===== Stepper ===== -->
-        <Style Selector="ItemsControl.wz-stepper">
-            <Setter Property="Padding" Value="22,18" />
-            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
-        </Style>
-        <Style Selector="Border.wz-step-connector">
-            <Setter Property="Width" Value="28" />
-            <Setter Property="Height" Value="2" />
-            <Setter Property="CornerRadius" Value="2" />
-            <Setter Property="Background" Value="{StaticResource LineBrush}" />
-            <Setter Property="Margin" Value="8,0,8,0" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-        </Style>
-        <Style Selector="Border.wz-step-n">
-            <Setter Property="Width" Value="30" />
-            <Setter Property="Height" Value="30" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
-            <Setter Property="BorderThickness" Value="1.5" />
-        </Style>
-        <Style Selector="Border.wz-step-n.is-active">
-            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
-            <Setter Property="BoxShadow" Value="0 6 14 0 #470D9488" />
-        </Style>
-        <Style Selector="Border.wz-step-n.is-done">
-            <Setter Property="Background" Value="{StaticResource OkBgBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource OkBgBrush}" />
-        </Style>
-        <Style Selector="TextBlock.wz-step-num">
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="ExtraBold" />
-            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
-            <Setter Property="HorizontalAlignment" Value="Center" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-        </Style>
-        <Style Selector="TextBlock.wz-step-num.is-active">
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-        <Style Selector="TextBlock.wz-step-num.is-done">
-            <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
-        </Style>
-        <Style Selector="TextBlock.wz-step-label">
-            <Setter Property="FontSize" Value="12.5" />
-            <Setter Property="FontWeight" Value="ExtraBold" />
-            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
-            <Setter Property="LetterSpacing" Value="-0.2" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-        </Style>
-        <Style Selector="TextBlock.wz-step-label.is-active">
-            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
-        </Style>
-        <Style Selector="TextBlock.wz-step-label.is-done">
-            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
-        </Style>
-        <Style Selector="Button.wz-step-btn">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Cursor" Value="Hand" />
+        <Style Selector="Border.wz-sep">
+            <Setter Property="Height" Value="1" />
+            <Setter Property="Background" Value="{StaticResource Line2Brush}" />
         </Style>
 
         <!-- ===== Body + section head ===== -->
         <Style Selector="Border.wz-body">
             <Setter Property="Padding" Value="24,22" />
-            <Setter Property="MinHeight" Value="380" />
         </Style>
         <Style Selector="TextBlock.sec-title">
             <Setter Property="FontSize" Value="16" />
@@ -608,83 +548,26 @@
                     <!-- Wizard card -->
                     <Border Grid.Column="0" Classes="wz-card" VerticalAlignment="Top">
                         <StackPanel>
-                            <!-- Stepper (renderStepper) -->
-                            <ItemsControl Classes="wz-stepper" ItemsSource="{Binding Steps}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" Spacing="8" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="visits:EncounterStepViewModel">
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <Border Classes="wz-step-connector" IsVisible="{Binding ShowConnector}" />
-                                            <Button Classes="wz-step-btn"
-                                                    Command="{Binding #Root.((visits:VisitEncounterViewModel)DataContext).GoToStepCommand}"
-                                                    CommandParameter="{Binding}">
-                                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                                    <Border Classes="wz-step-n" Classes.is-active="{Binding IsActive}"
-                                                            Classes.is-done="{Binding IsDone}">
-                                                        <TextBlock Classes="wz-step-num" Text="{Binding NumberText}"
-                                                                   Classes.is-active="{Binding IsActive}"
-                                                                   Classes.is-done="{Binding IsDone}" />
-                                                    </Border>
-                                                    <TextBlock Classes="wz-step-label" Text="{Binding ShortLabel}"
-                                                               Classes.is-active="{Binding IsActive}"
-                                                               Classes.is-done="{Binding IsDone}" />
-                                                </StackPanel>
-                                            </Button>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-
-                            <!-- Body (renderBody → step sub-view) -->
+                            <!-- Single-page encounter form: every section on one page, uniform 28px rhythm -->
                             <Border Classes="wz-body">
-                                <!-- steps — lazily instantiated: only the active step is realised -->
-                                <controls:LazyTabHost ActiveKey="{Binding CurrentStep}">
-                                    <controls:LazyTab Key="Vitals">
-                                        <DataTemplate x:DataType="visits:VisitEncounterViewModel">
-                                            <visits:VitalsStepView IsEnabled="{Binding CanEditVisit}" />
-                                        </DataTemplate>
-                                    </controls:LazyTab>
-                                    <controls:LazyTab Key="History">
-                                        <DataTemplate x:DataType="visits:VisitEncounterViewModel">
-                                            <visits:HistoryStepView IsEnabled="{Binding CanEditVisit}" />
-                                        </DataTemplate>
-                                    </controls:LazyTab>
-                                    <controls:LazyTab Key="Plan">
-                                        <DataTemplate x:DataType="visits:VisitEncounterViewModel">
-                                            <visits:PlanStepView IsEnabled="{Binding CanEditVisit}" />
-                                        </DataTemplate>
-                                    </controls:LazyTab>
-                                    <controls:LazyTab Key="Rx">
-                                        <DataTemplate x:DataType="visits:VisitEncounterViewModel">
-                                            <visits:RxStepView IsEnabled="{Binding CanEditVisit}" />
-                                        </DataTemplate>
-                                    </controls:LazyTab>
-                                    <controls:LazyTab Key="Review">
-                                        <DataTemplate x:DataType="visits:VisitEncounterViewModel">
-                                            <visits:ReviewStepView />
-                                        </DataTemplate>
-                                    </controls:LazyTab>
-                                </controls:LazyTabHost>
+                                <StackPanel Spacing="28" IsEnabled="{Binding CanEditVisit}">
+                                    <visits:VitalsStepView />
+                                    <Border Classes="wz-sep" />
+                                    <visits:HistoryStepView />
+                                    <Border Classes="wz-sep" />
+                                    <visits:PlanStepView />
+                                    <Border Classes="wz-sep" />
+                                    <visits:RxStepView />
+                                    <Border Classes="wz-sep" />
+                                    <visits:ReviewStepView />
+                                </StackPanel>
                             </Border>
 
-                            <!-- Footer (renderFoot) -->
+                            <!-- Footer -->
                             <Border Classes="wz-foot">
-                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                                    <TextBlock Grid.Column="0" Classes="wz-foot-info" Text="{Binding StepInfoText}" />
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                                                HorizontalAlignment="Left">
-                                        <Button Classes="wz-foot-btn ghost" Command="{Binding PreviousStepCommand}"
-                                                IsEnabled="{Binding CanGoPrevious}">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Ink2Brush}"
-                                                      Data="{StaticResource IconChevronRight}" VerticalAlignment="Center" />
-                                                <TextBlock Text="مرحلهٔ قبل" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                        </Button>
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                    <TextBlock Grid.Column="0" Classes="wz-foot-info" Text="تمام بخش‌های ویزیت در همین صفحه ثبت می‌شوند" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                                         <Button Classes="wz-foot-btn outline" Command="{Binding SaveDraftCommand}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Ink2Brush}"
@@ -692,11 +575,11 @@
                                                 <TextBlock Text="ذخیره پیش‌نویس" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </Button>
-                                        <Button Classes="wz-foot-btn primary" Command="{Binding NextStepCommand}">
+                                        <Button Classes="wz-foot-btn primary" Command="{Binding CompleteVisitCommand}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <TextBlock Text="{Binding NextButtonText}" VerticalAlignment="Center" />
+                                                <TextBlock Text="صدور فاکتور و پایان ویزیت" VerticalAlignment="Center" />
                                                 <Path Classes="icon" Width="14" Height="14" Stroke="White"
-                                                      Data="{Binding NextButtonIcon, Converter={StaticResource IconKeyConverter}}" VerticalAlignment="Center" />
+                                                      Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </Button>
                                     </StackPanel>

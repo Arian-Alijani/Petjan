@@ -161,7 +161,7 @@ internal sealed class CashSessionContextFake(CashSessionRepositoryFake repo) : I
 internal sealed class CashierQueriesFake : ICashierQueries
 {
     public bool Unsettled { get; init; }
-    public Task<PagedResult<InvoiceSummaryReadModel>> GetInvoicesAsync(CashierInvoiceTab tab, int page, int pageSize, CancellationToken ct) =>
+    public Task<PagedResult<InvoiceSummaryReadModel>> GetInvoicesAsync(CashierInvoiceTab tab, string? search, int page, int pageSize, CancellationToken ct) =>
         Task.FromResult(new PagedResult<InvoiceSummaryReadModel>([], 0, page, pageSize));
     public Task<CashierStatsReadModel> GetStatsAsync(DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken ct) =>
         Task.FromResult(new CashierStatsReadModel(0, 0, 0, 0, 0));

@@ -4,6 +4,7 @@ using Animora.Application.UseCases.Boarding.ReadModels;
 using Animora.Contracts.Boarding;
 using Animora.Contracts.Identity;
 using Animora.Domain.Boarding;
+using Animora.Domain.Patients;
 using ContractStay = Animora.Contracts.Boarding.BoardingStay;
 
 namespace Animora.Client.Services.Boarding;
@@ -20,6 +21,24 @@ internal static class BoardingMapping
         _ => BoardingSpecies.Other, // Reptiles and other clinic species have no boarding equivalent.
     };
 
+    internal static PetSpecies PetSpecies(BoardingSpecies species) => species switch
+    {
+        BoardingSpecies.Dog => Domain.Patients.PetSpecies.Dog,
+        BoardingSpecies.Cat => Domain.Patients.PetSpecies.Cat,
+        BoardingSpecies.Bird => Domain.Patients.PetSpecies.Bird,
+        BoardingSpecies.Rabbit => Domain.Patients.PetSpecies.Rabbit,
+        BoardingSpecies.Rodent => Domain.Patients.PetSpecies.Rodent,
+        _ => Domain.Patients.PetSpecies.Other,
+    };
+
+    /// <summary>The clinic species a boarding species filter stands for ("Other" covers reptiles too).</summary>
+    internal static IReadOnlyList<PetSpecies> PetSpeciesFilter(BoardingSpecies? species) => species switch
+    {
+        null => [],
+        BoardingSpecies.Other => [Domain.Patients.PetSpecies.Other, Domain.Patients.PetSpecies.Reptile],
+        var s => [PetSpecies(s.Value)],
+    };
+
     internal static ContractStay ToContract(this StayListItemReadModel row,
         IReadOnlyList<BoardingServiceDef> services, DateTimeOffset now, TimeZoneInfo tz)
     {
@@ -32,7 +51,7 @@ internal static class BoardingMapping
             row.OwnerName, row.OwnerPhone, stay.PetId, row.RoomLabel,
             ClinicCalendar.LocalDay(stay.CheckInUtc.UtcTicks, tz),
             ClinicCalendar.LocalDay(stay.PlannedCheckOutUtc.UtcTicks, tz), stay.DailyRate.Minor,
-            BoardingPaymentMode.Postpaid,
+            stay.PaymentMode == StayPaymentMode.Prepaid ? BoardingPaymentMode.Prepaid : BoardingPaymentMode.Postpaid,
             stay.State == StayState.Active ? BoardingStatus.Active : BoardingStatus.Done,
             "a", stay.State >= StayState.ReadyForInvoice, stay.CareNote ?? "",
             charge.Minor - (stay.DailyRate * nights).Minor);

@@ -2,9 +2,8 @@ namespace Animora.Contracts.Boarding;
 
 /// <summary>
 /// Data seam for the Boarding screen (عرض اقامت‌ها). The desktop ViewModel
-/// depends only on this interface; the in-memory
-/// <c>MockBoardingQueryService</c> is the single swappable implementation a
-/// future backend replaces (R-18) — no ViewModel or View change is required to
+/// depends only on this interface; the real
+/// <c>BoardingQueryService</c> (Animora.Client.Services) is the implementation behind it (R-18) — no ViewModel or View change is required to
 /// do so. The stay read model and every mutation the board, detail modal,
 /// transfer/checkout/new-stay modals and the History/Settings tabs perform live
 /// behind this one seam.
@@ -28,15 +27,15 @@ public interface IBoardingQueryService
     /// <summary>
     /// Records a consumed line (service/good) against an active stay, mirroring
     /// the reference's add-row handler (which re-opens the detail modal after
-    /// the mutation).
+    /// the mutation). Returns the updated detail so callers apply it without a refetch (X37).
     /// </summary>
-    Task AddItemAsync(string stayId, string itemRef, int quantity);
+    Task<StayDetail> AddItemAsync(string stayId, string itemRef, int quantity);
 
     /// <summary>
     /// Removes a consumed line by its index, mirroring the reference's
-    /// <c>[data-rm]</c> handler.
+    /// <c>[data-rm]</c> handler. Returns the updated detail (X37).
     /// </summary>
-    Task RemoveItemAsync(string stayId, int index);
+    Task<StayDetail> RemoveItemAsync(string stayId, int index);
 
     /// <summary>
     /// Marks a stay's invoice as transferred to the cashier, mirroring the
@@ -48,7 +47,7 @@ public interface IBoardingQueryService
     /// Ends a stay («تخلیه»), mirroring the reference's checkout confirm
     /// (<c>st.status = 'done'</c>).
     /// </summary>
-    Task CheckoutAsync(string stayId, CheckoutRequest request);
+    Task CheckoutAsync(string stayId);
 
     /// <summary>
     /// Creates a new stay («ثبت پذیرش») and returns it, mirroring the

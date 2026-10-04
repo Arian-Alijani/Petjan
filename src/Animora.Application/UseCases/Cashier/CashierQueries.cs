@@ -8,14 +8,15 @@ using Animora.Domain.Results;
 namespace Animora.Application.UseCases.Cashier;
 
 [RequiresPermission(PermissionCodes.SalesRead)]
-public sealed record CashierInvoiceListQuery(CashierInvoiceTab Tab = CashierInvoiceTab.All, int Page = 1, int PageSize = 50)
+public sealed record CashierInvoiceListQuery(
+    CashierInvoiceTab Tab = CashierInvoiceTab.All, int Page = 1, int PageSize = 50, string? Search = null)
     : IQuery<PagedResult<InvoiceSummaryReadModel>>;
 
 public sealed class CashierInvoiceListQueryHandler(ICashierQueries queries)
     : IQueryHandler<CashierInvoiceListQuery, PagedResult<InvoiceSummaryReadModel>>
 {
     public async Task<Result<PagedResult<InvoiceSummaryReadModel>>> HandleAsync(CashierInvoiceListQuery q, QueryContext context, CancellationToken ct) =>
-        Result<PagedResult<InvoiceSummaryReadModel>>.Ok(await queries.GetInvoicesAsync(q.Tab, q.Page, q.PageSize, ct));
+        Result<PagedResult<InvoiceSummaryReadModel>>.Ok(await queries.GetInvoicesAsync(q.Tab, q.Search, q.Page, q.PageSize, ct));
 }
 
 [RequiresPermission(PermissionCodes.SalesRead)]

@@ -24,6 +24,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     private readonly IBoardingQueryService _service;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
+    private readonly IPrintService _print;
     private readonly Action? _onChanged;
     private readonly Action<BoardingStay>? _onTransfer;
     private readonly Action<BoardingStay>? _onCheckout;
@@ -35,6 +36,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         IBoardingQueryService service,
         IToastService toast,
         IDialogService dialogs,
+        IPrintService print,
         string stayId,
         Action? onChanged = null,
         Action<BoardingStay>? onTransfer = null,
@@ -44,13 +46,14 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         _service = service;
         _toast = toast;
         _dialogs = dialogs;
+        _print = print;
         _onChanged = onChanged;
         _onTransfer = onTransfer;
         _onCheckout = onCheckout;
         _onGotoCashier = onGotoCashier;
         StayId = stayId;
 
-        _ = LoadAsync();
+        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری جزئیات اقامت ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
 
     public string StayId { get; }
@@ -125,7 +128,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     [ObservableProperty]
     private IBrush _dayLabelBrush = Brushes.Transparent;
 
-    public ObservableCollection<BoardingDayCellViewModel> DayCells { get; } = [];
+    public RangeObservableCollection<BoardingDayCellViewModel> DayCells { get; } = [];
 
     // ── note ────────────────────────────────────────────────────────────────
     [ObservableProperty]
@@ -135,7 +138,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     private string _noteText = string.Empty;
 
     // ── consumed items ──────────────────────────────────────────────────────
-    public ObservableCollection<BoardingConsumedRowViewModel> Items { get; } = [];
+    public RangeObservableCollection<BoardingConsumedRowViewModel> Items { get; } = [];
 
     [ObservableProperty]
     private bool _hasItems;
@@ -191,17 +194,27 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         var detail = await _service.GetDetailAsync(StayId);
         if (detail is null)
         {
+            // Never leave an empty modal behind: say what happened and close it (X30).
+            _toast.Show("اقامت موردنظر یافت نشد", Tone.Warn);
+            _dialogs.Close();
             return;
         }
 
+        Apply(detail);
+    }
+
+    /// <summary>Renders a detail snapshot (initial load, or the detail a mutation returned — X37).</summary>
+    private void Apply(StayDetail detail)
+    {
         _stay = detail.Stay;
         var stay = detail.Stay;
         var items = detail.Items;
 
-        var nights = Math.Max(1, Days(stay.CheckOut, stay.CheckIn));
-        var elapsed = Math.Min(Math.Max(0, Days(_today, stay.CheckIn)), nights);
-        var remaining = stay.Status == BoardingStatus.Done ? 0 : Math.Max(0, Days(stay.CheckOut, _today));
-        var overdue = stay.Status == BoardingStatus.Active && stay.CheckOut < _today;
+        var cls = BoardingStayClassification.Of(stay, _today);
+        var nights = cls.Nights;
+        var elapsed = cls.Elapsed;
+        var remaining = cls.Remaining;
+        var overdue = cls.IsOverdue;
         var percent = Math.Min(100, (int)Math.Round(elapsed / (double)nights * 100));
 
         // Header
@@ -231,24 +244,34 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         OwnerPhoneText = stay.OwnerPhone;
 
         // Stay-days timeline
-        DayLabel = BuildDayLabel(stay, overdue, remaining, elapsed);
+        DayLabel = BuildDayLabel(stay, cls);
         ProgressBrush = BoardingPresentation.ProgressBarBrush(overdue, false, percent);
         ElapsedText = $"{BoardingPresentation.Fa(elapsed)} از {BoardingPresentation.Fa(nights)} شب گذشته";
         DayLabelBrush = BoardingPresentation.DayLabelBrush(overdue, remaining);
 
-        DayCells.Clear();
+        // Items are counted per date once, so the day-cell build is O(nights + items)
+        // with no per-day list allocation (X36).
+        var itemsPerDay = new Dictionary<DateOnly, int>();
+        foreach (var it in items)
+        {
+            itemsPerDay[it.At] = itemsPerDay.GetValueOrDefault(it.At) + 1;
+        }
+
+        var dayCells = new List<BoardingDayCellViewModel>(Math.Max(nights, 0));
         for (var i = 0; i < nights; i++)
         {
             var date = stay.CheckIn.AddDays(i);
             var isPast = i < elapsed;
             var isToday = date == _today && stay.Status == BoardingStatus.Active;
-            var dayItems = items.Where(it => it.At == date).ToList();
+            var dayItemCount = itemsPerDay.GetValueOrDefault(date);
             var tooltip = BoardingPresentation.Long(date)
-                + (dayItems.Count > 0
-                    ? $" — {BoardingPresentation.Fa(dayItems.Count)} مورد مصرفی"
+                + (dayItemCount > 0
+                    ? $" — {BoardingPresentation.Fa(dayItemCount)} مورد مصرفی"
                     : string.Empty);
-            DayCells.Add(new BoardingDayCellViewModel(i + 1, date, isPast, isToday, dayItems.Count > 0, tooltip));
+            dayCells.Add(new BoardingDayCellViewModel(i + 1, date, isPast, isToday, dayItemCount > 0, tooltip));
         }
+
+        DayCells.ReplaceAll(dayCells);
 
         // Note
         HasNote = !string.IsNullOrWhiteSpace(stay.Note);
@@ -256,11 +279,8 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
 
         // Consumed items
         IsEditable = stay.Status == BoardingStatus.Active;
-        Items.Clear();
-        for (var i = 0; i < items.Count; i++)
-        {
-            Items.Add(new BoardingConsumedRowViewModel(i, items[i], IsEditable));
-        }
+        var editable = IsEditable;
+        Items.ReplaceAll(items.Select((item, i) => new BoardingConsumedRowViewModel(i, item, editable)));
 
         HasItems = items.Count > 0;
         ItemsCountText = $"{BoardingPresentation.Fa(items.Count)} مورد";
@@ -276,20 +296,20 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         IsDone = stay.Status == BoardingStatus.Done;
     }
 
-    private static string BuildDayLabel(BoardingStay stay, bool overdue, int remaining, int elapsed)
+    private static string BuildDayLabel(BoardingStay stay, BoardingStayClassification cls)
     {
         if (stay.Status == BoardingStatus.Done)
         {
             return "اقامت به پایان رسیده";
         }
 
-        if (overdue)
+        if (cls.IsOverdue)
         {
-            return $"{BoardingPresentation.Fa(Math.Abs(remaining))} روز عقب‌افتاده";
+            return $"{BoardingPresentation.Fa(cls.OverdueDays)} روز عقب‌افتاده";
         }
 
-        return $"{BoardingPresentation.Fa(elapsed)} روز گذشته · "
-            + (remaining == 0 ? "امروز تخلیه" : $"{BoardingPresentation.Fa(remaining)} روز مانده");
+        return $"{BoardingPresentation.Fa(cls.Elapsed)} روز گذشته · "
+            + (cls.Remaining == 0 ? "امروز تخلیه" : $"{BoardingPresentation.Fa(cls.Remaining)} روز مانده");
     }
 
     /// <summary>Reference: the add-row select opens its grouped option list.</summary>
@@ -311,9 +331,20 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     [RelayCommand]
     private async Task RemoveItemAsync(int index)
     {
-        await _service.RemoveItemAsync(StayId, index);
-        _toast.Show("مورد حذف شد (نمونه طراحی)", Tone.Warn);
-        await LoadAsync();
+        StayDetail detail;
+        try
+        {
+            detail = await _service.RemoveItemAsync(StayId, index);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, "حذف مورد ناموفق بود؛ فهرست به‌روز شد، دوباره تلاش کنید"), Tone.Danger);
+            await LoadAsync();
+            return;
+        }
+
+        _toast.Show("مورد حذف شد", Tone.Warn);
+        Apply(detail);
         _onChanged?.Invoke();
     }
 
@@ -327,16 +358,48 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         }
 
         var quantity = int.TryParse(PersianNumberFormatter.ToAsciiDigits(AddQuantityText), out var q) ? q : 1;
-        await _service.AddItemAsync(StayId, SelectedAddOption.Item.Ref, Math.Max(1, quantity));
-        _toast.Show($"«{SelectedAddOption.Item.Title}» به اقلام «{PetName}» اضافه شد (نمونه طراحی)");
+        StayDetail detail;
+        try
+        {
+            detail = await _service.AddItemAsync(StayId, SelectedAddOption.Item.Ref, Math.Max(1, quantity));
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, "افزودن مورد ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            return;
+        }
+
+        _toast.Show($"«{SelectedAddOption.Item.Title}» به اقلام «{PetName}» اضافه شد");
         SelectedAddOption = null;
         AddQuantityText = "1";
-        await LoadAsync();
+        Apply(detail);
         _onChanged?.Invoke();
     }
 
+    /// <summary>Opens the stay bill (fresh read, so it matches the persisted state) in the print preview (X13).</summary>
     [RelayCommand]
-    private void Print() => _toast.Show("چاپ صورتحساب — نسخه بعدی (نمونه طراحی)", Tone.Info);
+    private async Task Print()
+    {
+        try
+        {
+            var detail = await _service.GetDetailAsync(StayId);
+            if (detail is null)
+            {
+                _toast.Show("اقامت پیدا نشد؛ صفحه را به‌روز کنید", Tone.Danger);
+                return;
+            }
+
+            await _print.OpenWithToastAsync(
+                _toast, $"boarding-{StayId}", BoardingPrintDocuments.StayBill(detail, _print.EmbeddedFontCss));
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(
+                Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(
+                    ex, "چاپ صورتحساب ناموفق بود؛ دوباره تلاش کنید"),
+                Tone.Danger);
+        }
+    }
 
     [RelayCommand]
     private void Transfer()
@@ -359,5 +422,4 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     [RelayCommand]
     private void Close() => _dialogs.Close();
 
-    private static int Days(DateOnly to, DateOnly from) => to.DayNumber - from.DayNumber;
 }

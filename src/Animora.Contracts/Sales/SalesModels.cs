@@ -203,7 +203,10 @@ public sealed record InvoiceLine(
     bool IsCustom,
     string Ref,
     string IconKey,
-    string KindLabel);
+    string KindLabel,
+    long Gross = 0,
+    long Subtotal = 0,
+    string LineId = "");
 
 /// <summary>
 /// One historical payment of an invoice, mirroring what <c>renderHistory</c>
@@ -269,7 +272,7 @@ public sealed record InvoiceDetail(
 /// <summary>
 /// One catalog entry offered by the picker, mirroring the reference's
 /// <c>catalogAllItems()</c> rows: a service or physical item with its kind,
-/// category group (label + key) and price. The icon is resolved by the mock
+/// category group (label + key) and price. The icon is resolved by the Sales service
 /// (mirrors the reference's <c>CAT_ICON</c> map) so the View stays free of
 /// catalog literals.
 /// </summary>
@@ -350,10 +353,15 @@ public sealed record RefundRequest(long Amount);
 /// The result of <see cref="ISalesQueryService.RefundAsync"/>, mirroring
 /// <c>FLOW.refund</c>'s <c>{ ok, error, entity }</c> return.
 /// </summary>
+/// <param name="Ok">Whether the refund was applied.</param>
+/// <param name="Error">Machine-readable error code when <paramref name="Ok"/> is false.</param>
+/// <param name="Invoice">The invoice as it is after the refund.</param>
+/// <param name="Applied">The amount actually returned (after clamping to the paid amount); 0 on failure.</param>
 public sealed record RefundResult(
     bool Ok,
     string? Error,
-    InvoiceDetail Invoice);
+    InvoiceDetail Invoice,
+    long Applied = 0);
 
 /// <summary>
 /// A single-line return request: the line to return and how many units of it
@@ -386,14 +394,12 @@ public sealed record OwnerRef(
 
 /// <summary>
 /// The result of <see cref="ISalesQueryService.PickOwnerAsync"/>: either a
-/// chosen owner (with an id) or a guest selection (empty id).
+/// chosen owner (with an id) or a guest selection (empty id). Carries only the
+/// fields that affect the outcome: a guest pick keeps the draft's existing guest
+/// customer (a draft is created as guest, so there is nothing to persist), an
+/// owner pick assigns <see cref="OwnerId"/> to the invoice.
 /// </summary>
-public sealed record OwnerPickResult(
-    bool IsGuest,
-    string OwnerId,
-    string OwnerName,
-    string PetName,
-    string Phone);
+public sealed record OwnerPickResult(bool IsGuest, string OwnerId);
 
 /// <summary>
 /// A snapshot of the three inline mini-KPIs above the invoice workspace,

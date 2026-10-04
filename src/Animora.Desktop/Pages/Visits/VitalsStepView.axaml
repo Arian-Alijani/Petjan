@@ -13,8 +13,8 @@
             <TextBlock Grid.Column="1" Classes="sec-hint" Text="اعداد بر اساس معاینهٔ اولیه ثبت می‌شوند" />
         </Grid>
 
-        <UniformGrid Columns="4" Margin="0,0,0,16">
-            <Border Classes="vital" Margin="0,0,5,0">
+        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+            <Border Grid.Column="0" Classes="vital">
                 <StackPanel Spacing="4">
                     <TextBlock Classes="vital-lbl" Text="وزن" />
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
@@ -23,7 +23,7 @@
                     </Grid>
                 </StackPanel>
             </Border>
-            <Border Classes="vital" Margin="0,0,5,0">
+            <Border Grid.Column="1" Classes="vital">
                 <StackPanel Spacing="4">
                     <TextBlock Classes="vital-lbl" Text="دمای بدن" />
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
@@ -32,7 +32,7 @@
                     </Grid>
                 </StackPanel>
             </Border>
-            <Border Classes="vital" Margin="0,0,5,0">
+            <Border Grid.Column="2" Classes="vital">
                 <StackPanel Spacing="4">
                     <TextBlock Classes="vital-lbl" Text="ضربان قلب" />
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
@@ -41,7 +41,7 @@
                     </Grid>
                 </StackPanel>
             </Border>
-            <Border Classes="vital">
+            <Border Grid.Column="3" Classes="vital">
                 <StackPanel Spacing="4">
                     <TextBlock Classes="vital-lbl" Text="تعداد تنفس" />
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
@@ -50,9 +50,9 @@
                     </Grid>
                 </StackPanel>
             </Border>
-        </UniformGrid>
+        </Grid>
 
-        <Grid ColumnDefinitions="*,Auto" Margin="0,20,0,16">
+        <Grid ColumnDefinitions="*,Auto" Margin="0,28,0,16">
             <TextBlock Grid.Column="0" Classes="sec-title" Text="یادداشت اولیهٔ معاینه" />
             <TextBlock Grid.Column="1" Classes="sec-hint" Text="این نوشته در گام بعد توسط شرح‌حال کامل‌تر می‌شود" />
         </Grid>

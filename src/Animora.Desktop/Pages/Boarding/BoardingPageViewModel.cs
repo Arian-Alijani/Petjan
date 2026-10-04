@@ -19,7 +19,7 @@ namespace Animora.Desktop.Pages.Boarding;
 /// and Settings (<c>renderSettingsRooms</c>/<c>renderSettingsSvcs</c>) content,
 /// and the detail / transfer / checkout / new-stay modal flows. All data flows
 /// through <see cref="IBoardingQueryService"/> (the single backend swap point,
-/// R-18) — no sample data or mock branching leaks into this public shape.
+/// R-18) — no sample-data branching leaks into this public shape.
 /// </summary>
 public sealed partial class BoardingPageViewModel : PageViewModelBase
 {
@@ -28,6 +28,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
+    private readonly IPrintService _print;
     private readonly INavigationService _navigation;
 
     private readonly List<BoardingStay> _stays = [];
@@ -35,12 +36,15 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     // Reference page state: S.tab, S.query, S.species, S.section.
     private string _tab = "all";
+    private int _staysVersion;
+    private (int, string, BoardingSpecies?, string)? _renderedKey;
     private string _searchQuery = string.Empty;
     private BoardingSpecies? _species;
 
     public BoardingPageViewModel(IBoardingQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs, INavigationService navigation,
-        IDataChangeNotifier changes)
+        IDataChangeNotifier changes, IPrintService print)
     {
+        _print = print;
         _service = service;
         _changes = changes;
         _readiness = readiness;
@@ -145,10 +149,8 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private bool _hasStays;
 
     // ── Settings tab ────────────────────────────────────────────────────────
-    public ObservableCollection<BoardingRateRowViewModel> RateRows { get; } = [];
     public RangeObservableCollection<BoardingRoomTileViewModel> RoomTiles { get; } = [];
     public RangeObservableCollection<BoardingServiceRowViewModel> ServiceRows { get; } = [];
-    public ObservableCollection<BoardingSettingToggleViewModel> SettingToggles { get; } = [];
 
     partial void OnActiveSectionChanged(string value)
     {
@@ -194,8 +196,10 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     private async Task ReloadStaysAsync()
     {
+        var fresh = await _service.GetStaysAsync();
         _stays.Clear();
-        _stays.AddRange(await _service.GetStaysAsync());
+        _stays.AddRange(fresh);
+        _staysVersion++;
     }
 
     private void RefreshTabCounts()
@@ -210,24 +214,11 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     private bool TabMatches(BoardingStay stay, string tab)
     {
-        var overdue = BoardingStayCardViewModel.IsStayOverdue(stay, _today);
-        var leaving = BoardingStayCardViewModel.IsStayLeaving(stay, _today);
-
-        return tab switch
-        {
-            "all" => true,
-            "current" => stay.Status == BoardingStatus.Active && !leaving && !overdue,
-            "overdue" => overdue,
-            "leaving" => leaving && !overdue,
-            "done" => stay.Status == BoardingStatus.Done,
-            _ => true,
-        };
+        return BoardingStayClassification.Of(stay, _today).MatchesTab(tab);
     }
 
-    private List<BoardingStay> Filtered()
+    private List<BoardingStay> Filtered(string query)
     {
-        var query = PersianText.Normalize(_searchQuery);
-
         return _stays
             .Where(stay =>
             {
@@ -241,15 +232,27 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
                 }
                 return true;
             })
-            .OrderBy(stay => BoardingStayCardViewModel.IsStayOverdue(stay, _today) ? 0 : 1)
+            .OrderBy(stay => BoardingStayClassification.Of(stay, _today).IsOverdue ? 0 : 1)
             .ThenBy(stay => stay.Status == BoardingStatus.Done ? 1 : 0)
             .ThenBy(stay => stay.CheckOut)
             .ToList();
     }
 
+    /// <summary>
+    /// Rebuilds the card grid. Skips the filter+sort+chunk pass when neither the data
+    /// (<see cref="_staysVersion"/>) nor the (tab, species, query) selection changed
+    /// since the last render (PERF §13).
+    /// </summary>
     private void RefreshCards()
     {
-        var rows = Filtered();
+        var key = (_staysVersion, _tab, _species, PersianText.Normalize(_searchQuery));
+        if (_renderedKey is { } last && last.Equals(key))
+        {
+            return;
+        }
+        _renderedKey = key;
+
+        var rows = Filtered(key.Item4);
         var cards = rows.Select(stay => new BoardingStayCardViewModel(stay, _today)).ToList();
         FilteredStays.ReplaceAll(cards);
 
@@ -265,20 +268,6 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
 
     private void BuildSettings()
     {
-        if (RateRows.Count == 0)
-        {
-            RateRows.Add(new BoardingRateRowViewModel("IconDog", "سگ — اتاق معمولی", "بر اساس اندازه — متوسط", "۸۰۰٬۰۰۰"));
-            RateRows.Add(new BoardingRateRowViewModel("IconDog", "سگ — سوئیت VIP", "فضای بزرگ‌تر", "۱٬۲۰۰٬۰۰۰"));
-            RateRows.Add(new BoardingRateRowViewModel("IconCat", "گربه — اتاق معمولی", "اتاق استاندارد", "۵۵۰٬۰۰۰"));
-            RateRows.Add(new BoardingRateRowViewModel("IconBird", "پرنده", "قفس اختصاصی", "۳۲۰٬۰۰۰"));
-            RateRows.Add(new BoardingRateRowViewModel("IconRabbit", "خرگوش / جونده", "قفس کوچک", "۳۸۰٬۰۰۰"));
-
-            SettingToggles.Add(new BoardingSettingToggleViewModel("پیامک پذیرش", "پیامک تأیید پذیرش", "پس از ثبت اقامت به مالک ارسال شود", true));
-            SettingToggles.Add(new BoardingSettingToggleViewModel("یادآور تخلیه", "یادآور یک روز قبل از تخلیه", "پیامک به مالک برای آمادگی تحویل", true));
-            SettingToggles.Add(new BoardingSettingToggleViewModel("انتقال خودکار", "انتقال خودکار فاکتور به صندوق", "پس از تخلیه فاکتور آماده ارسال به صندوق", false));
-            SettingToggles.Add(new BoardingSettingToggleViewModel("هشدار ظرفیت", "هشدار ظرفیت پر", "اعلان هنگام تکمیل ظرفیت پانسیون", true));
-        }
-
         _ = RefreshRoomsAsync();
     }
 
@@ -296,6 +285,23 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     {
         _changes.Notify(DataDomain.Boarding, DataDomain.Cashier, DataDomain.History, DataDomain.Dashboard);
         _ = RefreshAfterChangeAsync();
+    }
+
+    /// <summary>
+    /// Consumed-item add/remove only changes the stay list (costs/badges): refresh that
+    /// scope instead of stays + rooms + services + history (X37).
+    /// </summary>
+    private void RefreshAfterItemChange()
+    {
+        _changes.Notify(DataDomain.Boarding, DataDomain.Cashier, DataDomain.History, DataDomain.Dashboard);
+        _ = RefreshStaysOnlyAsync();
+    }
+
+    private async Task RefreshStaysOnlyAsync()
+    {
+        await ReloadStaysAsync();
+        RefreshTabCounts();
+        RefreshCards();
     }
 
     private async Task RefreshAfterChangeAsync()
@@ -318,7 +324,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     [RelayCommand]
     private void SetTab(string? key)
     {
-        if (string.IsNullOrEmpty(key)) return;
+        if (string.IsNullOrEmpty(key) || key == _tab) return;
         _tab = key;
         RefreshTabCounts();
         RefreshCards();
@@ -370,8 +376,8 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private void ShowDetail(string stayId) =>
         _dialogs.ShowModal(
             new StayDetailModalViewModel(
-                _service, _toast, _dialogs, stayId,
-                onChanged: RefreshAfterWrite,
+                _service, _toast, _dialogs, _print, stayId,
+                onChanged: RefreshAfterItemChange,
                 onTransfer: stay => ShowTransfer(stay),
                 onCheckout: stay => ShowCheckout(stay),
                 onGotoCashier: GotoCashier),
@@ -416,25 +422,4 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
             new NewStayModalViewModel(_service, _toast, _dialogs,
                 onCreated: RefreshAfterWrite),
             maxWidth: 580);
-
-    // ── settings actions (reference bdSettingsSave/bdAddRoom/bdAddService/bdEditSvc) ──
-
-    [RelayCommand]
-    private void SaveRates() => _toast.Show("نرخ‌های شبانه ذخیره شد (نمونه طراحی)");
-
-    [RelayCommand]
-    private void SaveGeneral() => _toast.Show("تنظیمات عمومی ذخیره شد (نمونه طراحی)");
-
-    [RelayCommand]
-    private void AddRoom() => _toast.Show("افزودن اتاق (نمونه طراحی)", Tone.Info);
-
-    [RelayCommand]
-    private void AddService() => _toast.Show("افزودن خدمت (نمونه طراحی)", Tone.Info);
-
-    [RelayCommand]
-    private void EditService(BoardingServiceRowViewModel? service)
-    {
-        if (service is null) return;
-        _toast.Show($"ویرایش «{service.Title}» (نمونه طراحی)", Tone.Info);
-    }
 }

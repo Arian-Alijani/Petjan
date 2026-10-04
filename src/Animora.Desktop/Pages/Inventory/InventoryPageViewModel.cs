@@ -30,7 +30,14 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
 
-    private readonly List<Product> _products = [];
+    // Server-side paging: _loaded holds exactly ONE page for the active category / stock / search filters
+    // (previous/next replaces the window — nothing is appended or kept across pages, same as the Patients page).
+    // The server hard-caps a page at 200 rows (QueryPaging.HardMaxPageSize); "همه" maps to that ceiling.
+    private const int ServerMaxPageSize = 200;
+    private readonly List<Product> _loaded = [];
+    private int _listTotal;
+    private int _catalogTotal;
+    private int _listGeneration;
     private readonly List<CategoryInfo> _categories = [];
     private readonly IStoreReadinessGate _readiness;
 
@@ -62,6 +69,8 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
         UseLoadStatus(ReloadPageAsync);
         // Stock moves with sales, payments and purchases.
+        // A hidden page is never reloaded behind the user's back (the base class gates on visibility); the
+        // entry hook re-reads on the next visit, and a visible refresh re-reads only the rows already shown.
         RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Sales, DataDomain.Cashier, DataDomain.Purchasing);
     }
 
@@ -89,9 +98,82 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     [ObservableProperty]
     private bool _hasProducts;
 
+    // ── Pagination (mirrors PatientsPageViewModel) ─────────────────────────
+    public IReadOnlyList<InventoryPageSizeOption> PageSizeOptions { get; } =
+    [
+        new(25, "۲۵ کالا"),
+        new(50, "۵۰ کالا"),
+        new(100, "۱۰۰ کالا"),
+        new(ServerMaxPageSize, "همه"),
+    ];
+
+    [ObservableProperty]
+    private InventoryPageSizeOption _selectedPageSize = new(50, "۵۰ کالا");
+
+    [ObservableProperty]
+    private int _currentPage = 1;
+
+    private int PageSize => Math.Clamp(SelectedPageSize?.Value ?? 50, 1, ServerMaxPageSize);
+
+    /// <summary>Total number of pages for the active filters (>= 1).</summary>
+    public int PageCount => _listTotal == 0 ? 1 : (int)Math.Ceiling(_listTotal / (double)PageSize);
+
+    /// <summary>Only paginate when the matches span more than one page.</summary>
+    public bool ShowPagination => HasProducts && PageCount > 1;
+
+    public bool CanGoPrevious => CurrentPage > 1;
+    public bool CanGoNext => CurrentPage < PageCount;
+
+    /// <summary>«صفحه ۲ از ۵»</summary>
+    public string PageIndicatorText =>
+        $"صفحه {PersianNumberFormatter.ToPersianDigits(CurrentPage)} از {PersianNumberFormatter.ToPersianDigits(PageCount)}";
+
+    /// <summary>«۵۱–۱۰۰ از ۲۴۰ کالا»</summary>
+    public string PageRangeText
+    {
+        get
+        {
+            if (_listTotal == 0) return string.Empty;
+            var from = ((CurrentPage - 1) * PageSize) + 1;
+            var to = Math.Min(CurrentPage * PageSize, _listTotal);
+            return $"{PersianNumberFormatter.ToPersianDigits(from)}–{PersianNumberFormatter.ToPersianDigits(to)}"
+                 + $" از {PersianNumberFormatter.ToPersianDigits(_listTotal)} کالا";
+        }
+    }
+
+    // Changing the page size snaps back to page 1 and re-queries.
+    partial void OnSelectedPageSizeChanged(InventoryPageSizeOption value) => ReloadFromFilter();
+
+    [RelayCommand(CanExecute = nameof(CanGoNext))]
+    private void NextPage()
+    {
+        if (!CanGoNext) return;
+        CurrentPage++;
+        _ = ReloadListAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanGoPrevious))]
+    private void PreviousPage()
+    {
+        if (!CanGoPrevious) return;
+        CurrentPage--;
+        _ = ReloadListAsync();
+    }
+
+    private void NotifyPaginationDerived()
+    {
+        OnPropertyChanged(nameof(PageCount));
+        OnPropertyChanged(nameof(ShowPagination));
+        OnPropertyChanged(nameof(CanGoPrevious));
+        OnPropertyChanged(nameof(CanGoNext));
+        OnPropertyChanged(nameof(PageIndicatorText));
+        OnPropertyChanged(nameof(PageRangeText));
+        NextPageCommand.NotifyCanExecuteChanged();
+        PreviousPageCommand.NotifyCanExecuteChanged();
+    }
+
     // ── Settings sub-view ───────────────────────────────────────────────────
     public RangeObservableCollection<InventoryCategoryRowViewModel> CategoryRows { get; } = [];
-    public ObservableCollection<InventorySettingToggleViewModel> SettingToggles { get; } = [];
 
     [ObservableProperty]
     private string _settingsCountText = string.Empty;
@@ -117,26 +199,101 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     {
         await _readiness.WaitAsync();
         IsBusy = true;
+        try
+        {
+            _categories.Clear();
+            _categories.AddRange(await _service.GetCategoriesAsync());
 
-        _categories.Clear();
-        _categories.AddRange(await _service.GetCategoriesAsync());
+            await FetchListAsync();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
 
-        _products.Clear();
-        _products.AddRange(await _service.GetProductsAsync());
+        RenderAll();
+    }
 
-        IsBusy = false;
-
+    /// <summary>Rebuilds every section derived from the loaded categories + current page window.</summary>
+    private void RenderAll()
+    {
         BuildSubnavCounts();
         BuildFilterChips();
-        RefreshProducts();
+        RenderProducts();
         BuildSettings();
+    }
+
+    /// <summary>
+    /// Fetches exactly the current page of the active filters' rows. Filtering, ordering and paging all run
+    /// in SQL; a generation token drops a slower stale response. The previous window is always replaced.
+    /// </summary>
+    private async Task FetchListAsync()
+    {
+        var token = ++_listGeneration;
+        var search = _search.Length == 0 ? null : _search;
+        var category = _catFilter == "all" ? null : _catFilter;
+        var stock = _stockFilter switch
+        {
+            "low" => ProductStockFilter.Low,
+            "ok" => ProductStockFilter.Ok,
+            _ => ProductStockFilter.All,
+        };
+
+        var page = await _service.GetProductsAsync(new ProductListQuery(search, category, stock, CurrentPage, PageSize));
+
+        if (token != _listGeneration)
+        {
+            return; // a newer query superseded this one - drop the stale result
+        }
+
+        _loaded.Clear();
+        _loaded.AddRange(page.Items);
+        _listTotal = page.TotalCount;
+
+        // Clamp into range now that the real total is known (e.g. a filter shrank the result set below
+        // the current page index) and re-fetch that last valid page.
+        var clamped = Math.Clamp(CurrentPage, 1, Math.Max(1, PageCount));
+        if (clamped != CurrentPage)
+        {
+            CurrentPage = clamped;
+            await FetchListAsync();
+            return;
+        }
+        // The sub-nav's catalog size is the sum of the per-category counts already loaded — no extra query.
+        _catalogTotal = _categories.Sum(c => c.ProductCount);
+    }
+
+    /// <summary>Re-queries after a filter / search / page change and re-renders the list (not the settings tab).</summary>
+    private async Task ReloadListAsync()
+    {
+        try
+        {
+            await FetchListAsync();
+            BuildSubnavCounts();
+            RenderProducts();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _toast.Show(
+                ex is InvalidOperationException ioe
+                    ? InventoryPresentation.MutationFailureMessage(ioe, "بارگذاری فهرست کالاها ناموفق بود؛ دوباره تلاش کنید")
+                    : "بارگذاری فهرست کالاها ناموفق بود؛ دوباره تلاش کنید",
+                Tone.Danger);
+        }
+    }
+
+    /// <summary>A filter / search / page-size change: snap back to page 1 and re-query.</summary>
+    private void ReloadFromFilter()
+    {
+        CurrentPage = 1;
+        _ = ReloadListAsync();
     }
 
     private void BuildSubnavCounts()
     {
         foreach (var tab in Tabs)
         {
-            var count = tab.Key == "products" ? _products.Count : _categories.Count;
+            var count = tab.Key == "products" ? _catalogTotal : _categories.Count;
             tab.CountText = PersianNumberFormatter.ToPersianDigits(count);
             tab.IsActive = tab.Key == _subnav;
         }
@@ -170,79 +327,122 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     }
 
     /// <summary>
-    /// Applies the reference's <c>renderProducts</c> filters (category, stock
-    /// status, and the name/code/SKU search) and rebuilds the row list.
+    /// Rebuilds the row list from the loaded page window (reference <c>renderProducts</c>). Category, stock
+    /// status and search were already applied by the query, so rows only change when the window changes.
     /// </summary>
-    private void RefreshProducts()
+    private void RenderProducts()
     {
-        var query = PersianText.Normalize(_search);
-
-        IEnumerable<Product> items = _products;
-
-        if (_catFilter != "all")
+        FilteredProducts.ReplaceAll(_loaded.Select(product =>
         {
-            items = items.Where(p => p.CategoryId == _catFilter);
-        }
-
-        if (_stockFilter == "low")
-        {
-            items = items.Where(p => StockStatus(p) != "ok");
-        }
-        else if (_stockFilter == "ok")
-        {
-            items = items.Where(p => StockStatus(p) == "ok");
-        }
-
-        if (query.Length > 0)
-        {
-            items = items.Where(p =>
-            {
-                if (PersianText.Normalize(p.Name).Contains(query, StringComparison.Ordinal)) return true;
-                if (PersianText.Normalize(p.Code).Contains(query, StringComparison.Ordinal)) return true;
-                return p.Variants.Any(v => PersianText.Normalize(v.Sku).Contains(query, StringComparison.Ordinal));
-            });
-        }
-
-        FilteredProducts.ReplaceAll(items.Select(product =>
-        {
-            var category = _categories.FirstOrDefault(c => c.Id == product.CategoryId) ?? _categories[0];
+            var category = _categories.FirstOrDefault(c => c.Id == product.CategoryId)
+                           ?? (_categories.Count > 0 ? _categories[0] : new CategoryInfo(product.CategoryId, string.Empty, "teal"));
             var hasVariants = product.Variants.Count > 1;
             return new InventoryProductRowViewModel(product, category, hasVariants);
         }));
 
-        // Preserve any previously-expanded row state across a re-render.
         HasProducts = FilteredProducts.Count > 0;
-    }
-
-    /// <summary>Mirrors the reference's <c>stockStatus(p)</c>.</summary>
-    private static string StockStatus(Product product)
-    {
-        var lowCount = product.Variants.Count(v => v.Stock <= v.ReorderPoint);
-        if (lowCount == product.Variants.Count) return "out";
-        return lowCount > 0 ? "low" : "ok";
+        NotifyPaginationDerived();
     }
 
     private void BuildSettings()
     {
         CategoryRows.ReplaceAll(_categories.Select(category =>
         {
-            var count = _products.Count(p => p.CategoryId == category.Id);
             return new InventoryCategoryRowViewModel(
-                category.Id, category.Label, category.Tone, category.IconKey, count);
+                category.Id, category.Label, category.Tone, category.ProductCount);
         }));
 
         SettingsCountText =
-            $"{PersianNumberFormatter.ToPersianDigits(_categories.Count)} دسته فعال · تنظیمات دسته‌بندی و برچسب کالاها را اینجا مدیریت کنید.";
+            $"{PersianNumberFormatter.ToPersianDigits(_categories.Count)} دسته فعال · {PersianNumberFormatter.ToPersianDigits(_catalogTotal)} کالا";
+    }
 
-        if (SettingToggles.Count == 0)
+    // ── category management (settings tab) ──────────────────────────────────
+    [ObservableProperty]
+    private string _newCategoryName = string.Empty;
+
+    [RelayCommand]
+    private async Task AddCategory()
+    {
+        var name = NewCategoryName.Trim();
+        if (name.Length == 0)
         {
-            SettingToggles.Add(new InventorySettingToggleViewModel(
-                "هشدار کم‌موجودی", "نمایش نشان هشدار وقتی موجودی به نقطه سفارش رسید.", true));
-            SettingToggles.Add(new InventorySettingToggleViewModel(
-                "ردیابی تاریخ انقضا", "نمایش ستون انقضا و هشدار نزدیک شدن به تاریخ.", true));
-            SettingToggles.Add(new InventorySettingToggleViewModel(
-                "کد کالای خودکار", "تولید خودکار کد هنگام ساخت کالای جدید.", false));
+            _toast.Show("نام دسته را وارد کنید", Tone.Danger);
+            return;
         }
+
+        if (await MutateCategoryAsync(() => _service.CreateCategoryAsync(name), "افزودن دسته ناموفق بود", "دسته اضافه شد"))
+        {
+            NewCategoryName = string.Empty;
+        }
+    }
+
+    [RelayCommand]
+    private void BeginRenameCategory(InventoryCategoryRowViewModel? row)
+    {
+        if (row is null) return;
+        foreach (var other in CategoryRows) other.IsEditing = false;
+        row.EditName = row.Label;
+        row.IsEditing = true;
+    }
+
+    [RelayCommand]
+    private void CancelRenameCategory(InventoryCategoryRowViewModel? row)
+    {
+        if (row is not null) row.IsEditing = false;
+    }
+
+    [RelayCommand]
+    private async Task SaveRenameCategory(InventoryCategoryRowViewModel? row)
+    {
+        if (row is null) return;
+        var name = row.EditName.Trim();
+        if (name.Length == 0)
+        {
+            _toast.Show("نام دسته را وارد کنید", Tone.Danger);
+            return;
+        }
+
+        if (name == row.Label)
+        {
+            row.IsEditing = false;
+            return;
+        }
+
+        await MutateCategoryAsync(() => _service.RenameCategoryAsync(row.Id, name), "تغییر نام دسته ناموفق بود", "نام دسته به‌روز شد");
+    }
+
+    [RelayCommand]
+    private void DeleteCategory(InventoryCategoryRowViewModel? row)
+    {
+        if (row is null) return;
+        if (!row.CanDelete)
+        {
+            _toast.Show("این دسته هنوز کالا دارد؛ ابتدا کالاها را به دسته دیگری منتقل کنید", Tone.Danger);
+            return;
+        }
+
+        _dialogs.ShowModal(new Animora.Desktop.Pages.Sales.Shared.ConfirmDialogViewModel(
+            _dialogs, "danger", "IconTrash", "حذف دسته", "دسته ", row.Label, " حذف شود؟",
+            "این عمل قابل بازگشت نیست.", "حذف", "انصراف",
+            () => _ = MutateCategoryAsync(() => _service.DeleteCategoryAsync(row.Id), "حذف دسته ناموفق بود", "دسته حذف شد")), 420);
+    }
+
+    /// <summary>Runs one category mutation, toasts the outcome and reloads categories + list on success.</summary>
+    private async Task<bool> MutateCategoryAsync(Func<Task> action, string failure, string success)
+    {
+        try
+        {
+            await action();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(InventoryPresentation.MutationFailureMessage(ex, failure), Tone.Danger);
+            return false;
+        }
+
+        _toast.Show(success, Tone.Ok);
+        Refresh();
+        return true;
     }
 
     // ── commands ────────────────────────────────────────────────────────────
@@ -271,7 +471,9 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
         BuildSubnavCounts();
         BuildFilterChips();
-        RefreshProducts();
+        if (key == "settings") return;
+
+        ReloadFromFilter();
     }
 
     [RelayCommand]
@@ -280,7 +482,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         if (string.IsNullOrEmpty(id)) return;
         _catFilter = id;
         BuildFilterChips();
-        RefreshProducts();
+        ReloadFromFilter();
     }
 
     [RelayCommand]
@@ -289,7 +491,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         if (string.IsNullOrEmpty(key)) return;
         _stockFilter = key;
         BuildFilterChips();
-        RefreshProducts();
+        ReloadFromFilter();
     }
 
     // The bound search box drives the filter through the ViewModel: update the
@@ -302,8 +504,11 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
 
     public void ApplySearch(string? text)
     {
-        _search = text?.Trim() ?? string.Empty;
-        RefreshProducts();
+        var normalized = text?.Trim() ?? string.Empty;
+        if (string.Equals(normalized, _search, StringComparison.Ordinal)) return;
+
+        _search = normalized;
+        ReloadFromFilter();
     }
 
     [RelayCommand]
@@ -380,52 +585,40 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private void Refresh()
     {
         _changes.Notify(DataDomain.Inventory, DataDomain.Dashboard);
-        _ = ReloadAsync();
+        _ = ReloadSafeAsync();
+    }
+
+    /// <summary>Post-mutation reload that never leaves a faulting task unobserved: a failure surfaces as a danger toast.</summary>
+    private async Task ReloadSafeAsync()
+    {
+        try
+        {
+            await ReloadAsync();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _toast.Show(
+                ex is InvalidOperationException ioe
+                    ? InventoryPresentation.MutationFailureMessage(ioe, "به‌روزرسانی فهرست کالاها ناموفق بود؛ دوباره تلاش کنید")
+                    : "به‌روزرسانی فهرست کالاها ناموفق بود؛ دوباره تلاش کنید",
+                Tone.Danger);
+        }
     }
 
     private async Task ReloadAsync()
     {
         IsBusy = true;
-        _categories.Clear();
-        _categories.AddRange(await _service.GetCategoriesAsync());
-        _products.Clear();
-        _products.AddRange(await _service.GetProductsAsync());
-        IsBusy = false;
-
-        BuildSubnavCounts();
-        BuildFilterChips();
-        RefreshProducts();
-        BuildSettings();
-    }
-
-    // ── settings actions (reference new-cat / save-settings / del-cat) ──────
-
-    [RelayCommand]
-    private void AddCategory() => _toast.Show("افزودن دسته — نمونه طراحی");
-
-    [RelayCommand]
-    private void SaveSettings() => _toast.Show("تنظیمات ذخیره شد — نمونه طراحی");
-
-    [RelayCommand]
-    private void PickTone(InventoryToneOptionViewModel? option)
-    {
-        if (option is null) return;
-
-        var row = CategoryRows.FirstOrDefault(r => r.ToneOptions.Contains(option));
-        row?.ApplyTone(option.Tone);
-    }
-
-    [RelayCommand]
-    private void DeleteCategory(InventoryCategoryRowViewModel? row)
-    {
-        if (row is null) return;
-
-        if (_products.Any(p => p.CategoryId == row.Id))
+        try
         {
-            _toast.Show("این دسته دارای کالاست و حذف نمی‌شود", Tone.Warn);
-            return;
+            _categories.Clear();
+            _categories.AddRange(await _service.GetCategoriesAsync());
+            await FetchListAsync();
+        }
+        finally
+        {
+            IsBusy = false;
         }
 
-        _toast.Show("دسته حذف شد — نمونه طراحی");
+        RenderAll();
     }
 }

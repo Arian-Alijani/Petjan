@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.History;
 using Animora.Desktop.Controls;
@@ -155,7 +151,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
             {
                 _sort = (HistorySort)clamped;
                 OnPropertyChanged();
-                _ = ReloadAsync(resetPage: true);
+                _ = ReloadSafeAsync(resetPage: true);
             }
         }
     }
@@ -172,7 +168,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
             {
                 _pageSize = size;
                 OnPropertyChanged();
-                _ = ReloadAsync(resetPage: true);
+                _ = ReloadSafeAsync(resetPage: true);
             }
         }
     }
@@ -180,7 +176,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     partial void OnSearchTextChanged(string value)
     {
         HasSearchValue = !string.IsNullOrWhiteSpace(value);
-        _searchDebounce.Debounce(() => _ = ReloadAsync(resetPage: true));
+        _searchDebounce.Debounce(() => _ = ReloadSafeAsync(resetPage: true));
     }
 
     partial void OnFromDateChanged(string value) => OnDateRangeEdited();
@@ -195,7 +191,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
 
         SyncRangeChips();
-        _ = ReloadAsync(resetPage: true);
+        _ = ReloadSafeAsync(resetPage: true);
     }
 
     // ── Chip builders ────────────────────────────────────────────────────
@@ -211,7 +207,18 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
             new HistoryRangeViewModel("all", "همه", string.Empty, string.Empty),
         ]);
 
-        // Default to the last 30 days (mirrors the reference's initial period).
+        ApplyDefaultRange();
+    }
+
+    /// <summary>
+    /// The screen's one opening range — the last 30 days (mirrors the reference's
+    /// initial period). Used both when the page opens and by «پاک‌سازی فیلترها»
+    /// (P2-17) so a reset lands on exactly the same window instead of an
+    /// unbounded «همه» that can pull the entire feed.
+    /// </summary>
+    private void ApplyDefaultRange()
+    {
+        var today = JalaliCalendar.Today;
         _suppressDateReload = true;
         FromDate = JalaliCalendar.AddDays(today, -29);
         ToDate = today;
@@ -254,7 +261,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         _suppressDateReload = false;
 
         SyncRangeChips();
-        _ = ReloadAsync(resetPage: true);
+        _ = ReloadSafeAsync(resetPage: true);
     }
 
     [RelayCommand]
@@ -266,7 +273,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         _suppressDateReload = false;
 
         SyncRangeChips();
-        _ = ReloadAsync(resetPage: true);
+        _ = ReloadSafeAsync(resetPage: true);
     }
 
     [RelayCommand]
@@ -283,7 +290,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
 
         SyncAllKindsFlag();
-        _ = ReloadAsync(resetPage: true);
+        _ = ReloadSafeAsync(resetPage: true);
     }
 
     /// <summary>«همه» — activate every kind filter at once (or clear them when all are already on).</summary>
@@ -303,7 +310,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
 
         SyncAllKindsFlag();
-        _ = ReloadAsync(resetPage: true);
+        _ = ReloadSafeAsync(resetPage: true);
     }
 
     [RelayCommand]
@@ -313,13 +320,14 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     private void ResetFilters()
     {
         _selectedKinds.Clear();
+
+        SearchText = string.Empty;
+        // Clearing the text re-arms the search debounce; cancel it so the single
+        // explicit reload below is the only round-trip.
         _searchDebounce.Cancel();
 
-        _suppressDateReload = true;
-        SearchText = string.Empty;
-        FromDate = string.Empty;
-        ToDate = string.Empty;
-        _suppressDateReload = false;
+        // Restore the exact opening state: last-30 range (not unbounded «همه»).
+        ApplyDefaultRange();
 
         HasSearchValue = false;
         foreach (var chip in CategoryChips)
@@ -328,8 +336,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
 
         SyncAllKindsFlag();
-        SyncRangeChips();
-        _ = ReloadAsync(resetPage: true);
+        _ = ReloadSafeAsync(resetPage: true);
     }
 
     [RelayCommand]
@@ -341,7 +348,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
 
         _page--;
-        _ = ReloadAsync(resetPage: false);
+        _ = ReloadSafeAsync(resetPage: false);
     }
 
     [RelayCommand]
@@ -353,10 +360,30 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
 
         _page++;
-        _ = ReloadAsync(resetPage: false);
+        _ = ReloadSafeAsync(resetPage: false);
     }
 
     // ── Loading ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Fire-and-forget entry for filter / paging changes: a failing reload is observed here (danger toast, spinner
+    /// released by <see cref="ReloadAsync"/>'s finally) instead of faulting an unobserved task.
+    /// </summary>
+    private async Task ReloadSafeAsync(bool resetPage)
+    {
+        try
+        {
+            await ReloadAsync(resetPage);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _toast.Show(
+                ex is InvalidOperationException ioe
+                    ? Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ioe, "بارگذاری تاریخچه ناموفق بود؛ دوباره تلاش کنید")
+                    : "بارگذاری تاریخچه ناموفق بود؛ دوباره تلاش کنید",
+                Tone.Danger);
+        }
+    }
 
     private async Task ReloadAsync(bool resetPage)
     {
@@ -371,14 +398,23 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
 
         try
         {
-            var filter = new HistoryFilter(
-                FromDate, ToDate, _selectedKinds.ToArray(), SearchText.Trim(), _sort, _page, _pageSize);
-
-            var page = await _service.GetPageAsync(filter);
-
+            var page = await QueryPageAsync();
             if (token != _generation)
             {
                 return; // a newer reload superseded this one — drop the stale result
+            }
+
+            // The set can shrink under the user (data changed elsewhere): clamp to the last page and re-query once
+            // inside this same awaited reload, instead of a re-entrant fire-and-forget round trip.
+            var totalPages = TotalPages(page.TotalCount);
+            if (_page > totalPages)
+            {
+                _page = totalPages;
+                page = await QueryPageAsync();
+                if (token != _generation)
+                {
+                    return;
+                }
             }
 
             ApplyPage(page);
@@ -392,18 +428,16 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         }
     }
 
+    private Task<HistoryPage> QueryPageAsync() => _service.GetPageAsync(new HistoryFilter(
+        FromDate, ToDate, _selectedKinds.ToArray(), SearchText.Trim(), _sort, _page, _pageSize));
+
+    private int TotalPages(int totalCount) => Math.Max(1, (int)Math.Ceiling(totalCount / (double)_pageSize));
+
     private void ApplyPage(HistoryPage page)
     {
-        var totalPages = Math.Max(1, (int)Math.Ceiling(page.TotalCount / (double)_pageSize));
+        var totalPages = TotalPages(page.TotalCount);
 
-        if (_page > totalPages)
-        {
-            _page = totalPages;
-            _ = ReloadAsync(resetPage: false);
-            return;
-        }
-
-        RenderFeed(page.Items);
+        RenderFeed(page.Items, page.DayNets);
 
         HasEvents = page.TotalCount > 0;
         IsEmpty = page.TotalCount == 0;
@@ -431,9 +465,9 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         NextPageCommand.NotifyCanExecuteChanged();
     }
 
-    // ── Ledger feed (day-grouped over the current page only) ─────────────
+    // ── Ledger feed (day-grouped; each day net is the full-day figure computed server-side) ─────────────
 
-    private void RenderFeed(IReadOnlyList<HistoryEvent> items)
+    private void RenderFeed(IReadOnlyList<HistoryEvent> items, IReadOnlyDictionary<string, long>? dayNets)
     {
         if (items.Count == 0)
         {
@@ -449,8 +483,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
                 Title = HistoryText.Title(e.Title),
                 Detail = HistoryText.Detail(e.Detail),
             })).ToList();
-            var net = group.Where(e => e.AmountSign == 1).Sum(e => e.Amount)
-                      - group.Where(e => e.AmountSign == -1).Sum(e => e.Amount);
+            var net = dayNets is not null && dayNets.TryGetValue(group.Key, out var fullDayNet) ? fullDayNet : 0;
 
             groups.Add(new HistoryDayGroupViewModel(
                 group.Key,
@@ -465,20 +498,18 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
 
     // ── CSV export (over the whole filtered set) ─────────────────────────
 
+    private static readonly HistoryCsvLabels _csvLabels = new(
+        ["تاریخ", "زمان", "عنوان", "جزئیات", "موجودیت", "مبلغ", "علامت", "وضعیت", "کاربر"],
+        HistoryText.Title,
+        HistoryText.Detail,
+        HistoryPresentation.StatusLabel);
+
     [RelayCommand]
     private async Task ExportCsvAsync()
     {
         var filter = new HistoryFilter(
             FromDate, ToDate, _selectedKinds.ToArray(), SearchText.Trim(), _sort, 1, _pageSize);
-        var csv = await _service.ExportCsvAsync(filter);
-        csv = csv.Replace("Date,Time,Title,Detail,Entity,Amount,Sign,Status,Actor",
-            "تاریخ,زمان,عنوان,جزئیات,موجودیت,مبلغ,علامت,وضعیت,کاربر", StringComparison.Ordinal);
-        foreach (var key in new[] { "history.pet.registered", "history.visit.completed",
-            "history.vaccine.administered", "history.appointment.booked", "history.appointment.cancelled",
-            "history.stay.activated", "history.stay.checkedout", "history.goods.received",
-            "history.stock.adjusted", "history.invoice.posted", "history.payment.registered",
-            "history.invoice.refunded", "history.cheque.statuschanged", "history.expense.recorded" })
-            csv = csv.Replace(key, HistoryText.Title(key), StringComparison.Ordinal);
+        var csv = await _service.ExportCsvAsync(filter, _csvLabels);
 
         var suggested = "history-" + JalaliCalendar.Today.Replace('/', '-') + ".csv";
         var saved = await _dialogs.SaveTextFileAsync(suggested, csv, "csv");

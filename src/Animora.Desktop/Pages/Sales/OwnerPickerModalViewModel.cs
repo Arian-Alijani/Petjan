@@ -37,10 +37,10 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
         _invoiceId = invoiceId;
         _onPicked = onPicked;
 
-        _ = SearchAsync();
+        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری فهرست مشتریان ناموفق بود؛ دوباره تلاش کنید", SearchAsync);
     }
 
-    public ObservableCollection<OwnerRowViewModel> Rows { get; } = [];
+    public RangeObservableCollection<OwnerRowViewModel> Rows { get; } = [];
 
     [ObservableProperty]
     private string _query = string.Empty;
@@ -51,16 +51,25 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
     [ObservableProperty]
     private bool _showNoResult;
 
-    partial void OnQueryChanged(string value) => _ = SearchAsync();
+    // Typing is debounced (like every other search field) so a fast typist issues one lookup, not one per
+    // character (PERFORMANCE.md §2/§13).
+    private readonly Debouncer _queryDebounce = new(TimeSpan.FromMilliseconds(200));
+
+    // Monotonic request token: a slow earlier response must never overwrite a newer query's rows.
+    private int _generation;
+
+    partial void OnQueryChanged(string value) => _queryDebounce.Debounce(() => _ = SearchAsync());
 
     private async Task SearchAsync()
     {
+        var token = ++_generation;
         var owners = await _service.GetOwnersAsync(Query.Trim());
-        Rows.Clear();
-        foreach (var o in owners)
+        if (token != _generation)
         {
-            Rows.Add(new OwnerRowViewModel(o));
+            return;
         }
+
+        Rows.ReplaceAll(owners.Select(o => new OwnerRowViewModel(o)));
 
         HasRows = Rows.Count > 0;
         ShowNoResult = Rows.Count == 0;
@@ -75,9 +84,12 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
             return;
         }
 
-        var pick = new OwnerPickResult(
-            false, row.Id, row.FullName, row.PetName, row.Mobile);
-        await _service.PickOwnerAsync(_invoiceId, pick);
+        var pick = new OwnerPickResult(false, row.Id);
+        if (!await TryPickAsync(pick))
+        {
+            return;
+        }
+
         _dialogs.Close();
         _toast.Show($"مشتری «{row.FullName}» انتخاب شد", Tone.Ok);
         _onPicked?.Invoke();
@@ -86,9 +98,31 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
     [RelayCommand]
     private async Task SelectGuestAsync()
     {
-        await _service.PickOwnerAsync(_invoiceId, new OwnerPickResult(true, string.Empty, string.Empty, string.Empty, string.Empty));
+        if (!await TryPickAsync(new OwnerPickResult(true, string.Empty)))
+        {
+            return;
+        }
+
         _dialogs.Close();
         _onPicked?.Invoke();
+    }
+
+    /// <summary>Assigns the pick; a backend failure keeps the picker open with a danger toast (X09).</summary>
+    private async Task<bool> TryPickAsync(OwnerPickResult pick)
+    {
+        try
+        {
+            await _service.PickOwnerAsync(_invoiceId, pick);
+            return true;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(
+                Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(
+                    ex, "انتخاب مشتری ناموفق بود؛ دوباره تلاش کنید"),
+                Tone.Danger);
+            return false;
+        }
     }
 
     [RelayCommand]

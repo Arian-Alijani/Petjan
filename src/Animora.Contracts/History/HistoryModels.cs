@@ -179,8 +179,13 @@ public sealed record HistoryFilter(
 /// <param name="TotalCount">The number of rows matching the filter.</param>
 /// <param name="IncomeTotal">The sum of every matching income row (+).</param>
 /// <param name="ExpenseTotal">The sum of every matching expense row (returned as a positive magnitude).</param>
+/// <param name="DayNets">
+/// Net (income − expense) per Jalali day (<c>yyyy/MM/dd</c>) for each day present on the page, computed over the
+/// <b>whole</b> filtered set so a day split across pages shows the same full-day net on every page.
+/// </param>
 public sealed record HistoryPage(
     IReadOnlyList<HistoryEvent> Items,
     int TotalCount,
     long IncomeTotal,
-    long ExpenseTotal);
+    long ExpenseTotal,
+    IReadOnlyDictionary<string, long>? DayNets = null);

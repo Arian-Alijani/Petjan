@@ -4,6 +4,7 @@ using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Sales;
 using Animora.Application.UseCases.Sales.ReadModels;
+using Animora.Client.Services.Payments;
 using Animora.Contracts.Sales;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
@@ -102,33 +103,30 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         return list;
     }
 
-    public async Task<SaleKpiSnapshot> GetKpisAsync()
+    public async Task<SaleKpiSnapshot> GetKpisAsync(IReadOnlyList<InvoiceSummary> invoices, int readyVisitCount)
     {
+        ArgumentNullException.ThrowIfNull(invoices);
         var (now, zone) = Calendar();
-        var (from, to) = ClinicDayWindow(now, zone);
+        var (from, to) = Animora.Client.Services.ClinicDayWindow.Of(now, zone);
 
+        // Only the settled-today figure is a query of its own; the open receivables and the ready count come
+        // from the lists the page has already loaded, so a refresh issues each underlying query once (X28).
         var kpi = await QueryAsync(new SaleKpiQuery(from, to));
-        var open = await QueryAsync(new InvoiceListQuery(null, 1, MaxPageSize));
-        var ready = await QueryAsync(new ReadyForBillingQuery());
 
         long openDue = 0;
         var openCount = 0;
-        if (open.IsSuccess && open.Value is not null)
+        for (var i = 0; i < invoices.Count; i++)
         {
-            foreach (var invoice in open.Value.Items)
+            // Contract Draft covers domain Draft+Posted; Partial is PartiallyPaid — the same "open" set as before.
+            if (invoices[i].State is ContractInvoiceState.Draft or ContractInvoiceState.Partial)
             {
-                if (invoice.State is DomainInvoiceState.Draft or DomainInvoiceState.Posted
-                    or DomainInvoiceState.PartiallyPaid)
-                {
-                    openDue += invoice.DueMinor;
-                    openCount++;
-                }
+                openDue += invoices[i].Due;
+                openCount++;
             }
         }
 
         var revenue = kpi.IsSuccess && kpi.Value is not null ? kpi.Value.RevenueMinor : 0L;
-        var readyCount = ready.IsSuccess && ready.Value is not null ? ready.Value.Count : 0;
-        return new SaleKpiSnapshot(revenue, openDue, openCount, readyCount);
+        return new SaleKpiSnapshot(revenue, openDue, openCount, Math.Max(0, readyVisitCount));
     }
 
     public async Task<CatalogSnapshot> GetCatalogAsync()
@@ -152,8 +150,8 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     {
         ArgumentNullException.ThrowIfNull(filter);
         var (_, zone) = Calendar();
-        var from = ParseJalali(filter.FromDate, zone, endOfDay: false);
-        var to = ParseJalali(filter.ToDate, zone, endOfDay: true);
+        var from = Animora.Client.Services.ClinicDayWindow.ParseJalali(filter.FromDate, zone, endOfDay: false);
+        var to = Animora.Client.Services.ClinicDayWindow.ParseJalali(filter.ToDate, zone, endOfDay: true);
         var kind = filter.Kinds.Count == 1 ? SalesMapping.HistoryFilterKind(filter.Kinds.First()) : null;
 
         var result = await QueryAsync(new SalesHistoryQuery(from, to, filter.Search, kind,
@@ -183,7 +181,7 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         return await RequireDetailAsync(id ?? throw new InvalidOperationException("INVOICE_NOT_FOUND"));
     }
 
-    public async Task<InvoiceDetail> CreateBlankAsync(InvoiceKind kind)
+    public async Task<InvoiceDetail> CreateBlankAsync()
     {
         // A blank counter sale starts as a guest; the picker then assigns a real owner.
         var created = await SendAsync(new CreateBlankInvoiceCommand(null, "مشتری مهمان", null));
@@ -206,22 +204,21 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         return await RequireDetailAsync(invoiceId);
     }
 
-    public async Task<InvoiceDetail?> EditLineAsync(string invoiceId, int lineIndex, int quantity, int discountPercent)
+    // Line edits are addressed by the LineId the user saw, not a freshly re-derived index: the domain rejects a
+    // mismatch with INVOICE_LINE_INDEX_STALE, which surfaces as a typed ServiceException (X27).
+    public async Task<InvoiceDetail?> EditLineAsync(
+        string invoiceId, int lineIndex, string lineId, int quantity, int discountPercent)
     {
-        var current = await ReadModelAsync(invoiceId);
-        var line = LineAt(current, lineIndex);
-        if (line is null) return null;
-        _ = await SendAsync(new EditInvoiceLineCommand(invoiceId, lineIndex, line.LineId,
+        var sent = await SendAsync(new EditInvoiceLineCommand(invoiceId, lineIndex, lineId,
             Math.Max(1, quantity), Math.Clamp(discountPercent, 0, 100)));
+        if (sent.IsFailure) throw new ServiceException(sent.Error);
         return await ReadDetailAsync(invoiceId);
     }
 
-    public async Task<InvoiceDetail?> RemoveLineAsync(string invoiceId, int lineIndex)
+    public async Task<InvoiceDetail?> RemoveLineAsync(string invoiceId, int lineIndex, string lineId)
     {
-        var current = await ReadModelAsync(invoiceId);
-        var line = LineAt(current, lineIndex);
-        if (line is null) return null;
-        _ = await SendAsync(new RemoveInvoiceLineCommand(invoiceId, lineIndex, line.LineId));
+        var sent = await SendAsync(new RemoveInvoiceLineCommand(invoiceId, lineIndex, lineId));
+        if (sent.IsFailure) throw new ServiceException(sent.Error);
         return await ReadDetailAsync(invoiceId);
     }
 
@@ -265,40 +262,15 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     public async Task<PaymentResult> TakePaymentAsync(string invoiceId, PaymentRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var current = await ReadModelAsync(invoiceId);
-        if (current is null) return new PaymentResult(false, "INVOICE_NOT_FOUND", 0, false, null!);
-
-        if (current.Summary.State is DomainInvoiceState.Void or DomainInvoiceState.Refunded)
-        {
-            return new PaymentResult(false, "INVOICE_IMMUTABLE", 0, false, await RequireDetailAsync(invoiceId));
-        }
-
-        // Pay-on-post: a draft becomes a real posted document the moment money moves (one logical op).
-        if (current.Summary.State == DomainInvoiceState.Draft)
-        {
-            var posted = await SendAsync(new PostInvoiceCommand(invoiceId));
-            if (posted.IsFailure)
-            {
-                return new PaymentResult(false, "INVOICE_NOT_POSTED", 0, false, await RequireDetailAsync(invoiceId));
-            }
-        }
-
-        var due = current.Summary.DueMinor;
-        var amount = Math.Min(Math.Max(0, request.Amount), Math.Max(0, due));
-        if (amount <= 0)
-        {
-            return new PaymentResult(false, "PAYMENT_EXCEEDS_DUE", 0, false, await RequireDetailAsync(invoiceId));
-        }
-
-        var sent = await SendAsync(new RegisterPaymentCommand(invoiceId, request.Method.ToDomain(),
-            Money.Irt(amount)));
-        if (sent.IsFailure)
-        {
-            return new PaymentResult(false, "PAYMENT_FAILED", 0, false, await RequireDetailAsync(invoiceId));
-        }
+        // One shared pay-on-post / cap-to-due path for Sales and Cashier (X41).
+        var outcome = await InvoicePaymentCore.PayAsync(invoiceId, InvoicePaymentCore.ToDomain(request.Method),
+            request.Amount, null, command => SendAsync(command), () => ReadModelAsync(invoiceId));
+        if (outcome.Error == "INVOICE_NOT_FOUND") return new PaymentResult(false, outcome.Error, 0, false, null!);
 
         var updated = await RequireDetailAsync(invoiceId);
-        return new PaymentResult(true, null, amount, updated.State == ContractInvoiceState.Settled, updated);
+        return outcome.Ok
+            ? new PaymentResult(true, null, outcome.Applied, updated.State == ContractInvoiceState.Settled, updated)
+            : new PaymentResult(false, outcome.Error, 0, false, updated);
     }
 
     public async Task<InvoiceDetail?> VoidAsync(string invoiceId)
@@ -314,25 +286,14 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     public async Task<RefundResult> RefundAsync(string invoiceId, RefundRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var current = await ReadModelAsync(invoiceId);
-        if (current is null) return new RefundResult(false, "INVOICE_NOT_FOUND", null!);
-        if (current.Summary.State is not (DomainInvoiceState.PartiallyPaid or DomainInvoiceState.Paid))
-        {
-            return new RefundResult(false, "INVOICE_IMMUTABLE", await RequireDetailAsync(invoiceId));
-        }
+        var outcome = await InvoicePaymentCore.RefundAsync(invoiceId, request.Amount, DefaultReason,
+            command => SendAsync(command), () => ReadModelAsync(invoiceId));
+        if (outcome.Error == "INVOICE_NOT_FOUND") return new RefundResult(false, outcome.Error, null!);
 
-        var amount = Math.Min(Math.Max(0, request.Amount), current.PaidMinor);
-        if (amount <= 0)
-        {
-            return new RefundResult(false, "ADJUSTMENT_EXCEEDS_PAID", await RequireDetailAsync(invoiceId));
-        }
-
-        var sent = await SendAsync(new RefundInvoiceCommand(invoiceId, Money.Irt(amount), DefaultReason));
-        if (sent.IsFailure)
-        {
-            return new RefundResult(false, "REFUND_FAILED", await RequireDetailAsync(invoiceId));
-        }
-        return new RefundResult(true, null, await RequireDetailAsync(invoiceId));
+        var updated = await RequireDetailAsync(invoiceId);
+        return outcome.Ok
+            ? new RefundResult(true, null, updated, outcome.Applied)
+            : new RefundResult(false, outcome.Error, updated);
     }
 
     public async Task<LineReturnResult> ReturnLineAsync(string invoiceId, LineReturnRequest request)
@@ -406,43 +367,6 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         var clock = scope.ServiceProvider.GetRequiredService<IClock>();
         var zone = scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
         return (clock.UtcNow, zone);
-    }
-
-    /// <summary>The UTC window covering one clinic-local day (the settled-today KPI window).</summary>
-    private static (DateTimeOffset From, DateTimeOffset To) ClinicDayWindow(DateTimeOffset now, TimeZoneInfo tz)
-    {
-        var local = TimeZoneInfo.ConvertTime(now, tz).Date;
-        var start = new DateTimeOffset(DateTime.SpecifyKind(local, DateTimeKind.Unspecified), tz.GetUtcOffset(local));
-        return (start.ToUniversalTime(), start.AddDays(1).ToUniversalTime());
-    }
-
-    /// <summary>
-    /// Parses an ASCII Jalali <c>yyyy/MM/dd</c> bound from the history filter into a UTC instant, honouring
-    /// the clinic zone. An empty/unparseable value yields <c>null</c> (unbounded on that side).
-    /// </summary>
-    private static DateTimeOffset? ParseJalali(string value, TimeZoneInfo tz, bool endOfDay)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return null;
-        var parts = value.Split('/');
-        if (parts.Length != 3) return null;
-        if (!int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var year)
-            || !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var month)
-            || !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var day))
-        {
-            return null;
-        }
-
-        try
-        {
-            var calendar = new PersianCalendar();
-            var local = calendar.ToDateTime(year, month, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, 0, 0);
-            var unspecified = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
-            return new DateTimeOffset(unspecified, tz.GetUtcOffset(unspecified)).ToUniversalTime();
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            return null;
-        }
     }
 
     private static (IDispatcher Dispatcher, ICurrentUserProvider Provider, IClinicTimeZoneProvider Zones) Resolve(

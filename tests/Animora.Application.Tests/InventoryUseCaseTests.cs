@@ -249,7 +249,8 @@ internal sealed class InventoryQueriesFake : IInventoryQueries
     public int MovementsSince { get; set; }
 
     public Task<PagedResult<ProductReadModel>> GetCatalogAsync(
-        string? search, string? categoryId, bool lowStockOnly, int page, int pageSize, CancellationToken ct) =>
+        string? search, string? categoryId, bool lowStockOnly, int page, int pageSize, CancellationToken ct,
+        bool okStockOnly = false) =>
         Task.FromResult(new PagedResult<ProductReadModel>([], 0, page, pageSize));
     public Task<ProductDetailReadModel?> GetDetailAsync(string productId, CancellationToken ct) =>
         Task.FromResult<ProductDetailReadModel?>(null);
@@ -262,6 +263,8 @@ internal sealed class InventoryQueriesFake : IInventoryQueries
         Task.FromResult(OnHandScaled);
     public Task<long> GetProductOnHandScaledAsync(string productId, CancellationToken ct) =>
         Task.FromResult(ProductOnHandScaled);
+    public Task<bool> ProductSkuExistsAsync(string sku, string excludeProductId, CancellationToken ct) =>
+        Task.FromResult(false);
     public Task<int> CountMovementsSinceAsync(string productId, DateTimeOffset sinceUtc, CancellationToken ct) =>
         Task.FromResult(MovementsSince);
 }

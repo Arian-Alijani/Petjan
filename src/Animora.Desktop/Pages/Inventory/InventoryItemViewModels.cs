@@ -101,7 +101,7 @@ public sealed class InventoryVariantRowViewModel
         ProductId = productId;
         Label = variant.Label;
         Sku = variant.Sku;
-        IsLow = variant.Stock <= variant.ReorderPoint;
+        IsLow = StockStatus.IsLow(variant);
         StockText = $"{InventoryPresentation.Money(variant.Stock)} عدد";
         CostText = $"{InventoryPresentation.Money(variant.Cost)} ت";
         PriceText = $"{InventoryPresentation.Money(variant.Price)} ت";
@@ -145,8 +145,6 @@ public sealed partial class InventoryProductRowViewModel : ObservableObject
     public InventoryProductRowViewModel(Product product, CategoryInfo category, bool hasVariants)
     {
         Product = product;
-        Glyph = product.Glyph;
-        ThumbBrush = InventoryPresentation.ThumbBrush(product.Tone);
         Name = product.Name;
         Brand = product.Brand;
         Code = product.Code;
@@ -159,10 +157,9 @@ public sealed partial class InventoryProductRowViewModel : ObservableObject
         HasVariants = hasVariants;
         VariantCountText = PersianNumberFormatter.ToPersianDigits(product.Variants.Count);
 
-        // Stock status, mirroring the reference's stockStatus(p): all variants
-        // at/below their reorder point → "out"; some → "low"; else "ok".
-        var lowCount = product.Variants.Count(v => v.Stock <= v.ReorderPoint);
-        var status = lowCount == product.Variants.Count ? "out" : lowCount > 0 ? "low" : "ok";
+        // Stock status comes from the one shared rule (StockStatus, P2-16) so the
+        // row badge/bar and the per-variant «کم‌موجود» flag can never drift.
+        var status = StockStatus.Key(StockStatus.Of(product.Variants));
 
         var stock = product.Variants.Sum(v => v.Stock);
         StockText = $"{InventoryPresentation.Money(stock)} عدد";
@@ -201,10 +198,6 @@ public sealed partial class InventoryProductRowViewModel : ObservableObject
     }
 
     public Product Product { get; }
-
-    public string Glyph { get; }
-
-    public IBrush ThumbBrush { get; }
 
     public string Name { get; }
 
@@ -256,4 +249,14 @@ public sealed partial class InventoryProductRowViewModel : ObservableObject
     public ObservableCollection<InventoryVariantRowViewModel> Variants { get; }
 
     partial void OnIsExpandedChanged(bool value) => OnPropertyChanged(nameof(RowBackground));
+}
+
+/// <summary>
+/// A selectable records-per-page option for the inventory list (mirrors
+/// <c>PatientsPageSizeOption</c>): <see cref="Value"/> is the page size (200 = the server ceiling,
+/// shown as «همه»); <see cref="Label"/> is the Persian caption shown in the dropdown.
+/// </summary>
+public sealed record InventoryPageSizeOption(int Value, string Label)
+{
+    public override string ToString() => Label;
 }

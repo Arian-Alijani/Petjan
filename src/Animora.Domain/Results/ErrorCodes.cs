@@ -362,6 +362,9 @@ public static class ErrorCodes
 
     public static readonly ErrorCode ProductNotFound = new("PRODUCT_NOT_FOUND", ErrorCode.NotFound);
     public static readonly ErrorCode ProductHasStock = new("PRODUCT_HAS_STOCK", ErrorCode.Conflict);
+    public static readonly ErrorCode CategoryNotFound = new("CATEGORY_NOT_FOUND", ErrorCode.NotFound);
+    public static readonly ErrorCode CategoryNameDuplicate = new("CATEGORY_NAME_DUPLICATE", ErrorCode.Conflict);
+    public static readonly ErrorCode CategoryInUse = new("CATEGORY_IN_USE", ErrorCode.Conflict);
     public static readonly ErrorCode VariantNotFound = new("VARIANT_NOT_FOUND", ErrorCode.NotFound);
     public static readonly ErrorCode AdjustmentReasonInvalid = new("ADJUSTMENT_REASON_INVALID", ErrorCode.Validation);
     public static readonly ErrorCode StockWouldGoNegative = new("STOCK_WOULD_GO_NEGATIVE", ErrorCode.Conflict);

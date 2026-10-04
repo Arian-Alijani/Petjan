@@ -7,6 +7,7 @@ using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Converters;
 using Animora.Persistence.Sqlite.Entities;
 using Animora.Persistence.Sqlite.Options;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -21,38 +22,68 @@ internal static class InventoryStockQuery
 {
     /// <summary>One product, at least one active variant at/below reorder; absent snapshot is zero.</summary>
     internal static IQueryable<Product> LowStockProducts(this IQueryable<Product> products, AnimoraLocalDbContext db) =>
-        products.Where(p => p.IsActive && p.Variants.Any(v => v.IsActive
-            // ReorderLevel's non-summable converter stores decimal as TEXT; cast both operands
-            // numerically so SQLite cannot compare "10.0" and "10" lexicographically.
-            && (double)(db.Set<StockOnHandSnapshot>().Where(s => s.TenantId == p.TenantId && s.ProductId == p.Id && s.VariantId == v.VariantId)
-                .Select(s => (long?)s.OnHandScaled).FirstOrDefault() ?? 0L) / 1000d <= (double)v.ReorderLevel.Value));
+        products.Where(LowStockPredicate(db));
+
+    /// <summary>The complement of <see cref="LowStockProducts"/>: no active variant is at/below reorder.</summary>
+    internal static IQueryable<Product> NotLowStockProducts(this IQueryable<Product> products, AnimoraLocalDbContext db)
+    {
+        var low = LowStockPredicate(db);
+        return products.Where(Expression.Lambda<Func<Product, bool>>(Expression.Not(low.Body), low.Parameters));
+    }
+
+    private static Expression<Func<Product, bool>> LowStockPredicate(AnimoraLocalDbContext db) =>
+        p => p.IsActive && p.Variants.Any(v => v.IsActive
+            // Both sides are exact INTEGER x1000 columns (snapshot OnHandScaled vs the variant's ReorderLevelScaled):
+            // a plain integer compare, no float cast, indexable by the snapshot's key.
+            && (db.Set<StockOnHandSnapshot>().Where(s => s.TenantId == p.TenantId && s.ProductId == p.Id && s.VariantId == v.VariantId)
+                .Select(s => (long?)s.OnHandScaled).FirstOrDefault() ?? 0L) <= (long)v.ReorderLevel.Value);
 }
 
 public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOptions> options)
     : IInventoryQueries
 {
-    private const int MaxCatalogScan = 1000; // Bounded scan before in-memory low-stock paging.
+    private const int MaxCatalogScan = 1000; // Bounded scan before in-memory low-stock paging (the unfiltered/ok paths page in SQL).
     private const int MaxMovementHistory = 100;
 
     private LocalStoreOptions Options => options.Value;
 
     public async Task<PagedResult<ProductReadModel>> GetCatalogAsync(
-        string? search, string? categoryId, bool lowStockOnly, int page, int pageSize, CancellationToken ct)
+        string? search, string? categoryId, bool lowStockOnly, int page, int pageSize, CancellationToken ct,
+        bool okStockOnly = false)
     {
         var q = db.Set<Product>().AsNoTracking();
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
-            q = q.Where(p => EF.Functions.Like(p.Name, $"%{term}%") || EF.Functions.Like(p.Sku, $"%{term}%"));
+            q = q.Where(p => EF.Functions.Like(p.Name, $"%{term}%") || EF.Functions.Like(p.Sku, $"%{term}%")
+                || p.Variants.Any(v => EF.Functions.Like(v.Sku, $"%{term}%")));
         }
         if (!string.IsNullOrWhiteSpace(categoryId))
         {
             q = q.Where(p => p.CategoryId == categoryId);
         }
 
-        if (lowStockOnly) q = q.LowStockProducts(db);
+        if (!lowStockOnly)
+        {
+            // Common path: filter, order, count and slice in SQL; on-hand is loaded for the page's products only.
+            if (okStockOnly) q = q.NotLowStockProducts(db);
+            var paged = await q.OrderBy(p => p.Name).ThenBy(p => p.Id)
+                .ToPagedAsync(Math.Max(1, page), pageSize, Options, ct);
+            if (paged.Items.Count == 0)
+            {
+                return new PagedResult<ProductReadModel>([], paged.TotalCount, paged.Page, paged.PageSize);
+            }
 
-        // Bounded, stably-ordered scan; variants auto-include with the aggregate.
+            var pageOnHand = await LoadOnHandAsync(paged.Items.Select(p => p.Id), ct);
+            var pageRows = new List<ProductReadModel>(paged.Items.Count);
+            for (var i = 0; i < paged.Items.Count; i++) pageRows.Add(ToReadModel(paged.Items[i], pageOnHand));
+            return new PagedResult<ProductReadModel>(pageRows, paged.TotalCount, paged.Page, paged.PageSize);
+        }
+
+        q = q.LowStockProducts(db);
+
+        // Low-stock path: bounded, stably-ordered scan; the exact at/below-reorder check runs on the
+        // loaded snapshot values before the page is sliced.
         var products = await q.OrderBy(p => p.Name).ThenBy(p => p.Id).Take(MaxCatalogScan).ToListAsync(ct);
         if (products.Count == 0)
         {
@@ -64,7 +95,7 @@ public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalSto
         for (var i = 0; i < products.Count; i++)
         {
             var row = ToReadModel(products[i], onHand);
-            if (lowStockOnly && !IsLowStock(row))
+            if (!IsLowStock(row))
             {
                 continue;
             }
@@ -103,11 +134,25 @@ public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalSto
         return new ProductDetailReadModel(ToReadModel(product, onHand), movements);
     }
 
-    public async Task<IReadOnlyList<CategoryReadModel>> GetCategoriesAsync(CancellationToken ct) =>
-        await db.Set<ProductCategory>().AsNoTracking().Where(c => c.IsActive)
+    public async Task<IReadOnlyList<CategoryReadModel>> GetCategoriesAsync(CancellationToken ct)
+    {
+        var counts = await db.Set<Product>().AsNoTracking()
+            .GroupBy(p => p.CategoryId)
+            .Select(g => new { CategoryId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CategoryId, x => x.Count, ct);
+        var rows = await db.Set<ProductCategory>().AsNoTracking().Where(c => c.IsActive)
             .OrderBy(c => c.SortOrder).ThenBy(c => c.Code)
-            .Select(c => new CategoryReadModel(c.Id, c.DisplayName, c.ParentCategoryId ?? string.Empty))
+            .Select(c => new { c.Id, c.DisplayName, ParentId = c.ParentCategoryId ?? string.Empty })
             .ToListAsync(ct);
+        var result = new List<CategoryReadModel>(rows.Count);
+        for (var i = 0; i < rows.Count; i++)
+        {
+            result.Add(new CategoryReadModel(rows[i].Id, rows[i].DisplayName, rows[i].ParentId,
+                counts.TryGetValue(rows[i].Id, out var count) ? count : 0));
+        }
+
+        return result;
+    }
 
     public async Task<PagedResult<MovementReadModel>> GetMovementHistoryAsync(
         string productId, int page, int pageSize, CancellationToken ct)
@@ -132,6 +177,10 @@ public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalSto
             .FirstOrDefaultAsync(ct);
         return row ?? 0L;
     }
+
+    public async Task<bool> ProductSkuExistsAsync(string sku, string excludeProductId, CancellationToken ct) =>
+        await db.Set<Product>().AsNoTracking()
+            .AnyAsync(p => p.Sku == sku && p.Id != excludeProductId, ct);
 
     public async Task<long> GetProductOnHandScaledAsync(string productId, CancellationToken ct)
     {

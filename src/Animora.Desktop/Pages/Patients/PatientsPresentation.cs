@@ -243,13 +243,18 @@ public static class PatientsPresentation
     /// </summary>
     private static string? CategoryMessage(System.InvalidOperationException ex) =>
         ex is Animora.Client.Services.ServiceException se
-            ? se.Category switch
-            {
-                Animora.Domain.Results.ErrorCode.Forbidden => AccessLostMessage,
-                // NotFound / Conflict / Validation keep the caller's context-specific fallback on purpose.
-                _ => null,
-            }
+            ? se.Code == "INVOICE_LINE_INDEX_STALE"
+                ? StaleInvoiceLineMessage
+                : se.Category switch
+                {
+                    Animora.Domain.Results.ErrorCode.Forbidden => AccessLostMessage,
+                    // NotFound / Conflict / Validation keep the caller's context-specific fallback on purpose.
+                    _ => null,
+                }
             : null;
+
+    /// <summary>Shown when an invoice line edit lost a race with another change (X27).</summary>
+    public const string StaleInvoiceLineMessage = "فاکتور در این بین تغییر کرده است؛ ردیف‌ها دوباره بارگذاری شد";
 
     // Delegates to the shared, process-wide caches so callers that hit the hot
     // path (card/row builds) never re-allocate a brush per item

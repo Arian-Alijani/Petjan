@@ -25,9 +25,10 @@ public sealed class InvoiceLineViewModel
         QuantityText = SalePresentation.Fa(line.Quantity);
         DiscountText = SalePresentation.Fa(line.DiscountPercent);
 
-        var sub = (long)Math.Round(line.UnitPrice * (double)line.Quantity);
-        var disc = (long)Math.Round(sub * line.DiscountPercent / 100.0);
-        var net = sub - disc;
+        // Gross and net come from the domain read model; no money arithmetic in the UI (X26/X39).
+        var sub = line.Gross;
+        var net = line.Subtotal;
+        var disc = sub - net;
 
         HasDiscount = disc > 0;
         SubtotalStruckText = SalePresentation.Money(sub);

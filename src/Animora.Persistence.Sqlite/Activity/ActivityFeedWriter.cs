@@ -11,19 +11,19 @@ namespace Animora.Persistence.Sqlite.Activity;
 public sealed class ActivityFeedWriter(
     AnimoraLocalDbContext db, IClinicTimeZoneProvider zones, ICorrelationContext correlation) : IActivityFeedWriter
 {
-    public Task WriteAsync(ActivityEventDraft draft, CancellationToken ct)
+    public async Task WriteAsync(ActivityEventDraft draft, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         if (draft.TenantId != db.CurrentTenantId)
             throw new InvalidOperationException("Activity event belongs to another tenant.");
+        var (detail, search) = await ActivityDetailResolver.ResolveAsync(db, draft.DetailArgsJson, ct);
         db.Set<ActivityEvent>().Add(Create(draft, zones.GetClinicTimeZone(),
-            correlation.Current?.UserId, correlation.CurrentId));
-        return Task.CompletedTask;
+            correlation.Current?.UserId, correlation.CurrentId, detail, search));
     }
 
     /// <summary>Also used for rebuilding the same projection from the event stream.</summary>
     public static ActivityEvent Create(ActivityEventDraft draft, TimeZoneInfo zone,
-        string? actor = null, string? correlationId = null)
+        string? actor = null, string? correlationId = null, string? detailText = null, string? searchText = null)
     {
         // Same normalization for the live path and the rebuild: blank means "unknown", the event's own
         // actor (when it carries one) is the only fallback — a clinician is never guessed.
@@ -34,6 +34,7 @@ public sealed class ActivityFeedWriter(
             draft.Kind.ToString(), draft.TitleKey, draft.DetailArgsJson,
             draft.EntityType, draft.EntityId, draft.AmountMinor, draft.AmountSign,
             draft.Status.ToString(), actor ?? draft.ActorUserId, draft.ActorName,
-            correlationId ?? draft.CorrelationId, draft.EventId);
+            correlationId ?? draft.CorrelationId, draft.EventId, detailText,
+            searchText is { Length: > 0 } ? $"{searchText} {draft.EntityId} {draft.ActorName}".Trim() : null);
     }
 }

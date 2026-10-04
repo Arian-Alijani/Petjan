@@ -11,16 +11,13 @@ namespace Animora.Desktop.Pages.Inventory;
 /// One variant editor card of the product modal's Variants tab, mirroring the
 /// reference's <c>.var-card</c> rendered by <c>renderVariantCard</c> (inventory.js):
 /// the editable label, its SKU chip, a delete action and the field grid
-/// (stock stepper, reorder, cost, sale price, expiry). The stock stepper
-/// mirrors <c>bindVariantsTabInteractions</c>'s <c>[data-step]</c> handlers.
+/// (read-only stock, reorder, cost, sale price, expiry). On-hand stock is a
+/// projection of stock movements, so it is displayed only and changes through the «تغییر موجودی» modal.
 /// </summary>
 public sealed partial class InventoryVariantCardViewModel : ObservableObject
 {
-    private readonly Action _onChanged;
-
-    public InventoryVariantCardViewModel(ProductVariant variant, Action onChanged)
+    public InventoryVariantCardViewModel(ProductVariant variant)
     {
-        _onChanged = onChanged;
         Id = variant.Id;
         Sku = variant.Sku;
         _label = variant.Label;
@@ -29,7 +26,7 @@ public sealed partial class InventoryVariantCardViewModel : ObservableObject
         _costText = PersianNumberFormatter.FormatGrouped(variant.Cost);
         _priceText = PersianNumberFormatter.FormatGrouped(variant.Price);
         _expiryText = variant.Expiry ?? string.Empty;
-        _isLow = variant.Stock <= variant.ReorderPoint;
+        _isLow = StockStatus.IsLow(variant);
     }
 
     public string Id { get; }
@@ -66,26 +63,6 @@ public sealed partial class InventoryVariantCardViewModel : ObservableObject
         : InventoryPresentation.Fill("#e5eaee");
 
     partial void OnIsLowChanged(bool value) => OnPropertyChanged(nameof(CardBackground));
-
-    /// <summary>The reference's <c>data-step="-"</c> — decrement, floored at zero.</summary>
-    [RelayCommand]
-    private void DecrementStock()
-    {
-        var stock = Math.Max(0, ReadStock() - 1);
-        StockText = PersianNumberFormatter.ToPersianDigits(stock);
-        IsLow = stock <= ReadReorder();
-        _onChanged();
-    }
-
-    /// <summary>The reference's <c>data-step="+"</c> — increment.</summary>
-    [RelayCommand]
-    private void IncrementStock()
-    {
-        var stock = ReadStock() + 1;
-        StockText = PersianNumberFormatter.ToPersianDigits(stock);
-        IsLow = stock <= ReadReorder();
-        _onChanged();
-    }
 
     /// <summary>Recomputes the low-stock flag after the reorder point is edited.</summary>
     public void RefreshLow() => IsLow = ReadStock() <= ReadReorder();
@@ -219,7 +196,7 @@ public sealed partial class InventoryAdjustRowViewModel : ObservableObject
         SubText = $"{variant.Sku} · نقطه سفارش {PersianNumberFormatter.ToPersianDigits(variant.ReorderPoint)}";
         OriginalStock = variant.Stock;
         _stockText = PersianNumberFormatter.ToPersianDigits(variant.Stock);
-        _isLow = variant.Stock <= variant.ReorderPoint;
+        _isLow = StockStatus.IsLow(variant);
     }
 
     public string Id { get; }
@@ -250,7 +227,7 @@ public sealed partial class InventoryAdjustRowViewModel : ObservableObject
     {
         var stock = Math.Max(0, ReadStock() - 1);
         StockText = PersianNumberFormatter.ToPersianDigits(stock);
-        IsLow = stock <= ReorderPoint;
+        IsLow = StockStatus.IsLow(stock, ReorderPoint);
     }
 
     [RelayCommand]
@@ -258,7 +235,7 @@ public sealed partial class InventoryAdjustRowViewModel : ObservableObject
     {
         var stock = ReadStock() + 1;
         StockText = PersianNumberFormatter.ToPersianDigits(stock);
-        IsLow = stock <= ReorderPoint;
+        IsLow = StockStatus.IsLow(stock, ReorderPoint);
     }
 
     public int ReadStock() =>

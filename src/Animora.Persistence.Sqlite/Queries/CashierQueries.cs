@@ -1,5 +1,6 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Ports;
+using Animora.Application.Text;
 using Animora.Application.UseCases.Sales.ReadModels;
 using Animora.Domain.Cashier;
 using Animora.Domain.Patients;
@@ -34,7 +35,8 @@ internal static class InvoiceOpenQuery
 
 public sealed class CashierQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOptions> options) : ICashierQueries
 {
-    public Task<PagedResult<InvoiceSummaryReadModel>> GetInvoicesAsync(CashierInvoiceTab tab, int page, int pageSize, CancellationToken ct)
+    public Task<PagedResult<InvoiceSummaryReadModel>> GetInvoicesAsync(
+        CashierInvoiceTab tab, string? search, int page, int pageSize, CancellationToken ct)
     {
         var invoices = db.Set<Invoice>().AsNoTracking();
         invoices = tab switch
@@ -44,12 +46,32 @@ public sealed class CashierQueries(AnimoraLocalDbContext db, IOptions<LocalStore
             CashierInvoiceTab.Void => invoices.Where(i => i.State == InvoiceState.Void || i.State == InvoiceState.Refunded),
             _ => invoices,
         };
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            // Search runs in SQL so the screen never has to hold the whole table to filter it (X29).
+            var term = search.Trim();
+            var like = "%" + term + "%";
+            var ownerIds = db.Set<Owner>().AsNoTracking()
+                .Where(o => EF.Functions.Like(o.SearchKey, "%" + PersianText.Normalize(term) + "%"))
+                .Select(o => o.Id);
+            var petIds = db.Set<Pet>().AsNoTracking().Where(p => EF.Functions.Like(p.Name, like)).Select(p => p.Id);
+            invoices = invoices.Where(i => EF.Functions.Like(i.Id, like) || EF.Functions.Like(i.InvoiceNumber, like)
+                || (i.OwnerId != null && ownerIds.Contains(i.OwnerId))
+                || (i.PetId != null && petIds.Contains(i.PetId))
+                || (i.GuestName != null && EF.Functions.Like(i.GuestName, like)));
+        }
+
+        // Open states first (draft/posted, partial, paid, void, refunded), then newest first — the order the
+        // screen used to apply client-side after pulling every invoice.
         var projected = from i in invoices
             join o in db.Set<Owner>().AsNoTracking() on i.OwnerId equals o.Id into owners
             from o in owners.DefaultIfEmpty()
             join p in db.Set<Pet>().AsNoTracking() on i.PetId equals p.Id into pets
             from p in pets.DefaultIfEmpty()
-            orderby i.IssuedUtc descending, i.Id descending
+            orderby (i.State == InvoiceState.Draft || i.State == InvoiceState.Posted ? 0
+                : i.State == InvoiceState.PartiallyPaid ? 1
+                : i.State == InvoiceState.Paid ? 2
+                : i.State == InvoiceState.Void ? 3 : 4), i.IssuedUtc descending, i.Id descending
             select new InvoiceSummaryReadModel(i.Id, i.InvoiceNumber, i.Kind, i.State, i.OwnerId,
                 o == null ? i.GuestName ?? "" : o.FullName, p == null ? "" : p.Name,
                 o == null ? "" : o.PhonePrimary, i.IssuedUtc, i.GrandTotal.Minor, i.DueTotal.Minor, i.Settlement);

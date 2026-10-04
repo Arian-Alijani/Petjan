@@ -123,6 +123,25 @@
             <Setter Property="FontSize" Value="12.5" />
             <Setter Property="MinHeight" Value="0" />
         </Style>
+        <Style Selector="ListBox.sw-list">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        </Style>
+        <Style Selector="ListBox.sw-list ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.sw-list ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.sw-list ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
         <Style Selector="Button.sw-item">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
@@ -905,10 +924,12 @@
                         </Grid>
                     </Border>
 
-                    <ScrollViewer Grid.Row="2" Padding="8" VerticalScrollBarVisibility="Auto">
-                        <StackPanel>
+                    <!-- Both lists are virtualized ListBoxes (PERFORMANCE.md §6): only the
+                         rows in view are realised, however many invoices exist. -->
+                    <Panel Grid.Row="2">
+                        <Panel>
                             <!-- ready segment -->
-                            <StackPanel IsVisible="{Binding IsReadySegment}">
+                            <Panel IsVisible="{Binding IsReadySegment}">
                                 <StackPanel IsVisible="{Binding IsReadyEmpty}" Spacing="12"
                                             Margin="20,40" HorizontalAlignment="Center">
                                     <Border Width="48" Height="48" CornerRadius="14"
@@ -927,8 +948,9 @@
                                                TextAlignment="Center" />
                                 </StackPanel>
 
-                                <ItemsControl ItemsSource="{Binding ReadyList}">
-                                    <ItemsControl.ItemTemplate>
+                                <ListBox Classes="sw-list" ItemsSource="{Binding ReadyList}"
+                                         IsVisible="{Binding !IsReadyEmpty}">
+                                    <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="sales:ReadyEncounterItemViewModel">
                                             <Button Classes="sw-item ready"
                                                     Command="{Binding $parent[UserControl].((sales:SalePageViewModel)DataContext).BuildFromEncounterCommand}"
@@ -983,12 +1005,12 @@
                                                 </StackPanel>
                                             </Button>
                                         </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Panel>
 
                             <!-- invoices segment -->
-                            <StackPanel IsVisible="{Binding IsInvoicesSegment}">
+                            <Panel IsVisible="{Binding IsInvoicesSegment}">
                                 <StackPanel IsVisible="{Binding IsInvoicesEmpty}" Spacing="12"
                                             Margin="20,40" HorizontalAlignment="Center">
                                     <Border Width="48" Height="48" CornerRadius="14"
@@ -1003,8 +1025,9 @@
                                                Foreground="{StaticResource MutedBrush}" />
                                 </StackPanel>
 
-                                <ItemsControl ItemsSource="{Binding InvoiceRows}">
-                                    <ItemsControl.ItemTemplate>
+                                <ListBox Classes="sw-list" ItemsSource="{Binding InvoiceRows}"
+                                         IsVisible="{Binding !IsInvoicesEmpty}">
+                                    <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="sales:SaleSidebarRowViewModel">
                                             <StackPanel>
                                                 <Grid ColumnDefinitions="Auto,*,Auto"
@@ -1079,11 +1102,11 @@
                                                 </Button>
                                             </StackPanel>
                                         </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </StackPanel>
-                    </ScrollViewer>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Panel>
+                        </Panel>
+                    </Panel>
                 </Grid>
             </Border>
         </Grid>

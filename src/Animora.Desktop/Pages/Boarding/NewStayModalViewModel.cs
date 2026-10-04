@@ -38,7 +38,7 @@ public sealed partial class NewStayModalViewModel : ObservableObject
         PaymentOptions.Add(new BoardingPaymentOptionViewModel(BoardingPaymentMode.Postpaid, "پس‌پرداخت", "تسویه موقع تحویل") { IsSelected = true });
         PaymentOptions.Add(new BoardingPaymentOptionViewModel(BoardingPaymentMode.Prepaid, "پیش‌پرداخت", "قبل از اقامت"));
 
-        _ = LoadAsync();
+        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری پذیرش ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
 
     // ── mode switch ─────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ public sealed partial class NewStayModalViewModel : ObservableObject
     }
 
     // ── existing-file picker ────────────────────────────────────────────────
-    public ObservableCollection<BoardingKnownPetViewModel> KnownPets { get; } = [];
+    public RangeObservableCollection<BoardingKnownPetViewModel> KnownPets { get; } = [];
 
     [ObservableProperty]
     private string _patientQueryText = string.Empty;
@@ -107,14 +107,8 @@ public sealed partial class NewStayModalViewModel : ObservableObject
     private void ApplyPetFilter()
     {
         var query = PersianText.Normalize(PatientQueryText);
-        KnownPets.Clear();
-        foreach (var pet in _allPets)
-        {
-            if (query.Length == 0 || pet.SearchText.Contains(query, StringComparison.Ordinal))
-            {
-                KnownPets.Add(pet);
-            }
-        }
+        KnownPets.ReplaceAll(_allPets.Where(
+            pet => query.Length == 0 || pet.SearchText.Contains(query, StringComparison.Ordinal)));
     }
 
     [RelayCommand]
@@ -278,17 +272,34 @@ public sealed partial class NewStayModalViewModel : ObservableObject
 
         var rate = long.TryParse(PersianNumberFormatter.ToAsciiDigits(DailyRateText), out var parsed) ? parsed : 0;
         var paymentMode = PaymentOptions.FirstOrDefault(p => p.IsSelected)?.Mode ?? BoardingPaymentMode.Postpaid;
-        var room = SelectedRoomOption?.Room.Id ?? RoomOptions.FirstOrDefault()?.Room.Id ?? "A-1";
+        // X16: a real, selected room is required (no literal fallback id). Occupancy/capacity is enforced
+        // server-side by CreateBoardingStayCommand (ROOM_AT_CAPACITY / ROOM_UNAVAILABLE) and surfaces below as a danger toast.
+        if (SelectedRoomOption is null)
+        {
+            _toast.Show("یک اتاق انتخاب کنید", Tone.Danger);
+            return;
+        }
+
+        var room = SelectedRoomOption.Room.Id;
 
         var request = new NewStayRequest(
             petName, species, breed, owner, phone, patientId, room,
             checkIn.Value, checkOut.Value, Math.Max(0, rate), paymentMode, NoteText);
 
-        var stay = await _service.CreateStayAsync(request);
+        BoardingStay stay;
+        try
+        {
+            stay = await _service.CreateStayAsync(request);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, "ثبت پذیرش ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            return;
+        }
 
         var nights = Math.Max(1, stay.CheckOut.DayNumber - stay.CheckIn.DayNumber);
         _dialogs.Close();
-        _toast.Show($"پذیرش «{petName}» برای {BoardingPresentation.Fa(nights)} شب ثبت شد (نمونه طراحی)");
+        _toast.Show($"پذیرش «{petName}» برای {BoardingPresentation.Fa(nights)} شب ثبت شد");
         _onCreated?.Invoke();
     }
 

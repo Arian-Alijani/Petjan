@@ -21,29 +21,28 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
 {
     private const int MaxPageSize = 200; // QueryPaging.HardMaxPageSize
 
-    /// <summary>
-    /// The reason recorded for a stock adjustment raised through the Contracts seam. The Contracts request
-    /// carries only an absolute target stock (no reason field), so the service bridges to the richer
-    /// <see cref="AdjustStockCommand"/> using the neutral <c>Correction</c> code.
-    /// </summary>
-    private const string BridgeAdjustReason = AdjustmentReasons.Correction;
-
-    public async Task<IReadOnlyList<ContractProduct>> GetProductsAsync()
+    public async Task<ProductPage> GetProductsAsync(ProductListQuery query)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider, _) = Resolve(scope);
         var context = provider.BuildQueryContext();
-        if (context.IsFailure) return [];
+        if (context.IsFailure) return new ProductPage([], 0);
 
-        // Unpaged Contracts member → page 1 at the max page size (documented; CONVENTIONS §10 item 2).
+        var search = string.IsNullOrWhiteSpace(query.Search) ? null : Animora.Application.Text.PersianText.NormalizeDigits(query.Search.Trim());
+        var category = string.IsNullOrWhiteSpace(query.CategoryId) ? null : query.CategoryId;
+        var size = Math.Clamp(query.PageSize, 1, MaxPageSize);
         var result = await dispatcher.QueryAsync(
-            new ProductCatalogQuery(null, null, false, 1, MaxPageSize), context.Value!);
-        if (result.IsFailure) return [];
+            new ProductCatalogQuery(search, category, query.Stock == ProductStockFilter.Low,
+                Math.Max(1, query.Page), size, query.Stock == ProductStockFilter.Ok), context.Value!);
+        if (result.IsFailure) throw new ServiceException(result.Error);
 
         var rows = result.Value!.Items;
         var products = new List<ContractProduct>(rows.Count);
         for (var i = 0; i < rows.Count; i++) products.Add(rows[i].ToContract());
-        return products;
+
+        return new ProductPage(products, result.Value.TotalCount);
     }
 
     public async Task<IReadOnlyList<CategoryInfo>> GetCategoriesAsync()
@@ -62,6 +61,15 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
         return categories;
     }
 
+    public Task<string> CreateCategoryAsync(string name) =>
+        SendAsync(new CreateProductCategoryCommand(name ?? string.Empty));
+
+    public async Task RenameCategoryAsync(string categoryId, string name) =>
+        _ = await SendAsync(new RenameProductCategoryCommand(categoryId, name ?? string.Empty));
+
+    public async Task DeleteCategoryAsync(string categoryId) =>
+        _ = await SendAsync(new DeleteProductCategoryCommand(categoryId));
+
     public async Task<ProductDetail?> GetDetailAsync(string productId)
     {
         await using var scope = scopes.CreateAsyncScope();
@@ -76,64 +84,51 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
     public async Task SaveProductInfoAsync(string productId, ProductInfoUpdate update)
     {
         ArgumentNullException.ThrowIfNull(update);
-        var attributeName = AttributeNameOf(update.AttributeName, update.Variants);
+
+        // A multi-variant product must keep its dimension even when the caller did not re-send the name:
+        // fall back to the dimension already stored on the product (P2-13).
+        var existingName = string.IsNullOrWhiteSpace(update.AttributeName) && update.Variants.Count > 1
+            ? (await GetDetailAsync(productId))?.Product.Attribute?.Name
+            : null;
+        var attributeName = AttributeNameOf(update.AttributeName, update.Variants, existingName);
         var variants = ToInputs(update.Variants, attributeName);
         _ = await SendAsync(new UpdateProductInfoCommand(productId, update.Name, Lowest(update.Variants, cost: true),
-            Lowest(update.Variants, cost: false), variants, update.Brand, update.Description));
+            Lowest(update.Variants, cost: false), variants, update.Brand, update.Description,
+            CategoryId: update.CategoryId, Sku: update.Code));
     }
 
-    public async Task<ContractVariant> AddVariantAsync(string productId, NewVariantRequest request)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        var label = request.Label ?? string.Empty;
-
-        // Read the product first: the new variant must join the product's own dimension, and its SKU must be
-        // unique inside the product (the domain refuses a duplicate with PRODUCT_SKU_DUPLICATE).
-        var detail = await GetDetailAsync(productId);
-        var attributeName = AttributeNameOf(detail?.Product.Attribute?.Name, detail?.Product.Variants);
-        var sku = UniqueSku(productId, label, detail?.Product.Variants);
-
-        var variantId = await SendAsync(
-            new AddProductVariantCommand(productId, sku, attributeName, label, 0L, 0L));
-
-        var refreshed = await GetDetailAsync(productId);
-        if (refreshed is not null)
-        {
-            for (var i = 0; i < refreshed.Product.Variants.Count; i++)
-            {
-                if (string.Equals(refreshed.Product.Variants[i].Id, variantId, StringComparison.Ordinal))
-                {
-                    return refreshed.Product.Variants[i];
-                }
-            }
-        }
-        return new ContractVariant(variantId, label, sku, 0, 0, 0, 0, null);
-    }
-
-    public async Task<IReadOnlyList<Contracts.Inventory.StockMovement>> GetHistoryAsync(string productId)
+    public async Task<MovementPage> GetHistoryAsync(string productId, int page, int pageSize)
     {
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider, zones) = Resolve(scope);
         var context = provider.BuildQueryContext();
-        if (context.IsFailure) return [];
+        if (context.IsFailure) return new MovementPage([], 0);
 
         var result = await dispatcher.QueryAsync(
-            new StockMovementHistoryQuery(productId, 1, MaxPageSize), context.Value!);
-        if (result.IsFailure) return [];
+            new StockMovementHistoryQuery(productId, Math.Max(1, page), Math.Clamp(pageSize, 1, MaxPageSize)),
+            context.Value!);
+        if (result.IsFailure) throw new ServiceException(result.Error);
 
         var zone = zones.GetClinicTimeZone();
         var rows = result.Value!.Items;
         var movements = new List<Contracts.Inventory.StockMovement>(rows.Count);
         for (var i = 0; i < rows.Count; i++) movements.Add(rows[i].ToContract(zone));
-        return movements;
+        return new MovementPage(movements, result.Value.TotalCount);
     }
 
     public async Task<ContractProduct> CreateProductAsync(NewProductRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var attributeName = AttributeNameOf(request.AttributeName, request.Variants);
-        var variants = ToInputs(request.Variants, attributeName);
-        if (variants.Length == 0)
+        var attributeName = AttributeNameOf(request.AttributeName, request.Variants, null);
+        var variants = ToInputs(request.Variants, attributeName, withOpeningStock: true);
+        if (variants.Length == 0 && request.AttributeOptions.Count > 0)
+        {
+            // A multi-variant product: one variant per declared option, sharing the dimension. Every option
+            // gets its own unique SKU and starts independently stockable at zero.
+            attributeName = string.IsNullOrWhiteSpace(request.AttributeName) ? "تنوع" : request.AttributeName.Trim();
+            variants = FromOptions(request.Code, attributeName, request.AttributeOptions);
+        }
+        else if (variants.Length == 0)
         {
             // A stock-tracked product always keeps at least one variant (VARIANT_REQUIRED): a single-unit
             // product is created with one implicit DEFAULT variant, exactly as the domain models it.
@@ -149,38 +144,53 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
 
         var detail = await GetDetailAsync(productId);
         return detail?.Product ?? new ContractProduct(productId, request.Code, request.Name, request.Brand,
-            request.CategoryId, "📦", "a", request.Description, null, []);
+            request.CategoryId, request.Description, null, []);
     }
 
     public async Task DeleteProductAsync(string productId) =>
         _ = await SendAsync(new DeleteProductCommand(productId));
 
-    public async Task AdjustStockAsync(string productId, string variantId, StockAdjustRequest request)
+    public async Task AdjustStockAsync(string productId, StockAdjustRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var detail = await GetDetailAsync(productId);
-        var current = 0;
-        if (detail is not null)
+        if (request.Lines.Count == 0) return;
+
+        // Delta-native and atomic: absolute targets go to the handler, which reads the fresh on-hand inside
+        // its own unit of work (no client read-modify-write gap) and records one reasoned movement per change.
+        var lines = new StockTargetLine[request.Lines.Count];
+        for (var i = 0; i < lines.Length; i++)
         {
-            for (var i = 0; i < detail.Product.Variants.Count; i++)
-            {
-                if (string.Equals(detail.Product.Variants[i].Id, variantId, StringComparison.Ordinal))
-                {
-                    current = detail.Product.Variants[i].Stock;
-                    break;
-                }
-            }
+            lines[i] = new StockTargetLine(request.Lines[i].VariantId,
+                InventoryMapping.IntToScaled(Math.Max(0, request.Lines[i].Stock)));
         }
 
-        // Contracts carries an absolute target; the command takes a signed delta (see BridgeAdjustReason).
-        var target = Math.Max(0, request.Stock);
-        var delta = target - current;
-        if (delta == 0) return;
-        _ = await SendAsync(new AdjustStockCommand(productId, variantId, InventoryMapping.IntToScaled(delta),
-            BridgeAdjustReason));
+        var reason = string.IsNullOrWhiteSpace(request.Reason) ? AdjustmentReasons.Correction : request.Reason;
+        _ = await SendAsync(new SetStockCommand(productId, lines, reason, request.Note));
     }
 
-    private static ProductVariantInput[] ToInputs(IReadOnlyList<ContractVariant> variants, string attributeName)
+    /// <summary>Expands a multi-variant product's declared options into one variant input each.</summary>
+    private static ProductVariantInput[] FromOptions(string code, string attributeName, IReadOnlyList<string> options)
+    {
+        var inputs = new List<ProductVariantInput>(options.Count);
+        var used = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < options.Count; i++)
+        {
+            var option = options[i].Trim();
+            if (option.Length == 0) continue;
+
+            var sku = SkuFor(code, option);
+            if (!used.Add(sku))
+            {
+                sku = $"{sku}-{i + 1}";
+                used.Add(sku);
+            }
+            inputs.Add(new ProductVariantInput(null, sku, attributeName, option, 0L, 0L, 0L));
+        }
+        return inputs.ToArray();
+    }
+
+    private static ProductVariantInput[] ToInputs(
+        IReadOnlyList<ContractVariant> variants, string attributeName, bool withOpeningStock = false)
     {
         var inputs = new ProductVariantInput[variants.Count];
         for (var i = 0; i < variants.Count; i++)
@@ -190,19 +200,23 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
                 string.IsNullOrEmpty(variant.Id) ? null : variant.Id,
                 string.IsNullOrWhiteSpace(variant.Sku) ? SkuFor(variant.Label, (i + 1).ToString()) : variant.Sku,
                 attributeName, variant.Label, variant.Cost, variant.Price,
-                InventoryMapping.IntToScaled(variant.ReorderPoint));
+                InventoryMapping.IntToScaled(variant.ReorderPoint),
+                OpeningStockScaled: withOpeningStock ? InventoryMapping.IntToScaled(Math.Max(0, variant.Stock)) : 0L);
         }
         return inputs;
     }
 
     /// <summary>
     /// The dimension the product's variants share: the request's own attribute name when it has one, else the
-    /// name already on the product's variants, else the domain's implicit single-variant dimension.
+    /// dimension already stored on the product (<paramref name="existing"/>), else — for a genuinely
+    /// multi-variant set — a generic «تنوع» dimension so it never collapses to the implicit single-variant
+    /// <c>DEFAULT</c> dimension (which the read side treats as "no variants").
     /// </summary>
-    private static string AttributeNameOf(string? requested, IReadOnlyList<ContractVariant>? variants)
+    private static string AttributeNameOf(string? requested, IReadOnlyList<ContractVariant>? variants, string? existing)
     {
         if (!string.IsNullOrWhiteSpace(requested)) return requested.Trim();
-        return DomainProductVariant.DefaultAttributeName;
+        if (!string.IsNullOrWhiteSpace(existing)) return existing.Trim();
+        return variants is { Count: > 1 } ? "تنوع" : DomainProductVariant.DefaultAttributeName;
     }
 
     /// <summary>Lowest variant cost (or sale) price, used as the product-level default.</summary>
@@ -215,29 +229,6 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
             if (lowest == 0L || value < lowest) lowest = value;
         }
         return lowest;
-    }
-
-    /// <summary>A SKU for a new variant: product-scoped, ordinal-unique, tolerant of an empty label.</summary>
-    private static string UniqueSku(string productId, string label, IReadOnlyList<ContractVariant>? existing)
-    {
-        var baseSku = SkuFor(productId, label);
-        if (existing is null || !ContainsSku(existing, baseSku)) return baseSku;
-
-        for (var suffix = 2; suffix < 1000; suffix++)
-        {
-            var candidate = $"{baseSku}-{suffix}";
-            if (!ContainsSku(existing, candidate)) return candidate;
-        }
-        return baseSku + "-" + Guid.NewGuid().ToString("N")[..4];
-    }
-
-    private static bool ContainsSku(IReadOnlyList<ContractVariant> variants, string sku)
-    {
-        for (var i = 0; i < variants.Count; i++)
-        {
-            if (string.Equals(variants[i].Sku, sku, StringComparison.Ordinal)) return true;
-        }
-        return false;
     }
 
     private static string SkuFor(string seed, string label)

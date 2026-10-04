@@ -25,6 +25,7 @@ public sealed class ProductVariantConfiguration : IEntityTypeConfiguration<Produ
         OwnedRows.Row(builder, "ProductVariants", e => e.VariantId);
         OwnedRows.Money(builder, e => e.CostPrice);
         OwnedRows.Money(builder, e => e.SalePrice);
-        OwnedRows.Quantity(builder, e => e.ReorderLevel, summable: false);
+        // Exact INTEGER x1000 (like OnHandScaled) so the low-stock compare is integer <= integer, no cast.
+        OwnedRows.Quantity(builder, e => e.ReorderLevel, summable: true);
     }
 }

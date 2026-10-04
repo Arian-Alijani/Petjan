@@ -57,9 +57,12 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     // longer matches is discarded (a newer query has superseded it).
     private int _generation;
 
+    private readonly IPrintService _print;
+
     public SaleHistoryViewModel(ISalesQueryService service, IToastService toast, IDialogService dialogs,
-        Action? onInvoiceChanged = null)
+        IPrintService print, Action? onInvoiceChanged = null)
     {
+        _print = print;
         _onInvoiceChanged = onInvoiceChanged;
         _service = service;
         _toast = toast;
@@ -83,7 +86,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
         }
 
         _dialogs.ShowSheet(
-            new InvoiceViewerViewModel(_service, _toast, _dialogs, invoiceId, OnInvoiceChanged),
+            new InvoiceViewerViewModel(_service, _toast, _dialogs, _print, invoiceId, OnInvoiceChanged),
             1040,
             720);
     }

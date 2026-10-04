@@ -39,10 +39,11 @@ public interface ISalesQueryService
     Task<InvoiceDetail> CreateFromEncounterAsync(string encounterId);
 
     /// <summary>
-    /// Creates a new empty invoice — for a walk-in/guest direct sale (mirrors
-    /// <c>newBlankInvoice()</c>) — and returns its detail.
+    /// Creates a new empty counter-sale invoice — for a walk-in/guest direct sale (mirrors
+    /// <c>newBlankInvoice()</c>) — and returns its detail. A blank document is always a sale;
+    /// visit/stay invoices come from <see cref="CreateFromEncounterAsync"/> (X15: no ignored kind parameter).
     /// </summary>
-    Task<InvoiceDetail> CreateBlankAsync(InvoiceKind kind);
+    Task<InvoiceDetail> CreateBlankAsync();
 
     /// <summary>
     /// The insurance orgs offered in the invoice's «پوشش بیمه» select
@@ -53,9 +54,11 @@ public interface ISalesQueryService
     /// <summary>
     /// The three inline mini-KPIs above the workspace (mirrors
     /// <c>renderKPIs()</c>): settled-today sum, open receivables sum + count and
-    /// the ready-visit count.
+    /// the ready-visit count. The page already holds the invoice list and the ready queue, so it passes them in:
+    /// only the settled-today figure needs its own query; open count/due are summed from
+    /// <paramref name="invoices"/> and the ready count is <paramref name="readyVisitCount"/> (X28).
     /// </summary>
-    Task<SaleKpiSnapshot> GetKpisAsync();
+    Task<SaleKpiSnapshot> GetKpisAsync(IReadOnlyList<InvoiceSummary> invoices, int readyVisitCount);
 
     // ── Phase 21 — catalog picker, payment, void/refund, owner picker ──────
 
@@ -98,17 +101,20 @@ public interface ISalesQueryService
     /// Edits an editable invoice line's quantity and per-line discount
     /// (mirrors the reference's inline line editors). Records a full
     /// «ویرایش ردیف» audit entry so the change appears in the invoice's change
-    /// log and the cashier ledger. Returns the recomputed detail, or
+    /// log and the cashier ledger. <paramref name="lineId"/> is the id of the line the user saw: when the
+    /// invoice changed in between (the line moved or is gone) the call fails with
+    /// <c>INVOICE_LINE_INDEX_STALE</c> instead of editing a different line. Returns the recomputed detail, or
     /// <c>null</c> when the invoice is unknown or not editable.
     /// </summary>
-    Task<InvoiceDetail?> EditLineAsync(string invoiceId, int lineIndex, int quantity, int discountPercent);
+    Task<InvoiceDetail?> EditLineAsync(string invoiceId, int lineIndex, string lineId, int quantity, int discountPercent);
 
     /// <summary>
     /// Removes a line from an editable invoice and records a «حذف ردیف» audit
-    /// entry. Returns the recomputed detail, or <c>null</c> when the invoice is
+    /// entry. <paramref name="lineId"/> identifies the line the user saw; a stale index fails with
+    /// <c>INVOICE_LINE_INDEX_STALE</c>. Returns the recomputed detail, or <c>null</c> when the invoice is
     /// unknown or not editable.
     /// </summary>
-    Task<InvoiceDetail?> RemoveLineAsync(string invoiceId, int lineIndex);
+    Task<InvoiceDetail?> RemoveLineAsync(string invoiceId, int lineIndex, string lineId);
 
     /// <summary>
     /// Soft-deletes an invoice (records a «حذف فاکتور» audit entry and moves the

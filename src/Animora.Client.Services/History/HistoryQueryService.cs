@@ -21,11 +21,20 @@ public sealed class HistoryQueryService(IServiceScopeFactory scopes) : IHistoryQ
             .QueryAsync(new ActivityFeedQuery(filter), context.Value!);
         if (result.IsFailure) throw new ServiceException(result.Error);
         var zone = scope.ServiceProvider.GetRequiredService<Animora.Application.Ports.IClinicTimeZoneProvider>().GetClinicTimeZone();
-        return new HistoryPage(result.Value!.Items.Select(x => HistoryMapping.Map(x, zone)).ToArray(),
-            result.Value.TotalCount, result.Value.IncomeTotal, result.Value.ExpenseTotal);
+        var events = result.Value!.Items.Select(x => HistoryMapping.Map(x, zone)).ToArray();
+        var dayNets = new Dictionary<string, long>();
+        if (result.Value.DayNets is { } nets)
+        {
+            for (var i = 0; i < events.Length; i++)
+            {
+                if (nets.TryGetValue(result.Value.Items[i].LocalDay, out var net)) dayNets[events[i].Date] = net;
+            }
+        }
+
+        return new HistoryPage(events, result.Value.TotalCount, result.Value.IncomeTotal, result.Value.ExpenseTotal, dayNets);
     }
 
-    public async Task<string> ExportCsvAsync(HistoryFilter filter)
+    public async Task<string> ExportCsvAsync(HistoryFilter filter, HistoryCsvLabels labels)
     {
         await using var scope = scopes.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>().BuildQueryContext();
@@ -33,7 +42,9 @@ public sealed class HistoryQueryService(IServiceScopeFactory scopes) : IHistoryQ
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
             .QueryAsync(new ActivityExportQuery(filter), context.Value!);
         if (result.IsFailure) throw new ServiceException(result.Error);
-        return await CsvWriter.WriteAsync(result.Value!);
+        var zone = scope.ServiceProvider.GetRequiredService<Animora.Application.Ports.IClinicTimeZoneProvider>().GetClinicTimeZone();
+        var events = result.Value!.Select(x => HistoryMapping.Map(x, zone)).ToArray();
+        return await CsvWriter.WriteAsync(events, labels);
     }
 }
 
@@ -45,7 +56,7 @@ internal static class HistoryMapping
         var cal = new PersianCalendar();
         return new HistoryEvent(row.Id, Enum.Parse<HistoryEventKind>(row.Kind),
             $"{cal.GetYear(local.DateTime):0000}/{cal.GetMonth(local.DateTime):00}/{cal.GetDayOfMonth(local.DateTime):00}",
-            local.ToString("HH:mm", CultureInfo.InvariantCulture), row.TitleKey, row.DetailArgsJson,
+            local.ToString("HH:mm", CultureInfo.InvariantCulture), row.TitleKey, row.DetailText,
             row.EntityType + ":" + row.EntityId, row.AmountMinor, row.AmountSign,
             Enum.Parse<HistoryEventStatus>(row.Status),
             string.IsNullOrWhiteSpace(row.ActorUserId) ? ActorRef.System :

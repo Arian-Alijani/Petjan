@@ -19,7 +19,7 @@ internal static class InventoryMapping
     /// already-recorded movement's expiry is not surfaced here.
     /// </summary>
     internal static ContractProduct ToContract(this ProductReadModel row) =>
-        new(row.Id, row.Sku, row.Name, row.Brand, row.CategoryId, GlyphOf(row.Kind), ToneOf(row.Id),
+        new(row.Id, row.Sku, row.Name, row.Brand, row.CategoryId,
             row.Notes ?? string.Empty, AttributeOf(row.Variants), VariantsOf(row.Variants));
 
     internal static IReadOnlyList<ContractVariant> VariantsOf(IReadOnlyList<ProductVariantReadModel> variants)
@@ -51,7 +51,7 @@ internal static class InventoryMapping
     }
 
     internal static CategoryInfo ToContract(this CategoryReadModel row) =>
-        new(row.Id, row.Name, ToneOf(row.Id), IconOf(row.Name));
+        new(row.Id, row.Name, ToneOf(row.Id), row.ProductCount);
 
     internal static Contracts.Inventory.StockMovement ToContract(this MovementReadModel row, TimeZoneInfo zone)
     {
@@ -81,20 +81,10 @@ internal static class InventoryMapping
         "GoodsReceipt" => "خرید " + PersianFormat.Digits(row.SourceEntityId ?? string.Empty),
         "Invoice" => "فروش " + PersianFormat.Digits(row.SourceEntityId ?? string.Empty),
         "Seed" => "موجودی اولیه",
-        null or "" => row.Reason ?? "حرکت انبار",
+        null or "" => string.Equals(row.Reason, "OpeningBalance", StringComparison.Ordinal)
+            ? "موجودی اولیه"
+            : row.Reason ?? "حرکت انبار",
         _ => row.SourceEntityType,
-    };
-
-    /// <summary>The product thumbnail glyph, keyed off the catalogue kind (the reference's <c>p.icon</c>).</summary>
-    private static string GlyphOf(string kind) => kind switch
-    {
-        "Medicine" => "💊",
-        "Vaccine" => "💉",
-        "Food" => "🥫",
-        "Consumable" => "🧴",
-        "Equipment" => "🩺",
-        "Service" => "📋",
-        _ => "🎾", // PetShop retail article.
     };
 
     /// <summary>
@@ -107,17 +97,6 @@ internal static class InventoryMapping
         var sum = 0;
         for (var i = 0; i < id.Length; i++) sum = (sum + id[i]) % 6;
         return ToneAlphabet[sum];
-    }
-
-    /// <summary>
-    /// The category glyph key. Categories carry no icon column, so it is derived from the display name the
-    /// same deterministic way as <see cref="ToneOf"/>; the View resolves the key to a glyph.
-    /// </summary>
-    private static string IconOf(string name)
-    {
-        var sum = 0;
-        for (var i = 0; i < name.Length; i++) sum = (sum + name[i]) % CategoryIcons.Length;
-        return CategoryIcons[sum];
     }
 
     internal static int ScaledToInt(long scaled) =>
@@ -133,9 +112,6 @@ internal static class InventoryMapping
     }
 
     private static readonly string[] ToneAlphabet = ["a", "b", "c", "d", "e", "f"];
-
-    private static readonly string[] CategoryIcons =
-        ["IconFlask", "IconBone", "IconSyringe", "IconTools", "IconBath", "IconBox"];
 }
 
 /// <summary>

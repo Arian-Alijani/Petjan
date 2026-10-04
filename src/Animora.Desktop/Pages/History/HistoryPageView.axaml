@@ -5,6 +5,7 @@
              x:Class="Animora.Desktop.Pages.History.HistoryPageView"
              x:Name="Root"
              x:DataType="hy:HistoryPageViewModel"
+             x:CompileBindings="True"
              FlowDirection="RightToLeft">
     <UserControl.Styles>
         <!-- ═══ Range chip (.hy-chip): pill outline; active = brand fill. ═══ -->

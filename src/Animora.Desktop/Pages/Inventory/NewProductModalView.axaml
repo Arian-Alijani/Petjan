@@ -4,6 +4,7 @@
              x:Class="Animora.Desktop.Pages.Inventory.NewProductModalView"
              x:Name="Root"
              x:DataType="inv:NewProductModalViewModel"
+             x:CompileBindings="True"
              Width="640"
              MaxWidth="640"
              MaxHeight="720"
@@ -106,7 +107,7 @@
                         <TextBlock Classes="fld" Text="برند" />
                         <TextBox Classes="inp" Text="{Binding Brand}" PlaceholderText="BioVet" />
                     </StackPanel>
-                    <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,10">
+                    <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,0,0,10">
                         <TextBlock Classes="fld" Text="دسته" />
                         <ComboBox HorizontalAlignment="Stretch" CornerRadius="10" MinHeight="36"
                                   ItemsSource="{Binding CategoryOptions}" SelectedItem="{Binding SelectedCategory}">
@@ -116,10 +117,6 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                    </StackPanel>
-                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,0,10">
-                        <TextBlock Classes="fld" Text="نماد" />
-                        <TextBox Classes="inp" Text="{Binding Glyph}" FontSize="20" TextAlignment="Center" />
                     </StackPanel>
                 </Grid>
 

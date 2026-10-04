@@ -5,7 +5,7 @@ using Animora.Application.UseCases.Inventory.ReadModels;
 namespace Animora.Application.UseCases.Inventory;
 
 /// <summary>
-/// Registers the C06 inventory use cases: the four catalogue queries and the five catalogue/movement
+/// Registers the C06 inventory use cases: the four catalogue queries and the six catalogue/movement
 /// commands. Chained into <c>AddAnimoraApplication</c> from the composition root (C06 T11).
 /// </summary>
 public static class InventoryRegistration
@@ -24,5 +24,13 @@ public static class InventoryRegistration
         .AddCommand<DeleteProductCommand, Unit, DeleteProductCommandHandler>()
         .AddValidator<DeleteProductCommand, DeleteProductCommandValidator>()
         .AddCommand<AdjustStockCommand, Unit, AdjustStockCommandHandler>()
-        .AddValidator<AdjustStockCommand, AdjustStockCommandValidator>();
+        .AddValidator<AdjustStockCommand, AdjustStockCommandValidator>()
+        .AddCommand<SetStockCommand, Unit, SetStockCommandHandler>()
+        .AddValidator<SetStockCommand, SetStockCommandValidator>()
+        .AddCommand<CreateProductCategoryCommand, string, CreateProductCategoryCommandHandler>()
+        .AddValidator<CreateProductCategoryCommand, CreateProductCategoryCommandValidator>()
+        .AddCommand<RenameProductCategoryCommand, Unit, RenameProductCategoryCommandHandler>()
+        .AddValidator<RenameProductCategoryCommand, RenameProductCategoryCommandValidator>()
+        .AddCommand<DeleteProductCategoryCommand, Unit, DeleteProductCategoryCommandHandler>()
+        .AddValidator<DeleteProductCategoryCommand, DeleteProductCategoryCommandValidator>();
 }

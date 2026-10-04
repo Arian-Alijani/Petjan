@@ -6,7 +6,7 @@
              x:DataType="visits:VisitEncounterViewModel"
              FlowDirection="RightToLeft">
 
-    <!-- Step 5 — Invoice preview (assets/visit.js renderReview/reviewLineHtml) -->
+    <!-- Invoice preview section (assets/visit.js renderReview/reviewLineHtml) -->
     <StackPanel>
         <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
             <TextBlock Grid.Column="0" Classes="sec-title" Text="پیش‌نمایش فاکتور" />
@@ -16,7 +16,7 @@
         <Border Classes="review-box">
             <StackPanel>
                 <TextBlock IsVisible="{Binding HasNoRxLines}" Classes="rx-empty"
-                           Text="هنوز خدمتی افزوده نشده — لطفاً به گام قبل برگردید." />
+                           Text="هنوز خدمتی افزوده نشده — لطفاً از بخش «خدمات، اقلام و نسخه» افزوده شود." />
                 <ItemsControl ItemsSource="{Binding ServiceLines}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="visits:RxLineViewModel">
@@ -62,7 +62,7 @@
             </StackPanel>
         </Border>
 
-        <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,14,0,0">
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,16,0,0">
             <Border Grid.Column="0" Classes="review-note">
                 <StackPanel Spacing="4">
                     <TextBlock Text="تشخیص" FontSize="11" FontWeight="ExtraBold" Foreground="{StaticResource MutedBrush}" />
@@ -79,7 +79,7 @@
             </Border>
         </Grid>
 
-        <Border Classes="review-totals" Margin="0,18,0,0">
+        <Border Classes="review-totals" Margin="0,16,0,0">
             <StackPanel>
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0" Text="جمع اقلام" FontSize="13" Foreground="{StaticResource Ink2Brush}" />

@@ -19,7 +19,7 @@ namespace Animora.Desktop.Pages.Sales;
 /// <c>renderLine</c>, totals, terminal banner and payment history), plus the
 /// inline mini-KPIs (<c>renderKPIs</c>). All data flows through
 /// <see cref="ISalesQueryService"/> (the single backend swap point, R-18) — no
-/// sample data or mock branching leaks into this public shape. The catalog
+/// sample-data branching leaks into this public shape. The catalog
 /// picker and payment modal are Phase 21; this phase shows the read-only invoice
 /// display plus the empty work surface's funnel.
 /// </summary>
@@ -30,6 +30,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
+    private readonly IPrintService _print;
     private readonly List<ReadyEncounterRef> _readyEncounters = [];
     private readonly List<InvoiceSummary> _invoices = [];
 
@@ -67,9 +68,10 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private bool _hasReadyVisitBadge;
 
     public SalePageViewModel(ISalesQueryService service, IStoreReadinessGate readiness,
-        IToastService toast, IDialogService dialogs, IDataChangeNotifier changes)
+        IToastService toast, IDialogService dialogs, IDataChangeNotifier changes, IPrintService print)
     {
         _service = service;
+        _print = print;
         _changes = changes;
         _readiness = readiness;
         _toast = toast;
@@ -83,7 +85,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         Segments.Add(new SaleSegmentViewModel("ready", "صف ویزیت"));
         Segments.Add(new SaleSegmentViewModel("invoices", "فاکتورها"));
 
-        History = new SaleHistoryViewModel(service, toast, dialogs, NotifyInvoicesChanged);
+        History = new SaleHistoryViewModel(service, toast, dialogs, print, NotifyInvoicesChanged);
 
         UseLoadStatus(ReloadPageAsync);
         // The ready-visit queue is fed by completed encounters; the cashier settles the same invoices.
@@ -103,14 +105,14 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     public ObservableCollection<SaleSegmentViewModel> Segments { get; } = [];
 
-    public ObservableCollection<ReadyEncounterItemViewModel> ReadyList { get; } = [];
+    public RangeObservableCollection<ReadyEncounterItemViewModel> ReadyList { get; } = [];
 
     /// <summary>Sidebar invoice rows — group headers interleaved with cards.</summary>
-    public ObservableCollection<SaleSidebarRowViewModel> InvoiceRows { get; } = [];
+    public RangeObservableCollection<SaleSidebarRowViewModel> InvoiceRows { get; } = [];
 
-    public ObservableCollection<InvoiceLineViewModel> Lines { get; } = [];
+    public RangeObservableCollection<InvoiceLineViewModel> Lines { get; } = [];
 
-    public ObservableCollection<InvoicePaymentViewModel> Payments { get; } = [];
+    public RangeObservableCollection<InvoicePaymentViewModel> Payments { get; } = [];
 
     public string SearchPlaceholder => "جستجو در ویزیت، فاکتور یا مالک…";
 
@@ -222,7 +224,17 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             return;
         }
 
-        var detail = await _service.GetInvoiceAsync(id);
+        InvoiceDetail? detail;
+        try
+        {
+            detail = await _service.GetInvoiceAsync(id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowFailure(ex, "بازکردن فاکتور ناموفق بود؛ دوباره تلاش کنید");
+            return;
+        }
+
         if (detail is null)
         {
             return;
@@ -270,26 +282,36 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         }
         catch (InvalidOperationException ex)
         {
-            _toast.Show(
-                Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(
-                    ex, "صدور فاکتور از ویزیت ناموفق بود؛ از فهرست «آمادهٔ صدور» دوباره تلاش کنید"),
-                Tone.Danger);
+            ShowFailure(ex, "صدور فاکتور از ویزیت ناموفق بود؛ از فهرست «آمادهٔ صدور» دوباره تلاش کنید");
         }
     }
+
+    /// <summary>Surfaces a typed backend failure as a danger toast instead of letting it escape onto the UI dispatcher (X09).</summary>
+    private void ShowFailure(InvalidOperationException ex, string fallback) =>
+        _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, fallback), Tone.Danger);
 
     [RelayCommand]
     private async Task NewBlankInvoice()
     {
-        var detail = await _service.CreateBlankAsync(InvoiceKind.Sale);
-        NotifyInvoicesChanged();
-        _segment = "invoices";
-        OnPropertyChanged(nameof(IsReadySegment));
-        OnPropertyChanged(nameof(IsInvoicesSegment));
+        InvoiceDetail detail;
+        try
+        {
+            detail = await _service.CreateBlankAsync();
+            NotifyInvoicesChanged();
+            _segment = "invoices";
+            OnPropertyChanged(nameof(IsReadySegment));
+            OnPropertyChanged(nameof(IsInvoicesSegment));
 
-        await ReloadListsAsync();
-        RenderSidebar();
-        ShowInvoice(detail);
-        await RefreshKpisAsync();
+            await ReloadListsAsync();
+            RenderSidebar();
+            ShowInvoice(detail);
+            await RefreshKpisAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowFailure(ex, "ایجاد فاکتور جدید ناموفق بود؛ دوباره تلاش کنید");
+            return;
+        }
 
         // A blank sale needs an owner/guest before items are added (mirrors the
         // reference's picker-first flow for walk-in sales).
@@ -343,7 +365,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         }
 
         _dialogs.ShowModal(
-            new PaymentModalViewModel(_service, _toast, _dialogs, SelectedInvoice.Id, RefreshAfterMutation),
+            new PaymentModalViewModel(_service, _toast, _dialogs, _print, SelectedInvoice.Id, RefreshAfterMutation),
             520);
     }
 
@@ -376,16 +398,23 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             return;
         }
 
-        var detail = await _service.VoidAsync(SelectedInvoice.Id);
-        if (detail is null)
+        try
         {
-            _toast.Show("خطا در ابطال", Tone.Danger);
-            return;
-        }
+            var detail = await _service.VoidAsync(SelectedInvoice.Id);
+            if (detail is null)
+            {
+                _toast.Show("خطا در ابطال", Tone.Danger);
+                return;
+            }
 
-        _toast.Show($"فاکتور «{detail.Id}» ابطال شد", Tone.Ok);
-        NotifyInvoicesChanged();
-        await RefreshAfterMutationAsync();
+            _toast.Show($"فاکتور «{detail.Id}» ابطال شد", Tone.Ok);
+            NotifyInvoicesChanged();
+            await RefreshAfterMutationAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowFailure(ex, "ابطال فاکتور ناموفق بود؛ دوباره تلاش کنید");
+        }
     }
 
     [RelayCommand]
@@ -430,12 +459,29 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         }
     }
 
+    /// <summary>Opens the day report (every loaded invoice + the headline KPIs) in the print preview (X13).</summary>
     [RelayCommand]
-    private void PrintDay() => _toast.Show("گزارش روز به چاپگر ارسال شد (نمونه طراحی)", Tone.Ok);
+    private async Task PrintDay()
+    {
+        var html = SalesPrintDocuments.DayReport(_invoices, Kpi, _print.EmbeddedFontCss);
+        await _print.OpenWithToastAsync(_toast, "sales-day-report", html);
+    }
 
     private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
 
-    partial void OnSearchTextChanged(string value) => _searchDebounce.Debounce(RenderSidebar);
+    partial void OnSearchTextChanged(string value) => _searchDebounce.Debounce(RenderSidebarIfQueryChanged);
+
+    // The normalized query the sidebar was last rendered for; a keystroke that does not change it
+    // (whitespace, an Arabic/Persian variant of the same letter) needs no rebuild (PERFORMANCE.md §13).
+    private string _renderedQuery = string.Empty;
+
+    private void RenderSidebarIfQueryChanged()
+    {
+        if (!string.Equals(PersianText.Normalize(SearchText), _renderedQuery, System.StringComparison.Ordinal))
+        {
+            RenderSidebar();
+        }
+    }
 
     // ── Loading ─────────────────────────────────────────────────────────
 
@@ -489,7 +535,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     private async Task RefreshKpisAsync()
     {
-        Kpi = await _service.GetKpisAsync();
+        Kpi = await _service.GetKpisAsync(_invoices, _readyEncounters.Count);
         SettledTodayText = SalePresentation.Money(Kpi.SettledTodayTotal);
         OpenDueText = SalePresentation.Money(Kpi.OpenDueTotal);
 
@@ -505,6 +551,10 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     private void RenderSidebar()
     {
+        // Normalize the query once per render, not once per row (PERFORMANCE.md §2).
+        var query = PersianText.Normalize(SearchText);
+        _renderedQuery = query;
+
         var readyCt = _readyEncounters.Count;
         var openCt = _invoices.Count(i => i.State is InvoiceState.Draft or InvoiceState.Partial);
 
@@ -517,28 +567,27 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             seg.IsPulsing = seg.Key == "ready" ? readyCt > 0 : openCt > 0;
         }
 
-        ReadyList.Clear();
-        InvoiceRows.Clear();
-
         if (_segment == "ready")
         {
-            foreach (var enc in _readyEncounters.Where(MatchesEncounter))
-            {
-                ReadyList.Add(new ReadyEncounterItemViewModel(enc));
-            }
+            InvoiceRows.ReplaceAll([]);
+            ReadyList.ReplaceAll(
+                _readyEncounters.Where(enc => MatchesEncounter(enc, query)).Select(enc => new ReadyEncounterItemViewModel(enc)));
         }
         else
         {
-            var filtered = _invoices.Where(MatchesInvoice).ToList();
-            AddGroup("باز و در انتظار", filtered.Where(i => i.State is InvoiceState.Draft or InvoiceState.Partial));
-            AddGroup("تسویه‌شده", filtered.Where(i => i.State == InvoiceState.Settled));
-            AddGroup("ابطال و عودت", filtered.Where(i => i.State is InvoiceState.Void or InvoiceState.Refunded));
+            ReadyList.ReplaceAll([]);
+            var filtered = _invoices.Where(inv => MatchesInvoice(inv, query)).ToList();
+            var rows = new List<SaleSidebarRowViewModel>(filtered.Count + 3);
+            AddGroup(rows, "باز و در انتظار", filtered.Where(i => i.State is InvoiceState.Draft or InvoiceState.Partial));
+            AddGroup(rows, "تسویه‌شده", filtered.Where(i => i.State == InvoiceState.Settled));
+            AddGroup(rows, "ابطال و عودت", filtered.Where(i => i.State is InvoiceState.Void or InvoiceState.Refunded));
+            InvoiceRows.ReplaceAll(rows);
         }
 
         RaiseDerived();
     }
 
-    private void AddGroup(string label, IEnumerable<InvoiceSummary> list)
+    private void AddGroup(List<SaleSidebarRowViewModel> target, string label, IEnumerable<InvoiceSummary> list)
     {
         var items = list.ToList();
         if (items.Count == 0)
@@ -546,25 +595,23 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             return;
         }
 
-        InvoiceRows.Add(SaleSidebarRowViewModel.Header(label, items.Count));
+        target.Add(SaleSidebarRowViewModel.Header(label, items.Count));
         foreach (var summary in items)
         {
             var row = SaleSidebarRowViewModel.Card(new InvoiceItemViewModel(summary));
             row.IsActive = SelectedInvoice is not null && row.InvoiceId == SelectedInvoice.Id;
-            InvoiceRows.Add(row);
+            target.Add(row);
         }
     }
 
-    private bool MatchesInvoice(InvoiceSummary inv)
+    private static bool MatchesInvoice(InvoiceSummary inv, string q)
     {
-        var q = PersianText.Normalize(SearchText);
         return q.Length == 0 || PersianText.Contains(
             PersianText.Normalize($"{inv.Id} {inv.OwnerName} {inv.PetName} {inv.Phone}"), q);
     }
 
-    private bool MatchesEncounter(ReadyEncounterRef enc)
+    private static bool MatchesEncounter(ReadyEncounterRef enc, string q)
     {
-        var q = PersianText.Normalize(SearchText);
         return q.Length == 0 || PersianText.Contains(
             PersianText.Normalize($"{enc.Id} {enc.OwnerName} {enc.PetName} {enc.DoctorShort}"), q);
     }
@@ -574,8 +621,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private void ShowEmptyWork()
     {
         SelectedInvoice = null;
-        Lines.Clear();
-        Payments.Clear();
+        Lines.ReplaceAll([]);
+        Payments.ReplaceAll([]);
         HasSelectedInvoice = false;
         RaiseDerived();
     }
@@ -585,17 +632,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         SelectedInvoice = new SaleInvoiceViewModel(detail);
         HasSelectedInvoice = true;
 
-        Lines.Clear();
-        foreach (var line in detail.Lines)
-        {
-            Lines.Add(new InvoiceLineViewModel(line));
-        }
-
-        Payments.Clear();
-        foreach (var payment in detail.Payments)
-        {
-            Payments.Add(new InvoicePaymentViewModel(payment));
-        }
+        Lines.ReplaceAll(detail.Lines.Select(line => new InvoiceLineViewModel(line)));
+        Payments.ReplaceAll(detail.Payments.Select(payment => new InvoicePaymentViewModel(payment)));
 
         foreach (var row in InvoiceRows)
         {

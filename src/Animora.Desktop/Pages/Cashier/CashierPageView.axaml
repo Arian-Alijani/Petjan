@@ -302,7 +302,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Path Classes="icon" Width="14" Height="14" Stroke="White"
                               Data="{StaticResource IconDownload}" />
-                        <TextBlock Text="خروجی اکسل" />
+                        <TextBlock Text="خروجی اکسل (CSV)" />
                     </StackPanel>
                 </Button>
             </StackPanel>
@@ -456,6 +456,12 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+
+                    <Button Classes="outline" Margin="12,8" HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            IsVisible="{Binding CanLoadMore}"
+                            Command="{Binding LoadMoreCommand}"
+                            Content="نمایش فاکتورهای بیشتر" />
 
                     <!-- .cs-empty: 40/24, centered, 56 ico tile. -->
                     <StackPanel IsVisible="{Binding IsEmpty}" Spacing="10" Margin="24,40"
@@ -846,14 +852,6 @@
                                 BorderThickness="0,1,0,0">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                                    <Button Classes="ghost cs-act" Command="{Binding RecalculateCommand}">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <Path Classes="icon" Width="16" Height="16"
-                                                  Stroke="{Binding $parent[Button].Foreground}"
-                                                  Data="{StaticResource IconRefresh}" />
-                                            <TextBlock Text="باز محاسبه" />
-                                        </StackPanel>
-                                    </Button>
                                     <Button Classes="outline cs-act" IsVisible="{Binding Detail.ShowVoid}"
                                             Command="{Binding VoidCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="8">

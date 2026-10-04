@@ -17,16 +17,12 @@ namespace Animora.Desktop.Pages.Visits;
 
 /// <summary>
 /// The wizard's six visible stages, mirroring the reference's scene swap
-/// (Animora-UI/assets/visit.js <c>renderScene</c>: wizard steps 0..4 then the
-/// separate done scene).
+/// (single-page encounter form, then the separate done scene).
 /// </summary>
 public enum EncounterStep
 {
-    Vitals,
-    History,
-    Plan,
-    Rx,
-    Review,
+    /// <summary>The single-page encounter form (vitals, history, plan, services, invoice summary).</summary>
+    Form,
     Done,
 }
 
@@ -41,16 +37,6 @@ public enum EncounterStep
 /// </summary>
 public sealed partial class VisitEncounterViewModel : PageViewModelBase
 {
-    /// <summary>The reference's <c>STEPS</c> array — key, full label, short label.</summary>
-    internal static readonly (string Key, string Label, string Short)[] StepDefinitions =
-    [
-        ("vitals", "علائم حیاتی", "علائم حیاتی"),
-        ("history", "شرح‌حال و معاینه", "شرح‌حال"),
-        ("plan", "تشخیص و طرح درمان", "تشخیص"),
-        ("rx", "خدمات و نسخه", "خدمات و نسخه"),
-        ("review", "صدور فاکتور", "فاکتور"),
-    ];
-
     // Reference renderReview «مالیات (۹٪)» — the single 9% tax line.
     private const decimal TaxRate = 0.09m;
 
@@ -65,13 +51,13 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private bool CanFinishVisit() => _capabilities.Can("visits.complete");
     // The permission dimension is enforced at run time (CompleteAsync toasts the reason) so the button is
     // never an unexplained dead control; only the diagnosis gate disables it (V02/V09).
-    private bool CanAdvance() => !IsLastStep || !string.IsNullOrWhiteSpace(DiagnosisText);
+    private bool CanAdvance() => !string.IsNullOrWhiteSpace(DiagnosisText);
 
     private EncounterDraft _draft = EmptyDraft();
     private string _encounterId = string.Empty;
 
     [ObservableProperty]
-    private EncounterStep _currentStep = EncounterStep.Vitals;
+    private EncounterStep _currentStep = EncounterStep.Form;
 
     // ---- Step 1: vitals (reference renderVitals) ----
     [ObservableProperty]
@@ -142,15 +128,9 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         Breadcrumbs.Add("مدیریت کلینیک");
         Breadcrumbs.Add("ویزیت");
 
-        for (var i = 0; i < StepDefinitions.Length; i++)
-        {
-            Steps.Add(new EncounterStepViewModel(i, StepDefinitions[i].Short));
-        }
     }
 
     // ---- collections ----
-    public ObservableCollection<EncounterStepViewModel> Steps { get; } = [];
-
     public ObservableCollection<RxCatalogOptionViewModel> ServiceCatalog { get; } = [];
 
     public ObservableCollection<RxCatalogOptionViewModel> ItemCatalog { get; } = [];
@@ -160,27 +140,8 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     public ObservableCollection<RxLineViewModel> ItemLines { get; } = [];
 
     // ---- step visibility ----
-    public bool IsVitalsStep => CurrentStep == EncounterStep.Vitals;
-    public bool IsHistoryStep => CurrentStep == EncounterStep.History;
-    public bool IsPlanStep => CurrentStep == EncounterStep.Plan;
-    public bool IsRxStep => CurrentStep == EncounterStep.Rx;
-    public bool IsReviewStep => CurrentStep == EncounterStep.Review;
     public bool IsDoneStep => CurrentStep == EncounterStep.Done;
     public bool IsWorkflowVisible => CurrentStep != EncounterStep.Done;
-    public bool IsFirstStep => CurrentStep == EncounterStep.Vitals;
-    public bool IsLastStep => CurrentStep == EncounterStep.Review;
-    public bool CanGoPrevious => CurrentStep != EncounterStep.Vitals;
-
-    public string StepInfoText =>
-        $"مرحلهٔ {PersianNumberFormatter.ToPersianDigits((int)CurrentStep + 1)} از "
-        + $"{PersianNumberFormatter.ToPersianDigits(StepDefinitions.Length)} · "
-        + StepDefinitions[Math.Min((int)CurrentStep, StepDefinitions.Length - 1)].Label;
-
-    /// <summary>The foot's primary-button caption (reference renderFoot).</summary>
-    public string NextButtonText => IsLastStep ? "صدور فاکتور و پایان ویزیت" : "مرحلهٔ بعد";
-
-    /// <summary>The foot's primary-button trailing icon key (check on the last step).</summary>
-    public string NextButtonIcon => IsLastStep ? "IconCheck" : "IconChevronLeft";
 
     // ---- ribbon (reference renderRibbon) ----
     public string RibbonTitle => $"ویزیت {_draft.PatientName} · {_draft.TypeLabel}";
@@ -233,7 +194,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     // ---- review note panels (reference renderReview's two «—»-fallback cards) ----
     /// <summary>True on the plan step while the mandatory diagnosis is still empty (V02).</summary>
-    public bool IsDiagnosisMissing => IsPlanStep && string.IsNullOrWhiteSpace(DiagnosisText);
+    public bool IsDiagnosisMissing => string.IsNullOrWhiteSpace(DiagnosisText);
 
     public string DiagnosisDisplay => string.IsNullOrWhiteSpace(DiagnosisText) ? "—" : DiagnosisText;
     public string PlanDisplay => string.IsNullOrWhiteSpace(PlanText) ? "—" : PlanText;
@@ -269,19 +230,13 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
             ItemCatalog.Add(new RxCatalogOptionViewModel(item));
         }
 
-        CurrentStep = EncounterStep.Vitals;
+        CurrentStep = EncounterStep.Form;
         RecomputeSubtotal();
         NotifyState();
     }
 
     partial void OnCurrentStepChanged(EncounterStep value)
     {
-        for (var i = 0; i < Steps.Count; i++)
-        {
-            Steps[i].IsActive = i == (int)value && value != EncounterStep.Done;
-            Steps[i].IsDone = i < (int)value;
-        }
-
         NotifyState();
     }
 
@@ -289,7 +244,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     {
         OnPropertyChanged(nameof(DiagnosisDisplay));
         OnPropertyChanged(nameof(IsDiagnosisMissing));
-        NextStepCommand.NotifyCanExecuteChanged();
+        CompleteVisitCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedServiceToAddChanged(RxCatalogOptionViewModel? value)
@@ -355,50 +310,10 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         }
     }
 
+    /// <summary>Saves the whole single-page form and completes the visit (invoice hand-off).</summary>
     [RelayCommand(CanExecute = nameof(CanAdvance))]
-    private Task NextStepAsync() => RunGuardedAsync(async () =>
-    {
-        if (CurrentStep == EncounterStep.Review)
-        {
-            await CompleteAsync();
-            return;
-        }
-
-        if (!await PersistAsync())
-        {
-            return;
-        }
-
-        CurrentStep = (EncounterStep)((int)CurrentStep + 1);
-    }, "ادامهٔ ویزیت ناموفق بود؛ دوباره تلاش کنید");
-
-    [RelayCommand]
-    private Task PreviousStepAsync() => RunGuardedAsync(async () =>
-    {
-        if (CurrentStep == EncounterStep.Vitals)
-        {
-            return;
-        }
-
-        if (!await PersistAsync())
-        {
-            return;
-        }
-
-        CurrentStep = (EncounterStep)((int)CurrentStep - 1);
-    }, "بازگشت به مرحلهٔ قبل ناموفق بود؛ دوباره تلاش کنید");
-
-    [RelayCommand]
-    private void GoToStep(EncounterStepViewModel? step)
-    {
-        // Reference stepper: only already-visited stages are clickable.
-        if (step is null || step.Index >= (int)CurrentStep || CurrentStep == EncounterStep.Done)
-        {
-            return;
-        }
-
-        CurrentStep = (EncounterStep)step.Index;
-    }
+    private Task CompleteVisitAsync() => RunGuardedAsync(
+        CompleteAsync, "ثبت نهایی ویزیت ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand(CanExecute = nameof(CanEditVisit))]
     private Task SaveDraftAsync() => RunGuardedAsync(async () =>
@@ -593,21 +508,12 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private void NotifyState()
     {
         OnPropertyChanged(nameof(CanEditVisit));
-        NextStepCommand.NotifyCanExecuteChanged();
+        CompleteVisitCommand.NotifyCanExecuteChanged();
         SaveDraftCommand.NotifyCanExecuteChanged();
         RemoveRxLineCommand.NotifyCanExecuteChanged();
-        OnPropertyChanged(nameof(IsVitalsStep));
-        OnPropertyChanged(nameof(IsHistoryStep));
-        OnPropertyChanged(nameof(IsPlanStep));
         OnPropertyChanged(nameof(IsDiagnosisMissing));
-        OnPropertyChanged(nameof(IsRxStep));
-        OnPropertyChanged(nameof(IsReviewStep));
         OnPropertyChanged(nameof(IsDoneStep));
         OnPropertyChanged(nameof(IsWorkflowVisible));
-        OnPropertyChanged(nameof(IsFirstStep));
-        OnPropertyChanged(nameof(IsLastStep));
-        OnPropertyChanged(nameof(CanGoPrevious));
-        OnPropertyChanged(nameof(StepInfoText));
         NotifyLineState();
     }
 

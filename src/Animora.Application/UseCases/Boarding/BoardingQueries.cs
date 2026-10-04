@@ -64,11 +64,10 @@ public sealed class BoardingKnownPetsQueryHandler(IBoardingQueries queries)
 }
 
 [RequiresPermission(PermissionCodes.BoardingRead)]
-public sealed record BoardingHistoryQuery(string? Search, string Sort, int Page, int PageSize)
-    : IQuery<BoardingHistoryResult>;
+public sealed record BoardingHistoryQuery(BoardingHistoryCriteria Criteria) : IQuery<BoardingHistoryResult>;
 public sealed class BoardingHistoryQueryHandler(IBoardingQueries queries)
     : IQueryHandler<BoardingHistoryQuery, BoardingHistoryResult>
 {
     public async Task<Result<BoardingHistoryResult>> HandleAsync(BoardingHistoryQuery query, QueryContext context, CancellationToken ct) =>
-        Result<BoardingHistoryResult>.Ok(await queries.GetHistoryAsync(query.Search, query.Sort, query.Page, query.PageSize, ct));
+        Result<BoardingHistoryResult>.Ok(await queries.GetHistoryAsync(query.Criteria, ct));
 }

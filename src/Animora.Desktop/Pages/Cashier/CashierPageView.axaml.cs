@@ -15,7 +15,7 @@ public partial class CashierPageView : UserControl
 
     // Mirrors the reference's per-line input listeners: on blur of the qty /
     // discount boxes, push the row's edits back through the ViewModel (which
-    // recomputes the invoice via the mock).
+    // recomputes the invoice through the Cashier service).
     private void OnLineFieldCommit(object? sender, RoutedEventArgs e)
     {
         if (sender is TextBox { DataContext: CashierLineViewModel line })

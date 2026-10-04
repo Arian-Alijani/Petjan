@@ -30,7 +30,24 @@ public interface IHistoryQueryService
     /// Renders the <b>whole</b> filtered ledger as CSV text (mirroring the
     /// reference's <c>HIST.exportCSV</c> column set — export is not paged). The
     /// actual file-save dialog is a thin platform call in the View/command, not
-    /// this service.
+    /// this service. Dates are clinic-local Jalali and every text column is
+    /// localized through <paramref name="labels"/> so the file matches the
+    /// on-screen ledger row-for-row.
     /// </summary>
-    Task<string> ExportCsvAsync(HistoryFilter filter);
+    Task<string> ExportCsvAsync(HistoryFilter filter, HistoryCsvLabels labels);
 }
+
+/// <summary>
+/// Presentation hooks the export needs from the UI layer (the localization tables live in
+/// the Desktop project). The service formats every row once through these delegates, so the
+/// exported ledger is identical to what the screen renders — no post-hoc string patching.
+/// </summary>
+/// <param name="Header">Localized column headers, in column order (Date, Time, Title, Detail, Entity, Amount, Sign, Status, Actor).</param>
+/// <param name="Title">Maps a stable title key to its Persian title.</param>
+/// <param name="Detail">Maps the resolved detail text written at feed-write time to its Persian rendering.</param>
+/// <param name="Status">Maps a status to its Persian chip label.</param>
+public sealed record HistoryCsvLabels(
+    IReadOnlyList<string> Header,
+    Func<string, string> Title,
+    Func<string, string> Detail,
+    Func<HistoryEventStatus, string> Status);

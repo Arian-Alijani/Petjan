@@ -118,6 +118,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IReceptionQueueRepository, ReceptionQueueRepository>();
         services.AddScoped<IBoardingRepository, BoardingRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
         services.AddScoped<IStockMovementRepository, StockMovementRepository>();
         services.AddScoped<IPurchasingRepository, PurchasingRepository>();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();

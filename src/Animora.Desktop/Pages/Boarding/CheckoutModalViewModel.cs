@@ -49,9 +49,18 @@ public sealed partial class CheckoutModalViewModel : ObservableObject
     [RelayCommand]
     private async Task ConfirmAsync()
     {
-        await _service.CheckoutAsync(_stay.Id, new CheckoutRequest());
+        try
+        {
+            await _service.CheckoutAsync(_stay.Id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, "تخلیه ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            return;
+        }
+
         _dialogs.Close();
-        _toast.Show($"«{_stay.PetName}» تخلیه شد — اتاق {RoomText} آزاد است (نمونه طراحی)", Tone.Ok);
+        _toast.Show($"«{_stay.PetName}» تخلیه شد — اتاق {RoomText} آزاد است", Tone.Ok);
         _onCheckedOut?.Invoke();
     }
 

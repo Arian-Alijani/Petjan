@@ -3,6 +3,7 @@ using Animora.Application.Security;
 using Animora.Application.UseCases.Cashier;
 using Animora.Application.UseCases.Sales;
 using Animora.Application.UseCases.Sales.ReadModels;
+using Animora.Client.Services.Payments;
 using Animora.Contracts.Cashier;
 using Animora.Domain.Results;
 using Animora.Domain.Sales;
@@ -17,17 +18,24 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 {
     private const int PageSize = 200;
 
-    public async Task<IReadOnlyList<CashierInvoice>> GetInvoicesAsync()
+    public async Task<CashierInvoicePage> GetInvoicesAsync(CashierTab tab, string? search, int page, int pageSize)
     {
-        var items = new List<CashierInvoice>();
-        for (var page = 1; ; page++)
+        var applicationTab = tab switch
         {
-            var result = await QueryAsync(new CashierInvoiceListQuery(Animora.Application.Ports.CashierInvoiceTab.All, page, PageSize));
-            if (result.IsFailure || result.Value is null) break;
-            foreach (var row in result.Value.Items) items.Add(row.ToContract(Math.Max(0, row.TotalMinor - row.DueMinor)));
-            if (items.Count >= result.Value.TotalCount || result.Value.Items.Count == 0) break;
-        }
-        return items;
+            CashierTab.Open => Animora.Application.Ports.CashierInvoiceTab.Open,
+            CashierTab.Settled => Animora.Application.Ports.CashierInvoiceTab.Settled,
+            CashierTab.Void => Animora.Application.Ports.CashierInvoiceTab.Void,
+            _ => Animora.Application.Ports.CashierInvoiceTab.All,
+        };
+        var size = Math.Clamp(pageSize, 1, PageSize);
+        var result = await QueryAsync(new CashierInvoiceListQuery(applicationTab, Math.Max(1, page), size,
+            string.IsNullOrWhiteSpace(search) ? null : search.Trim()));
+        if (result.IsFailure || result.Value is null) return new CashierInvoicePage([], 0, Math.Max(1, page), size);
+
+        var rows = result.Value.Items;
+        var items = new List<CashierInvoice>(rows.Count);
+        for (var i = 0; i < rows.Count; i++) items.Add(rows[i].ToContract(Math.Max(0, rows[i].TotalMinor - rows[i].DueMinor)));
+        return new CashierInvoicePage(items, result.Value.TotalCount, result.Value.Page, size);
     }
 
     public async Task<CashierInvoiceDetail?> GetDetailAsync(string invoiceId)
@@ -38,9 +46,9 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 
     public async Task<IReadOnlyList<CashierStat>> GetStatsAsync()
     {
-        var now = DateTimeOffset.UtcNow;
-        var from = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
-        var result = await QueryAsync(new CashierStatsQuery(from, from.AddDays(1)));
+        // Same clinic-local day window the Sales KPIs use, so both screens agree on "today".
+        var (from, to) = ClinicDayWindow.Today(scopes);
+        var result = await QueryAsync(new CashierStatsQuery(from, to));
         if (result.IsFailure || result.Value is null) return [];
         var stats = result.Value;
         return [
@@ -78,23 +86,10 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 
     public async Task<CashierActionResult> PayAsync(string invoiceId, CashierPayRequest request)
     {
-        var current = await GetDetailAsync(invoiceId);
-        if (current is null) return new(false, "INVOICE_NOT_FOUND", null);
-        if (current.State == CashierInvoiceState.Draft)
-        {
-            var post = await SendAsync(new PostInvoiceCommand(invoiceId));
-            if (post.IsFailure) return new(false, post.Error.Code, current);
-        }
-        var method = request.Method switch
-        {
-            CashierPaymentMethod.Cash => PaymentMethod.Cash,
-            CashierPaymentMethod.Card => PaymentMethod.Card,
-            CashierPaymentMethod.Cheque => PaymentMethod.Cheque,
-            CashierPaymentMethod.Credit => PaymentMethod.Credit,
-            _ => PaymentMethod.Transfer,
-        };
-        var paid = await SendAsync(new RegisterPaymentCommand(invoiceId, method, Money.Irt(request.Amount), request.Reference));
-        return new(paid.IsSuccess, paid.IsFailure ? paid.Error.Code : null, await GetDetailAsync(invoiceId));
+        // One shared pay-on-post / cap-to-due path for Sales and Cashier (X41).
+        var outcome = await InvoicePaymentCore.PayAsync(invoiceId, InvoicePaymentCore.ToDomain(request.Method),
+            request.Amount, request.Reference, command => SendAsync(command), () => ReadModelAsync(invoiceId));
+        return new(outcome.Ok, outcome.Error, await GetDetailAsync(invoiceId), outcome.Applied);
     }
 
     public async Task<CashierActionResult> VoidAsync(string invoiceId)
@@ -105,26 +100,23 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 
     public async Task<CashierActionResult> RefundAsync(string invoiceId, CashierRefundRequest request)
     {
-        var result = await SendAsync(new RefundInvoiceCommand(invoiceId, Money.Irt(request.Amount), "بازپرداخت در صندوق"));
-        return new(result.IsSuccess, result.IsFailure ? result.Error.Code : null, await GetDetailAsync(invoiceId));
+        var outcome = await InvoicePaymentCore.RefundAsync(invoiceId, request.Amount, "بازپرداخت در صندوق",
+            command => SendAsync(command), () => ReadModelAsync(invoiceId));
+        return new(outcome.Ok, outcome.Error, await GetDetailAsync(invoiceId), outcome.Applied);
     }
 
-    public async Task<CashierInvoiceDetail> UpdateLineAsync(string invoiceId, int lineIndex, int quantity, int discountPercent)
+    // Addressed by the LineId the user saw (X27): a concurrent insert/remove makes the domain answer
+    // INVOICE_LINE_INDEX_STALE instead of silently editing whichever line now sits at that index.
+    public async Task<CashierInvoiceDetail> UpdateLineAsync(
+        string invoiceId, int lineIndex, string lineId, int quantity, int discountPercent)
     {
-        var current = await RequireDetailAsync(invoiceId);
-        if (lineIndex < 0 || lineIndex >= current.Lines.Count) throw new ArgumentOutOfRangeException(nameof(lineIndex));
-        var model = await QueryAsync(new InvoiceDetailQuery(invoiceId));
-        var lineId = model.Value!.Lines[lineIndex].LineId;
         Ensure(await SendAsync(new EditInvoiceLineCommand(invoiceId, lineIndex, lineId, quantity, discountPercent)));
         return await RequireDetailAsync(invoiceId);
     }
 
-    public async Task<CashierInvoiceDetail> RemoveLineAsync(string invoiceId, int lineIndex)
+    public async Task<CashierInvoiceDetail> RemoveLineAsync(string invoiceId, int lineIndex, string lineId)
     {
-        var model = await QueryAsync(new InvoiceDetailQuery(invoiceId));
-        if (model.IsFailure || model.Value is null || lineIndex < 0 || lineIndex >= model.Value.Lines.Count)
-            throw new ArgumentOutOfRangeException(nameof(lineIndex));
-        Ensure(await SendAsync(new RemoveInvoiceLineCommand(invoiceId, lineIndex, model.Value.Lines[lineIndex].LineId)));
+        Ensure(await SendAsync(new RemoveInvoiceLineCommand(invoiceId, lineIndex, lineId)));
         return await RequireDetailAsync(invoiceId);
     }
 
@@ -147,7 +139,11 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
         return await RequireDetailAsync(invoiceId);
     }
 
-    public Task<CashierInvoiceDetail> RecalculateAsync(string invoiceId) => RequireDetailAsync(invoiceId);
+    private async Task<InvoiceDetailReadModel?> ReadModelAsync(string invoiceId)
+    {
+        var result = await QueryAsync(new InvoiceDetailQuery(invoiceId));
+        return result.IsSuccess ? result.Value : null;
+    }
 
     private async Task<CashierInvoiceDetail> RequireDetailAsync(string id) =>
         await GetDetailAsync(id) ?? throw new InvalidOperationException("INVOICE_NOT_FOUND");

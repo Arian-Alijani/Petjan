@@ -112,6 +112,9 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasMaxLength(26)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("PaymentMode")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("PetId")
                         .IsRequired()
                         .HasMaxLength(26)
@@ -1738,10 +1741,9 @@ namespace Animora.Persistence.Sqlite.Migrations
                                 .HasColumnType("TEXT")
                                 .HasColumnName("ReorderLevelUnit");
 
-                            b1.Property<string>("Value")
-                                .IsRequired()
-                                .HasColumnType("TEXT")
-                                .HasColumnName("ReorderLevelValue");
+                            b1.Property<long>("Value")
+                                .HasColumnType("INTEGER")
+                                .HasColumnName("ReorderLevelScaled");
                         });
 
                     b.ComplexProperty(typeof(Dictionary<string, object>), "SalePrice", "Animora.Domain.Inventory.ProductVariant.SalePrice#Money", b1 =>
@@ -3364,6 +3366,11 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasMaxLength(400)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DetailText")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EntityId")
                         .IsRequired()
                         .HasMaxLength(26)
@@ -3384,6 +3391,11 @@ namespace Animora.Persistence.Sqlite.Migrations
 
                     b.Property<long>("OccurredUtc")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("SearchText")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Status")
                         .IsRequired()

@@ -19,7 +19,7 @@ namespace Animora.Desktop.Pages.Sales;
 /// page (via <see cref="IDialogService.ShowSheet"/>), shows its full detail —
 /// header, lines, totals, payment history and the «تاریخچه تغییرات» audit trail —
 /// and offers the edit / delete / void / refund / pay actions. Every mutation is
-/// routed through <see cref="ISalesQueryService"/> so the mock records the change
+/// routed through <see cref="ISalesQueryService"/> so the Sales service records the change
 /// (with its full detail) in the audit trail and the cashier ledger, then the
 /// viewer reloads and notifies the caller so the page/ledger refresh too.
 /// </summary>
@@ -28,6 +28,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private readonly ISalesQueryService _service;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
+    private readonly IPrintService _print;
     private readonly string _invoiceId;
     private readonly Action? _onChanged;
 
@@ -37,16 +38,18 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         ISalesQueryService service,
         IToastService toast,
         IDialogService dialogs,
+        IPrintService print,
         string invoiceId,
         Action? onChanged = null)
     {
         _service = service;
         _toast = toast;
         _dialogs = dialogs;
+        _print = print;
         _invoiceId = invoiceId;
         _onChanged = onChanged;
 
-        _ = LoadAsync();
+        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری فاکتور ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
 
     public RangeObservableCollection<InvoiceViewerLineViewModel> Lines { get; } = [];
@@ -231,6 +234,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         var detail = await _service.GetInvoiceAsync(_invoiceId);
         if (detail is null)
         {
+            _toast.Show("فاکتور موردنظر یافت نشد", Tone.Warn);
             _dialogs.Close();
             return;
         }
@@ -325,6 +329,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private void OnLineEdited(int index, int quantity, int discountPercent)
     {
         var title = LineTitle(index);
+        var lineId = LineIdOf(index);
 
         // Ask before applying. If the user cancels, we snap the row's editable
         // fields back to the invoice's canonical values so the sheet never shows
@@ -350,7 +355,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             "مبلغ ردیف و جمع فاکتور بازمحاسبه و در تاریخچه تغییرات ثبت می‌شود.",
             "بله، اعمال کن",
             "انصراف",
-            () => _ = MutateAsync(() => _service.EditLineAsync(_invoiceId, index, quantity, discountPercent))), 480);
+            () => _ = MutateAsync(() => _service.EditLineAsync(_invoiceId, index, lineId, quantity, discountPercent))), 480);
 
         // Snap the editable fields back to canonical values immediately: if the
         // user cancels, the sheet shows no un-applied edit; if they confirm, the
@@ -361,6 +366,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private void OnLineRemoved(int index)
     {
         var title = LineTitle(index);
+        var lineId = LineIdOf(index);
         _dialogs.ShowModal(new ConfirmDialogViewModel(
             _dialogs,
             "danger",
@@ -372,7 +378,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             "این تغییر در تاریخچه تغییرات ثبت می‌شود.",
             "بله، حذف کن",
             "انصراف",
-            () => _ = MutateAsync(() => _service.RemoveLineAsync(_invoiceId, index))), 480);
+            () => _ = MutateAsync(() => _service.RemoveLineAsync(_invoiceId, index, lineId))), 480);
     }
 
     private void OnLineReturned(int index, int quantity)
@@ -392,10 +398,15 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             () => _ = ReturnLineAsync(index, quantity)), 480);
     }
 
+    // The id of the line as it was rendered: the edit/remove is bound to this row, not to whatever
+    // sits at the index by the time the user confirms (X27).
+    private string LineIdOf(int index) =>
+        _detail?.Lines.FirstOrDefault(l => l.Index == index)?.LineId ?? string.Empty;
+
     private string LineTitle(int index) =>
         _detail?.Lines.FirstOrDefault(l => l.Index == index)?.Title ?? "ردیف";
 
-    private async Task ReturnLineAsync(int index, int quantity)
+    private Task ReturnLineAsync(int index, int quantity) => GuardAsync("برگشت کالا ناموفق بود؛ دوباره تلاش کنید", async () =>
     {
         var result = await _service.ReturnLineAsync(_invoiceId, new LineReturnRequest(index, quantity));
         if (!result.Ok)
@@ -409,9 +420,9 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             ? $"کالا برگشت خورد و {SalePresentation.Money(result.Refunded)} تومان عودت شد"
             : "کالا از فاکتور برگشت خورد", Tone.Ok);
         OnChanged();
-    }
+    });
 
-    private async Task MutateAsync(Func<Task<InvoiceDetail?>> mutation)
+    private Task MutateAsync(Func<Task<InvoiceDetail?>> mutation) => GuardAsync("ویرایش فاکتور ناموفق بود؛ دوباره تلاش کنید", async () =>
     {
         var updated = await mutation();
         if (updated is not null)
@@ -420,7 +431,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         }
 
         _onChanged?.Invoke();
-    }
+    });
 
     [RelayCommand]
     private void ApplyDiscount()
@@ -445,7 +456,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             () => _ = ApplyDiscountAsync(kind, value)), 480);
     }
 
-    private async Task ApplyDiscountAsync(DiscountKind kind, int value)
+    private Task ApplyDiscountAsync(DiscountKind kind, int value) => GuardAsync("اعمال تخفیف ناموفق بود؛ دوباره تلاش کنید", async () =>
     {
         var updated = await _service.SetDiscountAsync(_invoiceId, new DiscountChangeRequest(kind, value));
         if (updated is not null)
@@ -453,9 +464,9 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             Apply(updated);
             _onChanged?.Invoke();
         }
-    }
+    });
 
-    private async Task ApplyInsuranceAsync(string? insurerId)
+    private Task ApplyInsuranceAsync(string? insurerId) => GuardAsync("تغییر بیمه ناموفق بود؛ دوباره تلاش کنید", async () =>
     {
         var updated = await _service.SetInsuranceAsync(_invoiceId, insurerId);
         if (updated is not null)
@@ -463,7 +474,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             Apply(updated);
             _onChanged?.Invoke();
         }
-    }
+    });
 
     private static int ParseIntStatic(string? text, int fallback)
     {
@@ -477,7 +488,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private void TakePayment()
     {
         _dialogs.Close();
-        _dialogs.ShowModal(new PaymentModalViewModel(_service, _toast, _dialogs, _invoiceId, OnChanged), 520);
+        _dialogs.ShowModal(new PaymentModalViewModel(_service, _toast, _dialogs, _print, _invoiceId, OnChanged), 520);
     }
 
     [RelayCommand]
@@ -501,10 +512,14 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             "این عمل غیرقابل بازگشت است و در تاریخچه تغییرات ثبت می‌شود.",
             "بله، ابطال کن",
             "انصراف",
-            VoidConfirmed), 480);
+            () => _ = VoidConfirmedAsync()), 480);
     }
 
-    private async void VoidConfirmed()
+    /// <summary>
+    /// Awaitable void handler (PERF §4 — no <c>async void</c>): a backend failure becomes a danger
+    /// toast via <see cref="GuardAsync"/> instead of vanishing or crashing the process (X10).
+    /// </summary>
+    private Task VoidConfirmedAsync() => GuardAsync("ابطال فاکتور ناموفق بود؛ دوباره تلاش کنید", async () =>
     {
         var detail = await _service.VoidAsync(_invoiceId);
         if (detail is null)
@@ -516,7 +531,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         Apply(detail);
         _toast.Show($"فاکتور «{detail.Id}» ابطال شد", Tone.Ok);
         OnChanged();
-    }
+    });
 
     [RelayCommand]
     private void DeleteInvoice()
@@ -532,10 +547,10 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
             "فاکتور از لیست فعال حذف می‌شود، اما با تمام جزئیات در تاریخچه ثبت و قابل پیگیری می‌ماند.",
             "بله، حذف کن",
             "انصراف",
-            DeleteConfirmed), 480);
+            () => _ = DeleteConfirmedAsync()), 480);
     }
 
-    private async void DeleteConfirmed()
+    private Task DeleteConfirmedAsync() => GuardAsync("حذف فاکتور ناموفق بود؛ دوباره تلاش کنید", async () =>
     {
         var detail = await _service.DeleteInvoiceAsync(_invoiceId);
         if (detail is null)
@@ -547,10 +562,46 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         Apply(detail);
         _toast.Show($"فاکتور «{detail.Id}» حذف شد و در تاریخچه ثبت گردید", Tone.Ok);
         OnChanged();
+    });
+
+    /// <summary>
+    /// Runs a confirmed viewer mutation: a typed backend failure is toasted as a danger message and the
+    /// sheet re-reads the invoice so it never shows an un-applied edit (X09/X10).
+    /// </summary>
+    private async Task GuardAsync(string fallback, Func<Task> action)
+    {
+        try
+        {
+            await action();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(
+                Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, fallback),
+                Tone.Danger);
+            try
+            {
+                await ReloadAsync();
+            }
+            catch (InvalidOperationException)
+            {
+                // The failure toast was already shown; the next action re-syncs the sheet.
+            }
+        }
     }
 
+    /// <summary>Opens the loaded invoice in the print preview (X13).</summary>
     [RelayCommand]
-    private void Print() => _toast.Show("فاکتور به چاپگر ارسال شد (نمونه طراحی)", Tone.Ok);
+    private async Task Print()
+    {
+        if (_detail is null)
+        {
+            return;
+        }
+
+        await _print.OpenWithToastAsync(
+            _toast, $"invoice-{_detail.Id}", SalesPrintDocuments.Invoice(_detail, _print.EmbeddedFontCss));
+    }
 
     [RelayCommand]
     private void Close() => _dialogs.Close();
@@ -603,7 +654,7 @@ public sealed partial class InvoiceViewerLineViewModel : ObservableObject
         _quantityText = SalePresentation.Fa(line.Quantity);
         _discountText = SalePresentation.Fa(line.DiscountPercent);
         (TagBackground, TagForeground) = SalePresentation.LineTagBrushes(line.Kind, line.IsCustom);
-        SubtotalText = SalePresentation.Money(Subtotal(line));
+        SubtotalText = SalePresentation.Money(line.Subtotal);
     }
 
     public int Index { get; }
@@ -660,9 +711,6 @@ public sealed partial class InvoiceViewerLineViewModel : ObservableObject
 
     /// <summary>Returns the whole line quantity in one tap (mirrors «برگشت زدن فقط یک جنس»).</summary>
     public void Return() => _onReturn(Index, _quantity);
-
-    private static long Subtotal(InvoiceLine line) =>
-        (long)Math.Round(line.UnitPrice * line.Quantity * (100 - line.DiscountPercent) / 100.0);
 
     private static int ParseInt(string? text, int fallback)
     {

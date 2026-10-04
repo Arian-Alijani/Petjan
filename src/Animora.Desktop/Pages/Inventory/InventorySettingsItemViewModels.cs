@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Animora.Desktop.Localization;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -6,106 +5,36 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace Animora.Desktop.Pages.Inventory;
 
 /// <summary>
-/// A tone swatch in a category row's tone picker, mirroring the reference's
-/// <c>.tone-dot</c> buttons rendered by <c>renderSettings</c> (inventory.js).
-/// The active swatch carries the reference's <c>.tone-dot.on</c> ink ring.
-/// </summary>
-public sealed partial class InventoryToneOptionViewModel : ObservableObject
-{
-    [ObservableProperty]
-    private bool _isOn;
-
-    public InventoryToneOptionViewModel(string tone)
-    {
-        Tone = tone;
-        Brush = InventoryPresentation.ToneDot(tone);
-    }
-
-    /// <summary>teal | peach | lilac | amber | blue | green.</summary>
-    public string Tone { get; }
-
-    public IBrush Brush { get; }
-}
-
-/// <summary>
-/// One category row of the «دسته‌بندی کالاها» settings list, mirroring the
-/// reference's <c>.cat-setting-row</c> rendered by <c>renderSettings</c>: the
-/// tone icon tile, the name input, the tone picker, the product count and the
-/// delete action.
+/// One category row of the «دسته‌بندی کالاها» settings list: a tone dot, the name and the live product count.
+/// Tone is derived from the immutable category id, so it is display-only. Categories carry no icon.
 /// </summary>
 public sealed partial class InventoryCategoryRowViewModel : ObservableObject
 {
-    [ObservableProperty]
-    private string _label;
+    [ObservableProperty] private bool _isEditing;
+    [ObservableProperty] private string _editName = string.Empty;
 
-    [ObservableProperty]
-    private IBrush _iconBackground;
-
-    [ObservableProperty]
-    private IBrush _iconForeground;
-
-    public InventoryCategoryRowViewModel(string id, string label, string tone, string iconKey, int productCount)
+    public InventoryCategoryRowViewModel(string id, string label, string tone, int productCount)
     {
         Id = id;
-        _label = label;
+        Label = label;
         Tone = tone;
-        IconKey = iconKey;
+        ProductCount = productCount;
         CountText = $"{PersianNumberFormatter.ToPersianDigits(productCount)} کالا";
-
-        var (bg, fg) = InventoryPresentation.CategoryIconTile(tone);
-        _iconBackground = bg;
-        _iconForeground = fg;
-
-        foreach (var optionTone in new[] { "teal", "peach", "lilac", "amber", "blue", "green" })
-        {
-            ToneOptions.Add(new InventoryToneOptionViewModel(optionTone) { IsOn = optionTone == tone });
-        }
+        ToneBrush = InventoryPresentation.ChipDot(tone);
     }
 
     public string Id { get; }
 
+    public string Label { get; }
+
     public string Tone { get; }
 
-    public string IconKey { get; }
+    public int ProductCount { get; }
 
     public string CountText { get; }
 
-    public ObservableCollection<InventoryToneOptionViewModel> ToneOptions { get; } = [];
+    public IBrush ToneBrush { get; }
 
-    /// <summary>
-    /// Applies a newly chosen tone to the row's icon tile + picker selection,
-    /// mirroring the reference's tone-dot click handler.
-    /// </summary>
-    public void ApplyTone(string tone)
-    {
-        var (bg, fg) = InventoryPresentation.CategoryIconTile(tone);
-        IconBackground = bg;
-        IconForeground = fg;
-        foreach (var option in ToneOptions)
-        {
-            option.IsOn = option.Tone == tone;
-        }
-    }
-}
-
-/// <summary>
-/// A row of the «تنظیمات موجودی» switch list, mirroring the reference's
-/// <c>.switch-row</c> rendered by <c>renderSettings</c>: a bold title, a muted
-/// sub-line and a toggle switch.
-/// </summary>
-public sealed partial class InventorySettingToggleViewModel : ObservableObject
-{
-    [ObservableProperty]
-    private bool _isOn;
-
-    public InventorySettingToggleViewModel(string title, string sub, bool isOn)
-    {
-        Title = title;
-        Sub = sub;
-        _isOn = isOn;
-    }
-
-    public string Title { get; }
-
-    public string Sub { get; }
+    /// <summary>Only an empty category may be removed (the backend enforces the same rule).</summary>
+    public bool CanDelete => ProductCount == 0;
 }

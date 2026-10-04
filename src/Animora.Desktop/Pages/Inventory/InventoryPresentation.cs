@@ -6,16 +6,40 @@ using Avalonia.Media;
 namespace Animora.Desktop.Pages.Inventory;
 
 /// <summary>
-/// Presentation adapters for the Inventory screen: the money formatter, the
-/// product-thumbnail gradients, the category tone palettes and the status
+/// Presentation adapters for the Inventory screen: the money formatter, the category tone palettes and the status
 /// colors — all transcribed from the reference (Animora-UI/assets/inventory.js
-/// <c>formatFull</c>/<c>fmt</c>, the <c>.pthumb.(a..f)</c> gradients and the
+/// <c>formatFull</c>/<c>fmt</c> and the
 /// <c>.cat-tag.tone-*</c> / <c>.tone-dot.tone-*</c> / <c>.status-dot.*</c>
 /// rules in <c>inventory.css</c> + <c>styles.css</c>). Kept here so the
 /// ViewModel and View stay free of hardcoded literals.
 /// </summary>
 public static class InventoryPresentation
 {
+    /// <summary>
+    /// The Persian toast for a failed Inventory mutation. Known domain codes get a specific message; access
+    /// and unknown failures defer to the shared Patients mapping (access-lost copy / the caller's fallback).
+    /// </summary>
+    public static string MutationFailureMessage(InvalidOperationException ex, string fallback)
+    {
+        if (ex is Animora.Client.Services.ServiceException se)
+        {
+            switch (se.Code)
+            {
+                case "PRODUCT_SKU_DUPLICATE": return "کد/شناسه تکراری است؛ کد دیگری انتخاب کنید";
+                case "CATEGORY_NAME_DUPLICATE": return "دسته‌ای با این نام وجود دارد";
+                case "CATEGORY_IN_USE": return "این دسته هنوز کالا دارد؛ ابتدا کالاها را به دسته دیگری منتقل کنید";
+                case "CATEGORY_NOT_FOUND": return "دسته پیدا نشد؛ فهرست را به‌روز کنید";
+                case "PRODUCT_HAS_STOCK": return "کالا هنوز موجودی یا گردش اخیر دارد و حذف نمی‌شود";
+                case "STOCK_WOULD_GO_NEGATIVE": return "موجودی نمی‌تواند منفی شود";
+                case "PRODUCT_NOT_FOUND": return "کالا پیدا نشد؛ فهرست را به‌روز کنید";
+                case "VARIANT_NOT_FOUND": return "تنوع پیدا نشد؛ فهرست را به‌روز کنید";
+                case "ADJUSTMENT_REASON_INVALID": return "دلیل تغییر موجودی معتبر نیست";
+            }
+        }
+
+        return Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, fallback);
+    }
+
     /// <summary>A solid fill brush from a hex string (shared via <see cref="BrushCache"/>).</summary>
     public static IBrush Fill(string hex) => BrushCache.Solid(hex);
 
@@ -26,51 +50,27 @@ public static class InventoryPresentation
     public static string Money(long value) => PersianNumberFormatter.FormatGrouped(value);
 
     /// <summary>
-    /// The product-thumbnail fill, mirroring the reference's
-    /// <c>.pthumb.(a..f)</c> two-stop 135° gradients (inventory.css). The
-    /// gradient runs from the top-left to the bottom-right, so start = (0,0)
-    /// and end = (1,1).
+    /// Normalizes a tone key: the read side derives categories' tones as <c>a</c>…<c>f</c> (stable from the id),
+    /// the palettes below are keyed by name — map the letter onto its named palette so tags are never grey.
     /// </summary>
-    public static IBrush ThumbBrush(string? tone)
+    private static string ToneName(string? tone) => tone switch
     {
-        var (from, to) = tone switch
-        {
-            "a" => ("#ece5fb", "#b8a2e6"),
-            "b" => ("#fbe7d6", "#f0b593"),
-            "c" => ("#fff2cc", "#fcd97a"),
-            "d" => ("#fef3f2", "#ea8f8f"),
-            "e" => ("#ecfdf3", "#7ac7b6"),
-            "f" => ("#eff8ff", "#8fb5f0"),
-            _ => ("#ece5fb", "#b8a2e6"),
-        };
-
-        // Shared via GradientBrushCache — six fixed tone pairs, so this never
-        // allocates a brush per product item (PERFORMANCE.md §10).
-        return GradientBrushCache.LinearGradient(from, to, 0, 0, 1, 1);
-    }
+        "a" => "teal",
+        "b" => "peach",
+        "c" => "lilac",
+        "d" => "amber",
+        "e" => "blue",
+        "f" => "green",
+        _ => tone ?? string.Empty,
+    };
 
     /// <summary>
     /// Category-tag colors, mirroring <c>.cat-tag.tone-*</c> (inventory.css):
     /// soft-bg fill + a darker readable label color.
     /// </summary>
-    public static (IBrush Background, IBrush Foreground) CategoryTag(string tone) => tone switch
+    public static (IBrush Background, IBrush Foreground) CategoryTag(string tone) => ToneName(tone) switch
     {
         "teal" => (Fill("#f0fdfa"), Fill("#104a43")),
-        "peach" => (Fill("#fdf1e7"), Fill("#a8623a")),
-        "lilac" => (Fill("#f4f3ff"), Fill("#6c4bb8")),
-        "amber" => (Fill("#fffaeb"), Fill("#8a5b18")),
-        "blue" => (Fill("#eff8ff"), Fill("#345aa8")),
-        "green" => (Fill("#ecfdf3"), Fill("#226b4d")),
-        _ => (Fill("#f1f5f6"), Fill("#344054")),
-    };
-
-    /// <summary>
-    /// Category icon-tile colors, mirroring <c>.cat-setting-row .ic.tone-*</c>
-    /// (inventory.css) — soft-bg fill + the tone's 700-strength glyph color.
-    /// </summary>
-    public static (IBrush Background, IBrush Foreground) CategoryIconTile(string tone) => tone switch
-    {
-        "teal" => (Fill("#f0fdfa"), Fill("#0e7566")),
         "peach" => (Fill("#fdf1e7"), Fill("#a8623a")),
         "lilac" => (Fill("#f4f3ff"), Fill("#6c4bb8")),
         "amber" => (Fill("#fffaeb"), Fill("#8a5b18")),
@@ -83,7 +83,7 @@ public static class InventoryPresentation
     /// The tone-picker dot swatches, mirroring <c>.tone-dot.tone-*</c>
     /// (inventory.css).
     /// </summary>
-    public static IBrush ToneDot(string tone) => Fill(tone switch
+    public static IBrush ToneDot(string tone) => Fill(ToneName(tone) switch
     {
         "teal" => "#14b8a6",
         "peach" => "#e79b70",
@@ -98,7 +98,7 @@ public static class InventoryPresentation
     /// The category filter-chip dot color, mirroring <c>.pb-chip.tone-* .dot</c>
     /// (styles.css).
     /// </summary>
-    public static IBrush ChipDot(string tone) => Fill(tone switch
+    public static IBrush ChipDot(string tone) => Fill(ToneName(tone) switch
     {
         "teal" => "#0d9488",
         "peach" => "#f0b593",

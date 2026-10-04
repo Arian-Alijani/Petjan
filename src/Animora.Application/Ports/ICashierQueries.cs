@@ -12,7 +12,12 @@ public sealed record OpenCashSessionReadModel(string Id, string SessionNumber, l
 /// <summary>Tenant-filtered cashier projections; aggregate loading is reserved for writes.</summary>
 public interface ICashierQueries
 {
-    Task<PagedResult<InvoiceSummaryReadModel>> GetInvoicesAsync(CashierInvoiceTab tab, int page, int pageSize, CancellationToken ct);
+    /// <summary>
+    /// One page of the cashier list for <paramref name="tab"/>, optionally narrowed by <paramref name="search"/>
+    /// (invoice id/number, owner, pet, guest name), open states first then newest first — all in SQL (X29).
+    /// </summary>
+    Task<PagedResult<InvoiceSummaryReadModel>> GetInvoicesAsync(
+        CashierInvoiceTab tab, string? search, int page, int pageSize, CancellationToken ct);
     Task<CashierStatsReadModel> GetStatsAsync(DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken ct);
     Task<CashierTabCountsReadModel> GetTabCountsAsync(CancellationToken ct);
     Task<OpenCashSessionReadModel?> GetOpenSessionAsync(string userId, CancellationToken ct);

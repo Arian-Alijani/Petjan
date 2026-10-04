@@ -1,16 +1,41 @@
 namespace Animora.Contracts.Inventory;
 
 /// <summary>
-/// A product category, mirroring a row of the reference's <c>INV.CATS</c>
-/// (Animora-UI/assets/inventory-data.js). <see cref="Tone"/> drives the
-/// categorical chip/tag color and <see cref="IconKey"/> the category glyph, both
-/// resolved by the View (this contract stays free of UI resources).
+/// A product category. <see cref="Tone"/> drives the categorical tag color, resolved by the View (this
+/// contract stays free of UI resources). Categories carry no icon.
 /// </summary>
 public sealed record CategoryInfo(
     string Id,
     string Label,
     string Tone,
-    string IconKey);
+    int ProductCount = 0);
+
+/// <summary>The list screen's stock-status filter chip (کم‌موجود / در دسترس), applied server-side.</summary>
+public enum ProductStockFilter
+{
+    /// <summary>No stock filter.</summary>
+    All,
+
+    /// <summary>Products with at least one variant at/below its reorder point (low or out).</summary>
+    Low,
+
+    /// <summary>Products with no variant at/below its reorder point.</summary>
+    Ok,
+}
+
+/// <summary>One server-side catalog page request: filters, search term and the page window.</summary>
+/// <param name="Search">Name / code / variant-SKU search term, or null.</param>
+/// <param name="CategoryId">Category filter, or null for all categories.</param>
+/// <param name="Stock">Stock-status filter.</param>
+/// <param name="Page">1-based page index.</param>
+/// <param name="PageSize">Rows per page (clamped by the backend).</param>
+public sealed record ProductListQuery(
+    string? Search, string? CategoryId, ProductStockFilter Stock, int Page, int PageSize);
+
+/// <summary>One catalog page plus the filtered total the pager needs.</summary>
+/// <param name="Items">The page's products.</param>
+/// <param name="TotalCount">Products matching the request's filters (pager).</param>
+public sealed record ProductPage(IReadOnlyList<Product> Items, int TotalCount);
 
 /// <summary>
 /// A stock unit / label dimension a product's variants are offered in — the
@@ -41,11 +66,9 @@ public sealed record ProductVariant(
 /// <summary>
 /// A product in the inventory catalog, mirroring the shape the reference's
 /// <c>renderProductRow</c> / <c>findVariant</c> read from <c>INV.PRODUCTS</c>:
-/// its code, name/brand, category, thumbnail glyph + tone, one or more
-/// <see cref="Variants"/>, and the optional variant <see cref="Attribute"/>
-/// (the «تنوع» dimension). <see cref="Glyph"/> is the product thumbnail's
-/// emoji character exactly as the reference carries it (<c>p.icon</c>).
-/// All pricing/stock figures are derived from the variants by the query
+/// its code, name/brand, category, one or more <see cref="Variants"/>, and the
+/// optional variant <see cref="Attribute"/> (the «تنوع» dimension). Products
+/// carry no icon/thumbnail. All pricing/stock figures are derived from the variants by the query
 /// service — never stored twice.
 /// </summary>
 public sealed record Product(
@@ -54,8 +77,6 @@ public sealed record Product(
     string Name,
     string Brand,
     string CategoryId,
-    string Glyph,
-    string Tone,
     string Description,
     UnitInfo? Attribute,
     IReadOnlyList<ProductVariant> Variants);
@@ -97,16 +118,14 @@ public sealed record ProductInfoUpdate(
     string Code,
     string Brand,
     string CategoryId,
-    string Glyph,
     string Description,
     string? AttributeName,
     IReadOnlyList<ProductVariant> Variants);
 
-/// <summary>
-/// A request to append one manually-authored variant (reference
-/// <c>makeVariant(p, 'تنوع جدید', …)</c> behind the variants tab's «تنوع دستی»).
-/// </summary>
-public sealed record NewVariantRequest(string Label);
+/// <summary>One page of a product's stock-movement ledger plus the total number of movements.</summary>
+/// <param name="Items">The page's movements, newest first.</param>
+/// <param name="TotalCount">All movements the product has.</param>
+public sealed record MovementPage(IReadOnlyList<StockMovement> Items, int TotalCount);
 
 /// <summary>
 /// A request to create a new product from the modal, mirroring the reference's
@@ -117,14 +136,31 @@ public sealed record NewProductRequest(
     string Name,
     string Brand,
     string CategoryId,
-    string Glyph,
     string Description,
     string? AttributeName,
     IReadOnlyList<string> AttributeOptions,
     IReadOnlyList<ProductVariant> Variants);
 
+/// <summary>One variant's absolute target on-hand in a <see cref="StockAdjustRequest"/>.</summary>
+public sealed record StockAdjustLine(string VariantId, int Stock);
+
 /// <summary>
-/// A request to set one variant's on-hand stock, mirroring the stock-adjust
-/// modal's «ثبت موجودی» (the delta is logged as a history event).
+/// A request to set the on-hand stock of one or more of a product's variants, mirroring the stock-adjust
+/// modal's «ثبت موجودی». <see cref="Reason"/> is the stable reason code recorded on every resulting movement
+/// (<c>Count</c>, <c>Damage</c>, <c>Expiry</c>, <c>Theft</c>, <c>Correction</c>). The whole request is applied
+/// atomically, with the delta computed against the freshly-read on-hand at write time.
 /// </summary>
-public sealed record StockAdjustRequest(int Stock);
+public sealed record StockAdjustRequest(
+    IReadOnlyList<StockAdjustLine> Lines,
+    string Reason = StockAdjustReasons.Correction,
+    string? Note = null);
+
+/// <summary>The reason codes a stock adjustment may carry (mirrors the domain's declared set).</summary>
+public static class StockAdjustReasons
+{
+    public const string Count = "Count";
+    public const string Damage = "Damage";
+    public const string Expiry = "Expiry";
+    public const string Theft = "Theft";
+    public const string Correction = "Correction";
+}

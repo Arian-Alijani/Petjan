@@ -9,9 +9,13 @@ namespace Animora.Application.Ports;
 /// </summary>
 public interface IInventoryQueries
 {
-    /// <summary>Paged catalog; <paramref name="lowStockOnly"/> keeps only variants at/below reorder.</summary>
+    /// <summary>
+    /// Paged catalog. <paramref name="lowStockOnly"/> keeps only products with a variant at/below reorder;
+    /// <paramref name="okStockOnly"/> keeps only the rest. Search, category and paging run in SQL.
+    /// </summary>
     Task<PagedResult<ProductReadModel>> GetCatalogAsync(
-        string? search, string? categoryId, bool lowStockOnly, int page, int pageSize, CancellationToken ct);
+        string? search, string? categoryId, bool lowStockOnly, int page, int pageSize, CancellationToken ct,
+        bool okStockOnly = false);
 
     /// <summary>One product with its variants (snapshot on-hand) and its last 100 movements.</summary>
     Task<ProductDetailReadModel?> GetDetailAsync(string productId, CancellationToken ct);
@@ -28,6 +32,9 @@ public interface IInventoryQueries
 
     /// <summary>Total scaled on-hand across every variant of a product; 0 when none.</summary>
     Task<long> GetProductOnHandScaledAsync(string productId, CancellationToken ct);
+
+    /// <summary>Whether another product (not <paramref name="excludeProductId"/>) already uses <paramref name="sku"/>.</summary>
+    Task<bool> ProductSkuExistsAsync(string sku, string excludeProductId, CancellationToken ct);
 
     /// <summary>How many movements the product has had since <paramref name="sinceUtc"/>.</summary>
     Task<int> CountMovementsSinceAsync(string productId, DateTimeOffset sinceUtc, CancellationToken ct);

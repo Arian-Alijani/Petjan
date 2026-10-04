@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
 
 namespace Animora.Desktop.Localization;
 
@@ -34,25 +33,33 @@ public static class HistoryText
         return key is not null && Titles.TryGetValue(key, out title!);
     }
 
-    public static string Detail(string args)
+    /// <summary>
+    /// Renders the resolved detail written at feed-write time (<c>Key=Value</c> lines of display names) as
+    /// «برچسب: مقدار، …». Pure string splitting — no JSON parsing per rendered row.
+    /// </summary>
+    public static string Detail(string resolved)
     {
-        if (string.IsNullOrWhiteSpace(args)) return string.Empty;
-        try
+        if (string.IsNullOrWhiteSpace(resolved)) return string.Empty;
+
+        var builder = new System.Text.StringBuilder(resolved.Length + 16);
+        foreach (var line in resolved.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
-            using var doc = JsonDocument.Parse(args);
-            var fields = new List<string>();
-            foreach (var property in doc.RootElement.EnumerateObject())
-                fields.Add($"{Label(property.Name)}: {property.Value.ToString()}");
-            return string.Join("، ", fields);
+            var eq = line.IndexOf('=');
+            if (eq <= 0) continue;
+
+            if (builder.Length > 0) builder.Append("، ");
+            builder.Append(Label(line[..eq])).Append(": ").Append(line, eq + 1, line.Length - eq - 1);
         }
-        catch (JsonException) { return args; }
+
+        return builder.ToString();
     }
 
-    private static string Label(string name) => name switch
+    private static string Label(string key) => key switch
     {
-        "PetId" => "بیمار", "OwnerId" => "مالک", "RoomId" => "اتاق",
-        "InvoiceId" => "فاکتور", "VaccineCode" => "واکسن", "Reason" => "علت",
-        "category" => "دسته", "from" => "از", "to" => "به", "Currency" => "ارز",
-        _ => name,
+        "Pet" => "بیمار", "Owner" => "مالک", "Room" => "اتاق", "Invoice" => "فاکتور",
+        "Product" => "کالا", "Supplier" => "تأمین‌کننده", "Vaccine" => "واکسن", "Reason" => "علت",
+        "Category" => "دسته", "From" => "از", "To" => "به", "Count" => "تعداد",
+        "Quantity" => "مقدار", "Method" => "روش",
+        _ => key,
     };
 }

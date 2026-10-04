@@ -23,23 +23,28 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     private readonly ISalesQueryService _service;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
+    private readonly IPrintService _print;
     private readonly string _invoiceId;
     private readonly Action? _onChanged;
 
     private long _due;
     private long _total;
     private long _paid;
+    private PaymentResult? _lastResult;
+    private int _lastReadyCount;
 
     public PaymentModalViewModel(
         ISalesQueryService service,
         IToastService toast,
         IDialogService dialogs,
+        IPrintService print,
         string invoiceId,
         Action? onChanged = null)
     {
         _service = service;
         _toast = toast;
         _dialogs = dialogs;
+        _print = print;
         _invoiceId = invoiceId;
         _onChanged = onChanged;
 
@@ -49,7 +54,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         Methods.Add(new PaymentMethodOptionViewModel(PaymentMethod.Credit));
         Methods.Add(new PaymentMethodOptionViewModel(PaymentMethod.Mixed));
 
-        _ = LoadAsync();
+        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری فاکتور ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
 
     public ObservableCollection<PaymentMethodOptionViewModel> Methods { get; } = [];
@@ -123,6 +128,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         var detail = await _service.GetInvoiceAsync(_invoiceId);
         if (detail is null)
         {
+            _toast.Show("فاکتور موردنظر یافت نشد", Tone.Warn);
             _dialogs.Close();
             return;
         }
@@ -234,6 +240,9 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     private async Task ShowSettlementSuccessAsync(PaymentResult result)
     {
         var detail = result.Invoice;
+        _lastResult = result;
+        // Refund-from-success must offer what was actually collected, not the pre-payment paid value.
+        _paid = detail.Paid;
         var readyCount = await GetReadyCountAsync();
         ReceiptNo = string.IsNullOrEmpty(detail.ReceiptNo) ? "—" : detail.ReceiptNo;
         SuccessCustomer = detail.IsGuest || detail.OwnerName.Length == 0
@@ -250,17 +259,25 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         ShowSuccess = true;
     }
 
+    /// <summary>
+    /// Reads the ready-visit queue size. Only typed service failures are caught (X40): the
+    /// failure is traced and surfaced as a warning, and the last known count is kept instead
+    /// of masquerading as an empty queue.
+    /// </summary>
     private async Task<int> GetReadyCountAsync()
     {
         try
         {
             var list = await _service.GetReadyEncountersAsync();
-            return list.Count;
+            _lastReadyCount = list.Count;
         }
-        catch
+        catch (InvalidOperationException ex)
         {
-            return 0;
+            System.Diagnostics.Trace.TraceWarning("Ready-visit count failed: " + ex.Message);
+            _toast.Show("شمارش ویزیت‌های آمادهٔ صدور فاکتور ممکن نشد", Tone.Warn);
         }
+
+        return _lastReadyCount;
     }
 
     [RelayCommand]
@@ -270,8 +287,19 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         _dialogs.ShowModal(new RefundModalViewModel(_service, _toast, _dialogs, _invoiceId, _paid, _onChanged), 480);
     }
 
+    /// <summary>Opens the payment receipt (the settled invoice + this payment) in the print preview (X13).</summary>
     [RelayCommand]
-    private void Print() => _toast.Show("رسید به چاپگر ارسال شد (نمونه طراحی)", Tone.Ok);
+    private async Task Print()
+    {
+        if (_lastResult is null)
+        {
+            return;
+        }
+
+        var html = SalesPrintDocuments.Invoice(
+            _lastResult.Invoice, _print.EmbeddedFontCss, "رسید پرداخت", _lastResult.Applied);
+        await _print.OpenWithToastAsync(_toast, $"receipt-{_lastResult.Invoice.Id}", html);
+    }
 
     [RelayCommand]
     private void Close() => _dialogs.Close();

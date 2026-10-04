@@ -39,7 +39,7 @@ public sealed partial class NewProductModalViewModel : ObservableObject
         TypeOptions.Add(new InventoryProductTypeOptionViewModel(
             "yes", "IconLayers", "چند‌تنوعی", "وزن، سایز یا دوز مختلف"));
 
-        _ = LoadAsync();
+        _ = LoadSafeAsync();
     }
 
     // ── base info ───────────────────────────────────────────────────────────
@@ -49,7 +49,6 @@ public sealed partial class NewProductModalViewModel : ObservableObject
     [ObservableProperty] private string _name = string.Empty;
     [ObservableProperty] private string _codeText = string.Empty;
     [ObservableProperty] private string _brand = string.Empty;
-    [ObservableProperty] private string _glyph = "📦";
     [ObservableProperty] private string _description = string.Empty;
 
     public ObservableCollection<CategoryOptionViewModel> CategoryOptions { get; } = [];
@@ -89,6 +88,24 @@ public sealed partial class NewProductModalViewModel : ObservableObject
     [ObservableProperty] private string _attributeName = string.Empty;
     [ObservableProperty] private string _attributeOptionsText = string.Empty;
 
+    /// <summary>Observed initial load (P2-9): a seam failure toasts and closes the modal instead of escaping the ctor task.</summary>
+    private async Task LoadSafeAsync()
+    {
+        try
+        {
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _toast.Show(
+                ex is InvalidOperationException ioe
+                    ? InventoryPresentation.MutationFailureMessage(ioe, "بارگذاری دسته‌ها ناموفق بود؛ دوباره تلاش کنید")
+                    : "بارگذاری دسته‌ها ناموفق بود؛ دوباره تلاش کنید",
+                Tone.Danger);
+            _dialogs.Close();
+        }
+    }
+
     private async Task LoadAsync()
     {
         foreach (var category in await _service.GetCategoriesAsync())
@@ -111,7 +128,6 @@ public sealed partial class NewProductModalViewModel : ObservableObject
 
         var code = CodeText.Trim();
         var brand = Brand.Trim();
-        var glyph = string.IsNullOrWhiteSpace(Glyph) ? "📦" : Glyph.Trim();
         var categoryId = SelectedCategory?.Id ?? CategoryOptions.FirstOrDefault()?.Id ?? "med";
 
         IReadOnlyList<string> attributeOptions = [];
@@ -151,14 +167,24 @@ public sealed partial class NewProductModalViewModel : ObservableObject
         }
 
         var request = new NewProductRequest(
-            code, name, brand, categoryId, glyph, Description.Trim(),
+            code, name, brand, categoryId, Description.Trim(),
             HasVariants ? AttributeName.Trim() : null,
             attributeOptions,
             variants);
 
-        await _service.CreateProductAsync(request);
+        try
+        {
+            await _service.CreateProductAsync(request);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Keep the modal open so the user can correct the form; never claim success.
+            _toast.Show(InventoryPresentation.MutationFailureMessage(ex, "ساخت کالا ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            return;
+        }
+
         _dialogs.Close();
-        _toast.Show("کالا ساخته شد (نمونه طراحی)");
+        _toast.Show("کالا ساخته شد", Tone.Ok);
         _onCreated?.Invoke();
     }
 

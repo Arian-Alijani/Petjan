@@ -7,9 +7,12 @@ namespace Animora.Application.UseCases.History;
 
 public sealed record ActivityRow(string Id, DateTimeOffset OccurredUtc, string Kind, string TitleKey,
     string DetailArgsJson, string EntityType, string EntityId, long AmountMinor, int AmountSign,
-    string Status, string ActorUserId, string ActorName);
+    string Status, string ActorUserId, string ActorName, string DetailText = "", int LocalDay = 0);
 
-public sealed record ActivityPage(IReadOnlyList<ActivityRow> Items, int TotalCount, long IncomeTotal, long ExpenseTotal);
+/// <param name="DayNets">Net (income − expense) per clinic-local day (<c>yyyymmdd</c>) for every day present on the page,
+/// computed over the whole filtered set so a day split across pages reports the same full-day figure on each.</param>
+public sealed record ActivityPage(IReadOnlyList<ActivityRow> Items, int TotalCount, long IncomeTotal, long ExpenseTotal,
+    IReadOnlyDictionary<int, long>? DayNets = null);
 
 public sealed record ActivityFeedQuery(HistoryFilter Filter) : IQuery<ActivityPage>;
 public sealed record ActivityExportQuery(HistoryFilter Filter) : IQuery<IReadOnlyList<ActivityRow>>;

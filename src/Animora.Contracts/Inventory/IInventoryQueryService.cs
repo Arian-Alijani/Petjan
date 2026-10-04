@@ -9,17 +9,25 @@ namespace Animora.Contracts.Inventory;
 public interface IInventoryQueryService
 {
     /// <summary>
-    /// The clinic's product catalog, mirroring the reference's
-    /// <c>INV.PRODUCTS</c> collection that the product table, sub-nav counts and
-    /// category settings derive from.
+    /// One page of the clinic's product catalog. Search, category / stock filters, ordering and paging all run
+    /// server-side, so the screen never holds (or silently truncates) the whole catalog.
     /// </summary>
-    Task<IReadOnlyList<Product>> GetProductsAsync();
+    Task<ProductPage> GetProductsAsync(ProductListQuery query);
 
     /// <summary>
     /// The product categories, mirroring the reference's <c>INV.CATS</c> — the
     /// filter chips, category tags and category-settings list all read this.
     /// </summary>
     Task<IReadOnlyList<CategoryInfo>> GetCategoriesAsync();
+
+    /// <summary>Adds a new product category (unique name). Returns the new category id.</summary>
+    Task<string> CreateCategoryAsync(string name);
+
+    /// <summary>Renames a product category.</summary>
+    Task RenameCategoryAsync(string categoryId, string name);
+
+    /// <summary>Removes an empty product category (refused while any product uses it).</summary>
+    Task DeleteCategoryAsync(string categoryId);
 
     /// <summary>
     /// One product plus its stock-movement ledger, mirroring what the reference's
@@ -35,13 +43,10 @@ public interface IInventoryQueryService
     Task SaveProductInfoAsync(string productId, ProductInfoUpdate update);
 
     /// <summary>
-    /// Appends one variant to a product, mirroring <c>makeVariant</c> invoked by
-    /// the variants tab's «تنوع دستی» action.
+    /// One page of the product's stock-movement ledger (newest first), for the History tab. Paged so the
+    /// audit trail is never silently truncated; the tab asks for the next page with «نمایش بیشتر».
     /// </summary>
-    Task<ProductVariant> AddVariantAsync(string productId, NewVariantRequest request);
-
-    /// <summary>The product's stock-movement ledger (newest first), for the History tab.</summary>
-    Task<IReadOnlyList<StockMovement>> GetHistoryAsync(string productId);
+    Task<MovementPage> GetHistoryAsync(string productId, int page, int pageSize);
 
     /// <summary>Creates a product from the new-product modal, mirroring <c>openNewProductModal</c>'s create handler.</summary>
     Task<Product> CreateProductAsync(NewProductRequest request);
@@ -50,8 +55,8 @@ public interface IInventoryQueryService
     Task DeleteProductAsync(string productId);
 
     /// <summary>
-    /// Sets a variant's on-hand stock and logs the delta as a history entry,
-    /// mirroring the stock-adjust modal's «ثبت موجودی» handler.
+    /// Sets the on-hand stock of one or more of a product's variants in one atomic command and records a
+    /// reasoned movement per changed variant, mirroring the stock-adjust modal's «ثبت موجودی».
     /// </summary>
-    Task AdjustStockAsync(string productId, string variantId, StockAdjustRequest request);
+    Task AdjustStockAsync(string productId, StockAdjustRequest request);
 }

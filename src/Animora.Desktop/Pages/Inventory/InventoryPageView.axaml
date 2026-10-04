@@ -4,6 +4,7 @@
              x:Class="Animora.Desktop.Pages.Inventory.InventoryPageView"
              x:Name="Root"
              x:DataType="inv:InventoryPageViewModel"
+             x:CompileBindings="True"
              FlowDirection="RightToLeft">
     <UserControl.Styles>
         <!-- ═══ Unified toolbar (styles.css .pagebar) ═══ -->
@@ -101,6 +102,97 @@
             <Setter Property="Background" Value="{StaticResource LineBrush}" />
             <Setter Property="Margin" Value="4,2" />
             <Setter Property="VerticalAlignment" Value="Stretch" />
+        </Style>
+
+        <!-- records-per-page select (.pb-select) — same look as the Patients toolbar -->
+        <Style Selector="ComboBox.pbselect">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="ComboBox.pbselect /template/ Border#Background">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <Style Selector="ComboBox.pbselect:pointerover /template/ Border#Background">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="ComboBox.pbselect:pressed /template/ Border#Background">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="ComboBox.pbselect:focus /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="ComboBox.pbselect:pointerover">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="ComboBox.pbselect /template/ PathIcon">
+            <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="ComboBox.pbselect:pointerover /template/ PathIcon">
+            <Setter Property="Foreground" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="ComboBox.pbselect /template/ Popup Border">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <Style Selector="ComboBox.pbselect ComboBoxItem">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="ComboBox.pbselect ComboBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="TextElement.Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="ComboBox.pbselect ComboBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="TextElement.Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
+        <!-- Pagination nav buttons (.pgbtn) — same as the Patients footer -->
+        <Style Selector="Button.pgbtn">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="13,7" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.pgbtn Path">
+            <Setter Property="Stroke" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Button.pgbtn:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="Button.pgbtn:pointerover TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.pgbtn:pointerover Path">
+            <Setter Property="Stroke" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Button.pgbtn:disabled">
+            <Setter Property="Opacity" Value="0.42" />
+            <Setter Property="Cursor" Value="Arrow" />
         </Style>
 
         <!-- product row shell (tbody tr) -->
@@ -312,13 +404,17 @@
                 </Border>
 
                 <!-- tier 2 · products controls (renderProducts) -->
-                <Grid IsVisible="{Binding IsProductsTab}" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                    <!-- filter chips -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                <!-- Two columns: the chip filters take the flexible column and WRAP onto
+                     extra lines when they run out of room; the search box + page-size select
+                     sit in their own fixed column so chips can never push them off-screen. -->
+                <Grid IsVisible="{Binding IsProductsTab}" ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                    <!-- filter chips (wrapping) -->
+                    <WrapPanel Grid.Column="0" Orientation="Horizontal" ItemSpacing="7" LineSpacing="7"
+                               VerticalAlignment="Center">
                         <ItemsControl ItemsSource="{Binding CategoryChips}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="7" />
+                                    <WrapPanel Orientation="Horizontal" ItemSpacing="7" LineSpacing="7" />
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
@@ -335,11 +431,11 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <Border Classes="chip-sep" />
+                        <Border Classes="chip-sep" Height="22" />
                         <ItemsControl ItemsSource="{Binding StockChips}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="7" />
+                                    <WrapPanel Orientation="Horizontal" ItemSpacing="7" LineSpacing="7" />
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
@@ -351,12 +447,13 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </StackPanel>
+                    </WrapPanel>
 
-                    <!-- search (.pb-search) -->
-                    <Border Grid.Column="1" Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource LineBrush}"
-                            BorderThickness="1" CornerRadius="12" Padding="12,8" MaxWidth="320"
-                            HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <!-- search + records-per-page (own column, never crowded by chips) -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Border Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource LineBrush}"
+                            BorderThickness="1" CornerRadius="12" Padding="12,8" Width="280"
+                            VerticalAlignment="Center">
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                             <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
                                   Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}" VerticalAlignment="Center" />
@@ -372,22 +469,18 @@
                             </Button>
                         </Grid>
                     </Border>
+                    <ComboBox Classes="pbselect" MinWidth="110"
+                              ItemsSource="{Binding PageSizeOptions}"
+                              SelectedItem="{Binding SelectedPageSize}"
+                              ToolTip.Tip="تعداد نمایش در هر صفحه" />
+                    </StackPanel>
                 </Grid>
 
                 <!-- tier 2 · settings controls (renderSettings) -->
-                <Grid IsVisible="{Binding IsSettingsTab}" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <Grid IsVisible="{Binding IsSettingsTab}">
                     <TextBlock Grid.Column="0" Text="{Binding SettingsCountText}" FontSize="12"
                                Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"
                                TextWrapping="Wrap" LineHeight="18" />
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Button Classes="primary" Command="{Binding AddCategoryCommand}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Path Classes="icon" Width="14" Height="14" Stroke="White"
-                                      Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
-                                <TextBlock Text="دسته جدید" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
                 </Grid>
             </StackPanel>
         </Border>
@@ -460,10 +553,6 @@
 
                                         <!-- product cell -->
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="12,12">
-                                            <Border Width="42" Height="42" CornerRadius="12" Background="{Binding ThumbBrush}">
-                                                <TextBlock Text="{Binding Glyph}" FontSize="20"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                            </Border>
                                             <StackPanel VerticalAlignment="Center" Spacing="2">
                                                 <TextBlock Text="{Binding Name}" FontSize="13.5" FontWeight="Bold"
                                                            Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" />
@@ -634,6 +723,37 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+
+                <!-- ── pagination footer (same convention as the Patients page) ──
+                     Only shown when the matches span more than one page. RTL: "previous"
+                     sits at the start (right) and points right; "next" at the end (left). -->
+                <Border IsVisible="{Binding ShowPagination}"
+                        BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0"
+                        Padding="14,10">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Column="0" Text="{Binding PageRangeText}" FontSize="12"
+                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button Classes="pgbtn" Command="{Binding PreviousPageCommand}" ToolTip.Tip="صفحه قبل">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconChevronRight}" />
+                                    <TextBlock Text="قبلی" />
+                                </StackPanel>
+                            </Button>
+                            <Border Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource LineBrush}"
+                                    BorderThickness="1" CornerRadius="10" Padding="12,6" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding PageIndicatorText}" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                            </Border>
+                            <Button Classes="pgbtn" Command="{Binding NextPageCommand}" ToolTip.Tip="صفحه بعد">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="بعدی" />
+                                    <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconChevronLeft}" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
             </StackPanel>
         </Border>
 

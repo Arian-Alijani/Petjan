@@ -119,11 +119,12 @@ public sealed partial class BoardingStayCardViewModel : ObservableObject
     {
         Stay = stay;
 
-        var nights = Math.Max(1, Days(stay.CheckOut, stay.CheckIn));
-        var elapsed = Math.Min(Math.Max(0, Days(today, stay.CheckIn)), nights);
-        var remaining = stay.Status == BoardingStatus.Done ? 0 : Math.Max(0, Days(stay.CheckOut, today));
-        var overdue = IsStayOverdue(stay, today);
-        var leaving = stay.Status == BoardingStatus.Active && remaining <= 1 && !overdue;
+        var cls = BoardingStayClassification.Of(stay, today);
+        var nights = cls.Nights;
+        var elapsed = cls.Elapsed;
+        var remaining = cls.Remaining;
+        var overdue = cls.IsOverdue;
+        var leaving = cls.IsLeaving;
 
         IsOverdue = overdue;
         IsUrgent = leaving;
@@ -148,7 +149,7 @@ public sealed partial class BoardingStayCardViewModel : ObservableObject
         ProgressPercent = Math.Min(100, (int)Math.Round(elapsed / (double)nights * 100));
         ProgressFill = BoardingPresentation.ProgressFill(overdue, leaving);
         ElapsedText = $"{BoardingPresentation.Fa(elapsed)} از {BoardingPresentation.Fa(nights)} شب گذشته";
-        DayLabel = BuildDayLabel(stay, overdue, remaining);
+        DayLabel = BuildDayLabel(stay, cls);
         DayLabelBrush = BoardingPresentation.DayLabelBrush(overdue, remaining);
 
         // Footer
@@ -202,16 +203,6 @@ public sealed partial class BoardingStayCardViewModel : ObservableObject
     public IBrush CardBorderBrush { get; }
     public IBrush CardBackground { get; }
 
-    /// <summary>Reference <c>isOverdue</c>: expected checkout was in the past but still active.</summary>
-    public static bool IsStayOverdue(BoardingStay stay, DateOnly today) =>
-        stay.Status == BoardingStatus.Active && stay.CheckOut < today;
-
-    /// <summary>Reference <c>isLeaving</c>: active and its remaining nights ≤ 1.</summary>
-    public static bool IsStayLeaving(BoardingStay stay, DateOnly today) =>
-        stay.Status == BoardingStatus.Active
-        && Math.Max(0, Days(stay.CheckOut, today)) <= 1
-        && !IsStayOverdue(stay, today);
-
     /// <summary>
     /// Reference <c>statusMeta</c>: done → تخلیه‌شده (mute); overdue →
     /// عقب‌افتاده (danger); remaining 0 → تخلیه امروز (warn); 1 → فردا تخلیه
@@ -238,23 +229,23 @@ public sealed partial class BoardingStayCardViewModel : ObservableObject
     }
 
     /// <summary>Reference <c>renderCards</c> day-label text (the timeline's right caption).</summary>
-    private static string BuildDayLabel(BoardingStay stay, bool overdue, int remaining)
+    private static string BuildDayLabel(BoardingStay stay, BoardingStayClassification cls)
     {
         if (stay.Status == BoardingStatus.Done)
         {
             return "اقامت پایان یافت";
         }
 
-        if (overdue)
+        if (cls.IsOverdue)
         {
-            return $"{BoardingPresentation.Fa(Math.Abs(remaining))} روز عقب‌افتاده";
+            return $"{BoardingPresentation.Fa(cls.OverdueDays)} روز عقب‌افتاده";
         }
 
-        return remaining switch
+        return cls.Remaining switch
         {
             0 => "امروز تخلیه می‌شود",
             1 => "فردا تخلیه می‌شود",
-            _ => $"{BoardingPresentation.Fa(remaining)} روز مانده",
+            _ => $"{BoardingPresentation.Fa(cls.Remaining)} روز مانده",
         };
     }
 
@@ -263,5 +254,4 @@ public sealed partial class BoardingStayCardViewModel : ObservableObject
         JalaliDate.FromDateTime(date.ToDateTime(TimeOnly.MinValue)).ToString("long");
 
     // Reference J().diff(a, b) → whole days from b to a.
-    private static int Days(DateOnly to, DateOnly from) => to.DayNumber - from.DayNumber;
 }

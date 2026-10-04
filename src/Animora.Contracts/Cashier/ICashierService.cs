@@ -2,9 +2,8 @@ namespace Animora.Contracts.Cashier;
 
 /// <summary>
 /// Data seam for the Cashier (invoice &amp; payment management) screen. The
-/// desktop ViewModel depends only on this interface; the in-memory
-/// <c>MockCashierService</c> is the single swappable implementation a future
-/// backend replaces (R-18). The shape mirrors what
+/// desktop ViewModel depends only on this interface; the real
+/// <c>CashierService</c> (Animora.Client.Services) is the implementation behind it (R-18). The shape mirrors what
 /// <c>Animora-UI/assets/cashier.js</c> renders: the status-tab filtered invoice
 /// list, the overview stats, and the detail panel (lines/totals/payment
 /// panel/payment history/actions).
@@ -12,11 +11,11 @@ namespace Animora.Contracts.Cashier;
 public interface ICashierService
 {
     /// <summary>
-    /// Every invoice, mirroring <c>C().INVOICES</c> (the list <c>renderList</c>
-    /// filters by tab). Newest-first ordering is applied by the ViewModel to
-    /// match the reference's sort.
+    /// One page of the invoice list for <paramref name="tab"/> (mirrors <c>renderList</c>), narrowed by the
+    /// optional <paramref name="search"/> text. Filtering, ordering (open states first, then newest first) and
+    /// paging all happen in the query, so the cost is bounded by the page size however many invoices exist (X29).
     /// </summary>
-    Task<IReadOnlyList<CashierInvoice>> GetInvoicesAsync();
+    Task<CashierInvoicePage> GetInvoicesAsync(CashierTab tab, string? search, int page, int pageSize);
 
     /// <summary>
     /// The full detail of one invoice (mirrors <c>C().invoice(id)</c> plus the
@@ -72,10 +71,13 @@ public interface ICashierService
     /// reference's inline line-edit + discount/insurance bindings), returning
     /// the recomputed detail.
     /// </summary>
-    Task<CashierInvoiceDetail> UpdateLineAsync(string invoiceId, int lineIndex, int quantity, int discountPercent);
+    Task<CashierInvoiceDetail> UpdateLineAsync(string invoiceId, int lineIndex, string lineId, int quantity, int discountPercent);
 
-    /// <summary>Removes a line from an editable invoice (mirrors <c>data-act="rm"</c>).</summary>
-    Task<CashierInvoiceDetail> RemoveLineAsync(string invoiceId, int lineIndex);
+    /// <summary>
+    /// Removes a line from an editable invoice (mirrors <c>data-act="rm"</c>). <paramref name="lineId"/> is the id of
+    /// the line the user saw; a stale index fails with <c>INVOICE_LINE_INDEX_STALE</c> rather than hitting another line.
+    /// </summary>
+    Task<CashierInvoiceDetail> RemoveLineAsync(string invoiceId, int lineIndex, string lineId);
 
     /// <summary>Adds a catalog line to an editable invoice (mirrors <c>#cs-add-line-btn</c>).</summary>
     Task<CashierInvoiceDetail> AddLineAsync(string invoiceId, string catalogItemId);
@@ -86,6 +88,6 @@ public interface ICashierService
     /// <summary>Sets (or clears) the invoice's insurance org (mirrors <c>#cs-ins</c>).</summary>
     Task<CashierInvoiceDetail> SetInsuranceAsync(string invoiceId, string? insurerId);
 
-    /// <summary>Recomputes an invoice's cached totals (mirrors <c>data-action="refresh"</c>).</summary>
-    Task<CashierInvoiceDetail> RecalculateAsync(string invoiceId);
+    // There is deliberately no "recalculate" member: totals are domain-authoritative and recomputed by
+    // the aggregate after every mutation (Invoice.RecalculateTotals), so a manual refresh cannot change them.
 }

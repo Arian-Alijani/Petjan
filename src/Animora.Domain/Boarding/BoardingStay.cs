@@ -28,6 +28,16 @@ public enum StayState
     Cancelled = 5,
 }
 
+/// <summary>How the stay is settled: before the stay starts or at hand-over.</summary>
+public enum StayPaymentMode
+{
+    /// <summary>Settled at hand-over (default; persisted value 0 so existing rows keep their meaning).</summary>
+    Postpaid = 0,
+
+    /// <summary>Settled before the stay.</summary>
+    Prepaid = 1,
+}
+
 /// <summary>
 /// The boarding-stay aggregate root: one pet's stay in one clinic, from reservation to a billed
 /// checkout.
@@ -87,6 +97,9 @@ public sealed class BoardingStay : AggregateRoot
     /// <summary>The nightly room rate; multiplied by <see cref="BillableDays"/> for the room charge.</summary>
     public Money DailyRate { get; private set; }
 
+    /// <summary>How the clinic collects payment for this stay (chosen at admission).</summary>
+    public StayPaymentMode PaymentMode { get; private set; } = StayPaymentMode.Postpaid;
+
     /// <summary>Care instructions for staff.</summary>
     public string? CareNote { get; private set; }
 
@@ -139,7 +152,8 @@ public sealed class BoardingStay : AggregateRoot
         DateTimeOffset plannedCheckOutUtc,
         Money dailyRate,
         string? careNote = null,
-        string? dietNote = null)
+        string? dietNote = null,
+        StayPaymentMode paymentMode = StayPaymentMode.Postpaid)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(petId);
@@ -164,6 +178,7 @@ public sealed class BoardingStay : AggregateRoot
             PlannedCheckOutUtc = plannedCheckOutUtc,
             State = StayState.Reserved,
             DailyRate = dailyRate,
+            PaymentMode = paymentMode,
             CareNote = Clean(careNote),
             DietNote = Clean(dietNote),
         };
