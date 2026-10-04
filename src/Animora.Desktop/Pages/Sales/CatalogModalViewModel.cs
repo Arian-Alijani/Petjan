@@ -21,31 +21,66 @@ namespace Animora.Desktop.Pages.Sales;
 /// </summary>
 public sealed partial class CatalogModalViewModel : ObservableObject
 {
-    private readonly ISalesQueryService _service;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
-    private readonly string _invoiceId;
     private readonly Action? _onChanged;
+
+    // The two seams that make this picker reusable: how to load the catalog and
+    // how to add a chosen item. The Sales/Cashier path binds these to
+    // ISalesQueryService (GetCatalogAsync / AddLineAsync into an invoice); the
+    // visit flow binds them to IVisitEncounterService (its own catalog + the
+    // encounter's rx list) so the exact same drawer serves both surfaces.
+    private readonly Func<Task<CatalogSnapshot>> _loadCatalog;
+    private readonly Func<CatalogItem, Task> _addItem;
 
     private readonly List<CatalogItem> _all = [];
     private readonly List<CatalogFilterRef> _filterRefs = [];
     private readonly List<RecentItemRef> _recent = [];
     private readonly List<CatalogItem> _visible = [];
 
-    private string _filterKey = "all";
+    private string _filterKey;
 
+    /// <summary>
+    /// Sales/Cashier constructor: the picker loads the sales catalog and adds a
+    /// chosen row to the open invoice through <see cref="ISalesQueryService"/>.
+    /// </summary>
     public CatalogModalViewModel(
         ISalesQueryService service,
         IToastService toast,
         IDialogService dialogs,
         string invoiceId,
         Action? onChanged = null)
+        : this(
+            service.GetCatalogAsync,
+            item => service.AddLineAsync(invoiceId, item, 1),
+            toast,
+            dialogs,
+            onChanged)
     {
-        _service = service;
+    }
+
+    /// <summary>
+    /// Reusable constructor: the picker is driven entirely by the supplied
+    /// <paramref name="loadCatalog"/> / <paramref name="addItem"/> seams, so any
+    /// surface (sales invoice, visit encounter, …) can reuse the identical
+    /// drawer UI. <paramref name="initialFilter"/> pre-selects a category chip
+    /// (<c>"svc"</c> for services, <c>"item"</c> for goods, <c>"all"</c> for the
+    /// whole catalog).
+    /// </summary>
+    public CatalogModalViewModel(
+        Func<Task<CatalogSnapshot>> loadCatalog,
+        Func<CatalogItem, Task> addItem,
+        IToastService toast,
+        IDialogService dialogs,
+        Action? onChanged = null,
+        string initialFilter = "all")
+    {
+        _loadCatalog = loadCatalog;
+        _addItem = addItem;
         _toast = toast;
         _dialogs = dialogs;
-        _invoiceId = invoiceId;
         _onChanged = onChanged;
+        _filterKey = string.IsNullOrEmpty(initialFilter) ? "all" : initialFilter;
 
         _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری کاتالوگ ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
@@ -70,7 +105,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
 
     private async Task LoadAsync()
     {
-        var snapshot = await _service.GetCatalogAsync();
+        var snapshot = await _loadCatalog();
         _all.Clear();
         _all.AddRange(snapshot.Items);
 
@@ -219,7 +254,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
 
         try
         {
-            await _service.AddLineAsync(_invoiceId, item, 1);
+            await _addItem(item);
         }
         catch (InvalidOperationException ex)
         {
