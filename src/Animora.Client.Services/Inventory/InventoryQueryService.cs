@@ -61,6 +61,15 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
         return categories;
     }
 
+    public Task<string> CreateCategoryAsync(string name) =>
+        SendAsync(new CreateProductCategoryCommand(name ?? string.Empty));
+
+    public async Task RenameCategoryAsync(string categoryId, string name) =>
+        _ = await SendAsync(new RenameProductCategoryCommand(categoryId, name ?? string.Empty));
+
+    public async Task DeleteCategoryAsync(string categoryId) =>
+        _ = await SendAsync(new DeleteProductCategoryCommand(categoryId));
+
     public async Task<ProductDetail?> GetDetailAsync(string productId)
     {
         await using var scope = scopes.CreateAsyncScope();

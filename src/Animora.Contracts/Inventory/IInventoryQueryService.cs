@@ -20,6 +20,15 @@ public interface IInventoryQueryService
     /// </summary>
     Task<IReadOnlyList<CategoryInfo>> GetCategoriesAsync();
 
+    /// <summary>Adds a new product category (unique name). Returns the new category id.</summary>
+    Task<string> CreateCategoryAsync(string name);
+
+    /// <summary>Renames a product category.</summary>
+    Task RenameCategoryAsync(string categoryId, string name);
+
+    /// <summary>Removes an empty product category (refused while any product uses it).</summary>
+    Task DeleteCategoryAsync(string categoryId);
+
     /// <summary>
     /// One product plus its stock-movement ledger, mirroring what the reference's
     /// <c>openProductModal</c>/<c>renderProductModal</c> read from

@@ -278,7 +278,96 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         }));
 
         SettingsCountText =
-            $"{PersianNumberFormatter.ToPersianDigits(_categories.Count)} دسته فعال کالا · مدیریت دسته‌ها در این نسخه فقط‌خواندنی است.";
+            $"{PersianNumberFormatter.ToPersianDigits(_categories.Count)} دسته فعال · {PersianNumberFormatter.ToPersianDigits(_catalogTotal)} کالا";
+    }
+
+    // ── category management (settings tab) ──────────────────────────────────
+    [ObservableProperty]
+    private string _newCategoryName = string.Empty;
+
+    [RelayCommand]
+    private async Task AddCategory()
+    {
+        var name = NewCategoryName.Trim();
+        if (name.Length == 0)
+        {
+            _toast.Show("نام دسته را وارد کنید", Tone.Danger);
+            return;
+        }
+
+        if (await MutateCategoryAsync(() => _service.CreateCategoryAsync(name), "افزودن دسته ناموفق بود", "دسته اضافه شد"))
+        {
+            NewCategoryName = string.Empty;
+        }
+    }
+
+    [RelayCommand]
+    private void BeginRenameCategory(InventoryCategoryRowViewModel? row)
+    {
+        if (row is null) return;
+        foreach (var other in CategoryRows) other.IsEditing = false;
+        row.EditName = row.Label;
+        row.IsEditing = true;
+    }
+
+    [RelayCommand]
+    private void CancelRenameCategory(InventoryCategoryRowViewModel? row)
+    {
+        if (row is not null) row.IsEditing = false;
+    }
+
+    [RelayCommand]
+    private async Task SaveRenameCategory(InventoryCategoryRowViewModel? row)
+    {
+        if (row is null) return;
+        var name = row.EditName.Trim();
+        if (name.Length == 0)
+        {
+            _toast.Show("نام دسته را وارد کنید", Tone.Danger);
+            return;
+        }
+
+        if (name == row.Label)
+        {
+            row.IsEditing = false;
+            return;
+        }
+
+        await MutateCategoryAsync(() => _service.RenameCategoryAsync(row.Id, name), "تغییر نام دسته ناموفق بود", "نام دسته به‌روز شد");
+    }
+
+    [RelayCommand]
+    private void DeleteCategory(InventoryCategoryRowViewModel? row)
+    {
+        if (row is null) return;
+        if (!row.CanDelete)
+        {
+            _toast.Show("این دسته هنوز کالا دارد؛ ابتدا کالاها را به دسته دیگری منتقل کنید", Tone.Danger);
+            return;
+        }
+
+        _dialogs.ShowModal(new Animora.Desktop.Pages.Sales.Shared.ConfirmDialogViewModel(
+            _dialogs, "danger", "IconTrash", "حذف دسته", "دسته ", row.Label, " حذف شود؟",
+            "این عمل قابل بازگشت نیست.", "حذف", "انصراف",
+            () => _ = MutateCategoryAsync(() => _service.DeleteCategoryAsync(row.Id), "حذف دسته ناموفق بود", "دسته حذف شد")), 420);
+    }
+
+    /// <summary>Runs one category mutation, toasts the outcome and reloads categories + list on success.</summary>
+    private async Task<bool> MutateCategoryAsync(Func<Task> action, string failure, string success)
+    {
+        try
+        {
+            await action();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(InventoryPresentation.MutationFailureMessage(ex, failure), Tone.Danger);
+            return false;
+        }
+
+        _toast.Show(success, Tone.Ok);
+        Refresh();
+        return true;
     }
 
     // ── commands ────────────────────────────────────────────────────────────

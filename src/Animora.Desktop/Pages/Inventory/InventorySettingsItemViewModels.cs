@@ -1,5 +1,6 @@
 using Animora.Desktop.Localization;
 using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Animora.Desktop.Pages.Inventory;
 
@@ -7,8 +8,11 @@ namespace Animora.Desktop.Pages.Inventory;
 /// One category row of the «دسته‌بندی کالاها» settings list: a tone dot, the name and the live product count.
 /// Tone is derived from the immutable category id, so it is display-only. Categories carry no icon.
 /// </summary>
-public sealed class InventoryCategoryRowViewModel
+public sealed partial class InventoryCategoryRowViewModel : ObservableObject
 {
+    [ObservableProperty] private bool _isEditing;
+    [ObservableProperty] private string _editName = string.Empty;
+
     public InventoryCategoryRowViewModel(string id, string label, string tone, int productCount)
     {
         Id = id;
@@ -30,4 +34,7 @@ public sealed class InventoryCategoryRowViewModel
     public string CountText { get; }
 
     public IBrush ToneBrush { get; }
+
+    /// <summary>Only an empty category may be removed (the backend enforces the same rule).</summary>
+    public bool CanDelete => ProductCount == 0;
 }

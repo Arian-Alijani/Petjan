@@ -26,6 +26,9 @@ public static class InventoryPresentation
             switch (se.Code)
             {
                 case "PRODUCT_SKU_DUPLICATE": return "کد/شناسه تکراری است؛ کد دیگری انتخاب کنید";
+                case "CATEGORY_NAME_DUPLICATE": return "دسته‌ای با این نام وجود دارد";
+                case "CATEGORY_IN_USE": return "این دسته هنوز کالا دارد؛ ابتدا کالاها را به دسته دیگری منتقل کنید";
+                case "CATEGORY_NOT_FOUND": return "دسته پیدا نشد؛ فهرست را به‌روز کنید";
                 case "PRODUCT_HAS_STOCK": return "کالا هنوز موجودی یا گردش اخیر دارد و حذف نمی‌شود";
                 case "STOCK_WOULD_GO_NEGATIVE": return "موجودی نمی‌تواند منفی شود";
                 case "PRODUCT_NOT_FOUND": return "کالا پیدا نشد؛ فهرست را به‌روز کنید";

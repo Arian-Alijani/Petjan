@@ -26,5 +26,11 @@ public static class InventoryRegistration
         .AddCommand<AdjustStockCommand, Unit, AdjustStockCommandHandler>()
         .AddValidator<AdjustStockCommand, AdjustStockCommandValidator>()
         .AddCommand<SetStockCommand, Unit, SetStockCommandHandler>()
-        .AddValidator<SetStockCommand, SetStockCommandValidator>();
+        .AddValidator<SetStockCommand, SetStockCommandValidator>()
+        .AddCommand<CreateProductCategoryCommand, string, CreateProductCategoryCommandHandler>()
+        .AddValidator<CreateProductCategoryCommand, CreateProductCategoryCommandValidator>()
+        .AddCommand<RenameProductCategoryCommand, Unit, RenameProductCategoryCommandHandler>()
+        .AddValidator<RenameProductCategoryCommand, RenameProductCategoryCommandValidator>()
+        .AddCommand<DeleteProductCategoryCommand, Unit, DeleteProductCategoryCommandHandler>()
+        .AddValidator<DeleteProductCategoryCommand, DeleteProductCategoryCommandValidator>();
 }

@@ -45,33 +45,75 @@
     </UserControl.Styles>
 
     <Grid VerticalAlignment="Top">
-
-        <!-- ═══ card · دسته‌بندی کالاها ═══ -->
         <Border Classes="scard">
             <StackPanel>
                 <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="20,18">
                     <StackPanel>
                         <TextBlock Classes="s-title" Text="دسته‌بندی کالاها" />
                         <TextBlock Classes="s-sub" TextWrapping="Wrap"
-                                   Text="دسته‌های فعال کالا و تعداد کالاهای هر دسته. مدیریت دسته‌ها در این نسخه فقط‌خواندنی است." />
+                                   Text="دسته جدید اضافه کنید، نام دسته‌ها را ویرایش کنید یا دسته‌های خالی را حذف کنید." />
                     </StackPanel>
                 </Border>
+
+                <!-- add category -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="20,16,20,4">
+                    <TextBox Grid.Column="0" Text="{Binding NewCategoryName, Mode=TwoWay}" MaxLength="64"
+                             PlaceholderText="نام دسته جدید، مثلاً: داروهای ضدانگل" CornerRadius="10" MinHeight="36"
+                             VerticalContentAlignment="Center" />
+                    <Button Grid.Column="1" Classes="primary" Command="{Binding AddCategoryCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                                  Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                            <TextBlock Text="افزودن دسته" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
                 <ItemsControl ItemsSource="{Binding CategoryRows}" Margin="20,8,20,16">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="inv:InventoryCategoryRowViewModel">
-                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,14">
-                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,12">
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
                                     <Border Grid.Column="0" Width="10" Height="10" CornerRadius="5"
                                             Background="{Binding ToneBrush}" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="13.5"
+                                    <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="13.5" IsVisible="{Binding !IsEditing}"
                                                FontWeight="Bold" Foreground="{StaticResource InkBrush}"
                                                VerticalAlignment="Center" TextWrapping="Wrap" />
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10"
-                                                VerticalAlignment="Center">
-                                        <Border Classes="cat-count">
-                                            <TextBlock Text="{Binding CountText}" FontSize="12" FontWeight="Bold"
-                                                       Foreground="{StaticResource Ink2Brush}" />
-                                        </Border>
+                                    <TextBox Grid.Column="1" Text="{Binding EditName, Mode=TwoWay}" IsVisible="{Binding IsEditing}"
+                                             MaxLength="64" CornerRadius="8" MinHeight="32" VerticalContentAlignment="Center" />
+                                    <Border Grid.Column="2" Classes="cat-count" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding CountText}" FontSize="12" FontWeight="Bold"
+                                                   Foreground="{StaticResource Ink2Brush}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <Button Classes="ghost" Width="30" Height="30" Padding="6" ToolTip.Tip="ویرایش نام"
+                                                IsVisible="{Binding !IsEditing}"
+                                                Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).BeginRenameCategoryCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Ink2Brush}"
+                                                  Data="{StaticResource IconEdit}" />
+                                        </Button>
+                                        <Button Classes="ghost" Width="30" Height="30" Padding="6" ToolTip.Tip="حذف دسته (فقط دسته خالی)"
+                                                IsVisible="{Binding !IsEditing}" IsEnabled="{Binding CanDelete}"
+                                                Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).DeleteCategoryCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource DangerBrush}"
+                                                  Data="{StaticResource IconTrash}" />
+                                        </Button>
+                                        <Button Classes="ghost" Width="30" Height="30" Padding="6" ToolTip.Tip="ذخیره"
+                                                IsVisible="{Binding IsEditing}"
+                                                Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).SaveRenameCategoryCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Brand700Brush}"
+                                                  Data="{StaticResource IconCheck}" />
+                                        </Button>
+                                        <Button Classes="ghost" Width="30" Height="30" Padding="6" ToolTip.Tip="انصراف"
+                                                IsVisible="{Binding IsEditing}"
+                                                Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).CancelRenameCategoryCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                                                  Data="{StaticResource IconX}" />
+                                        </Button>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -80,6 +122,5 @@
                 </ItemsControl>
             </StackPanel>
         </Border>
-
     </Grid>
 </UserControl>
