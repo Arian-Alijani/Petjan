@@ -300,7 +300,7 @@ commands do not break `RolePermissionMatrixTests` or wire tests.
   in `CommandTypes.cs`. Push:
   `scripts/git/push.sh "feat(patients): register owner/pet delete command types"`
 
-- [ ] **T3 — Application commands + handlers + validators.**
+- [x] **T3 — Application commands + handlers + validators.**
   Create `DeletePatientsCommands.cs` with `DeletePetCommand`/`DeleteOwnerCommand` (+ validators +
   handlers) per §2. Register all four in `PatientsRegistration.cs`. Push:
   `scripts/git/push.sh "feat(patients): soft-delete owner (cascade pets) and pet commands"`

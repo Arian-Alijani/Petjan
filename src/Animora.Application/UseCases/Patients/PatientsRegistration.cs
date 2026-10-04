@@ -4,7 +4,7 @@ using Animora.Application.UseCases.Patients.ReadModels;
 
 namespace Animora.Application.UseCases.Patients;
 
-/// <summary>Registers the C01 Patients/Owners use cases (4 queries + 5 journaled commands + validators).</summary>
+/// <summary>Registers the C01 Patients/Owners use cases (6 queries + 7 journaled commands + validators).</summary>
 public static class PatientsRegistration
 {
     public static ApplicationRegistrationBuilder AddPatientsUseCases(this ApplicationRegistrationBuilder builder)
@@ -27,6 +27,10 @@ public static class PatientsRegistration
             .AddCommand<UpdatePetInfoCommand, Unit, UpdatePetInfoCommandHandler>()
             .AddValidator<UpdatePetInfoCommand, UpdatePetInfoCommandValidator>()
             .AddCommand<AddWeightEntryCommand, Unit, AddWeightEntryCommandHandler>()
-            .AddValidator<AddWeightEntryCommand, AddWeightEntryCommandValidator>();
+            .AddValidator<AddWeightEntryCommand, AddWeightEntryCommandValidator>()
+            .AddCommand<DeletePetCommand, Unit, DeletePetCommandHandler>()
+            .AddValidator<DeletePetCommand, DeletePetCommandValidator>()
+            .AddCommand<DeleteOwnerCommand, Unit, DeleteOwnerCommandHandler>()
+            .AddValidator<DeleteOwnerCommand, DeleteOwnerCommandValidator>();
     }
 }
