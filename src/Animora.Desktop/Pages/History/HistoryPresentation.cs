@@ -33,6 +33,136 @@ public static class HistoryPresentation
     /// <summary>A solid fill brush from a hex string (shared via <see cref="BrushCache"/>).</summary>
     public static IBrush Fill(string hex) => BrushCache.Solid(hex);
 
+    /// <summary>
+    /// The signed amount cell text shared by every history surface:
+    /// «+۱۲٬۰۰۰ ت» / «−۱۲٬۰۰۰ ت», or «—» when the row carries no money.
+    /// </summary>
+    public static string SignedAmount(long amount, int amountSign)
+    {
+        if (amount == 0 || amountSign == 0)
+        {
+            return "—";
+        }
+
+        var sign = amountSign < 0 ? "−" : "+";
+        return sign + Money(amount) + " ت";
+    }
+
+    /// <summary>The signed-amount brush (inflow = ok, outflow = danger, none = muted).</summary>
+    public static IBrush AmountBrush(int amountSign) =>
+        Fill(amountSign < 0 ? DangerColor : amountSign > 0 ? OkColor : MutedColor);
+
+    // ── Shared neutral tokens (mirror Resources/Theme/Colors.axaml) ──────
+
+    /// <summary>Muted ink «--muted» (#667085) — placeholder amounts, secondary text.</summary>
+    public const string MutedColor = "#667085";
+
+    /// <summary>Inactive chip label ink (#475467).</summary>
+    public const string ChipMutedInkColor = "#475467";
+
+    /// <summary>Inactive chip border line (#e4e7ec).</summary>
+    public const string ChipLineColor = "#e4e7ec";
+
+    public const string OkColor = "#027a48";
+    public const string OkBgColor = "#ecfdf3";
+    public const string WarnColor = "#b54708";
+    public const string WarnBgColor = "#fffaeb";
+    public const string DangerColor = "#d92d20";
+    public const string DangerBgColor = "#fef3f2";
+    public const string InfoColor = "#1570cd";
+    public const string InfoBgColor = "#eff8ff";
+    public const string LilacColor = "#a48afb";
+    public const string LilacBgColor = "#f4f3ff";
+    public const string NeutralColor = "#667085";
+    public const string NeutralBgColor = "#f1f5f6";
+    public const string BrandColor = "#0e7566";
+    public const string BrandBgColor = "#f0fdfa";
+    public const string PeachColor = "#f0b593";
+    public const string PeachBgColor = "#fdf1e7";
+
+    /// <summary>Inactive chip border brush (shared by every history kind-chip row).</summary>
+    public static IBrush ChipLineBrush => Fill(ChipLineColor);
+
+    /// <summary>Inactive chip label brush (shared by every history kind-chip row).</summary>
+    public static IBrush ChipMutedInkBrush => Fill(ChipMutedInkColor);
+
+    /// <summary>Muted ink brush (placeholder amounts, «—» cells).</summary>
+    public static IBrush MutedBrush => Fill(MutedColor);
+
+    // ── Tone palette (the single authority for every chip/badge tint) ────
+
+    /// <summary>The accent text colour of a <see cref="Tone"/> (the <c>--*</c> token).</summary>
+    public static string ToneColor(Tone tone) => tone switch
+    {
+        Tone.Ok => OkColor,
+        Tone.Warn => WarnColor,
+        Tone.Danger => DangerColor,
+        Tone.Info => InfoColor,
+        Tone.Lilac => LilacColor,
+        Tone.Brand => BrandColor,
+        Tone.Peach => PeachColor,
+        _ => NeutralColor,
+    };
+
+    /// <summary>The tinted surface colour of a <see cref="Tone"/> (the <c>--*-bg</c> token).</summary>
+    public static string ToneBg(Tone tone) => tone switch
+    {
+        Tone.Ok => OkBgColor,
+        Tone.Warn => WarnBgColor,
+        Tone.Danger => DangerBgColor,
+        Tone.Info => InfoBgColor,
+        Tone.Lilac => LilacBgColor,
+        Tone.Brand => BrandBgColor,
+        Tone.Peach => PeachBgColor,
+        _ => NeutralBgColor,
+    };
+
+    /// <summary>Accent brush of a <see cref="Tone"/>.</summary>
+    public static IBrush ToneBrush(Tone tone) => Fill(ToneColor(tone));
+
+    /// <summary>Tinted-surface brush of a <see cref="Tone"/>.</summary>
+    public static IBrush ToneBgBrush(Tone tone) => Fill(ToneBg(tone));
+
+    /// <summary>
+    /// The <see cref="Tone"/> behind each status (the reference's <c>STATUS[s].cls</c>);
+    /// <see cref="StatusColor"/>/<see cref="StatusBg"/> derive from it so every chip shares one palette.
+    /// </summary>
+    public static Tone StatusTone(HistoryEventStatus status) => status switch
+    {
+        HistoryEventStatus.Paid => Tone.Ok,
+        HistoryEventStatus.Partial => Tone.Warn,
+        HistoryEventStatus.Unpaid => Tone.Danger,
+        HistoryEventStatus.Done => Tone.Ok,
+        HistoryEventStatus.Cancelled => Tone.Danger,
+        HistoryEventStatus.Confirmed => Tone.Ok,
+        HistoryEventStatus.Pending => Tone.Warn,
+        HistoryEventStatus.New => Tone.Info,
+        HistoryEventStatus.Overdue => Tone.Danger,
+        HistoryEventStatus.Cleared => Tone.Ok,
+        HistoryEventStatus.Bounced => Tone.Danger,
+        HistoryEventStatus.LowStock => Tone.Warn,
+        HistoryEventStatus.Normal => Tone.Neutral,
+        HistoryEventStatus.Discharge => Tone.Ok,
+        HistoryEventStatus.CheckIn => Tone.Info,
+        _ => Tone.Neutral,
+    };
+
+    /// <summary>The <see cref="Tone"/> behind each module kind's icon badge / category pill.</summary>
+    public static Tone KindTone(HistoryEventKind kind) => kind switch
+    {
+        HistoryEventKind.Sale => Tone.Ok,
+        HistoryEventKind.Appointment => Tone.Info,
+        HistoryEventKind.Patient => Tone.Lilac,
+        HistoryEventKind.Vaccine => Tone.Ok,
+        HistoryEventKind.Expense => Tone.Danger,
+        HistoryEventKind.Inventory => Tone.Warn,
+        HistoryEventKind.Cheque => Tone.Neutral,
+        HistoryEventKind.Boarding => Tone.Lilac,
+        HistoryEventKind.Visit => Tone.Info,
+        HistoryEventKind.Purchase => Tone.Warn,
+        _ => Tone.Neutral,
+    };
+
     // ── Module-kind registry (the reference's CATEGORIES) ────────────────
 
     /// <summary>Icon resource key per kind (maps to Resources/Theme/Icons.axaml).</summary>
@@ -68,36 +198,10 @@ public static class HistoryPresentation
     };
 
     /// <summary>The kind icon badge's accent text color (the reference's <c>CATEGORIES[k].color</c>).</summary>
-    public static string KindColor(HistoryEventKind kind) => kind switch
-    {
-        HistoryEventKind.Sale => "#027a48",
-        HistoryEventKind.Appointment => "#1570cd",
-        HistoryEventKind.Patient => "#a48afb",
-        HistoryEventKind.Vaccine => "#027a48",
-        HistoryEventKind.Expense => "#d92d20",
-        HistoryEventKind.Inventory => "#b54708",
-        HistoryEventKind.Cheque => "#667085",
-        HistoryEventKind.Boarding => "#a48afb",
-        HistoryEventKind.Visit => "#1570cd",
-        HistoryEventKind.Purchase => "#b54708",
-        _ => "#667085",
-    };
+    public static string KindColor(HistoryEventKind kind) => ToneColor(KindTone(kind));
 
     /// <summary>The kind icon badge's background (the reference uses the matching <c>--*-bg</c> token).</summary>
-    public static string KindBg(HistoryEventKind kind) => kind switch
-    {
-        HistoryEventKind.Sale => "#ecfdf3",
-        HistoryEventKind.Appointment => "#eff8ff",
-        HistoryEventKind.Patient => "#f4f3ff",
-        HistoryEventKind.Vaccine => "#ecfdf3",
-        HistoryEventKind.Expense => "#fef3f2",
-        HistoryEventKind.Inventory => "#fffaeb",
-        HistoryEventKind.Cheque => "#f1f5f6",
-        HistoryEventKind.Boarding => "#f4f3ff",
-        HistoryEventKind.Visit => "#eff8ff",
-        HistoryEventKind.Purchase => "#fffaeb",
-        _ => "#f1f5f6",
-    };
+    public static string KindBg(HistoryEventKind kind) => ToneBg(KindTone(kind));
 
     /// <summary>All kinds in the reference's declared order (drives the category chip row).</summary>
     public static IReadOnlyList<HistoryEventKind> AllKinds { get; } =
@@ -141,67 +245,21 @@ public static class HistoryPresentation
     /// The status chip's tone class (the reference's <c>STATUS[s].cls</c>):
     /// ok | warn | danger | info | mute | lilac.
     /// </summary>
-    public static string StatusClass(HistoryEventStatus status) => status switch
+    public static string StatusClass(HistoryEventStatus status) => StatusTone(status) switch
     {
-        HistoryEventStatus.Paid => "ok",
-        HistoryEventStatus.Partial => "warn",
-        HistoryEventStatus.Unpaid => "danger",
-        HistoryEventStatus.Done => "ok",
-        HistoryEventStatus.Cancelled => "danger",
-        HistoryEventStatus.Confirmed => "ok",
-        HistoryEventStatus.Pending => "warn",
-        HistoryEventStatus.New => "info",
-        HistoryEventStatus.Overdue => "danger",
-        HistoryEventStatus.Cleared => "ok",
-        HistoryEventStatus.Bounced => "danger",
-        HistoryEventStatus.LowStock => "warn",
-        HistoryEventStatus.Normal => "mute",
-        HistoryEventStatus.Discharge => "ok",
-        HistoryEventStatus.CheckIn => "info",
+        Tone.Ok => "ok",
+        Tone.Warn => "warn",
+        Tone.Danger => "danger",
+        Tone.Info => "info",
+        Tone.Lilac => "lilac",
         _ => "mute",
     };
 
     /// <summary>The tone's background fill (the <c>--*-bg</c> token that matches <see cref="StatusClass"/>).</summary>
-    public static string StatusBg(HistoryEventStatus status) => status switch
-    {
-        HistoryEventStatus.Paid => "#ecfdf3",
-        HistoryEventStatus.Partial => "#fffaeb",
-        HistoryEventStatus.Unpaid => "#fef3f2",
-        HistoryEventStatus.Done => "#ecfdf3",
-        HistoryEventStatus.Cancelled => "#fef3f2",
-        HistoryEventStatus.Confirmed => "#ecfdf3",
-        HistoryEventStatus.Pending => "#fffaeb",
-        HistoryEventStatus.New => "#eff8ff",
-        HistoryEventStatus.Overdue => "#fef3f2",
-        HistoryEventStatus.Cleared => "#ecfdf3",
-        HistoryEventStatus.Bounced => "#fef3f2",
-        HistoryEventStatus.LowStock => "#fffaeb",
-        HistoryEventStatus.Normal => "#f1f5f6",
-        HistoryEventStatus.Discharge => "#ecfdf3",
-        HistoryEventStatus.CheckIn => "#eff8ff",
-        _ => "#f1f5f6",
-    };
+    public static string StatusBg(HistoryEventStatus status) => ToneBg(StatusTone(status));
 
     /// <summary>The tone's text color (the <c>--*</c> token that matches <see cref="StatusClass"/>).</summary>
-    public static string StatusColor(HistoryEventStatus status) => status switch
-    {
-        HistoryEventStatus.Paid => "#027a48",
-        HistoryEventStatus.Partial => "#b54708",
-        HistoryEventStatus.Unpaid => "#d92d20",
-        HistoryEventStatus.Done => "#027a48",
-        HistoryEventStatus.Cancelled => "#d92d20",
-        HistoryEventStatus.Confirmed => "#027a48",
-        HistoryEventStatus.Pending => "#b54708",
-        HistoryEventStatus.New => "#1570cd",
-        HistoryEventStatus.Overdue => "#d92d20",
-        HistoryEventStatus.Cleared => "#027a48",
-        HistoryEventStatus.Bounced => "#d92d20",
-        HistoryEventStatus.LowStock => "#b54708",
-        HistoryEventStatus.Normal => "#667085",
-        HistoryEventStatus.Discharge => "#027a48",
-        HistoryEventStatus.CheckIn => "#1570cd",
-        _ => "#667085",
-    };
+    public static string StatusColor(HistoryEventStatus status) => ToneColor(StatusTone(status));
 
     // ── Day-group friendly label (the reference's jdateLabel) ────────────
 

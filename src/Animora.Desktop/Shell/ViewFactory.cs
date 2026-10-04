@@ -65,7 +65,6 @@ public static class ViewFactory
         Register<global::Animora.Desktop.Pages.Boarding.CheckoutModalViewModel, global::Animora.Desktop.Pages.Boarding.CheckoutModalView>(factories);
         Register<global::Animora.Desktop.Pages.Boarding.NewStayModalViewModel, global::Animora.Desktop.Pages.Boarding.NewStayModalView>(factories);
         Register<global::Animora.Desktop.Pages.Boarding.StayDetailModalViewModel, global::Animora.Desktop.Pages.Boarding.StayDetailModalView>(factories);
-        Register<global::Animora.Desktop.Pages.Boarding.TransferModalViewModel, global::Animora.Desktop.Pages.Boarding.TransferModalView>(factories);
 
         // Cashier.
         Register<global::Animora.Desktop.Pages.Cashier.CashierPageViewModel, global::Animora.Desktop.Pages.Cashier.CashierPageView>(factories);

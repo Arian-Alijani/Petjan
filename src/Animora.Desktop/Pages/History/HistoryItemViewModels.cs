@@ -1,6 +1,11 @@
+using System;
+using System.Threading.Tasks;
+using System.Windows.Input;
 using Animora.Contracts.History;
+using Animora.Desktop.Localization;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Animora.Desktop.Pages.History;
 
@@ -72,10 +77,10 @@ public sealed partial class HistoryCategoryChipViewModel : ObservableObject
     public IBrush ChipBackground => IsActive ? BackgroundBrush : Brushes.Transparent;
 
     /// <summary>Chip border: the kind's accent colour when active, a muted line otherwise.</summary>
-    public IBrush ChipBorder => IsActive ? ColorBrush : HistoryPresentation.Fill("#e4e7ec");
+    public IBrush ChipBorder => IsActive ? ColorBrush : HistoryPresentation.ChipLineBrush;
 
     /// <summary>Label colour: the kind's accent when active, a muted ink otherwise.</summary>
-    public IBrush LabelBrush => IsActive ? ColorBrush : HistoryPresentation.Fill("#475467");
+    public IBrush LabelBrush => IsActive ? ColorBrush : HistoryPresentation.ChipMutedInkBrush;
 }
 
 /// <summary>
@@ -83,15 +88,43 @@ public sealed partial class HistoryCategoryChipViewModel : ObservableObject
 /// badge, time, description lines, party entity, the audit «کاربر» (actor),
 /// signed amount and status chip.
 /// </summary>
-public sealed class HistoryEventRowViewModel
+public sealed class HistoryEventRowViewModel : IHistoryRowView
 {
-    public HistoryEventRowViewModel(HistoryEvent ev)
+    /// <param name="ev">The ledger event (its <c>Entity</c> is a <c>Type:Id</c> pair).</param>
+    /// <param name="open">
+    /// Opens the unified record screen for this row's entity (injected from the page VM, routed through
+    /// <see cref="Services.IHistoryRecordOpener"/>). Null for inert rows.
+    /// </param>
+    public HistoryEventRowViewModel(HistoryEvent ev, Func<string, string, string?, Task>? open = null)
     {
         Title = ev.Title;
         Detail = ev.Detail;
         HasDetail = !string.IsNullOrEmpty(ev.Detail);
         Time = string.IsNullOrEmpty(ev.Time) ? "—" : HistoryPresentation.FaText(ev.Time);
-        Entity = string.IsNullOrEmpty(ev.Entity) ? "—" : ev.Entity;
+
+        // ev.Entity arrives as "Type:Id" (e.g. "Invoice:01J…"), or "Payment:<paymentId>:<invoiceId>" for
+        // payment rows. Split it: the type drives navigation and a readable Persian label, the id (and the
+        // owning invoice id, when present) is passed to the opener. Never show the raw ULID to the user.
+        var raw = ev.Entity ?? string.Empty;
+        var parts = raw.Split(':', 3);
+        if (parts.Length >= 2 && parts[0].Length > 0)
+        {
+            EntityType = parts[0];
+            EntityId = parts[1];
+            InvoiceId = parts.Length == 3 && parts[2].Length > 0 ? parts[2] : null;
+        }
+        else
+        {
+            EntityType = string.Empty;
+            EntityId = raw;
+            InvoiceId = null;
+        }
+
+        Entity = string.IsNullOrEmpty(EntityType) ? "—" : HistoryText.EntityLabel(EntityType);
+        CanOpen = !string.IsNullOrEmpty(EntityType) && !string.IsNullOrEmpty(EntityId);
+        OpenCommand = new AsyncRelayCommand(
+            () => open is not null && CanOpen ? open(EntityType, EntityId, InvoiceId) : Task.CompletedTask,
+            () => CanOpen && open is not null);
 
         // The audit "who" (R1).
         ActorName = ev.Actor.Name;
@@ -106,19 +139,9 @@ public sealed class HistoryEventRowViewModel
         CategoryColorBrush = HistoryPresentation.Fill(HistoryPresentation.KindColor(ev.Kind));
         CategoryBgBrush = HistoryPresentation.Fill(HistoryPresentation.KindBg(ev.Kind));
 
-        var hasAmount = ev.Amount != 0 || ev.AmountSign != 0;
-        HasAmount = hasAmount;
-        if (!hasAmount)
-        {
-            AmountText = "—";
-            AmountBrush = HistoryPresentation.Fill("#667085");
-        }
-        else
-        {
-            var sign = ev.AmountSign < 0 ? "−" : "+";
-            AmountText = sign + HistoryPresentation.Money(ev.Amount);
-            AmountBrush = HistoryPresentation.Fill(ev.AmountSign < 0 ? "#d92d20" : "#027a48");
-        }
+        HasAmount = ev.Amount != 0 && ev.AmountSign != 0;
+        AmountText = HistoryPresentation.SignedAmount(ev.Amount, ev.AmountSign);
+        AmountBrush = HistoryPresentation.AmountBrush(HasAmount ? ev.AmountSign : 0);
 
         StatusLabel = HistoryPresentation.StatusLabel(ev.Status);
         StatusBrush = HistoryPresentation.Fill(HistoryPresentation.StatusColor(ev.Status));
@@ -134,6 +157,21 @@ public sealed class HistoryEventRowViewModel
     public string Time { get; }
 
     public string Entity { get; }
+
+    /// <summary>The feed entity's source-aggregate tag (e.g. "Invoice", "Pet"); drives navigation.</summary>
+    public string EntityType { get; }
+
+    /// <summary>The feed entity's id (never shown raw to the user).</summary>
+    public string EntityId { get; }
+
+    /// <summary>For <c>Payment</c> rows: the owning invoice id the unified invoice sheet opens; otherwise null.</summary>
+    public string? InvoiceId { get; }
+
+    /// <summary>True when this row maps to an openable record (non-empty type + id).</summary>
+    public bool CanOpen { get; }
+
+    /// <summary>Opens the unified record screen for this row (invoice sheet / pet sheet / page).</summary>
+    public ICommand OpenCommand { get; }
 
     /// <summary>The audit "who" — the user who performed the recorded action (R1).</summary>
     public string ActorName { get; }
@@ -184,13 +222,13 @@ public sealed class HistoryDayGroupViewModel
         HasNet = net != 0;
         if (HasNet)
         {
-            NetText = (net > 0 ? "+" : "−") + HistoryPresentation.Money(System.Math.Abs(net)) + " ت";
-            NetBrush = HistoryPresentation.Fill(net >= 0 ? "#027a48" : "#d92d20");
+            NetText = HistoryPresentation.SignedAmount(System.Math.Abs(net), net > 0 ? 1 : -1);
+            NetBrush = HistoryPresentation.AmountBrush(net > 0 ? 1 : -1);
         }
         else
         {
             NetText = string.Empty;
-            NetBrush = HistoryPresentation.Fill("#667085");
+            NetBrush = HistoryPresentation.MutedBrush;
         }
     }
 

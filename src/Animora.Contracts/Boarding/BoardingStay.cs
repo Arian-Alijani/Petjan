@@ -69,7 +69,7 @@ public enum BoardingSpecies
 /// <param name="PaymentMode">Prepaid/postpaid (footer pill).</param>
 /// <param name="Status">Active/done.</param>
 /// <param name="Tone">Avatar tone key <c>a</c>..<c>f</c> (reference <c>petTone</c>).</param>
-/// <param name="Transferred">Whether the stay's invoice was transferred to cashier.</param>
+/// <param name="Transferred">True once the stay was checked out and handed to the cashier's ready-to-invoice queue (never true for an active stay).</param>
 /// <param name="Note">Free-text care note (detail modal; carried for completeness).</param>
 /// <param name="ExtraItemsCost">
 /// Total cost of the stay's extra items/services in Rial — pre-aggregated by the

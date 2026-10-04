@@ -68,7 +68,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private bool _hasReadyVisitBadge;
 
     public SalePageViewModel(ISalesQueryService service, IStoreReadinessGate readiness,
-        IToastService toast, IDialogService dialogs, IDataChangeNotifier changes, IPrintService print)
+        IToastService toast, IDialogService dialogs, IDataChangeNotifier changes, IPrintService print,
+        IHistoryRecordOpener historyOpener)
     {
         _service = service;
         _print = print;
@@ -85,7 +86,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         Segments.Add(new SaleSegmentViewModel("ready", "صف ویزیت"));
         Segments.Add(new SaleSegmentViewModel("invoices", "فاکتورها"));
 
-        History = new SaleHistoryViewModel(service, toast, dialogs, print, NotifyInvoicesChanged);
+        History = new SaleHistoryViewModel(service, historyOpener, NotifyInvoicesChanged);
 
         UseLoadStatus(ReloadPageAsync);
         // The ready-visit queue is fed by completed encounters; the cashier settles the same invoices.
@@ -283,6 +284,24 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         catch (InvalidOperationException ex)
         {
             ShowFailure(ex, "صدور فاکتور از ویزیت ناموفق بود؛ از فهرست «آمادهٔ صدور» دوباره تلاش کنید");
+        }
+    }
+
+    /// <summary>
+    /// Opens the page on the «صف ویزیت» (ready-to-invoice) queue. Used by the visit / boarding
+    /// hand-off: the doctor's account only marks the encounter ready, and the cashier issues the
+    /// invoice from this list under the cashier's own <c>SalesDraft</c> permission. The page's own
+    /// <see cref="OnNavigatedTo"/> reload then refreshes the queue contents.
+    /// </summary>
+    public void ShowReadyQueue()
+    {
+        _segment = "ready";
+        SearchText = string.Empty;
+        OnPropertyChanged(nameof(IsReadySegment));
+        OnPropertyChanged(nameof(IsInvoicesSegment));
+        if (_pageLoaded)
+        {
+            RenderSidebar();
         }
     }
 

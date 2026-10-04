@@ -90,11 +90,14 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private string _planText = string.Empty;
 
     // ---- Step 4: rx add-pickers (reference renderRx) ----
+    // The two catalog pickers are explicit Popup overlays (same pattern as the Boarding
+    // stay-detail add dropdown) instead of ComboBoxes: a chrome-less ComboBox nested in the
+    // scrolling, ClipToBounds wizard card opened its list underneath the layout.
     [ObservableProperty]
-    private RxCatalogOptionViewModel? _selectedServiceToAdd;
+    private bool _isServicePickerOpen;
 
     [ObservableProperty]
-    private RxCatalogOptionViewModel? _selectedItemToAdd;
+    private bool _isItemPickerOpen;
 
     // ---- Step 6: done summary (reference renderDone) ----
     [ObservableProperty]
@@ -247,24 +250,35 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         CompleteVisitCommand.NotifyCanExecuteChanged();
     }
 
-    partial void OnSelectedServiceToAddChanged(RxCatalogOptionViewModel? value)
+    partial void OnIsServicePickerOpenChanged(bool value)
     {
-        if (value is null) return;
-        try { AddPickedLine(value.Item); }
-        finally { SelectedServiceToAdd = null; }
+        if (value) IsItemPickerOpen = false;
     }
 
-    partial void OnSelectedItemToAddChanged(RxCatalogOptionViewModel? value)
+    partial void OnIsItemPickerOpenChanged(bool value)
     {
-        if (value is null) return;
-        try { AddPickedLine(value.Item); }
-        finally { SelectedItemToAdd = null; }
+        if (value) IsServicePickerOpen = false;
+    }
+
+    [RelayCommand]
+    private void ToggleServicePicker() => IsServicePickerOpen = !IsServicePickerOpen;
+
+    [RelayCommand]
+    private void ToggleItemPicker() => IsItemPickerOpen = !IsItemPickerOpen;
+
+    /// <summary>Adds the catalog option the user clicked in either picker popup and closes both.</summary>
+    [RelayCommand]
+    private void PickCatalogOption(RxCatalogOptionViewModel? option)
+    {
+        IsServicePickerOpen = false;
+        IsItemPickerOpen = false;
+        if (option is null) return;
+        AddPickedLine(option.Item);
     }
 
     /// <summary>
-    /// Adds the line a catalog picker just chose. The <c>[ObservableProperty]</c>
-    /// change hook is a synchronous UI event and cannot itself be <c>async</c>, so
-    /// the async add is started here and faults are observed + surfaced instead of
+    /// Adds the line a catalog picker just chose. The picker command is
+    /// synchronous, so the async add is started here and faults are observed + surfaced instead of
     /// escaping on the fire-and-forget path (PERFORMANCE.md §4: never block the UI
     /// thread).
     /// </summary>
@@ -363,13 +377,13 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     }, "رفتن به ویزیت بعدی ناموفق بود؛ دوباره تلاش کنید");
 
     [RelayCommand]
-    private Task HandoffToCashierAsync() => RunGuardedAsync(async () =>
+    private Task HandoffToCashierAsync() => RunGuardedAsync(() =>
     {
-        // The completed encounter id is handed to SalePageViewModel, which issues the invoice from it
-        // (sale-page.js buildFromEncounter parity). The awaitable path means a failed hand-off toasts
-        // on the Sales page rather than escaping from a fire-and-forget command.
-        await _navigation.NavigateToAsync<Animora.Desktop.Pages.Sales.SalePageViewModel>(
-            vm => vm.BuildFromEncounterAsync(_encounterId));
+        // Completing the visit already queued it as «آمادهٔ صدور». Invoice issuing is the cashier's
+        // job (SalesDraft permission), so this only opens the cashier page on that ready queue —
+        // it never issues an invoice from the doctor's account.
+        _navigation.NavigateTo<Animora.Desktop.Pages.Sales.SalePageViewModel>(vm => vm.ShowReadyQueue());
+        return Task.CompletedTask;
     }, "انتقال به صندوق ناموفق بود؛ دوباره تلاش کنید");
 
     private async Task CompleteAsync()

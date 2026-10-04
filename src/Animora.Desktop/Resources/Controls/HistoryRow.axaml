@@ -1,0 +1,381 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:hy="using:Animora.Desktop.Pages.History">
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         Unified History system — the ONE visual for every history surface:
+         the main History page and the Sales / Boarding / Vaccination tabs.
+
+         • HistoryRowTemplate  — the clickable event row (icon badge, time,
+           title+detail, entity, actor, signed amount, status chip, category
+           pill). Binds to the shared hy:IHistoryRowView surface, so every row
+           VM renders pixel-identically and opens its record via OpenCommand.
+         • HistoryLedgerHeadTemplate — the matching column header.
+         • .hy-* selector styles — toolbar chips, selects, summary bar, ledger
+           shell, day-group header, pager. Declared once here (not per view) so
+           the four surfaces cannot drift.
+
+         Column grid (shared by header + row): 36,80,*,150,130,120,120,110
+         ═══════════════════════════════════════════════════════════════════ -->
+
+    <Styles.Resources>
+        <!-- Column header — a template so it needs no DataContext. -->
+        <ControlTemplate x:Key="HistoryLedgerHeadTemplate" TargetType="ContentControl">
+            <Border Classes="hy-ledger-head">
+                <Grid ColumnDefinitions="36,80,*,150,130,120,120,110" ColumnSpacing="0">
+                    <TextBlock Grid.Column="0" Classes="hcol-head" />
+                    <TextBlock Grid.Column="1" Classes="hcol-head" Text="زمان" />
+                    <TextBlock Grid.Column="2" Classes="hcol-head" Text="رویداد" />
+                    <TextBlock Grid.Column="3" Classes="hcol-head" Text="موجودیت" />
+                    <TextBlock Grid.Column="4" Classes="hcol-head" Text="کاربر / انجام‌دهنده" />
+                    <TextBlock Grid.Column="5" Classes="hcol-head" Text="مبلغ" />
+                    <TextBlock Grid.Column="6" Classes="hcol-head" Text="وضعیت" />
+                    <TextBlock Grid.Column="7" Classes="hcol-head" Text="دسته" />
+                </Grid>
+            </Border>
+        </ControlTemplate>
+
+        <!-- The clickable event row. -->
+        <DataTemplate x:Key="HistoryRowTemplate" x:DataType="hy:IHistoryRowView">
+            <Button Classes="hy-row-btn" Command="{Binding OpenCommand}" ToolTip.Tip="{Binding Title}">
+                <Border Classes="hy-row">
+                    <Grid ColumnDefinitions="36,80,*,150,130,120,120,110" ColumnSpacing="0">
+                        <!-- kind icon badge -->
+                        <Border Grid.Column="0" Classes="hy-cat-badge" Background="{Binding BadgeBrush}"
+                                HorizontalAlignment="Left" VerticalAlignment="Center">
+                            <Path Classes="icon" Width="15" Height="15" Stroke="{Binding BadgeIconBrush}"
+                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <!-- time -->
+                        <TextBlock Grid.Column="1" Text="{Binding Time}" FontSize="12" Margin="4,0"
+                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                        <!-- title + detail -->
+                        <StackPanel Grid.Column="2" Margin="4,0" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{StaticResource InkBrush}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Detail}" FontSize="11.5"
+                                       Foreground="{StaticResource MutedBrush}" IsVisible="{Binding HasDetail}"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <!-- entity / party -->
+                        <TextBlock Grid.Column="3" Text="{Binding Entity}" Margin="4,0" FontSize="12"
+                                   Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" />
+                        <!-- کاربر / انجام‌دهنده (actor) -->
+                        <StackPanel Grid.Column="4" Margin="4,0" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ActorName}" FontSize="12.5" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Ink2Brush}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding ActorRole}" FontSize="11"
+                                       Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <!-- signed amount -->
+                        <TextBlock Grid.Column="5" Text="{Binding AmountText}" Margin="4,0" FontSize="13"
+                                   FontWeight="Bold" Foreground="{Binding AmountBrush}" VerticalAlignment="Center" />
+                        <!-- status chip -->
+                        <Border Grid.Column="6" Classes="hy-status" Background="{Binding StatusBgBrush}"
+                                HorizontalAlignment="Left" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Ellipse Classes="hy-status-dot" Fill="{Binding StatusBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding StatusLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                           Foreground="{Binding StatusBrush}" />
+                            </StackPanel>
+                        </Border>
+                        <!-- category pill -->
+                        <Border Grid.Column="7" Classes="hy-cat-pill" BorderBrush="{Binding CategoryColorBrush}"
+                                Background="{Binding CategoryBgBrush}" HorizontalAlignment="Left"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="{Binding CategoryLabel}" FontSize="11" FontWeight="Bold"
+                                       Foreground="{Binding CategoryColorBrush}" />
+                        </Border>
+                    </Grid>
+                </Border>
+            </Button>
+        </DataTemplate>
+    </Styles.Resources>
+
+    <!-- ═══ Range chip (.hy-chip): pill outline; active = brand fill. ═══ -->
+    <Style Selector="Button.hy-chip">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="13,5" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.hy-chip:pointerover">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+    </Style>
+    <Style Selector="Button.hy-chip.on">
+        <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+
+    <!-- ═══ Category / kind chip (.hy-cat-chip): icon + label. Inactive = muted
+         outline (dimmed); active = the kind's tinted surface + accent border
+         (supplied by the chip VM through ChipBackground / ChipBorder). ═══ -->
+    <Style Selector="Button.hy-cat-chip">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="12,5" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Opacity" Value="0.72" />
+    </Style>
+    <Style Selector="Button.hy-cat-chip:pointerover">
+        <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Muted2Brush}" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button.hy-cat-chip.on">
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button.hy-cat-chip.on TextBlock">
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+
+    <!-- ═══ Search field (.hy-search) ═══ -->
+    <Style Selector="Border.hy-search">
+        <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="13,0" />
+        <Setter Property="MinWidth" Value="200" />
+    </Style>
+    <Style Selector="TextBox.hy-search">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="0,10" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.hy-search-clear">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="20" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="999" />
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ═══ Toolbar shell (.hy-toolbar) ═══ -->
+    <Style Selector="Border.hy-toolbar">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="0,0,16,16" />
+        <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+        <Setter Property="Padding" Value="14,12" />
+        <Setter Property="Margin" Value="0,0,0,16" />
+    </Style>
+    <Style Selector="Border.hy-toolbar-sep">
+        <Setter Property="Width" Value="1" />
+        <Setter Property="Height" Value="22" />
+        <Setter Property="Background" Value="{StaticResource LineBrush}" />
+    </Style>
+
+    <!-- ═══ Summary bar (.hy-summary) ═══ -->
+    <Style Selector="Border.hy-summary">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1,1,1,0" />
+        <Setter Property="CornerRadius" Value="10,10,0,0" />
+        <Setter Property="Padding" Value="18,12" />
+    </Style>
+    <Style Selector="Border.hy-summary-sep">
+        <Setter Property="Width" Value="1" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="Background" Value="{StaticResource LineBrush}" />
+    </Style>
+
+    <!-- ═══ Ledger shell (.hy-ledger) ═══ -->
+    <Style Selector="Border.hy-ledger">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="0,0,10,10" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Border.hy-ledger-head">
+        <Setter Property="Background" Value="{StaticResource BgBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="16,10" />
+    </Style>
+    <Style Selector="TextBlock.hcol-head">
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        <Setter Property="LetterSpacing" Value="0.3" />
+        <Setter Property="Margin" Value="4,0" />
+    </Style>
+
+    <!-- ═══ Day group header (.hy-day-group) ═══ -->
+    <Style Selector="Border.hy-day-group">
+        <Setter Property="Background" Value="{StaticResource BgBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="16,9" />
+    </Style>
+    <Style Selector="Border.hy-day-badge">
+        <Setter Property="Background" Value="{StaticResource Line2Brush}" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="8,1" />
+    </Style>
+
+    <!-- ═══ Event row (.hy-row) ═══ -->
+    <Style Selector="Border.hy-row">
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="16,11" />
+    </Style>
+    <!-- clickable row wrapper: flat (no button chrome), hand cursor, opens the record -->
+    <Style Selector="Button.hy-row-btn">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.hy-row-btn /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.hy-row-btn:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+    </Style>
+    <!-- inert rows (no openable record) keep full ink — they only lose the hand cursor -->
+    <Style Selector="Button.hy-row-btn:disabled">
+        <Setter Property="Opacity" Value="1" />
+        <Setter Property="Cursor" Value="Arrow" />
+    </Style>
+    <Style Selector="Button.hy-row-btn:disabled /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <!-- ═══ Category icon badge (.hy-cat-badge) + category pill (.hy-cat-pill) ═══ -->
+    <Style Selector="Border.hy-cat-badge">
+        <Setter Property="Width" Value="30" />
+        <Setter Property="Height" Value="30" />
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="Border.hy-cat-pill">
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="8,3" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <!-- ═══ Status chip (.hy-status) ═══ -->
+    <Style Selector="Border.hy-status">
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="9,3" />
+    </Style>
+    <Style Selector="Ellipse.hy-status-dot">
+        <Setter Property="Width" Value="6" />
+        <Setter Property="Height" Value="6" />
+    </Style>
+
+    <!-- ═══ Empty state (.hy-empty) ═══ -->
+    <Style Selector="Border.hy-empty-icon">
+        <Setter Property="Width" Value="56" />
+        <Setter Property="Height" Value="56" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+
+    <!-- ═══ Compact toolbar select (.hy-select) ═══ -->
+    <Style Selector="ComboBox.hy-select">
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Padding" Value="12,7" />
+        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="ComboBox.hy-select /template/ Border#Background">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+    </Style>
+    <Style Selector="ComboBox.hy-select:pointerover /template/ Border#Background">
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+    </Style>
+    <Style Selector="ComboBox.hy-select /template/ PathIcon">
+        <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+    </Style>
+
+    <!-- ═══ Pager buttons (.hy-pager) ═══ -->
+    <Style Selector="Button.hy-pager">
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="Padding" Value="12,7" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.hy-pager:pointerover">
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+    </Style>
+    <Style Selector="Button.hy-pager:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+        <Setter Property="Cursor" Value="Arrow" />
+    </Style>
+    <Style Selector="Border.hy-pager-bar">
+        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="16,12" />
+    </Style>
+
+    <!-- ═══ Virtualized ledger body (ListBox). MaxHeight is REQUIRED: the
+         shell's page-level ScrollViewer measures content with infinite height,
+         so without a cap the inner VirtualizingStackPanel would realize every
+         item (PERFORMANCE.md §6). ═══ -->
+    <Style Selector="ListBox.hy-ledger-body">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="MaxHeight" Value="600" />
+    </Style>
+    <Style Selector="ListBox.hy-ledger-body ListBoxItem">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="ListBox.hy-ledger-body ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox.hy-ledger-body ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+</Styles>

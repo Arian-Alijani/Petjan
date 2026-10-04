@@ -33,6 +33,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
+    private readonly IHistoryRecordOpener _opener;
     private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
 
     private readonly HashSet<HistoryEventKind> _selectedKinds = [];
@@ -49,12 +50,14 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     // longer matches is discarded (a newer query has superseded it).
     private int _generation;
 
-    public HistoryPageViewModel(IHistoryQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs)
+    public HistoryPageViewModel(IHistoryQueryService service, IStoreReadinessGate readiness, IToastService toast,
+        IDialogService dialogs, IHistoryRecordOpener opener)
     {
         _service = service;
         _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
+        _opener = opener;
 
         Title = "تاریخچه";
         Eyebrow = "دفتر رویدادهای مدیریتی";
@@ -129,7 +132,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     private string _summaryNetText = string.Empty;
 
     [ObservableProperty]
-    private IBrush _summaryNetBrush = HistoryPresentation.Fill("#027a48");
+    private IBrush _summaryNetBrush = HistoryPresentation.AmountBrush(1);
 
     [ObservableProperty]
     private string _pageText = "۰ / ۰";
@@ -455,7 +458,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         SummaryIncomeText = "+" + HistoryPresentation.Money(income) + " ت";
         SummaryExpenseText = "−" + HistoryPresentation.Money(expense) + " ت";
         SummaryNetText = (net >= 0 ? "+" : "−") + HistoryPresentation.Money(Math.Abs(net)) + " ت";
-        SummaryNetBrush = HistoryPresentation.Fill(net >= 0 ? "#027a48" : "#d92d20");
+        SummaryNetBrush = HistoryPresentation.AmountBrush(net >= 0 ? 1 : -1);
 
         PageText = $"{HistoryPresentation.Fa(_page)} / {HistoryPresentation.Fa(totalPages)}";
         HasPrev = _page > 1;
@@ -482,7 +485,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
             {
                 Title = HistoryText.Title(e.Title),
                 Detail = HistoryText.Detail(e.Detail),
-            })).ToList();
+            }, (type, id, invoiceId) => _opener.OpenAsync(type, id, invoiceId))).ToList();
             var net = dayNets is not null && dayNets.TryGetValue(group.Key, out var fullDayNet) ? fullDayNet : 0;
 
             groups.Add(new HistoryDayGroupViewModel(

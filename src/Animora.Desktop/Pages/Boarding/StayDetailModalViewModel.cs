@@ -26,7 +26,6 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly IPrintService _print;
     private readonly Action? _onChanged;
-    private readonly Action<BoardingStay>? _onTransfer;
     private readonly Action<BoardingStay>? _onCheckout;
     private readonly Action? _onGotoCashier;
 
@@ -39,7 +38,6 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         IPrintService print,
         string stayId,
         Action? onChanged = null,
-        Action<BoardingStay>? onTransfer = null,
         Action<BoardingStay>? onCheckout = null,
         Action? onGotoCashier = null)
     {
@@ -48,7 +46,6 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         _dialogs = dialogs;
         _print = print;
         _onChanged = onChanged;
-        _onTransfer = onTransfer;
         _onCheckout = onCheckout;
         _onGotoCashier = onGotoCashier;
         StayId = stayId;
@@ -366,6 +363,9 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         catch (InvalidOperationException ex)
         {
             _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(ex, "افزودن مورد ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            // The stay may have changed state elsewhere (checked out / not editable): re-read so the
+            // add row and the totals reflect the persisted truth instead of a stale editable view.
+            await LoadAsync();
             return;
         }
 
@@ -402,17 +402,10 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Transfer()
-    {
-        // Reference: close(); openTransferModal(st) — the dialog host replaces
-        // this modal's content with the transfer modal.
-        _onTransfer?.Invoke(_stay);
-    }
-
-    [RelayCommand]
     private void Checkout()
     {
-        // Reference: close(); openCheckoutModal(st).
+        // Checkout is the single hand-off that sends the stay (room + every consumed line) to the
+        // cashier's «آمادهٔ صدور» queue.
         _onCheckout?.Invoke(_stay);
     }
 

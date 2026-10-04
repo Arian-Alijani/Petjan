@@ -1,8 +1,12 @@
-using System.Collections.Generic;
+using System;
+using System.Threading.Tasks;
+using System.Windows.Input;
 using Animora.Contracts.Sales;
 using Animora.Desktop.Controls;
+using Animora.Desktop.Pages.History;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Animora.Desktop.Pages.Sales;
 
@@ -14,10 +18,8 @@ namespace Animora.Desktop.Pages.Sales;
 public sealed partial class SaleHistoryKindChipViewModel : ObservableObject
 {
     private static readonly IBrush s_inactiveBackground = Brushes.Transparent;
-    private static readonly IBrush s_inactiveBorder =
-        SaleHistoryPresentation.Fill("#e4e7ec");
-    private static readonly IBrush s_mutedLabel =
-        SaleHistoryPresentation.Fill("#475467");
+    private static readonly IBrush s_inactiveBorder = HistoryPresentation.ChipLineBrush;
+    private static readonly IBrush s_mutedLabel = HistoryPresentation.ChipMutedInkBrush;
 
     public SaleHistoryKindChipViewModel(CashierHistoryKind kind)
     {
@@ -100,14 +102,19 @@ public sealed partial class SaleHistoryRangeViewModel : ObservableObject
 }
 
 /// <summary>
-/// One ledger row of the history table (mirrors the History screen's event row):
-/// the kind badge, invoice/owner lock-up, date/time, signed amount and the
-/// resulting invoice-state chip. Every display string + brush is computed once
-/// in the constructor (PERFORMANCE.md §9) — the template only binds.
+/// One ledger row of the «تاریخچه صندوق» tab, rendered through the shared
+/// <c>HistoryRowTemplate</c> (<see cref="IHistoryRowView"/>) so it is pixel-identical to
+/// the main History page: kind badge, time, title («پذیرش فاکتور ۱۲۳») + note, the party
+/// («مالک · پتیار»), actor, signed amount, the invoice-state chip and the kind pill.
+/// Clicking the row opens the unified invoice sheet via <see cref="OpenCommand"/>
+/// (routed through <c>IHistoryRecordOpener</c>). Every display string + brush is computed
+/// once in the constructor (PERFORMANCE.md §9) — the template only binds.
 /// </summary>
-public sealed class SaleHistoryRowViewModel
+public sealed class SaleHistoryRowViewModel : IHistoryRowView
 {
-    public SaleHistoryRowViewModel(CashierHistoryEntry entry)
+    /// <param name="entry">The ledger entry.</param>
+    /// <param name="openInvoice">Opens the unified invoice sheet for <paramref name="entry"/>'s invoice.</param>
+    public SaleHistoryRowViewModel(CashierHistoryEntry entry, Func<string, Task>? openInvoice = null)
     {
         Id = entry.Id;
         InvoiceId = entry.InvoiceId;
@@ -117,30 +124,27 @@ public sealed class SaleHistoryRowViewModel
         OwnerName = string.IsNullOrEmpty(entry.OwnerName) ? "مشتری گذری" : entry.OwnerName;
         PetName = entry.PetName;
 
+        var kindTone = SaleHistoryPresentation.KindTone(entry.Kind);
         IconKey = SaleHistoryPresentation.KindIcon(entry.Kind);
-        BadgeBrush = SaleHistoryPresentation.Fill(SaleHistoryPresentation.KindBg(entry.Kind));
-        BadgeIconBrush = SaleHistoryPresentation.Fill(SaleHistoryPresentation.KindColor(entry.Kind));
-        KindTone = SaleHistoryPresentation.KindTone(entry.Kind);
+        BadgeBrush = HistoryPresentation.ToneBgBrush(kindTone);
+        BadgeIconBrush = HistoryPresentation.ToneBrush(kindTone);
+        KindTone = kindTone;
 
-        DateText = SaleHistoryPresentation.FaText(entry.Date);
-        TimeText = string.IsNullOrEmpty(entry.Time) ? "—" : SaleHistoryPresentation.FaText(entry.Time);
+        CategoryLabel = entry.KindLabel;
+        CategoryColorBrush = BadgeIconBrush;
+        CategoryBgBrush = BadgeBrush;
 
-        var hasAmount = entry.Amount != 0 && entry.AmountSign != 0;
-        HasAmount = hasAmount;
-        if (!hasAmount)
-        {
-            AmountText = "—";
-        }
-        else
-        {
-            var sign = entry.AmountSign < 0 ? "−" : "+";
-            AmountText = sign + SaleHistoryPresentation.Money(entry.Amount) + " ت";
-        }
+        DateText = HistoryPresentation.FaText(entry.Date);
+        TimeText = string.IsNullOrEmpty(entry.Time) ? "—" : HistoryPresentation.FaText(entry.Time);
 
-        AmountBrush = SaleHistoryPresentation.AmountBrush(entry.AmountSign);
+        HasAmount = entry.Amount != 0 && entry.AmountSign != 0;
+        AmountText = HistoryPresentation.SignedAmount(entry.Amount, entry.AmountSign);
+        AmountBrush = HistoryPresentation.AmountBrush(HasAmount ? entry.AmountSign : 0);
 
         StateLabel = entry.StateLabel;
         StateTone = SalePresentation.StateTone(entry.State);
+        StatusBrush = HistoryPresentation.ToneBrush(StateTone);
+        StatusBgBrush = HistoryPresentation.ToneBgBrush(StateTone);
 
         // The audit "who" (R1).
         ActorName = entry.Actor.Name;
@@ -149,6 +153,18 @@ public sealed class SaleHistoryRowViewModel
 
         // «مالک · پتیار» subtitle, or just the owner when there is no patient.
         Subtitle = string.IsNullOrEmpty(PetName) ? OwnerName : OwnerName + " · " + PetName;
+
+        // Shared-row surface: title = «پذیرش فاکتور ۱۲۳»; detail = the audit note.
+        Title = string.IsNullOrEmpty(InvoiceId)
+            ? KindLabel + " فاکتور"
+            : KindLabel + " فاکتور " + HistoryPresentation.FaText(InvoiceId);
+        Detail = Note;
+        HasDetail = !string.IsNullOrEmpty(Note);
+
+        CanOpen = !string.IsNullOrEmpty(InvoiceId) && openInvoice is not null;
+        OpenCommand = new AsyncRelayCommand(
+            () => CanOpen ? openInvoice!(InvoiceId) : Task.CompletedTask,
+            () => CanOpen);
     }
 
     public string Id { get; }
@@ -193,4 +209,37 @@ public sealed class SaleHistoryRowViewModel
     public string ActorInitials { get; }
 
     public string ActorRole { get; }
+
+    // ── IHistoryRowView (shared row template surface) ────────────────────
+
+    public string Title { get; }
+
+    public string Detail { get; }
+
+    public bool HasDetail { get; }
+
+    /// <inheritdoc cref="TimeText"/>
+    public string Time => TimeText;
+
+    /// <summary>The party column: «مالک · پتیار».</summary>
+    public string Entity => Subtitle;
+
+    public string CategoryLabel { get; }
+
+    public IBrush CategoryColorBrush { get; }
+
+    public IBrush CategoryBgBrush { get; }
+
+    /// <summary>The invoice-state chip label (the resulting state after this event).</summary>
+    public string StatusLabel => StateLabel;
+
+    public IBrush StatusBrush { get; }
+
+    public IBrush StatusBgBrush { get; }
+
+    /// <summary>True when the row has an invoice to open.</summary>
+    public bool CanOpen { get; }
+
+    /// <summary>Opens the unified invoice sheet (same screen as the Cashier / Owner sheet).</summary>
+    public ICommand OpenCommand { get; }
 }

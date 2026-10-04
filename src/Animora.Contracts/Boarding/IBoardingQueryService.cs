@@ -38,14 +38,8 @@ public interface IBoardingQueryService
     Task<StayDetail> RemoveItemAsync(string stayId, int index);
 
     /// <summary>
-    /// Marks a stay's invoice as transferred to the cashier, mirroring the
-    /// reference's transfer confirm (<c>st.transferred = true</c>).
-    /// </summary>
-    Task TransferAsync(string stayId);
-
-    /// <summary>
-    /// Ends a stay («تخلیه»), mirroring the reference's checkout confirm
-    /// (<c>st.status = 'done'</c>).
+    /// Ends a stay («تخلیه»): frees the room, freezes the billable total and hands the
+    /// stay (room + every consumed line) to the cashier's ready-to-invoice queue.
     /// </summary>
     Task CheckoutAsync(string stayId);
 

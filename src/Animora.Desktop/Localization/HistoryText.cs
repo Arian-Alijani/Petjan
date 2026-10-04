@@ -62,4 +62,18 @@ public static class HistoryText
         "Quantity" => "مقدار", "Method" => "روش",
         _ => key,
     };
+
+    /// <summary>
+    /// Persian label for a feed <c>EntityType</c> tag (the source-aggregate kind shown in the entity
+    /// column and used when announcing the record a row opens). Covers every tag the activity feed
+    /// emits; unknown tags fall through to the raw value.
+    /// </summary>
+    public static string EntityLabel(string entityType) => entityType switch
+    {
+        "Invoice" => "فاکتور", "Payment" => "پرداخت", "Pet" => "بیمار", "Owner" => "مالک",
+        "Stay" => "پانسیون", "Vaccination" => "واکسیناسیون", "Visit" => "ویزیت",
+        "Appointment" => "نوبت", "Cheque" => "چک", "Expense" => "هزینه",
+        "GoodsReceipt" => "رسید کالا", "StockMovement" => "گردش انبار", "Product" => "کالا",
+        _ => entityType,
+    };
 }

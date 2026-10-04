@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Animora.Contracts.Boarding;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.History;
 using Animora.Desktop.Services;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -36,6 +37,7 @@ public sealed partial class BoardingHistoryViewModel : ObservableObject
     private static readonly int[] PageSizes = [25, 50, 100];
 
     private readonly IBoardingQueryService _service;
+    private readonly IHistoryRecordOpener _opener;
     private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
 
     private readonly HashSet<BoardingHistoryKind> _selectedKinds = [];
@@ -55,12 +57,19 @@ public sealed partial class BoardingHistoryViewModel : ObservableObject
     // longer matches is discarded (a newer query has superseded it).
     private int _generation;
 
-    public BoardingHistoryViewModel(IBoardingQueryService service)
+    /// <param name="service">The boarding read seam (ledger query).</param>
+    /// <param name="opener">The unified record opener shared with the main History page (row click → stay).</param>
+    public BoardingHistoryViewModel(IBoardingQueryService service, IHistoryRecordOpener opener)
     {
         _service = service;
+        _opener = opener;
         BuildRangeChips();
         BuildKindChips();
     }
+
+    /// <summary>Opens the unified record screen for a ledger row's stay via <see cref="IHistoryRecordOpener"/>.</summary>
+    private Task OpenStayAsync(string stayId) =>
+        string.IsNullOrEmpty(stayId) ? Task.CompletedTask : _opener.OpenAsync("Stay", stayId);
 
     public RangeObservableCollection<BoardingHistoryRowViewModel> Rows { get; } = [];
 
@@ -114,7 +123,7 @@ public sealed partial class BoardingHistoryViewModel : ObservableObject
     private string _summaryNetText = string.Empty;
 
     [ObservableProperty]
-    private IBrush _summaryNetBrush = BoardingHistoryPresentation.Fill("#027a48");
+    private IBrush _summaryNetBrush = HistoryPresentation.AmountBrush(1);
 
     [ObservableProperty]
     private string _pageText = "۰ / ۰";
@@ -438,7 +447,7 @@ public sealed partial class BoardingHistoryViewModel : ObservableObject
             return;
         }
 
-        Rows.ReplaceAll(page.Items.Select(entry => new BoardingHistoryRowViewModel(entry)));
+        Rows.ReplaceAll(page.Items.Select(entry => new BoardingHistoryRowViewModel(entry, OpenStayAsync)));
 
         HasRows = page.TotalCount > 0;
         IsEmpty = page.TotalCount == 0;
@@ -456,7 +465,7 @@ public sealed partial class BoardingHistoryViewModel : ObservableObject
         SummaryInflowText = "+" + BoardingHistoryPresentation.Money(inflow) + " ت";
         SummaryOutflowText = "−" + BoardingHistoryPresentation.Money(outflow) + " ت";
         SummaryNetText = (net >= 0 ? "+" : "−") + BoardingHistoryPresentation.Money(Math.Abs(net)) + " ت";
-        SummaryNetBrush = BoardingHistoryPresentation.Fill(net >= 0 ? "#027a48" : "#d92d20");
+        SummaryNetBrush = HistoryPresentation.AmountBrush(net >= 0 ? 1 : -1);
 
         PageText = $"{BoardingHistoryPresentation.Fa(_page)} / {BoardingHistoryPresentation.Fa(totalPages)}";
         HasPrev = _page > 1;

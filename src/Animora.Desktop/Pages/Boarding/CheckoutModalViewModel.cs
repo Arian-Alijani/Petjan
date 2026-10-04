@@ -10,8 +10,9 @@ namespace Animora.Desktop.Pages.Boarding;
 /// <summary>
 /// Backs the Boarding «تخلیه» modal (Animora-UI/assets/boarding.js
 /// <c>openCheckoutModal</c>): a hint line naming the room that will be freed,
-/// an optional warning banner when the invoice was never transferred, and a
-/// confirm that ends the stay («تخلیه‌شده»).
+/// an info banner explaining that checkout hands the stay to the cashier, and a
+/// confirm that ends the stay («تخلیه‌شده»). Checkout is the only action that
+/// queues the stay (room + every consumed line) for invoicing.
 /// </summary>
 public sealed partial class CheckoutModalViewModel : ObservableObject
 {
@@ -37,14 +38,10 @@ public sealed partial class CheckoutModalViewModel : ObservableObject
 
         RoomText = PersianNumberFormatter.ToPersianDigits(stay.Room);
         Title = $"پایان اقامت «{stay.PetName}»";
-        ShowTransferWarning = !stay.Transferred;
     }
 
     public string Title { get; }
     public string RoomText { get; }
-
-    /// <summary>Reference shows the warning banner only while the invoice is not yet transferred.</summary>
-    public bool ShowTransferWarning { get; }
 
     [RelayCommand]
     private async Task ConfirmAsync()
@@ -60,7 +57,7 @@ public sealed partial class CheckoutModalViewModel : ObservableObject
         }
 
         _dialogs.Close();
-        _toast.Show($"«{_stay.PetName}» تخلیه شد — اتاق {RoomText} آزاد است", Tone.Ok);
+        _toast.Show($"«{_stay.PetName}» تخلیه شد — اتاق {RoomText} آزاد و اقامت برای صدور فاکتور به صندوق منتقل شد", Tone.Ok);
         _onCheckedOut?.Invoke();
     }
 

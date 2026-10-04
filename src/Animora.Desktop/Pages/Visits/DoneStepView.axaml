@@ -32,7 +32,7 @@
             </Border>
             <Border Classes="sum-cell">
                 <StackPanel>
-                    <TextBlock Classes="sum-lbl" Text="مبلغ فاکتور" />
+                    <TextBlock Classes="sum-lbl" Text="مبلغ ویزیت" />
                     <TextBlock Classes="sum-val" Text="{Binding DoneTotalText}" />
                 </StackPanel>
             </Border>
