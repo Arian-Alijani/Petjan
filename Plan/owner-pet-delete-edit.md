@@ -315,7 +315,7 @@ commands do not break `RolePermissionMatrixTests` or wire tests.
   close sheet → toast) and a red "حذف بیمار" button to `PetFileView.axaml`. Push:
   `scripts/git/push.sh "feat(patients): delete pet from Pet File with confirm"`
 
-- [ ] **T6 — Owner Sheet UI delete (owner + per-pet).**
+- [x] **T6 — Owner Sheet UI delete (owner + per-pet).**
   Add `DeleteCommand` (owner, cascade) and `DeletePetCommand(row)` to `OwnerSheetViewModel.cs`
   (confirm dialogs → service calls → notify → close/reload → toast); add a red "حذف مالک" button
   and a per-row trash button to `OwnerSheetView.axaml`. Push:

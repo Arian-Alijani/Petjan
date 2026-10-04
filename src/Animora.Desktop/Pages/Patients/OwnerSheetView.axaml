@@ -101,6 +101,26 @@
             <Setter Property="FontSize" Value="11.5" />
             <Setter Property="CornerRadius" Value="9" />
         </Style>
+        <!-- danger variant of .odbtn (delete owner): red text/border, soft red wash on hover -->
+        <Style Selector="Button.odbtn.danger">
+            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
+        </Style>
+        <Style Selector="Button.odbtn.danger:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
+        </Style>
+        <!-- per-row trash icon button inside the pet roster (quiet until hovered) -->
+        <Style Selector="Button.rowdel">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.rowdel:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
+        </Style>
     </UserControl.Styles>
 
     <Grid RowDefinitions="*,Auto" Background="{StaticResource BgBrush}">
@@ -349,7 +369,7 @@
                                             <Button Classes="odlist"
                                                     Command="{Binding #Root.((patients:OwnerSheetViewModel)DataContext).OpenPetCommand}"
                                                     CommandParameter="{Binding}">
-                                                <Grid ColumnDefinitions="42,*,Auto,Auto" ColumnSpacing="13">
+                                                <Grid ColumnDefinitions="42,*,Auto,Auto,Auto" ColumnSpacing="13">
                                                     <Border Grid.Column="0" Width="42" Height="42"
                                                             CornerRadius="13" Background="{Binding ToneBrush}">
                                                         <Path Classes="icon" Width="20" Height="20"
@@ -369,7 +389,15 @@
                                                     <controls:Badge Grid.Column="2" Text="{Binding StatusText}"
                                                                     Tone="{Binding StatusTone}"
                                                                     VerticalAlignment="Center" />
-                                                    <Path Grid.Column="3" Classes="icon" Width="15"
+                                                    <Button Grid.Column="3" Classes="rowdel" VerticalAlignment="Center"
+                                                            Command="{Binding #Root.((patients:OwnerSheetViewModel)DataContext).DeletePetCommand}"
+                                                            CommandParameter="{Binding}" ToolTip.Tip="حذف حیوان">
+                                                        <Path Classes="icon" Width="14" Height="14"
+                                                              Stroke="{StaticResource DangerBrush}"
+                                                              Data="{StaticResource IconTrash}"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Button>
+                                                    <Path Grid.Column="4" Classes="icon" Width="15"
                                                           Height="15"
                                                           Stroke="{StaticResource Muted2Brush}"
                                                           Data="{StaticResource IconChevronLeft}"
@@ -662,6 +690,15 @@
                 <Button Classes="odbtn" Height="42" Command="{Binding CloseCommand}"
                         IsVisible="{Binding IsViewing}" Width="130">
                     <TextBlock Text="بستن" HorizontalAlignment="Center" />
+                </Button>
+                <Button Classes="odbtn danger" Height="42" Command="{Binding DeleteCommand}"
+                        IsVisible="{Binding IsViewing}" Width="150" ToolTip.Tip="حذف مالک و همه حیوانات او">
+                    <StackPanel Orientation="Horizontal" Spacing="7"
+                                HorizontalAlignment="Center">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource DangerBrush}"
+                              Data="{StaticResource IconTrash}" />
+                        <TextBlock Text="حذف مالک" />
+                    </StackPanel>
                 </Button>
             </StackPanel>
         </Border>
