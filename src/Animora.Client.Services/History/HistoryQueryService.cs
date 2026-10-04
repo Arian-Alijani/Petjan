@@ -21,8 +21,17 @@ public sealed class HistoryQueryService(IServiceScopeFactory scopes) : IHistoryQ
             .QueryAsync(new ActivityFeedQuery(filter), context.Value!);
         if (result.IsFailure) throw new ServiceException(result.Error);
         var zone = scope.ServiceProvider.GetRequiredService<Animora.Application.Ports.IClinicTimeZoneProvider>().GetClinicTimeZone();
-        return new HistoryPage(result.Value!.Items.Select(x => HistoryMapping.Map(x, zone)).ToArray(),
-            result.Value.TotalCount, result.Value.IncomeTotal, result.Value.ExpenseTotal);
+        var events = result.Value!.Items.Select(x => HistoryMapping.Map(x, zone)).ToArray();
+        var dayNets = new Dictionary<string, long>();
+        if (result.Value.DayNets is { } nets)
+        {
+            for (var i = 0; i < events.Length; i++)
+            {
+                if (nets.TryGetValue(result.Value.Items[i].LocalDay, out var net)) dayNets[events[i].Date] = net;
+            }
+        }
+
+        return new HistoryPage(events, result.Value.TotalCount, result.Value.IncomeTotal, result.Value.ExpenseTotal, dayNets);
     }
 
     public async Task<string> ExportCsvAsync(HistoryFilter filter, HistoryCsvLabels labels)

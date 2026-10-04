@@ -47,7 +47,7 @@ public sealed class ActivityFeedQueries(AnimoraLocalDbContext db) : IActivityFee
     private static IQueryable<ActivityRow> Project(IQueryable<ActivityEvent> q) => q.Select(x =>
         new ActivityRow(x.Id, x.OccurredUtc, x.Kind, x.Title, x.DetailArgsJson,
             x.EntityType, x.EntityId, x.AmountMinor, x.AmountSign, x.Status,
-            x.ActorUserId, x.ActorName, x.DetailText));
+            x.ActorUserId, x.ActorName, x.DetailText, x.LocalDay));
 
     public async Task<ActivityPage> PageAsync(string tenantId, HistoryFilter filter, CancellationToken ct)
     {
@@ -61,7 +61,19 @@ public sealed class ActivityFeedQueries(AnimoraLocalDbContext db) : IActivityFee
         var size = Math.Clamp(filter.PageSize, 1, 200);
         var skip = (int)Math.Min((long)Math.Max(0, filter.Page - 1) * size, int.MaxValue);
         var rows = await Project(Sort(q, filter.Sort).Skip(skip).Take(size)).ToListAsync(ct);
-        return new ActivityPage(rows, totals?.Count ?? 0, totals?.Income ?? 0, totals?.Expense ?? 0);
+
+        // Day-group nets over the FULL filtered set (page-independent), one grouped pass limited to the page's days.
+        var days = rows.Select(r => r.LocalDay).Distinct().ToArray();
+        var dayNets = days.Length == 0
+            ? new Dictionary<int, long>()
+            : (await q.Where(x => days.Contains(x.LocalDay))
+                .GroupBy(x => x.LocalDay)
+                .Select(g => new
+                {
+                    Day = g.Key,
+                    Net = g.Sum(x => x.AmountSign > 0 ? x.AmountMinor : 0) - g.Sum(x => x.AmountSign < 0 ? x.AmountMinor : 0),
+                }).ToListAsync(ct)).ToDictionary(x => x.Day, x => x.Net);
+        return new ActivityPage(rows, totals?.Count ?? 0, totals?.Income ?? 0, totals?.Expense ?? 0, dayNets);
     }
 
     public async Task<IReadOnlyList<ActivityRow>> ExportAsync(string tenantId, HistoryFilter filter, CancellationToken ct) =>

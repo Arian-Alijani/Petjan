@@ -259,7 +259,7 @@ delegate into H.CSV `CsvWriter`. **Delete the `Replace` chain** in H.VM. Keep th
 **Acceptance:** Exported CSV dates are clinic-local Jalali, title/status translated, detail shows names — identical to screen.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "fix(history): server-side Jalali/translated CSV export, drop Replace chain (P1-3)"`
 
-### T8 — [ ] History day-group net computed server-side over full filtered set (P1-8, P2-7)
+### T8 — [x] History day-group net computed server-side over full filtered set (P1-8, P2-7)
 **Findings:** P1-8 (summary bar uses `page.IncomeTotal`/`ExpenseTotal` over the whole filtered set — correct — but each
 day-group header's net in H.VM `RenderFeed` (452–453) is computed from only the current page's rows → a day split across
 pages shows a partial net read as the day's true net), P2-7 (per-group two filtered `Sum`s allocate closures per render).

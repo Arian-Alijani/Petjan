@@ -403,7 +403,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
             return;
         }
 
-        RenderFeed(page.Items);
+        RenderFeed(page.Items, page.DayNets);
 
         HasEvents = page.TotalCount > 0;
         IsEmpty = page.TotalCount == 0;
@@ -431,9 +431,9 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         NextPageCommand.NotifyCanExecuteChanged();
     }
 
-    // ── Ledger feed (day-grouped over the current page only) ─────────────
+    // ── Ledger feed (day-grouped; each day net is the full-day figure computed server-side) ─────────────
 
-    private void RenderFeed(IReadOnlyList<HistoryEvent> items)
+    private void RenderFeed(IReadOnlyList<HistoryEvent> items, IReadOnlyDictionary<string, long>? dayNets)
     {
         if (items.Count == 0)
         {
@@ -449,8 +449,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
                 Title = HistoryText.Title(e.Title),
                 Detail = HistoryText.Detail(e.Detail),
             })).ToList();
-            var net = group.Where(e => e.AmountSign == 1).Sum(e => e.Amount)
-                      - group.Where(e => e.AmountSign == -1).Sum(e => e.Amount);
+            var net = dayNets is not null && dayNets.TryGetValue(group.Key, out var fullDayNet) ? fullDayNet : 0;
 
             groups.Add(new HistoryDayGroupViewModel(
                 group.Key,
