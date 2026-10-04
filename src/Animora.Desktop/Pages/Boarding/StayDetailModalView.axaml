@@ -508,14 +508,6 @@
                                 <TextBlock Text="مشاهده در صندوق" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <Button Classes="primary" Command="{Binding TransferCommand}"
-                                IsVisible="{Binding !IsTransferred}">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="White"
-                                      Data="{StaticResource IconWallet}" VerticalAlignment="Center" />
-                                <TextBlock Text="انتقال به صندوق" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
                     </StackPanel>
                 </StackPanel>
             </Grid>

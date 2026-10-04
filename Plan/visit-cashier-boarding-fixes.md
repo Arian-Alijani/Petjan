@@ -232,7 +232,7 @@ DataDomain.Cashier)` گوش می‌دهد — SALE.VM خط ۹۲). اگر ناو�
 permission `SalesDraft` از همان لیست فاکتور را صادر می‌کند. در حالت آفلاین تک‌اکانت هم جریان یکسان و بدون خطا کار می‌کند.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "fix(visits): route completed visit to cashier ready-queue instead of issuing invoice from doctor account"`
 
-### T3 — [ ] هماهنگ‌سازی تخلیهٔ پانسیون و انتقال فاکتورش به صندوق + رفع باگ افزودن خدمت
+### T3 — [x] هماهنگ‌سازی تخلیهٔ پانسیون و انتقال فاکتورش به صندوق + رفع باگ افزودن خدمت
 **ریشه (از §0.6):** دکمهٔ «انتقال به صندوق» پانسیون در واقع `TransferStayRoomCommand` = **انتقال اتاق** را صدا می‌زند و
 toast دروغ می‌دهد؛ در کلینیک تک‌اتاقه `RoomNoneAvailable` fail می‌کند. فاکتور واقعی فقط هنگام `CheckoutStayCommand`
 (تخلیه) به‌صورت handoff به صندوق می‌رود. مفهوم `Transferred` هرگز set نمی‌شود.

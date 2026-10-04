@@ -92,9 +92,6 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
         return await GetDetailAsync(stayId) ?? throw new InvalidOperationException("STAY_NOT_FOUND");
     }
 
-    public async Task TransferAsync(string stayId) =>
-        _ = await SendAsync(new TransferStayRoomCommand(stayId));
-
     public async Task CheckoutAsync(string stayId) =>
         _ = await SendAsync(new CheckoutStayCommand(stayId));
 

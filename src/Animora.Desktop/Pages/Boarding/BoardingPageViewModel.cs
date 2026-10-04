@@ -378,36 +378,18 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
             new StayDetailModalViewModel(
                 _service, _toast, _dialogs, _print, stayId,
                 onChanged: RefreshAfterItemChange,
-                onTransfer: stay => ShowTransfer(stay),
                 onCheckout: stay => ShowCheckout(stay),
                 onGotoCashier: GotoCashier),
             maxWidth: 680);
 
     /// <summary>
-    /// Reference (boarding.js <c>goto-cashier</c>): close the detail modal and
-    /// navigate to the cashier/treasury screen. Phase 29 wires this to the real
-    /// <see cref="Pages.Cashier.CashierPageViewModel"/> (the reference's target
-    /// is <c>cashier.html</c>) instead of the old placeholder toast.
+    /// Closes the detail modal and opens the sales page on its «صف ویزیت» ready-to-invoice queue, where a
+    /// checked-out stay (queued by <c>CheckoutStayCommand</c>) is invoiced by the cashier.
     /// </summary>
     private void GotoCashier()
     {
         _dialogs.Close();
-        _navigation.NavigateTo<Animora.Desktop.Pages.Cashier.CashierPageViewModel>();
-    }
-
-    private void ShowTransfer(BoardingStay stay)
-    {
-        _ = ShowTransferAsync(stay);
-    }
-
-    private async Task ShowTransferAsync(BoardingStay stay)
-    {
-        var detail = await _service.GetDetailAsync(stay.Id);
-        var items = detail?.Items ?? [];
-        _dialogs.ShowModal(
-            new TransferModalViewModel(_service, _toast, _dialogs, stay, items,
-                onTransferred: RefreshAfterWrite),
-            maxWidth: 580);
+        _navigation.NavigateTo<Animora.Desktop.Pages.Sales.SalePageViewModel>(vm => vm.ShowReadyQueue());
     }
 
     private void ShowCheckout(BoardingStay stay) =>
