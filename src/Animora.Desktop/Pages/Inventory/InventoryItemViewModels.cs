@@ -101,7 +101,7 @@ public sealed class InventoryVariantRowViewModel
         ProductId = productId;
         Label = variant.Label;
         Sku = variant.Sku;
-        IsLow = variant.Stock <= variant.ReorderPoint;
+        IsLow = StockStatus.IsLow(variant);
         StockText = $"{InventoryPresentation.Money(variant.Stock)} عدد";
         CostText = $"{InventoryPresentation.Money(variant.Cost)} ت";
         PriceText = $"{InventoryPresentation.Money(variant.Price)} ت";
@@ -159,10 +159,9 @@ public sealed partial class InventoryProductRowViewModel : ObservableObject
         HasVariants = hasVariants;
         VariantCountText = PersianNumberFormatter.ToPersianDigits(product.Variants.Count);
 
-        // Stock status, mirroring the reference's stockStatus(p): all variants
-        // at/below their reorder point → "out"; some → "low"; else "ok".
-        var lowCount = product.Variants.Count(v => v.Stock <= v.ReorderPoint);
-        var status = lowCount == product.Variants.Count ? "out" : lowCount > 0 ? "low" : "ok";
+        // Stock status comes from the one shared rule (StockStatus, P2-16) so the
+        // row badge/bar and the per-variant «کم‌موجود» flag can never drift.
+        var status = StockStatus.Key(StockStatus.Of(product.Variants));
 
         var stock = product.Variants.Sum(v => v.Stock);
         StockText = $"{InventoryPresentation.Money(stock)} عدد";

@@ -348,7 +348,7 @@ view state with no backing store / no settings DTO/contract at all).
 **Acceptance:** No control looks live but does nothing; no fake success toast; if wired, settings persist and are read back.
 **Build:** fast 0/0. **Push:** `scripts/git/push.sh "fix(inventory): wire-or-remove category settings stubs (P1-9,P2-15)"`
 
-### T14 — [ ] Dedupe stock-status derivation (P2-16)
+### T14 — [x] Dedupe stock-status derivation (P2-16)
 **Finding:** P2-16 — the out/low/ok status rule is written twice: I.VM `StockStatus` (217–223) and I.ITEM ctor (162–165),
 with the same literals → list filter and row badge can drift.
 **Fix:** Extract a single helper (on the read model or a shared static) used by both the filter predicate and the row VM.

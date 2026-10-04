@@ -26,7 +26,7 @@ public sealed partial class InventoryVariantCardViewModel : ObservableObject
         _costText = PersianNumberFormatter.FormatGrouped(variant.Cost);
         _priceText = PersianNumberFormatter.FormatGrouped(variant.Price);
         _expiryText = variant.Expiry ?? string.Empty;
-        _isLow = variant.Stock <= variant.ReorderPoint;
+        _isLow = StockStatus.IsLow(variant);
     }
 
     public string Id { get; }
@@ -196,7 +196,7 @@ public sealed partial class InventoryAdjustRowViewModel : ObservableObject
         SubText = $"{variant.Sku} · نقطه سفارش {PersianNumberFormatter.ToPersianDigits(variant.ReorderPoint)}";
         OriginalStock = variant.Stock;
         _stockText = PersianNumberFormatter.ToPersianDigits(variant.Stock);
-        _isLow = variant.Stock <= variant.ReorderPoint;
+        _isLow = StockStatus.IsLow(variant);
     }
 
     public string Id { get; }
@@ -227,7 +227,7 @@ public sealed partial class InventoryAdjustRowViewModel : ObservableObject
     {
         var stock = Math.Max(0, ReadStock() - 1);
         StockText = PersianNumberFormatter.ToPersianDigits(stock);
-        IsLow = stock <= ReorderPoint;
+        IsLow = StockStatus.IsLow(stock, ReorderPoint);
     }
 
     [RelayCommand]
@@ -235,7 +235,7 @@ public sealed partial class InventoryAdjustRowViewModel : ObservableObject
     {
         var stock = ReadStock() + 1;
         StockText = PersianNumberFormatter.ToPersianDigits(stock);
-        IsLow = stock <= ReorderPoint;
+        IsLow = StockStatus.IsLow(stock, ReorderPoint);
     }
 
     public int ReadStock() =>
