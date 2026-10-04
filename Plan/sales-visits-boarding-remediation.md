@@ -49,7 +49,7 @@ switch over `ServiceException.Code` / result error code → Persian, used by bot
 
 | ID | Title | Status |
 |----|-------|--------|
-| T1 | Visit-type filters show English → use Persian labels from appointment settings | ☐ TODO |
+| T1 | Visit-type filters show English → use Persian labels from appointment settings | ☑ DONE |
 | T2 | "Start visit" often fails — root-cause & fix | ☐ TODO |
 | T3 | Pay / full-settle shows raw `CASH_SESSION_REQUIRED` in Sales & Cashier | ☐ TODO |
 | T4 | Boarding add product/service picker opens *behind* (clipped) — make it a modal like Sales | ☐ TODO |
@@ -60,7 +60,7 @@ switch over `ServiceException.Code` / result error code → Persian, used by bot
 
 ---
 
-## T1 — Visit-type filters: English → Persian labels synced with appointment settings
+## T1 — ☑ DONE — Visit-type filters: English → Persian labels synced with appointment settings
 
 **Symptom (user):** In **Visits** and **Pet file**, the visit-type filter chips show English text.
 They must show the **Persian** labels and stay in sync with the visit/appointment types created in

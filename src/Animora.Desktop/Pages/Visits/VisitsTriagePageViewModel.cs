@@ -189,6 +189,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
             // or a lost selection mid-refresh (V17, PERFORMANCE.md §5).
             var doctors = await _service.GetDoctorsAsync();
             var patients = await _service.GetPatientsAsync();
+            var visitTypes = await _service.GetVisitTypesAsync();
             var selectedId = SelectedDoctor?.Doctor.Id;
 
             var tiles = doctors.Select(d => new DoctorTileViewModel(d)).ToList();
@@ -212,6 +213,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
             }
 
             _allPatients = patients;
+            MergeVisitTypes(visitTypes);
             NotifyState();
         }
         finally
@@ -398,6 +400,42 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         _toast.Show($"ویزیت جدید بدون نوبت برای « {PickedPatient.Name} » آغاز شد.", Tone.Ok);
         await _navigation.NavigateToAsync<VisitEncounterViewModel>(vm => vm.LoadAsync(draft));
     }, "شروع ویزیت جدید ناموفق بود؛ دوباره تلاش کنید");
+
+    /// <summary>Adds custom types created in Settings → Appointments; built-ins already present are kept.</summary>
+    private void MergeVisitTypes(IReadOnlyList<VisitTypeInfo> latest)
+    {
+        var changed = false;
+        foreach (var type in latest)
+        {
+            if (Types.Any(t => t.Type.Id == type.Id))
+            {
+                continue;
+            }
+
+            Types.Add(new VisitTypeOptionViewModel(type));
+            changed = true;
+        }
+
+        for (var i = Types.Count - 1; i >= 0; i--)
+        {
+            if (latest.All(t => t.Id != Types[i].Type.Id))
+            {
+                // A custom type removed from settings disappears from the form/filter (unless selected).
+                if (ReferenceEquals(Types[i], SelectedType))
+                {
+                    continue;
+                }
+
+                Types.RemoveAt(i);
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            BuildChips();
+        }
+    }
 
     private void SelectType(VisitTypeOptionViewModel? option)
     {

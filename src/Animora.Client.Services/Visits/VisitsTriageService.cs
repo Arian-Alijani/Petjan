@@ -3,12 +3,16 @@ using Animora.Application.Correlation;
 using Animora.Application.Dispatch;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Visits;
+using Animora.Contracts.Appointments;
 using Animora.Contracts.Visits;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Client.Services.Visits;
 
-public sealed class VisitsTriageService(IServiceScopeFactory scopes, OperationIdFactory ids) : IVisitsTriageService
+public sealed class VisitsTriageService(
+    IServiceScopeFactory scopes,
+    OperationIdFactory ids,
+    IAppointmentSettingsService appointmentSettings) : IVisitsTriageService
 {
     public Task<IReadOnlyList<DoctorRailInfo>> GetDoctorsAsync() => QueryAsync(
         new TriageDoctorRailQuery(DateOnly.FromDateTime(DateTime.Today)),
@@ -19,6 +23,29 @@ public sealed class VisitsTriageService(IServiceScopeFactory scopes, OperationId
         rows => (IReadOnlyList<BookedAppointmentRef>)rows.Select(x => x.ToContract()).ToArray());
 
     public IReadOnlyList<VisitTypeInfo> GetVisitTypes() => VisitTypeCatalog.All;
+
+    public async Task<IReadOnlyList<VisitTypeInfo>> GetVisitTypesAsync()
+    {
+        var merged = VisitTypeCatalog.All.ToList();
+        try
+        {
+            var settings = await appointmentSettings.GetAsync().ConfigureAwait(false);
+            foreach (var custom in settings.CustomTypes)
+            {
+                // Built-ins win on an Id collision; custom types keep their persisted Persian label + color.
+                if (merged.Any(t => string.Equals(t.Id, custom.Id, StringComparison.Ordinal))) continue;
+                merged.Add(new VisitTypeInfo(custom.Id, custom.Label, "IconBriefcase",
+                    string.IsNullOrWhiteSpace(custom.ColorHex) ? "#0d9488" : custom.ColorHex,
+                    custom.DurationMinutes > 0 ? custom.DurationMinutes : 30));
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            // Settings unreadable (permission / file problem): the built-in Persian catalog still works.
+        }
+
+        return merged;
+    }
 
     public Task<IReadOnlyList<VisitPatientRef>> GetPatientsAsync() => QueryAsync(
         new TriagePatientsQuery(null),

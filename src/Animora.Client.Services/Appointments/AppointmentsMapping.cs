@@ -92,7 +92,8 @@ internal static class AppointmentsMapping
         new(row.Id, row.Name, row.Species, row.OwnerName, row.Phone,
             "blue", row.Species.ToLowerInvariant(), row.Species.ToLowerInvariant());
 
-    private static string TypeLabel(string code) => code switch
+    /// <summary>Single source of truth for the Persian label of a built-in appointment/visit type code.</summary>
+    internal static string TypeLabel(string code) => code switch
     {
         "CHECKUP" => "معاینه",
         "VACCINE" => "واکسیناسیون",
