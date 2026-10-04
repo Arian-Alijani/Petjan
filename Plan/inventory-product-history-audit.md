@@ -395,10 +395,12 @@ with compiled bindings on; `grep "نمونه طراحی" Pages/Inventory Pages/H
 `_env.sh` GC cap raised 576→704 MiB because the Avalonia XAML compiler OOMed with `x:CompileBindings` at the old cap. No DI/shell/startup
 files were touched in T1–T18, so the smoke run was not required; full-solution/test runs skipped per the no-long-builds rule.
 
-### T19 — [ ] Open / update the Pull Request
+### T19 — [x] Open / update the Pull Request
 **What:** Ensure the `genspark_ai_developer` branch has an up-to-date PR to `main` summarizing all findings resolved
 (3 P0, 11 P1, 20 P2). Provide the PR URL to the user. (Pushes already happened per task; this is the PR surface.)
 **Acceptance:** A single clean PR exists with a comprehensive description; URL shared.
+**Done (2026-10-04) — superseded by owner instruction:** the repo owner asked for **no PR**; `genspark_ai_developer` is applied
+directly to `main` (fast-forward, no history loss) after each task. Both branches point at the same commit.
 
 ### T20 — [ ] FINAL TASK — delete the source audit file
 **What:** Delete **only** `docs/INVENTORY_PRODUCT_HISTORY_AUDIT_2026-10-03.md`. Do **not** touch any other docs, the
