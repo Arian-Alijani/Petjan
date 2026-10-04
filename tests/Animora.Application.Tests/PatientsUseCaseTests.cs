@@ -88,6 +88,8 @@ public sealed class PatientsUseCaseTests
         Assert.Contains(CommandTypes.PatientsPetCreate, CommandTypes.All);
         Assert.Contains(CommandTypes.PatientsPetUpdate, CommandTypes.All);
         Assert.Contains(CommandTypes.PatientsPetWeightAdd, CommandTypes.All);
+        Assert.Contains(CommandTypes.PatientsOwnerDelete, CommandTypes.All);
+        Assert.Contains(CommandTypes.PatientsPetDelete, CommandTypes.All);
     }
 
     [Fact]
@@ -179,6 +181,7 @@ public sealed class PatientsUseCaseTests
     [InlineData(typeof(CreatePetCommand))]
     [InlineData(typeof(UpdatePetInfoCommand))]
     [InlineData(typeof(AddWeightEntryCommand))]
+    [InlineData(typeof(DeletePetCommand))]
     public void PetMutations_RequireThePatientsPetEditPermission_SoALackingUserIsDenied(Type command)
     {
         // Enforcement is the [RequiresPermission] the dispatcher reads once at registration; the generic
@@ -192,6 +195,7 @@ public sealed class PatientsUseCaseTests
     [Theory]
     [InlineData(typeof(CreateOwnerCommand))]
     [InlineData(typeof(UpdateOwnerCommand))]
+    [InlineData(typeof(DeleteOwnerCommand))]
     public void OwnerMutations_RequireThePatientsOwnerEditPermission(Type command)
     {
         var attribute = command.GetCustomAttribute<RequiresPermissionAttribute>();
@@ -345,5 +349,61 @@ public sealed class PatientsUseCaseTests
 
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorCodes.PetNotFound, result.Error);
+    }
+
+    [Fact]
+    public async Task DeletePet_TombstonesThePet_AndUnknownPetReturnsPetNotFound()
+    {
+        var pets = new FakePetRepository();
+        var pet = Pet.Register("T-LOCAL-DEFAULT", "O-1", "رکس", PetSpecies.Dog, Clock);
+        pets.Add(pet);
+        var handler = new DeletePetCommandHandler(pets);
+
+        var ok = await handler.HandleAsync(new DeletePetCommand(pet.Id), Context, default);
+        var missing = await handler.HandleAsync(new DeletePetCommand("missing"), Context, default);
+
+        Assert.True(ok.IsSuccess);
+        Assert.True(pet.Deleted);
+        Assert.True(missing.IsFailure);
+        Assert.Equal(ErrorCodes.PetNotFound, missing.Error);
+    }
+
+    [Fact]
+    public async Task DeleteOwner_TombstonesOwnerAndCascadesToItsPetsOnly()
+    {
+        var owners = new FakeOwnerRepository();
+        var pets = new FakePetRepository();
+        var owner = Owner.Register("T-LOCAL-DEFAULT", "نگار محمدی", "09120000001", Clock);
+        owners.Add(owner);
+        var mine1 = Pet.Register("T-LOCAL-DEFAULT", owner.Id, "رکس", PetSpecies.Dog, Clock);
+        var mine2 = Pet.Register("T-LOCAL-DEFAULT", owner.Id, "میشی", PetSpecies.Cat, Clock);
+        var other = Pet.Register("T-LOCAL-DEFAULT", "O-OTHER", "لوکی", PetSpecies.Dog, Clock);
+        pets.AddRange(new[] { mine1, mine2, other });
+        var handler = new DeleteOwnerCommandHandler(owners, pets);
+
+        var ok = await handler.HandleAsync(new DeleteOwnerCommand(owner.Id), Context, default);
+        var missing = await handler.HandleAsync(new DeleteOwnerCommand("missing"), Context, default);
+
+        Assert.True(ok.IsSuccess);
+        Assert.True(owner.Deleted);
+        Assert.True(mine1.Deleted);
+        Assert.True(mine2.Deleted);
+        Assert.False(other.Deleted);
+        Assert.True(missing.IsFailure);
+        Assert.Equal(ErrorCodes.OwnerNotFound, missing.Error);
+    }
+
+    [Fact]
+    public void DeleteCommands_AreJournaledWithTheirCatalogTypeAndAggregate()
+    {
+        var pet = new DeletePetCommand("P-1");
+        var owner = new DeleteOwnerCommand("O-1");
+
+        Assert.Equal(CommandTypes.PatientsPetDelete, pet.CommandTypeName);
+        Assert.Equal("Pet", pet.AggregateTypeName);
+        Assert.Equal("P-1", pet.AggregateIdOrNull);
+        Assert.Equal(CommandTypes.PatientsOwnerDelete, owner.CommandTypeName);
+        Assert.Equal("Owner", owner.AggregateTypeName);
+        Assert.Equal("O-1", owner.AggregateIdOrNull);
     }
 }
