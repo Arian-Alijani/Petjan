@@ -19,7 +19,7 @@ public sealed class RxCatalogQueries(AnimoraLocalDbContext db) : IRxCatalogQueri
     public async Task<IReadOnlyList<RxCatalogItemReadModel>> GetAsync(CancellationToken ct = default) =>
         await db.Set<Product>().AsNoTracking()
             .Where(p => p.IsActive)
-            .OrderBy(p => p.Name).ThenBy(p => p.Id).Take(200)
+            .OrderBy(p => p.Name).ThenBy(p => p.Id).Take(1000)
             .Select(p => new RxCatalogItemReadModel(
                 p.Kind == ProductKind.Service ? "Service" : "Item", p.Id, p.Name,
                 p.DefaultSalePrice.Minor)).ToListAsync(ct);

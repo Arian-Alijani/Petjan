@@ -29,7 +29,7 @@ Line resolution when billing: `Persistence/Repositories/SalesDraftData.FindCatal
 
 ## Tasks
 
-### T1 ✅/⬜ Fix catalog visibility (backend-only, small)
+### T1 ✅ Fix catalog visibility (backend-only, small)
 1. `BoardingQueries.GetSelectableAsync` + `FindSelectableAsync`: drop the Kind filter → every active product (`Service` → "ClinicService", else "ClinicItem"). Take(500) keep.
 2. `RxCatalogQueries.GetAsync`: Take(200) → 1000.
 3. `VisitEncounterService.GetCatalogAsync`: remove the never-invalidated cache (delete `_catalog` field + `TenantScopedCache` using) — always query (bounded, cheap). Also include active `BoardingServiceDef`? NO (visits = clinic only).

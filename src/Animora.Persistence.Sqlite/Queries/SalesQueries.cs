@@ -139,12 +139,13 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
     {
         var products = await (from p in db.Set<Product>().AsNoTracking()
             where p.IsActive
-            join c in db.Set<ProductCategory>().AsNoTracking() on p.CategoryId equals c.Id
+            join c in db.Set<ProductCategory>().AsNoTracking() on p.CategoryId equals c.Id into categories
+            from c in categories.DefaultIfEmpty()
             from v in p.Variants
             where v.IsActive
             orderby p.Name, v.VariantId
             select new SalesCatalogItemReadModel(v.VariantId, p.Name, p.Kind == ProductKind.Service ? "Service" : "Item",
-                c.DisplayName, v.SalePrice.Minor)).Take(500).ToListAsync(ct);
+                c == null ? "سایر" : c.DisplayName, v.SalePrice.Minor)).Take(1000).ToListAsync(ct);
         var boarding = await db.Set<BoardingServiceDef>().AsNoTracking().Where(s => s.IsActive)
             .OrderBy(s => s.Title).Take(200)
             .Select(s => new SalesCatalogItemReadModel(s.Id, s.Title, "Service", "Boarding", s.UnitPrice.Minor))

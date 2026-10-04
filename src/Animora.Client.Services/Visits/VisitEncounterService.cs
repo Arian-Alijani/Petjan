@@ -3,7 +3,6 @@ using Animora.Application.Correlation;
 using Animora.Application.Dispatch;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Visits;
-using Animora.Client.Services.Caching;
 using Animora.Contracts.Visits;
 using Animora.Domain.Clinical;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,8 +13,6 @@ namespace Animora.Client.Services.Visits;
 public sealed class VisitEncounterService(IServiceScopeFactory scopes, OperationIdFactory ids,
     DebounceBuffer notes) : IVisitEncounterService
 {
-    private readonly TenantScopedCache<string, IReadOnlyList<RxCatalogItem>> _catalog = new();
-
     public async Task<EncounterDraft> GetAsync(string encounterId) =>
         (await QueryAsync(new EncounterDraftQuery(encounterId))).Draft.ToContract();
 
@@ -61,14 +58,10 @@ public sealed class VisitEncounterService(IServiceScopeFactory scopes, Operation
         await using var scope = scopes.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>().BuildQueryContext();
         if (context.IsFailure) throw new ServiceException(context.Error);
-        var key = $"{context.Value!.TenantId}|{context.Value.UserId}|rxcatalog|v1";
-        if (_catalog.TryGet(key, out var cached)) return cached;
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
-            .QueryAsync(new RxCatalogQuery(), context.Value);
+            .QueryAsync(new RxCatalogQuery(), context.Value!);
         if (result.IsFailure) throw new ServiceException(result.Error);
-        var rows = (IReadOnlyList<RxCatalogItem>)result.Value!.Select(r => r.ToContract()).ToArray();
-        _catalog.Set(key, rows);
-        return rows;
+        return result.Value!.Select(r => r.ToContract()).ToArray();
     }
 
     public async Task<EncounterSummary> CompleteAsync(string encounterId)

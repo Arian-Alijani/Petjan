@@ -58,8 +58,7 @@ public sealed class BoardingQueries(AnimoraLocalDbContext db) : IBoardingQueries
     {
         var boarding = db.Set<BoardingServiceDef>().AsNoTracking().Where(s => s.IsActive)
             .Select(s => new BoardingSelectableReadModel(s.Id, s.Title, s.UnitPrice.Minor, "BoardingService"));
-        var products = db.Set<Product>().AsNoTracking().Where(p => p.IsActive &&
-            (p.Kind == ProductKind.Service || p.Kind == ProductKind.Consumable || p.Kind == ProductKind.Medicine))
+        var products = db.Set<Product>().AsNoTracking().Where(p => p.IsActive)
             .Select(p => new BoardingSelectableReadModel(p.Id, p.Name, p.DefaultSalePrice.Minor,
                 p.Kind == ProductKind.Service ? "ClinicService" : "ClinicItem"));
         return await boarding.Concat(products).OrderBy(r => r.Title).ThenBy(r => r.Id).Take(500).ToListAsync(ct);
@@ -71,8 +70,7 @@ public sealed class BoardingQueries(AnimoraLocalDbContext db) : IBoardingQueries
             .Select(s => new BoardingSelectableReadModel(s.Id, s.Title, s.UnitPrice.Minor, "BoardingService"))
             .FirstOrDefaultAsync(ct);
         if (boarding is not null) return boarding;
-        return await db.Set<Product>().AsNoTracking().Where(p => p.Id == id && p.IsActive &&
-            (p.Kind == ProductKind.Service || p.Kind == ProductKind.Consumable || p.Kind == ProductKind.Medicine))
+        return await db.Set<Product>().AsNoTracking().Where(p => p.Id == id && p.IsActive)
             .Select(p => new BoardingSelectableReadModel(p.Id, p.Name, p.DefaultSalePrice.Minor,
                 p.Kind == ProductKind.Service ? "ClinicService" : "ClinicItem")).FirstOrDefaultAsync(ct);
     }
