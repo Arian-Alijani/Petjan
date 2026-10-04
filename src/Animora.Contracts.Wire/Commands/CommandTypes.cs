@@ -75,6 +75,8 @@ public static class CommandTypes
     public const string PatientsPetCreate = "patients.pet.create";
     public const string PatientsPetUpdate = "patients.pet.update";
     public const string PatientsPetWeightAdd = "patients.pet.weight.add";
+    public const string PatientsOwnerDelete = "patients.owner.delete";
+    public const string PatientsPetDelete = "patients.pet.delete";
 
     // Reception & visits triage (C02).
     public const string ReceptionTicketAdmit = "reception.ticket.admit";
@@ -113,6 +115,7 @@ public static class CommandTypes
         SchedulingAppointmentCheckin, SchedulingBookingPatientCreate,
         BoardingStayCheckout, BoardingStayCreate, BoardingItemAdd, BoardingItemRemove, BoardingStayTransfer,
         PatientsOwnerCreate, PatientsOwnerUpdate, PatientsPetCreate, PatientsPetUpdate, PatientsPetWeightAdd,
+        PatientsOwnerDelete, PatientsPetDelete,
         ReceptionTicketAdmit, ReceptionTicketEnter, ReceptionTicketLeave, ReceptionTicketNoShow,
         ReceptionTicketUrgent, ReceptionWalkInCreate, VisitsVisitStart,
         VisitsVisitVitals, VisitsVisitNote, VisitsRxAdd, VisitsRxRemove, VisitsVisitComplete,

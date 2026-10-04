@@ -295,7 +295,7 @@ commands do not break `RolePermissionMatrixTests` or wire tests.
   Edit `IPetRepository.cs` (add method) + `PetRepository.cs` (impl, see §2). Push:
   `scripts/git/push.sh "feat(patients): add IPetRepository.ListByOwnerAsync for owner cascade"`
 
-- [ ] **T2 — Wire command types.**
+- [x] **T2 — Wire command types.**
   Add `PatientsOwnerDelete`, `PatientsPetDelete` constants + add both to `CommandTypes.All`
   in `CommandTypes.cs`. Push:
   `scripts/git/push.sh "feat(patients): register owner/pet delete command types"`
