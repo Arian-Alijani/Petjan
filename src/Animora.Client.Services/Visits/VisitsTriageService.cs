@@ -47,8 +47,8 @@ public sealed class VisitsTriageService(
         return merged;
     }
 
-    public Task<IReadOnlyList<VisitPatientRef>> GetPatientsAsync() => QueryAsync(
-        new TriagePatientsQuery(null),
+    public Task<IReadOnlyList<VisitPatientRef>> GetPatientsAsync(string? search = null) => QueryAsync(
+        new TriagePatientsQuery(string.IsNullOrWhiteSpace(search) ? null : search.Trim()),
         rows => (IReadOnlyList<VisitPatientRef>)rows.Select(x => x.ToContract()).ToArray());
 
     public async Task<EncounterDraft> StartFromTicketAsync(string ticketId) =>

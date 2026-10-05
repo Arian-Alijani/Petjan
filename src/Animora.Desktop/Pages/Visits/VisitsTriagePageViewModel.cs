@@ -99,7 +99,6 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     public ObservableCollection<VisitPatientRef> PatientMatches { get; } = [];
 
     private IReadOnlyList<BookedAppointmentRef> _allBooked = [];
-    private IReadOnlyList<VisitPatientRef> _allPatients = [];
 
     public string DoctorCountText => PersianNumberFormatter.ToPersianDigits(Doctors.Count);
     public string TodayText => PersianNumberFormatter.ToPersianDigits(
@@ -129,6 +128,18 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         && !string.IsNullOrWhiteSpace(PickedPatient.OwnerName);
     public bool HasPatientMatches => PatientMatches.Count > 0;
     public bool HasPatientSearch => PatientSearchText.Trim().Length > 0;
+
+    [ObservableProperty]
+    private bool _isPatientSearching;
+
+    [ObservableProperty]
+    private string _patientResultCount = string.Empty;
+
+    [ObservableProperty]
+    private bool _showPatientSearchMessage = true;
+
+    [ObservableProperty]
+    private string _patientSearchMessage = PatientHintMessage;
 
     public string PickedPatientName => PickedPatient?.Name ?? string.Empty;
     public string PickedPatientKind => PickedPatient?.Kind ?? string.Empty;
@@ -181,7 +192,6 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
             // pass: there is no await between Clear and the re-add, so the UI never renders an empty rail
             // or a lost selection mid-refresh (V17, PERFORMANCE.md §5).
             var doctors = await _service.GetDoctorsAsync();
-            var patients = await _service.GetPatientsAsync();
             var visitTypes = await _service.GetVisitTypesAsync();
             var selectedId = SelectedDoctor?.Doctor.Id;
 
@@ -205,7 +215,6 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
                 SelectedDoctor = restored;
             }
 
-            _allPatients = patients;
             MergeVisitTypes(visitTypes);
             NotifyState();
         }
@@ -230,7 +239,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         BuildBookedRows();
     }
 
-    partial void OnPatientSearchTextChanged(string value) => BuildPatientMatches();
+    partial void OnPatientSearchTextChanged(string value) => QueuePatientSearch();
 
     partial void OnPickedPatientChanged(VisitPatientRef? value)
     {
@@ -307,6 +316,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     [RelayCommand]
     private void PickPatient(VisitPatientRef? patient)
     {
+        StopPatientSearch();
         PickedPatient = patient;
         PatientSearchText = string.Empty;
         PatientMatches.Clear();
@@ -350,9 +360,6 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 
         await RunGuardedAsync(async () =>
         {
-            // Refresh the local patient directory so a later search / re-pick sees the new pet too.
-            _allPatients = await _service.GetPatientsAsync();
-
             if (string.IsNullOrEmpty(result.PetId))
             {
                 return;
@@ -526,24 +533,87 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(ModeApptCountText));
     }
 
-    private void BuildPatientMatches()
+    // ── server-side patient search (booking pattern: no eager load, min 2 chars, debounced, version-guarded) ──
+    private const int PatientMinQueryLength = 2;
+    private const int PatientPageSize = 20;
+    private const string PatientHintMessage = "برای انتخاب بیمار، حداقل ۲ حرف از نام بیمار، مالک یا شماره تماس را وارد کنید.";
+
+    private readonly Debouncer _patientSearchDebounce = new(System.TimeSpan.FromMilliseconds(300));
+    private int _patientSearchVersion;
+
+    private void ResetPatientResults(string message)
     {
         PatientMatches.Clear();
-        var query = PersianText.Normalize(PatientSearchText);
-        if (query.Length > 0)
+        PatientResultCount = string.Empty;
+        ShowPatientSearchMessage = true;
+        PatientSearchMessage = message;
+        OnPropertyChanged(nameof(HasPatientMatches));
+        OnPropertyChanged(nameof(HasPatientSearch));
+    }
+
+    /// <summary>Invalidates queued and in-flight lookups so a slow earlier response never overwrites newer rows.</summary>
+    private void StopPatientSearch()
+    {
+        _patientSearchVersion++;
+        _patientSearchDebounce.Cancel();
+        IsPatientSearching = false;
+    }
+
+    private void QueuePatientSearch()
+    {
+        StopPatientSearch();
+        var canSearch = PersianText.Normalize(PatientSearchText).Length >= PatientMinQueryLength;
+        ResetPatientResults(canSearch ? "در حال جست‌وجو…" : PatientHintMessage);
+        if (canSearch)
         {
-            foreach (var patient in _allPatients
-                         .Where(p => PersianText.Normalize(
-                                 $"{p.Name} {p.OwnerName} {p.Kind} {p.Phone}")
-                             .Contains(query, StringComparison.Ordinal))
-                         .Take(6))
+            _patientSearchDebounce.Debounce(() => _ = SearchPatientsAsync());
+        }
+    }
+
+    private async Task SearchPatientsAsync()
+    {
+        var version = _patientSearchVersion;
+        var term = PatientSearchText.Trim();
+        IsPatientSearching = true;
+        try
+        {
+            await _readiness.WaitAsync();
+            var rows = await _service.GetPatientsAsync(term);
+            if (version != _patientSearchVersion)
+            {
+                return;
+            }
+
+            PatientMatches.Clear();
+            foreach (var patient in rows.Take(PatientPageSize))
             {
                 PatientMatches.Add(patient);
             }
-        }
 
-        OnPropertyChanged(nameof(HasPatientMatches));
-        OnPropertyChanged(nameof(HasPatientSearch));
+            var hasMore = rows.Count > PatientPageSize;
+            PatientResultCount = PersianNumberFormatter.ToPersianDigits(PatientMatches.Count) + " نتیجه";
+            ShowPatientSearchMessage = PatientMatches.Count == 0 || hasMore;
+            PatientSearchMessage = hasMore
+                ? "۲۰ نتیجه اول نمایش داده شد؛ برای یافتن بیمار، جست‌وجو را دقیق‌تر کنید."
+                : "بیماری با این مشخصات پیدا نشد؛ نام بیمار، مالک یا شماره تماس را بررسی کنید.";
+            OnPropertyChanged(nameof(HasPatientMatches));
+        }
+        catch (Exception)
+        {
+            if (version != _patientSearchVersion)
+            {
+                return;
+            }
+
+            ResetPatientResults("جست‌وجو انجام نشد. دوباره جست‌وجو کنید.");
+        }
+        finally
+        {
+            if (version == _patientSearchVersion)
+            {
+                IsPatientSearching = false;
+            }
+        }
     }
 
     private VisitTypeInfo ResolveType(string typeId) =>

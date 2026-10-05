@@ -283,7 +283,7 @@ shows a count + spinner; selecting assigns the owner; guest still works.
 chars searches server-side with debounce; selecting fills the pet card; submit still creates the stay.
 **Push:** `scripts/git/push.sh "feat(boarding): server-side debounced patient search in new-stay like booking"`
 
-### T6 — Visits «انتخاب بیمار» → server-side booking pattern (Target D) [status: pending]
+### T6 — Visits «انتخاب بیمار» → server-side booking pattern (Target D) [status: done]
 **Files:**
 - `src/Animora.Contracts/Visits/*` (the `IVisitsTriageService` interface) — change `GetPatientsAsync()` to
   `GetPatientsAsync(string? search = null)` (the `TriagePatientsQuery(Search)` + SQL already accept it, §0.6).
