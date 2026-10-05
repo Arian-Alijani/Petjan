@@ -181,10 +181,12 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         return await RequireDetailAsync(id ?? throw new InvalidOperationException("INVOICE_NOT_FOUND"));
     }
 
+    private const string GuestSaleName = "مشتری مهمان";
+
     public async Task<InvoiceDetail> CreateBlankAsync()
     {
         // A blank counter sale starts as a guest; the picker then assigns a real owner.
-        var created = await SendAsync(new CreateBlankInvoiceCommand(null, "مشتری مهمان", null));
+        var created = await SendAsync(new CreateBlankInvoiceCommand(null, GuestSaleName, null));
         var id = created.IsSuccess ? created.Value : null;
         return await RequireDetailAsync(id ?? throw new InvalidOperationException("INVOICE_NOT_FOUND"));
     }
@@ -240,7 +242,12 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     public async Task<InvoiceDetail> PickOwnerAsync(string invoiceId, OwnerPickResult pick)
     {
         ArgumentNullException.ThrowIfNull(pick);
-        if (!pick.IsGuest && !string.IsNullOrWhiteSpace(pick.OwnerId))
+        if (pick.IsGuest)
+        {
+            // Switching back to a walk-in (a wrong owner was picked) detaches the owner record.
+            _ = await SendAsync(new AssignInvoiceOwnerCommand(invoiceId, null, null, GuestSaleName));
+        }
+        else if (!string.IsNullOrWhiteSpace(pick.OwnerId))
         {
             _ = await SendAsync(new AssignInvoiceOwnerCommand(invoiceId, pick.OwnerId, null));
         }

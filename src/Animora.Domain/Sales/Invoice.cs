@@ -458,6 +458,26 @@ public sealed class Invoice : AggregateRoot
         return Result.Ok();
     }
 
+    /// <summary>
+    /// Detaches the owner record and bills a walk-in («مشتری گذری») instead — used when the wrong customer was picked.
+    /// Refused once posted.
+    /// </summary>
+    public Result AssignGuest(string guestName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(guestName);
+
+        var guard = EnsureDraft();
+        if (guard.IsFailure)
+        {
+            return guard;
+        }
+
+        OwnerId = null;
+        PetId = null;
+        GuestName = Clean(guestName);
+        return Result.Ok();
+    }
+
     // ---- lifecycle ----------------------------------------------------------
 
     /// <summary>Replaces a draft's provisional number with the transactional sequence before posting.</summary>

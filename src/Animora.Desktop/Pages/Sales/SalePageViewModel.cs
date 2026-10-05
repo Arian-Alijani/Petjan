@@ -403,6 +403,19 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             520);
     }
 
+    /// <summary>Re-opens the owner/guest picker on the open invoice so a wrong customer can be swapped.</summary>
+    [RelayCommand]
+    private void ChangeCustomer()
+    {
+        if (SelectedInvoice is not { CanEdit: true } invoice)
+        {
+            return;
+        }
+
+        _dialogs.ShowModal(new OwnerPickerModalViewModel(
+            _service, _toast, _dialogs, invoice.Id, RefreshAfterMutation), 560);
+    }
+
     [RelayCommand]
     private void VoidInvoice()
     {
