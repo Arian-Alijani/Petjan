@@ -45,6 +45,15 @@ public sealed class SalesDraftData(AnimoraLocalDbContext db) : ISalesDraftData
                 p.Name, p.Kind == ProductKind.Service ? InvoiceLineKind.Service : InvoiceLineKind.Product,
                 v.SalePrice.Minor, p.UnitCode)).FirstOrDefaultAsync(ct);
         if (product is not null) return product;
+        // Product-level fallback: an active product with no active variant is sold at its default price
+        // (mirrors the catalog's variant-less rows). No variant means no stock movement is posted for it.
+        var bare = await db.Set<Product>().AsNoTracking()
+            .Where(p => p.IsActive && p.Id == id && !p.Variants.Any(v => v.IsActive))
+            .Select(p => new SalesCatalogEntry(p.Id,
+                p.Kind == ProductKind.Service ? null : p.Id, null,
+                p.Name, p.Kind == ProductKind.Service ? InvoiceLineKind.Service : InvoiceLineKind.Product,
+                p.DefaultSalePrice.Minor, p.UnitCode)).FirstOrDefaultAsync(ct);
+        if (bare is not null) return bare;
         return await db.Set<BoardingServiceDef>().AsNoTracking().Where(s => s.Id == id && s.IsActive)
             .Select(s => new SalesCatalogEntry(s.Id, null, null, s.Title,
                 InvoiceLineKind.Boarding, s.UnitPrice.Minor, "PCS")).FirstOrDefaultAsync(ct);

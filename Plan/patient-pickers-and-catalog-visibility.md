@@ -218,7 +218,7 @@ pick ONE and apply consistently:
 > Legend: **[status: pending|done]**. Flip to `done` only after the change is complete AND pushed.
 > Each task is independently pushable. Keep diffs minimal and consistent with the destination page's style.
 
-### T1 — Sales catalog: make every active product visible (Defect C1) [status: pending]
+### T1 — Sales catalog: make every active product visible (Defect C1) [status: done]
 **Files:** `src/Animora.Persistence.Sqlite/Queries/SalesQueries.cs` (`GetCatalogAsync`, ~145–167);
 verify add-path compatibility in `src/Animora.Client.Services/Sales/SalesMapping.cs` (`KindOfCatalogId`,
 `ToContract`) and the `AddLineAsync` chain in `SalesQueryService.cs` / `SalesQueries.cs`.

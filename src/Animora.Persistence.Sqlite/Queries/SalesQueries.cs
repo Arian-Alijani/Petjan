@@ -144,7 +144,9 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
 
     public async Task<SalesCatalogReadModel> GetCatalogAsync(CancellationToken ct)
     {
-        var products = await (from p in db.Set<Product>().AsNoTracking()
+        // Per-variant rows for products that have at least one active variant (the variant id is what an
+        // invoice line sells)...
+        var variantRows = await (from p in db.Set<Product>().AsNoTracking()
             where p.IsActive
             join c in db.Set<ProductCategory>().AsNoTracking() on p.CategoryId equals c.Id into categories
             from c in categories.DefaultIfEmpty()
@@ -153,6 +155,18 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             orderby p.Name, v.VariantId
             select new SalesCatalogItemReadModel(v.VariantId, p.Name, p.Kind == ProductKind.Service ? "Service" : "Item",
                 c == null ? "سایر" : c.DisplayName, v.SalePrice.Minor)).Take(1000).ToListAsync(ct);
+        // ...plus ONE product-level fallback row for every active product without an active variant (typically
+        // services created from the rate editor, or items whose variants were all deactivated). Without it
+        // those products silently vanished from the drawer. The row is keyed by the product id, which
+        // ISalesDraftData.FindCatalogEntryAsync resolves to the product's default sale price.
+        var variantless = await (from p in db.Set<Product>().AsNoTracking()
+            where p.IsActive && !p.Variants.Any(v => v.IsActive)
+            join c in db.Set<ProductCategory>().AsNoTracking() on p.CategoryId equals c.Id into categories
+            from c in categories.DefaultIfEmpty()
+            orderby p.Name, p.Id
+            select new SalesCatalogItemReadModel(p.Id, p.Name, p.Kind == ProductKind.Service ? "Service" : "Item",
+                c == null ? "سایر" : c.DisplayName, p.DefaultSalePrice.Minor)).Take(500).ToListAsync(ct);
+        var products = variantRows.Concat(variantless).ToList();
         var boarding = await db.Set<BoardingServiceDef>().AsNoTracking().Where(s => s.IsActive)
             .OrderBy(s => s.Title).Take(200)
             .Select(s => new SalesCatalogItemReadModel(s.Id, s.Title, "Service", "Boarding", s.UnitPrice.Minor))
