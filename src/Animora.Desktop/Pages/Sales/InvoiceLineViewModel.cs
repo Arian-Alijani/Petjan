@@ -143,8 +143,6 @@ public sealed partial class SaleSidebarRowViewModel : ObservableObject
 
     public string TagText { get; private init; } = string.Empty;
 
-    public IBrush TagBackground { get; private init; } = Brushes.Transparent;
-
     public IBrush TagForeground { get; private init; } = Brushes.Transparent;
 
     public static SaleSidebarRowViewModel Header(string label, int count) => new(true)
@@ -155,14 +153,11 @@ public sealed partial class SaleSidebarRowViewModel : ObservableObject
 
     public static SaleSidebarRowViewModel Card(InvoiceItemViewModel card)
     {
-        var (tagBg, tagFg) = card.TagTone switch
+        var tagFg = card.TagTone switch
         {
-            TagKind.Due => (SalePresentation.StateDotBrush(InvoiceState.Void),
-                            SalePresentation.StateDotBrush(InvoiceState.Void)),
-            TagKind.Ok => (SalePresentation.StateDotBrush(InvoiceState.Settled),
-                           SalePresentation.StateDotBrush(InvoiceState.Settled)),
-            _ => (SalePresentation.StateDotBrush(InvoiceState.Refunded),
-                  SalePresentation.StateDotBrush(InvoiceState.Refunded)),
+            TagKind.Due => SalePresentation.StateDotBrush(InvoiceState.Void),
+            TagKind.Ok => SalePresentation.StateDotBrush(InvoiceState.Settled),
+            _ => SalePresentation.StateDotBrush(InvoiceState.Refunded),
         };
 
         return new SaleSidebarRowViewModel(false)
@@ -177,7 +172,6 @@ public sealed partial class SaleSidebarRowViewModel : ObservableObject
             StateDotBrush = card.StateDotBrush,
             TotalText = card.TotalText,
             TagText = card.TagText,
-            TagBackground = tagBg,
             TagForeground = tagFg,
         };
     }

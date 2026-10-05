@@ -503,18 +503,16 @@
                                         <TextBlock Classes="sw-inv-lbl" Text="شمارهٔ فاکتور" />
                                         <TextBlock Classes="sw-inv-num" Text="{Binding SelectedInvoice.Id}" />
                                     </StackPanel>
-                                    <Border Grid.Column="1" VerticalAlignment="Top"
-                                            Background="{Binding SelectedInvoice.StateBgBrush}"
-                                            CornerRadius="20" Padding="12,6">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <Border Width="6" Height="6" CornerRadius="50"
-                                                    VerticalAlignment="Center"
-                                                    Background="{Binding SelectedInvoice.StateBrush}" />
-                                            <TextBlock Text="{Binding SelectedInvoice.StateLabel}"
-                                                       FontSize="11.5" FontWeight="ExtraBold"
-                                                       Foreground="{Binding SelectedInvoice.StateBrush}" />
-                                        </StackPanel>
-                                    </Border>
+                                    <!-- State as plain text + dot: the old pill painted its background with the
+                                         same brush as its text, i.e. an empty solid colour box. -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                                VerticalAlignment="Top">
+                                        <Border Width="7" Height="7" CornerRadius="50" VerticalAlignment="Center"
+                                                Background="{Binding SelectedInvoice.StateBrush}" />
+                                        <TextBlock Text="{Binding SelectedInvoice.StateLabel}"
+                                                   FontSize="11.5" FontWeight="ExtraBold"
+                                                   Foreground="{Binding SelectedInvoice.StateBrush}" />
+                                    </StackPanel>
                                 </Grid>
 
                                 <!-- terminal banner (void / refunded) -->
@@ -1127,13 +1125,9 @@
                                                                                VerticalAlignment="Bottom"
                                                                                Margin="0,0,0,2" />
                                                                 </StackPanel>
-                                                                <Border Grid.Column="1"
-                                                                        Background="{Binding TagBackground}"
-                                                                        CornerRadius="6" Padding="8,2">
-                                                                    <TextBlock Text="{Binding TagText}" FontSize="10.5"
-                                                                               FontWeight="Bold"
-                                                                               Foreground="{Binding TagForeground}" />
-                                                                </Border>
+                                                                <TextBlock Grid.Column="1" Text="{Binding TagText}" FontSize="10.5"
+                                                                           FontWeight="Bold" VerticalAlignment="Bottom"
+                                                                           Foreground="{Binding TagForeground}" />
                                                             </Grid>
                                                         </StackPanel>
                                                     </Button>

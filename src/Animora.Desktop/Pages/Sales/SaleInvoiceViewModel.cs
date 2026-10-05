@@ -20,7 +20,6 @@ public sealed class SaleInvoiceViewModel
         State = detail.State;
         StateLabel = detail.StateLabel;
         StateBrush = SalePresentation.StateDotBrush(detail.State);
-        StateBgBrush = ResolveStateBg(detail.State);
 
         IsLocked = detail.IsLocked;
         CanEdit = !detail.IsLocked;
@@ -71,7 +70,6 @@ public sealed class SaleInvoiceViewModel
 
     public IBrush StateBrush { get; }
 
-    public IBrush StateBgBrush { get; }
 
     public bool IsLocked { get; }
 
@@ -126,13 +124,4 @@ public sealed class SaleInvoiceViewModel
     public string PaidText { get; }
 
     public string DueText { get; }
-
-    private static IBrush ResolveStateBg(InvoiceState state) => state switch
-    {
-        InvoiceState.Draft => SalePresentation.StateDotBrush(InvoiceState.Draft),
-        InvoiceState.Partial => SalePresentation.StateDotBrush(InvoiceState.Partial),
-        InvoiceState.Settled => SalePresentation.StateDotBrush(InvoiceState.Settled),
-        InvoiceState.Void => SalePresentation.StateDotBrush(InvoiceState.Void),
-        _ => SalePresentation.StateDotBrush(InvoiceState.Refunded),
-    };
 }
