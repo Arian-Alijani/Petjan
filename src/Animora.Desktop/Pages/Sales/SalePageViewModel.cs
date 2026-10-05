@@ -347,10 +347,9 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             return;
         }
 
-        // A blank sale needs an owner/guest before items are added (mirrors the
-        // reference's picker-first flow for walk-in sales).
-        _dialogs.ShowModal(new OwnerPickerModalViewModel(
-            _service, _toast, _dialogs, detail.Id, RefreshAfterMutation), 560);
+        // [Task 3] «فاکتور جدید» مستقیماً یک فاکتور گذریِ باز می‌سازد و نشان می‌دهد؛
+        // دیگر مودالِ انتخاب مشتری باز نمی‌شود. تعویض مشتری از روی فاکتورِ باز
+        // (ChangeCustomer) همچنان در دسترس است.
     }
 
     [RelayCommand]
@@ -612,11 +611,40 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             await ReloadListsAsync();
             RenderSidebar();
             await RefreshKpisAsync();
-            ShowEmptyWork();
+            // [Task 3] به‌جای صفحهٔ خالی، در بارِ اولِ ورود یک فاکتور گذریِ باز
+            // به‌صورت پیش‌فرض نمایش داده می‌شود. ورودهای بعدی (صفحه singleton)
+            // از مسیر RefreshAfterMutationAsync می‌روند و این متد دوباره صدا نمی‌خورد،
+            // پس انباشتِ فاکتورهای خالی رخ نمی‌دهد.
+            await OpenDefaultGuestInvoiceAsync();
         }
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// [Task 3] پیش‌فرضِ ورود به صفحهٔ فروش و صندوق: یک فاکتور بازِ مشتری گذری.
+    /// <see cref="ISalesQueryService.CreateBlankAsync"/> ذاتاً فاکتور را به‌عنوان
+    /// مشتری گذری می‌سازد؛ پس نیازی به مودال انتخاب مشتری نیست. در صورت خطا به
+    /// صفحهٔ خالی برمی‌گردیم تا کاربر دستی (فاکتور از ویزیت / فروش مستقیم) اقدام کند.
+    /// </summary>
+    private async Task OpenDefaultGuestInvoiceAsync()
+    {
+        try
+        {
+            var detail = await _service.CreateBlankAsync();
+            NotifyInvoicesChanged();
+            _segment = "invoices";
+            OnPropertyChanged(nameof(IsReadySegment));
+            OnPropertyChanged(nameof(IsInvoicesSegment));
+            await ReloadListsAsync();
+            RenderSidebar();
+            ShowInvoice(detail);
+        }
+        catch (InvalidOperationException)
+        {
+            ShowEmptyWork();
         }
     }
 
