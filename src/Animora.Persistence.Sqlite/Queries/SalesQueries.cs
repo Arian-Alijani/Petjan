@@ -30,20 +30,27 @@ internal sealed class ReadyBillingProjection
     // tenantId (optional) lets the handoff leg use its (TenantId, Status, CompletedUtc) index instead of a scan.
     internal static IQueryable<ReadyBillingProjection> Query(AnimoraLocalDbContext db, string? tenantId = null)
     {
+        // LEFT joins (DefaultIfEmpty) mirror ProjectInvoices: a Ready handoff must stay in the cashier
+        // queue even when its owner/pet row is missing (walk-in or later-removed record). An INNER join
+        // silently dropped such handoffs, so a completed visit never reached the صندوق.
         var visits = from h in db.Set<VisitBillingHandoff>().AsNoTracking()
             where h.Status == HandoffStatus.Ready && (tenantId == null || h.TenantId == tenantId)
-            join o in db.Set<Owner>().AsNoTracking() on h.OwnerId equals o.Id
-            join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
+            join o in db.Set<Owner>().AsNoTracking() on h.OwnerId equals o.Id into owners
+            from o in owners.DefaultIfEmpty()
+            join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id into petsJoin
+            from p in petsJoin.DefaultIfEmpty()
             select new ReadyBillingProjection { Id = h.Id, Source = "Visit", OwnerId = h.OwnerId,
-                OwnerName = o.FullName, PetId = h.PetId, PetName = p.Name, DoctorId = h.DoctorId,
-                CompletedUtc = h.CompletedUtc, LinesJson = h.LinesJson };
+                OwnerName = o == null ? "" : o.FullName, PetId = h.PetId, PetName = p == null ? "" : p.Name,
+                DoctorId = h.DoctorId, CompletedUtc = h.CompletedUtc, LinesJson = h.LinesJson };
         var stays = from h in db.Set<BoardingBillingHandoff>().AsNoTracking()
             where h.Status == HandoffStatus.Ready && (tenantId == null || h.TenantId == tenantId)
-            join o in db.Set<Owner>().AsNoTracking() on h.OwnerId equals o.Id
-            join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
+            join o in db.Set<Owner>().AsNoTracking() on h.OwnerId equals o.Id into owners
+            from o in owners.DefaultIfEmpty()
+            join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id into petsJoin
+            from p in petsJoin.DefaultIfEmpty()
             select new ReadyBillingProjection { Id = h.Id, Source = "Boarding", OwnerId = h.OwnerId,
-                OwnerName = o.FullName, PetId = h.PetId, PetName = p.Name, DoctorId = h.DoctorId,
-                CompletedUtc = h.CompletedUtc, LinesJson = h.LinesJson };
+                OwnerName = o == null ? "" : o.FullName, PetId = h.PetId, PetName = p == null ? "" : p.Name,
+                DoctorId = h.DoctorId, CompletedUtc = h.CompletedUtc, LinesJson = h.LinesJson };
         return visits.Concat(stays);
     }
 }
