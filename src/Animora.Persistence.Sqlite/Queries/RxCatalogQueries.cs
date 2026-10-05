@@ -22,12 +22,27 @@ namespace Animora.Persistence.Sqlite.Queries;
 /// </remarks>
 public sealed class RxCatalogQueries(AnimoraLocalDbContext db) : IRxCatalogQueries
 {
-    public async Task<IReadOnlyList<RxCatalogItemReadModel>> GetAsync(CancellationToken ct = default) =>
-        await db.Set<Product>().AsNoTracking()
-            .Where(p => p.IsActive)
+    public async Task<IReadOnlyList<RxCatalogItemReadModel>> GetAsync(CancellationToken ct = default)
+    {
+        // Priced like the Sales catalog: one row per ACTIVE variant (v.SalePrice) — multi-variant goods are stored
+        // with Product.DefaultSalePrice = 0, so reading the product-level price made them look free in the visit.
+        var variantRows = await (from p in db.Set<Product>().AsNoTracking()
+            where p.IsActive
+            from v in p.Variants
+            where v.IsActive
+            orderby p.Kind == ProductKind.Service descending, p.Name, v.VariantId
+            select new RxCatalogItemReadModel(p.Kind == ProductKind.Service ? "Service" : "Item", v.VariantId,
+                p.Name, v.SalePrice.Minor)).Take(1000).ToListAsync(ct);
+        // Product-level fallback for active products without any active variant (e.g. services from the rate editor).
+        var variantless = await db.Set<Product>().AsNoTracking()
+            .Where(p => p.IsActive && !p.Variants.Any(v => v.IsActive))
             .OrderByDescending(p => p.Kind == ProductKind.Service)
-            .ThenBy(p => p.Name).ThenBy(p => p.Id).Take(1000)
-            .Select(p => new RxCatalogItemReadModel(
-                p.Kind == ProductKind.Service ? "Service" : "Item", p.Id, p.Name,
-                p.DefaultSalePrice.Minor)).ToListAsync(ct);
+            .ThenBy(p => p.Name).ThenBy(p => p.Id).Take(500)
+            .Select(p => new RxCatalogItemReadModel(p.Kind == ProductKind.Service ? "Service" : "Item", p.Id,
+                p.Name, p.DefaultSalePrice.Minor)).ToListAsync(ct);
+        // Services first so a large goods catalogue can never push them out of the bounded window.
+        return variantRows.Concat(variantless)
+            .OrderBy(r => r.Kind == "Service" ? 0 : 1)
+            .ThenBy(r => r.Title, StringComparer.Ordinal).ThenBy(r => r.Id, StringComparer.Ordinal).ToList();
+    }
 }
