@@ -32,11 +32,13 @@ public static class NavigationMenu
         new("dashboard", "داشبورد", "IconDashboard", typeof(DashboardPageViewModel), "مرکز فرمان"),
         new("appointments", "نوبت‌ها", "IconCalendar", typeof(AppointmentsCalendarViewModel), "مرکز فرمان"),
 
+        // «فروش و صندوق» عمداً اولین آیتمِ گروه «مدیریت کلینیک» است تا در منو
+        // بلافاصله بعد از «نوبت‌ها» (آخرین آیتمِ گروهِ قبلی) دیده شود.
+        new("sale", "فروش و صندوق", "IconCart", typeof(SalePageViewModel), "مدیریت کلینیک"),
         new("patients", "بیماران و مالکین", "IconUsers", typeof(PatientsPageViewModel), "مدیریت کلینیک"),
         new("visits", "ویزیت و پرونده", "IconClipboard", typeof(VisitsTriagePageViewModel), "مدیریت کلینیک"),
         new("vaccine", "واکسیناسیون", "IconSyringe", typeof(VaccinationPageViewModel), "مدیریت کلینیک"),
         new("boarding", "پانسیون", "IconHome", typeof(BoardingPageViewModel), "مدیریت کلینیک"),
-        new("sale", "فروش و صندوق", "IconCart", typeof(SalePageViewModel), "مدیریت کلینیک"),
 
         new("inventory", "انبار و کالا", "IconBox", typeof(InventoryPageViewModel), "کسب و کار"),
         new("expense", "هزینه‌ها", "IconReceipt", typeof(FinancePageViewModel), "کسب و کار", InitialTab: "expense", InitialRange: "30d"),
