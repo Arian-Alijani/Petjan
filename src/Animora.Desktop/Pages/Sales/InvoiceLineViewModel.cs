@@ -124,6 +124,9 @@ public sealed partial class SaleSidebarRowViewModel : ObservableObject
     // Invoice card fields.
     public string InvoiceId { get; private init; } = string.Empty;
 
+    /// <summary>Only a never-posted draft can be deleted outright (shows the ✕ on the card).</summary>
+    public bool CanDelete { get; private init; }
+
     public string SourceLabel { get; private init; } = string.Empty;
 
     public string OwnerName { get; private init; } = string.Empty;
@@ -165,6 +168,7 @@ public sealed partial class SaleSidebarRowViewModel : ObservableObject
         return new SaleSidebarRowViewModel(false)
         {
             InvoiceId = card.Id,
+            CanDelete = card.Summary.State == InvoiceState.Draft,
             SourceLabel = card.SourceLabel,
             OwnerName = card.OwnerName,
             Subtitle = card.Subtitle,

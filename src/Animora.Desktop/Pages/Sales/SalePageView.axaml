@@ -160,6 +160,16 @@
             <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
         </Style>
+        <Style Selector="Button.sw-item-x">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="5" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.sw-item-x:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
+        </Style>
         <Style Selector="Button.sw-item.ready">
             <Setter Property="BorderBrush" Value="#f2e3a8" />
         </Style>
@@ -1070,62 +1080,74 @@
                                                                Foreground="{StaticResource MutedBrush}" />
                                                 </Grid>
 
-                                                <Button Classes="sw-item" IsVisible="{Binding !IsGroupHeader}"
-                                                        Classes.is-active="{Binding IsActive}"
-                                                        Command="{Binding $parent[UserControl].((sales:SalePageViewModel)DataContext).SelectInvoiceCommand}"
-                                                        CommandParameter="{Binding InvoiceId}">
-                                                    <StackPanel Spacing="8">
-                                                        <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
-                                                            <TextBlock Grid.Column="0" Classes="sw-item-id"
-                                                                       Text="{Binding InvoiceId}" />
-                                                            <Border Grid.Column="1" Background="#fdf1e7"
-                                                                    CornerRadius="20" Padding="8,2">
-                                                                <TextBlock Text="{Binding SourceLabel}"
-                                                                           FontSize="10" FontWeight="ExtraBold"
-                                                                           Foreground="#b96f3a" />
-                                                            </Border>
-                                                            <Border Grid.Column="2" HorizontalAlignment="Left"
-                                                                    Width="7" Height="7" CornerRadius="50"
-                                                                    Background="{Binding StateDotBrush}" />
-                                                        </Grid>
-                                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                                                            <Border Grid.Column="0" Width="30" Height="30"
-                                                                    CornerRadius="9"
-                                                                    Background="{Binding AvatarBrush}">
-                                                                <TextBlock Text="{Binding PetInitial}" FontSize="12"
-                                                                           FontWeight="ExtraBold" Foreground="White"
-                                                                           HorizontalAlignment="Center"
-                                                                           VerticalAlignment="Center" />
-                                                            </Border>
-                                                            <StackPanel Grid.Column="1" Spacing="1"
-                                                                        VerticalAlignment="Center">
-                                                                <TextBlock Classes="sw-item-name"
-                                                                           Text="{Binding OwnerName}" />
-                                                                <TextBlock Classes="sw-item-sub"
-                                                                           Text="{Binding Subtitle}" />
-                                                            </StackPanel>
-                                                        </Grid>
-                                                        <Grid ColumnDefinitions="*,Auto">
-                                                            <StackPanel Grid.Column="0" Orientation="Horizontal"
-                                                                        Spacing="3">
-                                                                <TextBlock Classes="sw-item-total"
-                                                                           Text="{Binding TotalText}" />
-                                                                <TextBlock Text="تومان" FontSize="10"
-                                                                           FontWeight="SemiBold"
-                                                                           Foreground="{StaticResource MutedBrush}"
-                                                                           VerticalAlignment="Bottom"
-                                                                           Margin="0,0,0,2" />
-                                                            </StackPanel>
-                                                            <Border Grid.Column="1"
-                                                                    Background="{Binding TagBackground}"
-                                                                    CornerRadius="6" Padding="8,2">
-                                                                <TextBlock Text="{Binding TagText}" FontSize="10.5"
-                                                                           FontWeight="Bold"
-                                                                           Foreground="{Binding TagForeground}" />
-                                                            </Border>
-                                                        </Grid>
-                                                    </StackPanel>
-                                                </Button>
+                                                <Grid IsVisible="{Binding !IsGroupHeader}">
+                                                    <Button Classes="sw-item"
+                                                            Classes.is-active="{Binding IsActive}"
+                                                            Command="{Binding $parent[UserControl].((sales:SalePageViewModel)DataContext).SelectInvoiceCommand}"
+                                                            CommandParameter="{Binding InvoiceId}">
+                                                        <StackPanel Spacing="8">
+                                                            <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8" Margin="0,0,26,0">
+                                                                <TextBlock Grid.Column="0" Classes="sw-item-id"
+                                                                           Text="{Binding InvoiceId}" />
+                                                                <Border Grid.Column="1" Background="#fdf1e7"
+                                                                        CornerRadius="20" Padding="8,2">
+                                                                    <TextBlock Text="{Binding SourceLabel}"
+                                                                               FontSize="10" FontWeight="ExtraBold"
+                                                                               Foreground="#b96f3a" />
+                                                                </Border>
+                                                                <Border Grid.Column="2" HorizontalAlignment="Left"
+                                                                        Width="7" Height="7" CornerRadius="50"
+                                                                        Background="{Binding StateDotBrush}" />
+                                                            </Grid>
+                                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                                                <Border Grid.Column="0" Width="30" Height="30"
+                                                                        CornerRadius="9"
+                                                                        Background="{Binding AvatarBrush}">
+                                                                    <TextBlock Text="{Binding PetInitial}" FontSize="12"
+                                                                               FontWeight="ExtraBold" Foreground="White"
+                                                                               HorizontalAlignment="Center"
+                                                                               VerticalAlignment="Center" />
+                                                                </Border>
+                                                                <StackPanel Grid.Column="1" Spacing="1"
+                                                                            VerticalAlignment="Center">
+                                                                    <TextBlock Classes="sw-item-name"
+                                                                               Text="{Binding OwnerName}" />
+                                                                    <TextBlock Classes="sw-item-sub"
+                                                                               Text="{Binding Subtitle}" />
+                                                                </StackPanel>
+                                                            </Grid>
+                                                            <Grid ColumnDefinitions="*,Auto">
+                                                                <StackPanel Grid.Column="0" Orientation="Horizontal"
+                                                                            Spacing="3">
+                                                                    <TextBlock Classes="sw-item-total"
+                                                                               Text="{Binding TotalText}" />
+                                                                    <TextBlock Text="تومان" FontSize="10"
+                                                                               FontWeight="SemiBold"
+                                                                               Foreground="{StaticResource MutedBrush}"
+                                                                               VerticalAlignment="Bottom"
+                                                                               Margin="0,0,0,2" />
+                                                                </StackPanel>
+                                                                <Border Grid.Column="1"
+                                                                        Background="{Binding TagBackground}"
+                                                                        CornerRadius="6" Padding="8,2">
+                                                                    <TextBlock Text="{Binding TagText}" FontSize="10.5"
+                                                                               FontWeight="Bold"
+                                                                               Foreground="{Binding TagForeground}" />
+                                                                </Border>
+                                                            </Grid>
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Button Classes="sw-item-x" IsVisible="{Binding CanDelete}"
+                                                            HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                            Margin="6,6,6,0"
+                                                            ToolTip.Tip="حذف فاکتور"
+                                                            Command="{Binding $parent[UserControl].((sales:SalePageViewModel)DataContext).DeleteOpenInvoiceCommand}"
+                                                            CommandParameter="{Binding InvoiceId}">
+                                                        <Path Classes="icon" Width="11" Height="11"
+                                                              Stroke="{StaticResource DangerBrush}"
+                                                              Data="{StaticResource IconX}" />
+                                                    </Button>
+                                                </Grid>
                                             </StackPanel>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>

@@ -438,6 +438,55 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             void () => _ = VoidAsync()), 480);
     }
 
+    /// <summary>
+    /// ✕ on an open (draft) invoice card: asks for confirmation, then deletes the draft entirely and
+    /// clears the work surface if it was the one being edited.
+    /// </summary>
+    [RelayCommand]
+    private void DeleteOpenInvoice(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return;
+        }
+
+        _dialogs.ShowModal(new Shared.ConfirmDialogViewModel(
+            _dialogs,
+            "danger",
+            "IconTrash",
+            "حذف فاکتور",
+            "آیا از حذف فاکتور باز ",
+            $"«{id}»",
+            " اطمینان دارید؟",
+            "فاکتور و اقلام آن به‌طور کامل حذف می‌شود و قابل بازگشت نیست.",
+            "بله، فاکتور را حذف کن",
+            "انصراف",
+            void () => _ = DeleteOpenInvoiceAsync(id)), 480);
+    }
+
+    private async Task DeleteOpenInvoiceAsync(string id)
+    {
+        try
+        {
+            await _service.DeleteInvoiceAsync(id);
+            _toast.Show($"فاکتور «{id}» حذف شد", Tone.Ok);
+            NotifyInvoicesChanged();
+
+            await ReloadListsAsync();
+            RenderSidebar();
+            if (SelectedInvoice?.Id == id)
+            {
+                ShowEmptyWork();
+            }
+
+            await RefreshKpisAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowFailure(ex, "حذف فاکتور ناموفق بود؛ فقط فاکتور پیش‌نویس قابل حذف است");
+        }
+    }
+
     private async Task VoidAsync()
     {
         if (SelectedInvoice is null)
