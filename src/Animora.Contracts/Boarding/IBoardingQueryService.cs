@@ -72,9 +72,10 @@ public interface IBoardingQueryService
     /// <summary>
     /// A read-only projection of the clinic's patient records that the new-stay
     /// modal's «از پرونده‌های موجود» autocomplete offers, mirroring the
-    /// reference's <c>knownPets</c> suggestion list.
+    /// reference's <c>knownPets</c> suggestion list. <paramref name="search"/> is applied server-side
+    /// (pet / breed / chip / owner name / phone); the list is bounded.
     /// </summary>
-    Task<IReadOnlyList<BoardingKnownPet>> GetKnownPetsAsync();
+    Task<IReadOnlyList<BoardingKnownPet>> GetKnownPetsAsync(string? search = null);
 
     /// <summary>
     /// One ordered page of the boarding history ledger (check-in / item added /

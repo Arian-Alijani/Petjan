@@ -3,9 +3,15 @@
              xmlns:vx="using:Animora.Desktop.Pages.Vaccination"
              xmlns:c="using:Animora.Contracts.Vaccination"
              xmlns:controls="using:Animora.Desktop.Controls"
+             xmlns:ap="using:Animora.Desktop.Pages.Appointments"
+             x:Name="Root"
              x:Class="Animora.Desktop.Pages.Vaccination.AddVaccineModalView"
              x:DataType="vx:AddVaccineModalViewModel"
              Width="520" MaxWidth="520" FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <!-- Reuses the booking panel's patient-picker styles (pat-card / pat-opt / pat-empty / mini-chip). -->
+        <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/BookingPanelStyles.axaml" />
+    </UserControl.Styles>
     <StackPanel>
         <Grid Margin="22,18,22,6" ColumnDefinitions="40,*,36" ColumnSpacing="12">
             <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12" Background="{StaticResource Brand50Brush}">
@@ -23,7 +29,147 @@
         <StackPanel Margin="22,8,22,20" Spacing="12">
             <StackPanel Spacing="6">
                 <TextBlock Text="بیمار" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
-                <TextBox Text="{Binding PatientQuery}" PlaceholderText="نام بیمار را جستجو کنید…" Padding="12,10" CornerRadius="10" />
+
+                <!-- selected patient card -->
+                <Border IsVisible="{Binding IsPatientCardVisible}" Classes="pat-card">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                        <Border Grid.Column="0" Width="44" Height="44" CornerRadius="14"
+                                Background="{Binding SelectedAvatarBrush}">
+                            <Path Classes="icon" Width="24" Height="24" Stroke="White"
+                                  Data="{Binding SelectedIconKey, Converter={StaticResource IconKeyConverter}}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <TextBlock Text="{Binding SelectedName}" FontSize="15" FontWeight="ExtraBold" />
+                                <Border Background="{StaticResource Brand50Brush}" CornerRadius="99" Padding="8,2">
+                                    <TextBlock Text="{Binding SelectedKind}" FontSize="10.5" FontWeight="Bold"
+                                               Foreground="{StaticResource Brand700Brush}" />
+                                </Border>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                                          Data="{StaticResource IconUsers}" />
+                                    <TextBlock Text="{Binding SelectedOwner}" FontSize="12" FontWeight="Bold"
+                                               Foreground="{StaticResource Ink2Brush}" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                                          Data="{StaticResource IconPhone}" />
+                                    <TextBlock Text="{Binding SelectedPhone}" FontSize="12"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                        <Button Grid.Column="2" Classes="sm" Height="32" VerticalAlignment="Center"
+                                Command="{Binding ChangePatientCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="14" Height="14"
+                                      Stroke="{Binding $parent[Button].Foreground}"
+                                      Data="{StaticResource IconSearch}" />
+                                <TextBlock Text="تغییر بیمار" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- picker pane -->
+                <StackPanel IsVisible="{Binding IsPatientSearchVisible}" Spacing="10">
+                    <Panel>
+                        <TextBox Classes="pat-search-input" Height="44" MaxLength="100"
+                                 Padding="38,0,34,0" CornerRadius="12" FontSize="13"
+                                 PlaceholderText="{Binding PatientSearchPlaceholder}"
+                                 Text="{Binding QueryText, Mode=TwoWay}" />
+                        <Path Classes="icon" Width="16" Height="16" Margin="12,0,0,0"
+                              HorizontalAlignment="Left" VerticalAlignment="Center" IsHitTestVisible="False"
+                              Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}" />
+                        <Button Width="20" Height="20" CornerRadius="10" Padding="0" Margin="0,0,10,0"
+                                HorizontalAlignment="Right" VerticalAlignment="Center"
+                                Background="{StaticResource Bg2Brush}" BorderThickness="0"
+                                IsVisible="{Binding HasQuery}"
+                                Command="{Binding ClearQueryCommand}" ToolTip.Tip="پاک کردن">
+                            <Path Classes="icon" Width="11" Height="11" Stroke="{StaticResource MutedBrush}"
+                                  StrokeThickness="3" Data="{StaticResource IconX}" />
+                        </Button>
+                    </Panel>
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <ItemsControl Grid.Column="0" ItemsSource="{Binding KindChips}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="ap:BookingKindChipViewModel">
+                                    <Button Classes="mini-chip" Classes.on="{Binding IsSelected}"
+                                            Command="{Binding #Root.((vx:AddVaccineModalViewModel)DataContext).SelectKindCommand}"
+                                            CommandParameter="{Binding Id}">
+                                        <TextBlock Text="{Binding Label}" />
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Grid.Column="1" Text="{Binding PatientResultCount}" FontSize="11"
+                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                    </Grid>
+
+                    <ProgressBar Height="3" IsIndeterminate="True" IsVisible="{Binding IsPatientSearching}" />
+
+                    <!-- Bounded to 20 rows; never realizes the clinic's full patient list. -->
+                    <ScrollViewer MaxHeight="260" HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Auto" IsVisible="{Binding HasPatientResults}">
+                        <ItemsControl ItemsSource="{Binding PatientList}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="ap:BookingPatientOptionViewModel">
+                                    <Button Classes="pat-opt" Classes.on="{Binding IsSelected}" Margin="0,0,0,6"
+                                            Command="{Binding #Root.((vx:AddVaccineModalViewModel)DataContext).SelectPatientCommand}"
+                                            CommandParameter="{Binding}">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                            <Border Grid.Column="0" Width="34" Height="34" CornerRadius="11"
+                                                    Background="{Binding AvatarBrush}">
+                                                <Path Classes="icon" Width="18" Height="18" Stroke="White"
+                                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                                               TextTrimming="CharacterEllipsis" FontSize="13" FontWeight="Bold" />
+                                                    <Border Grid.Column="1" Background="White"
+                                                            BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                                                            CornerRadius="99" Padding="7,1">
+                                                        <TextBlock Text="{Binding Kind}" FontSize="10"
+                                                                   Foreground="{StaticResource MutedBrush}" />
+                                                    </Border>
+                                                </Grid>
+                                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6" Margin="0,4,0,0">
+                                                    <Path Classes="icon" Width="13" Height="13"
+                                                          Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconUsers}" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding OwnerName}" FontSize="11.5"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding Phone}" FontSize="11.5"
+                                                               FlowDirection="LeftToRight"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- hint / searching / empty -->
+                    <Border Classes="pat-empty" IsVisible="{Binding ShowPatientSearchMessage}" Padding="16,12">
+                        <StackPanel HorizontalAlignment="Center" Spacing="5">
+                            <Path Classes="icon" Width="22" Height="22" Stroke="{StaticResource Muted2Brush}"
+                                  Data="{StaticResource IconSearch}" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding PatientSearchMessage}" FontSize="12" TextWrapping="Wrap"
+                                       TextAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
             </StackPanel>
             <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12">
                 <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">

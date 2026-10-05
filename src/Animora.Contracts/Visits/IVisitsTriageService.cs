@@ -20,7 +20,11 @@ public interface IVisitsTriageService
     /// </summary>
     Task<IReadOnlyList<VisitTypeInfo>> GetVisitTypesAsync();
 
-    Task<IReadOnlyList<VisitPatientRef>> GetPatientsAsync();
+    /// <summary>
+    /// Server-side patient lookup for the new-visit picker. <paramref name="search"/> is matched against the pet /
+    /// owner search keys; the result is bounded (most recently seen first). Callers gate on a minimum query length.
+    /// </summary>
+    Task<IReadOnlyList<VisitPatientRef>> GetPatientsAsync(string? search = null);
 
     Task<EncounterDraft> StartFromTicketAsync(string ticketId);
 

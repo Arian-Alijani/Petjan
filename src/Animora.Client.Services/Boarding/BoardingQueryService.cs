@@ -120,8 +120,8 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
     public async Task<IReadOnlyList<BoardingSelectableItem>> GetSelectableItemsAsync() =>
         (await QueryAsync(new BoardingSelectableItemsQuery())).Select(r => r.ToContract()).ToArray();
 
-    public async Task<IReadOnlyList<BoardingKnownPet>> GetKnownPetsAsync() =>
-        (await QueryAsync(new BoardingKnownPetsQuery())).Select(r => r.ToContract()).ToArray();
+    public async Task<IReadOnlyList<BoardingKnownPet>> GetKnownPetsAsync(string? search = null) =>
+        (await QueryAsync(new BoardingKnownPetsQuery(search))).Select(r => r.ToContract()).ToArray();
 
     public async Task<BoardingHistoryPage> GetHistoryAsync(BoardingHistoryFilter filter)
     {

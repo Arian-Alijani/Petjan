@@ -666,10 +666,20 @@
                                                       Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}"
                                                       VerticalAlignment="Center" />
                                                 <TextBox Grid.Column="1" Classes="search-input" Text="{Binding PatientSearchText}"
-                                                         PlaceholderText="جستجوی بیمار: نام حیوان، مالک یا شماره تماس…" />
+                                                         PlaceholderText="جستجوی بیمار: نام حیوان، مالک یا شماره تماس (حداقل ۲ حرف)…" />
                                             </Grid>
                                         </Border>
-                                        <ItemsControl ItemsSource="{Binding PatientMatches}" IsVisible="{Binding HasPatientSearch}">
+                                        <ProgressBar IsIndeterminate="True" Height="3" MinHeight="0"
+                                                     IsVisible="{Binding IsPatientSearching}" />
+                                        <TextBlock Text="{Binding PatientResultCount}" FontSize="11.5" FontWeight="Bold"
+                                                   Foreground="{StaticResource MutedBrush}" Margin="4,0"
+                                                   IsVisible="{Binding HasPatientMatches}" />
+                                        <TextBlock Text="{Binding PatientSearchMessage}" FontSize="12" TextWrapping="Wrap"
+                                                   Foreground="{StaticResource MutedBrush}" Margin="4,2"
+                                                   IsVisible="{Binding ShowPatientSearchMessage}" />
+                                        <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto"
+                                                      IsVisible="{Binding HasPatientMatches}">
+                                        <ItemsControl ItemsSource="{Binding PatientMatches}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="vcontracts:VisitPatientRef">
                                                     <Button Classes="patient-opt"
@@ -696,6 +706,7 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
+                                        </ScrollViewer>
 
                                         <Button Classes="newpatient-btn" Margin="0,6,0,0"
                                                 Command="{Binding RegisterNewPatientCommand}">

@@ -37,8 +37,15 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
         _invoiceId = invoiceId;
         _onPicked = onPicked;
 
-        _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری فهرست مشتریان ناموفق بود؛ دوباره تلاش کنید", SearchAsync);
+        ApplyIdleState();
     }
+
+    /// <summary>Owners are never bulk-loaded: the list stays empty until the user types at least this many chars.</summary>
+    private const int MinQueryLength = 2;
+
+    private const int PageSize = 20;
+
+    private const string HintMessage = "برای انتخاب مشتری، حداقل ۲ حرف از نام یا شمارهٔ تماس را وارد کنید.";
 
     public RangeObservableCollection<OwnerRowViewModel> Rows { get; } = [];
 
@@ -46,33 +53,103 @@ public sealed partial class OwnerPickerModalViewModel : ObservableObject
     private string _query = string.Empty;
 
     [ObservableProperty]
-    private bool _hasRows = true;
+    private bool _hasRows;
 
+    /// <summary>Kept for the legacy «موردی یافت نشد» binding: true only after a real search returned nothing.</summary>
     [ObservableProperty]
     private bool _showNoResult;
 
+    [ObservableProperty]
+    private bool _isSearching;
+
+    [ObservableProperty]
+    private string _resultCount = string.Empty;
+
+    [ObservableProperty]
+    private bool _showMessage = true;
+
+    [ObservableProperty]
+    private string _message = HintMessage;
+
     // Typing is debounced (like every other search field) so a fast typist issues one lookup, not one per
     // character (PERFORMANCE.md §2/§13).
-    private readonly Debouncer _queryDebounce = new(TimeSpan.FromMilliseconds(200));
+    private readonly Debouncer _queryDebounce = new(TimeSpan.FromMilliseconds(250));
 
     // Monotonic request token: a slow earlier response must never overwrite a newer query's rows.
     private int _generation;
 
-    partial void OnQueryChanged(string value) => _queryDebounce.Debounce(() => _ = SearchAsync());
+    partial void OnQueryChanged(string value)
+    {
+        // Invalidate any in-flight lookup and reset the list immediately; only a settled >=2-char query hits the store.
+        _generation++;
+        _queryDebounce.Cancel();
+        ApplyIdleState();
+        if (PersianText.Normalize(value ?? string.Empty).Length >= MinQueryLength)
+        {
+            Message = "در حال جست‌وجو…";
+            _queryDebounce.Debounce(() => _ = SearchAsync());
+        }
+    }
+
+    private void ApplyIdleState()
+    {
+        Rows.ReplaceAll([]);
+        HasRows = false;
+        ShowNoResult = false;
+        IsSearching = false;
+        ResultCount = string.Empty;
+        ShowMessage = true;
+        Message = HintMessage;
+    }
 
     private async Task SearchAsync()
     {
-        var token = ++_generation;
-        var owners = await _service.GetOwnersAsync(Query.Trim());
-        if (token != _generation)
+        var term = Query.Trim();
+        if (PersianText.Normalize(term).Length < MinQueryLength)
         {
             return;
         }
 
-        Rows.ReplaceAll(owners.Select(o => new OwnerRowViewModel(o)));
+        var token = ++_generation;
+        IsSearching = true;
+        try
+        {
+            var owners = await _service.GetOwnersAsync(term);
+            if (token != _generation)
+            {
+                return;
+            }
 
-        HasRows = Rows.Count > 0;
-        ShowNoResult = Rows.Count == 0;
+            Rows.ReplaceAll(owners.Take(PageSize).Select(o => new OwnerRowViewModel(o)));
+            HasRows = Rows.Count > 0;
+            ShowNoResult = Rows.Count == 0;
+            ResultCount = PersianNumberFormatter.ToPersianDigits(Rows.Count.ToString()) + " نتیجه";
+            var hasMore = owners.Count > PageSize;
+            ShowMessage = !HasRows || hasMore;
+            Message = hasMore
+                ? "۲۰ نتیجه اول نمایش داده شد؛ برای یافتن مشتری، جست‌وجو را دقیق‌تر کنید."
+                : "مشتری‌ای با این مشخصات پیدا نشد؛ نام یا شمارهٔ تماس را بررسی کنید.";
+        }
+        catch (Exception) when (token == _generation)
+        {
+            Rows.ReplaceAll([]);
+            HasRows = false;
+            ShowNoResult = false;
+            ResultCount = string.Empty;
+            ShowMessage = true;
+            Message = "جست‌وجو انجام نشد. دوباره جست‌وجو کنید.";
+        }
+        catch (Exception)
+        {
+            // A stale lookup failed after a newer query took over: ignore.
+        }
+        finally
+        {
+            if (token == _generation)
+            {
+                IsSearching = false;
+            }
+        }
     }
 
     [RelayCommand]
