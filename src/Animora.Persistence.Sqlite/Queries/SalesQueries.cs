@@ -184,20 +184,41 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
         DateTimeOffset? toUtc, string? search, string? kind, string sort, int page, int pageSize,
         CancellationToken ct)
     {
+        // Both legs project into the SAME flat, fully server-translatable anonymous shape (plain columns
+        // + CASE/COALESCE scalars) so EF Core can emit the set operation as a single UNION ALL. Projecting
+        // a record constructor — or mismatched client-shaped expressions — in a Concat leg makes EF throw
+        // "Unable to translate set operation after client projection has been applied" (EF Core 10), which
+        // previously surfaced as an empty «تاریخچه صندوق» tab even though the invoice was posted.
         var payments = from p in db.Set<Payment>().AsNoTracking()
                        join i in db.Set<Invoice>().AsNoTracking() on p.InvoiceId equals i.Id
                        join owner in db.Set<Owner>().AsNoTracking() on i.OwnerId equals owner.Id into owners
                        from owner in owners.DefaultIfEmpty()
-                       select new CashierHistoryReadModel(p.Id, i.Id, i.InvoiceNumber, p.ReceivedUtc,
-                           p.Amount.Minor < 0 ? "Refund" : "Payment", p.Amount.Minor,
-                           owner == null ? i.GuestName ?? "" : owner.FullName, i.State);
+                       select new
+                       {
+                           Id = p.Id,
+                           InvoiceId = i.Id,
+                           Number = i.InvoiceNumber,
+                           OccurredUtc = p.ReceivedUtc,
+                           Kind = p.Amount.Minor < 0 ? "Refund" : "Payment",
+                           AmountMinor = p.Amount.Minor,
+                           OwnerName = owner == null ? i.GuestName ?? "" : owner.FullName,
+                           State = i.State,
+                       };
         var invoices = from i in db.Set<Invoice>().AsNoTracking()
                        join owner in db.Set<Owner>().AsNoTracking() on i.OwnerId equals owner.Id into owners
                        from owner in owners.DefaultIfEmpty()
                        where i.State != InvoiceState.Draft
-                       select new CashierHistoryReadModel(i.Id, i.Id, i.InvoiceNumber,
-                           i.PostedUtc ?? i.IssuedUtc, i.State == InvoiceState.Void ? "Void" : "Accepted",
-                           0L, owner == null ? i.GuestName ?? "" : owner.FullName, i.State);
+                       select new
+                       {
+                           Id = i.Id,
+                           InvoiceId = i.Id,
+                           Number = i.InvoiceNumber,
+                           OccurredUtc = i.PostedUtc ?? i.IssuedUtc,
+                           Kind = i.State == InvoiceState.Void ? "Void" : "Accepted",
+                           AmountMinor = 0L,
+                           OwnerName = owner == null ? i.GuestName ?? "" : owner.FullName,
+                           State = i.State,
+                       };
         var rows = payments.Concat(invoices);
         if (fromUtc is { } from) rows = rows.Where(r => r.OccurredUtc >= from);
         if (toUtc is { } to) rows = rows.Where(r => r.OccurredUtc < to);
@@ -226,8 +247,12 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             "Owner" => rows.OrderBy(r => r.OwnerName).ThenByDescending(r => r.OccurredUtc).ThenBy(r => r.Id),
             _ => rows.OrderByDescending(r => r.OccurredUtc).ThenByDescending(r => r.Id),
         };
+        // The read model is constructed only after the set operation, ordering and paging window are
+        // applied — i.e. the final (translatable) projection sits on top of the UNION, never inside a leg.
+        var projected = ordered.Select(r => new CashierHistoryReadModel(
+            r.Id, r.InvoiceId, r.Number, r.OccurredUtc, r.Kind, r.AmountMinor, r.OwnerName, r.State));
         return new CashierHistoryPageReadModel(
-            await ordered.ToPagedAsync(page, pageSize, options.Value, ct),
+            await projected.ToPagedAsync(page, pageSize, options.Value, ct),
             totals?.Inflow ?? 0, totals?.Outflow ?? 0);
     }
 
