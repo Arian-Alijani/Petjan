@@ -241,7 +241,7 @@ handles svc/item before the category branch).
 empty list); multiple categories no longer collide.
 **Push:** `scripts/git/push.sh "fix(sales): align catalog category chip keys with item group keys"`
 
-### T3 — Visit catalog visibility sanity confirm (no code unless a real gap is found) [status: pending]
+### T3 — Visit catalog visibility sanity confirm (no code unless a real gap is found) [status: done — confirmed OK, no code change]
 **Files (read-only confirm):** `src/Animora.Persistence.Sqlite/Queries/RxCatalogQueries.cs`,
 `src/Animora.Desktop/Pages/Visits/VisitEncounterViewModel.cs` (`BuildCatalogSnapshot`).
 **Do:** confirm Visits shows newly-created products/services (it uses product-level Rx catalog + all/svc/item
