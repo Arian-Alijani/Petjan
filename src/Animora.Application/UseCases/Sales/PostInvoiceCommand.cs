@@ -41,7 +41,9 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
         var invoice = found.Value!;
         if (invoice.State != InvoiceState.Draft) return Result<Unit>.Fail(ErrorCodes.InvoiceImmutable);
         if (invoice.Lines.Count == 0) return Result<Unit>.Fail(ErrorCodes.InvoiceEmpty);
-        if (string.IsNullOrWhiteSpace(invoice.OwnerId)) return Result<Unit>.Fail(ErrorCodes.InvoiceOwnerRequired);
+        // A walk-in («مشتری گذری») invoice has no owner record but carries the guest name — it must still be payable.
+        if (string.IsNullOrWhiteSpace(invoice.OwnerId) && string.IsNullOrWhiteSpace(invoice.GuestName))
+            return Result<Unit>.Fail(ErrorCodes.InvoiceOwnerRequired);
         var source = invoice.VisitId is not null ? "Visit" : invoice.BoardingStayId is not null ? "Boarding" : null;
         var sourceId = invoice.VisitId ?? invoice.BoardingStayId;
         if (source is not null)
