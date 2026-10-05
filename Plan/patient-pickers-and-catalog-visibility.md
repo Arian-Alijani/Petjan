@@ -250,7 +250,7 @@ Otherwise make **no** code change — this task is a guard, not busywork.
 **Push (only if a change was made):** `scripts/git/push.sh "fix(visits): <concrete catalog gap>"`. If no change,
 mark done and note "confirmed OK, no change" — no empty commit needed (the push script reports "nothing to commit").
 
-### T4 — Sales «انتخاب مشتری» picker: add min-length gate + pattern messages/visuals (Target C) [status: pending]
+### T4 — Sales «انتخاب مشتری» picker: add min-length gate + pattern messages/visuals (Target C) [status: done]
 **Files:** `src/Animora.Desktop/Pages/Sales/OwnerPickerModalViewModel.cs` + `OwnerPickerModalView.axaml`.
 **Current:** server-side + debounced already; but on empty query it shows the first 100 owners (eager-ish) and
 lacks the reference's min-2 hint / result-count / searching indicator.
