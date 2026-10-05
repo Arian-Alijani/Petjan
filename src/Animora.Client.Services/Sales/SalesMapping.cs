@@ -212,7 +212,16 @@ internal static class SalesMapping
         var itemCt = 0;
         foreach (var item in row.Items)
         {
-            if (item.Kind == "Service") svc++; else itemCt++;
+            if (item.Kind == "Service")
+            {
+                // Services are represented solely by the dedicated «خدمات» chip below. They must not
+                // also seed a per-category chip, otherwise the service category (SRV → «خدمات») would
+                // surface a second, duplicate «خدمات» tab alongside it.
+                svc++;
+                continue;
+            }
+
+            itemCt++;
             var key = Slug(item.Category);
             var current = byKey.TryGetValue(key, out var existing) ? existing.Count : 0;
             byKey[key] = (item.Category, current + 1);
