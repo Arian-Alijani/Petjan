@@ -258,6 +258,7 @@
                             <StackPanel Margin="0,0,0,4">
                                 <TextBlock Text="{Binding Title}"
                                            IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}"
+                                           FlowDirection="RightToLeft"
                                            HorizontalAlignment="Right"
                                            TextAlignment="Right"
                                            Foreground="{StaticResource Muted2Brush}"
