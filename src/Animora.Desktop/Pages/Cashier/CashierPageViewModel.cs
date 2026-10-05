@@ -198,6 +198,8 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
     {
         if (_pageLoaded)
         {
+            // Goods/services created elsewhere since the last visit must appear in the add-item list.
+            await ReloadCatalogOptionsAsync();
             await ReloadAsync();
             return;
         }
@@ -215,8 +217,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         BuildPresets();
         BuildDiscountOptions();
 
-        CatalogOptions.ReplaceAll(
-            (await _service.GetCatalogItemsAsync()).Select(item => new CashierCatalogOptionViewModel(item)));
+        await ReloadCatalogOptionsAsync();
 
         var insurers = new List<CashierInsurerOptionViewModel>
         {
@@ -229,6 +230,10 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         await ReloadAsync();
         IsBusy = false;
     }
+
+    private async Task ReloadCatalogOptionsAsync() =>
+        CatalogOptions.ReplaceAll(
+            (await _service.GetCatalogItemsAsync()).Select(item => new CashierCatalogOptionViewModel(item)));
 
     private Task ReloadAsync() => ReloadStatsAsync();
 

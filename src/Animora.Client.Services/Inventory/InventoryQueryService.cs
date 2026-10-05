@@ -120,6 +120,18 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        if (request.IsService)
+        {
+            // A service is labour, never stock-tracked: it goes through the catalogue-editor command (the same path
+            // as the Sales «نرخ خدمات» editor) so it is stored as ProductKind.Service and shows up under «خدمات»
+            // in every add-item picker. CreateProductCommand always rejects Service (SERVICE_NO_STOCK).
+            var serviceId = await SendAsync(new Animora.Application.UseCases.Sales.CreateServiceRateCommand(
+                request.Name, Math.Max(0L, request.DefaultPrice)));
+            var created = await GetDetailAsync(serviceId);
+            return created?.Product ?? new ContractProduct(serviceId, string.Empty, request.Name, request.Brand,
+                request.CategoryId, request.Description, null, []);
+        }
+
         // The product code (SKU) is optional in the «کالای جدید» form, but the domain requires a non-empty SKU
         // (CreateProductCommand's Required(Sku) validation). When the user leaves it blank we synthesize a stable,
         // readable auto-code so creation never fails with a generic "ساخت کالا ناموفق بود" on an empty field.
@@ -132,7 +144,7 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
             // A multi-variant product: one variant per declared option, sharing the dimension. Every option
             // gets its own unique SKU and starts independently stockable at zero.
             attributeName = string.IsNullOrWhiteSpace(request.AttributeName) ? "تنوع" : request.AttributeName.Trim();
-            variants = FromOptions(code, attributeName, request.AttributeOptions);
+            variants = FromOptions(code, attributeName, request.AttributeOptions, request.DefaultCost, request.DefaultPrice);
         }
         else if (variants.Length == 0)
         {
@@ -145,7 +157,8 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
 
         var productId = await SendAsync(new CreateProductCommand(
             code, request.Name, request.CategoryId, "PCS", ProductKind.PetShop,
-            Lowest(request.Variants, cost: true), Lowest(request.Variants, cost: false), variants,
+            request.Variants.Count > 0 ? Lowest(request.Variants, cost: true) : Math.Max(0L, request.DefaultCost),
+            request.Variants.Count > 0 ? Lowest(request.Variants, cost: false) : Math.Max(0L, request.DefaultPrice), variants,
             request.Brand, Notes: request.Description));
 
         var detail = await GetDetailAsync(productId);
@@ -192,7 +205,8 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
     }
 
     /// <summary>Expands a multi-variant product's declared options into one variant input each.</summary>
-    private static ProductVariantInput[] FromOptions(string code, string attributeName, IReadOnlyList<string> options)
+    private static ProductVariantInput[] FromOptions(
+        string code, string attributeName, IReadOnlyList<string> options, long cost, long price)
     {
         var inputs = new List<ProductVariantInput>(options.Count);
         var used = new HashSet<string>(StringComparer.Ordinal);
@@ -207,7 +221,7 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
                 sku = $"{sku}-{i + 1}";
                 used.Add(sku);
             }
-            inputs.Add(new ProductVariantInput(null, sku, attributeName, option, 0L, 0L, 0L));
+            inputs.Add(new ProductVariantInput(null, sku, attributeName, option, Math.Max(0L, cost), Math.Max(0L, price), 0L));
         }
         return inputs.ToArray();
     }

@@ -129,8 +129,11 @@ public sealed record MovementPage(IReadOnlyList<StockMovement> Items, int TotalC
 
 /// <summary>
 /// A request to create a new product from the modal, mirroring the reference's
-/// <c>openNewProductModal</c> create handler — single-unit or multi-variant.
+/// <c>openNewProductModal</c> create handler — single-unit, multi-variant or a stock-free service.
 /// </summary>
+/// <param name="IsService">Creates a stock-free service (<c>ProductKind.Service</c>) instead of a physical good.</param>
+/// <param name="DefaultCost">Cost applied to every variant of a multi-variant product.</param>
+/// <param name="DefaultPrice">Sale price applied to every variant of a multi-variant product (or the service rate).</param>
 public sealed record NewProductRequest(
     string Code,
     string Name,
@@ -139,7 +142,10 @@ public sealed record NewProductRequest(
     string Description,
     string? AttributeName,
     IReadOnlyList<string> AttributeOptions,
-    IReadOnlyList<ProductVariant> Variants);
+    IReadOnlyList<ProductVariant> Variants,
+    bool IsService = false,
+    long DefaultCost = 0,
+    long DefaultPrice = 0);
 
 /// <summary>One variant's absolute target on-hand in a <see cref="StockAdjustRequest"/>.</summary>
 public sealed record StockAdjustLine(string VariantId, int Stock);

@@ -214,13 +214,22 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         // other editable field starts empty.
         HistoryText = _draft.Note;
 
-        var catalog = await _service.GetCatalogAsync();
-        _catalog.Clear();
-        _catalog.AddRange(catalog);
+        await RefreshCatalogAsync();
 
         CurrentStep = EncounterStep.Form;
         RecomputeSubtotal();
         NotifyState();
+    }
+
+    /// <summary>
+    /// Re-reads the billable catalog so goods/services created after the wizard opened (Inventory, Sales rates)
+    /// are visible the next time the picker is shown — the picker never serves a stale load-time snapshot.
+    /// </summary>
+    private async Task RefreshCatalogAsync()
+    {
+        var catalog = await _service.GetCatalogAsync();
+        _catalog.Clear();
+        _catalog.AddRange(catalog);
     }
 
     partial void OnCurrentStepChanged(EncounterStep value)
@@ -257,7 +266,11 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
         _dialogs.ShowModal(
             new Animora.Desktop.Pages.Sales.CatalogModalViewModel(
-                loadCatalog: () => Task.FromResult(BuildCatalogSnapshot()),
+                loadCatalog: async () =>
+                {
+                    await RefreshCatalogAsync();
+                    return BuildCatalogSnapshot();
+                },
                 addItem: AddCatalogSelectionAsync,
                 toast: _toast,
                 dialogs: _dialogs,

@@ -98,12 +98,12 @@
                         <TextBlock Classes="fld" Text="نام کالا" />
                         <TextBox Classes="inp" Text="{Binding Name}" PlaceholderText="مثلاً: قرص ویتامین" />
                     </StackPanel>
-                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,10">
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,10" IsVisible="{Binding ShowCodeAndBrand}">
                         <TextBlock Classes="fld" Text="کد کالا" />
                         <TextBox Classes="inp" FontFamily="monospace" Text="{Binding CodeText}"
                                  PlaceholderText="AN-1900" />
                     </StackPanel>
-                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,10">
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" IsVisible="{Binding ShowCodeAndBrand}">
                         <TextBlock Classes="fld" Text="برند" />
                         <TextBox Classes="inp" Text="{Binding Brand}" PlaceholderText="BioVet" />
                     </StackPanel>
@@ -127,13 +127,13 @@
                              PlaceholderText="توضیح مختصر برای پرسنل صندوق و ویزیت" />
                 </StackPanel>
 
-                <TextBlock Classes="sec" Text="نوع کالا" Margin="0,18,0,10" />
+                <TextBlock Classes="sec" Text="نوع کالا / خدمت" Margin="0,18,0,10" />
 
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
                     <ItemsControl Grid.ColumnSpan="2" ItemsSource="{Binding TypeOptions}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <UniformGrid Rows="1" Columns="2" />
+                                <UniformGrid Rows="1" Columns="3" />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
@@ -190,6 +190,15 @@
                     </StackPanel>
                 </Grid>
 
+                <!-- service rate (stock-free) -->
+                <StackPanel IsVisible="{Binding ShowServiceFields}" Margin="0,12,0,0">
+                    <TextBlock Classes="fld" Text="نرخ خدمت (تومان)" />
+                    <TextBox Classes="inp" Text="{Binding PriceText}" PlaceholderText="۰" />
+                    <TextBlock FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                               Foreground="{StaticResource MutedBrush}"
+                               Text="خدمت موجودی ندارد و در فروش، ویزیت و پانسیون زیر «خدمات» نمایش داده می‌شود." />
+                </StackPanel>
+
                 <!-- variant setup (opt-in) -->
                 <StackPanel IsVisible="{Binding ShowVariantFields}" Margin="0,12,0,0">
                     <TextBlock Classes="fld" Text="ویژگی تنوع" />
@@ -198,6 +207,16 @@
                     <TextBlock Classes="fld" Text="گزینه‌ها را با ویرگول جدا کنید" Margin="0,10,0,5" />
                     <TextBox Classes="inp" Text="{Binding AttributeOptionsText}"
                              PlaceholderText="۲ کیلوگرم، ۴ کیلوگرم، ۸ کیلوگرم" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,10,0,0">
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Classes="fld" Text="قیمت خرید هر تنوع (تومان)" />
+                            <TextBox Classes="inp" Text="{Binding CostText}" PlaceholderText="۰" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Classes="fld" Text="قیمت فروش هر تنوع (تومان)" />
+                            <TextBox Classes="inp" Text="{Binding PriceText}" PlaceholderText="۰" />
+                        </StackPanel>
+                    </Grid>
                     <TextBlock FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
                                Foreground="{StaticResource MutedBrush}"
                                Text="به‌ازای هر گزینه یک تنوع با قیمت و موجودی مستقل ساخته می‌شود که پس از ساخت قابل ویرایش است." />

@@ -38,6 +38,8 @@ public sealed partial class NewProductModalViewModel : ObservableObject
             "no", "IconBox", "تک‌واحد", "یک قیمت و موجودی واحد") { IsActive = true });
         TypeOptions.Add(new InventoryProductTypeOptionViewModel(
             "yes", "IconLayers", "چند‌تنوعی", "وزن، سایز یا دوز مختلف"));
+        TypeOptions.Add(new InventoryProductTypeOptionViewModel(
+            "svc", "IconClipboard", "خدمت", "بدون موجودی، فقط نرخ"));
 
         _ = LoadSafeAsync();
     }
@@ -59,19 +61,31 @@ public sealed partial class NewProductModalViewModel : ObservableObject
 
     [ObservableProperty] private bool _hasVariants;
 
-    public bool ShowSingleFields => !HasVariants;
-    public bool ShowVariantFields => HasVariants;
+    /// <summary>A stock-free service: only a name, category and rate are needed (stored as <c>ProductKind.Service</c>).</summary>
+    [ObservableProperty] private bool _isService;
 
-    partial void OnHasVariantsChanged(bool value)
+    public bool ShowSingleFields => !HasVariants && !IsService;
+    public bool ShowVariantFields => HasVariants && !IsService;
+    public bool ShowServiceFields => IsService;
+    public bool ShowCodeAndBrand => !IsService;
+
+    partial void OnHasVariantsChanged(bool value) => NotifyTypeChanged();
+
+    partial void OnIsServiceChanged(bool value) => NotifyTypeChanged();
+
+    private void NotifyTypeChanged()
     {
         OnPropertyChanged(nameof(ShowSingleFields));
         OnPropertyChanged(nameof(ShowVariantFields));
+        OnPropertyChanged(nameof(ShowServiceFields));
+        OnPropertyChanged(nameof(ShowCodeAndBrand));
     }
 
     [RelayCommand]
     private void ChooseType(string? key)
     {
         HasVariants = key == "yes";
+        IsService = key == "svc";
         foreach (var option in TypeOptions)
         {
             option.IsActive = option.Key == key;
@@ -133,7 +147,12 @@ public sealed partial class NewProductModalViewModel : ObservableObject
         IReadOnlyList<string> attributeOptions = [];
         IReadOnlyList<ProductVariant> variants;
 
-        if (HasVariants)
+        if (IsService)
+        {
+            // A service has no stock/variants; the rate is the only commercial field.
+            variants = [];
+        }
+        else if (HasVariants)
         {
             var attrName = AttributeName.Trim();
             attributeOptions = AttributeOptionsText
@@ -170,7 +189,10 @@ public sealed partial class NewProductModalViewModel : ObservableObject
             code, name, brand, categoryId, Description.Trim(),
             HasVariants ? AttributeName.Trim() : null,
             attributeOptions,
-            variants);
+            variants,
+            IsService,
+            ParseLong(CostText),
+            ParseLong(PriceText));
 
         try
         {
@@ -184,7 +206,7 @@ public sealed partial class NewProductModalViewModel : ObservableObject
         }
 
         _dialogs.Close();
-        _toast.Show("کالا ساخته شد", Tone.Ok);
+        _toast.Show(IsService ? "خدمت ساخته شد" : "کالا ساخته شد", Tone.Ok);
         _onCreated?.Invoke();
     }
 
