@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Animora.Contracts.Appointments;
 using Animora.Contracts.Vaccination;
 using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
@@ -29,6 +30,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
+    private readonly IAppointmentBookingService _booking;
 
     private readonly List<VaccinationRecord> _records = [];
     private readonly List<VaccineCatalogEntry> _catalog = [];
@@ -47,9 +49,11 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     private int _pageCount = 1;
 
     public VaccinationPageViewModel(IVaccinationService service, IStoreReadinessGate readiness,
-        IDialogService dialogs, IToastService toast, IDataChangeNotifier changes, IHistoryRecordOpener historyOpener)
+        IDialogService dialogs, IToastService toast, IDataChangeNotifier changes, IHistoryRecordOpener historyOpener,
+        IAppointmentBookingService booking)
     {
         _service = service;
+        _booking = booking;
         _changes = changes;
         _readiness = readiness;
         _dialogs = dialogs;
@@ -483,7 +487,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     [RelayCommand]
     private void OpenAddVaccine()
     {
-        _dialogs.ShowModal(new AddVaccineModalViewModel(_catalog, _dialogs, _toast));
+        _dialogs.ShowModal(new AddVaccineModalViewModel(_catalog, _dialogs, _toast, _booking));
     }
 
     [RelayCommand]

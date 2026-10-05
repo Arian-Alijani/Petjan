@@ -305,7 +305,7 @@ chars searches server-side with debounce; selecting fills the pet card; submit s
 server search; picking a match enables «شروع ویزیت»; starting a new visit still works.
 **Push:** `scripts/git/push.sh "feat(visits): server-side debounced patient search in triage like booking"`
 
-### T7 — Vaccination «ثبت واکسن → کادر انتخاب بیمار» → real booking-style picker (Target A) [status: pending]
+### T7 — Vaccination «ثبت واکسن → کادر انتخاب بیمار» → real booking-style picker (Target A) [status: done]
 **Files:**
 - `src/Animora.Desktop/Pages/Vaccination/VaccinationPageViewModel.cs` — inject the patient-search seam
   (`IAppointmentBookingService`, §0.8) via the ctor and register-check it in `App.axaml.cs` (already registered,
