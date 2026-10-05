@@ -55,32 +55,9 @@ public sealed class BoardingQueries(AnimoraLocalDbContext db) : IBoardingQueries
         await db.Set<BoardingServiceDef>().AsNoTracking().Where(s => s.IsActive)
             .OrderBy(s => s.Code).Take(200).ToListAsync(ct);
 
-    // Mirrors SalesQueries.GetCatalogAsync: a product is priced by its ACTIVE VARIANTS (v.SalePrice), never by
-    // Product.DefaultSalePrice alone — multi-variant goods are created with DefaultSalePrice = 0, which made them
-    // look free/unusable here while the sales drawer priced them correctly. Products without any active variant
-    // fall back to one product-level row so they can't silently vanish.
-    public async Task<IReadOnlyList<BoardingSelectableReadModel>> GetSelectableAsync(CancellationToken ct)
-    {
-        var boarding = await db.Set<BoardingServiceDef>().AsNoTracking().Where(s => s.IsActive)
-            .Select(s => new BoardingSelectableReadModel(s.Id, s.Title, s.UnitPrice.Minor, "BoardingService"))
-            .ToListAsync(ct);
-        var variantRows = await (from p in db.Set<Product>().AsNoTracking()
-            where p.IsActive
-            from v in p.Variants
-            where v.IsActive
-            orderby p.Name, v.VariantId
-            select new BoardingSelectableReadModel(v.VariantId, p.Name, v.SalePrice.Minor,
-                p.Kind == ProductKind.Service ? "ClinicService" : "ClinicItem")).Take(1000).ToListAsync(ct);
-        var variantless = await db.Set<Product>().AsNoTracking()
-            .Where(p => p.IsActive && !p.Variants.Any(v => v.IsActive))
-            .OrderBy(p => p.Name).ThenBy(p => p.Id).Take(500)
-            .Select(p => new BoardingSelectableReadModel(p.Id, p.Name, p.DefaultSalePrice.Minor,
-                p.Kind == ProductKind.Service ? "ClinicService" : "ClinicItem")).ToListAsync(ct);
-        return boarding.Concat(variantRows).Concat(variantless)
-            .OrderBy(r => r.Title, StringComparer.Ordinal).ThenBy(r => r.Id, StringComparer.Ordinal)
-            .Take(1500).ToList();
-    }
-
+    // Resolves the id the shared sales catalog hands out (SalesQueries.GetCatalogAsync): a boarding service id, a
+    // VariantId (price = the variant's own SalePrice — never Product.DefaultSalePrice, which is 0 for multi-variant
+    // goods) or, for products with no active variant, the product id with its default price.
     public async Task<BoardingSelectableReadModel?> FindSelectableAsync(string id, CancellationToken ct)
     {
         var boarding = await db.Set<BoardingServiceDef>().AsNoTracking().Where(s => s.Id == id && s.IsActive)

@@ -63,11 +63,11 @@ public interface IBoardingQueryService
     Task<IReadOnlyList<ServiceInfo>> GetServicesAsync();
 
     /// <summary>
-    /// The selectable entries the detail modal's add row offers, mirroring the
-    /// reference's three <c>&lt;optgroup&gt;</c> catalogs
-    /// (<c>EXTRA_SVCS</c>/<c>SERVICES</c>/<c>ITEMS</c>).
+    /// The catalog behind the stay's «افزودن خدمت یا کالا» picker: the very same snapshot the Sales picker uses
+    /// (clinic goods priced per active variant + clinic services + boarding services), so both surfaces show
+    /// identical rows, prices and filter chips. A row's <c>Id</c> is what <see cref="AddItemAsync"/> accepts.
     /// </summary>
-    Task<IReadOnlyList<BoardingSelectableItem>> GetSelectableItemsAsync();
+    Task<Animora.Contracts.Sales.CatalogSnapshot> GetCatalogAsync();
 
     /// <summary>
     /// A read-only projection of the clinic's patient records that the new-stay

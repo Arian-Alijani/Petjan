@@ -312,8 +312,10 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Opens the add-line picker as its own centered modal (like the Sales catalog) instead of a popup nested in
-    /// this modal, whose clipped panel hid it. «بازگشت» there re-opens this modal with a fresh read.
+    /// Opens the add-line picker as its own centered modal. It is the shared Sales
+    /// <see cref="Animora.Desktop.Pages.Sales.CatalogModalViewModel"/> (same logic and look) fed by the boarding
+    /// catalog seam (clinic goods/services priced per variant + boarding services); «بازگشت» re-opens this modal
+    /// with a fresh read so the new lines show up.
     /// </summary>
     [RelayCommand]
     private void OpenCatalog()
@@ -323,11 +325,16 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
             return;
         }
 
+        var stayId = StayId;
         _dialogs.ShowModal(
-            new BoardingCatalogModalViewModel(
-                _service, _toast, _dialogs, StayId, PetName,
+            new Animora.Desktop.Pages.Sales.CatalogModalViewModel(
+                loadCatalog: _service.GetCatalogAsync,
+                addItem: item => _service.AddItemAsync(stayId, item.Id, 1),
+                toast: _toast,
+                dialogs: _dialogs,
                 onChanged: _onChanged,
-                onBack: _onReopen),
+                onBack: _onReopen,
+                addedToLabel: $"اقلام «{PetName}»"),
             maxWidth: 500);
     }
 

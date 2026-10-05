@@ -4,6 +4,7 @@ using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Boarding;
 using Animora.Application.UseCases.Boarding.ReadModels;
+using Animora.Client.Services.Sales;
 using Animora.Contracts.Boarding;
 using StayPaymentMode = Animora.Domain.Boarding.StayPaymentMode;
 using Animora.Domain.Time;
@@ -117,8 +118,8 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
         (await QueryAsync(new BoardingServicesQuery()))
             .Select(r => new ServiceInfo(r.Id, r.Title, r.UnitPrice.Minor)).ToArray();
 
-    public async Task<IReadOnlyList<BoardingSelectableItem>> GetSelectableItemsAsync() =>
-        (await QueryAsync(new BoardingSelectableItemsQuery())).Select(r => r.ToContract()).ToArray();
+    public async Task<Animora.Contracts.Sales.CatalogSnapshot> GetCatalogAsync() =>
+        (await QueryAsync(new BoardingCatalogQuery())).ToContract();
 
     public async Task<IReadOnlyList<BoardingKnownPet>> GetKnownPetsAsync(string? search = null) =>
         (await QueryAsync(new BoardingKnownPetsQuery(search))).Select(r => r.ToContract()).ToArray();

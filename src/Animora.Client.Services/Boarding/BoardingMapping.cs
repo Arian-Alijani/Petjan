@@ -71,14 +71,6 @@ internal static class BoardingMapping
             row.Room.Type is RoomType.Vip or RoomType.Suite ? BoardingRoomType.Vip : BoardingRoomType.Standard,
             BoardingSpecies.Other, row.Room.Capacity, row.Occupied > 0);
 
-    internal static BoardingSelectableItem ToContract(this BoardingSelectableReadModel row) =>
-        new(row.Id, row.Source switch
-        {
-            "BoardingService" => BoardingItemSource.BoardingService,
-            "ClinicService" => BoardingItemSource.ClinicService,
-            _ => BoardingItemSource.ClinicItem,
-        }, row.Title, row.PriceMinor);
-
     internal static BoardingKnownPet ToContract(this BoardingKnownPetReadModel row) =>
         new(row.Name, Species(row.Species), row.Breed, row.OwnerName, row.OwnerPhone, row.Id);
 

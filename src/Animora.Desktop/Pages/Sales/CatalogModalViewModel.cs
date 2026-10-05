@@ -25,6 +25,12 @@ public sealed partial class CatalogModalViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly Action? _onChanged;
 
+    // Optional «بازگشت» target (e.g. boarding re-opens the stay-detail modal); null = plain close.
+    private readonly Action? _onBack;
+
+    // Destination noun shown in the success toast («به فاکتور / به اقلام اقامت افزوده شد»).
+    private readonly string _addedToLabel;
+
     // The two seams that make this picker reusable: how to load the catalog and
     // how to add a chosen item. The Sales/Cashier path binds these to
     // ISalesQueryService (GetCatalogAsync / AddLineAsync into an invoice); the
@@ -65,7 +71,8 @@ public sealed partial class CatalogModalViewModel : ObservableObject
     /// surface (sales invoice, visit encounter, …) can reuse the identical
     /// drawer UI. <paramref name="initialFilter"/> pre-selects a category chip
     /// (<c>"svc"</c> for services, <c>"item"</c> for goods, <c>"all"</c> for the
-    /// whole catalog).
+    /// whole catalog). <paramref name="onBack"/> replaces the plain close with a
+    /// custom «بازگشت» action; <paramref name="addedToLabel"/> names the target in the toast.
     /// </summary>
     public CatalogModalViewModel(
         Func<Task<CatalogSnapshot>> loadCatalog,
@@ -73,8 +80,12 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         IToastService toast,
         IDialogService dialogs,
         Action? onChanged = null,
-        string initialFilter = "all")
+        string initialFilter = "all",
+        Action? onBack = null,
+        string addedToLabel = "فاکتور")
     {
+        _onBack = onBack;
+        _addedToLabel = addedToLabel;
         _loadCatalog = loadCatalog;
         _addItem = addItem;
         _toast = toast;
@@ -265,7 +276,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
             return;
         }
 
-        _toast.Show($"«{item.Title}» به فاکتور افزوده شد", Tone.Ok);
+        _toast.Show($"«{item.Title}» به {_addedToLabel} افزوده شد", Tone.Ok);
         _onChanged?.Invoke();
         PromoteRecent(item);
     }
@@ -306,7 +317,16 @@ public sealed partial class CatalogModalViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Close() => _dialogs.Close();
+    private void Close()
+    {
+        if (_onBack is null)
+        {
+            _dialogs.Close();
+            return;
+        }
+
+        _onBack();
+    }
 }
 
 /// <summary>One category filter chip (mirrors <c>.cat-filter</c>).</summary>

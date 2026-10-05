@@ -2,6 +2,7 @@ using Animora.Application.Abstractions;
 using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Boarding.ReadModels;
+using Animora.Application.UseCases.Sales.ReadModels;
 using Animora.Domain.Boarding;
 using Animora.Domain.Identity;
 using Animora.Domain.Results;
@@ -45,13 +46,18 @@ public sealed class BoardingServicesQueryHandler(IBoardingQueries queries)
         Result<IReadOnlyList<BoardingServiceDef>>.Ok(await queries.GetServicesAsync(ct));
 }
 
+/// <summary>
+/// The stay's «افزودن خدمت یا کالا» catalog. Single source of truth: the very same projection the Sales picker
+/// uses (variant-priced goods + clinic services + boarding services), gated by boarding access so reception
+/// staff without sales rights can still add lines to a stay.
+/// </summary>
 [RequiresPermission(PermissionCodes.BoardingRead)]
-public sealed record BoardingSelectableItemsQuery : IQuery<IReadOnlyList<BoardingSelectableReadModel>>;
-public sealed class BoardingSelectableItemsQueryHandler(IBoardingQueries queries)
-    : IQueryHandler<BoardingSelectableItemsQuery, IReadOnlyList<BoardingSelectableReadModel>>
+public sealed record BoardingCatalogQuery : IQuery<SalesCatalogReadModel>;
+public sealed class BoardingCatalogQueryHandler(ISalesQueries sales)
+    : IQueryHandler<BoardingCatalogQuery, SalesCatalogReadModel>
 {
-    public async Task<Result<IReadOnlyList<BoardingSelectableReadModel>>> HandleAsync(BoardingSelectableItemsQuery query, QueryContext context, CancellationToken ct) =>
-        Result<IReadOnlyList<BoardingSelectableReadModel>>.Ok(await queries.GetSelectableAsync(ct));
+    public async Task<Result<SalesCatalogReadModel>> HandleAsync(BoardingCatalogQuery query, QueryContext context, CancellationToken ct) =>
+        Result<SalesCatalogReadModel>.Ok(await sales.GetCatalogAsync(ct));
 }
 
 [RequiresPermission(PermissionCodes.BoardingRead)]

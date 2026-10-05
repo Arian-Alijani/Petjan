@@ -12,7 +12,6 @@ public interface IBoardingQueries
     Task<int> CountActiveStaysInRoomAsync(string roomId, CancellationToken ct);
     Task<IReadOnlyList<BoardingServiceDef>> GetServicesAsync(CancellationToken ct);
     Task<BoardingSelectableReadModel?> FindSelectableAsync(string id, CancellationToken ct);
-    Task<IReadOnlyList<BoardingSelectableReadModel>> GetSelectableAsync(CancellationToken ct);
     Task<IReadOnlyList<BoardingKnownPetReadModel>> GetKnownPetsAsync(string? search, CancellationToken ct);
     Task<BoardingKnownPetReadModel?> FindPetAsync(string petId, CancellationToken ct);
     Task<BoardingHistoryResult> GetHistoryAsync(BoardingHistoryCriteria criteria, CancellationToken ct);

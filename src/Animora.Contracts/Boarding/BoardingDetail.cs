@@ -15,25 +15,6 @@ public enum BoardingItemKind
 }
 
 /// <summary>
-/// The catalog a selectable add-row entry comes from, mirroring the reference's
-/// <c>&lt;optgroup&gt;</c> grouping in the detail modal's add row
-/// (خدمات پانسیون / خدمات کلینیک / کالاها). The <c>boarding</c> group's entries
-/// are stored on the stay as services (<c>kind = 'svc'</c>), exactly as the
-/// reference maps a <c>bx:</c> reference.
-/// </summary>
-public enum BoardingItemSource
-{
-    /// <summary>Boarding-specific extra services — reference <c>EXTRA_SVCS</c> (optgroup «خدمات پانسیون»).</summary>
-    BoardingService,
-
-    /// <summary>Clinic services — reference <c>CLINIC.SERVICES</c> (optgroup «خدمات کلینیک»).</summary>
-    ClinicService,
-
-    /// <summary>Clinic goods — reference <c>CLINIC.ITEMS</c> (optgroup «کالاها»).</summary>
-    ClinicItem,
-}
-
-/// <summary>
 /// One consumed line on a stay, mirroring the fields the reference's detail
 /// modal reads from <c>items[]</c> (<c>kind</c>/<c>title</c>/<c>qty</c>/
 /// <c>price</c>/<c>at</c>) plus the catalog <c>ref</c> it was created from.
@@ -132,20 +113,5 @@ public sealed record RoomInfo(
 /// <param name="Price">Price in Rial.</param>
 public sealed record ServiceInfo(
     string Id,
-    string Title,
-    long Price);
-
-/// <summary>
-/// One selectable entry in the detail modal's add row, mirroring the reference's
-/// three <c>&lt;optgroup&gt;</c> catalogs (<c>EXTRA_SVCS</c>/<c>SERVICES</c>/
-/// <c>ITEMS</c>) that the modal offers for adding a consumed line.
-/// </summary>
-/// <param name="Ref">Catalog reference id (e.g. <c>bx-1</c>).</param>
-/// <param name="Source">Which catalog group it belongs to.</param>
-/// <param name="Title">Display title.</param>
-/// <param name="Price">Unit price in Rial.</param>
-public sealed record BoardingSelectableItem(
-    string Ref,
-    BoardingItemSource Source,
     string Title,
     long Price);

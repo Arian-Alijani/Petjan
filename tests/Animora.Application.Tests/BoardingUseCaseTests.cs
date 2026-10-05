@@ -126,8 +126,6 @@ internal sealed class BoardingQueriesFake(params Room[] rooms) : IBoardingQuerie
         Task.FromResult<StayDetailReadModel?>(null);
     public Task<BoardingSelectableReadModel?> FindSelectableAsync(string id, CancellationToken ct) =>
         Task.FromResult<BoardingSelectableReadModel?>(null);
-    public Task<IReadOnlyList<BoardingSelectableReadModel>> GetSelectableAsync(CancellationToken ct) =>
-        Task.FromResult<IReadOnlyList<BoardingSelectableReadModel>>([]);
     public Task<IReadOnlyList<BoardingKnownPetReadModel>> GetKnownPetsAsync(string? search, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<BoardingKnownPetReadModel>>([]);
     public Task<BoardingKnownPetReadModel?> FindPetAsync(string petId, CancellationToken ct) =>
