@@ -231,7 +231,7 @@ an invoice still works (no broken id). No migration added.
 **Push:** `scripts/git/push.sh -b genspark_ai_developer "fix(sales): surface products without an active variant in the catalog"`
 (first push on the branch; subsequent tasks use `scripts/git/push.sh "..."`).
 
-### T2 — Sales catalog: fix category-chip filter (Defect C2) [status: pending]
+### T2 — Sales catalog: fix category-chip filter (Defect C2) [status: done]
 **Files:** `src/Animora.Client.Services/Sales/SalesMapping.cs` (`ToContract` for item + snapshot, `Slug`).
 **Do:** align the chip `Key` and the item `GroupKey` (set item `GroupKey = Slug(row.Category)`, keep
 `GroupLabel = row.Category`), and fix `Slug` so distinct Persian category labels produce **distinct** stable

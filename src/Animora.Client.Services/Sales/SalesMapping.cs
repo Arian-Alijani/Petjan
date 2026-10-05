@@ -239,7 +239,7 @@ internal static class SalesMapping
     }
 
     internal static CatalogItem ToContract(this SalesCatalogItemReadModel row) =>
-        new(row.Id, row.Kind == "Service" ? "svc" : "item", row.Title, row.Category, row.Category,
+        new(row.Id, row.Kind == "Service" ? "svc" : "item", row.Title, row.Category, Slug(row.Category),
             row.PriceMinor, row.Kind == "Service" ? "IconClipboard" : "IconBox");
 
     internal static InsurerRef ToContract(this InsurerReadModel row) =>
@@ -403,19 +403,28 @@ internal static class SalesMapping
 
     /// <summary>
     /// A stable, ASCII, lower-case filter key derived from a group label so the picker's category chips
-    /// have a stable <c>key</c> independent of the rendered Persian label.
+    /// have a stable <c>key</c> independent of the rendered Persian label. Pure-ASCII labels keep a readable
+    /// slug; any label containing other characters (Persian category names) gets a deterministic FNV-1a hash
+    /// suffix so distinct labels never collapse into the same key. The <c>cat-</c> prefix keeps the key clear
+    /// of the reserved <c>all</c>/<c>svc</c>/<c>item</c> chips. Chip keys and item group keys MUST both use it.
     /// </summary>
     private static string Slug(string label)
     {
-        if (string.IsNullOrWhiteSpace(label)) return "misc";
-        var builder = new System.Text.StringBuilder(label.Length);
-        foreach (var c in label)
+        if (string.IsNullOrWhiteSpace(label)) return "cat-misc";
+        var trimmed = label.Trim();
+        var builder = new System.Text.StringBuilder(trimmed.Length + 12);
+        var pure = true;
+        foreach (var c in trimmed)
         {
             if (c is >= 'a' and <= 'z' || c is >= '0' and <= '9') builder.Append(c);
             else if (c is >= 'A' and <= 'Z') builder.Append((char)(c + 32));
             else if (c == ' ' || c == '-' || c == '_') builder.Append('-');
+            else pure = false;
         }
-        return builder.Length == 0 ? "misc" : builder.ToString();
+        if (pure && builder.Length > 0) return "cat-" + builder;
+        uint hash = 2166136261;
+        foreach (var c in trimmed) hash = unchecked((hash ^ c) * 16777619);
+        return builder.Length == 0 ? $"cat-{hash:x8}" : $"cat-{builder}-{hash:x8}";
     }
 
     /// <summary>
