@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vx="using:Animora.Desktop.Pages.Vaccination"
              xmlns:c="using:Animora.Contracts.Vaccination"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Vaccination.AddVaccineModalView"
              x:DataType="vx:AddVaccineModalViewModel"
              Width="520" MaxWidth="520" FlowDirection="RightToLeft">
@@ -41,11 +42,13 @@
                 </StackPanel>
                 <StackPanel Grid.Row="1" Grid.Column="0" Spacing="6">
                     <TextBlock Text="تاریخ تزریق" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
-                    <TextBox Text="{Binding InjectionDate}" PlaceholderText="۱۴۰۴/۰۵/۱۱" Padding="12,10" CornerRadius="10" />
+                    <controls:JalaliDatePicker DateValue="{Binding InjectionDate, Mode=TwoWay}"
+                                               Placeholder="۱۴۰۴/۰۵/۱۱" HorizontalAlignment="Stretch" />
                 </StackPanel>
                 <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6">
                     <TextBlock Text="سررسید بعدی" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
-                    <TextBox Text="{Binding NextDueDate}" PlaceholderText="۱۴۰۵/۰۵/۱۱" Padding="12,10" CornerRadius="10" />
+                    <controls:JalaliDatePicker DateValue="{Binding NextDueDate, Mode=TwoWay}"
+                                               Placeholder="۱۴۰۵/۰۵/۱۱" HorizontalAlignment="Stretch" />
                 </StackPanel>
                 <StackPanel Grid.Row="2" Grid.Column="0" Spacing="6">
                     <TextBlock Text="دامپزشک" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
