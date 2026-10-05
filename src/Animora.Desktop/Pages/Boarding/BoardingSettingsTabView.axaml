@@ -6,10 +6,9 @@
              x:DataType="boarding:BoardingPageViewModel"
              FlowDirection="RightToLeft">
 
-    <!-- Settings tab — read-only live view of the rooms (with occupancy) and the
-         boarding services, both loaded from IBoardingQueryService. The design's
-         rate / notification-toggle / add-edit cards were removed (X11): there is no
-         backend contract to persist them, and a card that only toasts "saved" misleads. -->
+    <!-- Settings tab — live, editable view of the rooms (with occupancy) and the boarding
+         services. Rooms are added/edited through RoomEditModal (Create/UpdateRoomCommand); services
+         reuse the shared service-rate editor (Create/UpdateServiceRateCommand, Source=Boarding). -->
     <UserControl.Styles>
         <Style Selector="Border.scard">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
@@ -42,6 +41,19 @@
             <Setter Property="Padding" Value="14,12" />
             <Setter Property="Background" Value="{StaticResource BgBrush}" />
         </Style>
+        <Style Selector="Border.room-tile.off">
+            <Setter Property="Opacity" Value="0.6" />
+        </Style>
+        <Style Selector="Border.svc-row.off">
+            <Setter Property="Opacity" Value="0.55" />
+        </Style>
+        <Style Selector="Button.sicon">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="6" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
         <Style Selector="Border.room-tile.occupied">
             <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
             <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
@@ -59,6 +71,15 @@
                             <TextBlock Classes="seyebrow" Text="ظرفیت" VerticalAlignment="Center" />
                             <TextBlock Classes="stitle" Text="اتاق‌ها و باکس‌ها" VerticalAlignment="Center" />
                         </StackPanel>
+                        <Button Grid.Column="1" Classes="hy-pager" HorizontalAlignment="Right"
+                                Command="{Binding AddRoomCommand}" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="13" Height="13" StrokeThickness="2.5"
+                                      Stroke="{Binding $parent[Button].Foreground}"
+                                      Data="{StaticResource IconPlus}" />
+                                <TextBlock Text="اتاق جدید" FontSize="12" FontWeight="Bold" />
+                            </StackPanel>
+                        </Button>
                     </Grid>
                 </Border>
                 <StackPanel Margin="18">
@@ -70,10 +91,10 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="boarding:BoardingRoomTileViewModel">
-                                <Border Classes="room-tile" Classes.occupied="{Binding IsOccupied}"
+                                <Border Classes="room-tile" Classes.occupied="{Binding IsOccupied}" Classes.off="{Binding IsOutOfService}"
                                         Margin="0,0,10,10">
                                     <StackPanel>
-                                        <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8" Margin="0,0,0,8">
+                                        <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,8">
                                             <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
                                                   Stroke="{StaticResource Brand600Brush}" VerticalAlignment="Center"
                                                   Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}" />
@@ -85,23 +106,40 @@
                                                 <TextBlock Text="{Binding TypeLabel}" FontSize="10.5" FontWeight="Bold"
                                                            Foreground="#7b5cc4" />
                                             </Border>
+                                            <Button Grid.Column="3" Classes="sicon" ToolTip.Tip="ویرایش اتاق"
+                                                    Command="{Binding #Root.((boarding:BoardingPageViewModel)DataContext).EditRoomCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <Path Classes="icon" Width="13" Height="13"
+                                                      Stroke="{StaticResource MutedBrush}"
+                                                      Data="{StaticResource IconEdit}" />
+                                            </Button>
                                         </Grid>
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
-                                                  Data="{StaticResource IconHome}"
-                                                  Stroke="{StaticResource Brand700Brush}"
-                                                  IsVisible="{Binding IsOccupied}" />
-                                            <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
-                                                  Data="{StaticResource IconCheck}"
-                                                  Stroke="{StaticResource OkBrush}"
-                                                  IsVisible="{Binding !IsOccupied}" />
-                                            <TextBlock Text="{Binding StatusText}" FontSize="11.5" FontWeight="Bold"
-                                                       Foreground="{StaticResource Brand700Brush}"
-                                                       VerticalAlignment="Center" IsVisible="{Binding IsOccupied}" />
-                                            <TextBlock Text="{Binding StatusText}" FontSize="11.5" FontWeight="Bold"
-                                                       Foreground="{StaticResource OkBrush}"
-                                                       VerticalAlignment="Center" IsVisible="{Binding !IsOccupied}" />
-                                        </StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontSize="11.5" Margin="0,0,0,6"
+                                                   Foreground="{StaticResource MutedBrush}"
+                                                   TextTrimming="CharacterEllipsis" IsVisible="{Binding HasName}" />
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                                                <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
+                                                      Data="{StaticResource IconHome}"
+                                                      Stroke="{StaticResource Brand700Brush}"
+                                                      IsVisible="{Binding IsOccupied}" />
+                                                <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
+                                                      Data="{StaticResource IconCheck}"
+                                                      Stroke="{StaticResource OkBrush}"
+                                                      IsVisible="{Binding IsAvailable}" />
+                                                <TextBlock Text="{Binding StatusText}" FontSize="11.5" FontWeight="Bold"
+                                                           Foreground="{StaticResource Brand700Brush}"
+                                                           VerticalAlignment="Center" IsVisible="{Binding IsOccupied}" />
+                                                <TextBlock Text="{Binding StatusText}" FontSize="11.5" FontWeight="Bold"
+                                                           Foreground="{StaticResource OkBrush}"
+                                                           VerticalAlignment="Center" IsVisible="{Binding IsAvailable}" />
+                                                <TextBlock Text="{Binding StatusText}" FontSize="11.5" FontWeight="Bold"
+                                                           Foreground="{StaticResource MutedBrush}"
+                                                           VerticalAlignment="Center" IsVisible="{Binding IsOutOfService}" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="{Binding CapacityText}" FontSize="11"
+                                                       Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
@@ -120,21 +158,42 @@
                             <TextBlock Classes="seyebrow" Text="خدمات" VerticalAlignment="Center" />
                             <TextBlock Classes="stitle" Text="خدمات اختصاصی پانسیون" VerticalAlignment="Center" />
                         </StackPanel>
+                        <Button Grid.Column="1" Classes="hy-pager" HorizontalAlignment="Right"
+                                Command="{Binding AddBoardingServiceCommand}" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="13" Height="13" StrokeThickness="2.5"
+                                      Stroke="{Binding $parent[Button].Foreground}"
+                                      Data="{StaticResource IconPlus}" />
+                                <TextBlock Text="خدمت جدید" FontSize="12" FontWeight="Bold" />
+                            </StackPanel>
+                        </Button>
                     </Grid>
                 </Border>
                 <StackPanel Margin="18">
                     <ItemsControl ItemsSource="{Binding ServiceRows}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="boarding:BoardingServiceRowViewModel">
-                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1"
-                                        Padding="0,10">
-                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                        <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="13"
-                                                   FontWeight="Bold" Foreground="{StaticResource InkBrush}"
-                                                   VerticalAlignment="Center" />
+                                <Border Classes="svc-row" Classes.off="{Binding IsInactive}"
+                                        BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1"
+                                        Padding="0,8">
+                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Title}" FontSize="13"
+                                                       FontWeight="Bold" Foreground="{StaticResource InkBrush}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding SubtitleText}" FontSize="11"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
                                         <TextBlock Grid.Column="1" Text="{Binding PriceText}" FontSize="12.5"
                                                    FontWeight="ExtraBold" Foreground="{StaticResource Brand700Brush}"
                                                    VerticalAlignment="Center" />
+                                        <Button Grid.Column="2" Classes="sicon" ToolTip.Tip="ویرایش خدمت"
+                                                Command="{Binding #Root.((boarding:BoardingPageViewModel)DataContext).EditBoardingServiceCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Path Classes="icon" Width="13" Height="13"
+                                                  Stroke="{StaticResource MutedBrush}"
+                                                  Data="{StaticResource IconEdit}" />
+                                        </Button>
                                     </Grid>
                                 </Border>
                             </DataTemplate>

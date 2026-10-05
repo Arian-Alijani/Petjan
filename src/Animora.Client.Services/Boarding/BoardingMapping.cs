@@ -69,7 +69,41 @@ internal static class BoardingMapping
         new(row.Room.Id, row.Room.Code,
             // Isolation and Cage fit Standard; Suite fits Vip in the two-value UI contract.
             row.Room.Type is RoomType.Vip or RoomType.Suite ? BoardingRoomType.Vip : BoardingRoomType.Standard,
-            BoardingSpecies.Other, row.Room.Capacity, row.Occupied > 0);
+            BoardingSpecies.Other, row.Room.Capacity, row.Occupied > 0, row.Room.DisplayName,
+            ToContract(row.Room.Type), ToContract(row.Room.Status), row.Room.Notes ?? string.Empty);
+
+    internal static BoardingRoomKind ToContract(RoomType type) => type switch
+    {
+        RoomType.Vip => BoardingRoomKind.Vip,
+        RoomType.Isolation => BoardingRoomKind.Isolation,
+        RoomType.Cage => BoardingRoomKind.Cage,
+        RoomType.Suite => BoardingRoomKind.Suite,
+        _ => BoardingRoomKind.Standard,
+    };
+
+    // «Occupied» is derived from active stays, so the stored value maps to Available for editing.
+    internal static BoardingRoomStatus ToContract(RoomStatus status) => status switch
+    {
+        RoomStatus.Maintenance => BoardingRoomStatus.Maintenance,
+        RoomStatus.Retired => BoardingRoomStatus.Retired,
+        _ => BoardingRoomStatus.Available,
+    };
+
+    internal static RoomType ToDomain(BoardingRoomKind kind) => kind switch
+    {
+        BoardingRoomKind.Vip => RoomType.Vip,
+        BoardingRoomKind.Isolation => RoomType.Isolation,
+        BoardingRoomKind.Cage => RoomType.Cage,
+        BoardingRoomKind.Suite => RoomType.Suite,
+        _ => RoomType.Standard,
+    };
+
+    internal static RoomStatus ToDomain(BoardingRoomStatus status) => status switch
+    {
+        BoardingRoomStatus.Maintenance => RoomStatus.Maintenance,
+        BoardingRoomStatus.Retired => RoomStatus.Retired,
+        _ => RoomStatus.Available,
+    };
 
     internal static BoardingKnownPet ToContract(this BoardingKnownPetReadModel row) =>
         new(row.Name, Species(row.Species), row.Breed, row.OwnerName, row.OwnerPhone, row.Id);

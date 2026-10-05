@@ -240,6 +240,16 @@ public static class BoardingPresentation
     public static string RoomTypeLabel(BoardingRoomType type) =>
         type == BoardingRoomType.Vip ? "VIP" : "معمولی";
 
+    /// <summary>The room-kind chip text of the settings tab («معمولی» / «VIP» / «سوئیت» / «ایزوله» / «قفس»).</summary>
+    public static string RoomKindLabel(BoardingRoomKind kind) => kind switch
+    {
+        BoardingRoomKind.Vip => "VIP",
+        BoardingRoomKind.Suite => "سوئیت",
+        BoardingRoomKind.Isolation => "ایزوله",
+        BoardingRoomKind.Cage => "قفس",
+        _ => "معمولی",
+    };
+
     /// <summary>Reference consumed-row tag — «خدمت» / «کالا».</summary>
     public static string ItemKindLabel(BoardingItemKind kind) =>
         kind == BoardingItemKind.Item ? "کالا" : "خدمت";

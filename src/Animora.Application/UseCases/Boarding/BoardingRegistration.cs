@@ -21,5 +21,9 @@ public static class BoardingRegistration
         .AddCommand<AddStayItemCommand, Unit, AddStayItemCommandHandler>()
         .AddCommand<RemoveStayItemCommand, Unit, RemoveStayItemCommandHandler>()
         .AddCommand<TransferStayRoomCommand, Unit, TransferStayRoomCommandHandler>()
-        .AddCommand<CheckoutStayCommand, Unit, CheckoutStayCommandHandler>();
+        .AddCommand<CheckoutStayCommand, Unit, CheckoutStayCommandHandler>()
+        .AddCommand<CreateRoomCommand, string, CreateRoomCommandHandler>()
+        .AddValidator<CreateRoomCommand, CreateRoomCommandValidator>()
+        .AddCommand<UpdateRoomCommand, Unit, UpdateRoomCommandHandler>()
+        .AddValidator<UpdateRoomCommand, UpdateRoomCommandValidator>();
 }

@@ -56,6 +56,12 @@ public interface IBoardingQueryService
     /// </summary>
     Task<IReadOnlyList<RoomInfo>> GetRoomsAsync();
 
+    /// <summary>Adds a room («اتاق جدید») and returns it. Fails with a typed error on a duplicate code.</summary>
+    Task<RoomInfo> CreateRoomAsync(NewRoomRequest request);
+
+    /// <summary>Saves a room's name, capacity, status and notes and returns the updated room.</summary>
+    Task<RoomInfo> UpdateRoomAsync(string roomId, UpdateRoomRequest request);
+
     /// <summary>
     /// The boarding extra-service catalog, mirroring the reference's
     /// <c>renderSettingsSvcs</c> (which reads <c>EXTRA_SVCS</c>).

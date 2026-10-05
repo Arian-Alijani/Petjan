@@ -120,6 +120,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IBoardingRepository, BoardingRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IBoardingServiceRepository, BoardingServiceRepository>();
+        services.AddScoped<IRoomRepository, RoomRepository>();
         services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
         services.AddScoped<IStockMovementRepository, StockMovementRepository>();
         services.AddScoped<IPurchasingRepository, PurchasingRepository>();

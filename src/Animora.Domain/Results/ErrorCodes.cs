@@ -293,6 +293,10 @@ public static class ErrorCodes
     public static readonly ErrorCode RoomAtCapacity = new("ROOM_AT_CAPACITY", ErrorCode.Conflict);
     /// <summary>No compatible room has available capacity.</summary>
     public static readonly ErrorCode RoomNoneAvailable = new("ROOM_NONE_AVAILABLE", ErrorCode.Conflict);
+    /// <summary>Another room of this clinic already uses the supplied code.</summary>
+    public static readonly ErrorCode RoomCodeDuplicate = new("ROOM_CODE_DUPLICATE", ErrorCode.Conflict);
+    /// <summary>The addressed boarding room does not exist.</summary>
+    public static readonly ErrorCode RoomNotFound = new("ROOM_NOT_FOUND", ErrorCode.NotFound);
     /// <summary>The stay has already been handed to billing.</summary>
     public static readonly ErrorCode StayAlreadyCheckedOut = new("STAY_ALREADY_CHECKED_OUT", ErrorCode.Conflict);
 

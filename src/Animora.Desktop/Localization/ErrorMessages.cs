@@ -64,6 +64,9 @@ public static class ErrorMessages
         ["ROOM_AT_CAPACITY"] = "ظرفیت این اتاق تکمیل است.",
         ["ROOM_UNAVAILABLE"] = "این اتاق در دسترس نیست.",
         ["ROOM_NONE_AVAILABLE"] = "اتاق خالی موجود نیست.",
+        ["ROOM_CODE_DUPLICATE"] = "اتاقی با این کد از قبل ثبت شده است.",
+        ["ROOM_NOT_FOUND"] = "اتاق موردنظر پیدا نشد.",
+        ["ROOM_CAPACITY_INVALID"] = "ظرفیت اتاق باید بین ۱ تا ۱۰ باشد.",
         ["SERVICE_NO_STOCK"] = "این خدمت موجودی ندارد.",
 
         // Generic codes (VALIDATION_FAILED / NOT_FOUND / CONCURRENCY_CONFLICT) are intentionally NOT mapped:

@@ -1,0 +1,136 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:boarding="using:Animora.Desktop.Pages.Boarding"
+             x:Class="Animora.Desktop.Pages.Boarding.RoomEditModalView"
+             x:Name="Root"
+             x:DataType="boarding:RoomEditModalViewModel"
+             Width="520"
+             MaxWidth="520"
+             FlowDirection="RightToLeft">
+
+    <!-- Add / edit one boarding room. Field styling matches the service-rate modal. -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.sm-lbl">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="TextBox.sm-inp">
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.sm-btn">
+            <Setter Property="Padding" Value="16,9" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel>
+        <!-- head -->
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" Margin="22,20,22,8">
+            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="13"
+                    Background="{StaticResource Bg2Brush}">
+                <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource MutedBrush}"
+                      Data="{StaticResource IconHome}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                <TextBlock Text="{Binding HeadTitle}" FontSize="17" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" />
+                <TextBlock Text="{Binding HeadSubtitle}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{StaticResource MutedBrush}" />
+            </StackPanel>
+        </Grid>
+
+        <!-- body -->
+        <StackPanel Margin="22,4,22,12" Spacing="14">
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Spacing="6" IsVisible="{Binding IsCreate}">
+                    <TextBlock Classes="sm-lbl" Text="کد اتاق" />
+                    <TextBox Classes="sm-inp" Text="{Binding Code}" FontWeight="Bold" PlaceholderText="مثلاً: R-09" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Classes="sm-lbl" Text="ظرفیت (۱ تا ۱۰)" />
+                    <TextBox Classes="sm-inp" Text="{Binding CapacityText}" PlaceholderText="۱" TextAlignment="Right" />
+                </StackPanel>
+            </Grid>
+
+            <StackPanel Spacing="6">
+                <TextBlock Classes="sm-lbl" Text="نام اتاق" />
+                <TextBox Classes="sm-inp" Text="{Binding Name}" FontWeight="Bold" PlaceholderText="مثلاً: اتاق ۹" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Classes="sm-lbl" Text="نوع اتاق" />
+                <ItemsControl ItemsSource="{Binding KindOptions}" IsEnabled="{Binding IsCreate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="boarding:RoomChoiceViewModel">
+                            <Button Classes="hy-chip" Classes.on="{Binding IsSelected}" Content="{Binding Label}"
+                                    Margin="0,0,6,6"
+                                    Command="{Binding #Root.((boarding:RoomEditModalViewModel)DataContext).SelectKindCommand}"
+                                    CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <StackPanel Spacing="6" IsVisible="{Binding IsEdit}">
+                <TextBlock Classes="sm-lbl" Text="وضعیت اتاق" />
+                <ItemsControl ItemsSource="{Binding StatusOptions}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="boarding:RoomChoiceViewModel">
+                            <Button Classes="hy-chip" Classes.on="{Binding IsSelected}" Content="{Binding Label}"
+                                    Margin="0,0,6,6"
+                                    Command="{Binding #Root.((boarding:RoomEditModalViewModel)DataContext).SelectStatusCommand}"
+                                    CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Classes="sm-lbl" Text="یادداشت (اختیاری)" />
+                <TextBox Classes="sm-inp" Text="{Binding Notes}" AcceptsReturn="True" MinHeight="64"
+                         TextWrapping="Wrap" PlaceholderText="توضیحات اتاق…" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- foot -->
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
+                    Margin="20,12,20,18">
+            <Button Classes="outline sm-btn" Content="انصراف" Command="{Binding CancelCommand}" />
+            <Button Classes="sm-btn" Command="{Binding SubmitCommand}" IsEnabled="{Binding !IsSaving}">
+                <Button.Styles>
+                    <Style Selector="Button">
+                        <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+                        <Setter Property="Foreground" Value="White" />
+                        <Setter Property="BorderThickness" Value="0" />
+                    </Style>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="{StaticResource Brand700Brush}" />
+                    </Style>
+                </Button.Styles>
+                <TextBlock Text="{Binding SubmitText}" />
+            </Button>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

@@ -63,6 +63,7 @@ public static class ViewFactory
         // Boarding.
         Register<global::Animora.Desktop.Pages.Boarding.BoardingPageViewModel, global::Animora.Desktop.Pages.Boarding.BoardingPageView>(factories);
         Register<global::Animora.Desktop.Pages.Boarding.CheckoutModalViewModel, global::Animora.Desktop.Pages.Boarding.CheckoutModalView>(factories);
+        Register<global::Animora.Desktop.Pages.Boarding.RoomEditModalViewModel, global::Animora.Desktop.Pages.Boarding.RoomEditModalView>(factories);
         Register<global::Animora.Desktop.Pages.Boarding.NewStayModalViewModel, global::Animora.Desktop.Pages.Boarding.NewStayModalView>(factories);
         Register<global::Animora.Desktop.Pages.Boarding.StayDetailModalViewModel, global::Animora.Desktop.Pages.Boarding.StayDetailModalView>(factories);
 

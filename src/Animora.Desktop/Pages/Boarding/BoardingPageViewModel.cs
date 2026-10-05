@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Boarding;
 using Animora.Contracts.Diagnostics;
+using Animora.Contracts.Sales;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -30,6 +31,7 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private readonly IDialogService _dialogs;
     private readonly IPrintService _print;
     private readonly INavigationService _navigation;
+    private readonly IServiceRateService _serviceRates;
 
     private readonly List<BoardingStay> _stays = [];
     private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Today);
@@ -42,8 +44,10 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
     private BoardingSpecies? _species;
 
     public BoardingPageViewModel(IBoardingQueryService service, IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs, INavigationService navigation,
-        IDataChangeNotifier changes, IPrintService print, IHistoryRecordOpener historyOpener)
+        IDataChangeNotifier changes, IPrintService print, IHistoryRecordOpener historyOpener,
+        IServiceRateService serviceRates)
     {
+        _serviceRates = serviceRates;
         _print = print;
         _service = service;
         _changes = changes;
@@ -276,9 +280,18 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
         RoomTiles.ReplaceAll(
             (await _service.GetRoomsAsync()).Select(room => new BoardingRoomTileViewModel(room)));
 
-        ServiceRows.ReplaceAll(
-            (await _service.GetServicesAsync()).Select(service => new BoardingServiceRowViewModel(service)));
+        await RefreshServicesAsync();
     }
+
+    /// <summary>
+    /// Boarding services come from the shared service-rate catalogue (not the active-only boarding read), so the
+    /// settings tab also lists switched-off services and can re-activate them.
+    /// </summary>
+    private async Task RefreshServicesAsync() =>
+        ServiceRows.ReplaceAll(
+            (await _serviceRates.GetAsync())
+            .Where(rate => rate.Source == ServiceRateSource.Boarding)
+            .Select(rate => new BoardingServiceRowViewModel(rate)));
 
     /// <summary>Stay writes (incl. checkout charges) reach the cashier, the ledger and the dashboard; reload this page too.</summary>
     private void RefreshAfterWrite()
@@ -398,6 +411,57 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
             new CheckoutModalViewModel(_service, _toast, _dialogs, stay,
                 onCheckedOut: RefreshAfterWrite),
             maxWidth: 520);
+
+    // ── settings: rooms & services ──────────────────────────────────────────
+
+    [RelayCommand]
+    private void AddRoom() =>
+        _dialogs.ShowModal(
+            new RoomEditModalViewModel(_service, _toast, _dialogs, existing: null, onSaved: RefreshAfterRoomChange),
+            maxWidth: 520);
+
+    [RelayCommand]
+    private void EditRoom(BoardingRoomTileViewModel? tile)
+    {
+        if (tile is null) return;
+        _dialogs.ShowModal(
+            new RoomEditModalViewModel(_service, _toast, _dialogs, tile.Room, onSaved: RefreshAfterRoomChange),
+            maxWidth: 520);
+    }
+
+    [RelayCommand]
+    private void AddBoardingService() =>
+        _dialogs.ShowModal(
+            new Animora.Desktop.Pages.Sales.ServiceRateEditModalViewModel(_serviceRates, _toast, _dialogs,
+                existing: null, onSaved: RefreshAfterServiceChange, fixedSource: ServiceRateSource.Boarding),
+            maxWidth: 520);
+
+    [RelayCommand]
+    private void EditBoardingService(BoardingServiceRowViewModel? row)
+    {
+        if (row is null) return;
+        _dialogs.ShowModal(
+            new Animora.Desktop.Pages.Sales.ServiceRateEditModalViewModel(_serviceRates, _toast, _dialogs,
+                row.Rate, onSaved: RefreshAfterServiceChange),
+            maxWidth: 520);
+    }
+
+    // Rooms feed the new-stay picker and the board; services feed every catalog picker (sales, visits, stays).
+    private void RefreshAfterRoomChange()
+    {
+        _changes.Notify(DataDomain.Boarding);
+        _ = RefreshRoomsOnlyAsync();
+    }
+
+    private void RefreshAfterServiceChange()
+    {
+        _changes.Notify(DataDomain.Boarding, DataDomain.Sales, DataDomain.Visits, DataDomain.Cashier);
+        _ = RefreshServicesAsync();
+    }
+
+    private async Task RefreshRoomsOnlyAsync() =>
+        RoomTiles.ReplaceAll(
+            (await _service.GetRoomsAsync()).Select(room => new BoardingRoomTileViewModel(room)));
 
     [RelayCommand]
     private void OpenNewStay() =>

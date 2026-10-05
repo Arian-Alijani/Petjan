@@ -1,4 +1,5 @@
 using Animora.Contracts.Boarding;
+using Animora.Contracts.Sales;
 using Animora.Desktop.Localization;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -134,12 +135,30 @@ public sealed class BoardingRoomTileViewModel
 {
     public BoardingRoomTileViewModel(RoomInfo room)
     {
+        Room = room;
         Label = PersianNumberFormatter.ToPersianDigits(room.Label);
-        TypeLabel = BoardingPresentation.RoomTypeLabel(room.Type);
+        Name = string.IsNullOrWhiteSpace(room.Name) || room.Name == room.Label
+            ? string.Empty
+            : PersianNumberFormatter.ToPersianDigits(room.Name);
+        TypeLabel = BoardingPresentation.RoomKindLabel(room.Kind);
         SpeciesIconKey = BoardingPresentation.SpeciesIconKey(room.Species);
         IsOccupied = room.IsOccupied;
-        StatusText = room.IsOccupied ? "اشغال" : "آزاد";
+        StatusText = room.Status switch
+        {
+            BoardingRoomStatus.Maintenance => "در تعمیر",
+            BoardingRoomStatus.Retired => "بازنشسته",
+            _ => room.IsOccupied ? "اشغال" : "آزاد",
+        };
+        IsOutOfService = room.Status != BoardingRoomStatus.Available;
+        CapacityText = "ظرفیت " + PersianNumberFormatter.ToPersianDigits(room.Capacity);
     }
+
+    public RoomInfo Room { get; }
+    public string Name { get; }
+    public bool HasName => Name.Length > 0;
+    public bool IsOutOfService { get; }
+    public bool IsAvailable => !IsOccupied && !IsOutOfService;
+    public string CapacityText { get; }
 
     public string Label { get; }
     public string TypeLabel { get; }
@@ -154,14 +173,25 @@ public sealed class BoardingRoomTileViewModel
 /// </summary>
 public sealed class BoardingServiceRowViewModel
 {
-    public BoardingServiceRowViewModel(ServiceInfo service)
+    public BoardingServiceRowViewModel(ServiceRate rate)
     {
-        Service = service;
-        Title = service.Title;
-        PriceText = BoardingPresentation.Money(service.Price);
+        Rate = rate;
+        Title = rate.Title;
+        PriceText = Animora.Desktop.Pages.Sales.SalePresentation.Money(rate.Price) + " تومان";
+        IsActive = rate.IsActive;
+        BillingText = rate.Billing switch
+        {
+            ServiceRateBilling.PerDay => "روزانه",
+            ServiceRateBilling.PerStay => "هر اقامت",
+            _ => "هر بار",
+        };
     }
 
-    public ServiceInfo Service { get; }
+    public ServiceRate Rate { get; }
     public string Title { get; }
     public string PriceText { get; }
+    public bool IsActive { get; }
+    public bool IsInactive => !IsActive;
+    public string BillingText { get; }
+    public string SubtitleText => IsActive ? BillingText : BillingText + " · غیرفعال";
 }

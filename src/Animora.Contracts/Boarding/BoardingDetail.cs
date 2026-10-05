@@ -96,13 +96,59 @@ public enum BoardingRoomType
 /// <param name="Species">Species icon hint.</param>
 /// <param name="Capacity">Nominal capacity.</param>
 /// <param name="IsOccupied">Whether an active stay currently uses the room.</param>
+/// <param name="Name">Human-readable room name (the <paramref name="Label"/> is the short code).</param>
+/// <param name="Kind">The room's full kind (the two-value <paramref name="Type"/> only drives the chip).</param>
+/// <param name="Status">Operational status the manager sets («occupied» is derived, never stored).</param>
+/// <param name="Notes">Free-form notes.</param>
 public sealed record RoomInfo(
     string Id,
     string Label,
     BoardingRoomType Type,
     BoardingSpecies Species,
     int Capacity,
-    bool IsOccupied);
+    bool IsOccupied,
+    string Name = "",
+    BoardingRoomKind Kind = BoardingRoomKind.Standard,
+    BoardingRoomStatus Status = BoardingRoomStatus.Available,
+    string Notes = "");
+
+/// <summary>The full set of room kinds a manager can choose when adding a room.</summary>
+public enum BoardingRoomKind
+{
+    Standard,
+    Vip,
+    Isolation,
+    Cage,
+    Suite,
+}
+
+/// <summary>Operational status of a room as set from the settings tab.</summary>
+public enum BoardingRoomStatus
+{
+    /// <summary>Ready to take a patient.</summary>
+    Available,
+
+    /// <summary>Temporarily out of service.</summary>
+    Maintenance,
+
+    /// <summary>Permanently withdrawn (terminal).</summary>
+    Retired,
+}
+
+/// <summary>A room to add from the settings tab.</summary>
+/// <param name="Code">Short unique code («R-09»).</param>
+/// <param name="Name">Display name.</param>
+/// <param name="Kind">Room kind.</param>
+/// <param name="Capacity">Patients the room holds (1–10).</param>
+/// <param name="Notes">Free-form notes.</param>
+public sealed record NewRoomRequest(string Code, string Name, BoardingRoomKind Kind, int Capacity, string Notes);
+
+/// <summary>The editable fields of an existing room (its code and kind stay fixed).</summary>
+/// <param name="Name">Display name.</param>
+/// <param name="Capacity">Patients the room holds (1–10).</param>
+/// <param name="Status">Operational status.</param>
+/// <param name="Notes">Free-form notes.</param>
+public sealed record UpdateRoomRequest(string Name, int Capacity, BoardingRoomStatus Status, string Notes);
 
 /// <summary>
 /// One boarding extra service, mirroring the fields the reference's

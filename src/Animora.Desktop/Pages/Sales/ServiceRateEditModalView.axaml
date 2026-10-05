@@ -53,7 +53,7 @@
 
         <!-- body -->
         <StackPanel Margin="22,4,22,12" Spacing="14">
-            <StackPanel Spacing="6" IsVisible="{Binding IsCreate}">
+            <StackPanel Spacing="6" IsVisible="{Binding ShowSourceChooser}">
                 <TextBlock Classes="sm-lbl" Text="نوع خدمت" />
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <Button Classes="hy-chip" Classes.on="{Binding IsClinic}" Content="خدمات کلینیک"

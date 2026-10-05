@@ -22,10 +22,12 @@ public sealed partial class ServiceRateEditModalViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly ServiceRate? _existing;
     private readonly Action _onSaved;
+    private readonly ServiceRateSource? _fixedSource;
 
     public ServiceRateEditModalViewModel(IServiceRateService service, IToastService toast, IDialogService dialogs,
-        ServiceRate? existing, Action onSaved)
+        ServiceRate? existing, Action onSaved, ServiceRateSource? fixedSource = null)
     {
+        _fixedSource = fixedSource;
         _service = service;
         _toast = toast;
         _dialogs = dialogs;
@@ -34,6 +36,7 @@ public sealed partial class ServiceRateEditModalViewModel : ObservableObject
 
         if (existing is null)
         {
+            _isBoarding = fixedSource == ServiceRateSource.Boarding;
             return;
         }
 
@@ -45,6 +48,9 @@ public sealed partial class ServiceRateEditModalViewModel : ObservableObject
     }
 
     public bool IsCreate => _existing is null;
+
+    /// <summary>The catalogue chooser is shown only when creating without a pre-selected catalogue.</summary>
+    public bool ShowSourceChooser => IsCreate && _fixedSource is null;
 
     public bool IsEdit => _existing is not null;
 
@@ -93,7 +99,7 @@ public sealed partial class ServiceRateEditModalViewModel : ObservableObject
     [RelayCommand]
     private void SetSource(string? key)
     {
-        if (IsEdit)
+        if (IsEdit || _fixedSource is not null)
         {
             return;
         }

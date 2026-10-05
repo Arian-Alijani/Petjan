@@ -114,6 +114,26 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
     public async Task<IReadOnlyList<RoomInfo>> GetRoomsAsync() =>
         (await QueryAsync(new BoardingRoomsQuery())).Select(r => r.ToContract()).ToArray();
 
+    public async Task<RoomInfo> CreateRoomAsync(NewRoomRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var id = await SendAsync(new CreateRoomCommand(request.Code.Trim(), request.Name.Trim(),
+            BoardingMapping.ToDomain(request.Kind), request.Capacity, request.Notes));
+        return await FindRoomAsync(id);
+    }
+
+    public async Task<RoomInfo> UpdateRoomAsync(string roomId, UpdateRoomRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        _ = await SendAsync(new UpdateRoomCommand(roomId, request.Name.Trim(), request.Capacity,
+            BoardingMapping.ToDomain(request.Status), request.Notes));
+        return await FindRoomAsync(roomId);
+    }
+
+    private async Task<RoomInfo> FindRoomAsync(string id) =>
+        (await GetRoomsAsync()).FirstOrDefault(r => r.Id == id)
+        ?? throw new ServiceException(Animora.Domain.Results.ErrorCodes.RoomNotFound);
+
     public async Task<IReadOnlyList<ServiceInfo>> GetServicesAsync() =>
         (await QueryAsync(new BoardingServicesQuery()))
             .Select(r => new ServiceInfo(r.Id, r.Title, r.UnitPrice.Minor)).ToArray();
