@@ -118,13 +118,24 @@
                                   VerticalAlignment="Center" />
                             <TextBox Grid.Column="1" Text="{Binding PatientQueryText}" Background="Transparent"
                                      BorderThickness="0" FontSize="13" VerticalContentAlignment="Center"
-                                     PlaceholderText="نام حیوان یا مالک را تایپ کنید…" />
+                                     PlaceholderText="نام بیمار، مالک یا شماره تماس (حداقل ۲ حرف)…" />
                         </Grid>
                     </Border>
 
+                    <!-- searching indicator + result count + hint/empty message (booking pattern) -->
+                    <StackPanel Spacing="6" Margin="0,0,0,12" IsVisible="{Binding IsPickerVisible}">
+                    <ProgressBar IsIndeterminate="True" Height="3" MinHeight="0"
+                                 IsVisible="{Binding IsPetSearching}" />
+                    <TextBlock Text="{Binding PetResultCount}" FontSize="11.5" FontWeight="Bold"
+                               Foreground="{StaticResource MutedBrush}" Margin="4,0"
+                               IsVisible="{Binding HasPetResults}" />
+                    <TextBlock Text="{Binding PetSearchMessage}" FontSize="12" TextWrapping="Wrap"
+                               Foreground="{StaticResource MutedBrush}" Margin="4,2"
+                               IsVisible="{Binding ShowPetSearchMessage}" />
                     <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                            CornerRadius="{StaticResource RadiusSm}" ClipToBounds="True" Margin="0,0,0,12"
-                            IsVisible="{Binding IsPickerVisible}">
+                            CornerRadius="{StaticResource RadiusSm}" ClipToBounds="True"
+                            IsVisible="{Binding HasPetResults}">
+                      <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding KnownPets}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="boarding:BoardingKnownPetViewModel">
@@ -153,7 +164,9 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                      </ScrollViewer>
                     </Border>
+                    </StackPanel>
 
                     <!-- selected pet card (.bd-sel-pet-card) -->
                     <Border Background="{StaticResource Brand50Brush}" BorderBrush="{StaticResource Brand100Brush}"

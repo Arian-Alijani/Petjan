@@ -22,8 +22,6 @@ public sealed partial class NewStayModalViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly Action? _onCreated;
 
-    private readonly List<BoardingKnownPetViewModel> _allPets = [];
-
     public NewStayModalViewModel(
         IBoardingQueryService service,
         IToastService toast,
@@ -88,7 +86,30 @@ public sealed partial class NewStayModalViewModel : ObservableObject
     [ObservableProperty]
     private string _selectedPetSub = string.Empty;
 
-    partial void OnPatientQueryTextChanged(string value) => ApplyPetFilter();
+    // ── server-side patient search (booking pattern: no eager load, min 2 chars, debounced, version-guarded) ──
+    private const int MinQueryLength = 2;
+    private const int PetPageSize = 20;
+    private const string PetHintMessage = "برای انتخاب بیمار، حداقل ۲ حرف از نام بیمار، مالک یا شماره تماس را وارد کنید.";
+
+    private readonly Debouncer _petSearchDebounce = new(TimeSpan.FromMilliseconds(300));
+    private int _petSearchVersion;
+
+    [ObservableProperty]
+    private bool _isPetSearching;
+
+    [ObservableProperty]
+    private bool _hasPetResults;
+
+    [ObservableProperty]
+    private string _petResultCount = string.Empty;
+
+    [ObservableProperty]
+    private bool _showPetSearchMessage = true;
+
+    [ObservableProperty]
+    private string _petSearchMessage = PetHintMessage;
+
+    partial void OnPatientQueryTextChanged(string value) => QueuePetSearch();
 
     partial void OnSelectedPetChanged(BoardingKnownPetViewModel? value)
     {
@@ -104,11 +125,72 @@ public sealed partial class NewStayModalViewModel : ObservableObject
         SelectedPetSub = $"{value.OwnerName} · {value.Pet.OwnerPhone}";
     }
 
-    private void ApplyPetFilter()
+    private void ResetPetResults(string message)
     {
-        var query = PersianText.Normalize(PatientQueryText);
-        KnownPets.ReplaceAll(_allPets.Where(
-            pet => query.Length == 0 || pet.SearchText.Contains(query, StringComparison.Ordinal)));
+        KnownPets.ReplaceAll([]);
+        HasPetResults = false;
+        PetResultCount = string.Empty;
+        ShowPetSearchMessage = true;
+        PetSearchMessage = message;
+    }
+
+    /// <summary>Invalidates queued and in-flight lookups so a slow earlier response never overwrites newer rows.</summary>
+    private void StopPetSearch()
+    {
+        _petSearchVersion++;
+        _petSearchDebounce.Cancel();
+        IsPetSearching = false;
+    }
+
+    private void QueuePetSearch()
+    {
+        StopPetSearch();
+        var canSearch = PersianText.Normalize(PatientQueryText).Length >= MinQueryLength;
+        ResetPetResults(canSearch ? "در حال جست‌وجو…" : PetHintMessage);
+        if (canSearch)
+        {
+            _petSearchDebounce.Debounce(() => _ = SearchPetsAsync());
+        }
+    }
+
+    private async Task SearchPetsAsync()
+    {
+        var version = _petSearchVersion;
+        var term = PatientQueryText.Trim();
+        IsPetSearching = true;
+        try
+        {
+            var rows = await _service.GetKnownPetsAsync(term);
+            if (version != _petSearchVersion)
+            {
+                return;
+            }
+
+            KnownPets.ReplaceAll(rows.Take(PetPageSize).Select(p => new BoardingKnownPetViewModel(p)));
+            HasPetResults = KnownPets.Count > 0;
+            PetResultCount = BoardingPresentation.Fa(KnownPets.Count) + " نتیجه";
+            var hasMore = rows.Count > PetPageSize;
+            ShowPetSearchMessage = !HasPetResults || hasMore;
+            PetSearchMessage = hasMore
+                ? "۲۰ نتیجه اول نمایش داده شد؛ برای یافتن بیمار، جست‌وجو را دقیق‌تر کنید."
+                : "بیماری با این مشخصات پیدا نشد؛ نام بیمار، مالک یا شماره تماس را بررسی کنید.";
+        }
+        catch (Exception)
+        {
+            if (version != _petSearchVersion)
+            {
+                return;
+            }
+
+            ResetPetResults("جست‌وجو انجام نشد. دوباره جست‌وجو کنید.");
+        }
+        finally
+        {
+            if (version == _petSearchVersion)
+            {
+                IsPetSearching = false;
+            }
+        }
     }
 
     [RelayCommand]
@@ -119,6 +201,7 @@ public sealed partial class NewStayModalViewModel : ObservableObject
             return;
         }
 
+        StopPetSearch();
         SelectedPet = pet;
         IsPickerVisible = false;
     }
@@ -129,6 +212,7 @@ public sealed partial class NewStayModalViewModel : ObservableObject
         SelectedPet = null;
         IsPickerVisible = true;
         PatientQueryText = string.Empty;
+        QueuePetSearch();
     }
 
     // ── manual pet fields ───────────────────────────────────────────────────
@@ -171,13 +255,7 @@ public sealed partial class NewStayModalViewModel : ObservableObject
 
     private async Task LoadAsync()
     {
-        foreach (var pet in await _service.GetKnownPetsAsync())
-        {
-            _allPets.Add(new BoardingKnownPetViewModel(pet));
-        }
-
-        ApplyPetFilter();
-
+        // Patients are NOT preloaded: the picker stays empty until the user types a 2+ char query.
         // Species catalog — reference filters out 'other' for the manual picker.
         foreach (var (value, label) in new (BoardingSpecies, string)[]
                  {

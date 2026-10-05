@@ -264,7 +264,7 @@ reference look using Sales styles already on the page (avatar tile, name, file c
 shows a count + spinner; selecting assigns the owner; guest still works.
 **Push:** `scripts/git/push.sh "feat(sales): gate owner picker on min-2 search with result-count + hint like booking"`
 
-### T5 — Boarding «جست‌وجوی بیمار» (پذیرش جدید) → server-side booking pattern (Target B) [status: pending]
+### T5 — Boarding «جست‌وجوی بیمار» (پذیرش جدید) → server-side booking pattern (Target B) [status: done]
 **Files:**
 - `src/Animora.Contracts/Boarding/IBoardingQueryService.cs` — change `GetKnownPetsAsync()` to accept a search
   term: `Task<IReadOnlyList<BoardingKnownPet>> GetKnownPetsAsync(string? search = null)` (keep back-compat default).

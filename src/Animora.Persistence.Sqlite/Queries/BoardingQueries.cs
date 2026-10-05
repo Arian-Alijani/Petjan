@@ -1,4 +1,5 @@
 using Animora.Application.Ports;
+using Animora.Application.Text;
 using Animora.Application.UseCases.Boarding.ReadModels;
 using Animora.Domain.Boarding;
 using Animora.Domain.Inventory;
@@ -78,13 +79,17 @@ public sealed class BoardingQueries(AnimoraLocalDbContext db) : IBoardingQueries
     public async Task<IReadOnlyList<BoardingKnownPetReadModel>> GetKnownPetsAsync(string? search, CancellationToken ct)
     {
         var pets = db.Set<Pet>().AsNoTracking().AsQueryable();
+        var owners = db.Set<Owner>().AsNoTracking().AsQueryable();
+        string? term = null;
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var term = search.Trim();
-            pets = pets.Where(p => EF.Functions.Like(p.SearchKey, term + "%"));
+            // SearchKey columns are stored normalized (Persian/Arabic folding, digits); fold the term the same way
+            // and match anywhere in the pet key (name/breed/chip) or the owner key (name/phone/national id).
+            term = "%" + PersianText.Normalize(search) + "%";
         }
         return await (from pet in pets
-            join owner in db.Set<Owner>().AsNoTracking() on pet.OwnerId equals owner.Id
+            join owner in owners on pet.OwnerId equals owner.Id
+            where term == null || EF.Functions.Like(pet.SearchKey, term) || EF.Functions.Like(owner.SearchKey, term)
             orderby pet.Name, pet.Id
             select new BoardingKnownPetReadModel(pet.Id, pet.Name, pet.Species.ToString(),
                 pet.Breed ?? "", owner.FullName, owner.PhonePrimary, owner.Id)).Take(200).ToListAsync(ct);
