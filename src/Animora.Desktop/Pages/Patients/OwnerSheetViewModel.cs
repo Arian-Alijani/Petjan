@@ -416,6 +416,9 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         }
 
         var owner = _owner;
+        // [Task 4] محتوای مودال افزودن حیوان عرض 760 (.modal.wide) دارد؛ پس هاست باید
+        // با maxWidth=760 باز شود (مثل PatientsPageViewModel) وگرنه روی پیش‌فرض 520
+        // بریده/نصفه نمایش داده می‌شود.
         _dialogs.ShowModal(new AddPetModalViewModel(
             owner,
             async req =>
@@ -425,7 +428,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
                 await LoadAsync(owner.Id);
                 _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
             },
-            _dialogs, _toast));
+            _dialogs, _toast), 760);
     }
 
     [RelayCommand]
