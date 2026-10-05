@@ -201,8 +201,10 @@ public sealed partial class NewStayModalViewModel : ObservableObject
 
         SelectedRoomOption = RoomOptions.FirstOrDefault();
 
-        // Reference defaults the check-in to today's Jalali date.
-        CheckInText = BoardingPresentation.Short(DateOnly.FromDateTime(DateTime.Today));
+        // Reference defaults the check-in to today's Jalali date. Store it as the
+        // picker's ASCII «yyyy/MM/dd» ISO form so JalaliDatePicker can parse it
+        // (it renders Persian digits itself; ParseJalali normalizes on submit).
+        CheckInText = JalaliCalendar.Today;
     }
 
     [RelayCommand]

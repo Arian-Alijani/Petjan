@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:boarding="using:Animora.Desktop.Pages.Boarding"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Boarding.NewStayModalView"
              x:Name="Root"
              x:DataType="boarding:NewStayModalViewModel"
@@ -242,11 +243,13 @@
                     </StackPanel>
                     <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,12">
                         <TextBlock Classes="flabel" Text="تاریخ ورود *" />
-                        <TextBox Text="{Binding CheckInText}" FontSize="13" PlaceholderText="۱۴۰۴/۰۶/۰۱" />
+                        <controls:JalaliDatePicker DateValue="{Binding CheckInText, Mode=TwoWay}"
+                                                   Placeholder="۱۴۰۴/۰۶/۰۱" HorizontalAlignment="Stretch" />
                     </StackPanel>
                     <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,12">
                         <TextBlock Classes="flabel" Text="تاریخ خروج *" />
-                        <TextBox Text="{Binding CheckOutText}" FontSize="13" PlaceholderText="۱۴۰۴/۰۶/۱۰" />
+                        <controls:JalaliDatePicker DateValue="{Binding CheckOutText, Mode=TwoWay}"
+                                                   Placeholder="۱۴۰۴/۰۶/۱۰" HorizontalAlignment="Stretch" />
                     </StackPanel>
                 </Grid>
 
