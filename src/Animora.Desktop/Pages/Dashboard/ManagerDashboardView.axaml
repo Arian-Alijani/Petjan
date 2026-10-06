@@ -272,7 +272,7 @@
                                               Stroke="{StaticResource Brand700Brush}"
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                     </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
                                         <TextBlock Text="{Binding Title}" TextWrapping="Wrap"
                                                    FontSize="{StaticResource FontSizeSm}"
                                                    FontWeight="Bold"
@@ -281,7 +281,7 @@
                                                    FontSize="{StaticResource FontSizeXs}"
                                                    Foreground="{StaticResource MutedBrush}" />
                                     </StackPanel>
-                                    <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
+                                    <controls:Badge Grid.Column="3" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
                                 </Grid>
                                 </Border>
                             </DataTemplate>
@@ -418,7 +418,7 @@
                                               Stroke="{StaticResource Brand700Brush}"
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                     </Border>
-                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
                                         <TextBlock Text="{Binding Title}"
                                                    FontSize="{StaticResource FontSizeSm}"
                                                    FontWeight="Bold"
@@ -429,7 +429,7 @@
                                                    TextWrapping="Wrap"
                                                    Foreground="{StaticResource MutedBrush}" />
                                     </StackPanel>
-                                    <controls:Badge Grid.Column="3" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
+                                    <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
                                 </Grid>
                                 </Border>
                             </DataTemplate>

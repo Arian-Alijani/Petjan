@@ -3,6 +3,7 @@ using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Purchasing;
 using Animora.Desktop.Pages.Sales;
+using Animora.Desktop.Pages.Statistics;
 using Animora.Desktop.Pages.Vaccination;
 using Animora.Desktop.Pages.Visits;
 using Animora.Desktop.Shell;
@@ -39,15 +40,20 @@ public sealed record DashboardQuickAction(
     /// source of truth shared by the dashboard tiles and the shell's global
     /// Alt+1..7 hotkeys, so the two can never drift.
     /// </summary>
+    // Order mirrors the hamburger menu (NavigationMenu.Items) exactly, so the
+    // Alt+N hint and the global Alt+1..N hotkey (both driven by this list's
+    // ordinal position) stay in lock-step with the sidebar. «خرید و تأمین» has
+    // no sidebar entry, so it keeps last place after the menu-backed tiles.
     public static IReadOnlyList<DashboardQuickAction> All { get; } = new[]
     {
         new DashboardQuickAction("نوبت جدید", "ثبت در تقویم", "IconCalendar", typeof(AppointmentsCalendarViewModel), "#0d9488", "#f0fdfa", 1),
-        new DashboardQuickAction("پرونده بیمار", "جستجو و ثبت", "IconUsers", typeof(PatientsPageViewModel), "#7b5cc4", "#ece5fb", 2),
-        new DashboardQuickAction("شروع ویزیت", "ثبت معاینه", "IconClipboard", typeof(VisitsTriagePageViewModel), "#1570cd", "#eff8ff", 3),
-        new DashboardQuickAction("واکسیناسیون", "یادآور و سوابق", "IconSyringe", typeof(VaccinationPageViewModel), "#027a48", "#ecfdf3", 4),
-        new DashboardQuickAction("فروش و صندوق", "صدور فاکتور", "IconCart", typeof(SalePageViewModel), "#d9803f", "#fbe7d6", 5),
+        new DashboardQuickAction("فروش و صندوق", "صدور فاکتور", "IconCart", typeof(SalePageViewModel), "#d9803f", "#fbe7d6", 2),
+        new DashboardQuickAction("پرونده بیمار", "جستجو و ثبت", "IconUsers", typeof(PatientsPageViewModel), "#7b5cc4", "#ece5fb", 3),
+        new DashboardQuickAction("شروع ویزیت", "ثبت معاینه", "IconClipboard", typeof(VisitsTriagePageViewModel), "#1570cd", "#eff8ff", 4),
+        new DashboardQuickAction("واکسیناسیون", "یادآور و سوابق", "IconSyringe", typeof(VaccinationPageViewModel), "#027a48", "#ecfdf3", 5),
         new DashboardQuickAction("انبار و کالا", "کنترل موجودی", "IconBox", typeof(InventoryPageViewModel), "#b54708", "#fffaeb", 6),
-        new DashboardQuickAction("خرید و تأمین", "سفارش تأمین", "IconTruck", typeof(PurchasingPageViewModel), "#14b8a6", "#e5f4f0", 7),
+        new DashboardQuickAction("آمار", "گزارش و تحلیل", "IconChart", typeof(StatisticsPageViewModel), "#6938ef", "#f4f0ff", 7),
+        new DashboardQuickAction("خرید و تأمین", "سفارش تأمین", "IconTruck", typeof(PurchasingPageViewModel), "#14b8a6", "#e5f4f0", 8),
     };
 
     /// <summary>The «Alt+N» corner hint with a Persian digit (e.g. «Alt+۱»).</summary>

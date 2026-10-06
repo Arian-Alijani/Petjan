@@ -21,6 +21,7 @@ public partial class MainWindow : Window
         [Key.D5] = 5, [Key.NumPad5] = 5,
         [Key.D6] = 6, [Key.NumPad6] = 6,
         [Key.D7] = 7, [Key.NumPad7] = 7,
+        [Key.D8] = 8, [Key.NumPad8] = 8,
     };
 
     // The real app shell (Phase 05). Composed from the DI-injected
@@ -65,7 +66,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Alt+1..7 switch sections — but never hijack typing in a text field.
+        // Alt+1..8 switch sections — but never hijack typing in a text field.
         if (e.KeyModifiers.HasFlag(KeyModifiers.Alt)
             && AltSections.TryGetValue(e.Key, out var section)
             && !IsTextInputFocused())
