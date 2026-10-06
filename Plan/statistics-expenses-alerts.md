@@ -336,7 +336,7 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
 
 ### Phase B — Contracts + Client.Services seam
 
-- [ ] **Task 4 — Statistics contracts + client service.**
+- [x] **Task 4 — Statistics contracts + client service.** _(done: `Contracts/Statistics/{StatisticsModels,IStatisticsQueryService,StatisticsQueryException}.cs`, `Client.Services/Statistics/{StatisticsQueryService,StatisticsMapping}.cs`; DI registration is Task 5)_
   Create `Contracts/Statistics/` with DTOs (overview, revenue series point, source slice, expense
   row, expense-category stat, top-product, top-client, species slice, recurring-expense row) and
   `IStatisticsQueryService` (+ a `StatisticsQueryException` mirroring `DashboardQueryException`'s
