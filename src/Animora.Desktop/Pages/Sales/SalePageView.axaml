@@ -515,9 +515,9 @@
                                     </StackPanel>
                                 </Grid>
 
-                                <!-- terminal banner (void / refunded) -->
+                                <!-- state banner: void (red) / refunded (amber) / posted-settled (green) -->
                                 <Border Classes="sw-terminal" Margin="0,0,0,12"
-                                        IsVisible="{Binding SelectedInvoice.IsLocked}"
+                                        IsVisible="{Binding SelectedInvoice.IsVoidBanner}"
                                         Background="{StaticResource DangerBgBrush}"
                                         BorderBrush="{StaticResource DangerBrush}">
                                     <StackPanel Orientation="Horizontal" Spacing="14">
@@ -531,9 +531,53 @@
                                         <StackPanel Spacing="2" VerticalAlignment="Center">
                                             <TextBlock FontSize="13.5" FontWeight="ExtraBold"
                                                        Foreground="{StaticResource DangerBrush}"
-                                                       Text="فاکتور ابطال شد" />
+                                                       Text="{Binding SelectedInvoice.BannerText}" />
                                             <TextBlock FontSize="12.5" Foreground="{StaticResource MutedBrush}"
-                                                       Text="این فاکتور دیگر قابل ویرایش یا پرداخت نیست." />
+                                                       Text="{Binding SelectedInvoice.BannerSubText}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="sw-terminal" Margin="0,0,0,12"
+                                        IsVisible="{Binding SelectedInvoice.IsRefundBanner}"
+                                        Background="{StaticResource WarnBgBrush}"
+                                        BorderBrush="{StaticResource WarnBrush}">
+                                    <StackPanel Orientation="Horizontal" Spacing="14">
+                                        <Border Width="36" Height="36" CornerRadius="10"
+                                                Background="{StaticResource PanelBrush}">
+                                            <Path Classes="icon" Width="18" Height="18"
+                                                  Stroke="{StaticResource WarnBrush}"
+                                                  Data="{StaticResource IconX}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock FontSize="13.5" FontWeight="ExtraBold"
+                                                       Foreground="{StaticResource WarnBrush}"
+                                                       Text="{Binding SelectedInvoice.BannerText}" />
+                                            <TextBlock FontSize="12.5" Foreground="{StaticResource MutedBrush}"
+                                                       Text="{Binding SelectedInvoice.BannerSubText}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="sw-terminal" Margin="0,0,0,12"
+                                        IsVisible="{Binding SelectedInvoice.IsSuccessBanner}"
+                                        Background="{StaticResource OkBgBrush}"
+                                        BorderBrush="{StaticResource OkBrush}">
+                                    <StackPanel Orientation="Horizontal" Spacing="14">
+                                        <Border Width="36" Height="36" CornerRadius="10"
+                                                Background="{StaticResource PanelBrush}">
+                                            <Path Classes="icon" Width="18" Height="18"
+                                                  Stroke="{StaticResource OkBrush}"
+                                                  Data="{StaticResource IconCheck}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock FontSize="13.5" FontWeight="ExtraBold"
+                                                       Foreground="{StaticResource OkBrush}"
+                                                       Text="{Binding SelectedInvoice.BannerText}" />
+                                            <TextBlock FontSize="12.5" Foreground="{StaticResource MutedBrush}"
+                                                       Text="{Binding SelectedInvoice.BannerSubText}" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>

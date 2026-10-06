@@ -26,6 +26,20 @@ public sealed class SaleInvoiceViewModel
         IsTerminalVoid = detail.State == InvoiceState.Void;
         IsRefunded = detail.State == InvoiceState.Refunded;
 
+        // A posted invoice is locked too, so «locked» alone must never read as «voided»: each state gets its own
+        // banner (red = void, amber = refunded, green = successfully posted / settled).
+        IsVoidBanner = IsTerminalVoid;
+        IsRefundBanner = IsRefunded;
+        IsSuccessBanner = detail.State is InvoiceState.Settled or InvoiceState.Partial;
+        (BannerText, BannerSubText) = detail.State switch
+        {
+            InvoiceState.Void => ("فاکتور ابطال شد", "این فاکتور دیگر قابل ویرایش یا پرداخت نیست."),
+            InvoiceState.Refunded => ("فاکتور مسترد شد", "مبلغ این فاکتور به مشتری بازگردانده شده است."),
+            InvoiceState.Settled => ("فاکتور با موفقیت ثبت و تسویه شد", "پرداخت کامل ثبت شد؛ فاکتور قفل است و قابل ویرایش نیست."),
+            InvoiceState.Partial => ("فاکتور با موفقیت ثبت شد", "بخشی از مبلغ پرداخت شده و مانده هنوز تسویه نشده است."),
+            _ => (string.Empty, string.Empty),
+        };
+
         AvatarBrush = SalePresentation.AvatarBrush(detail.AvatarTone);
         PetInitial = detail.PetInitial;
 
@@ -78,6 +92,16 @@ public sealed class SaleInvoiceViewModel
     public bool IsTerminalVoid { get; }
 
     public bool IsRefunded { get; }
+
+    public bool IsVoidBanner { get; }
+
+    public bool IsRefundBanner { get; }
+
+    public bool IsSuccessBanner { get; }
+
+    public string BannerText { get; }
+
+    public string BannerSubText { get; }
 
     public IBrush AvatarBrush { get; }
 

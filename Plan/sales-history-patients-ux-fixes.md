@@ -112,7 +112,7 @@ user knows the invoice was saved correctly.
 2. Confirm the Sales post/settle toast is `Tone.Ok` (green). If any `Tone.Danger` is shown on success, fix it.
 - Files: `src/Animora.Desktop/Pages/Sales/SalePageView.axaml`,
   `src/Animora.Desktop/Pages/Sales/SaleInvoiceViewModel.cs`.
-- STATUS: ☐ pending
+- STATUS: ☑ done — state-driven banners: void=red, refunded=amber, settled/partial=green success (BannerText/IsVoidBanner/IsRefundBanner/IsSuccessBanner on SaleInvoiceViewModel). Toasts verified Tone.Ok on success.
 
 ---
 
