@@ -19,7 +19,6 @@ using Animora.Application.UseCases.Profile;
 using Animora.Client.Services.Boarding;
 using Animora.Client.Services.Cashier;
 using Animora.Client.Services.Inventory;
-using Animora.Client.Services.Purchasing;
 using Animora.Client.Services.Diagnostics;
 using Animora.Client.Services.Identity;
 using Animora.Client.Services.Patients;
@@ -38,7 +37,6 @@ using Animora.Contracts.Identity;
 using Animora.Contracts.Inventory;
 using Animora.Contracts.Patients;
 using Animora.Contracts.Profile;
-using Animora.Contracts.Purchasing;
 using Animora.Contracts.Reception;
 using Animora.Contracts.Sales;
 using Animora.Contracts.Search;
@@ -58,7 +56,6 @@ using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Login;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Profile;
-using Animora.Desktop.Pages.Purchasing;
 using Animora.Desktop.Pages.Sales;
 using Animora.Desktop.Pages.Reception;
 using Animora.Desktop.Pages.Vaccination;
@@ -344,11 +341,6 @@ public partial class App : global::Avalonia.Application
         // Cheques: real service over the cheque use cases (scope-per-call dispatcher; state machine stays in the domain).
         services.AddSingleton<Animora.Contracts.Cheques.IChequesService, Animora.Client.Services.Cheques.ChequesService>();
         services.AddSingleton<Animora.Desktop.Pages.Cheques.ChequesPageViewModel>();
-
-        // Phase 19: Purchase & suppliers screen. Stateless deterministic mock,
-        // so a singleton suffices.
-        services.AddSingleton<IPurchasingQueryService, PurchasingQueryService>();
-        services.AddSingleton<PurchasingPageViewModel>();
 
         // C07: scope-per-call Sales service over the local journaled dispatcher.
         services.AddSingleton<ISalesQueryService, SalesQueryService>();

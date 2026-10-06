@@ -1,7 +1,6 @@
 using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Patients;
-using Animora.Desktop.Pages.Purchasing;
 using Animora.Desktop.Pages.Sales;
 using Animora.Desktop.Pages.Statistics;
 using Animora.Desktop.Pages.Vaccination;
@@ -42,8 +41,7 @@ public sealed record DashboardQuickAction(
     /// </summary>
     // Order mirrors the hamburger menu (NavigationMenu.Items) exactly, so the
     // Alt+N hint and the global Alt+1..N hotkey (both driven by this list's
-    // ordinal position) stay in lock-step with the sidebar. «خرید و تأمین» has
-    // no sidebar entry, so it keeps last place after the menu-backed tiles.
+    // ordinal position) stay in lock-step with the sidebar.
     public static IReadOnlyList<DashboardQuickAction> All { get; } = new[]
     {
         new DashboardQuickAction("نوبت جدید", "ثبت در تقویم", "IconCalendar", typeof(AppointmentsCalendarViewModel), "#0d9488", "#f0fdfa", 1),
@@ -53,7 +51,6 @@ public sealed record DashboardQuickAction(
         new DashboardQuickAction("واکسیناسیون", "یادآور و سوابق", "IconSyringe", typeof(VaccinationPageViewModel), "#027a48", "#ecfdf3", 5),
         new DashboardQuickAction("انبار و کالا", "کنترل موجودی", "IconBox", typeof(InventoryPageViewModel), "#b54708", "#fffaeb", 6),
         new DashboardQuickAction("آمار", "گزارش و تحلیل", "IconChart", typeof(StatisticsPageViewModel), "#6938ef", "#f4f0ff", 7),
-        new DashboardQuickAction("خرید و تأمین", "سفارش تأمین", "IconTruck", typeof(PurchasingPageViewModel), "#14b8a6", "#e5f4f0", 8),
     };
 
     /// <summary>The «Alt+N» corner hint with a Persian digit (e.g. «Alt+۱»).</summary>

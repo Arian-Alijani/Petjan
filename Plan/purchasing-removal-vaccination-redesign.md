@@ -135,16 +135,16 @@
 - `[x]` ساخت همین فایل پلن در `Plan/`.
 - `[x]` `scripts/git/push.sh -b genspark_ai_developer "docs(plan): add purchasing-removal + vaccination redesign plan"` (اگر کد ۳ → `setup_github_environment` سپس دوباره).
 
-### T1 — حذف کامل صفحهٔ «خرید و تأمین» (فقط UI)
-- `[ ]` حذف پوشهٔ `src/Animora.Desktop/Pages/Purchasing/` (هر ۴ فایل).
-- `[ ]` اصلاح `DashboardQuickAction.cs`: حذف using و حذف سطرِ کاشیِ «خرید و تأمین». (AltKeyهای بقیه دست نخورند؛ آخرین کاشی حذف می‌شود پس ۱..۷ سالم می‌ماند.)
-- `[ ]` اصلاح `App.axaml.cs`: حذف دو خط ثبتِ DI (`IPurchasingQueryService`+`PurchasingPageViewModel`) و usingهای بلااستفاده.
-- `[ ]` اصلاح `NavPermissions.cs` و `ViewFactory.cs`: حذف سطرهای Purchasing.
-- `[ ]` اصلاح کامنتِ `SidebarViewModel.cs` (برداشتن نامِ Purchasing از مثال).
-- `[ ]` حذف `src/Animora.Contracts/Purchasing/IPurchasingQueryService.cs` و `src/Animora.Client.Services/Purchasing/PurchasingQueryService.cs`. برای `PurchasingModels.cs`: اول `grep -rn "Animora.Contracts.Purchasing" src/` — اگر مصرفِ دیگری نبود حذف، وگرنه نگه‌دار.
-- `[ ]` **خطِ قرمز:** Domain/Application/Persistence/Finance/Cheques مربوط به Purchasing/Supplier را دست نزن.
-- `[ ]` بیلد سریع `scripts/sandbox/build.sh` = 0/0. `grep -rn "PurchasingPageViewModel\|PurchasingPageView\|IPurchasingQueryService" src/Animora.Desktop/` باید خالی باشد.
-- `[ ]` پوش: `scripts/git/push.sh "feat(purchasing): remove purchasing & suppliers screen (UI) and dashboard quick action"`.
+### T1 — حذف کامل صفحهٔ «خرید و تأمین» (فقط UI) ✅ انجام شد
+- `[x]` حذف پوشهٔ `src/Animora.Desktop/Pages/Purchasing/` (هر ۴ فایل).
+- `[x]` اصلاح `DashboardQuickAction.cs`: using و سطرِ کاشیِ «خرید و تأمین» حذف شد. کامنت هم به‌روز شد.
+- `[x]` اصلاح `App.axaml.cs`: دو خط DI + سه usingِ UI/Contracts/Client Purchasing حذف شد. **نکته:** خط `using Animora.Application.UseCases.Purchasing;` نگه داشته شد چون `AddPurchasingUseCases()` (backend) از آن است.
+- `[x]` `NavPermissions.cs`: هم سطرِ ByPage و هم `["purchasing"]=PurchasingRead` حذف شد. `ViewFactory.cs`: سطر Register حذف شد.
+- `[x]` کامنتِ `SidebarViewModel.cs`: مثال از Purchasing به Reception تغییر کرد.
+- `[x]` حذف `IPurchasingQueryService.cs`, `PurchasingModels.cs` (Contracts) و `PurchasingQueryService.cs` (Client) + پوشه‌های خالی. تأیید شد `Animora.Contracts.Purchasing` فقط در همین‌ها مصرف می‌شد.
+- `[x]` **خطِ قرمز رعایت شد:** Domain/Application/Persistence/Finance/Cheques مربوط به Purchasing/Supplier دست نخورد.
+- `[x]` بیلد سریع 0/0 ✅. `grep` در `src/Animora.Desktop/` برای انواع حذف‌شده خالی است.
+- `[x]` پوش انجام شد.
 
 ### T2 — Domain: aggregate جدید TreatmentPlan + Occurrence
 - `[ ]` ساخت `src/Animora.Domain/Clinical/TreatmentPlan.cs` (AggregateRoot) با enumها (`TreatmentItemType`, `TreatmentKind`, `TreatmentScheduleType`, `TreatmentPlanState`, `TreatmentOccurrenceState`) و متدِ factory که از schedule، occurrenceها را تولید می‌کند (با سقفِ ۳۶۵/۱سال) و `MarkOccurrenceDone`, `Cancel`.
