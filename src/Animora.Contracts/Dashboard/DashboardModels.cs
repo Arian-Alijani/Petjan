@@ -155,7 +155,11 @@ public sealed record DashboardSnapshot(
     DashboardRevenuePulse? RevenuePulse = null,
     IReadOnlyList<DashboardDoctorLoad>? DoctorLoads = null,
     IReadOnlyList<DashboardSpecies>? Species = null,
-    DashboardFreshness? Freshness = null)
+    DashboardFreshness? Freshness = null,
+    // Urgent cross-section alerts (cheques, recorded/recurring expenses) shown in the dedicated always-visible box,
+    // already permission-gated and urgency-ordered. AlertOverflow = urgent items beyond the bounded list.
+    IReadOnlyList<DashboardListItem>? Alerts = null,
+    int AlertOverflow = 0)
 {
     // Copy once at construction, never at cache-hit. Elements are immutable records.
     private readonly IReadOnlyList<DashboardStat> _stats = DashboardCollections.Freeze(Stats);
@@ -166,6 +170,8 @@ public sealed record DashboardSnapshot(
     public IReadOnlyList<DashboardListItem> SecondaryList { get => _secondaryList; init => _secondaryList = DashboardCollections.Freeze(value); }
     private readonly IReadOnlyList<DashboardDoctorLoad>? _doctorLoads = DoctorLoads is null ? null : DashboardCollections.Freeze(DoctorLoads);
     public IReadOnlyList<DashboardDoctorLoad>? DoctorLoads { get => _doctorLoads; init => _doctorLoads = value is null ? null : DashboardCollections.Freeze(value); }
+    private readonly IReadOnlyList<DashboardListItem> _alerts = DashboardCollections.Freeze(Alerts ?? []);
+    public IReadOnlyList<DashboardListItem>? Alerts { get => _alerts; init => _alerts = DashboardCollections.Freeze(value ?? []); }
     private readonly IReadOnlyList<DashboardSpecies>? _species = Species is null ? null : DashboardCollections.Freeze(Species);
     public IReadOnlyList<DashboardSpecies>? Species { get => _species; init => _species = value is null ? null : DashboardCollections.Freeze(value); }
 }

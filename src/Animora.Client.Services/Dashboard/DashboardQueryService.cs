@@ -142,7 +142,7 @@ internal static class DashboardMapping
         {
             UserRole.Cashier => (slice.ReadyBillingRows ?? []).Select(x => OperationalItem(x, zone)).ToArray(),
             UserRole.Doctor => (slice.ReminderRows ?? []).Select(x => OperationalItem(x, zone)).ToArray(),
-            _ => MergeAlerts(slice, zone),
+            _ => (slice.Activity ?? []).Take(ActivityCapacity).Select(x => Item(x, zone)).ToArray(),
         };
         var manager = role is UserRole.Manager or UserRole.Receptionist;
         var values = slice.RevenueDays.Select(x => x.RevenueMinor).ToArray();
@@ -153,25 +153,19 @@ internal static class DashboardMapping
             {
                 UserRole.Cashier => "آماده صدور فاکتور",
                 UserRole.Doctor => "یادآور واکسن بیماران امروز",
-                _ => slice.Alerts is { Count: > 0 } ? "هشدارها و فعالیت‌های اخیر" : "فعالیت‌های اخیر",
+                _ => "فعالیت‌های اخیر",
             }, secondary,
             (slice.Access?.Finance ?? manager) ? Pulse(slice.RevenueDays, today, points, zeroLevel, values) : null,
             (slice.Access?.Workloads ?? manager) ? slice.Workloads.Select(Load).ToArray() : null,
             (slice.Access?.Patients ?? manager) && role != UserRole.Doctor ? slice.Species.OrderByDescending(x => x.Value).ThenBy(x => x.Key, StringComparer.Ordinal)
-                .Select(x => new DashboardSpecies(SpeciesName(x.Key), x.Value, SpeciesColor(x.Key), x.Key)).ToArray() : null);
+                .Select(x => new DashboardSpecies(SpeciesName(x.Key), x.Value, SpeciesColor(x.Key), x.Key)).ToArray() : null,
+            Alerts: (slice.Alerts ?? []).Select(AlertItem).ToArray(), AlertOverflow: slice.AlertOverflow);
     }
 
     private const string CurrencyLabel = "تومان";
 
-    // Alerts (already permission-gated and urgency-ordered by the Application read) lead the card; the remaining room is
-    // filled with the latest activity. Presentation only: no permission or port access here.
-    private static DashboardListItem[] MergeAlerts(DashboardSlice slice, TimeZoneInfo zone)
-    {
-        const int capacity = 8;
-        var alerts = (slice.Alerts ?? []).Take(capacity).Select(AlertItem).ToList();
-        alerts.AddRange(slice.Activity.Take(capacity - alerts.Count).Select(x => Item(x, zone)));
-        return alerts.ToArray();
-    }
+    // Recent-activity capacity of the secondary card; urgent alerts live in their own box (DashboardSnapshot.Alerts).
+    private const int ActivityCapacity = 8;
 
     internal static DashboardListItem AlertItem(DashboardAlertRow alert)
     {

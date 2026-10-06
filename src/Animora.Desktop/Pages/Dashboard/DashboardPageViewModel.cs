@@ -189,6 +189,48 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     public IReadOnlyList<DashboardRowViewModel> SecondaryList => _presentation?.SecondaryList ?? Array.Empty<DashboardRowViewModel>();
 
+    /// <summary>Urgent cross-section alerts (cheques, recorded expenses) for the always-visible alert box.</summary>
+    public IReadOnlyList<DashboardRowViewModel> AlertRows => _presentation?.Alerts ?? Array.Empty<DashboardRowViewModel>();
+
+    public bool HasAlerts => AlertRows.Count > 0;
+
+    /// <summary>The calm «no urgent alerts» state is shown only once real data has loaded.</summary>
+    public bool ShowAlertsEmpty => HasData && AlertRows.Count == 0;
+
+    public bool HasDangerAlerts => AlertRows.Any(x => x.IsDanger);
+
+    public string AlertCountText => AlertRows.Count == 0
+        ? string.Empty
+        : Localization.PersianNumberFormatter.ToPersianDigits(
+            (AlertRows.Count + (_presentation?.Snapshot.AlertOverflow ?? 0)).ToString(System.Globalization.CultureInfo.InvariantCulture)) + " مورد";
+
+    public bool HasAlertOverflow => (_presentation?.Snapshot.AlertOverflow ?? 0) > 0;
+
+    public string AlertOverflowText => "+" + Localization.PersianNumberFormatter.ToPersianDigits(
+        (_presentation?.Snapshot.AlertOverflow ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture)) + " مورد دیگر";
+
+    /// <summary>Opens the screen that owns an alert: a cheque alert → the cheques screen, an expense alert → the expenses statistics.</summary>
+    [RelayCommand]
+    private void OpenAlert(DashboardRowViewModel? alert)
+    {
+        if (alert is null)
+        {
+            return;
+        }
+
+        OpenAlertTarget(alert.Kind);
+    }
+
+    /// <summary>Overflow affordance: routes to the screen of the most urgent alert.</summary>
+    [RelayCommand]
+    private void OpenAlertOverflow() => OpenAlertTarget(AlertRows.Count > 0 ? AlertRows[0].Kind : string.Empty);
+
+    private void OpenAlertTarget(string kind)
+    {
+        _navigation.NavigateTo<Animora.Desktop.Pages.Statistics.StatisticsPageViewModel>(
+            page => page.ShowSectionCommand.Execute(Animora.Desktop.Pages.Statistics.StatisticsSection.Expenses));
+    }
+
     /// <summary>Manager-only: the doctor-workload rows.</summary>
     public IReadOnlyList<DashboardDoctorLoadViewModel> DoctorLoads => _presentation?.DoctorLoads ?? Array.Empty<DashboardDoctorLoadViewModel>();
 
@@ -326,6 +368,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     // All allocations, parsing and formatting happen before any observable state is touched.
     private sealed record PreparedDashboard(DashboardSnapshot Snapshot, IReadOnlyList<DashboardStat> Stats,
         IReadOnlyList<DashboardRowViewModel> PrimaryList, IReadOnlyList<DashboardRowViewModel> SecondaryList,
+        IReadOnlyList<DashboardRowViewModel> Alerts,
         IReadOnlyList<DashboardDoctorLoadViewModel> DoctorLoads, IReadOnlyList<DashboardSpeciesViewModel> Species,
         ChartGeometry Chart, string Tooltip, string Total, string Sub,
         IReadOnlyList<DonutSlice> Slices)
@@ -346,6 +389,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         return new PreparedDashboard(snapshot, snapshot.Stats,
             snapshot.PrimaryList.Select(x => new DashboardRowViewModel(x)).ToArray(),
             snapshot.SecondaryList.Select(x => new DashboardRowViewModel(x)).ToArray(),
+            (snapshot.Alerts ?? Array.Empty<DashboardListItem>()).Select(x => new DashboardRowViewModel(x)).ToArray(),
             (snapshot.DoctorLoads ?? Array.Empty<DashboardDoctorLoad>()).Select(x => new DashboardDoctorLoadViewModel(x)).ToArray(),
             rows, BuildRevenueChart(snapshot.RevenuePulse), RevenueTooltipText(snapshot.RevenuePulse),
             Localization.PersianNumberFormatter.FormatGrouped(total),

@@ -28,6 +28,75 @@
             </Grid>
         </Border>
 
+        <!-- Urgent alert box (always visible, first thing under the banners): cheque + recorded-expense alerts,
+             colour-coded by urgency (danger = bounced/overdue, warn = due soon) and tagged by owning section.
+             Empty = a calm, de-emphasised «no urgent alerts» state so the layout never jumps. -->
+        <Border Classes="card" x:Name="AlertBox" IsVisible="{Binding HasData}">
+            <StackPanel>
+                <Grid Classes="card-header" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+                    <Path Grid.Column="0" Classes="icon" Width="18" Height="18" VerticalAlignment="Center"
+                          Stroke="{StaticResource WarnBrush}"
+                          Data="{StaticResource IconBell}" />
+                    <TextBlock Grid.Column="1" Classes="card-title" VerticalAlignment="Center" Text="هشدارهای فوری" />
+                    <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding AlertCountText}"
+                                    IsVisible="{Binding HasAlerts}" Tone="Danger" />
+                    <Button Grid.Column="3" VerticalAlignment="Center" Content="{Binding AlertOverflowText}"
+                            IsVisible="{Binding HasAlertOverflow}" Command="{Binding OpenAlertOverflowCommand}" />
+                </Grid>
+                <Border Classes="card-header-rule" />
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="18"
+                            IsVisible="{Binding ShowAlertsEmpty}" Opacity="0.75">
+                    <Path Classes="icon" Width="16" Height="16" VerticalAlignment="Center"
+                          Stroke="{StaticResource OkBrush}" Data="{StaticResource IconCheck}" />
+                    <TextBlock Text="بدون هشدار فوری" VerticalAlignment="Center"
+                               Foreground="{StaticResource MutedBrush}" />
+                </StackPanel>
+                <ItemsControl Margin="14,12,14,10" ItemsSource="{Binding AlertRows}" IsVisible="{Binding HasAlerts}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <controls:AdaptiveGrid MinItemWidth="340" MaxColumns="2" ColumnSpacing="8" RowSpacing="4" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
+                            <Button Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                    Command="{Binding $parent[UserControl].((dashboard:DashboardPageViewModel)DataContext).OpenAlertCommand}"
+                                    CommandParameter="{Binding}"
+                                    AutomationProperties.Name="{Binding Title}">
+                                <Border Classes="dash-row">
+                                    <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
+                                        <Border Grid.Column="0" Classes="alert-edge" Classes.danger="{Binding IsDanger}"
+                                                Classes.warn="{Binding IsWarn}" />
+                                        <Border Grid.Column="1" Classes="alert-ico" Classes.danger="{Binding IsDanger}"
+                                                Classes.warn="{Binding IsWarn}" Width="34" Height="34" CornerRadius="10"
+                                                Background="{StaticResource Brand50Brush}">
+                                            <Path Classes="icon" Width="18" Height="18"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Stroke="{StaticResource Brand700Brush}"
+                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
+                                            <TextBlock Text="{Binding Title}" TextWrapping="Wrap"
+                                                       FontSize="{StaticResource FontSizeSm}" FontWeight="Bold"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding Subtitle}" TextWrapping="Wrap"
+                                                       FontSize="{StaticResource FontSizeXs}"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="4">
+                                            <controls:Badge Text="{Binding SectionLabel}" Tone="Neutral" HorizontalAlignment="Right" />
+                                            <controls:Badge Text="{Binding TagText}" Tone="{Binding Tone}" HorizontalAlignment="Right" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
         <!-- KPI row: Phase 03 StatCard, matching .stats-grid (4 columns). -->
         <ItemsControl ItemsSource="{Binding Stats}">
             <ItemsControl.ItemsPanel>

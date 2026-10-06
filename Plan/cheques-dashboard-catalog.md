@@ -424,7 +424,7 @@ and empty-state patterns. Requirements from the user:
 
 ## Status
 - [x] A — catalog picker visibility fix
-- [ ] B — dashboard alert box
+- [x] B — dashboard alert box (cheque-alert click is re-pointed to the Cheques screen in C.4)
 - [ ] C.1 — Application cheque use-cases
 - [ ] C.2 — Contracts Cheques
 - [ ] C.3 — Client.Services Cheques + DI

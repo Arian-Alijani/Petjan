@@ -20,30 +20,6 @@
             <Setter Property="Background" Value="{StaticResource RowActiveBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
         </Style>
-        <!-- Management alerts: the icon tile and a leading accent edge take the urgency tone. -->
-        <Style Selector="Border.alert-ico.danger">
-            <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
-        </Style>
-        <Style Selector="Border.alert-ico.warn">
-            <Setter Property="Background" Value="{StaticResource WarnBgBrush}" />
-        </Style>
-        <Style Selector="Border.alert-ico.danger Path">
-            <Setter Property="Stroke" Value="{StaticResource DangerBrush}" />
-        </Style>
-        <Style Selector="Border.alert-ico.warn Path">
-            <Setter Property="Stroke" Value="{StaticResource WarnBrush}" />
-        </Style>
-        <Style Selector="Border.alert-edge">
-            <Setter Property="Width" Value="3" />
-            <Setter Property="CornerRadius" Value="2" />
-            <Setter Property="Background" Value="Transparent" />
-        </Style>
-        <Style Selector="Border.alert-edge.danger">
-            <Setter Property="Background" Value="{StaticResource DangerBrush}" />
-        </Style>
-        <Style Selector="Border.alert-edge.warn">
-            <Setter Property="Background" Value="{StaticResource WarnBrush}" />
-        </Style>
         <Style Selector="Border.legend-row.on TextBlock.lg-name">
             <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
         </Style>

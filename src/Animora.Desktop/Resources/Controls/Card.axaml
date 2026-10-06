@@ -75,4 +75,29 @@
         <Setter Property="Background" Value="{StaticResource RowHoverBrush}" />
     </Style>
 
+
+    <!-- Management alerts (dashboard alert box + list rows): icon tile and leading accent edge take the urgency tone. -->
+        <Style Selector="Border.alert-ico.danger">
+            <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
+        </Style>
+        <Style Selector="Border.alert-ico.warn">
+            <Setter Property="Background" Value="{StaticResource WarnBgBrush}" />
+        </Style>
+        <Style Selector="Border.alert-ico.danger Path">
+            <Setter Property="Stroke" Value="{StaticResource DangerBrush}" />
+        </Style>
+        <Style Selector="Border.alert-ico.warn Path">
+            <Setter Property="Stroke" Value="{StaticResource WarnBrush}" />
+        </Style>
+        <Style Selector="Border.alert-edge">
+            <Setter Property="Width" Value="3" />
+            <Setter Property="CornerRadius" Value="2" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.alert-edge.danger">
+            <Setter Property="Background" Value="{StaticResource DangerBrush}" />
+        </Style>
+        <Style Selector="Border.alert-edge.warn">
+            <Setter Property="Background" Value="{StaticResource WarnBrush}" />
+        </Style>
 </Styles>

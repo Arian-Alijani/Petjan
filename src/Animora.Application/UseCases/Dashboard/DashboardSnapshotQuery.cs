@@ -48,7 +48,7 @@ public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     IReadOnlyList<DashboardOperationalRow>? ReminderRows = null, int AwaitingPaymentCount = 0,
     DashboardProjectionLag? Projection = null,
     long Generation = 0,
-    IReadOnlyList<DashboardAlertRow>? Alerts = null);
+    IReadOnlyList<DashboardAlertRow>? Alerts = null, int AlertOverflow = 0);
 
 /// <summary>The local day and its half-open UTC range, resolved once using ClinicCalendar.</summary>
 public sealed record DashboardDayWindow(int LocalDay, DateTimeOffset StartUtc, DateTimeOffset EndUtc)
@@ -95,8 +95,8 @@ public sealed class DashboardComposer(IDashboardQueries queries, Animora.Domain.
             window = DashboardDayWindow.For(date, zone);
         }
         var slice = await queries.GetSliceAsync(context.TenantId, window, context.UserId, access.Value!, ct);
-        var alerts = await BuildAlertsAsync(window, access.Value!, ct);
-        return Result<DashboardSlice>.Ok(alerts.Count == 0 ? slice : slice with { Alerts = alerts });
+        var (alerts, overflow) = await BuildAlertsAsync(window, access.Value!, ct);
+        return Result<DashboardSlice>.Ok(alerts.Count == 0 ? slice : slice with { Alerts = alerts, AlertOverflow = overflow });
     }
 
     /// <summary>Most alerts the dashboard card ever receives (the list is a glance, not a worklist).</summary>
@@ -107,7 +107,7 @@ public sealed class DashboardComposer(IDashboardQueries queries, Animora.Domain.
     /// (<c>finance.read</c> → fixed expenses, <c>cheques.read</c> → cheques), then the whole list is ordered by urgency
     /// (danger before warn, then the earliest due day). A new alert kind plugs in as one more gated block.
     /// </summary>
-    private async Task<IReadOnlyList<DashboardAlertRow>> BuildAlertsAsync(DashboardDayWindow window, DashboardAccess access,
+    private async Task<(IReadOnlyList<DashboardAlertRow> Rows, int Overflow)> BuildAlertsAsync(DashboardDayWindow window, DashboardAccess access,
         CancellationToken ct)
     {
         var rows = new List<DashboardAlertRow>();
@@ -139,8 +139,9 @@ public sealed class DashboardComposer(IDashboardQueries queries, Animora.Domain.
             }
         }
 
-        return rows.OrderBy(r => r.Severity == "Danger" ? 0 : 1).ThenBy(r => r.DueDay ?? DateOnly.MaxValue)
-            .ThenBy(r => r.Kind, StringComparer.Ordinal).Take(MaxAlerts).ToArray();
+        var ordered = rows.OrderBy(r => r.Severity == "Danger" ? 0 : 1).ThenBy(r => r.DueDay ?? DateOnly.MaxValue)
+            .ThenBy(r => r.Kind, StringComparer.Ordinal).ToArray();
+        return (ordered.Take(MaxAlerts).ToArray(), Math.Max(0, ordered.Length - MaxAlerts));
     }
 
     // Both cache responses and dispatcher reads use this live policy. No TTL-based permission cache.

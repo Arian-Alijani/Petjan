@@ -27,7 +27,20 @@ public sealed class DashboardRowViewModel
         IsAlert = item.Kind.StartsWith("Alert", System.StringComparison.Ordinal);
         IsDanger = IsAlert && item.TagTone == DashboardTone.Danger;
         IsWarn = IsAlert && item.TagTone == DashboardTone.Warn;
+        Kind = item.Kind;
+        SectionLabel = item.Kind switch
+        {
+            "AlertCheque" => "چک",
+            "AlertRecurring" => "هزینه",
+            _ => string.Empty,
+        };
     }
+
+    /// <summary>The stable row kind (<c>AlertCheque</c> | <c>AlertRecurring</c> | …); drives alert navigation.</summary>
+    public string Kind { get; }
+
+    /// <summary>Short owning-section tag of an alert («چک» / «هزینه»); empty for plain activity rows.</summary>
+    public string SectionLabel { get; }
 
     /// <summary>A management alert (fixed expense / cheque) rather than a plain activity row: gets the tinted treatment.</summary>
     public bool IsAlert { get; }
