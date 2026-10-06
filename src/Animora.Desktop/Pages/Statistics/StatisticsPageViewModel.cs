@@ -24,6 +24,16 @@ public sealed partial class StatisticsTabViewModel(StatisticsSection section, st
 
     public string Label { get; } = label;
 
+    /// <summary>Icons theme key (resolved to a geometry by <c>IconKeyConverter</c>) shown before the tab label.</summary>
+    public string IconKey { get; } = section switch
+    {
+        StatisticsSection.Overview => "IconDashboard",
+        StatisticsSection.Clients => "IconUsers",
+        StatisticsSection.Sales => "IconReceipt",
+        StatisticsSection.Expenses => "IconCoins",
+        _ => "IconChart",
+    };
+
     [ObservableProperty]
     private bool _isActive;
 }
