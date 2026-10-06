@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:st="using:Animora.Desktop.Pages.Statistics"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Statistics.StatisticsPageView"
              x:Name="Root"
              x:DataType="st:StatisticsPageViewModel"
@@ -28,6 +29,25 @@
         <Style Selector="Button.st-tab.on">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <!-- Range picker chips (today / 7d / 30d / 90d / ytd / custom). -->
+        <Style Selector="Button.st-chip">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="CornerRadius" Value="999" />
+        </Style>
+        <Style Selector="Button.st-chip:pointerover">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.st-chip.on">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
         </Style>
         <Style Selector="Button.st-tab.on /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
@@ -61,6 +81,33 @@
                 </ItemsControl>
             </Border>
         </Grid>
+
+        <!-- ═══ Range picker: drives every section ═══ -->
+        <StackPanel Spacing="8">
+            <ItemsControl ItemsSource="{Binding RangeChips}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="st:StatisticsRangeChipViewModel">
+                        <Button Classes="st-chip" Classes.on="{Binding IsActive}" Content="{Binding Label}"
+                                Margin="0,0,6,6"
+                                Command="{Binding #Root.((st:StatisticsPageViewModel)DataContext).SelectRangeCommand}"
+                                CommandParameter="{Binding Id}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsCustomRange}">
+                <TextBlock Text="از" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                <controls:JalaliDatePicker Width="160" DateValue="{Binding CustomFromDate, Mode=TwoWay}" ToolTip.Tip="از تاریخ" />
+                <TextBlock Text="تا" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                <controls:JalaliDatePicker Width="160" DateValue="{Binding CustomToDate, Mode=TwoWay}" ToolTip.Tip="تا تاریخ" />
+                <TextBlock Text="{Binding CustomRangeHint}" VerticalAlignment="Center"
+                           Foreground="{StaticResource DangerBrush}" FontSize="12" />
+            </StackPanel>
+        </StackPanel>
 
         <!-- ═══ Current section (resolved to its view by the shell's ViewLocator) ═══ -->
         <ContentControl Content="{Binding CurrentSection}" />

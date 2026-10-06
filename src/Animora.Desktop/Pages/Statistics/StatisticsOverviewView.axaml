@@ -1,11 +1,115 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:st="using:Animora.Desktop.Pages.Statistics"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Statistics.StatisticsOverviewView"
              x:DataType="st:StatisticsOverviewViewModel"
              x:CompileBindings="True"
              FlowDirection="RightToLeft">
     <StackPanel Spacing="18">
         <st:StatisticsSectionStateView DataContext="{Binding}" />
+
+        <StackPanel Spacing="18" IsVisible="{Binding HasData}">
+            <!-- KPI row: five StatCards, reflowing by the width the content area actually gets. -->
+            <ItemsControl ItemsSource="{Binding Kpis}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="5" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.Styles>
+                    <Style Selector="ContentPresenter">
+                        <Setter Property="Margin" Value="6,6" />
+                    </Style>
+                </ItemsControl.Styles>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="st:StatisticsKpi">
+                        <controls:StatCard Icon="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                           Value="{Binding Value}"
+                                           Label="{Binding Label}"
+                                           Foot="{Binding Foot}"
+                                           Delta="{Binding Delta}"
+                                           IsDeltaPositive="{Binding IsDeltaPositive}"
+                                           IconTone="{Binding Tone}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <controls:AdaptiveGrid MinItemWidth="340" MaxColumns="2" Weights="1.7,1" ColumnSpacing="16" RowSpacing="16">
+                <!-- Revenue / expense / profit trend over the selected range. -->
+                <Border Classes="card">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="*,Auto" Margin="18,14,18,12">
+                            <TextBlock Classes="card-title" Text="روند درآمد و هزینه" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding TrendSummary}" FontSize="12"
+                                       Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                        </Grid>
+                        <Border Classes="card-header-rule" />
+                        <Panel Margin="12,12,12,14" MinHeight="260">
+                            <controls:TrendChart Height="260" Points="{Binding Trend}" IsVisible="{Binding HasTrend}" />
+                            <TextBlock Text="برای نمایش روند، دست‌کم دو نقطهٔ داده در بازه لازم است."
+                                       IsVisible="{Binding !HasTrend}" HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                        </Panel>
+                        <StackPanel Orientation="Horizontal" Spacing="16" Margin="18,0,18,16" IsVisible="{Binding HasTrend}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Ellipse Width="9" Height="9" Fill="#0d9488" VerticalAlignment="Center" />
+                                <TextBlock Text="درآمد" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Ellipse Width="9" Height="9" Fill="#d92d20" VerticalAlignment="Center" />
+                                <TextBlock Text="هزینه" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Ellipse Width="9" Height="9" Fill="#1570cd" VerticalAlignment="Center" />
+                                <TextBlock Text="سود خالص" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Revenue by source: donut + legend. -->
+                <Border Classes="card">
+                    <StackPanel>
+                        <StackPanel Classes="card-header">
+                            <TextBlock Classes="card-title" Text="درآمد به تفکیک منبع" />
+                        </StackPanel>
+                        <Border Classes="card-header-rule" />
+                        <StackPanel Margin="18,14,18,18" Spacing="14">
+                            <Grid Width="180" Height="180" HorizontalAlignment="Center" IsVisible="{Binding HasSources}">
+                                <controls:DonutRing Slices="{Binding SourceSlices}"
+                                                    TrackBrush="{StaticResource ChartTrackBrush}" />
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2"
+                                            IsHitTestVisible="False">
+                                    <TextBlock Text="{Binding SourceTotal}" FontSize="13" FontWeight="ExtraBold"
+                                               HorizontalAlignment="Center" Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="مجموع درآمد" FontSize="11" HorizontalAlignment="Center"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="درآمدی در این بازه ثبت نشده است." HorizontalAlignment="Center"
+                                       Margin="0,40" IsVisible="{Binding !HasSources}"
+                                       Foreground="{StaticResource MutedBrush}" />
+                            <ItemsControl ItemsSource="{Binding Sources}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="st:StatisticsSourceRow">
+                                        <Grid ColumnDefinitions="9,*,Auto,44" ColumnSpacing="9" Margin="0,5">
+                                            <Ellipse Width="9" Height="9" Fill="{Binding Color}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Grid.Column="2" Text="{Binding Amount}" FontSize="12"
+                                                       Foreground="{StaticResource Ink2Brush}" />
+                                            <TextBlock Grid.Column="3" Text="{Binding Share}" FontSize="12"
+                                                       FontWeight="Bold" TextAlignment="End"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </controls:AdaptiveGrid>
+        </StackPanel>
     </StackPanel>
 </UserControl>
