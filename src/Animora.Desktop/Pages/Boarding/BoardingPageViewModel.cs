@@ -79,7 +79,6 @@ public sealed partial class BoardingPageViewModel : PageViewModelBase
                      ("current", "اقدام فعلی"),
                      ("overdue", "عقب‌افتاده"),
                      ("leaving", "تخلیه امروز"),
-                     ("done", "تخلیه‌شده"),
                  })
         {
             Tabs.Add(new BoardingTabViewModel(key, label));

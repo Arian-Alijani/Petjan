@@ -249,7 +249,7 @@ Possibly `BoardingRegistration.cs` if DI of the handoff writer into the create h
 
 ---
 
-### [ ] T2 — Discharged stays must leave the management page (only in history)
+### [x] T2 — Discharged stays must leave the management page (only in history)
 **Problem (user):** after a stay is تخلیه (discharged) it must no longer show on the boarding management
 page; its info should be visible only in تاریخچه.
 

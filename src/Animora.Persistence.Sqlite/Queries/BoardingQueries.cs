@@ -27,7 +27,11 @@ public sealed class BoardingQueries(AnimoraLocalDbContext db) : IBoardingQueries
 
     public async Task<IReadOnlyList<StayListItemReadModel>> GetStaysAsync(CancellationToken ct)
     {
+        // Management shows only stays still on the floor. Presence (not billing state) is the signal:
+        // ActualCheckOutUtc is stamped only when a stay is truly checked out, so a prepaid stay that is
+        // already invoiced but still boarding stays visible. Departed stays live in the history tab.
         var stays = db.Set<BoardingStay>().AsNoTracking()
+            .Where(s => s.ActualCheckOutUtc == null && s.State != StayState.Cancelled)
             .OrderByDescending(s => s.CheckInUtc).ThenBy(s => s.Id).Take(200);
         return await Project(stays).ToListAsync(ct);
     }
