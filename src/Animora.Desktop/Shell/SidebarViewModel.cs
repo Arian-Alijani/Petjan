@@ -61,7 +61,7 @@ public sealed partial class SidebarViewModel : ObservableObject
 
     /// <summary>
     /// Highlights the entry of the current navigation key, or clears the highlight when the shown page has no
-    /// (permitted) sidebar entry, so a page such as Purchasing never leaves a stale item selected.
+    /// (permitted) sidebar entry, so a page such as Reception never leaves a stale item selected.
     /// </summary>
     public void SyncActiveFromNavigation()
     {

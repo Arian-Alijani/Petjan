@@ -101,9 +101,6 @@ public static class ViewFactory
         // Profile.
         Register<global::Animora.Desktop.Pages.Profile.ProfilePageViewModel, global::Animora.Desktop.Pages.Profile.ProfilePageView>(factories);
 
-        // Purchasing.
-        Register<global::Animora.Desktop.Pages.Purchasing.PurchasingPageViewModel, global::Animora.Desktop.Pages.Purchasing.PurchasingPageView>(factories);
-
         // Reception.
         Register<global::Animora.Desktop.Pages.Reception.ReceptionPageViewModel, global::Animora.Desktop.Pages.Reception.ReceptionPageView>(factories);
         Register<global::Animora.Desktop.Pages.Reception.WalkInModalViewModel, global::Animora.Desktop.Pages.Reception.WalkInModalView>(factories);
