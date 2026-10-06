@@ -291,7 +291,7 @@ page but still appears in تاریخچه. Active + reserved + awaiting-invoice (
 
 ---
 
-### [ ] T3 — Verify price / elapsed-days / nights logic is correct & consistent
+### [x] T3 — Verify price / elapsed-days / nights logic is correct & consistent
 **Problem (user):** make sure the price, elapsed-days, nights calc is right.
 
 **Verified facts (so you don't re-derive):**

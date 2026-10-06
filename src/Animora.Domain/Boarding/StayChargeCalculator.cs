@@ -5,6 +5,13 @@ namespace Animora.Domain.Boarding;
 /// <summary>Derives the stay's charge at an instant without persisting an accruing balance.</summary>
 public static class StayChargeCalculator
 {
+    /// <summary>
+    /// The <b>authoritative</b> nights rule for money: the calendar-day difference in the clinic time zone,
+    /// at least one. Invoicing (<see cref="Accrued"/>/<see cref="ItemsOnly"/>), the prepaid room charge at
+    /// admission and the UI classification all use this same rule. <see cref="BoardingStay.BillableDays"/>
+    /// (24-hour windows) only feeds the <c>StayReadyForInvoiceEvent</c> payload and never a money total.
+    /// Before checkout the detail modal shows the planned nights; checkout bills the actual elapsed nights.
+    /// </summary>
     public static int NightsBetween(DateTimeOffset start, DateTimeOffset end, TimeZoneInfo timeZone)
     {
         ArgumentNullException.ThrowIfNull(timeZone);
