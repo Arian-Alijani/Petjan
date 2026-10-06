@@ -80,7 +80,7 @@ Write path (confirmed sound):
 - (Reference only, already correct — DO NOT change unless a concrete bug is proven:)
   `InvoicePaymentCore.cs`, `PostInvoiceCommand.cs`, `ActivityFeedHandler.cs`, `ActivityFeedWriter.cs`,
   `ActivityFeedQueries.cs`, `SalesQueries.cs`, `LocalUnitOfWork.cs`.
-- STATUS: ☐ pending
+- STATUS: ☑ done — History page + Sales history tab now subscribe to DataDomain.History/Sales/Cashier and reload (tab also re-reads on every activation / page visit); GAP B: write+read chain re-verified by reasoning, no change needed.
 
 ---
 

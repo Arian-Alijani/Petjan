@@ -92,6 +92,18 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         UseLoadStatus(ReloadPageAsync);
         // The ready-visit queue is fed by completed encounters; the cashier settles the same invoices.
         RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Visits, DataDomain.Cashier);
+        // The ledger tab lives inside this page: a sale/payment written elsewhere (cashier, visit sheet, owner
+        // sheet) must show up without leaving and re-entering the tab. RefreshOnDataChange holds one subscription
+        // per page, so the history tab keeps its own.
+        // The page is a singleton for the app's lifetime, so the subscription is intentionally never released.
+        _ = changes.Subscribe(domain =>
+        {
+            if (IsCurrentPage && IsHistoryTab
+                && domain is DataDomain.History or DataDomain.Sales or DataDomain.Cashier)
+            {
+                History.Refresh();
+            }
+        });
     }
 
     /// <summary>
@@ -585,6 +597,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     public override void OnNavigatedTo()
     {
         if (!IsLoadInFlight) _ = ReloadPageAsync();
+        if (IsHistoryTab) History.Refresh();
     }
 
     private bool _pageLoaded;

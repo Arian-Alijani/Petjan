@@ -51,7 +51,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     private int _generation;
 
     public HistoryPageViewModel(IHistoryQueryService service, IStoreReadinessGate readiness, IToastService toast,
-        IDialogService dialogs, IHistoryRecordOpener opener)
+        IDialogService dialogs, IHistoryRecordOpener opener, IDataChangeNotifier changes)
     {
         _service = service;
         _readiness = readiness;
@@ -67,6 +67,9 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         BuildRangeChips();
         BuildCategoryChips();
         UseLoadStatus(ReloadPageAsync);
+        // Any write that lands a ledger row (sale, payment, vaccine, boarding, expense ...) announces
+        // DataDomain.History; a shown page re-reads at once, a hidden one on its next visit.
+        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.History);
     }
 
     // Singleton page: reload on every visit, keeping the user's filters and page.

@@ -206,12 +206,14 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     /// <summary>
     /// Loads the ledger the first time the history tab is shown. Kept lazy (not
     /// run from the constructor) so the page's eager load never pays for a tab
-    /// the user may not open (PERFORMANCE.md §12).
+    /// the user may not open (PERFORMANCE.md §12). Every later activation re-reads the
+    /// current page, so a ledger row written while the tab was hidden is never missing.
     /// </summary>
     public void EnsureLoaded()
     {
         if (_loaded)
         {
+            _ = ReloadAsync(resetPage: false);
             return;
         }
 
