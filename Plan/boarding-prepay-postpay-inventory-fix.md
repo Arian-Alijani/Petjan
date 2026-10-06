@@ -565,7 +565,7 @@ dropped by category/price/kind filters; prices are correct (variant SalePrice, n
 
 ---
 
-### [ ] T7 — Wire-up & build verification pass
+### [x] T7 — Wire-up & build verification pass
 **Do:** after T1–T6, build the three touched projects and the Desktop head:
 ```
 export PATH="$HOME/.dotnet:$PATH"
@@ -582,7 +582,7 @@ model snapshot demands it; otherwise skip.
 
 ---
 
-### [ ] T8 — Final self-review against the user's 5 boarding asks + catalog ask
+### [x] T8 — Final self-review against the user's 5 boarding asks + catalog ask
 Re-read the user's original requirements and tick each:
 1. Prepay/postpay selectable + functional; prepay → invoice at registration; postpay → invoice at checkout;
    recorded & shown in history; prepay + later extras → extras invoice at discharge with room shown as paid. (T1, T4)
