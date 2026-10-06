@@ -8,6 +8,7 @@ using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Profile;
 using Animora.Desktop.Pages.Sales;
+using Animora.Desktop.Pages.Statistics;
 using Animora.Desktop.Pages.Vaccination;
 using Animora.Desktop.Pages.Visits;
 
@@ -39,6 +40,7 @@ public static class NavigationMenu
         new("boarding", "پانسیون", "IconHome", typeof(BoardingPageViewModel), "مدیریت کلینیک"),
 
         new("inventory", "انبار و کالا", "IconBox", typeof(InventoryPageViewModel), "کسب و کار"),
+        new("statistics", "آمار", "IconChart", typeof(StatisticsPageViewModel), "کسب و کار"),
 
         new("history", "تاریخچه", "IconClock", typeof(HistoryPageViewModel), "سیستم"),
         new("profile", "پروفایل و تنظیمات", "IconShield", typeof(ProfilePageViewModel), "سیستم"),

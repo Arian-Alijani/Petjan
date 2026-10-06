@@ -361,6 +361,14 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IHistoryQueryService, Animora.Client.Services.History.HistoryQueryService>();
         services.AddSingleton<HistoryPageViewModel>();
 
+        // «آمار»: stateless dispatcher adapter (scope-per-call) + the singleton page and its four section view-models.
+        services.AddSingleton<Animora.Contracts.Statistics.IStatisticsQueryService, Animora.Client.Services.Statistics.StatisticsQueryService>();
+        services.AddSingleton<Animora.Desktop.Pages.Statistics.StatisticsOverviewViewModel>();
+        services.AddSingleton<Animora.Desktop.Pages.Statistics.StatisticsClientsViewModel>();
+        services.AddSingleton<Animora.Desktop.Pages.Statistics.StatisticsSalesViewModel>();
+        services.AddSingleton<Animora.Desktop.Pages.Statistics.StatisticsExpensesViewModel>();
+        services.AddSingleton<Animora.Desktop.Pages.Statistics.StatisticsPageViewModel>();
+
         // Phase 28: Profile & Settings screen. The mock persists edits
         // in-memory only for the session (mirroring the reference's explicit
         // "settings live in memory only" design), so a singleton preserves

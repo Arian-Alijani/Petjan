@@ -353,7 +353,7 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
 
 ### Phase C — Desktop UI
 
-- [ ] **Task 5 — Statistics page shell + navigation wiring.**
+- [x] **Task 5 — Statistics page shell + navigation wiring.** _(done: `Pages/Statistics/*` page + 4 section VMs/views with shared load/error/empty state, nav item/permission/ViewFactory/DI wiring; Expenses tab hidden without `finance.read`; smoke run deferred to the single final smoke per the run rules)_
   Add `Pages/Statistics/StatisticsPageView.axaml(.cs)` + `StatisticsPageViewModel.cs`
   (derive `PageViewModelBase`; ctor-inject `IStatisticsQueryService`; load on `OnNavigatedTo`;
   loading/empty/error states). Wire: `NavigationMenu.cs` new item

@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:st="using:Animora.Desktop.Pages.Statistics"
+             x:Class="Animora.Desktop.Pages.Statistics.StatisticsPageView"
+             x:Name="Root"
+             x:DataType="st:StatisticsPageViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <!-- Segmented section tabs: bg-2 track, white active pill (same look as the cashier tabs). -->
+        <Style Selector="Border.st-tabs">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+        </Style>
+        <Style Selector="Button.st-tab">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="Button.st-tab:pointerover">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.st-tab.on">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.st-tab.on /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowChip}" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Margin="26,22,26,40" Spacing="18">
+        <!-- ═══ Page header ═══ -->
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
+            <StackPanel Grid.Column="0" VerticalAlignment="Bottom" Spacing="4">
+                <TextBlock Text="آمار" FontSize="26" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" LetterSpacing="-0.4" />
+                <TextBlock Text="تحلیل درآمد، مراجعین و هزینه‌های کلینیک در بازهٔ انتخابی"
+                           FontSize="13" Foreground="{StaticResource MutedBrush}" />
+            </StackPanel>
+            <Border Grid.Column="1" Classes="st-tabs" VerticalAlignment="Bottom">
+                <ItemsControl ItemsSource="{Binding Tabs}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="4" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="st:StatisticsTabViewModel">
+                            <Button Classes="st-tab" Classes.on="{Binding IsActive}" Content="{Binding Label}"
+                                    Command="{Binding #Root.((st:StatisticsPageViewModel)DataContext).ShowSectionCommand}"
+                                    CommandParameter="{Binding Section}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+        </Grid>
+
+        <!-- ═══ Current section (resolved to its view by the shell's ViewLocator) ═══ -->
+        <ContentControl Content="{Binding CurrentSection}" />
+    </StackPanel>
+</UserControl>

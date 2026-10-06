@@ -114,6 +114,13 @@ public static class ViewFactory
         Register<global::Animora.Desktop.Pages.Sales.SalePageViewModel, global::Animora.Desktop.Pages.Sales.SalePageView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.Shared.ConfirmDialogViewModel, global::Animora.Desktop.Pages.Sales.Shared.ConfirmDialogView>(factories);
 
+        // Statistics («آمار») page + its four sections.
+        Register<global::Animora.Desktop.Pages.Statistics.StatisticsPageViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsPageView>(factories);
+        Register<global::Animora.Desktop.Pages.Statistics.StatisticsOverviewViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsOverviewView>(factories);
+        Register<global::Animora.Desktop.Pages.Statistics.StatisticsClientsViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsClientsView>(factories);
+        Register<global::Animora.Desktop.Pages.Statistics.StatisticsSalesViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsSalesView>(factories);
+        Register<global::Animora.Desktop.Pages.Statistics.StatisticsExpensesViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsExpensesView>(factories);
+
         // Vaccination.
         Register<global::Animora.Desktop.Pages.Vaccination.AddVaccineModalViewModel, global::Animora.Desktop.Pages.Vaccination.AddVaccineModalView>(factories);
         Register<global::Animora.Desktop.Pages.Vaccination.SmsComposeViewModel, global::Animora.Desktop.Pages.Vaccination.SmsComposeView>(factories);

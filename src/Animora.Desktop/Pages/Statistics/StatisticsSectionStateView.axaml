@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:st="using:Animora.Desktop.Pages.Statistics"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Statistics.StatisticsSectionStateView"
+             x:DataType="st:StatisticsSectionViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+    <!-- Shared loading / error / empty block of every «آمار» section: the first load shows a progress bar, a failure shows
+         its Persian message (the retry lives in the shell's load-status bar), a successful empty result shows the empty state. -->
+    <StackPanel Spacing="12">
+        <Border Classes="card" Padding="14,12" IsVisible="{Binding IsLoading}">
+            <StackPanel Spacing="6">
+                <ProgressBar IsIndeterminate="True" AutomationProperties.Name="در حال دریافت آمار" />
+                <TextBlock Text="در حال بارگذاری آمار…" Foreground="{StaticResource MutedBrush}"
+                           AutomationProperties.LiveSetting="Polite" />
+            </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="14,12" IsVisible="{Binding HasError}"
+                Background="{StaticResource DangerBgBrush}">
+            <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" Foreground="{StaticResource DangerBrush}"
+                       FontWeight="SemiBold" AutomationProperties.LiveSetting="Assertive" />
+        </Border>
+        <controls:EmptyState IsVisible="{Binding IsEmpty}" Icon="{StaticResource IconChart}"
+                             Title="هنوز دادهٔ آماری ثبت نشده است"
+                             Subtitle="با ثبت فاکتور، ویزیت و هزینه در این بازه، نمودارها و شاخص‌ها اینجا نمایش داده می‌شوند." />
+    </StackPanel>
+</UserControl>
