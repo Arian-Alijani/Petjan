@@ -102,8 +102,6 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<IJournalNumberAllocator, JournalNumberAllocator>();
         services.TryAddScoped<IExpenseNumberAllocator, ExpenseNumberAllocator>();
         services.TryAddScoped<IFinanceProjectionStore, FinanceProjectionStore>();
-        // C09: projection-only finance reads (Application port, impl here).
-        services.TryAddScoped<IFinanceQueries, FinanceQueries>();
         services.TryAddScoped<IActivityFeedQueries, ActivityFeedQueries>();
         services.TryAddScoped<IDashboardQueries, DashboardQueries>();
         services.TryAddScoped<IGlobalSearchQueries, GlobalSearchQueries>();

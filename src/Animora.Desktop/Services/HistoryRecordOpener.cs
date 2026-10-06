@@ -3,8 +3,6 @@ using System.Threading.Tasks;
 using Animora.Contracts.Sales;
 using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Boarding;
-using Animora.Desktop.Pages.Cheques;
-using Animora.Desktop.Pages.Finance;
 using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Sales;
 using Animora.Desktop.Pages.Vaccination;
@@ -65,14 +63,8 @@ public sealed class HistoryRecordOpener(
                 navigation.NavigateTo<AppointmentsCalendarViewModel>();
                 return Task.CompletedTask;
 
-            case "Cheque":
-                navigation.NavigateTo<ChequesPageViewModel>();
-                return Task.CompletedTask;
-
-            case "Expense":
-                navigation.NavigateTo<FinancePageViewModel>();
-                return Task.CompletedTask;
-
+            // «Cheque» / «Expense»: صفحهٔ اختصاصی‌شان حذف شده (بازسازی خواهد شد)؛
+            // تا آن زمان به مسیر پیش‌فرض (no-op) می‌افتند.
             case "GoodsReceipt":
             case "StockMovement":
             case "Product":

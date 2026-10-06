@@ -228,11 +228,6 @@
         <!-- D42: dashboard quick-tile styles declared once (typed accent/soft bindings). -->
         <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/QuickTile.axaml" />
 
-        <!-- Phase 25: Finance workspace styles (.pagebar/.pb-seg, KPI/mini cards,
-             highlight bar, list rows, donut legend, heatmap). Scoped to the
-             FinancePageView subtree so they never leak to other screens. -->
-        <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/FinanceStyles.axaml" />
-
         <!-- Unified History system: the shared clickable row template
              (HistoryRowTemplate), ledger header and every .hy-* chrome style used
              by the main History page and the Sales / Boarding / Vaccination

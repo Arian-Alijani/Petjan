@@ -2,9 +2,7 @@ using System.Collections.Generic;
 using Animora.Contracts.Navigation;
 using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Boarding;
-using Animora.Desktop.Pages.Cheques;
 using Animora.Desktop.Pages.Dashboard;
-using Animora.Desktop.Pages.Finance;
 using Animora.Desktop.Pages.History;
 using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Patients;
@@ -41,10 +39,6 @@ public static class NavigationMenu
         new("boarding", "پانسیون", "IconHome", typeof(BoardingPageViewModel), "مدیریت کلینیک"),
 
         new("inventory", "انبار و کالا", "IconBox", typeof(InventoryPageViewModel), "کسب و کار"),
-        new("expense", "هزینه‌ها", "IconReceipt", typeof(FinancePageViewModel), "کسب و کار", InitialTab: "expense", InitialRange: "30d"),
-        new("reports", "آمار و گزارش فروش", "IconChart", typeof(FinancePageViewModel), "کسب و کار", InitialTab: "overview", InitialRange: "7d"),
-
-        new("cheques", "مدیریت چک", "IconCheque", typeof(ChequesPageViewModel), "مالی و خزانه"),
 
         new("history", "تاریخچه", "IconClock", typeof(HistoryPageViewModel), "سیستم"),
         new("profile", "پروفایل و تنظیمات", "IconShield", typeof(ProfilePageViewModel), "سیستم"),

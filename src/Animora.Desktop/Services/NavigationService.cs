@@ -75,14 +75,13 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
     {
         var defaultKey = NavPermissions.KeyFor(page);
         var key = navigationKey ?? defaultKey;
-        // The expense and reports entries intentionally share one page type.
-        var matches = key == defaultKey || (defaultKey == "reports" && key == "expense");
+        var matches = key == defaultKey;
         if (matches && key is not null && NavPermissions.For(key) is { } code && _gate.Can(code)) return true;
         _toast.Show("اجازه ورود به این بخش را ندارید یا دسترسی شما منقضی شده است.", Tone.Warn);
         return false;
     }
 
-    // The semantic entry (tab/range of expense vs reports) is applied for every caller, not only the sidebar.
+    // The semantic entry (InitialTab/InitialRange of the nav entry) is applied for every caller, not only the sidebar.
     private static void ApplyEntry(PageViewModelBase viewModel, string? key)
     {
         if (key is null) return;

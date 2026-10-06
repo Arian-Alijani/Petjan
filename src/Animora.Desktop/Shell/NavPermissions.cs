@@ -6,7 +6,7 @@ using Animora.Domain.Identity;
 namespace Animora.Desktop.Shell;
 
 /// <summary>
-/// The ordinal, explicit mapping from the <b>actual</b> 13 sidebar keys (<c>NavigationMenu.Items</c>) to the
+/// The ordinal, explicit mapping from the <b>actual</b> sidebar keys (<c>NavigationMenu.Items</c>) to the
 /// catalog permission code the shell gates entry on (B04c). The static <c>NavigationMenu</c> is deliberately
 /// not modified: the shared navigation definition stays presentation-only and gating lives here, in the Desktop.
 /// </summary>
@@ -20,7 +20,7 @@ namespace Animora.Desktop.Shell;
 /// </remarks>
 public static class NavPermissions
 {
-    /// <summary>The 13 real nav keys → the permission code that reveals them (ordinal keys).</summary>
+    /// <summary>The real nav keys → the permission code that reveals them (ordinal keys).</summary>
     public static FrozenDictionary<string, string> ByKey { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["dashboard"] = PermissionCodes.PatientsRead,
@@ -31,9 +31,6 @@ public static class NavPermissions
         ["boarding"] = PermissionCodes.BoardingRead,
         ["sale"] = PermissionCodes.SalesRead,
         ["inventory"] = PermissionCodes.InventoryRead,
-        ["expense"] = PermissionCodes.FinanceRead,
-        ["reports"] = PermissionCodes.ReportsRead,
-        ["cheques"] = PermissionCodes.ChequesRead,
         ["history"] = PermissionCodes.AuditRead,
         ["profile"] = PermissionCodes.SettingsRead,
         ["purchasing"] = PermissionCodes.PurchasingRead,
@@ -42,8 +39,7 @@ public static class NavPermissions
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     // Page admission is shared by every navigation entry point, including targets
-    // without a sidebar entry. Finance defaults to overview; expense admission
-    // also requires finance.read through its semantic key.
+    // without a sidebar entry.
     private static readonly FrozenDictionary<Type, string> ByPage = new Dictionary<Type, string>
     {
         [typeof(Pages.Dashboard.DashboardPageViewModel)] = "dashboard",
@@ -55,8 +51,6 @@ public static class NavPermissions
         [typeof(Pages.Boarding.BoardingPageViewModel)] = "boarding",
         [typeof(Pages.Sales.SalePageViewModel)] = "sale",
         [typeof(Pages.Inventory.InventoryPageViewModel)] = "inventory",
-        [typeof(Pages.Finance.FinancePageViewModel)] = "reports",
-        [typeof(Pages.Cheques.ChequesPageViewModel)] = "cheques",
         [typeof(Pages.History.HistoryPageViewModel)] = "history",
         [typeof(Pages.Profile.ProfilePageViewModel)] = "profile",
         [typeof(Pages.Purchasing.PurchasingPageViewModel)] = "purchasing",

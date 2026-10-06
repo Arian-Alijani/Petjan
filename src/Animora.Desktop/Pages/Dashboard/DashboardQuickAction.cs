@@ -1,5 +1,4 @@
 using Animora.Desktop.Pages.Appointments;
-using Animora.Desktop.Pages.Finance;
 using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Purchasing;
@@ -36,9 +35,9 @@ public sealed record DashboardQuickAction(
     string? Badge = null)
 {
     /// <summary>
-    /// Canonical ordered list of the eight main sections. This is the SINGLE
+    /// Canonical ordered list of the main sections. This is the SINGLE
     /// source of truth shared by the dashboard tiles and the shell's global
-    /// Alt+1..8 hotkeys, so the two can never drift.
+    /// Alt+1..7 hotkeys, so the two can never drift.
     /// </summary>
     public static IReadOnlyList<DashboardQuickAction> All { get; } = new[]
     {
@@ -49,7 +48,6 @@ public sealed record DashboardQuickAction(
         new DashboardQuickAction("فروش و صندوق", "صدور فاکتور", "IconCart", typeof(SalePageViewModel), "#d9803f", "#fbe7d6", 5),
         new DashboardQuickAction("انبار و کالا", "کنترل موجودی", "IconBox", typeof(InventoryPageViewModel), "#b54708", "#fffaeb", 6),
         new DashboardQuickAction("خرید و تأمین", "سفارش تأمین", "IconTruck", typeof(PurchasingPageViewModel), "#14b8a6", "#e5f4f0", 7),
-        new DashboardQuickAction("گزارش‌ها", "تحلیل عملکرد", "IconChart", typeof(FinancePageViewModel), "#2f6f8f", "#e2eff5", 8),
     };
 
     /// <summary>The «Alt+N» corner hint with a Persian digit (e.g. «Alt+۱»).</summary>

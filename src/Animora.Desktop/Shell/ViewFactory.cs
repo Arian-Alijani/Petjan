@@ -70,17 +70,8 @@ public static class ViewFactory
         // Cashier.
         Register<global::Animora.Desktop.Pages.Cashier.CashierPageViewModel, global::Animora.Desktop.Pages.Cashier.CashierPageView>(factories);
 
-        // Cheques.
-        Register<global::Animora.Desktop.Pages.Cheques.ChequeDetailViewModel, global::Animora.Desktop.Pages.Cheques.ChequeDetailView>(factories);
-        Register<global::Animora.Desktop.Pages.Cheques.ChequeDrawerViewModel, global::Animora.Desktop.Pages.Cheques.ChequeDrawerView>(factories);
-        Register<global::Animora.Desktop.Pages.Cheques.ChequesPageViewModel, global::Animora.Desktop.Pages.Cheques.ChequesPageView>(factories);
-
         // Dashboard.
         Register<global::Animora.Desktop.Pages.Dashboard.DashboardPageViewModel, global::Animora.Desktop.Pages.Dashboard.DashboardPageView>(factories);
-
-        // Finance.
-        Register<global::Animora.Desktop.Pages.Finance.AddExpenseModalViewModel, global::Animora.Desktop.Pages.Finance.AddExpenseModalView>(factories);
-        Register<global::Animora.Desktop.Pages.Finance.FinancePageViewModel, global::Animora.Desktop.Pages.Finance.FinancePageView>(factories);
 
         // History.
         Register<global::Animora.Desktop.Pages.History.HistoryPageViewModel, global::Animora.Desktop.Pages.History.HistoryPageView>(factories);

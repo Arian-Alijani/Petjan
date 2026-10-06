@@ -12,7 +12,7 @@ namespace Animora.Desktop.Shell;
 /// <summary>
 /// Root shell ViewModel: composes the sidebar and topbar, mirrors the
 /// navigation service's current page for the content host to bind to, chooses
-/// the startup page, and owns the app-wide page-switch hotkeys (Alt+1..8,
+/// the startup page, and owns the app-wide page-switch hotkeys (Alt+1..7,
 /// Ctrl+Shift+D, Ctrl+K) so they work from any screen.
 /// </summary>
 public sealed partial class MainWindowViewModel : ObservableObject
@@ -95,7 +95,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     /// <summary>
     /// Navigate to the quick-access section at 1-based <paramref name="index"/>
-    /// (Alt+1..8). Uses <see cref="DashboardQuickAction.All"/> as the single
+    /// (Alt+1..7). Uses <see cref="DashboardQuickAction.All"/> as the single
     /// source of truth so the tiles and the hotkeys can never drift, and updates
     /// the sidebar highlight to follow.
     /// </summary>

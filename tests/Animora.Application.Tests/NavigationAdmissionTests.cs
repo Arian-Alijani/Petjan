@@ -1,7 +1,6 @@
 using Animora.Contracts.Identity;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Pages.Inventory;
-using Animora.Desktop.Pages.Finance;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Animora.Domain.Identity;
@@ -68,21 +67,6 @@ namespace Animora.Application.Tests
             Assert.Equal(1, page.Activations);
         }
 
-        [Fact]
-        public void FinanceSemanticEntry_UsesItsOwnPermission()
-        {
-            var gate = new Gate { Allowed = { PermissionCodes.FinanceRead } };
-            using var services = new ServiceCollection().AddSingleton<FinancePageViewModel>().BuildServiceProvider();
-            var nav = new NavigationService(services, gate, new Toast());
-            Assert.Null(nav.NavigateTo<FinancePageViewModel>());
-            Assert.NotNull(nav.NavigateTo(typeof(FinancePageViewModel), "expense"));
-            Assert.Null(nav.NavigateTo(typeof(FinancePageViewModel), "reports"));
-            gate.Allowed.Clear();
-            gate.Allowed.Add(PermissionCodes.ReportsRead);
-            Assert.NotNull(nav.NavigateTo<FinancePageViewModel>());
-            Assert.Null(nav.NavigateTo(typeof(FinancePageViewModel), "expense"));
-        }
-
         [Theory]
         [InlineData("purchasing", PermissionCodes.PurchasingRead)]
         [InlineData("reception", PermissionCodes.ReceptionManage)]
@@ -138,28 +122,22 @@ namespace Animora.Application.Tests
         }
 
         [Fact]
-        public void NavigationKey_IsSemantic_ForEveryEntryPoint_AndFinanceEntryIsDelivered()
+        public void NavigationKey_IsSemantic_ForEveryEntryPoint_AndEntryIsDelivered()
         {
-            var gate = new Gate { Allowed = { PermissionCodes.FinanceRead, PermissionCodes.ReportsRead, PermissionCodes.PurchasingRead } };
-            var finance = new FinancePageViewModel();
-            using var services = new ServiceCollection().AddSingleton(finance)
+            var gate = new Gate { Allowed = { PermissionCodes.InventoryRead, PermissionCodes.PurchasingRead } };
+            var inventory = new InventoryPageViewModel();
+            using var services = new ServiceCollection().AddSingleton(inventory)
                 .AddSingleton<Animora.Desktop.Pages.Purchasing.PurchasingPageViewModel>().BuildServiceProvider();
             var nav = new NavigationService(services, gate, new Toast());
             var changes = 0;
             nav.CurrentViewModelChanged += (_, _) => changes++;
 
-            nav.NavigateTo(typeof(FinancePageViewModel), "expense");
-            Assert.Equal("expense", nav.CurrentNavigationKey);
-            Assert.Equal(("expense", "expense", "30d"), (finance.LastEntry!.Key, finance.LastEntry.InitialTab, finance.LastEntry.InitialRange));
-
-            // Same ViewModel, other semantic entry: the key changes and observers are told (first-match-by-Type is gone).
-            nav.NavigateTo(typeof(FinancePageViewModel), "reports");
-            Assert.Equal(("reports", "overview", "7d"), (nav.CurrentNavigationKey, finance.LastEntry!.InitialTab, finance.LastEntry.InitialRange));
-            Assert.Equal(2, changes);
-
-            // A tile/hotkey/palette passes only the Type: it resolves to the page's default semantic key.
-            nav.NavigateTo<FinancePageViewModel>();
-            Assert.Equal("reports", nav.CurrentNavigationKey);
+            // A tile/hotkey/palette passes only the Type: it resolves to the page's default semantic key,
+            // and the matching sidebar entry is delivered to the page.
+            nav.NavigateTo<InventoryPageViewModel>();
+            Assert.Equal("inventory", nav.CurrentNavigationKey);
+            Assert.Equal("inventory", inventory.LastEntry!.Key);
+            Assert.Equal(1, changes);
 
             // Non-sidebar target: its own key, which has no sidebar entry (so no stale highlight can be derived).
             nav.NavigateTo<Animora.Desktop.Pages.Purchasing.PurchasingPageViewModel>();
@@ -231,8 +209,6 @@ namespace Animora.Desktop.Pages.Vaccination { public sealed class VaccinationPag
 namespace Animora.Desktop.Pages.Boarding { public sealed class BoardingPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Sales { public sealed class SalePageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Inventory { public sealed class InventoryPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
-namespace Animora.Desktop.Pages.Finance { public sealed class FinancePageViewModel : Animora.Application.Tests.NavigationTestPage { } }
-namespace Animora.Desktop.Pages.Cheques { public sealed class ChequesPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.History { public sealed class HistoryPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Profile { public sealed class ProfilePageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Purchasing { public sealed class PurchasingPageViewModel : Animora.Application.Tests.NavigationTestPage { } }

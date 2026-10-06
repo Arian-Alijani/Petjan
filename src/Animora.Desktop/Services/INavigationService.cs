@@ -17,7 +17,7 @@ public interface INavigationService
     PageViewModelBase? CurrentViewModel { get; }
 
     /// <summary>
-    /// The semantic navigation key (sidebar entry key, e.g. "expense" vs "reports", or a non-sidebar page key such as
+    /// The semantic navigation key (sidebar entry key, e.g. "inventory", or a non-sidebar page key such as
     /// "purchasing") of the visit that is currently shown; the single source the sidebar highlight derives from.
     /// </summary>
     string? CurrentNavigationKey { get; }

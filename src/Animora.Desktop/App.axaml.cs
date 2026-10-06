@@ -10,16 +10,12 @@ using Animora.Application.UseCases.Inventory;
 using Animora.Application.UseCases.Purchasing;
 using Animora.Application.UseCases.Sales;
 using Animora.Application.UseCases.Cashier;
-using Animora.Application.UseCases.Finance;
-using Animora.Application.UseCases.Finance.Cheques;
 using Animora.Application.UseCases.History;
 using Animora.Application.UseCases.Dashboard;
 using Animora.Application.UseCases.Search;
 using Animora.Application.UseCases.Profile;
 using Animora.Client.Services.Boarding;
 using Animora.Client.Services.Cashier;
-using Animora.Client.Services.Cheques;
-using Animora.Client.Services.Finance;
 using Animora.Client.Services.Inventory;
 using Animora.Client.Services.Purchasing;
 using Animora.Client.Services.Diagnostics;
@@ -34,8 +30,6 @@ using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Appointments;
 using Animora.Contracts.Boarding;
 using Animora.Contracts.Cashier;
-using Animora.Contracts.Cheques;
-using Animora.Contracts.Finance;
 using Animora.Contracts.History;
 using Animora.Contracts.Dashboard;
 using Animora.Contracts.Identity;
@@ -56,9 +50,7 @@ using Animora.Desktop.Shell.Search;
 using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Boarding;
 using Animora.Desktop.Pages.Cashier;
-using Animora.Desktop.Pages.Cheques;
 using Animora.Desktop.Pages.Dashboard;
-using Animora.Desktop.Pages.Finance;
 using Animora.Desktop.Pages.History;
 using Animora.Desktop.Pages.Inventory;
 using Animora.Desktop.Pages.Login;
@@ -232,7 +224,7 @@ public partial class App : global::Avalonia.Application
                     sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Animora.Persistence.Sqlite.Options.LocalStoreOptions>>(),
                     sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Animora.Infrastructure.Local.Security.FileFallbackSecretStore>>()));
         }
-        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddCashierUseCases().AddChequeUseCases().AddFinanceUseCases().AddHistoryUseCases().AddDashboardUseCases().AddSearchUseCases().AddProfileUseCases());
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddCashierUseCases().AddHistoryUseCases().AddDashboardUseCases().AddSearchUseCases().AddProfileUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it
@@ -362,18 +354,6 @@ public partial class App : global::Avalonia.Application
         // mutations while navigating.
         services.AddSingleton<ICashierService, CashierService>();
         services.AddSingleton<CashierPageViewModel>();
-
-        // Phase 23: Cheques (treasury) list/board screen. Stateful in-memory mock
-        // (row-menu status changes / deletes mutate the list), so a singleton.
-        services.AddSingleton<IChequesQueryService, ChequesQueryService>();
-        services.AddSingleton<ChequesPageViewModel>();
-
-        // Phase 25: shared Finance workspace (Overview + Income tabs). Stateless
-        // deterministic mock, so a singleton. One ViewModel backs both the
-        // «هزینه‌ها» and «آمار و گزارش فروش» sidebar entries — the sidebar passes
-        // a per-entry initial tab/range (mirrors the reference's two initFinancePage calls).
-        services.AddSingleton<IFinanceQueryService, FinanceQueryService>();
-        services.AddSingleton<FinancePageViewModel>();
 
         // Phase 27: History — unified event ledger. Self-contained synthetic
         // mock (a singleton is sufficient; its data is static).
