@@ -281,7 +281,7 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
 
 ### Phase A — Backend data/read layer (no UI yet)
 
-- [ ] **Task 1 — Expense read queries + ports.**
+- [x] **Task 1 — Expense read queries + ports.** _(done: `IStatisticsQueries` + `StatisticsQueries`, read models in `UseCases/Finance/ReadModels`, `StatisticsWindowResolver` — ytd = Jalali-year start via `custom` branch; also `GetClientStatsAsync` for new/returning)_
   Add `IStatisticsQueries` (or extend an existing finance port) in `Application/Ports/` exposing:
   (a) `GetOverviewAsync(FinanceDayRange, ct)` → revenue/cogs/expense/net/invoiceCount/avgInvoice
   for the range + previous comparable range (deltas), sourced from `DailyFinanceFact`;

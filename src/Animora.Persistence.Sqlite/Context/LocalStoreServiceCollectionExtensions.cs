@@ -96,6 +96,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<IServiceRateQueries, ServiceRateQueries>();
         services.TryAddScoped<ICashierQueries, CashierQueries>();
         services.TryAddScoped<IChequeQueries, ChequeQueries>();
+        services.TryAddScoped<IStatisticsQueries, StatisticsQueries>();
         services.TryAddScoped<ISalesDraftData, SalesDraftData>();
         services.TryAddScoped<ISalesPostingData, SalesPostingData>();
         services.TryAddScoped<IInvoiceNumberAllocator, InvoiceNumberAllocator>();
