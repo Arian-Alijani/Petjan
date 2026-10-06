@@ -8,55 +8,106 @@
              x:CompileBindings="True"
              FlowDirection="RightToLeft">
     <UserControl.Styles>
-        <!-- Segmented section tabs: bg-2 track, white active pill (same look as the cashier tabs). -->
-        <Style Selector="Border.st-tabs">
+        <!-- ══════════════════════════════════════════════════════════════════
+             Toolbar styles mirror the Patients page's .pagebar toolbar exactly:
+             the same segmented switch (.seg/.segitem/.segtap) for the section
+             tabs and the same pill filter chips (.chip/.chiptap) for the range
+             picker, so the «آمار» toolbar matches the rest of the app part-for-
+             part (sizes, radii, shadows, brand tints).
+             ══════════════════════════════════════════════════════════════════ -->
+
+        <!-- Segmented switch (.seg): a soft bg-2 track with pill buttons; the
+             active pill gets the white panel fill + segment shadow. -->
+        <Style Selector="Border.seg">
             <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="4" />
-            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="3" />
         </Style>
-        <Style Selector="Button.st-tab">
+        <Style Selector="Border.segitem">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CornerRadius" Value="9" />
+        </Style>
+        <Style Selector="Border.segitem.on">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+        </Style>
+        <Style Selector="Button.segtap">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="FontSize" Value="12.5" />
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Padding" Value="16,8" />
-            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="15,8" />
         </Style>
-        <Style Selector="Button.st-tab:pointerover">
+        <Style Selector="Button.segtap.lg">
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="20,9" />
+        </Style>
+        <Style Selector="Button.segtap:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.segitem Path">
+            <Setter Property="Stroke" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Border.segitem.on Path">
+            <Setter Property="Stroke" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Border.segitem.on TextBlock">
             <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
         </Style>
-        <Style Selector="Button.st-tab.on">
+
+        <!-- Filter chips (.chip): pill outline; active = brand fill + white text
+             + brand shadow (same as the Patients species chips). -->
+        <Style Selector="Border.chip">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
-            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
-        </Style>
-        <!-- Range picker chips (today / 7d / 30d / 90d / ytd / custom). -->
-        <Style Selector="Button.st-chip">
-            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
-            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="12,6" />
             <Setter Property="CornerRadius" Value="999" />
         </Style>
-        <Style Selector="Button.st-chip:pointerover">
-            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        <Style Selector="Border.chip:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Background" Value="#f6faf8" />
         </Style>
-        <Style Selector="Button.st-chip.on">
-            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
-            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
-        </Style>
-        <Style Selector="Button.st-tab.on /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Style Selector="Border.chip.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
             <Setter Property="BoxShadow" Value="{StaticResource ShadowChip}" />
+        </Style>
+        <Style Selector="Button.chiptap">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="13,6" />
+        </Style>
+        <Style Selector="Button.chiptap:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.chip Path">
+            <Setter Property="Stroke" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Border.chip:pointerover Path">
+            <Setter Property="Stroke" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Border.chip:pointerover TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Border.chip.on Path">
+            <Setter Property="Stroke" Value="White" />
+        </Style>
+        <Style Selector="Border.chip.on TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Border.chip.on Button.chiptap">
+            <Setter Property="FontWeight" Value="Bold" />
         </Style>
     </UserControl.Styles>
 
     <StackPanel Margin="26,22,26,40" Spacing="18">
-        <!-- ═══ Page header ═══ -->
+        <!-- ── page header (.pt-head) — title only, matching the Patients page ── -->
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
             <StackPanel Grid.Column="0" VerticalAlignment="Bottom" Spacing="4">
                 <TextBlock Text="آمار" FontSize="26" FontWeight="ExtraBold"
@@ -64,50 +115,88 @@
                 <TextBlock Text="تحلیل درآمد، مراجعین و هزینه‌های کلینیک در بازهٔ انتخابی"
                            FontSize="13" Foreground="{StaticResource MutedBrush}" />
             </StackPanel>
-            <Border Grid.Column="1" Classes="st-tabs" VerticalAlignment="Bottom">
-                <ItemsControl ItemsSource="{Binding Tabs}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="4" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="st:StatisticsTabViewModel">
-                            <Button Classes="st-tab" Classes.on="{Binding IsActive}" Content="{Binding Label}"
-                                    Command="{Binding #Root.((st:StatisticsPageViewModel)DataContext).ShowSectionCommand}"
-                                    CommandParameter="{Binding Section}" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </Border>
         </Grid>
 
-        <!-- ═══ Range picker: drives every section ═══ -->
-        <StackPanel Spacing="8">
-            <ItemsControl ItemsSource="{Binding RangeChips}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel Orientation="Horizontal" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="st:StatisticsRangeChipViewModel">
-                        <Button Classes="st-chip" Classes.on="{Binding IsActive}" Content="{Binding Label}"
-                                Margin="0,0,6,6"
-                                Command="{Binding #Root.((st:StatisticsPageViewModel)DataContext).SelectRangeCommand}"
-                                CommandParameter="{Binding Id}" />
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsCustomRange}">
-                <TextBlock Text="از" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" FontSize="12" />
-                <controls:JalaliDatePicker Width="160" DateValue="{Binding CustomFromDate, Mode=TwoWay}" ToolTip.Tip="از تاریخ" />
-                <TextBlock Text="تا" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" FontSize="12" />
-                <controls:JalaliDatePicker Width="160" DateValue="{Binding CustomToDate, Mode=TwoWay}" ToolTip.Tip="تا تاریخ" />
-                <TextBlock Text="{Binding CustomRangeHint}" VerticalAlignment="Center"
-                           Foreground="{StaticResource DangerBrush}" FontSize="12" />
+        <!-- ── toolbar (.pagebar): same white card shell as the Patients toolbar ──
+             tier 1 · section switch (segmented, full-width)
+             tier 2 · range chips (start) + custom-window pickers (end)         -->
+        <Border Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                CornerRadius="{StaticResource Radius}"
+                BoxShadow="{StaticResource ShadowCard}"
+                Padding="14,12">
+            <StackPanel Spacing="12">
+
+                <!-- tier 1 · section tabs (نمای کلی / مراجعین / درآمد و فروش / هزینه‌ها) -->
+                <Border Classes="seg" HorizontalAlignment="Stretch">
+                    <ItemsControl ItemsSource="{Binding Tabs}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="st:StatisticsTabViewModel">
+                                <Border Classes="segitem" Classes.on="{Binding IsActive}" Margin="1,0">
+                                    <Button Classes="segtap lg" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
+                                            Command="{Binding #Root.((st:StatisticsPageViewModel)DataContext).ShowSectionCommand}"
+                                            CommandParameter="{Binding Section}">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                            <TextBlock Text="{Binding Label}" FontSize="13.5" FontWeight="Bold" />
+                                        </StackPanel>
+                                    </Button>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
+                <!-- tier 2 · range picker (chips) + custom-window pickers, split by a top divider -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,12,0,0">
+                    <StackPanel Grid.Column="0">
+                        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                                Padding="0,12,0,0" Margin="0,-12,0,0">
+                            <ItemsControl ItemsSource="{Binding RangeChips}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="st:StatisticsRangeChipViewModel">
+                                        <Border Classes="chip" Classes.on="{Binding IsActive}" Margin="0,0,7,0">
+                                            <Button Classes="chiptap"
+                                                    Command="{Binding #Root.((st:StatisticsPageViewModel)DataContext).SelectRangeCommand}"
+                                                    CommandParameter="{Binding Id}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Path Classes="icon" Width="14" Height="14"
+                                                          Data="{StaticResource IconCalendar}" />
+                                                    <TextBlock Text="{Binding Label}" />
+                                                </StackPanel>
+                                            </Button>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- custom-window pickers (shown only for «بازه دلخواه») -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                VerticalAlignment="Center" IsVisible="{Binding IsCustomRange}">
+                        <TextBlock Text="از" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                        <controls:JalaliDatePicker Width="150" DateValue="{Binding CustomFromDate, Mode=TwoWay}" ToolTip.Tip="از تاریخ" />
+                        <TextBlock Text="تا" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                        <controls:JalaliDatePicker Width="150" DateValue="{Binding CustomToDate, Mode=TwoWay}" ToolTip.Tip="تا تاریخ" />
+                        <TextBlock Text="{Binding CustomRangeHint}" VerticalAlignment="Center"
+                                   Foreground="{StaticResource DangerBrush}" FontSize="12" />
+                    </StackPanel>
+                </Grid>
             </StackPanel>
-        </StackPanel>
+        </Border>
 
         <!-- ═══ Current section (resolved to its view by the shell's ViewLocator) ═══ -->
         <ContentControl Content="{Binding CurrentSection}" />
