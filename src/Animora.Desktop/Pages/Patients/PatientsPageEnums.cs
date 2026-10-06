@@ -1,6 +1,16 @@
 namespace Animora.Desktop.Pages.Patients;
 
 /// <summary>
+/// The page-level section switch above the toolbar: the records directory
+/// (owners/pets) or the clinic settings tab (species &amp; breeds, SMS toggle).
+/// </summary>
+public enum PatientsSection
+{
+    Directory,
+    Settings,
+}
+
+/// <summary>
 /// Which directory entity the toolbar's primary segmented switch shows,
 /// mirroring the reference's <c>S.view</c> (owners | pets).
 /// </summary>

@@ -2,6 +2,7 @@ using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Patients;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.Patients.Settings;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -29,6 +30,10 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
     [ObservableProperty]
     private string _searchText = string.Empty;
+
+    /// <summary>The active page-level section: the records directory or the settings tab.</summary>
+    [ObservableProperty]
+    private PatientsSection _section = PatientsSection.Directory;
 
     [ObservableProperty]
     private PatientViewMode _viewMode = PatientViewMode.Owners;
@@ -90,6 +95,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         _presenter = presenter;
         _dialogs = dialogs;
         _toast = toast;
+        Settings = new PatientsSettingsViewModel(toast);
         Title = "بیماران و مالکین";
         Eyebrow = "مدیریت کلینیک";
         Breadcrumbs.Add("مدیریت کلینیک");
@@ -102,11 +108,18 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         _hasLoadedOnce = true;   // the ctor-started load covers the first navigation (PERFORMANCE.md §13)
     }
 
+    /// <summary>The settings tab's ViewModel (species &amp; breeds, SMS toggle).</summary>
+    public PatientsSettingsViewModel Settings { get; }
+
     public RangeObservableCollection<OwnerCardViewModel> FilteredOwners { get; } = [];
     public RangeObservableCollection<PetCardViewModel> FilteredPets { get; } = [];
     public RangeObservableCollection<OwnerCardRowViewModel> OwnerRows { get; } = [];
     public RangeObservableCollection<PetCardRowViewModel> PetRows { get; } = [];
     public RangeObservableCollection<PatientsSpeciesChipViewModel> SpeciesChips { get; } = [];
+
+    // Page-level section: records directory vs. settings tab.
+    public bool IsDirectorySection => Section == PatientsSection.Directory;
+    public bool IsSettingsSection => Section == PatientsSection.Settings;
 
     public bool IsOwnersView => ViewMode == PatientViewMode.Owners;
     public bool IsPetsView => ViewMode == PatientViewMode.Pets;
@@ -188,6 +201,12 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     partial void OnSearchTextChanged(string value) =>
         _searchDebounce.Debounce(() => ReloadFromFilter());
 
+    partial void OnSectionChanged(PatientsSection value)
+    {
+        OnPropertyChanged(nameof(IsDirectorySection));
+        OnPropertyChanged(nameof(IsSettingsSection));
+    }
+
     partial void OnViewModeChanged(PatientViewMode value) => ReloadFromFilter();
 
     partial void OnLayoutChanged(PatientLayout value) => NotifyDerived();
@@ -232,6 +251,11 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             _ = ReloadPageAsync();
         }
     }
+
+    /// <summary>Raised by the page-level section switch (directory / settings).</summary>
+    [RelayCommand]
+    private void SetSection(string? section) =>
+        Section = section == "settings" ? PatientsSection.Settings : PatientsSection.Directory;
 
     [RelayCommand]
     private void ToggleViewMode() =>
