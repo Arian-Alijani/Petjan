@@ -138,7 +138,7 @@ especially buttons glued to the edges. Fix it.
 - Also sanity-check the generic `src/Animora.Desktop/Pages/Sales/Shared/ConfirmDialogView.axaml` foot
   (StackPanel at its end) has side padding; if its buttons also touch edges, apply the same inset.
 - Files: `src/Animora.Desktop/Pages/Sales/PaymentModalView.axaml` (+ maybe `Shared/ConfirmDialogView.axaml`).
-- STATUS: ☐ pending
+- STATUS: ☑ done — payment foot moved inside the padded (20,16) body Border; ConfirmDialogView foot already inset (Margin 20,12,20,18), unchanged.
 
 ---
 
