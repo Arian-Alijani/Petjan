@@ -152,7 +152,9 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             from c in categories.DefaultIfEmpty()
             from v in p.Variants
             where v.IsActive
-            orderby p.Name, v.VariantId
+            // Services first (like the visit catalog) so a large goods catalogue can never push a freshly added
+            // service out of the bounded window; every active product/variant is otherwise listed by name.
+            orderby p.Kind == ProductKind.Service descending, p.Name, v.VariantId
             select new SalesCatalogItemReadModel(v.VariantId, p.Name, p.Kind == ProductKind.Service ? "Service" : "Item",
                 c == null ? "سایر" : c.DisplayName, v.SalePrice.Minor)).Take(1000).ToListAsync(ct);
         // ...plus ONE product-level fallback row for every active product without an active variant (typically
@@ -163,7 +165,7 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             where p.IsActive && !p.Variants.Any(v => v.IsActive)
             join c in db.Set<ProductCategory>().AsNoTracking() on p.CategoryId equals c.Id into categories
             from c in categories.DefaultIfEmpty()
-            orderby p.Name, p.Id
+            orderby p.Kind == ProductKind.Service descending, p.Name, p.Id
             select new SalesCatalogItemReadModel(p.Id, p.Name, p.Kind == ProductKind.Service ? "Service" : "Item",
                 c == null ? "سایر" : c.DisplayName, p.DefaultSalePrice.Minor)).Take(500).ToListAsync(ct);
         var products = variantRows.Concat(variantless).ToList();

@@ -482,7 +482,7 @@ no-extras self-complete). Do NOT attempt it all in one giant uncommitted edit.
 
 ---
 
-### [ ] T6 — Catalog visibility: products/services missing in boarding & visit pickers
+### [x] T6 — Catalog visibility: products/services missing in boarding & visit pickers
 **Problem (user):** after adding a product, it doesn't appear when adding items in a boarding stay or during
 a visit; sometimes even services don't appear. Find & fix all such cases.
 
