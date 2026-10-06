@@ -1,7 +1,11 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Ports;
 using Animora.Application.Time;
+using Animora.Application.Text;
 using Animora.Domain.Finance;
+using Animora.Domain.Identity;
+using Animora.Domain.Patients;
+using Animora.Domain.Purchasing;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Options;
 using Microsoft.EntityFrameworkCore;
@@ -20,12 +24,137 @@ public sealed class ChequeQueries(AnimoraLocalDbContext db, IOptions<LocalStoreO
         catch (TimeZoneNotFoundException) { return TimeZoneInfo.CreateCustomTimeZone("Iran", TimeSpan.FromHours(3.5), "Iran", "Iran"); }
     }
 
-    public Task<PagedResult<ChequeRow>> GetListAsync(int page, int size, CancellationToken ct) =>
-        db.Set<Cheque>().AsNoTracking().OrderByDescending(c => c.IssuedUtc).ThenByDescending(c => c.Id)
-            .Select(c => new ChequeRow(c.Id, c.Direction, c.ChequeNumber, c.SayadId, c.BankName,
-                c.BankBranch, c.Direction == ChequeDirection.Inbound ? c.OwnerId ?? "" : c.SupplierId ?? "",
-                c.Amount.Minor, c.IssuedUtc, c.DueUtc, c.State, c.InvoiceId, c.AccountNumber, c.Note))
-            .ToPagedAsync(page, size, options.Value, ct);
+    private const int LookupLimit = 50;
+
+    public async Task<PagedResult<ChequeRow>> GetListAsync(ChequeListCriteria criteria, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(criteria);
+
+        // Counterparty names are resolved in the same projection (left joins), so the list never shows raw ids.
+        var rows =
+            from c in db.Set<Cheque>().AsNoTracking()
+            join o in db.Set<Owner>().AsNoTracking() on c.OwnerId equals o.Id into owners
+            from o in owners.DefaultIfEmpty()
+            join s in db.Set<Supplier>().AsNoTracking() on c.SupplierId equals s.Id into suppliers
+            from s in suppliers.DefaultIfEmpty()
+            select new
+            {
+                c.Id, c.Direction, c.ChequeNumber, c.SayadId, c.BankName, c.BankBranch, c.State,
+                c.IssuedUtc, c.DueUtc, c.InvoiceId, c.AccountNumber, c.Note, Amount = c.Amount.Minor,
+                Party = c.Direction == ChequeDirection.Inbound
+                    ? (o == null ? "" : o.FullName)
+                    : (s == null ? "" : s.Name),
+            };
+
+        if (criteria.Direction is { } direction) rows = rows.Where(r => r.Direction == direction);
+        rows = criteria.Scope switch
+        {
+            ChequeListScope.Open => rows.Where(r => r.State == ChequeState.Registered
+                || r.State == ChequeState.InPortfolio || r.State == ChequeState.Deposited),
+            ChequeListScope.Attention => rows.Where(r => r.State == ChequeState.Bounced),
+            ChequeListScope.Closed => rows.Where(r => r.State == ChequeState.Cleared || r.State == ChequeState.Returned
+                || r.State == ChequeState.Cancelled || r.State == ChequeState.Settled),
+            _ => rows,
+        };
+        if (!string.IsNullOrWhiteSpace(criteria.Search))
+        {
+            var term = "%" + PersianText.NormalizeDigits(criteria.Search.Trim()) + "%";
+            rows = rows.Where(r => EF.Functions.Like(r.ChequeNumber, term)
+                || (r.SayadId != null && EF.Functions.Like(r.SayadId, term))
+                || EF.Functions.Like(r.Party, term));
+        }
+
+        // Work still in flight is read by what is due first; finished cheques by what closed most recently.
+        var ordered = criteria.Scope is ChequeListScope.Open or ChequeListScope.Attention
+            ? rows.OrderBy(r => r.DueUtc).ThenBy(r => r.Id)
+            : rows.OrderByDescending(r => r.DueUtc).ThenByDescending(r => r.Id);
+        return await ordered
+            .Select(r => new ChequeRow(r.Id, r.Direction, r.ChequeNumber, r.SayadId, r.BankName, r.BankBranch, r.Party,
+                r.Amount, r.IssuedUtc, r.DueUtc, r.State, r.InvoiceId, r.AccountNumber, r.Note))
+            .ToPagedAsync(Math.Max(1, criteria.Page), criteria.PageSize, options.Value, ct);
+    }
+
+    public async Task<ChequeDetailRow?> GetDetailAsync(string id, CancellationToken ct)
+    {
+        var cheque = await db.Set<Cheque>().AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
+        if (cheque is null) return null;
+
+        string party;
+        if (cheque.Direction == ChequeDirection.Inbound && cheque.OwnerId is { } ownerId)
+            party = await db.Set<Owner>().AsNoTracking().Where(o => o.Id == ownerId).Select(o => o.FullName)
+                .FirstOrDefaultAsync(ct) ?? string.Empty;
+        else if (cheque.SupplierId is { } supplierId)
+            party = await db.Set<Supplier>().AsNoTracking().Where(s => s.Id == supplierId).Select(s => s.Name)
+                .FirstOrDefaultAsync(ct) ?? string.Empty;
+        else
+            party = string.Empty;
+
+        var actorIds = cheque.History.Select(h => h.ActorUserId).Distinct().ToArray();
+        var actors = actorIds.Length == 0
+            ? new Dictionary<string, string>()
+            : await db.Set<User>().AsNoTracking().Where(u => actorIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+
+        var row = new ChequeRow(cheque.Id, cheque.Direction, cheque.ChequeNumber, cheque.SayadId, cheque.BankName,
+            cheque.BankBranch, party, cheque.Amount.Minor, cheque.IssuedUtc, cheque.DueUtc, cheque.State,
+            cheque.InvoiceId, cheque.AccountNumber, cheque.Note);
+        var history = cheque.History.OrderByDescending(h => h.OccurredUtc).ThenByDescending(h => h.EventId)
+            .Select(h => new ChequeHistoryRow(h.EventId, h.FromState, h.ToState, h.OccurredUtc,
+                actors.GetValueOrDefault(h.ActorUserId, string.Empty), h.Reason)).ToArray();
+        return new ChequeDetailRow(row, history);
+    }
+
+    public async Task<ChequeSummaryRow> GetSummaryAsync(CancellationToken ct)
+    {
+        var groups = await db.Set<Cheque>().AsNoTracking()
+            .GroupBy(c => new { c.Direction, c.State })
+            .Select(g => new { g.Key.Direction, g.Key.State, Count = g.Count(), Sum = g.Sum(c => c.Amount.Minor) })
+            .ToListAsync(ct);
+        long inbound = 0, outbound = 0, bouncedSum = 0;
+        int inboundCount = 0, outboundCount = 0, bouncedCount = 0;
+        foreach (var g in groups)
+        {
+            if (g.State == ChequeState.Bounced)
+            {
+                bouncedSum += g.Sum;
+                bouncedCount += g.Count;
+            }
+            else if (g.State is ChequeState.Registered or ChequeState.InPortfolio or ChequeState.Deposited)
+            {
+                if (g.Direction == ChequeDirection.Inbound) { inbound += g.Sum; inboundCount += g.Count; }
+                else { outbound += g.Sum; outboundCount += g.Count; }
+            }
+        }
+
+        return new ChequeSummaryRow(inbound, inboundCount, outbound, outboundCount, bouncedSum, bouncedCount);
+    }
+
+    public async Task<IReadOnlyList<ChequePartyRow>> FindOwnersAsync(string? search, CancellationToken ct)
+    {
+        var q = db.Set<Owner>().AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = PersianText.Normalize(search);
+            q = q.Where(o => EF.Functions.Like(o.SearchKey, "%" + term + "%"));
+        }
+
+        return await q.OrderBy(o => o.FullName).ThenBy(o => o.Id).Take(LookupLimit)
+            .Select(o => new ChequePartyRow(o.Id, o.FullName, o.PhonePrimary)).ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<ChequePartyRow>> FindSuppliersAsync(string? search, CancellationToken ct)
+    {
+        var q = db.Set<Supplier>().AsNoTracking().Where(s => s.IsActive);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = "%" + PersianText.NormalizeDigits(search.Trim()) + "%";
+            q = q.Where(s => EF.Functions.Like(s.Name, term) || EF.Functions.Like(s.Code, term)
+                || (s.Phone != null && EF.Functions.Like(s.Phone, term)));
+        }
+
+        return await q.OrderBy(s => s.Name).ThenBy(s => s.Id).Take(LookupLimit)
+            .Select(s => new ChequePartyRow(s.Id, s.Name, s.Phone)).ToListAsync(ct);
+    }
 
     public async Task<IReadOnlyList<ChequeCashflowWeek>> GetCashflowAsync(int weeks, DateOnly today, CancellationToken ct)
     {
