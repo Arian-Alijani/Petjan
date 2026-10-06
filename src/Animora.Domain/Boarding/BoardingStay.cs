@@ -445,6 +445,30 @@ public sealed class BoardingStay : AggregateRoot
         return Result.Ok();
     }
 
+    /// <summary>
+    /// Moves the planned check-out (extends or shortens the stay). Legal only while the stay is
+    /// <see cref="StayState.Active"/> and the new instant is strictly after <see cref="CheckInUtc"/>
+    /// (<c>STAY_DATES_INVALID</c>). A pure schedule change: it never touches <see cref="ActualCheckOutUtc"/>
+    /// and does not bill — nights are billed from the real elapsed days at checkout.
+    /// </summary>
+    public Result RescheduleCheckout(DateTimeOffset newPlannedCheckOutUtc)
+    {
+        if (State != StayState.Active)
+        {
+            return Result.Fail(ErrorCodes.StayNotEditable,
+                $"Stay '{Id}' ({State}) cannot be rescheduled.");
+        }
+
+        if (newPlannedCheckOutUtc <= CheckInUtc)
+        {
+            return Result.Fail(ErrorCodes.StayDatesInvalid,
+                $"Planned check-out {newPlannedCheckOutUtc:o} must be after check-in {CheckInUtc:o}.");
+        }
+
+        PlannedCheckOutUtc = newPlannedCheckOutUtc;
+        return Result.Ok();
+    }
+
     /// <summary>Updates the care and diet instructions.</summary>
     public Result SetNotes(string? careNote, string? dietNote)
     {

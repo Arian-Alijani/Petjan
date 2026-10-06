@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:boarding="using:Animora.Desktop.Pages.Boarding"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Boarding.StayDetailModalView"
              x:Name="Root"
              x:DataType="boarding:StayDetailModalViewModel"
@@ -32,6 +33,16 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Foreground" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Button.day-step">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="Button.dm-close">
             <Setter Property="Width" Value="36" />
@@ -157,7 +168,18 @@
                             <TextBlock Text="تاریخ خروج" FontSize="10.5" FontWeight="Bold"
                                        Foreground="{StaticResource MutedBrush}" />
                             <TextBlock Text="{Binding CheckOutText}" FontSize="13" FontWeight="ExtraBold"
-                                       Margin="0,2,0,0" Foreground="{StaticResource InkBrush}" />
+                                       Margin="0,2,0,0" Foreground="{StaticResource InkBrush}"
+                                       IsVisible="{Binding !IsEditable}" />
+                            <!-- editable while the stay is active: pick a date or nudge by ±1 day -->
+                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0"
+                                        IsVisible="{Binding IsEditable}">
+                                <Button Classes="day-step" Content="−۱ روز" Command="{Binding RemoveDayCommand}"
+                                        ToolTip.Tip="کاهش یک روز از اقامت" />
+                                <controls:JalaliDatePicker DateValue="{Binding CheckOutEditText, Mode=TwoWay}"
+                                                           Placeholder="تاریخ خروج" MinWidth="120" />
+                                <Button Classes="day-step" Content="＋۱ روز" Command="{Binding AddDayCommand}"
+                                        ToolTip.Tip="افزودن یک روز به اقامت" />
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>

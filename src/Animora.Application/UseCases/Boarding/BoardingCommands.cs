@@ -230,6 +230,38 @@ public sealed class TransferStayRoomCommandHandler(IBoardingRepository repositor
     }
 }
 
+[RequiresPermission(PermissionCodes.BoardingManage)]
+[Auditable(AuditCategory.Clinical, CommandTypes.BoardingStayReschedule)]
+public sealed record RescheduleStayCheckoutCommand(string StayId, DateOnly NewCheckOut)
+    : ICommand<Unit>, IJournaledCommand
+{
+    public string CommandTypeName => CommandTypes.BoardingStayReschedule;
+    public string AggregateTypeName => "BoardingStay";
+    public string? AggregateIdOrNull => StayId;
+}
+public sealed class RescheduleStayCheckoutCommandValidator : IValidator<RescheduleStayCheckoutCommand>
+{
+    public ValueTask<IReadOnlyList<ValidationFailure>> ValidateAsync(RescheduleStayCheckoutCommand c, CancellationToken ct)
+    {
+        var failures = new List<ValidationFailure>();
+        if (Rules.Required(c.StayId, nameof(c.StayId)) is { } id) failures.Add(id);
+        return ValueTask.FromResult<IReadOnlyList<ValidationFailure>>(failures);
+    }
+}
+public sealed class RescheduleStayCheckoutCommandHandler(IBoardingRepository repository,
+    IClinicTimeZoneProvider zones) : ICommandHandler<RescheduleStayCheckoutCommand, Unit>
+{
+    public async Task<Result<Unit>> HandleAsync(RescheduleStayCheckoutCommand c, CommandContext context, CancellationToken ct)
+    {
+        var stay = await repository.FindAsync(c.StayId, ct);
+        if (stay is null) return Result<Unit>.Fail(ErrorCodes.StayNotFound);
+        var tz = zones.GetClinicTimeZone();
+        var until = new DateTimeOffset(ClinicCalendar.ToUtcTicks(c.NewCheckOut, 0, tz), TimeSpan.Zero);
+        var moved = stay.RescheduleCheckout(until);
+        return moved.IsFailure ? Result<Unit>.Fail(moved.Error, moved.Detail) : Result<Unit>.Ok(Unit.Value);
+    }
+}
+
 [RequiresPermission(PermissionCodes.BoardingCheckout)]
 [Auditable(AuditCategory.Clinical, CommandTypes.BoardingStayCheckout)]
 public sealed record CheckoutStayCommand(string StayId) : ICommand<Unit>, IJournaledCommand
@@ -259,28 +291,35 @@ public sealed class CheckoutStayCommandHandler(IBoardingRepository repository, I
         // only. A postpaid stay bills room + items in one go (unchanged).
         if (stay.IsRoomPrepaid)
         {
+            // Nights stayed beyond what the prepaid room invoice covered (the check-out date was extended,
+            // or the pet overstayed) are billed on the second invoice; staying fewer nights is not refunded.
+            var elapsedRoom = stay.DailyRate * StayChargeCalculator.NightsBetween(stay.CheckInUtc, now, tz);
+            var extraRoomMinor = Math.Max(0L, elapsedRoom.Minor - (stay.PrepaidRoomChargeMinor ?? 0L));
+
             // Nothing extra was consumed — there is no second invoice to raise; just close the stay.
-            if (stay.Items.Count == 0)
+            if (stay.Items.Count == 0 && extraRoomMinor == 0)
             {
                 var done = stay.CompletePrepaidCheckoutWithoutInvoice(clock);
                 return done.IsFailure ? Result<Unit>.Fail(done.Error, done.Detail) : Result<Unit>.Ok(Unit.Value);
             }
 
             var itemsCharge = StayChargeCalculator.ItemsOnly(stay, services, now, tz);
+            var secondInvoiceTotal = itemsCharge + Money.Irt(extraRoomMinor);
             var requestedPrepaid = stay.RequestCheckout(clock);
             if (requestedPrepaid.IsFailure) return Result<Unit>.Fail(requestedPrepaid.Error, requestedPrepaid.Detail);
-            var frozenPrepaid = stay.FreezeTotalForCheckout(itemsCharge);
+            var frozenPrepaid = stay.FreezeTotalForCheckout(secondInvoiceTotal);
             if (frozenPrepaid.IsFailure) return Result<Unit>.Fail(frozenPrepaid.Error, frozenPrepaid.Detail);
-            // RoomRateMinor 0 and a note tell Sales the room was prepaid, so no room line is added and the
-            // second invoice bills items only (SalesHandoffFactory: roomCharge = TotalMinor - itemsTotal).
+            // RoomRateMinor 0 and the flag tell Sales the room was prepaid: the second invoice bills the items
+            // plus only the ExtraRoomMinor nights beyond the prepaid ones (usually 0 → no room line at all).
             var prepaidPayload = JsonSerializer.Serialize(new
             {
                 RoomRateMinor = 0L,
                 RoomPrepaid = true,
                 PrepaidRoomChargeMinor = stay.PrepaidRoomChargeMinor ?? 0L,
                 PrepaidInvoiceId = stay.PrepaidInvoiceId,
-                TotalMinor = itemsCharge.Minor,
-                Currency = itemsCharge.Currency,
+                ExtraRoomMinor = extraRoomMinor,
+                TotalMinor = secondInvoiceTotal.Minor,
+                Currency = secondInvoiceTotal.Currency,
                 Items = stay.Items.OrderBy(i => i.ConsumedUtc).ThenBy(i => i.ItemId)
                     .Select(i => new { i.ItemId, i.Kind, i.CatalogItemId, i.Title,
                         Quantity = i.Quantity.Value, UnitPriceMinor = i.UnitPrice.Minor }),

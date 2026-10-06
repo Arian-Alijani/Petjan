@@ -93,6 +93,12 @@ public sealed class BoardingQueryService(IServiceScopeFactory scopes) : IBoardin
         return await GetDetailAsync(stayId) ?? throw new InvalidOperationException("STAY_NOT_FOUND");
     }
 
+    public async Task<StayDetail> RescheduleCheckoutAsync(string stayId, DateOnly newCheckOut)
+    {
+        _ = await SendAsync(new RescheduleStayCheckoutCommand(stayId, newCheckOut));
+        return await GetDetailAsync(stayId) ?? throw new InvalidOperationException("STAY_NOT_FOUND");
+    }
+
     public async Task CheckoutAsync(string stayId) =>
         _ = await SendAsync(new CheckoutStayCommand(stayId));
 

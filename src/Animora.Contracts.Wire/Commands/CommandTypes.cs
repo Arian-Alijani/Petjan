@@ -75,6 +75,7 @@ public static class CommandTypes
     public const string BoardingItemAdd = "boarding.item.add";
     public const string BoardingItemRemove = "boarding.item.remove";
     public const string BoardingStayTransfer = "boarding.stay.transfer";
+    public const string BoardingStayReschedule = "boarding.stay.reschedule";
     public const string BoardingRoomCreate = "boarding.room.create";
     public const string BoardingRoomUpdate = "boarding.room.update";
 
@@ -125,6 +126,7 @@ public static class CommandTypes
         SchedulingAppointmentBook, SchedulingAppointmentMove, SchedulingAppointmentCancel,
         SchedulingAppointmentCheckin, SchedulingBookingPatientCreate,
         BoardingStayCheckout, BoardingStayCreate, BoardingItemAdd, BoardingItemRemove, BoardingStayTransfer,
+        BoardingStayReschedule,
         BoardingRoomCreate, BoardingRoomUpdate,
         PatientsOwnerCreate, PatientsOwnerUpdate, PatientsPetCreate, PatientsPetUpdate, PatientsPetWeightAdd,
         PatientsOwnerDelete, PatientsPetDelete,

@@ -102,6 +102,10 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     [ObservableProperty]
     private string _checkOutText = string.Empty;
 
+    /// <summary>The editable check-out (ASCII Jalali <c>yyyy/MM/dd</c>, two-way bound to the picker).</summary>
+    [ObservableProperty]
+    private string _checkOutEditText = string.Empty;
+
     [ObservableProperty]
     private string _roomText = string.Empty;
 
@@ -167,6 +171,9 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     private bool _isDone;
 
     private BoardingStay _stay = null!;
+    private IReadOnlyList<BoardingStayItem> _lastItems = [];
+    private bool _syncingCheckOut;
+    private bool _savingCheckOut;
 
     private async Task LoadAsync()
     {
@@ -186,6 +193,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
     private void Apply(StayDetail detail)
     {
         _stay = detail.Stay;
+        _lastItems = detail.Items;
         var stay = detail.Stay;
         var items = detail.Items;
 
@@ -215,6 +223,10 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
         // Entry strip
         CheckInText = BoardingPresentation.Long(stay.CheckIn);
         CheckOutText = BoardingPresentation.Long(stay.CheckOut);
+        _syncingCheckOut = true;
+        CheckOutEditText = JalaliCalendar.ToIso(
+            JalaliDate.FromDateTime(stay.CheckOut.ToDateTime(TimeOnly.MinValue)));
+        _syncingCheckOut = false;
         RoomText = PersianNumberFormatter.ToPersianDigits(stay.Room);
         DailyRateText = BoardingPresentation.Money(stay.DailyRate);
 
@@ -289,6 +301,67 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
 
         return $"{BoardingPresentation.Fa(cls.Elapsed)} روز گذشته · "
             + (cls.Remaining == 0 ? "امروز تخلیه" : $"{BoardingPresentation.Fa(cls.Remaining)} روز مانده");
+    }
+
+    // The picker commits a new date by changing CheckOutEditText; programmatic syncs from Apply are ignored.
+    partial void OnCheckOutEditTextChanged(string value)
+    {
+        if (_syncingCheckOut || !IsEditable || _stay is null)
+        {
+            return;
+        }
+
+        var parsed = BoardingPresentation.ParseJalali(value);
+        if (parsed is null || parsed == _stay.CheckOut)
+        {
+            return;
+        }
+
+        _ = SaveCheckoutAsync(parsed.Value);
+    }
+
+    [RelayCommand]
+    private Task AddDayAsync() => SaveCheckoutAsync(_stay.CheckOut.AddDays(1));
+
+    [RelayCommand]
+    private Task RemoveDayAsync() => SaveCheckoutAsync(_stay.CheckOut.AddDays(-1));
+
+    /// <summary>
+    /// Moves the planned check-out and refreshes the modal from the persisted detail, so the nights, the
+    /// day timeline and the totals all recompute from the same source. Dates not after check-in are refused.
+    /// </summary>
+    private async Task SaveCheckoutAsync(DateOnly newCheckOut)
+    {
+        if (!IsEditable || _savingCheckOut || newCheckOut == _stay.CheckOut)
+        {
+            return;
+        }
+
+        if (newCheckOut <= _stay.CheckIn)
+        {
+            _toast.Show("تاریخ خروج باید پس از تاریخ ورود باشد", Tone.Danger);
+            Apply(new StayDetail(_stay, _lastItems));
+            return;
+        }
+
+        _savingCheckOut = true;
+        try
+        {
+            var detail = await _service.RescheduleCheckoutAsync(StayId, newCheckOut);
+            Apply(detail);
+            _toast.Show($"تاریخ خروج به {BoardingPresentation.Long(newCheckOut)} تغییر کرد");
+            _onChanged?.Invoke();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(
+                ex, "تغییر تاریخ خروج ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
+            await LoadAsync();
+        }
+        finally
+        {
+            _savingCheckOut = false;
+        }
     }
 
     [RelayCommand]

@@ -38,6 +38,12 @@ public interface IBoardingQueryService
     Task<StayDetail> RemoveItemAsync(string stayId, int index);
 
     /// <summary>
+    /// Moves an active stay's planned check-out date (adds or removes days) and returns the refreshed
+    /// detail. Fails with a typed error when the date is not after check-in or the stay is no longer active.
+    /// </summary>
+    Task<StayDetail> RescheduleCheckoutAsync(string stayId, DateOnly newCheckOut);
+
+    /// <summary>
     /// Ends a stay («تخلیه»): frees the room, freezes the billable total and hands the
     /// stay (room + every consumed line) to the cashier's ready-to-invoice queue.
     /// </summary>

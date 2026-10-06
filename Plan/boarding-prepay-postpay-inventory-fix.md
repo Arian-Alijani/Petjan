@@ -332,7 +332,7 @@ task produces a commit — never skip the push.)
 
 ---
 
-### [ ] T4 — Stay-detail modal: editable check-out date (+/- days) and prepay-extras lifecycle
+### [x] T4 — Stay-detail modal: editable check-out date (+/- days) and prepay-extras lifecycle
 **Problem (user):** clicking a current stay opens its detail; there must be the ability to change the
 check-out date (increase/decrease the number of days). Also: for a PREPAID stay, if the admin adds
 items/services after the (paid) stay, discharge must open an invoice for ONLY those extras, and history must
