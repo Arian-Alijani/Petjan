@@ -374,7 +374,7 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
   re-queries on change. Persian money/number/Jalali formatting throughout.
   **Build Desktop → 0/0. Push:** `[Task 6] statistics overview section`.
 
-- [ ] **Task 7 — Clients + Revenue/Sales sections.**
+- [x] **Task 7 — Clients + Revenue/Sales sections.** _(done: `StatisticsClientsViewModel`/`StatisticsSalesViewModel` + views, new `BarChart` control, species donut, new/returning split, top clients, sales-per-day bars, source comparison, paid/unpaid ratio, top products; display-name maps live in `StatisticsFormat`)_
   Implement §2.2 and §2.3 (species donut, new/returning, top clients, sales-per-day bar,
   best-selling products table, source comparison, paid/unpaid ratio). Add the Persian
   expense-category + source display-name map as a small presentation helper under `Pages/Statistics/`

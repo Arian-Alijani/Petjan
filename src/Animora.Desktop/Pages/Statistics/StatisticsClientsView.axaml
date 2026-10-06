@@ -1,11 +1,168 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:st="using:Animora.Desktop.Pages.Statistics"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Statistics.StatisticsClientsView"
              x:DataType="st:StatisticsClientsViewModel"
              x:CompileBindings="True"
              FlowDirection="RightToLeft">
     <StackPanel Spacing="18">
         <st:StatisticsSectionStateView DataContext="{Binding}" />
+
+        <StackPanel Spacing="18" IsVisible="{Binding HasData}">
+            <controls:AdaptiveGrid MinItemWidth="340" MaxColumns="2" ColumnSpacing="16" RowSpacing="16">
+                <!-- Species distribution donut + legend -->
+                <Border Classes="card">
+                    <StackPanel>
+                        <StackPanel Classes="card-header">
+                            <TextBlock Classes="card-title" Text="توزیع گونه‌ها" />
+                        </StackPanel>
+                        <Border Classes="card-header-rule" />
+                        <StackPanel Margin="18,14,18,18" Spacing="14">
+                            <Grid Width="180" Height="180" HorizontalAlignment="Center" IsVisible="{Binding HasSpecies}">
+                                <controls:DonutRing Slices="{Binding SpeciesSlices}"
+                                                    TrackBrush="{StaticResource ChartTrackBrush}" />
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2"
+                                            IsHitTestVisible="False">
+                                    <TextBlock Text="{Binding SpeciesTotal}" FontSize="22" FontWeight="ExtraBold"
+                                               HorizontalAlignment="Center" Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="بیمار فعال" FontSize="11" HorizontalAlignment="Center"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="هنوز بیماری ثبت نشده است." HorizontalAlignment="Center" Margin="0,40"
+                                       IsVisible="{Binding !HasSpecies}" Foreground="{StaticResource MutedBrush}" />
+                            <ItemsControl ItemsSource="{Binding Species}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="st:StatisticsSpeciesRow">
+                                        <Panel Margin="0,3">
+                                            <controls:MetricBar Height="30" Fraction="{Binding Fraction}" Fill="{Binding Color}"
+                                                                TrackBrush="Transparent" Radius="10" Opacity="0.16"
+                                                                IsHitTestVisible="False" />
+                                            <Grid ColumnDefinitions="9,*,Auto,44" ColumnSpacing="9" Margin="10,0" Height="30">
+                                                <Ellipse Width="9" Height="9" Fill="{Binding Color}" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                    <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Muted2Brush}"
+                                                          VerticalAlignment="Center"
+                                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource InkBrush}" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding Count}" FontSize="12" VerticalAlignment="Center"
+                                                           Foreground="{StaticResource Ink2Brush}" />
+                                                <TextBlock Grid.Column="3" Text="{Binding Share}" FontSize="12" FontWeight="Bold"
+                                                           VerticalAlignment="Center" TextAlignment="End"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </Grid>
+                                        </Panel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- New vs returning clients -->
+                <Border Classes="card">
+                    <StackPanel>
+                        <StackPanel Classes="card-header">
+                            <TextBlock Classes="card-title" Text="مراجعین جدید و تکراری" />
+                        </StackPanel>
+                        <Border Classes="card-header-rule" />
+                        <StackPanel Margin="18,16,18,18" Spacing="16">
+                            <controls:AdaptiveGrid MinItemWidth="120" MaxColumns="3" ColumnSpacing="10" RowSpacing="10">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding TotalOwners}" FontSize="22" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="کل مراجعین ثبت‌شده" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding NewOwners}" FontSize="22" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource Brand700Brush}" />
+                                    <TextBlock Text="ثبت‌نام‌شده در بازه" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding ActiveOwners}" FontSize="22" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="مراجعِ دارای فاکتور" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </controls:AdaptiveGrid>
+                            <StackPanel Spacing="8" IsVisible="{Binding HasSplit}">
+                                <controls:SegmentedBar Height="14" Segments="{Binding SplitSegments}" />
+                                <Grid ColumnDefinitions="*,*">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Ellipse Width="9" Height="9" Fill="#0d9488" VerticalAlignment="Center" />
+                                        <TextBlock FontSize="12" Foreground="{StaticResource Ink2Brush}">
+                                            <Run Text="تکراری:" /> <Run Text="{Binding ReturningOwners}" FontWeight="Bold" />
+                                            <Run Text="{Binding ReturningShare}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                        <Ellipse Width="9" Height="9" Fill="#1570cd" VerticalAlignment="Center" />
+                                        <TextBlock FontSize="12" Foreground="{StaticResource Ink2Brush}" Text="جدید (نخستین خرید در بازه)" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                            <TextBlock Text="در این بازه فاکتوری ثبت نشده است." Foreground="{StaticResource MutedBrush}"
+                                       IsVisible="{Binding !HasSplit}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </controls:AdaptiveGrid>
+
+            <!-- Visits per bucket -->
+            <Border Classes="card">
+                <StackPanel>
+                    <StackPanel Classes="card-header">
+                        <TextBlock Classes="card-title" Text="روند مراجعه" />
+                    </StackPanel>
+                    <Border Classes="card-header-rule" />
+                    <Panel Margin="12,12,12,14" MinHeight="220">
+                        <controls:BarChart Height="220" Points="{Binding VisitsTrend}" IsMoney="False"
+                                           BarBrush="{StaticResource Brand600Brush}" IsVisible="{Binding HasVisits}" />
+                        <TextBlock Text="مراجعه‌ای در این بازه ثبت نشده است." HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" IsVisible="{Binding !HasVisits}"
+                                   Foreground="{StaticResource MutedBrush}" />
+                    </Panel>
+                </StackPanel>
+            </Border>
+
+            <!-- Top clients by lifetime spend (server-capped, one batch) -->
+            <Border Classes="card">
+                <StackPanel>
+                    <StackPanel Classes="card-header">
+                        <TextBlock Classes="card-title" Text="برترین مراجعین بر اساس مجموع خرید" />
+                    </StackPanel>
+                    <Border Classes="card-header-rule" />
+                    <TextBlock Text="هنوز خریدی ثبت نشده است." Margin="18" Foreground="{StaticResource MutedBrush}"
+                               IsVisible="{Binding !HasTopClients}" />
+                    <ItemsControl Margin="14,8,14,14" ItemsSource="{Binding TopClients}" IsVisible="{Binding HasTopClients}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="st:StatisticsTopClientRow">
+                                <Panel Margin="0,3">
+                                    <controls:MetricBar Height="44" Fraction="{Binding Fraction}"
+                                                        Fill="{StaticResource Brand600Brush}" TrackBrush="Transparent"
+                                                        Radius="10" Opacity="0.10" IsHitTestVisible="False" />
+                                    <Grid ColumnDefinitions="30,*,Auto,Auto" ColumnSpacing="12" Margin="12,0" Height="44">
+                                        <TextBlock Text="{Binding Rank}" FontWeight="ExtraBold" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource Brand700Brush}" />
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding Phone}" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
+                                            <TextBlock Text="{Binding Invoices}" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                                            <TextBlock Text="{Binding LastVisit}" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="3" Text="{Binding Spend}" FontWeight="ExtraBold"
+                                                   VerticalAlignment="Center" Foreground="{StaticResource InkBrush}" />
+                                    </Grid>
+                                </Panel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
     </StackPanel>
 </UserControl>

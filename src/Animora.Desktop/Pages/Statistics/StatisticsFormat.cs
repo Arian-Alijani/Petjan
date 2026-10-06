@@ -81,6 +81,12 @@ public static class StatisticsFormat
 
     public static string Count(int value) => PersianNumberFormatter.ToPersianDigits(value.ToString(CultureInfo.InvariantCulture));
 
+    /// <summary>Persian quantity: whole numbers grouped, fractions to at most two decimals.</summary>
+    public static string Quantity(decimal value) => PersianNumberFormatter.ToPersianDigits(
+        value == Math.Truncate(value)
+            ? ((long)value).ToString("N0", CultureInfo.InvariantCulture)
+            : value.ToString("0.##", CultureInfo.InvariantCulture));
+
     /// <summary>«۲۵٪» (one share of a whole); empty when the whole is zero.</summary>
     public static string Percent(long part, long whole) =>
         whole <= 0 ? string.Empty : PersianNumberFormatter.ToPersianDigits(

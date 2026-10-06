@@ -276,7 +276,7 @@ public sealed class TrendChart : Control
         return geo;
     }
 
-    private static string ShortMoney(double n)
+    internal static string ShortMoney(double n)
     {
         if (n >= 1_000_000_000)
         {
