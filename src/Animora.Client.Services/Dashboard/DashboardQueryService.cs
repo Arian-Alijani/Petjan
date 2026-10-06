@@ -23,6 +23,10 @@ public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashbo
     private readonly TenantScopedCache<string, (DateTimeOffset Expires, DashboardSnapshot Snapshot)> _cache = new();
     private readonly SemaphoreSlim _loadGate = new(1, 1);
 
+    // Fixed-expense payments and expenses are not part of the source generation, so a snapshot carrying management alerts
+    // is only briefly reusable: paying a due item clears its alert on the very next read instead of up to a minute later.
+    private const int AlertCacheSeconds = 5;
+
     // Microsoft.Data.Sqlite executes async reads synchronously. Keep the whole scoped read/mapping
     // off the UI thread, not just the continuation after its first SQL call.
     public Task<DashboardSnapshot> GetSnapshotAsync(UserRole role, CancellationToken ct = default) => ReadAsync(role, false, ct);
@@ -78,7 +82,7 @@ public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashbo
         // The slice carries the generation of the very state it was read from; if a write landed between the probe
         // and the read, the entry is filed under that newer generation, never under the stale probe value.
         _cache.Set(KeyFor(result.Value!.Generation.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-            (now.AddSeconds(60), snapshot));
+            (now.AddSeconds(result.Value!.Alerts is { Count: > 0 } ? AlertCacheSeconds : 60), snapshot));
         return snapshot;
     }
     private static DashboardQueryException Failure(IServiceProvider services, string code)

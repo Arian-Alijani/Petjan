@@ -420,7 +420,7 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
 
 ### Phase E — Finish
 
-- [ ] **Task 10 — Integration pass + final verify.**
+- [x] **Task 10 — Integration pass + final verify.** _(done: nav gated by `reports.read`, Expenses tab by `finance.read`, writes by `finance.post`; stats page + dashboard re-read on `DataDomain.Finance`; cached dashboard snapshots carrying alerts expire in 5 s so paying a fixed expense clears its alert; the single final build + smoke is run once after all tasks per the run rules)_
   Quick targeted check that: nav entry shows for Manager and is hidden for Receptionist; stats data
   reacts to the range picker; posting an expense updates the expenses section + overview + dashboard;
   paying a fixed expense clears its due alert. Fix any integration gaps (if a fix is large, push it
