@@ -132,7 +132,7 @@ state filter). `Transferred = State >= ReadyForInvoice`. Thus a stay in `ReadyFo
 
 ---
 
-### [ ] T0 — Branch bootstrap + baseline build
+### [x] T0 — Branch bootstrap + baseline build
 **Do:** ensure we are on `genspark_ai_developer`; confirm the Desktop project builds clean BEFORE any edit
 (so later failures are attributable).
 ```
