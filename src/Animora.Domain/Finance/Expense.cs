@@ -250,7 +250,8 @@ public sealed class Expense : AggregateRoot
             CategoryCode,
             Amount.Minor,
             Amount.Currency,
-            SettledMethod));
+            SettledMethod,
+            IsReversal));
         return Result.Ok();
     }
 

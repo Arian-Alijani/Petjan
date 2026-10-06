@@ -529,15 +529,19 @@ public static class PostingRules
         var amount = new Money(Math.Abs(e.AmountMinor), e.Currency);
         var debitAccount = ExpenseCategories.AccountCodeFor(e.CategoryCode);
         var lines = new List<JournalLine>(2);
-        Add(lines, now, EntrySide.Debit, debitAccount, amount, $"{e.CategoryCode} expense");
-        Add(lines, now, EntrySide.Credit, creditAccount, amount, "Expense settlement");
+        // A reversing expense mirrors the original: the expense account is credited back and the
+        // settlement account debited, so the pair nets to zero per account.
+        Add(lines, now, e.IsReversal ? EntrySide.Credit : EntrySide.Debit, debitAccount, amount,
+            e.IsReversal ? $"{e.CategoryCode} expense reversal" : $"{e.CategoryCode} expense");
+        Add(lines, now, e.IsReversal ? EntrySide.Debit : EntrySide.Credit, creditAccount, amount,
+            e.IsReversal ? "Expense settlement reversal" : "Expense settlement");
 
         return Build(
             e.TenantId,
             context,
             JournalSource.Expense,
             lines,
-            $"Expense {e.ExpenseId} ({e.CategoryCode}) posted",
+            e.IsReversal ? $"Expense {e.ExpenseId} ({e.CategoryCode}) reversal posted" : $"Expense {e.ExpenseId} ({e.CategoryCode}) posted",
             nameof(Expense),
             e.ExpenseId,
             now);

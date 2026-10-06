@@ -71,7 +71,8 @@ public sealed class FinanceProjectionStore(AnimoraLocalDbContext db) : IFinanceP
                 break;
             }
             case ExpensePostedEvent expense:
-                (await Daily(e.TenantId, day, ct)).Apply(expense: Math.Abs(expense.AmountMinor));
+                (await Daily(e.TenantId, day, ct)).Apply(expense: expense.IsReversal
+                    ? -Math.Abs(expense.AmountMinor) : Math.Abs(expense.AmountMinor));
                 break;
             // Receipts, cheque settlement and drawer closure move balance-sheet accounts only.
         }

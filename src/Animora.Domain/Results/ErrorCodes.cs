@@ -550,6 +550,21 @@ public static class ErrorCodes
     public static readonly ErrorCode ExpenseImmutable =
         new("EXPENSE_IMMUTABLE", ErrorCode.Conflict);
 
+    /// <summary>The addressed expense does not exist for this tenant.</summary>
+    public static readonly ErrorCode ExpenseNotFound = new("EXPENSE_NOT_FOUND", ErrorCode.NotFound);
+
+    /// <summary>The expense is already reversed, is itself a reversal, or is not posted.</summary>
+    public static readonly ErrorCode ExpenseNotReversible = new("EXPENSE_NOT_REVERSIBLE", ErrorCode.Conflict);
+
+    /// <summary>The addressed fixed (recurring) expense does not exist for this tenant.</summary>
+    public static readonly ErrorCode RecurringExpenseNotFound = new("RECURRING_EXPENSE_NOT_FOUND", ErrorCode.NotFound);
+
+    /// <summary>The fixed expense is inactive and cannot be paid.</summary>
+    public static readonly ErrorCode RecurringExpenseInactive = new("RECURRING_EXPENSE_INACTIVE", ErrorCode.Conflict);
+
+    /// <summary>The fixed expense was already paid for the current period.</summary>
+    public static readonly ErrorCode RecurringExpenseAlreadyPaid = new("RECURRING_EXPENSE_ALREADY_PAID", ErrorCode.Conflict);
+
     #endregion
 
     #region Local store / keystore (A11)

@@ -92,6 +92,10 @@ public sealed record ChequeBouncedEvent(
 /// <param name="AmountMinor">The amount spent, in minor units.</param>
 /// <param name="Currency">ISO-4217 code of the amount.</param>
 /// <param name="SettledMethod">How it was settled; <see langword="null"/> leaves it payable.</param>
+/// <param name="IsReversal">
+/// <see langword="true"/> when the posted expense offsets an earlier one: the journal entry swaps sides and the
+/// finance facts subtract the amount (A-RULE 003 — a correction is a compensating row, never an edit).
+/// </param>
 public sealed record ExpensePostedEvent(
     string EventId,
     string TenantId,
@@ -100,7 +104,8 @@ public sealed record ExpensePostedEvent(
     string CategoryCode,
     long AmountMinor,
     string Currency,
-    PaymentMethod? SettledMethod)
+    PaymentMethod? SettledMethod,
+    bool IsReversal = false)
     : DomainEvent(EventId, TenantId, OccurredAtUtc);
 
 /// <summary>

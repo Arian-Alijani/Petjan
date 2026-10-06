@@ -306,7 +306,7 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
   can virtualize like Patients.
   **Build `full` → 0/0. Push:** `scripts/git/push.sh -b genspark_ai_developer "feat(finance): [Task 1] statistics read queries + port"`.
 
-- [ ] **Task 2 — Expense commands (use-cases) + dispatcher-query wrappers.**
+- [x] **Task 2 — Expense commands (use-cases) + dispatcher-query wrappers.** _(done: `UseCases/Finance/{StatisticsQueries,ExpenseCommands,FinanceRegistration}.cs`; `ExpensePostedEvent.IsReversal` makes the reversing expense mirror the journal entry and subtract from `DailyFinanceFact`; new `finance.expense.reverse` command type + `EXPENSE_NOT_FOUND/NOT_REVERSIBLE` and recurring error codes)_
   Recreate `Application/UseCases/Finance/` with `FinanceRegistration.AddFinanceUseCases(builder)`.
   (a) **Dispatcher-query wrappers** for every Task 1 read: one `IQuery<TReadModel>` record +
   `IQueryHandler` per read (e.g. `StatisticsOverviewQuery(FinanceDayRange) : IQuery<OverviewReadModel>`),

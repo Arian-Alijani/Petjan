@@ -12,6 +12,7 @@ using Animora.Application.UseCases.Sales;
 using Animora.Application.UseCases.Cashier;
 using Animora.Application.UseCases.History;
 using Animora.Application.UseCases.Dashboard;
+using Animora.Application.UseCases.Finance;
 using Animora.Application.UseCases.Search;
 using Animora.Application.UseCases.Profile;
 using Animora.Client.Services.Boarding;
@@ -224,7 +225,7 @@ public partial class App : global::Avalonia.Application
                     sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Animora.Persistence.Sqlite.Options.LocalStoreOptions>>(),
                     sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Animora.Infrastructure.Local.Security.FileFallbackSecretStore>>()));
         }
-        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddCashierUseCases().AddHistoryUseCases().AddDashboardUseCases().AddSearchUseCases().AddProfileUseCases());
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddCashierUseCases().AddHistoryUseCases().AddDashboardUseCases().AddFinanceUseCases().AddSearchUseCases().AddProfileUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it

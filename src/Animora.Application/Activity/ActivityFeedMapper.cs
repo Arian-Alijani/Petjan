@@ -73,7 +73,7 @@ public static class ActivityFeedMapper
                 _ => HistoryEventStatus.Pending,
             }),
         ExpensePostedEvent x => Draft(x, HistoryEventKind.Expense, ActivityEventKeys.ExpensePosted,
-            "Expense", x.ExpenseId, x.AmountMinor, -1, new { category = x.CategoryCode, x.Currency }, HistoryEventStatus.Done),
+            "Expense", x.ExpenseId, x.AmountMinor, x.IsReversal ? 1 : -1, new { category = x.CategoryCode, x.Currency }, HistoryEventStatus.Done),
         _ => null,
     };
 
