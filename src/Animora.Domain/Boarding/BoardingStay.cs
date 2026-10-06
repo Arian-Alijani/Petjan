@@ -109,6 +109,25 @@ public sealed class BoardingStay : AggregateRoot
     /// <summary>The invoice raised for this stay (A07); set by <see cref="AttachInvoice"/>.</summary>
     public string? InvoiceId { get; private set; }
 
+    /// <summary>
+    /// The prepaid room invoice issued at admission for a <see cref="StayPaymentMode.Prepaid"/> stay.
+    /// Unlike <see cref="InvoiceId"/>, this never drives the lifecycle: the stay stays
+    /// <see cref="StayState.Active"/> and editable so staff can still add consumed items, which are
+    /// billed on a <b>second</b> invoice at checkout. <see langword="null"/> until the prepaid
+    /// invoice is posted (<see cref="SettlePrepaidRoom"/>).
+    /// </summary>
+    public string? PrepaidInvoiceId { get; private set; }
+
+    /// <summary>
+    /// The room amount already collected on the prepaid invoice, in minor units. Excluded from the
+    /// checkout bill so the room is never charged twice. <see langword="null"/> until the prepaid
+    /// invoice is posted.
+    /// </summary>
+    public long? PrepaidRoomChargeMinor { get; private set; }
+
+    /// <summary><see langword="true"/> once the room charge has been collected in advance.</summary>
+    public bool IsRoomPrepaid => PrepaidInvoiceId is not null;
+
     /// <summary>Auditable checkout snapshot, not the source of the running balance.</summary>
     public long? FrozenTotalMinor { get; private set; }
 
@@ -314,6 +333,34 @@ public sealed class BoardingStay : AggregateRoot
     }
 
     /// <summary>
+    /// Records the posted prepaid room invoice for a <see cref="StayPaymentMode.Prepaid"/> stay.
+    /// This is <b>not</b> a lifecycle transition: the stay stays <see cref="StayState.Active"/> and its
+    /// items stay editable, so staff can keep adding consumed items that are billed separately at
+    /// checkout. Rejected if the stay is not prepaid (<c>STAY_NOT_EDITABLE</c>), already settled, or no
+    /// longer active.
+    /// </summary>
+    public Result SettlePrepaidRoom(string invoiceId, Money roomCharge)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(invoiceId);
+
+        if (PaymentMode != StayPaymentMode.Prepaid || PrepaidInvoiceId is not null ||
+            State != StayState.Active)
+        {
+            return Result.Fail(ErrorCodes.StayNotEditable,
+                $"Stay '{Id}' ({State}, {PaymentMode}) cannot record a prepaid room invoice.");
+        }
+
+        if (roomCharge.Currency != DailyRate.Currency || roomCharge.IsNegative)
+        {
+            return Result.Fail(ErrorCodes.ValidationFailed);
+        }
+
+        PrepaidInvoiceId = invoiceId;
+        PrepaidRoomChargeMinor = roomCharge.Minor;
+        return Result.Ok();
+    }
+
+    /// <summary>
     /// Completes checkout, stamping <see cref="ActualCheckOutUtc"/> and closing the room history. A
     /// stay is <b>never</b> checked out unbilled — an invoice must be attached first
     /// (<c>STAY_INVOICE_REQUIRED</c>). Raises <see cref="StayCheckedOutEvent"/>.
@@ -336,6 +383,38 @@ public sealed class BoardingStay : AggregateRoot
         }
 
         var now = clock.UtcNow;
+        ActualCheckOutUtc = now;
+
+        var openIndex = _roomHistory.FindIndex(a => a.ToUtc is null);
+        if (openIndex >= 0)
+        {
+            _roomHistory[openIndex] = _roomHistory[openIndex] with { ToUtc = now };
+        }
+
+        Raise(new StayCheckedOutEvent(IdGenerator.NewId(now), TenantId, now, Id, PetId, RoomId, now));
+        return Result.Ok();
+    }
+
+    /// <summary>
+    /// Checks out a fully-prepaid stay that has no extra consumed items to bill: the room was already
+    /// collected in advance (<see cref="IsRoomPrepaid"/>) and <see cref="Items"/> is empty, so there is
+    /// nothing left to invoice. Moves <see cref="StayState.Active"/> straight to
+    /// <see cref="StayState.CheckedOut"/> without a second invoice. Rejected otherwise
+    /// (<c>STAY_INVOICE_REQUIRED</c>) so a stay with unbilled items still goes through Sales.
+    /// </summary>
+    public Result CompletePrepaidCheckoutWithoutInvoice(IClock clock)
+    {
+        ArgumentNullException.ThrowIfNull(clock);
+
+        if (State != StayState.Active || !IsRoomPrepaid || _items.Count != 0)
+        {
+            return Result.Fail(
+                ErrorCodes.StayInvoiceRequired,
+                $"Stay '{Id}' still has billable lines; it must be invoiced before checkout.");
+        }
+
+        var now = clock.UtcNow;
+        State = StayState.CheckedOut;
         ActualCheckOutUtc = now;
 
         var openIndex = _roomHistory.FindIndex(a => a.ToUtc is null);
