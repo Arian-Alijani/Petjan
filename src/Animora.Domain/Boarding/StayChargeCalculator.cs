@@ -20,12 +20,27 @@ public static class StayChargeCalculator
         TimeZoneInfo timeZone)
     {
         ArgumentNullException.ThrowIfNull(stay);
+        var nights = NightsBetween(stay.CheckInUtc, EndOf(stay, asOf), timeZone);
+        return stay.DailyRate * nights + ItemsOnly(stay, services, asOf, timeZone);
+    }
+
+    /// <summary>
+    /// The items/services portion of the charge <b>only</b> (the room base excluded). This is the
+    /// checkout bill for a prepaid stay whose room was already collected in advance; per-day boarding
+    /// services still multiply by the stay's nights, exactly as <see cref="Accrued"/> charges them.
+    /// </summary>
+    public static Money ItemsOnly(
+        BoardingStay stay,
+        IReadOnlyList<BoardingServiceDef> services,
+        DateTimeOffset asOf,
+        TimeZoneInfo timeZone)
+    {
+        ArgumentNullException.ThrowIfNull(stay);
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(timeZone);
 
-        var end = stay.ActualCheckOutUtc is { } checkout && checkout < asOf ? checkout : asOf;
-        var nights = NightsBetween(stay.CheckInUtc, end, timeZone);
-        var total = stay.DailyRate * nights;
+        var nights = NightsBetween(stay.CheckInUtc, EndOf(stay, asOf), timeZone);
+        var total = Money.Irt(0);
         var billingById = services.ToDictionary(service => service.Id, service => service.Billing);
         foreach (var item in stay.Items)
         {
@@ -43,4 +58,7 @@ public static class StayChargeCalculator
 
         return total;
     }
+
+    private static DateTimeOffset EndOf(BoardingStay stay, DateTimeOffset asOf) =>
+        stay.ActualCheckOutUtc is { } checkout && checkout < asOf ? checkout : asOf;
 }
