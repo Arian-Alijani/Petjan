@@ -87,17 +87,17 @@ contracts + services + UI on top of it, plus **new** recurring-expense + dashboa
 |---|---|---|
 | `Expense` aggregate (Draft→Posted→Reversed, `Post(IClock)` raises `ExpensePostedEvent`) | `Domain/Finance/Expense.cs` | Create/Edit/SetSettlement/AttachReceipt/Post/MarkReversed/LinkJournalEntry. `Amount` is `Money`, `IncurredUtc` is the accounting date, `CategoryCode` resolves debit account. Correction = reversing expense, never edit-after-post. |
 | Expense categories + account mapping | `Domain/Finance/ExpenseCategories.cs` | 9 codes: `RENT, UTILITIES, SALARY, SUPPLIES, MAINTENANCE, MARKETING, TAX, TRANSPORT, OTHER`. `SALARY`→acct 6100, rest→6000. Persian display names are **not** defined here — add a presentation map in Desktop (Task 7). |
-| Finance date windows (Persian labels) | `Domain/Finance/FinanceRanges.cs` | `FinanceRanges.All` = today/7d/30d/90d/ytd/custom with Persian labels; `FinanceRanges.Resolve(id, todayLocalDay, from?, to?)` → `FinanceDayRange(FromDay,ToDay)` as `yyyyMMdd` ints. Reuse for the stats range picker. |
+| Finance date windows (Persian labels) | `Domain/Finance/FinanceRanges.cs` | `FinanceRanges.All` = today/7d/30d/90d/ytd/custom with Persian labels; `FinanceRanges.Resolve(id, todayLocalDay, from?, to?)` → `FinanceDayRange(FromDay,ToDay)` as **Gregorian** `yyyyMMdd` ints. Reuse for the stats range picker. **⚠ Known limitation:** the `"ytd"` branch currently computes `new DateOnly(today.Year, 1, 1)` — i.e. the start of the **Gregorian** year — while its label is «از ابتدای سال» (start of the **Jalali** year). Do **not** silently "fix" this inside the Domain (Jalali stays out of the Domain). If the stats screen needs a true Jalali YTD, resolve the Jalali-year-start `DateOnly` in the **Application/Desktop** layer (via `PersianCalendar`) and pass it through the `custom` branch (`customFromDay`/`customToDay`); treat the built-in `"ytd"` as Gregorian-YTD only. Decide this once in Task 1 and keep every section consistent. |
 | Posting: `ExpensePostedEvent`→journal entry | `Application/Finance/LedgerPostingHandler.cs` + `Domain/Finance/PostingRules.ForExpensePosted` | Already registered as a domain-event handler (confirmed in Persistence DI). Posting an expense writes the journal entry automatically. |
 | Expense write repo + number allocator | `Persistence/Repositories/ExpenseRepository.cs`, `Persistence/Finance/ExpenseNumberAllocator.cs` | Ports `IExpenseRepository`, `IExpenseNumberAllocator` exist and are **DI-registered**. |
 | Ledger/period repos + journal allocator | `Persistence/Repositories/{LedgerRepository,PeriodRepository}.cs`, `Persistence/Finance/JournalNumberAllocator.cs` | Registered. `IPeriodRepository.FindContainingAsync/FindNextOpenAsync` used by posting. |
 | **Revenue/expense/COGS daily facts** | `Persistence/Entities/DailyFinanceFact.cs` + `Persistence/Finance/FinanceProjectionStore.cs` | **This is the stats backbone.** Per clinic-local day (`LocalDay` = `yyyyMMdd` int), already accumulates: `RevenueMinor, CogsMinor, ExpenseMinor, DiscountMinor, InsuranceMinor, RefundMinor, InvoiceCount, PaidInvoiceCount`. Fed from InvoicePosted/Voided/Refunded, StockMovement(Sale→cogs), **ExpensePosted→ExpenseMinor**. Unique index `(TenantId, LocalDay)`. |
 | **Per-product daily sales facts** | `Persistence/Entities/ProductSalesFact.cs` | Per `(TenantId, LocalDay, ProductId, VariantId)`: `QuantitySold, RevenueMinor, CogsMinor`. Backs "best-selling products". Unique index exists. |
 | Owner spend snapshot | `Persistence/Entities/OwnerFinancialSnapshot.cs` | Per owner total spend + invoice count + last-invoice date. Backs "top clients". |
-| Cheque read queries | `Application/Ports/IChequeQueries.cs` + `Persistence/Queries/ChequeQueries.cs` | **Still present + DI-registered.** Exposes `GetListAsync`, `GetCashflowAsync`, `GetBankBreakdownAsync`, `GetAlertsAsync(today)`. `ChequeAlertRow(Id, Kind, DueDay, AmountMinor)` where Kind reflects due-soon/overdue/bounced. Use `GetAlertsAsync` for dashboard cheque alerts. |
+| Cheque read queries | `Application/Ports/IChequeQueries.cs` + `Persistence/Queries/ChequeQueries.cs` | **Still present + DI-registered.** Exposes `GetListAsync`, `GetCashflowAsync`, `GetBankBreakdownAsync`, and `GetAlertsAsync(DateOnly today, CancellationToken ct)`. Row shape is **`ChequeAlertRow(string Id, string Kind, DateOnly DueDay, long AmountMinor)`** — `DueDay` is a `DateOnly` (**not** a `yyyyMMdd` int), `Kind` is a string reflecting due-soon/overdue/bounced. Use `GetAlertsAsync` for dashboard cheque alerts. **This is an `Application` port, so it is reachable only from inside the Application layer (a query handler), never from `Client.Services` — see §4.** |
 | Cheque alert date rules | `Domain/Finance/ChequeAlertRules.cs` | `DueWithin3Days`, `OverdueUncleared`, `BouncedUnresolved`. Pure. |
-| Dashboard snapshot shape | `Contracts/Dashboard/DashboardModels.cs` | `DashboardSnapshot` already has a **secondary "alerts" list** for the manager role (`SecondaryListTitle` + `SecondaryList` of `DashboardListItem`). This is our hook for rent/cheque alerts. `DashboardListItem(AvatarText,Title,Subtitle,TagText,TagTone,IconKey?,Kind,Status,TitleKey?)`; tones: Neutral/Danger/Warn/Info/Ok/Brand/Lilac/Peach. |
-| Dashboard query/service/VM | `Application/UseCases/Dashboard/DashboardSnapshotQuery.cs`, `Persistence/Queries/DashboardQueries.cs`, `Client.Services/Dashboard/DashboardQueryService.cs`, `Pages/Dashboard/*` | `DashboardSlice`/`DashboardAccess` already carry `Finance`, `Cheques` permission flags and an `Expense`/`Cheque` activity kind. Manager dashboard already renders `SecondaryList`. We **extend** the alert-building here, not rebuild it. |
+| Dashboard snapshot shape | `Contracts/Dashboard/DashboardModels.cs` | `DashboardSnapshot` (a **Contracts** DTO) has a **secondary "alerts" list** for the manager role (`SecondaryListTitle` + `SecondaryList` of `DashboardListItem`). This is our hook for rent/cheque alerts. `DashboardListItem(AvatarText,Title,Subtitle,TagText,TagTone,IconKey?,Kind,Status,TitleKey?)`; tones enum `DashboardTone`: Neutral/Danger/Warn/Info/Ok/Brand/Lilac/Peach. |
+| Dashboard query/service/VM | `Application/UseCases/Dashboard/DashboardSnapshotQuery.cs`, `Persistence/Queries/DashboardQueries.cs`, `Client.Services/Dashboard/DashboardQueryService.cs`, `Pages/Dashboard/*` | **Two-layer split (do not conflate):** the Application query `DashboardSnapshotQuery` returns a raw **`DashboardSlice`** (no `SecondaryList`, no `DashboardListItem` — those are Contracts types the Application layer cannot see); `DashboardSlice`/`DashboardAccess` carry the `Finance`, `Cheques` permission flags and an `Expense`/`Cheque` **activity** kind. The **`DashboardSnapshot`** DTO — including `SecondaryList` of `DashboardListItem` — is assembled in `Client.Services/Dashboard/DashboardQueryService.cs` (see its `secondary = role switch …` block). The manager `ManagerDashboardView` renders that `SecondaryList`. So alert **data** is produced in the Application read and alert **presentation rows** (`DashboardListItem`) are mapped in the client service — see §4 for exactly where each half lives. |
 | Permission codes | `Domain/Identity/PermissionCodes.cs` | `FinanceRead="finance.read"`, `FinancePost="finance.post"`, `FinancePeriodClose`, `ReportsRead="reports.read"`, `ChequesRead="cheques.read"`, `ChequesManage`. Already in the catalog. Manager role has all; default Receptionist lacks finance/reports/cheques. |
 | Account codes | `Domain/Finance/ChartOfAccounts.cs` | `AccountsPayable="2000"`, `OperatingExpense="6000"`, `SalaryExpense="6100"`, cash/bank 1000/1010. |
 | Reusable UI controls | `Desktop/Controls/` | `StatCard` (icon/value/label/delta), `DonutRing`, `DataTable`, `JalaliDatePicker`, `Tone` enum. Check exact ctor/props by opening the one you use. |
@@ -131,8 +131,11 @@ A single page `StatisticsPageView` with an **internal section switcher** (segmen
 top, RTL), **not** separate sidebar entries. Minimal, modern, data-dense but calm. Sections:
 
 1. **نمای کلی (Overview / default)** — the management dashboard:
-   - Top row of **KPI StatCards**: درآمد امروز · درآمد این ماه · سود ناخالص (revenue−cogs−expense)
-     · تعداد مراجعین (today/period) · میانگین فاکتور. Each with a delta vs. previous comparable period.
+   - Top row of **KPI StatCards**: درآمد امروز · درآمد این ماه · **سود خالص** (`net = revenue − cogs −
+     expense`) · تعداد مراجعین (today/period) · میانگین فاکتور. (Accounting note: `revenue − cogs − expense`
+     is **net/operating** profit — label it «سود خالص», not «سود ناخالص»; true gross profit would be
+     `revenue − cogs`. Keep this label consistent with Task 1's `net` field.) Each with a delta vs. the
+     previous comparable period.
    - **Revenue trend chart** (area/line) over the selected range (reuse `DailyFinanceFact` series;
      mirror the existing `DashboardRevenuePulse` normalization math in
      `Pages/Dashboard/RevenueChartMath.cs`).
@@ -177,31 +180,56 @@ expenses section then shows:
 Need: define recurring costs (e.g. اجاره ثابت, حقوق) that **re-appear every month**, are **reminded**
 when due, and have a **«پرداخت» button** that posts that month's real `Expense`.
 
-**New domain aggregate** `Domain/Finance/RecurringExpense.cs`:
-- Fields: `Id, TenantId, CategoryCode, Title, Money Amount, int DayOfMonth (1–31, Jalali day),
-  bool IsActive, string? SupplierId, string? Note, DateTimeOffset CreatedUtc`.
-- Methods: `Create(...)`, `Edit(...)`, `Activate/Deactivate()`. Pure, `Result<T>` return style
-  (mirror `Expense.cs`). No events needed (it is a template, not a ledger row).
-- **Payment tracking**: track which months were already paid so a month is not reminded twice and
-  not double-paid. Simplest robust design: a sibling value/entity
-  `RecurringExpensePayment(RecurringExpenseId, PeriodKey=yyyyMM-Jalali, ExpenseId, PaidUtc)`.
-  When «پرداخت» is pressed for a due month, create+post a normal `Expense` (so it flows into the
-  ledger + facts) and record a `RecurringExpensePayment` linking the template to that posted expense.
-- **Due logic** (pure, in domain): a recurring item is "due this month" if the current Jalali month
-  has reached `DayOfMonth` AND no `RecurringExpensePayment` exists for the current `PeriodKey`.
-  Expose a pure helper `RecurringExpenseSchedule.IsDue(dayOfMonth, todayJalali, alreadyPaidThisPeriod)`
-  and `NextDueJalaliDate(...)`.
+> **Calendar rule (locked — do not break).** The repo keeps **Jalali out of the Domain**
+> (see `Domain/Finance/AccountingPeriod.cs`: *"Jalali stays out of the Domain … `PeriodCode` is an
+> opaque string key"*), and every finance fact/window (`DailyFinanceFact.LocalDay`, `FinanceRanges`,
+> `ClinicCalendar.LocalDay`) is a **Gregorian** `yyyyMMdd`/`DateOnly` — `ClinicCalendar` explicitly
+> never does Jalali (R-B24). So: the **Domain aggregate stays calendar-agnostic**; the Jalali
+> month/day is computed **only in the Application layer** (via `System.Globalization.PersianCalendar`,
+> the same way `AccountingPeriod`/`VaccinationQueries` already do) and passed to the Domain as plain
+> ints / an opaque `PeriodCode`. This keeps the recurring "period" consistent with how the posted
+> `Expense` rolls into `DailyFinanceFact` (the posted expense still dates by its Gregorian
+> `IncurredUtc` → Gregorian `LocalDay`; the Jalali `PeriodCode` is only the dedupe/reminder key).
 
-**Persistence (NEW)**: EF configs + a **migration `029`** adding `RecurringExpenses` and
-`RecurringExpensePayments` tables (follow the index-light migration template of
-`20261002120000_023_PatientsPerfIndexes.cs`; remember the triple: `*.cs` + `*.Designer.cs` + update
-`AnimoraLocalDbContextModelSnapshot.cs`; tenant/soft-delete filters auto-applied by
-`Conventions/ModelConventions.cs`). Repos + ports mirroring `IExpenseRepository`.
+**New domain aggregate** `Domain/Finance/RecurringExpense.cs`:
+- Fields: `Id, TenantId, CategoryCode, Title, Money Amount, int DayOfMonth (1–31; just a number —
+  the *interpretation* as a Jalali day-of-month belongs to the Application layer), bool IsActive,
+  string? SupplierId, string? Note, DateTimeOffset CreatedUtc`.
+- Methods: `Create(...)`, `Edit(...)`, `Activate/Deactivate()`. Pure, `Result<T>` return style
+  (mirror `Expense.cs`). Validate `DayOfMonth` in 1..31. No events needed (it is a template, not a
+  ledger row).
+- **Payment tracking**: track which periods were already paid so a period is not reminded twice and
+  not double-paid. Sibling entity
+  `RecurringExpensePayment(RecurringExpenseId, string PeriodCode, string ExpenseId, DateTimeOffset PaidUtc)`.
+  `PeriodCode` is an **opaque `yyyyMM` string** (the Jalali year+month computed in the Application
+  layer — same opaque-key convention as `AccountingPeriod.PeriodCode`; the Domain never parses it).
+  When «پرداخت» is pressed for a due period, create+post a normal `Expense` (so it flows into the
+  ledger + facts) and record a `RecurringExpensePayment` linking the template to that posted expense.
+- **Due logic** (pure, in domain — calendar-agnostic): expose
+  `RecurringExpenseSchedule.IsDue(int dayOfMonth, int currentDayOfMonth, bool alreadyPaidThisPeriod)`
+  → due when `currentDayOfMonth >= dayOfMonth && !alreadyPaidThisPeriod`. The Application layer
+  derives `currentDayOfMonth` and the current `PeriodCode` from "today" with `PersianCalendar`, then
+  calls this pure helper. (Any "next due date" rendering is a **presentation** concern — compute it
+  in the Desktop layer with the existing Jalali helpers, not in the Domain.)
+
+**Persistence (NEW)**: EF configs under `Configurations/Finance/` + a **migration `029`** adding
+`RecurringExpenses` and `RecurringExpensePayments` tables. Follow the **current** migration naming
+convention (double-underscore + UTC timestamp prefix, e.g.
+`20261004130000__028_PersianBoardingServiceTitles.cs`) — pick a timestamp after `028`, file name
+`<yyyyMMddHHmmss>__029_RecurringExpenses.cs`. Remember the triple: `*.cs` + `*.Designer.cs` + update
+`AnimoraLocalDbContextModelSnapshot.cs`; tenant/soft-delete filters are auto-applied by
+`Conventions/ModelConventions.cs`. Index `RecurringExpensePayments` on `(TenantId, RecurringExpenseId,
+PeriodCode)` **unique** (the dedupe guard that stops a double-pay) and keep the rest index-light
+(mirror `023_PatientsPerfIndexes` for the index style only). Repos + ports mirroring
+`IExpenseRepository`.
 
 **Application**: `AddRecurringExpenseCommand`, `EditRecurringExpenseCommand`,
-`ToggleRecurringExpenseCommand`, and `PayRecurringExpenseForPeriodCommand` (creates+posts the real
-`Expense`, records the payment). A read query `RecurringExpensesQuery` returning each template +
-its current-month due/paid state. All journaled via the standard command pipeline + validators.
+`ToggleRecurringExpenseCommand`, and `PayRecurringExpenseForPeriodCommand` (computes the current
+Jalali `PeriodCode` + day via `PersianCalendar`, guards against an existing payment for that
+`PeriodCode`, then creates+posts the real `Expense` and records the payment — idempotent on the
+unique index). A read query `RecurringExpensesQuery` returning each template + its current-period
+due/paid state (the Application resolves "today" → Jalali day + `PeriodCode` and calls
+`RecurringExpenseSchedule.IsDue`). All journaled via the standard command pipeline + validators.
 
 **UI**: in the Expenses section, a "هزینه‌های ثابت" panel listing templates with status chips
 («پرداخت‌شده» / «سررسید نزدیک» / «پرداخت») and a «پرداخت» button per due item. Add/edit modal.
@@ -212,17 +240,31 @@ its current-month due/paid state. All journaled via the standard command pipelin
 
 Extend the **manager** dashboard `SecondaryList` ("هشدارها") so it surfaces actionable management
 alerts, ordered by urgency. Sources:
-- **Fixed-expense due** (e.g. "اجاره نزدیک است"): from `RecurringExpensesQuery` due-but-unpaid items
-  → `DashboardListItem` with `Kind="Expense"`, tone `Warn` (due soon) / `Danger` (overdue),
-  `TagText` = «سررسید پرداخت». Only when the viewer has `finance.read`.
-- **Cheque due/overdue/bounced**: from `IChequeQueries.GetAlertsAsync(today)` →
-  `DashboardListItem` `Kind="Cheque"`, tone by `ChequeAlertRow.Kind`. Only when viewer has
-  `cheques.read` (both the port and the `access.Cheques` flag already exist).
+- **Fixed-expense due** (e.g. "اجاره نزدیک است"): from the recurring due-state read (Task 3's
+  current-period due/paid state) for due-but-unpaid items → tone `Warn` (due soon) / `Danger`
+  (overdue), `TagText` = «سررسید پرداخت». Only when the viewer has `finance.read` (`access.Finance`).
+- **Cheque due/overdue/bounced**: from `IChequeQueries.GetAlertsAsync(today, ct)` →
+  tone derived from `ChequeAlertRow.Kind` (a string). Only when the viewer has `cheques.read`
+  (both the port and the `access.Cheques` flag already exist).
 
-Design this as an **extensible alert aggregator** so future alert kinds (e.g. check runs, low stock
-reminders) plug in without reshaping the dashboard. Implement the aggregation inside the existing
-`DashboardSnapshotQuery`/`DashboardQueries` read (respect the existing `DashboardAccess` permission
-flags and the projection-lag freshness), map to `DashboardListItem` in `DashboardQueryService`.
+**Respect the existing two-layer split (critical — see §1.1 "Dashboard query/service/VM"):**
+`DashboardListItem`, `DashboardTone` and `DashboardSnapshot.SecondaryList` are **Contracts** types the
+Application layer cannot reference, and `IChequeQueries` is an **Application** port that
+`Client.Services` must **not** touch directly (A-rule §0.2: client services only go over the
+dispatcher). Therefore split the work cleanly:
+
+1. **Application (data only):** add a strongly-typed alert read model (e.g.
+   `DashboardAlertRow(string Kind, string Title, string Subtitle, DateOnly? DueDay, long AmountMinor, string Severity)`)
+   to `DashboardSlice`, built inside `DashboardQueries.GetSliceAsync` by aggregating the recurring
+   due-state read (when `access.Finance`) and `IChequeQueries.GetAlertsAsync` (when `access.Cheques`),
+   ordered by urgency. Gate strictly on the `DashboardAccess` flags and honour the existing
+   projection-lag freshness. Keep this an **extensible aggregator** (one list the sources append to)
+   so future kinds — check runs, low-stock — plug in without reshaping `DashboardSlice`.
+2. **Client.Services (presentation only):** in `DashboardQueryService`, map each
+   `DashboardAlertRow` → `DashboardListItem` (choose `IconKey`, `TagTone`, Jalali-formatted due
+   date + Persian money) and place them in the manager `SecondaryList`. No permission logic and no
+   port access here — the Application layer already gated and ordered the rows.
+
 Give the alert rows a strong, scannable visual treatment (icon + tone pill + due date) in the
 manager view — this section is **high priority** and must look polished.
 
@@ -252,22 +294,40 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
   `Persistence/Queries/StatisticsQueries.cs` (`AsNoTracking`, clinic-calendar day buckets like
   `ChequeQueries`/`DashboardQueries` do — **never** SQLite date functions; use `ClinicCalendar`).
   Register in `Context/LocalStoreServiceCollectionExtensions.cs`.
+  **Layering note:** this task delivers the **port + persistence impl only**. The port is an
+  Application-side interface — it is **not** reachable from `Client.Services` directly; the
+  dispatcher `IQuery`/`IQueryHandler` wrappers that the client service calls are created in **Task 2**
+  (keep the method shapes here and the query shapes there 1:1 so the seam lines up). Each read
+  returns an **Application read model** (plain record), never a Contracts DTO (that mapping is Task 4).
+  **Performance (PERFORMANCE.md):** `AsNoTracking`, project directly to the read model (no entity
+  materialization), filter on the pre-computed `(TenantId, LocalDay)` index of `DailyFinanceFact` /
+  `(TenantId, LocalDay, ProductId, VariantId)` of `ProductSalesFact` — never a client-side scan;
+  `GetExpensesAsync` is **paged** (page/size) and ordered on an indexed column so the Expenses grid
+  can virtualize like Patients.
   **Build `full` → 0/0. Push:** `scripts/git/push.sh -b genspark_ai_developer "feat(finance): [Task 1] statistics read queries + port"`.
 
-- [ ] **Task 2 — Expense commands (use-cases).**
-  Recreate `Application/UseCases/Finance/` with `FinanceRegistration.AddFinanceUseCases(builder)`
-  chaining the read queries (Task 1 wrapped as dispatcher queries) + commands: `AddExpenseCommand`
-  (+validator) that allocates number → `Expense.Create` → `Post(clock)` → `IExpenseRepository.Add`;
-  `ReverseExpenseCommand` (create reversing expense + `MarkReversed`). Mirror `SalesRegistration`
-  style exactly (`AddQuery<..>()`/`AddCommand<..>()`/`AddValidator<..>()`). Chain
-  `.AddFinanceUseCases()` into `App.axaml.cs`'s `AddAnimoraApplication(builder => …)`.
+- [ ] **Task 2 — Expense commands (use-cases) + dispatcher-query wrappers.**
+  Recreate `Application/UseCases/Finance/` with `FinanceRegistration.AddFinanceUseCases(builder)`.
+  (a) **Dispatcher-query wrappers** for every Task 1 read: one `IQuery<TReadModel>` record +
+  `IQueryHandler` per read (e.g. `StatisticsOverviewQuery(FinanceDayRange) : IQuery<OverviewReadModel>`),
+  each handler just resolving `IStatisticsQueries` and calling the matching method — this is what makes
+  the Task 1 port reachable from `Client.Services` over the dispatcher (A-rule §0.2). Keep the query
+  record shapes 1:1 with the port methods and with the Task 4 DTOs so the seam is mechanical.
+  (b) **Commands:** `AddExpenseCommand` (+validator) that allocates number → `Expense.Create` →
+  `Post(clock)` → `IExpenseRepository.Add`; `ReverseExpenseCommand` (create reversing expense with
+  `ReversesExpenseId` set + `MarkReversed` on the original). Mirror `SalesRegistration` style exactly
+  (`AddQuery<..>()`/`AddCommand<..>()`/`AddValidator<..>()`). Chain `.AddFinanceUseCases()` into
+  `App.axaml.cs`'s `AddAnimoraApplication(builder => …)`.
   **Build `full` → 0/0. Push:** `[Task 2] expense commands + finance use-case registration`.
 
 - [ ] **Task 3 — Recurring-expense domain + persistence + migration 029.**
   Add `Domain/Finance/RecurringExpense.cs`, `RecurringExpensePayment` entity/value, and pure
   `RecurringExpenseSchedule` (§3.2). Add EF configs under `Configurations/Finance/`, ports
   `IRecurringExpenseRepository`/`IRecurringExpenseQueries`, repo + query impls, DI registration,
-  and **migration `029_RecurringExpenses`** (`.cs` + `.Designer.cs` + snapshot update). Add
+  and **migration `<yyyyMMddHHmmss>__029_RecurringExpenses`** — current double-underscore +
+  timestamp naming, see §3.2 — (`.cs` + `.Designer.cs` + snapshot update; unique index on
+  `(TenantId, RecurringExpenseId, PeriodCode)`). Keep all Jalali math in Application (§3.2 calendar
+  rule); the Domain aggregate + `RecurringExpenseSchedule` stay calendar-agnostic. Add
   commands `AddRecurringExpenseCommand`, `EditRecurringExpenseCommand`, `ToggleRecurringExpenseCommand`,
   `PayRecurringExpenseForPeriodCommand` (posts a real `Expense` + records payment) and a
   `RecurringExpensesQuery` (templates + current-period due/paid state) into the Finance registration.
@@ -280,11 +340,15 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
   Create `Contracts/Statistics/` with DTOs (overview, revenue series point, source slice, expense
   row, expense-category stat, top-product, top-client, species slice, recurring-expense row) and
   `IStatisticsQueryService` (+ a `StatisticsQueryException` mirroring `DashboardQueryException`'s
-  failure-kind/UserMessage pattern). Implement `Client.Services/Statistics/StatisticsQueryService.cs`
-  over the dispatcher (scope-per-call, map Application read models → Contracts DTOs; follow
+  failure-kind/`UserMessage` Persian pattern **and** its `Classify(code)` error-code map). Each
+  interface method takes a trailing `CancellationToken` and maps to exactly one Task 2/3 dispatcher
+  query/command — one DTO per Application read model, 1:1 (overview↔`StatisticsOverviewQuery`, etc.).
+  Implement `Client.Services/Statistics/StatisticsQueryService.cs` over the dispatcher
+  (**scope-per-call**, dispatch the Task 2 `IQuery` wrappers — never reference a `Persistence`/
+  `Application` port or EF type directly; map Application read models → Contracts DTOs; follow
   `Client.Services/Dashboard/DashboardQueryService.cs` as the template). Also expose expense +
-  recurring **write** methods (AddExpense / PayRecurring / Add/Edit/Toggle recurring) on the
-  interface, dispatching the Task 2/3 commands.
+  recurring **write** methods (AddExpense / PayRecurringForPeriod / Add/Edit/Toggle recurring) on the
+  interface, dispatching the Task 2/3 commands and surfacing failures through `StatisticsQueryException`.
   **Build `full` → 0/0. Push:** `[Task 4] statistics contracts + client service seam`.
 
 ### Phase C — Desktop UI
@@ -293,8 +357,9 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
   Add `Pages/Statistics/StatisticsPageView.axaml(.cs)` + `StatisticsPageViewModel.cs`
   (derive `PageViewModelBase`; ctor-inject `IStatisticsQueryService`; load on `OnNavigatedTo`;
   loading/empty/error states). Wire: `NavigationMenu.cs` new item
-  `new("statistics","آمار","IconChart"|existing icon, typeof(StatisticsPageViewModel),"کسب و کار")`
-  (pick an existing icon key from `Resources/Theme/Icons.axaml`; add one if none fits);
+  `new("statistics","آمار","IconChart",typeof(StatisticsPageViewModel),"کسب و کار")`
+  (ctor order is `(key,label,iconKey,viewModelType,group)` — confirmed; `IconChart` already exists in
+  `Resources/Theme/Icons.axaml` and `"کسب و کار"` is an existing nav group, so no new icon/group needed);
   `NavPermissions.cs` → `["statistics"]=PermissionCodes.ReportsRead` in `ByKey` and
   `[typeof(StatisticsPageViewModel)]="statistics"` in `ByPage`; `ViewFactory.cs` one
   `Register<StatisticsPageViewModel,StatisticsPageView>(factories)` line; `App.axaml.cs`
@@ -312,7 +377,11 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
 - [ ] **Task 7 — Clients + Revenue/Sales sections.**
   Implement §2.2 and §2.3 (species donut, new/returning, top clients, sales-per-day bar,
   best-selling products table, source comparison, paid/unpaid ratio). Add the Persian
-  expense-category + source display-name map as a small presentation helper under `Pages/Statistics/`.
+  expense-category + source display-name map as a small presentation helper under `Pages/Statistics/`
+  (a static lookup — do not hardcode Persian strings inside XAML or in the query layer).
+  **Performance (PERFORMANCE.md):** the best-selling-products table is server-capped (`take` from
+  Task 1's `GetTopProductsAsync`), bind it to a virtualizing `ItemsControl`/`DataTable`, and build
+  its row VMs in **one batch** (clear+`AddRange`/reset-notify once), never item-by-item on the UI thread.
   **Build Desktop → 0/0. Push:** `[Task 7] statistics clients + revenue/sales sections`.
 
 - [ ] **Task 8 — Expenses section + add-expense modal + fixed-expense panel.**
@@ -320,19 +389,32 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
   previous-period comparison, add-expense modal (category/title/amount/Jalali date/settlement/
   supplier/note/receipt) posting via the service, correction via reversing expense. Build the
   "هزینه‌های ثابت" panel: recurring templates with status chips + «پرداخت» button (calls
-  `PayRecurringExpenseForPeriod`), add/edit recurring modal. Great UX, empty/loading/error states.
+  `PayRecurringForPeriod`), add/edit recurring modal. Great UX, empty/loading/error states.
+  **Performance (PERFORMANCE.md):** the expense list is **paged + virtualized like Patients** (page
+  forward through Task 1's `GetExpensesAsync(page,size)`; never load the whole ledger); update the
+  observable row collection in one batch per page; re-query only when a filter/range actually changes
+  (guard against redundant reloads). After a successful add/pay/reverse, refresh only the affected
+  section, not the whole page.
   **Build Desktop → 0/0. Push:** `[Task 8] expenses section + add-expense + fixed-expense panel`.
 
 ### Phase D — Dashboard alerts
 
-- [ ] **Task 9 — Manager dashboard alert aggregator.**
-  Extend `DashboardSnapshotQuery`/`DashboardQueries` to aggregate fixed-expense-due (from recurring
-  query, when `access.Finance`) + cheque due/overdue/bounced (from `IChequeQueries.GetAlertsAsync`,
-  when `access.Cheques`) into the manager `SecondaryList` as `DashboardListItem` rows (§4), ordered
-  by urgency, each with a clear tone pill + due date. Map in `DashboardQueryService`. Polish the
-  manager alert card visual in `Pages/Dashboard/ManagerDashboardView.axaml`. Keep permission gating
-  via the existing `DashboardAccess` flags — never show finance/cheque alerts to roles without the
-  permission. Make the aggregator easy to extend with future alert kinds.
+- [ ] **Task 9 — Manager dashboard alert aggregator.** (Respect the two-layer split — §4.)
+  **(a) Application:** add an alert read model `DashboardAlertRow(string Kind, string Title,
+  string Subtitle, DateOnly? DueDay, long AmountMinor, string Severity)` and a
+  `IReadOnlyList<DashboardAlertRow>? Alerts` member on `DashboardSlice`. In
+  `DashboardQueries.GetSliceAsync`, aggregate fixed-expense-due (recurring current-period due-state
+  read from Task 3, only when `access.Finance`) + cheque due/overdue/bounced
+  (`IChequeQueries.GetAlertsAsync(today, ct)`, only when `access.Cheques`) into that list, ordered
+  by urgency (overdue → due-soon). Gate strictly on the `DashboardAccess` flags; keep it an
+  append-only aggregator so new kinds plug in without reshaping the slice.
+  **(b) Client.Services:** in `DashboardQueryService`, map each `DashboardAlertRow` →
+  `DashboardListItem` (IconKey + `DashboardTone` from `Severity`, Jalali due date, Persian money)
+  into the manager `SecondaryList`. **No port access and no permission logic in the client service**
+  — the Application read already gated/ordered the rows; this half is pure presentation mapping.
+  **(c) UI:** polish the manager alert card visual in `Pages/Dashboard/ManagerDashboardView.axaml`
+  (icon + tone pill + due date, batch the row collection update per PERFORMANCE.md).
+  Never show finance/cheque alerts to roles without the permission (enforced in step a).
   **Build `full` → 0/0. Smoke-run** (dashboard is startup surface). **Push:**
   `[Task 9] dashboard management alerts (rent-due + cheque) aggregator`.
 
