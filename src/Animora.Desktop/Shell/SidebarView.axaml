@@ -256,15 +256,23 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="shell:NavGroupViewModel">
                             <StackPanel Margin="0,0,0,4">
-                                <TextBlock Text="{Binding Title}"
-                                           IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}"
-                                           FlowDirection="RightToLeft"
-                                           HorizontalAlignment="Right"
-                                           TextAlignment="Right"
-                                           Foreground="{StaticResource Muted2Brush}"
-                                           FontSize="10.5"
-                                           FontWeight="Bold"
-                                           Padding="12,14,12,6" />
+                                <!-- Group title (مرکز فرمان، مدیریت کلینیک، کسب و کار…) pinned to the
+                                     PHYSICAL right edge. Under the RTL root, HorizontalAlignment="Right"
+                                     is mirrored to the physical left, so — exactly like the nav labels
+                                     below — the title is hosted in a LeftToRight panel (physical
+                                     coordinates) while the TextBlock itself stays RTL for Persian shaping. -->
+                                <Panel FlowDirection="LeftToRight"
+                                       HorizontalAlignment="Stretch"
+                                       IsVisible="{Binding $parent[UserControl].((shell:SidebarViewModel)DataContext).IsExpanded}">
+                                    <TextBlock Text="{Binding Title}"
+                                               FlowDirection="RightToLeft"
+                                               HorizontalAlignment="Right"
+                                               TextAlignment="Right"
+                                               Foreground="{StaticResource Muted2Brush}"
+                                               FontSize="10.5"
+                                               FontWeight="Bold"
+                                               Padding="12,14,12,6" />
+                                </Panel>
                                 <ItemsControl ItemsSource="{Binding Entries}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="shell:NavEntryViewModel">
