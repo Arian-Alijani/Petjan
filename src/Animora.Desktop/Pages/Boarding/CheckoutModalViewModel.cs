@@ -57,7 +57,12 @@ public sealed partial class CheckoutModalViewModel : ObservableObject
         }
 
         _dialogs.Close();
-        _toast.Show($"«{_stay.PetName}» تخلیه شد — اتاق {RoomText} آزاد و اقامت برای صدور فاکتور به صندوق منتقل شد", Tone.Ok);
+        // Truthful wording: a prepaid stay already paid its room, so it is closed directly unless extra items or
+        // nights remain; only then does a second invoice wait at the cashier. A postpaid stay always goes there.
+        var message = _stay.PaymentMode == BoardingPaymentMode.Prepaid
+            ? $"«{_stay.PetName}» تخلیه شد — اتاق {RoomText} آزاد شد؛ فقط در صورت وجود اقلام یا شبِ اضافه، فاکتور آن در صندوق صادر می‌شود"
+            : $"«{_stay.PetName}» تخلیه شد — اتاق {RoomText} آزاد و اقامت برای صدور فاکتور به صندوق منتقل شد";
+        _toast.Show(message, Tone.Ok);
         _onCheckedOut?.Invoke();
     }
 

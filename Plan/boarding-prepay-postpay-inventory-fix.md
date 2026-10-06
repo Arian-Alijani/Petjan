@@ -454,7 +454,7 @@ no-extras self-complete). Do NOT attempt it all in one giant uncommitted edit.
 
 ---
 
-### [ ] T5 — Cross-screen consistency sweep for boarding
+### [x] T5 — Cross-screen consistency sweep for boarding
 **Problem (user):** find any scenario inconsistencies / integration gaps with the rest of the app.
 
 **Known consistency points to re-verify after T1–T4 (targeted, not a full audit):**
