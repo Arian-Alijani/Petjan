@@ -63,8 +63,11 @@ public sealed class HistoryRecordOpener(
                 navigation.NavigateTo<AppointmentsCalendarViewModel>();
                 return Task.CompletedTask;
 
-            // «Cheque» / «Expense»: صفحهٔ اختصاصی‌شان حذف شده (بازسازی خواهد شد)؛
-            // تا آن زمان به مسیر پیش‌فرض (no-op) می‌افتند.
+            case "Cheque":
+                navigation.NavigateTo<Pages.Cheques.ChequesPageViewModel>();
+                return Task.CompletedTask;
+
+            // «Expense»: صفحهٔ اختصاصی‌شان حذف شده (بازسازی خواهد شد)؛ تا آن زمان no-op.
             case "GoodsReceipt":
             case "StockMovement":
             case "Product":

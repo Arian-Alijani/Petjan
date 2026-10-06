@@ -1,0 +1,140 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:chq="using:Animora.Desktop.Pages.Cheques"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Cheques.ChequeDetailModalView"
+             x:Name="Root"
+             x:DataType="chq:ChequeDetailModalViewModel"
+             x:CompileBindings="True"
+             Width="600" MaxWidth="600" MaxHeight="720"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <Style Selector="TextBlock.k">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="0,0,0,3" />
+        </Style>
+        <Style Selector="TextBlock.v">
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="TextBlock.sec">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="LetterSpacing" Value="1" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- header -->
+        <Border Grid.Row="0" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="22,20,22,16">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding DirectionText}" FontSize="11" FontWeight="Bold"
+                               Foreground="{StaticResource Brand600Brush}" Margin="0,0,0,4" />
+                    <TextBlock Text="{Binding TitleText}" FontSize="18" FontWeight="ExtraBold"
+                               Foreground="{StaticResource InkBrush}" />
+                </StackPanel>
+                <controls:Badge Grid.Column="1" VerticalAlignment="Top" Text="{Binding StateText}" Tone="{Binding StateTone}" />
+                <Button Grid.Column="2" Width="36" Height="36" Padding="0" CornerRadius="10"
+                        Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                        BorderThickness="1" VerticalAlignment="Top" Command="{Binding CloseCommand}" ToolTip.Tip="بستن">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                          Data="{StaticResource IconX}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- body -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="22,18,22,18" Spacing="16">
+                <UniformGrid Columns="2" RowSpacing="14" ColumnSpacing="16">
+                    <StackPanel><TextBlock Classes="k" Text="طرف حساب" /><TextBlock Classes="v" Text="{Binding PartyText}" /></StackPanel>
+                    <StackPanel><TextBlock Classes="k" Text="مبلغ" /><TextBlock Classes="v" Text="{Binding AmountText}" /></StackPanel>
+                    <StackPanel><TextBlock Classes="k" Text="تاریخ صدور" /><TextBlock Classes="v" Text="{Binding IssueText}" /></StackPanel>
+                    <StackPanel><TextBlock Classes="k" Text="تاریخ سررسید" /><TextBlock Classes="v" Text="{Binding DueText}" /></StackPanel>
+                    <StackPanel><TextBlock Classes="k" Text="بانک / شعبه" /><TextBlock Classes="v" Text="{Binding BankText}" /></StackPanel>
+                    <StackPanel><TextBlock Classes="k" Text="شناسهٔ صیاد" /><TextBlock Classes="v" Text="{Binding SayadText}" /></StackPanel>
+                </UniformGrid>
+
+                <StackPanel IsVisible="{Binding NoteText.Length}">
+                    <TextBlock Classes="k" Text="یادداشت" />
+                    <TextBlock Classes="v" Text="{Binding NoteText}" FontWeight="Normal" />
+                </StackPanel>
+
+                <!-- lifecycle actions (only the transitions the domain allows) -->
+                <StackPanel Spacing="10" IsVisible="{Binding HasActions}">
+                    <TextBlock Classes="sec" Text="اقدامات" />
+                    <ItemsControl ItemsSource="{Binding Actions}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="8" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="chq:ChequeActionViewModel">
+                                <Button Classes="ghost" Content="{Binding Label}" Classes.danger="{Binding IsDestructive}"
+                                        Command="{Binding #Root.((chq:ChequeDetailModalViewModel)DataContext).ApplyCommand}"
+                                        CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border IsVisible="{Binding IsAwaitingReason}" Background="{StaticResource Bg2Brush}"
+                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="14">
+                        <StackPanel Spacing="10">
+                            <TextBlock Classes="k" Text="دلیل (الزامی)" />
+                            <TextBox Text="{Binding Reason}" AcceptsReturn="True" MinHeight="60" TextWrapping="Wrap"
+                                     CornerRadius="10" BorderBrush="{StaticResource LineBrush}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Classes="primary" Content="تأیید" Command="{Binding ConfirmCommand}" />
+                                <Button Classes="ghost" Content="انصراف" Command="{Binding CancelPendingCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <TextBlock Text="{Binding Error}" IsVisible="{Binding Error.Length}" TextWrapping="Wrap"
+                           FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
+
+                <!-- history timeline -->
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="sec" Text="تاریخچهٔ چک" />
+                    <ItemsControl ItemsSource="{Binding History}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="chq:ChequeHistoryRowViewModel">
+                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,9">
+                                    <StackPanel Spacing="3">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding Transition}" FontSize="13"
+                                                       FontWeight="Bold" Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding When}" FontSize="11.5"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding Actor}" FontSize="11.5" Foreground="{StaticResource MutedBrush}" />
+                                        <TextBlock Text="{Binding Reason}" IsVisible="{Binding HasReason}" FontSize="12"
+                                                   TextWrapping="Wrap" Foreground="{StaticResource Ink2Brush}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- footer -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="22,14"
+                Background="{StaticResource PanelBrush}">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Button Grid.Column="0" Classes="ghost" Content="بستن" Command="{Binding CloseCommand}" />
+                <Button Grid.Column="2" Classes="ghost" Content="حذف چک" IsVisible="{Binding CanDelete}"
+                        Foreground="{StaticResource DangerBrush}" Command="{Binding DeleteCommand}" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

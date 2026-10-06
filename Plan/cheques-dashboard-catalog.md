@@ -428,5 +428,5 @@ and empty-state patterns. Requirements from the user:
 - [x] C.1 — Application cheque use-cases
 - [x] C.2 — Contracts Cheques
 - [x] C.3 — Client.Services Cheques + DI
-- [ ] C.4 — Desktop Cheques page + nav/permissions
+- [x] C.4 — Desktop Cheques page + nav/permissions
 - [ ] D — delete this plan file

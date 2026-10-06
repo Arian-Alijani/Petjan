@@ -51,6 +51,7 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
 
     [ObservableProperty] private string _searchText = string.Empty;
     [ObservableProperty] private bool _hasRows;
+    [ObservableProperty] private ChequeRowViewModel? _selectedRow;
     [ObservableProperty] private int _currentPage = 1;
     [ObservableProperty] private string _inboundText = "—";
     [ObservableProperty] private string _inboundFoot = string.Empty;
@@ -71,6 +72,14 @@ public sealed partial class ChequesPageViewModel : PageViewModelBase
     public override void OnNavigatedTo()
     {
         if (!IsLoadInFlight) _ = ReloadAsync();
+    }
+
+    // Selecting a row opens its detail sheet; the selection is cleared so the same row can be reopened.
+    partial void OnSelectedRowChanged(ChequeRowViewModel? value)
+    {
+        if (value is null) return;
+        OpenDetail(value);
+        SelectedRow = null;
     }
 
     partial void OnSearchTextChanged(string value)

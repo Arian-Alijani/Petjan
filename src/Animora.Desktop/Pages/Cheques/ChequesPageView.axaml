@@ -1,0 +1,253 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:chq="using:Animora.Desktop.Pages.Cheques"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Cheques.ChequesPageView"
+             x:Name="Root"
+             x:DataType="chq:ChequesPageViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <Style Selector="Border.pagebar">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="Padding" Value="14,12" />
+        </Style>
+
+        <!-- filter chip (.pb-chip) -->
+        <Style Selector="Button.chip">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="13,6" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.chip:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.chip.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="Border.chip-sep">
+            <Setter Property="Width" Value="1" />
+            <Setter Property="Background" Value="{StaticResource LineBrush}" />
+            <Setter Property="Margin" Value="4,2" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+        </Style>
+
+        <!-- pagination buttons (.pgbtn) -->
+        <Style Selector="Button.pgbtn">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="13,7" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.pgbtn:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <Style Selector="Button.pgbtn:disabled">
+            <Setter Property="Opacity" Value="0.42" />
+        </Style>
+
+        <!-- table cells -->
+        <Style Selector="TextBlock.th">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="14,12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.td">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Margin" Value="14,13" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+
+        <!-- Virtualised rows: MaxHeight is required because the shell's page ScrollViewer measures with infinite height (PERFORMANCE §6). -->
+        <Style Selector="ListBox.records">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MaxHeight" Value="600" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="ListBox.records ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Margin="26,22,26,40" Spacing="16">
+        <!-- ═══ header ═══ -->
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20">
+            <StackPanel Grid.Column="0" Spacing="4">
+                <TextBlock Text="چک‌ها" FontSize="26" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" LetterSpacing="-0.4" />
+                <TextBlock Text="چک‌های دریافتی و پرداختی، سررسیدها و چرخهٔ وصول" FontSize="12.5"
+                           Foreground="{StaticResource MutedBrush}" />
+            </StackPanel>
+            <Button Grid.Column="1" Classes="primary" Command="{Binding OpenNewCommand}" VerticalAlignment="Bottom">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                          Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                    <TextBlock Text="ثبت چک جدید" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <!-- ═══ KPI row ═══ -->
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
+            <controls:StatCard Grid.Column="0" Icon="{StaticResource IconArrowDownLeft}"
+                               Label="چک‌های دریافتی در جریان" Value="{Binding InboundText}"
+                               Foot="{Binding InboundFoot}" IconTone="Ok" />
+            <controls:StatCard Grid.Column="1" Icon="{StaticResource IconArrowUpRight}"
+                               Label="چک‌های پرداختی در جریان" Value="{Binding OutboundText}"
+                               Foot="{Binding OutboundFoot}" IconTone="Info" />
+            <controls:StatCard Grid.Column="2" Icon="{StaticResource IconCheque}"
+                               Label="چک‌های برگشتی" Value="{Binding BouncedText}"
+                               Foot="{Binding BouncedFoot}" IconTone="Danger" />
+        </Grid>
+
+        <!-- ═══ toolbar: chips wrap in the flexible column, search stays fixed ═══ -->
+        <Border Classes="pagebar">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                <WrapPanel Grid.Column="0" Orientation="Horizontal" ItemSpacing="7" LineSpacing="7" VerticalAlignment="Center">
+                    <ItemsControl ItemsSource="{Binding DirectionChips}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="7" LineSpacing="7" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="chq:ChequeChipViewModel">
+                                <Button Classes="chip" Classes.on="{Binding IsActive}" Content="{Binding Label}"
+                                        Command="{Binding #Root.((chq:ChequesPageViewModel)DataContext).SetDirectionCommand}"
+                                        CommandParameter="{Binding Key}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Border Classes="chip-sep" Height="22" />
+                    <ItemsControl ItemsSource="{Binding ScopeChips}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="7" LineSpacing="7" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="chq:ChequeChipViewModel">
+                                <Button Classes="chip" Classes.on="{Binding IsActive}" Content="{Binding Label}"
+                                        Command="{Binding #Root.((chq:ChequesPageViewModel)DataContext).SetScopeCommand}"
+                                        CommandParameter="{Binding Key}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </WrapPanel>
+
+                <Border Grid.Column="1" Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource LineBrush}"
+                        BorderThickness="1" CornerRadius="12" Padding="12,6" Width="260" VerticalAlignment="Center">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                        <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                              Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}" VerticalAlignment="Center" />
+                        <TextBox Grid.Column="1" Text="{Binding SearchText, Mode=TwoWay}" Background="Transparent"
+                                 BorderThickness="0" FontSize="13" VerticalContentAlignment="Center"
+                                 PlaceholderText="جستجو در شماره یا طرف حساب..." KeyDown="OnSearchKeyDown" />
+                        <Button Grid.Column="2" Classes="ghost" Width="28" Height="28" Padding="4"
+                                IsVisible="{Binding HasSearchValue}" Command="{Binding ClearSearchCommand}"
+                                ToolTip.Tip="پاک‌کردن">
+                            <Path Classes="icon" Width="12" Height="12"
+                                  Stroke="{StaticResource Brand700Brush}" Data="{StaticResource IconX}" />
+                        </Button>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ═══ table ═══ -->
+        <Border Classes="card">
+            <Grid RowDefinitions="Auto,*">
+                <Grid Grid.Row="0" ColumnDefinitions="1.1*,1.3*,2*,1.4*,2*,1.5*,1.2*,1.4*"
+                      Background="{StaticResource TableHeadBrush}">
+                    <TextBlock Grid.Column="0" Classes="th" Text="نوع" />
+                    <TextBlock Grid.Column="1" Classes="th" Text="شمارهٔ چک" />
+                    <TextBlock Grid.Column="2" Classes="th" Text="طرف حساب" />
+                    <TextBlock Grid.Column="3" Classes="th" Text="بانک" />
+                    <TextBlock Grid.Column="4" Classes="th" Text="مبلغ" />
+                    <TextBlock Grid.Column="5" Classes="th" Text="سررسید" />
+                    <TextBlock Grid.Column="6" Classes="th" Text="مهلت" />
+                    <TextBlock Grid.Column="7" Classes="th" Text="وضعیت" />
+                </Grid>
+
+                <ListBox Grid.Row="1" Classes="records" ItemsSource="{Binding Rows}"
+                         IsVisible="{Binding HasRows}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         SelectionMode="Single"
+                         SelectedItem="{Binding SelectedRow, Mode=TwoWay}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="chq:ChequeRowViewModel">
+                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
+                                <Grid ColumnDefinitions="1.1*,1.3*,2*,1.4*,2*,1.5*,1.2*,1.4*">
+                                    <controls:Badge Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                    Margin="14,12" Text="{Binding DirectionLabel}" Tone="{Binding DirectionTone}" />
+                                    <TextBlock Grid.Column="1" Classes="td" Text="{Binding Number}" FontWeight="Bold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Grid.Column="2" Classes="td" Text="{Binding Party}" />
+                                    <TextBlock Grid.Column="3" Classes="td" Text="{Binding Bank}" />
+                                    <TextBlock Grid.Column="4" Classes="td" Text="{Binding AmountText}" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Classes="td" Text="{Binding DueDate}" />
+                                    <TextBlock Grid.Column="6" Classes="td" Text="{Binding DueHint}"
+                                               Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                                    <controls:Badge Grid.Column="7" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                    Margin="14,12" Text="{Binding StateLabel}" Tone="{Binding StateTone}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <controls:EmptyState Grid.Row="1" Margin="0,36"
+                                     IsVisible="{Binding !HasRows}"
+                                     Icon="{StaticResource IconCheque}"
+                                     Title="چکی برای نمایش وجود ندارد"
+                                     Subtitle="با دکمهٔ «ثبت چک جدید» اولین چک را ثبت کنید یا فیلترها را تغییر دهید." />
+            </Grid>
+        </Border>
+
+        <!-- ═══ pagination ═══ -->
+        <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding ShowPagination}">
+            <Button Grid.Column="0" Classes="pgbtn" Content="قبلی" Command="{Binding PreviousPageCommand}" />
+            <TextBlock Grid.Column="1" Text="{Binding PageIndicatorText}" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" FontSize="12.5" Foreground="{StaticResource MutedBrush}" />
+            <Button Grid.Column="2" Classes="pgbtn" Content="بعدی" Command="{Binding NextPageCommand}" />
+        </Grid>
+    </StackPanel>
+</UserControl>

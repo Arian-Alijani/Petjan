@@ -227,6 +227,12 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
 
     private void OpenAlertTarget(string kind)
     {
+        if (kind == "AlertCheque")
+        {
+            _navigation.NavigateTo<Animora.Desktop.Pages.Cheques.ChequesPageViewModel>();
+            return;
+        }
+
         _navigation.NavigateTo<Animora.Desktop.Pages.Statistics.StatisticsPageViewModel>(
             page => page.ShowSectionCommand.Execute(Animora.Desktop.Pages.Statistics.StatisticsSection.Expenses));
     }
