@@ -36,9 +36,31 @@ public sealed class SalesPostingData(AnimoraLocalDbContext db, IOptions<LocalSto
                 .Where(h => h.VisitId == sourceId).Select(h => (HandoffStatus?)h.Status).FirstOrDefaultAsync(ct);
             return Map(status);
         }
-        var stayStatus = await db.Set<BoardingBillingHandoff>().AsNoTracking()
-            .Where(h => h.StayId == sourceId).Select(h => (HandoffStatus?)h.Status).FirstOrDefaultAsync(ct);
-        return Map(stayStatus);
+        // A stay can have two handoffs over its life (prepaid room + final). Posting always acts on the
+        // single Ready one; if none is Ready, fall back to the most recent so an already-invoiced handoff
+        // still reports AlreadyInvoiced rather than NotFound.
+        var ready = await db.Set<BoardingBillingHandoff>().AsNoTracking()
+            .Where(h => h.StayId == sourceId && h.Status == HandoffStatus.Ready)
+            .Select(h => (HandoffStatus?)h.Status).FirstOrDefaultAsync(ct);
+        if (ready is not null) return Map(ready);
+        var latest = await db.Set<BoardingBillingHandoff>().AsNoTracking()
+            .Where(h => h.StayId == sourceId).OrderByDescending(h => h.CompletedUtc).ThenByDescending(h => h.Id)
+            .Select(h => (HandoffStatus?)h.Status).FirstOrDefaultAsync(ct);
+        return Map(latest);
+    }
+
+    public async Task<Application.Ports.BoardingHandoffKind?> GetReadyBoardingHandoffKindAsync(
+        string stayId, CancellationToken ct)
+    {
+        var kind = await db.Set<BoardingBillingHandoff>().AsNoTracking()
+            .Where(h => h.StayId == stayId && h.Status == HandoffStatus.Ready)
+            .Select(h => (Entities.BoardingHandoffKind?)h.Kind).FirstOrDefaultAsync(ct);
+        return kind switch
+        {
+            Entities.BoardingHandoffKind.Room => Application.Ports.BoardingHandoffKind.Room,
+            Entities.BoardingHandoffKind.Final => Application.Ports.BoardingHandoffKind.Final,
+            _ => null,
+        };
     }
 
     public async Task<HandoffPostStatus> MarkHandoffInvoicedAsync(string source, string sourceId,
@@ -54,9 +76,11 @@ public sealed class SalesPostingData(AnimoraLocalDbContext db, IOptions<LocalSto
         }
         else
         {
-            var handoff = await db.Set<BoardingBillingHandoff>().AsTracking().FirstOrDefaultAsync(h => h.StayId == sourceId, ct);
+            // Mark the single Ready handoff for this stay (there may also be an older, already-invoiced one).
+            var handoff = await db.Set<BoardingBillingHandoff>().AsTracking()
+                .Where(h => h.StayId == sourceId && h.Status == HandoffStatus.Ready)
+                .FirstOrDefaultAsync(ct);
             if (handoff is null) return HandoffPostStatus.NotFound;
-            if (handoff.Status != HandoffStatus.Ready) return Map(handoff.Status);
             handoff.MarkInvoiced(invoiceId);
         }
         return HandoffPostStatus.Ready;

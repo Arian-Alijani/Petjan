@@ -46,11 +46,16 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
             return Result<Unit>.Fail(ErrorCodes.InvoiceOwnerRequired);
         var source = invoice.VisitId is not null ? "Visit" : invoice.BoardingStayId is not null ? "Boarding" : null;
         var sourceId = invoice.VisitId ?? invoice.BoardingStayId;
+        // Captured while the handoff is still Ready, before MarkHandoffInvoicedAsync flips it: tells the
+        // stay-finalization step below whether this is the prepaid room invoice or the final one.
+        BoardingHandoffKind? kindBeforeMark = null;
         if (source is not null)
         {
             var status = await posting.GetHandoffStatusAsync(source, sourceId!, ct);
             if (status != HandoffPostStatus.Ready) return Result<Unit>.Fail(status == HandoffPostStatus.AlreadyInvoiced
                 ? ErrorCodes.HandoffAlreadyInvoiced : ErrorCodes.NotFound);
+            if (invoice.BoardingStayId is { } preStayId)
+                kindBeforeMark = await posting.GetReadyBoardingHandoffKindAsync(preStayId, ct);
         }
 
         // Preflight inventory before changing the invoice or allocating a sequence number. Multiple
@@ -101,14 +106,26 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
         }
         if (invoice.BoardingStayId is { } stayId)
         {
-            // Checkout was requested before billing. Finish it only once the real invoice
-            // is issued, in this same transaction; never leave the room occupied indefinitely.
             var stay = await boarding.FindAsync(stayId, ct);
             if (stay is null) return Result<Unit>.Fail(ErrorCodes.StayNotFound);
-            var attached = stay.AttachInvoice(invoice.Id);
-            if (attached.IsFailure) return Result<Unit>.Fail(attached.Error, attached.Detail);
-            var checkedOut = stay.CompleteCheckout(clock);
-            if (checkedOut.IsFailure) return Result<Unit>.Fail(checkedOut.Error, checkedOut.Detail);
+            // The kind of the handoff just posted decides what posting does to the stay. A prepaid stay's
+            // room invoice (Room) is recorded on the stay but leaves it Active and editable so staff keep
+            // adding items; the final invoice (Final, or any postpaid invoice) attaches and checks out.
+            var handoffKind = kindBeforeMark ?? BoardingHandoffKind.Final;
+            if (handoffKind == BoardingHandoffKind.Room)
+            {
+                var settled = stay.SettlePrepaidRoom(invoice.Id, invoice.GrandTotal);
+                if (settled.IsFailure) return Result<Unit>.Fail(settled.Error, settled.Detail);
+            }
+            else
+            {
+                // Checkout was requested before billing. Finish it only once the real invoice
+                // is issued, in this same transaction; never leave the room occupied indefinitely.
+                var attached = stay.AttachInvoice(invoice.Id);
+                if (attached.IsFailure) return Result<Unit>.Fail(attached.Error, attached.Detail);
+                var checkedOut = stay.CompleteCheckout(clock);
+                if (checkedOut.IsFailure) return Result<Unit>.Fail(checkedOut.Error, checkedOut.Detail);
+            }
         }
         // Journal and snapshot writes are automatic in the ambient unit-of-work transaction.
         return Result<Unit>.Ok(Unit.Value);
