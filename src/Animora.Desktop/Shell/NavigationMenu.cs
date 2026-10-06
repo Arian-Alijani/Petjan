@@ -32,9 +32,9 @@ public static class NavigationMenu
         new("dashboard", "داشبورد", "IconDashboard", typeof(DashboardPageViewModel), "مرکز فرمان"),
         new("appointments", "نوبت‌ها", "IconCalendar", typeof(AppointmentsCalendarViewModel), "مرکز فرمان"),
 
-        // «فروش و صندوق» عمداً اولین آیتمِ گروه «مدیریت کلینیک» است تا در منو
-        // بلافاصله بعد از «نوبت‌ها» (آخرین آیتمِ گروهِ قبلی) دیده شود.
-        new("sale", "فروش و صندوق", "IconCart", typeof(SalePageViewModel), "مدیریت کلینیک"),
+        // «فروش و صندوق» زیرمجموعهٔ گروه «مرکز فرمان» است (بلافاصله بعد از «نوبت‌ها»).
+        new("sale", "فروش و صندوق", "IconCart", typeof(SalePageViewModel), "مرکز فرمان"),
+
         new("patients", "بیماران و مالکین", "IconUsers", typeof(PatientsPageViewModel), "مدیریت کلینیک"),
         new("visits", "ویزیت و پرونده", "IconClipboard", typeof(VisitsTriagePageViewModel), "مدیریت کلینیک"),
         new("vaccine", "واکسیناسیون", "IconSyringe", typeof(VaccinationPageViewModel), "مدیریت کلینیک"),

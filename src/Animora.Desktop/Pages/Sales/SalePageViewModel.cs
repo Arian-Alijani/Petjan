@@ -79,8 +79,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         _dialogs = dialogs;
 
         Title = "فروش و صندوق";
-        Eyebrow = "مدیریت کلینیک";
-        Breadcrumbs.Add("مدیریت کلینیک");
+        Eyebrow = "مرکز فرمان";
+        Breadcrumbs.Add("مرکز فرمان");
         Breadcrumbs.Add("فروش و صندوق");
 
         Segments.Add(new SaleSegmentViewModel("ready", "صف ویزیت"));
