@@ -56,7 +56,7 @@ public sealed class CreateBoardingStayCommandValidator : IValidator<CreateBoardi
 }
 public sealed class CreateBoardingStayCommandHandler(IBoardingRepository repository,
     IBoardingQueries queries, IOwnerRepository owners, IPetRepository pets,
-    IClinicTimeZoneProvider zones, IClock clock)
+    IClinicTimeZoneProvider zones, IClock clock, IBoardingBillingHandoffWriter handoffs)
     : ICommandHandler<CreateBoardingStayCommand, string>
 {
     public async Task<Result<string>> HandleAsync(CreateBoardingStayCommand c, CommandContext context, CancellationToken ct)
@@ -89,6 +89,26 @@ public sealed class CreateBoardingStayCommandHandler(IBoardingRepository reposit
         var activated = stay.Activate(clock);
         if (activated.IsFailure) return Result<string>.Fail(activated.Error, activated.Detail);
         repository.Add(stay);
+
+        // Prepaid: raise the room charge to the cashier immediately so the clinic collects it before the
+        // stay. The stay stays Active and editable — any items staff consume later are billed on a second
+        // invoice at checkout. The payload carries no items and a room-only total; Sales turns it into the
+        // prepaid room invoice, and posting it records it on the stay (SettlePrepaidRoom) without checkout.
+        if (c.PaymentMode == StayPaymentMode.Prepaid)
+        {
+            var plannedNights = StayChargeCalculator.NightsBetween(from, until, tz);
+            var roomCharge = Money.Irt(c.DailyRateMinor) * plannedNights;
+            var payload = JsonSerializer.Serialize(new
+            {
+                RoomRateMinor = c.DailyRateMinor,
+                TotalMinor = roomCharge.Minor,
+                Currency = roomCharge.Currency,
+                Items = Array.Empty<object>(),
+            });
+            handoffs.Add(context.TenantId, stay.Id, ownerId, petId, clock.UtcNow, payload,
+                BoardingHandoffKind.Room);
+        }
+
         return Result<string>.Ok(stay.Id);
     }
 
