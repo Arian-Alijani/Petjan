@@ -94,11 +94,15 @@ internal static class SalesHandoffFactory
                     if (added.IsFailure) return Result<string>.Fail(added.Error, added.Detail);
                 }
             }
-            var roomCharge = root.GetProperty("TotalMinor").GetInt64() - itemsTotal;
+            // A prepaid stay already collected its room in advance; its final (items-only) invoice must
+            // carry no room line. The flag is authoritative — never re-derive a room charge for it.
+            var roomPrepaid = root.TryGetProperty("RoomPrepaid", out var prepaid) &&
+                prepaid.ValueKind == JsonValueKind.True;
+            var roomCharge = roomPrepaid ? 0 : root.GetProperty("TotalMinor").GetInt64() - itemsTotal;
             if (roomCharge > 0)
             {
                 var room = new InvoiceLine(IdGenerator.NewId(clock.UtcNow), InvoiceLineKind.Boarding,
-                    null, null, null, "Room charge", new Quantity(1, "PCS"), Money.Irt(roomCharge),
+                    null, null, null, "هزینه اقامت (پانسیون)", new Quantity(1, "PCS"), Money.Irt(roomCharge),
                     0, 0, InvoiceLineSource.Stay, handoff.SourceId);
                 var added = invoice.AddLine(room);
                 if (added.IsFailure) return Result<string>.Fail(added.Error, added.Detail);

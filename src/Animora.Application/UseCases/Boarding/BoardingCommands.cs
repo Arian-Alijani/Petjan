@@ -56,7 +56,7 @@ public sealed class CreateBoardingStayCommandValidator : IValidator<CreateBoardi
 }
 public sealed class CreateBoardingStayCommandHandler(IBoardingRepository repository,
     IBoardingQueries queries, IOwnerRepository owners, IPetRepository pets,
-    IClinicTimeZoneProvider zones, IClock clock)
+    IClinicTimeZoneProvider zones, IClock clock, IBoardingBillingHandoffWriter handoffs)
     : ICommandHandler<CreateBoardingStayCommand, string>
 {
     public async Task<Result<string>> HandleAsync(CreateBoardingStayCommand c, CommandContext context, CancellationToken ct)
@@ -89,6 +89,26 @@ public sealed class CreateBoardingStayCommandHandler(IBoardingRepository reposit
         var activated = stay.Activate(clock);
         if (activated.IsFailure) return Result<string>.Fail(activated.Error, activated.Detail);
         repository.Add(stay);
+
+        // Prepaid: raise the room charge to the cashier immediately so the clinic collects it before the
+        // stay. The stay stays Active and editable — any items staff consume later are billed on a second
+        // invoice at checkout. The payload carries no items and a room-only total; Sales turns it into the
+        // prepaid room invoice, and posting it records it on the stay (SettlePrepaidRoom) without checkout.
+        if (c.PaymentMode == StayPaymentMode.Prepaid)
+        {
+            var plannedNights = StayChargeCalculator.NightsBetween(from, until, tz);
+            var roomCharge = Money.Irt(c.DailyRateMinor) * plannedNights;
+            var payload = JsonSerializer.Serialize(new
+            {
+                RoomRateMinor = c.DailyRateMinor,
+                TotalMinor = roomCharge.Minor,
+                Currency = roomCharge.Currency,
+                Items = Array.Empty<object>(),
+            });
+            handoffs.Add(context.TenantId, stay.Id, ownerId, petId, clock.UtcNow, payload,
+                BoardingHandoffKind.Room);
+        }
+
         return Result<string>.Ok(stay.Id);
     }
 
@@ -228,8 +248,44 @@ public sealed class CheckoutStayCommandHandler(IBoardingRepository repository, I
         if (stay is null) return Result<Unit>.Fail(ErrorCodes.StayNotFound);
         if (stay.State != StayState.Active) return Result<Unit>.Fail(ErrorCodes.StayAlreadyCheckedOut);
         var now = clock.UtcNow;
+        var tz = zones.GetClinicTimeZone();
         var services = await queries.GetServicesAsync(ct);
-        var charge = StayChargeCalculator.Accrued(stay, services, now, zones.GetClinicTimeZone());
+
+        // A prepaid stay already paid its room in advance, so the checkout bill is the consumed items
+        // only. A postpaid stay bills room + items in one go (unchanged).
+        if (stay.IsRoomPrepaid)
+        {
+            // Nothing extra was consumed — there is no second invoice to raise; just close the stay.
+            if (stay.Items.Count == 0)
+            {
+                var done = stay.CompletePrepaidCheckoutWithoutInvoice(clock);
+                return done.IsFailure ? Result<Unit>.Fail(done.Error, done.Detail) : Result<Unit>.Ok(Unit.Value);
+            }
+
+            var itemsCharge = StayChargeCalculator.ItemsOnly(stay, services, now, tz);
+            var requestedPrepaid = stay.RequestCheckout(clock);
+            if (requestedPrepaid.IsFailure) return Result<Unit>.Fail(requestedPrepaid.Error, requestedPrepaid.Detail);
+            var frozenPrepaid = stay.FreezeTotalForCheckout(itemsCharge);
+            if (frozenPrepaid.IsFailure) return Result<Unit>.Fail(frozenPrepaid.Error, frozenPrepaid.Detail);
+            // RoomRateMinor 0 and a note tell Sales the room was prepaid, so no room line is added and the
+            // second invoice bills items only (SalesHandoffFactory: roomCharge = TotalMinor - itemsTotal).
+            var prepaidPayload = JsonSerializer.Serialize(new
+            {
+                RoomRateMinor = 0L,
+                RoomPrepaid = true,
+                PrepaidRoomChargeMinor = stay.PrepaidRoomChargeMinor ?? 0L,
+                PrepaidInvoiceId = stay.PrepaidInvoiceId,
+                TotalMinor = itemsCharge.Minor,
+                Currency = itemsCharge.Currency,
+                Items = stay.Items.OrderBy(i => i.ConsumedUtc).ThenBy(i => i.ItemId)
+                    .Select(i => new { i.ItemId, i.Kind, i.CatalogItemId, i.Title,
+                        Quantity = i.Quantity.Value, UnitPriceMinor = i.UnitPrice.Minor }),
+            });
+            handoffs.Add(context.TenantId, stay.Id, stay.OwnerId, stay.PetId, now, prepaidPayload);
+            return Result<Unit>.Ok(Unit.Value);
+        }
+
+        var charge = StayChargeCalculator.Accrued(stay, services, now, tz);
         var requested = stay.RequestCheckout(clock);
         if (requested.IsFailure) return Result<Unit>.Fail(requested.Error, requested.Detail);
         var frozen = stay.FreezeTotalForCheckout(charge);

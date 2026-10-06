@@ -123,6 +123,13 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.Property<long>("PlannedCheckOutUtc")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("PrepaidInvoiceId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("PrepaidRoomChargeMinor")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("RoomId")
                         .IsRequired()
                         .HasMaxLength(26)
@@ -3658,6 +3665,9 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasMaxLength(26)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("LinesJson")
                         .IsRequired()
                         .HasMaxLength(65536)
@@ -3689,7 +3699,6 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("StayId")
-                        .IsUnique()
                         .HasDatabaseName("IX_BoardingBillingHandoffs_StayId");
 
                     b.HasIndex("TenantId", "Status", "CompletedUtc")

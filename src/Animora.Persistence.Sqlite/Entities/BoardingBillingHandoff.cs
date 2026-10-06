@@ -2,6 +2,21 @@ using Animora.Domain.Primitives;
 
 namespace Animora.Persistence.Sqlite.Entities;
 
+/// <summary>
+/// Why a boarding handoff was raised. A stay can raise two over its life: the <see cref="Room"/> charge
+/// collected in advance for a prepaid stay (at admission), then the <see cref="Final"/> settlement at
+/// checkout. A postpaid stay only ever raises a single <see cref="Final"/> handoff. Persisted value 0 is
+/// <see cref="Final"/> so existing rows keep their meaning.
+/// </summary>
+public enum BoardingHandoffKind
+{
+    /// <summary>Settlement at checkout (room + items, or items-only when the room was prepaid).</summary>
+    Final = 0,
+
+    /// <summary>The prepaid room charge raised at admission; does not complete the checkout.</summary>
+    Room = 1,
+}
+
 /// <summary>Device-local billing payload for a stay awaiting an invoice.</summary>
 [LocalOnly]
 public sealed class BoardingBillingHandoff
@@ -18,10 +33,15 @@ public sealed class BoardingBillingHandoff
     public DateTimeOffset CompletedUtc { get; private set; }
     public string LinesJson { get; private set; } = string.Empty;
     public HandoffStatus Status { get; private set; }
+
+    /// <summary>Whether this is the prepaid room charge or the final checkout settlement.</summary>
+    public BoardingHandoffKind Kind { get; private set; }
+
     public string? InvoiceId { get; private set; }
 
     public static BoardingBillingHandoff Create(string tenantId, string stayId, string ownerId,
-        string petId, DateTimeOffset completedUtc, string linesJson)
+        string petId, DateTimeOffset completedUtc, string linesJson,
+        BoardingHandoffKind kind = BoardingHandoffKind.Final)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(stayId);
@@ -33,7 +53,7 @@ public sealed class BoardingBillingHandoff
         {
             Id = IdGenerator.NewId(completedUtc), TenantId = tenantId, StayId = stayId,
             OwnerId = ownerId, PetId = petId, CompletedUtc = completedUtc,
-            LinesJson = linesJson, Status = HandoffStatus.Ready,
+            LinesJson = linesJson, Status = HandoffStatus.Ready, Kind = kind,
         };
     }
 
