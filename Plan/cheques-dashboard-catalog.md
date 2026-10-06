@@ -427,6 +427,6 @@ and empty-state patterns. Requirements from the user:
 - [x] B — dashboard alert box (cheque-alert click is re-pointed to the Cheques screen in C.4)
 - [x] C.1 — Application cheque use-cases
 - [x] C.2 — Contracts Cheques
-- [ ] C.3 — Client.Services Cheques + DI
+- [x] C.3 — Client.Services Cheques + DI
 - [ ] C.4 — Desktop Cheques page + nav/permissions
 - [ ] D — delete this plan file

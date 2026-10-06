@@ -214,3 +214,5 @@ namespace Animora.Desktop.Pages.Profile { public sealed class ProfilePageViewMod
 namespace Animora.Desktop.Pages.Purchasing { public sealed class PurchasingPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Reception { public sealed class ReceptionPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Cashier { public sealed class CashierPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
+namespace Animora.Desktop.Pages.Statistics { public sealed class StatisticsPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
+namespace Animora.Desktop.Pages.Cheques { public sealed class ChequesPageViewModel : Animora.Application.Tests.NavigationTestPage { } }

@@ -222,6 +222,8 @@ internal sealed class SalesPostingFake : ISalesPostingData
     public long OnHand { get; set; } = 10_000;
     public HandoffPostStatus Status { get; set; } = HandoffPostStatus.Ready;
     public string? InvoicedInvoiceId { get; private set; }
+    public Task<BoardingHandoffKind?> GetReadyBoardingHandoffKindAsync(string stayId, CancellationToken ct) =>
+        Task.FromResult<BoardingHandoffKind?>(null);
     public Task<long> GetOnHandScaledAsync(string productId, string variantId, CancellationToken ct) => Task.FromResult(OnHand);
     public Task<Money> GetLatestReceiptCostAsync(string productId, string variantId, CancellationToken ct) => Task.FromResult(Money.Irt(500));
     public Task<HandoffPostStatus> GetHandoffStatusAsync(string source, string sourceId, CancellationToken ct) => Task.FromResult(Status);

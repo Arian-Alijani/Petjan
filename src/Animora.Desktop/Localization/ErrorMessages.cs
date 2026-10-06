@@ -70,6 +70,12 @@ public static class ErrorMessages
         ["ROOM_CAPACITY_INVALID"] = "ظرفیت اتاق باید بین ۱ تا ۱۰ باشد.",
         ["SERVICE_NO_STOCK"] = "این خدمت موجودی ندارد.",
 
+        // Cheques
+        ["CHEQUE_NOT_FOUND"] = "چک موردنظر پیدا نشد؛ فهرست را بازخوانی کنید.",
+        ["CHEQUE_INVALID_TRANSITION"] = "این تغییر وضعیت برای چک در مرحلهٔ فعلی مجاز نیست.",
+        ["CHEQUE_NOT_EDITABLE"] = "فقط چکِ ثبت‌شده و هنوز بایگانی‌نشده قابل ویرایش یا حذف است.",
+        ["CHEQUE_COUNTERPARTY_REQUIRED"] = "برای چک دریافتی انتخاب مشتری و برای چک پرداختی انتخاب تأمین‌کننده الزامی است.",
+
         // Generic codes (VALIDATION_FAILED / NOT_FOUND / CONCURRENCY_CONFLICT) are intentionally NOT mapped:
         // callers keep their own context-specific fallback for those.
         ["STORE_UNAVAILABLE"] = "پایگاه داده در دسترس نیست؛ کمی بعد دوباره تلاش کنید.",
