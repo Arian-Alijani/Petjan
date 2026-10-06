@@ -67,6 +67,18 @@ public static class StatisticsFormat
         "RENT", "UTILITIES", "SALARY", "SUPPLIES", "MAINTENANCE", "MARKETING", "TAX", "TRANSPORT", "OTHER",
     };
 
+    public static string SettlementName(ExpenseSettlement settlement) => settlement switch
+    {
+        ExpenseSettlement.Cash => "نقدی",
+        ExpenseSettlement.Card => "کارت",
+        ExpenseSettlement.Transfer => "انتقال بانکی",
+        ExpenseSettlement.Credit => "نسیه (بدهی)",
+        _ => settlement.ToString(),
+    };
+
+    /// <summary>Persian digits of an ASCII text (numbers, codes).</summary>
+    public static string Digits(string text) => PersianNumberFormatter.ToPersianDigits(text);
+
     public static string SourceName(string source) => SourceNames.GetValueOrDefault(source, source);
 
     public static string SourceColor(string source) => SourceColors.GetValueOrDefault(source, "#98a2b3");

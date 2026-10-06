@@ -384,7 +384,7 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
   its row VMs in **one batch** (clear+`AddRange`/reset-notify once), never item-by-item on the UI thread.
   **Build Desktop → 0/0. Push:** `[Task 7] statistics clients + revenue/sales sections`.
 
-- [ ] **Task 8 — Expenses section + add-expense modal + fixed-expense panel.**
+- [x] **Task 8 — Expenses section + add-expense modal + fixed-expense panel.** _(done: `StatisticsExpensesViewModel` (paged ledger + category filter, category donut/delta, trend, fixed-expense panel with «پرداخت»/edit/toggle), 3 modals (add expense, reverse, add/edit fixed) + views, `finance.post` gating, Finance/Dashboard change announcements)_
   Implement §3: expense list (category + range filters), per-category donut + totals, trend +
   previous-period comparison, add-expense modal (category/title/amount/Jalali date/settlement/
   supplier/note/receipt) posting via the service, correction via reversing expense. Build the

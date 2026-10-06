@@ -1,0 +1,95 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:st="using:Animora.Desktop.Pages.Statistics"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Statistics.StatisticsExpenseModalView"
+             x:Name="Root"
+             x:DataType="st:StatisticsExpenseModalViewModel"
+             x:CompileBindings="True"
+             Width="560" MaxWidth="560" FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Animora.Desktop/Pages/Statistics/StatisticsModalStyles.axaml" />
+    </UserControl.Styles>
+    <StackPanel>
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" Margin="22,20,22,8">
+            <Border Width="44" Height="44" CornerRadius="13" Background="{StaticResource Bg2Brush}">
+                <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource MutedBrush}"
+                      Data="{StaticResource IconWallet}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                <TextBlock Text="ثبت هزینه" FontSize="17" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                <TextBlock Text="هزینه ثبت و بلافاصله در دفتر حسابداری و آمار منعکس می‌شود؛ اصلاح بعدی فقط با «برگشت هزینه» ممکن است."
+                           FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}" />
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Margin="22,4,22,12" Spacing="14">
+            <StackPanel Spacing="6">
+                <TextBlock Classes="sm-lbl" Text="دسته‌بندی" />
+                <ItemsControl ItemsSource="{Binding Categories}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="st:StatisticsChoice">
+                            <Button Classes="hy-chip" Classes.on="{Binding IsSelected}" Content="{Binding Label}" Margin="0,0,6,6"
+                                    Command="{Binding #Root.((st:StatisticsExpenseModalViewModel)DataContext).SelectCategoryCommand}"
+                                    CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Classes="sm-lbl" Text="عنوان هزینه" />
+                <TextBox Classes="sm-inp" Text="{Binding Title}" FontWeight="Bold" PlaceholderText="مثلاً: قبض برق مهر" MaxLength="120" />
+            </StackPanel>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Spacing="6">
+                    <TextBlock Classes="sm-lbl" Text="مبلغ (تومان)" />
+                    <TextBox Classes="sm-inp" Text="{Binding AmountText}" PlaceholderText="۱۲۰۰۰۰۰" TextAlignment="Right" />
+                    <TextBlock Text="{Binding AmountPreview}" FontSize="11.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource Brand700Brush}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Classes="sm-lbl" Text="تاریخ هزینه" />
+                    <controls:JalaliDatePicker DateValue="{Binding Date, Mode=TwoWay}" />
+                </StackPanel>
+            </Grid>
+
+            <StackPanel Spacing="6">
+                <TextBlock Classes="sm-lbl" Text="نحوهٔ پرداخت" />
+                <ItemsControl ItemsSource="{Binding Settlements}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="st:StatisticsChoice">
+                            <Button Classes="hy-chip" Classes.on="{Binding IsSelected}" Content="{Binding Label}" Margin="0,0,6,6"
+                                    Command="{Binding #Root.((st:StatisticsExpenseModalViewModel)DataContext).SelectSettlementCommand}"
+                                    CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Classes="sm-lbl" Text="یادداشت (اختیاری)" />
+                <TextBox Classes="sm-inp" Text="{Binding Note}" AcceptsReturn="True" MinHeight="64" TextWrapping="Wrap"
+                         PlaceholderText="توضیحات، شمارهٔ قبض، نام تأمین‌کننده…" MaxLength="400" />
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="20,12,20,18">
+            <Button Classes="outline sm-btn" Content="انصراف" Command="{Binding CancelCommand}" />
+            <Button Classes="sm-btn sm-primary" Command="{Binding SubmitCommand}" IsEnabled="{Binding !IsSaving}">
+                <TextBlock Text="ثبت هزینه" />
+            </Button>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

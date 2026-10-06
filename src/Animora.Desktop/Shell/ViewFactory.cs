@@ -120,6 +120,9 @@ public static class ViewFactory
         Register<global::Animora.Desktop.Pages.Statistics.StatisticsClientsViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsClientsView>(factories);
         Register<global::Animora.Desktop.Pages.Statistics.StatisticsSalesViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsSalesView>(factories);
         Register<global::Animora.Desktop.Pages.Statistics.StatisticsExpensesViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsExpensesView>(factories);
+        Register<global::Animora.Desktop.Pages.Statistics.StatisticsExpenseModalViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsExpenseModalView>(factories);
+        Register<global::Animora.Desktop.Pages.Statistics.StatisticsReverseModalViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsReverseModalView>(factories);
+        Register<global::Animora.Desktop.Pages.Statistics.StatisticsRecurringModalViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsRecurringModalView>(factories);
 
         // Vaccination.
         Register<global::Animora.Desktop.Pages.Vaccination.AddVaccineModalViewModel, global::Animora.Desktop.Pages.Vaccination.AddVaccineModalView>(factories);

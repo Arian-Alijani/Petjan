@@ -1,0 +1,42 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Field / button styling shared by the three «آمار» expense modals (same look as the boarding room modal). -->
+    <Style Selector="TextBlock.sm-lbl">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+    </Style>
+    <Style Selector="TextBox.sm-inp">
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.sm-btn">
+        <Setter Property="Padding" Value="16,9" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.sm-primary">
+        <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.sm-primary:pointerover">
+        <Setter Property="Background" Value="{StaticResource Brand700Brush}" />
+    </Style>
+    <!-- Small action button inside list rows. -->
+    <Style Selector="Button.st-act">
+        <Setter Property="Padding" Value="10,5" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+</Styles>
