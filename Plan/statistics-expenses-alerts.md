@@ -399,7 +399,7 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
 
 ### Phase D — Dashboard alerts
 
-- [ ] **Task 9 — Manager dashboard alert aggregator.** (Respect the two-layer split — §4.)
+- [x] **Task 9 — Manager dashboard alert aggregator.** _(done: `DashboardAlertRow` + `DashboardSlice.Alerts`, permission-gated append-only aggregator in `DashboardComposer` (fixed-expense due via `finance.read`, cheques via `cheques.read`, urgency-ordered), `DashboardQueryService` presentation mapping into the manager `SecondaryList`, tinted alert rows in `ManagerDashboardView`)_ (Respect the two-layer split — §4.)
   **(a) Application:** add an alert read model `DashboardAlertRow(string Kind, string Title,
   string Subtitle, DateOnly? DueDay, long AmountMinor, string Severity)` and a
   `IReadOnlyList<DashboardAlertRow>? Alerts` member on `DashboardSlice`. In

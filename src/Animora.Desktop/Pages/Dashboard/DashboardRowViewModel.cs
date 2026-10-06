@@ -24,7 +24,19 @@ public sealed class DashboardRowViewModel
         TagText = item.TagText ?? string.Empty;
         Tone = ToneMap.From(item.TagTone);
         IconKey = item.IconKey ?? ResolveIconKey(item.Kind);
+        IsAlert = item.Kind.StartsWith("Alert", System.StringComparison.Ordinal);
+        IsDanger = IsAlert && item.TagTone == DashboardTone.Danger;
+        IsWarn = IsAlert && item.TagTone == DashboardTone.Warn;
     }
+
+    /// <summary>A management alert (fixed expense / cheque) rather than a plain activity row: gets the tinted treatment.</summary>
+    public bool IsAlert { get; }
+
+    /// <summary>Alert at its most urgent (overdue / bounced).</summary>
+    public bool IsDanger { get; }
+
+    /// <summary>Alert that is due soon or today.</summary>
+    public bool IsWarn { get; }
 
     /// <summary>Semantic dashboard glyph, selected by the stable row kind (never by localized text).</summary>
     public string IconKey { get; }

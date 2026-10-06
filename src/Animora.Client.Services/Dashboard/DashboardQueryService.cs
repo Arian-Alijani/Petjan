@@ -138,14 +138,19 @@ internal static class DashboardMapping
         {
             UserRole.Cashier => (slice.ReadyBillingRows ?? []).Select(x => OperationalItem(x, zone)).ToArray(),
             UserRole.Doctor => (slice.ReminderRows ?? []).Select(x => OperationalItem(x, zone)).ToArray(),
-            _ => slice.Activity.Take(8).Select(x => Item(x, zone)).ToArray(),
+            _ => MergeAlerts(slice, zone),
         };
         var manager = role is UserRole.Manager or UserRole.Receptionist;
         var values = slice.RevenueDays.Select(x => x.RevenueMinor).ToArray();
         var (points, zeroLevel) = Normalize(values);
         return new DashboardSnapshot(role, "نمای کلی امروز", "آخرین فعالیت‌های کلینیک", stats,
             role == UserRole.Cashier ? "فاکتورهای باز" : "نوبت‌های فعال امروز", primary,
-            role switch { UserRole.Cashier => "آماده صدور فاکتور", UserRole.Doctor => "یادآور واکسن بیماران امروز", _ => "فعالیت‌های اخیر" }, secondary,
+            role switch
+            {
+                UserRole.Cashier => "آماده صدور فاکتور",
+                UserRole.Doctor => "یادآور واکسن بیماران امروز",
+                _ => slice.Alerts is { Count: > 0 } ? "هشدارها و فعالیت‌های اخیر" : "فعالیت‌های اخیر",
+            }, secondary,
             (slice.Access?.Finance ?? manager) ? Pulse(slice.RevenueDays, today, points, zeroLevel, values) : null,
             (slice.Access?.Workloads ?? manager) ? slice.Workloads.Select(Load).ToArray() : null,
             (slice.Access?.Patients ?? manager) && role != UserRole.Doctor ? slice.Species.OrderByDescending(x => x.Value).ThenBy(x => x.Key, StringComparer.Ordinal)
@@ -153,6 +158,50 @@ internal static class DashboardMapping
     }
 
     private const string CurrencyLabel = "تومان";
+
+    // Alerts (already permission-gated and urgency-ordered by the Application read) lead the card; the remaining room is
+    // filled with the latest activity. Presentation only: no permission or port access here.
+    private static DashboardListItem[] MergeAlerts(DashboardSlice slice, TimeZoneInfo zone)
+    {
+        const int capacity = 8;
+        var alerts = (slice.Alerts ?? []).Take(capacity).Select(AlertItem).ToList();
+        alerts.AddRange(slice.Activity.Take(capacity - alerts.Count).Select(x => Item(x, zone)));
+        return alerts.ToArray();
+    }
+
+    internal static DashboardListItem AlertItem(DashboardAlertRow alert)
+    {
+        var tone = alert.Severity == "Danger" ? DashboardTone.Danger : DashboardTone.Warn;
+        var amount = alert.AmountMinor.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + " " + CurrencyLabel;
+        var due = alert.DueDay is { } day ? JalaliDay(day) : string.Empty;
+        var dueLine = string.Join(" · ", new[] { due.Length == 0 ? "" : "سررسید " + due, amount }.Where(v => v.Length > 0));
+        if (alert.Kind == "Cheque")
+        {
+            var (title, tag) = alert.State switch
+            {
+                "Bounced" => ("چک برگشتی نیازمند پیگیری", "برگشتی"),
+                "Overdue" => ("چک سررسیدگذشته تسویه نشده", "معوق"),
+                _ => ("چک نزدیک به سررسید", "سررسید نزدیک"),
+            };
+            return new("", title, dueLine, tag, tone, "IconCheque", "AlertCheque", alert.State);
+        }
+
+        var (headline, tagText) = alert.State switch
+        {
+            "Overdue" => ($"{alert.Title} معوق است", "معوق"),
+            "Due" => ($"{alert.Title} امروز سررسید است", "سررسید امروز"),
+            _ => ($"{alert.Title} نزدیک است", "سررسید پرداخت"),
+        };
+        var subtitle = string.IsNullOrWhiteSpace(alert.Subtitle) ? dueLine : $"{dueLine} · {alert.Subtitle}";
+        return new("", headline, subtitle, tagText, tone, "IconWallet", "AlertRecurring", alert.State);
+    }
+
+    private static string JalaliDay(DateOnly day)
+    {
+        var calendar = new System.Globalization.PersianCalendar();
+        var at = day.ToDateTime(TimeOnly.MinValue);
+        return $"{calendar.GetYear(at):0000}/{calendar.GetMonth(at):00}/{calendar.GetDayOfMonth(at):00}";
+    }
 
     // Headline = TODAY's revenue; the chart covers the real 14-day window. Dates and signed amounts stay in the DTO.
     private static DashboardRevenuePulse Pulse(IReadOnlyList<DashboardDay> days, long today, double[] points, double zero, long[] values)

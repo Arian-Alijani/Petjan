@@ -28,6 +28,14 @@ public sealed record DashboardOperationalRow(string Kind, string Name, string Ow
 /// worker has not applied yet and whether any was dead-lettered. Read with the same slice, never inferred.
 /// </summary>
 public sealed record DashboardProjectionLag(int Pending, int Failed);
+/// <summary>
+/// One actionable management alert for the manager dashboard (fixed expense due, cheque due/overdue/bounced). Pure data:
+/// presentation (icon, Persian wording, Jalali date) is mapped by the client service. <b>Kind</b> is the alert source
+/// (<c>RecurringExpense</c> | <c>Cheque</c>), <b>State</b> the source-specific state (<c>DueSoon</c> | <c>Due</c> |
+/// <c>Overdue</c> | <c>Bounced</c>) and <b>Severity</b> the urgency tone (<c>Danger</c> | <c>Warn</c>).
+/// </summary>
+public sealed record DashboardAlertRow(string Kind, string Title, string Subtitle, DateOnly? DueDay, long AmountMinor,
+    string Severity, string State = "");
 /// <remarks><b>Generation</b> is the tenant source generation read at the start of the same short read transaction as
 /// every other member, so the data and its generation always describe one committed state.</remarks>
 public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
@@ -39,7 +47,8 @@ public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     IReadOnlyList<DashboardOperationalRow>? ReadyBillingRows = null,
     IReadOnlyList<DashboardOperationalRow>? ReminderRows = null, int AwaitingPaymentCount = 0,
     DashboardProjectionLag? Projection = null,
-    long Generation = 0);
+    long Generation = 0,
+    IReadOnlyList<DashboardAlertRow>? Alerts = null);
 
 /// <summary>The local day and its half-open UTC range, resolved once using ClinicCalendar.</summary>
 public sealed record DashboardDayWindow(int LocalDay, DateTimeOffset StartUtc, DateTimeOffset EndUtc)
@@ -70,7 +79,8 @@ public sealed record DashboardSnapshotQuery(UserRole Role, DashboardDayWindow? W
 /// <summary>Sequentially assembles role-aware slices over one scoped local connection.</summary>
 public sealed class DashboardComposer(IDashboardQueries queries, Animora.Domain.Time.IClock clock,
     IClinicTimeZoneProvider zones, IAuthorizationGate gate, SessionContextCache sessions,
-    IStaffMembershipRepository memberships, IPermissionEvaluator permissions, ILocalInstallationIdentity installation) : IQueryHandler<DashboardSnapshotQuery, DashboardSlice>
+    IStaffMembershipRepository memberships, IPermissionEvaluator permissions, ILocalInstallationIdentity installation,
+    IChequeQueries? cheques = null, IRecurringExpenseQueries? recurring = null) : IQueryHandler<DashboardSnapshotQuery, DashboardSlice>
 {
     public async Task<Result<DashboardSlice>> HandleAsync(DashboardSnapshotQuery query, QueryContext context, CancellationToken ct)
     {
@@ -84,7 +94,53 @@ public sealed class DashboardComposer(IDashboardQueries queries, Animora.Domain.
             var date = Animora.Application.Time.ClinicCalendar.LocalDay(clock.UtcNow.UtcTicks, zone);
             window = DashboardDayWindow.For(date, zone);
         }
-        return Result<DashboardSlice>.Ok(await queries.GetSliceAsync(context.TenantId, window, context.UserId, access.Value!, ct));
+        var slice = await queries.GetSliceAsync(context.TenantId, window, context.UserId, access.Value!, ct);
+        var alerts = await BuildAlertsAsync(window, access.Value!, ct);
+        return Result<DashboardSlice>.Ok(alerts.Count == 0 ? slice : slice with { Alerts = alerts });
+    }
+
+    /// <summary>Most alerts the dashboard card ever receives (the list is a glance, not a worklist).</summary>
+    internal const int MaxAlerts = 8;
+
+    /// <summary>
+    /// Append-only aggregator of management alerts: every source adds rows only when the viewer holds its permission
+    /// (<c>finance.read</c> → fixed expenses, <c>cheques.read</c> → cheques), then the whole list is ordered by urgency
+    /// (danger before warn, then the earliest due day). A new alert kind plugs in as one more gated block.
+    /// </summary>
+    private async Task<IReadOnlyList<DashboardAlertRow>> BuildAlertsAsync(DashboardDayWindow window, DashboardAccess access,
+        CancellationToken ct)
+    {
+        var rows = new List<DashboardAlertRow>();
+        var today = new DateOnly(window.LocalDay / 10000, window.LocalDay / 100 % 100, window.LocalDay % 100);
+
+        if (access.Finance && recurring is not null)
+        {
+            var list = await Finance.RecurringExpensePeriods.BuildAsync(recurring, clock, zones, ct);
+            foreach (var item in list.Items.Where(i => i.NeedsAttention))
+            {
+                var (state, severity) = item.State switch
+                {
+                    Domain.Finance.RecurringDueState.Overdue => ("Overdue", "Danger"),
+                    Domain.Finance.RecurringDueState.Due => ("Due", "Warn"),
+                    _ => ("DueSoon", "Warn"),
+                };
+                rows.Add(new DashboardAlertRow("RecurringExpense", item.Title, item.SupplierName ?? string.Empty,
+                    item.DueDay, item.AmountMinor, severity, state));
+            }
+        }
+
+        if (access.Cheques && cheques is not null)
+        {
+            foreach (var alert in await cheques.GetAlertsAsync(today, ct))
+            {
+                var severity = alert.Kind is "Bounced" or "Overdue" ? "Danger" : "Warn";
+                rows.Add(new DashboardAlertRow("Cheque", string.Empty, string.Empty, alert.DueDay, alert.AmountMinor,
+                    severity, alert.Kind));
+            }
+        }
+
+        return rows.OrderBy(r => r.Severity == "Danger" ? 0 : 1).ThenBy(r => r.DueDay ?? DateOnly.MaxValue)
+            .ThenBy(r => r.Kind, StringComparer.Ordinal).Take(MaxAlerts).ToArray();
     }
 
     // Both cache responses and dispatcher reads use this live policy. No TTL-based permission cache.
