@@ -320,7 +320,7 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
   `App.axaml.cs`'s `AddAnimoraApplication(builder => …)`.
   **Build `full` → 0/0. Push:** `[Task 2] expense commands + finance use-case registration`.
 
-- [ ] **Task 3 — Recurring-expense domain + persistence + migration 029.**
+- [x] **Task 3 — Recurring-expense domain + persistence + migration 029.** _(done: `Domain/Finance/RecurringExpense.cs` (template + `RecurringExpensePayment` + pure `RecurringExpenseSchedule`), `RecurringExpensePeriods` (Jalali math in Application), ports/repo/queries, migration `20261006120000__029_RecurringExpenses`, 4 commands + `RecurringExpensesQuery` registered in `FinanceRegistration`)_
   Add `Domain/Finance/RecurringExpense.cs`, `RecurringExpensePayment` entity/value, and pure
   `RecurringExpenseSchedule` (§3.2). Add EF configs under `Configurations/Finance/`, ports
   `IRecurringExpenseRepository`/`IRecurringExpenseQueries`, repo + query impls, DI registration,

@@ -4,7 +4,7 @@ using Animora.Application.UseCases.Finance.ReadModels;
 
 namespace Animora.Application.UseCases.Finance;
 
-/// <summary>Registers the «آمار» reads and the expense commands. Chained into <c>AddAnimoraApplication</c>.</summary>
+/// <summary>Registers the «آمار» reads, the expense commands and the fixed-expense use-cases. Chained into <c>AddAnimoraApplication</c>.</summary>
 public static class FinanceRegistration
 {
     public static ApplicationRegistrationBuilder AddFinanceUseCases(this ApplicationRegistrationBuilder builder)
@@ -21,10 +21,20 @@ public static class FinanceRegistration
             .AddQuery<TopClientsQuery, IReadOnlyList<TopClientReadModel>, TopClientsQueryHandler>()
             .AddQuery<SpeciesDistributionQuery, IReadOnlyList<SpeciesSliceReadModel>, SpeciesDistributionQueryHandler>()
             .AddQuery<ClientStatsQuery, ClientStatsReadModel, ClientStatsQueryHandler>()
+            .AddQuery<RecurringExpensesQuery, RecurringExpensesReadModel, RecurringExpensesQueryHandler>()
             // ── Expense commands ──────────────────────────────────────────────────
             .AddCommand<AddExpenseCommand, string, AddExpenseCommandHandler>()
             .AddValidator<AddExpenseCommand, AddExpenseCommandValidator>()
             .AddCommand<ReverseExpenseCommand, string, ReverseExpenseCommandHandler>()
-            .AddValidator<ReverseExpenseCommand, ReverseExpenseCommandValidator>();
+            .AddValidator<ReverseExpenseCommand, ReverseExpenseCommandValidator>()
+            // ── Fixed (recurring) expense commands ────────────────────────────────
+            .AddCommand<AddRecurringExpenseCommand, string, AddRecurringExpenseCommandHandler>()
+            .AddValidator<AddRecurringExpenseCommand, AddRecurringExpenseCommandValidator>()
+            .AddCommand<EditRecurringExpenseCommand, string, EditRecurringExpenseCommandHandler>()
+            .AddValidator<EditRecurringExpenseCommand, EditRecurringExpenseCommandValidator>()
+            .AddCommand<ToggleRecurringExpenseCommand, string, ToggleRecurringExpenseCommandHandler>()
+            .AddValidator<ToggleRecurringExpenseCommand, ToggleRecurringExpenseCommandValidator>()
+            .AddCommand<PayRecurringExpenseForPeriodCommand, string, PayRecurringExpenseForPeriodCommandHandler>()
+            .AddValidator<PayRecurringExpenseForPeriodCommand, PayRecurringExpenseForPeriodCommandValidator>();
     }
 }

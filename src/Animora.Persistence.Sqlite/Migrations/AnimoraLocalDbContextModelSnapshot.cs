@@ -1180,6 +1180,128 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("LedgerAccounts", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Domain.Finance.RecurringExpense", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CategoryCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DayOfMonth")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SupplierId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Version")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Amount", "Animora.Domain.Finance.RecurringExpense.Amount#Money", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .HasColumnType("TEXT")
+                                .HasColumnName("AmountCurrency");
+
+                            b1.Property<long>("Minor")
+                                .HasColumnType("INTEGER")
+                                .HasColumnName("AmountMinor");
+                        });
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "UpdatedAt")
+                        .HasDatabaseName("IX_RecurringExpenses_TenantId_UpdatedAt");
+
+                    b.ToTable("RecurringExpenses", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Domain.Finance.RecurringExpensePayment", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ExpenseId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("PaidUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PeriodCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RecurringExpenseId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Version")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "RecurringExpenseId", "PeriodCode")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RecurringExpensePayments_TenantId_RecurringExpenseId_PeriodCode");
+
+                    b.HasIndex("TenantId", "UpdatedAt")
+                        .HasDatabaseName("IX_RecurringExpensePayments_TenantId_UpdatedAt");
+
+                    b.ToTable("RecurringExpensePayments", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Domain.Identity.Device", b =>
                 {
                     b.Property<string>("Id")

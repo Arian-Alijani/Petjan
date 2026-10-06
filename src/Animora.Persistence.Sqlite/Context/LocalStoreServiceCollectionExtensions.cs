@@ -97,6 +97,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<ICashierQueries, CashierQueries>();
         services.TryAddScoped<IChequeQueries, ChequeQueries>();
         services.TryAddScoped<IStatisticsQueries, StatisticsQueries>();
+        services.TryAddScoped<IRecurringExpenseQueries, RecurringExpenseQueries>();
         services.TryAddScoped<ISalesDraftData, SalesDraftData>();
         services.TryAddScoped<ISalesPostingData, SalesPostingData>();
         services.TryAddScoped<IInvoiceNumberAllocator, InvoiceNumberAllocator>();
@@ -130,6 +131,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<ILedgerRepository, LedgerRepository>();
         services.AddScoped<IChequeRepository, ChequeRepository>();
         services.AddScoped<IExpenseRepository, ExpenseRepository>();
+        services.AddScoped<IRecurringExpenseRepository, RecurringExpenseRepository>();
         services.AddScoped<IPeriodRepository, PeriodRepository>();
         services.AddScoped<IIdentityRepository, IdentityRepository>();
         services.AddScoped<IStaffMembershipRepository, StaffMembershipRepository>();

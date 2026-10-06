@@ -54,6 +54,10 @@ public static class CommandTypes
     public const string FinancePeriodClose = "finance.period.close";
     public const string FinanceExpensePost = "finance.expense.post";
     public const string FinanceExpenseReverse = "finance.expense.reverse";
+    public const string FinanceRecurringAdd = "finance.recurring.add";
+    public const string FinanceRecurringEdit = "finance.recurring.edit";
+    public const string FinanceRecurringToggle = "finance.recurring.toggle";
+    public const string FinanceRecurringPay = "finance.recurring.pay";
     public const string FinanceChequeTransition = "finance.cheque.transition";
     public const string FinanceChequeCreate = "finance.cheque.create";
     public const string FinanceChequeUpdate = "finance.cheque.update";
@@ -115,7 +119,8 @@ public static class CommandTypes
         InventoryCategoryCreate, InventoryCategoryRename, InventoryCategoryDelete,
         SalesServiceRateCreate, SalesServiceRateUpdate,
         PurchasingOrderCreate, PurchasingReceiptRecord, PurchasingOrderCancel,
-        FinancePeriodClose, FinanceExpensePost, FinanceExpenseReverse, FinanceChequeTransition,
+        FinancePeriodClose, FinanceExpensePost, FinanceExpenseReverse,
+        FinanceRecurringAdd, FinanceRecurringEdit, FinanceRecurringToggle, FinanceRecurringPay, FinanceChequeTransition,
         FinanceChequeCreate, FinanceChequeUpdate, FinanceChequeDelete, FinanceChequeStatus,
         SchedulingAppointmentBook, SchedulingAppointmentMove, SchedulingAppointmentCancel,
         SchedulingAppointmentCheckin, SchedulingBookingPatientCreate,
