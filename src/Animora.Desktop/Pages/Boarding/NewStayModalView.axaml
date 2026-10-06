@@ -56,15 +56,35 @@
         <Style Selector="Button.ac:pointerover">
             <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
         </Style>
-        <Style Selector="Border.pay-opt">
+        <Style Selector="Button.pay-opt">
+            <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
             <Setter Property="BorderThickness" Value="1.5" />
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Padding" Value="14,10" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
         </Style>
-        <Style Selector="Border.pay-opt.is-selected">
+        <Style Selector="Button.pay-opt:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.pay-opt.is-selected">
             <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
             <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.pay-opt Ellipse#Dot">
+            <Setter Property="Fill" Value="White" />
+            <Setter Property="Stroke" Value="{StaticResource LineBrush}" />
+        </Style>
+        <Style Selector="Button.pay-opt.is-selected Ellipse#Dot">
+            <Setter Property="Fill" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Stroke" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Button.pay-opt TextBlock.pay-title">
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.pay-opt.is-selected TextBlock.pay-title">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
         </Style>
     </UserControl.Styles>
 
@@ -282,15 +302,10 @@
                                         Command="{Binding #Root.((boarding:NewStayModalViewModel)DataContext).ChoosePaymentCommand}"
                                         CommandParameter="{Binding}">
                                     <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <Ellipse Width="16" Height="16" Stroke="{StaticResource LineBrush}"
-                                                 StrokeThickness="1.5" VerticalAlignment="Top">
-                                            <Ellipse.Fill>
-                                                <SolidColorBrush Color="White" />
-                                            </Ellipse.Fill>
-                                        </Ellipse>
+                                        <Ellipse x:Name="Dot" Width="16" Height="16"
+                                                 StrokeThickness="1.5" VerticalAlignment="Top" />
                                         <StackPanel>
-                                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold"
-                                                       Foreground="{StaticResource Ink2Brush}" />
+                                            <TextBlock Classes="pay-title" Text="{Binding Title}" FontSize="13" FontWeight="Bold" />
                                             <TextBlock Text="{Binding Hint}" FontSize="10.5" Margin="0,2,0,0"
                                                        Foreground="{StaticResource MutedBrush}" />
                                         </StackPanel>

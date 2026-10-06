@@ -10,6 +10,8 @@ public interface IBoardingQueries
     Task<IReadOnlyList<RoomOccupancyReadModel>> GetRoomsAsync(CancellationToken ct);
     Task<Room?> FindRoomAsync(string idOrCode, CancellationToken ct);
     Task<int> CountActiveStaysInRoomAsync(string roomId, CancellationToken ct);
+    /// <summary>True while the stay has a billing handoff still waiting at the cashier (not yet invoiced).</summary>
+    Task<bool> HasReadyHandoffAsync(string stayId, CancellationToken ct);
     Task<IReadOnlyList<BoardingServiceDef>> GetServicesAsync(CancellationToken ct);
     Task<BoardingSelectableReadModel?> FindSelectableAsync(string id, CancellationToken ct);
     Task<IReadOnlyList<BoardingKnownPetReadModel>> GetKnownPetsAsync(string? search, CancellationToken ct);

@@ -247,6 +247,10 @@ public sealed class CheckoutStayCommandHandler(IBoardingRepository repository, I
         var stay = await repository.FindAsync(c.StayId, ct);
         if (stay is null) return Result<Unit>.Fail(ErrorCodes.StayNotFound);
         if (stay.State != StayState.Active) return Result<Unit>.Fail(ErrorCodes.StayAlreadyCheckedOut);
+        // At most one open (Ready) billing handoff per stay: the posting path resolves handoffs by stay id.
+        // A prepaid stay whose room invoice is still unposted must be settled at the cashier first.
+        if (await queries.HasReadyHandoffAsync(stay.Id, ct))
+            return Result<Unit>.Fail(ErrorCodes.StayPrepaidInvoicePending);
         var now = clock.UtcNow;
         var tz = zones.GetClinicTimeZone();
         var services = await queries.GetServicesAsync(ct);

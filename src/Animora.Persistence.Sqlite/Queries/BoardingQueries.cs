@@ -5,6 +5,7 @@ using Animora.Domain.Boarding;
 using Animora.Domain.Inventory;
 using Animora.Domain.Patients;
 using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Persistence.Sqlite.Queries;
@@ -47,6 +48,10 @@ public sealed class BoardingQueries(AnimoraLocalDbContext db) : IBoardingQueries
 
     public Task<Room?> FindRoomAsync(string idOrCode, CancellationToken ct) =>
         db.Set<Room>().AsNoTracking().FirstOrDefaultAsync(r => r.Id == idOrCode || r.Code == idOrCode, ct);
+
+    public Task<bool> HasReadyHandoffAsync(string stayId, CancellationToken ct) =>
+        db.Set<BoardingBillingHandoff>().AsNoTracking()
+            .AnyAsync(h => h.StayId == stayId && h.Status == HandoffStatus.Ready, ct);
 
     public Task<int> CountActiveStaysInRoomAsync(string roomId, CancellationToken ct) =>
         db.Set<BoardingStay>().CountAsync(s => s.RoomId == roomId && s.State == StayState.Active, ct);

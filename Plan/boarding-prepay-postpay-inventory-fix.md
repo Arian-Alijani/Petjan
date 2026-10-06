@@ -147,7 +147,7 @@ plan file.
 
 ---
 
-### [ ] T1 — Prepay/Postpay: make the radios work + wire real invoice behavior
+### [x] T1 — Prepay/Postpay: make the radios work + wire real invoice behavior
 **Problem (user):** the two options (پیش‌پرداخت / پس‌پرداخت) in the new-stay modal "don't select and don't
 work". Prepay must create the invoice **immediately** at registration (in فروش + صندوق); postpay must create
 it **at checkout** (existing behavior). Payment type must be recorded & shown consistently in history.

@@ -55,6 +55,7 @@ public static class ErrorMessages
         // Boarding
         ["STAY_NOT_FOUND"] = "اقامت موردنظر پیدا نشد.",
         ["STAY_NOT_EDITABLE"] = "این اقامت قابل ویرایش نیست.",
+        ["STAY_PREPAID_INVOICE_PENDING"] = "فاکتور پیش‌پرداخت این اقامت هنوز در صندوق تسویه نشده است؛ ابتدا آن را در صندوق ثبت کنید.",
         ["STAY_LOCKED"] = "این اقامت قفل شده و قابل ویرایش نیست.",
         ["STAY_ITEM_INDEX_STALE"] = "اقلام اقامت در این بین تغییر کرده است؛ دوباره بارگذاری شد.",
         ["STAY_INVOICE_REQUIRED"] = "برای ادامه، ابتدا باید فاکتور اقامت صادر شود.",

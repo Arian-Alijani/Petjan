@@ -283,6 +283,13 @@ public static class ErrorCodes
     public static readonly ErrorCode StayDatesInvalid =
         new("STAY_DATES_INVALID", ErrorCode.Validation);
 
+    /// <summary>
+    /// A prepaid stay's room invoice is still waiting at the cashier (an unposted handoff exists), so the
+    /// stay cannot be discharged yet. Keeps at most one open billing handoff per stay.
+    /// </summary>
+    public static readonly ErrorCode StayPrepaidInvoicePending =
+        new("STAY_PREPAID_INVOICE_PENDING", ErrorCode.Conflict);
+
     /// <summary>The addressed boarding stay does not exist.</summary>
     public static readonly ErrorCode StayNotFound = new("STAY_NOT_FOUND", ErrorCode.NotFound);
     /// <summary>The stay cannot be changed in its current state.</summary>

@@ -103,7 +103,8 @@ internal sealed class BoardingHandoffFake : IBoardingBillingHandoffWriter
 {
     public List<string> StayIds { get; } = [];
     public void Add(string tenantId, string stayId, string ownerId, string petId,
-        DateTimeOffset completedUtc, string linesJson) => StayIds.Add(stayId);
+        DateTimeOffset completedUtc, string linesJson,
+        BoardingHandoffKind kind = BoardingHandoffKind.Final) => StayIds.Add(stayId);
 }
 
 internal sealed class BoardingQueriesFake(params Room[] rooms) : IBoardingQueries
@@ -118,6 +119,7 @@ internal sealed class BoardingQueriesFake(params Room[] rooms) : IBoardingQuerie
     public Task<IReadOnlyList<RoomOccupancyReadModel>> GetRoomsAsync(CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<RoomOccupancyReadModel>>(rooms.Select(r =>
             new RoomOccupancyReadModel(r, CountActiveStaysInRoomAsync(r.Id, ct).Result)).ToArray());
+    public Task<bool> HasReadyHandoffAsync(string stayId, CancellationToken ct) => Task.FromResult(false);
     public Task<IReadOnlyList<BoardingServiceDef>> GetServicesAsync(CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<BoardingServiceDef>>([]);
     public Task<IReadOnlyList<StayListItemReadModel>> GetStaysAsync(CancellationToken ct) =>
