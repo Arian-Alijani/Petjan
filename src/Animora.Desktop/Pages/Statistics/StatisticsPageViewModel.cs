@@ -9,6 +9,8 @@ using Animora.Contracts.Statistics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
+using Animora.Desktop.Localization;
+using Animora.Domain.Finance;
 using Animora.Domain.Identity;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -19,6 +21,17 @@ namespace Animora.Desktop.Pages.Statistics;
 public sealed partial class StatisticsTabViewModel(StatisticsSection section, string label) : ObservableObject
 {
     public StatisticsSection Section { get; } = section;
+
+    public string Label { get; } = label;
+
+    [ObservableProperty]
+    private bool _isActive;
+}
+
+/// <summary>One preset of the range picker (today / 7d / 30d / 90d / ytd / custom).</summary>
+public sealed partial class StatisticsRangeChipViewModel(string id, string label) : ObservableObject
+{
+    public string Id { get; } = id;
 
     public string Label { get; } = label;
 
@@ -64,6 +77,8 @@ public sealed partial class StatisticsPageViewModel : PageViewModelBase
         if (capabilities.Can(PermissionCodes.FinanceRead)) visible.Add(expenses);
         Tabs.AddRange(visible.Select(s => new StatisticsTabViewModel(s.Section, s.Label)));
 
+        RangeChips.AddRange(FinanceRanges.All.Select(r => new StatisticsRangeChipViewModel(r.Id, r.Label)));
+        MarkActiveChip();
         SelectSection(StatisticsSection.Overview, load: false);
         UseLoadStatus(() => ReloadAsync(force: true));
         // Any write that moves revenue / expenses / clients announces its domain: a shown page re-reads at once, a
@@ -82,6 +97,23 @@ public sealed partial class StatisticsPageViewModel : PageViewModelBase
     public StatisticsExpensesViewModel Expenses { get; }
 
     public RangeObservableCollection<StatisticsTabViewModel> Tabs { get; } = [];
+
+    public RangeObservableCollection<StatisticsRangeChipViewModel> RangeChips { get; } = [];
+
+    /// <summary>Jalali <c>yyyy/MM/dd</c> bounds of the custom window (picker values).</summary>
+    [ObservableProperty]
+    private string _customFromDate = string.Empty;
+
+    [ObservableProperty]
+    private string _customToDate = string.Empty;
+
+    /// <summary>True while the «بازهٔ دلخواه» chip is active (shows the two date pickers).</summary>
+    [ObservableProperty]
+    private bool _isCustomRange;
+
+    /// <summary>Persian hint under the picker when the custom bounds are incomplete or inverted.</summary>
+    [ObservableProperty]
+    private string _customRangeHint = string.Empty;
 
     /// <summary>The section currently shown (resolved to its view by the shell's view locator).</summary>
     [ObservableProperty]
@@ -106,6 +138,57 @@ public sealed partial class StatisticsPageViewModel : PageViewModelBase
         _range = range;
         OnPropertyChanged(nameof(Range));
         _ = ReloadAsync(force: false);
+    }
+
+    [RelayCommand]
+    private void SelectRange(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return;
+        if (id == "custom")
+        {
+            IsCustomRange = true;
+            if (string.IsNullOrEmpty(CustomToDate)) CustomToDate = JalaliCalendar.Today;
+            if (string.IsNullOrEmpty(CustomFromDate)) CustomFromDate = JalaliCalendar.AddDays(CustomToDate, -29);
+            ApplyCustomRange();
+            return;
+        }
+
+        IsCustomRange = false;
+        CustomRangeHint = string.Empty;
+        SetRange(new StatisticsRange(id));
+        MarkActiveChip();
+    }
+
+    partial void OnCustomFromDateChanged(string value) => ApplyCustomRange();
+
+    partial void OnCustomToDateChanged(string value) => ApplyCustomRange();
+
+    private void ApplyCustomRange()
+    {
+        if (!IsCustomRange) return;
+        var from = StatisticsFormat.ToGregorianKey(CustomFromDate);
+        var to = StatisticsFormat.ToGregorianKey(CustomToDate);
+        if (from is null || to is null)
+        {
+            CustomRangeHint = "هر دو تاریخ را انتخاب کنید.";
+        }
+        else if (from > to)
+        {
+            CustomRangeHint = "تاریخ شروع باید قبل از تاریخ پایان باشد.";
+        }
+        else
+        {
+            CustomRangeHint = string.Empty;
+            SetRange(new StatisticsRange("custom", from, to));
+        }
+
+        MarkActiveChip();
+    }
+
+    private void MarkActiveChip()
+    {
+        var active = IsCustomRange ? "custom" : _range.RangeId;
+        foreach (var chip in RangeChips) chip.IsActive = chip.Id == active;
     }
 
     [RelayCommand]

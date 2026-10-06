@@ -368,7 +368,7 @@ Finance/cheque data must be gated by the existing permission flags so a Receptio
   **Build Desktop → 0/0. Smoke-run** (`scripts/sandbox/run.sh` → "SMOKE RUN OK") because this
   touches DI/nav/shell. **Push:** `[Task 5] statistics page shell + nav/DI wiring`.
 
-- [ ] **Task 6 — Overview section (KPIs + revenue trend + source donut + range picker).**
+- [ ] **Task 6 — Overview section (KPIs + revenue trend + source donut + range picker).** _(PARTIAL, not ticked: done = `StatisticsOverviewViewModel` (KPIs/trend/source data), `StatisticsFormat`, page-VM range chips + custom Jalali range; TODO = `StatisticsOverviewView.axaml` markup (StatCards via `AdaptiveGrid`, `TrendChart`, `DonutRing` + legend) and range-chip/date-picker bar in `StatisticsPageView.axaml`)_
   Implement the overview section (§2.1) with StatCards, the revenue area/line chart (reuse
   `RevenueChartMath`), the revenue-by-source `DonutRing`, and the `FinanceRanges` range picker that
   re-queries on change. Persian money/number/Jalali formatting throughout.

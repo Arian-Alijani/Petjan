@@ -4,20 +4,6 @@ using Animora.Contracts.Statistics;
 
 namespace Animora.Desktop.Pages.Statistics;
 
-/// <summary>«نمای کلی» — KPIs, revenue trend and revenue-by-source (content: Task 6).</summary>
-public sealed class StatisticsOverviewViewModel(IStatisticsQueryService service) : StatisticsSectionViewModel
-{
-    public override StatisticsSection Section => StatisticsSection.Overview;
-
-    public override string Label => "نمای کلی";
-
-    protected override async Task LoadCoreAsync(StatisticsRange range, CancellationToken ct)
-    {
-        var overview = await service.GetOverviewAsync(range, ct);
-        IsEmpty = overview.Current.InvoiceCount == 0 && overview.Current.ExpenseMinor == 0 && overview.Current.VisitCount == 0;
-    }
-}
-
 /// <summary>«مراجعین» — species mix, new vs returning clients, top clients (content: Task 7).</summary>
 public sealed class StatisticsClientsViewModel(IStatisticsQueryService service) : StatisticsSectionViewModel
 {
