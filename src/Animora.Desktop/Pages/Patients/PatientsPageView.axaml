@@ -541,35 +541,6 @@
             </StackPanel>
         </Grid>
 
-        <!-- ── page-level section tabs (directory / settings) ─────────
-             A top-level segmented switch choosing between the records
-             directory and the clinic-settings tab. Mirrors the toolbar
-             segment styling (.seg/.segitem) for a consistent look. -->
-        <Border Classes="seg" HorizontalAlignment="Right" Margin="0,0,0,16">
-            <StackPanel Orientation="Horizontal" Spacing="2">
-                <Border Classes="segitem" Classes.on="{Binding IsDirectorySection}">
-                    <Button Classes="segtap lg" HorizontalContentAlignment="Center"
-                            Command="{Binding SetSectionCommand}" CommandParameter="directory">
-                        <StackPanel Orientation="Horizontal" Spacing="7">
-                            <Path Classes="icon" Width="16" Height="16"
-                                  Data="{StaticResource IconUsers}" />
-                            <TextBlock Text="فهرست بیماران و مالکین" FontSize="13.5" FontWeight="Bold" />
-                        </StackPanel>
-                    </Button>
-                </Border>
-                <Border Classes="segitem" Classes.on="{Binding IsSettingsSection}">
-                    <Button Classes="segtap lg" HorizontalContentAlignment="Center"
-                            Command="{Binding SetSectionCommand}" CommandParameter="settings">
-                        <StackPanel Orientation="Horizontal" Spacing="7">
-                            <Path Classes="icon" Width="16" Height="16"
-                                  Data="{StaticResource IconTag}" />
-                            <TextBlock Text="تنظیمات" FontSize="13.5" FontWeight="Bold" />
-                        </StackPanel>
-                    </Button>
-                </Border>
-            </StackPanel>
-        </Border>
-
         <!-- ── toolbar (.pagebar) ─────────────────────────────────── -->
         <Border Background="{StaticResource PanelBrush}"
                 BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
@@ -580,7 +551,7 @@
             <StackPanel Spacing="12">
 
                 <!-- tier 1 · entity switch (start) + search (end) -->
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
                     <Border Grid.Column="0" Classes="seg" HorizontalAlignment="Stretch">
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="2">
                             <Border Grid.Column="0" Classes="segitem" Classes.on="{Binding IsOwnersView}">
@@ -609,7 +580,7 @@
                     </Border>
 
                     <!-- search field (.pb-search) -->
-                    <Border Grid.Column="1" Width="420" MinWidth="200"
+                    <Border Grid.Column="1" Width="360" MinWidth="200"
                             Background="{StaticResource Bg2Brush}"
                             BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
                             CornerRadius="12" Padding="13,0">
@@ -633,6 +604,19 @@
                             </Button>
                         </Grid>
                     </Border>
+
+                    <!-- clinic settings (species / breeds / file-opened SMS) -->
+                    <Button Grid.Column="2" Classes="outline" VerticalAlignment="Stretch"
+                            Padding="16,0" CornerRadius="12"
+                            Command="{Binding SetSectionCommand}" CommandParameter="settings"
+                            ToolTip.Tip="تنظیمات مالکین و بیماران">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Path Classes="icon" Width="16" Height="16"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconTag}" />
+                            <TextBlock Text="تنظیمات" FontSize="13.5" FontWeight="Bold" />
+                        </StackPanel>
+                    </Button>
                 </Grid>
 
                 <!-- tier 2 · species chips (start) + secondary controls (end) -->
@@ -1273,297 +1257,319 @@
 
         </Grid>
 
-        <!-- ── settings tab (bounded, scrolls internally) ──────────────
-             Two cards: animal species & breed management, and the
-             "file opened" SMS notification toggle (scaffold). Shares the
-             page's panel/chip styling for a consistent look. -->
+        <!-- ── settings section (replaces the directory; opened from the toolbar button) ──
+             Species/breeds and the "file opened" SMS sit side by side so nothing needs a long scroll;
+             the ScrollViewer is only a fallback for very small windows. -->
         <ScrollViewer Grid.Row="1" IsVisible="{Binding IsSettingsSection}"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="16">
+            <StackPanel Spacing="14">
 
-                <!-- card 1 · species & breeds -->
-                <Border Background="{StaticResource PanelBrush}"
-                        BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
-                        CornerRadius="{StaticResource Radius}"
-                        BoxShadow="{StaticResource ShadowCard}" Padding="22,20">
-                    <StackPanel Spacing="16">
+                <!-- settings header: title + back to the directory (replaces the old tab strip) -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="تنظیمات مالکین و بیماران" FontSize="18" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+                        <TextBlock Text="نوع حیوانات، نژادها و پیامک باز شدن پرونده" FontSize="12.5"
+                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="outline" Padding="14,8"
+                            Command="{Binding SetSectionCommand}" CommandParameter="directory">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Path Classes="icon" Width="14" Height="14"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconChevronRight}" />
+                            <TextBlock Text="بازگشت به فهرست" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
 
-                        <!-- card header -->
-                        <StackPanel Spacing="4">
-                            <StackPanel Orientation="Horizontal" Spacing="9">
-                                <Border Width="34" Height="34" CornerRadius="11"
+                <!-- two compact cards side by side: species & breeds (wider) | SMS -->
+                <Grid ColumnDefinitions="3*,2*" ColumnSpacing="16">
+                    <!-- card 1 · species & breeds -->
+                    <Border Grid.Column="0" Background="{StaticResource PanelBrush}"
+                            BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                            CornerRadius="{StaticResource Radius}"
+                            BoxShadow="{StaticResource ShadowCard}" Padding="18,16">
+                        <StackPanel Spacing="14">
+
+                            <!-- card header -->
+                            <StackPanel Spacing="4">
+                                <StackPanel Orientation="Horizontal" Spacing="9">
+                                    <Border Width="34" Height="34" CornerRadius="11"
+                                            Background="{StaticResource Brand50Brush}">
+                                        <Path Classes="icon" Width="18" Height="18"
+                                              Stroke="{StaticResource Brand700Brush}"
+                                              Data="{StaticResource IconPaw}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock Text="نوع حیوانات و نژادها" FontSize="15"
+                                                   FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="نوع حیوانات و نژادهای مربوط به هر کدام را اضافه، ویرایش یا حذف کنید."
+                                                   FontSize="12.5" Foreground="{StaticResource MutedBrush}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- add-species input -->
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <Border Grid.Column="0" Background="{StaticResource Bg2Brush}"
+                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                        CornerRadius="12" Padding="13,0">
+                                    <TextBox Text="{Binding Settings.NewSpeciesName}"
+                                             PlaceholderText="نام نوع حیوان جدید (مثلاً اسب)…"
+                                             FontSize="13" BorderThickness="0" Background="Transparent"
+                                             Padding="0,10" VerticalContentAlignment="Center" />
+                                </Border>
+                                <Button Grid.Column="1" Classes="primary"
+                                        Command="{Binding Settings.AddSpeciesCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                                              Data="{StaticResource IconPlus}" />
+                                        <TextBlock Text="افزودن نوع" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+
+                            <!-- species list -->
+                            <ItemsControl ItemsSource="{Binding Settings.Species}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Spacing="12" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="settings:SpeciesSettingsItemViewModel">
+                                        <Border Background="{StaticResource Bg2Brush}"
+                                                BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                                CornerRadius="14" Padding="16,14">
+                                            <StackPanel Spacing="12">
+
+                                                <!-- species header row -->
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <Border Grid.Column="0" Width="34" Height="34" CornerRadius="10"
+                                                            Background="{StaticResource PanelBrush}"
+                                                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
+                                                        <Path Classes="icon" Width="18" Height="18"
+                                                              Stroke="{StaticResource Brand700Brush}"
+                                                              Data="{StaticResource IconPaw}"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+
+                                                    <!-- name (read mode) -->
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="9"
+                                                                VerticalAlignment="Center" Margin="11,0,0,0"
+                                                                IsVisible="{Binding !IsEditingName}">
+                                                        <TextBlock Text="{Binding Name}" FontSize="14.5"
+                                                                   FontWeight="Bold" Foreground="{StaticResource InkBrush}"
+                                                                   VerticalAlignment="Center" />
+                                                        <Border Classes="cnt" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding BreedCountText}" VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </StackPanel>
+
+                                                    <!-- name (edit mode) -->
+                                                    <Border Grid.Column="1" Margin="11,0,0,0"
+                                                            Background="{StaticResource PanelBrush}"
+                                                            BorderBrush="{StaticResource Brand400Brush}" BorderThickness="1"
+                                                            CornerRadius="10" Padding="11,0"
+                                                            IsVisible="{Binding IsEditingName}">
+                                                        <TextBox Text="{Binding DraftName}" FontSize="13.5"
+                                                                 BorderThickness="0" Background="Transparent"
+                                                                 Padding="0,8" VerticalContentAlignment="Center" />
+                                                    </Border>
+
+                                                    <!-- actions -->
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
+                                                                VerticalAlignment="Center">
+                                                        <Button Classes="iconbtn" ToolTip.Tip="ویرایش نام"
+                                                                IsVisible="{Binding !IsEditingName}"
+                                                                Command="{Binding BeginRenameCommand}">
+                                                            <Path Classes="icon" Width="15" Height="15"
+                                                                  Data="{StaticResource IconEdit}" />
+                                                        </Button>
+                                                        <Button Classes="iconbtn" ToolTip.Tip="حذف نوع"
+                                                                IsVisible="{Binding !IsEditingName}"
+                                                                Command="{Binding RemoveCommand}">
+                                                            <Path Classes="icon" Width="15" Height="15"
+                                                                  Stroke="{StaticResource DangerBrush}"
+                                                                  Data="{StaticResource IconTrash}" />
+                                                        </Button>
+                                                        <Button Classes="iconbtn" ToolTip.Tip="ذخیره"
+                                                                IsVisible="{Binding IsEditingName}"
+                                                                Command="{Binding CommitRenameCommand}">
+                                                            <Path Classes="icon" Width="15" Height="15"
+                                                                  Stroke="{StaticResource OkBrush}"
+                                                                  Data="{StaticResource IconCheck}" />
+                                                        </Button>
+                                                        <Button Classes="iconbtn" ToolTip.Tip="انصراف"
+                                                                IsVisible="{Binding IsEditingName}"
+                                                                Command="{Binding CancelRenameCommand}">
+                                                            <Path Classes="icon" Width="15" Height="15"
+                                                                  Data="{StaticResource IconX}" />
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <!-- breed chips -->
+                                                <ItemsControl ItemsSource="{Binding Breeds}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <WrapPanel Orientation="Horizontal" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="settings:BreedItemViewModel">
+                                                            <Border Margin="0,0,8,8" CornerRadius="999"
+                                                                    Background="{StaticResource PanelBrush}"
+                                                                    BorderBrush="{StaticResource LineBrush}"
+                                                                    BorderThickness="1" Padding="4,2">
+                                                                <StackPanel Orientation="Horizontal" Spacing="4"
+                                                                            VerticalAlignment="Center">
+                                                                    <!-- read mode -->
+                                                                    <TextBlock Text="{Binding Name}" FontSize="12.5"
+                                                                               FontWeight="SemiBold" Margin="9,0,2,0"
+                                                                               Foreground="{StaticResource Ink2Brush}"
+                                                                               VerticalAlignment="Center"
+                                                                               IsVisible="{Binding !IsEditing}" />
+                                                                    <Button Classes="iconbtn sm" ToolTip.Tip="ویرایش نژاد"
+                                                                            IsVisible="{Binding !IsEditing}"
+                                                                            Command="{Binding $parent[ItemsControl].((settings:SpeciesSettingsItemViewModel)DataContext).BeginEditBreedCommand}"
+                                                                            CommandParameter="{Binding}">
+                                                                        <Path Classes="icon" Width="12" Height="12"
+                                                                              Data="{StaticResource IconEdit}" />
+                                                                    </Button>
+                                                                    <Button Classes="iconbtn sm" ToolTip.Tip="حذف نژاد"
+                                                                            IsVisible="{Binding !IsEditing}"
+                                                                            Command="{Binding $parent[ItemsControl].((settings:SpeciesSettingsItemViewModel)DataContext).DeleteBreedCommand}"
+                                                                            CommandParameter="{Binding}">
+                                                                        <Path Classes="icon" Width="12" Height="12"
+                                                                              Stroke="{StaticResource DangerBrush}"
+                                                                              Data="{StaticResource IconX}" />
+                                                                    </Button>
+                                                                    <!-- edit mode -->
+                                                                    <Border IsVisible="{Binding IsEditing}" CornerRadius="999"
+                                                                            Background="{StaticResource Bg2Brush}"
+                                                                            Padding="9,0" Margin="2,0,0,0">
+                                                                        <TextBox Text="{Binding DraftName}" FontSize="12.5"
+                                                                                 Width="110" BorderThickness="0"
+                                                                                 Background="Transparent" Padding="0,5"
+                                                                                 VerticalContentAlignment="Center" />
+                                                                    </Border>
+                                                                    <Button Classes="iconbtn sm" ToolTip.Tip="ذخیره"
+                                                                            IsVisible="{Binding IsEditing}"
+                                                                            Command="{Binding $parent[ItemsControl].((settings:SpeciesSettingsItemViewModel)DataContext).CommitEditBreedCommand}"
+                                                                            CommandParameter="{Binding}">
+                                                                        <Path Classes="icon" Width="12" Height="12"
+                                                                              Stroke="{StaticResource OkBrush}"
+                                                                              Data="{StaticResource IconCheck}" />
+                                                                    </Button>
+                                                                    <Button Classes="iconbtn sm" ToolTip.Tip="انصراف"
+                                                                            IsVisible="{Binding IsEditing}"
+                                                                            Command="{Binding $parent[ItemsControl].((settings:SpeciesSettingsItemViewModel)DataContext).CancelEditBreedCommand}"
+                                                                            CommandParameter="{Binding}">
+                                                                        <Path Classes="icon" Width="12" Height="12"
+                                                                              Data="{StaticResource IconX}" />
+                                                                    </Button>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+
+                                                <!-- add breed -->
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                    <Border Grid.Column="0" Background="{StaticResource PanelBrush}"
+                                                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                                            CornerRadius="10" Padding="11,0">
+                                                        <TextBox Text="{Binding NewBreedName}"
+                                                                 PlaceholderText="افزودن نژاد جدید…"
+                                                                 FontSize="12.5" BorderThickness="0" Background="Transparent"
+                                                                 Padding="0,8" VerticalContentAlignment="Center" />
+                                                    </Border>
+                                                    <Button Grid.Column="1" Classes="outline"
+                                                            Command="{Binding AddBreedCommand}">
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <Path Classes="icon" Width="13" Height="13"
+                                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                                  Data="{StaticResource IconPlus}" />
+                                                            <TextBlock Text="نژاد" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- card 2 · "file opened" SMS toggle (scaffold) -->
+                    <Border Grid.Column="1" VerticalAlignment="Top" Background="{StaticResource PanelBrush}"
+                            BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                            CornerRadius="{StaticResource Radius}"
+                            BoxShadow="{StaticResource ShadowCard}" Padding="18,16">
+                        <StackPanel Spacing="14">
+
+                            <!-- header + toggle -->
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Border Grid.Column="0" Width="34" Height="34" CornerRadius="11"
                                         Background="{StaticResource Brand50Brush}">
                                     <Path Classes="icon" Width="18" Height="18"
                                           Stroke="{StaticResource Brand700Brush}"
-                                          Data="{StaticResource IconPaw}"
+                                          Data="{StaticResource IconSms}"
                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
-                                <StackPanel VerticalAlignment="Center" Spacing="1">
-                                    <TextBlock Text="نوع حیوانات و نژادها" FontSize="16"
-                                               FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
-                                    <TextBlock Text="نوع حیوانات و نژادهای مربوط به هر کدام را اضافه، ویرایش یا حذف کنید."
-                                               FontSize="12.5" Foreground="{StaticResource MutedBrush}" />
-                                </StackPanel>
-                            </StackPanel>
-                        </StackPanel>
-
-                        <!-- add-species input -->
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                            <Border Grid.Column="0" Background="{StaticResource Bg2Brush}"
-                                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                    CornerRadius="12" Padding="13,0">
-                                <TextBox Text="{Binding Settings.NewSpeciesName}"
-                                         PlaceholderText="نام نوع حیوان جدید (مثلاً اسب)…"
-                                         FontSize="13" BorderThickness="0" Background="Transparent"
-                                         Padding="0,10" VerticalContentAlignment="Center" />
-                            </Border>
-                            <Button Grid.Column="1" Classes="primary"
-                                    Command="{Binding Settings.AddSpeciesCommand}">
-                                <StackPanel Orientation="Horizontal" Spacing="7">
-                                    <Path Classes="icon" Width="15" Height="15" Stroke="White"
-                                          Data="{StaticResource IconPlus}" />
-                                    <TextBlock Text="افزودن نوع" />
-                                </StackPanel>
-                            </Button>
-                        </Grid>
-
-                        <!-- species list -->
-                        <ItemsControl ItemsSource="{Binding Settings.Species}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Spacing="12" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="settings:SpeciesSettingsItemViewModel">
-                                    <Border Background="{StaticResource Bg2Brush}"
-                                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                            CornerRadius="14" Padding="16,14">
-                                        <StackPanel Spacing="12">
-
-                                            <!-- species header row -->
-                                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                                <Border Grid.Column="0" Width="34" Height="34" CornerRadius="10"
-                                                        Background="{StaticResource PanelBrush}"
-                                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
-                                                    <Path Classes="icon" Width="18" Height="18"
-                                                          Stroke="{StaticResource Brand700Brush}"
-                                                          Data="{StaticResource IconPaw}"
-                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
-
-                                                <!-- name (read mode) -->
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="9"
-                                                            VerticalAlignment="Center" Margin="11,0,0,0"
-                                                            IsVisible="{Binding !IsEditingName}">
-                                                    <TextBlock Text="{Binding Name}" FontSize="14.5"
-                                                               FontWeight="Bold" Foreground="{StaticResource InkBrush}"
-                                                               VerticalAlignment="Center" />
-                                                    <Border Classes="cnt" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding BreedCountText}" VerticalAlignment="Center" />
-                                                    </Border>
-                                                </StackPanel>
-
-                                                <!-- name (edit mode) -->
-                                                <Border Grid.Column="1" Margin="11,0,0,0"
-                                                        Background="{StaticResource PanelBrush}"
-                                                        BorderBrush="{StaticResource Brand400Brush}" BorderThickness="1"
-                                                        CornerRadius="10" Padding="11,0"
-                                                        IsVisible="{Binding IsEditingName}">
-                                                    <TextBox Text="{Binding DraftName}" FontSize="13.5"
-                                                             BorderThickness="0" Background="Transparent"
-                                                             Padding="0,8" VerticalContentAlignment="Center" />
-                                                </Border>
-
-                                                <!-- actions -->
-                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
-                                                            VerticalAlignment="Center">
-                                                    <Button Classes="iconbtn" ToolTip.Tip="ویرایش نام"
-                                                            IsVisible="{Binding !IsEditingName}"
-                                                            Command="{Binding BeginRenameCommand}">
-                                                        <Path Classes="icon" Width="15" Height="15"
-                                                              Data="{StaticResource IconEdit}" />
-                                                    </Button>
-                                                    <Button Classes="iconbtn" ToolTip.Tip="حذف نوع"
-                                                            IsVisible="{Binding !IsEditingName}"
-                                                            Command="{Binding RemoveCommand}">
-                                                        <Path Classes="icon" Width="15" Height="15"
-                                                              Stroke="{StaticResource DangerBrush}"
-                                                              Data="{StaticResource IconTrash}" />
-                                                    </Button>
-                                                    <Button Classes="iconbtn" ToolTip.Tip="ذخیره"
-                                                            IsVisible="{Binding IsEditingName}"
-                                                            Command="{Binding CommitRenameCommand}">
-                                                        <Path Classes="icon" Width="15" Height="15"
-                                                              Stroke="{StaticResource OkBrush}"
-                                                              Data="{StaticResource IconCheck}" />
-                                                    </Button>
-                                                    <Button Classes="iconbtn" ToolTip.Tip="انصراف"
-                                                            IsVisible="{Binding IsEditingName}"
-                                                            Command="{Binding CancelRenameCommand}">
-                                                        <Path Classes="icon" Width="15" Height="15"
-                                                              Data="{StaticResource IconX}" />
-                                                    </Button>
-                                                </StackPanel>
-                                            </Grid>
-
-                                            <!-- breed chips -->
-                                            <ItemsControl ItemsSource="{Binding Breeds}">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <WrapPanel Orientation="Horizontal" />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate x:DataType="settings:BreedItemViewModel">
-                                                        <Border Margin="0,0,8,8" CornerRadius="999"
-                                                                Background="{StaticResource PanelBrush}"
-                                                                BorderBrush="{StaticResource LineBrush}"
-                                                                BorderThickness="1" Padding="4,2">
-                                                            <StackPanel Orientation="Horizontal" Spacing="4"
-                                                                        VerticalAlignment="Center">
-                                                                <!-- read mode -->
-                                                                <TextBlock Text="{Binding Name}" FontSize="12.5"
-                                                                           FontWeight="SemiBold" Margin="9,0,2,0"
-                                                                           Foreground="{StaticResource Ink2Brush}"
-                                                                           VerticalAlignment="Center"
-                                                                           IsVisible="{Binding !IsEditing}" />
-                                                                <Button Classes="iconbtn sm" ToolTip.Tip="ویرایش نژاد"
-                                                                        IsVisible="{Binding !IsEditing}"
-                                                                        Command="{Binding $parent[ItemsControl].((settings:SpeciesSettingsItemViewModel)DataContext).BeginEditBreedCommand}"
-                                                                        CommandParameter="{Binding}">
-                                                                    <Path Classes="icon" Width="12" Height="12"
-                                                                          Data="{StaticResource IconEdit}" />
-                                                                </Button>
-                                                                <Button Classes="iconbtn sm" ToolTip.Tip="حذف نژاد"
-                                                                        IsVisible="{Binding !IsEditing}"
-                                                                        Command="{Binding $parent[ItemsControl].((settings:SpeciesSettingsItemViewModel)DataContext).DeleteBreedCommand}"
-                                                                        CommandParameter="{Binding}">
-                                                                    <Path Classes="icon" Width="12" Height="12"
-                                                                          Stroke="{StaticResource DangerBrush}"
-                                                                          Data="{StaticResource IconX}" />
-                                                                </Button>
-                                                                <!-- edit mode -->
-                                                                <Border IsVisible="{Binding IsEditing}" CornerRadius="999"
-                                                                        Background="{StaticResource Bg2Brush}"
-                                                                        Padding="9,0" Margin="2,0,0,0">
-                                                                    <TextBox Text="{Binding DraftName}" FontSize="12.5"
-                                                                             Width="110" BorderThickness="0"
-                                                                             Background="Transparent" Padding="0,5"
-                                                                             VerticalContentAlignment="Center" />
-                                                                </Border>
-                                                                <Button Classes="iconbtn sm" ToolTip.Tip="ذخیره"
-                                                                        IsVisible="{Binding IsEditing}"
-                                                                        Command="{Binding $parent[ItemsControl].((settings:SpeciesSettingsItemViewModel)DataContext).CommitEditBreedCommand}"
-                                                                        CommandParameter="{Binding}">
-                                                                    <Path Classes="icon" Width="12" Height="12"
-                                                                          Stroke="{StaticResource OkBrush}"
-                                                                          Data="{StaticResource IconCheck}" />
-                                                                </Button>
-                                                                <Button Classes="iconbtn sm" ToolTip.Tip="انصراف"
-                                                                        IsVisible="{Binding IsEditing}"
-                                                                        Command="{Binding $parent[ItemsControl].((settings:SpeciesSettingsItemViewModel)DataContext).CancelEditBreedCommand}"
-                                                                        CommandParameter="{Binding}">
-                                                                    <Path Classes="icon" Width="12" Height="12"
-                                                                          Data="{StaticResource IconX}" />
-                                                                </Button>
-                                                            </StackPanel>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-
-                                            <!-- add breed -->
-                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                                <Border Grid.Column="0" Background="{StaticResource PanelBrush}"
-                                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                                        CornerRadius="10" Padding="11,0">
-                                                    <TextBox Text="{Binding NewBreedName}"
-                                                             PlaceholderText="افزودن نژاد جدید…"
-                                                             FontSize="12.5" BorderThickness="0" Background="Transparent"
-                                                             Padding="0,8" VerticalContentAlignment="Center" />
-                                                </Border>
-                                                <Button Grid.Column="1" Classes="outline"
-                                                        Command="{Binding AddBreedCommand}">
-                                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                                        <Path Classes="icon" Width="13" Height="13"
-                                                              Stroke="{Binding $parent[Button].Foreground}"
-                                                              Data="{StaticResource IconPlus}" />
-                                                        <TextBlock Text="نژاد" />
-                                                    </StackPanel>
-                                                </Button>
-                                            </Grid>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
-
-                <!-- card 2 · "file opened" SMS toggle (scaffold) -->
-                <Border Background="{StaticResource PanelBrush}"
-                        BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
-                        CornerRadius="{StaticResource Radius}"
-                        BoxShadow="{StaticResource ShadowCard}" Padding="22,20">
-                    <StackPanel Spacing="16">
-
-                        <!-- header + toggle -->
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <Border Grid.Column="0" Width="34" Height="34" CornerRadius="11"
-                                    Background="{StaticResource Brand50Brush}">
-                                <Path Classes="icon" Width="18" Height="18"
-                                      Stroke="{StaticResource Brand700Brush}"
-                                      Data="{StaticResource IconSms}"
-                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            </Border>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1" Margin="11,0,0,0">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="پیامک باز شدن پرونده" FontSize="16"
-                                               FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"
-                                               VerticalAlignment="Center" />
-                                    <Border CornerRadius="999" Padding="8,2" VerticalAlignment="Center"
-                                            Background="{StaticResource Bg2Brush}">
-                                        <TextBlock Text="{Binding Settings.FileOpenedSmsStatusText}"
-                                                   FontSize="11.5" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource MutedBrush}" />
-                                    </Border>
-                                </StackPanel>
-                                <TextBlock Text="هنگام ثبت پرونده جدید، یک پیامک اطلاع‌رسانی برای مالک ارسال می‌شود. (در انتظار اتصال به سامانه پیامک)"
-                                           FontSize="12.5" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
-                            </StackPanel>
-                            <ToggleSwitch Grid.Column="2" VerticalAlignment="Center"
-                                          IsChecked="{Binding Settings.FileOpenedSmsEnabled}"
-                                          OnContent="{x:Null}" OffContent="{x:Null}" />
-                        </Grid>
-
-                        <!-- message template (enabled only when the toggle is on) -->
-                        <StackPanel Spacing="8" IsEnabled="{Binding Settings.FileOpenedSmsEnabled}"
-                                    IsVisible="{Binding Settings.FileOpenedSmsEnabled}">
-                            <TextBlock Text="متن پیامک" FontSize="12.5" FontWeight="SemiBold"
-                                       Foreground="{StaticResource Ink2Brush}" />
-                            <Border Background="{StaticResource Bg2Brush}"
-                                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                                    CornerRadius="12" Padding="13,4">
-                                <TextBox Text="{Binding Settings.FileOpenedSmsTemplate}"
-                                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64"
-                                         FontSize="13" BorderThickness="0" Background="Transparent"
-                                         Padding="0,6" />
-                            </Border>
-                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
-                                <Button Classes="outline" Command="{Binding Settings.SaveSmsTemplateCommand}">
-                                    <StackPanel Orientation="Horizontal" Spacing="7">
-                                        <Path Classes="icon" Width="14" Height="14"
-                                              Stroke="{Binding $parent[Button].Foreground}"
-                                              Data="{StaticResource IconCheck}" />
-                                        <TextBlock Text="ذخیره متن" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1" Margin="11,0,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="پیامک باز شدن پرونده" FontSize="15"
+                                                   FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"
+                                                   VerticalAlignment="Center" />
+                                        <Border CornerRadius="999" Padding="8,2" VerticalAlignment="Center"
+                                                Background="{StaticResource Bg2Brush}">
+                                            <TextBlock Text="{Binding Settings.FileOpenedSmsStatusText}"
+                                                       FontSize="11.5" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </Border>
                                     </StackPanel>
-                                </Button>
+                                    <TextBlock Text="هنگام ثبت پرونده جدید، پیامک اطلاع‌رسانی برای مالک ارسال می‌شود."
+                                               FontSize="12.5" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="2" VerticalAlignment="Center"
+                                              IsChecked="{Binding Settings.FileOpenedSmsEnabled}"
+                                              OnContent="{x:Null}" OffContent="{x:Null}" />
+                            </Grid>
+
+                            <!-- message template (enabled only when the toggle is on) -->
+                            <StackPanel Spacing="8" IsEnabled="{Binding Settings.FileOpenedSmsEnabled}"
+                                        IsVisible="{Binding Settings.FileOpenedSmsEnabled}">
+                                <TextBlock Text="متن پیامک" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource Ink2Brush}" />
+                                <Border Background="{StaticResource Bg2Brush}"
+                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                        CornerRadius="12" Padding="13,4">
+                                    <TextBox Text="{Binding Settings.FileOpenedSmsTemplate}"
+                                             AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64"
+                                             FontSize="13" BorderThickness="0" Background="Transparent"
+                                             Padding="0,6" />
+                                </Border>
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+                                    <Button Classes="outline" Command="{Binding Settings.SaveSmsTemplateCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <Path Classes="icon" Width="14" Height="14"
+                                                  Stroke="{Binding $parent[Button].Foreground}"
+                                                  Data="{StaticResource IconCheck}" />
+                                            <TextBlock Text="ذخیره متن" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
-                    </StackPanel>
-                </Border>
+                    </Border>
+                </Grid>
             </StackPanel>
         </ScrollViewer>
     </Grid>

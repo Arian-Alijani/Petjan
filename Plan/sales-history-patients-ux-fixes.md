@@ -229,7 +229,7 @@ quantity) buttons don't work → fix them.
    - Add a clear settings header with a back-to-directory control (since the tab strip is gone).
 - Files: `src/Animora.Desktop/Pages/Patients/PatientsPageView.axaml` (primary);
   `PatientsPageViewModel.cs` only if a back/close command is needed.
-- STATUS: ☐ pending
+- STATUS: ☑ done — section tab strip deleted; compact «تنظیمات» button added to the owners/patients toolbar; settings = header with «بازگشت به فهرست» + species/breeds and SMS cards side by side (3*,2*), ScrollViewer only as fallback.
 
 ---
 
