@@ -126,8 +126,28 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         _recent.Clear();
         _recent.AddRange(snapshot.Recent);
 
+        _filterKey = ResolveEffectiveFilter(_filterKey);
         BuildFilters();
         Render();
+    }
+
+    /// <summary>
+    /// Guards the opening chip: a pre-selected chip («خدمات» / «دارو و کالا» / a category) that matches no row of the
+    /// freshly loaded catalog would open an empty drawer even though addable goods/services exist under another chip
+    /// (e.g. «افزودن خدمت» when only goods were created). In that case fall back to «همه» so every active
+    /// product/service stays visible and addable.
+    /// </summary>
+    private string ResolveEffectiveFilter(string key)
+    {
+        if (key == "all" || _all.Count == 0)
+        {
+            return key;
+        }
+
+        var hasRows = key is "svc" or "item"
+            ? _all.Any(x => x.Kind == key)
+            : _all.Any(x => x.GroupKey == key);
+        return hasRows ? key : "all";
     }
 
     private void BuildFilters()

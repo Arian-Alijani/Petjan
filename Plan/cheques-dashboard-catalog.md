@@ -423,7 +423,7 @@ and empty-state patterns. Requirements from the user:
 > (prefer remote), re-run.
 
 ## Status
-- [ ] A — catalog picker visibility fix
+- [x] A — catalog picker visibility fix
 - [ ] B — dashboard alert box
 - [ ] C.1 — Application cheque use-cases
 - [ ] C.2 — Contracts Cheques
