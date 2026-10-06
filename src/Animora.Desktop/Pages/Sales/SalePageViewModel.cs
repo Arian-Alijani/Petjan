@@ -764,12 +764,47 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         RaiseDerived();
     }
 
+    /// <summary>Applies a new quantity to one line of the open invoice, then re-reads it (totals are recomputed by the service).</summary>
+    private async Task EditLineAsync(string invoiceId, InvoiceLine line, int quantity)
+    {
+        if (quantity < 1)
+        {
+            return;
+        }
+
+        await MutateLineAsync(() => _service.EditLineAsync(invoiceId, line.Index, line.LineId, quantity, line.DiscountPercent),
+            "ویرایش تعداد آیتم ناموفق بود؛ دوباره تلاش کنید");
+    }
+
+    private Task RemoveLineAsync(string invoiceId, InvoiceLine line) =>
+        MutateLineAsync(() => _service.RemoveLineAsync(invoiceId, line.Index, line.LineId),
+            "حذف آیتم ناموفق بود؛ دوباره تلاش کنید");
+
+    // A stale index (the invoice changed underneath) and any other typed failure both end in a refresh, so the
+    // user sees the invoice as it really is; the failure is also surfaced as a toast.
+    private async Task MutateLineAsync(Func<Task<InvoiceDetail?>> mutate, string failureMessage)
+    {
+        try
+        {
+            await mutate();
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowFailure(ex, failureMessage);
+        }
+
+        RefreshAfterMutation();
+    }
+
     public void ShowInvoice(InvoiceDetail detail)
     {
         SelectedInvoice = new SaleInvoiceViewModel(detail);
         HasSelectedInvoice = true;
 
-        Lines.ReplaceAll(detail.Lines.Select(line => new InvoiceLineViewModel(line)));
+        var canEdit = SelectedInvoice.CanEdit;
+        Lines.ReplaceAll(detail.Lines.Select(line =>
+            new InvoiceLineViewModel(line, canEdit, (l, qty) => EditLineAsync(detail.Id, l, qty),
+                l => RemoveLineAsync(detail.Id, l))));
         Payments.ReplaceAll(detail.Payments.Select(payment => new InvoicePaymentViewModel(payment)));
 
         foreach (var row in InvoiceRows)

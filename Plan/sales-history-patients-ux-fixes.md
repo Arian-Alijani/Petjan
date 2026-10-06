@@ -183,7 +183,7 @@ quantity) buttons don't work → fix them.
 - Files: `src/Animora.Desktop/Pages/Sales/SalePageView.axaml`,
   `src/Animora.Desktop/Pages/Sales/InvoiceLineViewModel.cs`,
   `src/Animora.Desktop/Pages/Sales/SalePageViewModel.cs`.
-- STATUS: ☐ pending
+- STATUS: ☑ done — zero/discount box removed (grid 34,*,110,120,30); −/+ and trash are real buttons (Increase/Decrease/RemoveCommand) wired via SalePageViewModel.EditLineAsync/RemoveLineAsync → service + refresh; − disabled at qty 1; hidden on locked invoices.
 
 ---
 

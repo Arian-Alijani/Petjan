@@ -1,7 +1,10 @@
+using System;
+using System.Threading.Tasks;
 using Animora.Contracts.Sales;
 using Avalonia;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Animora.Desktop.Pages.Sales;
 
@@ -9,13 +12,25 @@ namespace Animora.Desktop.Pages.Sales;
 /// One line item of the invoice work surface, mirroring the reference's
 /// <c>.sw-line</c> (<c>renderLine</c>): the tag glyph/tone, title + unit price ×
 /// qty, the quantity stepper, the per-line discount box and the line subtotal
-/// (with the struck original when discounted). Read-only display in this phase;
-/// the stepper/discount controls render their values without wiring (Phase 21).
+/// (with the struck original when discounted). The stepper (−/+) and the trash button are live on an
+/// editable invoice: they hand the new quantity / removal back to the page through the supplied delegates
+/// (the page calls the sales service, which recomputes the totals authoritatively).
 /// </summary>
 public sealed class InvoiceLineViewModel
 {
-    public InvoiceLineViewModel(InvoiceLine line)
+    /// <param name="line">The contract line (carries the index + id the service needs).</param>
+    /// <param name="canEdit">False for a locked (posted / void / refunded) invoice — the controls are hidden.</param>
+    /// <param name="edit">Applies a new quantity to <paramref name="line"/>.</param>
+    /// <param name="remove">Removes <paramref name="line"/> from the invoice.</param>
+    public InvoiceLineViewModel(InvoiceLine line, bool canEdit = false,
+        Func<InvoiceLine, int, Task>? edit = null, Func<InvoiceLine, Task>? remove = null)
     {
+        CanEdit = canEdit && edit is not null && remove is not null;
+        CanDecrease = CanEdit && line.Quantity > 1;
+        IncreaseCommand = new AsyncRelayCommand(() => edit!(line, line.Quantity + 1), () => CanEdit);
+        DecreaseCommand = new AsyncRelayCommand(() => edit!(line, line.Quantity - 1), () => CanDecrease);
+        RemoveCommand = new AsyncRelayCommand(() => remove!(line), () => CanEdit);
+
         Title = line.Title;
         IconKey = line.IconKey;
         KindLabel = line.KindLabel;
@@ -23,7 +38,6 @@ public sealed class InvoiceLineViewModel
 
         UnitText = SalePresentation.Money(line.UnitPrice) + " تومان × " + SalePresentation.Fa(line.Quantity);
         QuantityText = SalePresentation.Fa(line.Quantity);
-        DiscountText = SalePresentation.Fa(line.DiscountPercent);
 
         // Gross and net come from the domain read model; no money arithmetic in the UI (X26/X39).
         var sub = line.Gross;
@@ -34,6 +48,18 @@ public sealed class InvoiceLineViewModel
         SubtotalStruckText = SalePresentation.Money(sub);
         SubtotalText = SalePresentation.Money(net);
     }
+
+    /// <summary>True when the invoice is editable — shows the stepper and the remove button.</summary>
+    public bool CanEdit { get; }
+
+    /// <summary>The «−» button is disabled at quantity 1 (removing is the trash button's job).</summary>
+    public bool CanDecrease { get; }
+
+    public IAsyncRelayCommand IncreaseCommand { get; }
+
+    public IAsyncRelayCommand DecreaseCommand { get; }
+
+    public IAsyncRelayCommand RemoveCommand { get; }
 
     public string Title { get; }
 
@@ -48,8 +74,6 @@ public sealed class InvoiceLineViewModel
     public string UnitText { get; }
 
     public string QuantityText { get; }
-
-    public string DiscountText { get; }
 
     public bool HasDiscount { get; }
 
