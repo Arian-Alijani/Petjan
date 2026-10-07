@@ -238,11 +238,29 @@
                 </Grid>
             </StackPanel>
 
-            <!-- what -->
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-                <StackPanel Grid.Column="0" Spacing="6" IsVisible="{Binding IsVaccine}">
-                    <TextBlock Text="نوع واکسن" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
-                    <ComboBox ItemsSource="{Binding Catalog}" SelectedItem="{Binding SelectedVaccine}" HorizontalAlignment="Stretch" Padding="12,8" CornerRadius="10">
+            <!-- what: name (typed or picked from stock) + dose -->
+            <StackPanel Spacing="10">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding ItemLabel}" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox Grid.Column="0" Text="{Binding ItemName}" MaxLength="200" PlaceholderText="{Binding ItemPlaceholder}"
+                                 Padding="12,10" CornerRadius="10" />
+                        <Button Grid.Column="1" Classes="outline" Command="{Binding OpenStockPickerCommand}" ToolTip.Tip="انتخاب از اقلام انبار">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource InkBrush}" Data="{StaticResource IconBox}" />
+                                <TextBlock Text="انتخاب از انبار" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasStockInfo}">
+                        <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource Brand700Brush}" Data="{StaticResource IconBox}" />
+                        <TextBlock Text="{Binding StockInfoText}" FontSize="11.5" Foreground="{StaticResource Brand700Brush}" />
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel Spacing="6" IsVisible="{Binding ShowClinicCatalog}">
+                    <TextBlock Text="یا از واکسن‌های ثبت‌شدهٔ کلینیک" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <ComboBox ItemsSource="{Binding Catalog}" SelectedItem="{Binding SelectedVaccine}" PlaceholderText="انتخاب از انبار واکسن (اختیاری)"
+                              HorizontalAlignment="Stretch" Padding="12,8" CornerRadius="10">
                         <ComboBox.ItemTemplate>
                             <DataTemplate x:DataType="c:VaccineCatalogEntry">
                                 <TextBlock><Run Text="{Binding Name}" /><Run Text=" (" /><Run Text="{Binding Short}" /><Run Text=")" /></TextBlock>
@@ -250,15 +268,11 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
                 </StackPanel>
-                <StackPanel Grid.Column="0" Spacing="6" IsVisible="{Binding IsMedication}">
-                    <TextBlock Text="نام دارو" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
-                    <TextBox Text="{Binding MedicationName}" MaxLength="200" PlaceholderText="مثلاً آموکسی‌سیلین" Padding="12,10" CornerRadius="10" />
-                </StackPanel>
-                <StackPanel Grid.Column="1" Spacing="6">
+                <StackPanel Spacing="6">
                     <TextBlock Text="دوز / مقدار (اختیاری)" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
                     <TextBox Text="{Binding Dosage}" MaxLength="200" PlaceholderText="مثلاً ۰٫۵ میلی‌لیتر" Padding="12,10" CornerRadius="10" />
                 </StackPanel>
-            </Grid>
+            </StackPanel>
 
             <!-- kind -->
             <StackPanel Spacing="6">

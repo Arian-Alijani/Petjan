@@ -44,6 +44,10 @@ public sealed partial class CatalogModalViewModel : ObservableObject
     private readonly List<RecentItemRef> _recent = [];
     private readonly List<CatalogItem> _visible = [];
 
+    // Non-null = «pick one item» mode (e.g. choosing a stock item for a medication reminder): no price, the
+    // drawer closes after the pick and nothing is added to any invoice.
+    private readonly CatalogPickerOptions? _picker;
+
     private string _filterKey;
 
     /// <summary>
@@ -82,8 +86,15 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         Action? onChanged = null,
         string initialFilter = "all",
         Action? onBack = null,
-        string addedToLabel = "فاکتور")
+        string addedToLabel = "فاکتور",
+        CatalogPickerOptions? picker = null)
     {
+        _picker = picker;
+        Title = picker?.Title ?? "افزودن خدمت یا کالا";
+        SearchPlaceholder = picker?.SearchPlaceholder ?? "جستجوی نام، دستهٔ خدمت یا کالا…";
+        FooterHint = picker?.FooterHint
+                     ?? "می‌تونی چند بار کلیک کنی تا تعداد بیشتری اضافه بشه — یا از داخل فاکتور تعداد رو تنظیم کن.";
+        ShowPrice = picker?.ShowPrice ?? true;
         _onBack = onBack;
         _addedToLabel = addedToLabel;
         _loadCatalog = loadCatalog;
@@ -95,6 +106,14 @@ public sealed partial class CatalogModalViewModel : ObservableObject
 
         _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری کاتالوگ ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
+
+    public string Title { get; }
+
+    public string SearchPlaceholder { get; }
+
+    public string FooterHint { get; }
+
+    public bool ShowPrice { get; }
 
     public RangeObservableCollection<CatalogFilterViewModel> Filters { get; } = [];
 
@@ -296,6 +315,14 @@ public sealed partial class CatalogModalViewModel : ObservableObject
             return;
         }
 
+        if (_picker is not null)
+        {
+            _toast.Show($"«{item.Title}» انتخاب شد", Tone.Ok);
+            _onChanged?.Invoke();
+            Close();
+            return;
+        }
+
         _toast.Show($"«{item.Title}» به {_addedToLabel} افزوده شد", Tone.Ok);
         _onChanged?.Invoke();
         PromoteRecent(item);
@@ -348,6 +375,12 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         _onBack();
     }
 }
+
+/// <summary>
+/// Switches the catalog drawer into «pick one item» mode: custom copy, no price column, and the drawer closes
+/// (returning to the caller through its back action) as soon as an item is chosen.
+/// </summary>
+public sealed record CatalogPickerOptions(string Title, string SearchPlaceholder, string FooterHint, bool ShowPrice = false);
 
 /// <summary>One category filter chip (mirrors <c>.cat-filter</c>).</summary>
 public sealed partial class CatalogFilterViewModel : ObservableObject

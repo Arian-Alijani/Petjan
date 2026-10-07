@@ -1,10 +1,13 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Appointments;
+using Animora.Contracts.Inventory;
+using Animora.Contracts.Sales;
 using Animora.Contracts.Vaccination;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Patients;
+using Animora.Desktop.Pages.Sales;
 using Animora.Desktop.Services;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -16,8 +19,10 @@ namespace Animora.Desktop.Pages.Vaccination;
 /// The «ثبت دارو / واکسن» modal: registers a real medication / vaccine plan for one patient.
 /// The admin picks the patient (booking-style server search: no eager list, min two characters, debounced,
 /// version-guarded, bounded to 20 rows), the item type (vaccine / medication), the kind (clinic / owner at home /
-/// boarding), and one of four schedules (once · every N days · specific dates · weekdays). Submit calls
-/// <see cref="IVaccinationService.CreateTreatmentPlanAsync"/> — on failure the modal stays open with the message.
+/// boarding), and one of four schedules (once · every N days · specific dates · weekdays). The item is named by hand
+/// or picked from the clinic stock (the shared sales catalog drawer, price-free) — picking is a reminder aid only and
+/// never touches stock levels. Submit calls <see cref="IVaccinationService.CreateTreatmentPlanAsync"/> — on failure
+/// the modal stays open with the message.
 /// </summary>
 public sealed partial class AddVaccineModalViewModel : ObservableObject
 {
@@ -25,11 +30,14 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
     private readonly IAppointmentBookingService _booking;
+    private readonly IInventoryQueryService _inventory;
     private readonly Action _onCreated;
 
     private const int MinQueryLength = 2;
     private const int PatientPageSize = 20;
     private const int MaxSpecificDates = 60;
+    private const int StockPageSize = 200;
+    private const int MaxStockPages = 10;
     private const string HintMessage = "برای انتخاب بیمار، حداقل ۲ حرف از نام یا شماره تماس را وارد کنید.";
 
     // Only the latest settled input reaches the database.
@@ -45,15 +53,16 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
         IDialogService dialogs,
         IToastService toast,
         IAppointmentBookingService booking,
+        IInventoryQueryService inventory,
         Action onCreated)
     {
+        _inventory = inventory;
         _service = service;
         _dialogs = dialogs;
         _toast = toast;
         _booking = booking;
         _onCreated = onCreated;
         Catalog = catalog;
-        SelectedVaccine = catalog.Count > 0 ? catalog[0] : null;
         BuildKindChips();
 
         foreach (var kind in new[] { TreatmentKind.ClinicVisit, TreatmentKind.HomeByOwner, TreatmentKind.BoardingAdminister })
@@ -285,15 +294,24 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
 
     // ── what is given ────────────────────────────────────────────────────────
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMedication), nameof(ItemLabel), nameof(ItemPlaceholder), nameof(ShowClinicCatalog))]
     private bool _isVaccine = true;
 
     public bool IsMedication => !IsVaccine;
 
+    public string ItemLabel => IsVaccine ? "نام واکسن" : "نام دارو";
+
+    public string ItemPlaceholder => IsVaccine ? "نام واکسن را بنویسید یا از انبار انتخاب کنید" : "مثلاً آموکسی‌سیلین";
+
+    /// <summary>The clinic's own vaccine catalog is an optional shortcut — shown only for vaccines and only when it has entries.</summary>
+    public bool ShowClinicCatalog => IsVaccine && HasCatalog;
+
     [ObservableProperty]
     private VaccineCatalogEntry? _selectedVaccine;
 
+    /// <summary>The vaccine / medication name — typed by hand, or filled from the clinic catalog or the stock picker.</summary>
     [ObservableProperty]
-    private string _medicationName = string.Empty;
+    private string _itemName = string.Empty;
 
     [ObservableProperty]
     private string _dosage = string.Empty;
@@ -307,12 +325,114 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
     [ObservableProperty]
     private bool _canNotifyOwner;
 
+    // Informational stock line of the item picked from the stock («موجودی انبار»). Never deducted.
+    [ObservableProperty]
+    private string _stockInfoText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasStockInfo;
+
+    private string _pickedStockName = string.Empty;
+    private Dictionary<string, Product> _stockById = [];
+
     private TreatmentKind _kind = TreatmentKind.ClinicVisit;
 
-    partial void OnIsVaccineChanged(bool value) => OnPropertyChanged(nameof(IsMedication));
+    // Choosing a catalog vaccine names the item (and its code is saved with the plan).
+    partial void OnSelectedVaccineChanged(VaccineCatalogEntry? value)
+    {
+        if (value is not null)
+        {
+            ItemName = value.Name;
+        }
+    }
+
+    // Typing a different name drops the stock hint of the previously picked item.
+    partial void OnItemNameChanged(string value)
+    {
+        if (HasStockInfo && !string.Equals(value.Trim(), _pickedStockName, StringComparison.Ordinal))
+        {
+            HasStockInfo = false;
+            StockInfoText = string.Empty;
+        }
+    }
 
     [RelayCommand]
     private void SetItemType(string? type) => IsVaccine = type != "medication";
+
+    /// <summary>
+    /// Opens the clinic stock in the shared sales catalog drawer (price-free «pick one» mode). Choosing an item fills the
+    /// name and shows its on-hand quantity — informational only, no stock is deducted. «بازگشت» re-opens this modal.
+    /// </summary>
+    [RelayCommand]
+    private void OpenStockPicker()
+    {
+        StopPatientSearch();
+        _dialogs.ShowModal(
+            new CatalogModalViewModel(
+                loadCatalog: LoadStockCatalogAsync,
+                addItem: item =>
+                {
+                    ApplyStockItem(item.Id);
+                    return Task.CompletedTask;
+                },
+                toast: _toast,
+                dialogs: _dialogs,
+                onBack: Reopen,
+                picker: new CatalogPickerOptions(
+                    IsVaccine ? "انتخاب واکسن از انبار" : "انتخاب دارو از انبار",
+                    "جستجوی نام یا دستهٔ کالا…",
+                    "فقط برای یادآوری انتخاب می‌شود؛ موجودی انبار کم نمی‌شود.")),
+            maxWidth: 500);
+    }
+
+    private void Reopen() => _dialogs.ShowModal(this, maxWidth: 580);
+
+    private async Task<CatalogSnapshot> LoadStockCatalogAsync()
+    {
+        var products = new List<Product>();
+        for (var page = 1; page <= MaxStockPages; page++)
+        {
+            var result = await _inventory.GetProductsAsync(
+                new ProductListQuery(null, null, ProductStockFilter.All, page, StockPageSize));
+            products.AddRange(result.Items);
+            if (result.Items.Count == 0 || products.Count >= result.TotalCount)
+            {
+                break;
+            }
+        }
+
+        var categories = (await _inventory.GetCategoriesAsync()).ToDictionary(c => c.Id, c => c.Label);
+        _stockById = products.ToDictionary(p => p.Id);
+
+        var icon = IsVaccine ? "IconSyringe" : "IconFlask";
+        var items = products
+            .OrderBy(p => p.Name, StringComparer.CurrentCulture)
+            .Select(p => new CatalogItem(
+                p.Id, "item", p.Name, categories.GetValueOrDefault(p.CategoryId, string.Empty), p.CategoryId, 0, icon))
+            .ToList();
+
+        var filters = new List<CatalogFilterRef> { new("all", "همه", items.Count) };
+        filters.AddRange(items
+            .GroupBy(i => i.GroupKey)
+            .Select(g => new CatalogFilterRef(g.Key, g.First().GroupLabel, g.Count()))
+            .OrderByDescending(f => f.Count));
+        return new CatalogSnapshot(items, filters, []);
+    }
+
+    private void ApplyStockItem(string productId)
+    {
+        if (!_stockById.TryGetValue(productId, out var product))
+        {
+            return;
+        }
+
+        _pickedStockName = product.Name.Trim();
+        SelectedVaccine = null;
+        ItemName = product.Name;
+        var onHand = product.Variants.Sum(v => v.Stock);
+        StockInfoText = $"موجودی انبار: {VaccinationPresentation.Fa(onHand)} (فقط اطلاع‌رسانی؛ از موجودی کم نمی‌شود)";
+        HasStockInfo = true;
+    }
 
     [RelayCommand]
     private void SelectKindOption(TreatmentKindOptionViewModel? option)
@@ -566,28 +686,20 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
             return;
         }
 
-        string title;
-        string? vaccineCode = null;
-        if (IsVaccine)
+        var title = ItemName.Trim();
+        if (title.Length == 0)
         {
-            if (SelectedVaccine is null)
-            {
-                ErrorText = "نوع واکسن را انتخاب کنید؛ در صورت نبود، ابتدا از «انبار واکسن» آن را ثبت کنید.";
-                return;
-            }
+            ErrorText = IsVaccine
+                ? "نام واکسن را وارد کنید یا از انبار انتخاب کنید."
+                : "نام دارو را وارد کنید یا از انبار انتخاب کنید.";
+            return;
+        }
 
-            title = SelectedVaccine.Name;
-            vaccineCode = SelectedVaccine.Id;
-        }
-        else
-        {
-            title = MedicationName.Trim();
-            if (title.Length == 0)
-            {
-                ErrorText = "نام دارو را وارد کنید.";
-                return;
-            }
-        }
+        // The catalog code is stored only while the typed name still is that catalog vaccine.
+        var vaccineCode = IsVaccine && SelectedVaccine is { } picked
+                          && string.Equals(picked.Name, title, StringComparison.Ordinal)
+            ? picked.Id
+            : null;
 
         var (schedule, error) = BuildSchedule();
         if (schedule is null)
