@@ -751,6 +751,8 @@ Verified **2026-09** against live sources:
   1–8 default 1; delta token = max `UpdatedAt` in `DatasyncDeltaTokens`; `QueryId`
   scopes; `ClientWins`/`ServerWins` built-in resolvers; `[DoNotSynchronize]`; NU1903
   / issue #492). **Latest published version `10.1.2`** (NuGet flat-container API).
+  **Re-verified 2026-10-07:** client, server and server.EntityFrameworkCore all publish `10.1.2`; the client
+  nuspec targets `net10.0` + EF Core `10.0.9`.
   **Not a Microsoft first-party product.**
 - **Avalonia 12** — .NET 10-ready; latest stable **12.1.2** (NuGet). **[fact]**
 - **EF Core 10** — **Named Query Filters** (multiple independent filters per entity,

@@ -53,6 +53,14 @@ intent** (that is E06).
 - **Package pin:** `CommunityToolkit.Datasync.Client` **exactly `10.1.2`** in
   `Directory.Packages.props`, consumed **only** by `src/Animora.Sync.Datasync/`
   (`LayeringRulesTests` gains the fact; T-RULE 001 / A-RULE 001).
+  **Pin verification (2026-10-07, closes Phase-Problem §7.1):** the NuGet flat-container index lists
+  `CommunityToolkit.Datasync.Client` `10.0.0 … 10.1.2` (alongside `9.0.5`), and the `10.1.2` nuspec
+  targets `net10.0` with `Microsoft.EntityFrameworkCore(.Sqlite/.Relational) 10.0.9`. So the client pin
+  exists and matches the .NET 10 / EF Core 10 baseline (the upstream `…Server.OpenApi 9.0.5` ↔
+  ASP.NET Core 10 incompatibility concerns a different package, which this solution does not use).
+  **Execution-time guard (step 2 below):** `dotnet restore` must resolve exactly `10.1.2` for the client
+  with **no** `NU1xxx` warning-as-error and no transitive downgrade; if it does not, stop and record an
+  ADR in the decision log before touching the adapter — never silently float the version.
 - **Project:** `src/Animora.Sync.Datasync/Animora.Sync.Datasync.csproj` references
   `Animora.Sync.Abstractions`, `Animora.Application`, `Animora.Persistence.Sqlite`,
   `Animora.Contracts.Wire`. `Animora.Desktop` references it from the composition root only.
