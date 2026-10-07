@@ -201,9 +201,9 @@
 - `[x]` smoke: اسکیپ (ممنوعیت اجرا).
 - `[x]` پوش: `chore(vaccination): [T8] finalize integration, build 0/0`.
 
-### T9 — پاک‌سازی و همگام‌سازی برنچ‌ها
-- `[ ]` حذف **فقط** `Plan/purchasing-removal-vaccination-redesign.md` و پوش: `chore(plan): [T9] remove completed purchasing/vaccination plan file`.
-- `[ ]` همگام‌سازی: `git fetch && git push origin genspark_ai_developer:main` (fast-forward؛ بدون PR). تأیید: `git rev-parse origin/main origin/genspark_ai_developer` یکسان.
+### T9 — پاک‌سازی و همگام‌سازی برنچ‌ها ✅
+- `[x]` حذف **فقط** `Plan/purchasing-removal-vaccination-redesign.md` و پوش: `chore(plan): [T9] remove completed purchasing/vaccination plan file`.
+- `[x]` همگام‌سازی: `git fetch && git push origin genspark_ai_developer:main` (fast-forward؛ بدون PR). تأیید: `git rev-parse origin/main origin/genspark_ai_developer` یکسان.
 
 ---
 
