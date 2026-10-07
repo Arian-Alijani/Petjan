@@ -3,6 +3,7 @@
 **Date:** 2026-10-07
 **Scope:** The remaining, not-yet-executed phases of the backend/server roadmap — Track D (`D01`–`D13`) and Track E (`E01`–`E09`) — plus the roadmap meta-files (`PROGRESS.md`, `ROADMAP.md`, `CONVENTIONS.md`, `00-REQUIREMENTS-LOCK.md`) and the architecture/stack specs (`ARCHITECTURE.md`, `STACK.md`) they depend on.
 **Method:** Static reading and cross-referencing of phase files against the real source tree (`src/**`), the real migration set, the real `CommandTypes` catalog, and the architecture/stack rule tables. **No build and no test were run** (per directive; the codebase is known to build and test clean).
+**Resolution status (2026-10-07): ✅ ALL FINDINGS RESOLVED** — every item below was fixed in the roadmap/docs in the follow-up session (static edits only; no build, no test). See the resolution table at the end of this file for the per-finding outcome and commit. Two statements in the original findings were found to be **factually wrong** and are corrected in place (§3.3 and §7.1) — marked "**Corrected**".
 **Nature of this document:** A findings report only. It does **not** fix anything. Every item names the exact file(s), line anchors where useful, the concrete mismatch, the risk, and a recommended corrective framing. Items are ordered by severity.
 
 ---
@@ -137,8 +138,8 @@ If the server must settle these commands (the whole point of Track D), `D06`/`D0
 ### 3.2 The post-C11 work is invisible to the roadmap
 `Plan/code-audit-2026-10-07-fixes.md`, `Plan/inventory-product-history-audit.md`, `Plan/patients-directory-perf.md`, `Plan/visits-petfile-audit.md`, and `CODE_AUDIT_REPORT_2026-10-07.md` document real shipped changes (new aggregates, migrations `020`–`031`, new command types, a "Statistics" desktop module, perf indexes). None of these appear in `PROGRESS.md`'s status table or "current state." `CODE_AUDIT_REPORT_2026-10-07.md:item 15` itself flags *"documentation drift (AGENTS.md does not cover the Statistics module)."* The roadmap has the same drift.
 
-### 3.3 Skipped migration ordinals are real but undocumented in the forward baseline
-Physical ordinals `006` and `013` do not exist as files (`006_CapabilitySnapshot` is referenced in `PROGRESS.md:95` for B04b but the file is absent from the tree; `013_InventorySnapshot` is referenced in `PROGRESS.md:106`/`499` for C06 but the physical file is `014_SalesInsurers` onward). The C-phase deviation logs explain the "ran one ahead" numbering, but a reader counting files vs. the "19 migrations" claim will miscompute the next free ordinal. Any migration-numbering automation must count the **physical** head, never the documented count.
+### 3.3 ~~Skipped migration ordinals~~ — **Corrected: no ordinals are skipped**
+*Original claim (wrong):* physical ordinals `006` and `013` do not exist. **Verified false on 2026-10-07:** `src/Animora.Persistence.Sqlite/Migrations/` contains `20260926055039_006_CapabilitySnapshot.cs` and `20260928130000_013_InventorySnapshot.cs`; all ordinals `001`–`031` exist exactly once. The real source of confusion is different and is now documented in `PROGRESS.md` → "Post-C11 drift": (a) the *documented* "19 migrations" count was simply stale, and (b) files `020`, `022` and `024`–`031` carry a **double underscore** (`…__031_TreatmentPlans.cs`), so tooling must match the `NNN` token rather than a fixed filename pattern. Rule kept: numbering automation counts the **physical head**, never a documented count.
 
 ### 3.4 Recommended framing
 - Add a short "Post-C11 drift" subsection to `PROGRESS.md` listing migrations `020`–`031`, the two new aggregates, the new command families, and the Statistics module, with pointers to the `Plan/*.md` audits — so the forward phases read an accurate baseline.
@@ -193,8 +194,8 @@ Clinical history and finance reference data are both in `D08`'s replicated famil
 
 ## 7. 🟠 HIGH — Stack risk: client Datasync `10.1.2` pin and the residual-encryption CVE
 
-### 7.1 Client Datasync package version is unverified for .NET 10
-`STACK.md:60` and `D08:22-26` pin **exact `10.1.2`** for the Datasync packages; `E03` adds the **client** package at the same pin. Public package evidence shows `CommunityToolkit.Datasync.Server 10.1.2` exists, but the most recent widely-published **client** package line is `9.0.x`, and the upstream tracker (GitHub `CommunityToolkit/Datasync#413`, Nov 2025) reports `...Server.OpenApi 9.0.5` **incompatible with ASP.NET Core 10**. Because the whole sync surface rests on this one pin (`STACK.md:60` calls Datasync a "VALIDATION REQUIRED" technology), `E03`/`D08` should **verify at execution time** that a `10.1.2` *client* package exists and targets `net10.0`; if not, the pin and the `ISyncEngine` adapter plan need an ADR. 🟠 Flag, not a proven defect.
+### 7.1 Client Datasync package version — **Corrected: verified present and net10.0**
+*Original concern:* the client `10.1.2` might not exist / target .NET 10. **Verified 2026-10-07 against the NuGet flat-container API:** `CommunityToolkit.Datasync.Client`, `.Server` and `.Server.EntityFrameworkCore` all publish `10.0.0, 10.0.1, 10.1.0, 10.1.1, 10.1.2` (plus `9.0.5`); the client `10.1.2` nuspec targets `net10.0` with `Microsoft.EntityFrameworkCore(.Sqlite/.Relational) 10.0.9`. The upstream issue cited (`…Server.OpenApi 9.0.5` vs ASP.NET Core 10) concerns a package this solution does not use. The pin stays; `E03` now carries the verification record plus an execution-time restore guard, and `STACK.md` was annotated.
 
 ### 7.2 Encryption is OFF with no phase owning production enablement
 `CODE_AUDIT_REPORT_2026-10-07.md:item 1` (and `STACK.md:213,235,711,731`) establish that local DB encryption is **disabled by default** (`LocalStoreOptions.EncryptionEnabled = false`), the `MultipleCiphersEncryptionProvider` is *"compiled but unreachable … pinned in E08,"* and the encrypted native still carries **CVE-2025-6965** until the §12 **K2** gate freezes a safe native matrix. But:
@@ -264,3 +265,22 @@ The phases are already thorough; these raise them to flawless-against-reality:
 ---
 
 *End of report. This document reports findings only; no source, migration, phase file, or configuration was modified in its production, and no build or test was executed.*
+
+---
+
+## 13. Resolution record (2026-10-07)
+
+| § | Finding | Resolution | Files changed |
+|---|---------|------------|---------------|
+| 1 | Migration-number collisions; E03 cross-context migration | E03: `repl_*` tables → `001_ReplicaTables` on the **offline context's own sequence**; `SyncCursor` columns → separate local-context migration `SyncCursorReplicaColumns` at next free ordinal; `018_SyncCursor` typo → `019`. E05 → `032_ConflictQueue`, E07 → `033_OnlineIdentity`, each with a "re-verify the physical head at execution time" note | `PHASE-E03/E05/E07` |
+| 2 | Command-vocabulary drift | D06 rebuilt from live `CommandTypes` (**39**: patients 7, reception 6, visits 6, vaccination 7, scheduling 5, boarding 8); D07 rebuilt (**47**: inventory 10, purchasing 5, sales 17, cashier 3, finance 12). 39 + 47 = 86. Treatment & recurring families included; stale names (`invoice.reverse`, `payment.reverse`, `cheques.*`, …) replaced; payload/handler file tables re-counted. The `ReversesInvoiceId` claim was checked against the live domain (absent) and annotated | `PHASE-D06`, `PHASE-D07` |
+| 3 | Frozen `PROGRESS.md` baseline | New "Post-C11 drift" section: migrations `020`–`031` table, new aggregates/commands/Statistics module, binding **next-free-physical-ordinal** rule; status-table store row updated to 31 migrations | `PROGRESS.md` |
+| 4 | File-path drift | D13 `Health/HealthEndpoints.cs` + `Tenancy/MembershipCache.cs`; E02 `Context/ServerModel.cs` | `PHASE-D13`, `PHASE-E02` |
+| 5 | Rate-limit policy name | E01 `identity` → `auth` (D13 defines exactly `auth, commands, tables, files, operator`) | `PHASE-E01` |
+| 6 | Replication-surface gaps | D08 DECISION: `TreatmentPlan`/`TreatmentOccurrence`/`VaccineCatalogItem` replicated **read-only**; `RecurringExpense`/`RecurringExpensePayment` **not replicated** → replicated set **25** (3 writable + 22 read-only), counts propagated to D08/E03; `IsConflictPreservedCopy` declared local-only and excluded from every contract; D02 coverage now "derived from the live domain" and `~34` → `~39` (indicative) | `PHASE-D08`, `PHASE-D02`, `PHASE-E03` |
+| 7.1 | Datasync client pin | Verified on NuGet (see corrected §7.1); verification record + restore guard in E03; STACK.md annotated | `PHASE-E03`, `STACK.md` |
+| 7.2 | Encryption never enabled | **E09 owns it**: `release-check.sh` requires K2 `PASS` per shipped RID (a `SKIPPED` K2 is a release blocker), and the release profile sets `EncryptionEnabled`/`K2Approved` (single declared `src/` exception); E08 wording changed so `SKIPPED` is dev-only | `PHASE-E09`, `PHASE-E08` |
+| 8 | Handler-count arithmetic | Command-group → payload-folder mapping stated explicitly in D07 (15 + 17 + 15 = 47) | `PHASE-D07` |
+| 9 | Missing C03 phase file | Historical stub `PHASE-C03-visit-encounter-vaccination.md` (facts only from `PROGRESS.md`) + `ROADMAP.md` row note | `phases/PHASE-C03-*`, `ROADMAP.md` |
+
+**Not changed (by design):** no source, migration, test or build artefact was touched, and no build/test was run. Items in §10 (verified-consistent) and §12 (optional quality improvements) are unchanged.
