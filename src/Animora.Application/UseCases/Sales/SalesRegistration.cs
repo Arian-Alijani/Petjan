@@ -66,6 +66,13 @@ public static class SalesRegistration
             .AddCommand<CreateBoardingServiceRateCommand, string, CreateBoardingServiceRateCommandHandler>()
             .AddValidator<CreateBoardingServiceRateCommand, CreateBoardingServiceRateCommandValidator>()
             .AddCommand<UpdateServiceRateCommand, Unit, UpdateServiceRateCommandHandler>()
-            .AddValidator<UpdateServiceRateCommand, UpdateServiceRateCommandValidator>();
+            .AddValidator<UpdateServiceRateCommand, UpdateServiceRateCommandValidator>()
+            // ── Insurance coverage directory («پوشش بیمه‌ها») ──────────────────────
+            .AddCommand<CreateInsurerCommand, string, CreateInsurerCommandHandler>()
+            .AddValidator<CreateInsurerCommand, CreateInsurerCommandValidator>()
+            .AddCommand<UpdateInsurerCommand, Unit, UpdateInsurerCommandHandler>()
+            .AddValidator<UpdateInsurerCommand, UpdateInsurerCommandValidator>()
+            .AddCommand<DeleteInsurerCommand, Unit, DeleteInsurerCommandHandler>()
+            .AddValidator<DeleteInsurerCommand, DeleteInsurerCommandValidator>();
     }
 }

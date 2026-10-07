@@ -111,6 +111,7 @@ public static class ViewFactory
         Register<global::Animora.Desktop.Pages.Sales.InvoiceViewerViewModel, global::Animora.Desktop.Pages.Sales.InvoiceViewerView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.OwnerPickerModalViewModel, global::Animora.Desktop.Pages.Sales.OwnerPickerModalView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.ServiceRateEditModalViewModel, global::Animora.Desktop.Pages.Sales.ServiceRateEditModalView>(factories);
+        Register<global::Animora.Desktop.Pages.Sales.InsurerEditModalViewModel, global::Animora.Desktop.Pages.Sales.InsurerEditModalView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.PaymentModalViewModel, global::Animora.Desktop.Pages.Sales.PaymentModalView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.RefundModalViewModel, global::Animora.Desktop.Pages.Sales.RefundModalView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.SalePageViewModel, global::Animora.Desktop.Pages.Sales.SalePageView>(factories);

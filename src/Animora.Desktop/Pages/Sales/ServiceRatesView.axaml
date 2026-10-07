@@ -8,13 +8,34 @@
     <!-- «نرخ خدمات» tab. Toolbar chrome reuses the unified History styles (.hy-*) so it fuses with the
          workspace tab row exactly like the «تاریخچه» tab does. -->
     <UserControl.Styles>
-        <Style Selector="Border.sr-row">
+        <!-- Independent card (one per section: service rates / insurance coverage). -->
+        <Style Selector="Border.sr-card">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="14" />
-            <Setter Property="Padding" Value="16,12" />
-            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+        </Style>
+        <Style Selector="Border.sr-card-head">
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="18,14" />
+        </Style>
+        <Style Selector="TextBlock.sr-card-title">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+        </Style>
+        <Style Selector="TextBlock.sr-card-sub">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Border.sr-row">
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="18,12" />
         </Style>
         <Style Selector="Border.sr-row.off">
             <Setter Property="Opacity" Value="0.6" />
@@ -26,6 +47,9 @@
         </Style>
         <Style Selector="Border.sr-badge.boarding">
             <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="Border.sr-empty">
+            <Setter Property="Padding" Value="24" />
         </Style>
     </UserControl.Styles>
 
@@ -78,47 +102,130 @@
             </Grid>
         </Border>
 
-        <TextBlock Text="{Binding SummaryText}" FontSize="12" FontWeight="Bold"
-                   Foreground="{StaticResource MutedBrush}" Margin="4,0,4,10" />
+        <!-- ═══ Card 1 · نرخ خدمات ═══ -->
+        <Border Classes="sr-card">
+            <StackPanel>
+                <Border Classes="sr-card-head">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                        <Border Grid.Column="0" Width="36" Height="36" CornerRadius="11"
+                                Background="{StaticResource Brand50Brush}" VerticalAlignment="Center">
+                            <Path Classes="icon" Width="17" Height="17" Stroke="{StaticResource Brand700Brush}"
+                                  Data="{StaticResource IconTag}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Classes="sr-card-title" Text="نرخ خدمات" />
+                            <TextBlock Classes="sr-card-sub" Text="{Binding SummaryText}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
-        <!-- ═══ Rows ═══ -->
-        <ItemsControl ItemsSource="{Binding Rows}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="sales:ServiceRateRowViewModel">
-                    <Border Classes="sr-row" Classes.off="{Binding IsInactive}">
-                        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="14">
-                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="ExtraBold"
-                                           Foreground="{StaticResource InkBrush}" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding BillingText}" FontSize="11.5"
-                                           Foreground="{StaticResource MutedBrush}"
-                                           IsVisible="{Binding IsBoarding}" />
-                            </StackPanel>
-                            <Border Grid.Column="1" Classes="sr-badge" Classes.boarding="{Binding IsBoarding}"
-                                    VerticalAlignment="Center">
-                                <TextBlock Text="{Binding SourceText}" FontSize="11.5" FontWeight="Bold"
-                                           Foreground="{StaticResource Brand700Brush}" />
+                <ItemsControl ItemsSource="{Binding Rows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="sales:ServiceRateRowViewModel">
+                            <Border Classes="sr-row" Classes.off="{Binding IsInactive}">
+                                <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="14">
+                                    <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="ExtraBold"
+                                                   Foreground="{StaticResource InkBrush}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding BillingText}" FontSize="11.5"
+                                                   Foreground="{StaticResource MutedBrush}"
+                                                   IsVisible="{Binding IsBoarding}" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Classes="sr-badge" Classes.boarding="{Binding IsBoarding}"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding SourceText}" FontSize="11.5" FontWeight="Bold"
+                                                   Foreground="{StaticResource Brand700Brush}" />
+                                    </Border>
+                                    <TextBlock Grid.Column="2" Text="{Binding PriceText}" FontSize="14"
+                                               FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"
+                                               MinWidth="130" TextAlignment="Left" VerticalAlignment="Center" />
+                                    <Button Grid.Column="3" Classes="hy-pager" Content="{Binding ToggleText}"
+                                            Command="{Binding ToggleCommand}" VerticalAlignment="Center" />
+                                    <Button Grid.Column="4" Classes="hy-pager" Command="{Binding EditCommand}"
+                                            ToolTip.Tip="ویرایش خدمت" VerticalAlignment="Center">
+                                        <Path Classes="icon" Width="14" Height="14"
+                                              Stroke="{Binding $parent[Button].Foreground}"
+                                              Data="{StaticResource IconEdit}" />
+                                    </Button>
+                                </Grid>
                             </Border>
-                            <TextBlock Grid.Column="2" Text="{Binding PriceText}" FontSize="14"
-                                       FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"
-                                       MinWidth="130" TextAlignment="Left" VerticalAlignment="Center" />
-                            <Button Grid.Column="3" Classes="hy-pager" Content="{Binding ToggleText}"
-                                    Command="{Binding ToggleCommand}" VerticalAlignment="Center" />
-                            <Button Grid.Column="4" Classes="hy-pager" Command="{Binding EditCommand}"
-                                    ToolTip.Tip="ویرایش خدمت" VerticalAlignment="Center">
-                                <Path Classes="icon" Width="14" Height="14"
-                                      Stroke="{Binding $parent[Button].Foreground}"
-                                      Data="{StaticResource IconEdit}" />
-                            </Button>
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
-        <Border IsVisible="{Binding IsEmpty}" Classes="sr-row" Padding="24">
-            <TextBlock Text="خدمتی یافت نشد. با «خدمت جدید» یک خدمت اضافه کنید." FontSize="13"
-                       HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                <Border IsVisible="{Binding IsEmpty}" Classes="sr-empty">
+                    <TextBlock Text="خدمتی یافت نشد. با «خدمت جدید» یک خدمت اضافه کنید." FontSize="13"
+                               HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ Card 2 · پوشش بیمه‌ها ═══ -->
+        <Border Classes="sr-card">
+            <StackPanel>
+                <Border Classes="sr-card-head">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                        <Border Grid.Column="0" Width="36" Height="36" CornerRadius="11"
+                                Background="{StaticResource Brand50Brush}" VerticalAlignment="Center">
+                            <Path Classes="icon" Width="17" Height="17" Stroke="{StaticResource Brand700Brush}"
+                                  Data="{StaticResource IconShield}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Classes="sr-card-title" Text="پوشش بیمه‌ها" />
+                            <TextBlock Classes="sr-card-sub"
+                                       Text="{Binding InsurersSummaryText, StringFormat='{}{0} · در انتخاب بیمهٔ فاکتور نمایش داده می‌شوند'}" />
+                        </StackPanel>
+                        <Button Grid.Column="2" Classes="primary" VerticalAlignment="Center"
+                                Command="{Binding AddInsurerCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                                      StrokeThickness="2.5" Data="{StaticResource IconPlus}" />
+                                <TextBlock Text="بیمهٔ جدید" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <ItemsControl ItemsSource="{Binding Insurers}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="sales:InsurerRowViewModel">
+                            <Border Classes="sr-row">
+                                <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="14">
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="14"
+                                               FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <Border Grid.Column="1" Classes="sr-badge" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding PercentText}" FontSize="11.5" FontWeight="Bold"
+                                                   Foreground="{StaticResource Brand700Brush}" />
+                                    </Border>
+                                    <TextBlock Grid.Column="2" Text="{Binding CeilingText}" FontSize="13"
+                                               FontWeight="Bold" Foreground="{StaticResource MutedBrush}"
+                                               MinWidth="150" TextAlignment="Left" VerticalAlignment="Center" />
+                                    <Button Grid.Column="3" Classes="hy-pager" Command="{Binding EditCommand}"
+                                            ToolTip.Tip="ویرایش بیمه" VerticalAlignment="Center">
+                                        <Path Classes="icon" Width="14" Height="14"
+                                              Stroke="{Binding $parent[Button].Foreground}"
+                                              Data="{StaticResource IconEdit}" />
+                                    </Button>
+                                    <Button Grid.Column="4" Classes="hy-pager" Command="{Binding DeleteCommand}"
+                                            ToolTip.Tip="حذف بیمه" VerticalAlignment="Center">
+                                        <Path Classes="icon" Width="14" Height="14"
+                                              Stroke="{Binding $parent[Button].Foreground}"
+                                              Data="{StaticResource IconTrash}" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border IsVisible="{Binding IsInsurersEmpty}" Classes="sr-empty">
+                    <TextBlock Text="هنوز بیمه‌ای ثبت نشده است. با «بیمهٔ جدید» یک پوشش اضافه کنید." FontSize="13"
+                               HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                </Border>
+            </StackPanel>
         </Border>
     </StackPanel>
 </UserControl>

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Sales;
 using Animora.Desktop.Controls;
+using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -13,7 +14,8 @@ namespace Animora.Desktop.Pages.Sales;
 
 /// <summary>
 /// The «نرخ خدمات» tab: lists every clinic and boarding service with its rate and lets the manager add a
-/// service, change a rate or title, and switch a service on/off. All data flows through
+/// service, change a rate or title, and switch a service on/off. A second, independent «پوشش بیمه‌ها» section
+/// manages the insurers (name, covered percent, optional ceiling) that feed every invoice's insurance select. All data flows through
 /// <see cref="IServiceRateService"/>; the list is small (tens of rows) so search/filter run in memory over
 /// the loaded snapshot. Loads lazily on first activation (PERFORMANCE.md §12) and after every write.
 /// </summary>
@@ -48,6 +50,18 @@ public sealed partial class ServiceRatesViewModel : ObservableObject
     public IReadOnlyList<ServiceRateFilterViewModel> Filters { get; }
 
     public RangeObservableCollection<ServiceRateRowViewModel> Rows { get; } = [];
+
+    /// <summary>The insurance-coverage directory («پوشش بیمه‌ها»).</summary>
+    public RangeObservableCollection<InsurerRowViewModel> Insurers { get; } = [];
+
+    [ObservableProperty]
+    private bool _hasInsurers;
+
+    [ObservableProperty]
+    private bool _isInsurersEmpty = true;
+
+    [ObservableProperty]
+    private string _insurersSummaryText = string.Empty;
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -142,6 +156,42 @@ public sealed partial class ServiceRatesViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void AddInsurer() =>
+        _dialogs.ShowModal(new InsurerEditModalViewModel(_service, _toast, _dialogs, existing: null, OnSaved), 520);
+
+    internal void EditInsurer(InsurerCoverage insurer) =>
+        _dialogs.ShowModal(new InsurerEditModalViewModel(_service, _toast, _dialogs, insurer, OnSaved), 520);
+
+    internal void ConfirmDeleteInsurer(InsurerCoverage insurer) =>
+        _dialogs.ShowModal(new Shared.ConfirmDialogViewModel(
+            _dialogs,
+            "danger",
+            "IconTrash",
+            "حذف بیمه",
+            "بیمهٔ ",
+            $"«{insurer.Name}»",
+            " از فهرست پوشش‌ها حذف شود؟",
+            "فاکتورهایی که قبلاً این بیمه را داشته‌اند بدون تغییر می‌مانند؛ فقط از انتخاب بیمهٔ فاکتورهای بعدی حذف می‌شود.",
+            "بله، حذف شود",
+            "انصراف",
+            () => _ = DeleteInsurerAsync(insurer)), 480);
+
+    private async Task DeleteInsurerAsync(InsurerCoverage insurer)
+    {
+        try
+        {
+            await _service.DeleteInsurerAsync(insurer.Id);
+            _toast.Show($"بیمهٔ «{insurer.Name}» حذف شد", Tone.Ok);
+            OnSaved();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(PatientsPresentation.CommandFailureMessage(ex, "حذف بیمه ناموفق بود"), Tone.Danger);
+        }
+    }
+
+    // Every write here (service rate or insurer) can change what the cashier offers, so the sales surface refreshes too.
     private void OnSaved()
     {
         _changes.Notify(DataDomain.Sales, DataDomain.Boarding, DataDomain.Visits, DataDomain.Cashier);
@@ -160,8 +210,15 @@ public sealed partial class ServiceRatesViewModel : ObservableObject
                 return; // a newer reload superseded this one
             }
 
+            var insurers = await _service.GetInsurersAsync();
+            if (token != _generation)
+            {
+                return;
+            }
+
             _all = rows.ToList();
             ApplyFilter();
+            ApplyInsurers(insurers);
         }
         catch (InvalidOperationException ex)
         {
@@ -177,6 +234,14 @@ public sealed partial class ServiceRatesViewModel : ObservableObject
                 IsLoading = false;
             }
         }
+    }
+
+    private void ApplyInsurers(IReadOnlyList<InsurerCoverage> insurers)
+    {
+        Insurers.ReplaceAll(insurers.Select(i => new InsurerRowViewModel(i, this)).ToList());
+        HasInsurers = insurers.Count > 0;
+        IsInsurersEmpty = !HasInsurers;
+        InsurersSummaryText = $"{SalePresentation.Fa(insurers.Count)} بیمه";
     }
 
     private void ApplyFilter()
@@ -250,4 +315,29 @@ public sealed class ServiceRateRowViewModel
     public RelayCommand EditCommand { get; }
 
     public AsyncRelayCommand ToggleCommand { get; }
+}
+
+/// <summary>One insurer row: name, covered percent, ceiling and the edit / delete buttons.</summary>
+public sealed class InsurerRowViewModel
+{
+    public InsurerRowViewModel(InsurerCoverage insurer, ServiceRatesViewModel owner)
+    {
+        Insurer = insurer;
+        EditCommand = new RelayCommand(() => owner.EditInsurer(Insurer));
+        DeleteCommand = new RelayCommand(() => owner.ConfirmDeleteInsurer(Insurer));
+    }
+
+    public InsurerCoverage Insurer { get; }
+
+    public string Name => Insurer.Name;
+
+    public string PercentText => PersianNumberFormatter.ToPersianDigits(Insurer.Percent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)) + "٪ پوشش";
+
+    public string CeilingText => Insurer.Ceiling > 0
+        ? "سقف " + SalePresentation.Money(Insurer.Ceiling) + " تومان"
+        : "بدون سقف";
+
+    public RelayCommand EditCommand { get; }
+
+    public RelayCommand DeleteCommand { get; }
 }

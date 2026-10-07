@@ -35,8 +35,18 @@ public sealed record NewServiceRate(
     ServiceRateBilling Billing = ServiceRateBilling.PerUse);
 
 /// <summary>
+/// One row of the «پوشش بیمه‌ها» directory: the share of an invoice the insurer covers
+/// (<paramref name="Percent"/>, 0–100) and the most it will ever pay (<paramref name="Ceiling"/> in IRT; <c>0</c> = no ceiling).
+/// </summary>
+public sealed record InsurerCoverage(string Id, string Name, decimal Percent, long Ceiling);
+
+/// <summary>An insurer to add to the «پوشش بیمه‌ها» directory.</summary>
+public sealed record NewInsurerCoverage(string Name, decimal Percent, long Ceiling);
+
+/// <summary>
 /// Data seam for the Sales «نرخ خدمات» tab: list, add and edit the priced services offered by the clinic and by
-/// boarding. Failures surface as exceptions carrying the error code.
+/// boarding, and manage the insurance-coverage directory that feeds every invoice's «پوشش بیمه» select.
+/// Failures surface as exceptions carrying the error code.
 /// </summary>
 public interface IServiceRateService
 {
@@ -48,4 +58,16 @@ public interface IServiceRateService
 
     /// <summary>Saves the title, price and active flag of an existing service.</summary>
     Task UpdateAsync(ServiceRate rate);
+
+    /// <summary>Every insurer with its coverage percent and ceiling, ordered like the invoice select.</summary>
+    Task<IReadOnlyList<InsurerCoverage>> GetInsurersAsync();
+
+    /// <summary>Adds an insurer; it is immediately offered on invoices.</summary>
+    Task CreateInsurerAsync(NewInsurerCoverage insurer);
+
+    /// <summary>Changes an insurer's name, covered percent and ceiling (already-applied invoices keep their own percent).</summary>
+    Task UpdateInsurerAsync(InsurerCoverage insurer);
+
+    /// <summary>Removes an insurer from the directory; invoices that already used it are unchanged.</summary>
+    Task DeleteInsurerAsync(string insurerId);
 }

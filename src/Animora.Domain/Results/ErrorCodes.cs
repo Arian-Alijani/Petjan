@@ -496,6 +496,10 @@ public static class ErrorCodes
     public static readonly ErrorCode InsurerNotFound =
         new("INSURER_NOT_FOUND", ErrorCode.NotFound);
 
+    /// <summary>Another insurer of this tenant already uses the name.</summary>
+    public static readonly ErrorCode InsurerNameDuplicate =
+        new("INSURER_NAME_DUPLICATE", ErrorCode.Conflict);
+
     #endregion
 
     #region Finance (Phase A08)

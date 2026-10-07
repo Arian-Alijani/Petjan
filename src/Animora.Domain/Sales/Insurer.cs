@@ -46,4 +46,20 @@ public sealed class Insurer : AggregateRoot
             CeilingMinor = ceilingMinor,
         };
     }
+
+    /// <summary>
+    /// Changes the display name, the covered percentage and the ceiling. Invoices that already applied this
+    /// insurer keep the percentage they were given (it is copied onto the invoice), so history is unaffected.
+    /// </summary>
+    public void Update(string name, decimal coveragePercent, long ceilingMinor)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentOutOfRangeException.ThrowIfLessThan(coveragePercent, 0m);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(coveragePercent, 100m);
+        ArgumentOutOfRangeException.ThrowIfNegative(ceilingMinor);
+
+        Name = name.Trim();
+        CoveragePercent = coveragePercent;
+        CeilingMinor = ceilingMinor;
+    }
 }

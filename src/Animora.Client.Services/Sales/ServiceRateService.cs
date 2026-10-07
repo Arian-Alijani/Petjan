@@ -35,6 +35,30 @@ public sealed class ServiceRateService(IServiceScopeFactory scopes) : IServiceRa
         await SendAsync(new UpdateServiceRateCommand(rate.Id, source, rate.Title.Trim(), rate.Price, rate.IsActive));
     }
 
+    public async Task<IReadOnlyList<InsurerCoverage>> GetInsurersAsync()
+    {
+        var rows = await QueryAsync(new InsurersQuery());
+        return rows.Select(r => new InsurerCoverage(r.Id, r.Name, r.CoveragePercent, r.CeilingMinor)).ToArray();
+    }
+
+    public async Task CreateInsurerAsync(NewInsurerCoverage insurer)
+    {
+        ArgumentNullException.ThrowIfNull(insurer);
+        await SendAsync(new CreateInsurerCommand(insurer.Name.Trim(), insurer.Percent, insurer.Ceiling));
+    }
+
+    public async Task UpdateInsurerAsync(InsurerCoverage insurer)
+    {
+        ArgumentNullException.ThrowIfNull(insurer);
+        await SendAsync(new UpdateInsurerCommand(insurer.Id, insurer.Name.Trim(), insurer.Percent, insurer.Ceiling));
+    }
+
+    public async Task DeleteInsurerAsync(string insurerId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(insurerId);
+        await SendAsync(new DeleteInsurerCommand(insurerId));
+    }
+
     private static ServiceRate ToContract(ServiceRateReadModel row) => new(row.Id,
         row.Source == ServiceRateSources.Boarding ? ServiceRateSource.Boarding : ServiceRateSource.Clinic,
         row.Title, row.PriceMinor, row.IsActive,

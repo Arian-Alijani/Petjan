@@ -70,6 +70,10 @@ public static class ErrorMessages
         ["ROOM_CAPACITY_INVALID"] = "ظرفیت اتاق باید بین ۱ تا ۱۰ باشد.",
         ["SERVICE_NO_STOCK"] = "این خدمت موجودی ندارد.",
 
+        // Sales insurers
+        ["INSURER_NAME_DUPLICATE"] = "بیمه‌ای با این نام از قبل ثبت شده است.",
+        ["INSURER_NOT_FOUND"] = "بیمهٔ موردنظر پیدا نشد؛ فهرست را بازخوانی کنید.",
+
         // Cheques
         ["CHEQUE_NOT_FOUND"] = "چک موردنظر پیدا نشد؛ فهرست را بازخوانی کنید.",
         ["CHEQUE_INVALID_TRANSITION"] = "این تغییر وضعیت برای چک در مرحلهٔ فعلی مجاز نیست.",
