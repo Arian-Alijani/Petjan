@@ -14,10 +14,6 @@ namespace Animora.Infrastructure.Local.Workers;
 public sealed class FinanceProjectionWorker(IServiceScopeFactory scopes, ILogger<FinanceProjectionWorker> logger)
     : IAsyncDisposable
 {
-    // Cached, shared across every deserialize on the hot projection path. Default options keep exact
-    // round-trip parity with the outbox writer (OutboxPayload.Serialize) which also uses defaults.
-    private static readonly JsonSerializerOptions SerializerOptions = new();
-
     private readonly CancellationTokenSource _stop = new();
     private Task? _loop;
 
@@ -81,18 +77,20 @@ public sealed class FinanceProjectionWorker(IServiceScopeFactory scopes, ILogger
         }
     }
 
+    // F-08: deserialize through the source-generated context (reflection-free). The context uses default
+    // naming, so it round-trips the exact JSON the outbox relay wrote.
     private DomainEvent? Deserialize(OutboxMessage m) => m.MessageType switch
     {
-        nameof(InvoicePostedEvent) => JsonSerializer.Deserialize<InvoicePostedEvent>(m.PayloadJson, SerializerOptions),
-        nameof(InvoiceVoidedEvent) => JsonSerializer.Deserialize<InvoiceVoidedEvent>(m.PayloadJson, SerializerOptions),
-        nameof(PaymentRegisteredEvent) => JsonSerializer.Deserialize<PaymentRegisteredEvent>(m.PayloadJson, SerializerOptions),
-        nameof(InvoiceRefundedEvent) => JsonSerializer.Deserialize<InvoiceRefundedEvent>(m.PayloadJson, SerializerOptions),
-        nameof(GoodsReceiptPostedEvent) => JsonSerializer.Deserialize<GoodsReceiptPostedEvent>(m.PayloadJson, SerializerOptions),
-        nameof(StockMovementRecordedEvent) => JsonSerializer.Deserialize<StockMovementRecordedEvent>(m.PayloadJson, SerializerOptions),
-        nameof(ChequeClearedEvent) => JsonSerializer.Deserialize<ChequeClearedEvent>(m.PayloadJson, SerializerOptions),
-        nameof(ChequeBouncedEvent) => JsonSerializer.Deserialize<ChequeBouncedEvent>(m.PayloadJson, SerializerOptions),
-        nameof(CashSessionClosedEvent) => JsonSerializer.Deserialize<CashSessionClosedEvent>(m.PayloadJson, SerializerOptions),
-        nameof(ExpensePostedEvent) => JsonSerializer.Deserialize<ExpensePostedEvent>(m.PayloadJson, SerializerOptions),
+        nameof(InvoicePostedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.InvoicePostedEvent),
+        nameof(InvoiceVoidedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.InvoiceVoidedEvent),
+        nameof(PaymentRegisteredEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.PaymentRegisteredEvent),
+        nameof(InvoiceRefundedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.InvoiceRefundedEvent),
+        nameof(GoodsReceiptPostedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.GoodsReceiptPostedEvent),
+        nameof(StockMovementRecordedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.StockMovementRecordedEvent),
+        nameof(ChequeClearedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.ChequeClearedEvent),
+        nameof(ChequeBouncedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.ChequeBouncedEvent),
+        nameof(CashSessionClosedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.CashSessionClosedEvent),
+        nameof(ExpensePostedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.ExpensePostedEvent),
         _ => LogAndDrop(m),
     };
 

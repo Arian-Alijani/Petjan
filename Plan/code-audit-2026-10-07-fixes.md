@@ -256,7 +256,8 @@ System.Diagnostics.Debug.Assert(db.Database.CurrentTransaction is not null,
 
 ---
 
-## [ ] T7 — F-08 🟡 JsonSerializerContext (source-gen) برای مسیرهای داغ outbox
+## [x] T7 — F-08 🟡 JsonSerializerContext (source-gen) برای مسیرهای داغ outbox ✅ انجام و push شد
+> **پیاده‌سازی نهایی (برای مرجع):** context عمومی `OutboxEventJsonContext` در `src/Animora.Domain/Events/OutboxEventJsonContext.cs` ساخته شد (هر دو سمت Serialize/Deserialize به `Animora.Domain` ارجاع دارند). سمت Deserialize (`FinanceProjectionWorker`) از `OutboxEventJsonContext.Default.<Event>` استفاده می‌کند و فیلد `SerializerOptions` حذف شد. سمت Serialize (`OutboxPayload`) از `JsonTypeInfoResolver.Combine(OutboxEventJsonContext.Default, new DefaultJsonTypeInfoResolver())` استفاده می‌کند تا رویدادهای غیرمالی هم با fallback بازتابی سریالایز شوند (resolver خالصِ source-gen روی نوع ناشناخته throw می‌کرد). naming پیش‌فرض → سازگاری round-trip با داده‌ی موجود حفظ شد. (توجه: SDK در سندباکس نصب نبود؛ اعتبارسنجی استاتیک انجام شد طبق قاعده‌ی «بیلد کامل ممنوع».)
 **فایل‌های مرتبط:** `OutboxRelayHandler.cs` (Serialize), `FinanceProjectionWorker.cs` (Deserialize, بعد از T2). رویدادهای مالی در `Animora.Domain.Events`.
 
 **مشکل:** تمام serializeها reflection-based؛ `JsonSerializerContext` وجود ندارد (تأیید: grep بالا هیچ `JsonSerializerContext` پیدا نکرد). برای desktop فعلی قابل قبول، ولی برای trimming/AOT آینده و پروتکل sync ناسازگار/کند.
@@ -334,7 +335,7 @@ internal sealed partial class OutboxJsonContext : JsonSerializerContext { }
 - [x] T4 F-03 — push شد ✅
 - [x] T5 F-05 — push شد ✅
 - [x] T6 F-07 — push شد ✅
-- [ ] T7 F-08 — push شد؟
+- [x] T7 F-08 — push شد ✅
 - [ ] T8 F-06 — push شد؟
 - [ ] T9 حذف فایل فاز — push شد؟
 
