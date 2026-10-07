@@ -25,12 +25,25 @@ internal static class TreatmentRules
         ClinicCalendar.LocalDay(clock.UtcNow.UtcTicks, zones.GetClinicTimeZone());
 }
 
+/// <summary>Writes the vaccination-ledger entries of plan lifecycle events (registered / edited / cancelled / moved).</summary>
+internal static class TreatmentHistory
+{
+    /// <summary>Vaccines belong to the vaccination timeline, medications to the prescription timeline.</summary>
+    public static MedicalHistoryKind KindOf(TreatmentPlan plan) =>
+        plan.ItemType == TreatmentItemType.Vaccine ? MedicalHistoryKind.Vaccination : MedicalHistoryKind.Prescription;
+
+    public static void Record(IMedicalHistoryRepository history, CommandContext context, IClock clock, TreatmentPlan plan,
+        string title, string detail) =>
+        history.Add(new MedicalHistoryEntry(context.TenantId, plan.PetId, KindOf(plan), title, clock.UtcNow, context.UserId,
+            clock, detail, plan.Id, nameof(TreatmentPlan)));
+}
+
 /// <summary>Schedules a medication / vaccine for a patient. Returns the new plan id.</summary>
 [RequiresPermission(PermissionCodes.VaccinationWrite)]
 [Auditable(AuditCategory.Clinical, CommandTypes.VaccinationTreatmentCreate)]
 public sealed record CreateTreatmentPlanCommand(string PetId, TreatmentItemType ItemType, TreatmentKind Kind,
     string Title, TreatmentSchedule Schedule, string? VaccineCode = null, string? Dosage = null,
-    string? Notes = null, bool NotifyOwner = false) : ICommand<string>, IJournaledCommand
+    string? Notes = null, bool NotifyOwner = false, int RescheduledDayCount = 0) : ICommand<string>, IJournaledCommand
 {
     public string CommandTypeName => CommandTypes.VaccinationTreatmentCreate;
     public string AggregateTypeName => nameof(TreatmentPlan);
@@ -44,12 +57,13 @@ public sealed class CreateTreatmentPlanCommandValidator : IValidator<CreateTreat
             Rules.Required(c.Title, nameof(c.Title)), Rules.MaxLength(c.Title, TreatmentPlan.MaxTitleLength, nameof(c.Title)),
             Rules.MaxLength(c.Dosage, TreatmentPlan.MaxDosageLength, nameof(c.Dosage)),
             Rules.MaxLength(c.Notes, TreatmentPlan.MaxNotesLength, nameof(c.Notes)),
+            Rules.Range(c.RescheduledDayCount, 0, TreatmentScheduleExpander.MaxOccurrences, nameof(c.RescheduledDayCount)),
             TreatmentRules.Enum(c.ItemType, nameof(c.ItemType)), TreatmentRules.Enum(c.Kind, nameof(c.Kind)),
             c.Schedule is null ? new ValidationFailure(nameof(c.Schedule), Rules.RequiredCode) : null);
 }
 
 public sealed class CreateTreatmentPlanCommandHandler(ITreatmentPlanRepository plans, IPetRepository pets,
-    IClinicTimeZoneProvider zones, IClock clock) : ICommandHandler<CreateTreatmentPlanCommand, string>
+    IMedicalHistoryRepository history, IClinicTimeZoneProvider zones, IClock clock) : ICommandHandler<CreateTreatmentPlanCommand, string>
 {
     public async Task<Result<string>> HandleAsync(CreateTreatmentPlanCommand c, CommandContext context, CancellationToken ct)
     {
@@ -60,8 +74,16 @@ public sealed class CreateTreatmentPlanCommandHandler(ITreatmentPlanRepository p
             TreatmentRules.Today(clock, zones), context.UserId, clock, c.VaccineCode, c.Dosage, c.Notes, c.NotifyOwner);
         if (draft.IsFailure) return Result<string>.Fail(draft.Error, draft.Detail);
 
+        var plan = draft.Value!.Plan;
         plans.Add(draft.Value!);
-        return Result<string>.Ok(draft.Value!.Plan.Id);
+        TreatmentHistory.Record(history, context, clock, plan, VaccinationHistoryTitles.DoseScheduled, plan.Title);
+        if (c.RescheduledDayCount > 0)
+        {
+            TreatmentHistory.Record(history, context, clock, plan, VaccinationHistoryTitles.DoseRescheduled,
+                $"{plan.Title} · {c.RescheduledDayCount} day(s) moved off the clinic weekend");
+        }
+
+        return Result<string>.Ok(plan.Id);
     }
 }
 
@@ -86,7 +108,8 @@ public sealed class UpdateTreatmentPlanCommandValidator : IValidator<UpdateTreat
             TreatmentRules.Enum(c.Kind, nameof(c.Kind)));
 }
 
-public sealed class UpdateTreatmentPlanCommandHandler(ITreatmentPlanRepository plans)
+public sealed class UpdateTreatmentPlanCommandHandler(ITreatmentPlanRepository plans, IMedicalHistoryRepository history,
+    IClock clock)
     : ICommandHandler<UpdateTreatmentPlanCommand, string>
 {
     public async Task<Result<string>> HandleAsync(UpdateTreatmentPlanCommand c, CommandContext context, CancellationToken ct)
@@ -94,7 +117,10 @@ public sealed class UpdateTreatmentPlanCommandHandler(ITreatmentPlanRepository p
         var plan = await plans.FindPlanAsync(c.PlanId, ct);
         if (plan is null || plan.Deleted) return Result<string>.Fail(ErrorCodes.TreatmentPlanNotFound);
         var updated = plan.Update(c.Kind, c.Title, c.Dosage, c.Notes, c.NotifyOwner);
-        return updated.IsFailure ? Result<string>.Fail(updated.Error, updated.Detail) : Result<string>.Ok(plan.Id);
+        if (updated.IsFailure) return Result<string>.Fail(updated.Error, updated.Detail);
+
+        TreatmentHistory.Record(history, context, clock, plan, VaccinationHistoryTitles.TreatmentUpdated, plan.Title);
+        return Result<string>.Ok(plan.Id);
     }
 }
 
@@ -114,7 +140,8 @@ public sealed class CancelTreatmentPlanCommandValidator : IValidator<CancelTreat
         TreatmentRules.Check(Rules.Required(c.PlanId, nameof(c.PlanId)));
 }
 
-public sealed class CancelTreatmentPlanCommandHandler(ITreatmentPlanRepository plans)
+public sealed class CancelTreatmentPlanCommandHandler(ITreatmentPlanRepository plans, IMedicalHistoryRepository history,
+    IClock clock)
     : ICommandHandler<CancelTreatmentPlanCommand, string>
 {
     public async Task<Result<string>> HandleAsync(CancelTreatmentPlanCommand c, CommandContext context, CancellationToken ct)
@@ -129,6 +156,7 @@ public sealed class CancelTreatmentPlanCommandHandler(ITreatmentPlanRepository p
             occurrence.Skip();
         }
 
+        TreatmentHistory.Record(history, context, clock, plan, VaccinationHistoryTitles.TreatmentCancelled, plan.Title);
         return Result<string>.Ok(plan.Id);
     }
 }
@@ -164,10 +192,9 @@ public sealed class MarkTreatmentOccurrenceDoneCommandHandler(ITreatmentPlanRepo
         if (done.IsFailure) return Result<string>.Fail(done.Error, done.Detail);
 
         var vaccine = plan.ItemType == TreatmentItemType.Vaccine;
-        history.Add(new MedicalHistoryEntry(context.TenantId, plan.PetId,
-            vaccine ? MedicalHistoryKind.Vaccination : MedicalHistoryKind.Prescription,
-            vaccine ? "Dose administered" : "Medication given", clock.UtcNow, context.UserId, clock,
-            plan.Title, occurrence.Id, nameof(TreatmentOccurrence)));
+        history.Add(new MedicalHistoryEntry(context.TenantId, plan.PetId, TreatmentHistory.KindOf(plan),
+            vaccine ? VaccinationHistoryTitles.DoseAdministered : VaccinationHistoryTitles.MedicationGiven,
+            clock.UtcNow, context.UserId, clock, plan.Title, occurrence.Id, nameof(TreatmentOccurrence)));
 
         if (await plans.CountPendingExceptAsync(plan.Id, occurrence.Id, ct) == 0) plan.Complete();
         return Result<string>.Ok(occurrence.Id);

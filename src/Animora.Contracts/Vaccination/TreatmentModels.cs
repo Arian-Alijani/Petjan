@@ -64,7 +64,10 @@ public sealed record TreatmentScheduleInput(
     IReadOnlyList<DateOnly>? Days = null,
     int WeekdayMask = 0);
 
-/// <summary>Everything the registration modal submits to create a plan.</summary>
+/// <summary>
+/// Everything the registration modal submits to create a plan. <paramref name="RescheduledDayCount"/> is how many days the
+/// admin moved off the clinic weekend before submitting — recorded in the history, never used to change the dates.
+/// </summary>
 public sealed record TreatmentPlanInput(
     string PetId,
     TreatmentItemType ItemType,
@@ -74,7 +77,8 @@ public sealed record TreatmentPlanInput(
     string? VaccineCode = null,
     string? Dosage = null,
     string? Notes = null,
-    bool NotifyOwner = false);
+    bool NotifyOwner = false,
+    int RescheduledDayCount = 0);
 
 /// <summary>Editable fields of an active plan (the dates are fixed — cancel and recreate to change them).</summary>
 public sealed record TreatmentPlanUpdate(

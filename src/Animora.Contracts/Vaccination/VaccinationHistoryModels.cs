@@ -22,6 +22,12 @@ public enum VaccinationHistoryKind
 
     /// <summary>«باززمان‌بندی شد» — a record's due date was moved.</summary>
     Rescheduled,
+
+    /// <summary>«ویرایش شد» — a treatment plan's details were edited.</summary>
+    Updated,
+
+    /// <summary>«لغو شد» — a treatment plan was cancelled.</summary>
+    Cancelled,
 }
 
 /// <summary>

@@ -63,7 +63,8 @@ public sealed class VaccinationService(IServiceScopeFactory scopes, OperationIdF
     {
         ArgumentNullException.ThrowIfNull(input);
         return await SendAsync(new CreateTreatmentPlanCommand(input.PetId, input.ItemType.ToDomain(), input.Kind.ToDomain(),
-            input.Title, input.Schedule.ToDomain(), input.VaccineCode, input.Dosage, input.Notes, input.NotifyOwner));
+            input.Title, input.Schedule.ToDomain(), input.VaccineCode, input.Dosage, input.Notes, input.NotifyOwner,
+            input.RescheduledDayCount));
     }
 
     public async Task UpdateTreatmentPlanAsync(TreatmentPlanUpdate update)

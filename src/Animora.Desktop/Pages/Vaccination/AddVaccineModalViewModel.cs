@@ -794,7 +794,8 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
         }
 
         var shifted = TreatmentHolidayPolicy.Shift(input.Schedule, _pendingDays, forward);
-        await CommitAsync(input with { Schedule = shifted });
+        var moved = TreatmentHolidayPolicy.HolidaysIn(_pendingDays).Count;
+        await CommitAsync(input with { Schedule = shifted, RescheduledDayCount = moved });
     }
 
     [RelayCommand]

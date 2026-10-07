@@ -35,6 +35,8 @@ public static class VaccinationHistoryPresentation
         VaccinationHistoryKind.Scheduled => "IconCalendar",
         VaccinationHistoryKind.SmsSent => "IconSms",
         VaccinationHistoryKind.Rescheduled => "IconRefresh",
+        VaccinationHistoryKind.Updated => "IconEdit",
+        VaccinationHistoryKind.Cancelled => "IconX",
         _ => "IconTimeline",
     };
 
@@ -45,6 +47,8 @@ public static class VaccinationHistoryPresentation
         VaccinationHistoryKind.Scheduled => Tone.Info,
         VaccinationHistoryKind.SmsSent => Tone.Lilac,
         VaccinationHistoryKind.Rescheduled => Tone.Warn,
+        VaccinationHistoryKind.Updated => Tone.Brand,
+        VaccinationHistoryKind.Cancelled => Tone.Danger,
         _ => Tone.Neutral,
     };
 
@@ -61,5 +65,7 @@ public static class VaccinationHistoryPresentation
         VaccinationHistoryKind.Scheduled,
         VaccinationHistoryKind.SmsSent,
         VaccinationHistoryKind.Rescheduled,
+        VaccinationHistoryKind.Updated,
+        VaccinationHistoryKind.Cancelled,
     ];
 }

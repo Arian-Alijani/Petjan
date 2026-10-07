@@ -54,7 +54,7 @@ public sealed class MarkVaccinationDoneCommandHandler(IVaccinationRepository rec
             records.Add(administered.Value!);
         }
         history.Add(new MedicalHistoryEntry(context.TenantId, record.PetId, MedicalHistoryKind.Vaccination,
-            "Dose administered", clock.UtcNow, context.UserId, clock, record.VaccineName,
+            VaccinationHistoryTitles.DoseAdministered, clock.UtcNow, context.UserId, clock, record.VaccineName,
             record.Id, "VaccinationRecord"));
         return Result<string>.Ok(record.Id);
     }
@@ -92,7 +92,7 @@ public sealed class RecordVaccinationReminderCommandHandler(IVaccinationReposito
         if (record is null) return Result<string>.Fail(ErrorCodes.VaccinationNotFound);
         // Audit only; this operation does not send a message or claim successful delivery.
         history.Add(new MedicalHistoryEntry(context.TenantId, record.PetId, MedicalHistoryKind.Vaccination,
-            "Reminder produced", clock.UtcNow, context.UserId, clock, c.Message,
+            VaccinationHistoryTitles.ReminderProduced, clock.UtcNow, context.UserId, clock, c.Message,
             record.Id, "VaccinationRecord"));
         return Result<string>.Ok(record.Id);
     }

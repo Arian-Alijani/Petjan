@@ -33,18 +33,26 @@ internal static class VaccinationMapping
 
     public static VaccinationHistoryEntry ToContract(this VaccinationHistoryRow row)
     {
-        var kind = row.Title switch
-        {
-            "Dose administered" => VaccinationHistoryKind.Administered,
-            "Reminder produced" => VaccinationHistoryKind.SmsSent,
-            _ => VaccinationHistoryKind.Scheduled,
-        };
+        var kind = VaccinationHistoryTitles.KindOf(row.Title);
         var date = new PersianCalendar();
         var utc = row.OccurredUtc.UtcDateTime;
         var jalali = $"{date.GetYear(utc):0000}/{date.GetMonth(utc):00}/{date.GetDayOfMonth(utc):00}";
-        return new VaccinationHistoryEntry(row.Id, kind, row.Title, row.RecordId ?? string.Empty,
-            row.PetName, row.Species, row.OwnerName, row.Title, string.Empty, jalali,
-            utc.ToString("HH:mm", CultureInfo.InvariantCulture), row.Detail ?? string.Empty,
+        var detail = row.Detail ?? string.Empty;
+        // A reminder's detail is the message text; every other entry's detail names the vaccine / medication.
+        var (vaccine, note) = kind == VaccinationHistoryKind.SmsSent ? (string.Empty, detail) : (detail, string.Empty);
+        return new VaccinationHistoryEntry(row.Id, kind, KindLabel(kind), row.RecordId ?? string.Empty,
+            row.PetName, row.Species, row.OwnerName, vaccine, string.Empty, jalali,
+            utc.ToString("HH:mm", CultureInfo.InvariantCulture), note,
             new ActorRef(row.ActorId, row.ActorId, string.Empty, string.Empty));
     }
+
+    private static string KindLabel(VaccinationHistoryKind kind) => kind switch
+    {
+        VaccinationHistoryKind.Administered => "تزریق شد",
+        VaccinationHistoryKind.SmsSent => "پیامک",
+        VaccinationHistoryKind.Rescheduled => "باززمان‌بندی",
+        VaccinationHistoryKind.Updated => "ویرایش برنامه",
+        VaccinationHistoryKind.Cancelled => "لغو برنامه",
+        _ => "زمان‌بندی",
+    };
 }

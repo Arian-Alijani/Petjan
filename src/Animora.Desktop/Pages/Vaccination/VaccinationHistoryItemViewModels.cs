@@ -65,6 +65,8 @@ public sealed partial class VaccinationHistoryKindChipViewModel : ObservableObje
         VaccinationHistoryKind.Scheduled => "زمان‌بندی",
         VaccinationHistoryKind.SmsSent => "پیامک",
         VaccinationHistoryKind.Rescheduled => "باززمان‌بندی",
+        VaccinationHistoryKind.Updated => "ویرایش برنامه",
+        VaccinationHistoryKind.Cancelled => "لغو برنامه",
         _ => "رویداد",
     };
 }

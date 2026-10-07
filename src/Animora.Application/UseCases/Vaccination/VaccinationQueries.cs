@@ -112,14 +112,7 @@ public sealed class VaccinationHistoryQueryHandler(IVaccinationQueries queries)
             !TryJalaliDate(query.Filter.ToDate, out var to))
             return Result<VaccinationHistoryPageReadModel>.Fail(ErrorCodes.ValidationFailed);
         IReadOnlyCollection<string>? titles = query.Filter.Kinds.Count == 0 ? null :
-            query.Filter.Kinds.Select(kind => kind switch
-            {
-                VaccinationHistoryKind.Administered => "Dose administered",
-                VaccinationHistoryKind.SmsSent => "Reminder produced",
-                VaccinationHistoryKind.Scheduled => "Dose scheduled",
-                VaccinationHistoryKind.Rescheduled => "Dose rescheduled",
-                _ => string.Empty,
-            }).ToArray();
+            query.Filter.Kinds.SelectMany(VaccinationHistoryTitles.For).Distinct().ToArray();
         var (items, total) = await queries.GetHistoryAsync(from, to?.AddDays(1),
             query.Filter.Search, query.Filter.Sort == VaccinationHistorySort.Oldest,
             titles, query.Filter.Page, query.Filter.PageSize, ct);

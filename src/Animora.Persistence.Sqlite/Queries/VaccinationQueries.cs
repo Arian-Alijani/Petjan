@@ -56,7 +56,11 @@ public sealed class VaccinationQueries(AnimoraLocalDbContext db) : IVaccinationQ
         var query = from h in db.Set<MedicalHistoryEntry>().AsNoTracking()
                     join p in db.Set<Pet>().AsNoTracking() on h.PetId equals p.Id
                     join o in db.Set<Owner>().AsNoTracking() on p.OwnerId equals o.Id
+                    // The ledger = vaccination entries plus the lifecycle of medication/vaccine plans (their entries are
+                    // medication-kind for a medication plan, so they are admitted by their source aggregate).
                     where h.Kind == MedicalHistoryKind.Vaccination
+                          || (h.Kind == MedicalHistoryKind.Prescription
+                              && (h.SourceEntityType == "TreatmentPlan" || h.SourceEntityType == "TreatmentOccurrence"))
                     select new { h, p, o };
         if (titles is not null) query = query.Where(r => titles.Contains(r.h.Title));
         if (fromUtc is { } from) query = query.Where(r => r.h.OccurredUtc >= from);
