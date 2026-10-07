@@ -135,7 +135,7 @@ private DomainEvent? LogAndDrop(OutboxMessage m)
 
 ---
 
-## [ ] T3 — F-02 🟠 Disposal تمیز ServiceProvider و workerها در خروج
+## [x] T3 — F-02 🟠 Disposal تمیز ServiceProvider و workerها در خروج ✅ انجام و push شد
 **فایل:** `src/Animora.Desktop/App.axaml.cs`
 **هدف:** متد `OnFrameworkInitializationCompleted` بلوک `if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)` — خطوط **۱۰۳–۱۳۲**.
 
@@ -330,7 +330,7 @@ internal sealed partial class OutboxJsonContext : JsonSerializerContext { }
 ## چک‌لیست وضعیت (برای ادامه در سشن جدید)
 - [x] T1 F-01 — push شد ✅
 - [x] T2 F-04 — push شد ✅
-- [ ] T3 F-02 — push شد؟
+- [x] T3 F-02 — push شد ✅
 - [ ] T4 F-03 — push شد؟
 - [ ] T5 F-05 — push شد؟
 - [ ] T6 F-07 — push شد؟

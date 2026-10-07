@@ -129,6 +129,24 @@ public partial class App : global::Avalonia.Application
             // Local store startup runs only after the login window is up so the first frame is never
             // blocked (PERFORMANCE §4); the form stays disabled until it completes.
             login.Opened += OnLoginOpened;
+
+            // F-02: on application exit dispose the root provider so every IDisposable/IAsyncDisposable
+            // singleton (FinanceProjectionWorker, MaintenanceScheduler, …) shuts down cleanly — background
+            // loops stop and the final SQLite/WAL checkpoint runs instead of being cut off by process kill.
+            // ShutdownRequested is a synchronous event; blocking on DisposeAsync here is safe (the app is
+            // already tearing down and the work being drained is background, not the UI thread's own work).
+            desktop.ShutdownRequested += (_, _) =>
+            {
+                switch (Services)
+                {
+                    case IAsyncDisposable asyncDisposable:
+                        asyncDisposable.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                        break;
+                    case IDisposable disposable:
+                        disposable.Dispose();
+                        break;
+                }
+            };
         }
 
         base.OnFrameworkInitializationCompleted();
