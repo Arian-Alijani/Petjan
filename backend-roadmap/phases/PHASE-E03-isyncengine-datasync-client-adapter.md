@@ -6,7 +6,7 @@
 
 ## Read before starting
 - `backend-roadmap/CONVENTIONS.md` §1, §2, §3, §4, §5, §6 (all 15 items), §7, §8, §9, §12
-- `backend-roadmap/PROGRESS.md` (D08 entry — the 22 `<Entity>SyncContract` records,
+- `backend-roadmap/PROGRESS.md` (D08 entry — the 25 `<Entity>SyncContract` records,
   `SyncContractCatalog`, the binding replicated / non-replicated split, the **three** client-writable
   entities, `X-Animora-Contract-Version` + the two `409` actions + the header echo; A01 entry —
   `WireContract`; A02 entry — `IdGenerator`, `IClock`, `Result<T>`, `ErrorCodes`; A09 entry —
@@ -60,7 +60,7 @@ intent** (that is E06).
   `Animora.Application` or `Animora.Domain`.
 - **Local replica context — separate from the business context, by design.**
   `src/Animora.Sync.Datasync/Store/AnimoraOfflineDbContext.cs` derives from Datasync's
-  `OfflineDbContext` and maps **only** the 22 `<Entity>SyncContract` types as EF entities, in the
+  `OfflineDbContext` and maps **only** the 25 `<Entity>SyncContract` types as EF entities, in the
   **same SQLite file** as `AnimoraLocalDbContext` but on its **own table set** prefixed `repl_`
   (e.g. `repl_Pets`), plus the library's own `DatasyncOperationsQueue` / `DatasyncDeltaTokens`
   tables. A migration named **`ReplicaTables`** is generated **from this offline context, numbered
@@ -129,7 +129,7 @@ intent** (that is E06).
   a `ContractUpgradeRequired` upgrade).
 - **`SyncOptions`** (`src/Animora.Sync.Datasync/SyncOptions.cs`, bound from the desktop config):
   `ServerBaseUrl` (nullable), `PageSize = 50`, `HttpTimeoutSeconds = 30`,
-  `MaxEntitiesPerPass = 22`, `ProjectionBatchSize = 200`, `AllowInsecureHttp = false`
+  `MaxEntitiesPerPass = 25`, `ProjectionBatchSize = 200`, `AllowInsecureHttp = false`
   (dev-only flag, refused when `ServerBaseUrl` is not `localhost`). `Validate()` fails loud.
 - **Token supply is a port, not an implementation here.**
   `Animora.Sync.Abstractions/ISyncCredentialProvider.cs` →
@@ -151,7 +151,7 @@ intent** (that is E06).
 | `src/Animora.Sync.Abstractions/ISyncDiagnostics.cs` | create | diagnostics port + `SyncEntityStatus` |
 | `src/Animora.Sync.Abstractions/ISyncCredentialProvider.cs` | create | token port + anonymous default |
 | `src/Animora.Sync.Datasync/Animora.Sync.Datasync.csproj` | create | the only Datasync-client consumer |
-| `src/Animora.Sync.Datasync/Store/AnimoraOfflineDbContext.cs` | create | `OfflineDbContext` over the 22 contracts |
+| `src/Animora.Sync.Datasync/Store/AnimoraOfflineDbContext.cs` | create | `OfflineDbContext` over the 25 contracts |
 | `src/Animora.Sync.Datasync/Store/ReplicaConfigurations.cs` | create | `repl_*` table mappings |
 | `src/Animora.Sync.Datasync/Migrations/*` | create | `001_ReplicaTables` on the **offline** context's own sequence |
 | `src/Animora.Persistence.Sqlite/Migrations/*` | create | `SyncCursorReplicaColumns` on the **local** context, next free ordinal (≈`032`) |
@@ -194,7 +194,7 @@ intent** (that is E06).
 9. Write `AddAnimoraDatasync` and the conditional composition-root wiring; keep
    `LocalSyncStatusService` registered.
 10. Write the four test classes; extend `LayeringRulesTests`.
-11. Verify against a running server: a first pull populates the 22 `repl_` tables and projects into
+11. Verify against a running server: a first pull populates the 25 `repl_` tables and projects into
     the business tables; a second pull transfers only changed rows; pushing an edited `Owner`
     succeeds; a pull that would overwrite an aggregate with an unsent command is skipped and
     reported.
@@ -206,7 +206,7 @@ intent** (that is E06).
   `SyncResult`, `SyncOutcome`, `SyncEntityResult`, `SyncConflict`, `ConflictKind`,
   `ISyncDiagnostics`, `SyncEntityStatus`, `ISyncCredentialProvider`,
   `AnonymousSyncCredentialProvider`.
-- `Animora.Sync.Datasync`: `AnimoraOfflineDbContext`, `ReplicaConfigurations` (22 `repl_*` tables),
+- `Animora.Sync.Datasync`: `AnimoraOfflineDbContext`, `ReplicaConfigurations` (25 `repl_*` tables),
   migration `001_ReplicaTables` (offline context) + `SyncCursorReplicaColumns` (local context),
   `ContractToEntityMappings`, `ReplicaProjector`, `SyncPreflight`,
   `ContractVersionHandler`, `BearerTokenHandler`, `DatasyncSyncEngine`, `DatasyncSyncDiagnostics`,
@@ -273,7 +273,7 @@ intent** (that is E06).
 - `FullResyncTests` green: refused with `FULL_RESYNC_BLOCKED` while an unsettled `PendingCommand`
   exists; otherwise writes one `audit.sync.fullresync` entry with the reason, clears tokens +
   `repl_*` + cursors in one transaction, and invokes `RebuildActivityFeedAsync`.
-- Manual (real server): first pull populates all 22 `repl_` tables and the business tables; a second
+- Manual (real server): first pull populates all 25 `repl_` tables and the business tables; a second
   pull transfers only changed rows (row counts logged); an edited `Owner` pushes successfully; a
   write attempt on a non-writable entity is refused locally before any HTTP call.
 - Runnability: with no `ServerBaseUrl` configured, `scripts/sandbox/run.sh` = `SMOKE RUN OK` and

@@ -54,7 +54,11 @@ with isolation that holds **with RLS off**.
   `BoardingServiceDef`, `BoardingStay`), Inventory (`UnitOfMeasure`, `ProductCategory`, `Product`,
   `StockMovement`), Purchasing (`Supplier`, `PurchaseOrder`, `GoodsReceipt`), Sales (`Invoice`,
   `Payment`, `CashSession`, `Insurer`), Finance (`LedgerAccount`, `JournalEntry`,
-  `AccountingPeriod`, `Cheque`, `Expense`). Owned collections map to the **same table names** as the
+  `AccountingPeriod`, `Cheque`, `Expense`), **plus the post-C11 aggregates (migrations `029`/`031`):
+  Clinical `TreatmentPlan`, `TreatmentOccurrence`, `VaccineCatalogItem`; Finance `RecurringExpense`,
+  `RecurringExpensePayment`** (D08 classifies them: the three clinical ones replicated read-only, the
+  two finance ones not replicated). **Coverage is derived from the live `Animora.Domain` aggregate
+  set at execution time, not from this list.** Owned collections map to the **same table names** as the
   local store so the two schemas stay mentally aligned.
 - **Type mapping table (binding):**
   | Concept | SQL Server type |
@@ -105,7 +109,7 @@ with isolation that holds **with RLS off**.
 | `src/Animora.Persistence.SqlServer/Context/RowVersionCodec.cs` | create | `rowversion` ↔ opaque base64 |
 | `src/Animora.Persistence.SqlServer/Context/ServerModelConventions.cs` | create | naming, lengths, enum/money/time converters |
 | `src/Animora.Persistence.SqlServer/Context/ServerModel.cs` | create | replicated-entity list + non-replicated list |
-| `src/Animora.Persistence.SqlServer/Configurations/**` | create | ~34 `<Entity>Configuration` classes |
+| `src/Animora.Persistence.SqlServer/Configurations/**` | create | ~39 `<Entity>Configuration` classes (re-derive from the live domain at execution time — the count is indicative) |
 | `src/Animora.Persistence.SqlServer/Migrations/102_ServerCoreSchema*` | create | baseline migration + compression step |
 | `src/Animora.Persistence.SqlServer/Provisioning/TenantProvisioner.cs` | create | idempotent tenant bootstrap |
 | `src/Animora.Persistence.SqlServer/ServiceCollectionExtensions.cs` | create | `AddAnimoraServerStore(...)` |
@@ -120,7 +124,7 @@ with isolation that holds **with RLS off**.
 1. Add `ITenantContext`; implement a test double now (the real middleware arrives in D04).
 2. Write `ServerModelConventions` (naming, `FieldLengths`, money/time/enum converters) and
    `RowVersionCodec`.
-3. Write the ~34 configurations mirroring the local column shapes, with `TenantId`-leading indexes
+3. Write the ~39 configurations mirroring the local column shapes, with `TenantId`-leading indexes
    and the `UpdatedAt` delta index on every replicated table.
 4. Write `AnimoraServerDbContext`: named `Tenant` + `SoftDelete` filters, server-side stamping,
    tenant-mismatch rejection, `ReadOnlySet<T>()`.
@@ -136,7 +140,7 @@ with isolation that holds **with RLS off**.
 ## Contracts / schema added
 - Application: `ITenantContext`.
 - Persistence.SqlServer: `AnimoraServerDbContext`, `RowVersionCodec`, `ServerModelConventions`,
-  `ServerModel`, ~34 configurations, migration `102_ServerCoreSchema`, `TenantProvisioner`,
+  `ServerModel`, ~39 configurations, migration `102_ServerCoreSchema`, `TenantProvisioner`,
   `AddAnimoraServerStore`.
 - Server: store registration, readiness migration check, `DatabaseOptions.ReadConnectionStringName`.
 - No `Animora.Contracts` change, no `CommandTypes`, no `ErrorCodes` beyond `TENANT_MISMATCH`
