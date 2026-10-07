@@ -161,13 +161,13 @@
 - `[x]` تست‌های دامنه (فایلِ کوچک `tests/Animora.Domain.Tests/TreatmentScheduleTests.cs`، فقط با `--filter`): چهار زمان‌بندی، سقف ۳۶۵، تکراری‌ها، لغو.
 - `[x]` بیلد `scripts/sandbox/build.sh full` = 0/0. پوش: `feat(domain): [T2] add TreatmentPlan/Occurrence/VaccineCatalogItem + schedule expander`.
 
-### T3 — Application: ports + commands + queries + CommandTypes
-- `[ ]` ports در `src/Animora.Application/Ports/`: `ITreatmentPlanRepository` (Find plan/occurrence، Add plan+occurrences، `CountPendingAsync`، FindCatalog/`CodeExistsAsync`/AddCatalog) و `ITreatmentPlanQueries` (calendar range، plans for pet، custom catalog) + read-modelها.
-- `[ ]` `src/Animora.Application/UseCases/Vaccination/TreatmentCommands.cs`: پنج command طبق بخش ۲ (+validator+handler، `[RequiresPermission(VaccinationWrite)]`، `[Auditable(Clinical, ...)]`، `IJournaledCommand`). تبدیلِ روزِ محلیِ «امروز» با `IClinicTimeZoneProvider`/`ClinicCalendar`.
-- `[ ]` `TreatmentQueries.cs`: `TreatmentCalendarQuery`, `TreatmentPlansForPetQuery`؛ و گسترشِ `VaccinationCatalogQueryHandler` تا ورودی‌های سفارشی را هم برگرداند.
-- `[ ]` CommandTypeهای جدید در `CommandTypes.cs` + آرایهٔ `All`.
-- `[ ]` ثبت در `VaccinationRegistration.cs`.
-- `[ ]` بیلد `full` 0/0. پوش: `feat(application): [T3] treatment plan commands, calendar/pet queries, ports`.
+### T3 — Application: ports + commands + queries + CommandTypes ✅
+- `[x]` ports در `src/Animora.Application/Ports/`: `ITreatmentPlanRepository` (Find plan/occurrence، Add plan+occurrences، `CountPendingAsync`، FindCatalog/`CodeExistsAsync`/AddCatalog) و `ITreatmentPlanQueries` (calendar range، plans for pet، custom catalog) + read-modelها.
+- `[x]` `src/Animora.Application/UseCases/Vaccination/TreatmentCommands.cs`: پنج command طبق بخش ۲ (+validator+handler، `[RequiresPermission(VaccinationWrite)]`، `[Auditable(Clinical, ...)]`، `IJournaledCommand`). تبدیلِ روزِ محلیِ «امروز» با `IClinicTimeZoneProvider`/`ClinicCalendar`.
+- `[x]` `TreatmentQueries.cs`: `TreatmentCalendarQuery`, `TreatmentPlansForPetQuery`؛ و گسترشِ `VaccinationCatalogQueryHandler` تا ورودی‌های سفارشی را هم برگرداند.
+- `[x]` CommandTypeهای جدید در `CommandTypes.cs` + آرایهٔ `All`.
+- `[x]` ثبت در `VaccinationRegistration.cs`.
+- `[x]` بیلد `full` 0/0. پوش: `feat(application): [T3] treatment plan commands, calendar/pet queries, ports`.
 
 ### T4 — Persistence: configuration + repository + queries + migration 031
 - `[ ]` Configurationها در `src/Animora.Persistence.Sqlite/Configurations/Clinical/` (کلید، ایندکس‌های بخش ۲، یکتایی `Code`).

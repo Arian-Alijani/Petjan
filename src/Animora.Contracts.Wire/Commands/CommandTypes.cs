@@ -105,6 +105,11 @@ public static class CommandTypes
     public const string VisitsVisitComplete = "visits.visit.complete";
     public const string VaccinationRecordAdminister = "vaccination.record.administer";
     public const string VaccinationRecordReminder = "vaccination.record.reminder";
+    public const string VaccinationTreatmentCreate = "vaccination.treatment.create";
+    public const string VaccinationTreatmentUpdate = "vaccination.treatment.update";
+    public const string VaccinationTreatmentCancel = "vaccination.treatment.cancel";
+    public const string VaccinationTreatmentOccurrenceDone = "vaccination.treatment.occurrence.done";
+    public const string VaccinationCatalogAdd = "vaccination.catalog.add";
 
     /// <summary>Every declared command type, in declaration order.</summary>
     public static IReadOnlyList<string> All { get; } =
@@ -134,5 +139,7 @@ public static class CommandTypes
         ReceptionTicketUrgent, ReceptionWalkInCreate, VisitsVisitStart,
         VisitsVisitVitals, VisitsVisitNote, VisitsRxAdd, VisitsRxRemove, VisitsVisitComplete,
         VaccinationRecordAdminister, VaccinationRecordReminder,
+        VaccinationTreatmentCreate, VaccinationTreatmentUpdate, VaccinationTreatmentCancel,
+        VaccinationTreatmentOccurrenceDone, VaccinationCatalogAdd,
     ];
 }

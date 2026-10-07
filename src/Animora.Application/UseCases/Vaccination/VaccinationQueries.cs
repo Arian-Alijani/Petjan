@@ -21,19 +21,25 @@ public sealed class VaccinationDueQueryHandler(IVaccinationQueries queries)
         Result<IReadOnlyList<VaccinationDueRow>>.Ok(await queries.GetDueAsync(query.LocalDay, ct));
 }
 
-public sealed record VaccineCatalogReadModel(string Code, string Name, int TotalDoses, int BoosterDays);
+/// <summary>One catalog vaccine: the built-in protocols (read-only) plus the clinic's own additions.</summary>
+public sealed record VaccineCatalogReadModel(string Code, string Name, int TotalDoses, int BoosterDays,
+    string? Protects = null, int Stock = 0, int MinStock = 0, bool IsCustom = false);
 
 [RequiresPermission(PermissionCodes.VaccinationRead)]
 public sealed record VaccinationCatalogQuery : IQuery<IReadOnlyList<VaccineCatalogReadModel>>;
 
-public sealed class VaccinationCatalogQueryHandler
+public sealed class VaccinationCatalogQueryHandler(ITreatmentPlanQueries custom)
     : IQueryHandler<VaccinationCatalogQuery, IReadOnlyList<VaccineCatalogReadModel>>
 {
-    public Task<Result<IReadOnlyList<VaccineCatalogReadModel>>> HandleAsync(VaccinationCatalogQuery query,
-        QueryContext context, CancellationToken ct) =>
-        Task.FromResult(Result<IReadOnlyList<VaccineCatalogReadModel>>.Ok(
-            VaccineSchedule.All.Select(pair => new VaccineCatalogReadModel(pair.Key, pair.Key,
-                pair.Value.Length, VaccineSchedule.AnnualBoosterDays)).ToArray()));
+    public async Task<Result<IReadOnlyList<VaccineCatalogReadModel>>> HandleAsync(VaccinationCatalogQuery query,
+        QueryContext context, CancellationToken ct)
+    {
+        var builtIn = VaccineSchedule.All.Select(pair => new VaccineCatalogReadModel(pair.Key, pair.Key,
+            pair.Value.Length, VaccineSchedule.AnnualBoosterDays));
+        var own = (await custom.GetCustomCatalogAsync(ct)).Select(r => new VaccineCatalogReadModel(r.Code, r.Name,
+            r.TotalDoses, r.BoosterDays, r.Protects, r.Stock, r.MinStock, IsCustom: true));
+        return Result<IReadOnlyList<VaccineCatalogReadModel>>.Ok(builtIn.Concat(own).ToArray());
+    }
 }
 
 [RequiresPermission(PermissionCodes.VaccinationRead)]
