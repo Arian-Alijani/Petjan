@@ -120,8 +120,8 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <!-- amount row -->
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <!-- amount row (single method) -->
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding IsSingle}">
                         <Border Grid.Column="0" BorderBrush="{StaticResource LineBrush}"
                                 BorderThickness="1.5" CornerRadius="12"
                                 Background="{StaticResource PanelBrush}">
@@ -145,6 +145,48 @@
                                     Content="صفر" Command="{Binding SetClearCommand}" />
                         </Grid>
                     </Grid>
+
+                    <!-- split editor («ترکیبی»): one row per method, each applied as its own real payment -->
+                    <StackPanel Spacing="8" IsVisible="{Binding IsMixed}">
+                        <ItemsControl ItemsSource="{Binding Parts}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="sales:SplitPartViewModel">
+                                    <Grid ColumnDefinitions="130,*,Auto" ColumnSpacing="8" Margin="0,0,0,8">
+                                        <ComboBox Grid.Column="0" HorizontalAlignment="Stretch" CornerRadius="10" MinHeight="40"
+                                                  ItemsSource="{Binding MethodOptions}"
+                                                  SelectedItem="{Binding SelectedOption}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="sales:SplitMethodItem">
+                                                    <TextBlock Text="{Binding Label}" FontWeight="Bold" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <Border Grid.Column="1" BorderBrush="{StaticResource LineBrush}"
+                                                BorderThickness="1.5" CornerRadius="12"
+                                                Background="{StaticResource PanelBrush}">
+                                            <Grid ColumnDefinitions="Auto,*">
+                                                <TextBlock Grid.Column="0" Text="تومان" FontSize="12" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource MutedBrush}"
+                                                           VerticalAlignment="Center" Margin="14,0" />
+                                                <TextBox Grid.Column="1" Text="{Binding AmountText}" MinHeight="0"
+                                                         Padding="8,9,14,9" FontSize="15" FontWeight="ExtraBold"
+                                                         BorderThickness="0" Background="Transparent"
+                                                         TextAlignment="Right" VerticalContentAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                        <Button Grid.Column="2" Classes="ghost" Width="36" Height="36" Padding="0"
+                                                IsVisible="{Binding $parent[UserControl].((sales:PaymentModalViewModel)DataContext).CanRemovePart}"
+                                                Command="{Binding RemoveCommand}" ToolTip.Tip="حذف ردیف">
+                                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                                                  Data="{StaticResource IconX}" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Classes="pm-preset wide" HorizontalAlignment="Stretch"
+                                Content="+ افزودن ردیف" Command="{Binding AddPartCommand}" />
+                    </StackPanel>
 
                     <!-- preview -->
                     <Border CornerRadius="10" Padding="12,9"
@@ -229,6 +271,15 @@
                                     <TextBlock Text="{Binding SuccessMethodLabel}" FontSize="11"
                                                FontWeight="ExtraBold" Foreground="{StaticResource OkBrush}" />
                                 </Border>
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto,*" Margin="4,9" ColumnSpacing="12"
+                                  IsVisible="{Binding HasSuccessParts}">
+                                <TextBlock Text="اجزای پرداخت" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}" />
+                                <TextBlock Grid.Column="1" Text="{Binding SuccessParts}" FontSize="12"
+                                           FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"
+                                           TextWrapping="Wrap" HorizontalAlignment="Right"
+                                           TextAlignment="Right" />
                             </Grid>
                             <Grid ColumnDefinitions="*,Auto" Margin="4,9">
                                 <TextBlock Text="مبلغ این پرداخت" FontSize="12.5" FontWeight="SemiBold"

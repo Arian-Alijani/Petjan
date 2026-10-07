@@ -267,7 +267,8 @@ public sealed record InvoiceDetail(
     long Due,
     bool HasInsurance,
     bool HasDiscount,
-    IReadOnlyList<InvoiceAuditEntry> Audit);
+    IReadOnlyList<InvoiceAuditEntry> Audit,
+    string OwnerId = "");
 
 /// <summary>
 /// One catalog entry offered by the picker, mirroring the reference's

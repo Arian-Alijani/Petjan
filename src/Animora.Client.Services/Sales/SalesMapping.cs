@@ -110,7 +110,7 @@ internal static class SalesMapping
             lines, DiscountKindOf(row.DiscountKind), (int)Math.Round(row.DiscountValue),
             payments, row.SubtotalMinor, row.DiscountMinor, EffectiveTaxPercent(row),
             row.TaxMinor, row.InsuranceMinor, summary.TotalMinor, row.PaidMinor, summary.DueMinor,
-            insured, row.DiscountMinor > 0, BuildAudit(row, tz));
+            insured, row.DiscountMinor > 0, BuildAudit(row, tz), summary.OwnerId ?? string.Empty);
     }
 
     private static ContractInvoiceLine ToContract(this InvoiceLineReadModel row, int index)

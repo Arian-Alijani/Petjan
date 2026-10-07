@@ -31,6 +31,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     private long _total;
     private long _paid;
     private PaymentResult? _lastResult;
+    private long _lastApplied;
     private int _lastReadyCount;
 
     public PaymentModalViewModel(
@@ -59,6 +60,18 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     }
 
     public ObservableCollection<PaymentMethodOptionViewModel> Methods { get; } = [];
+
+    /// <summary>The «ترکیبی» split rows — each one is applied as a real payment with its own concrete method.</summary>
+    public ObservableCollection<SplitPartViewModel> Parts { get; } = [];
+
+    /// <summary>True while the «ترکیبی» chip is active (swaps the single amount row for the split editor).</summary>
+    public bool IsMixed => SelectedMethod == PaymentMethod.Mixed;
+
+    /// <summary>The single-amount editor (everything except «ترکیبی»).</summary>
+    public bool IsSingle => !IsMixed;
+
+    /// <summary>The «ترکیبی» split editor can drop a row only while more than one remains.</summary>
+    public bool CanRemovePart => Parts.Count > 1;
 
     [ObservableProperty]
     private string _amountText = "۰";
@@ -106,6 +119,13 @@ public sealed partial class PaymentModalViewModel : ObservableObject
 
     [ObservableProperty]
     private string _successMethodTone = string.Empty;
+
+    /// <summary>«کارت X + نقدی Y» — the split breakdown shown on the success screen for «ترکیبی».</summary>
+    [ObservableProperty]
+    private string _successParts = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasSuccessParts;
 
     [ObservableProperty]
     private string _successThisPayment = string.Empty;
@@ -157,6 +177,11 @@ public sealed partial class PaymentModalViewModel : ObservableObject
             m.IsActive = m.Method == method;
         }
 
+        if (method == PaymentMethod.Mixed)
+        {
+            EnsureSeeded();
+        }
+
         UpdatePreview();
     }
 
@@ -178,6 +203,26 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     partial void OnAmountTextChanged(string value) => UpdatePreview();
 
     private void UpdatePreview()
+    {
+        OnPropertyChanged(nameof(IsMixed));
+        OnPropertyChanged(nameof(IsSingle));
+        OnPropertyChanged(nameof(CanRemovePart));
+
+        if (IsMixed)
+        {
+            UpdateMixedPreview();
+        }
+        else
+        {
+            UpdateSinglePreview();
+        }
+
+        OnPropertyChanged(nameof(WillSettle));
+        OnPropertyChanged(nameof(PayCtaLabel));
+        PayCommand.NotifyCanExecuteChanged();
+    }
+
+    private void UpdateSinglePreview()
     {
         var amt = Amount == 0 ? _due : Amount;
         var capped = Math.Min(amt, _due);
@@ -205,17 +250,88 @@ public sealed partial class PaymentModalViewModel : ObservableObject
             PreviewTone = "partial";
             PreviewText = $"پرداخت جزئی؛ پس از این ثبت {SalePresentation.Money(afterPay)} تومان مانده باقی می‌ماند.";
         }
-
-        OnPropertyChanged(nameof(WillSettle));
-        OnPropertyChanged(nameof(PayCtaLabel));
     }
 
+    /// <summary>Live band for the split editor: Σ parts vs the amount still due.</summary>
+    private void UpdateMixedPreview()
+    {
+        var sum = SumParts;
+        WillSettle = sum > 0 && sum == _due && _due > 0;
+
+        if (sum <= 0)
+        {
+            PreviewTone = "neutral";
+            PreviewText = "مبلغ هر روش را وارد کنید.";
+        }
+        else if (sum > _due)
+        {
+            PreviewTone = "warn";
+            PreviewText = "جمع اجزا بیش از مانده است؛ مقدار اضافه ثبت نمی‌شود — مبالغ را اصلاح کنید.";
+        }
+        else if (sum == _due)
+        {
+            PreviewTone = "success";
+            PreviewText = "با این ترکیب فاکتور کاملاً تسویه می‌شود.";
+        }
+        else
+        {
+            PreviewTone = "partial";
+            PreviewText = $"پرداخت ترکیبی جزئی؛ مانده پس از ثبت: {SalePresentation.Money(_due - sum)} تومان.";
+        }
+    }
+
+    private long SumParts => Parts.Sum(p => p.Amount);
+
+    /// <summary>Pay is blocked for an over-filled / empty split so a part is never silently capped.</summary>
+    private bool CanPay() => !IsMixed || (SumParts > 0 && SumParts <= _due);
+
     [RelayCommand]
+    private void AddPart()
+    {
+        var remaining = Math.Max(0, _due - SumParts);
+        Parts.Add(NewPart(PaymentMethod.Cash, remaining));
+        UpdatePreview();
+    }
+
+    private SplitPartViewModel NewPart(PaymentMethod method, long amount) =>
+        new(method, amount, UpdatePreview, RemovePart);
+
+    private void RemovePart(SplitPartViewModel part)
+    {
+        if (Parts.Count <= 1)
+        {
+            return;
+        }
+
+        Parts.Remove(part);
+        UpdatePreview();
+    }
+
+    private void EnsureSeeded()
+    {
+        if (Parts.Count > 0)
+        {
+            return;
+        }
+
+        // Convenience seed: the whole due on card, an empty cash row ready to take a share.
+        Parts.Add(NewPart(PaymentMethod.Card, _due));
+        Parts.Add(NewPart(PaymentMethod.Cash, 0));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanPay))]
     private async Task PayAsync()
     {
+        if (IsMixed)
+        {
+            await PayMixedAsync();
+            return;
+        }
+
+        var method = SelectedMethod;
         var amount = Amount == 0 ? _due : Amount;
         var result = await _service.TakePaymentAsync(
-            _invoiceId, new PaymentRequest(SelectedMethod, amount, "پرداخت از صندوق"));
+            _invoiceId, new PaymentRequest(method, amount, "پرداخت از صندوق"));
 
         if (!result.Ok)
         {
@@ -225,23 +341,100 @@ public sealed partial class PaymentModalViewModel : ObservableObject
 
         _onChanged?.Invoke();
 
-        if (result.Settled)
+        if (method == PaymentMethod.Cheque)
         {
-            await ShowSettlementSuccessAsync(result);
+            await MaybeRegisterChequeAsync(result.Invoice, result.Applied);
+        }
+
+        await FinishPaymentAsync(result, SalePresentation.MethodLabel(method), method.ToString().ToLowerInvariant(),
+            result.Applied, null);
+    }
+
+    /// <summary>
+    /// «ترکیبی»: applies every split row as its own real payment, sequentially (each one is a normal
+    /// ledger row in History / owner file). The first failing part stops the run; parts already applied
+    /// stay committed and are reported.
+    /// </summary>
+    private async Task PayMixedAsync()
+    {
+        var plan = Parts.Where(p => p.Amount > 0).Select(p => (p.Method, p.Amount)).ToList();
+        PaymentResult? last = null;
+        var applied = new List<(PaymentMethod Method, long Amount)>();
+        string? failure = null;
+
+        foreach (var (method, amount) in plan)
+        {
+            var result = await _service.TakePaymentAsync(
+                _invoiceId, new PaymentRequest(method, amount, "پرداخت ترکیبی از صندوق"));
+            if (!result.Ok)
+            {
+                failure = Animora.Desktop.Localization.ErrorMessages.ForResult(result.Error, "خطا در ثبت پرداخت");
+                break;
+            }
+
+            last = result;
+            applied.Add((method, result.Applied));
+            if (method == PaymentMethod.Cheque)
+            {
+                await MaybeRegisterChequeAsync(result.Invoice, result.Applied);
+            }
+        }
+
+        if (last is null)
+        {
+            _toast.Show(failure ?? "خطا در ثبت پرداخت", Tone.Danger);
+            return;
+        }
+
+        _onChanged?.Invoke();
+        var total = applied.Sum(a => a.Amount);
+        var summary = string.Join(" + ", applied.Select(a =>
+            $"{SalePresentation.MethodLabel(a.Method)} {SalePresentation.Money(a.Amount)}"));
+
+        if (failure is not null)
+        {
+            _dialogs.Close();
+            _toast.Show(
+                $"{SalePresentation.Fa(applied.Count)} پرداخت ثبت شد ({summary}) اما بخش بعدی ناموفق بود: {failure} — مانده: {SalePresentation.Money(last.Invoice.Due)} تومان",
+                Tone.Warn);
+            return;
+        }
+
+        await FinishPaymentAsync(last, SalePresentation.MethodLabel(PaymentMethod.Mixed),
+            PaymentMethod.Mixed.ToString().ToLowerInvariant(), total, summary);
+    }
+
+    /// <summary>Settled → celebration screen; otherwise close with the remaining-due toast.</summary>
+    private async Task FinishPaymentAsync(PaymentResult last, string methodLabel, string methodTone, long applied, string? parts)
+    {
+        // A cheque prompt may have replaced this modal; bring it back before showing the outcome.
+        _dialogs.ShowModal(this, 520);
+
+        if (last.Settled)
+        {
+            await ShowSettlementSuccessAsync(last, methodLabel, methodTone, applied, parts);
         }
         else
         {
             _dialogs.Close();
             _toast.Show(
-                $"پرداخت {SalePresentation.Money(result.Applied)} تومان ثبت شد — مانده: {SalePresentation.Money(result.Invoice.Due)} تومان",
+                $"پرداخت {SalePresentation.Money(applied)} تومان ثبت شد — مانده: {SalePresentation.Money(last.Invoice.Due)} تومان",
                 Tone.Ok);
         }
     }
 
-    private async Task ShowSettlementSuccessAsync(PaymentResult result)
+    /// <summary>
+    /// Cheque tender hook (T5): replaced by the registration prompt. The payment itself is already
+    /// recorded; this only decides whether a Cheques-module record is created alongside it.
+    /// </summary>
+    private Task MaybeRegisterChequeAsync(InvoiceDetail invoice, long amount) => Task.CompletedTask;
+
+    private async Task ShowSettlementSuccessAsync(
+        PaymentResult result, string methodLabel, string methodTone, long applied, string? parts)
     {
         var detail = result.Invoice;
         _lastResult = result;
+        _lastApplied = applied;
         // Refund-from-success must offer what was actually collected, not the pre-payment paid value.
         _paid = detail.Paid;
         var readyCount = await GetReadyCountAsync();
@@ -249,9 +442,11 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         SuccessCustomer = detail.IsGuest || detail.OwnerName.Length == 0
             ? "مشتری گذری"
             : detail.OwnerName + (detail.PetName.Length > 0 ? " · " + detail.PetName : string.Empty);
-        SuccessMethodLabel = SalePresentation.MethodLabel(SelectedMethod);
-        SuccessMethodTone = SelectedMethod.ToString().ToLowerInvariant();
-        SuccessThisPayment = SalePresentation.Money(result.Applied);
+        SuccessMethodLabel = methodLabel;
+        SuccessMethodTone = methodTone;
+        SuccessParts = parts ?? string.Empty;
+        HasSuccessParts = !string.IsNullOrEmpty(parts);
+        SuccessThisPayment = SalePresentation.Money(applied);
         SuccessTotal = SalePresentation.Money(detail.Paid);
         SuccessNextLabel = readyCount > 0
             ? $"ویزیت بعدی ({SalePresentation.Fa(readyCount)})"
@@ -298,7 +493,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         }
 
         var html = SalesPrintDocuments.Invoice(
-            _lastResult.Invoice, _print.EmbeddedFontCss, "رسید پرداخت", _lastResult.Applied);
+            _lastResult.Invoice, _print.EmbeddedFontCss, "رسید پرداخت", _lastApplied);
         await _print.OpenWithToastAsync(_toast, $"receipt-{_lastResult.Invoice.Id}", html);
     }
 
@@ -335,4 +530,57 @@ public sealed partial class PaymentMethodOptionViewModel : ObservableObject
     public string Label { get; }
 
     public string IconKey { get; }
+}
+
+/// <summary>One selectable tender in a split row (Card / Cash / Cheque / Credit — never «ترکیبی»).</summary>
+public sealed record SplitMethodItem(PaymentMethod Method, string Label);
+
+/// <summary>One row of the «ترکیبی» split editor: a concrete method + the amount taken with it.</summary>
+public sealed partial class SplitPartViewModel : ObservableObject
+{
+    private static readonly SplitMethodItem[] Options =
+    [
+        new(PaymentMethod.Card, SalePresentation.MethodLabel(PaymentMethod.Card)),
+        new(PaymentMethod.Cash, SalePresentation.MethodLabel(PaymentMethod.Cash)),
+        new(PaymentMethod.Cheque, SalePresentation.MethodLabel(PaymentMethod.Cheque)),
+        new(PaymentMethod.Credit, SalePresentation.MethodLabel(PaymentMethod.Credit)),
+    ];
+
+    private readonly Action _changed;
+    private readonly Action<SplitPartViewModel> _remove;
+
+    public SplitPartViewModel(PaymentMethod method, long amount, Action changed, Action<SplitPartViewModel> remove)
+    {
+        _changed = changed;
+        _remove = remove;
+        _selectedOption = Options.First(o => o.Method == method);
+        _amountText = PersianNumberFormatter.ToPersianDigits(amount);
+    }
+
+    public IReadOnlyList<SplitMethodItem> MethodOptions => Options;
+
+    [ObservableProperty]
+    private SplitMethodItem _selectedOption;
+
+    [ObservableProperty]
+    private string _amountText;
+
+    public PaymentMethod Method => SelectedOption.Method;
+
+    public long Amount
+    {
+        get
+        {
+            var ascii = PersianNumberFormatter.ToAsciiDigits(AmountText ?? string.Empty);
+            var digits = new string(ascii.Where(char.IsDigit).ToArray());
+            return long.TryParse(digits, out var v) ? Math.Max(0, v) : 0;
+        }
+    }
+
+    partial void OnSelectedOptionChanged(SplitMethodItem value) => _changed();
+
+    partial void OnAmountTextChanged(string value) => _changed();
+
+    [RelayCommand]
+    private void Remove() => _remove(this);
 }
