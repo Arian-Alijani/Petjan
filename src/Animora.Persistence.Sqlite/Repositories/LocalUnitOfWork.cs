@@ -105,10 +105,18 @@ public sealed class LocalUnitOfWork(AnimoraLocalDbContext db, IDomainEventDispat
             return Result.Ok();
         }
         catch (DbUpdateConcurrencyException) { return Result.Fail(ErrorCodes.ConcurrencyConflict); }
+        // SQLITE_CONSTRAINT (19) = UNIQUE/FK/CHECK violation: a data conflict/logic bug, not a transient
+        // store outage. Surfacing it as ConcurrencyConflict lets upstream conflict handling run and stops
+        // the misleading "store unavailable" message that would trigger pointless retries.
+        catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteErrorCode: 19 })
+        {
+            return Result.Fail(ErrorCodes.ConcurrencyConflict);
+        }
         catch (DbUpdateException ex) when (ex.InnerException is SqliteException)
         {
             return Result.Fail(ErrorCodes.StoreUnavailable);
         }
+        catch (SqliteException { SqliteErrorCode: 19 }) { return Result.Fail(ErrorCodes.ConcurrencyConflict); }
         catch (SqliteException) { return Result.Fail(ErrorCodes.StoreUnavailable); }
     }
 }

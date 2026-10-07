@@ -22,7 +22,7 @@
 
 ---
 
-## [ ] T1 — F-01 🔴 نگاشت نقض constraint به ConcurrencyConflict
+## [x] T1 — F-01 🔴 نگاشت نقض constraint به ConcurrencyConflict ✅ انجام و push شد
 **فایل:** `src/Animora.Persistence.Sqlite/Repositories/LocalUnitOfWork.cs`
 **متد هدف:** `StoreAsync` — خطوط **۱۰۰–۱۱۳** (کل بدنه).
 
@@ -328,7 +328,7 @@ internal sealed partial class OutboxJsonContext : JsonSerializerContext { }
 ---
 
 ## چک‌لیست وضعیت (برای ادامه در سشن جدید)
-- [ ] T1 F-01 — push شد؟
+- [x] T1 F-01 — push شد ✅
 - [ ] T2 F-04 — push شد؟
 - [ ] T3 F-02 — push شد؟
 - [ ] T4 F-03 — push شد؟
