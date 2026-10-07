@@ -151,8 +151,8 @@ measured, never asserted.
 | `src/Animora.Server/Caching/TenantCache.cs` | create | bounded cache + `CacheKey.For` |
 | `src/Animora.Server/Security/RateLimiting.cs` | create | the 5 policies + `429` shape |
 | `src/Animora.Server/Endpoints/DiagnosticsEndpoints.cs` | create | 5 diagnostics routes |
-| `src/Animora.Server/HealthEndpoints.cs` | modify | the 8-check readiness payload |
-| `src/Animora.Server/Security/MembershipCache.cs` | modify | use `TenantCache` + `CacheKey.For` |
+| `src/Animora.Server/Health/HealthEndpoints.cs` | modify | the 8-check readiness payload (path per D01) |
+| `src/Animora.Server/Tenancy/MembershipCache.cs` | modify | use `TenantCache` + `CacheKey.For` (path per D04) |
 | `src/Animora.Server/Security/EntitlementMiddleware.cs` | modify | use `TenantCache` for the verdict cache |
 | `src/Animora.Server/Endpoints/IdentityEndpoints.cs` | modify | activate `.RequireRateLimiting("auth")` |
 | `src/Animora.Server/Endpoints/CommandEndpoints.cs` | modify | `.RequireRateLimiting("commands")` |
