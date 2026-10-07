@@ -480,7 +480,12 @@
                         <TextBlock Text="انبار واکسن" Foreground="{StaticResource Brand600Brush}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
                         <TextBlock Classes="card-title" Text="موجودی واکسن‌های کلینیک" />
                     </StackPanel>
-                    <TextBlock Grid.Column="1" Text="مدیریت انبار ←" Foreground="{StaticResource MutedBrush}" FontSize="12" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Classes="outline" Command="{Binding OpenAddCatalogVaccineCommand}" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource InkBrush}" Data="{StaticResource IconPlus}" />
+                            <TextBlock Text="ثبت واکسن جدید در انبار" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </Grid>
                 <Border Classes="card-header-rule" />
                 <ItemsControl ItemsSource="{Binding Catalog}" Margin="18">

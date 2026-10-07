@@ -4,6 +4,7 @@ using Animora.Contracts.Vaccination;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.Appointments;
+using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Services;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -12,24 +13,23 @@ using CommunityToolkit.Mvvm.Input;
 namespace Animora.Desktop.Pages.Vaccination;
 
 /// <summary>
-/// The «ثبت واکسن جدید» modal, mirroring the reference's <c>openVaxModal</c>
-/// (Animora-UI/assets/vaccination.js): the patient picker, the vaccine
-/// type / dose / dates / vet / lot fields and the send-confirmation toggle.
-/// The patient picker follows the appointment booking pattern (server-side
-/// search over <see cref="IAppointmentBookingService.SearchPatientsAsync"/>: no
-/// eager list, minimum two characters, debounced, version-guarded, bounded to
-/// 20 rows, species chips and a selected-patient card with owner + phone).
-/// The submit stays a mock that shows the reference's confirmation toast
-/// (per the phase file's out-of-scope note) but now requires a selected patient.
+/// The «ثبت دارو / واکسن» modal: registers a real medication / vaccine plan for one patient.
+/// The admin picks the patient (booking-style server search: no eager list, min two characters, debounced,
+/// version-guarded, bounded to 20 rows), the item type (vaccine / medication), the kind (clinic / owner at home /
+/// boarding), and one of four schedules (once · every N days · specific dates · weekdays). Submit calls
+/// <see cref="IVaccinationService.CreateTreatmentPlanAsync"/> — on failure the modal stays open with the message.
 /// </summary>
 public sealed partial class AddVaccineModalViewModel : ObservableObject
 {
+    private readonly IVaccinationService _service;
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
     private readonly IAppointmentBookingService _booking;
+    private readonly Action _onCreated;
 
     private const int MinQueryLength = 2;
     private const int PatientPageSize = 20;
+    private const int MaxSpecificDates = 60;
     private const string HintMessage = "برای انتخاب بیمار، حداقل ۲ حرف از نام یا شماره تماس را وارد کنید.";
 
     // Only the latest settled input reaches the database.
@@ -40,24 +40,52 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
     private BookingPatient? _selectedPatient;
 
     public AddVaccineModalViewModel(
+        IVaccinationService service,
         IReadOnlyList<VaccineCatalogEntry> catalog,
         IDialogService dialogs,
         IToastService toast,
-        IAppointmentBookingService booking)
+        IAppointmentBookingService booking,
+        Action onCreated)
     {
+        _service = service;
         _dialogs = dialogs;
         _toast = toast;
         _booking = booking;
+        _onCreated = onCreated;
         Catalog = catalog;
         SelectedVaccine = catalog.Count > 0 ? catalog[0] : null;
         BuildKindChips();
+
+        foreach (var kind in new[] { TreatmentKind.ClinicVisit, TreatmentKind.HomeByOwner, TreatmentKind.BoardingAdminister })
+        {
+            TreatmentKinds.Add(new TreatmentKindOptionViewModel(kind) { IsSelected = kind == TreatmentKind.ClinicVisit });
+        }
+
+        foreach (var type in new[] { TreatmentScheduleType.Once, TreatmentScheduleType.EveryNDays, TreatmentScheduleType.SpecificDates, TreatmentScheduleType.WeeklyOnDays })
+        {
+            ScheduleOptions.Add(new ScheduleTypeOptionViewModel(type) { IsSelected = type == TreatmentScheduleType.Once });
+        }
+
+        for (var i = 0; i < AppointmentsCalendarMath.DayNames.Length; i++)
+        {
+            // Saturday-first display; the mask bit is (int)DayOfWeek.
+            Weekdays.Add(new WeekdayToggleViewModel((i + 6) % 7, AppointmentsCalendarMath.DayNames[i]));
+        }
+
+        UpdateModeFlags();
     }
 
     public IReadOnlyList<VaccineCatalogEntry> Catalog { get; }
 
-    public IReadOnlyList<string> Doses { get; } = ["نوبت اول", "یادآور اول", "یادآور دوم", "نوبت سالانه"];
+    public bool HasCatalog => Catalog.Count > 0;
 
-    public IReadOnlyList<string> Vets { get; } = ["دکتر آریا نیک", "دکتر سمانه راد"];
+    public List<TreatmentKindOptionViewModel> TreatmentKinds { get; } = [];
+
+    public List<ScheduleTypeOptionViewModel> ScheduleOptions { get; } = [];
+
+    public List<WeekdayToggleViewModel> Weekdays { get; } = [];
+
+    public RangeObservableCollection<SpecificDayChipViewModel> SpecificDays { get; } = [];
 
     // ── patient picker (booking pattern) ────────────────────────────────────
     public RangeObservableCollection<BookingPatientOptionViewModel> PatientList { get; } = [];
@@ -255,26 +283,266 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
         }
     }
 
+    // ── what is given ────────────────────────────────────────────────────────
+    [ObservableProperty]
+    private bool _isVaccine = true;
+
+    public bool IsMedication => !IsVaccine;
+
     [ObservableProperty]
     private VaccineCatalogEntry? _selectedVaccine;
 
     [ObservableProperty]
-    private string _selectedDose = "نوبت اول";
+    private string _medicationName = string.Empty;
 
     [ObservableProperty]
-    private string _injectionDate = string.Empty;
+    private string _dosage = string.Empty;
 
     [ObservableProperty]
-    private string _nextDueDate = string.Empty;
+    private string _notes = string.Empty;
 
     [ObservableProperty]
-    private string _selectedVet = "دکتر آریا نیک";
+    private bool _notifyOwner = true;
 
     [ObservableProperty]
-    private string _lot = string.Empty;
+    private bool _canNotifyOwner;
+
+    private TreatmentKind _kind = TreatmentKind.ClinicVisit;
+
+    partial void OnIsVaccineChanged(bool value) => OnPropertyChanged(nameof(IsMedication));
+
+    [RelayCommand]
+    private void SetItemType(string? type) => IsVaccine = type != "medication";
+
+    [RelayCommand]
+    private void SelectKindOption(TreatmentKindOptionViewModel? option)
+    {
+        if (option is null)
+        {
+            return;
+        }
+
+        foreach (var o in TreatmentKinds)
+        {
+            o.IsSelected = ReferenceEquals(o, option);
+        }
+
+        _kind = option.Kind;
+        CanNotifyOwner = _kind == TreatmentKind.HomeByOwner;
+    }
+
+    // ── schedule ─────────────────────────────────────────────────────────────
+    private TreatmentScheduleType _scheduleType = TreatmentScheduleType.Once;
 
     [ObservableProperty]
-    private bool _sendConfirmation = true;
+    private string _startDate = string.Empty;
+
+    [ObservableProperty]
+    private string _endDate = string.Empty;
+
+    [ObservableProperty]
+    private string _intervalDays = "2";
+
+    [ObservableProperty]
+    private string _doseCount = string.Empty;
+
+    [ObservableProperty]
+    private string _pendingDate = string.Empty;
+
+    [ObservableProperty]
+    private bool _showStart = true;
+
+    [ObservableProperty]
+    private bool _showEvery;
+
+    [ObservableProperty]
+    private bool _showSpecific;
+
+    [ObservableProperty]
+    private bool _showWeekly;
+
+    [ObservableProperty]
+    private bool _showRange;
+
+    [ObservableProperty]
+    private string _startLabel = "تاریخ انجام";
+
+    [ObservableProperty]
+    private string _errorText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasError;
+
+    [ObservableProperty]
+    private bool _isSubmitting;
+
+    partial void OnErrorTextChanged(string value) => HasError = value.Length > 0;
+
+    [RelayCommand]
+    private void SelectSchedule(ScheduleTypeOptionViewModel? option)
+    {
+        if (option is null)
+        {
+            return;
+        }
+
+        foreach (var o in ScheduleOptions)
+        {
+            o.IsSelected = ReferenceEquals(o, option);
+        }
+
+        _scheduleType = option.Type;
+        UpdateModeFlags();
+    }
+
+    private void UpdateModeFlags()
+    {
+        ShowStart = _scheduleType != TreatmentScheduleType.SpecificDates;
+        ShowEvery = _scheduleType == TreatmentScheduleType.EveryNDays;
+        ShowSpecific = _scheduleType == TreatmentScheduleType.SpecificDates;
+        ShowWeekly = _scheduleType == TreatmentScheduleType.WeeklyOnDays;
+        ShowRange = ShowEvery || ShowWeekly;
+        StartLabel = _scheduleType == TreatmentScheduleType.Once ? "تاریخ انجام" : "تاریخ شروع";
+    }
+
+    // Picking a date in the «تاریخ‌های مشخص» picker appends a chip and clears the picker for the next one.
+    partial void OnPendingDateChanged(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || !TryParseDay(value, out var day))
+        {
+            return;
+        }
+
+        PendingDate = string.Empty;
+        if (SpecificDays.Count >= MaxSpecificDates)
+        {
+            ErrorText = $"حداکثر {VaccinationPresentation.Fa(MaxSpecificDates)} تاریخ مجاز است.";
+            return;
+        }
+
+        if (SpecificDays.Any(c => c.Day == day))
+        {
+            return;
+        }
+
+        var all = SpecificDays.Select(c => c.Day).Append(day).OrderBy(d => d).ToList();
+        SpecificDays.ReplaceAll(all.Select(d => new SpecificDayChipViewModel(d)));
+        ErrorText = string.Empty;
+    }
+
+    [RelayCommand]
+    private void RemoveSpecificDay(SpecificDayChipViewModel? chip)
+    {
+        if (chip is null)
+        {
+            return;
+        }
+
+        SpecificDays.ReplaceAll(SpecificDays.Where(c => c.Day != chip.Day).ToList());
+    }
+
+    private static bool TryParseDay(string? iso, out DateOnly day)
+    {
+        day = default;
+        if (string.IsNullOrWhiteSpace(iso))
+        {
+            return false;
+        }
+
+        try
+        {
+            day = DateOnly.FromDateTime(JalaliCalendar.Parse(iso.Trim()).ToDateTime());
+            return true;
+        }
+        catch (Exception ex) when (ex is FormatException or ArgumentException or IndexOutOfRangeException or OverflowException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Builds the schedule input, or returns a Persian validation message.</summary>
+    private (TreatmentScheduleInput? Schedule, string? Error) BuildSchedule()
+    {
+        switch (_scheduleType)
+        {
+            case TreatmentScheduleType.Once:
+                return TryParseDay(StartDate, out var once)
+                    ? (new TreatmentScheduleInput(TreatmentScheduleType.Once, Start: once), null)
+                    : (null, "تاریخ انجام را انتخاب کنید.");
+
+            case TreatmentScheduleType.EveryNDays:
+            {
+                if (!TryParseDay(StartDate, out var start))
+                {
+                    return (null, "تاریخ شروع را انتخاب کنید.");
+                }
+
+                if (!int.TryParse(PersianNumberFormatter.ToAsciiDigits(IntervalDays).Trim(), out var interval) || interval < 1 || interval > 365)
+                {
+                    return (null, "فاصلهٔ روزها باید عددی بین ۱ تا ۳۶۵ باشد.");
+                }
+
+                var hasCount = !string.IsNullOrWhiteSpace(DoseCount);
+                var hasEnd = !string.IsNullOrWhiteSpace(EndDate);
+                if (!hasCount && !hasEnd)
+                {
+                    return (null, "تاریخ پایان یا تعداد دفعات را وارد کنید.");
+                }
+
+                int? count = null;
+                if (hasCount)
+                {
+                    if (!int.TryParse(PersianNumberFormatter.ToAsciiDigits(DoseCount).Trim(), out var n) || n < 1 || n > 365)
+                    {
+                        return (null, "تعداد دفعات باید عددی بین ۱ تا ۳۶۵ باشد.");
+                    }
+
+                    count = n;
+                }
+
+                DateOnly? end = null;
+                if (hasEnd && !hasCount)
+                {
+                    if (!TryParseDay(EndDate, out var e))
+                    {
+                        return (null, "تاریخ پایان نامعتبر است.");
+                    }
+
+                    if (e < start)
+                    {
+                        return (null, "تاریخ پایان نباید قبل از شروع باشد.");
+                    }
+
+                    end = e;
+                }
+
+                return (new TreatmentScheduleInput(TreatmentScheduleType.EveryNDays, Start: start, End: end, IntervalDays: interval, Count: count), null);
+            }
+
+            case TreatmentScheduleType.SpecificDates:
+                return SpecificDays.Count == 0
+                    ? (null, "حداقل یک تاریخ را انتخاب کنید.")
+                    : (new TreatmentScheduleInput(TreatmentScheduleType.SpecificDates, Days: SpecificDays.Select(c => c.Day).ToList()), null);
+
+            default:
+            {
+                if (!TryParseDay(StartDate, out var start) || !TryParseDay(EndDate, out var end))
+                {
+                    return (null, "تاریخ شروع و پایان را انتخاب کنید.");
+                }
+
+                if (end < start)
+                {
+                    return (null, "تاریخ پایان نباید قبل از شروع باشد.");
+                }
+
+                var mask = Weekdays.Where(w => w.IsSelected).Aggregate(0, (m, w) => m | (1 << w.DayOfWeek));
+                return mask == 0
+                    ? (null, "حداقل یک روز هفته را انتخاب کنید.")
+                    : (new TreatmentScheduleInput(TreatmentScheduleType.WeeklyOnDays, Start: start, End: end, WeekdayMask: mask), null);
+            }
+        }
+    }
 
     [RelayCommand]
     private void Cancel()
@@ -284,16 +552,135 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Submit()
+    private async Task SubmitAsync()
     {
+        if (IsSubmitting)
+        {
+            return;
+        }
+
+        ErrorText = string.Empty;
         if (_selectedPatient is null)
         {
-            _toast.Show("ابتدا بیمار را انتخاب کنید", Tone.Danger);
+            ErrorText = "ابتدا بیمار را انتخاب کنید.";
             return;
+        }
+
+        string title;
+        string? vaccineCode = null;
+        if (IsVaccine)
+        {
+            if (SelectedVaccine is null)
+            {
+                ErrorText = "نوع واکسن را انتخاب کنید؛ در صورت نبود، ابتدا از «انبار واکسن» آن را ثبت کنید.";
+                return;
+            }
+
+            title = SelectedVaccine.Name;
+            vaccineCode = SelectedVaccine.Id;
+        }
+        else
+        {
+            title = MedicationName.Trim();
+            if (title.Length == 0)
+            {
+                ErrorText = "نام دارو را وارد کنید.";
+                return;
+            }
+        }
+
+        var (schedule, error) = BuildSchedule();
+        if (schedule is null)
+        {
+            ErrorText = error ?? "زمان‌بندی نامعتبر است.";
+            return;
+        }
+
+        var input = new TreatmentPlanInput(
+            _selectedPatient.Id,
+            IsVaccine ? TreatmentItemType.Vaccine : TreatmentItemType.Medication,
+            _kind,
+            title,
+            schedule,
+            vaccineCode,
+            string.IsNullOrWhiteSpace(Dosage) ? null : Dosage.Trim(),
+            string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim(),
+            _kind == TreatmentKind.HomeByOwner && NotifyOwner);
+
+        IsSubmitting = true;
+        try
+        {
+            await _service.CreateTreatmentPlanAsync(input);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ErrorText = PatientsPresentation.CommandFailureMessage(ex, "ثبت برنامه ناموفق بود؛ دوباره تلاش کنید.");
+            _toast.Show(ErrorText, Tone.Danger);
+            return;
+        }
+        finally
+        {
+            IsSubmitting = false;
         }
 
         StopPatientSearch();
         _dialogs.Close();
-        _toast.Show("واکسن ثبت شد (نمونه طراحی)");
+        _toast.Show($"{(IsVaccine ? "واکسن" : "دارو")} برای «{_selectedPatient.Name}» ثبت و در تقویم زمان‌بندی شد");
+        _onCreated();
     }
+}
+
+/// <summary>A kind option (clinic / home / boarding) of the registration modal, tinted with the kind colour.</summary>
+public sealed partial class TreatmentKindOptionViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isSelected;
+
+    public TreatmentKindOptionViewModel(TreatmentKind kind)
+    {
+        Kind = kind;
+        Label = VaccinationPresentation.KindLabel(kind);
+        IconKey = VaccinationPresentation.KindIconKey(kind);
+        Brush = VaccinationPresentation.KindBrush(kind);
+        Wash = VaccinationPresentation.KindWash(kind);
+    }
+
+    public TreatmentKind Kind { get; }
+    public string Label { get; }
+    public string IconKey { get; }
+    public IBrush Brush { get; }
+    public IBrush Wash { get; }
+}
+
+/// <summary>A schedule-type option of the registration modal.</summary>
+public sealed partial class ScheduleTypeOptionViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isSelected;
+
+    public ScheduleTypeOptionViewModel(TreatmentScheduleType type)
+    {
+        Type = type;
+        Label = VaccinationPresentation.ScheduleLabel(type);
+    }
+
+    public TreatmentScheduleType Type { get; }
+    public string Label { get; }
+}
+
+/// <summary>A weekday toggle (Saturday-first); <see cref="DayOfWeek"/> is the <see cref="System.DayOfWeek"/> value (mask bit).</summary>
+public sealed partial class WeekdayToggleViewModel(int dayOfWeek, string label) : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isSelected;
+
+    public int DayOfWeek { get; } = dayOfWeek;
+    public string Label { get; } = label;
+}
+
+/// <summary>A picked date of the «تاریخ‌های مشخص» schedule, shown as a removable chip.</summary>
+public sealed class SpecificDayChipViewModel(DateOnly day)
+{
+    public DateOnly Day { get; } = day;
+    public string Text { get; } = AppointmentsCalendarMath.Full(day);
 }

@@ -189,11 +189,11 @@
 - `[x]` ثبت در DI/`ViewFactory`: لازم نشد؛ `TreatmentCalendarViewModel` زیرمجموعهٔ `VaccinationPageViewModel` است (مثل `History`).
 - `[x]` بیلد سریع (طبق دستور کاربر هیچ بیلد/تستی گرفته نشد؛ اسکیپ). پوش: `feat(vaccination-ui): [T6] rename to «دارو و واکسن», calendar tab + kind colors`.
 
-### T7 — UI: مدالِ ثبتِ واقعی + افزودنِ واکسن به انبار
-- `[ ]` بازنویسی `AddVaccineModalViewModel`/`View`: `ItemType`، `Kind` سه‌گانه، عنوان/دوز/یادداشت، `NotifyOwner` (فقط HomeByOwner)، زمان‌بندی (Once/EveryNDays/SpecificDates/WeeklyOnDays) با `JalaliDatePicker`. `Submit()` → `CreateTreatmentPlanAsync`، toast واقعی، `IDataChangeNotifier.Notify(...)`، مدیریتِ خطا (`ServiceException`).
-- `[ ]` لیست برنامه‌های بیمار + لغو/ویرایش در جزئیات.
-- `[ ]` تبِ «انبار واکسن»: دکمهٔ «ثبت واکسن جدید» → `AddCatalogVaccineAsync` (مدال کوچک)، رفرش لیست.
-- `[ ]` بیلد سریع 0/0. پوش: `feat(vaccination-ui): [T7] real treatment-plan modal + add vaccine to stock`.
+### T7 — UI: مدالِ ثبتِ واقعی + افزودنِ واکسن به انبار ✅
+- `[x]` بازنویسی `AddVaccineModalViewModel`/`View`: `ItemType`، `Kind` سه‌گانه، عنوان/دوز/یادداشت، `NotifyOwner` (فقط HomeByOwner)، زمان‌بندی (Once/EveryNDays/SpecificDates/WeeklyOnDays) با `JalaliDatePicker`. `Submit()` → `CreateTreatmentPlanAsync`، toast واقعی، `IDataChangeNotifier.Notify(...)`، مدیریتِ خطا (`ServiceException`).
+- `[x]` لیست برنامه‌های بیمار + لغو/ویرایش در جزئیات.
+- `[x]` تبِ «انبار واکسن»: دکمهٔ «ثبت واکسن جدید» → `AddCatalogVaccineAsync` (مدال کوچک)، رفرش لیست.
+- `[x]` بیلد سریع (طبق دستور کاربر هیچ بیلد/تستی گرفته نشد؛ اسکیپ). پوش: `feat(vaccination-ui): [T7] real treatment-plan modal + add vaccine to stock`.
 
 ### T8 — یکپارچه‌سازی و تأیید نهایی
 - `[ ]` `scripts/sandbox/build.sh full` = **0/0** (+ تست‌های فیلترشدهٔ `TreatmentSchedule` و `NavigationAdmission`).

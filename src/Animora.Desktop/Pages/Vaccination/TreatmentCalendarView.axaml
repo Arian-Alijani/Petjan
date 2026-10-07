@@ -243,6 +243,10 @@
                                                        Foreground="{Binding Brush}" />
                                             <TextBlock Text="· یادآور پیامکی مالک" IsVisible="{Binding ShowsOwnerReminder}" FontSize="11"
                                                        Foreground="{StaticResource MutedBrush}" />
+                                            <Button Classes="link" Padding="6,0" Background="Transparent" BorderThickness="0"
+                                                    Foreground="{StaticResource Brand700Brush}" FontSize="11.5" FontWeight="Bold"
+                                                    Command="{Binding #Root.((vx:TreatmentCalendarViewModel)DataContext).OpenPetPlansCommand}"
+                                                    CommandParameter="{Binding}" Content="برنامه‌های این بیمار" />
                                         </StackPanel>
                                     </StackPanel>
                                     <Button Grid.Column="1" Classes="outline" VerticalAlignment="Center"

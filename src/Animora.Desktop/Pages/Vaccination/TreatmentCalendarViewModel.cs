@@ -20,17 +20,20 @@ public sealed partial class TreatmentCalendarViewModel : ObservableObject
     private readonly IVaccinationService _service;
     private readonly IToastService _toast;
     private readonly Action _onChanged;
+    private readonly Action<CalendarEventViewModel> _openPetPlans;
 
     private int _loadVersion;
     private bool _loadedOnce;
     private DateOnly _monthStart;
     private List<CalendarOccurrence> _occurrences = [];
 
-    public TreatmentCalendarViewModel(IVaccinationService service, IToastService toast, Action onChanged)
+    public TreatmentCalendarViewModel(
+        IVaccinationService service, IToastService toast, Action onChanged, Action<CalendarEventViewModel> openPetPlans)
     {
         _service = service;
         _toast = toast;
         _onChanged = onChanged;
+        _openPetPlans = openPetPlans;
 
         foreach (var kind in new[] { TreatmentKind.ClinicVisit, TreatmentKind.HomeByOwner, TreatmentKind.BoardingAdminister })
         {
@@ -160,6 +163,15 @@ public sealed partial class TreatmentCalendarViewModel : ObservableObject
 
         _selectedDay = day;
         ApplySelection();
+    }
+
+    [RelayCommand]
+    private void OpenPetPlans(CalendarEventViewModel? item)
+    {
+        if (item is not null)
+        {
+            _openPetPlans(item);
+        }
     }
 
     [RelayCommand]

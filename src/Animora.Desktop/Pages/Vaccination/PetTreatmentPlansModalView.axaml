@@ -1,0 +1,152 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vx="using:Animora.Desktop.Pages.Vaccination"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Vaccination.PetTreatmentPlansModalView"
+             x:Name="Root"
+             x:DataType="vx:PetTreatmentPlansModalViewModel"
+             Width="600" MaxWidth="600" FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <Style Selector="Button.mini">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="Button.kopt">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Opacity" Value="0.55" />
+        </Style>
+        <Style Selector="Button.kopt.on">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+    </UserControl.Styles>
+    <StackPanel>
+        <Grid Margin="22,18,22,6" ColumnDefinitions="40,*,36" ColumnSpacing="12">
+            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12" Background="{StaticResource Brand50Brush}">
+                <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}" Data="{StaticResource IconClipboard}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="برنامه‌های دارو و واکسن" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Brand600Brush}" />
+                <TextBlock Text="{Binding PetName}" FontSize="18" FontWeight="ExtraBold" />
+            </StackPanel>
+            <Button Grid.Column="2" Classes="ghost" Width="36" Height="36" Padding="8" Command="{Binding CloseCommand}" ToolTip.Tip="بستن">
+                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconX}" />
+            </Button>
+        </Grid>
+
+        <ScrollViewer MaxHeight="540" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="22,8,22,20" Spacing="10">
+                <ProgressBar Height="3" IsIndeterminate="True" IsVisible="{Binding IsLoading}" />
+                <TextBlock Text="{Binding LoadMessage}" IsVisible="{Binding !HasPlans}" FontSize="12.5"
+                           Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,18" />
+
+                <!-- inline editor -->
+                <Border IsVisible="{Binding IsEditing}" Background="{StaticResource Bg2Brush}" BorderBrush="{StaticResource Brand600Brush}"
+                        BorderThickness="1" CornerRadius="12" Padding="14">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="ویرایش برنامه" FontSize="13.5" FontWeight="ExtraBold" />
+                        <TextBlock Text="تاریخ‌های برنامه قابل تغییر نیست؛ برای تغییر آن، برنامه را لغو و دوباره ثبت کنید."
+                                   FontSize="11" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <StackPanel Grid.Column="0" Spacing="5">
+                                <TextBlock Text="عنوان" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                                <TextBox Text="{Binding EditTitle}" MaxLength="200" Padding="12,9" CornerRadius="10" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="5">
+                                <TextBlock Text="دوز / مقدار" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                                <TextBox Text="{Binding EditDosage}" MaxLength="200" Padding="12,9" CornerRadius="10" />
+                            </StackPanel>
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding EditKinds}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vx:TreatmentKindOptionViewModel">
+                                    <Button Classes="kopt" Classes.on="{Binding IsSelected}" Margin="0,0,6,0" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
+                                            Background="{Binding Wash}" BorderBrush="{Binding Brush}" Foreground="{Binding Brush}"
+                                            Command="{Binding #Root.((vx:PetTreatmentPlansModalViewModel)DataContext).SelectEditKindCommand}"
+                                            CommandParameter="{Binding}">
+                                        <TextBlock Text="{Binding Label}" TextWrapping="Wrap" TextAlignment="Center" />
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding CanEditNotify}">
+                            <TextBlock Grid.Column="0" Text="یادآور پیامکی برای مالک" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding EditNotify}" OnContent="" OffContent="" />
+                        </Grid>
+                        <TextBox Text="{Binding EditNotes}" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="56"
+                                 PlaceholderText="یادداشت…" Padding="12,9" CornerRadius="10" />
+                        <TextBlock Text="{Binding EditError}" IsVisible="{Binding HasEditError}" FontSize="12" FontWeight="Bold"
+                                   Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left">
+                            <Button Classes="ghost" Content="انصراف" Command="{Binding CancelEditCommand}" />
+                            <Button Classes="primary" Content="ذخیره" Command="{Binding SaveEditCommand}" IsEnabled="{Binding !IsSaving}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <ItemsControl ItemsSource="{Binding Plans}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vx:PetPlanRowViewModel">
+                            <Border Background="{Binding Wash}" BorderBrush="{Binding Brush}" BorderThickness="0,0,4,0"
+                                    CornerRadius="12" Padding="14,12" Margin="0,0,0,10">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Grid.Column="0" Spacing="5">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Path Classes="icon" Width="16" Height="16" Stroke="{Binding Brush}"
+                                                  Data="{Binding ItemTypeIconKey, Converter={StaticResource IconKeyConverter}}" />
+                                            <TextBlock Text="{Binding Title}" FontSize="13.5" FontWeight="ExtraBold" />
+                                            <TextBlock Text="{Binding ItemTypeLabel}" FontSize="11" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                            <controls:Badge Text="{Binding StatusText}" Tone="{Binding StatusTone}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Path Classes="icon" Width="13" Height="13" Stroke="{Binding Brush}"
+                                                  Data="{Binding KindIconKey, Converter={StaticResource IconKeyConverter}}" />
+                                            <TextBlock Text="{Binding KindLabel}" FontSize="11.5" FontWeight="Bold" Foreground="{Binding Brush}" />
+                                            <TextBlock Text="{Binding ScheduleText}" FontSize="11.5" Foreground="{StaticResource Ink2Brush}" />
+                                            <TextBlock Text="{Binding DosageText}" IsVisible="{Binding HasDosage}" FontSize="11.5" Foreground="{StaticResource Ink2Brush}" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding RangeText}" FontSize="11.5" Foreground="{StaticResource MutedBrush}" />
+                                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercent}" Height="5" CornerRadius="5"
+                                                     Foreground="{Binding Brush}" Background="{StaticResource Bg2Brush}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="12">
+                                            <TextBlock Text="{Binding ProgressText}" FontSize="11.5" FontWeight="Bold" />
+                                            <TextBlock Text="{Binding NextText}" IsVisible="{Binding HasNext}" FontSize="11.5" Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top"
+                                                IsVisible="{Binding CanModify}">
+                                        <Button Classes="mini" ToolTip.Tip="ویرایش"
+                                                Command="{Binding #Root.((vx:PetTreatmentPlansModalViewModel)DataContext).BeginEditCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconEdit}" />
+                                        </Button>
+                                        <Button Classes="mini" ToolTip.Tip="لغو برنامه"
+                                                Command="{Binding #Root.((vx:PetTreatmentPlansModalViewModel)DataContext).CancelPlanCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource DangerBrush}" Data="{StaticResource IconTrash}" />
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </StackPanel>
+</UserControl>

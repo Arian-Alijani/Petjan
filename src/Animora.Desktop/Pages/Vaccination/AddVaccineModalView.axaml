@@ -7,10 +7,55 @@
              x:Name="Root"
              x:Class="Animora.Desktop.Pages.Vaccination.AddVaccineModalView"
              x:DataType="vx:AddVaccineModalViewModel"
-             Width="520" MaxWidth="520" FlowDirection="RightToLeft">
+             Width="580" MaxWidth="580" FlowDirection="RightToLeft">
     <UserControl.Styles>
         <!-- Reuses the booking panel's patient-picker styles (pat-card / pat-opt / pat-empty / mini-chip). -->
         <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/BookingPanelStyles.axaml" />
+        <Style Selector="Button.opt">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.opt.on">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="ToggleButton.wd">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="ToggleButton.wd:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="TextElement.Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.kopt">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Opacity" Value="0.55" />
+        </Style>
+        <Style Selector="Button.kopt.on">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
     </UserControl.Styles>
     <StackPanel>
         <Grid Margin="22,18,22,6" ColumnDefinitions="40,*,36" ColumnSpacing="12">
@@ -20,13 +65,14 @@
             </Border>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                 <TextBlock Text="ثبت جدید" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Brand600Brush}" />
-                <TextBlock Text="ثبت واکسن بیمار" FontSize="18" FontWeight="ExtraBold" />
+                <TextBlock Text="ثبت دارو / واکسن بیمار" FontSize="18" FontWeight="ExtraBold" />
             </StackPanel>
             <Button Grid.Column="2" Classes="ghost" Width="36" Height="36" Padding="8" Command="{Binding CancelCommand}" ToolTip.Tip="بستن">
                 <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconX}" />
             </Button>
         </Grid>
-        <StackPanel Margin="22,8,22,20" Spacing="12">
+        <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="22,8,22,20" Spacing="14">
             <StackPanel Spacing="6">
                 <TextBlock Text="بیمار" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
 
@@ -171,8 +217,30 @@
                     </Border>
                 </StackPanel>
             </StackPanel>
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12">
-                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">
+            <!-- item type -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="چه چیزی ثبت می‌شود؟" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Button Grid.Column="0" Classes="opt" Classes.on="{Binding IsVaccine}"
+                            Command="{Binding SetItemTypeCommand}" CommandParameter="vaccine">
+                        <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center">
+                            <Path Classes="icon" Width="15" Height="15" Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconSyringe}" />
+                            <TextBlock Text="واکسن" />
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="1" Classes="opt" Classes.on="{Binding IsMedication}"
+                            Command="{Binding SetItemTypeCommand}" CommandParameter="medication">
+                        <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center">
+                            <Path Classes="icon" Width="15" Height="15" Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconFlask}" />
+                            <TextBlock Text="دارو" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </StackPanel>
+
+            <!-- what -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Spacing="6" IsVisible="{Binding IsVaccine}">
                     <TextBlock Text="نوع واکسن" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
                     <ComboBox ItemsSource="{Binding Catalog}" SelectedItem="{Binding SelectedVaccine}" HorizontalAlignment="Stretch" Padding="12,8" CornerRadius="10">
                         <ComboBox.ItemTemplate>
@@ -182,41 +250,149 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
                 </StackPanel>
-                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6">
-                    <TextBlock Text="نوبت" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
-                    <ComboBox ItemsSource="{Binding Doses}" SelectedItem="{Binding SelectedDose}" HorizontalAlignment="Stretch" Padding="12,8" CornerRadius="10" />
+                <StackPanel Grid.Column="0" Spacing="6" IsVisible="{Binding IsMedication}">
+                    <TextBlock Text="نام دارو" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding MedicationName}" MaxLength="200" PlaceholderText="مثلاً آموکسی‌سیلین" Padding="12,10" CornerRadius="10" />
                 </StackPanel>
-                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="6">
-                    <TextBlock Text="تاریخ تزریق" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
-                    <controls:JalaliDatePicker DateValue="{Binding InjectionDate, Mode=TwoWay}"
-                                               Placeholder="۱۴۰۴/۰۵/۱۱" HorizontalAlignment="Stretch" />
-                </StackPanel>
-                <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6">
-                    <TextBlock Text="سررسید بعدی" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
-                    <controls:JalaliDatePicker DateValue="{Binding NextDueDate, Mode=TwoWay}"
-                                               Placeholder="۱۴۰۵/۰۵/۱۱" HorizontalAlignment="Stretch" />
-                </StackPanel>
-                <StackPanel Grid.Row="2" Grid.Column="0" Spacing="6">
-                    <TextBlock Text="دامپزشک" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
-                    <ComboBox ItemsSource="{Binding Vets}" SelectedItem="{Binding SelectedVet}" HorizontalAlignment="Stretch" Padding="12,8" CornerRadius="10" />
-                </StackPanel>
-                <StackPanel Grid.Row="2" Grid.Column="1" Spacing="6">
-                    <TextBlock Text="شماره سری (Lot)" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
-                    <TextBox Text="{Binding Lot}" PlaceholderText="FV-8821" Padding="12,10" CornerRadius="10" FlowDirection="LeftToRight" />
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="دوز / مقدار (اختیاری)" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding Dosage}" MaxLength="200" PlaceholderText="مثلاً ۰٫۵ میلی‌لیتر" Padding="12,10" CornerRadius="10" />
                 </StackPanel>
             </Grid>
-            <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
-                <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="ارسال پیامک تأیید" FontSize="12.5" FontWeight="Bold" />
-                    <TextBlock Text="پس از ثبت به مالک ارسال شود" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+
+            <!-- kind -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="نحوهٔ انجام" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                <ItemsControl ItemsSource="{Binding TreatmentKinds}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vx:TreatmentKindOptionViewModel">
+                            <Button Classes="kopt" Classes.on="{Binding IsSelected}" Margin="0,0,6,0" HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Background="{Binding Wash}" BorderBrush="{Binding Brush}" Foreground="{Binding Brush}"
+                                    Command="{Binding #Root.((vx:AddVaccineModalViewModel)DataContext).SelectKindOptionCommand}"
+                                    CommandParameter="{Binding}">
+                                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                    <Path Classes="icon" Width="14" Height="14" Stroke="{Binding Brush}"
+                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                    <TextBlock Text="{Binding Label}" />
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0" IsVisible="{Binding CanNotifyOwner}">
+                    <StackPanel Grid.Column="0" Spacing="3">
+                        <TextBlock Text="یادآور پیامکی برای مالک" FontSize="12.5" FontWeight="Bold" />
+                        <TextBlock Text="فقط به‌صورت پرچم ثبت می‌شود؛ ارسال پیامک واقعی انجام نمی‌شود" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotifyOwner}" OnContent="" OffContent="" />
+                </Grid>
+            </StackPanel>
+
+            <!-- schedule -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="زمان‌بندی" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                <ItemsControl ItemsSource="{Binding ScheduleOptions}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vx:ScheduleTypeOptionViewModel">
+                            <Button Classes="opt" Classes.on="{Binding IsSelected}" Margin="0,0,6,0" HorizontalAlignment="Stretch"
+                                    Command="{Binding #Root.((vx:AddVaccineModalViewModel)DataContext).SelectScheduleCommand}"
+                                    CommandParameter="{Binding}">
+                                <TextBlock Text="{Binding Label}" TextAlignment="Center" TextWrapping="Wrap" FontSize="11.5" />
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" Spacing="6" IsVisible="{Binding ShowStart}">
+                        <TextBlock Text="{Binding StartLabel}" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                        <controls:JalaliDatePicker DateValue="{Binding StartDate, Mode=TwoWay}" Placeholder="انتخاب تاریخ" HorizontalAlignment="Stretch" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6" IsVisible="{Binding ShowRange}">
+                        <TextBlock Text="تاریخ پایان" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                        <controls:JalaliDatePicker DateValue="{Binding EndDate, Mode=TwoWay}" Placeholder="انتخاب تاریخ" HorizontalAlignment="Stretch" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- every N days -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" IsVisible="{Binding ShowEvery}">
+                    <StackPanel Grid.Column="0" Spacing="6">
+                        <TextBlock Text="هر چند روز یک‌بار" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                        <TextBox Text="{Binding IntervalDays}" MaxLength="3" PlaceholderText="۲" Padding="12,10" CornerRadius="10" FlowDirection="LeftToRight" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                        <TextBlock Text="یا تعداد دفعات (به‌جای تاریخ پایان)" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                        <TextBox Text="{Binding DoseCount}" MaxLength="3" PlaceholderText="مثلاً ۵" Padding="12,10" CornerRadius="10" FlowDirection="LeftToRight" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- specific dates -->
+                <StackPanel Spacing="8" IsVisible="{Binding ShowSpecific}">
+                    <TextBlock Text="افزودن تاریخ" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <controls:JalaliDatePicker DateValue="{Binding PendingDate, Mode=TwoWay}" Placeholder="هر تاریخ انتخاب‌شده به فهرست اضافه می‌شود" HorizontalAlignment="Stretch" />
+                    <ItemsControl ItemsSource="{Binding SpecificDays}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vx:SpecificDayChipViewModel">
+                                <Border Background="{StaticResource Brand50Brush}" CornerRadius="99" Padding="10,4">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding Text}" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource Brand700Brush}" VerticalAlignment="Center" />
+                                        <Button Width="18" Height="18" Padding="0" CornerRadius="9" Background="Transparent" BorderThickness="0"
+                                                Command="{Binding #Root.((vx:AddVaccineModalViewModel)DataContext).RemoveSpecificDayCommand}"
+                                                CommandParameter="{Binding}" ToolTip.Tip="حذف">
+                                            <Path Classes="icon" Width="10" Height="10" Stroke="{StaticResource Brand700Brush}" StrokeThickness="3" Data="{StaticResource IconX}" />
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
-                <ToggleSwitch Grid.Column="1" IsChecked="{Binding SendConfirmation}" OnContent="" OffContent="" />
-            </Grid>
+
+                <!-- weekdays -->
+                <StackPanel Spacing="6" IsVisible="{Binding ShowWeekly}">
+                    <TextBlock Text="روزهای هفته" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <ItemsControl ItemsSource="{Binding Weekdays}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6" /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vx:WeekdayToggleViewModel">
+                                <ToggleButton Classes="wd" IsChecked="{Binding IsSelected, Mode=TwoWay}" Content="{Binding Label}" Padding="12,6" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- notes -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="یادداشت (اختیاری)" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                <TextBox Text="{Binding Notes}" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64"
+                         PlaceholderText="توضیحات تکمیلی…" Padding="12,10" CornerRadius="10" />
+            </StackPanel>
+
+            <!-- validation / failure message -->
+            <Border IsVisible="{Binding HasError}" Background="#FEF3F2" BorderBrush="#FDA29B" BorderThickness="1"
+                    CornerRadius="10" Padding="12,9">
+                <TextBlock Text="{Binding ErrorText}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource DangerBrush}"
+                           TextWrapping="Wrap" />
+            </Border>
         </StackPanel>
+        </ScrollViewer>
         <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="22,14,22,20">
             <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left">
                 <Button Classes="ghost" Content="انصراف" Command="{Binding CancelCommand}" />
-                <Button Classes="primary" Content="ثبت واکسن" Command="{Binding SubmitCommand}" />
+                <Button Classes="primary" Content="ثبت و زمان‌بندی" Command="{Binding SubmitCommand}" IsEnabled="{Binding !IsSubmitting}" />
             </StackPanel>
         </Border>
     </StackPanel>

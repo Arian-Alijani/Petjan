@@ -128,6 +128,8 @@ public static class ViewFactory
 
         // Vaccination.
         Register<global::Animora.Desktop.Pages.Vaccination.AddVaccineModalViewModel, global::Animora.Desktop.Pages.Vaccination.AddVaccineModalView>(factories);
+        Register<global::Animora.Desktop.Pages.Vaccination.AddCatalogVaccineModalViewModel, global::Animora.Desktop.Pages.Vaccination.AddCatalogVaccineModalView>(factories);
+        Register<global::Animora.Desktop.Pages.Vaccination.PetTreatmentPlansModalViewModel, global::Animora.Desktop.Pages.Vaccination.PetTreatmentPlansModalView>(factories);
         Register<global::Animora.Desktop.Pages.Vaccination.SmsComposeViewModel, global::Animora.Desktop.Pages.Vaccination.SmsComposeView>(factories);
         Register<global::Animora.Desktop.Pages.Vaccination.VaccinationPageViewModel, global::Animora.Desktop.Pages.Vaccination.VaccinationPageView>(factories);
         Register<global::Animora.Desktop.Pages.Vaccination.VaccinationRecordDetailViewModel, global::Animora.Desktop.Pages.Vaccination.VaccinationRecordDetailView>(factories);

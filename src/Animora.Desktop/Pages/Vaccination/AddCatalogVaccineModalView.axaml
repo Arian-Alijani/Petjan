@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vx="using:Animora.Desktop.Pages.Vaccination"
+             x:Class="Animora.Desktop.Pages.Vaccination.AddCatalogVaccineModalView"
+             x:DataType="vx:AddCatalogVaccineModalViewModel"
+             Width="520" MaxWidth="520" FlowDirection="RightToLeft">
+    <StackPanel>
+        <Grid Margin="22,18,22,6" ColumnDefinitions="40,*,36" ColumnSpacing="12">
+            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12" Background="{StaticResource Brand50Brush}">
+                <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}" Data="{StaticResource IconBox}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="انبار واکسن" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Brand600Brush}" />
+                <TextBlock Text="ثبت واکسن جدید در انبار" FontSize="18" FontWeight="ExtraBold" />
+            </StackPanel>
+            <Button Grid.Column="2" Classes="ghost" Width="36" Height="36" Padding="8" Command="{Binding CancelCommand}" ToolTip.Tip="بستن">
+                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconX}" />
+            </Button>
+        </Grid>
+        <StackPanel Margin="22,8,22,20" Spacing="12">
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Spacing="6">
+                    <TextBlock Text="نام واکسن" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding Name}" MaxLength="120" PlaceholderText="مثلاً سه‌گانه گربه" Padding="12,10" CornerRadius="10" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="کد کوتاه (یکتا، لاتین)" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding Code}" MaxLength="32" PlaceholderText="FVRCP2" Padding="12,10" CornerRadius="10" FlowDirection="LeftToRight" />
+                </StackPanel>
+            </Grid>
+            <StackPanel Spacing="6">
+                <TextBlock Text="محافظت در برابر (اختیاری)" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                <TextBox Text="{Binding Protects}" MaxLength="300" PlaceholderText="بیماری‌هایی که این واکسن پوشش می‌دهد" Padding="12,10" CornerRadius="10" />
+            </StackPanel>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Spacing="6">
+                    <TextBlock Text="تعداد نوبت‌های سری" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding TotalDoses}" MaxLength="2" Padding="12,10" CornerRadius="10" FlowDirection="LeftToRight" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="فاصلهٔ یادآور (روز)" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding BoosterDays}" MaxLength="4" Padding="12,10" CornerRadius="10" FlowDirection="LeftToRight" />
+                </StackPanel>
+            </Grid>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Spacing="6">
+                    <TextBlock Text="موجودی اولیه (دُز)" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding Stock}" MaxLength="7" Padding="12,10" CornerRadius="10" FlowDirection="LeftToRight" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="حداقل موجودی (هشدار)" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding MinStock}" MaxLength="7" Padding="12,10" CornerRadius="10" FlowDirection="LeftToRight" />
+                </StackPanel>
+            </Grid>
+            <Border IsVisible="{Binding HasError}" Background="#FEF3F2" BorderBrush="#FDA29B" BorderThickness="1"
+                    CornerRadius="10" Padding="12,9">
+                <TextBlock Text="{Binding ErrorText}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" />
+            </Border>
+        </StackPanel>
+        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="22,14,22,20">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left">
+                <Button Classes="ghost" Content="انصراف" Command="{Binding CancelCommand}" />
+                <Button Classes="primary" Content="افزودن به انبار" Command="{Binding SubmitCommand}" IsEnabled="{Binding !IsSubmitting}" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

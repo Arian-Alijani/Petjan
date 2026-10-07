@@ -25,8 +25,11 @@ public sealed partial class VaccineCatalogCardViewModel : ObservableObject
         Protects = entry.Protects;
         SpeciesIconKey = VaccinationPresentation.SpeciesIconKey(entry.Species);
 
-        IsLow = entry.Stock <= entry.MinStock;
-        var pct = (int)Math.Min(100, Math.Round(entry.Stock / (entry.MinStock * 3d) * 100));
+        IsLow = entry.Stock <= entry.MinStock && entry.MinStock > 0 || entry.Stock == 0;
+        // A custom item may have MinStock 0 → no division; the bar then simply shows full when anything is in stock.
+        var pct = entry.MinStock > 0
+            ? (int)Math.Min(100, Math.Round(entry.Stock / (entry.MinStock * 3d) * 100))
+            : entry.Stock > 0 ? 100 : 0;
         StockPercent = pct;
         StockFill = IsLow ? VaccinationPresentation.Fill("#d92d20") : VaccinationPresentation.Fill(color);
         StockText = $"{VaccinationPresentation.Fa(entry.Stock)} دُز";

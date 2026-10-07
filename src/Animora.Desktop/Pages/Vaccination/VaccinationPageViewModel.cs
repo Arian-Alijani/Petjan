@@ -60,7 +60,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         _toast = toast;
 
         History = new VaccinationHistoryViewModel(service, historyOpener);
-        Calendar = new TreatmentCalendarViewModel(service, toast, NotifyVaccinationChanged);
+        Calendar = new TreatmentCalendarViewModel(service, toast, NotifyVaccinationChanged, OpenPetPlansFromCalendar);
 
         Title = "دارو و واکسن";
         Eyebrow = "مراقبت";
@@ -426,13 +426,22 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
             return;
         }
 
-        await _service.MarkDoneAsync(row.Record.Id);
+        try
+        {
+            await _service.MarkDoneAsync(row.Record.Id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(Patients.PatientsPresentation.CommandFailureMessage(ex, "ثبت انجام ناموفق بود؛ دوباره تلاش کنید."), Tone.Danger);
+            return;
+        }
+
         NotifyVaccinationChanged();
         _records[_records.FindIndex(r => r.Id == row.Record.Id)] =
             _records.First(r => r.Id == row.Record.Id) with { Status = VaccinationStatus.Done };
 
         Refresh();
-        _toast.Show("واکسن به‌عنوان انجام‌شده ثبت شد (نمونه طراحی)");
+        _toast.Show("واکسن به‌عنوان انجام‌شده ثبت شد");
     }
 
     [RelayCommand]
@@ -482,7 +491,16 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
 
     private async Task MarkDoneByIdAsync(VaccinationRecord record)
     {
-        await _service.MarkDoneAsync(record.Id);
+        try
+        {
+            await _service.MarkDoneAsync(record.Id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(Patients.PatientsPresentation.CommandFailureMessage(ex, "ثبت انجام ناموفق بود؛ دوباره تلاش کنید."), Tone.Danger);
+            return;
+        }
+
         NotifyVaccinationChanged();
         var index = _records.FindIndex(r => r.Id == record.Id);
         if (index >= 0)
@@ -491,13 +509,45 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         }
 
         Refresh();
-        _toast.Show("واکسن به‌عنوان انجام‌شده ثبت شد (نمونه طراحی)");
+        _toast.Show("واکسن به‌عنوان انجام‌شده ثبت شد");
     }
 
     [RelayCommand]
     private void OpenAddVaccine()
     {
-        _dialogs.ShowModal(new AddVaccineModalViewModel(_catalog, _dialogs, _toast, _booking));
+        _dialogs.ShowModal(
+            new AddVaccineModalViewModel(_service, _catalog, _dialogs, _toast, _booking, OnPlanCreated),
+            maxWidth: 580);
+    }
+
+    /// <summary>A new plan feeds the calendar (and the dashboard/history counters) — refresh and jump to the calendar tab.</summary>
+    private void OnPlanCreated()
+    {
+        NotifyVaccinationChanged();
+        Calendar.Invalidate();
+        ActiveSection = "calendar";
+    }
+
+    [RelayCommand]
+    private void OpenAddCatalogVaccine() =>
+        _dialogs.ShowModal(new AddCatalogVaccineModalViewModel(_service, _dialogs, _toast, OnCatalogVaccineAdded));
+
+    private void OnCatalogVaccineAdded()
+    {
+        NotifyVaccinationChanged();
+        _ = ReloadPageAsync();
+    }
+
+    private void OpenPetPlansFromCalendar(CalendarEventViewModel item) =>
+        _dialogs.ShowModal(
+            new PetTreatmentPlansModalViewModel(
+                _service, _dialogs, _toast, item.Occurrence.PetId, item.PetName, OnPlansEdited),
+            maxWidth: 600);
+
+    private void OnPlansEdited()
+    {
+        NotifyVaccinationChanged();
+        Calendar.Invalidate();
     }
 
     [RelayCommand]
