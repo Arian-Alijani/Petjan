@@ -75,8 +75,8 @@ test-consolidation phase A12 — see §6.)
 | D07 | Server command handlers II — money & stock | M | D | D06 | R-B01, R-B17, R-B22, R-B23 | desktop offline ok |
 | D08 | Datasync replication surface | M | D | D05 | R-B03, R-B11, R-B31 | desktop offline ok |
 | D09 | Outbox, workers, resilience | M | D | D07 | R-B07, R-B09, R-B25 | desktop offline ok |
-| D10 | Subscription context & operator API | M | D | D04 | R-B05, R-B30 | desktop offline ok |
-| D11 | Licensing & anti-piracy | M | D | D10 | R-B06, R-B29, R-B30 | desktop offline ok |
+| D10 | Subscription context, operator API & self-service onboarding intake | M | D | D04 | R-B05, R-B30, R-B36 | desktop offline ok |
+| D11 | Licensing & anti-piracy | M | D | D10 | R-B06, R-B29, R-B30, R-B36 | desktop offline ok |
 | D12 | Files — valet key + resumable transfer | M | D | D09 | R-B26 | desktop offline ok |
 | D13 | Server observability & weak-server performance | M | D | D09 | R-B07, R-B27, R-B35 | desktop offline ok |
 | E01 | Admin web I — operator panel core | M | E | D11 | R-B05 | desktop offline ok |
@@ -85,7 +85,7 @@ test-consolidation phase A12 — see §6.)
 | E04 | Sync orchestration & status | M | E | E03 | R-B03 | desktop offline ok |
 | E05 | Conflict resolution & non-destructive pull | M | E | E04 | R-B03, R-B17, R-B18 | desktop offline ok |
 | E06 | Command transport & settlement reconciliation | M | E | E05, D07 | R-B03, R-B09, R-B16 | desktop offline ok |
-| E07 | Online auth, entitlement & device lifecycle | M | E | E06, D11 | R-B04, R-B06, R-B20, R-B21 | desktop offline ok |
+| E07 | Online auth, entitlement & device lifecycle | M | E | E06, D11 | R-B04, R-B06, R-B20, R-B21, R-B36 | desktop offline ok |
 | E08 | Validation gates & performance proof | M | E | E07, D13, E02 | R-B07, R-B08, R-B10, R-B19, R-B32 | desktop offline ok |
 | E09 | Release engineering | M | E | E08 | R-B27, R-B31, R-B33 | desktop offline ok |
 

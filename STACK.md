@@ -25,15 +25,19 @@
 > capabilities/limitations/known issues, technology selection rationale. No
 > feature design, DB schema, business/behavioral architecture, or code.
 >
-> **Product.** Animora — self-hosted accounting + clinic-management platform
-> for veterinary clinics.
+> **Product.** Animora — a **commercial, vendor-hosted (SaaS) accounting +
+> clinic-management platform** for veterinary clinics. The vendor runs one
+> central, multi-tenant server; clinics subscribe and connect to it and never
+> host a server themselves ("self-hosted" = the vendor self-operates the
+> server on its own infrastructure rather than on a cloud PaaS — see
+> `ARCHITECTURE.md` header / §17, never per-clinic hosting).
 > **Targets.** Windows desktop, macOS desktop, Web browser.
 > **Platform base.** .NET 10 (LTS) end-to-end, one C# solution, shared domain.
-> **Hard runtime rule.** **Zero external-Internet dependency at runtime** — a
-> healthy clinic LAN/server must run fully even with the Internet cable pulled.
-> (This is a product requirement; how the architecture satisfies it is defined
-> in `ARCHITECTURE.md` §17.4 — this file only lists which technologies are
-> and are not permitted to require Internet connectivity at runtime.)
+> **Hard runtime rule.** **Zero external-Internet dependency at runtime** — the
+> vendor's server environment must run fully even with the Internet cable
+> pulled. (This is a product requirement; how the architecture satisfies it is
+> defined in `ARCHITECTURE.md` §17.4 — this file only lists which technologies
+> are and are not permitted to require Internet connectivity at runtime.)
 >
 > **Evidence status (verified 2026-09).** Every version, limit and
 > "documented limitation" below was re-checked against live sources: the
@@ -865,6 +869,13 @@ T-RULE 015  Any vulnerability suppression (`NuGetAuditSuppress`) must be dated,
   tenant) at launch.**
 - **No cloud-hosted database, identity provider, or storage service** is
   referenced by any project in the solution.
+- **No payment gateway / billing-processor SDK in this solution.** Payment
+  collection, tax and invoicing belong to the vendor-side public website
+  (`ARCHITECTURE.md` §3, §13.4, §17), which is a **separate system** outside
+  this solution; the clinic-serving server only receives an async, idempotent
+  *onboarding/provisioning intent* and records `BillingPeriod` amounts for
+  reference — it never charges a card. This keeps the zero-Internet runtime
+  rule intact.
 - This file defines the **technology stack**, not schemas/endpoints/feature
   logic/behavior.
 

@@ -2,8 +2,9 @@
 
 > Locked requirement list. Every phase file's `Satisfies:` line references IDs from this table, and
 > every ID below is satisfied by at least one phase (coverage verified in §3).
-> Sources: the product requirement list (`R-B01`–`R-B12`) and the binding invariants of
-> `ARCHITECTURE.md` / `STACK.md` / `PERFORMANCE.md` (`R-B13`–`R-B35`).
+> Sources: the product requirement list (`R-B01`–`R-B12`), the binding invariants of
+> `ARCHITECTURE.md` / `STACK.md` / `PERFORMANCE.md` (`R-B13`–`R-B35`), and the commercial-SaaS
+> shape lock (`R-B36`).
 
 ## §1 Product requirements
 
@@ -21,6 +22,7 @@
 | R-B10 | Clean code: correct layering, naming and folder placement; no logic in the wrong project; no mixing of client and server code. | product §9 | A01 (enforced by `LayeringRulesTests`), A02, C11, E08 |
 | R-B11 | Future-ready seams (structure now, features later, no rework): a web clinic client, and an operator panel able to later show per-tenant stock and per-store charts. | product §10 | D02, D08, E02 |
 | R-B12 | The user can build, run and test the app himself throughout Tracks A–C. | product §11 | A01–A11, B01–B05, C01–C11 (CONVENTIONS §11) |
+| R-B36 | Commercial SaaS shape: the vendor runs one central multi-tenant server; a customer self-registers and buys a subscription on the public website, then downloads + installs the desktop app and logs in. The website is a separate vendor-side system that hands an async, idempotent, authorized **provisioning intent** to the Subscription context (sharing the operator's create-tenant+subscription operation), never a runtime dependency and never a payment processor inside this solution. Clinics never host a server. | product (this session) · ARCH §3, §13.4, §17 | D10 (intake), D11 (license issued on provisioning), E07 (customer login/activation) |
 
 ## §2 Binding invariants
 
@@ -52,18 +54,18 @@
 
 ## §3 Coverage guarantee
 
-**Guarantee:** every requirement `R-B01`–`R-B35` is referenced by at least one phase file's
+**Guarantee:** every requirement `R-B01`–`R-B36` is referenced by at least one phase file's
 `Satisfies:` line, and every ID referenced by a phase file exists in this table.
 
 Verification at authoring time:
 
 | Check | Result |
 |---|---|
-| IDs defined | 35 (`R-B01`–`R-B35`) |
-| IDs with ≥ 1 owning phase | 35 / 35 |
+| IDs defined | 36 (`R-B01`–`R-B36`) |
+| IDs with ≥ 1 owning phase | 36 / 36 |
 | IDs with no owning phase | none |
 | Phase `Satisfies:` IDs not defined here | none |
-| Requirements owned by exactly one phase (single points of failure) | R-B18 (E05), R-B26 (D12), R-B28 (A11), R-B32 (E08), R-B33 (E09), R-B34 (C11) — each is a single cohesive deliverable by design |
+| Requirements owned by exactly one phase (single points of failure) | R-B18 (E05), R-B26 (D12), R-B28 (A11), R-B32 (E08), R-B33 (E09), R-B34 (C11) — each is a single cohesive deliverable by design. R-B36's intake is owned by D10; D11/E07 carry its downstream legs. |
 
 Re-run this check whenever a phase file is edited: the phase's `Satisfies:` list and this table's
 "Phases that satisfy it" column must stay mutually consistent.

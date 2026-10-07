@@ -1,6 +1,6 @@
 # Phase E07 — Online auth, entitlement & device lifecycle
 
-**Band:** M · **Track:** E · **Depends on:** E06, D11 · **Satisfies:** R-B04, R-B06, R-B20, R-B21
+**Band:** M · **Track:** E · **Depends on:** E06, D11 · **Satisfies:** R-B04, R-B06, R-B20, R-B21, R-B36
 **Runnable after this phase:** desktop offline yes · server required no (login falls back to the B03
 local credential mirror; entitlement falls back to the sealed local cache)
 

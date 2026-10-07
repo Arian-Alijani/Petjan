@@ -6,17 +6,25 @@ anything else only when a rule below says to.
 
 ## What this repo is (one paragraph)
 
-**Animora** — a self-hosted **veterinary clinic management + accounting**
-desktop app. Persian / RTL UI, Jalali calendar. One C# solution on **.NET 10**,
-UI is **Avalonia + MVVM (CommunityToolkit.Mvvm)**. Current state: the **Windows
-desktop frontend is complete** (all 17 screens built) and now runs on the
-**real local SQLite backend** — the backend roadmap's **Track C mock purge is
-finished**, the `Mocks/` folder was removed entirely, and every screen's
-`Animora.Contracts` interface is bound to its real `Animora.Client.Services`
-implementation over `Animora.Application` + `Animora.Persistence.Sqlite`
-(authorized query pipeline, local encrypted store, activation-scoped refresh —
-no network server, offline-first). The remaining backend work (server / Datasync
-in Tracks D–E) is still ahead and **not** wired in. **Do not state which backend
+**Animora** — a **commercial, vendor-hosted (SaaS) veterinary clinic
+management + accounting** product: the vendor (Animora) runs **one central,
+multi-tenant server**, customers **register + buy a subscription on the public
+website, download the desktop app, log in, and use it** — clinics never run a
+server of their own ("self-hosted" in the specs means *the vendor
+self-operates its server, not a cloud PaaS* — see `ARCHITECTURE.md` header /
+§13.4/§17; it never means per-clinic hosting). The app itself is an
+**offline-first desktop client** (Persian / RTL UI, Jalali calendar) that
+syncs to that server. One C# solution on **.NET 10**, UI is **Avalonia + MVVM
+(CommunityToolkit.Mvvm)**. Current state: the **Windows desktop frontend is
+complete** (all 17 screens built) and now runs on the **real local SQLite
+backend** — the backend roadmap's **Track C mock purge is finished**, the
+`Mocks/` folder was removed entirely, and every screen's `Animora.Contracts`
+interface is bound to its real `Animora.Client.Services` implementation over
+`Animora.Application` + `Animora.Persistence.Sqlite` (authorized query
+pipeline, local encrypted store, activation-scoped refresh — offline-first,
+runs with **no server yet**). The remaining backend work — **the central
+multi-tenant server, subscription/licensing, and Datasync** in Tracks D–E — is
+still ahead and **not** wired in. **Do not state which backend
 phase is "current", or that any screen is bug-free, from memory — it changes
 every session.** The live answer is always `backend-roadmap/PROGRESS.md`'s
 "Next phase" line and its state table; read that before assuming a project's
