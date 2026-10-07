@@ -207,18 +207,28 @@
                 <!-- tier 1 · section tabs (start) + search (end/left) -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <Border Grid.Column="0" Classes="seg" HorizontalAlignment="Stretch">
-                        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="2">
+                        <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="2">
                             <Border Grid.Column="0" Classes="segitem" Classes.on="{Binding IsVisitsSection}">
                                 <Button Classes="segtap lg" HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center"
                                         Command="{Binding SetSectionCommand}" CommandParameter="visits">
                                     <StackPanel Orientation="Horizontal" Spacing="7">
                                         <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconSyringe}" />
-                                        <TextBlock Text="نوبت" FontSize="13.5" FontWeight="Bold" />
+                                        <TextBlock Text="نوبت واکسن" FontSize="13.5" FontWeight="Bold" />
                                     </StackPanel>
                                 </Button>
                             </Border>
-                            <Border Grid.Column="1" Classes="segitem" Classes.on="{Binding IsStockSection}">
+                            <Border Grid.Column="1" Classes="segitem" Classes.on="{Binding IsCalendarSection}">
+                                <Button Classes="segtap lg" HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Command="{Binding SetSectionCommand}" CommandParameter="calendar">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconCalendar}" />
+                                        <TextBlock Text="تقویم" FontSize="13.5" FontWeight="Bold" />
+                                    </StackPanel>
+                                </Button>
+                            </Border>
+                            <Border Grid.Column="2" Classes="segitem" Classes.on="{Binding IsStockSection}">
                                 <Button Classes="segtap lg" HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center"
                                         Command="{Binding SetSectionCommand}" CommandParameter="stock">
@@ -228,7 +238,7 @@
                                     </StackPanel>
                                 </Button>
                             </Border>
-                            <Border Grid.Column="2" Classes="segitem" Classes.on="{Binding IsSettingsSection}">
+                            <Border Grid.Column="3" Classes="segitem" Classes.on="{Binding IsSettingsSection}">
                                 <Button Classes="segtap lg" HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center"
                                         Command="{Binding SetSectionCommand}" CommandParameter="settings">
@@ -238,7 +248,7 @@
                                     </StackPanel>
                                 </Button>
                             </Border>
-                            <Border Grid.Column="3" Classes="segitem" Classes.on="{Binding IsHistorySection}">
+                            <Border Grid.Column="4" Classes="segitem" Classes.on="{Binding IsHistorySection}">
                                 <Button Classes="segtap lg" HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center"
                                         Command="{Binding SetSectionCommand}" CommandParameter="history">
@@ -261,7 +271,7 @@
                                   Data="{StaticResource IconSearch}" IsHitTestVisible="False" />
                             <TextBox Grid.Column="1" Text="{Binding SearchQueryText, Mode=TwoWay}" Background="Transparent"
                                      BorderThickness="0" FontSize="13" VerticalContentAlignment="Center" Padding="0,10"
-                                     PlaceholderText="جستجوی بیمار، مالک یا واکسن…"
+                                     PlaceholderText="جستجوی بیمار، مالک یا واکسن…" IsEnabled="{Binding ShowVisitsTools}"
                                      KeyDown="OnSearchKeyDown" />
                             <Button Grid.Column="2" Width="20" Height="20" Padding="0" CornerRadius="999"
                                     Background="{StaticResource Brand50Brush}" BorderThickness="0"
@@ -276,7 +286,7 @@
                 <!-- tier 2 · status chips (start) + species & actions (end/left) -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,12,0,0">
                     <Border Grid.Column="0" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
-                            Padding="0,12,0,0" Margin="0,-12,0,0">
+                            Padding="0,12,0,0" Margin="0,-12,0,0" IsVisible="{Binding ShowVisitsTools}">
                         <!-- status tabs: same segmented track + count pill as the Boarding status tabs
                              (همه / فعال / ...), replacing the old outlined pill chips. -->
                         <Border Classes="seg" HorizontalAlignment="Left">
@@ -307,7 +317,7 @@
 
                     <!-- trailing control cluster (.pb-tools) -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <ComboBox Classes="pbselect" ItemsSource="{Binding SpeciesOptions}"
+                        <ComboBox Classes="pbselect" ItemsSource="{Binding SpeciesOptions}" IsVisible="{Binding ShowVisitsTools}"
                                   SelectedItem="{Binding SelectedSpeciesOption}" MinWidth="150">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate x:DataType="vx:SpeciesFilterOption">
@@ -315,8 +325,8 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                        <Border Width="1" Height="22" Background="{StaticResource LineBrush}" />
-                        <Button Classes="outline" Command="{Binding BulkSmsCommand}">
+                        <Border Width="1" Height="22" Background="{StaticResource LineBrush}" IsVisible="{Binding ShowVisitsTools}" />
+                        <Button Classes="outline" Command="{Binding BulkSmsCommand}" IsVisible="{Binding ShowVisitsTools}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource InkBrush}" Data="{StaticResource IconSms}" />
                                 <TextBlock Text="ارسال گروهی یادآور" VerticalAlignment="Center" />
@@ -325,7 +335,7 @@
                         <Button Classes="primary" Command="{Binding OpenAddVaccineCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Path Classes="icon" Width="16" Height="16" Stroke="White" Data="{StaticResource IconPlus}" />
-                                <TextBlock Text="ثبت واکسن جدید" VerticalAlignment="Center" />
+                                <TextBlock Text="ثبت دارو / واکسن" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -454,6 +464,11 @@
                 </Grid>
             </StackPanel>
         </Border>
+
+        <!-- ═══ Panel · تقویم ═══ -->
+        <Panel IsVisible="{Binding IsCalendarSection}">
+            <vx:TreatmentCalendarView DataContext="{Binding Calendar}" />
+        </Panel>
 
         <!-- ═══ Panel · انبار واکسن ═══ -->
         <Border IsVisible="{Binding IsStockSection}" Background="{StaticResource PanelBrush}"

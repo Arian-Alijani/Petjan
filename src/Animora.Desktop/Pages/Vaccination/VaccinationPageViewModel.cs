@@ -60,11 +60,12 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         _toast = toast;
 
         History = new VaccinationHistoryViewModel(service, historyOpener);
+        Calendar = new TreatmentCalendarViewModel(service, toast, NotifyVaccinationChanged);
 
-        Title = "واکسیناسیون";
+        Title = "دارو و واکسن";
         Eyebrow = "مراقبت";
         Breadcrumbs.Add("مراقبت");
-        Breadcrumbs.Add("واکسیناسیون");
+        Breadcrumbs.Add("دارو و واکسن");
 
         foreach (var option in new[]
                  {
@@ -83,18 +84,22 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
 
         UseLoadStatus(ReloadPageAsync);
         // Patients (owners/pets) feed the due list.
-        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Patients);
+        RefreshOnDataChange(changes, () => { _ = ReloadPageAsync(); Calendar.Invalidate(); }, DataDomain.Patients, DataDomain.Vaccination);
     }
 
-    /// <summary>visits | stock | history | settings — the reference's <c>#vxMainSeg</c> keys.</summary>
+    /// <summary>visits | calendar | stock | history | settings — the reference's <c>#vxMainSeg</c> keys plus the plan calendar.</summary>
     [ObservableProperty]
     private string _activeSection = "visits";
 
     public bool IsVisitsSection => ActiveSection == "visits";
+    public bool IsCalendarSection => ActiveSection == "calendar";
     public bool IsStockSection => ActiveSection == "stock";
     public bool IsHistorySection => ActiveSection == "history";
     public bool IsSettingsSection => ActiveSection == "settings";
     public bool ShowVisitsTools => ActiveSection == "visits";
+
+    /// <summary>The «تقویم» month-calendar sub-VM (owned here, lazily loaded on section open).</summary>
+    public TreatmentCalendarViewModel Calendar { get; }
 
     /// <summary>The «تاریخچه» ledger sub-VM (owned here, lazily loaded on section open).</summary>
     public VaccinationHistoryViewModel History { get; }
@@ -188,6 +193,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     partial void OnActiveSectionChanged(string value)
     {
         OnPropertyChanged(nameof(IsVisitsSection));
+        OnPropertyChanged(nameof(IsCalendarSection));
         OnPropertyChanged(nameof(IsStockSection));
         OnPropertyChanged(nameof(IsHistorySection));
         OnPropertyChanged(nameof(IsSettingsSection));
@@ -196,6 +202,10 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         if (value == "history")
         {
             History.EnsureLoaded();
+        }
+        else if (value == "calendar")
+        {
+            Calendar.EnsureLoaded();
         }
     }
 

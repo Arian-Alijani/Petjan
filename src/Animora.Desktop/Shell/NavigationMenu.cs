@@ -37,7 +37,7 @@ public static class NavigationMenu
 
         new("patients", "بیماران و مالکین", "IconUsers", typeof(PatientsPageViewModel), "مدیریت کلینیک"),
         new("visits", "ویزیت و پرونده", "IconClipboard", typeof(VisitsTriagePageViewModel), "مدیریت کلینیک"),
-        new("vaccine", "واکسیناسیون", "IconSyringe", typeof(VaccinationPageViewModel), "مدیریت کلینیک"),
+        new("vaccine", "دارو و واکسن", "IconSyringe", typeof(VaccinationPageViewModel), "مدیریت کلینیک"),
         new("boarding", "پانسیون", "IconHome", typeof(BoardingPageViewModel), "مدیریت کلینیک"),
 
         new("inventory", "انبار و کالا", "IconBox", typeof(InventoryPageViewModel), "کسب و کار"),

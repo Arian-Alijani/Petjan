@@ -169,4 +169,66 @@ public static class VaccinationPresentation
     /// (PERFORMANCE.md §15).
     /// </summary>
     public static IBrush FillAlpha(string hex, byte alpha) => BrushCache.Solid(hex, alpha);
+
+    // ── «دارو و واکسن» plan kinds (the colour lives here, never in Contracts) ───────────────────────────────
+
+    /// <summary>Accent hex of a plan kind: clinic visit = blue, owner at home = green, boarding = amber.</summary>
+    public static string KindHex(TreatmentKind kind) => kind switch
+    {
+        TreatmentKind.ClinicVisit => "#1570cd",
+        TreatmentKind.HomeByOwner => "#027a48",
+        TreatmentKind.BoardingAdminister => "#b54708",
+        _ => "#475467",
+    };
+
+    /// <summary>Full Persian label of a plan kind.</summary>
+    public static string KindLabel(TreatmentKind kind) => kind switch
+    {
+        TreatmentKind.ClinicVisit => "مراجعه به کلینیک",
+        TreatmentKind.HomeByOwner => "تزریق/مصرف در منزل",
+        TreatmentKind.BoardingAdminister => "اجرا در پانسیون",
+        _ => "—",
+    };
+
+    /// <summary>Short Persian label of a plan kind (chips, legend).</summary>
+    public static string KindShortLabel(TreatmentKind kind) => kind switch
+    {
+        TreatmentKind.ClinicVisit => "کلینیک",
+        TreatmentKind.HomeByOwner => "منزل",
+        TreatmentKind.BoardingAdminister => "پانسیون",
+        _ => "—",
+    };
+
+    /// <summary>Icon key of a plan kind — a text label always accompanies it (colour alone is not accessible).</summary>
+    public static string KindIconKey(TreatmentKind kind) => kind switch
+    {
+        TreatmentKind.ClinicVisit => "IconStetho",
+        TreatmentKind.HomeByOwner => "IconHome",
+        TreatmentKind.BoardingAdminister => "IconBowl",
+        _ => "IconPaw",
+    };
+
+    /// <summary>Solid accent brush of a plan kind.</summary>
+    public static IBrush KindBrush(TreatmentKind kind) => Fill(KindHex(kind));
+
+    /// <summary>Soft background wash of a plan kind.</summary>
+    public static IBrush KindWash(TreatmentKind kind) => FillAlpha(KindHex(kind), 0x1F);
+
+    /// <summary>«واکسن» / «دارو».</summary>
+    public static string ItemTypeLabel(TreatmentItemType type) =>
+        type == TreatmentItemType.Vaccine ? "واکسن" : "دارو";
+
+    /// <summary>Icon key of an item type.</summary>
+    public static string ItemTypeIconKey(TreatmentItemType type) =>
+        type == TreatmentItemType.Vaccine ? "IconSyringe" : "IconFlask";
+
+    /// <summary>Persian label of a schedule type.</summary>
+    public static string ScheduleLabel(TreatmentScheduleType type) => type switch
+    {
+        TreatmentScheduleType.Once => "یک‌بار",
+        TreatmentScheduleType.EveryNDays => "هر چند روز یک‌بار",
+        TreatmentScheduleType.SpecificDates => "تاریخ‌های مشخص",
+        TreatmentScheduleType.WeeklyOnDays => "روزهای هفته",
+        _ => "—",
+    };
 }

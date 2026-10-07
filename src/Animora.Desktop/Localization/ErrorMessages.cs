@@ -80,6 +80,15 @@ public static class ErrorMessages
         // callers keep their own context-specific fallback for those.
         ["STORE_UNAVAILABLE"] = "پایگاه داده در دسترس نیست؛ کمی بعد دوباره تلاش کنید.",
         ["PERIOD_CLOSED"] = "دورهٔ مالی بسته شده است.",
+
+        // Medication / vaccine plans («دارو و واکسن»)
+        ["TREATMENT_PLAN_NOT_FOUND"] = "برنامهٔ موردنظر پیدا نشد؛ فهرست را بازخوانی کنید.",
+        ["TREATMENT_OCCURRENCE_NOT_FOUND"] = "این روز از برنامه پیدا نشد؛ تقویم را بازخوانی کنید.",
+        ["TREATMENT_OCCURRENCE_ALREADY_DONE"] = "این روز قبلاً به‌عنوان انجام‌شده ثبت شده است.",
+        ["TREATMENT_PLAN_NOT_ACTIVE"] = "این برنامه دیگر فعال نیست (لغو یا تکمیل شده است).",
+        ["TREATMENT_SCHEDULE_INVALID"] = "زمان‌بندی نامعتبر است؛ تاریخ‌ها و تعداد/فاصله را بررسی کنید.",
+        ["TREATMENT_SCHEDULE_TOO_LARGE"] = "زمان‌بندی بیش از حد طولانی است (حداکثر ۳۶۵ روز/نوبت).",
+        ["VACCINE_CATALOG_CODE_TAKEN"] = "واکسنی با این کد قبلاً در انبار ثبت شده است.",
     };
 
     /// <summary>Persian message for <paramref name="code"/>, or <c>null</c> when the code has no dedicated copy.</summary>

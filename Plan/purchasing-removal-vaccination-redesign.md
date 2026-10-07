@@ -181,13 +181,13 @@
 - `[x]` پیاده‌سازی در `VaccinationService.cs` (dispatcher، `ids.Deterministic` برای mark-done) + mapping در `VaccinationMapping.cs`؛ `GetCatalogAsync` حالا موجودی/MinStock سفارشی را هم می‌آورد.
 - `[x]` بیلد `full` (طبق دستور کاربر هیچ بیلد/تستی گرفته نشد؛ اسکیپ). پوش: `feat(contracts,client): [T5] treatment plan service seam + mapping`.
 
-### T6 — UI: بازطراحی صفحهٔ «دارو و واکسن» (لیبل + تب تقویم + رنگ‌ها)
-- `[ ]` رنگ/آیکن/برچسبِ Kind در `VaccinationPresentation.cs`.
-- `[ ]` لیبل‌ها: `NavigationMenu.cs`, کاشیِ داشبورد، Title/Breadcrumb در `VaccinationPageViewModel` → «دارو و واکسن» (کلید `vaccine` ثابت).
-- `[ ]` تب «تقویم» در `VaccinationPageView.axaml` + state (`IsCalendarSection`، `SetSection "calendar"`).
-- `[ ]` نمای تقویم ماهانه (ViewModel + View): ناوبری ماه، رنگِ Kind، فیلتر Kind/ItemType، کلیک روز → لیست occurrenceها، «انجام شد».
-- `[ ]` ثبت در DI (`App.axaml.cs`) و `ViewFactory` در صورت نیاز.
-- `[ ]` بیلد سریع 0/0. پوش: `feat(vaccination-ui): [T6] rename to «دارو و واکسن», calendar tab + kind colors`.
+### T6 — UI: بازطراحی صفحهٔ «دارو و واکسن» (لیبل + تب تقویم + رنگ‌ها) ✅
+- `[x]` رنگ/آیکن/برچسبِ Kind در `VaccinationPresentation.cs`.
+- `[x]` لیبل‌ها: `NavigationMenu.cs`, کاشیِ داشبورد، Title/Breadcrumb در `VaccinationPageViewModel` → «دارو و واکسن» (کلید `vaccine` ثابت).
+- `[x]` تب «تقویم» در `VaccinationPageView.axaml` + state (`IsCalendarSection`، `SetSection "calendar"`).
+- `[x]` نمای تقویم ماهانه (ViewModel + View): ناوبری ماه، رنگِ Kind، فیلتر Kind/ItemType، کلیک روز → لیست occurrenceها، «انجام شد».
+- `[x]` ثبت در DI/`ViewFactory`: لازم نشد؛ `TreatmentCalendarViewModel` زیرمجموعهٔ `VaccinationPageViewModel` است (مثل `History`).
+- `[x]` بیلد سریع (طبق دستور کاربر هیچ بیلد/تستی گرفته نشد؛ اسکیپ). پوش: `feat(vaccination-ui): [T6] rename to «دارو و واکسن», calendar tab + kind colors`.
 
 ### T7 — UI: مدالِ ثبتِ واقعی + افزودنِ واکسن به انبار
 - `[ ]` بازنویسی `AddVaccineModalViewModel`/`View`: `ItemType`، `Kind` سه‌گانه، عنوان/دوز/یادداشت، `NotifyOwner` (فقط HomeByOwner)، زمان‌بندی (Once/EveryNDays/SpecificDates/WeeklyOnDays) با `JalaliDatePicker`. `Submit()` → `CreateTreatmentPlanAsync`، toast واقعی، `IDataChangeNotifier.Notify(...)`، مدیریتِ خطا (`ServiceException`).
