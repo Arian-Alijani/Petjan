@@ -167,7 +167,7 @@ private DomainEvent? LogAndDrop(OutboxMessage m)
 
 ---
 
-## [ ] T4 — F-03 🟠 Cache کردن JsonSerializerOptions در JsonFields + مقایسه‌ی ارزان‌تر
+## [x] T4 — F-03 🟠 Cache کردن JsonSerializerOptions در JsonFields + مقایسه‌ی ارزان‌تر ✅ انجام و push شد
 **فایل:** `src/Animora.Persistence.Sqlite/Conventions/JsonFields.cs` — کل فایل (۲۱ خط).
 
 **وضعیت فعلی:** در `ValueComparer` (خطوط ۱۷–۲۰) هر `Equals` تا ۲ serialize، `GetHashCode` ۱ serialize، `Snapshot` یک serialize+deserialize کامل انجام می‌دهد؛ همه با `(JsonSerializerOptions?)null` که هر بار default را resolve می‌کند. روی هر `DetectChanges`/`SaveChanges` برای هر entity دارای فیلد JSON اجرا می‌شود → CPU/GC pressure روی مسیر داغ نوشتن.
@@ -331,7 +331,7 @@ internal sealed partial class OutboxJsonContext : JsonSerializerContext { }
 - [x] T1 F-01 — push شد ✅
 - [x] T2 F-04 — push شد ✅
 - [x] T3 F-02 — push شد ✅
-- [ ] T4 F-03 — push شد؟
+- [x] T4 F-03 — push شد ✅
 - [ ] T5 F-05 — push شد؟
 - [ ] T6 F-07 — push شد؟
 - [ ] T7 F-08 — push شد؟
