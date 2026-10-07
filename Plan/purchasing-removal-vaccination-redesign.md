@@ -15,11 +15,12 @@
   - ViewModelها فقط به **interfaceهای Contracts** وابسته‌اند؛ هرگز به سرویس concrete یا EF/SQL.
   - افزودن نیاز دادهٔ یک صفحه: interface+DTO در `Contracts/<Area>/` → پیاده‌سازی در `Animora.Client.Services/<Area>/` روی dispatcher → ثبت هر دو در `src/Animora.Desktop/App.axaml.cs`.
   - RTL یک‌بار در `App.axaml` ست شده؛ در صفحه ست نکن.
+- **ابزار sandbox:** `dotnet-ef` نصب **نیست** → migration و Designer را دستی بساز (بخش T4). SDK با `scripts/sandbox/install-prereqs.sh` نصب می‌شود و `build.sh` خودش env را source می‌کند.
 - **Build/verify (sandbox):**
   - سریع (فقط Desktop): `scripts/sandbox/build.sh` → باید **0 warning / 0 error**.
   - کل solution: `scripts/sandbox/build.sh full`.
-  - **ممنوع:** full test و اجرای طولانی/smoke مگر لازم. بیلد سریع کافی است؛ اگر DI/Shell/startup دست خورد، یک بار `build.sh` کامل.
-- **اسکریپت پوش (قفل):** `scripts/git/push.sh "type(scope): msg"` → خودش `add -A → commit → fetch → rebase → push`. اگر کد ۳ برگشت، ابزار `setup_github_environment` را یک‌بار صدا بزن و دوباره اجرا کن. برنچ کاری: `genspark_ai_developer` (با `-b genspark_ai_developer` در اولین پوش).
+  - **ممنوع:** full test و اجرای طولانی/smoke مگر لازم. فقط تست‌های فیلترشدهٔ کوچکِ همین فیچر (`dotnet test --filter`) مجازند. بیلد سریع کافی است؛ اگر DI/Shell/startup دست خورد، یک بار `build.sh` کامل.
+- **اسکریپت پوش (قفل):** `scripts/git/push.sh "type(scope): msg"` → خودش `add -A → commit → fetch → rebase → push`. اگر کد ۳ برگشت، ابزار `setup_github_environment` را یک‌بار صدا بزن و دوباره اجرا کن. برنچ کاری: `genspark_ai_developer`. **همگام‌سازی برنچ‌ها:** `main` و `genspark_ai_developer` هم‌اکنون روی یک commit‌اند؛ در پایانِ کار (T9) `main` با `git push origin genspark_ai_developer:main` (fast-forward، بدون PR) به‌روز می‌شود. پیام هر commit باید شمارهٔ تسک را داشته باشد: `type(scope): [T<n>] ...`.
 
 ---
 
@@ -100,40 +101,41 @@
 
 ## ۲. تصمیم‌های معماریِ قطعی‌شده (تا مدل دوباره فکر نکند)
 
-- **مدلِ جدید در Domain:** یک aggregate جدید **`TreatmentPlan`** (برنامهٔ دارو/واکسن) در `src/Animora.Domain/Clinical/` ساخته می‌شود تا رکوردِ تاریخیِ موجود (`VaccinationRecord` = دوزِ تزریق‌شده) دست‌نخورده بماند و حسابِ backendِ فعلی نشکند.
-  - `TreatmentPlan`: `Id, TenantId, PetId, ItemType {Vaccine|Medication}, Kind {ClinicVisit|HomeByOwner|BoardingAdminister}, Title (نام واکسن/دارو), VaccineCode? , Dosage?, Notes?, Schedule (نوع+پارامترها), CreatedByUserId, CreatedUtc, State {Active|Completed|Cancelled}`.
-  - occurrenceها در جدولِ جدا **`TreatmentOccurrence`**: `Id, PlanId, TenantId, DueDateUtc (DateOnly→UTC midnight), DoneUtc?, DoneByUserId?, State {Pending|Done|Skipped}, SortOrder`.
-  - تولید occurrenceها هنگام ساختِ plan (از روی schedule) انجام می‌شود و با یک سقف (مثلاً حداکثر ۳۶۵ occurrence یا بازهٔ حداکثر یک سال) محدود شود تا رشدِ بی‌نهایت نگیرد.
-- **چرا aggregate جدا و نه گسترشِ VaccinationRecord؟** چون `VaccinationRecord` معنایِ «دوزِ تزریق‌شده و تاریخِ آتی مشتق‌شده» دارد و منطقِ `Administer/StateAt` به آن گره خورده؛ افزودنِ «برنامهٔ چند-تاریخه + نوع + دارو» به آن، منطقِ موجود و مصرف‌کنندگانِ Appointments/History را می‌شکند. aggregate جدا، ریسک را صفر می‌کند و تقویمِ جدید از آن تغذیه می‌شود.
-- **Persistence:** migration جدید `__031_TreatmentPlans` با دو جدول `TreatmentPlans` و `TreatmentOccurrences` طبق الگوی `__029_RecurringExpenses` (ستون‌های استاندارد: `TenantId, UpdatedAt, Version, Deleted`). snapshot آپدیت شود. Configuration + Repository + Queries جدید.
-- **Contracts جدید (در `Animora.Contracts/Vaccination/`):** enumهای `TreatmentItemType`, `TreatmentKind`, `TreatmentScheduleType`; رکوردهای `TreatmentPlanInput` (ورودیِ ثبت از مدال), `TreatmentPlanSummary`, `CalendarOccurrence(Date, PlanId, PetName, Title, ItemType, Kind, State, Tone)`. متدهای جدید در `IVaccinationService`:
-  - `Task<string> CreateTreatmentPlanAsync(TreatmentPlanInput input)`
-  - `Task<IReadOnlyList<CalendarOccurrence>> GetCalendarAsync(string fromJalali, string toJalali, filters...)`
-  - `Task MarkOccurrenceDoneAsync(string occurrenceId)`
-  - `Task CancelPlanAsync(string planId)` (و در صورت نیاز ویرایش)
-  - افزودنِ واکسن به کاتالوگ: `Task AddCatalogVaccineAsync(...)` یا گسترشِ catalog به منبعِ قابل‌نوشتن.
-- **App/Application:** command‌های جدید `CreateTreatmentPlanCommand`, `MarkTreatmentOccurrenceDoneCommand`, `CancelTreatmentPlanCommand` + queryهای `TreatmentCalendarRangeQuery`, `TreatmentPlansForPetQuery`. CommandTypeهای جدید در `CommandTypes.cs` (و all-list). permissionها: از همان `VaccinationWrite/Read` استفاده شود (آیتمِ دارو هم زیرِ همین مجوز منطقی است) مگر لازم شد مجوز جدید.
-- **UI صفحه:**
-  - تبِ جدید **«تقویم»** اضافه شود (`calendar`) + عنوانِ صفحه/منوها به «دارو و واکسن» به‌روزرسانی شود (لیبلِ sidebar در `NavigationMenu.cs` از «واکسیناسیون» به «دارو و واکسن» و کاشیِ داشبورد مشابه — این تغییرِ لیبل ساده است و با state جدید هماهنگ).
-  - مدالِ ثبت (`AddVaccineModalViewModel`) بازنویسی شود تا: انتخابِ `ItemType` (واکسن/دارو)، `Kind` (سه‌گانه با رنگ)، عنوان/دوز، و **زمان‌بندی** (Once با JalaliDatePicker / EveryNDays با N و بازه / SpecificDates با افزودن چند تاریخ) و در صورتِ `HomeByOwner` گزینهٔ پیامک. `Submit()` واقعاً `CreateTreatmentPlanAsync` را صدا بزند و toast واقعی بدهد + notify داده‌ها.
-  - تقویم: کنترل/نمای ماهانهٔ سبک که `CalendarOccurrence`ها را با رنگِ `Kind` رندر کند؛ کلیک روی روز → لیست occurrenceهای آن روز؛ علامتِ «انجام شد».
-  - تبِ «انبار واکسن»: افزودنِ واکسن جدید به کاتالوگ فعال شود (دکمهٔ «ثبت واکسن جدید» موجود → به ثبتِ کاتالوگ وصل شود، نه فقط toast).
-- **رنگِ سه نوع (ثابت، در Presentation):**
-  - `ClinicVisit` → آبی/برند (مثلاً `#1570cd`)
-  - `HomeByOwner` → سبز (`#027a48`)
-  - `BoardingAdminister` → نارنجی/کهربایی (`#b54708`)
-  - این‌ها در `VaccinationPresentation.cs` به‌صورت brush/tone اضافه شوند (الگوی موجودِ همان فایل).
+- **مدلِ جدید در Domain** (`src/Animora.Domain/Clinical/`): رکوردِ تاریخیِ `VaccinationRecord` (= دوزِ تزریق‌شده) **دست‌نخورده** می‌ماند تا backend/Appointments/History نشکنند. سه موجودیتِ جدید، هرسه `SyncableEntity`:
+  - **`TreatmentPlan`** (AggregateRoot): `PetId, ItemType {Vaccine|Medication}, Kind {ClinicVisit|HomeByOwner|BoardingAdminister}, Title, VaccineCode?, Dosage?, Notes?, NotifyOwner (bool، فقط معنادار برای HomeByOwner), ScheduleType {Once|EveryNDays|SpecificDates|WeeklyOnDays}, CreatedByUserId, CreatedUtc, State {Active|Completed|Cancelled}`.
+  - **`TreatmentOccurrence`** (SyncableEntity، جدولِ جدا، **بدون navigation property**): `PlanId, DueDay (DateOnly = روزِ محلیِ کلینیک), DoneUtc?, DoneByUserId?, State {Pending|Done|Skipped}, SortOrder`.
+    - **تصمیم (اصلاح‌شده):** `DueDay` از نوع `DateOnly` است نه «UTC midnight»؛ چون یک «روزِ تقویم» است و ذخیره به‌صورت UTC-midnight روز را در timezone کلینیک جابه‌جا می‌کند. EF Sqlite آن را `TEXT yyyy-MM-dd` ذخیره می‌کند (ترتیب لغوی = ترتیب زمانی، ایندکس‌پذیر).
+  - **`VaccineCatalogItem`** (AggregateRoot): کاتالوگِ **قابل‌نوشتنِ** کلینیک — `Code, Name, Protects?, TotalDoses, BoosterDays, Stock, MinStock, IsActive`. کاتالوگِ نهایی = ۶ ورودیِ ثابتِ `VaccineSchedule.All` (فقط‌خواندنی) + ورودی‌های سفارشیِ این جدول. بدون این موجودیت، تسکِ «افزودن واکسن به انبار» (T7) قابل‌پیاده‌سازی نیست.
+- **تولیدِ occurrenceها:** متدِ factory خالصِ `TreatmentPlan.Create(...)` یک `TreatmentPlanDraft(Plan, IReadOnlyList<TreatmentOccurrence>)` برمی‌گرداند (aggregate هیچ collection نگه نمی‌دارد؛ handler هر دو را به repository می‌دهد). منطقِ تولید در یک `static class TreatmentScheduleExpander` **خالص و بدون تقویم/timezone** (ورودی/خروجی `DateOnly`):
+  - `Once(date)` → ۱ روز.
+  - `EveryNDays(start, intervalDays≥1, endDay? | count?)` → یکی از «تاریخِ پایان» یا «تعداد» الزامی است.
+  - `SpecificDates(days[])` → یکتا و مرتب‌شده.
+  - `WeeklyOnDays(start, end, weekdayMask)` → روزهای هفتهٔ انتخابی در بازه (mask = بیت‌های `DayOfWeek`).
+  - **سقف:** حداکثر **۳۶۵ occurrence** و بازهٔ حداکثر **۳۷۰ روز** از شروع؛ بیش‌ازآن → خطای validation (`TreatmentScheduleTooLarge`) — نه برش بی‌صدا. تاریخِ گذشته‌تر از ۳۰ روز مجاز نیست (ثبتِ برنامهٔ اشتباه جلوگیری شود)، آینده تا ۱ سال.
+- **Persistence:** migration جدید `20261007120000__031_TreatmentPlans` با سه جدول `TreatmentPlans`, `TreatmentOccurrences`, `VaccineCatalogItems` (ستون‌های استاندارد `TenantId, UpdatedAt, Version, Deleted`؛ نام جدول را `ModelConventions.Pluralize` می‌سازد). ایندکس‌ها: `TreatmentOccurrences (TenantId, DueDay, State)` و `(TenantId, PlanId)`؛ `TreatmentPlans (TenantId, PetId, State)`؛ `VaccineCatalogItems (TenantId, Code)` **یکتا**. بدون `dotnet-ef`: Migration + Designer + Snapshot دستی (الگوی ۰۲۹/۰۳۰).
+- **ترتیبِ لایه‌ها (اصلاح‌شده):** Persistence به portهای Application وابسته است → **Application قبل از Persistence** (T3=Application، T4=Persistence). قبلاً برعکس بود.
+- **Application:** commands: `CreateTreatmentPlanCommand`, `UpdateTreatmentPlanCommand` (فقط Title/Dosage/Notes/Kind/NotifyOwner؛ زمان‌بندی تغییر نمی‌کند — برای تغییر زمان‌بندی: لغو + ثبتِ مجدد)، `CancelTreatmentPlanCommand` (occurrenceهای Pending→Skipped)، `MarkTreatmentOccurrenceDoneCommand` (با ثبت `MedicalHistoryEntry` از نوع Vaccination برای آیتمِ واکسن، Prescription/Note برای دارو؛ اگر همهٔ occurrenceها Done/Skipped شد plan→Completed)، `AddVaccineCatalogItemCommand`. queries: `TreatmentCalendarQuery(from,to,kinds?,itemType?,petId?)` (بازهٔ حداکثر ۶۲ روز، حداکثر ۲۰۰۰ ردیف، permission=`VaccinationRead`)، `TreatmentPlansForPetQuery(petId)`. CommandTypeها در `CommandTypes.cs` **و** آرایهٔ `All` (تست‌ها به `All` تکیه دارند). مجوز: همان `VaccinationRead/Write`.
+- **Contracts** (`Animora.Contracts/Vaccination/TreatmentModels.cs`): **تاریخ‌ها `DateOnly`** (نه رشتهٔ جلالی؛ هم‌خوان با `VaccinationRecord.DueDate` و ریاضیِ Appointments؛ رندر جلالی در View). enumها: `TreatmentItemType`, `TreatmentKind`, `TreatmentScheduleType`, `TreatmentOccurrenceState`. رکوردها: `TreatmentScheduleInput`, `TreatmentPlanInput`, `TreatmentPlanSummary`, `CalendarOccurrence`, `CalendarFilter`, `VaccineCatalogInput`. متدهای جدید `IVaccinationService`: `CreateTreatmentPlanAsync`, `UpdateTreatmentPlanAsync`, `CancelTreatmentPlanAsync`, `GetCalendarAsync(DateOnly from, DateOnly to, CalendarFilter)`, `MarkOccurrenceDoneAsync`, `GetPlansForPetAsync`, `AddCatalogVaccineAsync`.
+  - **`CalendarOccurrence` فاقد فیلد `Tone` است** — رنگ مسئولیتِ Presentation است (Contracts نباید استایل بداند)، فقط `Kind` منتقل می‌شود.
+- **UI:**
+  - تبِ جدید «تقویم» (`calendar`) و تغییرِ لیبل‌ها به «دارو و واکسن» (sidebar، کاشیِ داشبورد، Title/Breadcrumb). **کلیدِ ناوبری `vaccine` و `NavPermissions` تغییر نمی‌کند.**
+  - مدالِ ثبت بازنویسی شود؛ `Submit()` واقعاً ثبت کند. بیمار: همان الگوی booking سروری موجود.
+  - تقویم ماهانهٔ سبک و مستقل (جلالی، شنبه‌شروع)، با ریاضیِ جلالی از `AppointmentsCalendarMath` در صورت public/قابل‌استفاده بودن؛ فیلتر Kind/ItemType؛ کلیک روز → لیست؛ دکمهٔ «انجام شد».
+  - نمای هفته **اختیاری/غیرالزامی** است (ماه الزامی).
+- **رنگِ سه نوع (ثابت، فقط در Presentation — `VaccinationPresentation.cs`):** `ClinicVisit` آبی `#1570cd` · `HomeByOwner` سبز `#027a48` · `BoardingAdminister` کهربایی `#b54708`؛ هر کدام به‌همراه آیکن/برچسبِ متنی (فقط‌رنگ بودن برای دسترس‌پذیری کافی نیست).
+- **پیامک (HomeByOwner):** `NotifyOwner` فقط پرچم و ثبتِ audit است (gateway واقعی وجود ندارد؛ مطابق `SendSmsAsync` فعلی) — ادعای ارسال نکن.
+- **خارج از دامنه (عمداً):** اتصالِ `BoardingAdminister` به یک Stay مشخص، کسر خودکارِ موجودی انبار هنگام ثبتِ Done، و نمای هفته.
 
 ---
 
 ## ۳. تسک‌لیست اجرایی (به‌ترتیب؛ بعد از هرکدام پوش)
 
 > وضعیت‌ها: `[ ]` انجام‌نشده · `[~]` در حال انجام · `[x]` انجام‌شده.
-> هر تسک = یک commit/پوش مستقل با پیام مشخص. اگر تسک بزرگ شد، وسطش هم پوش کن.
+> هر تسک = یک commit/پوش مستقل با پیام `type(scope): [T<n>] ...`. اگر تسک بزرگ شد، وسطش هم پوش کن.
 
 ### T0 — آماده‌سازی برنچ و پوش اولیهٔ پلن
 - `[x]` ساخت همین فایل پلن در `Plan/`.
-- `[x]` `scripts/git/push.sh -b genspark_ai_developer "docs(plan): add purchasing-removal + vaccination redesign plan"` (اگر کد ۳ → `setup_github_environment` سپس دوباره).
+- `[x]` `scripts/git/push.sh -b genspark_ai_developer "docs(plan): add purchasing-removal + vaccination redesign plan"`.
 
 ### T1 — حذف کامل صفحهٔ «خرید و تأمین» (فقط UI) ✅ انجام شد
 - `[x]` حذف پوشهٔ `src/Animora.Desktop/Pages/Purchasing/` (هر ۴ فایل).
@@ -141,66 +143,75 @@
 - `[x]` اصلاح `App.axaml.cs`: دو خط DI + سه usingِ UI/Contracts/Client Purchasing حذف شد. **نکته:** خط `using Animora.Application.UseCases.Purchasing;` نگه داشته شد چون `AddPurchasingUseCases()` (backend) از آن است.
 - `[x]` `NavPermissions.cs`: هم سطرِ ByPage و هم `["purchasing"]=PurchasingRead` حذف شد. `ViewFactory.cs`: سطر Register حذف شد.
 - `[x]` کامنتِ `SidebarViewModel.cs`: مثال از Purchasing به Reception تغییر کرد.
-- `[x]` حذف `IPurchasingQueryService.cs`, `PurchasingModels.cs` (Contracts) و `PurchasingQueryService.cs` (Client) + پوشه‌های خالی. تأیید شد `Animora.Contracts.Purchasing` فقط در همین‌ها مصرف می‌شد.
+- `[x]` حذف `IPurchasingQueryService.cs`, `PurchasingModels.cs` (Contracts) و `PurchasingQueryService.cs` (Client) + پوشه‌های خالی.
 - `[x]` **خطِ قرمز رعایت شد:** Domain/Application/Persistence/Finance/Cheques مربوط به Purchasing/Supplier دست نخورد.
-- `[x]` بیلد سریع 0/0 ✅. `grep` در `src/Animora.Desktop/` برای انواع حذف‌شده خالی است.
+- `[x]` بیلد سریع 0/0 ✅. `grep` در `src/Animora.Desktop/` خالی است.
 - `[x]` پوش انجام شد.
 
-### T2 — Domain: aggregate جدید TreatmentPlan + Occurrence
-- `[ ]` ساخت `src/Animora.Domain/Clinical/TreatmentPlan.cs` (AggregateRoot) با enumها (`TreatmentItemType`, `TreatmentKind`, `TreatmentScheduleType`, `TreatmentPlanState`, `TreatmentOccurrenceState`) و متدِ factory که از schedule، occurrenceها را تولید می‌کند (با سقفِ ۳۶۵/۱سال) و `MarkOccurrenceDone`, `Cancel`.
-- `[ ]` ساخت `src/Animora.Domain/Clinical/TreatmentOccurrence.cs` (entity زیرِ aggregate یا child).
-- `[ ]` (در صورت نیاز) ErrorCode‌های جدید در `src/Animora.Domain/Results/ErrorCodes.cs`.
-- `[ ]` بیلد سریع 0/0 (Domain صفر-ارجاع است؛ ساده کامپایل می‌شود). پوش: `feat(domain): add TreatmentPlan + TreatmentOccurrence aggregate for medication/vaccine scheduling`.
+### R — بازبینیِ پلن + رفعِ ردپای T1 در تست‌ها ✅
+- `[x]` رفعِ ناهماهنگی‌های پلن (ترتیب لایه‌ها، `DateOnly` به‌جای UTC-midnight، `Tone` از Contracts حذف، افزودنِ `VaccineCatalogItem` و ویرایش/لغو، تایپوی commit، قیدِ نبودِ `dotnet-ef`، همگام‌سازیِ main).
+- `[x]` `tests/Animora.Application.Tests/NavigationAdmissionTests.cs` که هنوز `PurchasingPageViewModel`/`PurchasingRead` را می‌شناخت (و با T1 شکسته بود) به صفحهٔ غیر-sidebar `Reception` منتقل شد.
+- `[x]` پوش: `docs(plan): [R] revise plan + fix stale purchasing nav tests`.
 
-### T3 — Persistence: migration 031 + Configuration + Repository + Queries
-- `[ ]` Configuration برای دو موجودیت در `src/Animora.Persistence.Sqlite/Configurations/Clinical/`.
-- `[ ]` ثبت DbSet/entity در DbContext و extension مربوطه (`Context/LocalStoreServiceCollectionExtensions.cs` را ببین که repository/query چطور register می‌شوند).
-- `[ ]` Repository `TreatmentPlanRepository` + Queries `TreatmentPlanQueries` (port در Application).
-- `[ ]` migration `__031_TreatmentPlans` (ترجیحاً `dotnet ef migrations add` از طریق الگوی scripts؛ اگر در sandbox سخت بود، دستی طبق `__029_RecurringExpenses.cs` + آپدیتِ `AnimoraLocalDbContextModelSnapshot.cs`). نام‌گذاری زمانی بزرگ‌تر از 030.
-- `[ ]` بیلد `scripts/sandbox/build.sh full` (چون Persistence دست خورد). 0/0. پوش: `feat(persistence): add 031 TreatmentPlans migration + config + repo + queries`.
+### T2 — Domain: TreatmentPlan + TreatmentOccurrence + VaccineCatalogItem
+- `[ ]` `src/Animora.Domain/Clinical/TreatmentPlan.cs`: enumها (`TreatmentItemType`, `TreatmentKind`, `TreatmentScheduleType`, `TreatmentPlanState`, `TreatmentOccurrenceState`)، aggregate `TreatmentPlan` (`Create` → `Result<TreatmentPlanDraft>`، `Update`، `Cancel`، `Complete`)، entity `TreatmentOccurrence` (`MarkDone`, `Skip`).
+- `[ ]` `src/Animora.Domain/Clinical/TreatmentScheduleExpander.cs`: expander خالص (چهار نوع زمان‌بندی، سقف‌ها و اعتبارسنجی طبق بخش ۲).
+- `[ ]` `src/Animora.Domain/Clinical/VaccineCatalogItem.cs` (aggregate با `Create`/`Update`).
+- `[ ]` ErrorCodeهای جدید در `ErrorCodes.cs`: `TreatmentPlanNotFound`, `TreatmentOccurrenceNotFound`, `TreatmentOccurrenceAlreadyDone`, `TreatmentPlanNotActive`, `TreatmentScheduleInvalid`, `TreatmentScheduleTooLarge`, `VaccineCatalogCodeTaken`.
+- `[ ]` تست‌های دامنه (فایلِ کوچک `tests/Animora.Domain.Tests/TreatmentScheduleTests.cs`، فقط با `--filter`): چهار زمان‌بندی، سقف ۳۶۵، تکراری‌ها، لغو.
+- `[ ]` بیلد `scripts/sandbox/build.sh full` = 0/0. پوش: `feat(domain): [T2] add TreatmentPlan/Occurrence/VaccineCatalogItem + schedule expander`.
 
-### T4 — Application: commands + queries + ports
-- `[ ]` port جدید `ITreatmentPlanRepository` + `ITreatmentPlanQueries` در `src/Animora.Application/Ports/`.
-- `[ ]` `src/Animora.Application/UseCases/Vaccination/TreatmentCommands.cs`: `CreateTreatmentPlanCommand`, `MarkTreatmentOccurrenceDoneCommand`, `CancelTreatmentPlanCommand` (+validator+handler) با `[RequiresPermission(VaccinationWrite)]` و `[Auditable(Clinical, ...)]`.
-- `[ ]` `TreatmentQueries.cs`: `TreatmentCalendarRangeQuery(from,to,filters)`, `TreatmentPlansForPetQuery(petId)`.
-- `[ ]` CommandTypeهای جدید در `Contracts.Wire/Commands/CommandTypes.cs` + all-list.
-- `[ ]` ثبتِ handlerها (الگوی `VaccinationRegistration.cs`).
-- `[ ]` بیلد `full` 0/0. پوش: `feat(application): treatment plan commands + calendar/pet queries`.
+### T3 — Application: ports + commands + queries + CommandTypes
+- `[ ]` ports در `src/Animora.Application/Ports/`: `ITreatmentPlanRepository` (Find plan/occurrence، Add plan+occurrences، `CountPendingAsync`، FindCatalog/`CodeExistsAsync`/AddCatalog) و `ITreatmentPlanQueries` (calendar range، plans for pet، custom catalog) + read-modelها.
+- `[ ]` `src/Animora.Application/UseCases/Vaccination/TreatmentCommands.cs`: پنج command طبق بخش ۲ (+validator+handler، `[RequiresPermission(VaccinationWrite)]`، `[Auditable(Clinical, ...)]`، `IJournaledCommand`). تبدیلِ روزِ محلیِ «امروز» با `IClinicTimeZoneProvider`/`ClinicCalendar`.
+- `[ ]` `TreatmentQueries.cs`: `TreatmentCalendarQuery`, `TreatmentPlansForPetQuery`؛ و گسترشِ `VaccinationCatalogQueryHandler` تا ورودی‌های سفارشی را هم برگرداند.
+- `[ ]` CommandTypeهای جدید در `CommandTypes.cs` + آرایهٔ `All`.
+- `[ ]` ثبت در `VaccinationRegistration.cs`.
+- `[ ]` بیلد `full` 0/0. پوش: `feat(application): [T3] treatment plan commands, calendar/pet queries, ports`.
+
+### T4 — Persistence: configuration + repository + queries + migration 031
+- `[ ]` Configurationها در `src/Animora.Persistence.Sqlite/Configurations/Clinical/` (کلید، ایندکس‌های بخش ۲، یکتایی `Code`).
+- `[ ]` `TreatmentPlanRepository` + `TreatmentPlanQueries` (join با Pet/Owner، `AsNoTracking`، `Take` سقف‌دار) و ثبت در `LocalStoreServiceCollectionExtensions.cs` (`TryAddScoped` برای queries، `AddScoped` برای repository).
+- `[ ]` Migration دستی `20261007120000__031_TreatmentPlans.cs` + `.Designer.cs` + به‌روزرسانیِ `AnimoraLocalDbContextModelSnapshot.cs` (Designer از روی snapshot با هدرِ `[Migration("20261007120000__031_TreatmentPlans")]` ساخته می‌شود؛ ستون `DueDay` نوعِ `TEXT`).
+- `[ ]` بیلد `full` 0/0. پوش: `feat(persistence): [T4] 031 TreatmentPlans migration + config + repo + queries`.
 
 ### T5 — Contracts + Client.Services: اتصال seam
-- `[ ]` enum/record‌های جدید در `src/Animora.Contracts/Vaccination/` (`TreatmentModels.cs`).
-- `[ ]` افزودن متدهای جدید به `IVaccinationService` (Create/Calendar/MarkOccurrence/CancelPlan/PlansForPet + AddCatalogVaccine در صورت تصمیم).
-- `[ ]` پیاده‌سازی در `src/Animora.Client.Services/Vaccination/VaccinationService.cs` روی dispatcher + mapping در `VaccinationMapping.cs`.
-- `[ ]` بیلد `full` 0/0. پوش: `feat(contracts,client): treatment plan service seam + calendar mapping`.
+- `[ ]` `src/Animora.Contracts/Vaccination/TreatmentModels.cs` طبق بخش ۲ (`DateOnly`، بدون Tone).
+- `[ ]` متدهای جدید در `IVaccinationService`.
+- `[ ]` پیاده‌سازی در `VaccinationService.cs` (dispatcher، `ids.Deterministic` برای mark-done) + mapping در `VaccinationMapping.cs`؛ `GetCatalogAsync` حالا موجودی/MinStock سفارشی را هم می‌آورد.
+- `[ ]` بیلد `full` 0/0. پوش: `feat(contracts,client): [T5] treatment plan service seam + mapping`.
 
-### T6 — UI: بازطراحی صفحهٔ «دارو و واکسن»
-- `[ ]` تغییر لیبل‌ها: `NavigationMenu.cs` («واکسیناسیون»→«دارو و واکسن») و کاشیِ داشبورد + عنوان صفحه در `VaccinationPageViewModel` (Title/Breadcrumbs).
-- `[ ]` افزودن تبِ «تقویم» به `VaccinationPageView.axaml` + state در ViewModel (`IsCalendarSection` و `SetSection "calendar"`).
-- `[ ]` ساخت نمای تقویم ماهانه (کنترل یا partial view) که `CalendarOccurrence`ها را با رنگِ Kind رندر کند؛ ناوبری ماه قبل/بعد؛ کلیک روی روز → occurrenceهای آن روز؛ دکمهٔ «انجام شد».
-- `[ ]` رنگ‌های سه‌گانهٔ Kind در `VaccinationPresentation.cs`.
-- `[ ]` بیلد سریع 0/0. پوش: `feat(vaccination-ui): rename to dawo-vaccine, add calendar tab + kind colors`.
+### T6 — UI: بازطراحی صفحهٔ «دارو و واکسن» (لیبل + تب تقویم + رنگ‌ها)
+- `[ ]` رنگ/آیکن/برچسبِ Kind در `VaccinationPresentation.cs`.
+- `[ ]` لیبل‌ها: `NavigationMenu.cs`, کاشیِ داشبورد، Title/Breadcrumb در `VaccinationPageViewModel` → «دارو و واکسن» (کلید `vaccine` ثابت).
+- `[ ]` تب «تقویم» در `VaccinationPageView.axaml` + state (`IsCalendarSection`، `SetSection "calendar"`).
+- `[ ]` نمای تقویم ماهانه (ViewModel + View): ناوبری ماه، رنگِ Kind، فیلتر Kind/ItemType، کلیک روز → لیست occurrenceها، «انجام شد».
+- `[ ]` ثبت در DI (`App.axaml.cs`) و `ViewFactory` در صورت نیاز.
+- `[ ]` بیلد سریع 0/0. پوش: `feat(vaccination-ui): [T6] rename to «دارو و واکسن», calendar tab + kind colors`.
 
-### T7 — UI: مدالِ ثبتِ دارو/واکسن واقعی + افزودن واکسن به انبار
-- `[ ]` بازنویسی `AddVaccineModalViewModel`/`View`: انتخاب `ItemType` (واکسن/دارو)، `Kind` سه‌گانه، عنوان/دوز، و بخشِ **زمان‌بندی** (Once/EveryNDays/SpecificDates) با `JalaliDatePicker` و افزودن چند تاریخ؛ `HomeByOwner`→گزینهٔ پیامک. `Submit()` واقعاً `CreateTreatmentPlanAsync` را صدا بزند، toast واقعی، و `IDataChangeNotifier.Notify(Vaccination, Dashboard, ...)`.
-- `[ ]` تبِ «انبار واکسن»: دکمهٔ افزودن واکسن جدید به کاتالوگ را به سرویس وصل کن (ثبت واقعی/یا حداقلِ قابل‌قبولِ افزودن به کاتالوگ).
-- `[ ]` بیلد سریع 0/0. پوش: `feat(vaccination-ui): real treatment-plan creation modal (type/kind/schedule) + add vaccine to stock`.
+### T7 — UI: مدالِ ثبتِ واقعی + افزودنِ واکسن به انبار
+- `[ ]` بازنویسی `AddVaccineModalViewModel`/`View`: `ItemType`، `Kind` سه‌گانه، عنوان/دوز/یادداشت، `NotifyOwner` (فقط HomeByOwner)، زمان‌بندی (Once/EveryNDays/SpecificDates/WeeklyOnDays) با `JalaliDatePicker`. `Submit()` → `CreateTreatmentPlanAsync`، toast واقعی، `IDataChangeNotifier.Notify(...)`، مدیریتِ خطا (`ServiceException`).
+- `[ ]` لیست برنامه‌های بیمار + لغو/ویرایش در جزئیات.
+- `[ ]` تبِ «انبار واکسن»: دکمهٔ «ثبت واکسن جدید» → `AddCatalogVaccineAsync` (مدال کوچک)، رفرش لیست.
+- `[ ]` بیلد سریع 0/0. پوش: `feat(vaccination-ui): [T7] real treatment-plan modal + add vaccine to stock`.
 
 ### T8 — یکپارچه‌سازی و تأیید نهایی
-- `[ ]` بیلد کامل `scripts/sandbox/build.sh full` = **0/0**. اگر DI/Shell/startup دست خورد، یک بار smoke: `scripts/sandbox/run.sh` → `SMOKE RUN OK` (اختیاری، فقط اگر startup/DI لمس شد).
-- `[ ]` چک کن تقویم occurrenceها را درست و با رنگِ Kind نشان می‌دهد؛ برای یک بیمار بشود واکسن/دارو ثبت و تاریخ‌ها را دید؛ صفحهٔ Purchasing کاملاً رفته.
-- `[ ]` پوش: `chore(vaccination): finalize integration, build 0/0`.
+- `[ ]` `scripts/sandbox/build.sh full` = **0/0** (+ تست‌های فیلترشدهٔ `TreatmentSchedule` و `NavigationAdmission`).
+- `[ ]` `grep -rn "Purchasing" src/Animora.Desktop tests` → هیچ ارجاعِ کدی به صفحهٔ حذف‌شده.
+- `[ ]` smoke اختیاری (`scripts/sandbox/run.sh`) فقط چون DI/Shell لمس شد.
+- `[ ]` پوش: `chore(vaccination): [T8] finalize integration, build 0/0`.
 
-### T9 — پاک‌سازی (تسکِ پایانی)
-- `[ ]` **فقط همین فایل پلن** را حذف کن: `rm Plan/purchasing-removal-vaccination-redesign.md`. (به فایل‌های دیگرِ Plan و roadmapها دست نزن.)
-- `[ ]` پوش: `chore(plan): remove completed purchasing/vaccination plan file`.
+### T9 — پاک‌سازی و همگام‌سازی برنچ‌ها
+- `[ ]` حذف **فقط** `Plan/purchasing-removal-vaccination-redesign.md` و پوش: `chore(plan): [T9] remove completed purchasing/vaccination plan file`.
+- `[ ]` همگام‌سازی: `git fetch && git push origin genspark_ai_developer:main` (fast-forward؛ بدون PR). تأیید: `git rev-parse origin/main origin/genspark_ai_developer` یکسان.
 
 ---
 
 ## ۴. نکات ریز که نباید فراموش شوند
-- **بعد از هر تسک پوش کن** (قانون قفل). پیام commit معنادار و conventional.
-- بیلدِ سریع برای تغییرِ UI؛ بیلدِ `full` وقتی Domain/Application/Persistence/Contracts دست خورد.
+- **بعد از هر تسک پوش کن** (قانون قفل) و شمارهٔ تسک را در پیام commit بنویس.
+- بیلدِ سریع برای تغییرِ UI؛ `full` وقتی Domain/Application/Persistence/Contracts دست خورد.
 - هیچ sample/seed یا شاخهٔ design-time در `Pages/**` نگذار؛ seed در لایهٔ Persistence.
-- occurrenceها را محدود کن (سقفِ تعداد/بازه) تا رشدِ بی‌نهایت نگیرد (PERFORMANCE: نتیجهٔ بی‌کران از seam رد نشود — pageبندی/بازهٔ تقویم).
-- رنگ/استایلِ هر Kind باید در تقویم و لیست یکسان و واضح باشد.
-- اگر هر فیکسِ سنگینِ میان‌راهی لازم شد، همان لحظه پوش با پیام قابل‌فهم.
-- اگر `dotnet ef` در sandbox مشکل داشت، migration و snapshot را دستی بساز (الگوی `__029_RecurringExpenses.cs`).
+- occurrenceها و queryها همیشه سقف‌دارند (PERFORMANCE: نتیجهٔ بی‌کران از seam رد نشود).
+- رنگ/استایلِ هر Kind در تقویم و لیست یکسان و واضح باشد، همراه با برچسبِ متنی.
+- Contracts استایل/Tone نمی‌شناسد؛ تاریخ‌ها `DateOnly`.
+- `dotnet-ef` در sandbox نیست؛ migration/designer/snapshot دستی.

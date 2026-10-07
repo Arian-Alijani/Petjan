@@ -68,7 +68,6 @@ namespace Animora.Application.Tests
         }
 
         [Theory]
-        [InlineData("purchasing", PermissionCodes.PurchasingRead)]
         [InlineData("reception", PermissionCodes.ReceptionManage)]
         [InlineData("cashier", PermissionCodes.SalesRead)]
         public void NonSidebarTargets_AreExplicit(string key, string permission) =>
@@ -124,10 +123,10 @@ namespace Animora.Application.Tests
         [Fact]
         public void NavigationKey_IsSemantic_ForEveryEntryPoint_AndEntryIsDelivered()
         {
-            var gate = new Gate { Allowed = { PermissionCodes.InventoryRead, PermissionCodes.PurchasingRead } };
+            var gate = new Gate { Allowed = { PermissionCodes.InventoryRead, PermissionCodes.ReceptionManage } };
             var inventory = new InventoryPageViewModel();
             using var services = new ServiceCollection().AddSingleton(inventory)
-                .AddSingleton<Animora.Desktop.Pages.Purchasing.PurchasingPageViewModel>().BuildServiceProvider();
+                .AddSingleton<Animora.Desktop.Pages.Reception.ReceptionPageViewModel>().BuildServiceProvider();
             var nav = new NavigationService(services, gate, new Toast());
             var changes = 0;
             nav.CurrentViewModelChanged += (_, _) => changes++;
@@ -140,8 +139,8 @@ namespace Animora.Application.Tests
             Assert.Equal(1, changes);
 
             // Non-sidebar target: its own key, which has no sidebar entry (so no stale highlight can be derived).
-            nav.NavigateTo<Animora.Desktop.Pages.Purchasing.PurchasingPageViewModel>();
-            Assert.Equal("purchasing", nav.CurrentNavigationKey);
+            nav.NavigateTo<Animora.Desktop.Pages.Reception.ReceptionPageViewModel>();
+            Assert.Equal("reception", nav.CurrentNavigationKey);
             Assert.DoesNotContain(NavigationMenu.Items, i => i.Key == nav.CurrentNavigationKey);
         }
 
@@ -211,7 +210,6 @@ namespace Animora.Desktop.Pages.Sales { public sealed class SalePageViewModel : 
 namespace Animora.Desktop.Pages.Inventory { public sealed class InventoryPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.History { public sealed class HistoryPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Profile { public sealed class ProfilePageViewModel : Animora.Application.Tests.NavigationTestPage { } }
-namespace Animora.Desktop.Pages.Purchasing { public sealed class PurchasingPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Reception { public sealed class ReceptionPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Cashier { public sealed class CashierPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Statistics { public sealed class StatisticsPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
