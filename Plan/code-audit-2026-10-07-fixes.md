@@ -320,7 +320,7 @@ internal sealed partial class OutboxJsonContext : JsonSerializerContext { }
 
 ---
 
-## [ ] T9 — تسک پایانی: حذف فایل فاز و push
+## [x] T9 — تسک پایانی: حذف فایل فاز و push ✅ انجام و push شد
 **اقدام:**
 1. `rm docs/CODE_AUDIT_2026-10-07.md`
 2. این پلن (`Plan/code-audit-2026-10-07-fixes.md`) و سایر فایل‌ها دست‌نخورده بمانند.
@@ -338,6 +338,6 @@ internal sealed partial class OutboxJsonContext : JsonSerializerContext { }
 - [x] T6 F-07 — push شد ✅
 - [x] T7 F-08 — push شد ✅
 - [x] T8 F-06 — push شد ✅
-- [ ] T9 حذف فایل فاز — push شد؟
+- [x] T9 حذف فایل فاز — push شد ✅
 
 > هر تسک که تمام شد، `[ ]` را به `[x]` تبدیل کن و خط «push شد؟» را تیک بزن تا سشن بعدی وضعیت را بداند.
