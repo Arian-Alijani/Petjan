@@ -296,7 +296,8 @@ internal sealed partial class OutboxJsonContext : JsonSerializerContext { }
 
 ---
 
-## [ ] T8 — F-06 🟡 متریک نرخ miss کش داشبورد (مستندسازی trade-off)
+## [x] T8 — F-06 🟡 متریک نرخ miss کش داشبورد (مستندسازی trade-off) ✅ انجام و push شد
+> **نتیجه‌ی کشف:** هیچ زیرساخت متریک (`IMetrics`/`Meter`/`Counter<>`) در `Animora.Client.Services`/`Animora.Application` وجود ندارد → طبق پلن فقط کامنت مستندساز بالای خط ۷۳ (`var key = KeyFor(version);`) افزوده شد؛ منطق تغییر نکرد (بدون ریسک کامپایل).
 **فایل:** `src/Animora.Client.Services/Dashboard/DashboardQueryService.cs` — خطوط **۷۰–۸۴**.
 
 **وضعیت (نه باگ، trade-off عمدی و درست):** probe با `version = VersionAsync(...)` (خط ۷۰) کلید می‌سازد (`KeyFor(version)`, خط ۷۴) ولی ذخیره با `result.Value.Generation` (خط ۸۳–۸۴). اگر بین probe و read یک write بیفتد، entry زیر نسل جدیدتر ذخیره می‌شود (anti-stale عمدی، کامنت خطوط ۸۲–۸۳). عارضه‌ی جانبی: زیر بار نوشتن مکرر همزمان، `version != Generation` → cache miss (کش عملاً دور زده می‌شود). کش `TenantScopedCache` یک LRU با `capacity=16` و bounded است (نشت ندارد).
@@ -336,7 +337,7 @@ internal sealed partial class OutboxJsonContext : JsonSerializerContext { }
 - [x] T5 F-05 — push شد ✅
 - [x] T6 F-07 — push شد ✅
 - [x] T7 F-08 — push شد ✅
-- [ ] T8 F-06 — push شد؟
+- [x] T8 F-06 — push شد ✅
 - [ ] T9 حذف فایل فاز — push شد؟
 
 > هر تسک که تمام شد، `[ ]` را به `[x]` تبدیل کن و خط «push شد؟» را تیک بزن تا سشن بعدی وضعیت را بداند.
