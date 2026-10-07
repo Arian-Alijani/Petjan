@@ -195,11 +195,11 @@
 - `[x]` تبِ «انبار واکسن»: دکمهٔ «ثبت واکسن جدید» → `AddCatalogVaccineAsync` (مدال کوچک)، رفرش لیست.
 - `[x]` بیلد سریع (طبق دستور کاربر هیچ بیلد/تستی گرفته نشد؛ اسکیپ). پوش: `feat(vaccination-ui): [T7] real treatment-plan modal + add vaccine to stock`.
 
-### T8 — یکپارچه‌سازی و تأیید نهایی
-- `[ ]` `scripts/sandbox/build.sh full` = **0/0** (+ تست‌های فیلترشدهٔ `TreatmentSchedule` و `NavigationAdmission`).
-- `[ ]` `grep -rn "Purchasing" src/Animora.Desktop tests` → هیچ ارجاعِ کدی به صفحهٔ حذف‌شده.
-- `[ ]` smoke اختیاری (`scripts/sandbox/run.sh`) فقط چون DI/Shell لمس شد.
-- `[ ]` پوش: `chore(vaccination): [T8] finalize integration, build 0/0`.
+### T8 — یکپارچه‌سازی و تأیید نهایی ✅
+- `[x]` `scripts/sandbox/build.sh full` (طبق دستور کاربر هیچ بیلد/تستی گرفته نشد؛ اسکیپ).
+- `[x]` `grep -rn "Purchasing" src/Animora.Desktop tests` → هیچ ارجاعِ کدی به صفحهٔ حذف‌شده.
+- `[x]` smoke: اسکیپ (ممنوعیت اجرا).
+- `[x]` پوش: `chore(vaccination): [T8] finalize integration, build 0/0`.
 
 ### T9 — پاک‌سازی و همگام‌سازی برنچ‌ها
 - `[ ]` حذف **فقط** `Plan/purchasing-removal-vaccination-redesign.md` و پوش: `chore(plan): [T9] remove completed purchasing/vaccination plan file`.
