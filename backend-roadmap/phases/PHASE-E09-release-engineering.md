@@ -2,7 +2,7 @@
 
 **Band:** M · **Track:** E · **Depends on:** E08 · **Satisfies:** R-B27, R-B31, R-B33
 **Runnable after this phase:** desktop offline yes · server required no (release tooling is scripts +
-docs + packaging config; nothing added to a runtime path — Zero-Internet holds)
+docs + packaging config; the one release-profile encryption-flag edit is the only runtime-path change — Zero-Internet holds)
 
 ## Read before starting
 - `backend-roadmap/CONVENTIONS.md` §1, §2, §11, §12, §13
@@ -32,7 +32,7 @@ Protection keys + license material **with a rehearsed recovery**, a mixed-fleet 
 compatibility check wired to the D08 contract-version set, desktop packaging (MSIX preferred, WiX
 fallback) that is signed and rollback-capable, a Zero-Internet isolation test, an SBOM plus native
 binary inventory, and a final production-readiness checklist that consumes E08's gate report. This
-phase produces runbooks, scripts and packaging config only — it adds nothing to any runtime path.
+phase produces runbooks, scripts and packaging config only — it adds nothing to any runtime path except the single release-profile `EncryptionEnabled`/`K2Approved` flag edit declared under "Encryption-at-rest release gate".
 
 ## Design decisions (pre-made — implement, do not re-derive)
 - **One new folder `release/` at repo root** (a docs+scripts+config folder, not a project; not added
@@ -95,7 +95,23 @@ phase produces runbooks, scripts and packaging config only — it adds nothing t
   isolation-test green, SBOM + native inventory complete with every accepted-risk note dated, and
   packaging signed. `scripts/release/release-check.sh` mechanizes it: it parses the gate report,
   runs compat/isolation/sbom, and exits non-zero if any item is unmet. It is the final go/no-go.
-- **No production code, no `src/` change, no migration, no wire bump, no DI change, no new package
+- **Encryption-at-rest release gate (owner of production enablement — closes Phase-Problem §7.2).**
+  Today `LocalStoreOptions.EncryptionEnabled` and `K2Approved` both default to `false`, so an
+  unmodified build stores PII / medical / financial data in plaintext and the `STACK.md` "encrypted at rest" stack decision (desktop offline store row) and `ARCHITECTURE.md` R3
+  (secure, reliable, correct) is undelivered. **E09 owns closing that gap**, in two parts:
+  1. **Gate (scripts only):** `release-check.sh` fails unless, **for every RID shipped**, E08's
+     `Gate_K2_encrypted_lifecycle` is `PASS` (a `SKIPPED` K2 is a release blocker, not an accepted
+     risk) **and** the native inventory shows the frozen cipher native for that RID.
+  2. **Enablement (the single declared exception to "no `src/` change" below):** the *release*
+     composition profile sets `EncryptionEnabled = true` and `K2Approved = true` — one narrow
+     edit at the composition root (`App.axaml.cs` / the options `configure` delegate already used by
+     `LocalTestProfile.ConfigureStore`), taken **only after** part 1 is green for that RID. Dev/test
+     profiles keep the current defaults. No new package pin (the cipher native is already frozen by
+     E08/K2), no migration, no wire change. An acceptance test asserts the *release* profile resolves
+     `EncryptionEnabled && K2Approved` and that `LocalStoreOptions.Validate()` accepts it.
+  *(Decision recorded 2026-10-07: E09 rather than E07/E08, because E07 is online identity and E08 is
+  proof-only and forbidden from touching `src/`; release is the only phase that knows which RIDs ship.)*
+- **No production code, no `src/` change (other than the single release-profile encryption edit above), no migration, no wire bump, no DI change, no new package
   pin** (packaging tools are invoked by scripts, not referenced by a project). `WireContract.Version`
   is **not** bumped here — E09 declares the supported window, it does not change the wire shape.
 
@@ -141,7 +157,7 @@ phase produces runbooks, scripts and packaging config only — it adds nothing t
 
 ## Contracts / schema added
 - No production contract, wire shape, entity, migration, DI registration, error code or package pin
-  changes. `WireContract.Version` is unchanged; E09 only *declares* the supported window.
+  changes (the only `src/` touch is the release-profile `EncryptionEnabled`/`K2Approved` edit declared above). `WireContract.Version` is unchanged; E09 only *declares* the supported window.
 - New `release/` folder (docs + packaging config) and `scripts/release/**` (backup, restore,
   compat-check, isolation-test, sbom, release-check). Artifacts: SBOM, native binary inventory,
   recovery-rehearsal record, release checklist result.
@@ -159,8 +175,9 @@ phase produces runbooks, scripts and packaging config only — it adds nothing t
   the same trust chain; macOS signed·notarized·stapled·offline.
 - **STACK.md §12** — the native binary inventory is separate from the NuGet SBOM and records the
   K2-frozen matrix plus the dated CVE-2025-6965 accepted-risk note where applicable.
-- **CONVENTIONS §12 / §13** — E09 writes only under `release/` and `scripts/release/`, changes no
-  `src/`, introduces no forbidden dependency, and re-litigates no prior decision.
+- **CONVENTIONS §12 / §13** — E09 writes only under `release/` and `scripts/release/` plus the one
+  declared release-profile encryption-flag edit (a decision recorded in this phase, not a re-litigation
+  of A11/E08), introduces no forbidden dependency, and re-litigates no prior decision.
 
 ## Out of scope
 - Enabling scale-out (Redis backplane, second instance, deployment stamps) → deferred (ROADMAP §5).
@@ -185,6 +202,9 @@ phase produces runbooks, scripts and packaging config only — it adds nothing t
 - `scripts/release/isolation-test.sh` is green: removing DNS, Internet, time sync, a revocation
   service, or the package feed — one at a time — leaves the product installable, startable, able to
   log in offline, post a local command, and observe local metrics.
+- **Encryption gate:** `release-check.sh` fails when K2 is `SKIPPED`/`FAIL` for any shipped RID; the
+  release profile resolves `EncryptionEnabled && K2Approved` and passes `LocalStoreOptions.Validate()`;
+  dev/test profiles are unchanged.
 - `scripts/release/sbom.sh` emits the NuGet SBOM and a separate native binary inventory; every native
   binary has a row, and any `< 3.50.2` encrypted native carries a dated CVE-2025-6965 accepted-risk
   note.
@@ -192,7 +212,7 @@ phase produces runbooks, scripts and packaging config only — it adds nothing t
   any unresolved `SKIPPED` or `FAIL`, if the rehearsal is stale, or if compat/isolation/SBOM are not
   green; it passes only when every checklist item is met.
 - Runnability: `scripts/sandbox/run.sh` = `SMOKE RUN OK` with no server, no SQL Server, no network;
-  E09 added nothing to any runtime path.
+  E09 added nothing to any runtime path other than the declared release-profile encryption flags.
 
 ## PROGRESS.md update
 Mark E09 done; advance "Next phase" to `— (roadmap complete)`; append a "Repo state" entry listing:
@@ -201,6 +221,6 @@ the `release/` folder (`TOPOLOGY.md`, both runbooks, `COMPATIBILITY.md`, `RECOVE
 (`backup`, `restore` with the four-part set + rehearsal assertion, `compat-check` bound to D08's
 version window, `isolation-test`, `sbom` with the separate native inventory + dated CVE note,
 `release-check` as the go/no-go consuming E08's report), the declared N/N-1/N-2 window, the packaging
-lanes (MSIX preferred / WiX fallback / macOS), and the confirmation that no `src/`, migration, wire
+lanes (MSIX preferred / WiX fallback / macOS), and the confirmation that, apart from the release-profile `EncryptionEnabled`/`K2Approved` edit, no `src/`, migration, wire
 version, DI or package-pin changed. Note that the roadmap is complete and the product is
 release-gated by `release-check.sh`.

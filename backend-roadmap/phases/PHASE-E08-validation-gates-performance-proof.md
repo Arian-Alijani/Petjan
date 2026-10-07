@@ -80,7 +80,10 @@ A failing gate blocks release and is logged with an owner phase — it is never 
     per available RID through A11's encryption provider seam: create→close→reopen(correct key OK)→
     reopen(wrong key fails)→plain reader cannot read→EF migrate on encrypted DB→WAL+crash-recovery→
     backup→restore(still encrypted)→`PRAGMA rekey`. If the cipher native is absent on the runner it
-    is `SKIPPED("cipher-native-absent")`, and E09's native-binary inventory records the residual
+    is `SKIPPED("cipher-native-absent")` — acceptable on a **developer / CI-without-cipher** runner only.
+    **A `SKIPPED` K2 is never sufficient for a release build:** E09's `release-check.sh` treats K2 as
+    must-`PASS` on every shipped RID (see E09 "Encryption-at-rest release gate"). Where K2 **passes**
+    but the encrypted native is still `< 3.50.2`, E09's native-binary inventory records the residual
     CVE-2025-6965 as a dated accepted risk (`STACK.md` §3.3).
   - **Native-SQLite assertion** ⇒ `Gate_NativeSqlite_runtime_version` calls the A11 startup probe
     directly and asserts `SELECT sqlite_version() >= 3.50.2`; a managed-package restore is explicitly

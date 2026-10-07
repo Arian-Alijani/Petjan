@@ -56,7 +56,7 @@ HTTP client, never its own business logic. Every asset ships in the package; not
   existing `ServerAuthenticationService` with `persistCookie: true` and issues **no bearer token** —
   the browser surface never receives one. `POST /admin/auth/logout` signs out.
   `AddAntiforgery()` + `app.UseAntiforgery()` is registered (required by Razor Components) and every
-  form posts the token. Login is rate-limited with D13's `identity` policy.
+  form posts the token. Login is rate-limited with D13's `auth` policy (D13 §rate-limit defines exactly five policies — `auth`, `commands`, `tables`, `files`, `operator` — and `auth` is the one covering `/login` + `/refresh`; there is no `identity` policy).
 - **Authorization.** `Components/_Imports.razor` carries
   `@attribute [Authorize(Policy = AnimoraPolicies.RequireOperator)]`; the login page is the single
   `[AllowAnonymous]` exception. `AuthorizationTests` asserts a tenant-user cookie (has
@@ -145,7 +145,7 @@ HTTP client, never its own business logic. Every asset ships in the package; not
    `MapStaticAssets()`, `MapRazorComponents<Admin>().AddInteractiveServerRenderMode()` under
    `/admin`, and `UseAntiforgery()` at the D01-documented pipeline position.
 3. Write `AdminAuthEndpoints` (cookie login/logout over `ServerAuthenticationService`) and the login
-   page; apply the `identity` rate-limit policy.
+   page; apply the `auth` rate-limit policy (D13's login/refresh limiter).
 4. Write the layout, `_Imports.razor` with the global `RequireOperator` attribute, and
    `OperatorContextFactory`.
 5. Write the tenant list + search island + `[PersistentState]` handoff.

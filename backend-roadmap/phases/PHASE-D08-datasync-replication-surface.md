@@ -33,21 +33,31 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
   Mapping between the server entity and the contract lives in
   `src/Animora.Persistence.SqlServer/Sync/SyncContractMappings.cs` as **explicit `Select`
   projections** (no AutoMapper, no reflection — PERFORMANCE.md §3).
-- **Replicated entity set (binding, 22 entities).** Derived from `ServerModel.ReplicatedEntities`
+- **Replicated entity set (binding, 25 entities).** Derived from `ServerModel.ReplicatedEntities`
   (D02) minus everything a client must never hold or must obtain only through the command pipeline:
   | Replicated (client needs local reads of these) | Why |
   |---|---|
   | `Owner`, `Pet`, `WeightEntry`, `DocumentReference` | patient directory, offline reads |
   | `Visit`, `VaccinationRecord`, `MedicalHistoryEntry` | clinical history |
+  | `TreatmentPlan`, `TreatmentOccurrence`, `VaccineCatalogItem` | treatment plans + vaccine catalog (post-C11, migration `031`) — **read-only**, clinical history like `VaccinationRecord` |
   | `Appointment`, `ReceptionQueueEntry` | calendar + queue |
   | `Room`, `BoardingServiceDef`, `BoardingStay` | boarding board |
   | `UnitOfMeasure`, `ProductCategory`, `Product` | catalog / POS lookups |
   | `Supplier`, `Insurer`, `LedgerAccount`, `AccountingPeriod` | reference data |
   | `Tenant`, `RoleDefinition`, `StaffMembership` | tenant + role display |
   | **Not replicated** | **Why** |
-  | `Invoice`, `Payment`, `CashSession`, `JournalEntry`, `Cheque`, `Expense`, `StockMovement`, `PurchaseOrder`, `GoodsReceipt` | financial/stock facts are **settled by command**, not replicated as state (R-B13); the client learns them from its own settled commands and from server-computed read models |
+  | `Invoice`, `Payment`, `CashSession`, `JournalEntry`, `Cheque`, `Expense`, `RecurringExpense`, `RecurringExpensePayment`, `StockMovement`, `PurchaseOrder`, `GoodsReceipt` | financial/stock facts are **settled by command**, not replicated as state (R-B13); the client learns them from its own settled commands and from server-computed read models |
   | `User`, `Permission`, `Device`, Identity tables | credentials/authorization material never leaves the server as replicable rows |
   | `IdempotencyRecords`, `ServerAuditEntries`, `StockOnHandProjections`, `DailyFinanceFacts`, `ServerBootstrapState`, `TenantSettings` | server-internal (D02/D05/D07 lists) |
+  **DECISION (2026-10-07, closes Phase-Problem §6.1):** the two aggregates that post-date C01–C09 are
+  classified by the same rule as their siblings — `TreatmentPlan`/`TreatmentOccurrence`/`VaccineCatalogItem`
+  are clinical history ⇒ **replicated, read-only** (writes only via `vaccination.treatment.*` /
+  `vaccination.catalog.add` commands, D06); `RecurringExpense`/`RecurringExpensePayment` are financial
+  facts ⇒ **not replicated** (settled by `finance.recurring.*` commands, D07, exactly like `Expense`).
+  Net: replicated **25** (3 client-writable + **22** read-only). Client-local columns that have no wire
+  counterpart — e.g. E05's `MedicalHistoryEntry.IsConflictPreservedCopy` — are **excluded from every
+  `<Entity>SyncContract`** and are never pushed or pulled; the `MedicalHistoryEntry` contract carries
+  no such field, so the entity stays purely read-only on the wire.
   This split **is** the "replication ≠ intent" line drawn in data. `SyncSurfaceTests` asserts the
   two sets exactly, so no later phase can quietly replicate a financial table.
 - **One controller per entity**, `src/Animora.Server/Tables/<Entity>TableController.cs`:
@@ -122,12 +132,12 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
 ## Files to create / modify
 | Path | Action | Contents (one line) |
 |---|---|---|
-| `src/Animora.Contracts.Wire/Sync/*.cs` | create | 22 `<Entity>SyncContract` records |
+| `src/Animora.Contracts.Wire/Sync/*.cs` | create | 25 `<Entity>SyncContract` records |
 | `src/Animora.Contracts.Wire/Sync/SyncContractCatalog.cs` | create | name → contract + version table |
 | `src/Animora.Persistence.SqlServer/Sync/SyncContractMappings.cs` | create | explicit projections |
-| `src/Animora.Persistence.SqlServer/Sync/SyncViewConfigurations.cs` | create | 22 view mappings |
+| `src/Animora.Persistence.SqlServer/Sync/SyncViewConfigurations.cs` | create | 25 view mappings |
 | `src/Animora.Persistence.SqlServer/Migrations/106_SyncViews*` | create | `vw_Sync<Entity>` views + indexes check |
-| `src/Animora.Server/Tables/*TableController.cs` | create | 22 thin controllers |
+| `src/Animora.Server/Tables/*TableController.cs` | create | 25 thin controllers |
 | `src/Animora.Server/Tables/TableOptionsFactory.cs` | create | the binding `TableControllerOptions` |
 | `src/Animora.Server/Tables/TenantAccessControlProvider.cs` | create | isolation layer 3 |
 | `src/Animora.Server/Tables/ContractVersionMiddleware.cs` | create | N/N-1/N-2 gate + echo header |
@@ -141,11 +151,11 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
 
 ## Implementation steps
 1. Pin the three Datasync server packages at exactly `10.1.2`.
-2. Write the 22 sync contracts + `SyncContractCatalog`; write `SyncContractMappings` and
+2. Write the 25 sync contracts + `SyncContractCatalog`; write `SyncContractMappings` and
    `SyncViewConfigurations`; generate migration `106_SyncViews`.
 3. Write `MonotonicStampService` and `TableOptionsFactory`.
 4. Write `TenantAccessControlProvider` (data view, authorization, pre-commit stamping).
-5. Write the 22 controllers; override the write methods on the 19 read-only ones.
+5. Write the 25 controllers; override the write methods on the 22 read-only ones.
 6. Write `ContractVersionMiddleware`; scope it to `/tables/*`; echo the served version.
 7. Register `AddDatasyncServices()`, the NSwag `tables` document, the middleware and the
    `replication` readiness check.
@@ -156,11 +166,11 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
 10. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; desktop `run.sh` = `SMOKE RUN OK`.
 
 ## Contracts / schema added
-- Wire: 22 `<Entity>SyncContract` records + `SyncContractCatalog`. `WireContract.Version` stays `1`
+- Wire: 25 `<Entity>SyncContract` records + `SyncContractCatalog`. `WireContract.Version` stays `1`
   (explicit decision; no existing shape changed).
-- Persistence.SqlServer: `SyncContractMappings`, `SyncViewConfigurations`, 22 `vw_Sync<Entity>`
+- Persistence.SqlServer: `SyncContractMappings`, `SyncViewConfigurations`, 25 `vw_Sync<Entity>`
   views, migration `106_SyncViews`.
-- Server: 22 `TableController`s, `TableOptionsFactory`, `TenantAccessControlProvider`,
+- Server: 25 `TableController`s, `TableOptionsFactory`, `TenantAccessControlProvider`,
   `ContractVersionMiddleware`, `MonotonicStampService`, the `tables` OpenAPI document, the
   `replication` readiness check.
 - `ErrorCodes` += `REPLICATION_READ_ONLY` (`CONTRACT_VERSION_UNSUPPORTED` exists from D05 — reuse).
@@ -191,9 +201,9 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors; the Datasync pins resolve to
   exactly `10.1.2` (a CI assertion fails on any other version).
-- `SyncSurfaceTests` green (or skipped with reason): the replicated set equals the 22 listed
+- `SyncSurfaceTests` green (or skipped with reason): the replicated set equals the 25 listed
   entities and the non-replicated set contains every financial/stock/identity/internal table; a
-  write attempt on any of the 19 read-only controllers is `405` `REPLICATION_READ_ONLY`; a
+  write attempt on any of the 22 read-only controllers is `405` `REPLICATION_READ_ONLY`; a
   100-insert same-millisecond burst followed by a paged pull yields **zero skipped and zero
   duplicated** rows (`MonotonicStampService` proven).
 - `SyncAccessControlTests` green: a tenant-A token pulling `/tables/pets` never sees a tenant-B row;
@@ -210,7 +220,7 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
 - Desktop unaffected: `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
 
 ## PROGRESS.md update
-Mark D08 done; advance "Next phase" to `D09`; append a "Repo state" entry listing: the 22
+Mark D08 done; advance "Next phase" to `D09`; append a "Repo state" entry listing: the 25
 `<Entity>SyncContract` types + `SyncContractCatalog` (**E03 maps to them**), the **binding
 replicated / non-replicated split** and its test, the three client-writable entities, the
 `vw_Sync<Entity>` views + migration `106_SyncViews`, `TableControllerOptions` values,

@@ -1,5 +1,7 @@
 # Phase C11 — Mock purge & offline acceptance
 
+> **Historical note (2026-10-07):** this phase is executed. Its `018_SyncCursor` references below shipped as **`019_SyncCursor`** (ordinal `018` was already taken by `018_UserPreferences`) — see `PROGRESS.md` C11 entry. Read every `018_SyncCursor` here as `019_SyncCursor`.
+
 **Band:** M · **Track:** C · **Depends on:** C04, C10 · **Satisfies:** R-B01, R-B08, R-B10, R-B34
 **Runnable after this phase:** desktop offline yes · server required no
 

@@ -57,7 +57,7 @@ test-consolidation phase A12 — see §6.)
 | B05 (a–c) | Audit, logging, diagnostics, crash safety (3 sessions) | M | B | B04 | R-B09, R-B29 | yes |
 | C01 | Patients & Owners | M | C | B05 | R-B01, R-B02 | yes |
 | C02 | Reception & Visits triage | M | C | C01 | R-B01, R-B02 | yes |
-| C03 | Visit encounter & Vaccination | M | C | C02 | R-B01, R-B02 | yes |
+| C03 | Visit encounter & Vaccination *(executed; phase file reconstructed as a historical stub — `phases/PHASE-C03-visit-encounter-vaccination.md`)* | M | C | C02 | R-B01, R-B02 | yes |
 | C04 | Appointments (calendar + booking) | M | C | C02 | R-B01, R-B02 | yes |
 | C05 | Boarding | M | C | C03 | R-B01, R-B02 | yes |
 | C06 | Inventory & Purchasing | M | C | C01 | R-B01, R-B02, R-B23 | yes |

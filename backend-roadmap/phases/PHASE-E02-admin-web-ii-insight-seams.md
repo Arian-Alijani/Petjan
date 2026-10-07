@@ -143,7 +143,7 @@ business data is exposed by this phase.**
 | `src/Animora.Persistence.SqlServer/Entities/TenantAggregateSnapshot.cs` | create | the snapshot row |
 | `src/Animora.Persistence.SqlServer/Configurations/Insight/TenantAggregateSnapshotConfiguration.cs` | create | mapping + unique key + indexes |
 | `src/Animora.Persistence.SqlServer/Migrations/*` | create | `111_TenantInsight` (+ `TenantSettings` consent columns) |
-| `src/Animora.Persistence.SqlServer/ServerModel.cs` | modify | append-only + non-replicated registration |
+| `src/Animora.Persistence.SqlServer/Context/ServerModel.cs` | modify | append-only + non-replicated registration (path per D02) |
 | `src/Animora.Server/Insight/SubscriptionInsightQuery.cs` | create | the only implementation today |
 | `src/Animora.Server/Insight/SnapshotIngestService.cs` | create | validation + idempotent ingest |
 | `src/Animora.Server/Endpoints/InsightEndpoints.cs` | create | snapshot upload + consent routes |

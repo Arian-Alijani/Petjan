@@ -6,12 +6,13 @@
 
 ## Read before starting
 - `backend-roadmap/CONVENTIONS.md` §1, §2, §3, §4, §5, §6 (all 15 items), §7, §8, §9, §12
-- `backend-roadmap/PROGRESS.md` (D08 entry — the 22 `<Entity>SyncContract` records,
+- `backend-roadmap/PROGRESS.md` (D08 entry — the 25 `<Entity>SyncContract` records,
   `SyncContractCatalog`, the binding replicated / non-replicated split, the **three** client-writable
   entities, `X-Animora-Contract-Version` + the two `409` actions + the header echo; A01 entry —
   `WireContract`; A02 entry — `IdGenerator`, `IClock`, `Result<T>`, `ErrorCodes`; A09 entry —
   `AnimoraLocalDbContext`, the `[LocalOnly]` marker, value converters; A11 entry — `ISecretStore`,
-  `NativeSqliteAssertion`, `LocalStoreOptions`; C11 entry — `SyncCursor` + migration `018_SyncCursor`)
+  `NativeSqliteAssertion`, `LocalStoreOptions`; C11 entry — `SyncCursor` + migration `019_SyncCursor`
+  — note PROGRESS.md's deliberate `018→019` bump because `018_UserPreferences` was already taken)
 - `ARCHITECTURE.md` §8.1, §8.2, §8.6 · `STACK.md` §4.1, §4.2, §4.3, §4.5
 - `A-RULE 001`, `A-RULE 009`, `A-RULE 010`, `A-RULE 022`, `T-RULE 001`, `T-RULE 006`, `T-RULE 007`
 - `src/Animora.Sync.Abstractions/` (placeholder to fill), `src/Animora.Persistence.Sqlite/Context/**`
@@ -52,6 +53,14 @@ intent** (that is E06).
 - **Package pin:** `CommunityToolkit.Datasync.Client` **exactly `10.1.2`** in
   `Directory.Packages.props`, consumed **only** by `src/Animora.Sync.Datasync/`
   (`LayeringRulesTests` gains the fact; T-RULE 001 / A-RULE 001).
+  **Pin verification (2026-10-07, closes Phase-Problem §7.1):** the NuGet flat-container index lists
+  `CommunityToolkit.Datasync.Client` `10.0.0 … 10.1.2` (alongside `9.0.5`), and the `10.1.2` nuspec
+  targets `net10.0` with `Microsoft.EntityFrameworkCore(.Sqlite/.Relational) 10.0.9`. So the client pin
+  exists and matches the .NET 10 / EF Core 10 baseline (the upstream `…Server.OpenApi 9.0.5` ↔
+  ASP.NET Core 10 incompatibility concerns a different package, which this solution does not use).
+  **Execution-time guard (step 2 below):** `dotnet restore` must resolve exactly `10.1.2` for the client
+  with **no** `NU1xxx` warning-as-error and no transitive downgrade; if it does not, stop and record an
+  ADR in the decision log before touching the adapter — never silently float the version.
 - **Project:** `src/Animora.Sync.Datasync/Animora.Sync.Datasync.csproj` references
   `Animora.Sync.Abstractions`, `Animora.Application`, `Animora.Persistence.Sqlite`,
   `Animora.Contracts.Wire`. `Animora.Desktop` references it from the composition root only.
@@ -59,11 +68,14 @@ intent** (that is E06).
   `Animora.Application` or `Animora.Domain`.
 - **Local replica context — separate from the business context, by design.**
   `src/Animora.Sync.Datasync/Store/AnimoraOfflineDbContext.cs` derives from Datasync's
-  `OfflineDbContext` and maps **only** the 22 `<Entity>SyncContract` types as EF entities, in the
+  `OfflineDbContext` and maps **only** the 25 `<Entity>SyncContract` types as EF entities, in the
   **same SQLite file** as `AnimoraLocalDbContext` but on its **own table set** prefixed `repl_`
   (e.g. `repl_Pets`), plus the library's own `DatasyncOperationsQueue` / `DatasyncDeltaTokens`
-  tables. Migration **`019_ReplicaTables`** is generated from this context (`AnimoraLocalDbContext`
-  is untouched — no phase edits a prior migration).
+  tables. A migration named **`ReplicaTables`** is generated **from this offline context, numbered
+  within the offline context's *own* migration sequence** (it starts fresh, so `001_ReplicaTables`
+  under `src/Animora.Sync.Datasync/Migrations/`, with its own `__EFMigrationsHistory` table).
+  `AnimoraLocalDbContext` is untouched by it — no phase edits a prior migration, and a migration
+  generated from the offline context can never alter a table owned by the local context.
   **Rationale, binding:** business tables are domain entities with converters and invariants; replica
   tables are flat transport rows. Mixing them would put `UpdatedAt`/`Version` on domain entities and
   invite a business query to order by a transport column (A-RULE 009/010). Both contexts share the
@@ -84,7 +96,11 @@ intent** (that is E06).
   same `AggregateId` is **skipped and recorded** as `ConflictKind.VersionMismatch` — the A-RULE 017
   guarantee's first line, with E05 owning the full policy; (c) projection is idempotent; (d)
   `UpdatedAt`/`Version` stay **only** on the `repl_` row, never copied to a domain column.
-- **Cursor storage reuses C11's `SyncCursor`,** extended in migration `019_ReplicaTables` with
+- **Cursor storage reuses C11's `SyncCursor`,** which is owned by `AnimoraLocalDbContext`. Because it
+  lives on a different context than the `repl_*` tables, its new columns ship as a **separate
+  local-context migration** — `SyncCursorReplicaColumns`, numbered at the **next free ordinal on the
+  local context at execution time** (verify the physical head; it is `031` as of 2026-10-07, so this
+  would be `032` unless more migrations land first). It adds
   `EntityName nvarchar(64)`, `Cursor nvarchar(64)` (the library's delta-token value, opaque to us),
   `LastPulledAtUtc`, `ConsecutiveFailures int`, `LastErrorCode nvarchar(64)`, unique
   `UX_SyncCursors_EntityName`. The library keeps its own `DatasyncDeltaTokens`; our row is the
@@ -121,7 +137,7 @@ intent** (that is E06).
   a `ContractUpgradeRequired` upgrade).
 - **`SyncOptions`** (`src/Animora.Sync.Datasync/SyncOptions.cs`, bound from the desktop config):
   `ServerBaseUrl` (nullable), `PageSize = 50`, `HttpTimeoutSeconds = 30`,
-  `MaxEntitiesPerPass = 22`, `ProjectionBatchSize = 200`, `AllowInsecureHttp = false`
+  `MaxEntitiesPerPass = 25`, `ProjectionBatchSize = 200`, `AllowInsecureHttp = false`
   (dev-only flag, refused when `ServerBaseUrl` is not `localhost`). `Validate()` fails loud.
 - **Token supply is a port, not an implementation here.**
   `Animora.Sync.Abstractions/ISyncCredentialProvider.cs` →
@@ -143,9 +159,10 @@ intent** (that is E06).
 | `src/Animora.Sync.Abstractions/ISyncDiagnostics.cs` | create | diagnostics port + `SyncEntityStatus` |
 | `src/Animora.Sync.Abstractions/ISyncCredentialProvider.cs` | create | token port + anonymous default |
 | `src/Animora.Sync.Datasync/Animora.Sync.Datasync.csproj` | create | the only Datasync-client consumer |
-| `src/Animora.Sync.Datasync/Store/AnimoraOfflineDbContext.cs` | create | `OfflineDbContext` over the 22 contracts |
+| `src/Animora.Sync.Datasync/Store/AnimoraOfflineDbContext.cs` | create | `OfflineDbContext` over the 25 contracts |
 | `src/Animora.Sync.Datasync/Store/ReplicaConfigurations.cs` | create | `repl_*` table mappings |
-| `src/Animora.Sync.Datasync/Migrations/*` | create | `019_ReplicaTables` (+ `SyncCursor` columns) |
+| `src/Animora.Sync.Datasync/Migrations/*` | create | `001_ReplicaTables` on the **offline** context's own sequence |
+| `src/Animora.Persistence.Sqlite/Migrations/*` | create | `SyncCursorReplicaColumns` on the **local** context, next free ordinal (≈`032`) |
 | `src/Animora.Sync.Datasync/Projection/ContractToEntityMappings.cs` | create | explicit per-entity mapping |
 | `src/Animora.Sync.Datasync/Projection/ReplicaProjector.cs` | create | ordered, batched, idempotent projection |
 | `src/Animora.Sync.Datasync/Transport/SyncPreflight.cs` | create | reachability + contract-version gate |
@@ -169,8 +186,11 @@ intent** (that is E06).
    credential port. Confirm the project still has **zero** package references.
 2. Pin `CommunityToolkit.Datasync.Client 10.1.2`; create `Animora.Sync.Datasync`; add both to the
    solution.
-3. Write `AnimoraOfflineDbContext` + `ReplicaConfigurations` (`repl_` prefix) and generate migration
-   `019_ReplicaTables`, including the new `SyncCursor` columns.
+3. Write `AnimoraOfflineDbContext` + `ReplicaConfigurations` (`repl_` prefix) and generate
+   `001_ReplicaTables` **on the offline context's own migration sequence**. Separately, generate
+   `SyncCursorReplicaColumns` on `AnimoraLocalDbContext` at the next free local ordinal (verify the
+   physical head) for the new `SyncCursor` columns — the two migrations live on two contexts and must
+   not be merged.
 4. Write `ContractToEntityMappings` (one explicit method per entity) and
    `SyncContractCatalog.ProjectionOrder` (extend D08's catalog — additive only).
 5. Write `ReplicaProjector` with the ordered, 200-row-batched, idempotent algorithm and the
@@ -182,7 +202,7 @@ intent** (that is E06).
 9. Write `AddAnimoraDatasync` and the conditional composition-root wiring; keep
    `LocalSyncStatusService` registered.
 10. Write the four test classes; extend `LayeringRulesTests`.
-11. Verify against a running server: a first pull populates the 22 `repl_` tables and projects into
+11. Verify against a running server: a first pull populates the 25 `repl_` tables and projects into
     the business tables; a second pull transfers only changed rows; pushing an edited `Owner`
     succeeds; a pull that would overwrite an aggregate with an unsent command is skipped and
     reported.
@@ -194,8 +214,9 @@ intent** (that is E06).
   `SyncResult`, `SyncOutcome`, `SyncEntityResult`, `SyncConflict`, `ConflictKind`,
   `ISyncDiagnostics`, `SyncEntityStatus`, `ISyncCredentialProvider`,
   `AnonymousSyncCredentialProvider`.
-- `Animora.Sync.Datasync`: `AnimoraOfflineDbContext`, `ReplicaConfigurations` (22 `repl_*` tables),
-  migration `019_ReplicaTables`, `ContractToEntityMappings`, `ReplicaProjector`, `SyncPreflight`,
+- `Animora.Sync.Datasync`: `AnimoraOfflineDbContext`, `ReplicaConfigurations` (25 `repl_*` tables),
+  migration `001_ReplicaTables` (offline context) + `SyncCursorReplicaColumns` (local context),
+  `ContractToEntityMappings`, `ReplicaProjector`, `SyncPreflight`,
   `ContractVersionHandler`, `BearerTokenHandler`, `DatasyncSyncEngine`, `DatasyncSyncDiagnostics`,
   `SyncOptions`, `AddAnimoraDatasync`.
 - `SyncContractCatalog.ProjectionOrder` (additive extension of D08's catalog).
@@ -260,7 +281,7 @@ intent** (that is E06).
 - `FullResyncTests` green: refused with `FULL_RESYNC_BLOCKED` while an unsettled `PendingCommand`
   exists; otherwise writes one `audit.sync.fullresync` entry with the reason, clears tokens +
   `repl_*` + cursors in one transaction, and invokes `RebuildActivityFeedAsync`.
-- Manual (real server): first pull populates all 22 `repl_` tables and the business tables; a second
+- Manual (real server): first pull populates all 25 `repl_` tables and the business tables; a second
   pull transfers only changed rows (row counts logged); an edited `Owner` pushes successfully; a
   write attempt on a non-writable entity is refused locally before any HTTP call.
 - Runnability: with no `ServerBaseUrl` configured, `scripts/sandbox/run.sh` = `SMOKE RUN OK` and
@@ -271,7 +292,7 @@ Mark E03 done; advance "Next phase" to `E04`; append a "Repo state" entry listin
 `Animora.Sync.Abstractions` port surface (**E04/E05/E06/E07 all program against these exact types**),
 `NullSyncEngine`, `ISyncCredentialProvider` + its anonymous default (**E07 replaces it**),
 `Animora.Sync.Datasync` + the `10.1.2` client pin + the layering fact, `AnimoraOfflineDbContext` and the
-`repl_*` table set + migration `019_ReplicaTables`, `SyncContractCatalog.ProjectionOrder`,
+`repl_*` table set + migration `001_ReplicaTables` (offline context), `SyncContractCatalog.ProjectionOrder`,
 `ReplicaProjector`'s four binding rules (soft delete, skip-on-pending, idempotent, 200-row batches)
 (**E05 builds its policy on top**), `SyncPreflight` + the contract-version outcomes,
 `DatasyncSyncEngine`'s 5-step pass and `PartiallyCompleted` semantics, `FullResyncAsync`'s refuse/audit/

@@ -38,7 +38,7 @@
 | `src/Animora.Contracts/` | 24 public interfaces audited in C11 + DTOs, one folder per bounded context. The frontend↔backend seam. B03c added the auth seam (`Identity/IAuthenticationService`, `AuthOutcome`, `FirstRunRequest`) and appended `UserRole.Receptionist`; still references no `Animora.*`. |
 | `src/Animora.Desktop/Mocks/` | **Removed entirely by C11.** `MockSyncStatusService.cs` deleted and replaced by real `LocalSyncStatusService`; Track C mock purge complete (22 of 22). The historical per-phase deletion list is: `MockCurrentUserContext` deleted by B03c; **`MockPatientsQueryService` deleted by C01**; **`MockReceptionQueueService` + `MockVisitsTriageService` deleted by C02**; **`MockVisitEncounterService` + `VisitEncounterStore` + `MockVaccinationService` deleted by C03**; **`MockAppointmentsQueryService` + `MockAppointmentBookingService` + `AppointmentStore` deleted by C04**; **`MockBoardingQueryService` deleted by C05**; **`MockInventoryQueryService` + `MockPurchasingQueryService` deleted by C06**; **`MockSalesQueryService` deleted by C07**; **`MockCashierService` + `MockChequesQueryService` deleted by C08**; **`MockFinanceQueryService` deleted by C09**; **`MockHistoryQueryService` + `MockDashboardQueryService` + `MockSearchService` + `MockUserProfileService` deleted by C10**. |
 | `src/Animora.Domain/`, `src/Animora.Application/` | **Real code**, not placeholders — built through Track A (A01–A12: kernel, identity, patients/clinical, scheduling/boarding, inventory/purchasing, sales/cashier, finance) and B01–B02 (application dispatch pipeline, command journal/outbox). `Animora.Domain.csproj` still has **zero** project/package references by design. |
-| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, 19 migrations (`001`–`019`; `019` C11 `SyncCursor` = tenant/scope last-synced marker; `008` UiDraftState, `009` PatientsSearchKeys, `010` C03 schema, `011` StaffWorkingHours, `012` C05 boarding handoff, `013` C06 `InventorySnapshot`, `014` C07 `SalesInsurers`, `015` C08 `CashSessionLink`, `016` C09 `FinanceProjections` = `DailyFinanceFact` + `ProductSalesFact` + `OwnerFinancialSnapshot`, `017` C10 `ActivityFeed` = `ActivityEvent`, `018` C10 `UserPreferences` = `UserPreference`), repositories (+ `MedicalHistoryRepository`), seed (clinical/reception/appointment/boarding/inventory/sales + `FinanceSampleData`, C08; banks; `RebuildFinanceProjectionsAsync` + `RebuildActivityFeedAsync` run at end of seeding, C09/C10), read queries (patients/reception/triage/rx/vaccination/appointments/boarding/inventory/purchasing/sales + `CashierQueries`/`ChequeQueries`, C08 + `FinanceQueries`, C09 + `HistoryQueries`/`DashboardQueries`/`GlobalSearchQueries`/profile queries, C10), the finance allocators (`InvoiceNumberAllocator`, `JournalNumberAllocator`, `ExpenseNumberAllocator`) + `FinanceProjectionStore`/`FinanceProjectionRebuilder`, `FinanceProjectionWorker` (Infrastructure.Local, drains the B02 outbox off the OLTP path, C09), maintenance/backup/quarantine (+ `RebuildStockSnapshotsAsync`, `RebuildFinanceProjectionsAsync`), OS keystore, clocks, append-only local audit sink, buffered/redacted rolling file logging, and PII-free diagnostics bundle export. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
+| `src/Animora.Persistence.Sqlite/`, `src/Animora.Infrastructure.Local/` | **Real code.** Local encrypted SQLite store: DbContext, **31 migrations (`001`–`031`; physical head `031_TreatmentPlans` — `020`–`031` are post-C11, see "Post-C11 drift" below)**; C11-era detail follows (`001`–`019`; `019` C11 `SyncCursor` = tenant/scope last-synced marker; `008` UiDraftState, `009` PatientsSearchKeys, `010` C03 schema, `011` StaffWorkingHours, `012` C05 boarding handoff, `013` C06 `InventorySnapshot`, `014` C07 `SalesInsurers`, `015` C08 `CashSessionLink`, `016` C09 `FinanceProjections` = `DailyFinanceFact` + `ProductSalesFact` + `OwnerFinancialSnapshot`, `017` C10 `ActivityFeed` = `ActivityEvent`, `018` C10 `UserPreferences` = `UserPreference`), repositories (+ `MedicalHistoryRepository`), seed (clinical/reception/appointment/boarding/inventory/sales + `FinanceSampleData`, C08; banks; `RebuildFinanceProjectionsAsync` + `RebuildActivityFeedAsync` run at end of seeding, C09/C10), read queries (patients/reception/triage/rx/vaccination/appointments/boarding/inventory/purchasing/sales + `CashierQueries`/`ChequeQueries`, C08 + `FinanceQueries`, C09 + `HistoryQueries`/`DashboardQueries`/`GlobalSearchQueries`/profile queries, C10), the finance allocators (`InvoiceNumberAllocator`, `JournalNumberAllocator`, `ExpenseNumberAllocator`) + `FinanceProjectionStore`/`FinanceProjectionRebuilder`, `FinanceProjectionWorker` (Infrastructure.Local, drains the B02 outbox off the OLTP path, C09), maintenance/backup/quarantine (+ `RebuildStockSnapshotsAsync`, `RebuildFinanceProjectionsAsync`), OS keystore, clocks, append-only local audit sink, buffered/redacted rolling file logging, and PII-free diagnostics bundle export. Wired into Desktop by B03c (`AddAnimoraLocalInfrastructure()`; store startup runs async after the login window opens). |
 | `src/Animora.Client.Services/` | B03c identity (`Identity/AuthenticationService`, `Identity/CurrentUserContextService`, `Mapping/RoleMapping`). **C01 patients:** `Patients/PatientsService` + `Patients/PatientsMapping`; `Diagnostics/StoreReadinessGate`. **C02:** `Reception/ReceptionQueueService`, `Visits/VisitsTriageService` (+ mappings, `VisitTypeCatalog`). **C03:** `Visits/VisitEncounterService` + `Visits/VisitEncounterMapping` + `Visits/DebounceBuffer` (trailing 600 ms note debounce, flushed on complete/navigate), `Vaccination/VaccinationService` + `Vaccination/VaccinationMapping` + `Vaccination/SmsTemplateRenderer` (token substitution, **no delivery**), `Caching/TenantScopedCache` (bounded LRU keyed by tenant+user+resource+version). **C04:** `Appointments/AppointmentsQueryService`, `AppointmentBookingService` + mapping. **C05:** `Boarding/BoardingQueryService` + mapping. **C06:** `Inventory/InventoryQueryService`, `Purchasing/PurchasingQueryService` + `InventoryMapping` + `PersianFormat`. **C07:** `Sales/SalesQueryService` + `SalesMapping` (22 members; posting is a journaled command). **C08:** `Cashier/CashierService` + `CashierMapping` (reuses C07's commands verbatim, no second invoice path), `Cheques/ChequesQueryService` + `ChequesMapping`. **C09:** `Finance/FinanceQueryService` + `FinanceMapping` (reads the C09 fact tables only); `Patients/PatientsMapping` now reads `OwnerFinancialSnapshot.TotalSpendMinor` (**C01's deferred `TotalSpend` closed**). **C10:** `History/HistoryQueryService` + `CsvWriter` + `HistoryText`, `Dashboard/DashboardQueryService` + `DashboardMapping` (role-gated widgets), `Search/SearchService`, `Profile/UserProfileService` (settings survive restart; save is non-journaled) + mappings. All are `sealed`, scope-per-call over the dispatcher, no EF/SQL/rule. **C11:** `Sync/LocalSyncStatusService` replaces the final mock using Application cursor/journal ports, scope-per-call reads, serialized processor passes and cancellation handling. `DraftStateStore` now delegates to `IUiDraftStore` (no EF reference). **Every Track C surface is now on the real backend; all 24 Contracts registrations machine-audited.** |
 | `src/Animora.Sync.Abstractions/` | Still an **empty scaffold** (csproj + README only) — Track E deliverable. |
 | Server / SQL Server / licensing / admin web | **Do not exist yet** (Tracks D/E). |
@@ -48,6 +48,54 @@
 | Solution | `Animora.sln` — 9 `src/` projects + 5 `tests/` projects (see `AGENTS.md` for the full `src/` map). |
 | Scripts | `scripts/sandbox/build.sh [fast\|full\|release\|restore]`, `run.sh` (Xvfb smoke, prints `SMOKE RUN OK`), `test.sh` (added by A01), `install-prereqs.sh`, `doctor.sh`, `bench.sh offline` (six-metric report + >2x failure threshold; evidence/limitations in `measurements/C11-offline-budget.md`). |
 | Frontend history | `windows-frontend-roadmap/PROGRESS.md` (phases 01–29 done). Its `phases/**` must never be read. |
+
+## Post-C11 drift (baseline correction — read before picking any migration number)
+
+> Added 2026-10-07 from `docs/Phase-Problem.md` §3. The status table above is accurate **as of C11**;
+> the repository kept moving through audit/perf/feature passes that were not tracked as roadmap
+> phases. Forward phases (D/E) MUST read this section as the true baseline.
+
+**Migration numbering rule (binding for every remaining D/E phase).** Never hard-code a client
+migration ordinal from this file's older text. At execution time, **list the physical files in
+`src/Animora.Persistence.Sqlite/Migrations/` and take the next free ordinal on the owning
+`DbContext`** (the physical head is the highest `NNN_` file, not a count). A migration generated from
+a *different* context (e.g. E03's `AnimoraOfflineDbContext`) is numbered on **that** context's own
+sequence. All ordinals `001`–`031` exist physically (including `006_CapabilitySnapshot` and
+`013_InventorySnapshot`); `020`, `022` and `024`–`031` have a **double** underscore before the ordinal in the file
+name (e.g. `20261007120000__031_TreatmentPlans.cs`) — match on the `NNN` token, never on a fixed
+prefix pattern.
+
+| # | Migration | What it did | Source |
+|---|---|---|---|
+| 020 | `OutboxActorProvenance` | `OutboxMessage.ActorUserId` column | `Plan/code-audit-2026-10-07-fixes.md` |
+| 021 | `DashboardGeneration` | `DashboardGenerations` table (cache-generation counter) | dashboard audit |
+| 022 | `DashboardWidgetIndexes` | 4 perf indexes (visits/vaccination/reception/history) | dashboard audit |
+| 023 | `PatientsPerfIndexes` | weight/birth-date/registered-at indexes | `Plan/patients-directory-perf.md` |
+| 024 | `BoardingPaymentMode` | `PaymentMode` column on boarding | boarding/sales/cashier audit |
+| 025 | `ActivityResolvedDetail` | `DetailText` + `SearchText` on activity feed | history audit |
+| 026 | `VariantReorderScaled` | `ReorderLevelScaled` fixed-scale column | `Plan/inventory-product-history-audit.md` |
+| 027 | `PersianCategoryNames` | data-only: Persian category names | localization |
+| 028 | `PersianBoardingServiceTitles` | data-only: Persian boarding titles | localization |
+| 029 | `RecurringExpenses` | **new aggregate** `RecurringExpense` (+ `RecurringExpensePayment`) | finance |
+| 030 | `BoardingPrepaidRoom` | `Kind` + `PrepaidInvoiceId` on boarding handoff | boarding/sales/cashier audit |
+| 031 | `TreatmentPlans` | **new aggregates** `TreatmentPlan`, `TreatmentOccurrence`, `VaccineCatalogItem` | `Plan/visits-petfile-audit.md` |
+
+**Other post-C11 facts a forward phase must not miss**
+- **New aggregates (not in D08's original replicated set):** `Animora.Domain.Clinical.TreatmentPlan`
+  (+ occurrences, vaccine catalog items) and `Animora.Domain.Finance.RecurringExpense` — D08 records the
+  decision (see its replicated-surface note).
+- **New command families:** `vaccination.treatment.*` (4) and `finance.recurring.*` (4);
+  `CommandTypes` is now **86** types (D06 = 39 non-financial, D07 = 47 money/stock). The live
+  `CommandTypes.cs` is the single source of truth — never a roadmap table.
+- **New desktop module:** *Statistics* (`src/Animora.Contracts/Statistics/*`, `Pages/Statistics`) — not
+  covered by `AGENTS.md`; no server/replication surface.
+- **`ErrorCodes`:** 161 declared codes (incl. `TREATMENT_PLAN_NOT_FOUND`, etc.).
+- **Audit/perf work shipped without a phase:** `Plan/code-audit-2026-10-07-fixes.md` (F-01..F-08),
+  `Plan/inventory-product-history-audit.md`, `Plan/patients-directory-perf.md`,
+  `Plan/visits-petfile-audit.md`, `docs/*_AUDIT_*.md`. They changed behaviour but no roadmap phase file.
+- **Roadmap-consistency fixes applied 2026-10-07** (from `docs/Phase-Problem.md`): E03/E05/E07
+  migration collisions resolved (E03 split across two contexts); D06/D07 handler inventories rebuilt
+  from the live `CommandTypes`; D13/E02/E01 path & rate-limit-policy drift corrected.
 
 ## Next phase
 
