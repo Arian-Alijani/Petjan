@@ -70,29 +70,6 @@ public sealed partial class SmsTemplateRowViewModel : ObservableObject
 }
 
 /// <summary>
-/// One status-filter chip in the toolbar's segmented rail, mirroring the
-/// reference's <c>renderSeg</c>: a Persian label plus its live record count,
-/// with the active state driven by the page's current segment.
-/// </summary>
-public sealed partial class VaccinationSegmentViewModel : ObservableObject
-{
-    [ObservableProperty]
-    private bool _isActive;
-
-    public VaccinationSegmentViewModel(string key, string label, int count)
-    {
-        Key = key;
-        Label = label;
-        Count = PersianNumberFormatter.ToPersianDigits(count);
-    }
-
-    /// <summary>all | due | overdue | scheduled | done — the reference's <c>S.seg</c>.</summary>
-    public string Key { get; }
-    public string Label { get; }
-    public string Count { get; }
-}
-
-/// <summary>
 /// One pickable SMS template chip inside the compose drawer, mirroring the
 /// reference's <c>vx-tmpl-chips</c> (the selected chip takes the violet wash).
 /// </summary>
@@ -109,40 +86,4 @@ public sealed partial class SmsTemplateChipViewModel : ObservableObject
 
     public SmsTemplate Template { get; }
     public string Name { get; }
-}
-
-/// <summary>
-/// A species-filter option for the toolbar's «فیلتر بر اساس گونه» select,
-/// mirroring the reference's <c>#vxSpecies</c> options.
-/// </summary>
-public sealed partial class SpeciesFilterOption : ObservableObject
-{
-    public SpeciesFilterOption(string value, string label)
-    {
-        Value = value;
-        Label = label;
-    }
-
-    /// <summary>"" (all) | cat | dog | bird | rabbit | rodent.</summary>
-    public string Value { get; }
-    public string Label { get; }
-}
-
-/// <summary>
-/// One page button of the records pager, mirroring the reference's
-/// <c>#vxPager .pages button</c> (the active page takes the brand fill).
-/// </summary>
-public sealed partial class PagerButtonViewModel : ObservableObject
-{
-    [ObservableProperty]
-    private bool _isActive;
-
-    public PagerButtonViewModel(int number, string label)
-    {
-        Number = number;
-        Label = label;
-    }
-
-    public int Number { get; }
-    public string Label { get; }
 }
