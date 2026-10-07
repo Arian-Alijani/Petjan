@@ -209,7 +209,7 @@ property.Metadata.SetValueComparer(new ValueComparer<List<TItem>>(
 
 ---
 
-## [ ] T5 — F-05 🟠 آزادسازی حافظه‌ی ViewModelهای صفحه هنگام ترک صفحه
+## [x] T5 — F-05 🟠 آزادسازی حافظه‌ی ViewModelهای صفحه هنگام ترک صفحه ✅ انجام و push شد (Patients, Inventory, Cashier, History, Reception)
 **فایل‌ها:** ثبت singletonها در `src/Animora.Desktop/App.axaml.cs` خطوط ۲۷۸، ۲۸۲، ۲۸۸، ۳۰۹، ۳۱۳، ۳۳۷، ۳۴۳، ۳۵۸، ۳۶۳، ... (همه‌ی `services.AddSingleton<XxxPageViewModel>()`).
 
 **مشکل (طبق گزارش، سطح «ریسک طراحی» نه باگ):** ViewModelهای صفحه singleton‌اند؛ `ObservableCollection`‌های داده‌سنگین پس از اولین بازدید تا پایان عمر برنامه در حافظه می‌مانند. در برنامه‌ی تمام‌روزِ درمانگاهی رشد monotonic حافظه.
@@ -332,7 +332,7 @@ internal sealed partial class OutboxJsonContext : JsonSerializerContext { }
 - [x] T2 F-04 — push شد ✅
 - [x] T3 F-02 — push شد ✅
 - [x] T4 F-03 — push شد ✅
-- [ ] T5 F-05 — push شد؟
+- [x] T5 F-05 — push شد ✅
 - [ ] T6 F-07 — push شد؟
 - [ ] T7 F-08 — push شد؟
 - [ ] T8 F-06 — push شد؟

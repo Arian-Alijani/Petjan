@@ -78,6 +78,9 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         if (!IsLoadInFlight) _ = ReloadPageAsync();
     }
 
+    // F-05: free the large per-visit day groups on a singleton page when leaving; OnNavigatedTo re-queries.
+    public override void OnNavigatedFrom() => DayGroups.Clear();
+
     private Task ReloadPageAsync() => TrackLoadAsync(() => ReloadAsync(resetPage: false));
 
     // ── Chrome ───────────────────────────────────────────────────────────
