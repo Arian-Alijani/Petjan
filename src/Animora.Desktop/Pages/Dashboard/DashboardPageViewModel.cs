@@ -209,7 +209,7 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     public string AlertOverflowText => "+" + Localization.PersianNumberFormatter.ToPersianDigits(
         (_presentation?.Snapshot.AlertOverflow ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture)) + " مورد دیگر";
 
-    /// <summary>Opens the screen that owns an alert: a cheque alert → the cheques screen, an expense alert → the expenses statistics.</summary>
+    /// <summary>Opens the screen that owns an alert: a cheque alert → the cheques screen, a boarding-dose alert → the vaccine calendar, an expense alert → the expenses statistics.</summary>
     [RelayCommand]
     private void OpenAlert(DashboardRowViewModel? alert)
     {
@@ -230,6 +230,14 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         if (kind == "AlertCheque")
         {
             _navigation.NavigateTo<Animora.Desktop.Pages.Cheques.ChequesPageViewModel>();
+            return;
+        }
+
+        if (kind == "AlertBoardingVaccine")
+        {
+            // Boarding doses are given from the vaccine calendar; its landing tab already shows today.
+            _navigation.NavigateTo<Animora.Desktop.Pages.Vaccination.VaccinationPageViewModel>(
+                page => page.SetSectionCommand.Execute("calendar"));
             return;
         }
 

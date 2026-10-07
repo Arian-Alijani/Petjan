@@ -31,11 +31,15 @@ public sealed record DashboardProjectionLag(int Pending, int Failed);
 /// <summary>
 /// One actionable management alert for the manager dashboard (fixed expense due, cheque due/overdue/bounced). Pure data:
 /// presentation (icon, Persian wording, Jalali date) is mapped by the client service. <b>Kind</b> is the alert source
-/// (<c>RecurringExpense</c> | <c>Cheque</c>), <b>State</b> the source-specific state (<c>DueSoon</c> | <c>Due</c> |
-/// <c>Overdue</c> | <c>Bounced</c>) and <b>Severity</b> the urgency tone (<c>Danger</c> | <c>Warn</c>).
+/// (<c>RecurringExpense</c> | <c>Cheque</c> | <c>BoardingVaccine</c>), <b>State</b> the source-specific state (<c>DueSoon</c> | <c>Due</c> |
+/// <c>Overdue</c> | <c>Bounced</c> | <c>Today</c>) and <b>Severity</b> the urgency tone (<c>Danger</c> | <c>Warn</c>).
 /// </summary>
 public sealed record DashboardAlertRow(string Kind, string Title, string Subtitle, DateOnly? DueDay, long AmountMinor,
-    string Severity, string State = "");
+    string Severity, string State = "")
+{
+    /// <summary>Treatment alerts only: <c>Vaccine</c> | <c>Medication</c> (empty for every other source).</summary>
+    public string ItemType { get; init; } = string.Empty;
+}
 /// <remarks><b>Generation</b> is the tenant source generation read at the start of the same short read transaction as
 /// every other member, so the data and its generation always describe one committed state.</remarks>
 public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
@@ -80,7 +84,7 @@ public sealed record DashboardSnapshotQuery(UserRole Role, DashboardDayWindow? W
 public sealed class DashboardComposer(IDashboardQueries queries, Animora.Domain.Time.IClock clock,
     IClinicTimeZoneProvider zones, IAuthorizationGate gate, SessionContextCache sessions,
     IStaffMembershipRepository memberships, IPermissionEvaluator permissions, ILocalInstallationIdentity installation,
-    IChequeQueries? cheques = null, IRecurringExpenseQueries? recurring = null) : IQueryHandler<DashboardSnapshotQuery, DashboardSlice>
+    IChequeQueries? cheques = null, IRecurringExpenseQueries? recurring = null, ITreatmentPlanQueries? treatments = null) : IQueryHandler<DashboardSnapshotQuery, DashboardSlice>
 {
     public async Task<Result<DashboardSlice>> HandleAsync(DashboardSnapshotQuery query, QueryContext context, CancellationToken ct)
     {
@@ -104,7 +108,7 @@ public sealed class DashboardComposer(IDashboardQueries queries, Animora.Domain.
 
     /// <summary>
     /// Append-only aggregator of management alerts: every source adds rows only when the viewer holds its permission
-    /// (<c>finance.read</c> → fixed expenses, <c>cheques.read</c> → cheques), then the whole list is ordered by urgency
+    /// (<c>finance.read</c> → fixed expenses, <c>cheques.read</c> → cheques, <c>vaccination.read</c> → boarding doses due today), then the whole list is ordered by urgency
     /// (danger before warn, then the earliest due day). A new alert kind plugs in as one more gated block.
     /// </summary>
     private async Task<(IReadOnlyList<DashboardAlertRow> Rows, int Overflow)> BuildAlertsAsync(DashboardDayWindow window, DashboardAccess access,
@@ -136,6 +140,21 @@ public sealed class DashboardComposer(IDashboardQueries queries, Animora.Domain.
                 var severity = alert.Kind is "Bounced" or "Overdue" ? "Danger" : "Warn";
                 rows.Add(new DashboardAlertRow("Cheque", string.Empty, string.Empty, alert.DueDay, alert.AmountMinor,
                     severity, alert.Kind));
+            }
+        }
+
+        if (access.Vaccination && treatments is not null)
+        {
+            // Boarded patients are dosed by the clinic itself: every still-pending boarding dose of today is an alert.
+            var due = await treatments.GetCalendarAsync(today, today, [Domain.Clinical.TreatmentKind.BoardingAdminister],
+                null, null, MaxAlerts * 4, ct);
+            foreach (var row in due.Where(r => r.State == Domain.Clinical.TreatmentOccurrenceState.Pending))
+            {
+                rows.Add(new DashboardAlertRow("BoardingVaccine", $"{row.PetName} · {row.Title}", row.OwnerName,
+                    row.DueDay, 0, "Warn", "Today")
+                {
+                    ItemType = row.ItemType == Domain.Clinical.TreatmentItemType.Vaccine ? "Vaccine" : "Medication",
+                });
             }
         }
 

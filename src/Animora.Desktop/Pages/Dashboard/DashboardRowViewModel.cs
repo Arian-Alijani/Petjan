@@ -32,11 +32,12 @@ public sealed class DashboardRowViewModel
         {
             "AlertCheque" => "چک",
             "AlertRecurring" => "هزینه",
+            "AlertBoardingVaccine" => "پانسیون",
             _ => string.Empty,
         };
     }
 
-    /// <summary>The stable row kind (<c>AlertCheque</c> | <c>AlertRecurring</c> | …); drives alert navigation.</summary>
+    /// <summary>The stable row kind (<c>AlertCheque</c> | <c>AlertRecurring</c> | <c>AlertBoardingVaccine</c> | …); drives alert navigation.</summary>
     public string Kind { get; }
 
     /// <summary>Short owning-section tag of an alert («چک» / «هزینه»); empty for plain activity rows.</summary>

@@ -184,6 +184,14 @@ internal static class DashboardMapping
             return new("", title, dueLine, tag, tone, "IconCheque", "AlertCheque", alert.State);
         }
 
+        if (alert.Kind == "BoardingVaccine")
+        {
+            var what = alert.ItemType == "Medication" ? "دارو" : "واکسن";
+            var owner = string.IsNullOrWhiteSpace(alert.Subtitle) ? string.Empty : $"مالک: {alert.Subtitle}";
+            return new("", $"{what} پانسیون امروز: {alert.Title}", owner, "امروز", tone,
+                alert.ItemType == "Medication" ? "IconFlask" : "IconSyringe", "AlertBoardingVaccine", alert.State);
+        }
+
         var (headline, tagText) = alert.State switch
         {
             "Overdue" => ($"{alert.Title} معوق است", "معوق"),
