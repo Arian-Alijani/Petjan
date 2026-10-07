@@ -415,6 +415,17 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         if (!IsBusy) _ = ReloadPageAsync();
     }
 
+    // F-05: this page's ViewModel is a singleton, so its result collections would otherwise stay resident
+    // for the whole app lifetime. Release the large, per-visit result lists when leaving; OnNavigatedTo
+    // always re-queries on the next visit, so returning repopulates them.
+    public override void OnNavigatedFrom()
+    {
+        FilteredOwners.Clear();
+        FilteredPets.Clear();
+        OwnerRows.Clear();
+        PetRows.Clear();
+    }
+
     private Task ReloadPageAsync() => TrackLoadResultAsync(LoadAsync);
 
     private readonly SemaphoreSlim _loadGate = new(1, 1);

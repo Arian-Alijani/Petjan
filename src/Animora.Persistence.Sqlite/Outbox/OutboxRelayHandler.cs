@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Animora.Application.Abstractions;
 using Animora.Application.Outbox;
 using Animora.Domain.Events;
@@ -23,5 +24,14 @@ public sealed class OutboxRelayHandler(IOutbox outbox) : IDomainEventHandler<Dom
 /// <summary>Serializes an outbox payload for storage; kept here so the relay shape is testable in isolation.</summary>
 internal static class OutboxPayload
 {
-    public static string Serialize(object payload) => JsonSerializer.Serialize(payload, payload.GetType());
+    // F-08: the finance/inventory events the projection worker consumes resolve through the
+    // source-generated context (reflection-free); every other domain event the relay also enqueues keeps
+    // working via the chained reflection resolver. The context uses default naming, so the stored JSON
+    // shape is unchanged. Cached once — the resolver chain is immutable and thread-safe.
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        TypeInfoResolver = JsonTypeInfoResolver.Combine(OutboxEventJsonContext.Default, new DefaultJsonTypeInfoResolver()),
+    };
+
+    public static string Serialize(object payload) => JsonSerializer.Serialize(payload, payload.GetType(), Options);
 }

@@ -120,6 +120,13 @@ public sealed partial class ReceptionPageViewModel : PageViewModelBase
         if (!IsLoadInFlight) _ = ReloadPageAsync();
     }
 
+    // F-05: free the per-visit queue rows on a singleton page when leaving; OnNavigatedTo re-queries.
+    public override void OnNavigatedFrom()
+    {
+        Queue.Clear();
+        VisibleQueue.Clear();
+    }
+
     private Task ReloadPageAsync() => TrackLoadAsync(LoadQueueAsync);
 
     [RelayCommand]

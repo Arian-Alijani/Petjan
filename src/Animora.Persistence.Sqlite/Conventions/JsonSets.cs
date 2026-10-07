@@ -7,12 +7,15 @@ namespace Animora.Persistence.Sqlite.Conventions;
 
 internal static class JsonSets
 {
+    // Cached once instead of resolving the default options on every (de)serialize (see JsonFields).
+    private static readonly JsonSerializerOptions Options = new();
+
     public static void Map<TEntity>(EntityTypeBuilder<TEntity> builder, string field, string column)
         where TEntity : class
     {
         var property = builder.Property<HashSet<string>>(field).HasColumnName(column).HasColumnType("TEXT")
-            .HasConversion(value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
-                value => JsonSerializer.Deserialize<HashSet<string>>(value, (JsonSerializerOptions?)null) ?? new HashSet<string>());
+            .HasConversion(value => JsonSerializer.Serialize(value, Options),
+                value => JsonSerializer.Deserialize<HashSet<string>>(value, Options) ?? new HashSet<string>());
         property.Metadata.SetValueComparer(new ValueComparer<HashSet<string>>(
             (left, right) => left != null && right != null && left.SetEquals(right),
             value => value.OrderBy(code => code, StringComparer.Ordinal)

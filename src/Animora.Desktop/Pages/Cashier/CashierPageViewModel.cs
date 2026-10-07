@@ -191,6 +191,14 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         if (!IsLoadInFlight) _ = ReloadPageAsync();
     }
 
+    // F-05: free the large per-visit result rows on a singleton page when leaving; OnNavigatedTo re-queries.
+    public override void OnNavigatedFrom()
+    {
+        InvoiceRows.Clear();
+        Lines.Clear();
+        Payments.Clear();
+    }
+
     private bool _pageLoaded;
 
     // First visit builds everything; later visits only re-read the data (keeps the selected invoice and pay form).

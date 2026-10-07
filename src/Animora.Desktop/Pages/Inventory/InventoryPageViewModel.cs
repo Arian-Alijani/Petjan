@@ -264,6 +264,14 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         if (!IsLoadInFlight) _ = ReloadPageAsync();
     }
 
+    // F-05: free the large per-visit result rows on a singleton page when leaving; OnNavigatedTo re-queries.
+    public override void OnNavigatedFrom()
+    {
+        FilteredProducts.Clear();
+        CategoryRows.Clear();
+        PurchaseRows.Clear();
+    }
+
     private Task ReloadPageAsync() => TrackLoadAsync(LoadAsync);
 
     private async Task LoadAsync()

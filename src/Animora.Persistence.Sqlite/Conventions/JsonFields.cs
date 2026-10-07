@@ -8,15 +8,22 @@ namespace Animora.Persistence.Sqlite.Conventions;
 /// <summary>Persist immutable aggregate child records as one JSON column, never as separate rows.</summary>
 internal static class JsonFields
 {
+    // Cached once instead of resolving the default options on every (de)serialize. The JSON value comparer
+    // runs on the hot write path (every DetectChanges/SaveChanges for each entity that owns a JSON field),
+    // so avoiding repeated option resolution and short-circuiting unchanged references matters (PERFORMANCE.md).
+    private static readonly JsonSerializerOptions Options = new();
+
     public static void Map<TEntity, TItem>(EntityTypeBuilder<TEntity> builder, string field, string column)
         where TEntity : class
     {
         var property = builder.Property<List<TItem>>(field).HasColumnName(column).HasColumnType("TEXT")
-            .HasConversion(value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
-                value => JsonSerializer.Deserialize<List<TItem>>(value, (JsonSerializerOptions?)null) ?? new List<TItem>());
+            .HasConversion(value => JsonSerializer.Serialize(value, Options),
+                value => JsonSerializer.Deserialize<List<TItem>>(value, Options) ?? new List<TItem>());
         property.Metadata.SetValueComparer(new ValueComparer<List<TItem>>(
-            (left, right) => JsonSerializer.Serialize(left, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(right, (JsonSerializerOptions?)null),
-            value => StringComparer.Ordinal.GetHashCode(JsonSerializer.Serialize(value, (JsonSerializerOptions?)null)),
-            value => JsonSerializer.Deserialize<List<TItem>>(JsonSerializer.Serialize(value, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null)!));
+            (left, right) => ReferenceEquals(left, right)
+                || (left != null && right != null
+                    && JsonSerializer.Serialize(left, Options) == JsonSerializer.Serialize(right, Options)),
+            value => value == null ? 0 : StringComparer.Ordinal.GetHashCode(JsonSerializer.Serialize(value, Options)),
+            value => JsonSerializer.Deserialize<List<TItem>>(JsonSerializer.Serialize(value, Options), Options)!));
     }
 }

@@ -22,6 +22,13 @@ public sealed class InvoiceNumberAllocator(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
+        // F-07: an invoice number must only ever be consumed inside an ambient UnitOfWork transaction, so a
+        // failed posting rolls the counter back and never leaves a gap in the invoice sequence. Without one,
+        // NextSequenceAsync runs on an autonomous connection and consumes the number immediately — a silent
+        // gap risk if the caller later fails. Make the contract explicit (dev/CI) rather than relying on it.
+        System.Diagnostics.Debug.Assert(db.Database.CurrentTransaction is not null,
+            "InvoiceNumberAllocator must run inside an ambient UnitOfWork transaction to avoid invoice-number gaps.");
+
         var jalaliYear = DocumentNumber.JalaliYearOf(periodCodes.For(issuedUtc).PeriodCode);
 
         var sequence = await PipelineSql.NextSequenceAsync(

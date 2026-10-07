@@ -77,20 +77,32 @@ public sealed class FinanceProjectionWorker(IServiceScopeFactory scopes, ILogger
         }
     }
 
-    private static DomainEvent? Deserialize(OutboxMessage m) => m.MessageType switch
+    // F-08: deserialize through the source-generated context (reflection-free). The context uses default
+    // naming, so it round-trips the exact JSON the outbox relay wrote.
+    private DomainEvent? Deserialize(OutboxMessage m) => m.MessageType switch
     {
-        nameof(InvoicePostedEvent) => JsonSerializer.Deserialize<InvoicePostedEvent>(m.PayloadJson),
-        nameof(InvoiceVoidedEvent) => JsonSerializer.Deserialize<InvoiceVoidedEvent>(m.PayloadJson),
-        nameof(PaymentRegisteredEvent) => JsonSerializer.Deserialize<PaymentRegisteredEvent>(m.PayloadJson),
-        nameof(InvoiceRefundedEvent) => JsonSerializer.Deserialize<InvoiceRefundedEvent>(m.PayloadJson),
-        nameof(GoodsReceiptPostedEvent) => JsonSerializer.Deserialize<GoodsReceiptPostedEvent>(m.PayloadJson),
-        nameof(StockMovementRecordedEvent) => JsonSerializer.Deserialize<StockMovementRecordedEvent>(m.PayloadJson),
-        nameof(ChequeClearedEvent) => JsonSerializer.Deserialize<ChequeClearedEvent>(m.PayloadJson),
-        nameof(ChequeBouncedEvent) => JsonSerializer.Deserialize<ChequeBouncedEvent>(m.PayloadJson),
-        nameof(CashSessionClosedEvent) => JsonSerializer.Deserialize<CashSessionClosedEvent>(m.PayloadJson),
-        nameof(ExpensePostedEvent) => JsonSerializer.Deserialize<ExpensePostedEvent>(m.PayloadJson),
-        _ => null, // Outbox currently has no other consumer; drain unrelated events as well.
+        nameof(InvoicePostedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.InvoicePostedEvent),
+        nameof(InvoiceVoidedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.InvoiceVoidedEvent),
+        nameof(PaymentRegisteredEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.PaymentRegisteredEvent),
+        nameof(InvoiceRefundedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.InvoiceRefundedEvent),
+        nameof(GoodsReceiptPostedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.GoodsReceiptPostedEvent),
+        nameof(StockMovementRecordedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.StockMovementRecordedEvent),
+        nameof(ChequeClearedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.ChequeClearedEvent),
+        nameof(ChequeBouncedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.ChequeBouncedEvent),
+        nameof(CashSessionClosedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.CashSessionClosedEvent),
+        nameof(ExpensePostedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.ExpensePostedEvent),
+        _ => LogAndDrop(m),
     };
+
+    // An unregistered MessageType is still drained (the outbox has no other consumer), but never silently:
+    // in a financial domain a lost event must leave a trace so a missing projection registration is visible.
+    private DomainEvent? LogAndDrop(OutboxMessage m)
+    {
+        logger.LogWarning(
+            "Outbox message {MessageId} has unregistered type {MessageType}; draining without projection",
+            m.Id, m.MessageType);
+        return null;
+    }
 
     public async ValueTask DisposeAsync()
     {

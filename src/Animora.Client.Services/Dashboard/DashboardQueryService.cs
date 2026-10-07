@@ -70,6 +70,14 @@ public sealed class DashboardQueryService(IServiceScopeFactory scopes) : IDashbo
         var version = await queries.VersionAsync(context.Value!.TenantId, ct);
         string KeyFor(string generation) =>
             $"{context.Value.TenantId}|{context.Value.UserId}|dashboard:{access.CacheKey}|day{window.LocalDay}|v{generation}";
+        // F-06 (deliberate trade-off — documented, not a bug): the probe key is built from `version`, but the
+        // entry below is stored under the actual `Generation` of the state the slice was read from. If a write
+        // lands between this probe and the read, the stored key uses the newer generation, so the next request's
+        // `version`-based probe misses and the cache is effectively bypassed under heavy concurrent writes. This
+        // puts correctness (never serving stale data) ahead of hit-rate. The backing cache is a bounded LRU
+        // (TenantScopedCache, capacity 16), so a miss storm wastes recomputation but never leaks memory.
+        // If this ever needs observing in the field, add a miss/hit counter here — no metrics abstraction exists
+        // in this project today, so introducing one is out of scope for this 🟡 finding.
         var key = KeyFor(version);
         if (!force && _cache.TryGet(key, out var entry) && entry.Expires > now) return entry.Snapshot;
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
