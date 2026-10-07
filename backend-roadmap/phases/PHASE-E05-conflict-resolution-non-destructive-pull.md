@@ -65,7 +65,7 @@ client has fallen outside the retention window.
      - `HumanReview` → `Quarantine`.
      - `PreserveHistory` → `ApplyServer` **plus** an append of the local variant as a new
        `MedicalHistoryEntry` marked `IsConflictPreservedCopy = true` (a new bool column, migration
-       `020_ConflictQueue`) — the local clinical text is never lost.
+       `032_ConflictQueue`) — the local clinical text is never lost.
      - `RejectOnConflict` → `KeepLocal` + `Quarantine` entry so the user re-books; the server row is
        applied only after the user acknowledges.
      - `ImmutableReversalOnly` → `RequireReversal` (the posted row is applied from the server; the
@@ -92,7 +92,9 @@ client has fallen outside the retention window.
     on the floor);
   - `FullResyncAsync` keeps refusing while unsent intent exists (E03's rule, re-asserted here).
 - **Quarantine queue — durable, user-visible, actionable.** Local table `ConflictQueueEntries`
-  (`[LocalOnly]`, migration **`020_ConflictQueue`**):
+  (`[LocalOnly]`, migration **`032_ConflictQueue`** — this is the **next free ordinal on
+  `AnimoraLocalDbContext` as of 2026-10-07 (physical head `031_TreatmentPlans`); re-verify the
+  physical head at execution time and bump if more migrations have landed**):
   `Id` (ULID), `EntityName`, `EntityId`, `AggregateId`, `Kind`, `Policy`, `Status`
   (`enum ConflictQueueStatus { Open, Resolved, Dismissed, Escalated }`), `LocalPayloadJson`,
   `ServerPayloadJson`, `MergedPayloadJson`, `ReasonKey`, `ErrorCode`, `HasFinancialEffect` (bool),
@@ -147,7 +149,7 @@ client has fallen outside the retention window.
 | `src/Animora.Persistence.Sqlite/Entities/ConflictQueueEntry.cs` | create | the quarantine row |
 | `src/Animora.Persistence.Sqlite/Configurations/Sync/ConflictQueueEntryConfiguration.cs` | create | mapping + filtered unique index |
 | `src/Animora.Persistence.Sqlite/Sync/ConflictQueries.cs` | create | paged open list + detail projection |
-| `src/Animora.Persistence.Sqlite/Migrations/*` | create | `020_ConflictQueue` (+ `IsConflictPreservedCopy`) |
+| `src/Animora.Persistence.Sqlite/Migrations/*` | create | `032_ConflictQueue` (+ `IsConflictPreservedCopy`) |
 | `src/Animora.Sync.Datasync/Conflicts/ResolverRegistration.cs` | create | generic resolver for preferences only |
 | `src/Animora.Sync.Datasync/Projection/ReplicaProjector.cs` | modify | call `LocalIntentGuard`; route conflicts to the service |
 | `src/Animora.Contracts/Sync/IConflictQueueService.cs` | create | Contracts **addition** + 3 DTOs |
@@ -165,7 +167,7 @@ client has fallen outside the retention window.
 1. Write `ConflictPolicyMatrix` from `ARCHITECTURE.md` §8.5 with the fail-closed lookup; write its
    coverage test immediately.
 2. Add `ConflictQueueEntry` + configuration + the `MedicalHistoryEntry.IsConflictPreservedCopy`
-   column; generate migration `020_ConflictQueue`; write `ConflictQueries`.
+   column; generate migration `032_ConflictQueue`; write `ConflictQueries`.
 3. Write `LocalIntentGuard` over `CommandJournal`'s unsettled states.
 4. Write `FieldAwareMerger` with the per-entity allow-lists (Owner: `Notes`, `Address`;
    Pet: `Notes`, `Color`; nothing else).
@@ -193,7 +195,7 @@ client has fallen outside the retention window.
   `ConflictPolicyMissingException`, 4 resolution commands, `RunFullResyncCommand`,
   `OpenConflictListQuery`, `ConflictDetailQuery`.
 - Persistence: `ConflictQueueEntry`, `ConflictQueueStatus`, `ConflictQueries`,
-  `MedicalHistoryEntry.IsConflictPreservedCopy`, migration `020_ConflictQueue`.
+  `MedicalHistoryEntry.IsConflictPreservedCopy`, migration `032_ConflictQueue`.
 - Sync.Datasync: `ResolverRegistration`; `ReplicaProjector` now intent-guarded.
 - `Animora.Contracts` **additions**: `IConflictQueueService`, `ConflictSummaryDto`,
   `ConflictDetailDto`, `ConflictFieldDto`; `SyncBacklogDto.OpenConflicts` (additive member).
@@ -218,8 +220,8 @@ client has fallen outside the retention window.
   role, and raises a `NeedsAttention` notification through the existing port.
 - **CONVENTIONS §6.15** — full resync is explicit, refuses while unsent intent exists, and is
   audited; nothing self-triggers it.
-- **CONVENTIONS §5** — the filtered unique index enforces one open conflict per row; migration `020`
-  is additive and edits no prior migration.
+- **CONVENTIONS §5** — the filtered unique index enforces one open conflict per row; migration
+  `032_ConflictQueue` is additive and edits no prior migration.
 
 ## Out of scope
 - Priority command submission, retry with the original `OperationId`, and applying server
@@ -258,7 +260,7 @@ Mark E05 done; advance "Next phase" to `E06`; append a "Repo state" entry listin
 `ConflictPolicyMatrix` (**the single source of conflict policy — later phases read it, never branch
 around it**), `ConflictResolutionService`'s four layers, `FieldAwareMerger`'s allow-lists,
 `LocalIntentGuard` + the modified `ReplicaProjector` (**the A-RULE 017 enforcement point**),
-`ConflictQueueEntries` + migration `020_ConflictQueue` + the filtered unique index,
+`ConflictQueueEntries` + migration `032_ConflictQueue` + the filtered unique index,
 `MedicalHistoryEntry.IsConflictPreservedCopy`, the 4 resolution commands + `RunFullResyncCommand`
 (**E06 consumes `RequireResubmit`/`RequireReversal`**), the `Animora.Contracts` additions
 (`IConflictQueueService`, 3 DTOs, `SyncBacklogDto.OpenConflicts`), the `NeedsAttention` notification

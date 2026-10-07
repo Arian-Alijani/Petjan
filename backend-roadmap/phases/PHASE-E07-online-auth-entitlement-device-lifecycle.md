@@ -173,7 +173,7 @@ capabilities expire. This is the phase where the three security planes become re
 | `src/Animora.Client.Services/Licensing/EntitlementNotices.cs` | create | the 4-row UX table |
 | `src/Animora.Client.Services/Sync/SyncOrchestrator.cs` | modify | step 0 session ensure, before commands |
 | `src/Animora.Infrastructure.Local/Security/CapabilitySnapshotSigner.cs` | modify | `VerifyServerSignature` over `LicenseKeyRing` |
-| `src/Animora.Persistence.Sqlite/Migrations/021_OnlineIdentity*` | create | snapshot `ServerIssued`/`SigningKeyId`, `Device.Status` index |
+| `src/Animora.Persistence.Sqlite/Migrations/033_OnlineIdentity*` | create | snapshot `ServerIssued`/`SigningKeyId`, `Device.Status` index — **`033` is the next free local ordinal after E05's `032_ConflictQueue` (head was `031` on 2026-10-07); re-verify the physical head at execution time and bump if needed** |
 | `src/Animora.Desktop/App.axaml.cs` | modify | 6 DI swaps (auth, credentials, entitlement, issuer, remote APIs, licence) |
 | `tests/Animora.Application.Tests/EntitlementGateTests.cs` | create | the D11 matrix + unmapped ⇒ `Money` |
 | `tests/Animora.Application.Tests/OnlineFirstAuthTests.cs` | create | 4 sign-in paths + no-fallback-on-rejection |
@@ -197,7 +197,7 @@ capabilities expire. This is the phase where the three security planes become re
    including the security-stamp discard rule.
 9. Write `OnlineSessionCoordinator` and insert it as step 0 of `SyncOrchestrator`, **preserving
    E06's commands-before-replication order**.
-10. Add migration `021_OnlineIdentity`; swap the six DI registrations in `App.axaml.cs`.
+10. Add migration `033_OnlineIdentity`; swap the six DI registrations in `App.axaml.cs`.
 11. Write `EntitlementNotices` and wire it to `IUserNotificationPort`.
 12. Write the seven test classes.
 13. Verify against a running server: online login issues tokens + a signed snapshot; pulling the
@@ -218,7 +218,7 @@ capabilities expire. This is the phase where the three security planes become re
   `OnlineFirstAuthenticationService`, `DeviceLifecycleService`, `ServerCapabilitySnapshotIssuer`,
   `OnlineSessionCoordinator`, `LicenseService`, `LicenseEntitlementGate`, `EntitlementNotices`.
 - Infrastructure: `CapabilitySnapshotSigner.VerifyServerSignature`.
-- Persistence: migration `021_OnlineIdentity` (`DeviceCapabilitySnapshot.ServerIssued`,
+- Persistence: migration `033_OnlineIdentity` (`DeviceCapabilitySnapshot.ServerIssued`,
   `.SigningKeyId`, `IX_Devices_Status`).
 - DI in `App.axaml.cs`: `IAuthenticationService` → `OnlineFirstAuthenticationService`,
   `ISyncCredentialProvider` → `AuthTokenProvider`, `IEntitlementGate` → `LicenseEntitlementGate`,
@@ -283,5 +283,5 @@ rules, `CapabilitySnapshotV1` + `ServerCapabilitySigner` + the new endpoint (**s
 ring**), `ServerCapabilitySnapshotIssuer`, `DeviceLifecycleService.HandleRevokedAsync` as the single
 revocation path, `LicenseService` + `LicenseEntitlementGate` (**`AllowAllEntitlementGate` deleted**),
 `CommandCapabilityGroups` + the unmapped ⇒ `Money` rule, the **session-before-commands** pass order
-(**E08 must preserve it**), migration `021_OnlineIdentity`, the 5 new `SyncOptions`, the 6 new error
+(**E08 must preserve it**), migration `033_OnlineIdentity`, the 5 new `SyncOptions`, the 6 new error
 codes, the 6 DI swaps, deviations.
