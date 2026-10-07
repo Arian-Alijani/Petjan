@@ -169,11 +169,11 @@
 - `[x]` ثبت در `VaccinationRegistration.cs`.
 - `[x]` بیلد `full` 0/0. پوش: `feat(application): [T3] treatment plan commands, calendar/pet queries, ports`.
 
-### T4 — Persistence: configuration + repository + queries + migration 031
-- `[ ]` Configurationها در `src/Animora.Persistence.Sqlite/Configurations/Clinical/` (کلید، ایندکس‌های بخش ۲، یکتایی `Code`).
-- `[ ]` `TreatmentPlanRepository` + `TreatmentPlanQueries` (join با Pet/Owner، `AsNoTracking`، `Take` سقف‌دار) و ثبت در `LocalStoreServiceCollectionExtensions.cs` (`TryAddScoped` برای queries، `AddScoped` برای repository).
-- `[ ]` Migration دستی `20261007120000__031_TreatmentPlans.cs` + `.Designer.cs` + به‌روزرسانیِ `AnimoraLocalDbContextModelSnapshot.cs` (Designer از روی snapshot با هدرِ `[Migration("20261007120000__031_TreatmentPlans")]` ساخته می‌شود؛ ستون `DueDay` نوعِ `TEXT`).
-- `[ ]` بیلد `full` 0/0. پوش: `feat(persistence): [T4] 031 TreatmentPlans migration + config + repo + queries`.
+### T4 — Persistence: configuration + repository + queries + migration 031 ✅
+- `[x]` Configurationها در `src/Animora.Persistence.Sqlite/Configurations/Clinical/` (کلید، ایندکس‌های بخش ۲، یکتایی `Code`).
+- `[x]` `TreatmentPlanRepository` + `TreatmentPlanQueries` (join با Pet/Owner، `AsNoTracking`، `Take` سقف‌دار) و ثبت در `LocalStoreServiceCollectionExtensions.cs` (`TryAddScoped` برای queries، `AddScoped` برای repository).
+- `[x]` Migration دستی `20261007120000__031_TreatmentPlans.cs` + `.Designer.cs` + به‌روزرسانیِ `AnimoraLocalDbContextModelSnapshot.cs` (Designer از روی snapshot با هدرِ `[Migration("20261007120000__031_TreatmentPlans")]` ساخته می‌شود؛ ستون `DueDay` نوعِ `TEXT`).
+- `[x]` بیلد `full` (طبق دستور کاربر هیچ بیلد/تستی گرفته نشد؛ اسکیپ). پوش: `feat(persistence): [T4] 031 TreatmentPlans migration + config + repo + queries`.
 
 ### T5 — Contracts + Client.Services: اتصال seam
 - `[ ]` `src/Animora.Contracts/Vaccination/TreatmentModels.cs` طبق بخش ۲ (`DateOnly`، بدون Tone).
