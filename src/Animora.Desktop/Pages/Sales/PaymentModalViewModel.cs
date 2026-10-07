@@ -48,8 +48,9 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         _invoiceId = invoiceId;
         _onChanged = onChanged;
 
-        Methods.Add(new PaymentMethodOptionViewModel(PaymentMethod.Cash, true));
-        Methods.Add(new PaymentMethodOptionViewModel(PaymentMethod.Card));
+        // Card is the clinic's most common tender → first chip and the default selection.
+        Methods.Add(new PaymentMethodOptionViewModel(PaymentMethod.Card, true));
+        Methods.Add(new PaymentMethodOptionViewModel(PaymentMethod.Cash));
         Methods.Add(new PaymentMethodOptionViewModel(PaymentMethod.Cheque));
         Methods.Add(new PaymentMethodOptionViewModel(PaymentMethod.Credit));
         Methods.Add(new PaymentMethodOptionViewModel(PaymentMethod.Mixed));
@@ -121,7 +122,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     public bool WillSettle { get; private set; }
 
     private PaymentMethod SelectedMethod =>
-        Methods.FirstOrDefault(m => m.IsActive)?.Method ?? PaymentMethod.Cash;
+        Methods.FirstOrDefault(m => m.IsActive)?.Method ?? PaymentMethod.Card;
 
     private async Task LoadAsync()
     {
