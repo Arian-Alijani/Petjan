@@ -61,4 +61,31 @@ public interface IVaccinationService
     /// behalf so no unbounded result set ever crosses the seam (PERFORMANCE.md §6).
     /// </summary>
     Task<VaccinationHistoryPage> GetHistoryAsync(VaccinationHistoryFilter filter);
+
+    /// <summary>
+    /// Schedules a medication / vaccine for a patient and expands its schedule into calendar days.
+    /// Returns the new plan id.
+    /// </summary>
+    Task<string> CreateTreatmentPlanAsync(TreatmentPlanInput input);
+
+    /// <summary>Edits the descriptive fields of an active plan.</summary>
+    Task UpdateTreatmentPlanAsync(TreatmentPlanUpdate update);
+
+    /// <summary>Cancels a plan; its still-pending days are withdrawn, given ones are kept.</summary>
+    Task CancelTreatmentPlanAsync(string planId);
+
+    /// <summary>
+    /// The scheduled days in <paramref name="from"/>..<paramref name="to"/> (inclusive, at most 62 days),
+    /// narrowed by <paramref name="filter"/>. Always bounded server-side.
+    /// </summary>
+    Task<IReadOnlyList<CalendarOccurrence>> GetCalendarAsync(DateOnly from, DateOnly to, CalendarFilter? filter = null);
+
+    /// <summary>Records that one scheduled day was carried out.</summary>
+    Task MarkOccurrenceDoneAsync(string occurrenceId);
+
+    /// <summary>The patient's plans, newest first (bounded).</summary>
+    Task<IReadOnlyList<TreatmentPlanSummary>> GetPlansForPetAsync(string petId);
+
+    /// <summary>Adds a vaccine to the clinic's own catalog; returns the new item id.</summary>
+    Task<string> AddCatalogVaccineAsync(VaccineCatalogInput input);
 }

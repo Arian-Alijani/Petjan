@@ -59,6 +59,47 @@ public sealed class VaccinationService(IServiceScopeFactory scopes, OperationIdF
         return new VaccinationHistoryPage(page.Items.Select(r => r.ToContract()).ToArray(), page.TotalCount);
     }
 
+    public async Task<string> CreateTreatmentPlanAsync(TreatmentPlanInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        return await SendAsync(new CreateTreatmentPlanCommand(input.PetId, input.ItemType.ToDomain(), input.Kind.ToDomain(),
+            input.Title, input.Schedule.ToDomain(), input.VaccineCode, input.Dosage, input.Notes, input.NotifyOwner));
+    }
+
+    public async Task UpdateTreatmentPlanAsync(TreatmentPlanUpdate update)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+        await SendAsync(new UpdateTreatmentPlanCommand(update.PlanId, update.Kind.ToDomain(), update.Title,
+            update.Dosage, update.Notes, update.NotifyOwner));
+    }
+
+    public async Task CancelTreatmentPlanAsync(string planId) =>
+        await SendAsync(new CancelTreatmentPlanCommand(planId));
+
+    public async Task<IReadOnlyList<CalendarOccurrence>> GetCalendarAsync(DateOnly from, DateOnly to, CalendarFilter? filter = null)
+    {
+        var kinds = filter?.Kinds is { Count: > 0 } k ? k.Select(x => x.ToDomain()).Distinct().ToArray() : null;
+        var rows = await QueryAsync(new TreatmentCalendarQuery(from, to, kinds, filter?.ItemType?.ToDomain(), filter?.PetId));
+        return rows.Select(r => r.ToContract()).ToArray();
+    }
+
+    public async Task MarkOccurrenceDoneAsync(string occurrenceId) =>
+        await SendAsync(new MarkTreatmentOccurrenceDoneCommand(occurrenceId),
+            ids.Deterministic("treatment-done:" + occurrenceId));
+
+    public async Task<IReadOnlyList<TreatmentPlanSummary>> GetPlansForPetAsync(string petId)
+    {
+        if (string.IsNullOrWhiteSpace(petId)) return [];
+        return (await QueryAsync(new TreatmentPlansForPetQuery(petId))).Select(r => r.ToContract()).ToArray();
+    }
+
+    public async Task<string> AddCatalogVaccineAsync(VaccineCatalogInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        return await SendAsync(new AddVaccineCatalogItemCommand(input.Code, input.Name, input.Protects,
+            input.TotalDoses, input.BoosterDays, input.Stock, input.MinStock));
+    }
+
     private async Task<ContractRecord> FindAsync(string id)
     {
         var row = (await QueryAsync(new VaccinationDueQuery(DateOnly.FromDateTime(DateTime.UtcNow))))
@@ -76,7 +117,7 @@ public sealed class VaccinationService(IServiceScopeFactory scopes, OperationIdF
         return result.Value!;
     }
 
-    private async Task SendAsync<T>(ICommand<T> command, string? operationId = null)
+    private async Task<T> SendAsync<T>(ICommand<T> command, string? operationId = null)
     {
         await using var scope = scopes.CreateAsyncScope();
         var context = await scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>()
@@ -84,5 +125,6 @@ public sealed class VaccinationService(IServiceScopeFactory scopes, OperationIdF
         if (context.IsFailure) throw new ServiceException(context.Error);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().SendAsync(command, context.Value!);
         if (result.IsFailure) throw new ServiceException(result.Error);
+        return result.Value!;
     }
 }

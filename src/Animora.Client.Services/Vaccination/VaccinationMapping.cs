@@ -25,8 +25,8 @@ internal static class VaccinationMapping
             }, sms);
 
     public static VaccineCatalogEntry ToContract(this VaccineCatalogReadModel row) =>
-        new(row.Code, row.Name, row.Code, string.Empty, "neutral", string.Empty,
-            row.BoosterDays / 30, 0, 0);
+        new(row.Code, row.Name, row.Code, string.Empty, "neutral", row.Protects ?? string.Empty,
+            row.BoosterDays / 30, row.Stock, row.MinStock);
 
     public static SmsTemplate ToContract(this SmsTemplateReadModel row) =>
         new(row.Id, row.Name, row.Channel, row.Body);
