@@ -108,8 +108,19 @@ public sealed record AppointmentEvent(
     long? InvoicePaidMinor = null,
     string? PetId = null,
     bool IsVaccineBooster = false,
-    string? VaccineName = null)
+    string? VaccineName = null,
+    string? TreatmentOccurrenceId = null,
+    string? TreatmentPlanId = null)
 {
+    /// <summary>A read-time projection of one scheduled day of a «دارو و واکسن» treatment plan.</summary>
+    public bool IsTreatmentPlan => TreatmentOccurrenceId is not null;
+
+    /// <summary>
+    /// A read-only calendar projection (recurring booster or treatment-plan day): it is never a stored appointment,
+    /// so it has no booking detail, cannot be moved/cancelled and its details live on the vaccination screen.
+    /// </summary>
+    public bool IsReadOnlyProjection => IsVaccineBooster || IsTreatmentPlan;
+
     /// <summary>A real (non-void) invoice is linked through the appointment's visit. False means "no money data".</summary>
     public bool HasInvoice => InvoiceTotalMinor is not null;
 
@@ -177,6 +188,22 @@ public static class AppointmentTypeIds
     /// next-due date). It is not bookable and never stored as an appointment.
     /// </summary>
     public const string VaccineBooster = "VACCINE_BOOSTER";
+
+    /// <summary>
+    /// Synthetic read-time types of a «دارو و واکسن» treatment-plan day, one per treatment kind so each keeps its own
+    /// accent (clinic / owner at home / boarding). Not bookable and never stored as an appointment.
+    /// </summary>
+    public const string TreatmentClinic = "TREATMENT_CLINIC";
+
+    /// <inheritdoc cref="TreatmentClinic"/>
+    public const string TreatmentHome = "TREATMENT_HOME";
+
+    /// <inheritdoc cref="TreatmentClinic"/>
+    public const string TreatmentBoarding = "TREATMENT_BOARDING";
+
+    /// <summary>True for every synthetic projection type (never offered for booking or history filtering).</summary>
+    public static bool IsReadOnlyProjection(string? typeId) =>
+        typeId is VaccineBooster or TreatmentClinic or TreatmentHome or TreatmentBoarding;
 }
 
 public sealed record AppointmentType(

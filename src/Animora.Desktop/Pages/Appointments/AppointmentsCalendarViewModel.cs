@@ -461,7 +461,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         HistoryDoctorOptions = BuildSelectOptions("همه پزشکان", _doctors.Select(d => (d.Id, d.ShortName)));
-        HistoryTypeOptions = BuildSelectOptions("همه انواع نوبت", _types.Where(t => t.Id != AppointmentTypeIds.VaccineBooster).Select(t => (t.Id, t.Label)));
+        HistoryTypeOptions = BuildSelectOptions("همه انواع نوبت", _types.Where(t => !AppointmentTypeIds.IsReadOnlyProjection(t.Id)).Select(t => (t.Id, t.Label)));
         HistoryInvoiceOptions =
         [
             new("all", "همه فاکتورها"),
@@ -1635,7 +1635,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             }
 
             var rows = new List<AppointmentSettingTypeRowViewModel>(_types.Count + customById.Count);
-            foreach (var type in _types)
+            // Read-only vaccination projections (booster / treatment-plan days) are not configurable appointment types.
+            foreach (var type in _types.Where(t => !AppointmentTypeIds.IsReadOnlyProjection(t.Id)))
             {
                 var isCustom = customById.TryGetValue(type.Id, out var c);
                 rows.Add(new AppointmentSettingTypeRowViewModel(
@@ -1793,7 +1794,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         }
 
         RebuildIndexes();
-        HistoryTypeOptions = BuildSelectOptions("همه انواع نوبت", _types.Select(t => (t.Id, t.Label)));
+        HistoryTypeOptions = BuildSelectOptions("همه انواع نوبت", _types.Where(t => !AppointmentTypeIds.IsReadOnlyProjection(t.Id)).Select(t => (t.Id, t.Label)));
         OnPropertyChanged(nameof(HistoryTypeOptions));
         ApplySettings(await _settings.GetAsync());
         RenderActiveTab();
@@ -1987,7 +1988,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
 
         // A booster is a read-only projection of a vaccination record: it has no booking detail, so it opens
         // the pet file (where the vaccination history and the next dose live).
-        if (ev is { IsVaccineBooster: true, PetId: { Length: > 0 } petId })
+        if (ev is { IsReadOnlyProjection: true, PetId: { Length: > 0 } petId })
         {
             await _presenter.OpenPetSheetAsync(petId);
             return;

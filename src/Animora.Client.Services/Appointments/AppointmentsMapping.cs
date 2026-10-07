@@ -3,6 +3,7 @@ using Animora.Application.Time;
 using Animora.Application.UseCases.Scheduling.ReadModels;
 using Animora.Contracts.Appointments;
 using Animora.Domain.Scheduling;
+using Clinical = Animora.Domain.Clinical;
 
 namespace Animora.Client.Services.Appointments;
 
@@ -73,6 +74,49 @@ internal static class AppointmentsMapping
     }
 
     internal const string BoosterIdPrefix = "vb:";
+
+    internal const string TreatmentIdPrefix = "tp:";
+
+    /// <summary>
+    /// Projects one scheduled day of a «دارو و واکسن» treatment plan into a read-only calendar entry. Plan days carry
+    /// no clock time, so they sit at the same default minute as boosters; the id is prefixed (<c>tp:</c>) so it never
+    /// collides with a stored appointment or a booster, and nothing is persisted.
+    /// </summary>
+    internal static AppointmentEvent ToTreatmentEvent(this TreatmentCalendarRow row)
+    {
+        var done = row.State == Clinical.TreatmentOccurrenceState.Done;
+        var note = string.IsNullOrWhiteSpace(row.Dosage) ? row.Title : $"{row.Title} - {row.Dosage}";
+        return new AppointmentEvent(TreatmentIdPrefix + row.OccurrenceId, row.DueDay, BoosterDefaultStartMinute, 30,
+            TreatmentTypeId(row.Kind), "", row.PetName, row.Species, row.OwnerName, "",
+            "blue", row.Species.ToLowerInvariant(), done ? AppointmentStatus.Done : AppointmentStatus.Pending,
+            note, row.OccurrenceId, 0, AppointmentInvoiceState.None, AppointmentPaymentMethod.None,
+            done ? AppointmentVisitOutcome.Complete : AppointmentVisitOutcome.None,
+            done ? AppointmentLifecycle.Completed : AppointmentLifecycle.Scheduled,
+            PetId: row.PetId,
+            VaccineName: row.ItemType == Clinical.TreatmentItemType.Vaccine ? row.Title : null,
+            TreatmentOccurrenceId: row.OccurrenceId, TreatmentPlanId: row.PlanId);
+    }
+
+    private static string TreatmentTypeId(Clinical.TreatmentKind kind) => kind switch
+    {
+        Clinical.TreatmentKind.HomeByOwner => AppointmentTypeIds.TreatmentHome,
+        Clinical.TreatmentKind.BoardingAdminister => AppointmentTypeIds.TreatmentBoarding,
+        _ => AppointmentTypeIds.TreatmentClinic,
+    };
+
+    /// <summary>
+    /// The synthetic, non-bookable types treatment-plan days render with — accents match the vaccination screen's
+    /// kind colours (clinic = blue, home = green, boarding = amber).
+    /// </summary>
+    internal static IReadOnlyList<AppointmentType> TreatmentTypes { get; } =
+    [
+        new(AppointmentTypeIds.TreatmentClinic, "دارو/واکسن · کلینیک", "treatment-clinic", "#1570cd",
+            AppointmentColorPalette.Tint("#1570cd"), AppointmentColorPalette.Shade("#1570cd"), "IconSyringe", 30),
+        new(AppointmentTypeIds.TreatmentHome, "دارو/واکسن · منزل", "treatment-home", "#027a48",
+            AppointmentColorPalette.Tint("#027a48"), AppointmentColorPalette.Shade("#027a48"), "IconSyringe", 30),
+        new(AppointmentTypeIds.TreatmentBoarding, "دارو/واکسن · پانسیون", "treatment-boarding", "#b54708",
+            AppointmentColorPalette.Tint("#b54708"), AppointmentColorPalette.Shade("#b54708"), "IconSyringe", 30),
+    ];
 
     /// <summary>The synthetic, non-bookable type the booster entries render with (distinct accent + syringe).</summary>
     internal static AppointmentType BoosterType { get; } = new(

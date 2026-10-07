@@ -316,8 +316,8 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     {
         await _readiness.WaitAsync();
         _types.Clear();
-        // The booster type is a read-time projection of a vaccination record, never bookable.
-        _types.AddRange((await _catalog.GetTypesAsync()).Where(t => t.Id != AppointmentTypeIds.VaccineBooster));
+        // Booster / treatment-plan types are read-time projections of vaccination data, never bookable.
+        _types.AddRange((await _catalog.GetTypesAsync()).Where(t => !AppointmentTypeIds.IsReadOnlyProjection(t.Id)));
         _doctors.Clear();
         _doctors.AddRange(await _catalog.GetDoctorsAsync());
 

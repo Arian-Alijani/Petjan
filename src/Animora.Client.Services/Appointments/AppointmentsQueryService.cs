@@ -46,9 +46,11 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes, IAppoi
     public async Task<IReadOnlyList<AppointmentType>> GetTypesAsync()
     {
         var custom = (await settings.GetAsync()).CustomTypes;
-        var types = new List<AppointmentType>(AppointmentsMapping.Types.Count + custom.Count + 1);
+        var types = new List<AppointmentType>(AppointmentsMapping.Types.Count + custom.Count
+            + AppointmentsMapping.TreatmentTypes.Count + 1);
         types.AddRange(AppointmentsMapping.Types);
         types.Add(AppointmentsMapping.BoosterType);
+        types.AddRange(AppointmentsMapping.TreatmentTypes);
         foreach (var c in custom)
             types.Add(AppointmentsMapping.BuildType(c.Id, c.Label, c.Id, c.ColorHex, c.DurationMinutes));
         return types;
@@ -59,7 +61,26 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes, IAppoi
         var tz = await GetTimeZoneAsync();
         var events = (await QueryAsync(new AppointmentRangeQuery(start, end))).Select(r => r.ToContract(tz)).ToList();
         events.AddRange(await GetBoosterEventsAsync(start, end, tz));
+        events.AddRange(await GetTreatmentEventsAsync(start, end));
         return events;
+    }
+
+    /// <summary>
+    /// The «دارو و واکسن» treatment-plan days in range as read-only calendar entries. A separate source from the
+    /// boosters (plans vs. administered vaccination records), so nothing is counted twice. Strictly additive like the
+    /// boosters: a missing vaccination permission or an over-wide range yields no entries, never a broken calendar.
+    /// </summary>
+    private async Task<IReadOnlyList<AppointmentEvent>> GetTreatmentEventsAsync(DateOnly start, DateOnly end)
+    {
+        try
+        {
+            var rows = await QueryAsync(new TreatmentCalendarQuery(start, end));
+            return rows.Select(r => r.ToTreatmentEvent()).ToArray();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return [];
+        }
     }
 
     /// <summary>
