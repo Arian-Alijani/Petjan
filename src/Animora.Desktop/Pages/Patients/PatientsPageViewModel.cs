@@ -123,6 +123,11 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
     public bool IsOwnersView => ViewMode == PatientViewMode.Owners;
     public bool IsPetsView => ViewMode == PatientViewMode.Pets;
+
+    // The three section tabs (مالکین / بیماران / تنظیمات) are mutually exclusive: the owners/pets
+    // tabs only light up while the directory is showing, otherwise «تنظیمات» is the active tab.
+    public bool IsOwnersTabActive => IsDirectorySection && IsOwnersView;
+    public bool IsPetsTabActive => IsDirectorySection && IsPetsView;
     public bool IsGridView => Layout == PatientLayout.Grid;
     public bool IsListView => Layout == PatientLayout.List;
     public bool HasOwners => _totalOwnerMatches > 0;
@@ -205,9 +210,16 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     {
         OnPropertyChanged(nameof(IsDirectorySection));
         OnPropertyChanged(nameof(IsSettingsSection));
+        OnPropertyChanged(nameof(IsOwnersTabActive));
+        OnPropertyChanged(nameof(IsPetsTabActive));
     }
 
-    partial void OnViewModeChanged(PatientViewMode value) => ReloadFromFilter();
+    partial void OnViewModeChanged(PatientViewMode value)
+    {
+        OnPropertyChanged(nameof(IsOwnersTabActive));
+        OnPropertyChanged(nameof(IsPetsTabActive));
+        ReloadFromFilter();
+    }
 
     partial void OnLayoutChanged(PatientLayout value) => NotifyDerived();
 
@@ -263,8 +275,12 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
     /// <summary>Raised by the toolbar's owners/pets segmented switch.</summary>
     [RelayCommand]
-    private void SetViewMode(string? mode) =>
+    private void SetViewMode(string? mode)
+    {
+        // Picking owners/pets from the settings tab returns to the directory.
+        Section = PatientsSection.Directory;
         ViewMode = mode == "pets" ? PatientViewMode.Pets : PatientViewMode.Owners;
+    }
 
     /// <summary>Raised by the list/grid segmented switch.</summary>
     [RelayCommand]
@@ -554,6 +570,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(ResultCountText));
 
         OnPropertyChanged(nameof(IsOwnersView));
+        OnPropertyChanged(nameof(IsOwnersTabActive));
+        OnPropertyChanged(nameof(IsPetsTabActive));
         OnPropertyChanged(nameof(RecentSortLabel));
         OnPropertyChanged(nameof(AgeSortLabel));
         OnPropertyChanged(nameof(IsPetsView));

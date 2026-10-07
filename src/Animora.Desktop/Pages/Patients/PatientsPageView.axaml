@@ -546,15 +546,14 @@
                 BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
                 CornerRadius="{StaticResource Radius}"
                 BoxShadow="{StaticResource ShadowCard}"
-                IsVisible="{Binding IsDirectorySection}"
                 Padding="14,12" Margin="0,0,0,16">
             <StackPanel Spacing="12">
 
-                <!-- tier 1 · entity switch (start) + search (end) -->
-                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                <!-- tier 1 · section tabs (owners / pets / settings) + search (end, directory only) -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <Border Grid.Column="0" Classes="seg" HorizontalAlignment="Stretch">
-                        <Grid ColumnDefinitions="*,*" ColumnSpacing="2">
-                            <Border Grid.Column="0" Classes="segitem" Classes.on="{Binding IsOwnersView}">
+                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="2">
+                            <Border Grid.Column="0" Classes="segitem" Classes.on="{Binding IsOwnersTabActive}">
                                 <Button Classes="segtap lg" HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center"
                                         Command="{Binding SetViewModeCommand}" CommandParameter="owners">
@@ -565,7 +564,7 @@
                                     </StackPanel>
                                 </Button>
                             </Border>
-                            <Border Grid.Column="1" Classes="segitem" Classes.on="{Binding IsPetsView}">
+                            <Border Grid.Column="1" Classes="segitem" Classes.on="{Binding IsPetsTabActive}">
                                 <Button Classes="segtap lg" HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center"
                                         Command="{Binding SetViewModeCommand}" CommandParameter="pets">
@@ -576,11 +575,25 @@
                                     </StackPanel>
                                 </Button>
                             </Border>
+                            <!-- clinic settings (species / breeds / file-opened SMS) -->
+                            <Border Grid.Column="2" Classes="segitem" Classes.on="{Binding IsSettingsSection}">
+                                <Button Classes="segtap lg" HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Command="{Binding SetSectionCommand}" CommandParameter="settings"
+                                        ToolTip.Tip="تنظیمات مالکین و بیماران">
+                                    <StackPanel Orientation="Horizontal" Spacing="7">
+                                        <Path Classes="icon" Width="16" Height="16"
+                                              Data="{StaticResource IconTag}" />
+                                        <TextBlock Text="تنظیمات" FontSize="13.5" FontWeight="Bold" />
+                                    </StackPanel>
+                                </Button>
+                            </Border>
                         </Grid>
                     </Border>
 
                     <!-- search field (.pb-search) -->
                     <Border Grid.Column="1" Width="360" MinWidth="200"
+                            IsVisible="{Binding IsDirectorySection}"
                             Background="{StaticResource Bg2Brush}"
                             BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
                             CornerRadius="12" Padding="13,0">
@@ -605,22 +618,11 @@
                         </Grid>
                     </Border>
 
-                    <!-- clinic settings (species / breeds / file-opened SMS) -->
-                    <Button Grid.Column="2" Classes="outline" VerticalAlignment="Stretch"
-                            Padding="16,0" CornerRadius="12"
-                            Command="{Binding SetSectionCommand}" CommandParameter="settings"
-                            ToolTip.Tip="تنظیمات مالکین و بیماران">
-                        <StackPanel Orientation="Horizontal" Spacing="7">
-                            <Path Classes="icon" Width="16" Height="16"
-                                  Stroke="{Binding $parent[Button].Foreground}"
-                                  Data="{StaticResource IconTag}" />
-                            <TextBlock Text="تنظیمات" FontSize="13.5" FontWeight="Bold" />
-                        </StackPanel>
-                    </Button>
                 </Grid>
 
                 <!-- tier 2 · species chips (start) + secondary controls (end) -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12"
+                      IsVisible="{Binding IsDirectorySection}"
                       Margin="0,12,0,0">
                     <StackPanel Grid.Column="0">
                         <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
