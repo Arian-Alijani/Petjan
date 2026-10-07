@@ -23,11 +23,16 @@ public sealed partial class PetTreatmentPlansModalViewModel : ObservableObject
     private readonly Action _onChanged;
     private readonly string _petId;
 
+    // A plan to open straight in the inline editor once the list loads (from a calendar detail popup's «ویرایش»).
+    private string? _focusPlanId;
+
     private int _loadVersion;
 
     public PetTreatmentPlansModalViewModel(
-        IVaccinationService service, IDialogService dialogs, IToastService toast, string petId, string petName, Action onChanged)
+        IVaccinationService service, IDialogService dialogs, IToastService toast, string petId, string petName, Action onChanged,
+        string? focusPlanId = null)
     {
+        _focusPlanId = focusPlanId;
         _service = service;
         _dialogs = dialogs;
         _toast = toast;
@@ -107,6 +112,11 @@ public sealed partial class PetTreatmentPlansModalViewModel : ObservableObject
             Plans.ReplaceAll(rows.Select(r => new PetPlanRowViewModel(r)));
             HasPlans = Plans.Count > 0;
             LoadMessage = HasPlans ? string.Empty : "برای این بیمار هنوز دارو یا واکسنی زمان‌بندی نشده است.";
+            if (_focusPlanId is { } focus)
+            {
+                _focusPlanId = null;
+                BeginEdit(Plans.FirstOrDefault(p => p.Plan.PlanId == focus));
+            }
         }
         catch (InvalidOperationException ex)
         {

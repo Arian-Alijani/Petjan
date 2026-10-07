@@ -60,7 +60,8 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         _toast = toast;
 
         History = new VaccinationHistoryViewModel(service, historyOpener);
-        Calendar = new TreatmentCalendarViewModel(service, toast, NotifyVaccinationChanged, OpenPetPlansFromCalendar);
+        Calendar = new TreatmentCalendarViewModel(service, toast, NotifyVaccinationChanged, OpenPetPlansFromCalendar,
+            OpenOccurrenceDetail);
 
         Title = "دارو و واکسن";
         Eyebrow = "مراقبت";
@@ -543,6 +544,10 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
             new PetTreatmentPlansModalViewModel(
                 _service, _dialogs, _toast, item.Occurrence.PetId, item.PetName, OnPlansEdited),
             maxWidth: 600);
+
+    private void OpenOccurrenceDetail(CalendarEventViewModel item) =>
+        _dialogs.ShowModal(new TreatmentOccurrenceDetailViewModel(
+            _service, _dialogs, _toast, item.Occurrence, OnPlansEdited));
 
     private void OnPlansEdited()
     {

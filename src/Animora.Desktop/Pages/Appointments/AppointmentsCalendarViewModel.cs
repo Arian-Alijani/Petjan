@@ -47,6 +47,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     private readonly ICapabilityGate _capabilities;
     private readonly INavigationService _navigation;
     private readonly IRecordSheetPresenter _presenter;
+    private readonly Animora.Contracts.Vaccination.IVaccinationService _vaccination;
     private readonly IVisitEncounterService _encounters;
     private readonly IClinicClock _clock;
     private readonly Avalonia.Threading.DispatcherTimer _clockTimer = new() { Interval = TimeSpan.FromMinutes(1) };
@@ -127,9 +128,11 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         INavigationService navigation,
         IVisitEncounterService encounters,
         IClinicClock clock,
-        IRecordSheetPresenter presenter)
+        IRecordSheetPresenter presenter,
+        Animora.Contracts.Vaccination.IVaccinationService vaccination)
     {
         _presenter = presenter;
+        _vaccination = vaccination;
         _clock = clock;
         _lastMoment = clock.Now;
         _clockTimer.Tick += OnClockTick;
@@ -1986,11 +1989,11 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             _ => null,
         };
 
-        // A booster is a read-only projection of a vaccination record: it has no booking detail, so it opens
-        // the pet file (where the vaccination history and the next dose live).
+        // Boosters and treatment-plan days are read-only projections of vaccination data: they have no booking
+        // detail, so they open the vaccine detail popup (falling back to the pet file when it cannot be resolved).
         if (ev is { IsReadOnlyProjection: true, PetId: { Length: > 0 } petId })
         {
-            await _presenter.OpenPetSheetAsync(petId);
+            await ShowVaccinationDetailAsync(ev, petId);
             return;
         }
 
@@ -2024,6 +2027,50 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         panel.Saved += RefreshAfterWrite;
         await panel.LoadForNewAsync(date, null, null, null);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
+    }
+
+    /// <summary>
+    /// Opens the vaccine/medication detail popup of a calendar projection: the shared treatment-day popup for a plan
+    /// day, the vaccination-record sheet for a recurring booster. The source row is re-read so the popup always
+    /// reflects the stored state; when it is gone (or access was lost) the pet file opens instead.
+    /// </summary>
+    private async Task ShowVaccinationDetailAsync(AppointmentEvent ev, string petId)
+    {
+        try
+        {
+            if (ev.TreatmentOccurrenceId is { } occurrenceId)
+            {
+                var rows = await _vaccination.GetCalendarAsync(ev.Date, ev.Date, new Animora.Contracts.Vaccination.CalendarFilter(PetId: petId));
+                if (rows.FirstOrDefault(o => o.OccurrenceId == occurrenceId) is { } occurrence)
+                {
+                    _dialogs.ShowModal(new Pages.Vaccination.TreatmentOccurrenceDetailViewModel(
+                        _vaccination, _dialogs, _toast, occurrence, OnVaccinationChanged, _presenter.OpenPetSheetAsync));
+                    return;
+                }
+            }
+            else if (ev.IsVaccineBooster)
+            {
+                var record = (await _vaccination.GetRecordsAsync()).FirstOrDefault(r => r.Id == ev.Code);
+                if (record is not null)
+                {
+                    var vaccine = (await _vaccination.GetCatalogAsync()).FirstOrDefault(v => v.Id == record.VaccineId);
+                    _dialogs.ShowModal(new Pages.Vaccination.VaccinationRecordDetailViewModel(record, vaccine, _dialogs));
+                    return;
+                }
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Fall through to the pet file — it carries the vaccination history too.
+        }
+
+        await _presenter.OpenPetSheetAsync(petId);
+    }
+
+    private void OnVaccinationChanged()
+    {
+        _changes.Notify(DataDomain.Vaccination, DataDomain.History, DataDomain.Patients, DataDomain.Dashboard);
+        RequestRefresh();
     }
 
     private async Task ShowDetailAsync(AppointmentEvent ev)

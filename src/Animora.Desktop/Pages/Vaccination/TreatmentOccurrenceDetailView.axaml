@@ -1,0 +1,91 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vx="using:Animora.Desktop.Pages.Vaccination"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Vaccination.TreatmentOccurrenceDetailView"
+             x:DataType="vx:TreatmentOccurrenceDetailViewModel"
+             Width="520" MaxWidth="520" FlowDirection="RightToLeft">
+    <StackPanel>
+        <!-- header: item + patient -->
+        <Grid Margin="22,20,22,16" ColumnDefinitions="48,*,36" ColumnSpacing="12">
+            <Border Grid.Column="0" Width="48" Height="48" CornerRadius="12" Background="{Binding Wash}">
+                <Path Classes="icon" Width="22" Height="22" Stroke="{Binding Brush}"
+                      Data="{Binding ItemTypeIconKey, Converter={StaticResource IconKeyConverter}}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="{Binding ItemTypeLabel}" FontSize="11" FontWeight="Bold" Foreground="{Binding Brush}" />
+                <TextBlock Text="{Binding Title}" FontSize="17" FontWeight="ExtraBold" TextTrimming="CharacterEllipsis" />
+                <TextBlock FontSize="12" Foreground="{StaticResource MutedBrush}" Margin="0,3,0,0">
+                    <Run Text="{Binding PetName}" FontWeight="Bold" /><Run Text=" · " /><Run Text="{Binding SpeciesText}" /><Run Text=" · مالک: " /><Run Text="{Binding OwnerName}" />
+                </TextBlock>
+            </StackPanel>
+            <Button Grid.Column="2" Classes="ghost" Width="36" Height="36" Padding="8" Command="{Binding CloseCommand}" ToolTip.Tip="بستن">
+                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconX}" />
+            </Button>
+        </Grid>
+        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" />
+
+        <StackPanel Margin="22,18" Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <controls:Badge Text="{Binding StateText}" Tone="{Binding StateTone}" />
+                <controls:Badge Text="{Binding PlanStatusText}" Tone="{Binding PlanStatusTone}" IsVisible="{Binding IsPlanLoaded}" />
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                    <Path Classes="icon" Width="13" Height="13" Stroke="{Binding Brush}"
+                          Data="{Binding KindIconKey, Converter={StaticResource IconKeyConverter}}" />
+                    <TextBlock Text="{Binding KindLabel}" FontSize="11.5" FontWeight="Bold" Foreground="{Binding Brush}" />
+                </StackPanel>
+            </StackPanel>
+
+            <TextBlock Text="مشخصات این نوبت" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Brand600Brush}" Margin="0,8,0,0" />
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="9" ColumnSpacing="14">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="تاریخ" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DayText}" FontWeight="Bold" FontSize="12.5" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="دوز / مقدار" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DosageText}" FontWeight="Bold" FontSize="12.5" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="کد قلم" Foreground="{StaticResource MutedBrush}" FontSize="12.5"
+                           IsVisible="{Binding HasVaccineCode}" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding VaccineCodeText}" FontWeight="Bold" FontSize="12.5"
+                           IsVisible="{Binding HasVaccineCode}" />
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="یادآور مالک" Foreground="{StaticResource MutedBrush}" FontSize="12.5"
+                           IsVisible="{Binding ShowsOwnerReminder}" />
+                <TextBlock Grid.Row="3" Grid.Column="1" Text="پیامک یادآور برای مالک فعال است" FontWeight="Bold" FontSize="12.5"
+                           IsVisible="{Binding ShowsOwnerReminder}" />
+            </Grid>
+
+            <StackPanel Spacing="9" IsVisible="{Binding IsPlanLoaded}">
+                <TextBlock Text="برنامهٔ درمان" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Brand600Brush}" Margin="0,8,0,0" />
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="9" ColumnSpacing="14">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="زمان‌بندی" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ScheduleText}" FontWeight="Bold" FontSize="12.5" />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="بازه" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding RangeText}" FontWeight="Bold" FontSize="12.5" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="نوبت بعدی" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding NextText}" FontWeight="Bold" FontSize="12.5" />
+                </Grid>
+                <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercent}" Height="5" CornerRadius="5"
+                             Foreground="{Binding Brush}" Background="{StaticResource Bg2Brush}" />
+                <TextBlock Text="{Binding ProgressText}" FontSize="11.5" FontWeight="Bold" />
+                <Border IsVisible="{Binding HasNotes}" Background="{StaticResource Bg2Brush}" CornerRadius="10" Padding="12,9">
+                    <TextBlock Text="{Binding NotesText}" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource Ink2Brush}" />
+                </Border>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
+                <Button Classes="primary" IsVisible="{Binding CanMarkDone}" Command="{Binding MarkDoneCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="White" Data="{StaticResource IconCheckCircle}" />
+                        <TextBlock Text="انجام شد" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="outline" IsVisible="{Binding CanEditPlan}" Command="{Binding EditPlanCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Ink2Brush}" Data="{StaticResource IconEdit}" />
+                        <TextBlock Text="ویرایش برنامه" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="ghost" IsVisible="{Binding CanOpenPetFile}" Command="{Binding OpenPetFileCommand}" Content="پروندهٔ بیمار" />
+            </StackPanel>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

@@ -187,13 +187,18 @@
                                             <ItemsControl ItemsSource="{Binding Pills}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="vx:CalendarEventViewModel">
-                                                        <Border Classes="cal-pill" Classes.done="{Binding IsDone}"
-                                                                Background="{Binding Wash}" BorderBrush="{Binding Brush}"
-                                                                Margin="0,0,0,2">
-                                                            <TextBlock Text="{Binding PillText}" FontSize="10.5" FontWeight="Bold"
-                                                                       Foreground="{Binding Brush}"
-                                                                       TextTrimming="CharacterEllipsis" />
-                                                        </Border>
+                                                        <!-- a pill opens its own detail popup; the rest of the cell selects the day -->
+                                                        <Button Classes="cal-hit" ToolTip.Tip="نمایش جزئیات"
+                                                                Command="{Binding #Root.((vx:TreatmentCalendarViewModel)DataContext).OpenDetailCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <Border Classes="cal-pill" Classes.done="{Binding IsDone}"
+                                                                    Background="{Binding Wash}" BorderBrush="{Binding Brush}"
+                                                                    Margin="0,0,0,2">
+                                                                <TextBlock Text="{Binding PillText}" FontSize="10.5" FontWeight="Bold"
+                                                                           Foreground="{Binding Brush}"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                            </Border>
+                                                        </Button>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
@@ -227,7 +232,12 @@
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <Path Classes="icon" Width="16" Height="16" Stroke="{Binding Brush}"
                                                   Data="{Binding ItemTypeIconKey, Converter={StaticResource IconKeyConverter}}" />
-                                            <TextBlock Text="{Binding Title}" FontSize="13.5" FontWeight="ExtraBold" />
+                                            <Button Classes="link" Padding="0" Background="Transparent" BorderThickness="0"
+                                                    Cursor="Hand" ToolTip.Tip="نمایش جزئیات"
+                                                    Command="{Binding #Root.((vx:TreatmentCalendarViewModel)DataContext).OpenDetailCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <TextBlock Text="{Binding Title}" FontSize="13.5" FontWeight="ExtraBold" />
+                                            </Button>
                                             <TextBlock Text="{Binding ItemTypeLabel}" FontSize="11" Foreground="{StaticResource MutedBrush}"
                                                        VerticalAlignment="Center" />
                                             <TextBlock Text="{Binding DosageText}" IsVisible="{Binding HasDosage}" FontSize="11.5"
@@ -247,6 +257,10 @@
                                                     Foreground="{StaticResource Brand700Brush}" FontSize="11.5" FontWeight="Bold"
                                                     Command="{Binding #Root.((vx:TreatmentCalendarViewModel)DataContext).OpenPetPlansCommand}"
                                                     CommandParameter="{Binding}" Content="برنامه‌های این بیمار" />
+                                            <Button Classes="link" Padding="6,0" Background="Transparent" BorderThickness="0"
+                                                    Foreground="{StaticResource Brand700Brush}" FontSize="11.5" FontWeight="Bold"
+                                                    Command="{Binding #Root.((vx:TreatmentCalendarViewModel)DataContext).OpenDetailCommand}"
+                                                    CommandParameter="{Binding}" Content="جزئیات" />
                                         </StackPanel>
                                     </StackPanel>
                                     <Button Grid.Column="1" Classes="outline" VerticalAlignment="Center"

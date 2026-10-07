@@ -29,6 +29,8 @@ public sealed partial class VaccinationRecordDetailViewModel : ObservableObject
         _onSendSms = onSendSms;
         _onMarkDone = onMarkDone;
         Record = record;
+        CanSendSms = onSendSms is not null;
+        CanMarkDone = onMarkDone is not null && record.Status != VaccinationStatus.Done;
 
         PetInitial = VaccinationPresentation.Initial(record.PetName);
         AvatarBrush = VaccinationPresentation.AvatarFill(record.Tone);
@@ -76,6 +78,12 @@ public sealed partial class VaccinationRecordDetailViewModel : ObservableObject
     }
 
     public VaccinationRecord Record { get; }
+
+    /// <summary>The host supplied an SMS composer (the vaccination page does; the appointments calendar does not).</summary>
+    public bool CanSendSms { get; }
+
+    /// <summary>The host can record the dose and the record is not already administered.</summary>
+    public bool CanMarkDone { get; }
 
     public string PetInitial { get; }
     public Avalonia.Media.IBrush AvatarBrush { get; }

@@ -21,6 +21,7 @@ public sealed partial class TreatmentCalendarViewModel : ObservableObject
     private readonly IToastService _toast;
     private readonly Action _onChanged;
     private readonly Action<CalendarEventViewModel> _openPetPlans;
+    private readonly Action<CalendarEventViewModel> _openDetail;
 
     private int _loadVersion;
     private bool _loadedOnce;
@@ -28,8 +29,10 @@ public sealed partial class TreatmentCalendarViewModel : ObservableObject
     private List<CalendarOccurrence> _occurrences = [];
 
     public TreatmentCalendarViewModel(
-        IVaccinationService service, IToastService toast, Action onChanged, Action<CalendarEventViewModel> openPetPlans)
+        IVaccinationService service, IToastService toast, Action onChanged, Action<CalendarEventViewModel> openPetPlans,
+        Action<CalendarEventViewModel> openDetail)
     {
+        _openDetail = openDetail;
         _service = service;
         _toast = toast;
         _onChanged = onChanged;
@@ -171,6 +174,16 @@ public sealed partial class TreatmentCalendarViewModel : ObservableObject
         if (item is not null)
         {
             _openPetPlans(item);
+        }
+    }
+
+    /// <summary>Opens the shared «جزئیات دارو / واکسن» popup of one scheduled day.</summary>
+    [RelayCommand]
+    private void OpenDetail(CalendarEventViewModel? item)
+    {
+        if (item is not null)
+        {
+            _openDetail(item);
         }
     }
 
