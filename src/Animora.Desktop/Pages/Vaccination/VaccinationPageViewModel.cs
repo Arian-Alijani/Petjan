@@ -196,6 +196,13 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         ActiveSection = key;
     }
 
+    /// <summary>
+    /// One fan-out point for every vaccination write: the plan/record is a persisted fact shown in the
+    /// owner file, the activity feed and the dashboard counters, so all four domains are invalidated together.
+    /// </summary>
+    private void NotifyVaccinationChanged() =>
+        _changes.Notify(DataDomain.Vaccination, DataDomain.History, DataDomain.Patients, DataDomain.Dashboard);
+
     [RelayCommand]
     private void OpenAddVaccine()
     {
