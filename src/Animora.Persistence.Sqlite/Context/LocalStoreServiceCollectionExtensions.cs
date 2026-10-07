@@ -88,6 +88,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<ITriageQueries, TriageQueries>();
         services.TryAddScoped<IRxCatalogQueries, RxCatalogQueries>();
         services.TryAddScoped<IVaccinationQueries, VaccinationQueries>();
+        services.TryAddScoped<ITreatmentPlanQueries, TreatmentPlanQueries>();
         // C06: snapshot-joined inventory reads + grouped purchasing KPIs (Application ports, impl here).
         services.TryAddScoped<IInventoryQueries, InventoryQueries>();
         services.TryAddScoped<IPurchasingQueries, PurchasingQueries>();
@@ -115,6 +116,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IMedicalHistoryRepository, MedicalHistoryRepository>();
         services.AddScoped<IVisitBillingHandoffWriter, VisitBillingHandoffWriter>();
         services.AddScoped<IVaccinationRepository, VaccinationRepository>();
+        services.AddScoped<ITreatmentPlanRepository, TreatmentPlanRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
         services.AddScoped<IReceptionQueueRepository, ReceptionQueueRepository>();
         services.AddScoped<IBoardingRepository, BoardingRepository>();

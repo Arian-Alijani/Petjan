@@ -495,6 +495,139 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("MedicalHistoryEntries", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Domain.Clinical.TreatmentOccurrence", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DoneByUserId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("DoneUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly>("DueDay")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlanId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("State")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Version")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "UpdatedAt")
+                        .HasDatabaseName("IX_TreatmentOccurrences_TenantId_UpdatedAt");
+
+                    b.HasIndex("TenantId", "DueDay", "State")
+                        .HasDatabaseName("IX_TreatmentOccurrences_TenantId_DueDay_State");
+
+                    b.HasIndex("TenantId", "PlanId")
+                        .HasDatabaseName("IX_TreatmentOccurrences_TenantId_PlanId");
+
+                    b.ToTable("TreatmentOccurrences", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Domain.Clinical.TreatmentPlan", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Dosage")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ItemType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("NotifyOwner")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PetId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ScheduleType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("State")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("VaccineCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Version")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "UpdatedAt")
+                        .HasDatabaseName("IX_TreatmentPlans_TenantId_UpdatedAt");
+
+                    b.HasIndex("TenantId", "PetId", "State")
+                        .HasDatabaseName("IX_TreatmentPlans_TenantId_PetId_State");
+
+                    b.ToTable("TreatmentPlans", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Domain.Clinical.VaccinationRecord", b =>
                 {
                     b.Property<string>("Id")
@@ -575,6 +708,68 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasDatabaseName("IX_VaccinationRecords_TenantId_DueUtc_State");
 
                     b.ToTable("VaccinationRecords", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Domain.Clinical.VaccineCatalogItem", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("BoosterDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MinStock")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Protects")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Stock")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TotalDoses")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Version")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "UpdatedAt")
+                        .HasDatabaseName("IX_VaccineCatalogItems_TenantId_UpdatedAt");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("IX_VaccineCatalogItems_TenantId_Code");
+
+                    b.ToTable("VaccineCatalogItems", (string)null);
                 });
 
             modelBuilder.Entity("Animora.Domain.Clinical.Visit", b =>
