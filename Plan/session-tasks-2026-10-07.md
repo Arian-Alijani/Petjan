@@ -50,7 +50,7 @@ large code block is written mid-task, push it too (don't batch many tasks into o
 ## TASKS OVERVIEW (do in this order; small UX wins first, big feature last)
 
 1. **[x] T1** — Patients page: turn «تنظیمات» into a 3rd segmented tab (styled like the owners/patients tabs), placed after «بیماران». Remove the old outline button.
-2. **[ ] T2** — Inventory «حذف دسته» confirm dialog: fix the cramped/overflowing layout (width mismatch + danger button not red).
+2. **[x] T2** — Inventory «حذف دسته» confirm dialog: fix the cramped/overflowing layout (width mismatch + danger button not red).
 3. **[ ] T3** — Sales payment modal: Card first + default-selected; replace the ugly pay-button color/icon with a standard green, minimal/modern style, icon on the **left** of the text.
 4. **[ ] T4** — Sales payment modal: Mixed («ترکیبی») mode lets the admin split the amount across methods (e.g. part card, part cash/cheque).
 5. **[ ] T5** — Sales payment modal: when a payment (or a split part) is by Cheque, prompt whether to register it in the Cheques module; wire a real cheque-registration path that links the cheque to the operation/invoice, surfaced in History + owner profile + the Cheques screen (cheque date etc. asked here).

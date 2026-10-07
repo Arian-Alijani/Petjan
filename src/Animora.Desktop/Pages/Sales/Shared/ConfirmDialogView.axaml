@@ -19,6 +19,23 @@
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
+        <!-- confirm button honours the dialog tone: brand by default, red for destructive (danger) confirms -->
+        <Style Selector="Button.cf-btn.confirm">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.cf-btn.confirm:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.cf-btn.confirm.danger">
+            <Setter Property="Background" Value="{StaticResource DangerBrush}" />
+        </Style>
+        <Style Selector="Button.cf-btn.confirm.danger:pointerover">
+            <Setter Property="Background" Value="#b42318" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
     </UserControl.Styles>
 
     <StackPanel>
@@ -55,22 +72,12 @@
 
         <!-- foot -->
         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
-                    Margin="20,12,20,18">
+                    Margin="22,12,22,20">
             <Button Classes="outline cf-btn" Content="{Binding CancelLabel}"
                     Command="{Binding CancelCommand}" />
-            <Button Classes="cf-btn" Content="{Binding ConfirmLabel}"
-                    Command="{Binding ConfirmCommand}">
-                <Button.Styles>
-                    <Style Selector="Button">
-                        <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
-                        <Setter Property="Foreground" Value="White" />
-                        <Setter Property="BorderThickness" Value="0" />
-                    </Style>
-                    <Style Selector="Button:pointerover">
-                        <Setter Property="Background" Value="{StaticResource Brand700Brush}" />
-                    </Style>
-                </Button.Styles>
-            </Button>
+            <Button Classes="cf-btn confirm" Classes.danger="{Binding IsDanger}"
+                    Content="{Binding ConfirmLabel}"
+                    Command="{Binding ConfirmCommand}" />
         </StackPanel>
     </StackPanel>
 </UserControl>

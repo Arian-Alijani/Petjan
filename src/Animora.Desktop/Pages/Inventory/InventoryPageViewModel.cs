@@ -424,7 +424,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         _dialogs.ShowModal(new Animora.Desktop.Pages.Sales.Shared.ConfirmDialogViewModel(
             _dialogs, "danger", "IconTrash", "حذف دسته", "دسته ", row.Label, " حذف شود؟",
             "این عمل قابل بازگشت نیست.", "حذف", "انصراف",
-            () => _ = MutateCategoryAsync(() => _service.DeleteCategoryAsync(row.Id), "حذف دسته ناموفق بود", "دسته حذف شد")), 420);
+            () => _ = MutateCategoryAsync(() => _service.DeleteCategoryAsync(row.Id), "حذف دسته ناموفق بود", "دسته حذف شد")), 480);
     }
 
     /// <summary>Runs one category mutation, toasts the outcome and reloads categories + list on success.</summary>
