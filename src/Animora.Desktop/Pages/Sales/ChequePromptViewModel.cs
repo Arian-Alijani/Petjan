@@ -75,7 +75,7 @@ public sealed partial class ChequePromptViewModel : ObservableObject
     {
         get
         {
-            var digits = new string(PersianText.NormalizeDigits(AmountText ?? string.Empty).Where(char.IsDigit).ToArray());
+            var digits = new string(Animora.Application.Text.PersianText.NormalizeDigits(AmountText ?? string.Empty).Where(char.IsDigit).ToArray());
             return long.TryParse(digits, out var v) ? v : 0;
         }
     }
@@ -102,7 +102,7 @@ public sealed partial class ChequePromptViewModel : ObservableObject
         {
             await _cheques.RegisterAsync(new NewChequeRequest(
                 ChequeDirectionDto.Inbound,
-                PersianText.NormalizeDigits(Number.Trim()),
+                Animora.Application.Text.PersianText.NormalizeDigits(Number.Trim()),
                 amount,
                 IssueDate,
                 DueDate,
@@ -110,7 +110,7 @@ public sealed partial class ChequePromptViewModel : ObservableObject
                 Bank,
                 Branch,
                 Account,
-                PersianText.NormalizeDigits(SayadId ?? string.Empty),
+                Animora.Application.Text.PersianText.NormalizeDigits(SayadId ?? string.Empty),
                 Note));
         }
         catch (InvalidOperationException ex)
