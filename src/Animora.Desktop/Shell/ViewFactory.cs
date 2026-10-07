@@ -113,6 +113,7 @@ public static class ViewFactory
         Register<global::Animora.Desktop.Pages.Sales.ServiceRateEditModalViewModel, global::Animora.Desktop.Pages.Sales.ServiceRateEditModalView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.InsurerEditModalViewModel, global::Animora.Desktop.Pages.Sales.InsurerEditModalView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.PaymentModalViewModel, global::Animora.Desktop.Pages.Sales.PaymentModalView>(factories);
+        Register<global::Animora.Desktop.Pages.Sales.ChequePromptViewModel, global::Animora.Desktop.Pages.Sales.ChequePromptView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.RefundModalViewModel, global::Animora.Desktop.Pages.Sales.RefundModalView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.SalePageViewModel, global::Animora.Desktop.Pages.Sales.SalePageView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.Shared.ConfirmDialogViewModel, global::Animora.Desktop.Pages.Sales.Shared.ConfirmDialogView>(factories);

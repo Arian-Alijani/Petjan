@@ -26,6 +26,7 @@ namespace Animora.Desktop.Pages.Sales;
 public sealed partial class InvoiceViewerViewModel : ObservableObject
 {
     private readonly ISalesQueryService _service;
+    private readonly IChequePrompt _chequePrompt;
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
     private readonly IPrintService _print;
@@ -39,9 +40,11 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         IToastService toast,
         IDialogService dialogs,
         IPrintService print,
+        IChequePrompt chequePrompt,
         string invoiceId,
         Action? onChanged = null)
     {
+        _chequePrompt = chequePrompt;
         _service = service;
         _toast = toast;
         _dialogs = dialogs;
@@ -488,7 +491,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private void TakePayment()
     {
         _dialogs.Close();
-        _dialogs.ShowModal(new PaymentModalViewModel(_service, _toast, _dialogs, _print, _invoiceId, OnChanged), 520);
+        _dialogs.ShowModal(new PaymentModalViewModel(_service, _toast, _dialogs, _print, _chequePrompt, _invoiceId, OnChanged), 520);
     }
 
     [RelayCommand]

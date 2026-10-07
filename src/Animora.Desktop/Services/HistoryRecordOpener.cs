@@ -22,6 +22,7 @@ public sealed class HistoryRecordOpener(
     IToastService toast,
     IDialogService dialogs,
     IPrintService print,
+    IChequePrompt chequePrompt,
     IRecordSheetPresenter sheets,
     INavigationService navigation) : IHistoryRecordOpener
 {
@@ -86,7 +87,7 @@ public sealed class HistoryRecordOpener(
             return Task.CompletedTask;
         }
 
-        dialogs.ShowSheet(new InvoiceViewerViewModel(sales, toast, dialogs, print, invoiceId, onChanged), 1040, 720);
+        dialogs.ShowSheet(new InvoiceViewerViewModel(sales, toast, dialogs, print, chequePrompt, invoiceId, onChanged), 1040, 720);
         return Task.CompletedTask;
     }
 }

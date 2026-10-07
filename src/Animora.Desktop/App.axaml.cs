@@ -301,6 +301,9 @@ public partial class App : global::Avalonia.Application
         // app opens — invoice sheet, pet/owner sheet, or the destination page.
         services.AddSingleton<IHistoryRecordOpener, HistoryRecordOpener>();
 
+        // Cheque tender → «ثبت چک در بخش چک‌ها؟» prompt used by the payment modal.
+        services.AddSingleton<IChequePrompt, ChequePrompt>();
+
         // C02: real triage gate, backed by the local store.
         services.AddSingleton<IVisitsTriageService, VisitsTriageService>();
         services.AddSingleton<VisitsTriagePageViewModel>();

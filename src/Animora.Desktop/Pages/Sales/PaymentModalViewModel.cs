@@ -24,6 +24,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
     private readonly IPrintService _print;
+    private readonly IChequePrompt _chequePrompt;
     private readonly string _invoiceId;
     private readonly Action? _onChanged;
 
@@ -39,6 +40,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         IToastService toast,
         IDialogService dialogs,
         IPrintService print,
+        IChequePrompt chequePrompt,
         string invoiceId,
         Action? onChanged = null)
     {
@@ -46,6 +48,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         _toast = toast;
         _dialogs = dialogs;
         _print = print;
+        _chequePrompt = chequePrompt;
         _invoiceId = invoiceId;
         _onChanged = onChanged;
 
@@ -424,10 +427,27 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Cheque tender hook (T5): replaced by the registration prompt. The payment itself is already
-    /// recorded; this only decides whether a Cheques-module record is created alongside it.
+    /// Cheque tender hook: after the payment (or a «ترکیبی» cheque part) is recorded, asks whether the
+    /// cheque must also be registered in the Cheques module (inbound, this owner, note-linked to the
+    /// invoice). The payment itself is already committed; this only adds the Cheques-module record.
     /// </summary>
-    private Task MaybeRegisterChequeAsync(InvoiceDetail invoice, long amount) => Task.CompletedTask;
+    private async Task MaybeRegisterChequeAsync(InvoiceDetail invoice, long amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await _chequePrompt.PromptAsync(invoice, amount);
+        }
+        catch (InvalidOperationException ex)
+        {
+            System.Diagnostics.Trace.TraceWarning("Cheque prompt failed: " + ex.Message);
+            _toast.Show("ثبت چک در بخش چک‌ها ممکن نشد؛ از صفحهٔ چک‌ها ثبت کنید", Tone.Warn);
+        }
+    }
 
     private async Task ShowSettlementSuccessAsync(
         PaymentResult result, string methodLabel, string methodTone, long applied, string? parts)
