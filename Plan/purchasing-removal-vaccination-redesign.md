@@ -153,13 +153,13 @@
 - `[x]` `tests/Animora.Application.Tests/NavigationAdmissionTests.cs` که هنوز `PurchasingPageViewModel`/`PurchasingRead` را می‌شناخت (و با T1 شکسته بود) به صفحهٔ غیر-sidebar `Reception` منتقل شد.
 - `[x]` پوش: `docs(plan): [R] revise plan + fix stale purchasing nav tests`.
 
-### T2 — Domain: TreatmentPlan + TreatmentOccurrence + VaccineCatalogItem
-- `[ ]` `src/Animora.Domain/Clinical/TreatmentPlan.cs`: enumها (`TreatmentItemType`, `TreatmentKind`, `TreatmentScheduleType`, `TreatmentPlanState`, `TreatmentOccurrenceState`)، aggregate `TreatmentPlan` (`Create` → `Result<TreatmentPlanDraft>`، `Update`، `Cancel`، `Complete`)، entity `TreatmentOccurrence` (`MarkDone`, `Skip`).
-- `[ ]` `src/Animora.Domain/Clinical/TreatmentScheduleExpander.cs`: expander خالص (چهار نوع زمان‌بندی، سقف‌ها و اعتبارسنجی طبق بخش ۲).
-- `[ ]` `src/Animora.Domain/Clinical/VaccineCatalogItem.cs` (aggregate با `Create`/`Update`).
-- `[ ]` ErrorCodeهای جدید در `ErrorCodes.cs`: `TreatmentPlanNotFound`, `TreatmentOccurrenceNotFound`, `TreatmentOccurrenceAlreadyDone`, `TreatmentPlanNotActive`, `TreatmentScheduleInvalid`, `TreatmentScheduleTooLarge`, `VaccineCatalogCodeTaken`.
-- `[ ]` تست‌های دامنه (فایلِ کوچک `tests/Animora.Domain.Tests/TreatmentScheduleTests.cs`، فقط با `--filter`): چهار زمان‌بندی، سقف ۳۶۵، تکراری‌ها، لغو.
-- `[ ]` بیلد `scripts/sandbox/build.sh full` = 0/0. پوش: `feat(domain): [T2] add TreatmentPlan/Occurrence/VaccineCatalogItem + schedule expander`.
+### T2 — Domain: TreatmentPlan + TreatmentOccurrence + VaccineCatalogItem ✅
+- `[x]` `src/Animora.Domain/Clinical/TreatmentPlan.cs`: enumها (`TreatmentItemType`, `TreatmentKind`, `TreatmentScheduleType`, `TreatmentPlanState`, `TreatmentOccurrenceState`)، aggregate `TreatmentPlan` (`Create` → `Result<TreatmentPlanDraft>`، `Update`، `Cancel`، `Complete`)، entity `TreatmentOccurrence` (`MarkDone`, `Skip`).
+- `[x]` `src/Animora.Domain/Clinical/TreatmentScheduleExpander.cs`: expander خالص (چهار نوع زمان‌بندی، سقف‌ها و اعتبارسنجی طبق بخش ۲).
+- `[x]` `src/Animora.Domain/Clinical/VaccineCatalogItem.cs` (aggregate با `Create`/`Update`).
+- `[x]` ErrorCodeهای جدید در `ErrorCodes.cs`: `TreatmentPlanNotFound`, `TreatmentOccurrenceNotFound`, `TreatmentOccurrenceAlreadyDone`, `TreatmentPlanNotActive`, `TreatmentScheduleInvalid`, `TreatmentScheduleTooLarge`, `VaccineCatalogCodeTaken`.
+- `[x]` تست‌های دامنه (فایلِ کوچک `tests/Animora.Domain.Tests/TreatmentScheduleTests.cs`، فقط با `--filter`): چهار زمان‌بندی، سقف ۳۶۵، تکراری‌ها، لغو.
+- `[x]` بیلد `scripts/sandbox/build.sh full` = 0/0. پوش: `feat(domain): [T2] add TreatmentPlan/Occurrence/VaccineCatalogItem + schedule expander`.
 
 ### T3 — Application: ports + commands + queries + CommandTypes
 - `[ ]` ports در `src/Animora.Application/Ports/`: `ITreatmentPlanRepository` (Find plan/occurrence، Add plan+occurrences، `CountPendingAsync`، FindCatalog/`CodeExistsAsync`/AddCatalog) و `ITreatmentPlanQueries` (calendar range، plans for pet، custom catalog) + read-modelها.

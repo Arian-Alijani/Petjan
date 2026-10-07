@@ -196,6 +196,27 @@ public static class ErrorCodes
     public static readonly ErrorCode VaccinationAlreadyDone = new("VACCINATION_ALREADY_DONE", ErrorCode.Conflict);
     public static readonly ErrorCode SmsTemplateTokenUnknown = new("SMS_TEMPLATE_TOKEN_UNKNOWN", ErrorCode.Validation);
 
+    /// <summary>The addressed treatment plan does not exist or is not visible to this tenant.</summary>
+    public static readonly ErrorCode TreatmentPlanNotFound = new("TREATMENT_PLAN_NOT_FOUND", ErrorCode.NotFound);
+
+    /// <summary>The addressed treatment occurrence does not exist or is not visible to this tenant.</summary>
+    public static readonly ErrorCode TreatmentOccurrenceNotFound = new("TREATMENT_OCCURRENCE_NOT_FOUND", ErrorCode.NotFound);
+
+    /// <summary>The occurrence was already given (or skipped); it cannot be completed twice.</summary>
+    public static readonly ErrorCode TreatmentOccurrenceAlreadyDone = new("TREATMENT_OCCURRENCE_ALREADY_DONE", ErrorCode.Conflict);
+
+    /// <summary>The plan is completed or cancelled, so the requested change is refused.</summary>
+    public static readonly ErrorCode TreatmentPlanNotActive = new("TREATMENT_PLAN_NOT_ACTIVE", ErrorCode.Conflict);
+
+    /// <summary>The schedule parameters are inconsistent or yield no dates.</summary>
+    public static readonly ErrorCode TreatmentScheduleInvalid = new("TREATMENT_SCHEDULE_INVALID", ErrorCode.Validation);
+
+    /// <summary>The schedule would exceed the occurrence or time-span cap; it is refused, never silently truncated.</summary>
+    public static readonly ErrorCode TreatmentScheduleTooLarge = new("TREATMENT_SCHEDULE_TOO_LARGE", ErrorCode.Validation);
+
+    /// <summary>A vaccine with this code already exists in the built-in or the clinic catalog.</summary>
+    public static readonly ErrorCode VaccineCatalogCodeTaken = new("VACCINE_CATALOG_CODE_TAKEN", ErrorCode.Conflict);
+
     #endregion
 
     #region Scheduling & Boarding (Phase A05)
