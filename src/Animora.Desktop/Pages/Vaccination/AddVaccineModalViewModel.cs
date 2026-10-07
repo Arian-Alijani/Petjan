@@ -719,6 +719,99 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
             string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim(),
             _kind == TreatmentKind.HomeByOwner && NotifyOwner);
 
+        // Thursday / Friday are the clinic weekend: ask before storing a day on them instead of deciding silently.
+        var days = TreatmentHolidayPolicy.Expand(schedule);
+        var holidays = TreatmentHolidayPolicy.HolidaysIn(days);
+        if (holidays.Count > 0)
+        {
+            BeginHolidayPrompt(input, days, holidays);
+            return;
+        }
+
+        await CommitAsync(input);
+    }
+
+    // ── weekend (Thursday / Friday) decision ─────────────────────────────────
+    private TreatmentPlanInput? _pendingInput;
+    private IReadOnlyList<DateOnly> _pendingDays = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsEditingForm))]
+    private bool _isHolidayPrompt;
+
+    [ObservableProperty]
+    private string _holidayTitle = string.Empty;
+
+    [ObservableProperty]
+    private string _holidayDetail = string.Empty;
+
+    [ObservableProperty]
+    private bool _canMoveBefore = true;
+
+    /// <summary>The form is locked while the weekend question is open, so the answer always applies to what was reviewed.</summary>
+    public bool IsEditingForm => !IsHolidayPrompt;
+
+    private void BeginHolidayPrompt(TreatmentPlanInput input, IReadOnlyList<DateOnly> days, IReadOnlyList<DateOnly> holidays)
+    {
+        _pendingInput = input;
+        _pendingDays = days;
+
+        var shown = string.Join("، ", holidays.Take(4).Select(d =>
+            $"{AppointmentsCalendarMath.DayNames[AppointmentsCalendarMath.WeekIndex(d)]} {AppointmentsCalendarMath.Full(d)}"));
+        var more = holidays.Count > 4 ? $" و {VaccinationPresentation.Fa(holidays.Count - 4)} مورد دیگر" : string.Empty;
+
+        HolidayTitle = holidays.Count == 1
+            ? "این نوبت در روز تعطیل کلینیک (پنجشنبه/جمعه) است"
+            : $"{VaccinationPresentation.Fa(holidays.Count)} نوبت از {VaccinationPresentation.Fa(days.Count)} نوبت در روز تعطیل (پنجشنبه/جمعه) است";
+        HolidayDetail = $"{shown}{more}. همین‌طور تأیید شود یا به روز کاری دیگری منتقل شود؟";
+
+        // Moving earlier must not push a still-upcoming day into the past.
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        CanMoveBefore = !holidays.Any(d => d >= today && TreatmentHolidayPolicy.NearestWorkingDay(d, forward: false) < today);
+        IsHolidayPrompt = true;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmHolidayAsync()
+    {
+        if (_pendingInput is { } input)
+        {
+            await CommitAsync(input);
+        }
+    }
+
+    [RelayCommand]
+    private Task MoveToNextWorkingDayAsync() => MoveHolidaysAsync(forward: true);
+
+    [RelayCommand]
+    private Task MoveToPreviousWorkingDayAsync() => MoveHolidaysAsync(forward: false);
+
+    private async Task MoveHolidaysAsync(bool forward)
+    {
+        if (_pendingInput is not { } input)
+        {
+            return;
+        }
+
+        var shifted = TreatmentHolidayPolicy.Shift(input.Schedule, _pendingDays, forward);
+        await CommitAsync(input with { Schedule = shifted });
+    }
+
+    [RelayCommand]
+    private void ReviewDates()
+    {
+        _pendingInput = null;
+        _pendingDays = [];
+        IsHolidayPrompt = false;
+    }
+
+    private async Task CommitAsync(TreatmentPlanInput input)
+    {
+        if (IsSubmitting)
+        {
+            return;
+        }
+
         IsSubmitting = true;
         try
         {
@@ -728,6 +821,7 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
         {
             ErrorText = PatientsPresentation.CommandFailureMessage(ex, "ثبت برنامه ناموفق بود؛ دوباره تلاش کنید.");
             _toast.Show(ErrorText, Tone.Danger);
+            ReviewDates();
             return;
         }
         finally
@@ -737,7 +831,7 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
 
         StopPatientSearch();
         _dialogs.Close();
-        _toast.Show($"{(IsVaccine ? "واکسن" : "دارو")} برای «{_selectedPatient.Name}» ثبت و در تقویم زمان‌بندی شد");
+        _toast.Show($"{(IsVaccine ? "واکسن" : "دارو")} برای «{_selectedPatient?.Name}» ثبت و در تقویم زمان‌بندی شد");
         _onCreated();
     }
 }
