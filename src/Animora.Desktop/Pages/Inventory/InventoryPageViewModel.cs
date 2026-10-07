@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Inventory;
+using Animora.Contracts.Purchasing;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -26,6 +27,7 @@ namespace Animora.Desktop.Pages.Inventory;
 public sealed partial class InventoryPageViewModel : PageViewModelBase
 {
     private readonly IInventoryQueryService _service;
+    private readonly IPurchasingService _purchasing;
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
@@ -50,11 +52,12 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     // Debounced search (~160ms after typing stops), moved out of the code-behind.
     private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
 
-    public InventoryPageViewModel(IInventoryQueryService service, IStoreReadinessGate readiness,
-        IToastService toast, IDialogService dialogs,
+    public InventoryPageViewModel(IInventoryQueryService service, IPurchasingService purchasing,
+        IStoreReadinessGate readiness, IToastService toast, IDialogService dialogs,
         IDataChangeNotifier changes)
     {
         _service = service;
+        _purchasing = purchasing;
         _changes = changes;
         _readiness = readiness;
         _toast = toast;
@@ -65,6 +68,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         Breadcrumbs.Add("کسب و کار / انبار");
 
         Tabs.Add(new InventorySubnavViewModel("products", "کالاها", "IconBox"));
+        Tabs.Add(new InventorySubnavViewModel("purchases", "خرید و تأمین", "IconTruck"));
         Tabs.Add(new InventorySubnavViewModel("settings", "تنظیمات کالاها", "IconTools"));
 
         UseLoadStatus(ReloadPageAsync);
@@ -74,15 +78,19 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Sales, DataDomain.Cashier, DataDomain.Purchasing);
     }
 
-    /// <summary>products | settings — the reference's <c>state.tab</c>.</summary>
+    /// <summary>products | purchases | settings — the reference's <c>state.tab</c>.</summary>
     [ObservableProperty]
     private string _activeSubnav = "products";
 
     public bool IsProductsTab => ActiveSubnav == "products";
     public bool IsSettingsTab => ActiveSubnav == "settings";
+    public bool IsPurchasesTab => ActiveSubnav == "purchases";
 
     /// <summary>The header «کالای جدید» button only shows on the products tab (reference bindHeaderNew).</summary>
     public bool ShowHeaderNew => IsProductsTab;
+
+    /// <summary>The header «ثبت فاکتور خرید» button shows on the purchases tab.</summary>
+    public bool ShowHeaderPurchase => IsPurchasesTab;
 
     public ObservableCollection<InventorySubnavViewModel> Tabs { get; } = [];
     public RangeObservableCollection<InventoryCategoryChipViewModel> CategoryChips { get; } = [];
@@ -182,7 +190,70 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     {
         OnPropertyChanged(nameof(IsProductsTab));
         OnPropertyChanged(nameof(IsSettingsTab));
+        OnPropertyChanged(nameof(IsPurchasesTab));
         OnPropertyChanged(nameof(ShowHeaderNew));
+        OnPropertyChanged(nameof(ShowHeaderPurchase));
+    }
+
+    // ── Purchases («خرید و تأمین») sub-view ─────────────────────────────────
+    public RangeObservableCollection<PurchaseRowViewModel> PurchaseRows { get; } = [];
+
+    private PurchasingOverview? _purchaseOverview;
+
+    [ObservableProperty] private bool _hasPurchases;
+    [ObservableProperty] private string _purchaseMonthSpendText = "۰";
+    [ObservableProperty] private string _purchaseSupplierDebtText = "۰";
+    [ObservableProperty] private string _purchaseActiveOrdersText = "۰";
+    [ObservableProperty] private string _purchaseReceiptCountText = "۰";
+    [ObservableProperty] private string _purchaseSupplierCountText = "۰";
+
+    /// <summary>
+    /// Reads the purchases KPIs + recent invoices. A role without purchasing access (or a transient failure) must
+    /// never take the whole inventory page down, so a business failure just leaves the tab empty.
+    /// </summary>
+    private async Task LoadPurchasesAsync()
+    {
+        try
+        {
+            _purchaseOverview = await _purchasing.GetOverviewAsync();
+        }
+        catch (InvalidOperationException)
+        {
+            _purchaseOverview = null;
+        }
+    }
+
+    private void BuildPurchases()
+    {
+        var overview = _purchaseOverview;
+        PurchaseRows.ReplaceAll((overview?.Receipts ?? []).Select(r => new PurchaseRowViewModel(r)));
+        HasPurchases = PurchaseRows.Count > 0;
+
+        PurchaseMonthSpendText = InventoryPresentation.Money(overview?.MonthSpend ?? 0);
+        PurchaseSupplierDebtText = InventoryPresentation.Money(overview?.SupplierDebt ?? 0);
+        PurchaseActiveOrdersText = PersianNumberFormatter.ToPersianDigits(overview?.ActiveOrders ?? 0);
+        PurchaseReceiptCountText = PersianNumberFormatter.ToPersianDigits(overview?.ReceiptCount ?? 0);
+        PurchaseSupplierCountText = PersianNumberFormatter.ToPersianDigits(overview?.SupplierCount ?? 0);
+    }
+
+    /// <summary>Re-reads just the purchases data after switching to the tab or recording an invoice.</summary>
+    private async Task RefreshPurchasesAsync()
+    {
+        await LoadPurchasesAsync();
+        BuildPurchases();
+        BuildSubnavCounts();
+    }
+
+    /// <summary>
+    /// Opens the supplier purchase-invoice modal: pick a supplier (or add one), add existing / brand-new goods with
+    /// quantity + purchase cost, then record — stock, purchase price, History and statistics follow. The modal
+    /// announces <see cref="DataDomain.Purchasing"/>, which this page already refreshes on.
+    /// </summary>
+    [RelayCommand]
+    private void OpenPurchaseInvoice()
+    {
+        _dialogs.ShowModal(
+            new PurchaseInvoiceModalViewModel(_purchasing, _service, _toast, _dialogs, _changes), 860);
     }
 
 
@@ -205,6 +276,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
             _categories.AddRange(await _service.GetCategoriesAsync());
 
             await FetchListAsync();
+            await LoadPurchasesAsync();
         }
         finally
         {
@@ -221,6 +293,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         BuildFilterChips();
         RenderProducts();
         BuildSettings();
+        BuildPurchases();
     }
 
     /// <summary>
@@ -293,7 +366,12 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     {
         foreach (var tab in Tabs)
         {
-            var count = tab.Key == "products" ? _catalogTotal : _categories.Count;
+            var count = tab.Key switch
+            {
+                "products" => _catalogTotal,
+                "purchases" => _purchaseOverview?.ReceiptCount ?? 0,
+                _ => _categories.Count,
+            };
             tab.CountText = PersianNumberFormatter.ToPersianDigits(count);
             tab.IsActive = tab.Key == _subnav;
         }
@@ -473,6 +551,12 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         BuildFilterChips();
         if (key == "settings") return;
 
+        if (key == "purchases")
+        {
+            _ = RefreshPurchasesAsync();
+            return;
+        }
+
         ReloadFromFilter();
     }
 
@@ -613,6 +697,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
             _categories.Clear();
             _categories.AddRange(await _service.GetCategoriesAsync());
             await FetchListAsync();
+            await LoadPurchasesAsync();
         }
         finally
         {

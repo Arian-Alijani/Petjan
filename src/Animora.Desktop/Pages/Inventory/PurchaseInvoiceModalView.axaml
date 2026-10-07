@@ -1,0 +1,288 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inv="using:Animora.Desktop.Pages.Inventory"
+             xmlns:pur="using:Animora.Contracts.Purchasing"
+             x:Class="Animora.Desktop.Pages.Inventory.PurchaseInvoiceModalView"
+             x:Name="Root"
+             x:DataType="inv:PurchaseInvoiceModalViewModel"
+             x:CompileBindings="True"
+             Width="860"
+             MaxWidth="860"
+             MaxHeight="760"
+             FlowDirection="RightToLeft">
+
+    <!-- «ثبت فاکتور خرید»: supplier + item lines (existing inventory with cost auto-fill, or brand-new goods).
+         One recorded invoice = one atomic goods receipt (stock + purchase price + History). -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.fld">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="0,0,0,5" />
+        </Style>
+        <Style Selector="TextBox.inp">
+            <Setter Property="Padding" Value="8,7" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.sec">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="LetterSpacing" Value="1" />
+        </Style>
+        <Style Selector="Button.opt">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="12,9" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.opt:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- ═══ header ═══ -->
+        <Border Grid.Row="0" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1"
+                Padding="22,20,22,16" Background="{StaticResource PanelBrush}">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                <Border Grid.Column="0" Width="50" Height="50" CornerRadius="12"
+                        Background="{StaticResource Brand600Brush}">
+                    <Path Classes="icon" Width="22" Height="22" Stroke="White"
+                          Data="{StaticResource IconTruck}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="خرید و تأمین" FontSize="11" FontWeight="Bold"
+                               Foreground="{StaticResource Brand600Brush}" LetterSpacing="1" Margin="0,0,0,4" />
+                    <TextBlock Text="ثبت فاکتور خرید" FontSize="18" FontWeight="ExtraBold"
+                               Foreground="{StaticResource InkBrush}" />
+                    <TextBlock Text="کالاهای خریداری‌شده را وارد کنید؛ موجودی و قیمت خرید هر کالا خودکار به‌روز می‌شود."
+                               FontSize="12.5" Margin="0,4,0,0" Foreground="{StaticResource MutedBrush}"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="2" Width="36" Height="36" Padding="0" CornerRadius="10"
+                        Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                        BorderThickness="1" VerticalAlignment="Top" Command="{Binding CancelCommand}"
+                        ToolTip.Tip="بستن">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                          Data="{StaticResource IconX}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- ═══ body ═══ -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="22,18,22,18" Spacing="16">
+
+                <!-- supplier -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="sec" Text="تأمین‌کننده" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Classes="ghost" Command="{Binding ToggleSupplierModeCommand}"
+                                Content="{Binding SupplierModeLabel}" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <StackPanel Grid.Column="0" IsVisible="{Binding IsExistingSupplier}">
+                            <TextBlock Classes="fld" Text="انتخاب تأمین‌کننده" />
+                            <ComboBox HorizontalAlignment="Stretch" CornerRadius="10" MinHeight="36"
+                                      ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier}"
+                                      PlaceholderText="تأمین‌کننده‌ای ثبت نشده — «تأمین‌کنندهٔ جدید» را بزنید">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="pur:SupplierRef">
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="0" IsVisible="{Binding IsNewSupplier}">
+                            <TextBlock Classes="fld" Text="نام تأمین‌کنندهٔ جدید" />
+                            <TextBox Classes="inp" Text="{Binding NewSupplierName}" PlaceholderText="مثلاً: دارو پخش البرز" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Classes="fld" Text="شمارهٔ فاکتور تأمین‌کننده (اختیاری)" />
+                            <TextBox Classes="inp" Text="{Binding InvoiceReference}" FontFamily="monospace" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+
+                <!-- item picker -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="sec" Text="افزودن کالا" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Classes="ghost" Command="{Binding ToggleNewProductCommand}"
+                                Content="+ کالای جدید (ثبت‌نشده در انبار)" />
+                    </Grid>
+
+                    <StackPanel>
+                        <TextBlock Classes="fld" Text="جستجوی کالای موجود در انبار (نام، کد یا بارکد)" />
+                        <TextBox Classes="inp" Text="{Binding ProductSearch}"
+                                 PlaceholderText="نام یا کد کالا را بنویسید؛ تعداد ۱ و قیمت خرید قبلی خودکار پر می‌شود" />
+                    </StackPanel>
+
+                    <Border IsVisible="{Binding HasMatches}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                            CornerRadius="12" ClipToBounds="True" Background="{StaticResource PanelBrush}">
+                        <ItemsControl ItemsSource="{Binding Matches}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="inv:PurchaseProductOption">
+                                    <Button Classes="opt"
+                                            Command="{Binding #Root.((inv:PurchaseInvoiceModalViewModel)DataContext).AddExistingCommand}"
+                                            CommandParameter="{Binding}">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding Sub}" FontSize="11"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                    <TextBlock IsVisible="{Binding NoMatches}" FontSize="12" Foreground="{StaticResource MutedBrush}"
+                               Text="کالایی با این مشخصات در انبار نیست؛ «کالای جدید» را بزنید تا همین‌جا ثبت شود." />
+
+                    <!-- brand-new good -->
+                    <Border IsVisible="{Binding IsNewProductOpen}" Background="{StaticResource Bg2Brush}"
+                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="14">
+                        <StackPanel Spacing="10">
+                            <TextBlock Classes="sec" Text="کالای جدید" />
+                            <Grid ColumnDefinitions="2*,*,*,*" ColumnSpacing="10">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Classes="fld" Text="نام کالا" />
+                                    <TextBox Classes="inp" Text="{Binding NewName}" PlaceholderText="مثلاً: قرص ویتامین" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Classes="fld" Text="کد کالا (اختیاری)" />
+                                    <TextBox Classes="inp" Text="{Binding NewCode}" FontFamily="monospace" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Classes="fld" Text="دسته" />
+                                    <ComboBox HorizontalAlignment="Stretch" CornerRadius="10" MinHeight="36"
+                                              ItemsSource="{Binding CategoryOptions}" SelectedItem="{Binding NewCategory}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="inv:CategoryOptionViewModel">
+                                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Grid.Column="3">
+                                    <TextBlock Classes="fld" Text="قیمت فروش (تومان)" />
+                                    <TextBox Classes="inp" Text="{Binding NewSalePriceText}" PlaceholderText="۰" />
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Classes="primary" Command="{Binding AddNewProductCommand}" Content="افزودن به فاکتور" />
+                                <Button Classes="ghost" Command="{Binding ToggleNewProductCommand}" Content="بستن" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- lines -->
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="sec" Text="اقلام فاکتور" />
+                    <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12"
+                            ClipToBounds="True" Background="{StaticResource PanelBrush}">
+                        <StackPanel>
+                            <Grid ColumnDefinitions="3*,1*,1.6*,1.6*,44" Background="{StaticResource TableHeadBrush}"
+                                  IsVisible="{Binding HasLines}">
+                                <TextBlock Grid.Column="0" Text="کالا" FontSize="11.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}" Margin="12,10" />
+                                <TextBlock Grid.Column="1" Text="تعداد" FontSize="11.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}" Margin="6,10" />
+                                <TextBlock Grid.Column="2" Text="قیمت خرید واحد (تومان)" FontSize="11.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}" Margin="6,10" />
+                                <TextBlock Grid.Column="3" Text="جمع (تومان)" FontSize="11.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}" Margin="6,10" />
+                            </Grid>
+
+                            <TextBlock IsVisible="{Binding !HasLines}" Margin="16,26" HorizontalAlignment="Center"
+                                       FontSize="12.5" Foreground="{StaticResource MutedBrush}"
+                                       Text="هنوز کالایی اضافه نشده است — از بالا کالا را جستجو یا «کالای جدید» را اضافه کنید." />
+
+                            <ItemsControl ItemsSource="{Binding Lines}" IsVisible="{Binding HasLines}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="inv:PurchaseLineViewModel">
+                                        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0">
+                                            <Grid ColumnDefinitions="3*,1*,1.6*,1.6*,44">
+                                                <StackPanel Grid.Column="0" Margin="12,8" VerticalAlignment="Center" Spacing="2">
+                                                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold"
+                                                               Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Sub}" FontSize="11"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                </StackPanel>
+                                                <TextBox Grid.Column="1" Classes="inp" Margin="6,8"
+                                                         Text="{Binding QtyText}" TextAlignment="Center" />
+                                                <TextBox Grid.Column="2" Classes="inp" Margin="6,8"
+                                                         Text="{Binding CostText}" TextAlignment="Right" />
+                                                <TextBlock Grid.Column="3" Margin="6,8" VerticalAlignment="Center"
+                                                           Text="{Binding LineTotalText}" FontSize="13" FontWeight="ExtraBold"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                                <Button Grid.Column="4" Classes="ghost" Width="34" Height="34" Padding="0"
+                                                        VerticalAlignment="Center" ToolTip.Tip="حذف ردیف"
+                                                        Command="{Binding #Root.((inv:PurchaseInvoiceModalViewModel)DataContext).RemoveLineCommand}"
+                                                        CommandParameter="{Binding}">
+                                                    <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                                                          Data="{StaticResource IconX}" />
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="{StaticResource Brand50Brush}" CornerRadius="10" Padding="14,10"
+                            IsVisible="{Binding HasLines}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <TextBlock Text="تعداد اقلام:" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource Ink2Brush}" />
+                                <TextBlock Text="{Binding LineCountText}" FontSize="12.5" FontWeight="ExtraBold"
+                                           Foreground="{StaticResource Ink2Brush}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="جمع کل فاکتور:" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding GrandTotalText}" FontSize="17" FontWeight="ExtraBold"
+                                           Foreground="{StaticResource Brand700Brush}" VerticalAlignment="Center" />
+                                <TextBlock Text="تومان" FontSize="12" Foreground="{StaticResource MutedBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <TextBlock Text="{Binding Error}" IsVisible="{Binding HasError}" TextWrapping="Wrap" FontSize="12.5"
+                           FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ═══ footer ═══ -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                Padding="22,14" Background="{StaticResource PanelBrush}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="primary" Command="{Binding RecordCommand}" IsEnabled="{Binding !IsSaving}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                              Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                        <TextBlock Text="ثبت فاکتور خرید" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="ghost" Content="انصراف" Command="{Binding CancelCommand}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

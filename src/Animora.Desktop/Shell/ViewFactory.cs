@@ -85,6 +85,7 @@ public static class ViewFactory
         Register<global::Animora.Desktop.Pages.Inventory.InventoryPageViewModel, global::Animora.Desktop.Pages.Inventory.InventoryPageView>(factories);
         Register<global::Animora.Desktop.Pages.Inventory.NewProductModalViewModel, global::Animora.Desktop.Pages.Inventory.NewProductModalView>(factories);
         Register<global::Animora.Desktop.Pages.Inventory.ProductModalViewModel, global::Animora.Desktop.Pages.Inventory.ProductModalView>(factories);
+        Register<global::Animora.Desktop.Pages.Inventory.PurchaseInvoiceModalViewModel, global::Animora.Desktop.Pages.Inventory.PurchaseInvoiceModalView>(factories);
         Register<global::Animora.Desktop.Pages.Inventory.StockAdjustModalViewModel, global::Animora.Desktop.Pages.Inventory.StockAdjustModalView>(factories);
 
         // Login (first-run owner setup, shown pre-shell).

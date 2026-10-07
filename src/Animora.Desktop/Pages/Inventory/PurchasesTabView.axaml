@@ -1,0 +1,133 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inv="using:Animora.Desktop.Pages.Inventory"
+             x:Class="Animora.Desktop.Pages.Inventory.PurchasesTabView"
+             x:DataType="inv:InventoryPageViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+
+    <!-- «خرید و تأمین» tab: KPI strip + the recorded supplier purchase invoices. Opening an invoice
+         (ثبت فاکتور خرید) is a modal; every recorded receipt raises stock, sets the purchase price and
+         lands in the main History + the per-product history. -->
+    <UserControl.Styles>
+        <Style Selector="Border.kpi">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusLg}" />
+            <Setter Property="Padding" Value="16,14" />
+        </Style>
+        <Style Selector="TextBlock.kpi-l">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="TextBlock.kpi-v">
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+        </Style>
+        <Style Selector="TextBlock.th">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="12,12" />
+        </Style>
+        <Style Selector="TextBlock.td">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Margin" Value="12,13" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Spacing="14" Margin="0,14,0,0">
+
+        <!-- KPI strip -->
+        <UniformGrid Rows="1" Columns="4">
+            <Border Classes="kpi" Margin="0,0,0,0">
+                <StackPanel>
+                    <TextBlock Classes="kpi-l" Text="خرید این ماه (تومان)" />
+                    <TextBlock Classes="kpi-v" Text="{Binding PurchaseMonthSpendText}" />
+                </StackPanel>
+            </Border>
+            <Border Classes="kpi" Margin="10,0,0,0">
+                <StackPanel>
+                    <TextBlock Classes="kpi-l" Text="بدهی به تأمین‌کنندگان (تومان)" />
+                    <TextBlock Classes="kpi-v" Text="{Binding PurchaseSupplierDebtText}" />
+                </StackPanel>
+            </Border>
+            <Border Classes="kpi" Margin="10,0,0,0">
+                <StackPanel>
+                    <TextBlock Classes="kpi-l" Text="فاکتورهای ثبت‌شده" />
+                    <TextBlock Classes="kpi-v" Text="{Binding PurchaseReceiptCountText}" />
+                </StackPanel>
+            </Border>
+            <Border Classes="kpi" Margin="10,0,0,0">
+                <StackPanel>
+                    <TextBlock Classes="kpi-l" Text="تأمین‌کنندگان" />
+                    <TextBlock Classes="kpi-v" Text="{Binding PurchaseSupplierCountText}" />
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <!-- invoices table -->
+        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                BorderThickness="1" CornerRadius="{StaticResource RadiusLg}" ClipToBounds="True">
+            <StackPanel>
+                <Grid ColumnDefinitions="1*,2*,1.2*,0.8*,1.4*,1.4*,1*" Background="{StaticResource TableHeadBrush}"
+                      IsVisible="{Binding HasPurchases}">
+                    <TextBlock Grid.Column="0" Classes="th" Text="شمارهٔ رسید" />
+                    <TextBlock Grid.Column="1" Classes="th" Text="تأمین‌کننده" />
+                    <TextBlock Grid.Column="2" Classes="th" Text="تاریخ" />
+                    <TextBlock Grid.Column="3" Classes="th" Text="اقلام" />
+                    <TextBlock Grid.Column="4" Classes="th" Text="جمع فاکتور (تومان)" />
+                    <TextBlock Grid.Column="5" Classes="th" Text="شمارهٔ فاکتور تأمین‌کننده" />
+                    <TextBlock Grid.Column="6" Classes="th" Text="وضعیت" />
+                </Grid>
+
+                <!-- empty state -->
+                <StackPanel IsVisible="{Binding !HasPurchases}" Margin="20,56">
+                    <Border Width="64" Height="64" CornerRadius="20" Background="{StaticResource Brand50Brush}"
+                            HorizontalAlignment="Center">
+                        <Path Classes="icon" Width="28" Height="28" Stroke="{StaticResource Brand700Brush}"
+                              Data="{StaticResource IconTruck}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="هنوز فاکتور خریدی ثبت نشده است" FontSize="15" FontWeight="Bold"
+                               Foreground="{StaticResource InkBrush}" HorizontalAlignment="Center" Margin="0,14,0,0" />
+                    <TextBlock Text="با «ثبت فاکتور خرید»، خرید از تأمین‌کننده را ثبت کنید تا موجودی و قیمت خرید کالاها به‌روز شود."
+                               FontSize="12.5" Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center"
+                               Margin="0,6,0,0" TextWrapping="Wrap" TextAlignment="Center" />
+                    <Button Classes="primary" HorizontalAlignment="Center" Margin="0,16,0,0"
+                            Command="{Binding OpenPurchaseInvoiceCommand}" Content="ثبت فاکتور خرید" />
+                </StackPanel>
+
+                <ItemsControl ItemsSource="{Binding PurchaseRows}" IsVisible="{Binding HasPurchases}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="inv:PurchaseRowViewModel">
+                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0">
+                                <Grid ColumnDefinitions="1*,2*,1.2*,0.8*,1.4*,1.4*,1*">
+                                    <TextBlock Grid.Column="0" Classes="td" Text="{Binding Number}" />
+                                    <TextBlock Grid.Column="1" Classes="td" Text="{Binding SupplierName}"
+                                               TextWrapping="Wrap" FontWeight="Bold" />
+                                    <TextBlock Grid.Column="2" Classes="td" Text="{Binding DateText}" />
+                                    <TextBlock Grid.Column="3" Classes="td" Text="{Binding LineCountText}" />
+                                    <TextBlock Grid.Column="4" Classes="td" Text="{Binding TotalText}" FontWeight="ExtraBold" />
+                                    <TextBlock Grid.Column="5" Classes="td" Text="{Binding ReferenceText}" />
+                                    <Border Grid.Column="6" Margin="12,10" CornerRadius="8" Padding="10,4"
+                                            Background="{StaticResource Brand50Brush}" HorizontalAlignment="Left"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding StateLabel}" FontSize="11.5" FontWeight="Bold"
+                                                   Foreground="{StaticResource Brand700Brush}" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

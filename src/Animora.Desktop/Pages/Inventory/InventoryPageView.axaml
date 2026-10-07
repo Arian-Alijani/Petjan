@@ -369,6 +369,14 @@
                     <TextBlock Text="کالای جدید" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
+            <Button Grid.Column="1" Classes="primary" IsVisible="{Binding ShowHeaderPurchase}"
+                    Command="{Binding OpenPurchaseInvoiceCommand}" VerticalAlignment="Bottom">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                          Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                    <TextBlock Text="ثبت فاکتور خرید" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
         </Grid>
 
         <!-- ═══ Unified toolbar (render()) ═══ -->
@@ -759,5 +767,8 @@
 
         <!-- ═══ Settings sub-view (renderSettings) ═══ -->
         <inv:InventorySettingsView IsVisible="{Binding IsSettingsTab}" />
+
+        <!-- ═══ Purchases sub-view («خرید و تأمین») ═══ -->
+        <inv:PurchasesTabView IsVisible="{Binding IsPurchasesTab}" />
     </StackPanel>
 </UserControl>
