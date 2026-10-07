@@ -167,10 +167,139 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     /// <summary>The payment-history header («تاریخچهٔ پرداخت‌ها (N)»).</summary>
     public string HistoryHeaderText => $"تاریخچهٔ پرداخت‌ها ({SalePresentation.Fa(Payments.Count)})";
 
-    /// <summary>The discount value in the adjustments row (= inv.discount.value).</summary>
-    public string DiscountValueText => SelectedInvoice is null
-        ? "۰"
-        : SalePresentation.Fa(SelectedInvoice.Detail.DiscountValue);
+    // ── Invoice-level discount & insurance editors ─────────────────────
+
+    /// <summary>The invoice-level discount kind toggle: <c>0</c> = «درصد», <c>1</c> = «مبلغ».</summary>
+    [ObservableProperty]
+    private int _discountKindIndex;
+
+    /// <summary>The editable invoice-level discount value (Persian digits), seeded from the open invoice.</summary>
+    [ObservableProperty]
+    private string _discountValueText = "۰";
+
+    /// <summary>The insurer options of the «پوشش بیمه» select («بدون بیمه» first).</summary>
+    public RangeObservableCollection<InsurerOptionViewModel> Insurers { get; } = [];
+
+    [ObservableProperty]
+    private InsurerOptionViewModel? _selectedInsurer;
+
+    private bool _suppressInsuranceApply;
+
+    public bool IsDiscountPercent => DiscountKindIndex == 0;
+
+    public bool IsDiscountAmount => DiscountKindIndex == 1;
+
+    partial void OnDiscountKindIndexChanged(int value)
+    {
+        OnPropertyChanged(nameof(IsDiscountPercent));
+        OnPropertyChanged(nameof(IsDiscountAmount));
+    }
+
+    partial void OnSelectedInsurerChanged(InsurerOptionViewModel? value)
+    {
+        if (_suppressInsuranceApply || SelectedInvoice is not { CanEdit: true } invoice)
+        {
+            return;
+        }
+
+        var chosenId = value?.Id ?? string.Empty;
+        if (chosenId == invoice.Detail.InsuranceOrgId)
+        {
+            return;
+        }
+
+        _ = ApplyInsuranceAsync(invoice.Id, chosenId);
+    }
+
+    [RelayCommand]
+    private void SetDiscountKind(string? index) => DiscountKindIndex = index == "1" ? 1 : 0;
+
+    /// <summary>Applies the typed invoice-level discount (percent clamped to 0–100) and re-reads the invoice.</summary>
+    [RelayCommand]
+    private async Task ApplyDiscount()
+    {
+        if (SelectedInvoice is not { CanEdit: true } invoice)
+        {
+            return;
+        }
+
+        var kind = DiscountKindIndex == 1 ? DiscountKind.Amount : DiscountKind.Percent;
+        var digits = PersianNumberFormatter.ToAsciiDigits(DiscountValueText).Replace(",", string.Empty).Replace("٬", string.Empty).Trim();
+        if (!int.TryParse(digits, out var value) || value < 0)
+        {
+            _toast.Show("مقدار تخفیف معتبر نیست", Tone.Warn);
+            return;
+        }
+
+        if (kind == DiscountKind.Percent && value > 100)
+        {
+            _toast.Show("تخفیف درصدی نمی‌تواند بیشتر از ۱۰۰٪ باشد", Tone.Warn);
+            return;
+        }
+
+        try
+        {
+            await _service.SetDiscountAsync(invoice.Id, new DiscountChangeRequest(kind, value));
+            _toast.Show("تخفیف فاکتور اعمال شد", Tone.Ok);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowFailure(ex, "اعمال تخفیف ناموفق بود؛ دوباره تلاش کنید");
+        }
+
+        RefreshAfterMutation();
+    }
+
+    private async Task ApplyInsuranceAsync(string invoiceId, string insurerId)
+    {
+        try
+        {
+            await _service.SetInsuranceAsync(invoiceId, insurerId.Length == 0 ? null : insurerId);
+            _toast.Show(insurerId.Length == 0 ? "پوشش بیمه برداشته شد" : "پوشش بیمه اعمال شد", Tone.Ok);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowFailure(ex, "تغییر پوشش بیمه ناموفق بود؛ دوباره تلاش کنید");
+        }
+
+        RefreshAfterMutation();
+    }
+
+    /// <summary>Re-reads the insurer directory (so insurers added in «نرخ خدمات» appear) and re-selects the applied one.</summary>
+    private async Task ReloadInsurersAsync()
+    {
+        var insurers = await _service.GetInsurersAsync();
+        _suppressInsuranceApply = true;
+        try
+        {
+            Insurers.ReplaceAll([new InsurerOptionViewModel(string.Empty, "بدون بیمه"),
+                ..insurers.Select(i => new InsurerOptionViewModel(i.Id, i.Name))]);
+            SyncAdjustmentEditors();
+        }
+        finally
+        {
+            _suppressInsuranceApply = false;
+        }
+    }
+
+    /// <summary>Seeds the discount/insurance editors from the open invoice (never triggers a write).</summary>
+    private void SyncAdjustmentEditors()
+    {
+        var wasSuppressed = _suppressInsuranceApply;
+        _suppressInsuranceApply = true;
+        try
+        {
+            var detail = SelectedInvoice?.Detail;
+            DiscountKindIndex = detail?.DiscountKind == DiscountKind.Amount ? 1 : 0;
+            DiscountValueText = SalePresentation.Fa(detail?.DiscountValue ?? 0);
+            SelectedInsurer = Insurers.FirstOrDefault(o => o.Id == (detail?.InsuranceOrgId ?? string.Empty))
+                ?? Insurers.FirstOrDefault();
+        }
+        finally
+        {
+            _suppressInsuranceApply = wasSuppressed;
+        }
+    }
 
     /// <summary>The tax summary label («مالیات (۹٪):»).</summary>
     public string TaxLabelText => SelectedInvoice is null
@@ -189,7 +318,6 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(HasReadyEncounters));
         OnPropertyChanged(nameof(LineCountText));
         OnPropertyChanged(nameof(HistoryHeaderText));
-        OnPropertyChanged(nameof(DiscountValueText));
         OnPropertyChanged(nameof(TaxLabelText));
     }
 
@@ -668,6 +796,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
         _invoices.Clear();
         _invoices.AddRange(await _service.GetInvoicesAsync());
+
+        await ReloadInsurersAsync();
     }
 
     private async Task RefreshKpisAsync()
@@ -812,6 +942,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             row.IsActive = !row.IsGroupHeader && row.InvoiceId == detail.Id;
         }
 
+        SyncAdjustmentEditors();
         RaiseDerived();
     }
 }

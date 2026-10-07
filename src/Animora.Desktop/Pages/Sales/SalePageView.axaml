@@ -313,6 +313,19 @@
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="14,12" />
         </Style>
+        <Style Selector="Button.sw-disc-kind">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="Button.sw-disc-kind.on">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
         <Style Selector="TextBlock.sw-adj-lbl">
             <Setter Property="FontSize" Value="10.5" />
             <Setter Property="FontWeight" Value="ExtraBold" />
@@ -778,40 +791,42 @@
                                     <Border Grid.Column="0" Classes="sw-adj-cell">
                                         <StackPanel Spacing="8">
                                             <TextBlock Classes="sw-adj-lbl" Text="تخفیف فاکتور" />
-                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8"
+                                                  IsEnabled="{Binding SelectedInvoice.CanEdit}">
                                                 <Border Grid.Column="0" Background="{StaticResource BgBrush}"
                                                         CornerRadius="8" Padding="2">
                                                     <StackPanel Orientation="Horizontal" Spacing="2">
-                                                        <TextBlock Text="درصد" FontSize="11" FontWeight="Bold"
-                                                                   Foreground="{StaticResource Brand700Brush}"
-                                                                   Padding="12,5" />
-                                                        <TextBlock Text="مبلغ" FontSize="11" FontWeight="Bold"
-                                                                   Foreground="{StaticResource MutedBrush}"
-                                                                   Padding="12,5" />
+                                                        <Button Classes="sw-disc-kind" Classes.on="{Binding IsDiscountPercent}"
+                                                                Command="{Binding SetDiscountKindCommand}"
+                                                                CommandParameter="0" Content="درصد" />
+                                                        <Button Classes="sw-disc-kind" Classes.on="{Binding IsDiscountAmount}"
+                                                                Command="{Binding SetDiscountKindCommand}"
+                                                                CommandParameter="1" Content="مبلغ" />
                                                     </StackPanel>
                                                 </Border>
-                                                <Border Grid.Column="1" Height="32"
-                                                        Background="{StaticResource PanelBrush}"
-                                                        BorderBrush="{StaticResource LineBrush}"
-                                                        BorderThickness="1" CornerRadius="8">
-                                                    <TextBlock Text="{Binding DiscountValueText}" FontSize="13"
-                                                               HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                               Margin="10,0"
-                                                               Foreground="{StaticResource InkBrush}" />
-                                                </Border>
+                                                <TextBox Grid.Column="1" Height="32" FontSize="13"
+                                                         HorizontalContentAlignment="Right"
+                                                         Text="{Binding DiscountValueText, Mode=TwoWay}" />
+                                                <Button Grid.Column="2" Classes="outline" Padding="12,6"
+                                                        Command="{Binding ApplyDiscountCommand}">
+                                                    <TextBlock Text="اعمال" FontSize="12" />
+                                                </Button>
                                             </Grid>
                                         </StackPanel>
                                     </Border>
                                     <Border Grid.Column="1" Classes="sw-adj-cell">
                                         <StackPanel Spacing="8">
                                             <TextBlock Classes="sw-adj-lbl" Text="پوشش بیمه" />
-                                            <Border Height="36" Background="{StaticResource PanelBrush}"
-                                                    BorderBrush="{StaticResource LineBrush}"
-                                                    BorderThickness="1" CornerRadius="8" Padding="10,0">
-                                                <TextBlock Text="{Binding SelectedInvoice.InsuranceLabel}"
-                                                           FontSize="12.5" VerticalAlignment="Center"
-                                                           Foreground="{StaticResource InkBrush}" />
-                                            </Border>
+                                            <ComboBox HorizontalAlignment="Stretch" MinHeight="36"
+                                                      IsEnabled="{Binding SelectedInvoice.CanEdit}"
+                                                      ItemsSource="{Binding Insurers}"
+                                                      SelectedItem="{Binding SelectedInsurer, Mode=TwoWay}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="sales:InsurerOptionViewModel">
+                                                        <TextBlock Text="{Binding Label}" FontSize="12.5" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
                                         </StackPanel>
                                     </Border>
                                 </Grid>
