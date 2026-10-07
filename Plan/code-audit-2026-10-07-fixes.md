@@ -81,7 +81,7 @@ private static async Task<Result> StoreAsync(Func<Task> operation)
 
 ---
 
-## [ ] T2 — F-04 🟠 Deserialize امن رویدادهای outbox + عدم drop بی‌صدا
+## [x] T2 — F-04 🟠 Deserialize امن رویدادهای outbox + عدم drop بی‌صدا ✅ انجام و push شد
 **فایل:** `src/Animora.Infrastructure.Local/Workers/FinanceProjectionWorker.cs`
 **هدف:** متد `Deserialize` خطوط **۸۰–۹۳** (ده شاخه + `_ => null`).
 
@@ -329,7 +329,7 @@ internal sealed partial class OutboxJsonContext : JsonSerializerContext { }
 
 ## چک‌لیست وضعیت (برای ادامه در سشن جدید)
 - [x] T1 F-01 — push شد ✅
-- [ ] T2 F-04 — push شد؟
+- [x] T2 F-04 — push شد ✅
 - [ ] T3 F-02 — push شد؟
 - [ ] T4 F-03 — push شد؟
 - [ ] T5 F-05 — push شد؟
