@@ -22,26 +22,43 @@ close. This is the phase where "the server is the single global authority for se
 literally true for money.
 
 ## Design decisions (pre-made — implement, do not re-derive)
-- **Scope = exactly the command types C06–C09 registered in `CommandTypes`**, one
+- **Scope = exactly the money/stock command types registered in `CommandTypes`
+  (`inventory.*`, `purchasing.*`, `sales.*`, `cashier.*`, `finance.*`)**, one
   `sealed class <Verb><Aggregate>ServerHandler` per row, in `src/Animora.Server/Handlers/Inventory/`,
-  `.../Sales/`, `.../Finance/`:
-  | Group | `CommandType` prefix | Commands |
-  |---|---|---|
-  | Inventory (C06) | `inventory.` | `stock.adjust`, `stock.receive`, `stock.transfer`, `product.create`, `product.update`, `product.price.set`, `product.deactivate` |
-  | Purchasing (C06) | `purchasing.` | `order.create`, `order.submit`, `receipt.record`, `order.cancel` |
-  | Sales / POS (C07) | `sales.` | `invoice.draft.create`, `invoice.line.add`, `invoice.line.remove`, `invoice.discount.apply`, `invoice.post`, `invoice.reverse`, `invoice.creditnote.issue`, `payment.register`, `payment.reverse`, `insurer.claim.attach`, `invoice.from.handoff` |
-  | Cashier & cheques (C08) | `cashier.` / `cheques.` | `session.open`, `session.count.record`, `session.close`, `cash.movement.record`, `cheque.register`, `cheque.deposit`, `cheque.clear`, `cheque.bounce` |
-  | Finance (C09) | `finance.` | `period.close`, `journal.adjust`, `expense.record` |
-  Each gets its `CommandPermissions` entry and its `ResponsibilityMap` row in the same commit. No new
-  `CommandTypes` constant is coined here.
+  `.../Sales/`, `.../Finance/`. The table is **transcribed verbatim from
+  `src/Animora.Contracts.Wire/Commands/CommandTypes.cs` as of 2026-10-07 (the single source of
+  truth)** — **47** command types. At execution time, re-slice the live `CommandTypes` by these five
+  prefixes and reconcile the count:
+  | Group | `CommandType` prefix | Commands (verbatim suffixes) | # |
+  |---|---|---|---|
+  | Inventory | `inventory.` | `category.create`, `category.rename`, `category.delete`, `product.create`, `product.update`, `product.delete`, `variant.add`, `receipt.post`, `stock.set`, `stock.adjust` | 10 |
+  | Purchasing | `purchasing.` | `supplier.create`, `order.create`, `order.submit`, `order.cancel`, `receipt.record` | 5 |
+  | Sales / POS | `sales.` | `invoice.create`, `invoice.delete`, `invoice.owner.set`, `invoice.line.add`, `invoice.line.edit`, `invoice.line.remove`, `invoice.line.return`, `invoice.discount.set`, `invoice.insurance.set`, `invoice.post`, `invoice.void`, `invoice.refund`, `payment.register`, `adjustment.add`, `insurer.create`, `insurer.update`, `insurer.delete` | 17 |
+  | Cashier | `cashier.` | `session.open`, `session.close`, `movement.record` | 3 |
+  | Finance (cheques, expenses, recurring, periods) | `finance.` | `cheque.create`, `cheque.update`, `cheque.status`, `cheque.transition`, `cheque.delete`, `expense.post`, `expense.reverse`, `recurring.add`, `recurring.edit`, `recurring.toggle`, `recurring.pay`, `period.close` | 12 |
+
+  **Total: 47.** The real prefix for cheques is **`finance.cheque.*`** (there is no `cheques.*`
+  prefix). The `finance.recurring.*` family (aggregate `src/Animora.Domain/Finance/RecurringExpense.cs`,
+  migration `029`) post-dates the original C-track roadmap and is included deliberately — see the
+  post-C11 note in `PROGRESS.md`.
+  **Command-group → payload-folder mapping** (closes the handler-count arithmetic): `Inventory/` =
+  inventory 10 + purchasing 5 = **15**; `Sales/` = sales **17**; `Finance/` = cashier 3 + finance 12 =
+  **15**; 15 + 17 + 15 = **47**.
+  Each gets its `CommandPermissions` entry and its `ResponsibilityMap` row in the same commit. **No
+  new `CommandTypes` constant is coined here** — a missing name is a C-phase defect to log, not a name
+  to coin. Acceptance: **handler set == the five-prefix slice of `CommandTypes`;
+  `PayloadContractTests` round-trips all 47.**
 - **The four money invariants, enforced in the handler layer and covered by a dedicated test class
   each — these are the reason this phase exists:**
   1. **Posted invoice is immutable** (A-RULE 002, §8.5). `invoice.post` transitions
      `Draft → Posted`, stamps `PostedAtUtc` + the allocated invoice number, and writes the ledger
      entries. Any command that would mutate a `Posted` invoice's lines, totals or discount returns
-     `Rejected` + `INVOICE_ALREADY_POSTED`. Correction happens **only** through `invoice.reverse`
-     (a full reversing invoice) or `invoice.creditnote.issue` (a partial credit note) — each a new,
-     linked, append-only document referencing `ReversesInvoiceId` (C07's field). D02's
+     `Rejected` + `INVOICE_ALREADY_POSTED`. Correction happens **only** through the append-only adjustment commands —
+     `sales.invoice.void` (unpaid), `sales.invoice.refund` (paid / partially paid),
+     `sales.invoice.line.return` and `sales.adjustment.add` — each writing a new `InvoiceAdjustment`
+     row (the live domain model, `src/Animora.Domain/Sales/Invoice.cs`) and never editing the posted
+     rows. (C07's roadmap text mentions a `ReversesInvoiceId` link; it does **not** exist in the live
+     domain — do not introduce it here without a C07 decision-log entry.) D02's
      `AppendOnlyGuard` server counterpart, `ServerAppendOnlyGuard`, is added in this phase and
      intercepts `SaveChanges` to **throw** if a tracked entity of a protected type is in `Modified`
      or `Deleted` state (`Invoice` when `Posted`, `JournalEntry`, `JournalLine`, `StockMovement`,
@@ -50,7 +67,9 @@ literally true for money.
      is keyed by the envelope's `OperationId`; D05's idempotency layer already guarantees one effect,
      and the handler additionally refuses to register a payment that would exceed the invoice's
      open balance (`PAYMENT_EXCEEDS_BALANCE`) — over-payment is a domain rejection, not a clamp.
-     `payment.reverse` writes a **reversing payment row**; it never deletes or edits the original.
+     A payment correction is a **compensating (negative) payment row** written through the refund /
+     adjustment path (`sales.invoice.refund`); there is no `payment.reverse` command, and the original
+     payment is never deleted or edited.
   3. **Ledger is append-only and balanced** (R-B22, §11.1). `LedgerPostingService`
      (`src/Animora.Server/Handlers/Finance/LedgerPostingService.cs`) is the **only** writer of
      `JournalEntry`/`JournalLine` on the server; every posting goes through
@@ -114,12 +133,12 @@ literally true for money.
 ## Files to create / modify
 | Path | Action | Contents (one line) |
 |---|---|---|
-| `src/Animora.Contracts.Wire/Payloads/Inventory/*.cs` | create | 11 payload records |
-| `src/Animora.Contracts.Wire/Payloads/Sales/*.cs` | create | 11 payload records |
-| `src/Animora.Contracts.Wire/Payloads/Finance/*.cs` | create | 11 payload records |
-| `src/Animora.Server/Handlers/Inventory/*.cs` | create | 11 handlers |
-| `src/Animora.Server/Handlers/Sales/*.cs` | create | 11 handlers |
-| `src/Animora.Server/Handlers/Finance/*.cs` | create | 11 handlers |
+| `src/Animora.Contracts.Wire/Payloads/Inventory/*.cs` | create | 15 payload records (inventory 10 + purchasing 5) |
+| `src/Animora.Contracts.Wire/Payloads/Sales/*.cs` | create | 17 payload records (sales) |
+| `src/Animora.Contracts.Wire/Payloads/Finance/*.cs` | create | 15 payload records (cashier 3 + finance 12) |
+| `src/Animora.Server/Handlers/Inventory/*.cs` | create | 15 handlers (inventory 10 + purchasing 5) |
+| `src/Animora.Server/Handlers/Sales/*.cs` | create | 17 handlers (sales) |
+| `src/Animora.Server/Handlers/Finance/*.cs` | create | 15 handlers (cashier 3 + finance 12) |
 | `src/Animora.Server/Handlers/Finance/LedgerPostingService.cs` | create | the sole ledger writer + `EnsureBalanced` |
 | `src/Animora.Server/Handlers/Finance/PeriodGuard.cs` | create | one-place closed-period check |
 | `src/Animora.Server/Handlers/Inventory/StockMovementWriter.cs` | create | movement + projection, one transaction |
@@ -141,12 +160,12 @@ literally true for money.
 
 ## Implementation steps
 1. Check `ErrorCodes` for the eight codes; add only the missing ones.
-2. Write the 33 wire payload records.
+2. Write the 47 wire payload records.
 3. Add `ServerAppendOnlyGuard` and register it as a `SaveChangesInterceptor`; add `TenantSettings`,
    the two projection tables and migration `105_ServerProjections`.
 4. Write `LedgerPostingService` (+ `EnsureBalanced`), `PeriodGuard`, `StockMovementWriter`,
    `FinancialEffectResolver`, `IServerStoreMaintenance` and `FinanceProjectionHandler`.
-5. Write the 33 handlers on the D06 skeleton + the two additions, each calling its domain method.
+5. Write the 47 handlers on the D06 skeleton + the two additions, each calling its domain method.
 6. Write `MoneyHandlerRegistration`; extend `CommandPermissions` and `ResponsibilityMap`.
 7. Write the two flow tests and the five invariant test classes.
 8. Verify against a real SQL Server: the POS chain settles; the ledger balances to the cent; the
@@ -157,15 +176,15 @@ literally true for money.
 10. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; desktop `run.sh` = `SMOKE RUN OK`.
 
 ## Contracts / schema added
-- Wire: 33 `<Name>PayloadV1` records under `Payloads/Inventory|Sales|Finance/`.
+- Wire: 47 `<Name>PayloadV1` records under `Payloads/Inventory|Sales|Finance/`.
   `WireContract.Version` stays `1`.
 - Persistence.SqlServer: `ServerAppendOnlyGuard`, `StockOnHandProjection`, `DailyFinanceFact`,
   `FinanceProjectionHandler`, `IServerStoreMaintenance` + impl, `TenantSettings`,
   `ServerModel.NonReplicatedProjectionTables`, migration `105_ServerProjections`.
-- Server: 33 handlers, `LedgerPostingService`, `PeriodGuard`, `StockMovementWriter`,
+- Server: 47 handlers, `LedgerPostingService`, `PeriodGuard`, `StockMovementWriter`,
   `FinancialEffectResolver`, `MoneyHandlerRegistration`; `CommandPermissions` and
   `ResponsibilityMap` extended.
-- `ErrorCodes` += up to 8 (only those not already defined by C06–C09).
+- `ErrorCodes` += up to 8 (only those not already defined by the C06–C09 phases).
 - No `Animora.Contracts` change, no new `CommandTypes` constant, no DI change in `App.axaml.cs`.
 
 ## Rules that apply here
@@ -202,8 +221,8 @@ literally true for money.
   a payable ledger entry exists and balances.
 - `ImmutableInvoiceTests` green: `invoice.line.add` on a posted invoice → `Rejected` +
   `INVOICE_ALREADY_POSTED`; a direct EF mutation of a posted invoice throws
-  `APPEND_ONLY_VIOLATION` from the interceptor; `invoice.reverse` creates a new linked document and
-  leaves the original byte-identical.
+  `APPEND_ONLY_VIOLATION` from the interceptor; `sales.invoice.refund` appends an `InvoiceAdjustment` and
+  leaves the original posted rows byte-identical.
 - `LedgerBalanceTests` green: an unbalanced posting attempt returns `LEDGER_UNBALANCED` and the
   transaction rolls back with **zero** rows written; a correction is a compensating entry, never an
   update.
@@ -218,7 +237,7 @@ literally true for money.
 - Desktop unaffected: `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
 
 ## PROGRESS.md update
-Mark D07 done; advance "Next phase" to `D08`; append a "Repo state" entry listing: the 33 handled
+Mark D07 done; advance "Next phase" to `D08`; append a "Repo state" entry listing: the 47 handled
 `CommandTypes`, the four money invariants and where each is enforced, `ServerAppendOnlyGuard` +
 its protected type list (**never weakened by a later phase**), `LedgerPostingService` as the sole
 ledger writer + `EnsureBalanced`, `PeriodGuard` (**every later posting path must call it**),
