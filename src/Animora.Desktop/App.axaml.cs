@@ -339,6 +339,7 @@ public partial class App : global::Avalonia.Application
         // Phase 17: Inventory product list & settings. Stateless deterministic
         // mock, so a singleton suffices.
         services.AddSingleton<IInventoryQueryService, InventoryQueryService>();
+        services.AddSingleton<Animora.Contracts.Purchasing.IPurchasingService, Animora.Client.Services.Purchasing.PurchasingService>();
         services.AddSingleton<InventoryPageViewModel>();
 
         // Cheques: real service over the cheque use cases (scope-per-call dispatcher; state machine stays in the domain).
