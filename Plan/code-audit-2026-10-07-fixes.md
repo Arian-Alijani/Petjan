@@ -233,7 +233,7 @@ property.Metadata.SetValueComparer(new ValueComparer<List<TItem>>(
 
 ---
 
-## [ ] T6 — F-07 🟡 Guard برای ambient transaction در allocator شماره فاکتور
+## [x] T6 — F-07 🟡 Guard برای ambient transaction در allocator شماره فاکتور ✅ انجام و push شد
 **فایل‌ها:**
 - `src/Animora.Persistence.Sqlite/Sales/InvoiceNumberAllocator.cs` (متد `AllocateAsync`, خطوط ~۱۸–۳۴).
 - `src/Animora.Persistence.Sqlite/Commands/PipelineSql.cs` (`NextSequenceAsync`, خطوط ۲۱–۴۱؛ خط ۲۹: `command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();`).
@@ -333,7 +333,7 @@ internal sealed partial class OutboxJsonContext : JsonSerializerContext { }
 - [x] T3 F-02 — push شد ✅
 - [x] T4 F-03 — push شد ✅
 - [x] T5 F-05 — push شد ✅
-- [ ] T6 F-07 — push شد؟
+- [x] T6 F-07 — push شد ✅
 - [ ] T7 F-08 — push شد؟
 - [ ] T8 F-06 — push شد؟
 - [ ] T9 حذف فایل فاز — push شد؟
