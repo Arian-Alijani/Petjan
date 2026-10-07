@@ -23,3 +23,23 @@ public sealed record PurchasingSnapshotReadModel(
     long SupplierDebtMinor,
     string Currency,
     IReadOnlyList<PurchaseOrderRowReadModel> Orders);
+
+/// <summary>One supplier of the directory picker.</summary>
+public sealed record SupplierRowReadModel(string Id, string Code, string Name, string? Phone, int PaymentTermDays);
+
+/// <summary>One recorded goods receipt (supplier purchase invoice) of the purchases table.</summary>
+public sealed record GoodsReceiptRowReadModel(
+    string Id,
+    string ReceiptNumber,
+    string SupplierName,
+    DateTimeOffset ReceivedUtc,
+    int LineCount,
+    long TotalMinor,
+    string? InvoiceReference,
+    int State);
+
+/// <summary>The purchases tab payload: counters plus the recent receipts.</summary>
+public sealed record PurchaseReceiptListReadModel(
+    int ReceiptCount,
+    int SupplierCount,
+    IReadOnlyList<GoodsReceiptRowReadModel> Receipts);

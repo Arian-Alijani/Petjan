@@ -230,6 +230,11 @@ public sealed class ReceiveGoodsCommandHandler(
             var addedLine = receipt.AddLine(line);
             if (addedLine.IsFailure) return Result<string>.Fail(addedLine.Error, addedLine.Detail);
 
+            // The unit cost actually paid becomes the product's purchase price (cost of the latest receipt), in the
+            // same unit of work as the receipt + movements.
+            var repriced = ApplyPurchasePrice(product, input.VariantId, unitCost);
+            if (repriced.IsFailure) return Result<string>.Fail(repriced.Error, repriced.Detail);
+
             var movement = StockMovement.Create(
                 context.TenantId, product.Id, input.VariantId, MovementKind.Receipt, quantity, unitCost,
                 now, context.UserId, lotNumber: input.LotNumber, expiryUtc: input.ExpiryUtc,
@@ -251,6 +256,33 @@ public sealed class ReceiveGoodsCommandHandler(
         purchasing.AddReceipt(receipt);
         movements.AddRange(stockMovements);
         return Result<string>.Ok(receipt.Id);
+    }
+
+    /// <summary>
+    /// Sets the received variant's cost to the purchased unit cost (and the product default when it has a
+    /// single variant). A zero cost (e.g. a free sample) never wipes an existing purchase price.
+    /// </summary>
+    private static Result ApplyPurchasePrice(Product product, string variantId, Money unitCost)
+    {
+        if (unitCost.Minor <= 0L) return Result.Ok();
+
+        for (var i = 0; i < product.Variants.Count; i++)
+        {
+            var variant = product.Variants[i];
+            if (!string.Equals(variant.VariantId, variantId, StringComparison.Ordinal)) continue;
+            if (variant.CostPrice == unitCost) break;
+
+            var updated = product.UpdateVariant(variant with { CostPrice = unitCost });
+            if (updated.IsFailure) return updated;
+            break;
+        }
+
+        if (product.Variants.Count == 1 && product.DefaultCostPrice != unitCost)
+        {
+            return product.SetPrices(unitCost, product.DefaultSalePrice);
+        }
+
+        return Result.Ok();
     }
 
     private static Result EnsureWithinOrder(
@@ -282,6 +314,61 @@ public sealed class ReceiveGoodsCommandHandler(
 
         // A receipt line that matches no order line is a legitimate direct delivery of extra goods.
         return Result.Ok();
+    }
+}
+
+/// <summary>
+/// Adds a supplier to the directory — or returns the existing one with the same (trimmed) name, so
+/// «تأمین‌کنندهٔ جدید» typed twice never duplicates. Returns the supplier id.
+/// </summary>
+[RequiresPermission(PermissionCodes.PurchasingManage)]
+[Auditable(AuditCategory.Inventory, CommandTypes.PurchasingSupplierCreate)]
+public sealed record CreateSupplierCommand(
+    string Name,
+    string? Code = null,
+    int PaymentTermDays = 0,
+    string? Phone = null) : ICommand<string>, IJournaledCommand
+{
+    public const int MaxNameLength = 128;
+
+    /// <inheritdoc />
+    public string CommandTypeName => CommandTypes.PurchasingSupplierCreate;
+
+    /// <inheritdoc />
+    public string AggregateTypeName => "Supplier";
+
+    /// <inheritdoc />
+    public string? AggregateIdOrNull => null;
+}
+
+public sealed class CreateSupplierCommandValidator : IValidator<CreateSupplierCommand>
+{
+    public ValueTask<IReadOnlyList<ValidationFailure>> ValidateAsync(CreateSupplierCommand c, CancellationToken ct)
+    {
+        var failures = new List<ValidationFailure>();
+        if (Rules.Required(c.Name, nameof(c.Name)) is { } name) failures.Add(name);
+        if (Rules.MaxLength(c.Name, CreateSupplierCommand.MaxNameLength, nameof(c.Name)) is { } length) failures.Add(length);
+        return ValueTask.FromResult<IReadOnlyList<ValidationFailure>>(failures);
+    }
+}
+
+public sealed class CreateSupplierCommandHandler(ISupplierRepository suppliers)
+    : ICommandHandler<CreateSupplierCommand, string>
+{
+    public async Task<Result<string>> HandleAsync(CreateSupplierCommand c, CommandContext context, CancellationToken ct)
+    {
+        var name = c.Name.Trim();
+        var existing = await suppliers.FindByNameAsync(name, ct);
+        if (existing is not null) return Result<string>.Ok(existing.Id);
+
+        var code = string.IsNullOrWhiteSpace(c.Code)
+            ? "SUP-" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()
+            : c.Code.Trim();
+        var created = Supplier.Create(context.TenantId, code, name, c.PaymentTermDays, phone: c.Phone);
+        if (created.IsFailure) return Result<string>.Fail(created.Error, created.Detail);
+
+        suppliers.Add(created.Value!);
+        return Result<string>.Ok(created.Value!.Id);
     }
 }
 

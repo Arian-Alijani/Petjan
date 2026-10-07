@@ -52,6 +52,7 @@ public static class CommandTypes
     public const string PurchasingOrderCreate = "purchasing.order.create";
     public const string PurchasingReceiptRecord = "purchasing.receipt.record";
     public const string PurchasingOrderCancel = "purchasing.order.cancel";
+    public const string PurchasingSupplierCreate = "purchasing.supplier.create";
 
     // Finance.
     public const string FinancePeriodClose = "finance.period.close";
@@ -128,7 +129,7 @@ public static class CommandTypes
         InventoryCategoryCreate, InventoryCategoryRename, InventoryCategoryDelete,
         SalesServiceRateCreate, SalesServiceRateUpdate,
         SalesInsurerCreate, SalesInsurerUpdate, SalesInsurerDelete,
-        PurchasingOrderCreate, PurchasingReceiptRecord, PurchasingOrderCancel,
+        PurchasingOrderCreate, PurchasingReceiptRecord, PurchasingOrderCancel, PurchasingSupplierCreate,
         FinancePeriodClose, FinanceExpensePost, FinanceExpenseReverse,
         FinanceRecurringAdd, FinanceRecurringEdit, FinanceRecurringToggle, FinanceRecurringPay, FinanceChequeTransition,
         FinanceChequeCreate, FinanceChequeUpdate, FinanceChequeDelete, FinanceChequeStatus,

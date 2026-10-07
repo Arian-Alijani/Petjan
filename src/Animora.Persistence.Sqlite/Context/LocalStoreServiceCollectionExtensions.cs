@@ -92,6 +92,7 @@ public static class LocalStoreServiceCollectionExtensions
         // C06: snapshot-joined inventory reads + grouped purchasing KPIs (Application ports, impl here).
         services.TryAddScoped<IInventoryQueries, InventoryQueries>();
         services.TryAddScoped<IPurchasingQueries, PurchasingQueries>();
+        services.TryAddScoped<IPurchaseDirectoryQueries, PurchaseDirectoryQueries>();
         // C07: sales read projections, transactional posting/draft facts and per-tenant invoice numbering.
         services.TryAddScoped<ISalesQueries, SalesQueries>();
         services.TryAddScoped<IServiceRateQueries, ServiceRateQueries>();
@@ -127,6 +128,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
         services.AddScoped<IStockMovementRepository, StockMovementRepository>();
         services.AddScoped<IPurchasingRepository, PurchasingRepository>();
+        services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ICashSessionRepository, CashSessionRepository>();
