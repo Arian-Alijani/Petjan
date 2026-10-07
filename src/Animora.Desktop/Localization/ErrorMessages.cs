@@ -88,7 +88,7 @@ public static class ErrorMessages
         ["TREATMENT_PLAN_NOT_ACTIVE"] = "این برنامه دیگر فعال نیست (لغو یا تکمیل شده است).",
         ["TREATMENT_SCHEDULE_INVALID"] = "زمان‌بندی نامعتبر است؛ تاریخ‌ها و تعداد/فاصله را بررسی کنید.",
         ["TREATMENT_SCHEDULE_TOO_LARGE"] = "زمان‌بندی بیش از حد طولانی است (حداکثر ۳۶۵ روز/نوبت).",
-        ["VACCINE_CATALOG_CODE_TAKEN"] = "واکسنی با این کد قبلاً در انبار ثبت شده است.",
+        ["VACCINE_CATALOG_CODE_TAKEN"] = "این کد قبلاً در انبار ثبت شده یا برای پروتکل‌های پیش‌فرض واکسن رزرو است.",
     };
 
     /// <summary>Persian message for <paramref name="code"/>, or <c>null</c> when the code has no dedicated copy.</summary>

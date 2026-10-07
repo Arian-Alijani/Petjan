@@ -42,7 +42,8 @@ public sealed partial class VaccinationRecordDetailViewModel : ObservableObject
         SmsText = sms.Label;
         SmsIconKey = sms.IconKey;
 
-        VaccineName = vaccine?.Name ?? "—";
+        // Built-in protocol codes are not stock rows any more (T6) — fall back to the record's own vaccine code.
+        VaccineName = vaccine?.Name ?? (string.IsNullOrWhiteSpace(record.VaccineId) ? "—" : record.VaccineId);
         VaccineShort = vaccine?.Short ?? string.Empty;
         HasVaccineShort = !string.IsNullOrEmpty(VaccineShort);
         Dose = record.Dose;

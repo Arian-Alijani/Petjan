@@ -21,7 +21,11 @@ public sealed class VaccinationDueQueryHandler(IVaccinationQueries queries)
         Result<IReadOnlyList<VaccinationDueRow>>.Ok(await queries.GetDueAsync(query.LocalDay, ct));
 }
 
-/// <summary>One catalog vaccine: the built-in protocols (read-only) plus the clinic's own additions.</summary>
+/// <summary>
+/// One vaccine of the clinic's «انبار واکسن» stock catalog. Only the clinic's own items are listed: the built-in
+/// <see cref="VaccineSchedule"/> protocols stay a domain dose-schedule source (and keep their codes reserved), but are
+/// no longer surfaced as fixed stock rows.
+/// </summary>
 public sealed record VaccineCatalogReadModel(string Code, string Name, int TotalDoses, int BoosterDays,
     string? Protects = null, int Stock = 0, int MinStock = 0, bool IsCustom = false);
 
@@ -34,11 +38,9 @@ public sealed class VaccinationCatalogQueryHandler(ITreatmentPlanQueries custom)
     public async Task<Result<IReadOnlyList<VaccineCatalogReadModel>>> HandleAsync(VaccinationCatalogQuery query,
         QueryContext context, CancellationToken ct)
     {
-        var builtIn = VaccineSchedule.All.Select(pair => new VaccineCatalogReadModel(pair.Key, pair.Key,
-            pair.Value.Length, VaccineSchedule.AnnualBoosterDays));
         var own = (await custom.GetCustomCatalogAsync(ct)).Select(r => new VaccineCatalogReadModel(r.Code, r.Name,
             r.TotalDoses, r.BoosterDays, r.Protects, r.Stock, r.MinStock, IsCustom: true));
-        return Result<IReadOnlyList<VaccineCatalogReadModel>>.Ok(builtIn.Concat(own).ToArray());
+        return Result<IReadOnlyList<VaccineCatalogReadModel>>.Ok(own.ToArray());
     }
 }
 
