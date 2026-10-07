@@ -24,26 +24,38 @@ handlers re-run the **same domain invariants** the client already ran; the serve
 authoritative one.
 
 ## Design decisions (pre-made — implement, do not re-derive)
-- **Scope = exactly the command types C01–C05 registered in `CommandTypes`.** The complete list,
-  grouped, is the handler inventory (one `sealed class <Verb><Aggregate>ServerHandler` per row, all
-  in `src/Animora.Server/Handlers/Clinical/` and `.../Scheduling/`):
-  | Group | `CommandType` prefix | Commands |
-  |---|---|---|
-  | Owners & patients (C01) | `patients.` | `owner.register`, `owner.update`, `pet.register`, `pet.update`, `pet.weight.record` |
-  | Reception & visits (C02) | `reception.` / `visits.` | `queue.enqueue`, `queue.call`, `queue.admit`, `queue.cancel`, `visit.open`, `visit.triage.record`, `visit.assign`, `visit.cancel` |
-  | Encounter & vaccination (C03) | `visits.` / `vaccination.` | `visit.note.save`, `visit.rx.add`, `visit.rx.remove`, `visit.complete`, `vaccination.record`, `vaccination.schedule`, `vaccination.reminder.mark` |
-  | Appointments (C04) | `scheduling.` | `appointment.book`, `appointment.move`, `appointment.cancel`, `appointment.checkin`, `appointment.noshow` |
-  | Boarding (C05) | `boarding.` | `stay.create`, `stay.item.add`, `stay.room.assign`, `stay.checkout`, `stay.cancel` |
+- **Scope = exactly the non-financial command types registered in `CommandTypes`
+  (`patients.*`, `reception.*`, `visits.*`, `vaccination.*`, `scheduling.*`, `boarding.*`).**
+  The table below is **transcribed verbatim from `src/Animora.Contracts.Wire/Commands/CommandTypes.cs`
+  as of 2026-10-07 (the single source of truth)** — it is **39** command types (one
+  `sealed class <Verb><Aggregate>ServerHandler` per row, all in
+  `src/Animora.Server/Handlers/Clinical/` and `.../Scheduling/`). At execution time, re-slice the live
+  `CommandTypes` by these six prefixes and reconcile the count:
+  | Group | `CommandType` prefix | Commands (verbatim suffixes) | # |
+  |---|---|---|---|
+  | Owners & patients | `patients.` | `owner.create`, `owner.update`, `owner.delete`, `pet.create`, `pet.update`, `pet.delete`, `pet.weight.add` | 7 |
+  | Reception | `reception.` | `ticket.admit`, `ticket.enter`, `ticket.leave`, `ticket.noshow`, `ticket.urgent`, `walkin.create` | 6 |
+  | Visits & encounter | `visits.` | `visit.start`, `visit.vitals`, `visit.note`, `visit.complete`, `rx.add`, `rx.remove` | 6 |
+  | Vaccination & treatment plans | `vaccination.` | `catalog.add`, `record.administer`, `record.reminder`, `treatment.create`, `treatment.update`, `treatment.cancel`, `treatment.occurrence.done` | 7 |
+  | Appointments | `scheduling.` | `appointment.book`, `appointment.move`, `appointment.cancel`, `appointment.checkin`, `bookingpatient.create` | 5 |
+  | Boarding | `boarding.` | `stay.create`, `stay.checkout`, `stay.transfer`, `stay.reschedule`, `room.create`, `room.update`, `item.add`, `item.remove` | 8 |
+
+  **Total: 39** (Clinical folder 26 = 7+6+6+7; Scheduling folder 13 = 5+8). The
+  `vaccination.treatment.*` family (treatment plans; aggregate `src/Animora.Domain/Clinical/TreatmentPlan.cs`,
+  migration `031`) post-dates the original C-track roadmap and is included here deliberately — see the
+  post-C11 note in `PROGRESS.md`.
   Every one gets its `CommandPermissions` entry in the same commit (D05's test enforces coverage).
-  **No new `CommandTypes` constant is invented here** — if a name is missing, that is a C-phase
-  defect to log in the decision log, not a new name to coin.
+  **No new `CommandTypes` constant is invented here** — if a name is missing from the live catalog,
+  that is a C-phase defect to log in the decision log, not a new name to coin. The authoritative
+  acceptance check: **handler set == the six-prefix slice of `CommandTypes`; `PayloadContractTests`
+  round-trips all 39.**
 - **Payload shapes are the wire payloads the client already serializes.** Each handler declares
   `sealed record <Name>PayloadV1` in `src/Animora.Contracts.Wire/Payloads/Clinical/` (or
   `/Scheduling/`) and the **client's `IJournaledCommand` serialization must produce exactly that
   shape** — a `PayloadContractTests` fact in `Animora.Application.Tests` round-trips each client
   command through its wire payload and fails on any field drift. This is the guard that keeps the
   two halves of the pipeline honest without a shared serializer hack.
-- **Handler skeleton (identical for all 30, written once as a documented template):**
+- **Handler skeleton (identical for all 39, written once as a documented template):**
   1. Load the aggregate by `(TenantId, Id)` **tracked** (writes need tracking; D02's filters make
      the tenant scope implicit).
   2. If absent and the command is an update → `AGGREGATE_NOT_FOUND` → `Rejected`.
@@ -67,15 +79,15 @@ authoritative one.
   | Data | Policy implemented here |
   |---|---|
   | Patient/owner demographic field | `DemographicMergePolicy` — field-aware: a field the server changed since the client's base version is **preserved** and reported in `SettlementResult.Detail` as `merged:<field>` (the client shows a review prompt); non-conflicting fields apply. Never a whole-row overwrite. |
-  | Medical history / visit notes | **Append-only**: `visit.note.save` writes a new `MedicalHistoryEntry` revision; an existing revision is never mutated. History is preserved in full. |
+  | Medical history / visit notes | **Append-only**: `visits.visit.note` writes a new `MedicalHistoryEntry` revision; an existing revision is never mutated. History is preserved in full. |
   | Appointment slot | `SlotAvailabilityPolicy` — domain validation against the server's authoritative calendar; a taken slot is **rejected** (`SLOT_TAKEN`) with the conflicting appointment's id in `Detail`, never silently moved. |
   | Vaccination record | Idempotent on `(PetId, VaccineCode, AdministeredOn)` — a duplicate record is a **replay**, not a second dose. |
   | Boarding stay | Domain workflow; a stay already `CheckedOut` refuses further item additions (`STAY_CLOSED`). |
   | Reception queue entry | Domain state machine; calling an already-admitted ticket is a **no-op success** (idempotent), not an error. |
   `ResponsibilityMap` (D05) gains the rows for each new error code, so the UX contract stays
   complete.
-- **Cross-feature effects stay inside the domain**, mirroring the client exactly: `visit.complete`
-  creates the `VisitBillingHandoff` row (C03's shape) and `stay.checkout` the
+- **Cross-feature effects stay inside the domain**, mirroring the client exactly: `visits.visit.complete`
+  creates the `VisitBillingHandoff` row (C03's shape) and `boarding.stay.checkout` the
   `BoardingBillingHandoff` row (C05's) — the invoice itself is **D07's** command. This keeps the
   clinical→money seam identical on both sides (R-B01).
 - **Read-back is not this phase's job.** A handler never returns a projection; the client learns the
@@ -98,11 +110,11 @@ authoritative one.
 ## Files to create / modify
 | Path | Action | Contents (one line) |
 |---|---|---|
-| `src/Animora.Contracts.Wire/Payloads/Clinical/*.cs` | create | ~20 payload records |
-| `src/Animora.Contracts.Wire/Payloads/Scheduling/*.cs` | create | ~10 payload records |
+| `src/Animora.Contracts.Wire/Payloads/Clinical/*.cs` | create | 26 payload records (patients 7, reception 6, visits 6, vaccination 7) |
+| `src/Animora.Contracts.Wire/Payloads/Scheduling/*.cs` | create | 13 payload records (appointments 5, boarding 8) |
 | `src/Animora.Application/Ports/IServerOutbox.cs` | create | outbox port + `NullServerOutbox` default |
-| `src/Animora.Server/Handlers/Clinical/*.cs` | create | 20 handlers (patients, reception, visits, vaccination) |
-| `src/Animora.Server/Handlers/Scheduling/*.cs` | create | 10 handlers (appointments, boarding) |
+| `src/Animora.Server/Handlers/Clinical/*.cs` | create | 26 handlers (patients 7, reception 6, visits 6, vaccination 7) |
+| `src/Animora.Server/Handlers/Scheduling/*.cs` | create | 13 handlers (appointments 5, boarding 8) |
 | `src/Animora.Server/Handlers/Policies/DemographicMergePolicy.cs` | create | field-aware merge |
 | `src/Animora.Server/Handlers/Policies/SlotAvailabilityPolicy.cs` | create | authoritative slot check |
 | `src/Animora.Server/Handlers/ClinicalHandlerRegistration.cs` | create | explicit registry lines |
@@ -119,24 +131,24 @@ authoritative one.
 
 ## Implementation steps
 1. Read `ErrorCodes` and `CommandTypes`; list which codes already exist. Add **only** missing ones.
-2. Write the wire payload records for all 30 command types.
+2. Write the wire payload records for all 39 command types.
 3. Add `IServerOutbox` + `NullServerOutbox` and register the null default.
 4. Write the two policy classes.
-5. Write the 30 handlers against the documented skeleton, each calling its domain method.
+5. Write the 39 handlers against the documented skeleton, each calling its domain method.
 6. Write both registration files; extend `CommandPermissions` and `ResponsibilityMap`.
 7. Write `PayloadContractTests` first among the tests — it is the one that catches shape drift.
 8. Write the two flow tests and the two handler test classes.
 9. Verify against a real SQL Server: the clinical chain settles end to end, each aggregate's
    `rowversion` advances, `VisitBillingHandoff`/`BoardingBillingHandoff` rows appear, and the
    idempotency row for every command is `Settled`/`Accepted`.
-10. Re-run D05's `CommandPermissionMapTests` — it must still be green with the 30 new types.
+10. Re-run D05's `CommandPermissionMapTests` — it must still be green with the 39 new types.
 11. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; desktop `run.sh` = `SMOKE RUN OK`.
 
 ## Contracts / schema added
-- Wire: ~30 `<Name>PayloadV1` payload records under `Payloads/Clinical/` and `Payloads/Scheduling/`.
+- Wire: 39 `<Name>PayloadV1` payload records under `Payloads/Clinical/` and `Payloads/Scheduling/`.
   `WireContract.Version` stays `1`.
 - Application: `IServerOutbox` + `NullServerOutbox`.
-- Server: 30 `IServerCommandHandler<TPayload>` implementations, `DemographicMergePolicy`,
+- Server: 39 `IServerCommandHandler<TPayload>` implementations, `DemographicMergePolicy`,
   `SlotAvailabilityPolicy`, two registration files; `CommandPermissions` and `ResponsibilityMap`
   extended.
 - `ErrorCodes` += up to 6 (only those not already defined by C02–C05).
@@ -172,18 +184,18 @@ authoritative one.
   entry → visit open → triage → note revision → rx lines → visit complete, all `Accepted`, and a
   `VisitBillingHandoff` row exists in `Pending` state.
 - `BoardingFlowTests` green: stay create → 2 items → room assign → checkout → a
-  `BoardingBillingHandoff` row exists; a further `stay.item.add` returns `Rejected` + `STAY_CLOSED`.
+  `BoardingBillingHandoff` row exists; a further `boarding.item.add` returns `Rejected` + `STAY_CLOSED`.
 - `ConflictPolicyTests` green, one fact per row: a demographic field changed on both sides merges
   field-wise and reports `merged:<field>`; a second note save adds a revision instead of
   overwriting; a double-booked slot is `Rejected` + `SLOT_TAKEN` naming the conflicting id; a
   duplicate vaccination is an idempotent replay; an already-admitted queue call is a no-op success;
   a stale `rowversion` yields `Conflict` + `CONCURRENCY_CONFLICT`.
-- `NoFinancialEffectTests` green: all 30 handlers return `FinancialEffect.None`.
+- `NoFinancialEffectTests` green: all 39 handlers return `FinancialEffect.None`.
 - D05's `CommandPermissionMapTests` and `SettlementContractTests` still green with the new types.
 - Desktop unaffected: `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
 
 ## PROGRESS.md update
-Mark D06 done; advance "Next phase" to `D07`; append a "Repo state" entry listing: the 30 handled
+Mark D06 done; advance "Next phase" to `D07`; append a "Repo state" entry listing: the 39 handled
 `CommandTypes` (grouped as above), the wire payload namespace `Animora.Contracts.Wire.Payloads.*`
 (**D07 extends it**), `PayloadContractTests` as the shape-drift guard (**E06 relies on it**),
 `IServerOutbox` + `NullServerOutbox` (**D09 replaces the implementation only**),
