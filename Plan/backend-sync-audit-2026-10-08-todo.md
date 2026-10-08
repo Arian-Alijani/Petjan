@@ -254,7 +254,7 @@ multi-file edit, still push it as one coherent commit with a clear message.
 
 ---
 
-### [ ] T8 — One migration-count source; one replicated-set manifest (rank 8)
+### [x] T8 — One migration-count source; one replicated-set manifest (rank 8)
 - **Audit refs:** RM-H-01, PH-05, PH-06, IMP-01. Owner: **PROGRESS.md**, **D08**, **D02**.
 - **Ground truth already verified:**
   - **RM-H-01:** `PROGRESS.md` store-row narrative (the `src/Animora.Persistence.Sqlite/...`

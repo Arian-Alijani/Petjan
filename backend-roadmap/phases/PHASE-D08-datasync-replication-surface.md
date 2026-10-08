@@ -33,7 +33,7 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
   Mapping between the server entity and the contract lives in
   `src/Animora.Persistence.SqlServer/Sync/SyncContractMappings.cs` as **explicit `Select`
   projections** (no AutoMapper, no reflection — PERFORMANCE.md §3).
-- **Replicated entity set (binding, 25 entities).** Derived from `ServerModel.ReplicatedEntities`
+- **Replicated entity set (binding, 25 entities).** *(audit 2026-10-08 · PH-05, IMP-01: "25" and every catch-up / policy / test count derived from this set MUST be computed from `SyncContractCatalog.ProjectionOrder` at runtime or in tests — never re-typed as a literal in E03/E04/E06/E08 code, config or assertions; the catalog is the single manifest.)* Derived from `ServerModel.ReplicatedEntities`
   (D02) minus everything a client must never hold or must obtain only through the command pipeline:
   | Replicated (client needs local reads of these) | Why |
   |---|---|

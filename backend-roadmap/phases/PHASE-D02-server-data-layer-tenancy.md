@@ -173,6 +173,7 @@ with isolation that holds **with RLS off**.
   that creates the table**, and a schema test fails the build if any replicated base table lacks it
   (not merely a runtime readiness check); no column is
   `decimal`/`money`; every tenant-scoped index starts with `TenantId`.
+- **Configuration-count assertion (audit 2026-10-08 · PH-06):** the "~39 configurations" figure is indicative only. At execution, re-derive the EF configuration count from the live domain and assert `configuration count == replicated entity count + local-only entity count` (both read from `ServerModel`, no magic number); a new aggregate without a configuration, or a configuration without an aggregate, fails the test.
 - `ServerQueryFilterTests` green: both filters exist by name; `IgnoreQueryFilters("SoftDelete")`
   works while a parameterless `IgnoreQueryFilters()` outside the maintenance scope throws; a query
   with a null tenant context throws `TenantContextMissingException`.
