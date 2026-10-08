@@ -120,3 +120,189 @@ S09 (sales/cashier), S10 (inventory/purchasing/finance); Statistics has no serve
 | CI/RLS/restore gates | G07 |
 | Perf proof / budgets | G08 |
 | Runbook + packaging | G09 |
+
+---
+
+## Reference pack (shared)
+
+> Verbatim from the tree on 2026-10-08 (XML doc comments stripped; members/signatures untouched). Every entry
+> is **already introduced** by the phase noted — **reuse, never redefine**. Authoring tasks T3–T8 paste only the
+> entries their phase calls. If a compile error proves one diverges, the executing session fixes the smallest
+> thing and logs it in `PROGRESS.md`.
+
+### R1 — Wire seam: `Animora.Contracts.Wire` (project `src/Animora.Contracts.Wire`, introduced by A01/B02)
+
+```csharp
+namespace Animora.Contracts.Wire;
+public static class WireContract
+{
+    public const int Version = 1;
+    public const string HeaderName = "X-Animora-Contract-Version";
+}
+
+namespace Animora.Contracts.Wire.Commands;
+public sealed record CommandEnvelope(
+    int ContractVersion, string OperationId, string TenantId, string UserId, string DeviceId,
+    string CommandType, string AggregateType, string? AggregateId, string PayloadJson,
+    string CommandFingerprint, DateTimeOffset CreatedAtUtc, long LocalSequence,
+    string? CausationId, string? DependsOnOperationId, long? ExpectedAggregateVersion)
+{
+    public static CommandEnvelope Create(string operationId, string tenantId, string userId, string deviceId,
+        string commandType, string aggregateType, string? aggregateId, string payloadJson,
+        string commandFingerprint, DateTimeOffset createdAtUtc, long localSequence,
+        string? causationId = null, string? dependsOnOperationId = null, long? expectedAggregateVersion = null);
+        // => new(WireContract.Version, …)
+}
+
+public sealed record SettlementResult(
+    string OperationId, SettlementOutcome Outcome, string? ErrorCode, string? Detail,
+    string? ServerEntityId, string? ServerVersion, DateTimeOffset SettledAtUtc,
+    FinancialEffect FinancialEffect, string? ResponsibleRole);
+
+public enum SettlementOutcome { Accepted, Rejected, Conflict, Deferred }
+public enum FinancialEffect  { None, Applied, NotApplied, Unknown }
+
+namespace Animora.Contracts.Wire.Errors;
+public sealed record WireApiError(string Code, string? Detail, IReadOnlyList<WireFieldError> Fields, string CorrelationId);
+public sealed record WireFieldError(string Field, string Code);
+```
+
+Notes: `ServerVersion` is a **string** on the wire (the numeric→UUID version seam of S06 maps to/from it);
+`ExpectedAggregateVersion` is a numeric `long?` client-side. `NullCommandTransport` answers `Deferred` +
+`FinancialEffect.Unknown` + `SettledAtUtc = UnixEpoch`.
+
+### R2 — `CommandTypes` (introduced by B02; extended by C03–C09 and post-C11 audit passes)
+
+`public static class Animora.Contracts.Wire.Commands.CommandTypes` — `public const string <Name> = "<ctx>.<aggregate>.<verb>";`
+plus `public static IReadOnlyList<string> All { get; }`. Count is **88** today; **never freeze a number in a phase** —
+the handler inventory is `CommandTypes.All` at execution time (a test `Server handler registry covers every CommandTypes.All entry`
+is the S07–S10 gate). Families (live): sales 19 · finance 12 · inventory 10 · boarding 8 · patients 7 · vaccination 7 ·
+reception 6 · visits 6 · purchasing 5 · scheduling 5 · cashier 3. Names are permanent; later phases only **add**.
+
+Representative constants (full list: `grep 'const string' src/Animora.Contracts.Wire/Commands/CommandTypes.cs`):
+`SalesInvoicePost="sales.invoice.post"`, `SalesPaymentRegister="sales.payment.register"`,
+`CashierSessionOpen`, `InventoryStockAdjust`, `PurchasingOrderSubmit`, `FinancePeriodClose`, `FinanceRecurringPay`,
+`SchedulingAppointmentBook`, `BoardingStayCheckout`, `PatientsOwnerCreate`, `VisitsVisitComplete`,
+`VaccinationTreatmentOccurrenceDone="vaccination.treatment.occurrence.done"`, `VaccinationCatalogAdd="vaccination.catalog.add"`.
+
+### R3 — Settlement vocabulary (introduced by A02/A07)
+
+```csharp
+namespace Animora.Domain.Primitives;
+public enum SettlementState { Draft, LocallyPosted, PendingSettlement, Settled, Rejected, Conflict, Reversed, NeedsAttention }
+
+public static class SettlementTransitions
+{
+    public static Result EnsureAllowed(SettlementState from, SettlementState to); // fails ErrorCodes.SettlementInvalidTransition, detail "{from} -> {to}"
+    public static bool IsAllowed(SettlementState from, SettlementState to);
+}
+```
+Transition table (verbatim semantics): `Draft→{LocallyPosted,Rejected}` · `LocallyPosted→{PendingSettlement,Rejected,Reversed}` ·
+`PendingSettlement→{Settled,Rejected,Conflict,NeedsAttention,PendingSettlement(retry re-entry)}` ·
+`Conflict→{NeedsAttention,Reversed,Settled}` · `Rejected→{NeedsAttention,Reversed}` ·
+`NeedsAttention→{Reversed,Settled,Rejected}` · `Settled→{Reversed}` · `Reversed` terminal.
+(`Animora.Domain.Sales.SettlementStatus` is a separate 8-state **invoice** settlement enum from A07 — do not conflate.)
+
+### R4 — Application ports a server handler / the sync client calls (`Animora.Application`, introduced by B01/B02)
+
+```csharp
+namespace Animora.Application.Abstractions;
+public interface ICommand<TResult>;                       // marker
+public interface ICommandHandler<in TCommand, TResult> where TCommand : ICommand<TResult>
+{ Task<Result<TResult>> HandleAsync(TCommand command, CommandContext context, CancellationToken ct); }
+public interface IDispatcher
+{
+    Task<Result<TResult>> SendAsync<TResult>(ICommand<TResult> command, CommandContext ctx, CancellationToken ct = default);
+    Task<Result<TResult>> QueryAsync<TResult>(IQuery<TResult> query, QueryContext ctx, CancellationToken ct = default);
+}
+public interface IUnitOfWork
+{
+    Task<Result> SaveAsync(CancellationToken ct = default);
+    Task<Result<T>> ExecuteAsync<T>(Func<CancellationToken, Task<Result<T>>> work, CancellationToken ct = default);
+}
+public sealed record CommandContext(string TenantId, string UserId, string DeviceId, string OperationId,
+    string CorrelationId, string? CausationId, string? DependsOnOperationId, long? ExpectedAggregateVersion,
+    DateTimeOffset CreatedAtUtc);
+
+namespace Animora.Application.Commands;
+public interface IJournaledCommand { string CommandTypeName { get; } string AggregateTypeName { get; } string? AggregateIdOrNull { get; } }
+
+public interface ICommandTransport   // client → server; real impl = G05 (HttpCommandTransport); fallback NullCommandTransport
+{ Task<Result<SettlementResult>> SubmitAsync(CommandEnvelope envelope, CancellationToken ct = default); }
+
+public interface ICommandJournal     // local durable journal (SQLite); server has its OWN intake store (S06), never this port
+{
+    Task<Result<PendingCommandRecord>> EnqueueAsync(CommandEnvelope envelope, CancellationToken ct = default);
+    Task<Result<PendingCommandRecord?>> FindByOperationIdAsync(string operationId, CancellationToken ct = default);
+    Task<Result> ApplySettlementAsync(SettlementResult result, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<PendingCommandRecord>>> ClaimBatchAsync(int max, TimeSpan lease, CancellationToken ct = default);
+    Task<Result> ReleaseAsync(string operationId, ErrorCode error, TimeSpan backoff, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<PendingCommandRecord>>> GetUnsettledForAggregateAsync(string aggregateType, string aggregateId, CancellationToken ct = default);
+    Task<Result<PendingCommandSummary>> GetSummaryAsync(CancellationToken ct = default);
+    Task<Result<PagedResult<PendingCommandRecord>>> GetUnsettledPageAsync(int page, int pageSize, CancellationToken ct = default);
+}
+
+public sealed record PendingCommandRecord(string Id, string OperationId, string TenantId, string UserId, string DeviceId,
+    string CommandType, string AggregateType, string? AggregateId, string PayloadJson, string CommandFingerprint,
+    long LocalSequence, SettlementState Status, string? CausationId, string? DependsOnOperationId,
+    long? ExpectedAggregateVersion, DateTimeOffset CreatedAtUtc, DateTimeOffset? LastAttemptUtc, int Attempts,
+    DateTimeOffset? NextAttemptUtc, string? LastErrorCode, string? LastErrorDetail, FinancialEffect FinancialEffect,
+    string? ResponsibleRole, DateTimeOffset? SettledAtUtc, string? ServerEntityId, string? ServerVersion,
+    string? ClaimToken, DateTimeOffset? ClaimedUntilUtc);
+
+public static class CommandFingerprint   // SHA-256 hex (lower) over commandType + '\u001f' + canonical JSON (sorted keys, camelCase)
+{
+    public const char Separator = '\u001f';
+    public static string Compute(string commandType, string payloadJson);
+    public static string Compute<T>(string commandType, T payload);
+    public static string CanonicalJson<T>(T payload);
+}
+
+namespace Animora.Application.Outbox;
+public interface IOutbox { Task<Result> EnqueueAsync(string messageType, object payload, CancellationToken ct = default); }
+
+namespace Animora.Application.Security;
+public interface IEntitlementGate   // fallback today: AllowAllEntitlementGate (always Result.Ok()); real = G06
+{
+    ValueTask<Result> EvaluateAsync(object command, CommandContext context, CancellationToken ct);
+    ValueTask<Result> EvaluateAsync(object query, QueryContext context, CancellationToken ct);
+}
+
+namespace Animora.Application.Ports;
+public interface ISyncCursorStore   // C11 — tenant/scope "last synced" marker
+{ Task<DateTimeOffset?> ReadAsync(CancellationToken ct = default); Task MarkSyncedAsync(DateTimeOffset whenUtc, CancellationToken ct = default); }
+```
+
+Pipeline behaviors that already exist (client side, `Animora.Application/Behaviors`): `Correlation`, `Authorization`,
+`Entitlement`, `Validation`, `Transaction`, `CommandJournal`, `Audit`, `ExceptionMapping`. A server reuses the handler
+abstractions and the dispatcher only where a phase's Reference pack says so; **`Animora.Server` must never reference
+`Animora.Persistence.Sqlite`, `Animora.Infrastructure.Local`, `Animora.Client.Services` or `Animora.Desktop`** (layering rule, A01 `LayeringRulesTests`).
+
+### R5 — `Result` / `ErrorCodes` (introduced by A02)
+
+```csharp
+namespace Animora.Domain.Results;
+public readonly record struct ErrorCode(string Code, string Category)
+{
+    public const string Validation="Validation", NotFound="NotFound", Conflict="Conflict", Forbidden="Forbidden",
+                        Integrity="Integrity", Infrastructure="Infrastructure", Entitlement="Entitlement";
+    public static readonly ErrorCode None = new(string.Empty, string.Empty);
+    public bool IsNone { get; }
+}
+public readonly record struct Result      { IsSuccess, IsFailure, Error, Detail; static Ok(); static Fail(ErrorCode, string? detail = null); Bind(…) }
+public readonly record struct Result<T>   { IsSuccess, IsFailure, T? Value, Error, Detail; static Ok(T); static Fail(ErrorCode, string? detail = null);
+                                            implicit operator Result<T>(T); ToResult(); Map<TOut>(…); Bind<TOut>(…); OrElse(T) }
+public static class ErrorCodes   // 161 today: `public static readonly ErrorCode X = new("X_CODE", ErrorCode.<Kind>);` grouped in #region per context
+{ ValidationFailed="VALIDATION_FAILED"(Validation), NotFound="NOT_FOUND", ConcurrencyConflict="CONCURRENCY_CONFLICT"(Conflict),
+  PermissionDenied="PERMISSION_DENIED"(Forbidden), SettlementInvalidTransition, … }
+```
+Rule: server phases **add** codes in a new `#region` (never rename); wire maps `ErrorCode.Code` → `WireApiError.Code` /
+`SettlementResult.ErrorCode`. Count is read from the file at execution time (`grep -c 'public static readonly ErrorCode'`).
+
+### R6 — Sync scaffold (`src/Animora.Sync.Abstractions`, scaffold by A01; filled by **G01**)
+
+`Animora.Sync.Abstractions.csproj` = `<ProjectReference>` to `Animora.Domain` and `Animora.Contracts.Wire` only, no
+packages; `README.md` placeholder text; **no `.cs` files**. Client-side status seam already live: `Animora.Contracts.Sync.ISyncStatusService`
+(implemented by `Animora.Client.Services.Sync.LocalSyncStatusService`, reads `ISyncCursorStore` + `ICommandJournal`).
+`tests/Animora.Sync.Tests` and `tests/Animora.Server.Tests` are placeholder projects (`PlaceholderTests.cs`, no subject
+reference; S01 / G01 add the project references).

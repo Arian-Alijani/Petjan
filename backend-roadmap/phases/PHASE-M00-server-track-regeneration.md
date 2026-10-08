@@ -170,7 +170,7 @@ and the post-C11 drift, (b) the baseline snapshot block. Tick the box with a one
 
 **Evidence (T1):** 29 phases mapped (S01–S20, G01–G09; S03/S15/S20/G01 band S, rest M); baseline: client migration head 031, CommandTypes 88 live (PROGRESS prose '86' is stale), ErrorCodes 161; full coverage matrix in phases/M00-source-brief.md.
 
-### - [ ] T2 — Build the shared Reference-pack source brief (verbatim seams the server/sync phases call)
+### - [x] T2 — Build the shared Reference-pack source brief (verbatim seams the server/sync phases call)
 **Read:** this file; `M00-source-brief.md` (from T1); `PROGRESS.md` top section; the specific `src`
 files named below (this is the **only** M00 task that reads `src/**`, and only to copy signatures into
 the brief so the authoring tasks never re-open the tree).
@@ -186,6 +186,9 @@ the regenerated phases actually call (authoring guide: don't over-pack). Note ne
 by <phase>; reuse, don't redefine".
 **Done when:** `M00-source-brief.md` has a `## Reference pack (shared)` whose every entry is a verbatim
 copy (not a recollection) with its introducing phase noted. Tick + one-line evidence.
+
+
+**Evidence (T2):** Reference pack (R1–R6: wire seam, CommandTypes rule, settlement vocabulary, application ports, Result/ErrorCodes, sync scaffold) copied verbatim into phases/M00-source-brief.md; live counts CommandTypes 88 / ErrorCodes 161.
 
 ### - [ ] T3 — Author the server foundation phases (host → data layer + tenancy → identity → authz)
 **Read:** this file; `M00-source-brief.md`; `STACK.md` §0/§5/§6/§11/§12; `ARCHITECTURE.md`
