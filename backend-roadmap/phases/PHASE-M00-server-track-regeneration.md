@@ -204,7 +204,7 @@ the same artifact. Tick + list the file names created.
 
 **Evidence (T3):** Authored PHASE-S01-server-host-scaffold, S02-server-data-layer-tenancy-i (migration 101), S03-server-data-layer-tenancy-ii, S04-identity-server, S05-tenant-context-authorization (+ naming lock Animora.Web.Admin / Persistence.PostgreSql / Sync.Custom in source brief); passes authoring checklist, no forward deps.
 
-### - [ ] T4 — Author the command-plane phases (intake + idempotency → handlers I → handlers II)
+### - [x] T4 — Author the command-plane phases (intake + idempotency → handlers I → handlers II)
 **Read:** this file; `M00-source-brief.md` (wire + settlement + `CommandTypes` seams); `ARCHITECTURE.md`
 §8.3/§8.4/§8.6/§15; `STACK.md` §5.1; the `R-B##` rows for command intake and the two handler slices.
 **Produce:** the server **command-plane** phases: business-API command intake + idempotency (server-side
@@ -215,6 +215,9 @@ scheduling); server command handlers II (money & stock) — the handler inventor
 **Done when:** each command-plane phase file exists and passes the checklist; the handler inventory is
 stated as "derived from the live `CommandTypes.cs` at execution time" (never a frozen count); replicated
 aggregates note `TreatmentPlan` + `RecurringExpense`. Tick + file names.
+
+
+**Evidence (T4):** Authored PHASE-S06-command-intake-idempotency (wire v2, CommandIntake/CommandIdMap, +5 ErrorCodes, server chain profile), S07-server-handlers-clinical (incl. TreatmentPlan), S08-server-handlers-scheduling-boarding, S09-server-handlers-sales-cashier, S10-server-handlers-money-stock (incl. RecurringExpense); inventory derived from live CommandTypes.All (never frozen), coverage tests mandatory from S10.
 
 ### - [ ] T5 — Author the replication + resilience phases (journal/immutable-batch → outbox/workers → files → observability/perf)
 **Read:** this file; `M00-source-brief.md`; `ARCHITECTURE.md` §8/§9/§11.4.1/§16-CT–§18-CT/§PG;
