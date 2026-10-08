@@ -43,7 +43,7 @@ Bands: all **M** except where marked **S**. No XL. Offline invariant (“desktop
 | S08 | Server handlers I-b — scheduling & boarding | M | S | S07 | R-B01, R-B17 | D06 (half 2) |
 | S09 | Server handlers II-a — sales & cashier | M | S | S08 | R-B01, R-B17, R-B22 | D07 (half 1) |
 | S10 | Server handlers II-b — inventory, purchasing, finance (incl. `RecurringExpense`, cheques, ledger) | M | S | S09 | R-B01, R-B17, R-B22, R-B23 | D07 (half 2) |
-| S11 | Commit-safe tenant journal & monotonic position (PostgreSQL critical-state replication write path; `TreatmentPlan` + `RecurringExpense` in the replicated set) | M | S | S06, S10 | R-B03, R-B11, R-B13 | D08 (half 1) |
+| S11 | Commit-safe tenant journal & monotonic position (PostgreSQL critical-state replication write path; `SyncContractCatalog` incl. the `TreatmentPlan` family; `RecurringExpense` is command-settled, not replicated) | M | S | S06, S10 | R-B03, R-B11, R-B13 | D08 (half 1) |
 | S12 | Immutable 256-KiB batch export (REPEATABLE READ), offline window + retention, GC crash atomicity, wire version gate | M | S | S11 | R-B03, R-B11, R-B31 | D08 (half 2) |
 | S13 | Outbox, background workers, resilience (atomic claim, retry/breaker/timeout/bulkhead) | M | S | S10 | R-B07, R-B09, R-B25 | D09 |
 | S14 | Subscription context & operator API | M | S | S05 | R-B05, R-B30 | D10 (half 1) |
@@ -326,3 +326,15 @@ Rate-limit policy names (supersedes the PH-08 text `tables`): **`auth`, `command
 critical feed lives under `/sync/*` (ARCH §4), so the policy is named `sync`. T9 records this in the PROGRESS drift ledger.
 
 Server data-protection key ring: **database-backed on its own tiny `DbContext`** (`AnimoraKeyRingDbContext`, ARCH §10.6) introduced by S02 with its own migration history table; S01 needs no key ring (no cookies/tokens yet).
+
+---
+
+## Verified command-plane facts (T4, 2026-10-08 — do not re-derive)
+
+- 88 `CommandTypes` constants; **83** are referenced by an Application command record, **5 are reserved with no record**: `sales.adjustment.add`, `inventory.receipt.post`, `purchasing.order.submit`, `finance.period.close`, `finance.cheque.status` (→ S06 `ReservedCommandTypes`, S09/S10 coverage tests).
+- 4 command types are shared by multiple records (`sales.invoice.create` ×3, `sales.invoice.line.add` ×2, `sales.service-rate.create` ×2 with different aggregates, `visits.visit.start` ×2) → payload catalog resolves by (CommandType, AggregateType, payload property-name set) (S06 D-S06-4).
+- Application handlers are reused by the server via `ApplicationPipelineProfile.Server` (no `CommandJournal` behavior); the server owns EF mappings + PG port implementations per family.
+- Wire v2 is introduced by **S06** (`ExpectedServerVersion`, `RuleSetVersion`, `WireContract.Version = 2`, supported {1,2}).
+- `SyncContractCatalog` replicated set (ARCH §8.2) — **replicated**: Owner, Pet, WeightEntry, DocumentReference, Visit, VaccinationRecord, MedicalHistoryEntry, TreatmentPlan, TreatmentOccurrence, VaccineCatalogItem, Appointment, ReceptionQueueEntry, Room, BoardingServiceDef, BoardingStay, UnitOfMeasure, ProductCategory, Product, Supplier, Insurer, LedgerAccount, AccountingPeriod, Tenant, RoleDefinition, StaffMembership. **Not replicated** (command-settled / server-only): Invoice, Payment, CashSession, JournalEntry, Cheque, Expense, Recurring*, StockMovement, PurchaseOrder, GoodsReceipt, credentials/authorization tables.
+  (ARCH §8.2 lists `TreatmentPlan`, `TreatmentOccurrence`, `VaccineCatalogItem` as replicated; `RecurringExpense` is **not** replicated — it is command/finance-only. The T1 text "2 new replicated aggregates" is corrected: TreatmentPlan family replicated, RecurringExpense command-settled only.)
+- Domain classes present for the manifest: `UnitOfMeasure`, `DocumentReference`, `LedgerAccount`, `BoardingServiceDef`, `ReceptionQueueEntry` (the S07–S10 mapping lists must include them: `DocumentReference` → S07, `ReceptionQueueEntry` → S07 (aka reception ticket), `BoardingServiceDef` → S08, `UnitOfMeasure`/`ProductCategory` → S10, `LedgerAccount`/`AccountingPeriod` → S10).
