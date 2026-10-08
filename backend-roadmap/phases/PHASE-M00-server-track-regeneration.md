@@ -152,7 +152,7 @@ a task is not "done" until its files pass this checklist):
 > reading the others.** When a task says "append to the source brief", it means
 > `backend-roadmap/phases/M00-source-brief.md` (a scratch doc M00 owns; create it in T1).
 
-### - [ ] T1 — Lock the regeneration map (IDs, slugs, dependencies, bands, scope→phase matrix)
+### - [x] T1 — Lock the regeneration map (IDs, slugs, dependencies, bands, scope→phase matrix)
 **Read:** this file (Authoring rules + Read-before list); `PROGRESS.md` top section; `ROADMAP.md`
 §0/§1/§2/§3/§5; `00-REQUIREMENTS-LOCK.md`.
 **Produce:** create `backend-roadmap/phases/M00-source-brief.md` and in it write the **regeneration
@@ -167,6 +167,8 @@ these exact values instead of re-deriving them.
 **Done when:** `M00-source-brief.md` exists with (a) the full phase map covering every §2 inventory row
 and the post-C11 drift, (b) the baseline snapshot block. Tick the box with a one-line evidence note
 (e.g. `S01–S13, G01–G09 mapped; head NNN, CommandTypes 86`).
+
+**Evidence (T1):** 29 phases mapped (S01–S20, G01–G09; S03/S15/S20/G01 band S, rest M); baseline: client migration head 031, CommandTypes 88 live (PROGRESS prose '86' is stale), ErrorCodes 161; full coverage matrix in phases/M00-source-brief.md.
 
 ### - [ ] T2 — Build the shared Reference-pack source brief (verbatim seams the server/sync phases call)
 **Read:** this file; `M00-source-brief.md` (from T1); `PROGRESS.md` top section; the specific `src`
