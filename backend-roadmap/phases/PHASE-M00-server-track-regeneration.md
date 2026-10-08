@@ -219,7 +219,7 @@ aggregates note `TreatmentPlan` + `RecurringExpense`. Tick + file names.
 
 **Evidence (T4):** Authored PHASE-S06-command-intake-idempotency (wire v2, CommandIntake/CommandIdMap, +5 ErrorCodes, server chain profile), S07-server-handlers-clinical (incl. TreatmentPlan), S08-server-handlers-scheduling-boarding, S09-server-handlers-sales-cashier, S10-server-handlers-money-stock (incl. RecurringExpense); inventory derived from live CommandTypes.All (never frozen), coverage tests mandatory from S10.
 
-### - [ ] T5 — Author the replication + resilience phases (journal/immutable-batch → outbox/workers → files → observability/perf)
+### - [x] T5 — Author the replication + resilience phases (journal/immutable-batch → outbox/workers → files → observability/perf)
 **Read:** this file; `M00-source-brief.md`; `ARCHITECTURE.md` §8/§9/§11.4.1/§16-CT–§18-CT/§PG;
 `STACK.md` §6/§11/§12; the `R-B##` rows for replication, outbox/workers, files, observability.
 **Produce:** the PostgreSQL **critical-state replication surface** (commit-safe tenant journal,
@@ -230,6 +230,9 @@ files (valet-key + resumable transfer); server observability + weak-server perfo
 **Done when:** each file exists and passes the checklist; the replication phase's acceptance criteria
 are mechanical (ordering/atomicity invariants expressed as named tests), and it states the batch size,
 offline window + retention, and that the surface is the project-owned journal. Tick + file names.
+
+
+**Evidence (T5):** Authored PHASE-S11-journal-change-capture (commit-ordered ChangeSequence via deferred constraint trigger, SyncContractCatalog), S12-immutable-batch-export (RR frozen 256-KiB batches, retention 90d+30, crash-atomic GC), S13-outbox-workers-resilience (SKIP LOCKED fenced claim, breaker, bulkhead, SignalR hint), S17-files-valet-key, S18-observability-weak-server-performance (loopback-only OTLP, MinPoolSize=0, pool sum 12/20); PG-gated invariants are named tests mandatory in G07.
 
 ### - [ ] T6 — Author the commerce phases (subscription + operator API + onboarding → licensing + anti-piracy)
 **Read:** this file; `M00-source-brief.md`; `ARCHITECTURE.md` §17 (SaaS/vendor-hosted), §10.5/§10.6
