@@ -39,11 +39,17 @@
 > defined in `ARCHITECTURE.md` §17.4 — this file only lists which technologies
 > are and are not permitted to require Internet connectivity at runtime.)
 >
+> **Alignment revision (2026-10-08).** Critical sync, local context, SignalR
+> launch support and SQL edition choices now match `ARCHITECTURE.md` v3.2.
+> No package pins or runtime code change; future adapters are not claimed built.
+> Its §24 records primary sources. Older package/native claims below retain
+> their own verification dates.
+>
 > **Evidence status (verified 2026-09).** Every version, limit and
 > "documented limitation" below was re-checked against live sources: the
 > NuGet flat-container API (exact published versions), the
 > CommunityToolkit/Datasync docs + repo, Microsoft Learn (.NET 10 support
-> policy, Blazor render modes, EF Core 10, SQL Server 2025 editions, RLS),
+> policy, Blazor render modes, EF Core 10, PostgreSQL 18 engine/provider, RLS),
 > and the Avalonia 12 release. Claim tags: **[fact]** doc-backed ·
 > **[decision]** Animora chose this · **[constraint]** an unavoidable limit ·
 > **[PoC]** must be validated by proof-of-concept before relied on. Source
@@ -58,32 +64,32 @@
 | Language / runtime | **C# 14 on .NET 10 (LTS)** everywhere — pin the `net10.0` TFM |
 | Desktop (Win + Mac) | **Avalonia Native** (single native process, one UI codebase for both OSes) |
 | Desktop UI pattern | **MVVM via `CommunityToolkit.Mvvm`** (source-generated, AOT/offline-safe, Microsoft-maintained) |
-| Desktop offline store | **SQLite + EF Core 10 + Datasync `OfflineDbContext`** (native process, no browser) — **encrypted at rest** |
+| Desktop offline store | **Encrypted SQLite + EF Core 10 project-owned DbContext**; optional Datasync context only for a qualified adapter |
 | Web | **Blazor Web App** — **Static SSR by default + selective `InteractiveServer` islands** (never global) |
 | Shared code | Domain / Application / Contracts / Validation / Sync-abstraction are shared modules across clients; **which** modules are shared and why is defined in `ARCHITECTURE.md` §7.1 — this file only lists the .NET project types that host them |
-| Offline sync engine | **CommunityToolkit.Datasync — pin exact `10.1.2`**, behind a project-owned `ISyncEngine` abstraction |
-| Sync API | **Datasync `TableController<T>` (OData v4)** on Kestrel — generic record replication technology only |
-| Server DB | **SQL Server 2025 (ver17)** — Express is the small-clinic tier; Standard when it grows |
+| Offline sync engine | **Project-owned critical engine + PostgreSQL transactional change journal** behind Application-owned `IStateSyncEngine`; optional Datasync `10.1.2` SYNC-SIMPLE adapter |
+| Sync API | **ASP.NET Core CT-backed critical `/sync/*` contracts**; optional qualified Datasync `TableController<T>`/OData `/tables/*` only |
+| Server DB | **PostgreSQL 18** production and development baseline; maintained minor |
 | Client mode matrix | Desktop = offline-capable (SQLite/EF Core present); Web = online-only (documented WASM/Hybrid offline limit of this technology stack) |
 | Identity | **ASP.NET Core Identity's built-in bearer/refresh-token mode** (local) — *not* a proprietary token protocol; cookies for web, bearer/refresh for desktop; passkeys optional/post-launch |
-| Broker / Redis / SignalR | **None at launch** — no package dependency added until a measured scale-out need exists |
+| Notifications / broker / backplane | **In-process self-hosted SignalR hints at launch**; no broker/Redis/backplane until measured scale-out |
 | Observability tech | **OpenTelemetry to a *local* collector only** — no external telemetry SDK/endpoint wired in by default |
 | Server key material | **ASP.NET Core Data Protection** — persisted via `PersistKeysToFileSystem` or the EF Core key store (technology choice; the *recovery invariant* is defined in `ARCHITECTURE.md` §10.6/§17.3) |
 | TLS policy | **`SslProtocols.None`** (let the OS negotiate) — technology-level API choice; the *policy rationale* is in `ARCHITECTURE.md` §10.5 |
 | Server topology | **Single ASP.NET Core process** at launch (no clustering technology introduced) |
 
-**Stack rating: 9.x until the PoC gates pass; "10/10" / "production-ready" is
+**No numerical quality score is asserted; "10/10" / "production-ready" is
 *earned*, not declared** (see §12 Validation Gates). The label may be
-raised only after the technology-proving gates (Datasync delta correctness,
-SQLCipher integration, SQL RLS/`SESSION_CONTEXT` mitigation, native-binary
+raised only after the technology-proving gates (critical journal snapshot correctness, optional Datasync qualification,
+SQLCipher integration, SQL RLS/`transaction-local tenant context` mitigation, native-binary
 version assertion) are proven — the full behavioral/architectural gate suite
 lives in `ARCHITECTURE.md` §19. The **core stack is Microsoft first-party**
-(.NET 10, C# 14, ASP.NET Core, EF Core, Blazor, SQL Server, Kestrel, ASP.NET Core
+(.NET 10, C# 14, ASP.NET Core, EF Core, Blazor, Kestrel, ASP.NET Core
 Identity) and Avalonia (a mature, .NET-Foundation-adjacent, .NET 10-ready UI
-framework). **The sync layer is the one deliberate exception:** the
+framework). **The optional simple-sync adapter is a deliberate exception:** the
 **Datasync Community Toolkit is a .NET Foundation / Community Toolkit project, NOT
-a Microsoft first-party product** in the sense SQL Server / ASP.NET are. It is the
-single largest dependency risk — its exact version pin and fork-readiness are
+a Microsoft first-party product**; PostgreSQL/Npgsql are also independent projects, while ASP.NET is Microsoft-maintained. It is the
+contained dependency risk — its exact version pin and fork-readiness are
 called out in §4 and §13.
 
 ### 0.1 Why a stack file separate from the architecture file
@@ -105,13 +111,13 @@ the *pattern/behavior* satisfying each requirement is in `ARCHITECTURE.md` §1.
 | # | Requirement | Technology answer |
 |---|---|---|
 | R1 | Windows + macOS + Web, one .NET codebase | **Avalonia Native** desktop (Win + Mac from one UI codebase) + **Blazor Web App** (web); both target `net10.0` and reference the same shared C# projects. |
-| R2 | High performance on **weak servers**, many users/server | Kestrel on ASP.NET Core 10; Blazor Static SSR (no per-session circuit by default); Datasync delta-token pull (small pages, not full dumps). |
-| R3 | Secure, reliable, correct | ASP.NET Core Identity (local); EF Core 10 named query filters; SQL Server `rowversion`; ASP.NET Core Data Protection. |
-| R4 | Offline-capable desktop, low server pressure | Avalonia native process + SQLite + EF Core 10 + Datasync `OfflineDbContext` (the only .NET-first-class offline-capable client host among the candidates evaluated). |
-| R5 | Multi-user per clinic | SQL Server `rowversion` optimistic-concurrency primitive; Datasync opaque `Version`/`UpdatedAt` delta metadata. |
-| R6 | Multi-tenancy, subscription/plan management | EF Core 10 **named** query filters (multiple independent, selectively-disableable filters per entity — a capability introduced in EF Core 10); SQL Server RLS as an available, gated hardening feature. |
-| R7 | **Self-hosted, zero external-Internet dependency at runtime** | Every chosen package/runtime component runs fully offline: local SQL Server, local ASP.NET Core Identity, packaged (non-CDN) web assets, local certificate tooling. |
-| R8 | Current, standard Microsoft technology | .NET 10 / ASP.NET Core 10 / SQL Server ver17 / EF Core 10 — all current LTS/GA lines, re-verified 2026-09 (§14). |
+| R2 | High performance on **weak servers**, many users/server | Kestrel on ASP.NET Core 10; Blazor Static SSR (no per-session circuit by default); transactional change journal delta extraction with bounded immutable payloads. |
+| R3 | Secure, reliable, correct | ASP.NET Core Identity (local); EF Core 10 named query filters; DB-generated PostgreSQL `uuid Version`; ASP.NET Core Data Protection. |
+| R4 | Offline-capable desktop, low server pressure | Avalonia native process + encrypted SQLite + EF Core 10 project-owned local context; Datasync context is optional/adapter-specific. |
+| R5 | Multi-user per clinic | DB-generated PostgreSQL `uuid Version` concurrency + journal committed feed + SignalR wake hints, not authoritative state delivery. |
+| R6 | Multi-tenancy, subscription/plan management | EF Core 10 **named** query filters (multiple independent, selectively-disableable filters per entity — a capability introduced in EF Core 10); PostgreSQL RLS as an available, gated hardening feature. |
+| R7 | **Self-hosted, zero external-Internet dependency at runtime** | Every chosen package/runtime component runs fully offline: local PostgreSQL, local ASP.NET Core Identity, packaged (non-CDN) web assets, local certificate tooling. |
+| R8 | Current, standard Microsoft technology | .NET 10 / ASP.NET Core 10 / EF Core 10 plus PostgreSQL 18 / Npgsql 10; the DB/provider change is verified 2026-10-08 (§6/§14), not a Microsoft first-party DB claim. |
 
 ---
 
@@ -125,7 +131,7 @@ the *pattern/behavior* satisfying each requirement is in `ARCHITECTURE.md` §1.
   Domain/Application code base uniform across every project type.
 - **Solution shape (project-type mechanics only; *why* each library exists is
   `ARCHITECTURE.md` §7.1):** one .NET solution; every shared concern (domain
-  types, application services, contracts, validation, the `ISyncEngine`
+  types, application services, contracts, validation, the `IStateSyncEngine`
   abstraction) is a **class library project**, referenced by the desktop,
   web and server projects alike. Avalonia is a class library + native host
   project; Blazor Web App and the server are ASP.NET Core projects.
@@ -206,8 +212,9 @@ the *pattern/behavior* satisfying each requirement is in `ARCHITECTURE.md` §1.
 
 - **SQLite** on-device mirror via **EF Core 10**
   (`Microsoft.EntityFrameworkCore.Sqlite`).
-- Context derives from Datasync's **`OfflineDbContext`** (a Datasync-supplied
-  base class — see §4).
+- Critical replica uses a **project-owned EF Core DbContext**, not a mandatory
+  Datasync base class. Only qualified optional SYNC-SIMPLE adapters use
+  **`OfflineDbContext`** (§4); it never owns the critical journal.
 - **Encryption technology:** an encrypted SQLite build —
   **`SQLitePCLRaw.bundle_e_sqlite3mc`** (SQLite3 Multiple Ciphers) or
   SQLCipher (`bundle_e_sqlcipher`) — keyed from a secret held in the **OS
@@ -270,13 +277,21 @@ the *pattern/behavior* satisfying each requirement is in `ARCHITECTURE.md` §1.
 
 ## 4. Sync Engine Technology
 
-**Engine: CommunityToolkit.Datasync (`CommunityToolkit.Datasync.*`).** The
-current .NET-Foundation/Community-Toolkit offline-sync framework, built for
-occasionally-connected .NET clients over EF Core; implements the
-queue/delta/conflict machinery directly. This section documents only the
-library's own capabilities, versions and constraints. What Animora does
-with this machinery (conflict policy, command architecture, contract
-versioning) is `ARCHITECTURE.md` §8.
+**Critical engine: project-owned .NET/HTTP adapter + PostgreSQL transactional
+change journal.** PostgreSQL 18 has no native SQL Server Change Tracking equivalent.
+Logged DML triggers append tenant-qualified keys using a **transactional tenant
+counter row**, serialized to COMMIT; do not use identity/nextval/xmin/LSN/timestamps
+as a commit-safe cursor. One `REPEATABLE READ` snapshot freezes watermark/rows into
+immutable logged batch storage. Retention floor, epoch, exact batch CAS, SQLite
+staging/base/overlay and shadow resync are `ARCHITECTURE.md` §16-CT–§18-CT / §PG.
+Npgsql 10 + EF Core 10 implement persistence; the client remains HTTP + SQLite,
+never PostgreSQL direct connectivity. Optional Datasync is **deferred from launch**
+and cannot own this critical feed.
+
+**Optional adapter: CommunityToolkit.Datasync (`CommunityToolkit.Datasync.*`).**
+Library facts below apply **only** to qualified SYNC-SIMPLE entities. This .NET
+Foundation/Community Toolkit project is not Microsoft first-party. Retaining its
+seam does not mandate building/installing it at launch.
 
 > **⚠️ MANDATORY EXACT VERSION PIN (verified 2026-09 against NuGet).** Published
 > client/server versions today are `8.0.x → 9.0.x → 10.0.0 → 10.0.1 → 10.1.0 →
@@ -292,16 +307,15 @@ versioning) is `ARCHITECTURE.md` §8.
 > <PackageVersion Include="CommunityToolkit.Datasync.Server" Version="10.1.2" />
 > ```
 
-> **Note on the doc/README .NET floor discrepancy.** The Datasync *offline
-> client guide* says "any .NET 10.x or later application"; the repo README
-> still says "Server: ASP.NET 8+, Client: .NET 8+". For Animora, **treat
-> .NET 10 as the floor everywhere** (matches EF Core 10 / .NET 10 LTS) and
-> ignore the older 8+ wording. **[decision]**
+> **Current documentation floor (2026-10-08).** Client/server guides state
+> .NET/ASP.NET 10 or later; older 8+ examples are not pinned-10.x evidence.
+> The exact package pin stays subject to §13 review; a living documentation
+> site does not prove pinned-binary behavior. **[fact/PoC]**
 
 ### 4.1 Access pattern (technology integration point)
 
 > **Domain and Application code never reference `CommunityToolkit.Datasync`
-> directly.** The library sits behind a project-owned `ISyncEngine`
+> directly.** The adapter sits behind Application-owned `IStateSyncEngine`
 > interface (defined and governed in `ARCHITECTURE.md` §8.1) to isolate
 > third-party dependency risk, version churn, and a possible fork
 > requirement — stated here only as the integration boundary this
@@ -355,18 +369,19 @@ surface versus the separate command pipeline is `ARCHITECTURE.md` §8.2/§8.3.
   architecture artifacts governed in `ARCHITECTURE.md` §8.3/§8.4, not
   library concepts.
 - **`UpdatedAt` collision safety — a library-level correctness question,
-  gated by PoC (§12, Gate F):** because the delta cursor is the max
+  gated by PoC (§12, G1):** because the delta cursor is the max
   `UpdatedAt`, many writes in the *same millisecond*, under paged pull, must
   not hide changed rows. This must be proven against the exact pinned
   `10.1.2` under: same-ms burst, insert-while-paging, delete/update
   interleaving, page retry, disconnect mid-page, duplicate page delivery,
   concurrent writes between page requests, and clock skew between service
   nodes. If the gate fails, the affected entities are bypassed/reimplemented
-  behind `ISyncEngine` on an opaque, strictly-increasing server sequence
-  instead of this library's timestamp cursor.
-- **Re-sync procedure the library provides (not a normal path):** remove
-  pending ops + delta tokens for the type, then `PullAsync([type])`, then
-  rebuild derived local state.
+  behind `IStateSyncEngine` on the CT-backed critical path
+  instead of this adapter's timestamp cursor; one transaction may publish a multi-row journal range.
+- **Library re-sync example:** removes pending ops/delta tokens before pull.
+  It is not Animora's recovery procedure and must never clear its journal.
+- Client context is not thread-safe: local updates are sequential even when
+  service requests run in parallel (current client guide). **[fact]**
 
 ### 4.4 Conflict-resolution primitives the library ships
 
@@ -389,31 +404,26 @@ top of this wire shape is `ARCHITECTURE.md` §8.6.
 
 ## 5. Server Technology
 
-> **Two technology surfaces are exposed from the same ASP.NET Core process
-> — why they exist and what flows through each is `ARCHITECTURE.md` §4/§8;
-> this section lists only the concrete technology each surface is built
-> with.**
+> **One host, distinct surfaces.** Business command APIs and project-owned
+> journal critical-sync APIs use ASP.NET Core 10. Optional Datasync controllers are
+> limited to qualified SYNC-SIMPLE entities; architecture §4/§8 owns semantics.
 
 ### 5.1 Runtime & host
 
-- **ASP.NET Core 10** on **Kestrel**.
-- **OpenAPI technology — first-party by default; NSwag only where the
-  Datasync library needs it.** **[decision]**
-  - The Business API surface documents with **.NET 10 / ASP.NET Core
-    first-party OpenAPI** (`Microsoft.AspNetCore.OpenApi` / `AddOpenApi` +
-    `MapOpenApi`) — the maintained, in-box technology.
-  - **NSwag is used *only* where the Datasync library's own tooling requires
-    it** — i.e. generating the OpenAPI document for the Datasync
-    `TableController<T>` / OData `/tables/*` surface
-    (`CommunityToolkit.Datasync.Server.NSwag`), a technology requirement of
-    that specific library integration, not a general project choice.
+- **ASP.NET Core 10 + Kestrel**, packaged local assets and hosted workers.
+- **Self-hosted ASP.NET Core SignalR** (shared framework) for launch hints;
+  no Redis/backplane package required in one process.
+- **First-party OpenAPI** (`Microsoft.AspNetCore.OpenApi` / `AddOpenApi` /
+  `MapOpenApi`) is default. Current Datasync docs support .NET 10 OpenAPI,
+  NSwag and Swashbuckle: NSwag is **not a mandatory library requirement**.
+  An optional integration is qualified against the pinned adapter before use.
 
 ### 5.2 Datasync server technology
 
-- One **`TableController<TEntity>`** per synchronizable entity under
+- If the adapter is admitted, one **`TableController<TEntity>`** per qualified SYNC-SIMPLE entity under
   `/tables/*` (`Microsoft.AspNetCore.Mvc.RouteAttribute`). Registered via
   `AddDatasyncServices()`. Repository technology:
-  `EntityTableRepository<T>` over EF Core 10 on SQL Server.
+  `EntityTableRepository<T>` over EF Core 10 on PostgreSQL.
 - **`TableControllerOptions`** (library configuration surface): conservative
   `PageSize` (25–100); **`EnableSoftDelete = true`**;
   **`UnsafeEntityLogging = false`** (never log full financial/PII rows —
@@ -423,7 +433,7 @@ top of this wire shape is `ARCHITECTURE.md` §8.6.
 ### 5.3 Identity technology
 
 - **ASP.NET Core Identity's built-in bearer/refresh-token mode** (local) —
-  *not* a proprietary/custom token protocol. Web = **cookies** (Microsoft's
+  a platform-provided **opaque protected token**, not JWT/OIDC or an Animora-invented format. Web = **cookies** (Microsoft's
   documented recommendation for browser apps); desktop = built-in
   **bearer + refresh** tokens. **Passkeys** are supported by .NET 10
   Identity but are optional/post-launch for this product. **[fact/decision]**
@@ -467,60 +477,54 @@ top of this wire shape is `ARCHITECTURE.md` §8.6.
 
 ## 6. Database Technology
 
-### 6.1 Engine & edition
+### 6.1 Engine, provider and resource baseline
 
-- **SQL Server 2025 (ver17)** via EF Core 10. **[fact]**
-- **Edition guidance** (verified against the SQL Server 2025 editions page):
-  - **Development:** Developer edition (full features, non-production).
-  - **Small / single clinic:** **Express** — max relational DB **50 GB**,
-    **max 4 cores** (lesser of 1 socket or 4 cores), buffer pool
-    **1,410 MB**. Plausible small-clinic tier, but **CPU/RAM will bind
-    before 50 GB does**. **[fact]**
-  - **Growing / multi-tenant:** **Standard** (up to lesser of 4 sockets/32
-    cores, 256 GB buffer pool) when tenants/cores/RAM exceed Express limits.
-  - **Row-Level Security is available in Express, Standard and Enterprise**
-    — an RLS-based hardening layer (if used — `ARCHITECTURE.md` §9.2) works
-    even on the small-clinic tier. **[fact]**
-- **Why SQL Server over PostgreSQL** (Postgres is technically excellent —
-  this is ecosystem alignment, not a knock): .NET-first ecosystem, EF Core
-  integration, `rowversion`, RLS with `SESSION_CONTEXT`, SQL tooling,
-  Windows/self-host friendliness, and a free **Express** on-prem tier.
-  **[decision]**
-- Apply data/index compression to keep footprint small on weak hardware.
+**PostgreSQL 18**, security-maintained minor recorded in deployment manifest,
+with `Npgsql.EntityFrameworkCore.PostgreSQL=10.0.3` and `Npgsql=10.0.3` on the
+existing EF Core 10.0.12 line. NuGet 10.0.3 provider nuspec targets net10.0,
+EF `[10.0.4,11.0.0)` / Npgsql 10.0.3 (verified 2026-10-08); restore/integration gate
+must prove actual resolution. Packages are added when D01 creates consumers,
+not to local-only projects. Server project = `Animora.Persistence.PostgreSql`.
+SQLite remains the encrypted offline client DB; source `.bak` parser is unrelated.
 
-### 6.2 Concurrency primitive
+Target **2–4 GiB RAM / 1–3 cores** co-located app/DB/file store. §PG.4 supplies
+conservative starting profiles: small shared buffers, per-operation work_mem,
+combined pool caps, one worker/export, bounded reports/bytes/time, enabled vacuum,
+protected WAL/durability and measured OS/app headroom. No commercial edition,
+Resource Governor, blanket PAGE compression, broker or logical slot dependency.
+Performance/user count is unproven until realistic load and restore gates pass.
 
-- **`rowversion`** is the SQL Server data type used for optimistic
-  concurrency detection on mutable entities — EF Core adds it to the
-  `WHERE` clause automatically; a 0-row update raises
-  `DbUpdateConcurrencyException`. **[fact]** What Animora *does* with that
-  exception (reload + domain conflict policy) is `ARCHITECTURE.md` §11.4 —
-  this is the raw database/EF mechanic only.
-- **SQL Server Change Tracking is explicitly NOT used** as an additional
-  delta-computation mechanism — the Datasync library's own `UpdatedAt`/
-  `Version`/op-queue/delta-token machinery (§4.3) is the single delta path;
-  layering SQL Change Tracking on top would be redundant and hard to debug.
-  It remains available only for a *future, non-Datasync* ETL feed, should
-  one ever be built.
+### 6.2 Concurrency primitive and state feed
+
+Mutable server `Version` is a PostgreSQL `uuid` generated on **every** INSERT/UPDATE
+by a database BEFORE trigger (`gen_random_uuid()`), including direct governed SQL.
+EF mapping: store-generated `ValueGeneratedOnAddOrUpdate()` +
+`IsConcurrencyToken()`, explicit Domain string↔Guid converter to uuid (persistence-only models may use Guid), retrieve via RETURNING; **not `IsRowVersion()`**. The wire
+uses canonical lowercase hyphenated UUID strings and equality only, behind
+`EntityVersionCodec`; UUIDs here are metadata, not replacement business ULIDs.
+A zero-row conditional update raises EF concurrency conflict; domain policy owns
+resolution. Npgsql supports xmin as a uint rowversion-like token, but Animora does
+**not** expose internal wrapping xmin as a durable offline version or feed cursor.
+
+Critical `ChangeSequence` belongs to one tenant/epoch/profile and is a serialized
+transactional counter, distinct from Version and display `UpdatedAt`.
+PostgreSQL timestamps have microsecond resolution; no +1 .NET tick monotonic
+cursor algorithm. Journal triggers, direct-child/root capture, tombstones and
+retention are reviewed migrations; extraction uses REPEATABLE READ + frozen pages.
+Outbox is a separate domain-event/effect feed, never the state journal.
 
 ### 6.3 Row-Level Security technology
 
-- **RLS middle-tier pattern (as documented by Microsoft):** the app sets the
-  tenant on each pooled connection via **`sp_set_session_context 'TenantId'`**
-  (`@read_only = 1`); a FILTER predicate scopes reads and a BLOCK predicate
-  stops cross-tenant writes. Keep RLS objects in a dedicated `Security`
-  schema, `SCHEMABINDING = ON`. **[fact]**
-- **⚠️ Known Microsoft bug:**
-  `SESSION_CONTEXT()` can return **wrong results** (worst case: another
-  tenant's rows) when it runs in a **parallel plan on a pool-reset
-  connection** — open since Jan 2022 across SQL Server 2019/2022/2025.
-  **Enable trace flag 11042** (both `-T11042` startup +
-  `DBCC TRACEON(11042,-1)`) to force serial `SESSION_CONTEXT` and close the
-  window. **[fact]**
-- Whether RLS is enabled at all, and what it may be relied upon for, is an
-  architecture/security decision (`ARCHITECTURE.md` §9.2, mandatory-vs-
-  hardening layering) — this section documents only the database feature's
-  mechanics and known defect.
+PostgreSQL policies use `USING` / `WITH CHECK`. RLS remains gated hardening, with
+mandatory application isolation proved while it is off. When enabled, each
+transaction sets server-resolved tenant with parameterized
+`set_config('animora.tenant_id', @tenantId, true)`; missing/empty
+`current_setting(...,true)` denies. Reapply on every retry/begin, no connection-global
+context. Runtime must be non-owner/non-superuser without BYPASSRLS; FORCE RLS is
+required when protecting owner contexts, but superusers still bypass. TRUNCATE/
+FK checks are not ordinary row-policy enforcement. Protect journal/deleted keys
+and batches explicitly too. Pool reset stays on; A→B→A/cancellation/rollback and
+parallel-plan tests block enabling. See ARCHITECTURE §9.4 / §PG.
 
 ### 6.4 EF Core 10 filter technology
 
@@ -544,17 +548,17 @@ top of this wire shape is `ARCHITECTURE.md` §8.6.
 
 > **What pattern governs reliability (Outbox, Idempotent Consumer, Competing
 > Consumers, Retry/Circuit-Breaker/Bulkhead) is `ARCHITECTURE.md` §12 — this
-> section lists only the .NET/SQL Server technology used to implement them.**
+> section lists only the .NET/PostgreSQL technology used to implement them.**
 
 - **Transactional writes:** a single EF Core 10 `DbContext.SaveChanges`
   transaction covers both a business-state change and its accompanying
   Outbox-table row — an ordinary relational transaction, no special
-  technology beyond EF Core + SQL Server.
+  technology beyond EF Core + PostgreSQL.
 - **Outbox relay:** a .NET 10 `BackgroundService` polling loop. Its atomic
-  claim step uses an ordinary SQL `UPDATE ... WHERE Status = 'Pending' AND
-  ClaimedUntil < @now` conditional update pattern plus a **uniqueness
-  constraint** on the dedup key — standard SQL Server mechanics, no
-  additional library.
+  claim uses PostgreSQL CTE atomic UPDATE ... RETURNING with FOR UPDATE SKIP LOCKED with due/expired eligibility
+  and a fenced lease token. Consumer dedup uses a uniqueness constraint with
+  marker/effects in one transaction. A nullable initial lease is not accidentally
+  excluded by a bare `< @now` predicate. Lease reclaim/fencing and fairness are integration-gated; SKIP LOCKED is not a state-feed recipe.
 - **No external message broker or distributed cache package is referenced
   at launch** — no Kafka/RabbitMQ/Azure Service Bus/Redis client library is
   added to the dependency graph until a measured, ADR-gated scale-out need
@@ -572,7 +576,7 @@ top of this wire shape is `ARCHITECTURE.md` §8.6.
 |---|---|
 | AuthN | **ASP.NET Core Identity's built-in bearer/refresh-token mode** (local). Web = cookies; desktop = bearer + refresh. Passkey support exists in .NET 10 Identity (optional/post-launch). |
 | AuthZ primitives | **RBAC + policy-based + resource-based authorization** — all three are first-class ASP.NET Core 10 APIs (`IAuthorizationService.AuthorizeAsync(user, resource, policy)` for resource-based checks). |
-| Row-level hardening | **SQL Server RLS** (§6.3) — an available, gated database feature. |
+| Row-level hardening | **PostgreSQL RLS** (§6.3) — an available, gated database feature. |
 | Transport | **HTTPS via Kestrel**, using an internally-issued certificate (no public CA at runtime). |
 | At rest (desktop) | Encrypted SQLite (SQLite3 Multiple Ciphers / SQLCipher, §3.3) + OS keystore (DPAPI/Keychain) for the encryption key. |
 | Web security primitives | ASP.NET Core's built-in secure-cookie options, antiforgery middleware, and standard security-header middleware. |
@@ -591,7 +595,7 @@ rules, and the file-access model are architecture decisions
   `IDataProtector`-protected value. If the key ring is lost/regenerated, all
   existing cookies/antiforgery tokens become undecryptable. **[fact]**
 - **Persistence options:** `PersistKeysToFileSystem(<a stable path>)` **or**
-  the **EF Core key store** (keys in SQL Server). Set a **stable
+  the **EF Core key store** (keys in PostgreSQL). Set a **stable
   application name** (`SetApplicationName`) so the ring is not re-scoped
   across restarts/paths. This persistence is a mandatory deployment
   invariant on the disaster-recovery matrix: `ARCHITECTURE.md` §10.6/§17.3.
@@ -635,8 +639,7 @@ rules, and the file-access model are architecture decisions
   that relieves memory pressure without application code changes.
 - **EF Core efficient-querying features used throughout:** `AsNoTracking`,
   projections, EF Core 10 named query filters, parameterized/compiled
-  queries where beneficial, standard SQL Server indexing + index
-  compression.
+  queries where beneficial, measured PostgreSQL indexing + bounded queries.
 - **Blazor virtualization** (`Virtualize` component) for long grids
   (patients, invoices, inventory) — a Blazor-provided rendering-performance
   feature.
@@ -653,7 +656,7 @@ rules, and the file-access model are architecture decisions
 - `Avalonia` **12.x** (verified stable **12.1.2**) + Avalonia desktop platform packages
 - `CommunityToolkit.Mvvm` (source-generated MVVM)
 - `Microsoft.EntityFrameworkCore.Sqlite` **10.x** (EF Core 10 line)
-- `CommunityToolkit.Datasync.Client` **= 10.1.2** (exact; behind `ISyncEngine`)
+- **Optional SYNC-SIMPLE:** `CommunityToolkit.Datasync.Client` **= 10.1.2** behind `IStateSyncEngine`
 - Native SQLite with **runtime version ≥ 3.50.2** (CVE-2025-6965 — §3.3):
   `SQLitePCLRaw.bundle_e_sqlite3` **3.0.x** (transitively `SourceGear.sqlite3
   3.50.4.5`) **or** explicit `SourceGear.sqlite3 3.50.4.5`; **encrypted** builds
@@ -662,26 +665,28 @@ rules, and the file-access model are architecture decisions
 
 **Shared class libraries (referenced by both clients + server)**
 - `Animora.Domain` · `Animora.Application` · `Animora.Contracts`
-- `Animora.Sync.Abstractions` (`ISyncEngine`) + `Animora.Sync.Datasync` (adapter)
+- Application-owned `IStateSyncEngine` contract and critical .NET adapter;
+  `Animora.Sync.Abstractions` is currently a scaffold. Optional Datasync adapter
+  is an Infrastructure component, **not** a shared Domain/client/server dependency
+  or a claim that `Animora.Sync.Custom` already exists.
 
 **Web**
 - Blazor Web App — Static SSR + selective `InteractiveServer` islands (technology capability; usage policy in `ARCHITECTURE.md` §7.3)
 
 **Server (sync surface + business API + app; §5)**
 - ASP.NET Core 10 (Kestrel)
-- `CommunityToolkit.Datasync.Server` **= 10.1.2** + `.Server.EntityFrameworkCore` **= 10.1.2**
+- **Optional SYNC-SIMPLE:** `CommunityToolkit.Datasync.Server` **= 10.1.2** + `.Server.EntityFrameworkCore` **= 10.1.2**
 - `Microsoft.AspNetCore.OpenApi` **10.x** — first-party OpenAPI for the Business API
-- `CommunityToolkit.Datasync.Server.NSwag` — **only** for the Datasync `/tables/*` OData document
-- `Microsoft.EntityFrameworkCore.SqlServer` **10.x** (EF Core 10 line)
-- `Microsoft.AspNetCore.Identity.*` (local Identity; passkeys optional/post-launch)
+- `CommunityToolkit.Datasync.Server.NSwag` — optional only if chosen/qualified instead of first-party OpenAPI
+- `Npgsql.EntityFrameworkCore.PostgreSQL` **10.0.3** + `Npgsql` **10.0.3** (EF Core 10 line; D01 consumers)
+- Local ASP.NET Core Identity + in-process SignalR shared-framework support; passkeys optional/post-launch
 - **(scale-out only)** `Microsoft.AspNetCore.SignalR.StackExchangeRedis`
 
 **Workers**
 - .NET 10 `BackgroundService`. **Do NOT publish EF-Core workers as Native AOT** (§5.4).
 
 **Database**
-- **SQL Server 2025 (ver17)** — `rowversion`, RLS (gated hardening feature).
-  **SQL Change Tracking is NOT used** in the sync path (§6.2).
+- **PostgreSQL 18** — logged transactional journal + REPEATABLE READ, UUID version triggers, bounded pools/admission and optional RLS. No logical slot/CDC/broker is required for sync.
 
 > **EF Core 11 governance note.** EF Core 11 is already in preview/RC as of this
 > writing. **Do not adopt it** — stay on the **EF Core 10 LTS line aligned with
@@ -711,26 +716,28 @@ rules, and the file-access model are architecture decisions
 
 | Gate | What it proves (about the technology) |
 |---|---|
-| **G1 — Datasync delta correctness** | Against the exact pinned `10.1.2`: paged incremental pull under same-ms bursts, inserts-while-paging, delete/update interleaving, page retry, disconnect mid-page, duplicate page delivery, concurrent writes between pages, and clock skew → **zero unrecoverable skip AND zero unrecoverable duplicate**. Failure ⇒ bypass/reimplement the affected entities on an opaque server sequence behind `ISyncEngine` (§4.3). |
+| **G1 — Optional Datasync qualification** | Against the exact pinned `10.1.2`: paged incremental pull under same-ms bursts, inserts-while-paging, delete/update interleaving, page retry, disconnect mid-page, duplicate page delivery, concurrent writes between pages, and clock skew → **zero unrecoverable skip AND zero unrecoverable duplicate**. Failure ⇒ use the existing custom PostgreSQL journal critical path behind `IStateSyncEngine` (§4.3), not a new timestamp-based sequence. |
 | **K2 — SQLCipher/Multiple-Ciphers integration** | The full encrypted-data-path lifecycle **per RID** in the approved native matrix (§3.3): create encrypted DB → close → reopen with correct key succeeds → reopen with wrong key fails → a plain (non-cipher) SQLite reader cannot read it → EF Core 10 migration succeeds on the encrypted DB → WAL mode + crash-recovery → backup → restore (still encrypted, still openable) → `PRAGMA rekey` (old key fails, new key works). Passing K2 **freezes** the native/RID matrix values in §3.3. |
 | **Native SQLite version assertion** | At every process startup (desktop and server, every RID), `SELECT sqlite_version();` returns **≥ 3.50.2**; a successful managed NuGet restore is explicitly **not** accepted as proof — only the runtime probe is (§3.3). |
-| **SQL RLS + `SESSION_CONTEXT` + connection pooling** | If RLS is enabled at all: a pooled connection never inherits a prior request's `SESSION_CONTEXT`, and a parallel-plan read never returns another tenant's rows, **with trace flag 11042 active** (§6.3). If this cannot be reliably proven, RLS stays **off** — the mandatory application-owned isolation layers (`ARCHITECTURE.md` §9.2) must already be sufficient without it. |
+| **PostgreSQL RLS + transaction-local context + pooling** | If enabled, A→B→A reuse/cancellation/rollback/parallel reads never leak rows; missing context denies; non-owner/no BYPASSRLS runtime. Mandatory application isolation holds with RLS off (§6.3). |
+| **PostgreSQL journal/snapshot/provider integration** | Real PostgreSQL 18: tenant counter commit ordering (not nextval), rollback, child/direct DML capture, retention/cleanup, same-snapshot watermark/rows, epoch and bounded immutable extraction; §PG.6 gates are mandatory. |
 
-Until **G1** and **K2** pass on a given RID/entity set, that RID/entity set is
-not a shippable target for, respectively, delta sync or encrypted local
-storage.
+**G1** gates only entities electing optional Datasync, never the custom PostgreSQL journal engine.
+**K2** gates encrypted local storage per RID; PostgreSQL/provider integration gates the
+critical feed. These are obligations, not results of this document revision.
 
 ---
 
 ## 13. Dependency Risk Register (verified 2026-09)
 
-The **core stack is Microsoft first-party; the sync layer is not.** Datasync is a
-.NET Foundation / Community Toolkit project and the single largest dependency risk.
+The critical sync platform uses PostgreSQL/Npgsql/.NET primitives with **Animora-owned
+correctness code**; optional Datasync is a contained third-party adapter. Library
+risk is not a reason to omit verification of the custom engine.
 
 | # | Risk | Evidence | Impact | Mitigation |
 |---|---|---|---|---|
 | D1 | **Datasync major-line ↔ EF/.NET mismatch** | 9.x targets .NET 9/EF Core 9; 10.x requires .NET 10/EF Core 10. Latest published = **10.1.2** (NuGet flat-container, 2026-09). | Runtime failure of the offline-sync technology if lines are crossed. | **Pin exact `10.1.2`** client+server + EF Core 10 everywhere; CI fails if a 9.x toolkit or EF Core 11 resolves. Upgrade only via this register. |
-| D2 | **Datasync maintenance / bus-factor; NOT first-party** | .NET Foundation / Community Toolkit project; community-maintained. | Slower fixes for future LTS jumps; possible self-maintenance. | (a) All sync usage **behind `ISyncEngine`** — swappable (`ARCHITECTURE.md` §8.1). (b) **Vendor/fork-ready:** track the exact commit, be able to build from source. (c) Prefer the standard OData v4 CRUD/delta contract (re-implementable). |
+| D2 | **Datasync maintenance / bus-factor; NOT first-party** | .NET Foundation / Community Toolkit project; community-maintained. | Slower fixes for future LTS jumps; possible self-maintenance. | (a) Optional adapter usage **behind `IStateSyncEngine`** — swappable (`ARCHITECTURE.md` §8.1). (b) **Vendor/fork-ready:** track the exact commit, be able to build from source. (c) Prefer the standard OData v4 CRUD/delta contract (re-implementable). |
 | D3 | **Datasync offline unsupported in browser hosts** | Docs: EF Core/SQLite offline store unsupported in Blazor WASM / Blazor Hybrid-in-browser; **tested offline hosts = Avalonia / MAUI / Uno / WinUI 3 / WPF**. | Web can't be offline; a Hybrid desktop would be unstable offline. | **Avalonia native desktop** (a *tested* host) is the baseline (§3.1); web is scoped online-only at the architecture level (`ARCHITECTURE.md` §7.2). |
 | D4 | **Local SQLite NU1903 / CVE-2025-6965** | `lib.e_sqlite3 2.1.11` (deprecated) pulled transitively; advisory GHSA-2m69-gcr7-jv3q lists **"Patched versions: None"**. **Encrypted bundles still on 2.1.11 native.** | High-severity audit warning; unpatched native SQLite; **encryption re-opens the CVE**. | Ensure **native SQLite ≥ 3.50.2 at runtime** via `bundle_e_sqlite3 3.0.x` / `SourceGear.sqlite3 3.50.4.5`; **probe `sqlite_version()` on startup**. For encryption, gate on the §12 K2 PoC and record residual risk. Documented `NuGetAuditSuppress` if unresolved. |
 | D5 | **Web can't scale horizontally without a backplane** | ASP.NET Core 10 SignalR hosting/scaling: Redis backplane + sticky sessions for multi-instance Blazor circuits. | Broken circuits when a 2nd web node is added. | Launch single-instance; add **Redis backplane** as a deploy switch, not a code change (`ARCHITECTURE.md` §16.2). |
@@ -744,6 +751,10 @@ The **core stack is Microsoft first-party; the sync layer is not.** Datasync is 
 ---
 
 ## 14. Source Basis (why this is current, not guessed)
+
+Alignment facts rechecked **2026-10-08** against the primary-source bodies
+registered in `ARCHITECTURE.md` §PG: PostgreSQL isolation/locking/trigger/RLS, Npgsql time/pooling/concurrency and PITR; EF buffering remains a separate concern.
+Other package/native entries below retain their prior verification dates.
 
 Verified **2026-09** against live sources:
 
@@ -767,14 +778,12 @@ Verified **2026-09** against live sources:
   Interactive WebAssembly / Interactive Auto; circuit = per-session server state),
   `[PersistentState]`, virtualization, SignalR hosting/scaling (Redis backplane +
   sticky sessions), ASP.NET Core Identity (passkeys available). **[fact]**
-- **SQL Server 2025 (ver17)** — editions page: Express **50 GB / max 4 cores /
-  1,410 MB buffer pool**; Standard **32 cores / 256 GB**; **RLS available in all
-  editions incl. Express**; RLS `SESSION_CONTEXT` middle-tier pattern. **[fact]**
+- **PostgreSQL 18 / Npgsql 10** — primary documentation and published provider dependency ranges reviewed 2026-10-08; §6 and ARCHITECTURE §PG register the new baseline. No PostgreSQL edition/feature claims govern deployment.
 - **EF Core Native AOT / precompiled queries** — documented experimental / not for
   production → EF-Core workers stay JIT. **[fact]**
 
 > When updating this file, re-verify against the same doc set for the then-current
-> .NET LTS and SQL Server versions and the exact published Datasync version; never
+> .NET LTS and PostgreSQL versions and the exact published Datasync version; never
 > downgrade to pre-.NET-10 patterns.
 
 ---
@@ -787,7 +796,7 @@ Verified **2026-09** against live sources:
 > not repeated here.
 
 ```
-T-RULE 001  Domain code never depends on Datasync directly (always via ISyncEngine).
+T-RULE 001  Domain references no sync abstraction; Application owns IStateSyncEngine, Infrastructure owns journal/Datasync adapters.
 T-RULE 002  Never change the pinned Datasync version without the full integration
             suite (§12) — client and server versions move together, always exact.
 T-RULE 003  Never let a 9.x Datasync package or EF Core 11 resolve in the
@@ -801,11 +810,11 @@ T-RULE 006  UpdatedAt / Version / DatasyncOperationId are library-defined
 T-RULE 007  No business client depends on OData query semantics — OData is a
             Datasync `/tables/*` implementation detail only (§4.2).
 T-RULE 008  A timestamp column is a storage/cursor fact only — never treat it as
-            a synchronization "proof" without the §12 Gate F evidence.
+            a critical synchronization cursor; optional Datasync requires §12 G1 evidence.
 T-RULE 009  Never introduce a message broker, Redis, or a clustering technology
             package without the explicit ADR the architecture requires.
 T-RULE 010  Never upgrade a critical infrastructure package (Datasync, EF Core,
-            SQL Server client libraries) without integration + security review (§13).
+            PostgreSQL client libraries) without integration + security review (§13).
 T-RULE 011  Never assume a library API exists because an older version's docs
             said so — verify against the exact pinned version before coding.
 T-RULE 012  Do not hard-code a single TLS protocol version — use
@@ -865,7 +874,7 @@ T-RULE 015  Any vulnerability suppression (`NuGetAuditSuppress`) must be dated,
   technology limitation (§3.2, D3), not a policy choice we could reverse
   by trying harder.
 - **No external message broker / Redis package at launch.**
-- **No per-tenant database technology (separate SQL Server instance per
+- **No per-tenant database technology (separate PostgreSQL instance per
   tenant) at launch.**
 - **No cloud-hosted database, identity provider, or storage service** is
   referenced by any project in the solution.
@@ -891,6 +900,7 @@ EF Core 11 at launch                                 → stay on EF Core 10 LTS
 "TLS 1.3 only" hard-coded policy                     → OS-negotiated protocol instead (§8.2)
 Cloud-only license validation service                → breaks zero-Internet runtime
 Native AOT for any EF-Core-using worker              → EF Core + AOT is experimental (§5.4)
+Microsoft Sync Framework 1.0 / 2.1                  → end-of-support historical products, not a new sync dependency
 ```
 
 > Whether a rejected technology can ever be reconsidered (e.g. Redis, a
@@ -911,18 +921,18 @@ Native AOT for any EF-Core-using worker              → EF Core + AOT is experi
 | Web rendering technology | **Static SSR + selective `InteractiveServer` islands** (both capabilities of the same framework) |
 | Local store (desktop) | **SQLite, encrypted at rest** (SQLite3 Multiple Ciphers / SQLCipher) |
 | ORM | **EF Core 10** (not EF Core 11) |
-| Offline sync engine | **CommunityToolkit.Datasync `= 10.1.2`** behind `ISyncEngine` |
-| Sync wire protocol | **Datasync `TableController<T>` / OData v4** (generic replication technology only) |
+| Offline sync engine | **Custom CT-backed engine** behind `IStateSyncEngine`; optional Datasync `10.1.2` adapter |
+| Sync wire protocol | **Project-owned immutable critical batches**; OData only in qualified optional Datasync adapter |
 | Backend host | **ASP.NET Core 10 + Kestrel** |
-| Server DB | **SQL Server 2025** (Express small-clinic tier; Standard when it grows) |
-| Concurrency primitive | **SQL Server `rowversion`** |
-| Row-security hardening tech | **SQL Server RLS** (gated by §12) |
+| Server DB | **PostgreSQL 18** production and development baseline; maintained minor |
+| Concurrency primitive | **DB-generated PostgreSQL `uuid Version`** |
+| Row-security hardening tech | **PostgreSQL RLS** (gated by §12) |
 | Identity provider | **Local ASP.NET Core Identity**; no cloud IdP; passkeys optional/post-launch |
 | Background worker host | **`BackgroundService`** (JIT); Native AOT optional, never for EF-Core workers |
-| Broker / Redis / SignalR backplane | **None at launch** |
+| Notifications / broker / backplane | **Self-hosted SignalR hints** at launch; no broker/Redis/backplane |
 | Web offline technology | **Not available** (documented WASM/Hybrid limitation) |
 | Files | **Filesystem + SQL metadata** (no object-storage SDK at launch) |
-| Server initial hardware target | **~2–4 cores / 4 GB / NVMe**, single instance |
+| Server reference hardware | **2–4 GiB / 1–3 cores / SSD**, architecture §69 reference only; measured capacity required |
 | Multi-instance web (future) | Adds **Redis SignalR backplane package** (deploy switch, not new architecture) |
 
 ---
@@ -930,11 +940,12 @@ Native AOT for any EF-Core-using worker              → EF Core + AOT is experi
 ## 19. Authoritative One-Line Stack
 
 > **C# 14 + .NET 10 LTS + Avalonia 12 Native Desktop (CommunityToolkit.Mvvm) +
-> encrypted SQLite + EF Core 10 + CommunityToolkit.Datasync 10.1.2 behind a
-> project-owned `ISyncEngine` + ASP.NET Core 10 / Kestrel + Blazor Web App
-> (Static SSR + selective InteractiveServer) + SQL Server 2025 (rowversion +
-> RLS as a gated hardening feature) + local ASP.NET Core Identity + zero
-> mandatory external-Internet package at runtime.**
+> encrypted SQLite + EF Core 10 + custom CT-backed critical engine behind
+> Application-owned `IStateSyncEngine` (Datasync 10.1.2 optional SYNC-SIMPLE) +
+> ASP.NET Core 10 / Kestrel / in-process SignalR hints + Blazor Web App
+> (Static SSR + selective InteractiveServer) + PostgreSQL 18
+> (transactional journal + REPEATABLE READ + UUID Version, bounded pools/admission, RLS gated) +
+> local ASP.NET Core Identity + zero mandatory external-Internet dependency.**
 >
 > For how this technology set is *organized and made to behave correctly*
 > (bounded contexts, business-command pipeline, tenancy isolation layering,

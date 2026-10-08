@@ -16,8 +16,8 @@ src/
   Animora.Infrastructure.Local/   OS keystore, encryption provider, clocks, local files, crash handling.  [A01]
   Animora.Client.Services/        implements Animora.Contracts over Application + Persistence.Sqlite.     [A01]
   Animora.Sync.Abstractions/      ISyncEngine, SyncScope, SyncResult, conflict/diagnostic contracts.      [exists/E03]
-  Animora.Sync.Datasync/          the ONLY project allowed to reference Datasync client types.            [E03]
-  Animora.Persistence.SqlServer/  server EF Core 10 store: AnimoraServerDbContext, named filters.         [D01]
+  Animora.Sync.Custom/            project-owned immutable-batch HTTP adapter; no DB provider types.            [E03]
+  Animora.Persistence.PostgreSql/  server EF Core 10 store: AnimoraServerDbContext, named filters.         [D01]
   Animora.Server/                 ASP.NET Core 10 host: Business API + /tables/* + workers + admin host.  [D01]
   Animora.Server.Licensing/       license issuance/verification, key rotation, signing.                   [D11]
   Animora.Web.Admin/              Blazor Web App operator panel, hosted by Animora.Server.                [E01]
@@ -35,7 +35,7 @@ Every new project: TFM `net10.0` (inherited from `Directory.Build.props`), nulla
 (`ManagePackageVersionsCentrally=true`, exact versions, no floating ranges).
 Tests: xUnit; persistence tests use `Microsoft.EntityFrameworkCore.Sqlite` against temp **file** DBs
 (never `:memory:` for migration tests). Server integration tests must skip-with-reason, not fail, when
-no SQL Server instance is reachable.
+no PostgreSQL instance is reachable in local development. Mandatory DB CI/release gates fail if the configured PostgreSQL instance is absent; skipped tests cannot pass a release.
 
 ## §2 Layering & dependency rules
 
@@ -44,8 +44,8 @@ no SQL Server instance is reachable.
 - Infrastructure/persistence projects reference Application/Domain — **never the reverse**.
 - `Animora.Desktop` references `Animora.Contracts` + `Animora.Client.Services` (composition root only).
   **No View, ViewModel, or `.axaml` may reference EF Core, Datasync, SQL, or HTTP types.**
-- Only `Animora.Sync.Datasync` may `using CommunityToolkit.Datasync.Client` (T-RULE 001, A-RULE 001).
-- Only `Animora.Server` + `Animora.Persistence.SqlServer` may reference the Datasync **server** packages.
+- Launch client adapter is `Animora.Sync.Custom`; Datasync is deferred and may appear only in a separately qualified optional adapter (T-RULE 001).
+- Only server persistence may reference Npgsql/UseNpgsql; no Domain/Application/Desktop/Custom adapter dependency on PostgreSQL types. Optional Datasync server packages are deferred from launch.
 - Client projects never reference server projects and vice versa. Shared meaning travels only through
   `Animora.Domain`, `Animora.Application`, `Animora.Contracts.Wire`.
 - Dependency direction is verified by a test in `Animora.Domain.Tests`
@@ -103,16 +103,16 @@ Folder = namespace. Namespace root = project name.
   (STACK.md §6.4 required-navigation pitfall).
 - `Money` persists as two columns: `<Prop>Minor` (`INTEGER`/`bigint`) + `<Prop>Currency` (`TEXT(3)`),
   via a single `ComplexProperty`/owned configuration. Never a `decimal` column on SQLite.
-- `DateTimeOffset` only via a `ValueConverter` to UTC ticks (`long`) on SQLite; `datetimeoffset2(7)` on
-  SQL Server. All stored time is UTC. Jalali/Persian digits exist only in Desktop presentation code.
+- `DateTimeOffset` via UTC ticks (`long`) on SQLite; `timestamptz(6)` on
+  PostgreSQL with Offset=0 (microsecond precision, no legacy timestamp switch). All stored time is UTC. Jalali/Persian digits exist only in Desktop presentation code.
 - Enums persist as `int` with an explicit converter; never `HasConversion<string>()` on hot tables.
 - Every query that backs a grid, calendar range, or lookup has a covering index named
   `IX_<Table>_<Cols>`; paging is mandatory (`Skip`/`Take` with a bounded max page size of 200).
 - Migrations are additive and sequential. **A phase never edits a previous phase's migration.**
-- `EnsureCreated` is forbidden outside a test fixture. Startup calls `MigrateAsync()`.
+- `EnsureCreated` is forbidden outside test fixtures. Local SQLite startup migrates; PostgreSQL production deployment runs reviewed migrations under a DDL role before traffic, while runtime startup only checks version/readiness.
 - SQLite pragma baseline (set in `AnimoraLocalDbContext` connection interceptor):
   `journal_mode=WAL`, `synchronous=NORMAL`, `busy_timeout=5000`, `foreign_keys=ON`.
-- Server concurrency = `rowversion`. Local concurrency = the `Version` column of `SyncableEntity`.
+- Server concurrency = DB-trigger-generated `uuid Version` + EF concurrency token (not xmin/IsRowVersion). Local concurrency = the `Version` column of `SyncableEntity`.
 
 ## §6 Offline-first & sync spine (`ARCHITECTURE.md` §8 condensed — obey, do not re-derive)
 
@@ -125,7 +125,8 @@ Folder = namespace. Namespace root = project name.
    Local-only tables carry the [LocalOnly] marker and are never replicated.
 4  Command envelope: OperationId | TenantId | UserId | DeviceId | CommandType | AggregateId | Payload
    | CreatedAtUtc (informational) | LocalSequence | Status | CommandFingerprint
-   (+ CausationId/DependsOnOperationId + ExpectedAggregateVersion when dependent).
+   (+ CausationId/DependsOnOperationId + ExpectedServerVersion in V2; legacy ExpectedAggregateVersion
+   is local numeric revision only, never UUID server concurrency evidence — ARCHITECTURE §PG.7).
 5  Idempotency key (TenantId, OperationId): identical retry returns the stored result.
    Same OperationId + different CommandFingerprint = security/integrity error, audited (A-RULE 019).
 6  Idempotency != ordering. Dependency is explicit and resolved SERVER-SIDE only (A-RULE 021, §8.4).
@@ -139,13 +140,11 @@ Folder = namespace. Namespace root = project name.
 10 No destructive sync: an inbound pull never overwrites unsent local business intent (A-RULE 017).
 11 UpdatedAt / Version / DatasyncOperationId are transport bookkeeping, never business sequence
    (A-RULE 009/010, T-RULE 006).
-12 Datasync is pinned EXACTLY 10.1.2 on both sides, always behind ISyncEngine; OData is a /tables/*
-   implementation detail no business client may depend on (T-RULE 002/007).
+12 Critical sync is PostgreSQL transactional journal + immutable REPEATABLE READ batches behind ISyncEngine / IStateSyncEngine, implemented by Animora.Sync.Custom. Optional Datasync is deferred; no UpdatedAt/nextval/xmin cursor (ARCHITECTURE §PG).
 13 Every replicated contract carries an explicit contract version; an unsupported version triggers a
    controlled resync, never a silent mis-map (ARCHITECTURE.md §8.6).
 14 Client wall-clock time is never a sync or licensing authority (A-RULE 011).
-15 Full-resync procedure: drop pending replication ops + delta tokens for the type, pull, rebuild
-   derived local state — never a normal path, always explicit and audited.
+15 Full resync builds/validates an encrypted shadow generation preserving pending intent, then atomically switches base/checkpoint. Never drop pending business operations or clear active state before replacement succeeds. Critical batch application is all-or-nothing; page/chunk partial commits cannot advance checkpoint.
 ```
 
 ## §7 Security rules
@@ -227,7 +226,7 @@ Per bounded context, in its Track C phase:
 
 ```
 Through the end of Track C, the app MUST remain buildable and runnable on a plain Windows/dev
-machine with NO server, NO SQL Server, NO network: `scripts/sandbox/build.sh full` = 0 warnings /
+machine with NO server, NO PostgreSQL, NO network: `scripts/sandbox/build.sh full` = 0 warnings /
 0 errors, `scripts/sandbox/run.sh` = SMOKE RUN OK, and the screen(s) the phase touched work against
 the real local SQLite database. From Track D onward, server-dependent features may require the
 server; the desktop must still start and operate offline.

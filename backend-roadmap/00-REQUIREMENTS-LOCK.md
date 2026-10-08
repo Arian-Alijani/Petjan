@@ -16,7 +16,7 @@
 | R-B04 | Real login plus roles (manager/owner, doctor, receptionist, cashier, accountant — extensible) with real role/permission management and per-role screen/action gating. | product §4 | A03, B03, B04, D03, D04 |
 | R-B05 | Server-side subscription management (create/extend/reduce/suspend/cancel, renewal, grace, expiry behavior) plus an operator admin website on the same server. | product §5 | D10, E01, E02 |
 | R-B06 | Anti-crack / anti-piracy: signed license, installation binding, tamper and clock-rollback resistance, fail-closed entitlement. | product §6 | D11, E07 |
-| R-B07 | Weak-server efficiency: many clients on ~2–4 cores / 4 GB, with measured capacity. | product §7 | D09, D13, E08 |
+| R-B07 | Weak-server efficiency: admitted clients on **1–3 cores / 2–4 GiB RAM**, with measured capacity (user revision 2026-10-08; no user-count guarantee). | product §7 | D09, D13, E08 |
 | R-B08 | Weak-client efficiency: fast startup, low RAM, virtualized lists, no UI-thread blocking. | product §7 | A10, B01, C09, C11, E08 |
 | R-B09 | Crash resilience: no data loss on kill/crash/power loss; resumable workers; recoverable local store. | product §8 | A11, B02, B05, D09, E06 |
 | R-B10 | Clean code: correct layering, naming and folder placement; no logic in the wrong project; no mixing of client and server code. | product §9 | A01 (enforced by `LayeringRulesTests`), A02, C11, E08 |

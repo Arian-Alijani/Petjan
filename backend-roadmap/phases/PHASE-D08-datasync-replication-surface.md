@@ -1,39 +1,33 @@
-# Phase D08 — Datasync replication surface
+# Phase D08 — PostgreSQL critical state replication surface
 
-**Band:** M · **Track:** D · **Depends on:** D05 · **Satisfies:** R-B03, R-B11, R-B31
-**Runnable after this phase:** desktop offline yes · server required no (the client adapter is E03)
+**Band:** M · **Track:** D · **Depends on:** D05, D07 · **Satisfies:** R-B03, R-B11, R-B31
+**Runnable after this phase:** desktop offline yes · server required no (client implementation E03)
+
+> Filename retained for existing roadmap links; this phase implements the custom journal protocol,
+> NOT a Datasync universal table surface. Server and sync do not exist before their owning phases.
 
 ## Read before starting
-- `backend-roadmap/CONVENTIONS.md` §1, §2, §3, §5, §6 (items 1, 3, 11, 12, 13), §7, §8, §9, §12
-- `backend-roadmap/PROGRESS.md` (D02 entry — `ServerModel` replicated / non-replicated lists,
-  `RowVersionCodec`, the `IX_<Table>_TenantId_UpdatedAt` index plan, `ITenantContext`; D04 entry —
-  tenant resolution and the `X-Animora-Tenant` selector; A01 entry — `WireContract`)
-- `ARCHITECTURE.md` §8.1, §8.2, §8.6, §9.2 (isolation layer 3) · `STACK.md` §4.2, §4.3, §5.1, §5.2
-- `A-RULE 001`, `A-RULE 009`, `A-RULE 010`, `A-RULE 014`, `A-RULE 022`, `T-RULE 002`, `T-RULE 007`
-- `src/Animora.Persistence.SqlServer/Context/**`, `src/Animora.Contracts.Wire/**`
+- `ARCHITECTURE.md` §8, §9, §11.4.1, §16-CT–§18-CT, §PG (binding implementation contract).
+- `STACK.md` §4, §6, §11–§12; `backend-roadmap/CONVENTIONS.md` §1–§9, §11–§12.
+- `backend-roadmap/PROGRESS.md` current state and D02/D04/D05 entries; live domain models,
+  `ServerModel`, `ITenantContext`, `EntityVersionCodec`, `WireContract`.
+- `A-RULE 001`, `A-RULE 009`, `A-RULE 010`, `A-RULE 014`, `A-RULE 022`, `T-RULE 002`, `T-RULE 007`.
 
 ## Goal
-The server exposes `/tables/*` — one `TableController<T>` per replicated entity over
-`EntityTableRepository<T>` — with a tenant-scoped `IAccessControlProvider<T>` that is **isolation
-layer 3**, explicit per-entity wire contracts (never server write models), soft-delete enabled,
-conservative paging, and a contract-version gate that makes a mixed-version fleet deterministic.
+PostgreSQL DML changes become a commit-safe tenant-local journal. Authorized HTTP clients receive
+frozen multi-entity batches with protected continuation, deterministic versions, retained deletion
+keys and recovery identity. State replication remains separate from command settlement.
 
-## Design decisions (pre-made — implement, do not re-derive)
-- **Packages pinned EXACTLY `10.1.2`** (`STACK.md` §4, T-RULE): `CommunityToolkit.Datasync.Server`,
-  `CommunityToolkit.Datasync.Server.EntityFrameworkCore`,
-  `CommunityToolkit.Datasync.Server.NSwag`. Consumed **only** by `Animora.Server` and
-  `Animora.Persistence.SqlServer` (`CONVENTIONS.md` §2). No client Datasync package is added in this
-  phase — that is E03's, and only `Animora.Sync.Datasync` may ever reference it.
-- **Wire contracts are separate types, one per replicated entity** (A-RULE 014, §8.2 invariant), in
-  `src/Animora.Contracts.Wire/Sync/`, named `<Entity>SyncContract` per `CONVENTIONS.md` §3. Each
-  carries exactly the four replication fields plus its business payload:
-  `string Id`, `DateTimeOffset? UpdatedAt`, `string? Version` (opaque base64 via `RowVersionCodec`),
-  `bool Deleted`, `int ContractVersion` — and **no** `TenantId` (the client never needs it; the
-  server's data view already scoped the rows, and shipping it would invite a client to trust it).
-  Mapping between the server entity and the contract lives in
-  `src/Animora.Persistence.SqlServer/Sync/SyncContractMappings.cs` as **explicit `Select`
-  projections** (no AutoMapper, no reflection — PERFORMANCE.md §3).
-- **Replicated entity set (binding, 25 entities).** *(audit 2026-10-08 · PH-05, IMP-01: "25" and every catch-up / policy / test count derived from this set MUST be computed from `SyncContractCatalog.ProjectionOrder` at runtime or in tests — never re-typed as a literal in E03/E04/E06/E08 code, config or assertions; the catalog is the single manifest.)* Derived from `ServerModel.ReplicatedEntities`
+## Design decisions (binding)
+- Launch installs NO Datasync/NSwag dependency or monotonic timestamp service. First-party ASP.NET
+  OpenAPI describes `/sync/*`; optional SYNC-SIMPLE adapters are deferred/qualified separately.
+- Flat `<Entity>SyncContract` DTOs carry Id, DB UTC UpdatedAt (display), canonical opaque UUID
+  Version, Deleted, ContractVersion and allowed payload fields. No TenantId or credential fields
+  are serialized. TenantId remains in internal query projections, never inferred from payload.
+  Explicit Select/mappers, no EF entity/AutoMapper/reflection hot path.
+- **Replicated base-entity set plus two read-model projections (binding by manifest).** Every
+  catch-up/policy/test count MUST derive from `SyncContractCatalog.ProjectionOrder`, never a
+  magic total in E03/E04/E06/E08. Derived from `ServerModel.ReplicatedEntities`
   (D02) minus everything a client must never hold or must obtain only through the command pipeline:
   | Replicated (client needs local reads of these) | Why |
   |---|---|
@@ -48,13 +42,14 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
   | **Not replicated** | **Why** |
   | `Invoice`, `Payment`, `CashSession`, `JournalEntry`, `Cheque`, `Expense`, `RecurringExpense`, `RecurringExpensePayment`, `StockMovement`, `PurchaseOrder`, `GoodsReceipt` | financial/stock facts are **settled by command**, not replicated as state (R-B13); the client learns them from its own settled commands and from server-computed read models |
   | `User`, `Permission`, `Device`, Identity tables | credentials/authorization material never leaves the server as replicable rows |
-  | `IdempotencyRecords`, `ServerAuditEntries`, `StockOnHandProjections`, `DailyFinanceFacts`, `ServerBootstrapState`, `TenantSettings` | server-internal (D02/D05/D07 lists) |
+  | `IdempotencyRecords`, `ServerAuditEntries`, `StockOnHandProjections`, `ServerBootstrapState`, `TenantSettings` | server-internal (D02/D05/D07 lists) |
   **DECISION (2026-10-07, closes Phase-Problem §6.1):** the two aggregates that post-date C01–C09 are
   classified by the same rule as their siblings — `TreatmentPlan`/`TreatmentOccurrence`/`VaccineCatalogItem`
   are clinical history ⇒ **replicated, read-only** (writes only via `vaccination.treatment.*` /
   `vaccination.catalog.add` commands, D06); `RecurringExpense`/`RecurringExpensePayment` are financial
   facts ⇒ **not replicated** (settled by `finance.recurring.*` commands, D07, exactly like `Expense`).
-  Net: replicated **25** (3 client-writable + **22** read-only). Client-local columns that have no wire
+  Only 3 entities are client-writable; all others, including the two finance projections below,
+  are read-only. Total is derived from the manifest (do not preserve the older base-only count). Client-local columns that have no wire
   counterpart — e.g. E05's `MedicalHistoryEntry.IsConflictPreservedCopy` — are **excluded from every
   `<Entity>SyncContract`** and are never pushed or pulled; the `MedicalHistoryEntry` contract carries
   no such field, so the entity stays purely read-only on the wire. **Asserted, not just documented (audit 2026-10-08 · SYNC-H-01):**
@@ -73,205 +68,111 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
   every device converges on the server's numbers. These are NOT the financial aggregates (which remain
   command-settled); they are server-authoritative *projections* the client only reads and never writes.
   `SyncSurfaceTests` is extended to assert this third set is read-only and contains exactly these two
-  projections. (Move `DailyFinanceFacts`/`OwnerFinancialSnapshot` out of the "server-internal" row
-  above when this lands — they become replicated read-models, raising the read-only set accordingly;
-  update the manifest count from the `SyncContractCatalog`, never a literal.) Convergence is asserted in
+  projections. These two are already classified as replicated read-models (not server-internal);
+  include them in the manifest/capture coverage before exposing this surface. Convergence is asserted in
   the E-track (see E04/E05 acceptance: two devices reach the same `OwnerFinancialSnapshot.TotalSpendMinor`
   after sync). *Rejected alternative (Option B): leave finance reads server-online-only and degrade
   those widgets to "requires connection" offline — rejected because the desktop is offline-first and
   silently-wrong dashboards are worse than a visible staleness marker.*
-- **One controller per entity**, `src/Animora.Server/Tables/<Entity>TableController.cs`:
-  `[Route("tables/<plural-lower>")] sealed class <Entity>TableController : TableController<<Entity>SyncContract>`.
-  Repository: `EntityTableRepository<T>` over `AnimoraServerDbContext` — but over a **projected
-  keyless-free view**: because Datasync requires an EF entity type, each contract is mapped as a
-  **database view** (`vw_Sync<Entity>`) created in migration `106_SyncViews` — **each view must be
-  indexable** (audit 2026-10-08 · SRV-M-02, OPT-01): either a SQL Server indexed (schema-bound)
-  view / persisted projection, or — when the projection is a trivial column subset — a view whose
-  predicate and `ORDER BY UpdatedAt` are fully served by the **base-table** index
-  `IX_<Table>_TenantId_UpdatedAt` (D02 invariant), so the OData `$filter=updatedAt gt …` + LINQ
-  data-view predicate never degrades into nested-view scans on the weak server. `SyncSurfaceTests`
-  asserts, per replicated entity, that the base table carries that index and that the delta query
-  plan seeks on it (no full scan) — selecting the
-  projection columns plus `UpdatedAt`/`Version`/`Deleted`, with `INSTEAD OF` triggers deliberately
-  **absent** — the views are read-only, and client writes travel through the command pipeline or
-  through the controller's own `ITableRepository` write path for the three genuinely
-  client-writable entities (`Owner`, `Pet`, `WeightEntry`). Every other controller sets
-  `TableControllerOptions.DisableClientSideWrites` semantics by overriding the write methods to
-  return `405` with `REPLICATION_READ_ONLY`. A test enumerates the controllers and asserts exactly
-  those three accept writes.
-  **Default-deny base class (audit 2026-10-08 · PH-10):** a per-controller 405 override is opt-*out* —
-  a forgotten override on a new controller would silently accept writes. So every controller derives
-  from `ReadOnlyTableController<T>` (`src/Animora.Server/Tables/ReadOnlyTableController.cs`), whose
-  write endpoints (`POST`/`PUT`/`PATCH`/`DELETE`) return `405 REPLICATION_READ_ONLY` **by default**;
-  only `Owner`, `Pet` and `WeightEntry` derive from the opt-in `WritableTableController<T>` that
-  re-enables writes. A new `TableController` is therefore read-only unless its author explicitly opts
-  in, and the enumeration test is kept as the second line of defence.
-- **`TableControllerOptions` (binding values, `STACK.md` §5.2):**
-  `PageSize = 50`, `MaxTop = 200` (matches `CONVENTIONS.md` §8's page cap),
-  `EnableSoftDelete = true`, `UnsafeEntityLogging = false` (never log a financial/PII row).
-  Configured once in `src/Animora.Server/Tables/TableOptionsFactory.cs`, not per controller.
-- **`IAccessControlProvider<T>` is isolation layer 3** (`ARCHITECTURE.md` §9.2):
-  `src/Animora.Server/Tables/TenantAccessControlProvider.cs`, one generic implementation registered
-  for every contract:
-  - `GetDataView()` returns `e => e.TenantId == _tenantContext.TenantId` — evaluated against the
-    **view's** tenant column; a null tenant context throws `TenantContextMissingException`
-    (never an unfiltered view).
-  - `IsAuthorizedAsync(TableOperation op, T? entity, ...)` checks the D04 permission for the
-    entity's read/write operation via `IPermissionEvaluator`, and for writes additionally
-    re-verifies `entity.TenantId == ambient`.
-  - `PreCommitHookAsync` **stamps the server-side fields** — `TenantId` from the context (never from
-    the payload), `UpdatedAt` from `ISystemClock` — which is the "server-side write stamping" half of
-    layer 3.
-  This provider is the only place replication authorization lives; controllers stay empty of logic.
-- **Contract-version gate, deterministic across N/N-1/N-2** (R-B31, §8.6):
-  `src/Animora.Server/Tables/ContractVersionMiddleware.cs` (scoped to `/tables/*`) reads
-  `WireContract.HeaderName` (`X-Animora-Contract-Version`, A01):
-  - header absent → treated as `WireContract.MinSupportedVersion` (an old client that predates the
-    header still works, deterministically).
-  - value inside `WireContract.SupportedVersions` (D05) → served.
-  - value **below** the window → `409` `CONTRACT_VERSION_UNSUPPORTED` with
-    `{ minSupported, current, action = "resync-after-upgrade" }` so the client can trigger a
-    controlled upgrade/resync instead of mis-mapping.
-  - value **above** current → `409` with `action = "server-upgrade-required"`.
-  Each response also **echoes** the served version in the same header, so a client can detect a
-  silent downgrade. `WireContract.Version` **is bumped to `2`** only if a contract shape here differs
-  from what A01 assumed; since these are new types, it stays `1` and the phase file records that
-  explicitly (ROADMAP §3.8 expected this phase *might* bump it — it does not, and that is the
-  decision).
-- **Delta-cursor safety is the pinned library's own algorithm** (`STACK.md` §4.3) — max `UpdatedAt`
-  per entity/query. Two guards are added here because `STACK.md` §12 Gate G1 is not yet proven:
-  1. `UpdatedAt` is stamped with **strictly monotonic** values per tenant/table by
-     `MonotonicStampService` (`src/Animora.Server/Tables/MonotonicStampService.cs`): it takes the
-     greater of `now` and `lastStamp + 1 tick` from an in-memory per-(tenant,table) high-water
-     seeded from the table's max on first use. Same-millisecond bursts therefore cannot collapse
-     onto one cursor value — the single largest G1 risk, removed by construction.
-     **Persisted high-water (audit 2026-10-08 · SRV-M-01, OPT-02):** an in-memory-only high-water
-     reseeded from a racing `MAX(UpdatedAt)` leaves a narrow skip/duplicate window across a restart.
-     So the seed is `MAX(UpdatedAt) + 1 tick` **and** the high-water is persisted per
-     (tenant, table) in a small `SyncStampHighWaters(TenantId, TableName, HighWaterTicks)` row
-     (non-replicated, added to `ServerModel.NonReplicatedProjectionTables`; migration `106_SyncViews`
-     or the next free ordinal). The row is advanced **in the same transaction** as the stamped write
-     in coarse steps (every N=1000 ticks reserved ahead, "block reservation"), so a restart resumes
-     from `max(persisted reservation, MAX(UpdatedAt)+1 tick)` and can never re-issue a stamp that a
-     client may already hold as a cursor.
-  2. `SyncSurfaceTests` includes a **same-tick burst** fact (100 inserts stamped inside one
-     millisecond, then a paged pull) asserting zero skipped and zero duplicated rows; the burst
-     test also covers **"restart mid-burst"** (audit 2026-10-08 · SRV-M-01): the stamp service is
-     torn down and rebuilt half-way through the burst and the paged pull still yields zero skipped /
-     zero duplicated rows and strictly increasing stamps. The full G1
-     matrix is E08's gate; this is the in-phase smoke version.
-  `UpdatedAt` and `Version` remain **transport bookkeeping only** (A-RULE 009/010) — a test asserts
-  no business query orders by `UpdatedAt`.
-- **OpenAPI:** NSwag documents `/tables/*` only (`STACK.md` §5.1) at
-  `/openapi/tables.json`, gated by the same `ExposeOpenApi` flag as D01's `business` document. The
-  first-party document is **not** extended to `/tables/*`, and no business client may depend on the
-  OData semantics it describes (T-RULE 002/007) — `LayeringRulesTests` gains a fact that no project
-  other than `Animora.Server`/`Animora.Persistence.SqlServer` references a Datasync assembly.
-- **Web-client seam (R-B11, structure only, no feature):** the contracts and controllers are
-  transport-agnostic and the read projections live in `SyncContractMappings`, which a future online
-  Blazor clinic client can query directly through the Business API without any change here. No
-  endpoint is added for it.
-- **`/health/ready` gains a `replication` check**: every registered contract has a corresponding
-  view and a `TenantId`+`UpdatedAt` index (the check reads the catalog once at startup and caches
-  the result).
+
+- Manifest is `SyncContractCatalog`: stable entity code, DTO version, field allowlist, dependency
+  ProjectionOrder, underlying table/root-child capture set, writable policy and schema fingerprint.
+  Counts derive from the live manifest; finance projections are read-only and included in it.
+- Default-deny writes: only Owner/Pet/WeightEntry may use guarded state mutation endpoints;
+  clinical/finance/stock/identity changes use business commands. Mutation envelope contains stable
+  MutationId, expected Version, protected base evidence, patch and fingerprint. Receipt uniqueness
+  `(TenantId,MutationId)` and conditional patch/effects/audit/journal commit atomically; replay with
+  different fingerprint is rejected. Reuse receipt primitives, NOT financial operation identity.
+- D02 Version triggers remain. Migration `106_SyncJournal` (verify next free server ordinal) adds
+  logged `sync.ChangeJournal`, `sync.IdentityGraveyard`, batch manifests/pages/build leases,
+  trigger registry and DML capture functions. Feed state provisioning is D02. Capture EVERY INSERT/
+  UPDATE/DELETE on replicated tables plus child→root invalidation, including finance projection
+  writers. No journal/outbox/auth/batch self-capture. No key reuse or tenant reassignment.
+- Tenant counter update and journal append are in the same DML transaction. Tenant gate spans
+  COMMIT; all writers/maintenance acquire it BEFORE business locks. No nextval/identity/xmin/LSN/
+  UpdatedAt allocation for cursor. Missing state/trigger coverage fails readiness.
+- API: `POST /sync/batches` for delta from bound checkpoint; `POST /sync/snapshots` for controlled
+  full snapshot; `GET /sync/batches/{batchId}/pages/{ordinal}`; guarded
+  `POST /sync/mutations` with default-deny catalog; metadata exposes supported scope/contract,
+  epoch/profile/generation without raw journal rows. Each route uses authN/authZ/entitlement,
+  tenant/device/scope binding and the D13 `tables` admission policy (name retained).
+- Export uses one bounded REPEATABLE READ transaction for floor/current/keys/rows/dependencies
+  and persisted pages/manifest. Deduplicate latest journal keys; read canonical state in the
+  SAME snapshot, authorized tenant predicates before serialization including OLD deletion keys.
+  Full snapshots read all base rows, not retained keys alone. Disable only SoftDelete filter.
+  One reader at a time; keyset chunks fully consumed before writes. No retry buffering.
+- Page default 50 items (max 200), 256 KiB serialized; initial whole export limits 10,000 items,
+  16 MiB, 15 s, one export in flight. Ready batch TTL initially 15 min, Building lease 30 s;
+  restart expired builds and GC boundedly. Oversized scope/item returns controlled SyncBusy/
+  capacity action, never truncation/partial completeness. Bigger full scopes need reviewed export
+  capacity before tenant admission. Immutable pages survive process restart.
+- From/To sequence decimal strings; epoch + tenant feed generation + scope/profile/contract +
+  principal/device bind every checkpoint/page. Missing config ⇒ FeedUnavailable; floor breach ⇒
+  CursorExpired; future checkpoint ⇒ InvalidCheckpoint; scope/epoch mismatch ⇒ controlled recovery.
+  Hash/ordinal/count validation and exact FromVersion CAS govern local application (E03).
+- Current permission checks run on EVERY page; revoked profiles invalidate batches. Mutable
+  visibility requires RemoveFromScope transition records or profile bump+rebuild, including
+  timer/join-only changes. Never suppress canonical state based on origin device.
+- Contract header `X-Animora-Contract-Version` supported N/N-1/N-2 is echoed. Unsupported low/high
+  version gets deterministic 409 actions; absent header maps minimum. Serve D05 negotiated WireContract v2 (ExpectedServerVersion addition), with explicit V1
+  compatibility; never assume no wire change merely because no server is deployed (§PG.7).
+- Retention floor/GC follows §18-CT: >=offline window+15 days, committed-observation marker,
+  contiguous prefix delete and floor update under the tenant gate in ONE transaction. No automatic
+  dropping history under disk pressure. Graveyard retains used identities; receipts and batch TTL
+  have independent horizons. Recovery/DDL/TRUNCATE/feed reset installs fresh epoch/schema.
+- `/health/ready` validates manifest/schema/fingerprint, logged journal/batches, indexes, enabled
+  triggers and feed state; no expensive full export or pg_amcheck on each probe.
 
 ## Files to create / modify
-| Path | Action | Contents (one line) |
+| Path | Action | Purpose |
 |---|---|---|
-| `src/Animora.Contracts.Wire/Sync/*.cs` | create | 25 `<Entity>SyncContract` records |
-| `src/Animora.Contracts.Wire/Sync/SyncContractCatalog.cs` | create | name → contract + version table |
-| `src/Animora.Persistence.SqlServer/Sync/SyncContractMappings.cs` | create | explicit projections |
-| `src/Animora.Persistence.SqlServer/Sync/SyncViewConfigurations.cs` | create | 25 view mappings |
-| `src/Animora.Persistence.SqlServer/Migrations/106_SyncViews*` | create | `vw_Sync<Entity>` views + indexes check |
-| `src/Animora.Server/Tables/*TableController.cs` | create | 25 thin controllers |
-| `src/Animora.Server/Tables/TableOptionsFactory.cs` | create | the binding `TableControllerOptions` |
-| `src/Animora.Server/Tables/TenantAccessControlProvider.cs` | create | isolation layer 3 |
-| `src/Animora.Server/Tables/ContractVersionMiddleware.cs` | create | N/N-1/N-2 gate + echo header |
-| `src/Animora.Server/Tables/MonotonicStampService.cs` | create | strictly-increasing `UpdatedAt` |
-| `src/Animora.Server/Program.cs` | modify | `AddDatasyncServices()`, NSwag tables doc, middleware, readiness check |
-| `Directory.Packages.props` | modify | pin the 3 Datasync server packages at `10.1.2` |
-| `tests/Animora.Server.Tests/SyncSurfaceTests.cs` | create | replicated set, read-only set, same-tick burst |
-| `tests/Animora.Server.Tests/SyncAccessControlTests.cs` | create | data view, cross-tenant pull, write stamping |
-| `tests/Animora.Server.Tests/ContractVersionTests.cs` | create | below/above/absent/echo behavior |
-| `tests/Animora.Domain.Tests/LayeringRulesTests.cs` | modify | only server projects reference Datasync |
+| `src/Animora.Contracts.Wire/Sync/*` | create | contracts/catalog, checkpoint/batch/page/mutation envelopes |
+| `src/Animora.Persistence.PostgreSql/Sync/*` | create | journal extraction, batch store, explicit mappings, state mutation receipts, trigger registry |
+| `src/Animora.Persistence.PostgreSql/Migrations/*_SyncJournal*` | create | logged feed/graveyard/batch schema, capture triggers and indexes |
+| `src/Animora.Server/Sync/*` | create | authenticated endpoints, default-deny mutation policy, contract gate |
+| `src/Animora.Server/Program.cs` | modify | critical sync DI, OpenAPI, readiness (NO AddDatasyncServices) |
+| `tests/Animora.Server.Tests/Sync*Tests.cs` | create | journal/commit/snapshot/GC/tenant/default-deny/contract tests |
+| `tests/Animora.Domain.Tests/LayeringRulesTests.cs` | modify | wire/ports contain no Npgsql/EF/OData types |
 
 ## Implementation steps
-1. Pin the three Datasync server packages at exactly `10.1.2`.
-2. Write the 25 sync contracts + `SyncContractCatalog`; write `SyncContractMappings` and
-   `SyncViewConfigurations`; generate migration `106_SyncViews`.
-3. Write `MonotonicStampService` and `TableOptionsFactory`.
-4. Write `TenantAccessControlProvider` (data view, authorization, pre-commit stamping).
-5. Write the 25 controllers; override the write methods on the 22 read-only ones.
-6. Write `ContractVersionMiddleware`; scope it to `/tables/*`; echo the served version.
-7. Register `AddDatasyncServices()`, the NSwag `tables` document, the middleware and the
-   `replication` readiness check.
-8. Extend `LayeringRulesTests`; write the three server test classes.
-9. Verify against a real SQL Server: a paged pull for tenant A never returns a tenant B row; a
-   forged `TenantId` in a pushed payload is overwritten by the pre-commit stamp; a write to a
-   read-only table is `405`; an old contract version gets the controlled-resync instruction.
-10. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; desktop `run.sh` = `SMOKE RUN OK`.
+1. Derive catalog including post-C11 clinical and finance read projections from live models.
+2. Define DTO/checkpoint/mutation shapes and compatibility tests; canonical UUID codec reuse.
+3. Add reviewed migration/capture functions and root invalidations; trigger coverage assertion.
+4. Implement gate-first mutation CAS/receipt/audit, direct-DML governance and hard-delete graveyard.
+5. Implement snapshot materialization + protected batch paging, scope transitions and budget admission.
+6. Implement committed-observation/contiguous-prefix GC and generation recovery; validate readiness.
+7. Wire first-party OpenAPI/contract/authorization and write mandatory real-PostgreSQL tests.
+8. Build 0/0, tests green and offline desktop smoke; missing DB is a local skip only, CI failure.
 
-## Contracts / schema added
-- Wire: 25 `<Entity>SyncContract` records + `SyncContractCatalog`. `WireContract.Version` stays `1`
-  (explicit decision; no existing shape changed).
-- Persistence.SqlServer: `SyncContractMappings`, `SyncViewConfigurations`, 25 `vw_Sync<Entity>`
-  views, migration `106_SyncViews`.
-- Server: 25 `TableController`s, `TableOptionsFactory`, `TenantAccessControlProvider`,
-  `ContractVersionMiddleware`, `MonotonicStampService`, the `tables` OpenAPI document, the
-  `replication` readiness check.
-- `ErrorCodes` += `REPLICATION_READ_ONLY` (`CONTRACT_VERSION_UNSUPPORTED` exists from D05 — reuse).
-- Packages: 3 Datasync server pins at `10.1.2`.
-- No `Animora.Contracts` change, no `CommandTypes` entry, no DI change in `App.axaml.cs`.
-
-## Rules that apply here
-- **A-RULE 001 / T-RULE 002 / T-RULE 007** — Datasync types exist only in the two server projects;
-  OData is an implementation detail of `/tables/*` and nothing else depends on it.
-- **A-RULE 014 / §8.2** — clients receive `<Entity>SyncContract`, never a server write model; the
-  contracts deliberately omit `TenantId`.
-- **A-RULE 009 / 010** — `UpdatedAt` is a delta cursor and `Version` is opaque concurrency metadata;
-  neither is a business sequence, asserted by a test.
-- **R-B19 / §9.2 layer 3** — the data view plus pre-commit server-side stamping are the replication
-  isolation layer, independent of D02's query filter and D04's authorization.
-- **R-B31 / §8.6** — the supported-version window is explicit, the response echoes the served
-  version, and both out-of-window directions get a deterministic instruction.
-- **R-B13** — financial and stock tables are deliberately **not** replicated; the split is asserted.
-- **CONVENTIONS §8** — `PageSize 50` / `MaxTop 200`; `UnsafeEntityLogging = false`.
+## Acceptance criteria (release-blocking, real PostgreSQL 18)
+- Two same-tenant writers: T1 allocates then delays, T2 cannot commit a higher position first;
+  after T1 COMMIT/ROLLBACK all changes eventually deliver. Different tenants progress independently.
+- Rollback/savepoint cancels state, UUID token, journal/counter and receipt together; no phantom delta.
+- Direct DML, soft/hard delete and owned-child-only update are captured; disabled/missing capture,
+  foreign-parent FK, identity reuse and tenant mutation fail. Internal/batch writes never self-feed.
+- Real same-snapshot floor/watermark/keys/payload stays stable through concurrent updates/GC;
+  frozen pages are repeatable across restart; missing/corrupt/expired pages never complete.
+- Boundary floor/current/negative/future/wrong epoch/scope/contract cases; full snapshot includes
+  unchanged rows; empty complete batch may advance only THIS tenant checkpoint.
+- Metadata/tombstones/continuation leakage tests with two tenants, RLS OFF and optional ON; unknown
+  or read-only entity mutations denied; payload cannot forge tenant/version/time/authority.
+- Manifest/root capture and finance read-model convergence checked from catalog, not literal counts.
+- GC crash atomicity, recently committed long writer retention, scope exit/timer transitions,
+  epoch reset + counter overtaking old cursor, finite rows/bytes/time/RSS budgets all tested.
+- `WireContract` mixed versions/header echo; no SQL provider/server persistence reference in client.
+- Record reproducible build/tests/smoke; no successful release if DB tests were skipped.
 
 ## Out of scope
-- The client-side `ISyncEngine` implementation and the Datasync **client** package → E03.
-- Sync orchestration, scheduling, status UI → E04.
-- Conflict resolution and non-destructive pull on the client → E05.
-- The full G1 delta-correctness matrix as a recorded gate → E08 (only the smoke burst test here).
-- Server-computed read models exposed for pull → E02 (the reporting seam).
-
-## Acceptance criteria
-- Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors; the Datasync pins resolve to
-  exactly `10.1.2` (a CI assertion fails on any other version).
-- `SyncSurfaceTests` green (or skipped with reason): the replicated set equals the 25 listed
-  entities and the non-replicated set contains every financial/stock/identity/internal table; a
-  write attempt on any of the 22 read-only controllers is `405` `REPLICATION_READ_ONLY`; a
-  100-insert same-millisecond burst followed by a paged pull yields **zero skipped and zero
-  duplicated** rows (`MonotonicStampService` proven).
-- `SyncAccessControlTests` green: a tenant-A token pulling `/tables/pets` never sees a tenant-B row;
-  a pushed `Owner` carrying a foreign `TenantId` is stamped to the ambient tenant, not rejected
-  silently and not honored; a pull with no tenant context throws rather than returning rows; a
-  caller lacking the read permission gets `403`.
-- `ContractVersionTests` green: absent header behaves as `MinSupportedVersion`; a below-window value
-  returns `409` with `action = "resync-after-upgrade"`; an above-window value returns `409` with
-  `action = "server-upgrade-required"`; every 200 response echoes the served version.
-- `LayeringRulesTests` green: no project other than `Animora.Server` /
-  `Animora.Persistence.SqlServer` references a `CommunityToolkit.Datasync*` assembly.
-- `/health/ready` reports the `replication` check; `/openapi/tables.json` is served only when
-  `ExposeOpenApi` is on.
-- Desktop unaffected: `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
+Client staging/atomic projection/shadow generation → E03; orchestration → E04; conflict decisions →
+E05; command HTTP transport → E06; credential refresh → E07; full load/restore chaos gates → E08/E09.
+Optional Datasync/OData views are deferred and never replace launch correctness.
 
 ## PROGRESS.md update
-Mark D08 done; advance "Next phase" to `D09`; append a "Repo state" entry listing: the 25
-`<Entity>SyncContract` types + `SyncContractCatalog` (**E03 maps to them**), the **binding
-replicated / non-replicated split** and its test, the three client-writable entities, the
-`vw_Sync<Entity>` views + migration `106_SyncViews`, `TableControllerOptions` values,
-`TenantAccessControlProvider` as isolation layer 3 (**E08 gate E/J re-tests it**),
-`ContractVersionMiddleware` + the header echo + the two 409 actions (**E03/E09 depend on them**),
-`MonotonicStampService` (**the G1 mitigation; E08 proves the full matrix**), the Datasync `10.1.2`
-pins, the `tables` OpenAPI document, the explicit decision that `WireContract.Version` stays `1`,
-the extended layering fact, deviations.
+Only after implementation/acceptance mark D08 done and advance D09. Record manifest, trigger schema,
+commit-safe counter, mutations/receipt policy, batch endpoints/budgets, retained floor/graveyard,
+read-only finance projections, contract decision and real PostgreSQL evidence for E03/E08.
+
+## Version seam gate
+Read ARCHITECTURE §PG.7: existing Domain Version is string?, existing V1 command expected revision
+is long?. D05 versions ExpectedServerVersion as V2; canonical UUID codec/converter, captured
+server-base evidence and V1 pending-journal compatibility must pass before shipping this phase.

@@ -1,5 +1,7 @@
 # Phase D05 — Business API — command intake & idempotency
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** D · **Depends on:** D04 · **Satisfies:** R-B13, R-B14, R-B15, R-B29
 **Runnable after this phase:** desktop offline yes · server required no
 
@@ -33,23 +35,23 @@ questions. This phase builds the **intake machinery**; the business handlers the
   The batch endpoint is **not** a transaction: each envelope settles independently, results are
   returned in **request order**, and the batch never reorders (A-RULE 022). Max batch size 50,
   enforced and returned as `BATCH_TOO_LARGE`.
-- **Idempotency store** — `src/Animora.Persistence.SqlServer/Commands/IdempotencyRecord.cs`, table
+- **Idempotency store** — `src/Animora.Persistence.PostgreSql/Commands/IdempotencyRecord.cs`, table
   `IdempotencyRecords`, migration `104_CommandIntake`:
   | Column | Type | Note |
   |---|---|---|
-  | `TenantId` + `OperationId` | `nvarchar(26)` ×2 | **composite PK** — the uniqueness key (`ARCHITECTURE.md` §8.3) |
-  | `CommandType` | `nvarchar(64)` | |
+  | `TenantId` + `OperationId` | `varchar(26)` ×2 | **composite PK** — the uniqueness key (`ARCHITECTURE.md` §8.3) |
+  | `CommandType` | `varchar(64)` | |
   | `CommandFingerprint` | `char(64)` | SHA-256 hex, computed by B02's `CommandFingerprint` |
   | `Status` | `int` | `IntakeStatus { Received, InProgress, Settled, Failed }` |
   | `Outcome` | `int?` | `SettlementOutcome` once settled |
-  | `ResultJson` | `nvarchar(max)` | the **serialized `SettlementResult`** — replay returns this verbatim |
+  | `ResultJson` | `text` | the **serialized `SettlementResult`** — replay returns this verbatim |
   | `ResultHash` | `char(64)` | integrity check on `ResultJson` |
-  | `AggregateType`, `AggregateId` | `nvarchar` | for the dependency + version checks |
-  | `AppliedAggregateVersion` | `bigint?` | version after the effect, for dependent commands |
-  | `FirstSeenAtUtc`, `LastAttemptAtUtc`, `SettledAtUtc` | `datetimeoffset(7)` | |
+  | `AggregateType`, `AggregateId` | `varchar(n)` | for the dependency + version checks |
+  | `AppliedServerVersion` | `uuid?` | opaque server token after effect; canonical string on wire, never local bigint revision |
+  | `FirstSeenAtUtc`, `LastAttemptAtUtc`, `SettledAtUtc` | `timestamptz(6)` | |
   | `AttemptCount` | `int` | |
-  | `LastErrorCode` | `nvarchar(64)?` | |
-  | `DeviceId`, `UserId`, `CorrelationId`, `CausationId`, `DependsOnOperationId` | `nvarchar(26)?` | correlation (R-B29) |
+  | `LastErrorCode` | `varchar(64)?` | |
+  | `DeviceId`, `UserId`, `CorrelationId`, `CausationId`, `DependsOnOperationId` | `varchar(26)?` | correlation (R-B29) |
   | `ClaimedUntilUtc`, `ClaimToken` | | the in-progress lease, so a crashed request is recoverable |
   Indexes: PK `(TenantId, OperationId)`; `IX_IdempotencyRecords_TenantId_Status_ClaimedUntilUtc`;
   `IX_IdempotencyRecords_TenantId_AggregateType_AggregateId`;
@@ -72,8 +74,11 @@ questions. This phase builds the **intake machinery**; the business handlers the
     `CommandType` + canonical payload with B02's **same** algorithm and compares it to the envelope's
     value. Mismatch → `COMMAND_FINGERPRINT_INVALID` + security audit. The client's claimed
     fingerprint is never trusted as the stored one.
-  5. **Idempotency decision** — a single atomic conditional `INSERT` (`WHERE NOT EXISTS`) as the
-    claim:
+  5. **Idempotency decision** — PostgreSQL atomic `INSERT ... ON CONFLICT (TenantId,OperationId) DO NOTHING RETURNING`
+    claim. If no row returned, perform a subsequent READ COMMITTED lookup to see the winning
+    committed row; no same-snapshot CTE fallback that can miss a concurrent winner. Then
+    conditional lease reclaim/settlement uses ClaimToken and DB UTC. Acquire tenant write gate
+    before business locks in settlement (never hold it across receipt/network waits):
     - no row → row inserted `InProgress` with a lease → continue.
     - row exists, `Settled`, **same fingerprint** → return the stored `SettlementResult` verbatim
       (the replay path; no handler runs, no second effect — A-RULE 006). `AttemptCount` increments.
@@ -92,7 +97,7 @@ questions. This phase builds the **intake machinery**; the business handlers the
      deterministic, retriable delay — never an optimistic accept).
      Prerequisite `Rejected`/`Conflict`/reversed → `Rejected` + `DEPENDENCY_REJECTED` (its
      precondition never became true).
-     `ExpectedAggregateVersion` present and ≠ the aggregate's current version → `Conflict` +
+     `ExpectedServerVersion` (canonical UUID from §PG.7 V2 envelope) present and ≠ current server token → `Conflict` +
      `AGGREGATE_VERSION_CONFLICT`. **Arrival order is never used as ordering** — only the
      dependency graph and the version check.
   7. **Authorization.** The per-`CommandType` permission comes from a single static map
@@ -114,7 +119,7 @@ questions. This phase builds the **intake machinery**; the business handlers the
 - **Server handler seam** (`src/Animora.Application/Commands/IServerCommandHandler.cs`):
   `interface IServerCommandHandler<TPayload>` with
   `Task<Result<ServerCommandEffect>> HandleAsync(TPayload payload, ServerCommandContext context, CancellationToken ct)`;
-  `sealed record ServerCommandEffect(string? EntityId, string? EntityVersion, FinancialEffect FinancialEffect, long? AggregateVersion)`;
+  `sealed record ServerCommandEffect(string? EntityId, string? EntityVersion, FinancialEffect FinancialEffect, string? AppliedServerVersion)`;
   `sealed record ServerCommandContext(string TenantId, string UserId, string DeviceId, string OperationId, string CorrelationId, DateTimeOffset ReceivedAtUtc)`.
   D06/D07 implement this interface only; they never see `HttpContext`, never touch the idempotency
   table and never build a `SettlementResult` (A-RULE 014 — write models stay server-side; the wire
@@ -126,8 +131,11 @@ questions. This phase builds the **intake machinery**; the business handlers the
   static `ErrorCode → StaffRole` map `ResponsibilityMap`). A `SettlementResult` with
   `Outcome != Accepted` and a null `ResponsibleRole` is a **test failure**.
 - **`WireContract` gains `MinSupportedVersion = 1`** and `SupportedVersions` (an
-  `IReadOnlyList<int>`), so D08/E03/E09 have one place to widen the window. `Version` itself stays
-  `1` (no wire shape changed — ROADMAP §3.8).
+  `IReadOnlyList<int>`), so D08/E03/E09 have one place to widen the window. `Version` is bumped to
+  **2** for additive ExpectedServerVersion semantics (§PG.7); retain V1 local payloads, explicit
+  compatibility handlers and supported-window tests. MinSupportedVersion=1 does not make
+  numeric-only V1 edits safe: stale-sensitive writes require an authorized server token or
+  controlled upgrade/conflict, never automatic current-token substitution.
 - **Audit:** every intake decision writes one `ServerAuditEntry` through D03's `IServerAuditWriter`
   with the full correlation set (`TenantId`, `OperationId`, `DeviceId`, `RequestId`, `CausationId`)
   — accepted, rejected, conflicted, deferred and every integrity error (R-B29).
@@ -142,10 +150,10 @@ questions. This phase builds the **intake machinery**; the business handlers the
 | `src/Animora.Contracts.Wire/Commands/CommandBatchRequestV1.cs` | create | batch request/result records |
 | `src/Animora.Application/Commands/IServerCommandHandler.cs` | create | handler seam + effect + context |
 | `src/Animora.Application/Abstractions/IServerUnitOfWork.cs` | create | server transaction port |
-| `src/Animora.Persistence.SqlServer/Commands/IdempotencyRecord.cs` | create | entity + `IntakeStatus` |
-| `src/Animora.Persistence.SqlServer/Commands/IdempotencyStore.cs` | create | atomic claim / replay / lease |
-| `src/Animora.Persistence.SqlServer/Commands/ServerUnitOfWork.cs` | create | `IServerUnitOfWork` impl |
-| `src/Animora.Persistence.SqlServer/Migrations/104_CommandIntake*` | create | `IdempotencyRecords` + indexes |
+| `src/Animora.Persistence.PostgreSql/Commands/IdempotencyRecord.cs` | create | entity + `IntakeStatus` |
+| `src/Animora.Persistence.PostgreSql/Commands/IdempotencyStore.cs` | create | atomic claim / replay / lease |
+| `src/Animora.Persistence.PostgreSql/Commands/ServerUnitOfWork.cs` | create | `IServerUnitOfWork` impl |
+| `src/Animora.Persistence.PostgreSql/Migrations/104_CommandIntake*` | create | `IdempotencyRecords` + indexes |
 | `src/Animora.Server/Commands/CommandIntakeService.cs` | create | the 9-step algorithm |
 | `src/Animora.Server/Commands/DependencyResolver.cs` | create | dependency + version resolution |
 | `src/Animora.Server/Commands/CommandPermissions.cs` | create | `CommandType` → permission map |
@@ -182,10 +190,10 @@ questions. This phase builds the **intake machinery**; the business handlers the
 
 ## Contracts / schema added
 - Wire: `WireContract.MinSupportedVersion`, `WireContract.SupportedVersions`,
-  `CommandBatchRequestV1`, `CommandBatchResultV1`. `WireContract.Version` stays `1`.
+  `CommandBatchRequestV1`, `CommandBatchResultV1`. `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version).
 - Application: `IServerCommandHandler<TPayload>`, `ServerCommandEffect`, `ServerCommandContext`,
   `IServerUnitOfWork`.
-- Persistence.SqlServer: `IdempotencyRecord`, `IntakeStatus`, `IdempotencyStore`,
+- Persistence.PostgreSql: `IdempotencyRecord`, `IntakeStatus`, `IdempotencyStore`,
   `ServerUnitOfWork`, migration `104_CommandIntake`.
 - Server: `CommandIntakeService`, `DependencyResolver`, `CommandPermissions`,
   `ServerCommandRegistry`, `IServerCommandDispatcher`, `SettlementResultFactory`,
@@ -216,7 +224,7 @@ questions. This phase builds the **intake machinery**; the business handlers the
 ## Out of scope
 - All business command handlers → D06 (clinical/scheduling) and D07 (money/stock).
 - The outbox and its relay worker → D09.
-- `/tables/*` replication → D08.
+- `/sync/*` replication → D08.
 - The client-side transport that calls this endpoint → E06.
 - Rate limiting and per-tenant throttling → D13.
 
@@ -235,7 +243,7 @@ questions. This phase builds the **intake machinery**; the business handlers the
   `InProgress` lease is re-claimable while a live one returns `COMMAND_IN_PROGRESS`.
 - `DependencyOrderingTests` green: **gate P** — for a dependent pair, all arrival interleavings
   (A→B, B→A, B only, A rejected then B, A conflicted then B) reach the **same** deterministic
-  outcome; `ExpectedAggregateVersion` mismatch → `Conflict`/`AGGREGATE_VERSION_CONFLICT`.
+  outcome; `ExpectedServerVersion` mismatch → `Conflict`/`AGGREGATE_VERSION_CONFLICT`.
 - `CommandPermissionMapTests` green: every `CommandTypes` constant has a `CommandPermissions` entry;
   an unmapped type is denied.
 - `SettlementContractTests` green: **gate O** — no `SettlementResult` with
@@ -255,3 +263,9 @@ command type**), `ServerCommandRegistry` + `IServerCommandHandler<TPayload>` (**
 only this**), `IServerUnitOfWork`, `SettlementResultFactory` + `ResponsibilityMap` (**the single
 producer of the UX contract**), `WireContract.MinSupportedVersion`/`SupportedVersions` (**D08/E03/E09
 widen it**), the 8 new error codes, the gate C/D/P/Q/O test names, deviations.
+
+## Existing numeric wire seam — required migration
+Implement ARCHITECTURE §PG.7: additive ExpectedServerVersion string?, WireContract v2, explicit
+V1 compatibility/no-token policy, UUID AppliedServerVersion receipts, unchanged local numeric
+revision/sequence semantics and preserved V1 fingerprints/journal payloads. V1→V2 upgrade and
+dependency tests block server integration; no numeric-to-UUID cast or silent overwrite.

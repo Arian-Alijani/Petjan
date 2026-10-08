@@ -1,5 +1,7 @@
 # Phase E04 — Sync orchestration & status
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** E · **Depends on:** E03 · **Satisfies:** R-B03
 **Runnable after this phase:** desktop offline yes · server required no (the loop reports `Offline`)
 
@@ -19,7 +21,7 @@
 A real background sync loop runs inside the desktop: jittered, adaptively backed off, connectivity
 aware, circuit-broken into an honest "working offline" state, and resumable after a long gap via
 progressive catch-up. `ISyncStatusService` gets its **real** implementation (`SyncOrchestrator`-backed),
-replacing C11's placeholder, and per-entity cursor/backlog diagnostics reach the existing UI seam with
+replacing C11's placeholder, and scope-checkpoint/per-entity backlog diagnostics reach the existing UI seam with
 zero `.axaml` changes.
 
 ## Design decisions (pre-made — implement, do not re-derive)
@@ -35,17 +37,15 @@ zero `.axaml` changes.
   estimate exceeds `CatchUpThreshold = 500` rows. Jitter uses `Random.Shared` seeded once per process
   from the A11 `LocalInstallation.InstallationId` hash, so a fleet restarting together does not
   converge on the same tick (the reconnect-storm defense, gate I).
-- **Progressive catch-up, not one giant pull.** After a long offline period the orchestrator runs
-  **narrowing passes**: first the reference/catalog entities at the head of
-  `SyncContractCatalog.ProjectionOrder`, then the transactional-read entities — **the groupings are
-  derived from `SyncContractCatalog.ProjectionOrder` at runtime (currently 25 entities, post-C11 incl.
-  `TreatmentPlan`/`TreatmentOccurrence`/`VaccineCatalogItem`), never hard-coded as "13 + 9 = 22"** (audit
-  2026-10-08 · SYNC-M-01, PH-05) — then repeats while any entity reports `Complete = false`.
-  `MaxCatchUpPasses = 20` is an explicit **per-wake-up budget that resumes at the next wake** (the
-  per-entity cursor persists, so nothing restarts from zero) before yielding back to the schedule, so
-  catch-up can never monopolize the process. Each pass is a
-  separate `SynchronizeAsync` call — the engine already commits per entity, so a kill mid-catch-up
-  loses at most one entity's page (A-RULE 026).
+- **Progressive catch-up via bounded complete batches**, not independent entity commits.
+  Request the full authorized stable scope from its completed checkpoint. Download pages into
+  invisible staging; resume safely by BatchId/PageOrdinal. Catalog order governs projection, not
+  separate per-entity checkpoint advancement. `MaxCatchUpPasses=20` is a wake-up budget: yield
+  after each complete bounded atomic batch or cancelled/failed attempt; incomplete work retains
+  its old completed checkpoint. Changing scope/table grouping changes the profile, requiring
+  controlled recovery rather than reusing another entity's cursor. A kill mid-pass loses no
+  committed base/intent; staged pages are reusable if batch identity/TTL still valid.
+
 - **`SyncOrchestrator` (`src/Animora.Client.Services/Sync/SyncOrchestrator.cs`)** — a
   `BackgroundService`-shaped class (`StartAsync`/`StopAsync`, no ASP.NET dependency) owning one
   long-running `Task`:
@@ -53,7 +53,7 @@ zero `.axaml` changes.
   2. `IConnectivityProbe.CheckAsync()`;
   3. if the circuit is open and its cooldown has not elapsed → publish `Offline`, continue;
   4. `ISyncEngine.SynchronizeAsync(scope, ct)`;
-  5. fold the result into `SyncStateMachine`, persist cursors, notify;
+  5. fold the result into `SyncStateMachine`, persist diagnostics (engine owns atomic checkpoint), notify;
   6. loop.
   **Single-flight:** a `SemaphoreSlim(1,1)` guards the pass, so a manual "sync now" during an
   automatic pass awaits the running pass instead of starting a second one
@@ -146,7 +146,7 @@ zero `.axaml` changes.
 | `src/Animora.Client.Services/Sync/SyncTelemetry.cs` | create | in-process counters for the bundle |
 | `src/Animora.Client.Services/Sync/LocalSyncStatusService.cs` | delete | replaced by `SyncStatusService` |
 | `src/Animora.Contracts/Sync/ISyncDiagnosticsQuery.cs` | create | Contracts **addition** + 2 DTOs |
-| `src/Animora.Sync.Datasync/SyncOptions.cs` | modify | the 10 orchestration options + `Validate()` |
+| `src/Animora.Sync.Custom/SyncOptions.cs` | modify | the 10 orchestration options + `Validate()` |
 | `src/Animora.Desktop/Shell/TopBarViewModel.cs` | modify | 2 properties + refresh command (off UI thread) |
 | `src/Animora.Desktop/Resources/*.resx`-equivalent | modify | sync diagnostic localization keys |
 | `src/Animora.Desktop/App.axaml.cs` | modify | register orchestrator + `ISyncStatusService` swap + start/stop hooks |
@@ -195,7 +195,7 @@ zero `.axaml` changes.
   deleted**), `ISyncDiagnosticsQuery` → `SyncDiagnosticsQueryService`, orchestrator start/stop hooks.
 - `ErrorCodes` += `SYNC_CIRCUIT_OPEN`, `SYNC_PASS_TIMEOUT`.
 - **No migration** (E03's `SyncCursor` columns are sufficient), no new wire contract, no
-  `CommandTypes` entry. `WireContract.Version` stays `1`.
+  `CommandTypes` entry. `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version).
 
 ## Rules that apply here
 - **`ARCHITECTURE.md` §12.3 / R-B03** — jittered, adaptive, progressive catch-up; no fixed interval
@@ -258,7 +258,7 @@ zero `.axaml` changes.
   any backend project — grep assertion).
 - Manual (real server): `Syncing → Synced`; server stopped → `Offline`, circuit opens after 5 passes;
   server restarted → half-open → `Synced`; `LastSyncedAt` survives restart; the topbar flyout shows
-  per-entity cursors.
+  scope checkpoints (per-entity progress is diagnostic only).
 - Offline runnability: with no `ServerBaseUrl`, `scripts/sandbox/run.sh` = `SMOKE RUN OK`, the box
   reads `Offline`, and the log contains no repeated error spam (one line per pass).
 - `src/Animora.Desktop/Mocks/` still does not exist; C11's DI-audit test remains green with the new

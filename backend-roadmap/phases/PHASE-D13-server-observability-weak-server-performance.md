@@ -1,5 +1,7 @@
 # Phase D13 — Server observability & weak-server performance
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** D · **Depends on:** D09 · **Satisfies:** R-B07, R-B27, R-B35
 **Runnable after this phase:** desktop offline yes · server required no
 
@@ -81,7 +83,7 @@ measured, never asserted.
   |---|---|---|
   | `auth` | `/api/identity/login`, `/refresh`, `/first-run` | fixed window, 10 req / 1 min **per (IP, username-hash)**, queue 0 |
   | `commands` | `/api/commands*` | token bucket, 120 req / min **per tenant**, burst 40, queue 10 |
-  | `tables` | `/tables/*` | concurrency limiter, 8 concurrent **per tenant**, queue 16 |
+  | `tables` | `/sync/*` | concurrency limiter, 8 concurrent **per tenant**, queue 16 |
   | `files` | `/api/files/*` | concurrency limiter, 4 concurrent per tenant, queue 8 |
   | `operator` | `/api/operator/*`, `/diagnostics/*` | fixed window, 120 req / min per operator user |
   `D03`'s prepared `.RequireRateLimiting("auth")` call sites are now activated (that is the whole
@@ -92,9 +94,10 @@ measured, never asserted.
   are keyed by tenant, so one busy clinic cannot consume another's share on a shared server. A test
   saturates tenant A and asserts tenant B's latency stays within 2× its unloaded baseline.
 - **Connection and query tuning, measured choices not guesses:**
-  - `DatabaseOptions` gains `MaxPoolSize` (default 60 — below SQL Server Express's worker budget on
-    4 cores) and `MinPoolSize` (5); both are appended to the connection string in one place.
-  - Read-only paths (diagnostics, operator lists, `/tables/*` pulls) use the
+  - `DatabaseOptions` gains workload pool budgets from §PG.4 (combined maximum 12 on 2 GiB, 20 on 4 GiB)
+    and MinPoolSize=0. One shared data source per workload; no tenant pools or unconstrained
+    read/DP pool. Validate the SUM, reserving DB admin/backup capacity.
+  - Read-only paths (diagnostics, operator lists, `/sync/*` pulls) use the
     `ReadConnectionStringName` D02 reserved, with `AsNoTracking` enforced by a
     `QueryTrackingBehavior.NoTracking` default on a second `DbContextOptions` profile.
   - `QueryHygieneTests` asserts: no `ToListAsync()` without a preceding `Take`/paging call in any
@@ -110,8 +113,8 @@ measured, never asserted.
   and omitting a component fails the test.
 - **Reporting isolation is enforced, not hoped for** (A-RULE 034, §11.5, R-B35):
   `src/Animora.Server/Diagnostics/QueryBudget.cs` — a small helper that tags a query scope as
-  `Oltp` or `Reporting`, applies `CommandTimeoutSeconds` 30 vs. 120, and runs `Reporting` scopes
-  through a dedicated `SemaphoreSlim(2)` so aggregation can never occupy the OLTP connection budget.
+  `Oltp` or `Reporting`, applies finite measured timeouts (15 s OLTP, 15 s report initially), and runs Reporting scopes
+  through `SemaphoreSlim(1)` sharing background admission/pool budget so aggregation can never occupy the OLTP connection budget.
   Every `/diagnostics` aggregate, every operator list and (later) every E02 insight query must open a
   `Reporting` scope; a test asserts no command handler opens one.
 - **Capacity-measurement harness — published methodology, measured numbers** (§16.3, A-RULE 035):
@@ -126,7 +129,7 @@ measured, never asserted.
   Ramp: 5 -> 10 -> 25 -> 50 virtual clients, 3 min per step, 1 min cooldown
   Recorded per step: p50/p95/p99 command latency, read p95, pull duration,
     outbox backlog peak, CPU%, working set, SQL wait summary, error rate
-  Target hardware class: 4 vCPU / 4 GB, SQL Server Express co-resident
+  Target hardware classes: 2 GiB / 1 core and 4 GiB / 2–3 cores, PostgreSQL 18 co-resident
   ```
   Output is written to `backend-roadmap/measurements/D13-capacity.md` (same folder C11 created)
   with the exact commit hash, hardware description and raw numbers. The harness **fails** only on an
@@ -210,7 +213,7 @@ measured, never asserted.
   semaphore); no command handler may open a `Reporting` scope.
 - **A-RULE 035 / R-B07 / §16.3** — the capacity number comes from `loadtest.sh` with a published
   workload, ramp and hardware class; the harness records, the budgets gate.
-- **§16.1** — rate-limit partitions are per tenant so one clinic cannot starve another on a 4-core
+- **§16.1** — rate-limit partitions are per tenant so one clinic cannot starve another on the 1–3-core
   box; the worker bulkhead from D09 remains in force.
 - **PERFORMANCE.md §16 / CONVENTIONS §7** — no hot-path logging; the bundle and logs are redacted;
   no secret and no business row appears in any diagnostic output.
@@ -268,3 +271,9 @@ rule, the 5 `/diagnostics` routes (**E01/E02 render them**), `ServerDiagnosticsB
 the 8-check readiness payload, `loadtest.sh` + `CapacityHarness` + the committed
 `measurements/D13-capacity.md` (**E08 re-runs it**), the gate L/V unit halves, the 3 new error codes,
 deviations.
+
+## PostgreSQL resource evidence
+Use pg_stat_statements/pg_stat_activity/pg_locks/vacuum/WAL/archive metrics, sampled protected plans
+and local request histograms. Measure combined DB+app+OS memory, queue/pool/gate waits, backlog and
+disk growth. Exact constrained profiles are §PG.4; unconstrained evidence cannot pass the smallest
+production profile. No full observability stack co-hosted on 2 GiB, and no disabled vacuum/durability.

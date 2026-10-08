@@ -1,5 +1,7 @@
 # Phase D07 — Server command handlers II — money & stock
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** D · **Depends on:** D06 · **Satisfies:** R-B01, R-B17, R-B22, R-B23
 **Runnable after this phase:** desktop offline yes · server required no
 
@@ -166,13 +168,13 @@ literally true for money.
 | `src/Animora.Server/Handlers/Finance/PeriodGuard.cs` | create | one-place closed-period check |
 | `src/Animora.Server/Handlers/Inventory/StockMovementWriter.cs` | create | movement + projection, one transaction |
 | `src/Animora.Server/Commands/FinancialEffectResolver.cs` | create | truthful effect per outcome |
-| `src/Animora.Persistence.SqlServer/Context/ServerAppendOnlyGuard.cs` | create | `SaveChanges` interceptor |
-| `src/Animora.Persistence.SqlServer/Projections/StockOnHandProjection.cs` | create | derived stock table |
-| `src/Animora.Persistence.SqlServer/Projections/DailyFinanceFact.cs` | create | derived finance fact table |
-| `src/Animora.Persistence.SqlServer/Projections/FinanceProjectionHandler.cs` | create | outbox-driven projector |
-| `src/Animora.Persistence.SqlServer/Maintenance/IServerStoreMaintenance.cs` | create | rebuild ports + impl |
-| `src/Animora.Persistence.SqlServer/Identity/TenantSettings.cs` | create | per-tenant server settings row |
-| `src/Animora.Persistence.SqlServer/Migrations/105_ServerProjections*` | create | 3 tables + indexes |
+| `src/Animora.Persistence.PostgreSql/Context/ServerAppendOnlyGuard.cs` | create | `SaveChanges` interceptor |
+| `src/Animora.Persistence.PostgreSql/Projections/StockOnHandProjection.cs` | create | derived stock table |
+| `src/Animora.Persistence.PostgreSql/Projections/DailyFinanceFact.cs` | create | derived finance fact table |
+| `src/Animora.Persistence.PostgreSql/Projections/FinanceProjectionHandler.cs` | create | outbox-driven projector |
+| `src/Animora.Persistence.PostgreSql/Maintenance/IServerStoreMaintenance.cs` | create | rebuild ports + impl |
+| `src/Animora.Persistence.PostgreSql/Identity/TenantSettings.cs` | create | per-tenant server settings row |
+| `src/Animora.Persistence.PostgreSql/Migrations/105_ServerProjections*` | create | 3 tables + indexes |
 | `src/Animora.Server/Handlers/MoneyHandlerRegistration.cs` | create | explicit registry lines |
 | `src/Animora.Server/Commands/CommandPermissions.cs` | modify | one entry per new command type |
 | `src/Animora.Server/Commands/SettlementResultFactory.cs` | modify | `ResponsibilityMap` rows |
@@ -191,7 +193,7 @@ literally true for money.
 5. Write the 47 handlers on the D06 skeleton + the two additions, each calling its domain method.
 6. Write `MoneyHandlerRegistration`; extend `CommandPermissions` and `ResponsibilityMap`.
 7. Write the two flow tests and the five invariant test classes.
-8. Verify against a real SQL Server: the POS chain settles; the ledger balances to the cent; the
+8. Verify against a real PostgreSQL: the POS chain settles; the ledger balances to the cent; the
    stock projection equals the movement sum; a second `payment.register` with the same
    `OperationId` produces exactly one payment; editing a posted invoice is refused by both the
    handler **and** the interceptor; posting into a closed period is refused.
@@ -200,8 +202,8 @@ literally true for money.
 
 ## Contracts / schema added
 - Wire: 47 `<Name>PayloadV1` records under `Payloads/Inventory|Sales|Finance/`.
-  `WireContract.Version` stays `1`.
-- Persistence.SqlServer: `ServerAppendOnlyGuard`, `StockOnHandProjection`, `DailyFinanceFact`,
+  `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version).
+- Persistence.PostgreSql: `ServerAppendOnlyGuard`, `StockOnHandProjection`, `DailyFinanceFact`,
   `FinanceProjectionHandler`, `IServerStoreMaintenance` + impl, `TenantSettings`,
   `ServerModel.NonReplicatedProjectionTables`, migration `105_ServerProjections`.
 - Server: 47 handlers, `LedgerPostingService`, `PeriodGuard`, `StockMovementWriter`,

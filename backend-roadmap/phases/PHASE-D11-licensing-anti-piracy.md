@@ -1,5 +1,7 @@
 # Phase D11 — Licensing & anti-piracy
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** D · **Depends on:** D10 · **Satisfies:** R-B06, R-B29, R-B30, R-B36
 **Runnable after this phase:** desktop offline yes · server required no
 
@@ -29,7 +31,7 @@ is a standalone library the desktop consumes in E07 without pulling in any serve
   `Animora.Domain` + `Animora.Contracts.Wire` (the half E07 consumes from the client);
   `Issuance/` references `Animora.Application` + `Animora.Domain` and is consumed only by
   `Animora.Server`. `LayeringRulesTests` gains a fact asserting `Verification/` types transitively
-  reference neither `Animora.Persistence.SqlServer` nor ASP.NET Core — that is what makes client
+  reference neither `Animora.Persistence.PostgreSql` nor ASP.NET Core — that is what makes client
   reuse safe.
 - **Licence artifact = a detached-signature envelope, not a JWT.** JWT would drag in a token stack
   and a clock model this product does not want. Format
@@ -134,7 +136,7 @@ is a standalone library the desktop consumes in E07 without pulling in any serve
   | `GET /api/license/keyset` | anonymous | the signed key-set bundle (public keys only) |
   | `POST /api/operator/licenses/{tenantId}/reissue` | `RequireOperator` | operator-forced reissue with a reason |
   | `POST /api/operator/licenses/rotate-key` | `RequireOperator` | creates a new primary key, marks the old `Retiring` for `LicensePolicy.KeyRetireDays` (30), returns the new bundle |
-  Wire records go in `src/Animora.Contracts.Wire/Licensing/`. `WireContract.Version` stays `1`.
+  Wire records go in `src/Animora.Contracts.Wire/Licensing/`. `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version).
 - **`subscription.plan.changed` triggers a reissue, through the outbox** — not a direct call:
   `src/Animora.Server/Consumers/LicenseReissueConsumer.cs` implements D09's `IOutboxConsumer`
   (`MessageType = "subscription.plan.changed"`), reissues the tenant's current licence with reason
@@ -142,7 +144,7 @@ is a standalone library the desktop consumes in E07 without pulling in any serve
   coupling between Subscription and Licensing, and it is **asynchronous and one-way**
   (`ARCHITECTURE.md` §13.1).
 - **`EntitlementMiddleware` becomes real (server side).** D04's no-op is replaced by an
-  implementation that, for `/api/commands*` and `/tables/*`, resolves the tenant's current
+  implementation that, for `/api/commands*` and `/sync/*`, resolves the tenant's current
   `LicenseIssuance` (cached per tenant for 60 s with a tenant-scoped key per A-RULE 033),
   evaluates `EntitlementPolicy` for the request's capability group, and returns `403`
   `ENTITLEMENT_REQUIRED` (existing code from B01) with the verdict code in `WireApiError.Detail`.
@@ -180,11 +182,11 @@ is a standalone library the desktop consumes in E07 without pulling in any serve
 | `src/Animora.Server.Licensing/Issuance/LicenseIssuer.cs` | create | issue/reissue/rotate over subscription state |
 | `src/Animora.Server.Licensing/Issuance/LicensePolicy.cs` | create | validity/expiring/retire numbers |
 | `src/Animora.Contracts.Wire/Licensing/*.cs` | create | `LicenseRequestV1`, `LicenseResponseV1`, `LicenseKeySetBundleV1` |
-| `src/Animora.Persistence.SqlServer/Licensing/LicenseSigningKey.cs` | create | key table entity |
-| `src/Animora.Persistence.SqlServer/Licensing/LicenseIssuance.cs` | create | issuance ledger entity |
-| `src/Animora.Persistence.SqlServer/Migrations/109_Licensing*` | create | 2 tables + indexes |
-| `src/Animora.Persistence.SqlServer/Context/ServerModel.cs` | modify | non-tenant-scoped + non-replicated entries |
-| `src/Animora.Persistence.SqlServer/Context/ServerAppendOnlyGuard.cs` | modify | protect `LicenseIssuances` (+ the one whitelisted column) |
+| `src/Animora.Persistence.PostgreSql/Licensing/LicenseSigningKey.cs` | create | key table entity |
+| `src/Animora.Persistence.PostgreSql/Licensing/LicenseIssuance.cs` | create | issuance ledger entity |
+| `src/Animora.Persistence.PostgreSql/Migrations/109_Licensing*` | create | 2 tables + indexes |
+| `src/Animora.Persistence.PostgreSql/Context/ServerModel.cs` | modify | non-tenant-scoped + non-replicated entries |
+| `src/Animora.Persistence.PostgreSql/Context/ServerAppendOnlyGuard.cs` | modify | protect `LicenseIssuances` (+ the one whitelisted column) |
 | `src/Animora.Server/Endpoints/LicenseEndpoints.cs` | create | 4 routes |
 | `src/Animora.Server/Consumers/LicenseReissueConsumer.cs` | create | `subscription.plan.changed` → reissue |
 | `src/Animora.Server/Security/EntitlementMiddleware.cs` | modify | real evaluation, replaces the no-op |
@@ -223,8 +225,8 @@ is a standalone library the desktop consumes in E07 without pulling in any serve
 - Issuance: `ILicenseIssuer`, `LicenseIssuer`, `LicenseIssueRequest`, `IssuedLicense`,
   `LicensePolicy` (`MaxValidityDays 45`, `ExpiringWithinDays 10`, `KeyRetireDays 30`).
 - Wire: `LicenseRequestV1`, `LicenseResponseV1`, `LicenseKeySetBundleV1`.
-  `WireContract.Version` stays `1`; `LicenseContract.Version = 1` is introduced here.
-- Persistence.SqlServer: `LicenseSigningKey`, `KeyStatus`, `LicenseIssuance`, migration
+  `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version); `LicenseContract.Version = 1` is introduced here.
+- Persistence.PostgreSql: `LicenseSigningKey`, `KeyStatus`, `LicenseIssuance`, migration
   `109_Licensing`, `ServerModel` + `ServerAppendOnlyGuard` extended.
 - Server: `LicenseEndpoints` (4 routes), `LicenseReissueConsumer`, the real
   `EntitlementMiddleware`.

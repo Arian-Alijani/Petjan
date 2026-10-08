@@ -27,8 +27,8 @@ must be split before implementation, not absorbed.
 | **A — Local core foundation** | Real projects, domain model and encrypted local SQLite store. The desktop keeps running offline on mocks while the foundation appears beneath it. A01–A11 ship behavior with **no tests**; **A12** is the single consolidation phase that authors and runs every Track A test. | A01–A12 (12) | yes |
 | **B — Application layer & local platform** | Command/query pipeline, durable local command outbox, real login, authorization + offline capability, audit/logging/crash safety. B03–B05 are each executed as 3 self-contained sessions (a–c) for low per-session weight; each trio counts as one phase. | B01–B05 (5) | yes |
 | **C — Mock retirement** | One bounded context per phase: real `Animora.Contracts` implementation over the local DB, mock deleted, screen verified. | C01–C11 (11) | yes |
-| **D — Server** | ASP.NET Core 10 host, SQL Server store, tenancy, identity, command intake, handlers, Datasync replication surface, outbox/workers, subscription, licensing, files, observability. | D01–D13 (13) | desktop still starts offline |
-| **E — Admin web, integration, release** | Operator admin site, `ISyncEngine` + Datasync adapter, sync orchestration, conflict resolution, command transport, online auth/entitlement, validation gates, release engineering. | E01–E09 (9) | desktop still starts offline |
+| **D — Server** | ASP.NET Core 10 host, PostgreSQL store, tenancy, identity, command intake, handlers, PostgreSQL journal / immutable-batch replication surface, outbox/workers, subscription, licensing, files, observability. | D01–D13 (13) | desktop still starts offline |
+| **E — Admin web, integration, release** | Operator admin site, `ISyncEngine` + custom HTTP adapter, sync orchestration, conflict resolution, command transport, online auth/entitlement, validation gates, release engineering. | E01–E09 (9) | desktop still starts offline |
 
 **Total: 50 phases.** (A 12 + B 5 + C 11 + D 13 + E 9 = 50; at the hard cap of 50.
 Deviation from the §7 mandate of 40–48 is a consequence of three mandated splits plus the Track A
@@ -73,7 +73,7 @@ test-consolidation phase A12 — see §6.)
 | D05 | Business API — command intake & idempotency | M | D | D04 | R-B13, R-B14, R-B15, R-B29 | desktop offline ok |
 | D06 | Server command handlers I — clinical & scheduling | M | D | D05 | R-B01, R-B17 | desktop offline ok |
 | D07 | Server command handlers II — money & stock | M | D | D06 | R-B01, R-B17, R-B22, R-B23 | desktop offline ok |
-| D08 | Datasync replication surface | M | D | D05 | R-B03, R-B11, R-B31 | desktop offline ok |
+| D08 | PostgreSQL journal / immutable-batch replication surface | M | D | D05, D07 | R-B03, R-B11, R-B31 | desktop offline ok |
 | D09 | Outbox, workers, resilience | M | D | D07 | R-B07, R-B09, R-B25 | desktop offline ok |
 | D10 | Subscription context, operator API & self-service onboarding intake | M | D | D04 | R-B05, R-B30, R-B36 | desktop offline ok |
 | D11 | Licensing & anti-piracy | M | D | D10 | R-B06, R-B29, R-B30, R-B36 | desktop offline ok |
@@ -81,7 +81,7 @@ test-consolidation phase A12 — see §6.)
 | D13 | Server observability & weak-server performance | M | D | D09 | R-B07, R-B27, R-B35 | desktop offline ok |
 | E01 | Admin web I — operator panel core | M | E | D11 | R-B05 | desktop offline ok |
 | E02 | Admin web II — insight seams | M | E | E01 | R-B05, R-B11, R-B35 | desktop offline ok |
-| E03 | ISyncEngine + Datasync client adapter | M | E | D08 | R-B03, R-B13, R-B31 | desktop offline ok |
+| E03 | ISyncEngine + custom immutable-batch HTTP adapter | M | E | D08 | R-B03, R-B13, R-B31 | desktop offline ok |
 | E04 | Sync orchestration & status | M | E | E03 | R-B03 | desktop offline ok |
 | E05 | Conflict resolution & non-destructive pull | M | E | E04 | R-B03, R-B17, R-B18 | desktop offline ok |
 | E06 | Command transport & settlement reconciliation | M | E | E05, D07 | R-B03, R-B09, R-B16 | desktop offline ok |
@@ -141,7 +141,7 @@ runnability held, no forbidden dependency, no rule violated, every acceptance cr
 | Deployment Stamps (`Tenant → Stamp → Database`) | One tenant's load or data-residency requirement justifies a dedicated database; designed for in D02's data-access abstraction. |
 | Separate reporting database / OLAP store | Reporting load measurably breaches the OLTP budget measured in E08 (A-RULE 034). |
 | Passkeys / external IdP | Customer security requirement; ASP.NET Core Identity in D03 is the extension point. No cloud IdP ever. |
-| SQL RLS enabled as hardening | Only after the STACK.md §12 RLS gate passes in E08 with trace flag 11042; isolation must already hold without it. |
+| SQL RLS enabled as hardening | Only after the STACK.md §12 RLS gate passes in E08 with transaction-local context/non-owner/pooling tests; isolation must already hold without it. |
 | Message broker / microservice extraction | Never without the A-RULE 031 ADR; the modular monolith is the target shape. |
 
 ## §6 Deviations from the mandated phase plan
