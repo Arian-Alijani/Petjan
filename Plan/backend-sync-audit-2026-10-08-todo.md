@@ -74,7 +74,7 @@ multi-file edit, still push it as one coherent commit with a clear message.
 
 ## TASKS
 
-### [ ] T0 — Add the maintenance drift ledger (IMP-02) + baseline-verified line (IMP-06)
+### [x] T0 — Add the maintenance drift ledger (IMP-02) + baseline-verified line (IMP-06)
 - **Audit refs:** IMP-02, IMP-06, §8 row for drift.
 - **Why first:** every later phase edit should point the forward reader at one
   accurate baseline; this is the structural fix that stops the whole Phase-Problem
@@ -98,7 +98,7 @@ multi-file edit, still push it as one coherent commit with a clear message.
 
 ---
 
-### [ ] T1 — Pull encryption enablement forward to E07; assert replica+conflict tables encrypted (rank 1)
+### [x] T1 — Pull encryption enablement forward to E07; assert replica+conflict tables encrypted (rank 1)
 - **Audit refs:** SYNC-C-02, PH-01, CODE-01. Owner phases: **E07** (enable), **E09** (release blocker), **E03/E05** (assert).
 - **Ground truth already verified:** `src/Animora.Persistence.Sqlite/Options/LocalStoreOptions.cs:13`
   has `EncryptionEnabled` default `false`; Phase-Problem assigned enablement to **E09 only**;
@@ -122,7 +122,7 @@ multi-file edit, still push it as one coherent commit with a clear message.
 
 ---
 
-### [ ] T2 — Make the dual-context single-file store safe-by-test (rank 2)
+### [x] T2 — Make the dual-context single-file store safe-by-test (rank 2)
 - **Audit refs:** SYNC-C-01, PH-02, IMP-05. Owner phase: **E03**.
 - **Ground truth:** `PHASE-E03...md:69-108,164-165` introduces `AnimoraOfflineDbContext`
   (Datasync `OfflineDbContext`) in the **same SQLite file** as `AnimoraLocalDbContext`,
@@ -141,7 +141,7 @@ multi-file edit, still push it as one coherent commit with a clear message.
 
 ---
 
-### [ ] T3 — Separate "parked command" from "transport down"; surface attention state (rank 3)
+### [x] T3 — Separate "parked command" from "transport down"; surface attention state (rank 3)
 - **Audit refs:** SYNC-C-04, SYNC-H-03, IMP-04, IMP-08. Owner phases: **E04**, **E06**.
 - **Ground truth:** `PHASE-E06...md:44-52,112-114` = pass order 1–6, skips replication
   pull on *any* command-submit failure, and only a **transport** failure feeds `SyncCircuit`.
@@ -163,7 +163,7 @@ multi-file edit, still push it as one coherent commit with a clear message.
 
 ---
 
-### [ ] T4 — Decide + document cross-device financial read-model sync (rank 4)
+### [x] T4 — Decide + document cross-device financial read-model sync (rank 4)
 - **Audit refs:** SYNC-C-05, SYNC-H-02, IMP-03, scenario SC-02. Owner: **D08** + a decision note (new) + E02 cross-ref.
 - **Ground truth:** `PHASE-D08...md:48-51` lists `Invoice/Payment/StockMovement/...`
   as **not replicated**; `PHASE-E03...md:86-90` projection set has no financial aggregates.
