@@ -496,6 +496,30 @@ server-side (§8.4), dispatches to the registered handler, and returns a
 settles independently, results return **in request order**, and the batch never
 reorders (A-RULE 022); max batch size 50 (`BATCH_TOO_LARGE`).
 
+**[invariant] Intake crash-recovery is explicit (A-RULE 036):** `IdempotencyRecords`
+carries a **fenced lease** (`AttemptId`, `LeaseOwner`, `LeaseUntil`) exactly like
+the outbox (§12.2). An intake that dies mid-handler leaves a stale `InProgress`
+row; on restart it is **never retried blindly** and **never stuck forever**.
+Because the settled outcome is written in the **same transaction** as the
+financial effect (A-RULE 006), the record is the authority: a row is `Settled`
+**iff** the effect committed. Recovery is therefore deterministic — an `InProgress`
+row with an expired lease is **not** proof of a committed effect, so the owner (or
+a new leaseholder) resolves it by reading the authoritative state, then either
+completes the one-and-only transaction or marks it `Failed`; a client retry of the
+same `(TenantId, OperationId)` meanwhile returns the stored result if `Settled`,
+and is otherwise safely re-leased. There is no stand-alone `InProgress` commit that
+can diverge from the effect.
+
+**[invariant] Idempotency retention is explicit (A-RULE 040).** An `IdempotencyRecords`
+row is retained **at least as long as the longest supported offline/retry window**
+(the same window that sizes journal/tombstone retention, §PG.6 item 5) so a
+long-offline device's retry still de-dupes. Past that window the full record may be
+compacted to an **archival receipt** (`(TenantId, OperationId)` + `CommandFingerprint`
++ final effect reference) — enough to still answer "already done, here is the
+outcome" for a very late retry without carrying the whole payload forever. Retention
+is a reviewed policy, not unbounded growth and not an early purge that would re-admit
+a duplicate.
+
 **[invariant] HTTP status policy (A-RULE 024):** a *settled* outcome — Accepted,
 Rejected, or Conflict — is a **successful conversation → HTTP 200** with the
 outcome inside `SettlementResult`. Only transport/auth/shape failures use 4xx/5xx
@@ -564,6 +588,21 @@ times), so the server supports **N / N-1 / N-2** deterministically:
   E03 (§18).
 - The server maps an older command DTO onto the current handler explicitly; it
   never reflection-maps across versions.
+
+**[invariant] Wire compatibility ≠ business-semantic compatibility (A-RULE 037).**
+`ContractVersion` only proves the *shape* is readable; it does not prove the
+*meaning* still matches. A long-offline desktop may post against a stale
+`PostingRules` / pricing / tax / rounding / discount / valuation policy. So a
+command that computes a financial effect carries a **`RuleSetVersion`** (the
+monotonic version of the posting/pricing/tax policy it was computed under) beside
+`ContractVersion`. On intake the server decides by policy window, not silently: a
+**current/recent** rule set is accepted; a **superseded-but-migratable** one is
+**transparently re-derived** by the server's authoritative rules (the client's
+numbers are provisional, §8.1/§11.1, so the server's re-derivation is the truth);
+an **out-of-support** rule set is **rejected with an explicit upgrade reason**
+(`RULESET_UNSUPPORTED`), never force-applied under new semantics. The supported
+`RuleSetVersion` window is a reviewed policy, sized to the longest supported
+offline window (§PG.6 item 5).
 
 ### §8.7 The sync-failure UX contract (R-B16, A-RULE 024)
 
@@ -697,9 +736,19 @@ driven by the same permission catalog the shell uses to filter navigation.
 **[invariant, A-RULE 029]** An offline client's authority is a **signed,
 device-bound capability snapshot**: the set of permission codes the user holds,
 each with a **per-capability offline expiry window** keyed to its risk level
-(Low 30 d, Normal 14 d, High 72 h, Critical = online-only). It is HMAC-signed with
-a server/keystore key, bound to `(tenant, user, device)` and the user's security
-stamp.
+(Low 30 d, Normal 14 d, High 72 h, Critical = online-only). It is bound to
+`(tenant, user, device)` and the user's security stamp.
+
+**[decision] The snapshot is sealed with an asymmetric detached signature, never
+an HMAC.** The server signs with a private key; the offline desktop verifies with
+a **public** key only. HMAC is symmetric, so offline verification would force the
+secret onto the untrusted client, where its owner could extract it and mint any
+capability — it cannot satisfy *offline verify + untrusted client* at once. The
+snapshot therefore reuses the **exact licence trust model** (§13.2): the same
+canonical-JSON payload form, `KeyId`-selected rotation-aware public key set, and
+detached-signature envelope. The private half lives only in server `Issuance/`;
+the desktop consumes the client-reusable verifier half (§13.2) and holds no
+signing secret.
 
 Fail-closed rules: before warm-up, on sign-out, on a locked/expired/absent
 session, or on a missing/tampered/mismatched snapshot → **deny**. A tampered
@@ -903,6 +952,16 @@ extend it, A-RULE 011). The policy matrix is **fail-closed**: unverifiable /
 expired / wrong-installation / tampered → gated capabilities off (read-only or
 locked, by capability risk).
 
+**[decision] Honest threat model.** The signature guarantees **artifact authenticity
+and tamper-detection** — a forged or altered licence is rejected. It is **not** an
+unbreakable anti-piracy boundary: the binary runs on hardware the customer owns, so
+a determined owner can patch the verifier out (OWASP: client-side gating is never a
+hard security boundary). Real enforcement of an entitlement therefore lives
+**server-side** for any online-touching capability (§13.3); a *truly offline*
+capability cannot be absolutely enforced against the machine's owner, and the design
+does not claim otherwise. Licensing's job is to make the honest path easy and
+tampering evident, not to defeat a motivated local attacker.
+
 **[decision] The verifier is a client-reusable library half.**
 `Animora.Server.Licensing/Verification/` references only `Animora.Domain` +
 `Animora.Contracts.Wire` (no PostgreSQL, no ASP.NET Core), so the desktop (E07)
@@ -1046,11 +1105,38 @@ requires it).
 
 ### §17.3 Backup, restore & host move — the disaster-recovery matrix [invariant]
 
+**[invariant] Single-host is a deliberate choice with a *stated* recovery target,
+not an unbounded one (A-RULE 038).** Single-host (§3.2) means a host failure makes
+**all tenants unavailable** until restore — backup enables disaster *recovery*, not
+*availability*. The spec therefore publishes explicit objectives the operator runbook
+must meet and the restore drill must prove:
+- **RPO** — the maximum tolerable data loss, set by backup cadence (PITR/WAL
+  archiving for a small RPO; scheduled logical dumps otherwise). The chosen cadence
+  is a measured, documented number, never "best effort".
+- **RTO** — the maximum time to readiness on a clean host, proven by the gate-R
+  drill (§19) — the drill records elapsed restore time, so RTO is *measured*.
+- **Off-host durability** — at least one backup copy lives on **different hardware
+  from the live host**; a backup co-located with the data it protects does not count
+  toward the durability target.
+- **Promotion/failover** — host move is the documented promotion path (same restore
+  + repoint config); the spec names the **trigger** at which single-host is no longer
+  acceptable (the scale-out switch, §16.2) so the decision is explicit, not drift.
+
 **The single backup set is three things, and all three are mandatory:**
 1. the **PostgreSQL** database (logical or physical/PITR),
 2. the **file content** tree (§14),
 3. the **Data-Protection key ring** (§10.6) — *forgetting this is the classic
    silent disaster: the DB restores but every token is undecryptable*.
+
+**[invariant] The three parts are one consistency boundary, not three independent
+snapshots.** The DB and the filesystem are captured as a **single point-in-time
+set** — a write-freeze (or an equivalent PITR/LSN + file-manifest pairing) brackets
+the capture so the DB backup point and the file snapshot describe the *same* instant
+(§PG.5). Content-addressing (§14) makes the common drift benign in one direction — a
+committed `FileId` is immutable, so a DB that references it restores correctly as
+long as that content is in the tree — but the freeze is what guarantees the other
+direction (no DB restored *behind* its files, no orphaned/missing content). A restore
+proves file↔metadata parity, not just that each part loaded.
 
 **[invariant] Restore is rehearsed, not assumed** (§19 gate R): a periodic drill
 restores all three onto a clean host and proves the server reaches readiness and
@@ -1096,20 +1182,20 @@ server can branch mapping explicitly.
 
 | Gate | Proves |
 |---|---|
-| **A — Idempotency & financial-effect-once** | identical retry returns stored result; same `OperationId`+different fingerprint is audited; never two financial effects (§8.3) |
+| **A — Idempotency & financial-effect-once** | identical retry returns stored result; same `OperationId`+different fingerprint is audited; never two financial effects; a crash mid-`InProgress` recovers deterministically via the fenced lease, never double-applies, never sticks (§8.3) |
 | **D — Dependency & ordering** | explicit dependency resolved server-side; out-of-order/unsettled dependency is deferred, never mis-applied (§8.4) |
 | **C — Conflict policy** | version mismatch detects, domain decides; LWW only for UI prefs; posted invoice immutable; movements converge additively (§8.5) |
 | **N — Non-destructive sync** | a pull never overwrites unsent intent; full resync preserves the pending overlay and switches atomically (§8.2) |
 | **B — Immutable batch atomicity** | base+checkpoint advance all-or-nothing; a partial page can't advance the checkpoint (§16-CT) |
 | **L — Tenant isolation with hardening OFF** | all three isolation layers hold with RLS off; null tenant context throws; client `TenantId` ignored+audited (§9.2) |
 | **P — Three planes** | AuthN/AuthZ/Entitlement independent and ordered; expired entitlement ≠ "forbidden" (§10.1) |
-| **O — Offline capability** | signed device-bound snapshot fails closed at expiry; clock rollback can't revive; revoked device loses offline at next contact (§10.4) |
+| **O — Offline capability** | asymmetrically-signed device-bound snapshot verifies with a public key only (no client-side secret); fails closed at expiry; clock rollback can't revive; revoked device loses offline at next contact (§10.4) |
 | **K — Key-ring recovery** | missing key ring refuses readiness/auth; restore with the key ring succeeds; without it, tokens fail honestly (§10.6, §17.3) |
-| **U — Licensing anti-piracy** | offline verify, installation binding, tamper + clock-rollback resistance, fail-closed matrix (§13.2) |
+| **U — Licence authenticity & fail-closed** | offline verify, installation binding, tamper + clock-rollback *detection*, fail-closed matrix; claims authenticity/tamper-evidence, **not** unbreakable anti-piracy — online capabilities enforce server-side (§13.2) |
 | **F — File lifecycle** | Staged→…→Available with reconciliation; Valet-Key required; a path is never a credential (§14) |
 | **S — Subscription single-engine** | website intent and operator action share one idempotent provisioning path (§13.4) |
 | **I — Reconnect storm** | jittered per-device backoff; a fleet restarting together does not converge (§12.3) |
-| **M — Mixed fleet** | N/N-1/N-2 deterministic; unsupported version → controlled resync (§8.6, §18) |
+| **M — Mixed fleet** | N/N-1/N-2 deterministic; unsupported version → controlled resync; a stale `RuleSetVersion` is re-derived or rejected-with-reason, never force-applied under new semantics (§8.6, §18) |
 | **R — Rehearsed restore** | DB + files + key ring restore onto a clean host to readiness + a known tenant (§17.3) |
 | **Z — Zero-Internet** | the whole runtime operates with egress blocked; no `cdn…`/external endpoint in built output (§17.4) |
 | **T — Measured capacity** | published harness records real capacity on 1–3 core / 2–4 GiB; no asserted user count (§16.4) |
@@ -1208,6 +1294,16 @@ per-tenant.** The `DatabaseOptions` profile:
   admission budget, so aggregation **can never occupy the OLTP connection budget**
   (bulkhead, §12.3). A `QueryBudget` splits **OLTP vs. Reporting**; E02 insight
   queries must use `Reporting` (A-RULE 034).
+- **Bounded REPEATABLE READ snapshot lifetime (A-RULE 039):** a frozen-batch snapshot
+  (§16-CT.1) is held **only long enough to capture**, never for the whole
+  materialize/compress/page/store cycle. The capture reads the watermark + the row
+  keys/versions inside the short-lived RR transaction and **commits**; heavy
+  materialization, compression and paging happen **outside** the snapshot off the
+  immutable, content-addressed batch. A `MaxSnapshotLifetime` budget bounds any open
+  RR transaction; exceeding it **aborts and restarts** the capture rather than
+  pinning old tuples. The **oldest open snapshot age is monitored** — on this weak
+  host a long RR transaction would defer VACUUM and bloat the tables, so a stuck
+  snapshot is an alert, not an invisible cost.
 - Conservative PostgreSQL memory: small `shared_buffers`, per-operation `work_mem`
   (not global), autovacuum enabled, WAL/durability protected, OS/app headroom
   measured. **No number here is a guarantee** — capacity is proven by the §PG.6 /
@@ -1246,7 +1342,9 @@ DB, no SKIPPED DB test can pass CI):
    frozen batch is never re-materialized differently on a re-read.
 5. **Retention** — tombstone/journal retention is long enough to serve the longest
    supported offline window; a client past retention is forced into a full resync
-   (§17-CT), never served a silently-incomplete delta.
+   (§17-CT), never served a silently-incomplete delta. The **same window** sizes
+   `IdempotencyRecords` retention and the `RuleSetVersion` support window (A-RULE
+   040/037) so de-dup and rule-set acceptance stay consistent with the feed.
 
 ### §PG.7 Server `Version` ↔ wire mapping & command ordering token [invariant]
 
@@ -1291,7 +1389,10 @@ committed out of timestamp order, same-microsecond bursts, and a long-running pa
 that straddles concurrent writes. Freezing a batch from a single REPEATABLE READ
 snapshot (§PG.6 item 3) makes the delta **self-consistent and reproducible**: the
 same `BatchId` always yields the same rows, so a resumed or retried download is
-deterministic.
+deterministic. The snapshot is held **only for the capture**, not for the whole
+materialize/page/store cycle (§PG.4, A-RULE 039) — once the batch's watermark and
+row set are captured, the batch is immutable and content-addressed, so paging and
+compression run off it with the RR transaction already committed.
 
 ### §16-CT.2 Batch identity, watermark & ordering [invariant]
 
@@ -1460,13 +1561,18 @@ authorizes the work, recorded as an ADR with the measurement that justified it.
 | 026 | The outbox relay claims rows with `FOR UPDATE SKIP LOCKED` + a fenced lease; consumers are idempotent. | §12.2 |
 | 027 | A missing/unreachable Data-Protection key ring refuses readiness/auth — no in-memory substitute key ring. | §10.6 |
 | 028 | TLS protocol is OS-negotiated (`SslProtocols.None`), never a hard-coded version. | §4, §10.5 |
-| 029 | Offline authority is a signed, device-bound capability snapshot with per-capability expiry; fail closed. | §10.4 |
+| 029 | Offline authority is an **asymmetrically signed** (never HMAC), device-bound capability snapshot with per-capability expiry; the client verifies with a public key only; fail closed. | §10.4 |
 | 030 | Subscription (commercial truth) and Licensing (runtime entitlement) are separate; the runtime depends only on Licensing. | §13.1 |
 | 031 | Microservice extraction, a broker, and any scale-out switch require an ADR; they are non-goals at launch. | §2, §16.2, §20 |
 | 032 | No console sink outside Development and no external sink ever; logs are local rolling files with redaction. | §15.1 |
 | 033 | Every cache key includes tenant + user + resource + version; a missing component is a test failure. | §16.3 |
 | 034 | Reporting/aggregation never rides the OLTP transaction path; it reads projected fact tables under a separate budget. | §11.4, §16.3 |
 | 035 | Capacity numbers are measured with a published harness on the real profiles, never asserted. | §16.4, §PG.4 |
+| 036 | Command intake carries a fenced lease; a crashed `InProgress` is recovered deterministically — the settled record (written in the effect's transaction) is the sole proof of a committed effect, never retried blindly, never stuck. | §8.3 |
+| 037 | Wire compatibility ≠ business-semantic compatibility; a financial command carries a `RuleSetVersion` the server accepts / re-derives / rejects-with-upgrade-reason — a stale rule set is never force-applied under new semantics. | §8.6 |
+| 038 | Single-host is deliberate but carries stated RPO/RTO + off-host backup durability + a named scale-out trigger; the restore drill *measures* RTO, never asserts availability. | §17.3 |
+| 039 | A REPEATABLE READ feed snapshot is held only for capture, bounded by `MaxSnapshotLifetime` and monitored; materialization runs outside it so a long snapshot never defers VACUUM / bloats the weak host. | §PG.4, §16-CT.1 |
+| 040 | `IdempotencyRecords` retention ≥ the longest supported offline window; past it, compact to an archival receipt (key + fingerprint + effect), never a purge that re-admits a duplicate. | §8.3 |
 
 ---
 
