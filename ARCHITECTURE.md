@@ -1,12 +1,21 @@
 # Animora — Software Architecture Specification
 
-> **Status:** Architecture Baseline — **v3.0 (unified)**. This file supersedes
+> **Status:** Architecture Baseline — **v3.1 (research-hardened, 2026-10-08)**. This file supersedes
 > and replaces the two prior architecture documents (`ARCHITECTURE.md` v1 and
 > `Animora_ARCHITECTURE_v2.md`). It is the **single, authoritative software
 > architecture** definition for Animora — **structure, behavior, boundaries,
 > patterns and flows**. Everything the two prior files said is preserved here;
 > where they disagreed, the newer, more-developed backend/synchronization model
 > wins (see the *provenance note* below).
+>
+> **Revision scope and implementation honesty.** v3.1 uses the latest `main`
+> baseline (`47fee53`), which already contains the older development branch
+> (`8e9b187`); it does not roll back either branch's work. This revision implements
+> the **architecture specification**, not the future server/sync runtime. The
+> current local desktop remains unchanged; Tracks D/E are still to implement
+> these contracts. No build, test, benchmark or deployment was run for this
+> documentation-only revision. §19 lists future acceptance obligations, not
+> passed results. Source evidence and platform-version caveats are in §24.1.
 >
 > **Audience.** Software engineers, architects, security reviewers, QA/chaos
 > engineers, DevOps/operations, and AI coding agents. An agent must be able to
@@ -103,7 +112,7 @@
 | Finance | **Append-only ledger** + compensating/reversal commands — never an in-place mutation of a posted fact |
 | Inventory | **Movement-based** stock + server settlement policy — never an absolute-value offline overwrite |
 | Scheduling | **Transactional resource allocation**, not a row-version check alone |
-| Notifications | **Hint only** — never an authoritative synchronization channel |
+| Notifications | **Self-hosted SignalR hints at launch** + mandatory anti-entropy pull; no broker/backplane on one process; never an authoritative synchronization channel |
 | Tenancy | **Defense-in-depth isolation**: application authorization + tenant-aware data access (mandatory) → SQL Server RLS + tenant-safe caching (hardening) |
 | Security | **Three independent planes**: Authentication, Authorization, Entitlement — never collapsed; layered transport/PKI; offline-session as its own governed capability |
 | Offline authorization | Signed, device-bound **capability snapshot** with explicit per-capability expiry |
@@ -196,7 +205,12 @@ No full-resync operation can destroy the only good local replica
 ```
 
 The system may **reject, defer, compensate, or require human review** — those
-are valid outcomes. **Silent corruption is not.**
+are valid outcomes. **Silent corruption is not.** These are design invariants,
+not an unmeasured quality score or proof that the unimplemented runtime passes
+all gates. Eventual convergence requires restored server connectivity, valid
+authority, compatible contracts, durable storage and eventual settlement or
+explicit conflict disposition; it cannot promise instant visibility across a
+network partition or recovery of a destroyed, never-backed-up offline disk.
 
 ---
 
@@ -217,8 +231,8 @@ change must re-check the row(s) it touches.
 | R7 | Inventory correctness | Integrity | Movement model + settlement policy + resource constraints where needed | Oversell / concurrency tests pass |
 | R8 | Multi-tenancy, subscription/plan management | Security + Cost Optimization | Shared-DB tenancy with layered isolation; server-derived tenant context; independent Subscription/Licensing contexts | Cross-tenant access blocked by a mandatory layer that holds with RLS disabled, AND no code path reaches tenant data outside tenant-aware infrastructure (§9.2) |
 | R9 | **Direct server DB maintenance must propagate to clients** | Operability + Consistency | SQL Server Change Tracking makes governed DML visible to the critical sync feed; governed maintenance contract | Direct-SQL visibility gate (§19 Gate Y) passes |
-| R10 | Near-real-time collaboration | Responsiveness | Notification *hints* + delta pull; notification transport never authoritative | p95 change-visibility latency target met on a healthy LAN |
-| R11 | **Vendor-self-hosted, zero external-Internet dependency at runtime** | Reliability + Security | No mandatory external system in any runtime path; local identity; local PKI; local observability; packaged assets | Isolation test: disconnect the Internet cable, all committed capabilities still function (§17.4) |
+| R10 | Near-real-time collaboration | Responsiveness | Self-hosted SignalR *hints* at launch + checkpointed delta pull + UI invalidation; notification transport never authoritative | A→B and B→A server-commit-to-visible latency target (§1.1) on a healthy server path; disconnected clients catch up without loss (§8.17) |
+| R11 | **Vendor-self-hosted, zero external-Internet dependency at runtime** | Reliability + Security | No mandatory third-party runtime system; local identity; local PKI; local observability; packaged assets | Isolation acceptance preserves the vendor-server route for online capabilities; loss of that route gives governed desktop offline mode, not offline web/cross-device visibility (§17.4) |
 | R12 | Central single node is intentional | Cost + Simplicity | Modular monolith, no broker/cache at launch, explicit DR | Restore drill passes |
 | R13 | Mixed client versions | Operability | Contract versioning; capability negotiation; N/N-1/N-2 support window | Mixed-fleet gate (§19 Gate M) passes |
 | R14 | Long-lived tenant data | Maintainability | Archive/retention policies; reporting projections; migration discipline | Data-growth and restore tests pass |
@@ -243,7 +257,8 @@ Maximum supported offline window:       30 days
 Change Tracking retention floor:        offline window + 15 days minimum
 Recommended launch RPO:                 <= 5 minutes
 Recommended launch RTO:                 <= 60 minutes
-Foreground change-visibility target:    p95 <= 3 seconds on a healthy LAN
+Foreground change-visibility target:    p95 <= 1 s, p99 <= 3 s, healthy server path
+                                       (server commit → B's visible local refresh)
 Command settlement target (online):     p95 <= 500 ms excluding local/DB contention
 Server resource isolation:              interactive traffic protected from background work
 ```
@@ -620,7 +635,7 @@ offline host and a stateless web renderer *do* change for different reasons).
 
 | Client | Role | Local persistence | Offline capability | Talks to |
 |---|---|---|---|---|
-| **Desktop client** | Full offline-capable workstation | Encrypted local replica + Mutation Journal + durable pending-command queue | Full, governed (§8, §10.4) | Critical Sync API + Business API (+ Datasync surface, + optional hints) |
+| **Desktop client** | Full offline-capable workstation | Encrypted local replica + Mutation Journal + durable pending-command queue | Full, governed (§8, §10.4) | Critical Sync API + Business API + SignalR hints (optional qualified Datasync surface) |
 | **Web client** | Thin, always-connected workstation | None persistent | None (explicit non-goal, §22) | Business API (+ read via Sync-backed queries where useful) |
 | **Admin/Operator surface** | Platform operator's subscription oversight | None persistent | None | Subscription context only (§13) |
 
@@ -730,8 +745,10 @@ state, because:
 - A **wall-clock `UpdatedAt` cursor is not safe** under concurrent commits,
   clock skew, retries and paging — two rows written in the same tick, or a row
   whose commit becomes visible out of timestamp order, can be silently skipped.
-- Its generic resolvers are **whole-row last-write-wins only** — unacceptable
-  for money/stock/scheduling.
+- Its built-in **client-wins/server-wins** resolvers operate on whole entities;
+  automatic resolution is off by default. Custom `IConflictResolver` hooks can
+  compose fields, but do not themselves provide Animora's base-history evidence,
+  atomic receipt protocol or money/stock/scheduling invariants (C01).
 - Its resync **deletes pending operations** — unacceptable for unsent business
   intent (§11, A-RULE 023).
 
@@ -744,7 +761,10 @@ Animora Sync Engine = architecture authority
 
 ### 8.3 Synchronization classification
 
-Every synchronizable entity is assigned exactly one class:
+Every **transport surface** is assigned exactly one class. Classify read-state
+replication separately from write-intent submission: an appointment or posted
+invoice can have a SYNC-CRITICAL read contract while its authoritative mutations
+are COMMAND-ONLY. This never permits generic CRUD of settled business facts:
 
 ```text
 SYNC-CRITICAL     Custom Sync Engine + Change Tracking
@@ -769,7 +789,12 @@ if** all of:
 - no critical unsent work depends on its pull semantics, AND
 - the entity has no meaningful concurrency concern.
 
-If any condition fails, the entity is SYNC-CRITICAL instead.
+If any condition fails, the replicated read surface is SYNC-CRITICAL instead.
+**Launch default:** the custom CT path is used for every server-shared replica
+unless an explicit entity-specific qualification has been accepted. No feature
+requires a second adapter merely because it is low risk; existing device-local
+preferences remain NOT-SYNCED. Datasync is an optional retained seam, not a
+second implementation to build speculatively or a dependency of patient sync.
 
 **COMMAND-ONLY** (mechanism C) — `RegisterPayment`, `PostInvoice`,
 `ReversePayment`, `AdjustStock`, `BookAppointment`, `CloseCashSession`,
@@ -782,10 +807,11 @@ not a technology detail):
 
 ```text
 Id            — globally unique identifier, stable across replicas
-ChangeSequence— server-issued, strictly-increasing, opaque change cursor
-                (per sync scope); the ONLY value a client cursors on.
-                Implemented by the SQL Server Change Tracking version (§16),
-                but application code never exposes SQL-specific types.
+ChangeSequence— optional row-change position from the CT feed; NOT a unique
+                row/page identifier. Several rows/tables can share one version;
+                initial rows may have no retained CT row version.
+                A completed batch's ToVersion, not a row's maximum, is the
+                ONLY CT position used to advance a scope checkpoint (§17-CT).
 UpdatedAt     — server-stamped business/display timestamp; informational
                 only — NEVER a critical delta cursor and NEVER an ordering source
 Version       — opaque concurrency token (rowversion); changes on every
@@ -794,17 +820,19 @@ Deleted       — soft-delete flag (tombstone), never a hard delete in transit
 ```
 
 **[INVARIANT — the critical cursor is `ChangeSequence`, never `UpdatedAt`.]**
-The single value a client advances its critical delta cursor on is the
-server-issued, strictly-increasing, opaque `ChangeSequence` (a monotonic
-server change-log position, never a wall clock). `UpdatedAt` is retained for
-business display/auditing only. This is unconditional for SYNC-CRITICAL state;
+The checkpoint contains the server-issued CT **completed-range watermark**
+(`ToVersion`, represented as opaque `ChangeSequence`) bound to feed epoch and
+scope (§17-CT). It is **non-decreasing within one epoch**, not strictly increasing
+per row or per request: empty polls may repeat it and one transaction may change
+many rows at the same version. It is never a wall clock. `UpdatedAt` is retained
+for business display/auditing only. This is unconditional for SYNC-CRITICAL state;
 timestamp-based delta pull is *never* proven safe under concurrent writes,
 retries, paging, disconnects and clock skew. (The SYNC-SIMPLE Datasync path
 uses the library's own `UpdatedAt` cursor and is therefore gated to entities
 where that is proven safe, §8.3.)
 
 ```text
-ChangeSequence = 8471932            ← client cursors on THIS (critical path)
+Batch.ToVersion = 8471932           ← checkpoint AFTER complete durable batch
 UpdatedAt      = 2026-10-08T08:31Z  ← display/audit only
 Version        = <opaque rowversion> ← row concurrency, not ordering
 ```
@@ -859,8 +887,9 @@ BEGIN LOCAL TRANSACTION
   1. Validate locally
   2. Update local materialized state
   3. Insert mutation journal record
-  4. Update UI-visible provisional state
+  4. Persist provisional status / local invalidation generation
 COMMIT   — either all happen or none happen
+AFTER COMMIT: notify UI through Contracts; never publish an uncommitted save
 ```
 
 This eliminates both "UI says saved but the mutation queue lost it" and
@@ -936,8 +965,44 @@ previously-stored result and never applies a second effect.
 **[INVARIANT] Same `OperationId` with a *different* `CommandFingerprint`
 (payload hash) is a security/integrity error, not a replay** — the server
 detects it, audits it, and rejects it. "Operation exists → return old result"
-is valid *only* for a byte-identical retry. This is stronger than a simple
+is valid *only* for an identical **versioned canonical command envelope**.
+The client persists the immutable envelope; the server recomputes its hash over
+command type, contract version, target, payload and dependency/precondition
+fields, excluding access tokens and transport headers. JSON property order or
+credential refresh cannot change the logical fingerprint. Once submitted, a
+payload/base-version/dependency edit requires a new operation referencing the
+old one; never mutate an unknown operation. This is stronger than a simple
 "already seen" cache.
+
+**[INVARIANT — receipts and effects are one atomic unit; S04/S05/S11.]** The
+server inserts the unique `(TenantId, OperationId)` receipt, writes business
+state + mandatory audit + outbox, and stores the final outcome in **one SQL
+transaction**. Concurrent duplicate inserts are arbitrated by the unique
+constraint, not an in-memory check; a losing request rolls back, loads the
+committed receipt in a fresh context, checks fingerprint and caller authority,
+and returns that outcome. A receipt is not a permission to disclose another
+user's result. `InProgress` never means settled; a durable asynchronous admission
+must have a lease/recovery owner. Apply the same receipt protocol to critical
+state creates/patches using their stable `MutationId` so a lost create response
+cannot create a second patient or silently collide with an existing identity.
+
+EF execution-strategy retries replay the **entire transactional delegate** with
+stable IDs and fresh scoped contexts. An uncertain SQL commit is verified by
+reading the receipt with a fresh connection before deciding to execute again.
+No network notification, file write or external effect is performed inside that
+retry delegate. MARS is disabled where savepoint recovery is relied on. Atomic
+cross-context writes share the same SQL connection and transaction (§6.2), not
+separate `SaveChanges` calls asserted to be atomic.
+
+**Receipt lifecycle.** Financial/business-effect receipts (ID, fingerprint,
+terminal outcome/reference and recovery epoch) remain durably associated with
+the retained business/audit fact; a short cache TTL must never reopen settlement.
+Full response bodies may be compacted, but late replays still obtain the outcome
+or an explicit archived-result reference, never execute as unseen. Non-financial
+receipt/inbox retention exceeds every permitted offline, retry, local-backup
+restore and operator-redelivery window; expired operations require explicit
+reconciliation, not blind resubmission. Consumer deduplication is keyed by
+`(TenantId, ConsumerName, EventId)` and committed atomically with local effects.
 
 **[INVARIANT] Idempotency does not solve ordering.** `(TenantId, OperationId)`
 guarantees at-most-one effect for an *identical* command; it says nothing about
@@ -1000,16 +1065,16 @@ A client holds `SyncCheckpoint`, `SyncProfileVersion`, `PendingMutationJournal`
 and a `ConflictInbox`. A synchronization session is:
 
 ```text
-1.  Authenticate
-2.  Validate device / capability
-3.  Establish scope
+1.  Authenticate / refresh credential once under a single-flight gate
+2.  Validate current device / capability / contract / server feed epoch
+3.  Establish the authorized scope/profile and hint subscription
 4.  Reconcile unknown settlements (SettlementUnknown → query server)
-5.  Push eligible local mutations (commands first, by dependency; §8.9)
-6.  Pull server state deltas (critical change feed; §16/§17)
-7.  Apply / rebase locally (echo-safe; §52)
-8.  Commit local transaction
-9.  Advance checkpoint (only after durable apply)
-10. Emit UI state
+5.  Schedule bounded eligible push work by dependency (§8.9)
+6.  Pull immutable server delta batches fairly; never wait for all push to succeed
+7.  Stage all batch pages; validate completeness and relations (§17-CT)
+8.  Atomically apply server base + rebase/conflict decisions + checkpoint
+9.  After local commit, invalidate affected UI queries through Contracts
+10. Continue catch-up fairly; hints/polls coalesce into the same coordinator
 ```
 
 The exact HTTP route names are not an architectural dependency.
@@ -1067,7 +1132,9 @@ C2 RegisterPayment (Op2, DependsOnOperationId = Op1, ExpectedInvoiceVersion = v)
 
 Op1 Settled            → evaluate Op2 (version check → Accept/Reject/Conflict)
 Op1 Pending/Unknown    → hold Op2 (deterministic delay) or reject (retriable)
-Op1 Rejected/Reversed  → reject Op2 (its precondition never became true)
+Op1 Rejected          → reject Op2 (its precondition never became true)
+Op1 Settled, later reversed by Op3 → revalidate current domain state before Op2;
+                                    Op1 stays Settled, reversal is a new command
 ```
 
 This resolution happens **server-side only** — a client cannot "helpfully"
@@ -1087,6 +1154,15 @@ Maintenance.* Ordering rules:
    order-independent.
 5. Local Mutation Journal order is deterministic.
 6. Network arrival order is never treated as business order.
+7. **Push never starves pull.** Each round has a bounded push count/time slice
+   followed by an eligible pull; a conflict/poison/unknown operation blocks only
+   its causal dependents, not independent records or incoming clinic changes.
+8. Per profile, one coordinator owns network scheduling and one local writer
+   owns atomic application. Hints, timers, saves, reconnect and resume wake this
+   coordinator; they never start competing `SynchronizeAsync` loops (§8.17).
+9. After a retry budget is exhausted, keep the journal durable and expose its
+   state. Later connectivity/manual/low-frequency probe events may start a new
+   bounded episode; finite attempts do not mean permanently abandoning sync.
 
 ### 8.11 Sync-contract versioning & rollout
 
@@ -1141,7 +1217,7 @@ rowversion · Change Tracking operation · changed-column metadata (where enable
 ```
 
 Change Tracking answers *which row changed, what operation, at which version* —
-it is **not** a complete field-history system (§16.3). So:
+it is **not** a complete field-history system (§16-CT). So:
 
 ```text
 Client changed Phone; server changed Address; proven disjoint     → merge
@@ -1156,6 +1232,20 @@ intentionally safer than speculative field merging, and is especially important
 when a row changed multiple times between the client's base version and the
 current version, or when a governed maintenance operation modified the row
 outside the normal command path.
+
+**Evidence binding (S02/S06).** `BaseVersion` is opaque `rowversion`, not a CT
+baseline; it cannot be passed to `CHANGETABLE` or compared numerically to a CT
+version. Default field-patch evidence includes the protected original values of
+changed fields (or a server-retained matching base snapshot), the proposed
+values and current authoritative values. The server checks supported fields,
+compares base/current values and revalidates aggregate invariants in the same
+conditional write transaction. Where edit-away-and-back (ABA) is semantically
+significant, matching final values alone is insufficient: use retained domain
+history or require review. A CT column mask is usable only with an explicit
+valid base-CT mapping covering the entire interval; `NULL` masks mean unknown/
+all-column change, not no change. Derived/computed fields and inter-field domain
+constraints are not proven independent just because column masks are disjoint.
+Never refresh an expected version and retry to bypass a business conflict.
 
 ### 8.14 Conflict-policy matrix (business ownership, not a technology choice)
 
@@ -1221,6 +1311,94 @@ Desktop UI: reflects settlement state, never leaves it ambiguous
 partial delivery, and push failure must resolve to the *same* deterministic
 outcome — dependency settlement, not arrival order, governs acceptance
 (§8.9, §19 Gate O).
+
+### 8.17 Clinic collaboration and reconnect contract (A ↔ B)
+
+**[DECISION — S01–S11.]** One server authority, one durable client coordinator,
+self-hosted SignalR hints (§44), and a mandatory checkpointed anti-entropy pull
+constitute the launch collaboration path. There is no peer-to-peer clinic mesh,
+clinic server, broker, or distributed cache requirement.
+
+```text
+A saves patient P with stable client-generated P.Id and MutationId M
+  → local transaction: provisional overlay + durable journal
+  → bounded immediate push (online; offline remains queued)
+  → server: current authorization + unique receipt + domain checks
+  → one commit: P + receipt/result + audit + change hint outbox
+  → hint relay through IHubContext to authorized clinic connections
+B receives hint → wakes existing coordinator → checkpointed delta pull
+  → complete batch staged → local atomic apply/rebase/checkpoint
+  → committed invalidation → active patient list/detail reload via Contracts
+A receives receipt and later its own delta → settles once, echo-safe
+B's create/update follows exactly the same path back to A
+```
+
+**Visibility boundary.** B can see A's new record only after A's intent reaches
+and commits on the server and B has the appropriate permission/scope. If A is
+offline, A's UI labels it local/pending; B cannot discover an unreachable local
+record. Once A reconnects, that same operation settles and triggers B's catch-up.
+If B is offline, the server retains the settled state; B reconnects from its own
+checkpoint, even if every hint was missed. The target in §1.1 measures commit to
+B's **rendered** refresh, including relay, network, batch apply and query reload;
+local-save-to-visible and reconnect-backlog latency are separate measurements.
+Network/DB saturation or a partition is visibly degraded, not a false real-time
+promise. The hosted server path may be WAN/VPN, not necessarily a clinic LAN.
+
+**Canonical local model.** Separate `ServerBase` (last authoritative replica)
+from the durable `PendingOverlay` (ordered unresolved local intent); UI queries
+compose them. A pull updates the base, then safely rebases the overlay or creates
+a conflict preserving both values. It never runs business-command handlers,
+outbox posting, local mutation capture or stock/payment deltas again. Settlement
+updates journal status and authoritative base only with causal/version evidence;
+a delayed response must not overwrite a newer pulled base or erase later local
+edits. Opaque versions are equality tokens, not sortable integers. If a response
+cannot be ordered safely, persist its settlement outcome and request a fresh
+authoritative pull instead of replacing the base. Conflict resolution is a new
+explicit intent with provenance; already-submitted envelopes remain immutable.
+
+**Coordinator lifecycle.** Logical states are `Offline · Connecting · CatchingUp
+· Live · Backoff · AuthenticationRequired · ResyncRequired · RecoveringReplica`.
+They are distinct from each operation's settlement state. Connectivity events
+are hints too: server authentication/readiness, not an OS Internet flag or a hub
+connection, decides reachability. On startup/network recovery/wake from sleep:
+
+1. Coalesce signals; authenticate and compare feed/scope/contract identities.
+2. Register the current authorized hint subscription, then unconditionally pull
+   from the durable checkpoint. This closes the subscribe/pull race; any hint
+   arriving during catch-up leaves a dirty generation for a subsequent round.
+3. Reconcile unknown operations; fairly interleave dependency-eligible push and
+   incoming pull. Never require a conflicted local push to succeed before B can
+   see A's unrelated data. Unsent drafts may rebase; submitted commands may not
+   silently change fingerprint or expected version.
+4. Persist progress; repeat bounded rounds until caught up to a sampled server
+   watermark. `Live` means caught up to that sample, not no future changes.
+5. Keep anti-entropy polling enabled even while the hint channel appears healthy.
+   Cancellation/shutdown ends network work, not durable intent. A crash needs no
+   successful shutdown callback to recover its journal/checkpoint.
+
+**Query and UI boundary.** A durable local generation invalidates the affected
+Contracts query/cache only after commit. Active screens refresh with coalescing,
+UI-thread dispatch and cancellation; stale responses cannot overwrite a newer
+query generation. Include additions/removals as well as updated IDs so lists,
+counts and related details refresh even when the new row was not previously
+visible. Preserve unsaved editor text, focus and scroll; show a conflict/banner
+rather than replacing the text under an active editor. Inactive screens query
+the new generation on activation. Online-only web screens use authorized API
+refetch on hints, not browser-local offline replication.
+
+| Clinic scenario | Required deterministic outcome |
+|---|---|
+| Both online, A creates / B creates | Same pipeline in both directions; visible refresh within the measured target, no manual reload |
+| A offline, B online (and vice versa) | Offline work durable and explicitly provisional; on reconnect accepted work reaches the peer, rejected work stays visible to its author |
+| Both offline, independent creates | Distinct stable IDs; dependency-ordered settlement; both converge without duplicate create |
+| Both edit the same field / delete versus edit | Evidence-bound domain conflict/resurrection policy; preserve losing intent for review |
+| Two employees enter the same animal independently | Transport IDs prevent duplicate replay, not duplicate real-world identity; flag duplicate candidates for reviewed merge, never auto-merge medical histories |
+| Hint lost, duplicated, delayed, or hub restarted | Pull from checkpoint still converges; notification arrival never advances cursor |
+| Client crashes on last page / after server commit | Staged batch replay or same operation receipt recovery; no skip or duplicate effect |
+| Offline beyond CT retention | Shadow full resync preserves journal/overlay and rebuilds to a consistent watermark |
+| Permission/device revoked while offline | Offline authority expires per §10.4; reconnect denied/scope rebuilt, never silently uploads under another employee |
+| One conflict plus unrelated clinic writes | Block causal descendants only; pull and independent operations continue |
+| Server restore erases acknowledged work | New epoch forces recovery; preserve prior evidence and reconcile lost settled operations (§17.3), never blindly replay financial effects |
 
 ---
 
@@ -1641,6 +1819,11 @@ that now-closed period. This collision is **resolved by one stated, auditable
 policy** — reject / post into the current open period / allow authorized
 back-posting / hold for an accountant / create an adjustment — never silently
 posted into a closed period and never silently dropped (§19 Gate S).
+Until the clinic has an explicitly authorized period-collision policy, the safe
+server default is **hold for accounting review (`NeedsAttention`)** with the
+original requested document date preserved. Never auto back-date or silently
+move it to the current period. A reviewed adjustment/authorized correction is a
+new operation; this does not change existing local accounting behavior.
 
 ### 11.2 Inventory architecture — movement-based stock
 
@@ -1673,7 +1856,13 @@ Cost layer / valuation    — the basis COGS and finance post against
 Settlement (§8.6) re-validates the chosen policy server-side; an offline
 movement that would breach it is routed to conflict policy (§8.14), never
 silently accepted just because the arithmetic converged. Values are an ADR
-(ADR-19). Inventory detail is §36.
+(ADR-19). Inventory detail is §36. The safe server default for an unconfigured
+product class is **no negative settled stock/no unproven offline reservation**:
+local intent remains provisional and an oversell becomes `NeedsAttention` for
+explicit reconciliation, never a silent accepted movement. Independent products
+can still settle. Clinically controlled lot/expiry/serial requirements must be
+configured/validated before settling affected stock; existing valuation/domain
+rules remain authoritative, never guessed by the sync engine.
 
 ### 11.3 Read models vs. write models (CQRS-lite)
 
@@ -1834,12 +2023,29 @@ breaker is applied at the client↔server boundary (a real remote dependency), n
 on local in-process outbox effects at launch, where it would add complexity
 without the failure it prevents.
 
+**HTTP policy ownership (S07/S13).** Use one configured resilience pipeline per
+typed HTTP client, not nested automatic retries in the UI, sync adapter and
+journal scheduler. Default unsafe-method retries are disabled; enable command/
+patch retries only where the immutable envelope and durable receipt protocol
+are enforced. No hedging/parallel speculative write submission. Respect
+`Retry-After` on 429/503; one credential-refresh attempt on 401, then require
+login if still unauthorized. 403, validation, conflict, incompatible contract
+and expired cursor are policy transitions, not transient faults. Cancellation
+or timeout after transmission is potentially `SettlementUnknown`, not proof of
+rollback. A 404 status lookup alone is not proof of non-execution during an epoch
+change, race or async admission; retry/reconcile the same identity under the
+server's explicit outcome contract. HTTP `202 Accepted` means admitted/pending,
+not business settled.
+
 **[INVARIANT — retry is bounded by a budget, not just backoff.]** Every
 retrying boundary declares a **retry budget**: max attempts, max elapsed time,
 jitter distribution, and per-tenant + global reconnect limits — so a mass
 reconnect cannot become a self-inflicted thundering herd (§19 Gate I, §42). A
 connectivity outage makes a client transition to offline mode rather than
-create a retry storm. **No infinite retry.**
+create a retry storm. **No unbounded retry episode.** Durable intent remains eligible for a later
+bounded recovery episode after a connectivity event or a scheduled low-rate
+probe; reaching today's retry limit never discards it or makes reconnect require
+an application reinstall.
 
 **[PATTERN] Throttling**, applied to reconnect specifically: sync resumption
 after startup/reconnect uses **random initial jitter + adaptive/exponential
@@ -2306,6 +2512,26 @@ schema version and sync-feed validity are checked; affected clients may be
 forced into a controlled full resync if the restore point invalidates their
 cursor — safer than faking continuity across an erased history window (§78).
 
+**Mandatory epoch protocol (S01).** Before serving traffic after restore,
+rollback with data loss, database replacement, CT disable/re-enable, or feed
+reconstruction, recovery tooling mints a fresh unpredictable `ServerFeedEpoch`.
+It is not derived from a restored backup timestamp/counter. Readiness remains
+closed until epoch installation, runtime-key verification and feed validation
+complete. Compare the epoch on **every** sync/settlement handshake; a mismatch
+forces controlled recovery even if the restored CT counter has already overtaken
+the client's old number. Checkpoint > current version or null/disabled CT is an
+error too, never a valid empty batch.
+
+A restore may erase both a committed fact and its idempotency receipt. Clients
+retain acknowledged operation IDs/outcome evidence through the recovery horizon
+and quarantine affected formerly-settled operations in a recovery inbox. They
+must not silently replay them or claim an external payment was rolled back.
+An audited recovery command reconciles receipt, ledger and any external evidence
+before deciding restore/reapply/compensate/manual review. A full replica resync
+repairs replicated state, **not** lost business history. RPO explicitly permits
+loss within its window; at-most-once effects within a healthy retained history
+must not be advertised as zero-loss/exactly-once across destructive restore.
+
 ### 17.4 Zero-Internet isolation as a tested architectural property
 
 **[INVARIANT] "Zero external-Internet dependency" is a *tested* property, not a
@@ -2315,7 +2541,13 @@ access, any CDN-style dependency, package/update feeds, telemetry backend, and
 the public website — and confirming that **Login, Authorization, core reads,
 Business commands, Critical sync, File access, Local observability, and
 Licensing verification (per offline policy)** still function under every one of
-these removed independently (§67). A certificate-validation path that silently
+these removed independently (§67), **provided the client still has a network
+route to the vendor server**. No cloud/CDN/third-party runtime dependency is
+required, but clinic-to-vendor connectivity is physically required for sync.
+Pulling the only public Internet route disconnects remote clinics: desktop local
+work continues provisionally; central collaboration and the online-only web UI
+resume only when that route returns. This requirement does not promise offline
+peer-to-peer visibility or a working web circuit with an unreachable server. A certificate-validation path that silently
 reaches an external revocation service is a hidden Internet dependency and a
 defect.
 
@@ -2388,6 +2620,17 @@ boundary* is wrong, not merely a bug.
 | **AE — Full-resync safety** | A shadow-replica rebuild cannot destroy the last good local replica, and never deletes unsent mutations | §50, §51 |
 | **AF — License / key compromise & anti-clone** | Signature + rotation valid; a copied license fails on a second installation; a wound-back clock cannot extend expiry; a compromised runtime node cannot mint a valid license (signing key not present) | §10.6, §13.2 |
 | **AG — Local observability, Internet pulled** | Every observability capability functions with zero external connectivity; removing a local collector never breaks the app | §15, §17.4 |
+| **AH — Bidirectional clinic visibility** | A creates/updates, B's active list/detail refreshes, then reverse roles; target includes durable apply and rendered refresh, not just hint delivery | §1.1, §8.17, §44 |
+| **AI — Same-version paging and batch expiry** | More rows/tables than a page at one CT version, repeated/out-of-order pages, client/server crash and expired batch: no checkpoint advances over incomplete data | §17-CT |
+| **AJ — Pull fairness / editor safety** | Poison/conflicted push cannot block peer changes; delayed receipts do not overwrite newer base/edits; open editor survives committed refresh | §8.10, §8.17 |
+| **AK — Recovery epoch / lost receipts** | Restore counter overtakes old cursor; epoch still invalidates it; erased settled receipts route to reconciliation, not blind financial replay | §17.3 |
+| **AL — Scope exits and metadata isolation** | Row leaves a predicate, soft/hard deletion, grant revoked mid-batch; no stale unauthorized rows or cross-tenant CT primary keys/masks/contexts escape | §17-CT.3, §53–§54 |
+| **AM — Concurrent duplicate settlement** | Simultaneous same-ID submissions, database commit uncertainty and canonical-fingerprint mismatch yield one effect and an authorized durable outcome | §8.6.1 |
+| **AN — Live edits during shadow rebuild** | User saves during snapshot download and before generation switch; every committed journal record survives crash/cutover exactly once as intent | §50 |
+
+**Session scope.** These are acceptance specifications for future runtime work;
+none is asserted executed by this architecture revision. Do not run builds or
+tests merely because this file contains gates when the task forbids them.
 
 **[INVARIANT] If any gate fails, the affected boundary/pattern is fixed before
 feature work continues on top of it** — these gates protect the architecture's
@@ -2478,9 +2721,9 @@ operation that first proves all synchronization/retention implications (§19).
 | AD-16 | Offline revocation is a next-contact guarantee, bounded by capability-snapshot expiry | Accepted | R4, R11, §10.4 |
 | AD-17 | Tombstone/CT/authorization/license retention ≥ max supported offline window + margin (one linked decision) | Accepted | R4, §1.1, §18 |
 | AD-18 | **Critical `ChangeSequence` is implemented by SQL Server Change Tracking** | **Accepted — replaces the earlier "custom opaque sequence only" baseline** | R4, R5, R9 |
-| AD-19 | Inventory concurrency policy (negative-stock, reservation, lot/expiry/serial) — convergence is arithmetic, not business, correctness | Open (pre-code) | R5, R7, §11.2 |
+| AD-19 | Inventory concurrency policy — unconfigured server class fails closed to review; tenant-specific negative-stock/reservation/lot policy requires explicit authorization | Accepted safe default; product configuration required | R5, R7, §11.2 |
 | AD-20 | Scheduling allocation model (server-transaction resource allocation, not version tokens alone) | Accepted | R5, §11.4, §37 |
-| AD-21 | General-ledger posting model + period-close state machine + offline-period-close policy | Accepted (values open) | R5, R6, §11.1 |
+| AD-21 | General-ledger posting model + period-close state machine; unconfigured offline-period collision holds for accounting review, never implicit back-post | Accepted safe default; accounting configuration required | R5, R6, §11.1 |
 | AD-21b | Cross-context financial consistency declared per interaction (atomic vs. eventually consistent), no silent gap | Accepted | R5, §6.2, §38 |
 | AD-22 | PKI hierarchy: offline Root CA + online Issuing CA; root/signing keys never on the runtime node or in its backup | Accepted | R3, R11, §10.5/§10.6 |
 | AD-23 | License-signing key custody: offline issuer, runtime holds verification keys only; device identity hardware-backed where supported | Accepted | R3, R11, §13.2 |
@@ -2492,7 +2735,7 @@ operation that first proves all synchronization/retention implications (§19).
 | AD-29 | **Datasync restricted to low-risk/simple (SYNC-SIMPLE) replication only** | Accepted | R4, §8.2/§8.3 |
 | AD-30 | Client-local Mutation Journal owned by Animora, atomic with local state | Accepted | R4, §8.5 |
 | AD-31 | Cross-pipeline causal dependency DAG (`CausationId` ≠ `DependsOnOperationId`) | Accepted | R5, §8.9 |
-| AD-32 | Patch-based state mutations where supported, with the conservative-merge rule | Accepted | R5, §8.13, §32 |
+| AD-32 | Patch-based state mutations where supported, with the conservative-merge rule | Accepted | R5, §8.13 |
 | AD-33 | Direct-SQL mutation governance (state-visible on critical tables; forbidden for business invariants) | Accepted | R9, §20 |
 | AD-34 | Production central SQL Server baseline = Standard (capacity/cost, not domain) | Accepted | R2, §70 |
 | AD-35 | Desktop auth uses the stack-approved local Identity token mechanism; no generic OIDC claim | Accepted | R3, §10.2 |
@@ -2501,6 +2744,13 @@ operation that first proves all synchronization/retention implications (§19).
 | AD-38 | Full resync uses a shadow replica, switched in atomically | Accepted | R4, §50 |
 | AD-39 | Full resync never deletes unsent mutations | Accepted | R4, §50/§51 |
 | AD-40 | Financial state never enters generic CRUD settlement | Accepted | R5, R6, §8.3 |
+| AD-41 | Self-hosted SignalR hints at launch, mandatory anti-entropy pull, no launch backplane | Accepted | R2, R10, §44; S08–S10/S15 |
+| AD-42 | One-snapshot immutable paged batches; completed-range checkpoint, not per-row maximum | Accepted | R4, R5, §17-CT; S01/S02 |
+| AD-43 | Server base + pending overlay, fair coordinator and committed UI invalidation | Accepted | R4, R5, R10, §8.17 |
+| AD-44 | Atomic receipts + effects, canonical fingerprints and retained replay protection | Accepted | R3, R6, §8.6.1; S04/S05/S11 |
+| AD-45 | Feed epoch on restore/reset, explicit lost-settlement recovery | Accepted | R-DR, §17.3; S01 |
+| AD-46 | Generation-based shadow cutover with independently durable journal | Accepted | R4, §50 |
+| AD-47 | Dynamic row-scope exits require membership transitions or scope rebuild; never filtered-away deletion | Accepted | R3, R5, §17-CT.3 |
 
 ---
 
@@ -2559,6 +2809,16 @@ A-RULE 049  A SyncProfile/scope change may require a controlled resynchronizatio
 A-RULE 050  Shared-workstation user profiles never share offline authority implicitly; each user gets a logically separate encrypted local replica.
 A-RULE 051  The public website is never a clinic runtime dependency; runtime operation continues with zero external Internet.
 A-RULE 052  Every architecture boundary has a validation gate (§19); a failing gate blocks feature work on top of it.
+A-RULE 053  CT versions can be shared by many rows; only a complete immutable batch's ToVersion advances its epoch/scope-bound checkpoint.
+A-RULE 054  No SQL snapshot transaction is kept alive across HTTP page requests; materialize authorized payloads, not just keys, under one bounded snapshot.
+A-RULE 055  Authoritative base, overlay/conflict decisions and completed checkpoint commit atomically; UI invalidation follows commit.
+A-RULE 056  Push retry/conflict never starves pull; hints and polls wake one coordinator per local profile.
+A-RULE 057  Critical state mutations and commands use atomic durable receipts plus effects; concurrency is arbitrated by SQL uniqueness.
+A-RULE 058  Restore/feed reset changes ServerFeedEpoch before readiness; erased acknowledged business effects require explicit recovery reconciliation.
+A-RULE 059  Scope exit/deletion must remove authorized local membership; do not rely on current-row filters, RLS or hub groups to secure CT metadata.
+A-RULE 060  Shadow resync keeps new UI saves in the independent durable journal and switches base generations under a short local cutover transaction.
+A-RULE 061  SignalR launch hints carry no records or authoritative cursor; reconnect reauthorizes/rejoins and unconditionally catches up.
+A-RULE 062  An architecture document is not a runtime acceptance result; no unmeasured 10/10 or zero-loss-over-partition claim.
 ```
 
 **Distinctions this architecture never collapses:**
@@ -2675,6 +2935,57 @@ Governor** (§71).
 > the then-current Microsoft Learn / Azure Architecture Center wording before
 > extending it — never let a pattern name drift from its documented definition.
 
+### 24.1 Primary-source evidence register — reviewed 2026-10-08
+
+The following Microsoft documentation/article bodies were read for this revision,
+not merely search-result snippets. SQL documentation selected the current
+`sql-server-ver17` view; ASP.NET Core selected `aspnetcore-10.0`. Microsoft Learn
+can include multiple versions/forward-looking sections even under that view:
+explicit .NET 11 features and outdated preview annotations are **not** evidence
+that the launch .NET 10 binaries support them. Source dates are not runtime
+verification. No unrelated UI, binary dump or whole-code audit was performed.
+
+| ID | Official source | Evidence applied / local adaptation |
+|---|---|---|
+| S01 | [Work with Change Tracking — SQL Server](https://learn.microsoft.com/en-us/sql/relational-databases/track-changes/work-with-change-tracking-sql-server?view=sql-server-ver17) | One SNAPSHOT for minimum-version validation, current watermark, multi-table changes and rows; short transactions; database version ID on data-loss restore. Animora adds frozen HTTP batches and explicit epoch/recovery contracts (§17-CT/§17.3). |
+| S02 | [CHANGETABLE reference](https://learn.microsoft.com/en-us/sql/relational-databases/system-functions/changetable-transact-sql?view=sql-server-ver17) | Net change per identity, baseline-relative masks, null-mask semantics, composite PK, delete+insert collapse, TRUNCATE invalidation, explicit CT permissions (§8.13/§17-CT.3). |
+| S03 | [Manage Change Tracking](https://learn.microsoft.com/en-us/sql/relational-databases/track-changes/manage-change-tracking-sql-server?view=sql-server-ver17) | CT metadata can expose deleted keys/column activity; DDL is not ordinary tracked DML; retention/storage/cleanup overhead (§17-CT.3/§18-CT). |
+| S04 | [EF Core connection resiliency](https://learn.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency) | Retry the whole explicit transaction; uncertain commit needs success verification; result buffering has memory cost (§8.6.1/§17-CT). |
+| S05 | [EF Core transactions](https://learn.microsoft.com/en-us/ef/core/saving/transactions) | Same connection/transaction for cross-context atomicity; MARS/savepoint incompatibility; no implicit distributed transaction assumption (§8.6.1). |
+| S06 | [EF Core concurrency](https://learn.microsoft.com/en-us/ef/core/saving/concurrency) | Token in conditional write, application-specific resolution, original/current/database values, application-managed SQLite tokens (§8.13/§48). |
+| S07 | [Build resilient HTTP apps with .NET](https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience) | One resilience handler; default retry includes unsafe methods; disable or explicitly gate writes; hedging is concurrent (§12.3). |
+| S08 | [SignalR .NET client](https://learn.microsoft.com/en-us/aspnet/core/signalr/dotnet-client?view=aspnetcore-10.0) | Automatic reconnect opt-in, default finite attempts, separate initial-start retry, callbacks (§44). |
+| S09 | [SignalR configuration](https://learn.microsoft.com/en-us/aspnet/core/signalr/configuration?view=aspnetcore-10.0) | Bounded buffers, timeout/keepalive pairing, optional transient stateful reconnect; .NET 11 authentication-refresh APIs excluded from launch (§44). |
+| S10 | [SignalR authentication and authorization](https://learn.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-10.0) | Cached connection principal, role/revocation enforcement, token-expiry closure, browser query-token logging risks (§44). |
+| S11 | [Idempotent Consumer pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/idempotent-consumer) | Stable keys, consumer-qualified inbox, atomic marker+effect, concurrent uniqueness, retention including operator replay; effectively-once, not universal exactly-once (§8.6.1). |
+| S12 | [Transactional Outbox guidance](https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-outbox-cosmos) | Same-transaction state+event and later relay. Adapt only the relational principle; neither Cosmos DB nor Service Bus is introduced (§12.1/§44). |
+| S13 | [Retry pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/retry) | Bounded transient retries, idempotency, avoid nested retry multiplication and permanent-error retries (§12.3). |
+| S14 | [Microsoft.Data.Sqlite database errors](https://learn.microsoft.com/en-us/dotnet/standard/data/sqlite/database-errors) | Connection/command not thread-safe, busy/locked retries already occur until timeout; WAL reduces contention (§48). |
+| S15 | [SignalR hosting/scaling](https://learn.microsoft.com/en-us/aspnet/core/signalr/scale?view=aspnetcore-10.0) and [users/groups](https://learn.microsoft.com/en-us/aspnet/core/signalr/groups?view=aspnetcore-10.0) | Single-process no backplane, persistent connection cost, affinity exceptions, volatile group membership and explicit revocation (§44/§73). |
+| S16 | [EF Core global query filters](https://learn.microsoft.com/en-us/ef/core/querying/filters) | Tenant context, named soft-delete-only disable, required-navigation filtering hazard; not a substitute for explicit CT extraction isolation (§17-CT.3). |
+| S17 | [Microsoft Azure Database Support: CT cleanup growth and orphaned rows](https://techcommunity.microsoft.com/blog/azuredbsupport/troubleshooting-change-tracking-cleanup-growth-and-orphaned-rows-in-azure-sql-da/4497997) — 2026-02-27 | Recent operational case: long snapshots impede cleanup, monitor backlog, prefer governed auto-cleanup; reset loses metadata. Azure SQL case not blanket boxed-engine evidence (§18-CT). |
+| S18 | [.NET common web architectures](https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures) | Keep modular single deployment with inward dependencies/DI; microservices introduce costs not justified by this task (§0/§5). |
+| S19 | [Multitenant storage/data approaches](https://learn.microsoft.com/en-us/azure/architecture/guide/multitenant/approaches/storage-data) | Shared-schema tenant discriminator is a trade-off, not universally optimal; noisy-neighbor quotas, predictable migration/recovery, no per-tenant tables (§9/§12.4). |
+| S20 | [ASP.NET Core hosted services](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-10.0) | Scope-per-unit workers, bounded channels, non-overlapping periodic work; shutdown callbacks may not run, so correctness lives in durable stores (§12.2/§44/§48). |
+
+**Community adapter primary source (not a Microsoft platform guarantee).**
+[C01 — Datasync maintainer's offline-client guide](https://communitytoolkit.github.io/Datasync/in-depth/client/)
+was also read: queued operations, `UpdatedAt`-derived delta tokens, custom
+`IConflictResolver` hooks, built-in entity replacement policies and the documented
+resync example clearing pending operations. Those facts justify containment;
+they do not justify claiming custom resolvers are impossible. Never copy that
+queue-clearing resync recipe onto Animora's durable journal. Library behavior
+remains subject to the actually pinned release/qualification, not this living
+site's current .NET requirement.
+
+**Application-specific decisions, not Microsoft mandates.** The latency targets,
+immutable batch format, base/overlay model, fair scheduler, composite feed binding
+and generation cutover are Animora engineering decisions derived from the source
+constraints. Microsoft does not certify this document as “10/10.” Existing
+DDD/ports, accounting, security, file and weak-node boundaries are retained;
+future server/sync execution must align phase plans with this v3.1 protocol
+rather than copy an older universal-Datasync or polling-only assumption.
+
 ---
 
 # Part II — Backend & Synchronization Deep-Dive Appendix
@@ -2718,30 +3029,143 @@ safe scoped replication.
 A change in authorization/scope invalidates the meaning of the old local
 dataset and may require a controlled resync (§54).
 
-**Change Tracking is not a complete field-history system (§16.3 cross-ref).**
+**Change Tracking is not a complete field-history system (§8.13 cross-ref).**
 It answers *which row changed, what operation, at which version* — not an
 unlimited history of every prior field value. Automatic field-level rebase is
 allowed only with sufficient evidence (changed-column metadata where
 applicable + domain mutation history where maintained + a provably non-
-overlapping operation); otherwise `Conflict / NeedsAttention` (§8.13, §32).
+overlapping operation); otherwise `Conflict / NeedsAttention` (§8.13).
 
 ## §17-CT. Change-feed correctness protocol
 
-The critical delta protocol follows the documented safe sequence, adopted
-verbatim as Animora's critical pull:
+**[DECISION — S01/S02.]** Microsoft documents snapshot-consistent CT
+validation/enumeration. Animora adds an **immutable batch protocol** for safe
+HTTP paging; Microsoft does not prescribe that application-level batch format.
+CT returns net changes, not all intermediate events. Several changed rows and
+tables can share a version, and repeatedly enumerating a live CT table from
+separate snapshots is not a frozen result set.
+
+### §17-CT.1 One snapshot, one frozen batch
 
 ```text
-BEGIN SNAPSHOT TRANSACTION
-  1. Validate last synchronization version  (CHANGE_TRACKING_MIN_VALID_VERSION)
-  2. Capture next synchronization version    (CHANGE_TRACKING_CURRENT_VERSION)
-  3. Enumerate CHANGETABLE(CHANGES ...) for all required tables
-  4. Read current rows / tombstones for those changed identities
-     inside the SAME snapshot
-COMMIT
+Resolve authenticated tenant/device/user + supported scope/contract
+Validate ServerFeedEpoch and checkpoint binding
+BEGIN SNAPSHOT TRANSACTION   (ALLOW_SNAPSHOT_ISOLATION enabled)
+  1. Validate FromVersion against MIN_VALID_VERSION for EVERY scope table
+     Null/disabled CT, future version, wrong epoch/profile ⇒ typed recovery error
+  2. Capture ToVersion = CHANGE_TRACKING_CURRENT_VERSION()
+  3. Enumerate CHANGETABLE(CHANGES table, FromVersion) for every scope table
+  4. Tenant/row/column-authorize changed identities and tombstones
+  5. Read complete wire rows/deletions and necessary authorized dependencies
+     inside the SAME snapshot; materialize immutable batch payloads + manifest
+COMMIT  (Ready batch visible only when complete)
+Serve bounded HTTP pages FROM THAT BATCH, never from changing base tables
 ```
 
-This avoids race conditions involving concurrent commits and metadata cleanup
-(§19 Gate F).
+Use explicit transaction-level SNAPSHOT, not READ COMMITTED SNAPSHOT per
+statement assumed to make several statements consistent. A CT row version is
+not a page cursor. Do not split equal-version changes using `lastVersion =
+MAX(page.ChangeSequence)`; this loses the remaining rows at that same version.
+Do not fix separate-snapshot pages merely with `SYS_CHANGE_VERSION <= ToVersion`:
+a previously eligible row can be updated again, change its latest CT version,
+and disappear from that old range. Storing keys and rereading current row values
+on subsequent requests also violates the frozen-snapshot contract.
+
+Launch materialization uses a tenant-bound SQL batch store in the existing
+database (or an equivalently protected immutable store admitted by an ADR), not
+a new broker. Extraction is bounded by rows, serialized bytes, time and concurrent
+snapshot jobs; its reader streams to staged storage, not an unbounded `ToList`.
+Batch/manifest/staging tables themselves are **not CT-enabled replicated tables**;
+writing or cleaning an export must not generate a self-feeding replication loop.
+The batch records the generation observed at extraction and is invalidated if
+feed/schema/profile reset intervenes before readiness or subsequent serving.
+No transaction remains open waiting for the client, across HTTP requests, or
+through a file transfer. Exceeding extraction budget cancels the incomplete
+batch and returns retryable `SyncBusy`/controlled full-resync admission; it never
+publishes partial completeness. Full snapshots use the same bounded generation
+contract (§50). A tenant too large for the declared snapshot budget requires an
+explicit capacity/export design before admission, not unsafe per-table paging.
+
+### §17-CT.2 Wire identity, paging and durable application
+
+```text
+Checkpoint: ServerFeedEpoch · ScopeId/ScopeHash · SyncProfileVersion ·
+            ContractVersion · CompletedVersion
+Batch:      BatchId · same identity tuple · FromVersion · ToVersion ·
+            PageCount · ItemCount · manifest/content hash · ExpiresAt
+Page:       BatchId · PageOrdinal · PageHash · Items · opaque continuation
+Item:       EntityType · Id · Upsert/Delete/RemoveFromScope · opaque Version ·
+            optional ChangeSequence · authorized wire payload
+```
+
+CT numeric values, if present in JSON, are encoded losslessly as opaque decimal
+strings (not JavaScript floating-point numbers). Page positions use stable
+ordinals over the immutable extraction, with deterministic tie-breaking by
+entity type/identity where needed. Continuations are integrity-protected and
+bound to epoch, authenticated principal/device, tenant, scope, contract and batch
+expiry. A token is **not** an access grant: every page request revalidates current
+authority/profile; an unauthorized or changed-profile batch is invalidated.
+Repeated page retrieval returns the same contents; a hash detects missing/
+corrupted staging, not a replacement for TLS/authorization.
+
+The client durably stages pages idempotently by `(BatchId, PageOrdinal)` in
+invisible local staging. It checks identity, all ordinals/counts/hashes, supported
+contracts and required relationships. Duplicate pages are harmless; missing,
+unknown-contract or inconsistent pages cannot advance the checkpoint. On full
+completion, the single local writer transaction:
+
+1. Applies parent-before-child upserts and child-before-parent removals (or an
+   equivalent validated staging strategy); preserves transactionally coupled
+   read facts across table/page boundaries, without exposing partial checkout.
+2. Updates authoritative server base, rebases/preserves pending overlay and
+   conflict entries without emitting new business mutations.
+3. Records batch completion and **CompletedVersion = ToVersion together**.
+4. Commits, then emits UI invalidation (§8.17).
+
+An empty **complete** authorized batch still advances to `ToVersion`; unrelated
+tenant versions create legitimate gaps. A partial batch never advances by its
+last row/table/page. A crash before commit replays from the old checkpoint; a
+crash after commit recognizes the completion marker. If the server batch expired
+or was lost before local completion, discard only that incomplete staging and
+request a fresh batch from the **unchanged completed checkpoint**. If the old
+checkpoint now fails retention, use shadow resync. Old batch pages/responses
+from a previous profile/epoch/generation are rejected, never applied late.
+
+### §17-CT.3 Scope exits, deletion and metadata isolation
+
+CT emits primary keys and masks/context for changed rows. Do not assume EF
+query filters or RLS on the joined base table automatically protect the CT
+rowset. Critical tenant-owned tables use immutable tenant identity with
+tenant-recoverable change keys (prefer composite `(TenantId, Id)` primary keys)
+and tenant-consistent foreign keys. Every CT path, including deletions, filters
+authorized tenant keys before serializing IDs, masks/context or payload. No raw
+`SYS_CHANGE_CONTEXT` is returned to clients. A global feed position need not
+reveal any other tenant's row identity.
+
+Default sync profiles use stable tenant + entity/column permissions and bounded
+history rules. Mutable row predicates (assigned doctor, location, status, age
+window, owner access) require **both entry and exit** delivery: filtering only
+current matching rows silently leaves formerly matching records on B. Use a
+durable authorized membership-transition feed carrying `RemoveFromScope`, or
+bump the affected profile and perform a controlled scope rebuild. This same rule
+covers rows aging out without any row DML and joined-table changes affecting
+visibility. New permissions/profile tables/history boundaries cannot reuse an
+old checkpoint that never enumerated them. Revocation stops affected local
+reads/hint membership immediately on contact; preserved inaccessible pending
+intent is quarantined for authorized recovery, not exposed under another user.
+
+Soft-deleted rows must remain visible to the replication extractor as deletions:
+disable **only** the named soft-delete filter, retaining the tenant/security
+filters (S16). An authorized identity-only tombstone suffices for removal; never
+send prior clinical fields to someone no longer entitled to them. Governed hard
+purge retains a tenant-bound minimal tombstone/graveyard for its supported
+replay window, or resets scope/epoch to force resync. Never reuse a deleted
+business identity: CT can collapse delete+insert at the same key into an update
+(S02). TRUNCATE, CT disable/re-enable and relevant schema/feed changes are
+governed resets, never ordinary sync-transparent maintenance.
+
+These rules close the concurrent-write/cleanup/page/tie/scope-loss cases in
+§19 Gates F, W, AI and AL.
 
 ## §18-CT. Change Tracking retention
 
@@ -2753,6 +3177,17 @@ version (A-RULE 047). Retention invariant:
 `ChangeTrackingRetention ≥ MaxSupportedOfflineWindow + SafetyMargin` (§1.1). A
 supported offline duration cannot be published unless the server is configured
 and capacity-tested for the corresponding retention.
+
+Validate the effective **per-table** minimum every extraction; configured days
+are not a validity proof. Keep auto-cleanup on, observe actual cleanup progress,
+CT side-table/commit-table growth, version-store pressure and oldest active
+snapshot. Alert on stalled cleanup and extraction-budget breaches. S17's 2026
+Microsoft support article is operational evidence (Azure SQL case), not a claim
+that every boxed SQL Server release shares its implementation. Do not copy
+internal-table deletion scripts or disable/re-enable CT as an application repair:
+those are reviewed operator actions with epoch reset and affected-client resync.
+Batch TTL, tombstone retention, offline authority expiry and receipt retention
+are separate budgets; changing one cannot silently shorten another.
 
 ## §19-tomb. Tombstones & delete semantics
 
@@ -2833,19 +3268,76 @@ never stops checkout.
 
 ## §44. Near-real-time collaboration (notifications as hints)
 
-**[INVARIANT] Correctness never depends on a notification.** Responsiveness:
+**[DECISION — S08–S10/S15.] Self-hosted ASP.NET Core SignalR is the launch hint
+adapter**, not deferred until scale-out. It runs inside the existing server
+process. One persistent hint connection per authenticated desktop profile;
+active web islands may subscribe/refetch, but static SSR is not secretly turned
+into a persistent interactive circuit. No Azure SignalR Service, Redis or broker
+is required on the launch node. The CT pull protocol remains authoritative.
+
+Every ordinary API mutation of replicated state (including a state patch with
+no business domain event) writes a separate `StateInvalidated` hint intent in
+the **same transaction** as state/receipt. That integration hint is not a domain
+event or CT log replacement. A bounded hosted relay uses `IHubContext`, never
+keeps a Hub/DbContext/HttpContext alive, coalesces by authorized tenant/scope and
+sends only `scope dirty / profile invalidated` with an optional opaque hint
+generation. It does not claim to know the committing transaction's CT version
+before commit; a sampled version is only a wake hint and never a checkpoint.
+Governed direct SQL without an outbox hint is still discovered by polling;
+maintenance may enqueue a hint transactionally for faster visibility (§20).
+
+The committed write returns without waiting for a connected recipient or a slow
+socket. Relay send success means attempted transport dispatch, **not** B has
+applied the data. Hint queues, coalescing maps, per-client buffers and relay
+concurrency are bounded. Overflow may replace many hints with one scope-dirty
+signal; persistent outbox business effects are never dropped with hint traffic.
+A poisoned hint can dead-letter and degrade latency; polling still repairs state.
+
+**SignalR is routing, not authorization.** Hub admission, tenant-qualified user
+IDs and group names are server-derived from current authenticated membership;
+clients cannot pick arbitrary clinic groups. Groups persist in memory and are
+not a security boundary. Reconnect reauthorizes/rejoins; subscribe-then-pull
+closes the gap (§8.17). Remove/close affected connections on membership/device
+revocation. .NET 10 does not automatically refresh a cached hub principal after
+role changes; use current-policy checks and token-expiry closure/reconnect.
+Browser query-string bearer tokens, if used, are confined to the hub endpoint
+and redacted from proxy/application logs. Existing opaque desktop identity tokens
+are validated by the matching identity handler; do not assume they are JWTs.
+
+**Reconnect control.** `WithAutomaticReconnect` is explicit; the default policy
+stops after four attempts and does not retry initial `StartAsync` failure (S08).
+Own startup and later disconnected recovery in the single coordinator with
+jittered bounded episodes, one token-refresh gate and no overlapping starts.
+Stateful reconnect is optional and bounded; its transient memory replay is not
+an offline durable queue, cannot survive every restart, and never replaces CT
+catch-up. Documentation sections marked **.NET 11** (`EnableAuthenticationRefresh`,
+`RefreshAuthenticationAsync`, etc.) are not launch .NET 10 APIs (S09/S10).
 
 ```text
-Foreground active screen → adaptive short polling / hint; target 1–3 s
-                           visibility latency, randomized jitter
-Idle screen              → 5–15 s
-Background               → 30–120 s
-Optional scale-out       → SignalR notification adapter (hint only)
+Hint received / local save     → coalesced wake; initial debounce 50–150 ms
+Healthy hub, foreground        → anti-entropy poll every 5–15 s + jitter
+Hub unavailable, foreground    → delta poll every 1–3 s + jitter (degraded mode)
+Idle                          → 15–30 s + jitter
+Background                    → 30–120 s + jitter, subject to OS suspension
+App resume / reconnect        → immediate bounded catch-up regardless of hints
 ```
 
-Precise intervals are benchmark parameters. If SignalR is enabled later it sends
-only "tenant changed / scope changed / latest hint-version" — never full
-records — and scale-out then needs session affinity + a backplane (§73).
+These are initial tuning parameters, not benchmark results or hard distributed
+time guarantees. Fallback polling's worst-case visibility includes poll interval
+plus network/apply time and need not meet the healthy-hub target. CT dirty-poll
+and snapshot extraction are rate-limited per tenant and globally. Repeated hints
+while a pull runs set a dirty generation; after the round one follow-up is
+scheduled, so coalescing cannot lose the last wake or cause recursive storms.
+Backpressure may increase intervals visibly; settlement and foreground catch-up
+keep a fair budget above file/report/background work.
+
+Reverse proxies support negotiation and WebSocket upgrade, disable relevant
+buffering/cache, and set idle timeouts above configured keepalives; server/client
+timeouts are at least twice their paired keepalive interval (S09). Single-process
+launch needs no backplane/affinity. Scale-out revisits persistent-socket memory,
+connection admission and session affinity + self-hosted backplane (§73); the
+WebSocket-only/SkipNegotiation exception is not assumed while fallback transports
+are supported.
 
 ## §45. Notification failure
 
@@ -2870,10 +3362,18 @@ Sync Coordinator`. **No browser/WebView in the offline path.**
 
 ## §48. Local database concurrency
 
-One local synchronization writer at a time. EF Core `DbContext` instances are
-short-lived and never used concurrently across threads. The local sync writer
-serializes checkpoint writes, delta application, mutation settlement and
-conflict-state updates; read queries run concurrently on independent contexts.
+One local writer/admission gate per encrypted profile serializes **all** local
+write transactions, including UI save+journal, delta apply, mutation settlement,
+projection updates, backup coordination and generation cutover. SQLite still has
+one writer; protecting only the sync writer does not protect UI versus sync
+races. Keep critical sections short; never hold the gate/transaction over HTTP,
+SignalR, user input or file downloads. Read queries use independent short-lived
+contexts; EF/SQLite connection/command objects are never shared concurrently.
+Use a finite busy/locked timeout (S14), bounded backpressure and visible disk-full/
+corruption failures. Provider lock retries and higher-level budgets are accounted
+for together, never infinite `CommandTimeout=0`. SQLite uses application-managed
+local revision tokens; server `rowversion` is stored opaquely as the base token,
+never manufactured by SQLite or conflated with a local revision (S06).
 
 ## §49. Local WAL & encryption
 
@@ -2890,21 +3390,44 @@ contract is incompatible, scope changed materially, a manual repair is
 requested, or integrity validation failed. Process:
 
 ```text
-1.  Freeze local replication writes (NOT the business UI)
-2.  Preserve the mutation journal
-3.  Establish a consistent server snapshot
-4.  Build a Shadow Replica
-5.  Validate schema / relations / checksums
-6.  Rebase preserved local mutations where policy allows
-7.  Move irreconcilable mutations to ConflictInbox
-8.  Atomically switch shadow → live
-9.  Re-establish checkpoint
-10. Resume normal sync
+1.  Enter RecoveringReplica; suspend normal base-replication apply, not UI saves
+2.  Preserve the independent durable journal/operation outcomes and local drafts
+3.  Under one server SNAPSHOT, capture the epoch/scope/watermark then extract
+    all authorized initial rows and required references into one immutable batch
+4.  Stage pages into an invisible shadow base generation (§17-CT batch protocol)
+5.  Validate schema / authorized references / manifest / local storage budget
+6.  Catch the shadow up by complete delta batches from its snapshot watermark
+7.  Rebase preserved unsent intent; conflicts retain original payload and evidence
+8.  Under the short local writer gate, read the latest journal tail and reconcile
+9.  Atomically switch active base generation + overlay/conflicts + checkpoint
+10. Commit, invalidate UI, resume normal fair sync; retire old base after recovery
 ```
 
 **[INVARIANT] The current local replica stays intact until the shadow replica
 is proven valid** (§19 Gate AE); a resync never deletes a pending mutation
 merely because the snapshot is newer.
+
+**Launch cutover design.** Keep journal, drafts, settlement evidence and active
+generation pointer in the same encrypted local store; replicated base tables
+are generation-keyed. Shadow generations contain base data only. New UI saves
+continue into the shared journal while the shadow downloads. The final writer
+transaction freezes writers briefly, includes every committed journal record
+through its latest local sequence, rebuilds/preserves the pending overlay and
+switches active generation plus checkpoint atomically. Future saves then compose
+against the new generation. No business rule runs a second time as a side effect
+of replaying the overlay. Already-submitted/unknown envelopes retain their exact
+identity and bytes; only unsent intent may be rebased automatically.
+
+A pointer switch between arbitrary database files is not itself transactional
+with the journal. A future multi-file design must specify a recoverable manifest/
+fencing protocol before replacing this launch design. Interrupted download,
+expired manifest, revoked scope, corrupt page or insufficient disk space leaves
+the current base/journal intact with an explicit recovery status. Storage budget
+includes live base + shadow + journal + WAL; never delete pending intent to make
+room. Old generation cleanup is resumable after successful cutover and cannot
+remove active data or the only recoverable journal. If snapshot watermark ages
+past CT retention before shadow catch-up, restart shadow extraction only, never
+reset or discard pending work.
 
 ## §51. Mutation rebase after full resync
 
@@ -3123,7 +3646,8 @@ local-client-state alone.
 
 **§100** three validation levels (client UX / application completeness / domain
 invariants); server domain validation is authoritative. **§101** idempotency
-applies to business commands, onboarding, file completion, outbox consumers and
+applies to critical state mutations, business commands, onboarding, file
+completion, outbox consumers and
 repeatable maintenance — it does not mean "exactly once"; delivery stays
 at-least-once. **§102** ordering is explicit via keys (`Tenant+AggregateId`,
 `Tenant+ResourceId`, `Tenant+CashSessionId`); do not globally serialize a whole
@@ -3148,7 +3672,8 @@ appropriate. **§107** every subsystem has a defined outcome (§12.5).
 
 ## §108. Chaos / fault injection
 
-The architecture is tested with injected failures: process crash · DB deadlock ·
+Runtime acceptance must exercise injected failures (not executed in this
+revision): process crash · DB deadlock ·
 transaction rollback · network drop · timeout · lost response · duplicate
 response · duplicate request · out-of-order request · corrupt local DB · corrupt
 file · permission change mid-flight · server restart · full node restore · clock
