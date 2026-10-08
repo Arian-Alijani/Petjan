@@ -35,19 +35,24 @@
 > while supporting an **offline-first** desktop client with a **long, safe
 > offline window**.
 >
-> **Methodology.** This document follows the **C4 model** (Context →
-> Container → Component) for structural views, **arc42-style** driver/decision
-> documentation, the **Azure Architecture Center Cloud Design Patterns**
-> catalog for behavioral patterns (cited by name at each use), the **Azure
-> Well-Architected Framework** five pillars for quality-attribute traceability,
-> and **Domain-Driven Design (DDD)-lite** for bounded-context decomposition —
-> all as documented on Microsoft Learn / Azure Architecture Center (see §23).
+> **Methodology (with honest provenance — see §23).** Structural views use the
+> **C4 model** (an independent method by Simon Brown, `c4model.com` — *not* a
+> Microsoft artifact); driver/decision documentation follows **arc42**
+> (`arc42.org`, independent); bounded-context decomposition uses
+> **Domain-Driven Design (DDD)-lite** (Evans). *Validated against* Microsoft
+> guidance — the **Azure Architecture Center Cloud Design Patterns** catalog
+> for behavioral patterns (cited by name at each use) and the **Azure
+> Well-Architected Framework (WAF)** five pillars as *quality-attribute
+> traceability*. WAF is a quality framework, not an architecture style or a
+> deployment prescription: architecture decisions are *checked against* WAF
+> quality attributes, never *derived from* a pillar — this ordering is what
+> keeps the design from over-engineering a pillar into a mandate.
 >
-> **Tags.** **[PATTERN]** = a named, doc-backed architectural pattern applied
-> as-is; **[DECISION]** = an Animora-specific architectural choice;
-> **[INVARIANT]** = a rule that must never be violated by any implementation;
-> **[DEFERRED]** = intentionally not built now, with an explicit trigger for
-> when it must be revisited.
+> **Tags.** **[PATTERN]** = a named, doc-backed pattern **adapted** to
+> Animora's constraints (never blindly "as-is"); **[DECISION]** = an
+> Animora-specific architectural choice; **[INVARIANT]** = a rule that must
+> never be violated by any implementation; **[DEFERRED]** = intentionally not
+> built now, with an explicit trigger for when it must be revisited.
 
 ---
 
@@ -113,9 +118,18 @@ change must re-check the row(s) it touches.
 | R3 | Secure, reliable, correct | Security + Reliability | Defense-in-depth tenancy; layered authN/authZ/entitlement; idempotent commands; transactional outbox | Security/chaos gates (§19) all pass |
 | R4 | **Offline-first** desktop, robust reconnect | Reliability | Durable local command queue; delta-token resumable sync; explicit settlement states | Desktop keeps working and reconciles correctly through disconnect/crash/reconnect (§19 Scenario H/D) |
 | R5 | Multi-user per clinic, correct convergence | Reliability + Security | Domain-specific conflict policy; server-authoritative settlement; append-only ledger | Two offline devices converge to one correct financial truth, never a silent overwrite |
-| R6 | Multi-tenancy, subscription/plan management | Security + Cost Optimization | Shared-DB tenancy with layered isolation; independent Subscription/Licensing contexts | Cross-tenant access is architecturally impossible even if one layer is disabled |
+| R6 | Multi-tenancy, subscription/plan management | Security + Cost Optimization | Shared-DB tenancy with layered isolation; independent Subscription/Licensing contexts | Cross-tenant access is blocked by a mandatory layer that holds with DB hardening disabled, AND no code path reaches tenant data outside tenant-aware infrastructure (§9.2) |
 | R7 | **Vendor-self-hosted server (not cloud-PaaS-dependent), zero external-Internet dependency at runtime** | Reliability + Security | No mandatory external system in any runtime path; local PKI; local observability | Isolation test: disconnect the Internet cable, all committed capabilities still function |
 | R8 | Current, standard, MS-aligned architecture | Operational Excellence | Named MS patterns applied deliberately, not improvised | Every non-trivial mechanism cites a specific, applicable pattern (§23) |
+| R-DR | **Declared recoverability on a single node** | Reliability | Explicit Availability SLO + **RTO** + **RPO** + max offline-command age; ≥2 backup copies, ≥1 off-host + immutable; tested restore | A total-node-loss drill restores within RTO with data loss ≤ RPO, from a tested backup, to one Recovery Point Manifest (§17.3, §19 Scenario AB) |
+
+**[INVARIANT — single node is an owned SPoF, not an unstated one.]** A single
+server node is, by definition, a **single point of failure**; WAF treats
+removing SPoFs as a core reliability principle. Choosing single-node at launch
+is a legitimate cost/product decision **only because** R-DR makes its blast
+radius explicit (declared RTO/RPO + tested restore). The scale-out /
+redundancy escape hatch (§9.1, §16.2) is where that SPoF is later removed; it
+is never claimed that single-node is itself highly available.
 
 ---
 
@@ -270,9 +284,13 @@ Domain code can see.
 **[PATTERN] Ports & Adapters (Hexagonal) at the infrastructure boundary** —
 every external-facing capability (sync engine, file storage, crypto/PKI,
 clock/time source, license verification) is defined as a **port** (interface)
-owned by Application/Domain and implemented by an **adapter** in
-Infrastructure. This is *why* replacing or forking a third-party dependency
-never requires a Domain rewrite (§8.2, §13).
+and implemented by an **adapter** in Infrastructure. Port *ownership* follows
+the capability: a business-meaningful port (e.g. a domain repository) may be
+Domain-owned; a purely technical/orchestration port that is **not** a business
+concern — the **sync engine especially** (§6: synchronization is not a
+bounded context) — is **Application-owned, never Domain-owned**. This is *why*
+replacing or forking a third-party dependency never requires a Domain rewrite
+(§8.2, §13).
 
 ---
 
@@ -317,6 +335,32 @@ contracts (commands, queries, domain events) to other contexts.
   **infrastructure capability** (§8) that every syncable context's
   Application layer opts into via a port — it never owns business rules.
 
+**[DECISION — cross-context financial consistency is declared per interaction,
+not blanket "eventual".]** Because all contexts live in one process and one
+database (Modular Monolith), cross-context coordination is **not** a
+distributed transaction. For each financial interaction the architecture
+states explicitly whether it is **atomic** (one DB transaction spanning
+multiple aggregates via an Application-layer workflow) or **eventually
+consistent** (event + Outbox, with a visible provisional state):
+
+| Interaction | Consistency |
+|---|---|
+| Sale + stock reduction + payment at checkout | Atomic (one transaction) |
+| Sale → draft invoice creation (Finance) | Eventually consistent (event) |
+| Purchase receipt + payable | Atomic |
+| Payment + cash-session entry | Atomic |
+| Refund + inventory return | Atomic |
+| Finance posting ← settled sale | Eventually consistent, surfaced as `PendingPosting` until posted |
+| Period close vs. pending commands | Policy-governed (§11.1) |
+
+**[INVARIANT — no silent "financially incomplete" gap.]** Where an interaction
+is eventually consistent, the not-yet-posted state is an **explicit, visible
+status** (e.g. `PendingPosting`), never a window in which a sale looks
+complete while Finance has no record and nothing says so (A-RULE 038). An
+Application-layer workflow may coordinate several aggregates in one
+transaction while each aggregate's domain ownership stays intact — this is
+*not* a saga/distributed-transaction layer (§22).
+
 ---
 
 ## 7. Multi-Platform Client Architecture
@@ -329,13 +373,23 @@ web is a deliberate architectural boundary, not duplication:
 ```
 Shared, single source of truth:
   Domain · Application · Contracts · Validation rules · Authorization
-  policies · Localization/formatting · Sync ports (ISyncEngine) · DTOs ·
+  policy DEFINITIONS · Localization/formatting · Sync ports · DTOs ·
   Error codes · Command definitions · File-access contracts
 
 Split by design (presentation only):
   Desktop presentation  (native, offline-capable host)
   Web presentation       (server-rendered, online-only host)
 ```
+
+**[INVARIANT — shared authorization code is not a shared security authority.]**
+Sharing authorization *policy definitions* keeps client and server from
+drifting, but the **client evaluation is only a UX optimization / local
+gating** (hide a button, pre-validate a form). A client is compromisable;
+**no security invariant may ever depend on the client's execution of a
+policy.** The server re-evaluates every authorization decision — including
+resource-based checks against the actual resource instance (§10.3) — as the
+sole authority, even when it runs byte-identical policy code the client just
+ran. Client says "probably allowed"; the server says "allowed."
 
 **Rationale (architectural, not tooling):** the desktop presentation host
 must run as a genuine native offline process (no browser runtime in the
@@ -387,8 +441,11 @@ architecturally separate pipelines (§0.1): **Generic Record Replication** and
 
 ### 8.1 Sync Engine as an isolated Infrastructure Adapter
 
-**[PATTERN] Ports & Adapters / Anti-Corruption Layer.** The replication
-engine is wrapped by a Domain/Application-owned port:
+**[PATTERN] Ports & Adapters / Anti-Corruption Layer.** Synchronization is
+**not** a Domain capability (§6 — it is not a business bounded context), so
+its port is owned by the **Application layer**, not Domain. The Domain knows
+nothing about sync at all. The replication engine is wrapped by an
+Application-owned port implemented in Infrastructure:
 
 ```csharp
 public interface ISyncEngine
@@ -398,10 +455,12 @@ public interface ISyncEngine
 ```
 
 **[INVARIANT] Domain and Application code never reference the replication
-library's types directly.** This exists so that (a) the replication
-technology is swappable without touching business code, (b) the domain
-layer's dependency graph stays clean per §5, and (c) a future custom
-replacement engine is a pure Infrastructure change.
+library's types directly; Domain references no sync abstraction at all.**
+The orchestration interface for sync lives in Application; Domain is entirely
+unaware of it. This exists so that (a) the replication technology is swappable
+without touching business code, (b) the domain layer's dependency graph stays
+clean per §5, and (c) a future custom replacement engine is a pure
+Infrastructure change.
 
 ### 8.2 Generic Record Replication (state, not intent)
 
@@ -414,10 +473,30 @@ metadata, and server-computed read models.
 technology detail):**
 
 ```
-Id          — globally unique identifier, stable across replicas
-UpdatedAt   — server-stamped watermark; the ONLY basis for delta cursors
-Version     — opaque concurrency token; changes on every server write
-Deleted     — soft-delete flag (tombstone), never a hard delete in transit
+Id            — globally unique identifier, stable across replicas
+ChangeSequence— server-issued, strictly-increasing, opaque change cursor
+                (per sync scope); the ONLY value a client cursors on
+UpdatedAt     — server-stamped business/display timestamp; informational
+                only — NEVER a delta cursor and NEVER an ordering source
+Version       — opaque concurrency token; changes on every server write
+Deleted       — soft-delete flag (tombstone), never a hard delete in transit
+```
+
+**[INVARIANT — the cursor is `ChangeSequence`, never `UpdatedAt`.]** The
+single value a client advances its delta cursor on is the server-issued,
+strictly-increasing, opaque `ChangeSequence` (a monotonic server change
+log position, never a wall clock). `UpdatedAt` is retained for business
+display/auditing only. This closes a real hazard: a wall-clock watermark
+is not safe under concurrent commits, clock skew, retries and paging —
+two rows written in the same tick, or a row whose commit becomes visible
+out of timestamp order, can be silently skipped by a timestamp cursor. A
+monotonic, commit-ordered sequence is the only correctness basis for a
+resumable delta pull.
+
+```
+ChangeSequence = 8471932            ← client cursors on THIS
+UpdatedAt      = 2026-10-08T08:31Z  ← display/audit only
+Version        = <opaque token>     ← row concurrency, not ordering
 ```
 
 **[INVARIANT] Server entity/write models are never exposed directly to
@@ -434,28 +513,82 @@ Client            Push: local write → operation queue (client-local,
                         operation at a time by default (parallelism is an
                         explicit, provably-safe exception, never the default)
                   Pull: incremental, delta-token based; the token is the
-                        maximum UpdatedAt seen so far for that entity/query
-                        scope; pages are requested until exhausted
+                        highest server-issued ChangeSequence seen so far for
+                        that entity/query scope; pages are requested until
+                        exhausted
 Server            Applies pushed operations idempotently at the replication
                   layer; serves pulled pages ordered/filtered by the
                   tenant's data view (§9)
 ```
 
-**[INVARIANT] `UpdatedAt`/`Version`/the replication operation identifier are
-never a global business/event sequence.** They are transport-layer
-bookkeeping for *replication correctness* only. Business ordering is a
-completely separate concept (§8.4).
+**[INVARIANT] `ChangeSequence`/`Version`/the replication operation identifier
+are never a global business/event sequence.** They are transport-layer
+bookkeeping for *replication correctness* only — `ChangeSequence` orders
+*replication delivery* within a sync scope, not *business settlement* order.
+Business ordering is a completely separate concept (§8.4).
 
-**[INVARIANT] A server-issued, strictly-increasing sequence (never a wall
-clock) must back the delta cursor wherever timestamp-based delta pull cannot
-be proven safe** under concurrent writes, retries, paging, disconnects and
-clock skew. A timestamp column is storage; it is not, by itself, proof of
-sync-ordering correctness.
+**[INVARIANT] The delta cursor is always a server-issued, strictly-increasing
+`ChangeSequence`, never a wall clock.** This is unconditional, not a
+"wherever timestamp pull is unsafe" fallback: timestamp-based delta pull is
+*never* proven safe under concurrent writes, retries, paging, disconnects and
+clock skew, so the architecture does not permit it at all. A timestamp column
+(`UpdatedAt`) is storage for display/audit; it is not, by itself, proof of
+sync-ordering correctness and is never a cursor.
 
 **[INVARIANT] No destructive sync.** An inbound pull must never blindly
 overwrite unsent local business intent. Draft invoices, draft payments,
 in-flight inventory transactions and pending appointment edits are
 reconciled, never silently clobbered by a later-arriving replicated row.
+
+#### 8.2.1 Tombstone & revocation retention (bounded by the offline window)
+
+**[INVARIANT — retention ≥ max offline window + safety margin.]** Every
+negative fact a long-offline client must still learn about on reconnect —
+soft-delete tombstones, revoked memberships, removed permissions,
+discontinued products, cancelled appointments, device/license revocation,
+and reparented references — is retained on the server for **at least the
+maximum supported offline duration plus an explicit safety margin**. A
+device offline for the whole supported window and then reconnecting must
+observe every such change; it must never resurrect a server-deleted row
+because its tombstone was already garbage-collected. The supported offline
+window and the retention floor are a single linked decision (ADR-17), not two
+independent numbers, and are enforced as a fitness gate (§19 Scenario Y).
+
+#### 8.2.2 Initial-sync snapshot consistency
+
+**[INVARIANT — a first sync lands on a single consistent cursor, not a
+patchwork of per-table moments.]** Initial (or full-resync) replication must
+produce a client state that corresponds to **one** server change position,
+not an incidental mix of `Patient@T1`, `Appointment@T2`, `Invoice@T3`. The
+protocol is:
+
+```
+1. Establish a snapshot watermark N  (a single server ChangeSequence)
+2. Download all required state as of ≤ N, across every scope/table
+3. Apply the snapshot locally as one coherent baseline
+4. Set the local cursor to N
+5. Resume normal incremental pull for changes > N
+```
+
+This guarantees cross-entity referential consistency on first load (an
+appointment never references a patient the client has not yet received) and
+makes "where am I in the change log" a single answer, not one per table.
+
+#### 8.2.3 Delete-then-edit (resurrection) is a business conflict, not a merge
+
+Soft-delete alone does not define what happens when a device edits a row
+**offline** that the server has since deleted. The architecture treats this
+as a distinct **resurrection conflict**, not a plain version mismatch, and
+every deletable syncable entity carries deletion provenance:
+
+```
+DeletedAt · DeletionVersion · DeletionReason · DeletedBy
+```
+
+**[INVARIANT]** An offline update targeting a server-deleted aggregate is
+routed to explicit domain conflict policy (§8.5) — reject, restore-with-audit,
+create-replacement, or human review — and is **never** auto-applied as if the
+row still existed (§19 Scenario Y).
 
 ### 8.3 Business Command Architecture (intent, not state)
 
@@ -481,13 +614,23 @@ User action
                            reconnect (ahead of routine background sync)
 ```
 
-Every command carries:
+Every command the client sends carries:
 
 ```
-OperationId · TenantId · UserId · DeviceId · CommandType · AggregateId ·
-Payload · CreatedAtUtc (client-local, informational only) · LocalSequence ·
-Status
+OperationId · CommandType · AggregateId · Payload ·
+CausationId / DependsOnOperationId (where applicable) ·
+CreatedAtUtc (client-local, informational only) · LocalSequence · Status
 ```
+
+**[INVARIANT — identity is server-derived, never client-asserted.]**
+`TenantId`, `UserId`, `DeviceId` and the full authorization context are
+**resolved server-side from the authenticated, device-bound credential on
+every command** — they are *not* read from the command payload, exactly as
+`TenantId` is never trusted from a sync write (§9.2). A client may stamp a
+local, informational copy for its own queue bookkeeping, but the server
+ignores it and binds the authoritative values itself; `DeviceId` in
+particular is bound to the device's registered credential/key, not to a
+self-declared field (§10.4). This is codified as A-RULE 036.
 
 **Why a command queue is architecturally separate from the replication
 operation queue:** accounting needs deterministic idempotency, authorization,
@@ -530,12 +673,27 @@ is handled explicitly (§8.4).
 **Explicit settlement states, surfaced to the user (never hidden):**
 
 ```
-Draft → LocallyPosted → PendingSettlement → Settled
-                                          → Rejected
-                                          → Conflict
-                                          → Reversed
-                                          → NeedsAttention
+Draft → LocallyCommitted → PendingSettlement → Settled
+                                             → Rejected
+                                             → Conflict
+                                             → NeedsAttention
 ```
+
+**[INVARIANT — "Posted" is a server/accounting word, never a client state.]**
+The pre-settlement local state is `LocallyCommitted`, deliberately **not**
+"LocallyPosted": in accounting, *posted* means an irreversible server-settled
+ledger fact, and no client-local, provisional state may borrow that word in a
+label, event, or report (A-RULE 038). The settlement lifecycle
+(`Draft…Settled`) is also kept distinct from any business lifecycle status an
+aggregate carries — a command's *settlement* state answers "did the server
+accept this intent," not "what phase is this sale/visit in."
+
+**[INVARIANT — a reversal is a new command, not a terminal state.]**
+Reversing a settled effect is itself a *new* business command that references
+the original `OperationId`; it is never a state the original command decays
+into. This keeps the append-only/compensating-entry model (§11.1) intact: the
+original settlement stays `Settled` forever, and a separate settled reversal
+command records the compensating effect with its own audit trail.
 
 **[INVARIANT — sync-failure UX contract]** Whenever a command cannot settle,
 the architecture guarantees an answer to four questions, surfaced to the
@@ -551,11 +709,20 @@ the other, with itself beyond what it explicitly guarantees, or across
 devices/aggregates.
 
 A business command that depends on another command's outcome **must carry
-explicit causal metadata**:
+explicit causal metadata**. `CausationId` and `DependsOnOperationId` are
+**two distinct concepts and are never conflated**:
 
 ```
-CausationId / DependsOnOperationId  (+ expected aggregate version, where known)
+CausationId          — provenance: which command/event CAUSED this one to
+                        exist (audit/traceability)
+DependsOnOperationId — a hard settlement precondition: which operation MUST
+                        settle on the server before this one may be evaluated
+                        (+ expected aggregate version, where known)
 ```
+
+**[INVARIANT — the dependency graph is a DAG.]** `DependsOnOperationId`
+edges must form a directed acyclic graph. A cycle (`A→B→C→A`) is detected and
+rejected *before* execution, never deadlocked on at settlement time.
 
 A command with an unsatisfied dependency is **deterministically delayed or
 rejected** — never blindly accepted — until the prerequisite has **settled on
@@ -711,6 +878,26 @@ HARDENING (defense-in-depth; may be disabled without breaking tenancy):
 **[INVARIANT] Client-supplied `TenantId` is never trusted.** It is resolved
 only from authenticated membership, on every request, server-side.
 
+**[INVARIANT — no raw data access outside tenant-aware infrastructure.]** A
+global query filter is a *convenience* layer, not the security boundary, and
+is bypassable by `IgnoreQueryFilters`, raw SQL, bulk update, stored
+procedures, report queries, maintenance jobs, cache reads and file access.
+Isolation is therefore *not* claimed as "impossible even if one layer is
+disabled" in the abstract; it is enforced by making **mandatory layer 1
+(application authorization) independently sufficient** AND forbidding any code
+path that reaches tenant data outside approved tenant-aware infrastructure.
+Every one of the bypass vectors above is either routed through tenant-aware
+infrastructure or is an explicitly reviewed, audited exception — never an
+unmonitored escape hatch (§19 Scenario E/J, and an operator cross-tenant
+drill).
+
+**[INVARIANT — the resolved tenant context is immutable for the request.]**
+`TenantId` is captured once at the request boundary into an **immutable**
+`ResolvedTenantContext`; no downstream layer may mutate it (`X → Y`). This is
+enforced across async continuations, background jobs, worker claims, outbox
+handlers and scheduled jobs — each inherits the same immutable context, never
+re-derives or re-trusts a tenant from a lower layer.
+
 **[INVARIANT — required-navigation pitfall]** A *required* relationship
 navigation into a tenant-filtered entity must never be allowed to silently
 drop parent rows because the filtered child disappeared. Sensitive
@@ -768,6 +955,24 @@ Desktop client    → bearer + refresh token pair (native-app-appropriate;
 consistently.** No bespoke token protocol is invented; no second parallel
 auth path is added "just for desktop."
 
+**[INVARIANT — browser cookie auth is incomplete without anti-forgery.]**
+Because a browser attaches the session cookie automatically to every request,
+**every state-changing (unsafe) browser request requires anti-forgery (CSRF)
+protection** — this is an architecture-level requirement, not an optional
+hardening. Cookies are issued `Secure` + `HttpOnly` + `SameSite`, with
+Origin/Fetch-metadata checks where appropriate and strict CORS. **CORS is not
+a substitute for CSRF protection.** The desktop's bearer-token path is not
+cookie-ambient and so is not CSRF-exposed in the same way, but it has its own
+rules (§10.4). This is a dedicated gate (§19 Scenario W-csrf).
+
+**[DECISION — native desktop auth follows the standard native-app flow.]**
+The desktop's bearer+refresh pair is obtained via **Authorization Code +
+PKCE** through the OS's external user-agent (not an embedded credential form),
+with tokens in OS secure storage, **refresh-token rotation**, and device-bound
+keys where supported (§10.4). A public native client never ships a static
+client secret. This keeps "one auth family" true while using the correct,
+standards-based shape for each host.
+
 ### 10.3 Authorization architecture
 
 **[PATTERN] RBAC + Policy-based + Resource-based authorization, layered.**
@@ -804,10 +1009,12 @@ Maximum offline session lifetime      → per-capability, threat-model-derived;
                                           longer ones
 Cached-credential handling            → what is cached, protected how
 Device revocation behavior            → a revoked device loses offline
-                                          capability at next contact, no
-                                          exceptions
-Security-stamp/password-change        → invalidates cached offline sessions
-  behavior
+                                          capability AT NEXT CONTACT, never
+                                          retroactively while still offline
+Security-stamp/password-change        → enforced at the next synchronization/
+  behavior                                contact; a change made on the server
+                                          cannot reach a genuinely offline
+                                          device until it reconnects
 Behavior after expiry                 → FAILS CLOSED: read-only / locked /
                                           sensitive-ops-blocked — never a
                                           silent extension of authority
@@ -817,22 +1024,53 @@ Reconnect recovery path               → deterministic re-authentication +
                                           order
 ```
 
+**[INVARIANT — offline revocation is a next-contact guarantee, not an instant
+one.]** A genuinely disconnected device cannot be told anything; the server
+has no channel to it. Therefore revocation (device revoked, role changed,
+password/security-stamp changed, employee terminated, subscription cancelled)
+**takes effect immediately online and at the next trusted contact offline** —
+never retroactively on a device that is still offline. The *only* bound on a
+revoked-but-still-offline device is the capability snapshot's own expiry plus
+local device protection; this is an inherent property of offline-first, a
+stated trade-off in the customer risk model, not a defect and never claimed as
+"instant revoke." The architecture controls the *size* of this exposure by
+keeping sensitive capabilities' offline windows short or zero (the
+per-capability table above), not by pretending an offline device can be
+reached.
+
 ### 10.5 Transport & local PKI architecture
 
 ```
-Animora Local Certificate Authority
-  (private key lives ONLY on the server/deployment authority; NEVER
-   distributed to any client)
-    → issues → Server certificate (LAN hostname, e.g. internal DNS/hostname)
-    → trusted by → Animora-installed clients
-        (trust anchor provisioned into the client OS/browser trust store by
-         the deployment process — installer / MDM / policy — NEVER by
-         application JavaScript or in-app code)
+Animora OFFLINE Root CA
+  (root private key is NEVER on the production server and NEVER in a normal
+   server backup; kept offline by the deployment authority)
+    → issues → Issuing CA
+        → issues → Server certificate (LAN hostname, internal DNS/hostname)
+                    — this, and only this, lives on the running server
+    → trust anchor (root public cert) → provisioned into the client OS/
+        browser trust store by the deployment process — installer / MDM /
+        policy — NEVER by application JavaScript or in-app code
 ```
+
+**[INVARIANT — root key is not a runtime or backup artifact.]** The Root CA
+private key lives **offline**, outside the production server and outside the
+routine full-server backup set. Only the issued server certificate (and its
+own private key) sits on the running node. This resolves a real contradiction:
+if the root CA key were inside the §17.3 full-server backup, anyone who
+obtained a backup could mint trusted certificates and MITM every client. An
+offline root CA with an online issuing CA is the standard hardening shape
+(ADR-22). The §17.3 recovery matrix accordingly backs up the *server
+certificate and runtime key material*, **not** the root CA key.
 
 **[INVARIANT] A browser cannot be made to trust a private CA from inside a
 web application.** Trust provisioning is a deployment-time architectural
 concern, not a runtime one.
+
+**[INVARIANT — offline revocation checking only.]** Certificate chain
+validation at runtime uses **offline revocation mode** (a locally served
+CRL, or short-lived certificates with controlled renewal). It must never
+reach an external OCSP/CRL endpoint, since that would be a hidden Internet
+dependency and violate R7 (§17.4).
 
 **[DECISION] Transport security is an OS-matrix-compatible protocol policy,
 never a single hard-coded protocol version.** Obsolete protocols are
@@ -850,6 +1088,25 @@ first-class, persisted, backed-up artifact — never left to default,
 per-instance, ephemeral storage.** Losing it silently invalidates every
 active session and every protected payload. It is part of the disaster
 Recovery Matrix (§17.3), not an implementation footnote.
+
+**[INVARIANT — signing keys are not runtime-server residents.]** Keys that
+*mint* trust — the Root CA private key (§10.5) and the **license-signing
+private key** — never live on the running clinic-serving server. The runtime
+server holds only **public verification keys** (to verify licenses and the
+cert chain) and its own issued server certificate. A compromised runtime node
+must not be able to issue valid licenses or trusted certificates. The license
+issuer is a separate, protected, offline signing authority (part of the
+vendor's management plane, §3), not a runtime component.
+
+**[DECISION — key register as a first-class artifact.]** Because a single
+node co-locates app/DB/files/CA, every distinct key is enumerated with its
+owner, purpose, generation site, storage, who may use it, exportability,
+rotation, revocation, backup and compromise procedure — TLS/CA keys, server
+certificate, Data-Protection key ring, license-signing key (offline),
+offline-capability signing key, file-access-grant signing key, device identity
+keys, and DB/backup encryption keys. "A single node" is a *compute* decision;
+it is **not** a single trust domain — trust-minting keys stay outside the
+runtime (ADR-22/ADR-23).
 
 ### 10.7 Tenant-safe caching architecture
 
@@ -901,15 +1158,79 @@ in-place mutation of a posted row. This is a direct consequence of §8.5's
 conflict policy and §2 principle 5 (fail closed): a ledger that can be
 silently edited cannot be trusted after any conflict, retry, or crash.
 
+**[INVARIANT — append-only alone is not an accounting model.]** Immutability
+is necessary but not sufficient; a real general ledger carries the following
+architectural invariants, not just an append-only table:
+
+```
+Double-entry balance     — every posted journal: Σ debits = Σ credits
+No posted mutation       — a posted entry is never edited; only reversed
+Posting period is open   — a posting targets an OPEN FiscalPeriod (below)
+Server posting date      — the accounting date is server-governed, NOT an
+                           arbitrary client timestamp (A-RULE 036)
+Currency + versioned rate— currency explicit; exchange rate versioned
+Tax + rounding snapshot  — tax calc and rounding policy retained at posting
+Immutable dimensions     — account dimensions fixed for a posted entry
+Source document ref      — every posting references its source document
+Reversal references orig — a reversal points back at the original posting
+```
+
+Entities the model carries: `Journal · JournalLine · PostingBatch · Account ·
+FiscalPeriod · AccountingDate · DocumentDate · Currency · ExchangeRate ·
+Tax · Dimensions · ReversalReference · SourceDocument · PostingUser ·
+PostingTimestamp`. The precise chart-of-accounts and tax rules are an ADR
+(ADR-21), not fixed here.
+
+**[DECISION — period close is a state machine, not a boolean.]**
+
+```
+Open → SoftClose → Review → Closed → (Reopen only by authorized correction)
+```
+
+**[INVARIANT — offline commands vs. a closed period have a declared policy.]**
+A device offline when a period closes may reconnect holding commands dated
+into that now-closed period. This collision is **resolved by one stated,
+auditable policy** — reject / post into the current open period / allow
+authorized back-posting / hold for an accountant / create an adjustment —
+never silently posted into a closed period and never silently dropped
+(§19 Scenario W-period). "Offline accounting" is only coherent once this
+policy is explicit.
+
 ### 11.2 Inventory architecture — movement-based stock
 
 **[PATTERN] Movement-based state (event-sourcing-lite for stock).**
 Quantity-on-hand is never stored and overwritten as an absolute number by an
 offline client. It is **derived** from an immutable sequence of movements
 (Receipt / Sale / Consumption / Loss / Adjustment / Transfer / Return). This
-makes offline stock edits safe by construction: two offline devices recording
-different movements always converge to a correct total, whereas two offline
-devices overwriting an absolute quantity would silently lose one edit.
+makes the *arithmetic* safe by construction: two offline devices recording
+different movements never lose an edit, whereas overwriting an absolute
+quantity would silently drop one.
+
+**[INVARIANT — movement convergence is arithmetic, not business, correctness.]**
+Movement-based stock guarantees that independent movements *sum* to one total
+without losing a write. It does **not**, by itself, guarantee that total is a
+*permitted business outcome*. Concretely: with server stock = 1, two offline
+devices each selling 1 both record valid movements that sum to −1 on hand.
+Whether that is allowed is a **policy decision the architecture must state,
+not something convergence decides**. Inventory therefore defines, explicitly,
+per product class:
+
+```
+Negative-on-hand policy   — allowed / blocked / allowed-with-alert
+Reservation model         — does an offline sale reserve stock, and how is an
+                             over-sell reconciled at settlement (reject the
+                             later one? allow a backorder? flag for staff?)
+Lot / batch / expiry      — tracked where clinically required (vaccines,
+                             controlled/cold-chain drugs)
+Serial                    — tracked where individually identifiable
+Location / warehouse      — multi-location stock, transfers
+Cost layer / valuation    — the basis COGS and finance post against
+```
+
+Settlement (§8.3) re-validates the chosen policy server-side; an offline
+movement that would breach it is routed to conflict policy (§8.5), never
+silently accepted just because the arithmetic converged. The precise policy
+values are an ADR (ADR-19), not hard-coded here.
 
 ### 11.3 Read models vs. write models (CQRS-lite)
 
@@ -932,6 +1253,24 @@ from the transactional path) so that escalation is additive, not a rewrite.
 mutable entity. A stale write is detected, never silently accepted; it is
 routed into the conflict-resolution pipeline (§8.5) — the version token
 *detects* staleness, it never *decides* the correct business outcome.
+
+**[INVARIANT — version tokens are sufficient for edits, NOT for contended
+allocation.]** An opaque version token correctly guards "did this row change
+under me" edits (patient demographics, invoice drafts, notes). It is **not**
+sufficient for business invariants about a *shared resource* that two callers
+may try to claim from different base versions — e.g. two clients booking the
+same room/slot, two tills claiming the same cash drawer, or seat/period/
+device-registration allocation. Both can read a non-conflicting version and
+still both write, producing a double-book that no version check catches.
+
+Such invariants are enforced as a **server-side resource-allocation model
+inside a single transaction**, not by optimistic concurrency alone — using,
+per case, a uniqueness constraint (one allocation per slot), a serializable
+transaction, an application/resource lock, or an explicit slot-allocation
+table. Scheduling specifically owns a **Resource Allocation Model** (rooms,
+staff, boarding capacity as allocatable resources), not merely a versioned
+appointment row. The chosen mechanism per invariant is an ADR (ADR-20), and
+the guarantee is a fitness gate (§19 Scenario X-sched).
 
 ### 11.5 Reporting/aggregation isolation
 
@@ -956,16 +1295,30 @@ delivery is at-least-once by construction; every downstream consumer of an
 outbox-relayed effect must be an **Idempotent Consumer** (§8.3's pattern,
 reused here) keyed on a stable identifier.
 
-**Mandatory relay state machine — the atomic claim is not optional:**
+**Mandatory relay state machine — the atomic claim is not optional, and a
+terminal failure path is required:**
 
 ```
-Pending → ClaimedUntil (atomic conditional claim) → Processing → Succeeded
-                                                               → Retry (NextAttemptAt backoff)
+Pending → Claimed (atomic conditional claim, LeaseExpiry) → Processing
+   → Succeeded
+   → RetryScheduled (NextAttemptAt backoff)  ──loops back to Pending
+   → DeadLetter   (retry budget exhausted / poison message)
+   → Cancelled    (effect no longer required)
+```
+
+Every outbox record carries the metadata needed to operate this safely:
+
+```
+LeaseExpiry · AttemptCount · NextAttemptAt · FirstFailedAt · LastFailedAt ·
+LastException · DeadLetterReason
 ```
 
 A naive "select unprocessed → process → mark done" **will** double-dispatch
-the moment a second relay worker exists; the atomic claim is what makes the
-database the single arbiter between competing workers.
+the moment a second relay worker exists; the atomic claim (with a `LeaseExpiry`
+so a crashed worker's claim is reclaimable) is what makes the database the
+single arbiter between competing workers. A permanently failing (poison)
+effect must reach **DeadLetter** with a reason and surface to an operator —
+it is never retried forever and never silently dropped (§19 Scenario AD).
 
 ### 12.2 Background worker architecture
 
@@ -975,6 +1328,16 @@ claim protocol (§12.1) is atomic and every effect is idempotent. Every
 worker step is designed to be **resumable after a crash mid-step** — the
 architecture assumes a worker can die at any point and re-run without
 duplicating an effect.
+
+**[INVARIANT — Competing Consumers is for independent work; ordered work
+carries an ordering key.]** Competing Consumers gives throughput for
+*independent* effects but makes **no** cross-item ordering promise. Any effect
+that must apply in order relative to a sibling is grouped by an explicit
+**ordering key** (e.g. `(TenantId, AggregateId)`) so items in the same group
+serialize while different groups still run in parallel. Each work type
+therefore declares: concurrency class · ordering key · retry policy ·
+dead-letter policy. Ordering between the two queues (§8.4) is still governed
+by settlement dependency, never by worker scheduling.
 
 ### 12.3 Resilience architecture
 
@@ -994,17 +1357,39 @@ Business command submission (client ↔ API)  → same; a command NEVER retries
                                                 OperationId — retries reuse
                                                 the original OperationId
                                                 (idempotency, §8.3)
-Outbox relay dispatch                        → retry with backoff via
-                                                NextAttemptAt; circuit breaker
-                                                on a chronically failing
-                                                downstream effect, isolated
-                                                per effect type
+Outbox relay dispatch                        → retry with bounded backoff via
+                                                NextAttemptAt, then DeadLetter
+                                                (§12.1). A circuit breaker is
+                                                applied ONLY to a genuinely
+                                                REMOTE downstream effect; for a
+                                                launch whose outbox effects are
+                                                in-process/local (single
+                                                process, single DB, no broker),
+                                                Retry + Backoff + DeadLetter +
+                                                operator remediation are the
+                                                correct tools and a breaker is
+                                                not applied by default (it
+                                                guards remote calls, not local
+                                                resources)
 Background workers vs. request-handling      → Bulkhead: worker resource
   threads                                       usage is isolated so a
                                                 background backlog can never
                                                 starve interactive request
                                                 handling on a weak server
 ```
+
+**[INVARIANT — a Circuit Breaker guards remote dependencies only.]** The
+breaker is applied where it is meaningful: the client↔server sync/command
+boundary (a real remote dependency, so a client degrades to "working offline"
+instead of hammering a struggling server). It is **not** applied to local,
+in-process outbox effects at launch, where it would add complexity without
+preventing a cascading remote failure.
+
+**[INVARIANT — retry is bounded by a budget, not just backoff.]** "Exponential
+backoff + jitter" is necessary but not sufficient. Every retrying boundary
+declares a **retry budget**: max attempts, max elapsed time, jitter
+distribution, and per-tenant + global reconnect limits — so a mass reconnect
+cannot become a self-inflicted thundering herd (§19 Scenario I).
 
 **[PATTERN] Throttling**, applied to reconnect behavior specifically: sync
 resumption after startup/reconnect uses **jitter + adaptive backoff +
@@ -1060,21 +1445,35 @@ On startup / periodically:
   1. Load signed license artifact
   2. Verify signature against a locally shipped, rotation-aware key set
      (KeyId selects the verifying key)
-  3. Verify the license is bound to THIS installation's sealed identity
-     (an identity generated and sealed on-device at install time — a
-     byte-for-byte copied license fails this check on a second machine)
+  3. Verify the license is bound to THIS installation's PROTECTED device
+     identity (a key pair generated on-device at install time whose private
+     key is non-exportable where the platform supports it — TPM-backed on
+     Windows, Secure Enclave on macOS; the license is bound to the PUBLIC
+     key, so a byte-for-byte copied license fails on a second machine that
+     cannot reproduce the private key)
   4. Verify anti-replay fields (LicenseId, IssueTime, audience/product)
-  5. Verify against a MONOTONIC high-water clock, not the wall clock alone
-     (defeats a wound-back system clock)
+  5. Verify expiry against TRUSTED TIME, not a single clock source:
+       • server-issued trusted time persisted as a high-water WALL time, plus
+       • monotonic elapsed-time evidence for drift while running, plus
+       • rollback detection
+     (a monotonic uptime counter alone measures time-since-boot, not a
+      calendar — it cannot by itself prove "not past 2027-01-01")
   6. Result: Valid → entitlement snapshot updates
+             Clock rollback / anomaly detected → sensitive offline operations
+             disabled, local evidence preserved, recovery requires server
+             contact
              Invalid/Expired → deployment fails closed for gated
              capabilities per policy, never silently continues fully entitled
 ```
 
 **[INVARIANT — anti-cloning]** A signature proves authenticity/integrity; it
-never proves non-cloning by itself. The **installation-bound identity check**
-(step 3) is the architectural control that actually prevents a license file
-being copied verbatim to a second deployment.
+never proves non-cloning by itself. Anti-cloning rests on the **protected
+device identity** (step 3): a hardware-backed, non-exportable private key
+where the platform provides one, with the license bound to its public key.
+A software-only machine fingerprint plus an encrypted local secret is
+**explicitly rejected** as anti-cloning proof — both the disk and the secret
+can be copied together (A-RULE 030). The PKI/key-custody and device-identity
+details are an ADR (ADR-22/ADR-23).
 
 **[INVARIANT — no online revocation channel]** Because there is no mandatory
 online license server (R7), revocation is **architecturally approximated**
@@ -1119,17 +1518,46 @@ Public Website  ──(async, out-of-band, versioned onboarding contract)──�
   established during onboarding, and the app binds to this installation
 ```
 
-**[INVARIANT — onboarding is not a runtime dependency]** Provisioning a new
-tenant happens **before** that tenant's clinic ever runs the app; the running
-clinic-serving path never calls the website, and the website never calls a
-clinic-serving endpoint. The onboarding intake is therefore an asynchronous,
-idempotent, versioned contract on the Subscription context — architecturally
-the same create-tenant + create-subscription operation the operator surface
-exposes (§13.3), reached by a second authorized caller (the website's service
-identity) instead of a human operator. This keeps R6 (multi-tenant,
-subscription-managed) and R7 (zero-Internet at clinic runtime) both true: a
-customer *buys* online, but a provisioned clinic *runs* without the website
-existing at all.
+**[INVARIANT — onboarding is a MANAGEMENT-plane transport, defined explicitly,
+not a hand-wave.]** R7 forbids external Internet dependencies on the **runtime
+(data) plane** — the clinic-serving path. It does **not** forbid a controlled
+**management plane**; it requires the two be separated and named (§13.4a).
+Provisioning crosses the management plane via one of two concrete transports,
+and the architecture commits to at least one being available, never leaving it
+undefined:
+
+```
+(a) Signed provisioning package          (b) Vendor provisioning queue
+    Website → signed, versioned,              Website → vendor-side queue →
+    idempotent package → operator/            a CONTROLLED management
+    admin workstation → delivered             connection (not the clinic
+    into the server via controlled            runtime path) drains it into
+    transfer (e.g. USB / internal            the Subscription context
+    management link) → Subscription
+```
+
+Either way the intake is an asynchronous, idempotent, versioned contract on
+the Subscription context — the same create-tenant + create-subscription
+operation the operator surface exposes (§13.3), reached by the website's
+service identity instead of a human operator. The clinic *runtime* path never
+calls the website and the website never calls a clinic-serving endpoint, so
+R6 and R7 both hold: a customer *buys* online over the management plane, but a
+provisioned clinic *runs* on the data plane without the website existing at
+all.
+
+**[INVARIANT — the onboarding message is a signed security contract.]** The
+onboarding intent carries, at minimum: issuer identity, audience, contract
+version, idempotency key, timestamp, expiration, a signature (verified before
+any provisioning), an external payment reference, and a correlation id — with
+replay protection. Its entitlement lifecycle is explicit:
+
+```
+Paid → Provisioned → Active → RenewalPending → Renewed → Grace
+                                            → Suspended → Cancelled
+```
+
+Refund / chargeback / payment dispute each have a defined effect on
+entitlement — never an undefined state.
 
 **[DECISION] Self-service and operator-driven provisioning share one code
 path.** There is exactly one "create tenant + subscription" operation in the
@@ -1138,6 +1566,30 @@ manual action are two authenticated callers of it, not two implementations.
 This is why the operator API (§13.3) is specified first (`D10`) and the
 website's automated intake is a thin, idempotent authorized adapter over the
 same operation — no second provisioning engine is ever built.
+
+### 13.4a Runtime plane vs. management plane (what R7 does and does not forbid)
+
+**[INVARIANT — R7 is a *runtime-plane* constraint, stated per plane.]** "Zero
+external-Internet dependency" is precise about *which* plane it binds, so that
+provisioning/renewal/update/backup/support are not accidentally pulled into
+the forbidden runtime path:
+
+```
+RUNTIME (DATA) PLANE  — clinic operation: login, sync, commands, licensing
+                         verification, data access, local observability
+                         → external Internet FORBIDDEN (R7, §17.4)
+
+MANAGEMENT / CONTROL  — provisioning, subscription renewal, license ISSUANCE,
+PLANE                    software update, backup export, vendor support
+                         → MAY require controlled connectivity OR a signed
+                           offline bundle; NEVER on the clinic runtime path
+```
+
+Any capability that needs connectivity (onboarding §13.4, license issuance
+§10.6, updates §18) lives on the management plane and is reached out-of-band;
+nothing on the management plane is a synchronous dependency of a running
+clinic. This separation is what lets the vendor *operate* the product while a
+provisioned clinic keeps the Internet cable pulled.
 
 ---
 
@@ -1323,20 +1775,48 @@ Production    — the vendor's single central multi-tenant node serving all
 
 **[INVARIANT] Server backup and client recovery are architecturally
 different problems and are never conflated.** The server backs up its full
-state (database, file store, configuration, cryptographic key material,
-license material). A client holds *different* state (its encrypted local
-replica, pending commands, device identity) that server backup does **not**
-cover.
+state (database, file store, configuration, **runtime** cryptographic key
+material — the server certificate + Data-Protection key ring, **not** the
+offline Root CA or license-signing keys per §10.5/§10.6). A client holds
+*different* state (its encrypted local replica, pending commands, device
+identity) that server backup does **not** cover.
+
+**[INVARIANT — RTO/RPO are declared numbers, backups are tested, copies are
+isolated.]** For this SaaS the Availability SLO, **RTO** (max time to restore
+after total node loss) and **RPO** (max acceptable data loss) are explicit
+targets in the Architecture Drivers (§1, R-DR), not left implicit — a
+single-node launch is a cost/product decision only once those numbers are
+stated and met. There are at least two backup copies, **at least one off-host
+and immutable** (ransomware-resilient), and a restore is only "recovered" once
+a **test restore has succeeded** — "a backup exists" is not recovery. A
+**Recovery Point Manifest** ties a restore point together so DB, file store
+and key material are restored to one consistent point:
+
+```
+BackupSetId · DatabaseBackupVersion · FileStoreSnapshotVersion ·
+KeySetVersion · LicenseKeyVersion · ServerBuildVersion · SchemaVersion
+```
 
 | Incident | Recovery source |
 |---|---|
 | Server database corruption | Database backup/restore |
 | Server file-store corruption | File-store backup/restore |
-| Server total loss | Full server backup set (DB + files + crypto keys + license material) — a restore that omits the key material is an incomplete restore (§10.6) |
-| Client disk loss | Server-driven resync + a defined pending-command-recovery policy |
-| Client device stolen | Device revocation (§10.4) — offline capability ends at next contact attempt |
+| Server total loss | Full server backup set (DB + files + **runtime** key material + license *verification* material) restored to one Recovery Point Manifest; the offline Root CA / license-signing keys are restored from their **separate offline custody**, never from this set (§10.5/§10.6) |
+| Client disk loss | Server-driven resync for replicated state + **explicit pending-command-recovery policy (below)** |
+| Client device stolen | Device revocation (§10.4) — offline capability ends at next contact attempt; until then it is bounded only by snapshot expiry + local device protection |
 | Corrupt client local replica | Quarantine the local replica; rebuild fresh from server |
-| Client offline past its retention window | Full resync, not incremental |
+| Client offline past its retention window | Full resync, not incremental (§8.2.1) |
+
+**[INVARIANT — unsent commands and client disk loss, stated honestly.]** A
+server-driven resync can only restore what the server already has. A
+`PendingCommand` that was created offline and **never reached the server**
+exists *only* on the lost disk, so resync cannot recover it. The architecture
+picks one of two explicit policies and never leaves this ambiguous: either (a)
+unsent commands are protected by an **encrypted local backup** so they survive
+disk loss, or (b) they are declared **unrecoverable** and the UI must warn the
+user that locally-committed, not-yet-synchronized work is lost on disk loss
+(§19 Scenario X-disk). "It was in the queue" is never silently equated with
+"the server has it."
 
 ### 17.4 Zero-Internet isolation as a tested architectural property
 
@@ -1397,6 +1877,15 @@ architecture itself makes a promise about). A gate failure means the
 | **T — File lifecycle & reconciliation** | Every divergence between the two consistency domains resolves deterministically; access is always Valet-Key-gated | §14 |
 | **U — Offline licensing & anti-cloning** | Signature + rotation valid; a copied license fails on a second installation; a wound-back clock cannot extend expiry | §13.2 |
 | **V — Local observability, Internet pulled** | Every observability capability functions with zero external connectivity; removing a local collector never breaks the app | §15 |
+| **W-period — Period-close race** | A device offline across a period close, reconnecting with pending commands dated into the closed period, resolves by the stated policy (reject / post-to-open / authorized back-post / hold) — never silently posts into a closed period | §11.1 |
+| **W-csrf — Browser anti-forgery** | Every state-changing browser request without valid anti-forgery is refused; CORS alone does not admit it | §10.2 |
+| **X-sched — Contended allocation** | Two clients booking the same slot/room (or claiming the same drawer/seat) from different base versions → exactly one succeeds, server-side, in a transaction | §11.4 |
+| **X-disk — Client disk loss** | Unsent locally-committed commands follow the declared policy — recovered from encrypted local backup, or the user is warned they are unrecoverable; never silently assumed synced | §17.3 |
+| **Y — Delete resurrection & tombstone retention** | An offline edit to a server-deleted row resolves by domain policy; a device offline the full supported window still observes every deletion/revocation (retention ≥ window + margin) | §8.2.1, §8.2.3 |
+| **Z — Initial-sync consistency** | A first/full sync under concurrent multi-table writes lands on one snapshot watermark, referentially consistent, never a per-table patchwork | §8.2.2 |
+| **AB — Backup-restore consistency** | DB + file store + runtime key material restore to one Recovery Point Manifest within RTO, data loss ≤ RPO, from a tested backup; offline root/signing keys restored from separate custody | §17.3, R-DR |
+| **AC — License-key compromise** | A compromised runtime node cannot mint a valid license — the signing key is not present on it | §10.6 |
+| **AD — Poison outbox** | A permanently failing effect reaches DeadLetter with a reason after a bounded retry budget, surfaces to an operator, and never retries forever or drops silently | §12.1 |
 
 **[INVARIANT] If any gate fails, the affected boundary/pattern is fixed
 before feature work continues on top of it** — these gates protect the
@@ -1423,13 +1912,26 @@ architecture's own promises, not a specific library's behavior.
 | AD-13 | Single-node deployment at launch; every scale-out step is an explicit, gated ADR | Accepted | R2, §2 principle 7 |
 | AD-14 | Local PKI (Animora Local CA) provisioned by deployment tooling, never app code | Accepted | R7, R3 |
 | AD-15 | Licensing (offline entitlement) is architecturally independent of Subscription (commercial model) | Accepted | R6, R7 |
+| ADR-16 | Offline authentication/revocation threat model: revocation is a next-contact guarantee, bounded by capability-snapshot expiry | Accepted | R4, R7, §10.4 |
+| ADR-17 | Tombstone/revocation retention ≥ max supported offline window + safety margin (one linked decision with the offline window) | Accepted | R4, §8.2.1 |
+| ADR-18 | Sync cursor is an opaque server-issued ChangeSequence; initial sync uses a single snapshot watermark | Accepted | R4, R5, §8.2 |
+| ADR-19 | Inventory concurrency semantics (negative-stock policy, reservation, lot/expiry/serial) — convergence is arithmetic, not business, correctness | Open (pre-code) | R5, §11.2 |
+| ADR-20 | Scheduling allocation semantics (server-transaction resource allocation, not version tokens alone) | Open (pre-code) | R5, §11.4 |
+| ADR-21 | General-ledger posting model + period-close state machine + offline-period-close policy | Open (pre-code) | R5, §11.1 |
+| ADR-21b | Cross-context financial consistency declared per interaction (atomic vs. eventually consistent), no silent gap | Accepted | R5, §6 |
+| ADR-22 | PKI hierarchy: offline Root CA + online Issuing CA; root/signing keys never on the runtime node or in its backup | Accepted | R3, R7, §10.5/§10.6 |
+| ADR-23 | License-signing key custody: offline issuer, runtime holds verification keys only; device identity hardware-backed where supported | Accepted | R3, R7, §13.2 |
+| ADR-24 | Offline subscription provisioning over an explicit management plane (signed package or controlled queue), separate from the runtime plane | Accepted | R6, R7, §13.4/§13.4a |
+| ADR-25 | Backup topology + declared RTO/RPO/SLO: ≥2 copies, ≥1 off-host + immutable, tested restore, Recovery Point Manifest | Accepted | R-DR, §17.3 |
+| ADR-26 | Audit tamper evidence (hash-chained/signed batches, separate audit key) beyond plain append-only | Open (pre-code) | R3, §15 |
+| ADR-27 | Client disk-loss semantics for unsent commands (encrypted local backup, or declared unrecoverable + user warning) | Accepted | R4, §17.3 |
 
 ---
 
 ## 21. Architecture Rules for AI Agents (mandatory, architecture-level)
 
 ```
-A-RULE 001  Domain code never depends on the replication engine; always via ISyncEngine.
+A-RULE 001  Domain code never references sync at all; the sync port is Application-owned and the replication engine sits behind it in Infrastructure.
 A-RULE 002  Posted accounting records are immutable; corrections are compensating entries.
 A-RULE 003  Never client-wins/server-wins as the resolution for a financial fact.
 A-RULE 004  Row-version conflict detection never substitutes for domain conflict policy.
@@ -1437,7 +1939,7 @@ A-RULE 005  Every business mutation carries a stable OperationId.
 A-RULE 006  The same OperationId never produces a second financial effect.
 A-RULE 007  A client may commit provisional local state while offline.
 A-RULE 008  The server is the final global authority for settlement.
-A-RULE 009  UpdatedAt is a delta-cursor basis only, never a business sequence.
+A-RULE 009  The delta cursor is the opaque server-issued ChangeSequence only; UpdatedAt is informational (display/audit), never a cursor and never an ordering source.
 A-RULE 010  An opaque version token is concurrency metadata only, never a business sequence.
 A-RULE 011  Client wall-clock time is never a synchronization or licensing authority.
 A-RULE 012  TenantId is resolved only from authenticated membership, never from client input.
@@ -1449,7 +1951,7 @@ A-RULE 017  An inbound sync pull never destructively overwrites unsent local bus
 A-RULE 018  Read models may be denormalized; financial write models stay normalized and server-side.
 A-RULE 019  Same OperationId + different CommandFingerprint is a security/integrity error, not a replay.
 A-RULE 020  A filesystem path is never an access credential — Valet Key only.
-A-RULE 021  Idempotency and ordering are separate concerns; dependency is explicit (CausationId).
+A-RULE 021  Idempotency and ordering are separate concerns; CausationId (provenance) and DependsOnOperationId (settlement precondition) are distinct, and dependency edges form a DAG.
 A-RULE 022  The replication queue and the business command queue are never assumed globally ordered.
 A-RULE 023  Authentication, Authorization and Entitlement are checked independently, never merged.
 A-RULE 024  Every rejected/conflicted command surfaces what/why/financial-effect/who-fixes-it.
@@ -1458,12 +1960,18 @@ A-RULE 026  A background worker's every step is resumable after a crash, without
 A-RULE 027  Server cryptographic key material is a persisted, backed-up, recovery-tested artifact.
 A-RULE 028  Transport security policy is OS-matrix-compatible, never hard-coded to one protocol version.
 A-RULE 029  An offline-session policy governs offline continuity; bearer/refresh tokens alone do not.
-A-RULE 030  A license signature proves authenticity, not non-cloning; installation-binding is mandatory.
+A-RULE 030  A license signature proves authenticity, not non-cloning; installation binding MUST use a protected (hardware-backed, non-exportable where supported) device identity — a software-only machine fingerprint is NOT accepted as anti-cloning proof.
 A-RULE 031  Introducing a backplane/broker/microservice/partitioned tenant requires an explicit ADR.
 A-RULE 032  Zero external telemetry is a constraint, not an excuse for zero observability.
 A-RULE 033  Every cache key for tenant/clinical/financial data includes tenant + user + resource + version scope.
 A-RULE 034  Heavy reporting/aggregation load never rides the OLTP transaction path.
 A-RULE 035  A capacity/concurrency claim is earned from measurement, never asserted from specs alone.
+A-RULE 036  Client-originated TenantId, UserId, DeviceId, Role, Entitlement, AccountingDate, AuthorizationDecision or settlement/posting state is NEVER authoritative; the server derives all of them from the authenticated, device-bound credential.
+A-RULE 037  Every supported offline duration has tombstone, authorization-revocation, command-retention and licensing-retention windows at least as long as that offline window plus an explicit safety margin.
+A-RULE 038  A client-local financial state may be provisional, but no UI label, event, report or local state may represent it as globally posted, settled, or closed until server settlement succeeds.
+A-RULE 039  Trust-minting private keys (Root CA, license-signing) never reside on the runtime server; it holds public verification keys only.
+A-RULE 040  A contended shared-resource invariant (slot/room/cash-drawer/seat/period allocation) is enforced in a server transaction, never by an optimistic version token alone.
+A-RULE 041  Every state-changing browser request requires anti-forgery protection; CORS is not a substitute.
 ```
 
 **Distinctions this architecture never collapses:**
@@ -1476,6 +1984,12 @@ provisional offline state      ≠ global financial truth
 delivery retry                 ≠ exactly-once side effect
 replication operation identity ≠ business command identity (OperationId)
 idempotency                    ≠ ordering
+ChangeSequence (delta cursor)  ≠ UpdatedAt (display/audit timestamp)
+CausationId (provenance)       ≠ DependsOnOperationId (settlement precondition)
+version-token staleness        ≠ contended-resource allocation
+LocallyCommitted (provisional) ≠ Posted/Settled (server-authoritative)
+server-reachable revocation    ≠ offline (next-contact) revocation
+runtime verification keys      ≠ offline trust-minting keys
 Subscription (commercial)      ≠ Licensing (offline entitlement)
 ```
 
@@ -1507,17 +2021,26 @@ Subscription (commercial)      ≠ Licensing (offline entitlement)
 
 ## 23. Pattern Catalog & Source Basis
 
-All patterns and structural methods cited above are applied as documented by
-Microsoft, on Microsoft Learn / Azure Architecture Center, and are re-checked
-against the same authoritative source set `STACK.md` §14 uses for
-technology-specific claims:
+Sources are grouped by their **true provenance** — primary methodologies are
+*not* Microsoft artifacts and must never be cited as such — and are re-checked
+against the same authoritative set `STACK.md` §14 uses for technology claims.
+Patterns are **adapted to Animora's deployment and reliability constraints**,
+not "applied as-is" (Azure Architecture Center patterns are context-specific).
 
-- **C4 model** (Context/Container/Component) — used for §3–§5 structural views.
-- **arc42-style driver/decision documentation** — used for §1 (quality
-  attribute scenarios) and §20 (decision log).
-- **Domain-Driven Design — bounded contexts inside a modular monolith** — §6.
-- **Clean / Onion Architecture, Ports & Adapters (Hexagonal)** — .NET
-  application architecture guidance — §5, §8.1.
+**Primary methodologies (independent sources, NOT Microsoft):**
+
+- **C4 model** (Context/Container/Component) — Simon Brown, `c4model.com` —
+  used for §3–§5 structural views.
+- **arc42** — `arc42.org` — the independent documentation structure behind
+  §1 (quality-attribute scenarios) and §20 (decision log).
+- **Domain-Driven Design — bounded contexts** (Evans) inside a modular
+  monolith — §6.
+- **Clean / Onion Architecture & Ports & Adapters (Hexagonal)** — Martin /
+  Cockburn lineage; Microsoft's ".NET application architecture" guides apply
+  the same shape — §5, §8.1.
+
+**Microsoft architecture guidance (Microsoft Learn / Azure Architecture
+Center), applied against the methodologies above:**
 - **Azure Well-Architected Framework — five pillars** (Reliability, Security,
   Cost Optimization, Operational Excellence, Performance Efficiency) — used
   to trace every driver in §1.
@@ -1525,8 +2048,11 @@ technology-specific claims:
   - **Idempotent Consumer** — §8.3, §12.1.
   - **Transactional Outbox** — §12.1.
   - **Competing Consumers** — §12.2.
-  - **Retry / Circuit Breaker / Bulkhead / Throttling** (transient-fault
-    handling & reliability patterns) — §12.3.
+  - **Retry / Bulkhead / Throttling** (transient-fault handling & reliability
+    patterns) — §12.3. **Circuit Breaker** is adopted *only* at the remote
+    client↔server boundary, **not** on local in-process outbox effects at
+    launch (§12.3) — the pattern guards remote dependencies, and applying it to
+    a local resource adds complexity without the failure it prevents.
   - **Cache-Aside** — §10.7.
   - **Valet Key** — §10.8, §14.4.
   - **Deployment Stamps** — §9.1.
