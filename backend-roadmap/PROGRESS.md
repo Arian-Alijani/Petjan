@@ -18,7 +18,7 @@
    inward only. No EF Core / Datasync / SQL / HTTP type ever appears in a Desktop View or ViewModel. No
    client code in a server project or vice versa. (`CONVENTIONS.md` §1–§2.)
 3. **Runnability.** Through the end of Track C, `scripts/sandbox/build.sh full` = 0 warnings / 0 errors
-   and `scripts/sandbox/run.sh` = SMOKE RUN OK on a machine with no server, no SQL Server and no
+   and `scripts/sandbox/run.sh` = SMOKE RUN OK on a machine with no server, no PostgreSQL and no
    network. From Track D on, the desktop must still start and operate offline. (`CONVENTIONS.md` §11.)
 4. **No mock left behind.** Every `Animora.Contracts` interface ends this roadmap with a real
    implementation; every `Mock*` file is deleted in the phase that replaces it. No bounded context ever

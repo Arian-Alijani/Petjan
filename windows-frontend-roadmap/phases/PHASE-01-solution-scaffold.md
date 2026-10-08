@@ -63,7 +63,7 @@ Avalonia window.
 
 ## Out of scope
 - Any theming, controls, navigation, or screen content (Phases 02+).
-- Any package related to SQLite/EF Core/Datasync/SQL Server.
+- Any package related to SQLite/EF Core/Datasync/PostgreSQL.
 - Any macOS/Web project.
 
 ## Acceptance criteria (in addition to `CONVENTIONS.md` §6 Definition of Done)
