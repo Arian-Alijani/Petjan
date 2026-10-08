@@ -212,7 +212,7 @@ multi-file edit, still push it as one coherent commit with a clear message.
 
 ---
 
-### [ ] T6 — Give post-C11 command families real server settlement + ledger posting (rank 6)
+### [x] T6 — Give post-C11 command families real server settlement + ledger posting (rank 6)
 - **Audit refs:** RM-H-03, PH-09, scenario SC-07. Owner phases: **D06**, **D07**.
 - **Ground truth:** Phase-Problem rebuilt the command vocabulary to 86 and included
   `vaccination.treatment.*` (D06) and `finance.recurring.*` (D07) as *rows*, but their

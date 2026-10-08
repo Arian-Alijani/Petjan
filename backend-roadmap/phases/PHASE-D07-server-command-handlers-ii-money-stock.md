@@ -41,6 +41,29 @@ literally true for money.
   prefix). The `finance.recurring.*` family (aggregate `src/Animora.Domain/Finance/RecurringExpense.cs`,
   migration `029`) post-dates the original C-track roadmap and is included deliberately — see the
   post-C11 note in `PROGRESS.md`.
+  **Server settlement + ledger posting for `finance.recurring.*` (audit 2026-10-08 · RM-H-03, PH-09):**
+  `RecurringExpense` is a *template*, not a ledger row — `add`/`edit`/`toggle` carry
+  `FinancialEffect.None`, while **`finance.recurring.pay` is a money command**: it settles by posting
+  an ordinary `Expense` (same path as `finance.expense.post`, i.e. `ExpenseRules.CreateAndPostAsync`)
+  and writing a `RecurringExpensePayment` row.
+  | Command | Server invariant | Rejects with | Effect |
+  |---|---|---|---|
+  | `finance.recurring.add` | `RecurringExpense.Create` — category ∈ `ExpenseCategories`, title non-empty, amount > 0 (`Money.Irt`), `DayOfMonth` 1–31 | `EXPENSE_CATEGORY_INVALID`, `VALIDATION_FAILED` | `None` |
+  | `finance.recurring.edit` | `RecurringExpense.Edit` — same validation; already-posted payments untouched | `RECURRING_EXPENSE_NOT_FOUND`, `EXPENSE_CATEGORY_INVALID`, `VALIDATION_FAILED` | `None` |
+  | `finance.recurring.toggle` | `Activate`/`Deactivate` — idempotent | `RECURRING_EXPENSE_NOT_FOUND` | `None` |
+  | `finance.recurring.pay` | template exists + `IsActive`; period key (`yyyyMM`, derived by the clinic calendar) **not already paid**; `PeriodGuard.EnsureOpen` for the posting date; posts the expense and inserts the `RecurringExpensePayment` in **one** `ExecuteAsync` | `RECURRING_EXPENSE_NOT_FOUND`, `RECURRING_EXPENSE_INACTIVE`, `RECURRING_EXPENSE_ALREADY_PAID`, `PERIOD_CLOSED` | `Applied` / `NotApplied` per the truthfulness rule below |
+  **`LedgerPostingService` extension (PH-09):** `RecurringExpense` emits expense-like events, so the
+  single-writer ledger must consume them through the **same** posting path as `Expense` — the
+  `ExpensePosted` outbox message produced by a recurring payment is indistinguishable from a one-off
+  expense's (debit = the `ChartOfAccounts` account resolved from `RecurringExpense.CategoryCode`,
+  credit = cash/bank by `SettledMethod`, `EnsureBalanced` per currency). There is **no** second
+  posting route for recurring payments and no direct `JournalEntry` write in the recurring handlers;
+  `DailyFinanceFacts.Expenses` therefore includes recurring payments automatically. Uniqueness
+  `(TenantId, RecurringExpenseId, PeriodCode)` is the DB backstop against a concurrent double-pay
+  (a unique-violation maps to `RECURRING_EXPENSE_ALREADY_PAID`, `NotApplied`). Add
+  `Money/RecurringExpenseSettlementTests` (pay twice same period → one expense + one payment row;
+  pay inside a closed period → `PERIOD_CLOSED`; recurring payment balances in the ledger and appears in
+  `DailyFinanceFacts`; inactive template refused).
   **Command-group → payload-folder mapping** (closes the handler-count arithmetic): `Inventory/` =
   inventory 10 + purchasing 5 = **15**; `Sales/` = sales **17**; `Finance/` = cashier 3 + finance 12 =
   **15**; 15 + 17 + 15 = **47**.
@@ -232,6 +255,9 @@ literally true for money.
 - `MovementBasedStockTests` green: no handler writes an absolute on-hand value (asserted by
   recomputing from movements after every flow); a sale below zero is refused unless the tenant
   setting allows it, and when allowed the movement is still written plus an outbox alert.
+- `RecurringExpenseSettlementTests` green (audit 2026-10-08 · RM-H-03/PH-09): `finance.recurring.pay` posts exactly one
+  balanced expense through `LedgerPostingService` and one `RecurringExpensePayment`; a second pay for the same period
+  → `RECURRING_EXPENSE_ALREADY_PAID` + `NotApplied`; a pay inside a closed period → `PERIOD_CLOSED`.
 - `PeriodCloseTests` green: after `finance.period.close`, an invoice post, a payment and an expense
   dated inside the period are each `Rejected` + `PERIOD_CLOSED`, while a later-dated one succeeds.
 - Desktop unaffected: `scripts/sandbox/run.sh` = `SMOKE RUN OK`.

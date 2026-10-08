@@ -44,6 +44,21 @@ authoritative one.
   `vaccination.treatment.*` family (treatment plans; aggregate `src/Animora.Domain/Clinical/TreatmentPlan.cs`,
   migration `031`) post-dates the original C-track roadmap and is included here deliberately — see the
   post-C11 note in `PROGRESS.md`.
+  **Server settlement semantics for `vaccination.treatment.*` (audit 2026-10-08 · RM-H-03):** the
+  family is not just a name row — a command the client emits but the server cannot settle ends as a
+  permanent `Rejected`/`Pending`, which is exactly the parked-command trigger of E06 (SYNC-C-04).
+  Each handler calls the **same domain method the client called** (`TreatmentPlan`/`TreatmentOccurrence`
+  in `src/Animora.Domain/Clinical/TreatmentPlan.cs`) and returns `FinancialEffect.None`:
+  | Command | Domain call | Settles (invariants) | Rejects with |
+  |---|---|---|---|
+  | `vaccination.treatment.create` | `TreatmentPlan.Create` (expands the schedule into occurrences once) | writes the plan **and** its bounded occurrence set in one `ExecuteAsync`; target pet must exist in the tenant; schedule expands within `TreatmentScheduleExpander.MaxOccurrences`; `NotifyOwner` only kept for `HomeByOwner`; appends the `DoseScheduled` (+ `DoseRescheduled`) `MedicalHistoryEntry` rows | `PET_NOT_FOUND`, `VALIDATION_FAILED` |
+  | `vaccination.treatment.update` | `TreatmentPlan.Update` | descriptive fields only (kind, title, dosage, notes, notify) — dates are immutable (cancel + recreate); plan must be `Active` | `TREATMENT_PLAN_NOT_FOUND`, `TREATMENT_PLAN_NOT_ACTIVE`, `VALIDATION_FAILED` |
+  | `vaccination.treatment.cancel` | `TreatmentPlan.Cancel` + `TreatmentOccurrence.Skip` on every pending occurrence | plan → `Cancelled` and all `Pending` occurrences → `Skipped` **in the same transaction**; `Done` occurrences are never touched; a second cancel is rejected, not re-applied | `TREATMENT_PLAN_NOT_FOUND`, `TREATMENT_PLAN_NOT_ACTIVE` |
+  | `vaccination.treatment.occurrence.done` | `TreatmentOccurrence.MarkDone` (+ `TreatmentPlan.Complete` when none pending) | plan must be `Active`; occurrence must be `Pending`; stamps `DoneUtc`/`DoneByUserId` from the envelope user; flips the plan to `Completed` when the last pending occurrence is done; replaying the same envelope is absorbed by D05 idempotency, a *different* envelope on an already-done occurrence is a domain rejection | `TREATMENT_OCCURRENCE_NOT_FOUND`, `TREATMENT_OCCURRENCE_ALREADY_DONE`, `TREATMENT_PLAN_NOT_ACTIVE` |
+  The error codes are the live `ErrorCodes` values already used by the C-phase handlers
+  (`src/Animora.Application/UseCases/Vaccination/TreatmentCommands.cs`) — do not coin new ones. Add
+  `Treatment/TreatmentSettlementTests` (create→done→complete, cancel skips pending only, update on a
+  cancelled plan rejected, double-done rejected) as part of the handler acceptance below.
   Every one gets its `CommandPermissions` entry in the same commit (D05's test enforces coverage).
   **No new `CommandTypes` constant is invented here** — if a name is missing from the live catalog,
   that is a C-phase defect to log in the decision log, not a new name to coin. The authoritative
@@ -183,6 +198,9 @@ authoritative one.
 - `ClinicalFlowTests` green (or skipped with reason): owner → pet → appointment → check-in → queue
   entry → visit open → triage → note revision → rx lines → visit complete, all `Accepted`, and a
   `VisitBillingHandoff` row exists in `Pending` state.
+- `TreatmentSettlementTests` green (audit 2026-10-08 · RM-H-03): create → occurrences written → last `occurrence.done`
+  completes the plan; `cancel` skips only `Pending` occurrences atomically; `update` on a cancelled plan →
+  `TREATMENT_PLAN_NOT_ACTIVE`; a second `occurrence.done` with a new envelope → `TREATMENT_OCCURRENCE_ALREADY_DONE`.
 - `BoardingFlowTests` green: stay create → 2 items → room assign → checkout → a
   `BoardingBillingHandoff` row exists; a further `boarding.item.add` returns `Rejected` + `STAY_CLOSED`.
 - `ConflictPolicyTests` green, one fact per row: a demographic field changed on both sides merges
