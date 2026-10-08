@@ -1,5 +1,14 @@
 # Animora Backend & Server Roadmap
 
+> **Server-track reset — 2026-10-08.** Tracks A–C (A01–C11) are **complete** and remain exactly as
+> listed below. The remaining server/sync/admin work — originally drafted as `D01`–`D13` and
+> `E01`–`E09` — was **deleted** (planning-only files with baseline drift; no code existed) and is being
+> **regenerated** from the current PostgreSQL / .NET 10 baseline by the meta-phase **`M00`**
+> (`phases/PHASE-M00-server-track-regeneration.md`). The regenerated phases use the **`S##`** (server)
+> and **`G##`** (sync / integration / release) ID families. Until `M00` authors them, the only live
+> forward pointer is `PROGRESS.md` → "Next phase" (`M00`). The §1/§2 D/E rows below are retained as the
+> **scope inventory** `M00` must cover; their IDs are historical, not live phase files.
+
 ## §0 LOCKED RULE — PHASE WEIGHT
 
 ```
