@@ -60,13 +60,13 @@ business data is exposed by this phase.**
   | `Id` | `varchar(26)` PK | ULID |
   | `TenantId` | `varchar(26)` | tenant-scoped ⇒ the D02 `Tenant` named filter applies |
   | `SnapshotKind` | `varchar(64)` | from `SnapshotKinds` (below) |
-  | `PeriodStartUtc` / `PeriodEndUtc` | `datetime2(3)` | closed, immutable window |
+  | `PeriodStartUtc` / `PeriodEndUtc` | `timestamptz(3)` | closed, immutable window |
   | `MetricsJson` | `text` | a **flat numeric map only** — validated on ingest |
   | `RowCountCovered` | `int` | how many source rows the client aggregated |
-  | `ProducedAtUtc` | `datetime2(3)` | client's informational stamp |
-  | `ReceivedAtUtc` | `datetime2(3)` | server stamp (authoritative) |
+  | `ProducedAtUtc` | `timestamptz(3)` | client's informational stamp |
+  | `ReceivedAtUtc` | `timestamptz(3)` | server stamp (authoritative) |
   | `ConsentVersion` | `int` | the tenant consent generation this upload was made under |
-  | `RowVersion` | `entity-version token` | concurrency |
+  | `Version` | `uuid` (DB-generated, EF concurrency token) | concurrency (STACK.md §6.2; **not** `rowversion`/`xmin`) |
   Unique index `UX_TenantAggregateSnapshots_Tenant_Kind_Period` on
   `(TenantId, SnapshotKind, PeriodStartUtc)` — **the idempotency key**: re-uploading the same window
   replaces nothing and returns the stored row. Index
@@ -92,7 +92,7 @@ business data is exposed by this phase.**
   `TenantId` is taken from `ITenantContext`, never from the body. Re-upload of an existing
   `(TenantId, Kind, PeriodStart)` returns `200` with the stored row (idempotent, not a duplicate).
 - **Consent is explicit and off by default.** `TenantSettings` (D07) gains
-  `InsightConsentVersion int NOT NULL DEFAULT 0` and `InsightConsentGrantedAtUtc datetime2(3) NULL`
+  `InsightConsentVersion int NOT NULL DEFAULT 0` and `InsightConsentGrantedAtUtc timestamptz(3) NULL`
   in the same migration. `0` = no consent ⇒ every upload is rejected and
   `TenantInsight.SnapshotFreshness` reads "not consented". An operator **cannot** grant it: it is set
   by the tenant's own manager via `POST /api/insight/consent` (`SettingsManage`), audited. This is

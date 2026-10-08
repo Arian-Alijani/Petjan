@@ -51,7 +51,7 @@ on mocks after this phase.
   ```
   `SQLitePCLRaw.bundle_e_sqlite3` + `SourceGear.sqlite3` are pinned here (STACK.md §3.3) so the native
   SQLite ≥ 3.50.2 requirement is satisfiable; only `Animora.Persistence.Sqlite` consumes them.
-  **Do not** add Datasync, SQL Server, ASP.NET Core or encryption-bundle pins — later phases own those.
+  **Do not** add Datasync, Npgsql/PostgreSQL, ASP.NET Core or encryption-bundle pins — later phases own those.
 - **Package consumption in this phase:** `Animora.Persistence.Sqlite` references
   `Microsoft.EntityFrameworkCore.Sqlite` + `Microsoft.EntityFrameworkCore.Design` +
   `SQLitePCLRaw.bundle_e_sqlite3` + `SourceGear.sqlite3`. `Animora.Application` and
@@ -148,7 +148,7 @@ on mocks after this phase.
 ## Out of scope
 - Any entity, value object, or DbContext → A02, A09.
 - `Animora.Desktop` referencing `Animora.Client.Services` → C01.
-- Datasync, SQL Server, ASP.NET Core, encryption-bundle package pins → E03, D01, D02, A11.
+- Datasync, Npgsql/PostgreSQL, ASP.NET Core, encryption-bundle package pins → E03, D01, D02, A11.
 - `Animora.Sync.Abstractions` interface bodies → E03.
 - Any DI registration change in `App.axaml.cs` → C01 onward.
 

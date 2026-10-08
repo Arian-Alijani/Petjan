@@ -112,7 +112,7 @@ glance," "nice-to-have," "acceptable to omit"), the rules in this section and
 - macOS-specific packaging/signing — separate roadmap (UI code is shared
   with Windows via Avalonia; only Windows packaging/build is this
   roadmap's concern).
-- Backend (ASP.NET Core API, Datasync server, SQL Server schema) —
+- Backend (ASP.NET Core API, Datasync server, PostgreSQL schema) —
   separate roadmap.
 - Real `ISyncEngine`/Datasync client wiring, real EF Core/SQLite local
   store — separate roadmap. Phases 01–29 use mock services behind
