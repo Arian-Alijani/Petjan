@@ -51,7 +51,7 @@ Bands: all **M** except where marked **S**. No XL. Offline invariant (“desktop
 | S16 | Licensing & anti-piracy (signed license, device fingerprint binding, offline grace, clock-rollback, fail-closed) | M | S | S15 | R-B06, R-B29, R-B30, R-B36 | D11 |
 | S17 | Files — valet key + resumable transfer (`Staged→…→Available`, reconciliation job) | M | S | S13 | R-B26 | D12 |
 | S18 | Server observability & weak-server performance (bounded pools, `MinPoolSize=0`, loopback OTLP, local-only telemetry) | M | S | S13 | R-B07, R-B27, R-B35 | D13 |
-| S19 | Admin web I — operator panel core (`Animora.AdminWeb`, Blazor Web App Static-SSR-first, operator auth, tenant/subscription/license views) | M | S | S16 | R-B05 | E01 |
+| S19 | Admin web I — operator panel core (`Animora.Web.Admin`, Blazor Web App Static-SSR-first, operator auth, tenant/subscription/license views) | M | S | S16 | R-B05 | E01 |
 | S20 | Admin web II — insight seams (`ITenantInsightQuery` read-model port only; cross-tenant analytics deferred) | S | S | S19 | R-B05, R-B11, R-B35 | E02 |
 | G01 | `Animora.Sync.Abstractions` — `IStateSyncEngine`/`ISyncEngine`, `SyncScope`, `SyncResult`, `NullSyncEngine` fallback + DI | S | G | S12 | R-B03, R-B13 | E03 (half 1) |
 | G02 | Custom immutable-batch HTTP adapter (client refs **no** PostgreSQL driver, **no** server project) | M | G | G01 | R-B03, R-B13, R-B31 | E03 (half 2) |
@@ -109,7 +109,7 @@ S09 (sales/cashier), S10 (inventory/purchasing/finance); Statistics has no serve
 | License issuer, device binding, grace | S16 |
 | File lifecycle + valet key | S17 |
 | Telemetry/pool config | S18 |
-| `Animora.AdminWeb` | S19 |
+| `Animora.Web.Admin` | S19 |
 | `ITenantInsightQuery` | S20 |
 | `IStateSyncEngine`, `NullSyncEngine` | G01 |
 | HTTP adapter | G02 |
@@ -306,3 +306,23 @@ packages; `README.md` placeholder text; **no `.cs` files**. Client-side status s
 (implemented by `Animora.Client.Services.Sync.LocalSyncStatusService`, reads `ISyncCursorStore` + `ICommandJournal`).
 `tests/Animora.Sync.Tests` and `tests/Animora.Server.Tests` are placeholder projects (`PlaceholderTests.cs`, no subject
 reference; S01 / G01 add the project references).
+
+
+---
+
+## Naming lock (T3 — resolves a T1 inconsistency; authority `ARCHITECTURE.md` §6 > `CONVENTIONS.md` §1 > phase)
+
+| Project | Created by | Notes |
+|---|---|---|
+| `Animora.Server` | S01 | ASP.NET Core 10 host (Business API `/api/commands*`, `/sync/*`, `/auth/*`, `/operator/*`, `/admin`, workers) |
+| `Animora.Persistence.PostgreSql` | S02 | the **only** project that references Npgsql / `UseNpgsql`; `AnimoraServerDbContext` |
+| `Animora.Server.Licensing` | S16 | `Verification/` half = Domain + Contracts.Wire only (client-reusable); `Issuance/` half = Application + Domain (server-only) |
+| `Animora.Web.Admin` | S19 | Blazor Web App operator panel, hosted by `Animora.Server` (T1 wrote `Animora.AdminWeb` — corrected to the ARCH §6 name) |
+| `Animora.Sync.Custom` | G02 | immutable-batch HTTP adapter; references Sync.Abstractions + Application + Persistence.Sqlite + Contracts.Wire; **no** Npgsql |
+| `tests/Animora.Server.Tests` | exists (placeholder) → S01 adds `ProjectReference` to `Animora.Server` | |
+| `tests/Animora.Sync.Tests` | exists (placeholder) → G01 adds `ProjectReference` to `Animora.Sync.Abstractions` | |
+
+Rate-limit policy names (supersedes the PH-08 text `tables`): **`auth`, `commands`, `sync`, `files`, `operator`** — `/tables/*` (Datasync) is deferred (STACK §5.2 optional, G1 gate), the
+critical feed lives under `/sync/*` (ARCH §4), so the policy is named `sync`. T9 records this in the PROGRESS drift ledger.
+
+Server data-protection key ring: **database-backed on its own tiny `DbContext`** (`AnimoraKeyRingDbContext`, ARCH §10.6) introduced by S02 with its own migration history table; S01 needs no key ring (no cookies/tokens yet).

@@ -190,7 +190,7 @@ copy (not a recollection) with its introducing phase noted. Tick + one-line evid
 
 **Evidence (T2):** Reference pack (R1–R6: wire seam, CommandTypes rule, settlement vocabulary, application ports, Result/ErrorCodes, sync scaffold) copied verbatim into phases/M00-source-brief.md; live counts CommandTypes 88 / ErrorCodes 161.
 
-### - [ ] T3 — Author the server foundation phases (host → data layer + tenancy → identity → authz)
+### - [x] T3 — Author the server foundation phases (host → data layer + tenancy → identity → authz)
 **Read:** this file; `M00-source-brief.md`; `STACK.md` §0/§5/§6/§11/§12; `ARCHITECTURE.md`
 §PG/§16-CT–§18-CT/§9/§17/§19; the `R-B##` rows for server host, data/tenancy, identity, authorization.
 **Produce:** the first batch of server phase files per the T1 map — the **foundation** slice: server
@@ -200,6 +200,9 @@ full Authoring-rules checklist. Split any into two if it would exceed band M.
 **Done when:** each foundation phase file exists, passes the authoring checklist (self-contained,
 baseline-verified line present, mechanical acceptance criteria, no forward dep), and no two introduce
 the same artifact. Tick + list the file names created.
+
+
+**Evidence (T3):** Authored PHASE-S01-server-host-scaffold, S02-server-data-layer-tenancy-i (migration 101), S03-server-data-layer-tenancy-ii, S04-identity-server, S05-tenant-context-authorization (+ naming lock Animora.Web.Admin / Persistence.PostgreSql / Sync.Custom in source brief); passes authoring checklist, no forward deps.
 
 ### - [ ] T4 — Author the command-plane phases (intake + idempotency → handlers I → handlers II)
 **Read:** this file; `M00-source-brief.md` (wire + settlement + `CommandTypes` seams); `ARCHITECTURE.md`
