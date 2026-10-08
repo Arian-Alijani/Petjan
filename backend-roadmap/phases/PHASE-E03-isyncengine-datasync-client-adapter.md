@@ -80,6 +80,17 @@ intent** (that is E06).
   tables are flat transport rows. Mixing them would put `UpdatedAt`/`Version` on domain entities and
   invite a business query to order by a transport column (A-RULE 009/010). Both contexts share the
   connection string and the A11 encryption provider.
+  **Dual-context safety (audit 2026-10-08 · SYNC-C-01, PH-02, IMP-05 — this is the single most
+  error-prone decision in the sync track; it must be safe-by-test, not safe-by-prose):**
+  1. **Shared cipher/key, explicit.** The A11 `SqliteConnectionInterceptor` + key provider are the
+     **same single instances** for both contexts (one connection string, one key source) — neither
+     context may open the file unencrypted. Asserted by the `PRAGMA cipher_version` test on `repl_*`
+     (see Acceptance · SYNC-C-02). An unencrypted replica set would silently defeat the whole
+     encryption story.
+  2. **Deterministic startup order.** Store startup migrates in **one** ordered step list inside the
+     existing `LocalStoreStartup`: local-context migrate → offline-context migrate → projection — not
+     two independent initializers (so WAL/locking and `__EFMigrationsHistory` advancement are ordered).
+  3. See Acceptance · `TwoContextMigrationTests`.
 - **Projection into the business store is an explicit, ordered step — not EF magic.**
   `src/Animora.Sync.Datasync/Projection/ReplicaProjector.cs`: after a successful pull, for each
   entity in dependency order (`SyncContractCatalog.ProjectionOrder`, a static list that puts
@@ -290,6 +301,12 @@ intent** (that is E06).
   **inside the encrypted container** when the release/encryption profile is active (enablement itself
   lands in E07). A test opens a `repl_*` table through the store connection and asserts
   `PRAGMA cipher_version` is non-empty — the replicated PII must never be a plaintext surface.
+- **`TwoContextMigrationTests` green (audit 2026-10-08 · SYNC-C-01, PH-02):** on a fresh SQLite file,
+  running the ordered startup migrates **both** `__EFMigrationsHistory` tables forward (local context
+  and `AnimoraOfflineDbContext`); neither context's model snapshot contains the other's tables
+  (`AnimoraLocalDbContext` has no `repl_*`; the offline context has no domain tables); and the same
+  single A11 interceptor/key instance is used for both (asserted alongside the `PRAGMA cipher_version`
+  check). Startup order is local-migrate → offline-migrate → projection.
 
 ## PROGRESS.md update
 Mark E03 done; advance "Next phase" to `E04`; append a "Repo state" entry listing: the
