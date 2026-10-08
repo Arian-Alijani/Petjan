@@ -82,7 +82,14 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
   `[Route("tables/<plural-lower>")] sealed class <Entity>TableController : TableController<<Entity>SyncContract>`.
   Repository: `EntityTableRepository<T>` over `AnimoraServerDbContext` — but over a **projected
   keyless-free view**: because Datasync requires an EF entity type, each contract is mapped as a
-  **database view** (`vw_Sync<Entity>`) created in migration `106_SyncViews`, selecting the
+  **database view** (`vw_Sync<Entity>`) created in migration `106_SyncViews` — **each view must be
+  indexable** (audit 2026-10-08 · SRV-M-02, OPT-01): either a SQL Server indexed (schema-bound)
+  view / persisted projection, or — when the projection is a trivial column subset — a view whose
+  predicate and `ORDER BY UpdatedAt` are fully served by the **base-table** index
+  `IX_<Table>_TenantId_UpdatedAt` (D02 invariant), so the OData `$filter=updatedAt gt …` + LINQ
+  data-view predicate never degrades into nested-view scans on the weak server. `SyncSurfaceTests`
+  asserts, per replicated entity, that the base table carries that index and that the delta query
+  plan seeks on it (no full scan) — selecting the
   projection columns plus `UpdatedAt`/`Version`/`Deleted`, with `INSTEAD OF` triggers deliberately
   **absent** — the views are read-only, and client writes travel through the command pipeline or
   through the controller's own `ITableRepository` write path for the three genuinely
@@ -129,8 +136,20 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
      greater of `now` and `lastStamp + 1 tick` from an in-memory per-(tenant,table) high-water
      seeded from the table's max on first use. Same-millisecond bursts therefore cannot collapse
      onto one cursor value — the single largest G1 risk, removed by construction.
+     **Persisted high-water (audit 2026-10-08 · SRV-M-01, OPT-02):** an in-memory-only high-water
+     reseeded from a racing `MAX(UpdatedAt)` leaves a narrow skip/duplicate window across a restart.
+     So the seed is `MAX(UpdatedAt) + 1 tick` **and** the high-water is persisted per
+     (tenant, table) in a small `SyncStampHighWaters(TenantId, TableName, HighWaterTicks)` row
+     (non-replicated, added to `ServerModel.NonReplicatedProjectionTables`; migration `106_SyncViews`
+     or the next free ordinal). The row is advanced **in the same transaction** as the stamped write
+     in coarse steps (every N=1000 ticks reserved ahead, "block reservation"), so a restart resumes
+     from `max(persisted reservation, MAX(UpdatedAt)+1 tick)` and can never re-issue a stamp that a
+     client may already hold as a cursor.
   2. `SyncSurfaceTests` includes a **same-tick burst** fact (100 inserts stamped inside one
-     millisecond, then a paged pull) asserting zero skipped and zero duplicated rows. The full G1
+     millisecond, then a paged pull) asserting zero skipped and zero duplicated rows; the burst
+     test also covers **"restart mid-burst"** (audit 2026-10-08 · SRV-M-01): the stamp service is
+     torn down and rebuilt half-way through the burst and the paged pull still yields zero skipped /
+     zero duplicated rows and strictly increasing stamps. The full G1
      matrix is E08's gate; this is the in-phase smoke version.
   `UpdatedAt` and `Version` remain **transport bookkeeping only** (A-RULE 009/010) — a test asserts
   no business query orders by `UpdatedAt`.

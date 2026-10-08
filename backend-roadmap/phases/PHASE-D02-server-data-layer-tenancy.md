@@ -168,7 +168,10 @@ with isolation that holds **with RLS off**.
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
 - `ServerSchemaTests` green (or skipped with reason if no SQL Server): `102_ServerCoreSchema` applies
-  to an empty database; every replicated table has `IX_<Table>_TenantId_UpdatedAt`; no column is
+  to an empty database; every replicated table has `IX_<Table>_TenantId_UpdatedAt` — this is a
+  **migration invariant** (audit 2026-10-08 · OPT-06): the index is created **in the same migration
+  that creates the table**, and a schema test fails the build if any replicated base table lacks it
+  (not merely a runtime readiness check); no column is
   `decimal`/`money`; every tenant-scoped index starts with `TenantId`.
 - `ServerQueryFilterTests` green: both filters exist by name; `IgnoreQueryFilters("SoftDelete")`
   works while a parameterless `IgnoreQueryFilters()` outside the maintenance scope throws; a query

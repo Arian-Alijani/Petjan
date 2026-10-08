@@ -232,7 +232,7 @@ multi-file edit, still push it as one coherent commit with a clear message.
 
 ---
 
-### [ ] T7 — Persist monotonic high-water; index the sync views for the weak server (rank 7)
+### [x] T7 — Persist monotonic high-water; index the sync views for the weak server (rank 7)
 - **Audit refs:** SRV-M-01, SRV-M-02, OPT-01, OPT-02, OPT-06, scenario SC-03/SC-06. Owner phases: **D08**, **D13**, cross-ref **D02**.
 - **Ground truth:** `PHASE-D08...md:107-116` `MonotonicStampService` is in-memory per
   (tenant,table), reseeded from `MAX(UpdatedAt)` on restart (narrow skip/dup window).

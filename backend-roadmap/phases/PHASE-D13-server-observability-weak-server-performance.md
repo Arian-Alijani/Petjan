@@ -227,6 +227,12 @@ measured, never asserted.
 
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **`QueryPlanBudgetTests` — EXPLAIN-plan / query-time budget gate (audit 2026-10-08 · OPT-05):** the
+  five heaviest sync + report queries (the `Pet`/`Visit` delta pull via `vw_Sync<Entity>`, the
+  `Invoice` delta pull, the `DailyFinanceFacts` range read, the owner-statement query, the
+  low-stock report) run against a seeded 100k-row tenant on the **minimum** server spec; each must
+  show an index **seek** on `IX_<Table>_TenantId_UpdatedAt` (or its report index) — no table/clustered
+  scan, no key-lookup storm — and finish under its recorded time budget. A regression fails the gate.
 - `ObservabilityIsolationTests` green — **gate V (server half)**: with `OtlpEndpoint` empty the
   server starts, serves, logs and exposes `/diagnostics/metrics`; with an endpoint configured and the
   collector absent, request success rate stays 100% and no unhandled exception is logged; a non-local
