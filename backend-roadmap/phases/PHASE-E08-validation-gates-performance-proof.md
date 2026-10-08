@@ -185,6 +185,8 @@ A failing gate blocks release and is logged with an owner phase — it is never 
 
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **Measured drain rate (audit 2026-10-08 · SYNC-M-03):** the gate reports a measured catch-up drain rate (rows/min on the minimum
+  server spec over a throttled link) and the projected time to drain a full 25-entity tenant, so the "draining N of M" UX promise is backed by a number.
 - `scripts/sandbox/gates.sh all` runs to completion and writes `gate-report.json` + `gate-report.md`;
   every non-skipped `ARCHITECTURE.md` §19 gate (A–V) and every `STACK.md` §12 gate reports `PASS`;
   each `SKIPPED` carries a reason and a re-run condition.

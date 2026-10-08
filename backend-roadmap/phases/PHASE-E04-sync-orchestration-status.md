@@ -36,10 +36,14 @@ zero `.axaml` changes.
   from the A11 `LocalInstallation.InstallationId` hash, so a fleet restarting together does not
   converge on the same tick (the reconnect-storm defense, gate I).
 - **Progressive catch-up, not one giant pull.** After a long offline period the orchestrator runs
-  **narrowing passes**: first `SyncScope` with the 13 reference/catalog entities from
-  `SyncContractCatalog.ProjectionOrder`'s head, then the 9 transactional-read entities, then repeats
-  while any entity reports `Complete = false`, with a hard cap of `MaxCatchUpPasses = 20` per wake-up
-  before yielding back to the schedule (so catch-up can never monopolize the process). Each pass is a
+  **narrowing passes**: first the reference/catalog entities at the head of
+  `SyncContractCatalog.ProjectionOrder`, then the transactional-read entities — **the groupings are
+  derived from `SyncContractCatalog.ProjectionOrder` at runtime (currently 25 entities, post-C11 incl.
+  `TreatmentPlan`/`TreatmentOccurrence`/`VaccineCatalogItem`), never hard-coded as "13 + 9 = 22"** (audit
+  2026-10-08 · SYNC-M-01, PH-05) — then repeats while any entity reports `Complete = false`.
+  `MaxCatchUpPasses = 20` is an explicit **per-wake-up budget that resumes at the next wake** (the
+  per-entity cursor persists, so nothing restarts from zero) before yielding back to the schedule, so
+  catch-up can never monopolize the process. Each pass is a
   separate `SynchronizeAsync` call — the engine already commits per entity, so a kill mid-catch-up
   loses at most one entity's page (A-RULE 026).
 - **`SyncOrchestrator` (`src/Animora.Client.Services/Sync/SyncOrchestrator.cs`)** — a
@@ -239,6 +243,16 @@ zero `.axaml` changes.
   after device A posts an invoice and both devices sync, device B's replicated
   `OwnerFinancialSnapshot.TotalSpendMinor` and dashboard revenue equal device A's — the server-computed
   finance read-model projections (D08) converge across devices (they are read-only pulls, never pushed).
+- **Drain progress (audit 2026-10-08 · SYNC-M-03):** the flyout shows an honest **"draining N of M"** line while a
+  multi-pass catch-up is in progress, with `N = entities complete` and `M = SyncContractCatalog.ProjectionOrder.Count`
+  taken from the existing `SyncBacklogDto` (`IncompleteEntities`) — a multi-day serial drain must never look like a
+  silent hang. Asserted in `SyncDiagnosticsQueryTests`.
+- **Blocking-debt gates (audit 2026-10-08):** (CODE-02) every new sync query/service interface takes `CancellationToken ct = default`
+  from the start; (CODE-04 / SYNC-M-02) clocks are injected (`IClock`/`IClinicClock`) — a grep-test forbids
+  `DateTime.Now`/`DateTime.UtcNow` in `Animora.Client.Services` and `Animora.Sync.*` (`CONVENTIONS §6.14`); (CODE-05) `ConfigureAwait(false)`
+  in `Animora.Sync.*` library code; (CODE-06) the new sync-flyout view-models are `IDisposable` and unsubscribe every handler they
+  subscribe; (CODE-08) `App.axaml.cs` logs `result.Error` when local-store startup fails and the sync orchestrator **does not start**
+  on a failed store (today the error is swallowed).
 - `SyncDiagnosticsQueryTests` green: `SyncBacklogDto` reports unsent count, oldest age, incomplete
   entity count and circuit state; `DisplayKey` values are localization keys (no Persian literal in
   any backend project — grep assertion).

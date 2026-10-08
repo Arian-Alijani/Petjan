@@ -262,6 +262,11 @@ capabilities expire. This is the phase where the three security planes become re
 
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **Clock authority (audit 2026-10-08 · CODE-04 / SYNC-M-02):** the ~32 `DateTime.UtcNow` call sites in `Animora.Client.Services`
+  touched or added by this phase use the injected `IClock`/`IClinicClock`; a grep-test forbids `DateTime.Now`/`DateTime.UtcNow` in
+  `Animora.Client.Services` and `Animora.Sync.*`.
+- **Desktop view-model hygiene (audit 2026-10-08 · CODE-03):** the first E-phase that edits Desktop view-models replaces `.Result` (15
+  occurrences in the Statistics VMs) with `await`, and a grep-test forbids `.Result` in `Animora.Desktop`.
 - `OnlineFirstAuthTests` green: online success mirrors the hash + stamp; offline success uses the
   mirror; a server `INVALID_CREDENTIALS` never falls back to the local hash; a changed
   `SecurityStamp` discards the snapshot and the mirror before proceeding; a user with no mirror gets

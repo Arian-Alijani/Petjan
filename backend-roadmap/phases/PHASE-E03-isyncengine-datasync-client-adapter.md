@@ -288,6 +288,8 @@ intent** (that is E06).
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors; the Datasync client pin resolves to
   exactly `10.1.2`.
+- **Blocking-debt gates (audit 2026-10-08 · CODE-05):** `Animora.Sync.*` library code uses `ConfigureAwait(false)` on every await, and all new
+  sync interfaces take `CancellationToken ct = default` (CODE-02); clocks are injected, no `DateTime.Now/UtcNow` (CODE-04 / SYNC-M-02).
 - `SyncPortContractTests` green: every public type in `Animora.Sync.Abstractions` is defined in
   `Animora.Sync.Abstractions`, `Animora.Domain`, `Animora.Contracts.Wire` or the BCL; the project has
   zero `PackageReference`.

@@ -227,6 +227,8 @@ measured, never asserted.
 
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **Bounded `MembershipCache` (audit 2026-10-08 · OPT-08):** the in-memory `MembershipCache` is a **bounded LRU** (configured max entries,
+  sliding expiry) so a many-tenant node cannot grow it without limit; a test asserts eviction at the cap and no unbounded growth.
 - **`QueryPlanBudgetTests` — EXPLAIN-plan / query-time budget gate (audit 2026-10-08 · OPT-05):** the
   five heaviest sync + report queries (the `Pet`/`Visit` delta pull via `vw_Sync<Entity>`, the
   `Invoice` delta pull, the `DailyFinanceFacts` range read, the owner-statement query, the

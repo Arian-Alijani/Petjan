@@ -222,6 +222,9 @@ questions. This phase builds the **intake machinery**; the business handlers the
 
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **Batch intake (audit 2026-10-08 · OPT-03):** the intake accepts a batch of envelopes per request (bounded, e.g. ≤ 50) and settles them
+  in one round-trip, each with its own idempotency row and per-command `SettlementResult` — a weak/slow link never needs one HTTP call
+  per command.
 - `CommandIntakeTests` green (or skipped with reason): each of the nine steps is provably reached in
   order, and each failure path returns the specified code — unsupported contract version, malformed
   envelope, tenant/actor/device mismatch, invalid fingerprint, unmapped command type.

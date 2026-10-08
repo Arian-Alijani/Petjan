@@ -279,7 +279,7 @@ multi-file edit, still push it as one coherent commit with a clear message.
 
 ---
 
-### [ ] T9 — Re-derive E04 catch-up groups from the 25-entity manifest (SYNC-M-01) + drain progress + minor code-debt pointers
+### [x] T9 — Re-derive E04 catch-up groups from the 25-entity manifest (SYNC-M-01) + drain progress + minor code-debt pointers
 - **Audit refs:** SYNC-M-01, SYNC-M-03, SYNC-M-02, CODE-02..CODE-08, OPT-03,04,07,08. Owner phases: **E04**, plus pointers.
 - **Ground truth already verified:** `PHASE-E04...md:39-41` says catch-up uses
   **13 reference + 9 transactional = 22** entities and caps at `MaxCatchUpPasses = 20`,

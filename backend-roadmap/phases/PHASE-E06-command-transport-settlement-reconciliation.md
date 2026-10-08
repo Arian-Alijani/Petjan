@@ -222,6 +222,12 @@ act) is delivered through the existing notification and dialog services.
 
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **Blocking-debt gates (audit 2026-10-08):** (CODE-02) new transport/settlement interfaces take `ct = default`; (CODE-05)
+  `ConfigureAwait(false)` in `Animora.Sync.*`; (CODE-06) new sync view-models are `IDisposable` and unsubscribe; (CODE-07) the
+  negative-stock server rejection reaches the user via the conflict path; (OPT-07) command batches are gzip-compressed on the wire when
+  larger than a small threshold (`Content-Encoding: gzip`, server `RequestDecompression`) — a weak-link win measured in E08.
+- **Drain progress (audit 2026-10-08 · SYNC-M-03):** the backlog DTO exposes the counters the E04 "draining N of M" line needs
+  (unsent commands + `IncompleteEntities`), so a long serial drain is reported honestly rather than as a hang.
 - `CommandsBeforeReplicationTests` green: in every pass the transport submit precedes the
   replication push/pull; a **transport failure** skips replication for that pass; the order holds on a
   manual `SyncNowAsync` too.

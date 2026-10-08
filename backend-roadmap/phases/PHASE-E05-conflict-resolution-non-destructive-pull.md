@@ -234,6 +234,10 @@ client has fallen outside the retention window.
 
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **Blocking-debt gates (audit 2026-10-08):** (CODE-02) new conflict query/service interfaces take `ct = default` from the start;
+  (CODE-05) `ConfigureAwait(false)` in `Animora.Sync.*`; (CODE-06) the new conflict-queue view-models are `IDisposable` and unsubscribe;
+  (CODE-07) `AllowNegativeStockOnSale = true` is the shipped default — a server-side negative-stock rejection (`INSUFFICIENT_STOCK`) must
+  surface through the **conflict path** (a `ConflictQueueEntry`), not be swallowed or shown as a generic failure.
 - `ConflictPolicyMatrixTests` green: every entity in `SyncContractCatalog` has a policy for every
   `ConflictKind`; an unknown pair throws `ConflictPolicyMissingException`; **no** entity in the
   financial/stock/scheduling/ledger set maps to `LastWriteWins` or `FieldAwareMerge`.

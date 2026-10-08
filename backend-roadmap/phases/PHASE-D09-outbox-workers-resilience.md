@@ -186,6 +186,9 @@ bulkhead) applied at every boundary.
 
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **Batch intake + outbox index (audit 2026-10-08 · OPT-03, OPT-04):** the outbox relay drains in bounded batches, and the
+  `OutboxMessages` table carries a filtered/covering index on `(TenantId, ProcessedAtUtc, Id)` for the pending-scan so the relay's poll
+  stays an index seek as the table grows; a test asserts the plan seeks, not scans.
 - `OutboxAtomicityTests` green (or skipped with reason): **gate G** — a business transaction that
   rolls back leaves zero outbox rows; one that commits leaves exactly the expected messages; killing
   the process between commit and relay loses nothing.
