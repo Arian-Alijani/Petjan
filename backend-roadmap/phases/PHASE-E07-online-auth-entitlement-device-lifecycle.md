@@ -1,5 +1,7 @@
 # Phase E07 — Online auth, entitlement & device lifecycle
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** E · **Depends on:** E06, D11 · **Satisfies:** R-B04, R-B06, R-B20, R-B21, R-B36
 **Runnable after this phase:** desktop offline yes · server required no (login falls back to the B03
 local credential mirror; entitlement falls back to the sealed local cache)
@@ -36,7 +38,7 @@ server still logs in offline against the B03 credential mirror and keeps working
 capabilities expire. This is the phase where the three security planes become real end to end.
 
 ## Design decisions (pre-made — implement, do not re-derive)
-- **Remote access is a port in Application, an HTTP adapter in `Animora.Sync.Datasync/Transport/`**
+- **Remote access is a port in Application, an HTTP adapter in `Animora.Sync.Custom/Transport/`**
   (the E06 precedent: that folder owns the shared named `HttpClient` and its handlers; it is
   transport, not the sync engine, and touches no Datasync type):
   - `Animora.Application/Ports/IRemoteIdentityApi.cs` — `LoginAsync(LoginRequestV1)`,
@@ -170,9 +172,9 @@ capabilities expire. This is the phase where the three security planes become re
 | `src/Animora.Contracts.Wire/Identity/CapabilitySnapshotV1.cs` | create | signed snapshot wire record |
 | `src/Animora.Server/Identity/ServerCapabilitySigner.cs` | create | ECDSA signing over the D11 primary key |
 | `src/Animora.Server/Endpoints/CapabilityEndpoints.cs` | create | `GET /api/identity/capabilities` |
-| `src/Animora.Sync.Datasync/Transport/HttpIdentityApi.cs` | create | `/api/identity/*` adapter |
-| `src/Animora.Sync.Datasync/Transport/HttpLicenseApi.cs` | create | `/api/license/*` adapter |
-| `src/Animora.Sync.Datasync/SyncOptions.cs` | modify | 5 new options + `Validate()` |
+| `src/Animora.Sync.Custom/Transport/HttpIdentityApi.cs` | create | `/api/identity/*` adapter |
+| `src/Animora.Sync.Custom/Transport/HttpLicenseApi.cs` | create | `/api/license/*` adapter |
+| `src/Animora.Sync.Custom/SyncOptions.cs` | modify | 5 new options + `Validate()` |
 | `src/Animora.Client.Services/Identity/TokenStore.cs` | create | keystore-backed `TokenSet` |
 | `src/Animora.Client.Services/Identity/AuthTokenProvider.cs` | create | `ISyncCredentialProvider` + single-flight refresh |
 | `src/Animora.Client.Services/Identity/OnlineFirstAuthenticationService.cs` | create | online-then-offline sign-in + mirroring |
@@ -222,9 +224,9 @@ capabilities expire. This is the phase where the three security planes become re
 ## Contracts / schema added
 - Application: `IRemoteIdentityApi`, `IRemoteLicenseApi`, `OfflineRemoteIdentityApi`,
   `OfflineRemoteLicenseApi`, `CommandCapabilityGroups`; `AllowAllEntitlementGate` **deleted**.
-- Wire: `CapabilitySnapshotV1`. `WireContract.Version` stays `1` (new shape, not a changed one).
+- Wire: `CapabilitySnapshotV1`. `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version) (new shape, not a changed one).
 - Server: `ServerCapabilitySigner`, `CapabilityEndpoints` (1 route).
-- Sync.Datasync: `HttpIdentityApi`, `HttpLicenseApi`; `SyncOptions` += 5 options.
+- Sync.Custom: `HttpIdentityApi`, `HttpLicenseApi`; `SyncOptions` += 5 options.
 - Client services: `TokenStore`, `TokenSet`, `AuthTokenProvider`,
   `OnlineFirstAuthenticationService`, `DeviceLifecycleService`, `ServerCapabilitySnapshotIssuer`,
   `OnlineSessionCoordinator`, `LicenseService`, `LicenseEntitlementGate`, `EntitlementNotices`.

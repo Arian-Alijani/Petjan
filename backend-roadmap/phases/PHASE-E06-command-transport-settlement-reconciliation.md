@@ -1,5 +1,7 @@
 # Phase E06 — Command transport & settlement reconciliation
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** E · **Depends on:** E05, D07 · **Satisfies:** R-B03, R-B09, R-B16
 **Runnable after this phase:** desktop offline yes · server required no (commands stay
 `PendingSettlement` until a server exists)
@@ -29,7 +31,7 @@ the B02 state machine; and the sync-failure UX contract (what failed / why / fin
 act) is delivered through the existing notification and dialog services.
 
 ## Design decisions (pre-made — implement, do not re-derive)
-- **`HttpCommandTransport`** (`src/Animora.Sync.Datasync/Transport/HttpCommandTransport.cs` — it
+- **`HttpCommandTransport`** (`src/Animora.Sync.Custom/Transport/HttpCommandTransport.cs` — it
   lives beside the sync transport because it shares the `HttpClient`, handlers and preflight, but it
   is **not** the sync engine and touches no Datasync type):
   `Task<Result<IReadOnlyList<SettlementResult>>> SubmitAsync(IReadOnlyList<CommandEnvelope> batch, CancellationToken ct)`.
@@ -83,7 +85,9 @@ act) is delivered through the existing notification and dialog services.
   (guarded by `SettlementTransitions` plus a `SettledAtUtc` null-check), because a response may
   arrive twice after a retry.
 - **Dependency ordering: client hints only, server decides (A-RULE 021/022).**
-  The client sends `DependsOnOperationId` and `ExpectedAggregateVersion` as B02 recorded them, and
+  The client sends DependsOnOperationId and the captured ExpectedServerVersion (§PG.7), preserving
+  B02 local numeric revision/sequence separately; never fills expected token from latest state at
+  retry time. Legacy numeric-only journal records are migrated/reviewed without losing intent, and
   orders its **own** batch by `LocalSequence` with dependencies first
   (`src/Animora.Application/Commands/DependencyHintSorter.cs` — a topological sort over
   `DependsOnOperationId` within the batch, ties broken by `LocalSequence`).
@@ -138,7 +142,7 @@ act) is delivered through the existing notification and dialog services.
 ## Files to create / modify
 | Path | Action | Contents (one line) |
 |---|---|---|
-| `src/Animora.Sync.Datasync/Transport/HttpCommandTransport.cs` | create | real `ICommandTransport` over `POST /api/commands` |
+| `src/Animora.Sync.Custom/Transport/HttpCommandTransport.cs` | create | real `ICommandTransport` over `POST /api/commands` |
 | `src/Animora.Application/Commands/SettlementReconciler.cs` | create | outcome → local state, idempotent |
 | `src/Animora.Application/Commands/DependencyHintSorter.cs` | create | in-batch topological sort, hints only |
 | `src/Animora.Application/Commands/SettlementFailureContract.cs` | create | the what/why/effect/who notice |
@@ -182,7 +186,7 @@ act) is delivered through the existing notification and dialog services.
 ## Contracts / schema added
 - Application: `SettlementReconciler`, `DependencyHintSorter`, `SettlementFailureContract`,
   `SettlementFailureNotice`, `ClientResponsibilityMap`; `LocalCommandProcessor` extended.
-- Sync.Datasync: `HttpCommandTransport`.
+- Sync.Custom: `HttpCommandTransport`.
 - `Animora.Contracts` **additions**: `IUnsettledWorkService`, `UnsettledCommandDto`,
   `SettlementNoticeDto`; `SyncBacklogDto` += `RejectedCommands`, `NeedsAttentionCommands`.
 - Client services: `UnsettledWorkService`; `SyncOrchestrator` reordered.
@@ -193,7 +197,7 @@ act) is delivered through the existing notification and dialog services.
 - DI: `ICommandTransport` → `HttpCommandTransport` (**`NullCommandTransport` remains the fallback
   when no server is configured**), `IUnsettledWorkService` registered.
 - **No migration** (B02's `PendingCommands` columns suffice), no new wire contract
-  (`CommandBatchRequestV1`/`CommandBatchResultV1` exist from D05). `WireContract.Version` stays `1`.
+  (`CommandBatchRequestV1`/`CommandBatchResultV1` exist from D05). `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version).
 
 ## Rules that apply here
 - **A-RULE 005 / A-RULE 019 / R-B14** — retries reuse the original `OperationId` and fingerprint; a
@@ -266,3 +270,9 @@ must preserve it**), `SettlementReconciler`'s six-outcome table + idempotency gu
 (**the A-RULE 024 contract E08 gate O verifies**), the `Animora.Contracts` additions
 (`IUnsettledWorkService`, 2 DTOs, `SyncBacklogDto` += 2), the financial-abandon refusal, the three
 crash windows proven, the 4 new error codes, the DI swap, deviations.
+
+## UUID command-version compatibility
+E06 implements §PG.7 V1 journal→V2 wire mapping, captured server-base UUID token, AppliedServerVersion
+receipt/dependency references and no-token conflict policy. Do not mutate the original payload
+fingerprint or synthesize current UUID for a stale local edit. Test offline creation→concurrent peer
+write→retry, V1 record upgrade, missing evidence preservation and uncertain receipt outcomes.

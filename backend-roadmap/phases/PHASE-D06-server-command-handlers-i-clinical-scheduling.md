@@ -1,5 +1,7 @@
 # Phase D06 — Server command handlers I — clinical & scheduling
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** D · **Depends on:** D05 · **Satisfies:** R-B01, R-B17
 **Runnable after this phase:** desktop offline yes · server required no
 
@@ -18,7 +20,7 @@
 
 ## Goal
 Every **non-financial** business command the desktop can raise settles on the server against the
-real SQL Server model, with the domain conflict policy — not a row-version resolver — deciding each
+real PostgreSQL model, with the domain conflict policy — not a row-version resolver — deciding each
 outcome: patients/owners, visits/triage, encounter/vaccination, appointments, boarding. The
 handlers re-run the **same domain invariants** the client already ran; the server's answer is the
 authoritative one.
@@ -74,15 +76,15 @@ authoritative one.
   1. Load the aggregate by `(TenantId, Id)` **tracked** (writes need tracking; D02's filters make
      the tenant scope implicit).
   2. If absent and the command is an update → `AGGREGATE_NOT_FOUND` → `Rejected`.
-  3. **Concurrency detection** — if the envelope carried `ExpectedAggregateVersion`, D05 already
-     compared it; handlers additionally rely on EF's `rowversion` check at `SaveChanges`. A
+  3. **Concurrency detection** — if the envelope carried `ExpectedServerVersion`, D05 already
+     compared it; handlers additionally rely on EF's `entity-version token` check at `SaveChanges`. A
      `DbUpdateConcurrencyException` maps to `Conflict` + `CONCURRENCY_CONFLICT` — **detection only**.
   4. **Domain policy decides** (A-RULE 004): the handler calls the same domain method the client
      called (`Visit.Complete(...)`, `Appointment.MoveTo(...)`, `BoardingStay.CheckOut(...)`), so a
      rejection is a *domain* rejection with the domain's own error code — never a generic
      "server wins".
-  5. Return `ServerCommandEffect(EntityId, EntityVersion (base64 via `RowVersionCodec`),
-     FinancialEffect.None, AggregateVersion)`. **Every handler in this phase returns
+  5. Return `ServerCommandEffect(EntityId, EntityVersion (canonical opaque UUID via `EntityVersionCodec`),
+     FinancialEffect.None, AppliedServerVersion)`. **Every handler in this phase returns
      `FinancialEffect.None`** — that is what makes it phase D06 and not D07; a test asserts it.
   6. Raise domain events into the outbox via `IServerOutbox.EnqueueAsync` (the port is declared
      here with a **no-op default implementation**; D09 supplies the real table + relay, so no
@@ -153,15 +155,15 @@ authoritative one.
 6. Write both registration files; extend `CommandPermissions` and `ResponsibilityMap`.
 7. Write `PayloadContractTests` first among the tests — it is the one that catches shape drift.
 8. Write the two flow tests and the two handler test classes.
-9. Verify against a real SQL Server: the clinical chain settles end to end, each aggregate's
-   `rowversion` advances, `VisitBillingHandoff`/`BoardingBillingHandoff` rows appear, and the
+9. Verify against a real PostgreSQL: the clinical chain settles end to end, each aggregate's
+   `entity-version token` advances, `VisitBillingHandoff`/`BoardingBillingHandoff` rows appear, and the
    idempotency row for every command is `Settled`/`Accepted`.
 10. Re-run D05's `CommandPermissionMapTests` — it must still be green with the 39 new types.
 11. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; desktop `run.sh` = `SMOKE RUN OK`.
 
 ## Contracts / schema added
 - Wire: 39 `<Name>PayloadV1` payload records under `Payloads/Clinical/` and `Payloads/Scheduling/`.
-  `WireContract.Version` stays `1`.
+  `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version).
 - Application: `IServerOutbox` + `NullServerOutbox`.
 - Server: 39 `IServerCommandHandler<TPayload>` implementations, `DemographicMergePolicy`,
   `SlotAvailabilityPolicy`, two registration files; `CommandPermissions` and `ResponsibilityMap`
@@ -171,7 +173,7 @@ authoritative one.
 - No `Animora.Contracts` change, no new `CommandTypes` constant, no DI change in `App.axaml.cs`.
 
 ## Rules that apply here
-- **A-RULE 004 / R-B17** — `rowversion` only **detects**; every outcome is decided by the domain
+- **A-RULE 004 / R-B17** — `entity-version token` only **detects**; every outcome is decided by the domain
   method or the named policy class. No `ClientWins`/`ServerWins` resolver appears anywhere.
 - **A-RULE 003** — not applicable positively here (nothing financial), and enforced negatively:
   `NoFinancialEffectTests` proves no D06 handler claims a financial effect.
@@ -207,7 +209,7 @@ authoritative one.
   field-wise and reports `merged:<field>`; a second note save adds a revision instead of
   overwriting; a double-booked slot is `Rejected` + `SLOT_TAKEN` naming the conflicting id; a
   duplicate vaccination is an idempotent replay; an already-admitted queue call is a no-op success;
-  a stale `rowversion` yields `Conflict` + `CONCURRENCY_CONFLICT`.
+  a stale `entity-version token` yields `Conflict` + `CONCURRENCY_CONFLICT`.
 - `NoFinancialEffectTests` green: all 39 handlers return `FinancialEffect.None`.
 - D05's `CommandPermissionMapTests` and `SettlementContractTests` still green with the new types.
 - Desktop unaffected: `scripts/sandbox/run.sh` = `SMOKE RUN OK`.

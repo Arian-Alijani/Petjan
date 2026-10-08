@@ -1,5 +1,7 @@
 # Phase E02 — Admin web II: insight seams
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** E · **Depends on:** E01 · **Satisfies:** R-B05, R-B11, R-B35
 **Runnable after this phase:** desktop offline yes · server required yes (for the admin site only)
 
@@ -52,19 +54,19 @@ business data is exposed by this phase.**
   compiled queries' root types, that the implementation's entity set is a subset of that allow-list.
   A later analytics phase adds a second implementation; it does not widen this one.
 - **Tenant-scoped aggregate snapshot table (the future-analytics seam, filled by the client later):**
-  `TenantAggregateSnapshot` in `Animora.Persistence.SqlServer`, migration **`111_TenantInsight`**:
+  `TenantAggregateSnapshot` in `Animora.Persistence.PostgreSql`, migration **`111_TenantInsight`**:
   | Column | Type | Note |
   |---|---|---|
-  | `Id` | `nvarchar(26)` PK | ULID |
-  | `TenantId` | `nvarchar(26)` | tenant-scoped ⇒ the D02 `Tenant` named filter applies |
-  | `SnapshotKind` | `nvarchar(64)` | from `SnapshotKinds` (below) |
+  | `Id` | `varchar(26)` PK | ULID |
+  | `TenantId` | `varchar(26)` | tenant-scoped ⇒ the D02 `Tenant` named filter applies |
+  | `SnapshotKind` | `varchar(64)` | from `SnapshotKinds` (below) |
   | `PeriodStartUtc` / `PeriodEndUtc` | `datetime2(3)` | closed, immutable window |
-  | `MetricsJson` | `nvarchar(max)` | a **flat numeric map only** — validated on ingest |
+  | `MetricsJson` | `text` | a **flat numeric map only** — validated on ingest |
   | `RowCountCovered` | `int` | how many source rows the client aggregated |
   | `ProducedAtUtc` | `datetime2(3)` | client's informational stamp |
   | `ReceivedAtUtc` | `datetime2(3)` | server stamp (authoritative) |
   | `ConsentVersion` | `int` | the tenant consent generation this upload was made under |
-  | `RowVersion` | `rowversion` | concurrency |
+  | `RowVersion` | `entity-version token` | concurrency |
   Unique index `UX_TenantAggregateSnapshots_Tenant_Kind_Period` on
   `(TenantId, SnapshotKind, PeriodStartUtc)` — **the idempotency key**: re-uploading the same window
   replaces nothing and returns the stored row. Index
@@ -140,10 +142,10 @@ business data is exposed by this phase.**
 | `src/Animora.Application/Insight/InsightMetrics.cs` | create | the closed metric allow-list |
 | `src/Animora.Contracts.Wire/Insight/TenantSnapshotUploadV1.cs` | create | upload contract + `SnapshotKinds` |
 | `src/Animora.Contracts.Wire/Insight/InsightConsentRequestV1.cs` | create | consent request |
-| `src/Animora.Persistence.SqlServer/Entities/TenantAggregateSnapshot.cs` | create | the snapshot row |
-| `src/Animora.Persistence.SqlServer/Configurations/Insight/TenantAggregateSnapshotConfiguration.cs` | create | mapping + unique key + indexes |
-| `src/Animora.Persistence.SqlServer/Migrations/*` | create | `111_TenantInsight` (+ `TenantSettings` consent columns) |
-| `src/Animora.Persistence.SqlServer/Context/ServerModel.cs` | modify | append-only + non-replicated registration (path per D02) |
+| `src/Animora.Persistence.PostgreSql/Entities/TenantAggregateSnapshot.cs` | create | the snapshot row |
+| `src/Animora.Persistence.PostgreSql/Configurations/Insight/TenantAggregateSnapshotConfiguration.cs` | create | mapping + unique key + indexes |
+| `src/Animora.Persistence.PostgreSql/Migrations/*` | create | `111_TenantInsight` (+ `TenantSettings` consent columns) |
+| `src/Animora.Persistence.PostgreSql/Context/ServerModel.cs` | modify | append-only + non-replicated registration (path per D02) |
 | `src/Animora.Server/Insight/SubscriptionInsightQuery.cs` | create | the only implementation today |
 | `src/Animora.Server/Insight/SnapshotIngestService.cs` | create | validation + idempotent ingest |
 | `src/Animora.Server/Endpoints/InsightEndpoints.cs` | create | snapshot upload + consent routes |
@@ -181,8 +183,8 @@ business data is exposed by this phase.**
 - Application: `ITenantInsightQuery`, `InsightWindow`, `InsightGranularity`, `InsightSeriesKey`,
   `PlatformInsight`, `TenantInsight`, `TimeBucket`, `InsightMetrics`.
 - Wire: `TenantSnapshotUploadV1`, `SnapshotKinds`, `InsightConsentRequestV1`.
-  `WireContract.Version` stays `1` (additive, new types only).
-- Persistence.SqlServer: `TenantAggregateSnapshot` + configuration, `TenantSettings`
+  `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version) (additive, new types only).
+- Persistence.PostgreSql: `TenantAggregateSnapshot` + configuration, `TenantSettings`
   `InsightConsentVersion`/`InsightConsentGrantedAtUtc`, migration `111_TenantInsight`,
   `ServerModel` append-only + non-replicated registrations.
 - Server: `SubscriptionInsightQuery`, `SnapshotIngestService`, `InsightEndpoints` (3 routes:
@@ -236,7 +238,7 @@ business data is exposed by this phase.**
 - `ReportingIsolationTests` green: each of the three port methods records a `Reporting` budget
   scope; cache hits are observed on a repeat dashboard load within the 120 s TTL; an operator's
   cached entry is never returned for a different operator or tenant.
-- Manual (real SQL Server): `/admin` KPI tiles match direct SQL counts; charts render as inline SVG
+- Manual (real PostgreSQL): `/admin` KPI tiles match direct SQL counts; charts render as inline SVG
   with a `<table>` fallback and never exceed 90 buckets; `/admin/health` shows D13's metrics and
   downloads a bundle; `AssetIsolationTests` (E01) still green.
 - Desktop unaffected: `scripts/sandbox/run.sh` = `SMOKE RUN OK`; no file under

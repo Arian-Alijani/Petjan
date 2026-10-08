@@ -1,5 +1,7 @@
 # Phase D02 — Server data layer & tenancy
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** D · **Depends on:** D01 · **Satisfies:** R-B03, R-B11, R-B19
 **Runnable after this phase:** desktop offline yes · server required no
 
@@ -11,19 +13,19 @@
 - `A-RULE 012`, `A-RULE 013`, `A-RULE 014`, `A-RULE 018`
 - `src/Animora.Domain/**` (entity shapes only), `src/Animora.Persistence.Sqlite/Configurations/**`
   (as the reference for column shapes — **do not** reference the project)
-- `src/Animora.Persistence.SqlServer/**` (D01 skeleton)
+- `src/Animora.Persistence.PostgreSql/**` (D01 skeleton)
 
 ## Goal
-`AnimoraServerDbContext` exists with the full business model mapped for SQL Server 2025:
-`rowversion` concurrency, **separately named** tenant and soft-delete query filters, the sync
+`AnimoraServerDbContext` exists with the full business model mapped for PostgreSQL 18:
+`entity-version token` concurrency, **separately named** tenant and soft-delete query filters, the sync
 metadata columns every replicated entity needs, a deliberate index plan, and a tenant-seeding path —
 with isolation that holds **with RLS off**.
 
 ## Design decisions (pre-made — implement, do not re-derive)
 - **One shared database, one shared schema, `TenantId` discriminator** (`ARCHITECTURE.md` §9.1).
-  No per-tenant database, ever. `TenantId` is `nvarchar(26)` (ULID) and is the **leading column of
+  No per-tenant database, ever. `TenantId` is `varchar(26)` (ULID) and is the **leading column of
   every tenant-scoped index** — no exceptions.
-- **`AnimoraServerDbContext`** in `src/Animora.Persistence.SqlServer/Context/`:
+- **`AnimoraServerDbContext`** in `src/Animora.Persistence.PostgreSql/Context/`:
   - Two **named** query filters registered per tenant-scoped entity (EF Core 10 named filters,
     STACK.md §6.4): `"Tenant"` → `e.TenantId == _tenantContext.TenantId`, and `"SoftDelete"` →
     `!e.Deleted`. A maintenance path may call `IgnoreQueryFilters("SoftDelete")` **only**;
@@ -35,15 +37,20 @@ with isolation that holds **with RLS off**.
     `TenantContextMissingException` — never silently returns cross-tenant rows (A-RULE 013).
   - `SaveChangesAsync` stamps, server-side and unconditionally: `TenantId` (from the context, never
     from the incoming entity — a mismatch raises `TENANT_MISMATCH` and writes a security audit),
-    `UpdatedAt` = `ISystemClock.UtcNow`, `Deleted` on delete (soft), and lets SQL Server maintain
-    `Version` (`rowversion`).
-- **Concurrency:** `Version` is `byte[]` mapped as `rowversion` with `IsRowVersion()` on the server
-  side, while the sync wire contract exposes it as a **base64 opaque string** (`Animora.Contracts.Wire`
-  already models `Version` as `string`). Conversion lives in `RowVersionCodec`
-  (`Animora.Persistence.SqlServer/Context/RowVersionCodec.cs`). A-RULE 010: it is concurrency
-  metadata only and is never used as a business sequence.
-- **Sync metadata on every replicated entity:** `Id` `nvarchar(26)` PK, `TenantId`, `UpdatedAt`
-  `datetimeoffset(7)` (server-stamped, **indexed**), `Version` `rowversion`, `Deleted` `bit`.
+    `UpdatedAt` is DB-trigger-stamped UTC (application clocks remain for policies/audit), `Deleted` on delete (soft), and lets PostgreSQL maintain
+    `Version` (DB-trigger-generated `uuid`).
+- **Concurrency:** `Version` maps existing Domain `string?` through a canonical UUID-string↔Guid converter
+  to PostgreSQL `uuid` (persistence-only models can use Guid), generated
+  by a BEFORE INSERT/UPDATE trigger and configured `ValueGeneratedOnAddOrUpdate()` +
+  `IsConcurrencyToken()` (not `IsRowVersion()` / xmin). RETURNING retrieves the generated value.
+  Wire Version stays `string`, encoded as canonical lowercase hyphenated UUID via
+  `EntityVersionCodec`. Client payloads cannot set it. Local domain Version is unchanged.
+  D02 creates `sync.TenantFeedState` per tenant BEFORE provisioning replicated rows and provides
+  gate-first `ServerUnitOfWork` seam; D08 installs journal capture/manifest. Version triggers cover
+  ALL mutable server models including internal rows. TenantId/Id changes fail in DB and Application.
+
+- **Sync metadata on every replicated entity:** `Id` `varchar(26) COLLATE "C"`, tenant-qualified `(TenantId,Id)` keys/FKs, `UpdatedAt`
+  `timestamptz(6)` (DB-stamped display/audit), `Version uuid`, `Deleted boolean`.
   Local-only client tables (`PendingCommand`, `ActivityEvent`, facts, snapshots, preferences…) have
   **no** server counterpart — listed explicitly in `ServerModel.NonReplicatedLocalTables` as
   documentation and asserted by a test so no one accidentally adds them.
@@ -61,31 +68,28 @@ with isolation that holds **with RLS off**.
   set at execution time, not from this list.** Owned collections map to the **same table names** as the
   local store so the two schemas stay mentally aligned.
 - **Type mapping table (binding):**
-  | Concept | SQL Server type |
+  | Concept | PostgreSQL type |
   |---|---|
-  | Id / TenantId / any ULID FK | `nvarchar(26)`, `ASCII`-only values |
-  | `Money` | `<Prop>Minor` `bigint` + `<Prop>Currency` `char(3)` |
-  | Timestamps | `datetimeoffset(7)`, always UTC |
+  | Id / TenantId / any ULID FK | `varchar(26)`, `ASCII`-only values |
+  | `Money` | `<Prop>Minor` `bigint` + `<Prop>Currency` `varchar(3)` |
+  | Timestamps | `timestamptz(6)`, always UTC |
   | Enums | `int` with explicit converter |
-  | Free text (notes) | `nvarchar(max)` only where genuinely unbounded; otherwise `FieldLengths` |
-  | Version | `rowversion` |
-  | JSON payloads | `nvarchar(max)` |
+  | Free text (notes) | `text` only where genuinely unbounded; otherwise `FieldLengths` |
+  | Version | DB-generated `uuid` |
+  | JSON payloads | `jsonb` for structural data; canonical fingerprint/receipt bytes stay `text`/`bytea` |
   Decimal money is **forbidden** (R-B24), matching the local store.
-- **Index plan:** every local index from A09/A10/C0x is reproduced with `TenantId` prepended, plus
-  three server-only ones required by replication and reporting:
-  `IX_<Table>_TenantId_UpdatedAt` on **every** replicated table (the delta-pull cursor — without it
-  D08 table-scans),
-  `IX_Invoices_TenantId_UpdatedAt_Deleted`,
-  `IX_StockMovements_TenantId_UpdatedAt`.
-  Page compression (`DATA_COMPRESSION = PAGE`) is applied to the three highest-row tables
-  (`StockMovements`, `JournalLines`, `MedicalHistoryEntries`) via a raw-SQL step in the migration,
-  guarded so it is skipped on editions that do not support it (Express supports it since 2016; the
-  guard keeps the migration portable).
-- **Migration `102_ServerCoreSchema`** creates the whole model in one migration (the server has no
+- **Index plan:** tenant-qualified PK/unique/FK constraints and tenant-leading business indexes
+  chosen from measured predicates/order. Index referencing FKs explicitly. D08 adds
+  `sync.ChangeJournal(TenantId,Sequence)` as the critical delta-range index; `UpdatedAt` is NOT a
+  critical cursor and requires no blanket delta index. Projection reads use base-table indexes.
+  No PAGE compression/edition checks/SQL Server DDL. Bounded text/TOAST is normal PostgreSQL behavior;
+  optional storage/index optimizations require evidence. Identifier names stay <=63 UTF8 bytes.
+
+- **Migration `102_ServerCoreSchema`** creates the initial business model, UUID version triggers and tenant feed-state in one migration (the server has no
   installed base yet, so a single baseline is correct and simpler to review than five). Later
   phases add `103+` incrementally and never edit this one.
 - **Tenant seeding:** `TenantProvisioner`
-  (`Animora.Persistence.SqlServer/Provisioning/TenantProvisioner.cs`):
+  (`Animora.Persistence.PostgreSql/Provisioning/TenantProvisioner.cs`):
   `Task<Result<Tenant>> ProvisionAsync(TenantProvisionRequest request, CancellationToken ct)` —
   creates the `Tenant`, the owner `User` + `StaffMembership` (role `Manager`), the default
   `RoleDefinition` set from `DefaultRolePermissions` (A03), the chart of accounts from
@@ -105,14 +109,14 @@ with isolation that holds **with RLS off**.
 | Path | Action | Contents (one line) |
 |---|---|---|
 | `src/Animora.Application/Ports/ITenantContext.cs` | create | ambient tenant port (server + tests) |
-| `src/Animora.Persistence.SqlServer/Context/AnimoraServerDbContext.cs` | create | model, named filters, stamping |
-| `src/Animora.Persistence.SqlServer/Context/RowVersionCodec.cs` | create | `rowversion` ↔ opaque base64 |
-| `src/Animora.Persistence.SqlServer/Context/ServerModelConventions.cs` | create | naming, lengths, enum/money/time converters |
-| `src/Animora.Persistence.SqlServer/Context/ServerModel.cs` | create | replicated-entity list + non-replicated list |
-| `src/Animora.Persistence.SqlServer/Configurations/**` | create | ~39 `<Entity>Configuration` classes (re-derive from the live domain at execution time — the count is indicative) |
-| `src/Animora.Persistence.SqlServer/Migrations/102_ServerCoreSchema*` | create | baseline migration + compression step |
-| `src/Animora.Persistence.SqlServer/Provisioning/TenantProvisioner.cs` | create | idempotent tenant bootstrap |
-| `src/Animora.Persistence.SqlServer/ServiceCollectionExtensions.cs` | create | `AddAnimoraServerStore(...)` |
+| `src/Animora.Persistence.PostgreSql/Context/AnimoraServerDbContext.cs` | create | model, named filters, stamping |
+| `src/Animora.Persistence.PostgreSql/Context/EntityVersionCodec.cs` | create | `uuid` ↔ canonical opaque UUID string |
+| `src/Animora.Persistence.PostgreSql/Context/ServerModelConventions.cs` | create | naming, lengths, enum/money/time converters |
+| `src/Animora.Persistence.PostgreSql/Context/ServerModel.cs` | create | replicated-entity list + non-replicated list |
+| `src/Animora.Persistence.PostgreSql/Configurations/**` | create | ~39 `<Entity>Configuration` classes (re-derive from the live domain at execution time — the count is indicative) |
+| `src/Animora.Persistence.PostgreSql/Migrations/102_ServerCoreSchema*` | create | baseline migration + UUID triggers/feed-state |
+| `src/Animora.Persistence.PostgreSql/Provisioning/TenantProvisioner.cs` | create | idempotent tenant bootstrap |
+| `src/Animora.Persistence.PostgreSql/ServiceCollectionExtensions.cs` | create | `AddAnimoraServerStore(...)` |
 | `src/Animora.Server/Program.cs` | modify | register the store; `/health/ready` gains a migration check |
 | `src/Animora.Server/Configuration/DatabaseOptions.cs` | modify | add `ReadConnectionStringName` |
 | `tests/Animora.Server.Tests/ServerQueryFilterTests.cs` | create | named filters, banned global ignore, missing tenant throws |
@@ -123,23 +127,23 @@ with isolation that holds **with RLS off**.
 ## Implementation steps
 1. Add `ITenantContext`; implement a test double now (the real middleware arrives in D04).
 2. Write `ServerModelConventions` (naming, `FieldLengths`, money/time/enum converters) and
-   `RowVersionCodec`.
+   `EntityVersionCodec`.
 3. Write the ~39 configurations mirroring the local column shapes, with `TenantId`-leading indexes
-   and the `UpdatedAt` delta index on every replicated table.
+   and the query-driven business indexes and tenant-qualified keys.
 4. Write `AnimoraServerDbContext`: named `Tenant` + `SoftDelete` filters, server-side stamping,
    tenant-mismatch rejection, `ReadOnlySet<T>()`.
-5. Generate migration `102_ServerCoreSchema`; add the guarded page-compression step.
+5. Generate migration `102_ServerCoreSchema`; add the reviewed UUID version triggers + tenant feed-state provisioning.
 6. Write `TenantProvisioner` (idempotent, seeds roles/accounts/reference data).
 7. Register the store in `Program.cs`; add the "migrations applied" readiness check.
-8. Write the four test classes, all gated by `SqlServerAvailability` (skip with reason when absent).
-9. Verify against a real SQL Server (Developer or Express): migration applies from empty; a
+8. Write the four test classes, all gated by `PostgreSqlAvailability` (skip with reason when absent).
+9. Verify against a real PostgreSQL 18 instance: migration applies from empty; a
    cross-tenant query returns zero rows and a cross-tenant write throws; provisioning twice yields
    one tenant.
 10. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; desktop `run.sh` = `SMOKE RUN OK`.
 
 ## Contracts / schema added
 - Application: `ITenantContext`.
-- Persistence.SqlServer: `AnimoraServerDbContext`, `RowVersionCodec`, `ServerModelConventions`,
+- Persistence.PostgreSql: `AnimoraServerDbContext`, `EntityVersionCodec`, `ServerModelConventions`,
   `ServerModel`, ~39 configurations, migration `102_ServerCoreSchema`, `TenantProvisioner`,
   `AddAnimoraServerStore`.
 - Server: store registration, readiness migration check, `DatabaseOptions.ReadConnectionStringName`.
@@ -155,8 +159,8 @@ with isolation that holds **with RLS off**.
   `TenantIsolationTests`.
 - **STACK.md §6.4 / CONVENTIONS §5** — two separately named filters; required navigations into a
   filtered entity are optional or filtered on both sides.
-- **R-B24** — money is `bigint` minor units + `char(3)`; time is `datetimeoffset(7)` UTC.
-- **A-RULE 010** — `rowversion` is concurrency metadata only.
+- **R-B24** — money is `bigint` minor units + `varchar(3)`; time is `timestamptz(6)` UTC.
+- **A-RULE 010** — `entity-version token` is concurrency metadata only.
 
 ## Out of scope
 - Identity tables/stores → D03 (they extend this context).
@@ -167,12 +171,13 @@ with isolation that holds **with RLS off**.
 
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
-- `ServerSchemaTests` green (or skipped with reason if no SQL Server): `102_ServerCoreSchema` applies
-  to an empty database; every replicated table has `IX_<Table>_TenantId_UpdatedAt` — this is a
-  **migration invariant** (audit 2026-10-08 · OPT-06): the index is created **in the same migration
-  that creates the table**, and a schema test fails the build if any replicated base table lacks it
-  (not merely a runtime readiness check); no column is
-  `decimal`/`money`; every tenant-scoped index starts with `TenantId`.
+- `ServerSchemaTests` green on real PostgreSQL (local missing-instance skip is not CI acceptance):
+  baseline applies from empty; tenant-qualified PK/FK/unique constraints reject foreign parents;
+  UTF8/canonical ULIDs, bigint money, UUID generated Version and UTC microsecond round trips pass;
+  all mutable rows have version triggers; provisioning creates feed state first; referencing FK
+  indexes and measured business access plans exist. No money/float storage or SQL Server SQL.
+  Critical feed journal/index/trigger coverage is D08's release-blocking invariant.
+
 - **Configuration-count assertion (audit 2026-10-08 · PH-06):** the "~39 configurations" figure is indicative only. At execution, re-derive the EF configuration count from the live domain and assert `configuration count == replicated entity count + local-only entity count` (both read from `ServerModel`, no magic number); a new aggregate without a configuration, or a configuration without an aggregate, fails the test.
 - `ServerQueryFilterTests` green: both filters exist by name; `IgnoreQueryFilters("SoftDelete")`
   works while a parameterless `IgnoreQueryFilters()` outside the maintenance scope throws; a query
@@ -187,8 +192,14 @@ with isolation that holds **with RLS off**.
 ## PROGRESS.md update
 Mark D02 done; advance "Next phase" to `D03`; append a "Repo state" entry listing:
 `AnimoraServerDbContext` + the two named filters + the stamping rules, `ITenantContext` (**D04
-implements it**), `RowVersionCodec` (**D08/E03 use it**), `ServerModel` replicated/non-replicated
-lists, the type-mapping table, the `TenantId`-leading + `UpdatedAt` index plan (**D08 depends on
+implements it**), `EntityVersionCodec` (**D08/E03 use it**), `ServerModel` replicated/non-replicated
+lists, the type-mapping table, the tenant-qualified constraints + measured business index plan (**D08 depends on
 it**), migration `102_ServerCoreSchema`, `TenantProvisioner` (**D03/D10 call it**), the
 `ReadOnlySet<T>` reporting seam, the explicit "RLS stays off" decision, the 4 test classes,
 deviations.
+
+## Bootstrap ordering with replicated Tenant root
+Provision tenant feed-state before captured Tenant/root DML in the same transaction. If feed-state
+references Tenants, use a reviewed DEFERRABLE INITIALLY DEFERRED FK for this bootstrap seam: create
+state/gate, then Tenant root, children/reference data, and validate at COMMIT. Missing root/state
+rolls back everything. No temporary disabling of capture/RLS or untracked bootstrap row is allowed.

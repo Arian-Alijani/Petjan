@@ -1,5 +1,7 @@
 # Phase D03 — Identity server
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** D · **Depends on:** D02 · **Satisfies:** R-B04, R-B20
 **Runnable after this phase:** desktop offline yes · server required no (the desktop still logs in
 locally via B03; it does not yet call the server — E07 wires that)
@@ -13,7 +15,7 @@ locally via B03; it does not yet call the server — E07 wires that)
 - `ARCHITECTURE.md` §10.1, §10.2, §10.4, §10.6 · `STACK.md` §5.3, §8, §8.1
 - `A-RULE 023`, `A-RULE 027`, `A-RULE 029`, `A-RULE 012`
 - `src/Animora.Domain/Identity/**` (entity shapes), `src/Animora.Application/Ports/**`
-- `src/Animora.Persistence.SqlServer/Context/AnimoraServerDbContext.cs`
+- `src/Animora.Persistence.PostgreSql/Context/AnimoraServerDbContext.cs`
 
 ## Goal
 The server authenticates real users: ASP.NET Core Identity over `AnimoraServerDbContext`, the
@@ -28,7 +30,7 @@ tenant resolution middleware, no entitlement check (D04 / E07 own those).
   `Microsoft.AspNetCore.Identity.EntityFrameworkCore` 10.x,
   `Microsoft.AspNetCore.Authentication.JwtBearer` **not** added (the built-in
   `AddBearerToken(IdentityConstants.BearerScheme)` token handler is used, not a JWT issuer).
-- **`AnimoraUser` / `AnimoraRole`** in `src/Animora.Persistence.SqlServer/Identity/`:
+- **`AnimoraUser` / `AnimoraRole`** in `src/Animora.Persistence.PostgreSql/Identity/`:
   - `sealed class AnimoraUser : IdentityUser<string>` — `Id` is the **same ULID** as the domain
     `User.Id` (identity row and domain row are 1:1 and share the key; the domain entity stays
     persistence-ignorant). Extra columns: `DisplayName`, `DefaultTenantId`, `Status` (`UserStatus`),
@@ -128,12 +130,12 @@ tenant resolution middleware, no entitlement check (D04 / E07 own those).
 | Path | Action | Contents (one line) |
 |---|---|---|
 | `src/Animora.Contracts.Wire/Identity/*.cs` | create | 8 wire DTOs |
-| `src/Animora.Persistence.SqlServer/Identity/AnimoraUser.cs` | create | Identity user + extra columns |
-| `src/Animora.Persistence.SqlServer/Identity/AnimoraRole.cs` | create | Identity role |
-| `src/Animora.Persistence.SqlServer/Identity/ServerBootstrapState.cs` | create | first-run latch row |
-| `src/Animora.Persistence.SqlServer/Identity/ServerAuditEntry.cs` | create | append-only audit row |
-| `src/Animora.Persistence.SqlServer/Context/AnimoraServerDbContext.cs` | modify | inherit `IdentityDbContext`, rename tables, extend `ServerModel` lists |
-| `src/Animora.Persistence.SqlServer/Migrations/103_ServerIdentity*` | create | Identity + bootstrap + audit tables |
+| `src/Animora.Persistence.PostgreSql/Identity/AnimoraUser.cs` | create | Identity user + extra columns |
+| `src/Animora.Persistence.PostgreSql/Identity/AnimoraRole.cs` | create | Identity role |
+| `src/Animora.Persistence.PostgreSql/Identity/ServerBootstrapState.cs` | create | first-run latch row |
+| `src/Animora.Persistence.PostgreSql/Identity/ServerAuditEntry.cs` | create | append-only audit row |
+| `src/Animora.Persistence.PostgreSql/Context/AnimoraServerDbContext.cs` | modify | inherit `IdentityDbContext`, rename tables, extend `ServerModel` lists |
+| `src/Animora.Persistence.PostgreSql/Migrations/103_ServerIdentity*` | create | Identity + bootstrap + audit tables |
 | `src/Animora.Server/Configuration/AnimoraIdentityOptions.cs` | create | options + validation |
 | `src/Animora.Server/Identity/IdentitySetup.cs` | create | `AddAnimoraIdentity(...)`, schemes, policy selector |
 | `src/Animora.Server/Identity/ServerAuthenticationService.cs` | create | login/refresh/logout/password/me |
@@ -163,8 +165,8 @@ tenant resolution middleware, no entitlement check (D04 / E07 own those).
 7. Map `IdentityEndpoints`; add `UseAuthentication()` to the pipeline in the D01 documented order
    (after Serilog request logging, before routing's endpoint execution).
 8. Add the `identity` readiness check.
-9. Write the four test classes (all gated by `SqlServerAvailability`).
-10. Verify: `serve.sh` still prints `SERVER READY` with no SQL Server; with SQL Server, first-run →
+9. Write the four test classes (all gated by `PostgreSqlAvailability`).
+10. Verify: `serve.sh` still prints `SERVER READY` with no PostgreSQL; with PostgreSQL, first-run →
     login → refresh → `/me` → password change → re-login works end to end.
 11. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; desktop `run.sh` = `SMOKE RUN OK`.
 
@@ -172,7 +174,7 @@ tenant resolution middleware, no entitlement check (D04 / E07 own those).
 - Wire: `LoginRequestV1`, `TokenPairV1`, `IdentityMeV1`, `TenantMembershipV1`,
   `DeviceRegistrationV1`, `DeviceRegistrationResultV1`, `ChangePasswordRequestV1`,
   `FirstRunRequestV1`. `WireContract.Version` stays `1`.
-- Persistence.SqlServer: `AnimoraUser`, `AnimoraRole`, `ServerBootstrapState`, `ServerAuditEntry`,
+- Persistence.PostgreSql: `AnimoraUser`, `AnimoraRole`, `ServerBootstrapState`, `ServerAuditEntry`,
   `ServerModel.NonTenantScopedTables`, migration `103_ServerIdentity`.
 - Server: `AnimoraIdentityOptions`, `IdentitySetup`, `ServerAuthenticationService`,
   `DeviceRegistrationService`, `FirstRunService`, `IdentityRoleSeeder`, `IdentityEndpoints`,
@@ -217,7 +219,7 @@ tenant resolution middleware, no entitlement check (D04 / E07 own those).
 - `IdentityAuditTests` green: each of login-success, login-failure, lockout, password-change,
   logout, device-registration and first-run writes exactly one `ServerAuditEntry`; no row and no log
   line contains a password, token or hash.
-- `/health/ready` reports the `identity` check; with no SQL Server the server still starts and
+- `/health/ready` reports the `identity` check; with no PostgreSQL the server still starts and
   `/health/live` is 200.
 - Desktop unaffected: `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
 

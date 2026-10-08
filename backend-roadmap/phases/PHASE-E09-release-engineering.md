@@ -1,5 +1,7 @@
 # Phase E09 — Release engineering
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** E · **Depends on:** E08 · **Satisfies:** R-B27, R-B31, R-B33
 **Runnable after this phase:** desktop offline yes · server required no (release tooling is scripts +
 docs + packaging config; the one release-profile encryption-flag edit is the only runtime-path change — Zero-Internet holds)
@@ -11,7 +13,7 @@ docs + packaging config; the one release-profile encryption-flag edit is the onl
   backup/restore, corrupt-DB quarantine/rebuild, native-SQLite runtime probe, `InstallationIdentity`,
   `ISecretStore`; D01 entry — Kestrel/HTTPS options, `SslProtocols.None`, Data Protection persisted
   key ring + stable application name, health/readiness endpoints; D02 entry — server migrations from
-  `101`, `rowversion`; D08 entry — contract-version header + N/N-1/N-2 rejection,
+  `101`, `entity-version token`; D08 entry — contract-version header + N/N-1/N-2 rejection,
   `WireContract.SupportedVersions` / `WireContract.MinSupportedVersion`, `ContractVersionMiddleware`;
   D10 entry — `Subscription`/`Seat`/license-issuance state; D11 entry — license signing
   key ring + `keyset.animora`, `license.animora`; D12 entry — file store bytes + reconciliation;
@@ -38,9 +40,9 @@ phase produces runbooks, scripts and packaging config only — it adds nothing t
 - **One new folder `release/` at repo root** (a docs+scripts+config folder, not a project; not added
   to `Animora.sln`). It holds every deliverable of this phase so nothing leaks into `src/`.
 - **Deployment topology (`release/TOPOLOGY.md`)** — single-node self-hosted per `ARCHITECTURE.md`
-  §17 / AD-13: one `Animora.Server` process (Business API + Datasync `/tables/*` + workers +
+  §17 / AD-13: one `Animora.Server` process (Business API + PostgreSQL critical `/sync/*` + workers +
   `Animora.Web.Admin`) on Kestrel behind the local reverse-proxy/TLS termination described in D01;
-  SQL Server 2025 (Express = small tier) on the same or an adjacent host; server filesystem for D12
+  PostgreSQL 18 (same engine for development and production) on the same or an adjacent host; server filesystem for D12
   bytes; desktops connect over LAN/VPN only. No cloud component, no CDN, no external IdP/telemetry
   (A-RULE 016). Scale-out (Redis backplane, second instance, stamps) is explicitly a future ADR
   (ROADMAP §5), not part of the launch topology.
@@ -53,7 +55,7 @@ phase produces runbooks, scripts and packaging config only — it adds nothing t
   the runbook states the one-way migrations, if any, and their guard.
 - **Backup / restore with a rehearsed recovery (`scripts/release/backup.sh`,
   `scripts/release/restore.sh`, `release/RECOVERY-REHEARSAL.md`)** — the backup set is the four
-  co-equal parts required by `ARCHITECTURE.md` §17.3 / §10.6: (1) SQL Server DB (native backup),
+  co-equal parts required by `ARCHITECTURE.md` §17.3 / §10.6: (1) PostgreSQL DB (native backup),
   (2) D12 file-store bytes + their metadata rows, (3) the Data Protection persisted key ring (D01),
   (4) license material (`keyset.animora` signing set + issued `license.animora`). A backup missing
   any part is invalid. `restore.sh` restores all four and then runs a **rehearsal assertion**:
@@ -186,7 +188,7 @@ phase produces runbooks, scripts and packaging config only — it adds nothing t
 - Enabling scale-out (Redis backplane, second instance, deployment stamps) → deferred (ROADMAP §5).
 - Fixing a failing gate or an external dependency found by the isolation test → the owning phase from
   E08's `tracesTo`; E09 blocks the release, it does not patch product code.
-- Enabling SQL RLS / trace flag 11042 → deferred; the RLS decision was recorded in E08.
+- Enabling SQL RLS / transaction-local tenant context and non-owner/no-BYPASSRLS pooling tests → deferred; the RLS decision was recorded in E08.
 - Any new runtime feature, screen, wire change or migration → none; this is the terminal phase.
 
 ## Acceptance criteria
@@ -214,7 +216,7 @@ phase produces runbooks, scripts and packaging config only — it adds nothing t
 - `scripts/release/release-check.sh` is the final go/no-go: it fails if E08's `gate-report.json` has
   any unresolved `SKIPPED` or `FAIL`, if the rehearsal is stale, or if compat/isolation/SBOM are not
   green; it passes only when every checklist item is met.
-- Runnability: `scripts/sandbox/run.sh` = `SMOKE RUN OK` with no server, no SQL Server, no network;
+- Runnability: `scripts/sandbox/run.sh` = `SMOKE RUN OK` with no server, no PostgreSQL, no network;
   E09 added nothing to any runtime path other than the declared release-profile encryption flags.
 
 ## PROGRESS.md update
@@ -227,3 +229,16 @@ version window, `isolation-test`, `sbom` with the separate native inventory + da
 lanes (MSIX preferred / WiX fallback / macOS), and the confirmation that, apart from the release-profile `EncryptionEnabled`/`K2Approved` edit, no `src/`, migration, wire
 version, DI or package-pin changed. Note that the roadmap is complete and the product is
 release-gated by `release-check.sh`.
+
+## PostgreSQL release and recovery runbook (binding)
+Record PostgreSQL 18 maintained minor, image/build/extension/checksum/locale versions and Npgsql
+10.0.3 resolved dependency lock. Install reviewed migrations under deployment-only DDL credentials,
+verify catalog/version/journal triggers and tenant keys before runtime readiness. Private 5432
+with SCRAM/VerifyFull or reviewed local socket; secrets external to appsettings.
+Physical pg_basebackup + continuous off-host WAL/timeline history, DB/file/key manifest,
+pg_verifybackup and actual PITR + pg_amcheck/domain integrity + fresh ServerFeedEpoch are required.
+pg_dump is logical portability, not a PITR chain. Test encryption-key survival, delayed archives/
+disk headroom and post-restore client shadow/receipt recovery. Never clear pending intent.
+First deployment has no installed server SQL Server schema; external-source migration requires
+§PG.5 staging/count/hash/FK/ledger/stock/file/receipt comparisons and write-freeze/rollback rehearsal.
+Do not claim completed server migration from specification changes.

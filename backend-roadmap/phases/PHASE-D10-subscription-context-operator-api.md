@@ -1,5 +1,7 @@
 # Phase D10 — Subscription context & operator API
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** D · **Depends on:** D04 · **Satisfies:** R-B05, R-B30, R-B36
 **Runnable after this phase:** desktop offline yes · server required no
 
@@ -14,7 +16,7 @@
 - `ARCHITECTURE.md` §13.1, §13.3, §6 (context map row for Subscription) · `STACK.md` §5.3
 - `A-RULE 012`, `A-RULE 014`, `A-RULE 023`, `A-RULE 025`
 - `src/Animora.Domain/Identity/Tenant.cs`, `src/Animora.Server/Security/AnimoraPolicies.cs`,
-  `src/Animora.Persistence.SqlServer/Context/ServerModel.cs`
+  `src/Animora.Persistence.PostgreSql/Context/ServerModel.cs`
 
 ## Goal
 The commercial model becomes a real bounded context: plans, subscriptions, seats, billing periods and
@@ -31,7 +33,7 @@ this context — that separation is the point of this phase (`ARCHITECTURE.md` �
 ## Design decisions (pre-made — implement, do not re-derive)
 - **Subscription aggregates live in `src/Animora.Domain/Subscription/`** (Domain has zero
   dependencies, so both the server and — later — a licence verifier can share the vocabulary).
-  Mapping is `Animora.Persistence.SqlServer`; behavior is `Animora.Server`. The desktop never
+  Mapping is `Animora.Persistence.PostgreSql`; behavior is `Animora.Server`. The desktop never
   references these types.
 - **Entities and value objects (exact shapes):**
   | Type | Kind | Members |
@@ -82,8 +84,11 @@ this context — that separation is the point of this phase (`ARCHITECTURE.md` �
   replay returns the stored `SubscriptionView` instead of applying a second effect (A-RULE 025 shape,
   reused mental model). `IServerAuditWriter` records every operation with actor + before/after status.
 - **`SubscriptionEvent.Sequence` is gap-free per subscription**, allocated inside the same
-  transaction (`IServerUnitOfWork.ExecuteAsync`) by a `SELECT MAX(Sequence) + 1 ... WITH (UPDLOCK)`
-  read. The log is append-only: `ServerAppendOnlyGuard` (D07) gains `SubscriptionEvents` to its
+  transaction (`IServerUnitOfWork.ExecuteAsync`): under tenant gate, lock the existing Subscription
+  row `FOR UPDATE`, then `UPDATE ... SET LastEventSequence=LastEventSequence+1 RETURNING
+  LastEventSequence`; append event in the SAME transaction. Provision counter=0 first; rollback
+  rolls back allocation. No MAX+1, nextval or missing-row pseudo-lock. Unique `(SubscriptionId,Sequence)`
+  is the second defense. Subscription records carry immutable TenantId for this gate. The log is append-only: `ServerAppendOnlyGuard` (D07) gains `SubscriptionEvents` to its
   protected table list, so an `Update`/`Delete` throws.
 - **`SubscriptionEventTypes`** (`const string`, `<aggregate>.<verb>` like `CommandTypes`):
   `subscription.created`, `subscription.extended`, `subscription.renewed`,
@@ -103,7 +108,7 @@ this context — that separation is the point of this phase (`ARCHITECTURE.md` �
   **not** edited in this phase; instead `SeatGuard` is invoked from
   `src/Animora.Server/Endpoints/IdentityEndpoints.cs`'s device-register handler via a single added
   line, returning `SEAT_LIMIT_REACHED` and enqueuing the `seat.limit.reached` message. Assignment is
-  first-come: a `Seat` row moves `Free → Assigned` with the user id, under the row's `rowversion`.
+  first-come: a `Seat` row moves `Free → Assigned` with the user id, under the row's `entity-version token`.
 - **Operator accounts.** D03 created only tenant users. This phase adds
   `src/Animora.Server/Subscription/OperatorAccountService.cs`:
   - the `Operator` role is seeded by extending `IdentityRoleSeeder`'s role list (one added entry);
@@ -158,7 +163,7 @@ this context — that separation is the point of this phase (`ARCHITECTURE.md` �
 - **Views are wire DTOs, never entities** (A-RULE 014), in
   `src/Animora.Contracts.Wire/Operator/`: `SubscriptionView`, `TenantSummaryView`, `SeatView`,
   `BillingPeriodView`, `SubscriptionEventView`, `OperatorAlertView`, `PlanView`, plus the five
-  `*RequestV1` records above. `WireContract.Version` stays `1` (additive-only).
+  `*RequestV1` records above. `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version) (additive-only).
 - **Cross-tenant reads are legal here and nowhere else.** `SubscriptionOperationsService` and the
   operator queries run with **no** tenant context and must therefore disable D02's `Tenant` named
   filter explicitly per query (`IgnoreQueryFilters(nameof(ServerQueryFilters.Tenant))`-style call,
@@ -197,10 +202,10 @@ this context — that separation is the point of this phase (`ARCHITECTURE.md` �
 | `src/Animora.Application/Subscription/ISubscriptionOperations.cs` | create | operations port + requests + `OperatorContext` |
 | `src/Animora.Application/Subscription/ISeatGuard.cs` | create | seat availability port |
 | `src/Animora.Contracts.Wire/Operator/*.cs` | create | 7 views + 5 `*RequestV1` records |
-| `src/Animora.Persistence.SqlServer/Configurations/Subscription/*.cs` | create | 5 EF configurations |
-| `src/Animora.Persistence.SqlServer/Migrations/108_Subscription*` | create | 5 tables + indexes |
-| `src/Animora.Persistence.SqlServer/Context/ServerModel.cs` | modify | add the 5 tables to non-tenant-scoped + non-replicated |
-| `src/Animora.Persistence.SqlServer/Context/ServerAppendOnlyGuard.cs` | modify | protect `SubscriptionEvents` |
+| `src/Animora.Persistence.PostgreSql/Configurations/Subscription/*.cs` | create | 5 EF configurations |
+| `src/Animora.Persistence.PostgreSql/Migrations/108_Subscription*` | create | 5 tables + indexes |
+| `src/Animora.Persistence.PostgreSql/Context/ServerModel.cs` | modify | add the 5 tables to non-tenant-scoped + non-replicated |
+| `src/Animora.Persistence.PostgreSql/Context/ServerAppendOnlyGuard.cs` | modify | protect `SubscriptionEvents` |
 | `src/Animora.Server/Subscription/SubscriptionOperationsService.cs` | create | the 10 operations, idempotent + audited |
 | `src/Animora.Server/Subscription/SubscriptionQueries.cs` | create | operator read projections |
 | `src/Animora.Server/Subscription/SeatGuard.cs` | create | seat enforcement |
@@ -255,8 +260,8 @@ this context — that separation is the point of this phase (`ARCHITECTURE.md` �
   `SubscriptionEventView`, `OperatorAlertView`, `PlanView`, `CreateTenantRequestV1`,
   `ExtendSubscriptionRequestV1`, `RenewSubscriptionRequestV1`, `ChangeSeatsRequestV1`,
   `SubscriptionActionRequestV1`, `OnboardTenantRequestV1`, `OnboardingResultV1`.
-  `WireContract.Version` stays `1`.
-- Persistence.SqlServer: 5 configurations, migration `108_Subscription`, `ServerModel` +
+  `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version).
+- Persistence.PostgreSql: 5 configurations, migration `108_Subscription`, `ServerModel` +
   `ServerAppendOnlyGuard` extended.
 - Server: `SubscriptionOperationsService`, `SubscriptionQueries`, `SeatGuard`,
   `OperatorAccountService`, `SubscriptionLifecycleWorker`, `OperatorEndpoints`,
@@ -301,7 +306,7 @@ this context — that separation is the point of this phase (`ARCHITECTURE.md` �
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
 - `SubscriptionTransitionTests` green: every allowed transition passes, every other pair returns
   `SUBSCRIPTION_INVALID_TRANSITION`; the four policy numbers exist in exactly one file.
-- `SubscriptionOperationsTests` green (or skipped with reason when no SQL Server): create → extend →
+- `SubscriptionOperationsTests` green (or skipped with reason when no PostgreSQL): create → extend →
   increase seats → suspend → resume → renew → cancel produces exactly 7 `SubscriptionEvent` rows with
   gap-free `Sequence`; **replaying any request with the same `X-Animora-Operation` returns the stored
   view and adds no event**; every operation wrote an audit row; `subscription.plan.changed` is in the

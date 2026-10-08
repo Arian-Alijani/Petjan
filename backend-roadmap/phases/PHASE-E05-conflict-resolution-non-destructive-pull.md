@@ -1,12 +1,14 @@
 # Phase E05 — Conflict resolution & non-destructive pull
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** E · **Depends on:** E04 · **Satisfies:** R-B03, R-B17, R-B18
 **Runnable after this phase:** desktop offline yes · server required no
 
 ## Read before starting
 - `backend-roadmap/CONVENTIONS.md` §1, §2, §4, §5, §6 (items 9, 10, 15), §7, §9, §12
 - `backend-roadmap/PROGRESS.md` (E03 entry — `SyncConflict`, `ConflictKind`, `ReplicaProjector`'s
-  four rules incl. skip-on-pending, `FullResyncAsync`, `SyncContractCatalog.ProjectionOrder`;
+  atomic base/overlay rules preserving pending intent, `FullResyncAsync`, `SyncContractCatalog.ProjectionOrder`;
   E04 entry — `SyncOrchestrator`, `SyncStateMachine`, `SyncBacklogDto`, `ISyncDiagnosticsQuery`;
   B02 entry — `PendingCommand`, `SettlementState`, `SettlementTransitions`, `CommandJournal`;
   B05 entry — `IUserNotificationPort`, `NotificationSeverity.NeedsAttention`, `AuditWriter`;
@@ -14,7 +16,7 @@
   aggregates these policies act on)
 - `ARCHITECTURE.md` §8.5 (the full policy matrix), §8.2 · `STACK.md` §4.4
 - `A-RULE 002`, `A-RULE 003`, `A-RULE 004`, `A-RULE 017`, `A-RULE 024`
-- `src/Animora.Sync.Datasync/Projection/ReplicaProjector.cs`
+- `src/Animora.Sync.Custom/Projection/ReplicaProjector.cs`
 
 ## Goal
 Every replication conflict is routed through the four-layer pipeline of `ARCHITECTURE.md` §8.5 —
@@ -52,22 +54,24 @@ client has fallen outside the retention window.
   1. **Detection** already happened (E03 returns `SyncConflict`). Nothing is overwritten before this
      point.
   2. **Generic resolver**: only if `ConflictPolicy.LastWriteWins` → apply the server row.
-     Implemented with the library's `ServerWinsConflictResolver` **registered per entity type, never
-     globally** (`STACK.md` §4.4): registration lives in
-     `src/Animora.Sync.Datasync/Conflicts/ResolverRegistration.cs` and covers **only** preference
-     entities. `ResolverRegistrationTests` asserts no other type has a generic resolver.
+     Implement with an explicit project-owned preference-only strategy registry, never a
+     Datasync ServerWinsConflictResolver. Device-local UserPreference stays NOT-SYNCED; these
+     strategies may not grant write/pull admission for any server clinical/finance entity.
+     ResolverRegistrationTests asserts no other type has a generic resolver.
+
   3. **Domain policy** → `ConflictDecision`:
      `sealed record ConflictDecision(ConflictAction Action, string? MergedPayloadJson, ErrorCode? Error, string ReasonKey)`;
      `enum ConflictAction { ApplyServer, KeepLocal, ApplyMerged, Quarantine, RequireReversal, RequireResubmit }`.
      - `FieldAwareMerge` → `src/Animora.Application/Sync/FieldAwareMerger.cs`: per-entity
-       **allow-list of mergeable fields** (declared, not reflective); a server change to a
-       non-listed field while the local copy also changed it escalates to `Quarantine`.
+       **allow-list of mergeable fields** (declared, not reflective); require protected server-bound BaseVersion evidence and proof of non-overlap through the
+       whole interval; field-name differences alone do not prove safety. Missing/expired/ABA
+       history evidence escalates to Quarantine (ARCHITECTURE §8.13), including direct DML.
      - `HumanReview` → `Quarantine`.
      - `PreserveHistory` → `ApplyServer` **plus** an append of the local variant as a new
        `MedicalHistoryEntry` marked `IsConflictPreservedCopy = true` (a new bool column, migration
        `032_ConflictQueue`) — the local clinical text is never lost.
-     - `RejectOnConflict` → `KeepLocal` + `Quarantine` entry so the user re-books; the server row is
-       applied only after the user acknowledges.
+     - `RejectOnConflict` → `KeepLocal` + `Quarantine` entry so the user re-books; the authoritative base is
+       updated atomically, while local effective overlay remains flagged until acknowledged.
      - `ImmutableReversalOnly` → `RequireReversal` (the posted row is applied from the server; the
        local deviation becomes a reversal/credit-note task, never an overwrite).
      - `IdempotentCommandOnly` → `RequireResubmit` (the state is settled by command, so the fix is a
@@ -83,14 +87,15 @@ client has fallen outside the retention window.
   `Task<IntentLock> AcquireAsync(IReadOnlyList<string> aggregateIds, CancellationToken ct)` returns
   the subset of aggregates with an **unsettled** `PendingCommand`
   (`SettlementState ∈ { Draft, LocallyPosted, PendingSettlement, Conflict, NeedsAttention }`).
-  `ReplicaProjector` (E03) is modified to call it **once per batch** and to skip every protected
-  aggregate, emitting a `SyncConflict` with `ConflictKind.VersionMismatch`. Binding guarantees,
-  each with a test:
-  - a pull can never change a row whose aggregate has unsent intent;
-  - skipping is recorded, never silent;
-  - the replica row stays in `repl_*` so the next pass retries after settlement (no data is dropped
-    on the floor);
-  - `FullResyncAsync` keeps refusing while unsent intent exists (E03's rule, re-asserted here).
+  `ReplicaProjector` obtains the intent snapshot under the local single-writer transaction.
+  Authoritative base updates from the complete server batch; protected provisional overlay is
+  rebased only with server-bound non-overlap evidence or preserved/quarantined. Effective business
+  reads retain local unsent values/conflict marker rather than silently overwriting them. No
+  skip-on-pending base hole or independent checkpoint advancement. Base+overlay+conflicts+projection+
+  checkpoint commit atomically; pending intent is durable outside replaceable base generations.
+  FullResyncAsync can build a shadow with pending intent, but cannot SWITCH until overlay is
+  preserved/rebased safely. Failure retains the active generation and journal, not destructive clear.
+
 - **Quarantine queue — durable, user-visible, actionable.** Local table `ConflictQueueEntries`
   (`[LocalOnly]`, migration **`032_ConflictQueue`** *(audit 2026-10-08 · PH-03: the parenthetical ordinal is indicative only — at execution read the physical head of the owning context and take the **next free ordinal** per the PROGRESS.md Post-C11 rule; never trust the literal)* — this is the **next free ordinal on
   `AnimoraLocalDbContext` as of 2026-10-07 (physical head `031_TreatmentPlans`); re-verify the
@@ -130,7 +135,7 @@ client has fallen outside the retention window.
   `SyncCursor.ConsecutiveFailures >= 10` on the same entity, it raises a
   `NeedsAttention` notification with action `run-full-resync` — it **never** self-triggers a resync.
   The user (or a diagnostic screen) calls `IConflictQueueService`-adjacent
-  `RunFullResyncCommand`, which refuses while unsent intent exists, audits, and delegates to E03's
+  `RunFullResyncCommand`, which preserves pending intent and refuses an unsafe generation switch, audits, and delegates to E03's
   `FullResyncAsync`. Automatic destructive recovery is forbidden.
 - **Audit.** Every `ConflictDecision` and every resolution command writes one `AuditEntry`
   (`audit.sync.conflict.<action>`) with `EntityName`, `EntityId`, `Policy`, `ReasonKey`,
@@ -150,8 +155,8 @@ client has fallen outside the retention window.
 | `src/Animora.Persistence.Sqlite/Configurations/Sync/ConflictQueueEntryConfiguration.cs` | create | mapping + filtered unique index |
 | `src/Animora.Persistence.Sqlite/Sync/ConflictQueries.cs` | create | paged open list + detail projection |
 | `src/Animora.Persistence.Sqlite/Migrations/*` | create | `032_ConflictQueue` (+ `IsConflictPreservedCopy`) |
-| `src/Animora.Sync.Datasync/Conflicts/ResolverRegistration.cs` | create | generic resolver for preferences only |
-| `src/Animora.Sync.Datasync/Projection/ReplicaProjector.cs` | modify | call `LocalIntentGuard`; route conflicts to the service |
+| `src/Animora.Sync.Custom/Conflicts/ResolverRegistration.cs` | create | generic resolver for preferences only |
+| `src/Animora.Sync.Custom/Projection/ReplicaProjector.cs` | modify | call `LocalIntentGuard`; route conflicts to the service |
 | `src/Animora.Contracts/Sync/IConflictQueueService.cs` | create | Contracts **addition** + 3 DTOs |
 | `src/Animora.Contracts/Sync/ISyncDiagnosticsQuery.cs` | modify | `SyncBacklogDto.OpenConflicts` |
 | `src/Animora.Client.Services/Sync/ConflictQueueService.cs` | create | the Contracts implementation |
@@ -175,8 +180,8 @@ client has fallen outside the retention window.
    plus the quarantine row.
 6. Write `ResolverRegistration` (preferences only) and modify `ReplicaProjector` to call
    `LocalIntentGuard` per batch and route every `SyncConflict` into the service.
-7. Write the four resolution commands, the two queries and `RunFullResyncCommand` (refuse on unsent
-   intent → audit → `FullResyncAsync`).
+7. Write the four resolution commands, the two queries and `RunFullResyncCommand` (preserve unsent
+   intent → audit → shadow `FullResyncAsync` with gated atomic switch).
 8. Add `IConflictQueueService` + DTOs to Contracts; implement `ConflictQueueService`; extend
    `SyncBacklogDto`.
 9. Modify `SyncOrchestrator` to raise the `run-full-resync` notification and never self-trigger.
@@ -196,14 +201,14 @@ client has fallen outside the retention window.
   `OpenConflictListQuery`, `ConflictDetailQuery`.
 - Persistence: `ConflictQueueEntry`, `ConflictQueueStatus`, `ConflictQueries`,
   `MedicalHistoryEntry.IsConflictPreservedCopy`, migration `032_ConflictQueue`.
-- Sync.Datasync: `ResolverRegistration`; `ReplicaProjector` now intent-guarded.
+- Sync.Custom: `ResolverRegistration`; `ReplicaProjector` now intent-guarded.
 - `Animora.Contracts` **additions**: `IConflictQueueService`, `ConflictSummaryDto`,
   `ConflictDetailDto`, `ConflictFieldDto`; `SyncBacklogDto.OpenConflicts` (additive member).
 - Client services: `ConflictQueueService`.
 - `ErrorCodes` += `CONFLICT_POLICY_MISSING`, `CONFLICT_NOT_DISMISSABLE`,
   `CONFLICT_MERGE_FIELD_NOT_ALLOWED`, `CONFLICT_ALREADY_RESOLVED`
   (`FULL_RESYNC_BLOCKED` exists from E03 — reuse).
-- DI: `IConflictQueueService` registered. `WireContract.Version` stays `1` (client-side only).
+- DI: `IConflictQueueService` registered. `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version) (client-side only).
 - No `CommandTypes` addition for dismiss/accept-server (local-only state changes); the reversal and
   resubmit paths reuse the existing Sales/Finance command types.
 
@@ -218,7 +223,7 @@ client has fallen outside the retention window.
   non-destructive guarantee is proven by `NonDestructivePullTests`.
 - **A-RULE 024 / R-B16** — every quarantine entry carries what/why/financial-effect/responsible
   role, and raises a `NeedsAttention` notification through the existing port.
-- **CONVENTIONS §6.15** — full resync is explicit, refuses while unsent intent exists, and is
+- **CONVENTIONS §6.15** — full resync is explicit, preserves unsent intent and blocks unsafe shadow switch, and is
   audited; nothing self-triggers it.
 - **CONVENTIONS §5** — the filtered unique index enforces one open conflict per row; migration
   `032_ConflictQueue` is additive and edits no prior migration.
@@ -276,3 +281,10 @@ around it**), `ConflictResolutionService`'s four layers, `FieldAwareMerger`'s al
 (**E06 consumes `RequireResubmit`/`RequireReversal`**), the `Animora.Contracts` additions
 (`IConflictQueueService`, 3 DTOs, `SyncBacklogDto.OpenConflicts`), the `NeedsAttention` notification
 code + action, the orchestrator's never-self-resync rule, the 4 new error codes, deviations.
+
+## Updated PostgreSQL critical-batch acceptance
+Tests must verify authoritative base+checkpoint converge even with pending overlay, conflict evidence
+is server-bound (not client claims), reverse tombstone order, no projection echo, and failed shadow
+rebase retains active data and all intent. Any earlier skip/pending-block test expectation is
+superseded by the atomic base/overlay contract in E03/ARCHITECTURE §17-CT. Local-only preserved clinical
+copies never enter the writable mutation catalog.
