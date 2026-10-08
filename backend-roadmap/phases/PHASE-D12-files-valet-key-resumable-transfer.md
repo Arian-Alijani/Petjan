@@ -1,5 +1,7 @@
 # Phase D12 — Files: valet key + resumable transfer
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** D · **Depends on:** D09 · **Satisfies:** R-B26
 **Runnable after this phase:** desktop offline yes · server required no
 
@@ -9,7 +11,7 @@
   `WorkerBulkhead`, `WorkerOptions`, `OperatorAlert`, `ServerResilience`; D05 entry —
   `IServerUnitOfWork`; D04 entry — `HttpTenantContext`, `ITenantContextSetter`,
   `ResourceAuthorizationService`; D02 entry — `AnimoraServerDbContext`, `ServerModel`,
-  `RowVersionCodec`; D01 entry — `ServerOptions.DataRootPath`, 32 MB body limit; A04 entry —
+  `EntityVersionCodec`; D01 entry — `ServerOptions.DataRootPath`, 32 MB body limit; A04 entry —
   `DocumentReference`; A11 entry — `ILocalFileStore`/`LocalFileStore` content addressing)
 - `ARCHITECTURE.md` §14 (all), §10.8, §19 gate T · `STACK.md` §16 (storage facts only)
 - `A-RULE 020`, `A-RULE 025`, `A-RULE 026`, `A-RULE 033`
@@ -26,7 +28,7 @@ reconciliation worker with one deterministic outcome per divergence class.
 - **Two consistency domains, explicitly named** (`ARCHITECTURE.md` §14.1): the SQL metadata row
   (`StoredFile`) and the bytes on disk. Nothing outside `Available` is readable by a client; the
   lifecycle is the only bridge and it is one-directional.
-- **`StoredFile` entity** (`src/Animora.Persistence.SqlServer/Files/StoredFile.cs`, migration
+- **`StoredFile` entity** (`src/Animora.Persistence.PostgreSql/Files/StoredFile.cs`, migration
   `110_FileStore`), tenant-scoped (so D02's `Tenant` filter applies):
   `Id` (ULID) · `TenantId` · `FileLifecycleState State` · `OriginalFileName` · `ContentType`
   (validated against `FileOptions.AllowedContentTypes`) · `DeclaredSizeBytes` ·
@@ -125,11 +127,11 @@ reconciliation worker with one deterministic outcome per divergence class.
 |---|---|---|
 | `src/Animora.Domain/Files/FileLifecycle.cs` | create | state enum + transition allow-table |
 | `src/Animora.Contracts.Wire/Files/*.cs` | create | `BeginUploadRequestV1`, `BeginUploadResultV1`, `ChunkAckV1`, `FileStatusV1`, `GrantRequestV1`, `FileAccessGrantV1` |
-| `src/Animora.Persistence.SqlServer/Files/StoredFile.cs` | create | metadata entity |
-| `src/Animora.Persistence.SqlServer/Files/UploadSession.cs` | create | session + chunk bitmask |
-| `src/Animora.Persistence.SqlServer/Files/StoredFileConfiguration.cs` | create | 2 EF configurations + indexes |
-| `src/Animora.Persistence.SqlServer/Migrations/110_FileStore*` | create | 2 tables |
-| `src/Animora.Persistence.SqlServer/Context/ServerModel.cs` | modify | add both to non-replicated |
+| `src/Animora.Persistence.PostgreSql/Files/StoredFile.cs` | create | metadata entity |
+| `src/Animora.Persistence.PostgreSql/Files/UploadSession.cs` | create | session + chunk bitmask |
+| `src/Animora.Persistence.PostgreSql/Files/StoredFileConfiguration.cs` | create | 2 EF configurations + indexes |
+| `src/Animora.Persistence.PostgreSql/Migrations/110_FileStore*` | create | 2 tables |
+| `src/Animora.Persistence.PostgreSql/Context/ServerModel.cs` | modify | add both to non-replicated |
 | `src/Animora.Server/Configuration/FileOptions.cs` | create | sizes, TTLs, allowed types |
 | `src/Animora.Server/Files/FileStorageLayout.cs` | create | staging/content/quarantine path rules |
 | `src/Animora.Server/Files/FileUploadService.cs` | create | begin / chunk / complete, idempotent |
@@ -167,8 +169,8 @@ reconciliation worker with one deterministic outcome per divergence class.
 ## Contracts / schema added
 - Domain: `FileLifecycleState`, `FileLifecycle`.
 - Wire: `BeginUploadRequestV1`, `BeginUploadResultV1`, `ChunkAckV1`, `FileStatusV1`,
-  `GrantRequestV1`, `FileAccessGrantV1`. `WireContract.Version` stays `1`.
-- Persistence.SqlServer: `StoredFile`, `UploadSession`, 2 configurations, migration `110_FileStore`,
+  `GrantRequestV1`, `FileAccessGrantV1`. `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version).
+- Persistence.PostgreSql: `StoredFile`, `UploadSession`, 2 configurations, migration `110_FileStore`,
   `ServerModel` extended.
 - Server: `FileOptions`, `FileStorageLayout`, `FileUploadService`, `FileHashVerifier`,
   `FileAccessGrantService`, `FileAccessGrant`, `FileAccessRule`, `FileEndpoints` (6 routes),

@@ -1,8 +1,10 @@
 # Phase E08 — Validation gates & performance proof
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** E · **Depends on:** E07, D13, E02 · **Satisfies:** R-B07, R-B08, R-B10, R-B19, R-B32
 **Runnable after this phase:** desktop offline yes · server required no (gate harness runs headless;
-the server-dependent gates are skipped, not failed, when no server/SQL Server is present)
+the server-dependent gates are skipped, not failed, when no server/PostgreSQL is present)
 
 ## Read before starting
 - `backend-roadmap/CONVENTIONS.md` §1, §2, §9, §11, §12
@@ -12,10 +14,10 @@ the server-dependent gates are skipped, not failed, when no server/SQL Server is
   `AuditWriter`, correlation-id set (TenantId/OperationId/DeviceId/RequestId); A11 entry —
   `sqlite_version()` startup assertion, `ISecretStore`, encryption provider seam, WAL/backup/restore,
   `InstallationIdentity`; C11 entry — the offline end-to-end scenario script + PERFORMANCE budget
-  numbers; D02 entry — named `Tenant`/`SoftDelete` filters, `rowversion`; D04 entry — tenant
+  numbers; D02 entry — named `Tenant`/`SoftDelete` filters, `entity-version token`; D04 entry — tenant
   resolution, tenant-safe cache-key composition; D05 entry — idempotency store `(TenantId,
   OperationId)`, fingerprint-mismatch integrity error, `DependsOnOperationId` ordering; D08 entry —
-  `TableController<T>`, delta paging, contract-version header + N/N-1/N-2 rejection; D09 entry —
+  custom journal/immutable-batch endpoints, atomic scope checkpoint, contract-version header + N/N-1/N-2 rejection; D09 entry —
   outbox atomic-claim relay, retry/backoff/jitter/circuit-breaker/bulkhead; D11 entry —
   `LicenseVerifier`, installation binding, monotonic high-water check; D12 entry — file lifecycle +
   reconciliation + valet key; D13 entry — `CapacityHarness` (capacity-measurement harness), local
@@ -39,8 +41,8 @@ A failing gate blocks release and is logged with an owner phase — it is never 
 - **One new test project `tests/Animora.Gates.Tests/`** (`net10.0`, xUnit, added to `Animora.sln`,
   packages pinned centrally). It is the *only* home for gate mechanization; existing per-layer test
   projects keep their unit tests. It references `Animora.Application`, `Animora.Persistence.Sqlite`,
-  `Animora.Sync.Datasync`, `Animora.Server.Licensing/Verification` and (server gates only, behind a
-  skip guard) `Animora.Server` + `Animora.Persistence.SqlServer`.
+  `Animora.Sync.Custom`, `Animora.Server.Licensing/Verification` and (server gates only, behind a
+  skip guard) `Animora.Server` + `Animora.Persistence.PostgreSql`.
 - **Every gate is one `[Trait("gate","<Letter|G1|K2|NativeSqlite|Rls>")]` xUnit fact/theory**, named
   `Gate_<Id>_<slug>`. Gates reuse the existing simulation seams already built — they do **not** add
   new production seams:
@@ -67,15 +69,18 @@ A failing gate blocks release and is logged with an owner phase — it is never 
   | U — offline licensing & anti-cloning | D11 `LicenseVerifier`, copied artifact + wound-back clock | copy fails; rollback cannot extend |
   | V — local observability, Internet pulled | D13 exporters with the loopback collector removed | every capability works; app never breaks |
   (There is no gate K or N in `ARCHITECTURE.md` §19 — do not invent them.)
-- **Skip, never fake, an unavailable dependency.** A gate needing SQL Server or a live server is a
-  `SkippableFact` guarded by `GateEnvironment.HasSqlServer` / `.HasLiveServer` (probe once, cache).
+- **Skip, never fake, an unavailable dependency.** A gate needing PostgreSQL or a live server is a
+  `SkippableFact` guarded by `GateEnvironment.HasPostgreSql` / `.HasLiveServer` (probe once, cache).
   A skipped gate is reported `SKIPPED(reason)` — distinct from `PASS`/`FAIL`; the release checklist
   (E09) treats an unresolved `SKIPPED` on a release build as a blocker.
 - **`STACK.md` §12 technology gates, mechanized where the sandbox allows:**
-  - **G1 (Datasync delta correctness)** ⇒ realized *as gate F* against the exact pinned `10.1.2`;
-    the stress matrix is the §12 G1 list (same-ms bursts, insert-while-paging, delete/update
-    interleave, page retry, mid-page disconnect, duplicate page, concurrent writes between pages,
-    clock skew). One theory, one row per stressor.
+  - **Critical PostgreSQL journal/batch correctness** ⇒ gate F against real PostgreSQL 18:
+    reversed attempted commit order under tenant gate, rollback/savepoints, child/direct DML,
+    same-tick bursts (timestamps irrelevant), cleanup/floor races, deletion/graveyard/scope exits,
+    immutable page retry/crash/expiry, decimal-string sequence, local atomic checkpoint/overlay and
+    restore epoch with numeric counter catch-up. One theory per stressor. Optional Datasync G1 is
+    NOT gate F and is only required if that separately qualified optional adapter is shipped.
+
   - **K2 (encrypted-store lifecycle)** ⇒ `Gate_K2_encrypted_lifecycle` executes the §12 K2 sequence
     per available RID through A11's encryption provider seam: create→close→reopen(correct key OK)→
     reopen(wrong key fails)→plain reader cannot read→EF migrate on encrypted DB→WAL+crash-recovery→
@@ -90,12 +95,12 @@ A failing gate blocks release and is logged with an owner phase — it is never 
     *not* accepted as proof (T-RULE 004).
   - **RLS decision** ⇒ `Gate_Rls_decision` records the decision, not an enablement: it asserts gate
     **J** passed (isolation holds with hardening OFF) and emits a `DECISION` line stating RLS stays
-    OFF at launch and may only be enabled after this gate re-runs green with trace flag 11042
+    OFF at launch and may only be enabled after this gate re-runs green with transaction-local tenant context and non-owner/no-BYPASSRLS pooling tests
     (`STACK.md` §12); it never turns RLS on.
 - **Performance proof (measured, never asserted — `PERFORMANCE.md` §15, A-RULE 034):**
   - **Weak-server load benchmark** reuses D13's `CapacityHarness` through a new
     `scripts/sandbox/gates.sh bench-server` step: a documented mixed workload (delta pulls + command
-    posts at the D08 page sizes) driven at a fixed concurrency against a `~2 GB`/`2-vCPU` cgroup, if
+    posts at the D08 page sizes) driven at a fixed concurrency against BOTH `2 GiB / 1-core` and `4 GiB / 2–3-core` co-located cgroups, if
     the runner supports `--cpus`/`--memory`; otherwise it runs unconstrained and stamps the report
     `UNCONSTRAINED`. Output: p50/p95/p99 latency and throughput per operation class, plus the
     reporting-vs-OLTP budget split proving E02's reporting queries stay in their own budget
@@ -121,8 +126,8 @@ A failing gate blocks release and is logged with an owner phase — it is never 
 ## Files to create / modify
 | Path | Action | Contents (one line) |
 |---|---|---|
-| `tests/Animora.Gates.Tests/Animora.Gates.Tests.csproj` | create | gate project; refs Application/Persistence.Sqlite/Sync.Datasync/Licensing.Verification + guarded server refs |
-| `tests/Animora.Gates.Tests/GateEnvironment.cs` | create | `HasSqlServer`/`HasLiveServer`/`SupportsCgroupLimits` probes, cached |
+| `tests/Animora.Gates.Tests/Animora.Gates.Tests.csproj` | create | gate project; refs Application/Persistence.Sqlite/Sync.Custom/Licensing.Verification + guarded server refs |
+| `tests/Animora.Gates.Tests/GateEnvironment.cs` | create | `HasPostgreSql`/`HasLiveServer`/`SupportsCgroupLimits` probes, cached |
 | `tests/Animora.Gates.Tests/ArchitectureGates.cs` | create | gates A,B,C,D,E,G,H,J,L,O,P,Q,R,S,T,U,V as `[Trait("gate",...)]` facts |
 | `tests/Animora.Gates.Tests/DeltaIntegrityGate.cs` | create | gate F / G1 stress-matrix theory against pinned `10.1.2` |
 | `tests/Animora.Gates.Tests/ReconnectStormGate.cs` | create | gate I under D09 bulkhead |
@@ -137,7 +142,7 @@ A failing gate blocks release and is logged with an owner phase — it is never 
 ## Implementation steps
 1. Create `Animora.Gates.Tests` with guarded references; add to `Animora.sln`; pin the one new
    test-only package centrally.
-2. Write `GateEnvironment` probes (SQL Server reachable, live server reachable, cgroup-limit support)
+2. Write `GateEnvironment` probes (PostgreSQL reachable, live server reachable, cgroup-limit support)
    and cache the results for the run.
 3. Implement gates A–V in the four gate files, each reusing the existing seam from the table; mark
    server/SQL-dependent gates `SkippableFact`.
@@ -179,7 +184,7 @@ A failing gate blocks release and is logged with an owner phase — it is never 
 
 ## Out of scope
 - Fixing a failing gate's underlying boundary → the owning phase named in the gate's `tracesTo`.
-- Enabling SQL RLS or trace flag 11042 → deferred (ROADMAP §5); this phase only records the decision.
+- Enabling SQL RLS or transaction-local tenant context and non-owner/no-BYPASSRLS pooling tests → deferred (ROADMAP §5); this phase only records the decision.
 - Deployment, packaging, backup-restore rehearsal, SBOM → E09.
 - New product features, seams, migrations or wire changes → none; E08 proves, never builds.
 
@@ -193,7 +198,7 @@ A failing gate blocks release and is logged with an owner phase — it is never 
 - Gate F/G1 is green against the pinned `10.1.2` for every stressor row: zero unrecoverable skip and
   zero unrecoverable duplicate.
 - Gate J is green with database hardening OFF; the RLS `DECISION` line records "OFF at launch,
-  enable only after re-run green with 11042".
+  enable only after re-run green with PostgreSQL pooling/RLS tests".
 - The native-SQLite gate asserts a **runtime** `sqlite_version() >= 3.50.2`, not a package version.
 - The performance section records weak-server p50/p95/p99 + throughput per operation class with the
   constrained/unconstrained stamp, the reporting-vs-OLTP budget split, and the client
@@ -201,7 +206,7 @@ A failing gate blocks release and is logged with an owner phase — it is never 
   §3/§4 budget.
 - Tests: `tests/Animora.Gates.Tests` green under `test.sh`; any `FAIL` is logged in `PROGRESS.md`'s
   deviation log with its owner phase.
-- Runnability: `scripts/sandbox/run.sh` = `SMOKE RUN OK` with no server, no SQL Server, no network.
+- Runnability: `scripts/sandbox/run.sh` = `SMOKE RUN OK` with no server, no PostgreSQL, no network.
 
 ## PROGRESS.md update
 Mark E08 done; advance "Next phase" to `E09`; append a "Repo state" entry listing: the new
@@ -212,3 +217,10 @@ stamp, the reporting-vs-OLTP budget split, the client startup/memory budget resu
 `DECISION` (OFF at launch), every gate's `PASS`/`SKIPPED(reason)` status, and — for any `FAIL` — a
 deviation-log entry naming the owner phase (E09 must treat unresolved `SKIPPED`/`FAIL` as release
 blockers). No `src/` change, no migration, no DI change, no wire bump.
+
+## Mandatory PostgreSQL release gates
+PostgreSQL 18 must be provisioned for database CI; missing DB is FAIL there (developer-only local
+skips are reported honestly). Verify Version triggers/RETURNING, composite tenant FK/keys, jsonb vs
+canonical signature bytes, UTC microseconds, gate-first resource/period/seat/last-stock allocation,
+outbox expired lease reclaim/fencing, base+WAL actual off-host restore/new epoch, combined memory
+on both §PG.4 profiles. No unconstrained result or SKIPPED gate may authorize a constrained release.

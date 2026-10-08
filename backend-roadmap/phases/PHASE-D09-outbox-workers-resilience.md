@@ -1,5 +1,7 @@
 # Phase D09 — Outbox, workers, resilience
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** D · **Depends on:** D07 · **Satisfies:** R-B07, R-B09, R-B25
 **Runnable after this phase:** desktop offline yes · server required no
 
@@ -12,17 +14,17 @@
   `OutboxStatus`)
 - `ARCHITECTURE.md` §12 (all), §16.1, §15 · `STACK.md` §5.4, §7
 - `A-RULE 025`, `A-RULE 026`, `A-RULE 016`, `A-RULE 034`
-- `src/Animora.Persistence.SqlServer/**`, `src/Animora.Application/Ports/IServerOutbox.cs`
+- `src/Animora.Persistence.PostgreSql/**`, `src/Animora.Application/Ports/IServerOutbox.cs`
 
 ## Goal
 Server-side asynchronous work becomes durable and crash-safe: a real transactional outbox written in
 the **same transaction** as its business effect, an atomic-claim relay with competing consumers,
 idempotent consumers for every effect, bulkheaded background workers that cannot starve request
-handling on a 2–4 core box, and a resilience policy set (retry / circuit breaker / timeout /
+handling on a 1–3 core box, and a resilience policy set (retry / circuit breaker / timeout /
 bulkhead) applied at every boundary.
 
 ## Design decisions (pre-made — implement, do not re-derive)
-- **`OutboxMessages` table** (`src/Animora.Persistence.SqlServer/Outbox/ServerOutboxMessage.cs`,
+- **`OutboxMessages` table** (`src/Animora.Persistence.PostgreSql/Outbox/ServerOutboxMessage.cs`,
   migration `107_ServerOutbox`) — deliberately the **same shape** as B02's local `OutboxMessage` so
   one mental model covers both sides:
   `Id` (ULID) · `TenantId` · `MessageType` · `PayloadJson` · `Status` (`OutboxStatus`, reused from
@@ -38,13 +40,29 @@ bulkhead) applied at every boundary.
   `OutboxAtomicityTests` proves that a rolled-back business transaction leaves **zero** outbox rows.
 - **Relay state machine, atomic claim mandatory** (§12.1 verbatim):
   `Pending → ClaimedUntil (atomic conditional claim) → Processing → Succeeded | Retry(NextAttemptAt) → DeadLettered`.
-  `src/Animora.Persistence.SqlServer/Outbox/ServerOutboxClaim.cs` performs a single
-  `UPDATE ... WHERE Id IN (SELECT TOP(@max) Id FROM OutboxMessages WITH (READPAST, UPDLOCK, ROWLOCK)
-   WHERE Status IN (Pending, Retry) AND (ClaimedUntilUtc IS NULL OR ClaimedUntilUtc < @now)
-     AND (NextAttemptUtc IS NULL OR NextAttemptUtc <= @now) ORDER BY CreatedAtUtc)`
-  with `OUTPUT` returning the claimed rows in one round trip. `READPAST` is what lets two relay
-  instances compete without blocking each other (Competing Consumers, §12.2). A naive
-  select-then-update is explicitly forbidden and a comment says why.
+  `ServerOutboxClaim` performs ONE PostgreSQL CTE command in a short transaction:
+  ```sql
+  WITH due AS (
+    SELECT "TenantId", "Id" FROM "OutboxMessages"
+    WHERE "Status" IN (@pending, @retry, @claimed, @processing)
+      AND ("ClaimedUntilUtc" IS NULL OR "ClaimedUntilUtc" < clock_timestamp())
+      AND ("NextAttemptUtc" IS NULL OR "NextAttemptUtc" <= clock_timestamp())
+    ORDER BY "CreatedAtUtc", "TenantId", "Id"
+    LIMIT @max FOR UPDATE SKIP LOCKED
+  )
+  UPDATE "OutboxMessages" AS o
+  SET "Status"=@claimed, "ClaimToken"=@token,
+      "ClaimedUntilUtc"=clock_timestamp()+@lease
+  FROM due WHERE o."TenantId"=due."TenantId" AND o."Id"=due."Id"
+  RETURNING o.*;
+  ```
+  Status values/lease are typed parameters. Eligibility includes expired Claimed/Processing work,
+  not only pending/retry. Completion/renew/retry/dead-letter CAS includes current ClaimToken,
+  owner and unexpired lease; paused former owners cannot complete. Claim commits before external
+  processing; state-feed extraction never uses SKIP LOCKED. Competing queues need fairness/aging
+  and durable predecessor checks per OrderingKey: SKIP LOCKED alone does not prove no starvation.
+  Effects+consumer inbox marker commit atomically; external effects need remote stable dedup keys.
+
 - **Consumers are idempotent by construction** (A-RULE 025). `IOutboxConsumer`
   (`src/Animora.Application/Ports/IOutboxConsumer.cs`):
   `string MessageType { get; }` +
@@ -73,8 +91,8 @@ bulkhead) applied at every boundary.
   (A-RULE 026).
 - **Bulkhead — the weak-server rule made real** (`ARCHITECTURE.md` §12.3, §16.1, R-B07):
   `src/Animora.Server/Workers/WorkerBulkhead.cs` — a single `SemaphoreSlim` sized
-  `max(1, Environment.ProcessorCount / 2 - 1)` (so on a 2-core box exactly one worker task runs,
-  on 4 cores at most one … configurable via `WorkerOptions.MaxConcurrency`) that **all** workers
+  `max(1, Environment.ProcessorCount / 2 - 1)` (so on the 1–3-core launch profiles exactly one worker unit runs,
+  shared with report/background admission … configurable via `WorkerOptions.MaxConcurrency`) that **all** workers
   acquire before doing work, plus a bounded in-process queue (`BoundedChannel`, capacity 256) for
   relay batches. Background work can therefore never occupy every core while requests wait. A
   measured proof is E08's job; a functional proof (concurrency never exceeds the limit) is a test
@@ -85,7 +103,7 @@ bulkhead) applied at every boundary.
   | Boundary | Policy |
   |---|---|
   | Consumer dispatch | timeout 30 s → retry with `RetryPolicy.NextDelay` (B02's jittered exponential, reused) → circuit breaker **per `MessageType`** (5 consecutive failures → open 60 s) |
-  | Database command | `EnableRetryOnFailure` from D01's `DatabaseOptions` (SQL transient faults only) |
+  | Database command | §11.4.1 bounded whole-unit PostgreSQL retry/SQLSTATE classification; no global ORM buffering or stale-token replay |
   | Worker loop | timeout + `CancellationToken` honoring host shutdown within 5 s |
   Circuit state is per message type so one chronically failing effect cannot stall the others
   (§12.3 verbatim). After `MaxAttempts` (10) a message is `DeadLettered` with its last error
@@ -110,12 +128,12 @@ bulkhead) applied at every boundary.
 | Path | Action | Contents (one line) |
 |---|---|---|
 | `src/Animora.Application/Ports/IOutboxConsumer.cs` | create | consumer port + `OutboxMessageRecord` |
-| `src/Animora.Persistence.SqlServer/Outbox/ServerOutboxMessage.cs` | create | outbox entity |
-| `src/Animora.Persistence.SqlServer/Outbox/ConsumedMessage.cs` | create | idempotent-consumer ledger |
-| `src/Animora.Persistence.SqlServer/Outbox/ServerOutbox.cs` | create | real `IServerOutbox` (no SaveChanges) |
-| `src/Animora.Persistence.SqlServer/Outbox/ServerOutboxClaim.cs` | create | atomic READPAST claim |
-| `src/Animora.Persistence.SqlServer/Outbox/OperatorAlert.cs` | create | alert row (E01 reads it) |
-| `src/Animora.Persistence.SqlServer/Migrations/107_ServerOutbox*` | create | 3 tables + indexes |
+| `src/Animora.Persistence.PostgreSql/Outbox/ServerOutboxMessage.cs` | create | outbox entity |
+| `src/Animora.Persistence.PostgreSql/Outbox/ConsumedMessage.cs` | create | idempotent-consumer ledger |
+| `src/Animora.Persistence.PostgreSql/Outbox/ServerOutbox.cs` | create | real `IServerOutbox` (no SaveChanges) |
+| `src/Animora.Persistence.PostgreSql/Outbox/ServerOutboxClaim.cs` | create | atomic SKIP LOCKED claim |
+| `src/Animora.Persistence.PostgreSql/Outbox/OperatorAlert.cs` | create | alert row (E01 reads it) |
+| `src/Animora.Persistence.PostgreSql/Migrations/107_ServerOutbox*` | create | 3 tables + indexes |
 | `src/Animora.Server/Consumers/FinanceProjectionConsumer.cs` | create | facts projection |
 | `src/Animora.Server/Consumers/StockProjectionConsumer.cs` | create | on-hand recompute |
 | `src/Animora.Server/Consumers/AuditMirrorConsumer.cs` | create | audit completeness |
@@ -138,7 +156,7 @@ bulkhead) applied at every boundary.
 ## Implementation steps
 1. Add `IOutboxConsumer` + `OutboxMessageRecord`.
 2. Add the three tables + `OperatorAlert` and migration `107_ServerOutbox`.
-3. Write `ServerOutbox` (no `SaveChanges`) and `ServerOutboxClaim` (the atomic `READPAST` claim);
+3. Write `ServerOutbox` (no `SaveChanges`) and `ServerOutboxClaim` (the atomic `SKIP LOCKED` claim);
    swap the `NullServerOutbox` registration for it — **no handler file is edited**.
 4. Write the four consumers, each with its `ConsumedMessages` guard.
 5. Write `WorkerBulkhead`, `WorkerOptions`, `ServerResilience`.
@@ -147,14 +165,14 @@ bulkhead) applied at every boundary.
 7. Add `OutboxDiagnostics` and the `outbox` readiness/degradation reporting.
 8. Write the five test classes; the crash test kills the relay mid-`Processing` and asserts the
    claim expires and the message completes exactly once on the next pass.
-9. Verify against a real SQL Server: a posted invoice produces its finance fact asynchronously; two
+9. Verify against a real PostgreSQL: a posted invoice produces its finance fact asynchronously; two
    relay instances process a 500-message backlog with **zero** duplicates; a failing consumer opens
    its own circuit without affecting the others; a dead-lettered message raises an alert.
 10. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; desktop `run.sh` = `SMOKE RUN OK`.
 
 ## Contracts / schema added
 - Application: `IOutboxConsumer`, `OutboxMessageRecord`.
-- Persistence.SqlServer: `ServerOutboxMessage`, `ConsumedMessage`, `OperatorAlert`, `ServerOutbox`,
+- Persistence.PostgreSql: `ServerOutboxMessage`, `ConsumedMessage`, `OperatorAlert`, `ServerOutbox`,
   `ServerOutboxClaim`, migration `107_ServerOutbox`.
 - Server: 4 consumers, 4 workers, `WorkerBulkhead`, `WorkerOptions`, `ServerResilience`,
   `OutboxDiagnostics`, the `outbox` readiness check + degradation states.
@@ -193,7 +211,7 @@ bulkhead) applied at every boundary.
   rolls back leaves zero outbox rows; one that commits leaves exactly the expected messages; killing
   the process between commit and relay loses nothing.
 - `OutboxRelayTests` green: two concurrent relay instances draining 500 messages produce **zero**
-  duplicate effects and zero starvation (`READPAST` claim proven); a message whose `Processing` step
+  duplicate effects and zero starvation (`SKIP LOCKED` claim proven); a message whose `Processing` step
   is killed is re-claimed after its lease expires and completes exactly once.
 - `IdempotentConsumerTests` green: redelivering the same message to each of the four consumers
   produces no second effect and exactly one `ConsumedMessages` row.
@@ -209,9 +227,16 @@ bulkhead) applied at every boundary.
 ## PROGRESS.md update
 Mark D09 done; advance "Next phase" to `D10`; append a "Repo state" entry listing: `OutboxMessages`
 + `ConsumedMessages` + `OperatorAlerts` (migration `107_ServerOutbox`), the real `ServerOutbox` and
-the **no-SaveChanges** enqueue rule, `ServerOutboxClaim`'s atomic `READPAST` claim, the four
+the **no-SaveChanges** enqueue rule, `ServerOutboxClaim`'s atomic `SKIP LOCKED` claim, the four
 consumers and the `ConsumedMessages` idempotency guard (**D12 adds a consumer the same way**), the
 four workers + intervals, `WorkerBulkhead` + `WorkerOptions.MaxConcurrency` (**D13/E08 measure
 it**), `ServerResilience`'s per-boundary policies and the per-`MessageType` circuit breaker, the
 defined degradation thresholds, `OutboxDiagnostics` (**D13/E01 read it**), the 3 new error codes,
 the gate G test name, deviations.
+
+## Inbox retention safety
+Outbox retention and consumer dedup retention are not interchangeable. Retain ConsumedMessages
+through the maximum supported producer/relay/operator replay horizon plus safety margin; never
+blindly prune inbox markers merely because a 30-day succeeded-outbox row expired. Replay outside
+that horizon is explicitly blocked or uses permanent effect dedup evidence. Test delayed/operator
+replay and stale lease completion without duplicate ledger/projection/external effects.

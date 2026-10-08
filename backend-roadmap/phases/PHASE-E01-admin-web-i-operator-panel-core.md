@@ -1,5 +1,7 @@
 # Phase E01 — Admin web I: operator panel core
 
+> **PostgreSQL baseline (2026-10-08):** Read `ARCHITECTURE.md` §PG and §16-CT–§18-CT / `STACK.md` §6 before implementation. They govern PostgreSQL 18, Npgsql 10.0.3, UUID Version, tenant journal, snapshot/batch atomicity, pool budgets and deployment-only migrations. This phase is a future instruction, not an implementation claim. Mandatory PostgreSQL CI cannot pass by skipping DB tests.
+
 **Band:** M · **Track:** E · **Depends on:** D11 · **Satisfies:** R-B05
 **Runnable after this phase:** desktop offline yes · server required yes (for the admin site only)
 
@@ -27,7 +29,7 @@ HTTP client, never its own business logic. Every asset ships in the package; not
 ## Design decisions (pre-made — implement, do not re-derive)
 - **Project:** `src/Animora.Web.Admin/Animora.Web.Admin.csproj`, SDK `Microsoft.NET.Sdk.Razor`,
   `net10.0`. References `Animora.Application`, `Animora.Contracts.Wire`, `Animora.Domain`. It
-  **does not** reference `Animora.Persistence.SqlServer` and **does not** reference
+  **does not** reference `Animora.Persistence.PostgreSql` and **does not** reference
   `Animora.Contracts` (that is the desktop seam). `Animora.Server` references
   `Animora.Web.Admin`; the reverse is forbidden (`LayeringRulesTests` gains the fact).
   No new package pin is needed — Blazor ships in the ASP.NET Core shared framework.
@@ -35,7 +37,7 @@ HTTP client, never its own business logic. Every asset ships in the package; not
   order, after step 6: `builder.Services.AddRazorComponents().AddInteractiveServerComponents();`
   and in the pipeline `app.MapStaticAssets(); app.MapRazorComponents<Admin>()
   .AddInteractiveServerRenderMode();` mapped under the path base **`/admin`** via
-  `ServerOptions.AdminPathBase = "/admin"`. The Business API (`/api/*`), replication (`/tables/*`)
+  `ServerOptions.AdminPathBase = "/admin"`. The Business API (`/api/*`), replication (`/sync/*`)
   and diagnostics (`/diagnostics/*`) keep their own prefixes; `AdminRouteTests` asserts `/admin/**`
   never reaches an API endpoint and `/api/**` never renders a component.
 - **Render-mode policy (`ARCHITECTURE.md` §7.3, T-RULE 005) — exactly three interactive islands,
@@ -157,7 +159,7 @@ HTTP client, never its own business logic. Every asset ships in the package; not
 9. Write `AdminSecurityHeaders`, `OperatorErrorText`, `ResultAlert`, `app.css`; add the `admin`
    readiness check.
 10. Write the four test classes; extend `LayeringRulesTests`.
-11. Verify manually against a real SQL Server: operator login → create tenant → extend → reduce
+11. Verify manually against a real PostgreSQL: operator login → create tenant → extend → reduce
     seats below assigned (rejected) → suspend with reason → issue licence → the event log and audit
     trail both show the action.
 12. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; desktop `run.sh` = `SMOKE RUN OK`.
@@ -168,7 +170,7 @@ HTTP client, never its own business logic. Every asset ships in the package; not
 - Server: `AdminAuthEndpoints` (2 routes), `ServerOptions.AdminPathBase`, the Razor Components
   registration, the `admin` readiness check.
 - **No migration, no new wire contract, no `Animora.Contracts` change, no `CommandTypes` entry, no
-  `ErrorCodes` addition, no DI change in `App.axaml.cs`.** `WireContract.Version` stays `1`.
+  `ErrorCodes` addition, no DI change in `App.axaml.cs`.** `WireContract.Version` retains D05 **v2** (§PG.7; compatibility DTO suffix V1 does not reset the envelope version).
 - The panel adds **zero** business logic: every mutation is an existing D10/D11 operation.
 
 ## Rules that apply here
@@ -197,16 +199,16 @@ HTTP client, never its own business logic. Every asset ships in the package; not
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
 - `AdminRouteTests` green: anonymous `/admin/tenants` redirects to `/admin/auth/login`;
   `/admin/**` never resolves an API endpoint and `/api/**` never renders a component;
-  `/admin` responds while `/tables/*` and `/api/commands` keep working unchanged.
+  `/admin` responds while `/sync/*` and `/api/commands` keep working unchanged.
 - `AdminAuthorizationTests` green: operator cookie = `200`; tenant-user cookie = `403` on every
   `/admin` route; a bearer token alone (no cookie) = `401` on `/admin`.
 - `RenderModePolicyTests` green: `@rendermode InteractiveServer` occurs in exactly the three island
   files; no `AddInteractiveServerRenderMode` applied globally to `Routes.razor`.
 - `AssetIsolationTests` green: no `.razor`/`.css`/`.html`/build-output reference to an external host.
 - `LayeringRulesTests` green: `Animora.Web.Admin` references only Application/Domain/Contracts.Wire;
-  `Animora.Web.Admin` does not reference `Animora.Persistence.SqlServer`, `Animora.Contracts`, or
+  `Animora.Web.Admin` does not reference `Animora.Persistence.PostgreSql`, `Animora.Contracts`, or
   any `System.Net.Http` client registration.
-- Manual (real SQL Server): create tenant → extend → seat reduction below assigned rejected with
+- Manual (real PostgreSQL): create tenant → extend → seat reduction below assigned rejected with
   `SEAT_REDUCTION_BLOCKED` → suspend requires typed name + reason → licence issue/reissue succeeds
   and appears in `LicenseIssuances`; each action produced one `SubscriptionEvent` **and** one
   `ServerAuditEntry` carrying the same `CorrelationId`.

@@ -1,344 +1,143 @@
-# Phase E03 — ISyncEngine + Datasync client adapter
+# Phase E03 — ISyncEngine + custom immutable-batch HTTP adapter
 
 **Band:** M · **Track:** E · **Depends on:** D08 · **Satisfies:** R-B03, R-B13, R-B31
-**Runnable after this phase:** desktop offline yes · server required no (the engine degrades to
-`Offline` with no server reachable)
+**Runnable after this phase:** desktop offline yes · server required no (NullSyncEngine when absent)
+
+> Filename retained for roadmap continuity. Launch uses Animora.Sync.Custom, NOT a Datasync client
+> queue/timestamp cursor. No client PostgreSQL driver or server project reference is permitted.
 
 ## Read before starting
-- `backend-roadmap/CONVENTIONS.md` §1, §2, §3, §4, §5, §6 (all 15 items), §7, §8, §9, §12
-- `backend-roadmap/PROGRESS.md` (D08 entry — the 25 `<Entity>SyncContract` records,
-  `SyncContractCatalog`, the binding replicated / non-replicated split, the **three** client-writable
-  entities, `X-Animora-Contract-Version` + the two `409` actions + the header echo; A01 entry —
-  `WireContract`; A02 entry — `IdGenerator`, `IClock`, `Result<T>`, `ErrorCodes`; A09 entry —
-  `AnimoraLocalDbContext`, the `[LocalOnly]` marker, value converters; A11 entry — `ISecretStore`,
-  `NativeSqliteAssertion`, `LocalStoreOptions`; C11 entry — `SyncCursor` + migration `019_SyncCursor`
-  — note PROGRESS.md's deliberate `018→019` bump because `018_UserPreferences` was already taken)
-- `ARCHITECTURE.md` §8.1, §8.2, §8.6 · `STACK.md` §4.1, §4.2, §4.3, §4.5
-- `A-RULE 001`, `A-RULE 009`, `A-RULE 010`, `A-RULE 022`, `T-RULE 001`, `T-RULE 006`, `T-RULE 007`
-- `src/Animora.Sync.Abstractions/` (placeholder to fill), `src/Animora.Persistence.Sqlite/Context/**`
+- `ARCHITECTURE.md` §8, §16-CT–§18-CT, §48–§50, §PG; `STACK.md` §4/§6/§11/§12.
+- `backend-roadmap/CONVENTIONS.md` §1–§9/§11; PROGRESS current state + D08/A11/C11 entries.
+- `SyncContractCatalog`, `WireContract`, D08 manifest/endpoints/budget/error/codec contracts.
+- Local DbContext/configurations/migrations, single-writer/startup/key interceptors and pending journal.
+- `A-RULE 001`, `A-RULE 009`, `A-RULE 010`, `A-RULE 022`, `T-RULE 001`, `T-RULE 006`, `T-RULE 007`.
 
 ## Goal
-`Animora.Sync.Abstractions` becomes the project-owned replication port (`ISyncEngine`, `SyncScope`,
-`SyncResult`, `SyncConflict`, `ISyncDiagnostics`) with **zero third-party types**, and
-`Animora.Sync.Datasync` implements it over `CommunityToolkit.Datasync.Client` pinned exactly `10.1.2`.
-This is the only project in the solution that may name a Datasync type. Replication pulls the 22 D08
-contracts into the local store and pushes the three client-writable ones — it carries **no business
-intent** (that is E06).
+Project-owned ISyncEngine / IStateSyncEngine port has no infrastructure types. Custom HTTP adapter
+pulls immutable batches into encrypted SQLite staging, atomically updates authoritative base and
+checkpoint while preserving pending overlay, and supports nondestructive shadow resync. Business
+command settlement remains E06, not generic state push.
 
-## Design decisions (pre-made — implement, do not re-derive)
-- **The port (`Animora.Sync.Abstractions`, no package references at all):**
-  ```
-  ISyncEngine:
-    Task<Result<SyncResult>> SynchronizeAsync(SyncScope scope, CancellationToken ct);
-    Task<Result<SyncResult>> FullResyncAsync(SyncScope scope, string reason, CancellationToken ct);
-  ```
-  - `sealed record SyncScope(SyncDirection Direction, IReadOnlyList<string> EntityNames, bool IsCatchUp)`
-    + `static SyncScope All(SyncDirection d)`; `enum SyncDirection { PullOnly, PushOnly, Both }`.
-    An empty `EntityNames` means "every entity in `SyncContractCatalog`".
-  - `sealed record SyncResult(SyncOutcome Outcome, int PulledCount, int PushedCount,
-    IReadOnlyList<SyncEntityResult> PerEntity, IReadOnlyList<SyncConflict> Conflicts,
-    ErrorCode? Error, TimeSpan Duration, DateTimeOffset CompletedAtUtc)`;
-    `enum SyncOutcome { Completed, PartiallyCompleted, Offline, Rejected, Failed, ContractUpgradeRequired }`;
-    `sealed record SyncEntityResult(string EntityName, int Pulled, int Pushed, bool Complete,
-    string? CursorAfter, ErrorCode? Error)`.
-  - `sealed record SyncConflict(string EntityName, string EntityId, ConflictKind Kind,
-    string? LocalVersion, string? ServerVersion, string PayloadJson)`;
-    `enum ConflictKind { VersionMismatch, DeletedOnServer, DeletedLocally, Rejected }`.
-    **E03 only detects and reports conflicts; deciding is E05** — nothing is auto-resolved here.
-  - `ISyncDiagnostics`: `Task<IReadOnlyList<SyncEntityStatus>> GetStatusAsync(CancellationToken ct)`;
-    `sealed record SyncEntityStatus(string EntityName, DateTimeOffset? LastPulledAtUtc,
-    string? Cursor, int PendingPushCount, ErrorCode? LastError, int ConsecutiveFailures)`.
-  - `NullSyncEngine` (same project) returns `SyncOutcome.Offline`, so `Animora.Desktop` can resolve
-    the port with no adapter registered and stay runnable offline.
-- **Package pin:** `CommunityToolkit.Datasync.Client` **exactly `10.1.2`** in
-  `Directory.Packages.props`, consumed **only** by `src/Animora.Sync.Datasync/`
-  (`LayeringRulesTests` gains the fact; T-RULE 001 / A-RULE 001).
-  **Pin verification (2026-10-07, closes Phase-Problem §7.1):** the NuGet flat-container index lists
-  `CommunityToolkit.Datasync.Client` `10.0.0 … 10.1.2` (alongside `9.0.5`), and the `10.1.2` nuspec
-  targets `net10.0` with `Microsoft.EntityFrameworkCore(.Sqlite/.Relational) 10.0.9`. So the client pin
-  exists and matches the .NET 10 / EF Core 10 baseline (the upstream `…Server.OpenApi 9.0.5` ↔
-  ASP.NET Core 10 incompatibility concerns a different package, which this solution does not use).
-  **Execution-time guard (step 2 below):** `dotnet restore` must resolve exactly `10.1.2` for the client
-  with **no** `NU1xxx` warning-as-error and no transitive downgrade; if it does not, stop and record an
-  ADR in the decision log before touching the adapter — never silently float the version.
-- **Project:** `src/Animora.Sync.Datasync/Animora.Sync.Datasync.csproj` references
-  `Animora.Sync.Abstractions`, `Animora.Application`, `Animora.Persistence.Sqlite`,
-  `Animora.Contracts.Wire`. `Animora.Desktop` references it from the composition root only.
-  It **never** references `Animora.Contracts` (no UI seam here) and is never referenced by
-  `Animora.Application` or `Animora.Domain`.
-- **Local replica context — separate from the business context, by design.**
-  `src/Animora.Sync.Datasync/Store/AnimoraOfflineDbContext.cs` derives from Datasync's
-  `OfflineDbContext` and maps **only** the 25 `<Entity>SyncContract` types as EF entities, in the
-  **same SQLite file** as `AnimoraLocalDbContext` but on its **own table set** prefixed `repl_`
-  (e.g. `repl_Pets`), plus the library's own `DatasyncOperationsQueue` / `DatasyncDeltaTokens`
-  tables. A migration named **`ReplicaTables`** is generated **from this offline context, numbered
-  within the offline context's *own* migration sequence** (it starts fresh, so `001_ReplicaTables`
-  under `src/Animora.Sync.Datasync/Migrations/`, with its own `__EFMigrationsHistory` table).
-  `AnimoraLocalDbContext` is untouched by it — no phase edits a prior migration, and a migration
-  generated from the offline context can never alter a table owned by the local context.
-  **Rationale, binding:** business tables are domain entities with converters and invariants; replica
-  tables are flat transport rows. Mixing them would put `UpdatedAt`/`Version` on domain entities and
-  invite a business query to order by a transport column (A-RULE 009/010). Both contexts share the
-  connection string and the A11 encryption provider.
-  **Dual-context safety (audit 2026-10-08 · SYNC-C-01, PH-02, IMP-05 — this is the single most
-  error-prone decision in the sync track; it must be safe-by-test, not safe-by-prose):**
-  1. **Shared cipher/key, explicit.** The A11 `SqliteConnectionInterceptor` + key provider are the
-     **same single instances** for both contexts (one connection string, one key source) — neither
-     context may open the file unencrypted. Asserted by the `PRAGMA cipher_version` test on `repl_*`
-     (see Acceptance · SYNC-C-02). An unencrypted replica set would silently defeat the whole
-     encryption story.
-  2. **Deterministic startup order.** Store startup migrates in **one** ordered step list inside the
-     existing `LocalStoreStartup`: local-context migrate → offline-context migrate → projection — not
-     two independent initializers (so WAL/locking and `__EFMigrationsHistory` advancement are ordered).
-  3. See Acceptance · `TwoContextMigrationTests`.
-- **Projection into the business store is an explicit, ordered step — not EF magic.**
-  `src/Animora.Sync.Datasync/Projection/ReplicaProjector.cs`: after a successful pull, for each
-  entity in dependency order (`SyncContractCatalog.ProjectionOrder`, a static list that puts
-  `Tenant`, `RoleDefinition`, `UnitOfMeasure`, `ProductCategory`, `Owner`, `Supplier`, `Insurer`,
-  `LedgerAccount`, `AccountingPeriod`, `Room`, `BoardingServiceDef`, `Product`, `StaffMembership`
-  before `Pet`, `WeightEntry`, `DocumentReference`, `Visit`, `VaccinationRecord`,
-  `MedicalHistoryEntry`, `Appointment`, `ReceptionQueueEntry`, `BoardingStay`), it maps
-  `repl_*` rows → domain entities through
-  `src/Animora.Sync.Datasync/Projection/ContractToEntityMappings.cs` (explicit per-entity
-  `static` mapping methods, no reflection, no AutoMapper — PERFORMANCE.md §3) and applies them via
-  `IUnitOfWork` in batches of **200** rows per `SaveChanges`.
-  Projection rules, binding: (a) `Deleted = true` becomes a **soft delete** on the domain entity,
-  never a physical delete; (b) a row whose domain aggregate has an **unsent `PendingCommand`** on the
-  same `AggregateId` is **skipped and recorded** as `ConflictKind.VersionMismatch` — the A-RULE 017
-  guarantee's first line, with E05 owning the full policy; (c) projection is idempotent; (d)
-  `UpdatedAt`/`Version` stay **only** on the `repl_` row, never copied to a domain column.
-  **Delete order, skip-cascade and FK safety (audit 2026-10-08 · SYNC-C-03):** `ProjectionOrder` is
-  parents-before-children, which is correct for inserts/updates but says nothing about deletes, and
-  `foreign_keys=ON` (`CONVENTIONS §5`) means a half-applied batch can leave a dangling reference.
-  Binding rules: (e) **tombstones (`Deleted = true`) are applied in reverse `ProjectionOrder`**
-  (children first, parents last), so a parent is never soft-deleted while a live child row of the
-  same pass is still unprocessed; (f) a soft delete only flips the domain `IsDeleted`/`DeletedAt`
-  flag — it **never cascade-deletes** children (the child FK to `OwnerId`/`PetId` is configured
-  `DeleteBehavior.Restrict`; verify at execution and fix the configuration if any child uses
-  `Cascade`), so delete order is a consistency nicety, not a data-loss risk; (g) **skip-cascade:**
-  when a parent aggregate is skipped in a pass (unsent `PendingCommand`, rule (b)), every dependent
-  row of that parent **in the same pass is also skipped and reported** (as
-  `ConflictKind.VersionMismatch` with the parent's `AggregateId` as cause) — the business store
-  never receives a child that points at a not-yet-projected or skipped parent. Skipped rows stay in
-  `repl_*` and are retried on the next pass, so `PartiallyCompleted` batches always leave the
-  business store referentially consistent.
-- **Cursor storage reuses C11's `SyncCursor`,** which is owned by `AnimoraLocalDbContext`. Because it
-  lives on a different context than the `repl_*` tables, its new columns ship as a **separate
-  local-context migration** — `SyncCursorReplicaColumns`, numbered at the **next free ordinal on the
-  local context at execution time** (verify the physical head; it is `031` as of 2026-10-07, so this
-  would be `032` unless more migrations land first). It adds
-  `EntityName nvarchar(64)`, `Cursor nvarchar(64)` (the library's delta-token value, opaque to us),
-  `LastPulledAtUtc`, `ConsecutiveFailures int`, `LastErrorCode nvarchar(64)`, unique
-  `UX_SyncCursors_EntityName`. The library keeps its own `DatasyncDeltaTokens`; our row is the
-  **diagnostic mirror** `ISyncDiagnostics` reads, so the UI never queries a library table
-  (T-RULE 006).
-- **The adapter (`src/Animora.Sync.Datasync/DatasyncSyncEngine.cs`), pass algorithm:**
-  1. `ISyncPreflight` check (below). If it fails → `SyncOutcome.Offline` or
-     `ContractUpgradeRequired`; nothing is attempted.
-  2. `PushOnly`/`Both`: `await context.PushAsync(entityTypes, ct)` for the **three** client-writable
-     entities only (`Owner`, `Pet`, `WeightEntry`); `ParallelOperations` stays at the default **1**
-     (`STACK.md` §4.3 — raising it may reorder operations server-side).
-  3. `PullOnly`/`Both`: `await context.PullAsync(options, ct)` per entity in
-     `ProjectionOrder`, `PageSize = 50` (matching D08's server `PageSize`), one entity at a time.
-  4. `ReplicaProjector.ProjectAsync(...)`.
-  5. Update `SyncCursor` rows; build `SyncResult`.
-  Every step is wrapped so a single entity's failure yields `PartiallyCompleted` with that entity's
-  `ErrorCode` and the others' results intact — **a sync pass is never all-or-nothing**.
-- **`ISyncPreflight` (`src/Animora.Sync.Datasync/Transport/SyncPreflight.cs`):** before any call it
-  (a) resolves the base address from `SyncOptions.ServerBaseUrl` (null ⇒ `Offline`), (b) sends the
-  `WireContract.HeaderName` value on **every** request via a delegating handler
-  `ContractVersionHandler`, and (c) maps D08's responses: `409 CONTRACT_VERSION_UNSUPPORTED` with
-  `action = "resync-after-upgrade"` → `SyncOutcome.ContractUpgradeRequired` (and the engine performs
-  **no** partial pull, so a stale client cannot mis-map), `action = "server-upgrade-required"` →
-  `SyncOutcome.Rejected` with `CONTRACT_VERSION_UNSUPPORTED`. A response whose echoed header differs
-  from the sent value is treated as a silent downgrade → `Rejected` + audit. `401`/`403` →
-  `SyncOutcome.Rejected` with the D03/D04 error code (E07 owns re-authentication).
-- **Full resync (`FullResyncAsync`), the explicit, audited path (`CONVENTIONS.md` §6.15):**
-  (1) refuse with `FULL_RESYNC_BLOCKED` if any `PendingCommand` is unsettled — unsent intent is never
-  discarded (E06 exposes the drain); (2) write an `AuditEntry` `audit.sync.fullresync` with the
-  caller's `reason`; (3) in one transaction delete the library's pending ops + delta tokens for the
-  scope and clear the `repl_` tables and matching `SyncCursor` rows; (4) pull, project, then rebuild
-  derived state via C10's `RebuildActivityFeedAsync`; (5) return the `SyncResult`.
-  The background loop never calls it (E04 calls it only on explicit user/diagnostic request or after
-  a `ContractUpgradeRequired` upgrade).
-- **`SyncOptions`** (`src/Animora.Sync.Datasync/SyncOptions.cs`, bound from the desktop config):
-  `ServerBaseUrl` (nullable), `PageSize = 50`, `HttpTimeoutSeconds = 30`,
-  `MaxEntitiesPerPass = 25`, `ProjectionBatchSize = 200`, `AllowInsecureHttp = false`
-  (dev-only flag, refused when `ServerBaseUrl` is not `localhost`). `Validate()` fails loud.
-- **Token supply is a port, not an implementation here.**
-  `Animora.Sync.Abstractions/ISyncCredentialProvider.cs` →
-  `Task<Result<string>> GetAccessTokenAsync(CancellationToken ct)`, with an
-  `AnonymousSyncCredentialProvider` default returning `AUTH_REQUIRED`. E07 supplies the real one.
-  The adapter attaches the token in a `BearerTokenHandler`; it never reads a keystore itself.
-- **DI:** `src/Animora.Sync.Datasync/DependencyInjection/AddAnimoraDatasync.cs` registers the
-  offline context, `HttpClient` (one named client, `ContractVersionHandler` + `BearerTokenHandler`),
-  `ISyncEngine → DatasyncSyncEngine`, `ISyncDiagnostics → DatasyncSyncDiagnostics`.
-  `App.axaml.cs` calls `AddAnimoraDatasync()` **only when `SyncOptions.ServerBaseUrl` is set**;
-  otherwise `ISyncEngine → NullSyncEngine`. `ISyncStatusService` keeps resolving to C11's
-  `LocalSyncStatusService` in this phase — E04 replaces it.
+## Design decisions (binding)
+- `Animora.Sync.Abstractions` stays package-free: ISyncEngine.SynchronizeAsync / FullResyncAsync,
+  SyncScope (direction/entity scope/catchup), SyncResult, SyncConflict, ISyncDiagnostics and
+  ISyncCredentialProvider. Provide NullSyncEngine returning Offline. Public methods take ct.
+  IStateSyncEngine is the Application-owned state port; ISyncEngine is the outer client facade;
+  facade delegates state operations to it, never a second competing replication algorithm.
+- `Animora.Sync.Custom` references Abstractions/Application/Persistence.Sqlite/Contracts.Wire only.
+  It uses BCL HttpClient/JSON and existing EF Core SQLite 10 pins. No CommunityToolkit.Datasync
+  package, OfflineDbContext, library op queue or delta-token table. No Npgsql/server persistence.
+  App composition root conditionally AddAnimoraCustomSync when ServerBaseUrl exists; no config
+  retains NullSyncEngine and C11 status service until E04. UI Contracts are unchanged.
+- Local replica tables remain separate `repl_*` transport rows, with GenerationId. A normal EF
+  `AnimoraReplicaDbContext` maps only catalog contracts plus invisible staged manifests/pages,
+  active/shadow generation and completed-batch markers. Its own migration sequence/history starts
+  `001_ReplicaTables`. C11 SyncCursor is extended by a SEPARATE next-free local-context migration
+  (derive physical ordinal; never edit prior migrations). SQLite types TEXT/INTEGER only.
+- Both contexts share the EXACT same cipher/key/connection interceptor and single-writer scheduler;
+  startup migrates local→replica→projections deterministically. Crash/key/wrong-key/plain-reader and
+  two-context ownership tests required. If atomic business projection + checkpoint spans contexts,
+  share one SqliteConnection + transaction via UseTransaction; never TransactionScope/independent
+  commits. Context state is cleared after failure. No context touches another context's migration
+  history/table set except reviewed shared-transaction projection ports.
+- Authoritative checkpoint key = `(TenantId,DeviceId,ScopeId,ProfileVersion,ContractVersion,
+  ServerFeedEpoch,TenantFeedGeneration,ActiveGenerationId)`. CompletedVersion is an opaque lossless
+  decimal TEXT string; LastPulledAtUtc/error counters are diagnostics, not timestamp tokens.
+  Existing LastSyncedAt is display-only. Per-entity counters are diagnostic mirrors, NOT independently
+  committed critical cursors. Scope/catalog changes invalidate profile and require shadow rebuild.
+- Pass: credential/contract/scope preflight; push guarded nonfinancial state mutations from durable
+  mutation journal (only Owner/Pet/WeightEntry) in stable order with unchanged MutationId/fingerprint;
+  request delta from completed checkpoint; download/hash-check every bounded page into invisible
+  SQLite staging idempotently `(BatchId,PageOrdinal)`; verify manifest/counts/contracts/dependencies;
+  acquire local writer and exact compare-and-swap FromVersion/generation; apply base+overlay+
+  business projections+completion+ToVersion in ONE transaction; then emit UI invalidation.
+  Revalidate local user/session/generation after download before apply, so late old-user responses
+  cannot write after logout/profile switch. Receipts never advance the state checkpoint.
+- Upserts follow manifest parents-before-children, removals reverse it. Whole apply is bounded by
+  D08 export budget; 200-row SaveChanges chunks are flushes inside that transaction, never earlier
+  visible commits. Projection failure rolls back all authoritative changes/checkpoint; retry from
+  durable staging/old checkpoint. Pending command/state intent is independent overlay: update
+  base, rebase if proven safe or preserve/quarantine conflict, never skip the authoritative base
+  and pretend it completed. Projector emits no fresh business command/local outbox echo.
+- Per-entity failure cannot partially advance a critical scope. SyncOutcome.Completed only after
+  atomic apply; PartiallyCompleted may describe download/mutation progress with unchanged pull
+  checkpoint, never visible partial authoritative data. Duplicate completed BatchId = no-op;
+  stale/out-of-order FromVersion re-requested, never numeric MAX. Expired/corrupt batch clears only
+  incomplete staging, not the active base or mutation/command journal.
+- No automatic field merge in E03. Domain/authorization decides E05 conflict policy. Medical
+  preserved copies stay local-only; never push IsConflictPreservedCopy. Finance read projections
+  come from server for cross-device totals, not recomputed from this device's command receipts.
+- FullResyncAsync preserves unsent business/state journal, drafts and conflict inbox; audit reason,
+  fetch full snapshot into new encrypted shadow, validate and rebase under policy, atomic active
+  pointer+checkpoint switch. Cannot safely rebase ⇒ NeedsAttention and keep OLD active generation;
+  never delete it or pending operations. Failure/kill midway leaves pending work readable and
+  recoverable. Retired generations GC after supported rollback window only.
+- SyncOptions: nullable ServerBaseUrl, page=50/cap200, HTTP timeout30s, staged byte/item/apply budgets
+  from D08, MaxConcurrentPasses=1, ProjectionBatchSize=200; derive entity set from catalog, no 25
+  literal limit. Insecure HTTP dev-only loopback; validate URI/bytes/deadlines. Inject clocks and
+  typed HttpClient with bearer + contract headers; verify served version, authority and bindings.
+- Version gate: absent server ⇒ Offline/no writes; 401/403 ⇒ Rejected; unsupported low/high contract
+  maps upgrade actions; mismatched echo ⇒ Rejected+audit. Credential provider default AUTH_REQUIRED;
+  E07 supplies real refresh. Library awaits ConfigureAwait(false), cancellation passed throughout.
 
 ## Files to create / modify
-| Path | Action | Contents (one line) |
+| Path | Action | Purpose |
 |---|---|---|
-| `src/Animora.Sync.Abstractions/ISyncEngine.cs` | create | the port + `NullSyncEngine` |
-| `src/Animora.Sync.Abstractions/SyncScope.cs` · `SyncResult.cs` · `SyncConflict.cs` | create | scope/result/conflict records + enums |
-| `src/Animora.Sync.Abstractions/ISyncDiagnostics.cs` | create | diagnostics port + `SyncEntityStatus` |
-| `src/Animora.Sync.Abstractions/ISyncCredentialProvider.cs` | create | token port + anonymous default |
-| `src/Animora.Sync.Datasync/Animora.Sync.Datasync.csproj` | create | the only Datasync-client consumer |
-| `src/Animora.Sync.Datasync/Store/AnimoraOfflineDbContext.cs` | create | `OfflineDbContext` over the 25 contracts |
-| `src/Animora.Sync.Datasync/Store/ReplicaConfigurations.cs` | create | `repl_*` table mappings |
-| `src/Animora.Sync.Datasync/Migrations/*` | create | `001_ReplicaTables` on the **offline** context's own sequence |
-| `src/Animora.Persistence.Sqlite/Migrations/*` | create | `SyncCursorReplicaColumns` on the **local** context, next free ordinal (≈`032`) |
-| `src/Animora.Sync.Datasync/Projection/ContractToEntityMappings.cs` | create | explicit per-entity mapping |
-| `src/Animora.Sync.Datasync/Projection/ReplicaProjector.cs` | create | ordered, batched, idempotent projection |
-| `src/Animora.Sync.Datasync/Transport/SyncPreflight.cs` | create | reachability + contract-version gate |
-| `src/Animora.Sync.Datasync/Transport/ContractVersionHandler.cs` | create | sends + verifies the echoed header |
-| `src/Animora.Sync.Datasync/Transport/BearerTokenHandler.cs` | create | attaches the token from the port |
-| `src/Animora.Sync.Datasync/DatasyncSyncEngine.cs` | create | the 5-step pass + full resync |
-| `src/Animora.Sync.Datasync/DatasyncSyncDiagnostics.cs` | create | `SyncCursor` → `SyncEntityStatus` |
-| `src/Animora.Sync.Datasync/SyncOptions.cs` | create | options + `Validate()` |
-| `src/Animora.Sync.Datasync/DependencyInjection/AddAnimoraDatasync.cs` | create | one registration entry point |
-| `Directory.Packages.props` | modify | `CommunityToolkit.Datasync.Client` `10.1.2` |
-| `Animora.sln` | modify | add `Animora.Sync.Datasync` |
-| `src/Animora.Desktop/App.axaml.cs` | modify | conditional `AddAnimoraDatasync()` / `NullSyncEngine` |
-| `tests/Animora.Sync.Tests/SyncPortContractTests.cs` | create | port purity: no third-party type |
-| `tests/Animora.Sync.Tests/ReplicaProjectionTests.cs` | create | order, batching, idempotency, soft delete, skip-on-pending |
-| `tests/Animora.Sync.Tests/SyncPreflightTests.cs` | create | offline, version 409s, header echo mismatch |
-| `tests/Animora.Sync.Tests/FullResyncTests.cs` | create | blocked by pending, audited, rebuild invoked |
-| `tests/Animora.Domain.Tests/LayeringRulesTests.cs` | modify | only `Animora.Sync.Datasync` references the client |
+| `src/Animora.Sync.Abstractions/*` | create | package-free ports/results/scope/diagnostics/credentials/default offline |
+| `src/Animora.Application/Ports/IStateSyncEngine.cs` | create if absent | Application state port, no HTTP/EF/provider types |
+| `src/Animora.Sync.Custom/Animora.Sync.Custom.csproj` | create | custom client-only dependency boundary |
+| `src/Animora.Sync.Custom/Store/*` | create | replica/staging/generation/completion maps and writer ports |
+| `src/Animora.Sync.Custom/Migrations/*` | create | replica context own baseline/history |
+| `src/Animora.Persistence.Sqlite/Migrations/*` | create | next-free local checkpoint extension migration |
+| `src/Animora.Sync.Custom/Projection/*` | create | explicit mappings, atomic base/overlay/projection |
+| `src/Animora.Sync.Custom/Transport/*` | create | batch/mutation/preflight HTTP, bearer/contract handlers |
+| `src/Animora.Sync.Custom/CustomSyncEngine.cs` / `CustomSyncDiagnostics.cs` | create | facade/algorithm/status |
+| `src/Animora.Sync.Custom/SyncOptions.cs` / `DependencyInjection/*` | create | bounded options and AddAnimoraCustomSync |
+| `Animora.sln` / `src/Animora.Desktop/App.axaml.cs` | modify | project + conditional composition root |
+| `tests/Animora.Sync.Tests/*` | create | port/migration/encryption/batch/CAS/atomicity/overlay/resync tests |
+| `tests/Animora.Domain.Tests/LayeringRulesTests.cs` | extend | Custom imports no Npgsql/server/Datasync types |
 
 ## Implementation steps
-1. Fill `Animora.Sync.Abstractions` with the port, records, enums, `NullSyncEngine` and the
-   credential port. Confirm the project still has **zero** package references.
-2. Pin `CommunityToolkit.Datasync.Client 10.1.2`; create `Animora.Sync.Datasync`; add both to the
-   solution.
-3. Write `AnimoraOfflineDbContext` + `ReplicaConfigurations` (`repl_` prefix) and generate
-   `001_ReplicaTables` **on the offline context's own migration sequence**. Separately, generate
-   `SyncCursorReplicaColumns` on `AnimoraLocalDbContext` at the next free local ordinal (verify the
-   physical head) for the new `SyncCursor` columns — the two migrations live on two contexts and must
-   not be merged.
-4. Write `ContractToEntityMappings` (one explicit method per entity) and
-   `SyncContractCatalog.ProjectionOrder` (extend D08's catalog — additive only).
-5. Write `ReplicaProjector` with the ordered, 200-row-batched, idempotent algorithm and the
-   skip-on-unsent-`PendingCommand` rule that emits a `SyncConflict`.
-6. Write `SyncPreflight`, `ContractVersionHandler`, `BearerTokenHandler`, `SyncOptions`.
-7. Write `DatasyncSyncEngine` (5-step pass, per-entity isolation, `PartiallyCompleted`) and
-   `FullResyncAsync` (refuse-on-pending → audit → clear → pull → project → rebuild).
-8. Write `DatasyncSyncDiagnostics` over `SyncCursor`.
-9. Write `AddAnimoraDatasync` and the conditional composition-root wiring; keep
-   `LocalSyncStatusService` registered.
-10. Write the four test classes; extend `LayeringRulesTests`.
-11. Verify against a running server: a first pull populates the 25 `repl_` tables and projects into
-    the business tables; a second pull transfers only changed rows; pushing an edited `Owner`
-    succeeds; a pull that would overwrite an aggregate with an unsent command is skipped and
-    reported.
-12. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; desktop `run.sh` = `SMOKE RUN OK` **with no
-    server configured** (engine resolves to `NullSyncEngine`).
-
-## Contracts / schema added
-- `Animora.Sync.Abstractions`: `ISyncEngine`, `NullSyncEngine`, `SyncScope`, `SyncDirection`,
-  `SyncResult`, `SyncOutcome`, `SyncEntityResult`, `SyncConflict`, `ConflictKind`,
-  `ISyncDiagnostics`, `SyncEntityStatus`, `ISyncCredentialProvider`,
-  `AnonymousSyncCredentialProvider`.
-- `Animora.Sync.Datasync`: `AnimoraOfflineDbContext`, `ReplicaConfigurations` (25 `repl_*` tables),
-  migration `001_ReplicaTables` (offline context) + `SyncCursorReplicaColumns` (local context),
-  `ContractToEntityMappings`, `ReplicaProjector`, `SyncPreflight`,
-  `ContractVersionHandler`, `BearerTokenHandler`, `DatasyncSyncEngine`, `DatasyncSyncDiagnostics`,
-  `SyncOptions`, `AddAnimoraDatasync`.
-- `SyncContractCatalog.ProjectionOrder` (additive extension of D08's catalog).
-- `SyncCursor` += `EntityName`, `Cursor`, `LastPulledAtUtc`, `ConsecutiveFailures`, `LastErrorCode`.
-- `ErrorCodes` += `SYNC_OFFLINE`, `SYNC_PARTIAL`, `SYNC_PROJECTION_FAILED`,
-  `FULL_RESYNC_BLOCKED`, `CONTRACT_VERSION_ECHO_MISMATCH` (`CONTRACT_VERSION_UNSUPPORTED` and
-  `AUTH_REQUIRED` already exist — reuse).
-- Packages: `CommunityToolkit.Datasync.Client 10.1.2`.
-- DI in `App.axaml.cs`: `ISyncEngine` + `ISyncDiagnostics` registered (conditional).
-  `WireContract.Version` stays `1` — the client maps D08's existing contracts, changing no shape.
-- No `Animora.Contracts` change, no `CommandTypes` entry, no mock deleted.
-
-## Rules that apply here
-- **A-RULE 001 / T-RULE 001** — `CommunityToolkit.Datasync.Client` appears only in
-  `Animora.Sync.Datasync`; `SyncPortContractTests` proves the abstractions assembly exposes no
-  third-party type in any public signature.
-- **A-RULE 009 / A-RULE 010 / T-RULE 006** — `UpdatedAt`, `Version` and `DatasyncOperationId` live
-  only on `repl_*` rows and library tables; no domain column or business query touches them.
-- **A-RULE 017 / R-B18** — projection skips any aggregate with an unsent `PendingCommand` and
-  reports it as a conflict; full resync refuses while unsent intent exists.
-- **A-RULE 022 / R-B13** — this engine replicates state only; it never submits or settles a command,
-  and the two pipelines share nothing but the HTTP client.
-- **R-B31 / §8.6** — the contract-version header is sent on every request, the echo is verified, and
-  an out-of-window response aborts the pass instead of partially pulling.
-- **T-RULE 007** — no OData type or query string leaks past the adapter; the port speaks only in
-  entity names.
-- **CONVENTIONS §8 / PERFORMANCE.md §3** — `PageSize 50`, one entity at a time,
-  `ParallelOperations = 1`, 200-row projection batches, explicit mappings, no reflection.
-- **CONVENTIONS §11 (Track D–E form)** — with no `ServerBaseUrl`, `NullSyncEngine` keeps the desktop
-  fully functional offline.
-
-## Out of scope
-- The background sync loop, scheduling, connectivity detection and the real `ISyncStatusService`
-  → E04.
-- Conflict **resolution**, the quarantine/needs-attention queue and the domain policy matrix → E05
-  (this phase only detects and reports).
-- Pushing `PendingCommand`s / command transport → E06 (`ICommandTransport` stays
-  `NullCommandTransport` here).
-- Real token acquisition, refresh and keystore storage → E07 (`ISyncCredentialProvider` default
-  returns `AUTH_REQUIRED`).
-- The full G1 delta-correctness gate matrix → E08.
+1. Define package-free facade/state ports and offline defaults; reuse D08 wire/catalog contracts.
+2. Add Custom project, EF replica context and separate migration histories; exact shared cipher.
+3. Extend scoped checkpoint/generation and implement invisible idempotent page staging.
+4. Implement bounded HTTP download/contract/mutation receipts and exact FromVersion arbitration.
+5. Implement one-transaction ordered projection/base/overlay/completion/checkpoint update and
+   cancellation/logout guards; no per-entity/chunk visible commits.
+6. Implement shadow full snapshot + preserve/rebase + atomic switch, failure/recovery and audit.
+7. Add composition-root registration and diagnostics without changing UI service seam.
+8. Test port purity, wrong-key/plain-reader, migration ownership, crash/partial/duplicate/late page,
+   same-version/tenant/scope, unknown contract, hash/TTL, pending overlay and shadow failure.
+9. Real PostgreSQL server integration green (absence blocks DB CI); build 0/0, test green, no-server
+   offline smoke. Record counts from catalog, no magic replicated-entity number.
 
 ## Acceptance criteria
-- Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors; the Datasync client pin resolves to
-  exactly `10.1.2`.
-- **Blocking-debt gates (audit 2026-10-08 · CODE-05):** `Animora.Sync.*` library code uses `ConfigureAwait(false)` on every await, and all new
-  sync interfaces take `CancellationToken ct = default` (CODE-02); clocks are injected, no `DateTime.Now/UtcNow` (CODE-04 / SYNC-M-02).
-- `SyncPortContractTests` green: every public type in `Animora.Sync.Abstractions` is defined in
-  `Animora.Sync.Abstractions`, `Animora.Domain`, `Animora.Contracts.Wire` or the BCL; the project has
-  zero `PackageReference`.
-- `LayeringRulesTests` green: no project other than `Animora.Sync.Datasync` references
-  `CommunityToolkit.Datasync.Client`; `Animora.Application`/`Animora.Domain` do not reference
-  `Animora.Sync.Datasync`.
-- `ReplicaProjectionTests` green: projection follows `ProjectionOrder` (a `Pet` never lands before
-  its `Owner`); a `Deleted = true` contract row soft-deletes the domain entity and never removes it;
-  re-running projection on the same replica set produces zero changes; an aggregate with an unsent
-  `PendingCommand` is skipped and returned as `ConflictKind.VersionMismatch`; batches commit every
-  200 rows and a mid-projection failure leaves earlier batches committed with
-  `SyncOutcome.PartiallyCompleted`.
-  Additional `ReplicaProjectionTests` cases (audit 2026-10-08 · SYNC-C-03): **parent skipped → child
-  skipped** (an `Owner` with an unsent `PendingCommand` also skips that owner's `Pet` rows in the same
-  pass and reports them; no `Pet` row lands without its `Owner`); **tombstone applied in reverse
-  `ProjectionOrder`** (deleting an `Owner` and its `Pet` in one pass soft-deletes the `Pet` first, no
-  FK violation, no child physically removed); **parent soft-delete does not cascade** (a child with
-  no tombstone of its own stays live); and a `PartiallyCompleted` run leaves zero orphaned FK rows.
-- `SyncPreflightTests` green: null `ServerBaseUrl` → `Offline` with zero HTTP calls; a
-  `409 resync-after-upgrade` → `ContractUpgradeRequired` and **no rows written**; a
-  `409 server-upgrade-required` → `Rejected`; a mismatched echoed header →
-  `CONTRACT_VERSION_ECHO_MISMATCH`; `401` → `Rejected` with `AUTH_REQUIRED`.
-- `FullResyncTests` green: refused with `FULL_RESYNC_BLOCKED` while an unsettled `PendingCommand`
-  exists; otherwise writes one `audit.sync.fullresync` entry with the reason, clears tokens +
-  `repl_*` + cursors in one transaction, and invokes `RebuildActivityFeedAsync`.
-- Manual (real server): first pull populates all 25 `repl_` tables and the business tables; a second
-  pull transfers only changed rows (row counts logged); an edited `Owner` pushes successfully; a
-  write attempt on a non-writable entity is refused locally before any HTTP call.
-- Runnability: with no `ServerBaseUrl` configured, `scripts/sandbox/run.sh` = `SMOKE RUN OK` and
-  every screen still works against the local DB.
-- **Encrypted replica tables (audit 2026-10-08 · SYNC-C-02):** the `repl_*` tables are created
-  **inside the encrypted container** when the release/encryption profile is active (enablement itself
-  lands in E07). A test opens a `repl_*` table through the store connection and asserts
-  `PRAGMA cipher_version` is non-empty — the replicated PII must never be a plaintext surface.
-- **`TwoContextMigrationTests` green (audit 2026-10-08 · SYNC-C-01, PH-02):** on a fresh SQLite file,
-  running the ordered startup migrates **both** `__EFMigrationsHistory` tables forward (local context
-  and `AnimoraOfflineDbContext`); neither context's model snapshot contains the other's tables
-  (`AnimoraLocalDbContext` has no `repl_*`; the offline context has no domain tables); and the same
-  single A11 interceptor/key instance is used for both (asserted alongside the `PRAGMA cipher_version`
-  check). Startup order is local-migrate → offline-migrate → projection.
+- No EF/HTTP/Npgsql/Datasync type in public ports; Custom has no server reference; SQLite stays local.
+- Replica/local migrations only change their owned tables/history, shared cipher remains enforced
+  through every connection/upgrade/cancellation; PRAGMA cipher_version + wrong-key/plain reader.
+- Incomplete/missing/corrupt/expired/out-of-order batch leaves base/projection/checkpoint unchanged;
+  duplicate pages/completed batches harmless. Crash before/after atomic commit is deterministically
+  replay/no-op; 200-row flush failure cannot expose previously flushed partial rows.
+- Complete multi-table batch preserves foreign keys and pending intent; authoritative base advances
+  independently of overlay conflict, no projection echo. Financial read projections agree on two
+  devices after complete sync, catalog/role read restrictions honored.
+- Full shadow resync with pending commands survives crash and never clears intent/active base;
+  invalid relationships/rebase failure block switch with attention; epoch catch-up can't fake continuity.
+- Preflight/header/credentials/out-of-window/no-server responses yield controlled outcomes; local
+  identity switch rejects late batch. Decimal-string sequence and UUID Version round-trip losslessly.
+- Record real-server evidence + build/tests + offline smoke. No claimed acceptance for missing DB.
+
+## Out of scope
+Loop/UI scheduling → E04; conflict resolution → E05; command transport → E06; online auth → E07;
+full PostgreSQL chaos/load/restore gates → E08/E09. Optional Datasync is deferred, not an E03 dependency.
 
 ## PROGRESS.md update
-Mark E03 done; advance "Next phase" to `E04`; append a "Repo state" entry listing: the
-`Animora.Sync.Abstractions` port surface (**E04/E05/E06/E07 all program against these exact types**),
-`NullSyncEngine`, `ISyncCredentialProvider` + its anonymous default (**E07 replaces it**),
-`Animora.Sync.Datasync` + the `10.1.2` client pin + the layering fact, `AnimoraOfflineDbContext` and the
-`repl_*` table set + migration `001_ReplicaTables` (offline context), `SyncContractCatalog.ProjectionOrder`,
-`ReplicaProjector`'s four binding rules (soft delete, skip-on-pending, idempotent, 200-row batches)
-(**E05 builds its policy on top**), `SyncPreflight` + the contract-version outcomes,
-`DatasyncSyncEngine`'s 5-step pass and `PartiallyCompleted` semantics, `FullResyncAsync`'s refuse/audit/
-rebuild sequence (**E05 and E08 invoke it**), `SyncOptions` values, the extended `SyncCursor` columns
-(**E04's status UI reads them**), the 5 new error codes, the conditional DI wiring, deviations.
+Only after implemented acceptance mark E03 done and advance E04. Record custom adapter, manifest,
+shared-cipher contexts/history, scope checkpoint, atomic projection/base+overlay, staging CAS,
+shadow resync, compatible wire decisions and tests. No Datasync pin/table/token claim.
+
+## Version seam gate
+Read ARCHITECTURE §PG.7: existing Domain Version is string?, existing V1 command expected revision
+is long?. D05 versions ExpectedServerVersion as V2; canonical UUID codec/converter, captured
+server-base evidence and V1 pending-journal compatibility must pass before shipping this phase.

@@ -38,7 +38,7 @@ shape. Exact per-project state is in the table below.
 | **`Animora-UI/`** | Throwaway HTML/CSS/JS **design reference** (like a clickable Figma). Not the stack, not real data. | **Only when the task explicitly says to inspect/use it, or you need the exact visual/behavioral spec of a screen you are rebuilding.** Never edit it. Never copy its code. Never open its `*.srcmap.json` files (design-tool artifacts, no product info — gitignored). |
 | **`backend-roadmap/`** | Execution plan + session protocol for the backend track (Domain/Application/Persistence/server/sync). | **Any backend-track task.** See the dedicated section below — it has its own token-budget protocol; follow it instead of re-deriving one. |
 | **`windows-frontend-roadmap/`** | Completed execution plan for the frontend track (all 17 screens). | Historical reference only — the roadmap is done. Never open `phases/**` (superseded by the finished code). |
-| **`Database-Sampel/`** | A SQL Server `.bak` sample dump, unrelated to the SQLite backend track. | **Never read** — binary, 11 MB, not tracked in git, no product information. |
+| **`Database-Sampel/`** | A SQL Server `.bak` sample source-import dump, unrelated to the SQLite backend track. | **Never read** — binary, 11 MB, not tracked in git, no product information. |
 
 > If a task doesn't mention design/visual reference, **do not open `Animora-UI/`** — it wastes tokens.
 
