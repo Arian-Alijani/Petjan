@@ -47,10 +47,20 @@ act) is delivered through the existing notification and dialog services.
   1. preflight  2. SUBMIT COMMANDS (LocalCommandProcessor.RunPassAsync)  3. replication push
   4. replication pull  5. projection/conflicts  6. state + notify
   ```
-  Step 2 runs to completion (or to its own failure) **before** step 3. If step 2 reports any
-  `Deferred`/transport failure, steps 3–4 are skipped for that pass — pulling server state while
-  local intent is stuck would maximize the conflict surface. `CommandsBeforeReplicationTests`
-  asserts the call order and the skip.
+  Step 2 runs to completion (or to its own failure) **before** step 3. If step 2 reports a
+  **transport failure** (`Deferred` / `SERVER_UNREACHABLE` / in-flight submit error), steps 3–4 are
+  skipped for that pass — pulling server state while a transport is down and local intent is actively
+  stuck would maximize the conflict surface. `CommandsBeforeReplicationTests` asserts the call order
+  and the skip.
+  **Parked ≠ transport-down (audit 2026-10-08 · SYNC-C-04 — a severe silent data-staleness bug if
+  conflated):** a command that is **parked** — permanently `Rejected` / `NeedsAttention` / permanent
+  `IntegrityError`, i.e. no longer being *submitted* — must **NOT** skip steps 3–4. Only an *in-flight
+  transport* failure skips the pull. Otherwise one unrecoverable command freezes all inbound
+  replication forever while the user sees `Pending`/`Synced`, not `Offline`. Step 2 therefore reports
+  two distinct signals: *transport failure* (skip pull) vs *per-command settlement failure on a parked
+  command* (does not skip pull). `ReplicationNotStarvedByParkedCommandTests` asserts: with one
+  `NeedsAttention` command parked, the replication pull **still runs** the next pass. (IMP-08 standing
+  fitness function — keep it as a permanent regression guard.)
 - **Retry always reuses the original `OperationId` and fingerprint (A-RULE 005/019).**
   `LocalCommandProcessor` already stores both; the transport **never** regenerates them.
   `RetryIdentityTests` asserts that after 3 failed attempts the 4th request carries the identical
@@ -213,8 +223,12 @@ act) is delivered through the existing notification and dialog services.
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
 - `CommandsBeforeReplicationTests` green: in every pass the transport submit precedes the
-  replication push/pull; a transport failure skips replication for that pass; the order holds on a
+  replication push/pull; a **transport failure** skips replication for that pass; the order holds on a
   manual `SyncNowAsync` too.
+- `ReplicationNotStarvedByParkedCommandTests` green (audit 2026-10-08 · SYNC-C-04, IMP-08): with one
+  command **parked** (`NeedsAttention`/permanent `Rejected`, no longer submitted) and the transport
+  reachable, the replication pull **still runs** the next pass — a parked command never freezes
+  inbound replication. Standing regression guard.
 - `RetryIdentityTests` green: attempts 1–4 of the same command carry byte-identical `OperationId`
   and `CommandFingerprint`; a local attempt to edit an unsent command's payload is refused with
   `COMMAND_PAYLOAD_IMMUTABLE`.

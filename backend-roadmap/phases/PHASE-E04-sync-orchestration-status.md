@@ -79,8 +79,19 @@ zero `.axaml` changes.
   | `Completed`/`PartiallyCompleted` with pending commands or incomplete entities | `Pending` |
   | `Offline`, `Connectivity != Reachable`, or circuit open | `Offline` |
   | `Failed`, `Rejected`, `ContractUpgradeRequired` | `Error` |
+  | **`Completed`/`PartiallyCompleted` but ≥1 command parked** (`NeedsAttention`/permanent `Rejected`) | **`AttentionRequired`** |
   `LastSyncedAt` = the newest `SyncCursor.LastPulledAtUtc`, read from the local DB, so it survives
   restart (the mock's in-memory value did not).
+- **`SyncState.AttentionRequired` — a state the circuit cannot represent (audit 2026-10-08 ·
+  SYNC-H-03, IMP-04).** The circuit only opens on *transport* failure, so a pass that "replicates fine
+  but has a parked financial command" otherwise shows a healthy `Synced`/`Pending` — hiding a command
+  permanently stuck in `NeedsAttention` behind green, which violates the §8.3 sync-failure UX contract
+  ("who must act" must be surfaced). Add a distinct `AttentionRequired` so a non-zero
+  `NeedsAttentionCommands` count (from the E06 backlog DTO) is visually separate from a clean `Synced`.
+  Implementation note: this is the **one** permitted `Animora.Contracts.Sync.SyncState` addition in
+  this phase (append-only enum member; no reorder); if a Contracts change must be avoided, surface the
+  E06 topbar `NeedsAttentionCommands` counter as the distinguishing signal instead — but the mapping
+  table above assumes the enum member.
 - **Real `ISyncStatusService`:** `src/Animora.Client.Services/Sync/SyncStatusService.cs` implements
   the existing interface over `SyncOrchestrator` + `SyncStateMachine`. `StateChanged` is raised on
   the **UI thread** through the existing dispatcher abstraction already used by
@@ -218,7 +229,9 @@ zero `.axaml` changes.
   `CONTRACT_VERSION_UNSUPPORTED`; cooldown doubles and caps at 1800 s; half-open runs exactly one
   trial pass; success closes and resets the counter; every transition logs and audits once.
 - `SyncStateMachineTests` green: the full input matrix maps to the documented `SyncState`, including
-  `Pending` when a pass completed but unsent commands remain.
+  `Pending` when a pass completed but unsent commands remain, and (audit 2026-10-08 · SYNC-H-03,
+  IMP-04) **`AttentionRequired`** when a pass completed/partially-completed but ≥1 command is parked
+  (`NeedsAttention`/permanent `Rejected`) — a parked integrity error must not map to `Synced`.
 - `SyncOrchestratorTests` green: two concurrent `SyncNowAsync` calls cause exactly one engine pass
   and both await it; catch-up stops at `MaxCatchUpPasses`; `StopAsync` cancels within the 5 s drain
   and a subsequent start resumes from the persisted cursors.
