@@ -1,6 +1,6 @@
 # Animora — Software Architecture Specification
 
-> **Status:** Architecture Baseline — **v3.1 (research-hardened, 2026-10-08)**. This file supersedes
+> **Status:** Architecture Baseline — **v3.2 (source-validated sync/server contracts, 2026-10-08)**. This file supersedes
 > and replaces the two prior architecture documents (`ARCHITECTURE.md` v1 and
 > `Animora_ARCHITECTURE_v2.md`). It is the **single, authoritative software
 > architecture** definition for Animora — **structure, behavior, boundaries,
@@ -8,14 +8,15 @@
 > where they disagreed, the newer, more-developed backend/synchronization model
 > wins (see the *provenance note* below).
 >
-> **Revision scope and implementation honesty.** v3.1 uses the latest `main`
-> baseline (`47fee53`), which already contains the older development branch
-> (`8e9b187`); it does not roll back either branch's work. This revision implements
-> the **architecture specification**, not the future server/sync runtime. The
-> current local desktop remains unchanged; Tracks D/E are still to implement
-> these contracts. No build, test, benchmark or deployment was run for this
-> documentation-only revision. §19 lists future acceptance obligations, not
-> passed results. Source evidence and platform-version caveats are in §24.1.
+> **Revision scope and implementation honesty.** v3.2 builds on merged `main`
+> (`ee8c3c4`), preserving v3.1's immutable batches, receipts and shadow replicas.
+> It closes admission, allocation, worker-fencing, security, SQL-operations and
+> stack-consistency gaps. This revision changes the **specification**, not the
+> future server/sync runtime or current desktop. Tracks D/E must implement these
+> contracts; roadmap completion is not implied. Documentation consistency is
+> checked; no runtime build, SQL integration test, benchmark or deployment is
+> claimed. §19 defines acceptance obligations, not passed results. Source
+> scope/version caveats are in §24.1–§24.2.
 >
 > **Audience.** Software engineers, architects, security reviewers, QA/chaos
 > engineers, DevOps/operations, and AI coding agents. An agent must be able to
@@ -1048,6 +1049,35 @@ client enters `SettlementUnknown` and **must not** mint a new `OperationId` to
 returns the original result. This is what guarantees **at-most-one business
 effect under at-least-once transport** (§19 Gate D).
 
+#### 8.6.3a Outcome lookup, deferred work and terminality
+
+**[DECISION] The receipt is the linearization point, not an HTTP status.**
+Submission/status responses include stable operation identity, current feed
+epoch and typed disposition. Terminal results have an authorized durable result
+or reference; a receipt version is never a replication checkpoint.
+
+| Disposition | Meaning and client transition |
+|---|---|
+| `Settled / Rejected / Conflict` | Durable terminal outcome for this immutable envelope; persist locally atomically. Resolution/editing creates a new identity linked to the original. |
+| `Admitted / Processing` | Durable server job exists, but is not settled; status reference + bounded next-poll guidance. `202` never means `Settled`. |
+| `DeferredDependency / RetryLater` | Nonterminal eligibility/admission decision; same identity may be attempted later. 429/deadlock/dependency delay is not permanent business rejection. |
+| `NotObservedInCurrentEpoch` | No committed receipt visible in the authoritative DB; a concurrent submission may still execute. Re-submit only the same immutable identity/envelope through SQL uniqueness. |
+| `RecoveryRequired / OutcomeUnavailable` | History continuity is absent or caller lacks result access; quarantine for reconciliation/authorized recovery, never a new payment identity. |
+
+Launch business commands settle synchronously in bounded SQL transactions.
+Durable asynchronous admission is reserved for explicitly classified long work:
+admission + identity/fingerprint commit before `202`; terminal receipt + business
+effects commit together later. In-memory enqueue alone cannot produce `Admitted`.
+An absent prerequisite defers without holding a DB transaction; a permanently
+failed prerequisite produces a reasoned dependent disposition. Bound dependency
+count/depth and reject cycles across both pipelines before admission (§8.9).
+
+Retain `SettlementUnknown` until authorized evidence establishes its outcome.
+"No permanent unknown" means monitored, owned reconciliation, **not** resolving
+an outage before contact returns. Expose age/last attempt/recovery owner. Revoked
+actors cannot disclose stored results, but their work survives for authorized
+clinic/operator recovery. Logout, expiry and resync never erase financial receipts.
+
 #### 8.6.4 Sync-failure UX contract
 
 **[INVARIANT] No bare "Sync failed" for a critical command.** Whenever a
@@ -1246,6 +1276,13 @@ valid base-CT mapping covering the entire interval; `NULL` masks mean unknown/
 all-column change, not no change. Derived/computed fields and inter-field domain
 constraints are not proven independent just because column masks are disjoint.
 Never refresh an expected version and retry to bypass a business conflict.
+Original values supplied by a client are **claims, not protected evidence**. Bind
+base evidence to tenant/resource/contract/field set and exact BaseVersion using
+a server-retained snapshot/history or an integrity-protected server-issued base
+evidence token containing the canonical snapshot hash. Verify before automatic
+merge; stale rowversion + arbitrary client original values cannot prove
+non-overlap. Missing/expired/unverifiable evidence requires review, never weaker
+merging. Authentic evidence still cannot bypass current authority/domain rules.
 
 ### 8.14 Conflict-policy matrix (business ownership, not a technology choice)
 
@@ -1420,9 +1457,10 @@ tenant requires it (§72).
 
 ### 9.2 Isolation architecture — layered ownership
 
-**[INVARIANT] Tenancy correctness is owned by the application layer, not the
-database.** The mandatory layers below must be *independently sufficient*;
-anything below them is hardening only.
+**[INVARIANT] Tenancy correctness is owned by the application boundary, not
+an optional database feature.** Mandatory layers are **collectively sufficient
+with RLS disabled**; authentication alone cannot secure a query. No layer is a
+substitute for the others. Optional RLS adds defense-in-depth.
 
 ```text
 MANDATORY (must hold even with every hardening layer below disabled):
@@ -1438,12 +1476,12 @@ MANDATORY (must hold even with every hardening layer below disabled):
   5. Replication scope filtering — every replicated read is tenant-filtered;
      every replicated write is server-stamped with the caller's TenantId.
   6. File authorization — Valet-Key, tenant-checked (§10.8, §57).
+  7. Tenant-safe cache access whenever caching is enabled (§10.7); filtered
+     SQL cannot make an unsafe cache acceptable.
 
 HARDENING (defense-in-depth; may be disabled without breaking tenancy):
-  7. SQL Server Row-Level Security (RLS) — a secondary in-database enforcement,
-     gated by an explicit go/no-go validation (§19 Gate J) before it is ever
-     relied upon even as hardening.
-  8. Tenant-safe caching (§10.7).
+  8. SQL Server Row-Level Security (RLS) — secondary database enforcement,
+     gated by explicit validation (§19 Gate J) before use.
 ```
 
 **[INVARIANT] Client-supplied `TenantId` is never trusted.** It is resolved
@@ -1453,7 +1491,7 @@ only from authenticated membership, on every request, server-side.
 global query filter is a *convenience* layer, not the security boundary, and is
 bypassable by raw SQL, bulk update, stored procedures, report queries,
 maintenance jobs, cache reads and file access. Isolation is therefore enforced
-by making **mandatory layers 1–3 independently sufficient** AND forbidding any
+by applying **mandatory layers 1–7 together** AND forbidding any
 code path that reaches tenant data outside approved tenant-aware
 infrastructure. Every bypass vector is either routed through tenant-aware
 infrastructure or is an explicitly reviewed, audited exception (§20) — never an
@@ -1510,6 +1548,29 @@ a parallel-plan read must never return another tenant's rows). If that cannot
 be reliably proven, RLS stays **off** and the mandatory layers carry isolation
 alone.
 
+**Connection/context lifecycle (S21/S22).** Launch tenant-bound DbContext is
+scoped per request/work unit; driver connection pooling stays enabled. DbContext
+pooling is an optional measured optimization. `OnConfiguring` runs once for a
+pooled context and cannot establish a different tenant per checkout. If adopted,
+a scoped factory assigns/clears all custom tenant/user/scope state on every
+checkout/return; test A→B→A under concurrency, exceptions and cancellation. EF
+does not reset arbitrary ADO.NET session state for the application.
+
+Before **any** command on an opened/reopened RLS connection, establish the
+server-derived tenant session context; setup failure denies access. Reapply on
+execution-strategy reconnects; never share open connections across tenants.
+Read-only tenant keys require a proven driver-reset lifecycle, not attempts to
+change a read-only value on a still-assigned physical session. MARS is off.
+Missing context denies access; operator/bypass connections use separate reviewed
+credentials, never a client-selectable admin value. Filter and block predicates
+protect reads and prohibited writes respectively.
+
+Microsoft documents `SESSION_CONTEXT` wrong results/AVs under parallel plans
+following session reuse, with trace flag **11042** as workaround. Validate exact
+SQL build/CU, mitigation and pooling; "SQL 2025" alone is not proof of a fix.
+RLS does not automatically protect the CT metadata rowset (S22); §17-CT.3 holds
+with RLS enabled too.
+
 ### 9.5 Cross-tenant access
 
 A request such as `Tenant A user → Patient in Tenant B` must **fail before
@@ -1554,9 +1615,11 @@ Desktop client    → bearer + refresh token pair, stored in OS-protected
                     (see §10.4 for what covers the gap when it is NOT reachable)
 ```
 
-**[INVARIANT] There is exactly one authentication mechanism family, used
-consistently.** No bespoke token protocol is invented; no second parallel auth
-path is added "just for desktop."
+**[INVARIANT] One local Identity authority, with explicit schemes.** Web
+cookies and desktop Identity bearer tokens use different handlers of the same
+identity subsystem. Endpoints declare allowed schemes; cookies cannot silently
+authenticate a bearer-only desktop submission and bypass antiforgery. No bespoke
+bearer token format is invented.
 
 **[DECISION — desktop auth is the stack-approved local token mechanism, not a
 generic OIDC provider.]** The desktop's bearer+refresh pair is issued and
@@ -1566,6 +1629,23 @@ storage, with refresh-token rotation and device-bound keys where supported
 if a real external OIDC server is ever introduced, that is a new architecture
 boundary and a new ADR. A public native client never ships a static client
 secret.
+
+**Platform limit versus Animora policy (S25).** Built-in Identity bearer tokens
+are **opaque protected tokens, not JWTs**; these APIs are not a full OAuth/OIDC
+token server. The JWT Bearer guide applies only to a future explicit JWT
+integration. Never attach `JwtBearerHandler` to opaque Identity tokens. Default
+issuance is not proof of device possession, immediate access-token revocation
+or one-use refresh rotation. These properties require a durable authenticated
+session/device registry, current membership/security-policy checks on sensitive
+requests and reviewed device-possession verification; client `DeviceId` strings
+or stale claims alone are not device binding/current authorization.
+
+One-use refresh rotation/reuse detection, when enabled, is a persisted session-
+family policy around the platform handler: consume previous token fingerprint
+and issue successor atomically. Bound/protect same-refresh-request response
+replay for a lost reply; require reauthentication instead of unlimited old-token
+reuse. Never log tokens/results. Stock registration/role/tenant-selection APIs
+cannot bypass §13.4's controlled provisioning boundary.
 
 **[INVARIANT — browser cookie auth is incomplete without anti-forgery.]**
 Because a browser attaches the session cookie automatically, **every
@@ -1591,11 +1671,14 @@ Policy   = refund below threshold
 Resource = this specific cash session
 ```
 
-**[INVARIANT] RBAC alone is never sufficient for a financial operation.** Every
-tenant-scoped, row-level authorization decision passes through the same
-three-layer check as §9 layer 3 — evaluated before any query is composed, never
-patched on after the fact. The client may hide an operation for UX, but the
-**server always evaluates authorization** and is the sole authority (§7.1).
+**[INVARIANT] RBAC alone is never sufficient for a financial operation.**
+First authenticate, resolve tenant and check coarse action policy. Then load
+only minimum resource authorization metadata **through tenant-scoped access**
+and invoke resource authorization before returning protected fields or mutating
+state. `[Authorize]` precedes resource loading and cannot replace the imperative
+check (S25). Revalidate mutable authority/preconditions at the transactional action
+boundary. The client may hide actions for UX; the **server always decides**,
+including background work, status lookups and file requests.
 
 ### 10.4 Offline-session architecture
 
@@ -1692,14 +1775,14 @@ The key ring must have a stable `ApplicationName`, a persistent key-ring
 location, protection-at-rest and an ACL, and must survive restart and restore
 (§64).
 
-**[INVARIANT — signing keys are not runtime-server residents.]** Keys that
-*mint* trust — the Root CA private key (§10.5) and the **license-signing
-private key** — never live on the running clinic-serving server. The runtime
-server holds only **public verification keys** (to verify licenses and the cert
-chain) and its own issued server certificate. A compromised runtime node must
-not be able to issue valid licenses or trusted certificates. The license issuer
-is a separate, protected, offline signing authority (part of the vendor's
-management plane, §3), not a runtime component.
+**[INVARIANT — root/license issuers are outside runtime.]** Root CA and
+**license-signing private keys** never live on the clinic-serving node; for those
+purposes it holds public verification material only. A protected separate issuer
+mints certificates/licenses. This does **not** mean runtime has no private keys:
+TLS, Data Protection, file grants and offline capabilities need purpose-specific
+runtime protection/signing keys. Capability/grant keys cannot issue licenses or
+CA certificates; compromise procedures revoke their artifacts and affected
+sessions/devices. Never reuse one key across trust domains.
 
 **[DECISION — key register as a first-class artifact.]** Because a single node
 co-locates app/DB/files/CA, every distinct key is enumerated with its owner,
@@ -1710,6 +1793,18 @@ signing key, file-access-grant signing key, device identity keys, and DB/backup
 encryption keys. "A single node" is a *compute* decision; it is **not** a single
 trust domain — trust-minting keys stay outside the runtime (ADR-22/ADR-23).
 
+**Data Protection lifecycle (S26).** Explicit persistence can disable default
+at-rest encryption; configure persistence **and** a local at-rest protector/ACL,
+with decryptors recoverable on replacement hardware. The stable application
+discriminator is environment-specific; staging cannot share production's ring.
+Retain expired keys/wrapping certificates while supported payloads/backups need
+them: expiry/rotation is not permission to delete. Default key lifetime is 90
+days; expired keys can unprotect, revoked keys are refused by default, deletion
+makes their payloads irrecoverable. Back up ring **and decryptors**, test old
+cookies/Identity tokens/protected grants after restore, and test emergency
+revocation separately. Restoring keys must not resurrect revoked sessions from
+an old DB security policy.
+
 ### 10.7 Tenant-safe caching architecture
 
 **[INVARIANT] Every cache key for tenant/clinical/financial output must include,
@@ -1719,8 +1814,16 @@ fingerprint. **[PATTERN] Cache-Aside**, applied only with this key composition.
 A cache mix-up (one tenant receiving another tenant's cached result) is a
 security defect, not a performance bug (§19 Gate L). **Caching is applied only
 where measurement justifies it, and never before authentication/authorization**
-— output caching must run *after* authZ so a cached authorized result can never
-be served to the wrong user (§59).
+— output caching runs *after* authN/authZ, but **order alone is not isolation**
+(§59). Default ASP.NET output caching excludes authenticated responses and
+responses setting cookies (S27). Launch does not HTTP-output-cache clinical,
+financial, sync, status or file-grant responses (`Cache-Control: no-store` where
+sensitive); anonymous public immutable content may opt in. A future authenticated
+policy needs tenant + current permission/security-policy generation + principal/
+resource keying, resource authorization **before cache lookup**, revocation
+invalidation and Gate L. Permission TTL cannot promise immediate revocation.
+Bound internal Cache-Aside stores, invalidate after commit, and never decide
+stock/payment/period or authorization preconditions from stale cached state.
 
 ### 10.8 File access architecture
 
@@ -1903,6 +2006,64 @@ a **Resource Allocation Model** (rooms, staff, boarding capacity as allocatable
 resources), not merely a versioned appointment row. The mechanism per invariant
 is an ADR (ADR-20); the guarantee is a fitness gate (§19 Gate T).
 
+#### 11.4.1 Transaction and allocation contract (S23/S24)
+
+These are **launch defaults**, not a silent per-implementation menu. Alternative
+mechanisms need an ADR proving the same invariant on real SQL Server. Snapshot
+replication consistency is not serializable business allocation.
+
+| Flow | Arbiter / atomic obligation |
+|---|---|
+| Delta/full export | Explicit transaction-level `SNAPSHOT`; frozen watermark and authorized payload set (§17-CT). |
+| Mutable patch | Tenant-qualified conditional update with original `rowversion`; receipt + audit + state/hint together. Never refresh token and retry as overwrite. |
+| Invoice/payment/stock checkout | One fully durable SQL transaction; serialize shared stock/cash/document resources, re-read preconditions, then conditional stock update + immutable movement + ledger/payment + receipt/outbox. |
+| Appointment/boarding interval | Transaction-owned exclusive application lock per tenant/resource, then overlap/capacity check and allocation write together. Unique discrete slots are extra defense, not a constraint on arbitrary intervals. |
+| Fiscal-period posting/close | Posting takes a shared transaction-owned period gate before checking open status; close takes that gate exclusively. No check-open-then-post race or shared→exclusive lock upgrade. |
+| Report/read projection | Bounded read-only queries; RCSI is optional after validation, not a cross-query snapshot or settlement authority. |
+
+`sp_getapplock` uses **transaction ownership**, finite timeout and a server-made
+tenant/resource key. All callers/maintenance use the same DB principal/resource
+namespace; canonical names fit 255 characters (no truncation/case ambiguity).
+Check return code: >= 0 grants the lock; negative timeout/cancel/deadlock/error
+requires explicit rollback/defer/reject without effects. In particular applock
+return **-3** does not automatically roll back like SQL deadlock error 1205.
+Multi-resource commands declare their entire bounded lock set first,
+acquire in one defined lexical order (period gates included), then read/write
+rows deterministically. No lock across user input, HTTP, files or queued waits.
+In-process locks cannot arbitrate against maintenance/another SQL caller.
+
+Intervals are half-open `[StartUtc, EndUtc)` with `StartUtc < EndUtc`; overlap is
+`existing.Start < requested.End AND requested.Start < existing.End`. Unequal
+start times still use the same resource mutex. Capacity counts all relevant
+active allocations, never a cached projection. Rooms/staff/boarding units are
+checked atomically. Recurring booking has bounded occurrences and explicit
+all-or-nothing/per-occurrence outcomes; no implicit partial success. UTC/DST
+scheduling policy is separate from Jalali display conversion.
+
+Stock updates an authoritative balance/reservation row conditionally under its
+gate (available >= required for nonnegative classes), appending movement in the
+same transaction. That balance is a maintained derivative, never a client
+absolute overwrite. Finance validates invoice balance, till ownership and period
+in this unit. Oversettlement follows explicit domain policy. Tenant-consistent
+FK/unique constraints and immutable identities add DB enforcement; unconstrained
+ORM saves cannot substitute for business allocation.
+
+**Fault handling.** Deadlock **1205** rolls back its victim: retry the whole
+bounded transaction with stable receipt identity/fresh context. Retain
+`xml_deadlock_report` (`system_health` captures it) and repair recurring lock/
+index/query problems. Snapshot write conflict **3960** requires rollback/new
+snapshot and current-policy conflict evaluation, not acceptance of a stale token.
+EF concurrency exceptions are domain resolution, not transient network retries.
+Timeout/cancellation/commit connection loss can be unknown; receipt verification
+owns the answer (§8.6.1). Classify uniqueness errors by their actual constraint;
+not every duplicate key is successful operation replay.
+
+Disable delayed durability for business receipts, ledger, stock and required
+audit: acknowledged commit is log-hardened. No `NOLOCK`/`READ UNCOMMITTED` for
+settlement/authZ/critical sync. MARS is off; SQL is parameterized/allowlisted.
+Locking acceptance runs on the production SQL engine/build, not EF InMemory or
+SQLite as a proxy for SQL concurrency semantics.
+
 ### 11.5 Reporting/aggregation isolation
 
 **[INVARIANT] Heavy reporting/aggregation load is an architecturally separate
@@ -1987,6 +2148,37 @@ serialize an entire tenant** if independent aggregates can safely proceed in
 parallel (§102). Ordering between the two queues (§8.9) is still governed by
 settlement dependency, never by worker scheduling.
 
+#### 12.2.1 Durable work, fenced leases and ordered progress
+
+**[DECISION — S20/S28.]** SQL outbox/job tables are durable truth; bounded
+`Channel<T>` queues carry IDs/wake hints. Startup/periodic scans recover eligible
+work even if all channel notifications vanished. A queued acknowledgement follows
+committed admission. Never queue delegates capturing HttpContext/request services/
+DbContext; hosted services create fresh DI scope/context per bounded work unit.
+Periodic work cannot overlap itself unless independent. Shutdown stops admission,
+drains finitely and leaves unfinished leases reclaimable. `StopAsync` is not
+crash-guaranteed and cannot be the durability mechanism.
+
+Claims carry `LeaseOwner · LeaseToken/ClaimGeneration · LeaseExpiresAt`. Atomically
+claim pending, due retry or expired nonterminal work using DB time. Renew/complete/
+retry/dead-letter writes require the **current** owner/token; a paused old worker
+cannot finish a reclaimed claim. Validate `UPDATE…OUTPUT`/locking hints under
+actual isolation: `READPAST` has restrictions under RCSI, not a universal queue
+recipe. Claim transactions are short; processing occurs outside them.
+
+Consumer local effects + unique inbox marker commit together. Fencing cannot
+undo an old worker's already-issued remote request: remote effects need a
+stable receiver dedup key or authoritative verification. Otherwise expose possible
+duplication and reconciliation, never claim effectively-once from a lease alone.
+
+Ordered work carries `(TenantId, OrderingKey, Sequence)` and durable completed
+predecessor. Claims select only the next eligible item for that key; memory
+locks/one current worker are not restart-safe ordering. Poison predecessor blocks
+only its key and surfaces to operators; bypass/compensation is audited policy.
+Redelivery preserves EventId/consumer identity, never a new dedup-evading ID.
+Independent keys and incoming state continue. Projection rebuild uses separate
+generation + authoritative watermark, never CT coalesced state as event history.
+
 ### 12.3 Resilience architecture
 
 **[PATTERN] Retry + Circuit Breaker + Timeout + Bulkhead (transient-fault
@@ -2059,6 +2251,38 @@ synchronized "reconnect storm" the moment many clients return together
 **[INVARIANT] Separate resource budgets** for interactive requests, sync, file
 transfer, reports, maintenance and outbox. If report work becomes excessive,
 *report throughput decreases* — **checkout never stops** (§43, §71).
+
+#### 12.4.1 Admission and fairness on the weak node
+
+**[DECISION — S29/S30.]** Partition by server-derived `Tenant + OperationClass`
+and bounded user/device sublimits, **plus global concurrency ceilings**. Bound
+partition cardinality/idle retention; arbitrary request IDs cannot create limitless
+limiter dictionaries. Anonymous login/provisioning has a small abuse budget before
+expensive authN; authenticated limits follow routing/authN/tenant resolution.
+Rate limiting alone is not DDoS protection. Budget connections/DB workers, CPU,
+bytes, file I/O, queue depth and duration, not just requests/s.
+
+P0–P3 are service classes, not starvation-prone strict priority. Use bounded
+weighted turns/aging, preserving progress for CT pull, receipt lookup, outbox,
+backup and cleanup. Causal ordering still applies. A poisoned financial operation
+cannot block other aggregates; a report backlog cannot consume checkout permits.
+Limiter/channel/connection waits count toward one total deadline, not several
+independently "small" queues causing unbounded latency.
+
+| Budget artifact | Required fields / saturation outcome |
+|---|---|
+| Operation class | Global/per-tenant permits, queue capacity/age, total/SQL deadline, body/item/byte ceilings; typed 429/503 + retry guidance. |
+| CT extraction | Active snapshots, rows/bytes/time, tenant/global staging bytes, batch TTL, cleanup cadence, disk reserve; no partial-ready batch. |
+| Files | Chunk/body limit, parallel transfers, tenant storage/transfer quota, disk reserve; resumable backpressure, no whole-file memory buffer. |
+| Circuits/hints | Connections/circuits, per-connection buffers, idle retention/reconnect admission; upgraded WebSockets have separate limits. |
+| Retry episode | Attempts, elapsed budget, jitter/backoff, owner and error classes; driver/SQL/HTTP retries count together. |
+
+Operations owns validated startup configuration and release capacity report;
+unset/nonpositive/unbounded budgets fail readiness. Measured values on §69/§110's
+hardware/workload are required before GA, not library-default capacity guesses.
+Pages target 256 KB–1 MB **uncompressed** plus row ceiling; bound decompressed
+requests and JSON depth/collection counts. Exhaustion has a typed recovery path,
+never journal deletion or false successful settlement.
 
 ### 12.5 Graceful degradation & failure semantics
 
@@ -2376,7 +2600,7 @@ projection → batch size → connection/DbContext lifetime → caching where sa
 background concurrency → compression → runtime-level optimization → additional
 infrastructure. **Do not introduce a broker/cache/AOT just because it sounds
 fast.** EF Core rules (§85): `AsNoTracking`, explicit projection, pagination,
-short-lived pooled contexts, compiled/batched queries where measured; avoid
+short-lived scoped contexts (pool only after tenant-state proof), compiled/batched queries where measured; avoid
 large object graphs, lazy-load loops, `SELECT *`, unbounded queries, N+1, long
 transactions.
 
@@ -2416,6 +2640,40 @@ hardware baseline is §69; the SQL edition decision is §70.
 
 ---
 
+### 16.4 SQL performance evidence and workload governance
+
+**[DECISION — S31/S32.]** Query Store is required for query/plan history,
+execution-count/CPU/logical-read aggregates, wait categories and plan regressions.
+Configure capture/storage/retention/cleanup; verify actual `READ_WRITE` and alert
+on read-only/full/error. Plan forcing is reviewed, reversible and monitored after
+schema changes, not a substitute for index/query correction.
+
+**Interval aggregates do not give true request p95/p99.** Use local histograms/
+traces for API/settlement/SQL-call and commit→render percentiles; correlate query
+IDs/plans. Extended Events owns deadlock graphs; DMVs diagnose blocking, log
+reuse, CT cleanup and tempdb/PVS pressure. Query Store alone does not contain
+every deadlock or per-request distribution. Avoid patient/operation metric labels;
+IDs belong in protected traces, not high-cardinality time series.
+
+SQL Server 2025 Standard supports Resource Governor, with documented ceilings
+of lesser of 4 sockets/32 cores and 256 GB **buffer pool**, not usable capacity
+on a 4-vCPU/16-GB node. Governor classifies **sessions at connection/login**,
+not requests after tenant `SESSION_CONTEXT` changes. Launch workload-class
+isolation uses a small fixed set of server-controlled connection pools/logins or
+application names (interactive/sync/report/maintenance); verify `group_id` and
+retain per-tenant application admission. Changing a pooled connection's tenant
+does not move its workload group. Application name is a hint, not security.
+
+CPU/grant/read-I/O/tempdb limits do not govern every system/log/checkpoint write
+or guarantee short-OLTP fairness. DB admission/disk/log headroom are mandatory.
+Cap SQL memory leaving measured app/OS/file-cache/collector headroom; preallocate
+and monitor data/log/tempdb growth. User DB ADR can place row versions in PVS;
+SQL 2025 tempdb ADR adds its own store. Monitor **actual configured stores**,
+oldest snapshots and free disk, not just a presumed universal tempdb counter.
+Index/statistics/DBCC/backup work has independent budgets and exhaustion alerts.
+
+---
+
 ## 17. Deployment & Infrastructure Architecture
 
 ### 17.1 Deployment topology
@@ -2445,6 +2703,50 @@ physical/virtual server — a packaging decision, not an architectural coupling:
 the container boundaries in §4 remain distinct enough that any of them can move
 to a separate machine later without a redesign. Scaling beyond one node is the
 gated escape hatch in §9.1/§16, not a launch target.
+
+#### 17.1.1 Host, request pipeline and lifecycle
+
+**[DECISION — S25/S27/S29/S30.]** Generic Host + Kestrel/hosted workers runs as
+a least-privileged supervised local service. One process does not mean globally
+shared DbContext. Assets are packaged; operator/health-detail/metrics/OpenAPI
+surfaces are private/authorized.
+
+```text
+trusted forwarded headers (known proxies/networks), exception handling
+ → HTTPS/HSTS policy + bounded transport/body checks
+ → routing → narrowly allowlisted CORS if needed
+ → authentication → immutable tenant/session resolution
+ → authenticated per-class rate/concurrency admission
+ → coarse endpoint authorization
+ → antiforgery for unsafe cookie-ambient browser endpoints
+ → opt-in PUBLIC output caching only (after authN/authZ/CORS)
+ → tenant-scoped minimal resource load → resource authorization + entitlement
+ → validated Application command/query → bounded transaction → response
+```
+
+Public static files never contain clinic data; uploads stay outside web root.
+GET/HEAD cannot mutate business state. Unsafe cookie-capable forms/APIs (including
+refresh/logout/upload initiation where applicable) require CSRF; bearer-only
+handlers reject cookie authentication. CORS defaults same-origin, never wildcard
+origins + credentials. Grants validate resource/audience/method/expiry and current
+session/permission when instant online revocation is promised; TTL alone leaves
+a window. Cached responses cannot skip resource authorization.
+
+Set transport limits at **proxy/IIS and Kestrel**: regular/upgraded connections,
+HTTP/2 streams, headers/body/decompressed payload, timeouts and slow/chunked
+uploads. Upgraded WebSockets no longer count against regular Kestrel connections:
+cap upgraded connections and SignalR/circuit admission separately. Override body
+limits before reads and stream bounded files to verified staging. Async end-to-end;
+no `.Result`/`.Wait`, fire-and-forget business action or `Task.Run` as durability.
+
+**Liveness** is cheap process responsiveness without dependencies. **Readiness**
+requires compatible schema, feed/epoch/scope registry, critical keys/config and
+bounded DB/store access. Optional file/report/hint faults can be surface-specific
+degradation, not healthy-process restart loops. Bounded deep operator checks test
+CT/cleanup/worker lag/key decryptability, never DBCC/full sync on every probe.
+Protect details; probes are noncacheable. Recovery/startup keeps readiness closed
+until required validation; shutdown closes admission/readiness before finite drain.
+Crashes recover through SQL atomicity, durable jobs and client journals.
 
 ### 17.2 Environment strategy
 
@@ -2478,9 +2780,14 @@ recovery. A **Recovery Point Manifest** ties a restore point together so DB,
 file store and key material restore to one consistent point:
 
 ```text
-BackupSetId · DatabaseBackupVersion · DatabaseRecoveryPoint ·
-FileStoreSnapshotVersion/Watermark · KeySetVersion · LicenseKeyVersion ·
-ServerBuildVersion · SchemaVersion
+BackupSetId · DatabaseIdentity · DatabaseRecoveryFork/LSN/BackupChain ·
+DatabaseRecoveryPoint · ServerFeedEpochAtBackup · FileStoreSnapshotVersion/Watermark ·
+KeySetVersion/DecryptorReferences · LicenseVerificationKeyVersion ·
+ServerBuildVersion · SchemaVersion · SyncContract/ScopeRegistryVersion ·
+ArtifactChecksums · OffHostDurableAt
+
+RecoveryPointId = manifest identity of selected consistent restored point
+ServerFeedEpoch = fresh post-recovery continuity identity, never reused from backup
 ```
 
 | Incident | Recovery source |
@@ -2531,6 +2838,48 @@ before deciding restore/reapply/compensate/manual review. A full replica resync
 repairs replicated state, **not** lost business history. RPO explicitly permits
 loss within its window; at-most-once effects within a healthy retained history
 must not be advertised as zero-loss/exactly-once across destructive restore.
+
+#### 17.3.1 Backup, key custody and restore acceptance
+
+**[DECISION — S33/S34.]** Production uses **FULL recovery**, established full/
+log chain and automated log backups; setting FULL alone cannot meet RPO. Initial
+policy: daily full, differential where measured restore cost justifies it, log
+backup every **1 minute**; alert if newest **verified off-host** log/file/key
+recovery point is older than **5 minutes** (§1.1). Cadence is a starting setting,
+not passed RPO evidence: copy delay/failure and file durability count. Private-
+network off-host storage must work without cloud APIs. Backup work is budgeted.
+
+Restore known-good full + matching differential if used + required logs in order
+with `NORECOVERY`, recovering once at the consistent target. Tail-log backup when
+possible; document absent coverage. Do not switch SIMPLE/break log chain for
+routine shrinking. Back up instance configuration/logins/jobs and master-held
+TDE certificate/private key separately. Test replacement hardware; a `.bak`
+without decryptors is not a complete recovery set.
+
+Immutable newer file bytes can satisfy an older DB point if **every referenced
+verified object** is present with expected hash. Gate manifest usability on DB/log
++ referenced files + required-key coverage, not three supposedly atomic snapshot
+timestamps. File/key GC preserves all supported backups/exports. Missing bytes
+become `Unavailable/PendingRepair`, never falsely `Available`; affected operations
+remain gated until their recovery policy is satisfied.
+
+Checksums/backup verification accompany periodic **actual restores** with
+`DBCC CHECKDB`, financial balances/references, authorized file hashes, key
+unprotection and sync/receipt-recovery handshake. `RESTORE VERIFYONLY` is not a
+restore/integrity test. Prefer known-good restore for corruption;
+`REPAIR_ALLOW_DATA_LOSS` is audited last resort, then epoch change/domain
+reconciliation/client recovery, never automatic repair. Record recovery timings
+and actual data-loss interval against RPO/RTO.
+
+**Encryption threat boundary (S35).** TLS protects transport; TDE protects DB/log
+at rest, not plaintext from authorized SQL/app principals. File/backup encryption
+is independent. Decryptors stay ACL-protected, recoverable and outside the same
+single point of loss. Always Encrypted/enclaves are **deferred per field** pending
+threat model + EF/query/index/CT/key-recovery PoC, not universal "stronger TDE".
+SQL exposes required private interfaces only; production encrypted SqlClient
+validates server certificates (`TrustServerCertificate=true` is forbidden).
+Separate runtime/migration/backup/break-glass principals; runtime lacks sysadmin
+and schema-change privileges.
 
 ### 17.4 Zero-Internet isolation as a tested architectural property
 
@@ -2627,6 +2976,13 @@ boundary* is wrong, not merely a bug.
 | **AL — Scope exits and metadata isolation** | Row leaves a predicate, soft/hard deletion, grant revoked mid-batch; no stale unauthorized rows or cross-tenant CT primary keys/masks/contexts escape | §17-CT.3, §53–§54 |
 | **AM — Concurrent duplicate settlement** | Simultaneous same-ID submissions, database commit uncertainty and canonical-fingerprint mismatch yield one effect and an authorized durable outcome | §8.6.1 |
 | **AN — Live edits during shadow rebuild** | User saves during snapshot download and before generation switch; every committed journal record survives crash/cutover exactly once as intent | §50 |
+| **AO — Batch-chain arbitration** | Reordered/overlapping complete batches cannot regress/skip checkpoints; unknown export commit is recovered by manifest | §17-CT.4 |
+| **AP — Worker fencing/ordering** | Expire/reclaim paused worker lease, then resume old owner; fenced completion/inbox protects local effects; poison blocks only its key | §12.2.1 |
+| **AQ — SQL allocation races** | Unequal-start overlapping intervals, stock=1/two sales, posting vs close and multi-resource deadlocks preserve invariants on production SQL | §11.4.1 |
+| **AR — Admission/host limits** | Reconnect + slow upload + WebSocket/HTTP2 + reports stay within memory/DB/queue budgets; P0 does not starve backup/outbox/pull | §12.4.1, §17.1.1 |
+| **AS — Pooled tenant/session lifecycle** | A→B→A/reconnect/parallel/cancellation with RLS on/off cannot retain previous tenant or misclassify workload; missing context denies | §9.4, §16.4 |
+| **AT — Security/key lifecycle** | Correct opaque-token handler, current revocation, expired-key unprotection, replacement-host decryptor restore; cache cannot bypass resource authZ | §10.2–§10.7 |
+| **AU — Recovery/performance evidence** | Actual off-host log/file/key restore meets RPO/RTO; Query Store aggregates are never represented as measured end-to-end p95/p99 | §16.4, §17.3.1 |
 
 **Session scope.** These are acceptance specifications for future runtime work;
 none is asserted executed by this architecture revision. Do not run builds or
@@ -2751,6 +3107,13 @@ operation that first proves all synchronization/retention implications (§19).
 | AD-45 | Feed epoch on restore/reset, explicit lost-settlement recovery | Accepted | R-DR, §17.3; S01 |
 | AD-46 | Generation-based shadow cutover with independently durable journal | Accepted | R4, §50 |
 | AD-47 | Dynamic row-scope exits require membership transitions or scope rebuild; never filtered-away deletion | Accepted | R3, R5, §17-CT.3 |
+| AD-48 | Scoped tenant contexts first; pooling gated; RLS connection setup and CT filtering are separate | Accepted | R3, R8, §9.4 |
+| AD-49 | SQL resource/period gates, deterministic ordering, full durability and typed deadlock/conflict recovery | Accepted launch default | R5–R7, §11.4.1 |
+| AD-50 | SQL durable job truth + fenced claims + ordered progress; channels are bounded wake/admission aids | Accepted | R2, R3, §12.2.1 |
+| AD-51 | Tenant/class/global admission with weighted progress, host budgets and readiness | Accepted; measured values required | R2, R10, §12.4.1/§17.1.1 |
+| AD-52 | No clinical authenticated HTTP output cache; DP ring/decryptors retained; Identity opaque tokens are not JWT | Accepted | R3, §10.2/§10.6/§10.7 |
+| AD-53 | Query Store for aggregates/plans, histograms for percentiles; Governor binds sessions, not request tenants | Accepted | R2, §16.4 |
+| AD-54 | FULL/log/off-host coverage + referenced files/decryptors; backup cadence is not RPO proof | Accepted operational baseline | R-DR, §17.3.1 |
 
 ---
 
@@ -2819,6 +3182,17 @@ A-RULE 059  Scope exit/deletion must remove authorized local membership; do not 
 A-RULE 060  Shadow resync keeps new UI saves in the independent durable journal and switches base generations under a short local cutover transaction.
 A-RULE 061  SignalR launch hints carry no records or authoritative cursor; reconnect reauthorizes/rejoins and unconditionally catches up.
 A-RULE 062  An architecture document is not a runtime acceptance result; no unmeasured 10/10 or zero-loss-over-partition claim.
+A-RULE 063  Delta apply compare-and-swaps exact FromVersion/epoch/scope/base generation; stale batches never regress a replica.
+A-RULE 064  CT context is origin evidence, not authorization/history or a safe blanket echo-suppression predicate.
+A-RULE 065  Channels are not durable admission; SQL jobs/outbox, fenced leases and predecessor checks own ordered recovery.
+A-RULE 066  Snapshot/RCSI cannot replace period/stock/interval allocation gates and DB constraints.
+A-RULE 067  Pooling explicitly establishes each tenant; OnConfiguring/RLS/Governor never imply per-request state reset.
+A-RULE 068  Middleware order cannot secure authenticated output caches; sensitive runtime responses are not output-cached at launch.
+A-RULE 069  Built-in Identity tokens are not JWTs; device binding/refresh reuse/current revocation need explicit server policy.
+A-RULE 070  Recovery needs off-host log/file/decryptor coverage and actual restore, not FULL mode/backup success alone.
+A-RULE 071  Query Store aggregates are not request p95/p99; percentile claims require local histogram/trace measurements.
+A-RULE 072  Root/license keys stay offline; runtime capability/grant/DP/TLS keys have distinct custody/purposes.
+A-RULE 073  Strict priority cannot starve pull/outbox/backup; queues/partitions/snapshots/retries have finite budgets.
 ```
 
 **Distinctions this architecture never collapses:**
@@ -2937,8 +3311,13 @@ Governor** (§71).
 
 ### 24.1 Primary-source evidence register — reviewed 2026-10-08
 
-The following Microsoft documentation/article bodies were read for this revision,
-not merely search-result snippets. SQL documentation selected the current
+S01–S20 preserve the v3.1 research register. In v3.2, the full Work with CT,
+CHANGETABLE and EF connection-resiliency bodies were re-read, and the other
+applicable sources were checked by implementation-relevant body sections (not
+search snippets); S21–S36 record the expanded corpus. Long guides were reviewed
+for the relevant transaction/security/operations sections, not represented as
+exhaustively read end-to-end. A source link is evidence of guidance, not a passed
+integration test. SQL documentation selected the current
 `sql-server-ver17` view; ASP.NET Core selected `aspnetcore-10.0`. Microsoft Learn
 can include multiple versions/forward-looking sections even under that view:
 explicit .NET 11 features and outdated preview annotations are **not** evidence
@@ -2967,6 +3346,22 @@ verification. No unrelated UI, binary dump or whole-code audit was performed.
 | S18 | [.NET common web architectures](https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures) | Keep modular single deployment with inward dependencies/DI; microservices introduce costs not justified by this task (§0/§5). |
 | S19 | [Multitenant storage/data approaches](https://learn.microsoft.com/en-us/azure/architecture/guide/multitenant/approaches/storage-data) | Shared-schema tenant discriminator is a trade-off, not universally optimal; noisy-neighbor quotas, predictable migration/recovery, no per-tenant tables (§9/§12.4). |
 | S20 | [ASP.NET Core hosted services](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-10.0) | Scope-per-unit workers, bounded channels, non-overlapping periodic work; shutdown callbacks may not run, so correctness lives in durable stores (§12.2/§44/§48). |
+| S21 | [EF efficient querying](https://learn.microsoft.com/en-us/ef/core/performance/efficient-querying), [advanced performance](https://learn.microsoft.com/en-us/ef/core/performance/advanced-performance-topics), [multitenancy](https://learn.microsoft.com/en-us/ef/core/miscellaneous/multitenancy) | Projection/index/keyset pagination; retry/split-query buffering; context vs connection pooling and once-only OnConfiguring; scoped tenant-state ownership (§9.4/§16/§17-CT). |
+| S22 | [SQL RLS](https://learn.microsoft.com/en-us/sql/relational-databases/security/row-level-security?view=sql-server-ver17), [SESSION_CONTEXT known issues](https://learn.microsoft.com/en-us/sql/t-sql/functions/session-context-transact-sql?view=sql-server-ver17) | Filter/block predicates, explicit CT primary-key leakage warning; session reuse/parallel-plan mitigation 11042 (§9.4/§17-CT.3). |
+| S23 | [Locking/row versioning guide](https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide?view=sql-server-ver17), [isolation levels](https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql?view=sql-server-ver17), [sp_getapplock](https://learn.microsoft.com/en-us/sql/relational-databases/system-stored-procedures/sp-getapplock-transact-sql?view=sql-server-ver17) | ACID/full versus delayed durability, statement RCSI versus transaction SNAPSHOT, resource/predicate races (§11.4.1). |
+| S24 | [Deadlocks guide](https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-deadlocks-guide?view=sql-server-ver17) | Victim rollback/error 1205, deterministic access order/short transactions, system_health XML graphs; retries do not replace diagnosis (§11.4.1). |
+| S25 | [Authentication](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/?view=aspnetcore-10.0), [Identity APIs](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity-api-authorization?view=aspnetcore-10.0), [cookies](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/cookie?view=aspnetcore-10.0), [JWT handler](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-jwt-bearer-authentication?view=aspnetcore-10.0), [policies](https://learn.microsoft.com/en-us/aspnet/core/security/authorization/policies?view=aspnetcore-10.0), [resource authZ](https://learn.microsoft.com/en-us/aspnet/core/security/authorization/resourcebased?view=aspnetcore-10.0), [antiforgery](https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery?view=aspnetcore-10.0) | Explicit handlers/current policies, built-in bearer is not JWT/OIDC, imperative resource checks and browser CSRF; Animora owns session/device/rotation policy (§10.2/§10.3/§17.1.1). |
+| S26 | [DP configuration](https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview?view=aspnetcore-10.0), [default settings](https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/default-settings?view=aspnetcore-10.0), [key management/lifetime](https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/implementation/key-management?view=aspnetcore-10.0) | Persistence/ACL/protection are separate; expired vs revoked vs deleted keys; recover ring and decryptors (§10.6). |
+| S27 | [ASP.NET output caching](https://learn.microsoft.com/en-us/aspnet/core/performance/caching/output?view=aspnetcore-10.0), [Cache-Aside](https://learn.microsoft.com/en-us/azure/architecture/patterns/cache-aside) | After authN/authZ/CORS; default no authenticated/Set-Cookie response cache; order alone does not provide principal/resource separation (§10.7). |
+| S28 | [Competing Consumers](https://learn.microsoft.com/en-us/azure/architecture/patterns/competing-consumers), [Queue-Based Load Leveling](https://learn.microsoft.com/en-us/azure/architecture/patterns/queue-based-load-leveling), [Priority Queue](https://learn.microsoft.com/en-us/azure/architecture/patterns/priority-queue) | Independent consumers versus ordered work, smoothing not unlimited buffering; Animora adds fenced leases/durable predecessor checks (§12.2.1). |
+| S29 | [Rate limiter](https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit?view=aspnetcore-10.0), [Throttling](https://learn.microsoft.com/en-us/azure/architecture/patterns/throttling), [Bulkhead](https://learn.microsoft.com/en-us/azure/architecture/patterns/bulkhead), [Circuit Breaker](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker) | Endpoint routing/partitioning, concurrency not requests/s, multidimensional quotas; local process isolation is budgeted, not physically guaranteed (§12.3/§12.4.1). |
+| S30 | [Host/deploy](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/?view=aspnetcore-10.0), [Kestrel options](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/options?view=aspnetcore-10.0), [best practices](https://learn.microsoft.com/en-us/aspnet/core/performance/performance-best-practices?view=aspnetcore-10.0), [health checks](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks?view=aspnetcore-10.0), [Health Endpoint Monitoring](https://learn.microsoft.com/en-us/azure/architecture/patterns/health-endpoint-monitoring) | Supervision, regular/upgraded limits, async/thread starvation, bounded readiness versus liveness (§17.1.1). |
+| S31 | [Query Store](https://learn.microsoft.com/en-us/sql/relational-databases/performance/monitoring-performance-by-using-the-query-store?view=sql-server-ver17), [index design](https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide?view=sql-server-ver17) | Time-window runtime aggregates/plan/wait history; not actual endpoint percentiles. Indexes chosen by measured predicates/reads (§16.4). |
+| S32 | [Resource Governor](https://learn.microsoft.com/en-us/sql/relational-databases/resource-governor/resource-governor?view=sql-server-ver17), [SQL 2025 editions](https://learn.microsoft.com/en-us/sql/sql-server/editions-and-components-of-sql-server-2025?view=sql-server-ver17), [tempdb](https://learn.microsoft.com/en-us/sql/relational-databases/databases/tempdb-database?view=sql-server-ver17), [files/filegroups](https://learn.microsoft.com/en-us/sql/relational-databases/databases/database-files-and-filegroups?view=sql-server-ver17) | Standard support/ceilings, connection-session classification, ungoverned system writes; configured version stores/disk budgets (§16.4). |
+| S33 | [Backup overview](https://learn.microsoft.com/en-us/sql/relational-databases/backup-restore/backup-overview-sql-server?view=sql-server-ver17), [full backup](https://learn.microsoft.com/en-us/sql/relational-databases/backup-restore/full-database-backups-sql-server?view=sql-server-ver17), [recovery models](https://learn.microsoft.com/en-us/sql/relational-databases/backup-restore/recovery-models-sql-server?view=sql-server-ver17), [complete FULL restore](https://learn.microsoft.com/en-us/sql/relational-databases/backup-restore/complete-database-restores-full-recovery-model?view=sql-server-ver17) | Full + optional differential + unbroken log chain to one consistent point; Animora adds off-host DB/file/key coverage (§17.3.1). |
+| S34 | [DBCC CHECKDB](https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-checkdb-transact-sql?view=sql-server-ver17) | Integrity testing; backup restore preferred; data-loss repair is last resort, not maintenance automation (§17.3.1). |
+| S35 | [Secure SQL Server](https://learn.microsoft.com/en-us/sql/relational-databases/security/securing-sql-server?view=sql-server-ver17), [TDE](https://learn.microsoft.com/en-us/sql/relational-databases/security/encryption/transparent-data-encryption?view=sql-server-ver17), [Always Encrypted](https://learn.microsoft.com/en-us/sql/relational-databases/security/encryption/always-encrypted-database-engine?view=sql-server-ver17) | Least privilege/network surface; at-rest versus engine-excluded keys/field-query constraints; independent backup key custody (§17.3.1). |
+| S36 | [About CT](https://learn.microsoft.com/en-us/sql/relational-databases/track-changes/about-change-tracking-sql-server?view=sql-server-ver17), [CT vs CDC](https://learn.microsoft.com/en-us/sql/relational-databases/track-changes/track-data-changes-sql-server?view=sql-server-ver17), [enable/disable](https://learn.microsoft.com/en-us/sql/relational-databases/track-changes/enable-and-disable-change-tracking-sql-server?view=sql-server-ver17), [functions](https://learn.microsoft.com/en-us/sql/relational-databases/system-functions/change-tracking-functions-transact-sql?view=sql-server-ver17), [MIN](https://learn.microsoft.com/en-us/sql/relational-databases/system-functions/change-tracking-min-valid-version-transact-sql?view=sql-server-ver17), [CURRENT](https://learn.microsoft.com/en-us/sql/relational-databases/system-functions/change-tracking-current-version-transact-sql?view=sql-server-ver17), [column mask](https://learn.microsoft.com/en-us/sql/relational-databases/system-functions/change-tracking-is-column-in-mask-transact-sql?view=sql-server-ver17), [context](https://learn.microsoft.com/en-us/sql/relational-databases/system-functions/with-change-tracking-context-transact-sql?view=sql-server-ver17) | Committed net-state feed vs historical CDC, nullable function/permission cases, mask-table binding, 128-byte context and SQL 2025 adaptive shallow cleanup (§17-CT/§18-CT). |
 
 **Community adapter primary source (not a Microsoft platform guarantee).**
 [C01 — Datasync maintainer's offline-client guide](https://communitytoolkit.github.io/Datasync/in-depth/client/)
@@ -2983,8 +3378,58 @@ immutable batch format, base/overlay model, fair scheduler, composite feed bindi
 and generation cutover are Animora engineering decisions derived from the source
 constraints. Microsoft does not certify this document as “10/10.” Existing
 DDD/ports, accounting, security, file and weak-node boundaries are retained;
-future server/sync execution must align phase plans with this v3.1 protocol
+future server/sync execution must align phase plans with this v3.2 protocol
 rather than copy an older universal-Datasync or polling-only assumption.
+
+### 24.2 Corpus triage, reading depth and release traceability
+
+**Priority belongs to a decision, not to an article's age alone.** An older
+maintained reference for snapshot correctness remains P0; a newly published cloud
+sample does not justify new launch infrastructure. The review used current SQL
+`ver17` and ASP.NET `10.0` views as applicable; EF pages still contain .NET/EF 11
+sections, which are excluded. No blanket claim about all 2026 WAF changes is
+made without a specific source passage. Broken/renamed URLs are not evidence.
+
+| User corpus / track | Disposition and study scope | Required architectural output |
+|---|---|---|
+| 1/25/26-A — CT fundamentals + functions | **P0 first**; S01/S02 full protocol/reference, S03/S36 relevant setup/cleanup/function bodies | SNAPSHOT→MIN→CURRENT→changes+rows→commit; frozen HTTP export; epoch on restore; masks are evidence, not history. |
+| 2 — Locking/transactions/deadlocks | **P0** relevant long-guide sections S23/S24; never assume snapshot prevents allocation races | SQL transaction/allocation matrix, finite locks/rollback and durable receipt verification (§11.4.1). |
+| 3 — EF concurrency/transactions/resiliency/performance/filters | **P0** S04–S06/S16/S21; full commit-uncertainty guide, focused performance/filter sections | Stable transaction retries, protected base evidence, no extraction retry-buffering; scoped tenant contexts. |
+| 3 — EF indexes/generated values/migrations/seeding | **P1 supporting** [indexes](https://learn.microsoft.com/en-us/ef/core/modeling/indexes), [generated values](https://learn.microsoft.com/en-us/ef/core/modeling/generated-properties), [migrations](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/), [management](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/managing), [seeding](https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding) body sections reviewed | Tenant-qualified composite constraints, server-generated rowversion; reviewed expand/contract migration/seed operations, never runtime schema privileges. |
+| 4/20/26-B — Host/Kestrel/health/zero Internet | **P0 before server implementation**, S20/S30; deployment body sections reviewed | Explicit pipeline/limits/supervision/readiness, packaged assets and route-to-vendor limitation (§17). |
+| 5 — Authentication/authZ/CSRF/CORS | **P0 security**, S25; selected handler/resource/CSRF bodies | Schemes and current tenant/device authority; minimal resource load before imperative authorization; CORS is not CSRF. |
+| 6 — Data Protection | **P0**, S26 lifecycle/configuration sections | Persist + protect + back up decryptors; expired/revoked/deleted-key outcomes (§10.6). |
+| 7 — Hosted/background/Worker Service | **P0 launch**, S20 | SQL durability, scoped bounded worker units, crash-safe leases; separate Worker Service deployable not required. |
+| 8/14/26-D — Consumer/retry/breaker/bulkhead/throttle/queues/health | **P0**, S11/S13/S28–S30 pattern bodies | At-least-once + atomic inbox, independent work vs ordering, fairness and dimensional budgets (§12). |
+| 9 — Transactional Outbox | **P0 concept**, S12 article; Cosmos implementation is **not copied** | Business+receipt+audit+event atomic relational unit; fenced relay; cloud sample is not production readiness. |
+| 10 — CQRS/Event Sourcing/Compensation/Materialized View | **P0 CQRS**, **P1 alternatives**; [CQRS](https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs), [Event Sourcing](https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing), [Compensating Transaction](https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction), [Materialized View](https://learn.microsoft.com/en-us/azure/architecture/patterns/materialized-view), [Choreography](https://learn.microsoft.com/en-us/azure/architecture/patterns/choreography) relevant bodies reviewed | Normal relational write model + immutable ledger/movements/CQRS-lite. "Event-sourcing-lite" is descriptive Animora terminology, not full event-sourced aggregate replay or a Microsoft product/pattern certification. |
+| 11 — Cache/files | **P0 Cache-Aside/output/Valet Key** S27 + [Valet Key](https://learn.microsoft.com/en-us/azure/architecture/patterns/valet-key) body; FILESTREAM/blob comparison **P1 deferred**, FileTables **P2** | Tenant-safe bounded internal cache; private filesystem+SQL metadata, restricted grants; no new blob-storage engine without measured need. |
+| 12/13/21 — Multitenancy/stamps/SaaS | **P0 isolation**, **P1 scale-out** S19/S22 + [approaches](https://learn.microsoft.com/en-us/azure/architecture/guide/multitenant/approaches/overview), [multitenancy overview](https://learn.microsoft.com/en-us/azure/architecture/guide/multitenant/overview), [Deployment Stamps](https://learn.microsoft.com/en-us/azure/architecture/patterns/deployment-stamp) relevant bodies | Shared schema with composite tenant keys; measured containment/tenant relocation, not automatic per-clinic hosting. Azure product deployment examples remain deferred. |
+| 15 — Blazor/SignalR | **P0 chosen host correctness**, S08–S10/S15 + [render modes](https://learn.microsoft.com/en-us/aspnet/core/blazor/components/render-modes?view=aspnetcore-10.0), [performance](https://learn.microsoft.com/en-us/aspnet/core/blazor/performance?view=aspnetcore-10.0) sections | Static SSR default, bounded selective circuits; hints cannot replace catch-up; shared DP/backplane only on scale-out. |
+| 16/26-C — Backup/FULL/log restore | **P1 before GA, P0 before accepting real financial data**, S33/S34 | Tested off-host consistent recovery coverage and new feed epoch; marked-transaction restore is optional runbook technique, not the sole recovery identity. |
+| 17 — Query Store/index/tempdb/CHECKDB | **P1 before GA**, S24/S31/S32/S34 | Actual percentile evidence + plan/runtime aggregates/XEvents/DMVs; measured maintenance budgets. |
+| 18 — SQL 2025 Resource Governor | **P1 verified edition capability**, S32; not inferred from SQL 2022 docs | Standard availability, session-classification limits and app-level tenant quotas; capacity ceilings are not throughput results. |
+| 19 — SQL encryption/security | **P0 baseline**, S35; Always Encrypted/enclaves **P1 only after threat-model PoC** | Transport/file/DB/backup/key boundaries explicit; TDE cannot replace access control. |
+| 22 — WAF | **P1 quality traceability**, [framework](https://learn.microsoft.com/en-us/azure/well-architected/what-is-well-architected-framework) body reviewed | Resilience/security/performance/operations/cost trade-offs map to drivers/gates; no Azure hosting obligation. Changelog/release-specific claims remain reference-only until individually verified. |
+| 23 — CommunityToolkit.Datasync | **P1 optional SYNC-SIMPLE only**, C01 + [C02 server guide](https://communitytoolkit.github.io/Datasync/in-depth/server/) and [C03 overview](https://communitytoolkit.github.io/Datasync/) bodies | Current guides target .NET/ASP.NET 10; local DB writes sequential, HTTP may parallelize. No mandatory OfflineDbContext for the custom critical replica; adapter acceptance depends on pinned release. |
+| 24 — Microsoft Sync Framework | **Excluded/historical**, [1.0 lifecycle](https://learn.microsoft.com/en-us/lifecycle/products/microsoft-sync-framework-10), [2.1 lifecycle](https://learn.microsoft.com/en-us/lifecycle/products/microsoft-sync-framework-21) tables checked | Product support ended in 2019/2021 respectively (component-parent exceptions do not make it Animora's new sync platform). No new dependency or guidance authority. |
+| 27 — Custom Animora semantics | **Project-owned, explicitly not vendor-supplied** | SettlementUnknown, dependency DAG, capability snapshots, shadow generations and offline financial reconciliation need implementation/model/chaos proofs against the official primitives. |
+
+**Release evidence is required, not provided by this revision:**
+
+| Artifact / owner | Minimum content and gate mapping |
+|---|---|
+| Sync implementation / sync team | Entity classification + table/schema registry, CT settings/min-valid probes, extraction/apply budgets, manifest/base-evidence format, failure/recovery cases; F/W/V/AA/AE/AI/AK/AL/AO. |
+| Settlement + domain owners | Command fingerprint/receipt schema, terminal vs deferred outcomes, ordering DAG, real SQL lock/constraint map and period/stock policies; C/D/O/P/S/T/AM/AQ. |
+| Server/security team | Scheme/route/pipeline policy, tenant/connection tests with RLS off/on, CSRF/IDOR/cache tests, key/decryptor/session lifecycle; E/J/L/Q/W-csrf/AS/AT. |
+| Worker/operations team | Fenced claim/inbox/replay policy, poison and ordered-key remediation, bounded fairness configuration and outage recovery; G/I/AC/AD/AP/AR. |
+| Performance/DR operations | Exact SQL build/CU/edition + OS/native versions; local percentiles/Query Store correlation; usable off-host log/file/key manifest, actual replacement-node restore timings/data loss; X/AG/AU. |
+
+Implementing any affected D/E phase first aligns that phase's instructions with
+this baseline; older universal-Datasync plans do not override it. This task does
+not mass-rewrite historical phase logs, change package pins or claim those future
+artifacts exist. `STACK.md` is aligned only where stale technology decisions would
+otherwise contradict the authoritative critical-sync/SignalR/SQL choices.
 
 ---
 
@@ -3052,7 +3497,9 @@ Resolve authenticated tenant/device/user + supported scope/contract
 Validate ServerFeedEpoch and checkpoint binding
 BEGIN SNAPSHOT TRANSACTION   (ALLOW_SNAPSHOT_ISOLATION enabled)
   1. Validate FromVersion against MIN_VALID_VERSION for EVERY scope table
-     Null/disabled CT, future version, wrong epoch/profile ⇒ typed recovery error
+     Expired ⇒ CursorExpired; wrong epoch/profile ⇒ Recovery/ScopeChanged
+     Null/disabled/unreadable CT ⇒ FeedUnavailable (operator/configuration fault)
+     Future version in same epoch ⇒ InvalidCheckpoint, never successful empty sync
   2. Capture ToVersion = CHANGE_TRACKING_CURRENT_VERSION()
   3. Enumerate CHANGETABLE(CHANGES table, FromVersion) for every scope table
   4. Tenant/row/column-authorize changed identities and tombstones
@@ -3074,7 +3521,11 @@ on subsequent requests also violates the frozen-snapshot contract.
 Launch materialization uses a tenant-bound SQL batch store in the existing
 database (or an equivalently protected immutable store admitted by an ADR), not
 a new broker. Extraction is bounded by rows, serialized bytes, time and concurrent
-snapshot jobs; its reader streams to staged storage, not an unbounded `ToList`.
+snapshot jobs; its reader streams to staged storage, not an unbounded `ToList`. Use a dedicated
+nonretry-buffering extraction reader: EF `EnableRetryOnFailure` may buffer all
+results internally even with `AsAsyncEnumerable` (S04/S21). Retry a failed
+extraction as a new complete snapshot/batch, never resume a live query from the
+last row.
 Batch/manifest/staging tables themselves are **not CT-enabled replicated tables**;
 writing or cleaning an export must not generate a self-feeding replication loop.
 The batch records the generation observed at extraction and is invalidated if
@@ -3164,8 +3615,63 @@ business identity: CT can collapse delete+insert at the same key into an update
 (S02). TRUNCATE, CT disable/re-enable and relevant schema/feed changes are
 governed resets, never ordinary sync-transparent maintenance.
 
+**Origin/context and masks (S02/S36).** `WITH CHANGE_TRACKING_CONTEXT` stores
+up to 128 bytes of application-origin metadata. Construct an allowlisted
+nonsecret context per DML statement; never trust client context as identity/authZ.
+The latest context does not prove every intermediate edit came from that device.
+Launch never suppresses a row merely because its context matches the recipient:
+this can hide an intervening peer edit/server normalization. Deliver canonical
+state; echo-safe receipts/base/overlay handle duplicates. Null means unknown
+origin; CT context is not durable business provenance/history.
+
+Mask column IDs bind the allowlisted **table/schema version**; the helper does
+not verify that ID/mask belongs to that table. Computed columns are not in masks.
+Baseline-relative masks summarize activity, not intermediate values; NULL is
+unknown/all-columns as appropriate, not disjointness proof. Initial sync reads
+base rows, never `CHANGETABLE(CHANGES…, NULL)` assumed to include unchanged or
+cleaned-up rows.
+
 These rules close the concurrent-write/cleanup/page/tie/scope-loss cases in
 §19 Gates F, W, AI and AL.
+
+### §17-CT.4 Batch-chain arbitration and extraction ownership
+
+**[INVARIANT] Apply is an exact compare-and-swap.** A delta is applicable only
+if epoch/scope/profile/contract/base generation match the active replica **and
+`FromVersion == active.CompletedVersion`**. Validate `FromVersion <= ToVersion`
+and the authenticated manifest. Repeated completed BatchId is a no-op; overlapping/
+out-of-order batches not starting at the active checkpoint are re-requested,
+never merged via numeric MAX. Base + overlay + completion + checkpoint commit
+under the local writer (§48). Full snapshots target only their designated shadow,
+never reset active state in place. Receipts cannot advance the CT cursor or
+regress base state (§8.17).
+
+Export request identity binds authorized scope/from-checkpoint; SQL uniqueness
+arbitrates duplicates, reusing one ready manifest or bounded building admission.
+States are `Building → Ready → Expired/Invalidated`, with owner lease/TTL. Only
+Ready serves pages; incomplete/cancelled exports never become ready; GC resumes
+after crashes. Launch SQL materialization writes pages + manifest in the source
+snapshot transaction, committing all together. Resolve uncertain commit via
+manifest on a fresh authoritative connection; never serve rows before commit.
+Failed attempts without ready manifest restart at a new complete snapshot.
+
+Do not layer ORM retry buffering or simultaneous readers/writers on one MARS-off
+connection. Enumerate bounded keyset chunks **inside the same snapshot**, fully
+exhaust/dispose reader before staging each chunk on that connection. Bound chunks
+and whole export; no per-chunk source commits. Ready SQL batches survive process
+restart; their TTL is not CT-history extension. Cleanup after extraction does not
+change an immutable ready batch, but page authority/epoch/profile/schema/TTL
+still apply; next delta independently validates its watermark's minimum version.
+
+Feed/schema/profile resets pause export admission, drain/cancel building work,
+install new generation, invalidate old manifests, then reopen readiness. Current
+per-page authorization prevents finishing revoked scope downloads, not retracting
+bytes already delivered to offline devices (§10.4). Clients receive no raw CT
+endpoint or DB `VIEW CHANGE TRACKING` credentials; extraction is privileged,
+reviewed tenant-safe infrastructure. Bind the manifest to the registered source
+table set/schema fingerprint and column mappings, not just a wire contract string.
+A nullable minimum-version result may mean missing CT/permissions; fix the feed
+and return bounded `FeedUnavailable`, never trigger an endless client-resync loop.
 
 ## §18-CT. Change Tracking retention
 
@@ -3181,7 +3687,10 @@ and capacity-tested for the corresponding retention.
 Validate the effective **per-table** minimum every extraction; configured days
 are not a validity proof. Keep auto-cleanup on, observe actual cleanup progress,
 CT side-table/commit-table growth, version-store pressure and oldest active
-snapshot. Alert on stalled cleanup and extraction-budget breaches. S17's 2026
+snapshot. SQL Server 2025 adds adaptive shallow cleanup enabled by default for
+large CT side tables (S36); monitor actual engine/build progress, not a copied
+SQL 2022 deep-cleanup schedule. Application code never toggles cleanup trace
+flags or deletes internal rows. Alert on stalled cleanup and extraction-budget breaches. S17's 2026
 Microsoft support article is operational evidence (Azure SQL case), not a claim
 that every boxed SQL Server release shares its implementation. Do not copy
 internal-table deletion scripts or disable/re-enable CT as an application repair:
@@ -3497,8 +4006,8 @@ financial batches may be hash-chained for tamper evidence (§104); audit never
 coordinates business processing. **§62 Cryptographic keys** — runtime node holds
 server TLS cert/key, Data Protection key ring, verification public keys, device
 public verification material, and runtime backup-encryption artifacts; it must
-**not** hold the offline root CA private key, license-signing private key, or
-any other trust-minting private key (§10.6). **§63 Local PKI** — offline Root CA
+**not** hold the offline root CA or license-signing private key. Runtime-scoped
+capability/grant signing keys are separate and least-purpose (§10.6). **§63 Local PKI** — offline Root CA
 → Issuing CA → server certificate (§10.5). **§64 Data Protection** — the key
 ring is recovery-critical with a stable `ApplicationName`, persisted key-ring
 location, protection-at-rest and ACL, surviving restart and restore (§10.6).
@@ -3589,7 +4098,7 @@ with no secrets. **§83** every management-reporting projection exposes
 ## §84–§90. Performance detail (detail of §16)
 
 **§84** server optimization order + push-safe-work-to-client; **§85** EF Core
-rules (`AsNoTracking`, projection, pagination, short-lived pooled context,
+rules (`AsNoTracking`, projection, pagination, short-lived scoped context (pooling only after tenant-reset proof),
 compiled/batched queries where measured; avoid N+1 / `SELECT *` / unbounded /
 long transactions); **§86** sync endpoints return only changed identities/rows,
 page by bounded payload (target 256 KB – 1 MB with a row-count ceiling), support
@@ -3597,8 +4106,9 @@ cancel/resume, avoid entity-graph materialization and per-row HTTP; **§87**
 adaptive catch-up prioritizes settlement → active-screen state → routine state →
 background/reporting; **§88** reconnect-storm control (jitter + adaptive backoff
 + bounded retry + overload signals + per-tenant & global limits); **§89** SQL
-Server Query Store for p95/p99 latency, CPU, logical reads, plan regressions,
-lock waits, deadlocks, tempdb/version-store/log pressure; **§90** critical sync
+Server Query Store for query/plan history, CPU/logical-read/wait aggregates;
+local histograms for true p95/p99, Extended Events for deadlocks and DMVs for
+tempdb/PVS/log/CT pressure (§16.4); **§90** critical sync
 uses snapshot isolation, so snapshot transactions must be short (long-lived
 transactions delay change-tracking cleanup) and full initial syncs are throttled
 and measured.
