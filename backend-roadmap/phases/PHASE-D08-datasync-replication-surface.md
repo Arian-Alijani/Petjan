@@ -57,7 +57,9 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
   Net: replicated **25** (3 client-writable + **22** read-only). Client-local columns that have no wire
   counterpart — e.g. E05's `MedicalHistoryEntry.IsConflictPreservedCopy` — are **excluded from every
   `<Entity>SyncContract`** and are never pushed or pulled; the `MedicalHistoryEntry` contract carries
-  no such field, so the entity stays purely read-only on the wire.
+  no such field, so the entity stays purely read-only on the wire. **Asserted, not just documented (audit 2026-10-08 · SYNC-H-01):**
+  `SyncSurfaceTests` uses reflection to assert the `MedicalHistoryEntrySyncContract` has **no** `IsConflictPreservedCopy` member, and a
+  `ReplicaProjector` test asserts a preserved-copy row is never pushed back to the server.
   This split **is** the "replication ≠ intent" line drawn in data. `SyncSurfaceTests` asserts the
   two sets exactly, so no later phase can quietly replicate a financial table.
   **DECISION — cross-device financial read models (audit 2026-10-08 · SYNC-C-05, SYNC-H-02, IMP-03;
@@ -97,6 +99,13 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
   `TableControllerOptions.DisableClientSideWrites` semantics by overriding the write methods to
   return `405` with `REPLICATION_READ_ONLY`. A test enumerates the controllers and asserts exactly
   those three accept writes.
+  **Default-deny base class (audit 2026-10-08 · PH-10):** a per-controller 405 override is opt-*out* —
+  a forgotten override on a new controller would silently accept writes. So every controller derives
+  from `ReadOnlyTableController<T>` (`src/Animora.Server/Tables/ReadOnlyTableController.cs`), whose
+  write endpoints (`POST`/`PUT`/`PATCH`/`DELETE`) return `405 REPLICATION_READ_ONLY` **by default**;
+  only `Owner`, `Pet` and `WeightEntry` derive from the opt-in `WritableTableController<T>` that
+  re-enables writes. A new `TableController` is therefore read-only unless its author explicitly opts
+  in, and the enumeration test is kept as the second line of defence.
 - **`TableControllerOptions` (binding values, `STACK.md` §5.2):**
   `PageSize = 50`, `MaxTop = 200` (matches `CONVENTIONS.md` §8's page cap),
   `EnableSoftDelete = true`, `UnsafeEntityLogging = false` (never log a financial/PII row).

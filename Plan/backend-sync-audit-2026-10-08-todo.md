@@ -321,7 +321,7 @@ multi-file edit, still push it as one coherent commit with a clear message.
 
 ---
 
-### [ ] T10 — Default-deny read-only controllers + remaining low/medium phase items
+### [x] T10 — Default-deny read-only controllers + remaining low/medium phase items
 - **Audit refs:** PH-10, SYNC-H-01, PH-03, PH-04. Owner phases: **D08**, **E03/E05**, **E05**, **E07**.
 - **Edits:**
   1. **PH-10** (`PHASE-D08...md:66-74`, tag `· PH-10`): read-only enforcement is a
@@ -341,7 +341,7 @@ multi-file edit, still push it as one coherent commit with a clear message.
 
 ---
 
-### [ ] T11 — Record verified-resolved low items so they are not re-flagged (PH-07, PH-08)
+### [x] T11 — Record verified-resolved low items so they are not re-flagged (PH-07, PH-08)
 - **Audit refs:** PH-07 (C03 stub), PH-08 (rate-limit policy names). These need **no
   code/spec change** — they are already resolved; this task only prevents re-flagging.
 - **Edit:** append a short "## Audit 2026-10-08 — verified-no-action items" note to

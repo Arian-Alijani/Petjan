@@ -208,7 +208,7 @@ capabilities expire. This is the phase where the three security planes become re
    including the security-stamp discard rule.
 9. Write `OnlineSessionCoordinator` and insert it as step 0 of `SyncOrchestrator`, **preserving
    E06's commands-before-replication order**.
-10. Add migration `033_OnlineIdentity`; swap the six DI registrations in `App.axaml.cs`.
+10. Add migration `033_OnlineIdentity` *(audit 2026-10-08 · PH-04: the ordinal is indicative only — read the physical head of the owning context at execution and take the next free ordinal per the PROGRESS.md Post-C11 rule; never trust the literal)*; swap the six DI registrations in `App.axaml.cs`.
 11. Write `EntitlementNotices` and wire it to `IUserNotificationPort`.
 12. Write the seven test classes.
 13. Verify against a running server: online login issues tokens + a signed snapshot; pulling the

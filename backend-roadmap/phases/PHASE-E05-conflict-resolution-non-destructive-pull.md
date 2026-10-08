@@ -92,7 +92,7 @@ client has fallen outside the retention window.
     on the floor);
   - `FullResyncAsync` keeps refusing while unsent intent exists (E03's rule, re-asserted here).
 - **Quarantine queue — durable, user-visible, actionable.** Local table `ConflictQueueEntries`
-  (`[LocalOnly]`, migration **`032_ConflictQueue`** — this is the **next free ordinal on
+  (`[LocalOnly]`, migration **`032_ConflictQueue`** *(audit 2026-10-08 · PH-03: the parenthetical ordinal is indicative only — at execution read the physical head of the owning context and take the **next free ordinal** per the PROGRESS.md Post-C11 rule; never trust the literal)* — this is the **next free ordinal on
   `AnimoraLocalDbContext` as of 2026-10-07 (physical head `031_TreatmentPlans`); re-verify the
   physical head at execution time and bump if more migrations have landed**):
   `Id` (ULID), `EntityName`, `EntityId`, `AggregateId`, `Kind`, `Policy`, `Status`
@@ -234,6 +234,9 @@ client has fallen outside the retention window.
 
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
+- **Preserved copies stay local (audit 2026-10-08 · SYNC-H-01):** `SyncSurfaceTests` (D08) asserts by reflection that the
+  `MedicalHistoryEntry` sync contract has no `IsConflictPreservedCopy` member, and `ReplicaProjector` never pushes a row where
+  `IsConflictPreservedCopy = true`.
 - **Blocking-debt gates (audit 2026-10-08):** (CODE-02) new conflict query/service interfaces take `ct = default` from the start;
   (CODE-05) `ConfigureAwait(false)` in `Animora.Sync.*`; (CODE-06) the new conflict-queue view-models are `IDisposable` and unsubscribe;
   (CODE-07) `AllowNegativeStockOnSale = true` is the shipped default — a server-side negative-stock rejection (`INSUFFICIENT_STOCK`) must
