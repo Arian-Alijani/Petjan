@@ -18,14 +18,22 @@
 > insofar as the architectural boundary requires it — exact versions,
 > package lists and rejection rationale live only in `STACK.md`.
 >
-> **Product.** Animora — self-hosted accounting + clinic-management platform
-> for veterinary clinics. **Targets:** Windows desktop, macOS desktop, Web
-> browser, plus a future independent public marketing/subscription website
-> (out of this system's boundary — see §17).
+> **Product.** Animora — a **commercial, vendor-hosted (SaaS) accounting +
+> clinic-management platform** for veterinary clinics. The vendor (Animora)
+> runs **one central, multi-tenant server**; each clinic is a tenant that
+> **subscribes** and connects to it — clinics never host, operate, or own a
+> server of their own. **Targets:** Windows desktop, macOS desktop, Web
+> browser, plus a public marketing/subscription website where a customer
+> **registers and buys a subscription, then downloads the desktop app**
+> (the website is an independent system on the vendor side — its boundary and
+> the onboarding contract are in §13/§17).
 > **Hard architectural constraint.** The system must be **fully operational
 > with zero external-Internet connectivity** at runtime, on a **deliberately
-> weak, single, self-hosted server**, while supporting an **offline-first**
-> desktop client with a **long, safe offline window**.
+> weak, single server node** (the vendor's self-operated server — "self-hosted"
+> throughout this document means *the vendor runs the server on its own
+> infrastructure, not on a cloud PaaS*; it never means per-clinic hosting),
+> while supporting an **offline-first** desktop client with a **long, safe
+> offline window**.
 >
 > **Methodology.** This document follows the **C4 model** (Context →
 > Container → Component) for structural views, **arc42-style** driver/decision
@@ -58,7 +66,7 @@
 | Security architecture | **Three independent planes**: Authentication, Authorization, Entitlement — never collapsed into one check; layered transport/PKI; offline-session as its own governed capability |
 | Reliability architecture | **Transactional Outbox** + **Idempotent Consumer** + **Competing Consumers** (workers) + **Retry/Circuit-Breaker/Bulkhead** resilience patterns |
 | Data architecture | **Append-only ledger** (finance) + **movement-based** stock (inventory) — both are architecturally immutable-fact models, never absolute-value overwrites |
-| Deployment architecture | **Single self-hosted node** at launch; every scale-out step (backplane, read replica, partitioned tenant) is a **documented, gated escape hatch**, not built early |
+| Deployment architecture | **Single vendor-operated, multi-tenant server node** at launch (the vendor self-hosts it; clinics do not); every scale-out step (backplane, read replica, partitioned/stamped tenant) is a **documented, gated escape hatch**, not built early |
 | Observability architecture | **Fully local, layered observability** — logs, health, diagnostics bundle, audit, sync/command diagnostics, metrics — all functioning with zero external connectivity |
 
 ### 0.1 The single most important architectural decision
@@ -106,7 +114,7 @@ change must re-check the row(s) it touches.
 | R4 | **Offline-first** desktop, robust reconnect | Reliability | Durable local command queue; delta-token resumable sync; explicit settlement states | Desktop keeps working and reconciles correctly through disconnect/crash/reconnect (§19 Scenario H/D) |
 | R5 | Multi-user per clinic, correct convergence | Reliability + Security | Domain-specific conflict policy; server-authoritative settlement; append-only ledger | Two offline devices converge to one correct financial truth, never a silent overwrite |
 | R6 | Multi-tenancy, subscription/plan management | Security + Cost Optimization | Shared-DB tenancy with layered isolation; independent Subscription/Licensing contexts | Cross-tenant access is architecturally impossible even if one layer is disabled |
-| R7 | **Self-hosted, zero external-Internet dependency at runtime** | Reliability + Security | No mandatory external system in any runtime path; local PKI; local observability | Isolation test: disconnect the Internet cable, all committed capabilities still function |
+| R7 | **Vendor-self-hosted server (not cloud-PaaS-dependent), zero external-Internet dependency at runtime** | Reliability + Security | No mandatory external system in any runtime path; local PKI; local observability | Isolation test: disconnect the Internet cable, all committed capabilities still function |
 | R8 | Current, standard, MS-aligned architecture | Operational Excellence | Named MS patterns applied deliberately, not improvised | Every non-trivial mechanism cites a specific, applicable pattern (§23) |
 
 ---
@@ -151,14 +159,15 @@ explicit rule below covers it yet.
 ## 3. C4 Model — System Context (Level 1)
 
 ```
-Actors ──▶ ANIMORA (self-hosted, single clinic-server node)
-  • Clinic Staff — Desktop
+Actors ──▶ ANIMORA (vendor-operated, single central multi-tenant server node)
+  • Clinic Staff — Desktop         (tenant-scoped; each clinic = one tenant)
   • Clinic Staff — Web
   • Clinic Owner / Manager — Desktop or Web, elevated authorization
-  • Platform Operator — Animora vendor; plan/subscription oversight
+  • Platform Operator — Animora vendor; plan/subscription oversight across tenants
 
-ANIMORA ──(async, out-of-band; NOT a runtime dependency)──▶
-  Future Public Marketing / Subscription Website (separate system — §17)
+Public Marketing / Subscription Website (separate vendor-side system — §13/§17)
+  ──▶ customer self-registers + buys a subscription + downloads the app
+  ──(async, out-of-band onboarding contract; NOT a runtime dependency)──▶ ANIMORA
 ```
 
 - **Clinic Staff (Desktop / Web)** — the primary users: reception, cashier,
@@ -169,12 +178,18 @@ ANIMORA ──(async, out-of-band; NOT a runtime dependency)──▶
   subscriptions/plans across tenants. Architecturally this is an
   **operator-facing surface of the Subscription bounded context**, not a
   separate backend (§13).
-- **Future Public Website** — sells subscriptions and hosts the installer
-  download. It is an **independent system** with its own architecture,
-  connected to Animora only through a narrow, versioned, asynchronous
-  **licensing/subscription contract boundary** (§13, §17) — never a shared
-  database, never a synchronous runtime dependency (this is what keeps R7
-  true even after the website exists).
+- **Public Website (the commercial front door)** — where a prospective
+  customer **self-registers, picks a plan, pays, and downloads the installer**.
+  This is the **first step of the product's own customer journey** (register &
+  buy → download → log in & use), not an optional extra. It is an
+  **independent vendor-side system** with its own architecture, connected to
+  Animora only through a narrow, versioned, asynchronous **onboarding /
+  subscription contract boundary** (§13.4, §17) — it hands a *provisioning
+  intent* (new tenant + chosen plan + paid period) to the Subscription context
+  out-of-band, and never shares a database or holds a synchronous runtime
+  dependency on the clinic-serving path (this is what keeps R7 true even with
+  the website live). The desktop/web clients a customer later runs depend only
+  on the Animora server, never on the website.
 - **No other external system participates in any runtime path.** This is
   drawn explicitly as an *absence* because R7 is a architectural constraint,
   not an incidental fact.
@@ -1012,12 +1027,15 @@ silent resource exhaustion.
 ### 13.1 Context relationship
 
 ```
-Future Public Website (separate system, §17)
-        │  (async, versioned, non-runtime-critical contract:
-        │   plan purchase → issues a signed license artifact)
+Public Website (separate vendor-side system, §3, §17)
+        │  (async, versioned, non-runtime-critical onboarding contract, §13.4:
+        │   customer register + plan purchase → provisioning intent)
         ▼
 Subscription context  ── owns plans/seats/billing periods/grace states
-        │  publishes PlanChanged, SeatLimitReached
+        │  (self-service onboarding intake + operator oversight share one
+        │   create-tenant+subscription operation — §13.3/§13.4)
+        │  publishes PlanChanged, SeatLimitReached; on provisioning,
+        │  triggers a signed license artifact
         ▼
 Licensing context      ── verifies the signed license OFFLINE, binds it to
                             THIS installation, enforces expiry/rotation
@@ -1030,9 +1048,10 @@ Core application       ── reads entitlement as READ-ONLY state; never
 
 **[INVARIANT] Subscription (the commercial billing model) and Licensing (the
 offline, signed, deployment entitlement) are never the same mechanism.** The
-runtime depends only on Licensing; Subscription may be entirely
-manual/offline-managed without changing how the running deployment checks its
-own entitlement.
+runtime depends only on Licensing; Subscription may be fed by self-service
+website onboarding (§13.4, the primary commercial path) **or** by a manual
+operator action (§13.3) — either way, how the running deployment checks its
+own entitlement does not change.
 
 ### 13.2 Offline license verification flow
 
@@ -1071,6 +1090,54 @@ bounded context, with an operator-scoped role instead of a tenant-scoped
 one. It is not a separate backend, and it never reaches into other bounded
 contexts directly (it sees Tenant/Clinic identity only insofar as
 Subscription needs to reference which tenant a plan belongs to).
+
+### 13.4 Self-service onboarding contract (register-and-buy → provisioning)
+
+The product's customer journey begins on the public website (§3, §17):
+**register → choose a plan → pay → download the app**. That website is an
+independent vendor-side system; payment collection, tax and invoicing happen
+there, not inside Animora (the clinic-serving system holds no payment gateway
+— `STACK.md` §17). What the website hands to Animora is an **onboarding
+intent**, never a database write:
+
+```
+Public Website  ──(async, out-of-band, versioned onboarding contract)──▶
+  Subscription context (ONBOARDING INTAKE):
+    { requested tenant/clinic identity, plan code, paid billing period,
+      external payment reference, idempotency key }
+        │
+        ▼
+  Subscription context provisions a tenant + a Trial/Active subscription
+  (the SAME operation the Platform Operator can perform by hand — §13.3),
+  idempotently keyed so a retried webhook never double-provisions
+        │
+        ▼
+  Licensing context issues the signed, installation-bindable license (§13.2)
+        │
+        ▼
+  Customer downloads + installs the desktop app, logs in with the credentials
+  established during onboarding, and the app binds to this installation
+```
+
+**[INVARIANT — onboarding is not a runtime dependency]** Provisioning a new
+tenant happens **before** that tenant's clinic ever runs the app; the running
+clinic-serving path never calls the website, and the website never calls a
+clinic-serving endpoint. The onboarding intake is therefore an asynchronous,
+idempotent, versioned contract on the Subscription context — architecturally
+the same create-tenant + create-subscription operation the operator surface
+exposes (§13.3), reached by a second authorized caller (the website's service
+identity) instead of a human operator. This keeps R6 (multi-tenant,
+subscription-managed) and R7 (zero-Internet at clinic runtime) both true: a
+customer *buys* online, but a provisioned clinic *runs* without the website
+existing at all.
+
+**[DECISION] Self-service and operator-driven provisioning share one code
+path.** There is exactly one "create tenant + subscription" operation in the
+Subscription context; the website's automated onboarding and the operator's
+manual action are two authenticated callers of it, not two implementations.
+This is why the operator API (§13.3) is specified first (`D10`) and the
+website's automated intake is a thin, idempotent authorized adapter over the
+same operation — no second provisioning engine is ever built.
 
 ---
 
@@ -1175,7 +1242,7 @@ only work the server must do unconditionally.
 
 ### 16.2 Scale-out architecture path (deferred, gated)
 
-**[DEFERRED] Single self-hosted node, single process, no backplane, no
+**[DEFERRED] A single vendor-operated node, single process, no backplane, no
 message broker, no distributed cache is the launch architecture.** Each
 scale-out step below is a **documented deployment-time escalation**, gated by
 a measured need — never introduced speculatively (§2 principle 7):
@@ -1214,27 +1281,42 @@ synthetic workload, before any capacity number is published.
 ### 17.1 Deployment topology
 
 ```
-Clinic LAN (no mandatory external connectivity):
-  Desktop clients ──┐
-  Web-browsing       ├──▶ Single server node (application + database +
-  workstations ──────┘      file store + local CA)
+Vendor-operated server environment (no mandatory external connectivity):
+  Clinic A desktop clients ──┐
+  Clinic B desktop clients ──┤
+  Web-browsing workstations  ├──▶ Single central server node, MULTI-TENANT
+  (all tenants) ─────────────┘      (application + database + file store +
+                                     local CA) — one deployment serves every
+                                     subscribing clinic, isolated by tenant (§9)
 ```
+
+The vendor runs **one** server node that serves **all** subscribing clinics as
+tenants of a shared database (§9.1); clinics reach it over the network and
+**do not run any server component themselves**. "Zero external-Internet
+dependency" (R7) is a property of that vendor server environment: it must run
+fully even with the Internet cable pulled on the vendor side (no cloud PaaS,
+no external IdP, no external telemetry), using local PKI and local
+observability only.
 
 At launch, application process, database and file store may co-reside on one
 physical/virtual server — this is a deployment-time packaging decision, not
 an architectural coupling: the container boundaries in §4 remain distinct
 enough that any of them can move to a separate machine later without a
-redesign.
+redesign. Scaling beyond one node (backplane, read replica, per-tenant
+deployment stamp) is the gated escape hatch in §9.1/§16, not a launch target.
 
 ### 17.2 Environment strategy
 
 ```
 Development   — full-feature, non-production, disposable data
-Staging       — mirrors the production topology exactly (same single-node
-                 shape), used to rehearse upgrade/rollback and isolation
-                 tests before they touch a real clinic
-Production    — one clinic's self-hosted node; no shared multi-tenant
-                 infrastructure crosses clinic-server boundaries at launch
+Staging       — mirrors the production topology exactly (same single-node,
+                 multi-tenant shape), used to rehearse upgrade/rollback and
+                 tenant-isolation tests before they touch real tenants
+Production    — the vendor's single central multi-tenant node serving all
+                 subscribing clinics; tenant isolation (§9) is the boundary
+                 between clinics, not separate per-clinic servers. A dedicated
+                 per-tenant database/stamp is the §9.1 escape hatch, not the
+                 launch shape.
 ```
 
 ### 17.3 Recovery architecture (server vs. client are different problems)

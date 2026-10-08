@@ -1,6 +1,6 @@
 # Phase D11 — Licensing & anti-piracy
 
-**Band:** M · **Track:** D · **Depends on:** D10 · **Satisfies:** R-B06, R-B29, R-B30
+**Band:** M · **Track:** D · **Depends on:** D10 · **Satisfies:** R-B06, R-B29, R-B30, R-B36
 **Runnable after this phase:** desktop offline yes · server required no
 
 ## Read before starting

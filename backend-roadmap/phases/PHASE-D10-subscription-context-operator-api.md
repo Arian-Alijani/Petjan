@@ -1,6 +1,6 @@
 # Phase D10 — Subscription context & operator API
 
-**Band:** M · **Track:** D · **Depends on:** D04 · **Satisfies:** R-B05, R-B30
+**Band:** M · **Track:** D · **Depends on:** D04 · **Satisfies:** R-B05, R-B30, R-B36
 **Runnable after this phase:** desktop offline yes · server required no
 
 ## Read before starting
@@ -20,8 +20,13 @@
 The commercial model becomes a real bounded context: plans, subscriptions, seats, billing periods and
 grace states with an append-only event log, plus an operator-scoped API that can create / extend /
 reduce / suspend / cancel / renew a subscription, manage seats, and run the operator maintenance
-actions earlier phases deferred here. Nothing in the runtime entitlement path depends on it — that
-separation is the point of this phase (`ARCHITECTURE.md` §13.1, R-B30).
+actions earlier phases deferred here. This is also where the product's **self-service onboarding
+seam** lands: the public website's "register + buy a subscription" step (`ARCHITECTURE.md` §13.4, the
+first leg of the register → download → log-in journey) is received as an **async, idempotent,
+authorized provisioning intent** that reuses the **same** create-tenant + subscription operation the
+operator surface exposes — one code path, two authorized callers (a human operator vs. the website's
+service identity), never two provisioning engines. Nothing in the runtime entitlement path depends on
+this context — that separation is the point of this phase (`ARCHITECTURE.md` §13.1, R-B30).
 
 ## Design decisions (pre-made — implement, do not re-derive)
 - **Subscription aggregates live in `src/Animora.Domain/Subscription/`** (Domain has zero
@@ -109,6 +114,28 @@ separation is the point of this phase (`ARCHITECTURE.md` §13.1, R-B30).
   - an operator has **no** `StaffMembership`, therefore `HttpTenantContext` stays null for it —
     exactly what `RequireOperator` (D04) demands.
   An operator can create further operators through `POST /api/operator/operators`.
+- **Self-service onboarding intake (the website's provisioning seam, §13.4).** The public website is
+  a **separate vendor-side system** (no payment code enters this solution — `STACK.md` §17); after it
+  collects registration + payment it POSTs a single **provisioning intent** to this server. It is
+  **not** an operator route and **not** a tenant business command:
+  - Route `POST /api/onboarding/provision` in a new
+    `src/Animora.Server/Subscription/OnboardingEndpoints.cs`, authorized by a new
+    `AnimoraPolicies.RequireProvisioner` (D04-style policy) bound to an **`Onboarding` service
+    identity** — seeded exactly like the `Operator` bootstrap, from `ANIMORA_ONBOARDING_BOOTSTRAP`
+    (`clientId:secret`, read once, never logged); it has no `StaffMembership`, so `HttpTenantContext`
+    stays null, same as an operator.
+  - Body `OnboardTenantRequestV1(string ClinicDisplayName, string OwnerEmail, string OwnerDisplayName,
+    string PlanCode, int PaidPeriods, string ExternalPaymentReference)`; header `X-Animora-Operation`
+    carries the website's idempotency key (same contract as every operator op). Result
+    `OnboardingResultV1(string TenantId, string SubscriptionId, SubscriptionStatus Status)`.
+  - **It calls the exact same `ISubscriptionOperations.CreateAsync` the operator `POST
+    /api/operator/tenants` calls** — one provisioning operation, reached by a second authorized
+    caller. A replayed webhook (same `X-Animora-Operation`) returns the stored result and
+    provisions nothing new (the D05/D10 idempotency key makes a retried payment-provider webhook
+    safe). The owner user is created disabled-pending-first-login via D03's existing user-creation
+    path; the website never learns a password.
+  - **This path never charges, never stores card data, and is never on a clinic's runtime path** —
+    a provisioned tenant runs fully offline-capable with the website gone (R7, R-B36).
 - **Endpoints** (`src/Animora.Server/Endpoints/OperatorEndpoints.cs`, prefix `/api/operator`, every
   route `.RequireAuthorization(AnimoraPolicies.RequireOperator)`, all failures `WireApiError`):
   | Route | Body / result |
@@ -154,7 +181,7 @@ separation is the point of this phase (`ARCHITECTURE.md` §13.1, R-B30).
   reactivates — reactivation is always an operator action.
 - **New error codes:** `SUBSCRIPTION_NOT_FOUND`, `SUBSCRIPTION_INVALID_TRANSITION`,
   `SEAT_LIMIT_REACHED`, `SEAT_REDUCTION_BLOCKED`, `PLAN_NOT_FOUND`, `PLAN_RETIRED`,
-  `OPERATOR_BOOTSTRAP_ALREADY_DONE`, `PERIOD_REOPEN_DENIED`
+  `OPERATOR_BOOTSTRAP_ALREADY_DONE`, `PERIOD_REOPEN_DENIED`, `PROVISIONER_SCOPE_REQUIRED`
   (`OPERATOR_SCOPE_REQUIRED` exists from D04 — reuse).
 
 ## Files to create / modify
@@ -180,13 +207,19 @@ separation is the point of this phase (`ARCHITECTURE.md` §13.1, R-B30).
 | `src/Animora.Server/Subscription/OperatorAccountService.cs` | create | operator role + bootstrap |
 | `src/Animora.Server/Workers/SubscriptionLifecycleWorker.cs` | create | past-due / grace / suspend sweep |
 | `src/Animora.Server/Endpoints/OperatorEndpoints.cs` | create | the operator API surface |
+| `src/Animora.Server/Subscription/OnboardingEndpoints.cs` | create | `POST /api/onboarding/provision` over the shared `CreateAsync` |
+| `src/Animora.Server/Subscription/OnboardingAccountService.cs` | create | `Onboarding` service identity + one-time bootstrap |
+| `src/Animora.Contracts.Wire/Operator/OnboardTenantRequestV1.cs` | create | website provisioning-intent request |
+| `src/Animora.Contracts.Wire/Operator/OnboardingResultV1.cs` | create | provisioning result (tenant + subscription) |
+| `src/Animora.Server/Security/AnimoraPolicies.cs` | modify | add `RequireProvisioner` policy |
 | `src/Animora.Server/Endpoints/IdentityEndpoints.cs` | modify | one `SeatGuard` call in device registration |
 | `src/Animora.Server/Identity/IdentityRoleSeeder.cs` | modify | seed the `Operator` role |
-| `src/Animora.Server/Program.cs` | modify | register operations, seat guard, worker, endpoints |
+| `src/Animora.Server/Program.cs` | modify | register operations, seat guard, worker, operator + onboarding endpoints, provisioner policy |
 | `tests/Animora.Domain.Tests/SubscriptionTransitionTests.cs` | create | allow-table + policy numbers |
 | `tests/Animora.Server.Tests/SubscriptionOperationsTests.cs` | create | each operation, replay idempotency, event log |
 | `tests/Animora.Server.Tests/SeatEnforcementTests.cs` | create | limit reached, reduction blocked |
 | `tests/Animora.Server.Tests/OperatorScopeTests.cs` | create | tenant token denied, operator-only filter bypass |
+| `tests/Animora.Server.Tests/OnboardingIntakeTests.cs` | create | provisioner-only scope; shared `CreateAsync` path; replayed `X-Animora-Operation` provisions once; never touches clinical/financial tables or charges |
 
 ## Implementation steps
 1. Add the seven Domain files; `SubscriptionTransitions` and `SubscriptionPolicy` first, so the
@@ -200,11 +233,18 @@ separation is the point of this phase (`ARCHITECTURE.md` §13.1, R-B30).
 5. Implement `SubscriptionQueries` with the explicit tenant-filter bypass helper (one method, so the
    bypass has exactly one call path).
 6. Implement `SeatGuard` and add the single call in `IdentityEndpoints`' device registration.
-7. Implement `OperatorAccountService` (role seed + one-time bootstrap + create-operator).
+7. Implement `OperatorAccountService` (role seed + one-time bootstrap + create-operator) and
+   `OnboardingAccountService` (the `Onboarding` service identity + its one-time bootstrap).
 8. Write `SubscriptionLifecycleWorker` against `WorkerBulkhead`.
-9. Map `OperatorEndpoints`; register everything in `Program.cs`.
-10. Write the four test classes; `OperatorScopeTests` must prove a tenant-scoped token gets
-    `OPERATOR_SCOPE_REQUIRED` on every operator route.
+9. Add `RequireProvisioner` to `AnimoraPolicies`; map `OperatorEndpoints` **and**
+   `OnboardingEndpoints` (the latter calls the same `ISubscriptionOperations.CreateAsync` as
+   `POST /api/operator/tenants` — no second provisioning implementation); register everything in
+   `Program.cs`.
+10. Write the five test classes; `OperatorScopeTests` must prove a tenant-scoped token gets
+    `OPERATOR_SCOPE_REQUIRED` on every operator route; `OnboardingIntakeTests` must prove a
+    tenant/operator token is rejected on `/api/onboarding/provision` (provisioner-scope only), that a
+    replayed `X-Animora-Operation` returns the stored `OnboardingResultV1` and creates exactly one
+    tenant + subscription, and that the path touches no clinical/financial table.
 11. `build.sh full` = 0/0; `test.sh` = `TESTS OK`; `run.sh` = `SMOKE RUN OK` (desktop untouched).
 
 ## Contracts / schema added
@@ -214,14 +254,17 @@ separation is the point of this phase (`ARCHITECTURE.md` §13.1, R-B30).
 - Wire: `SubscriptionView`, `TenantSummaryView`, `SeatView`, `BillingPeriodView`,
   `SubscriptionEventView`, `OperatorAlertView`, `PlanView`, `CreateTenantRequestV1`,
   `ExtendSubscriptionRequestV1`, `RenewSubscriptionRequestV1`, `ChangeSeatsRequestV1`,
-  `SubscriptionActionRequestV1`. `WireContract.Version` stays `1`.
+  `SubscriptionActionRequestV1`, `OnboardTenantRequestV1`, `OnboardingResultV1`.
+  `WireContract.Version` stays `1`.
 - Persistence.SqlServer: 5 configurations, migration `108_Subscription`, `ServerModel` +
   `ServerAppendOnlyGuard` extended.
 - Server: `SubscriptionOperationsService`, `SubscriptionQueries`, `SeatGuard`,
-  `OperatorAccountService`, `SubscriptionLifecycleWorker`, `OperatorEndpoints`; the `Operator` role.
+  `OperatorAccountService`, `SubscriptionLifecycleWorker`, `OperatorEndpoints`,
+  `OnboardingEndpoints`, `OnboardingAccountService`, `AnimoraPolicies.RequireProvisioner`;
+  the `Operator` role + the `Onboarding` service identity.
 - Outbox message types: `subscription.plan.changed`, `subscription.seat.limit.reached`.
-- `ErrorCodes` += 8. No `Animora.Contracts` change, no `CommandTypes` entry, no DI change in
-  `App.axaml.cs`.
+- `ErrorCodes` += 9 (the 8 below + `PROVISIONER_SCOPE_REQUIRED`). No `Animora.Contracts` change, no
+  `CommandTypes` entry, no DI change in `App.axaml.cs`.
 
 ## Rules that apply here
 - **R-B30 / §13.1** — Subscription is commercial only; no runtime code path reads it to decide what
@@ -244,9 +287,15 @@ separation is the point of this phase (`ARCHITECTURE.md` §13.1, R-B30).
   publishes `subscription.plan.changed`).
 - Any operator **UI** → E01 (which consumes exactly these endpoints).
 - Usage/insight metrics and per-tenant analytics → E02.
-- Payment collection, invoicing the clinic, tax — no billing gateway exists in this product
-  (`STACK.md` §17 non-goals); `BillingPeriod.AmountMinor` is recorded, never charged.
-- Rate limiting of the operator API → D13.
+- **The public website itself** (registration pages, plan picker, payment UX) — it is a separate
+  vendor-side system outside this solution (`ARCHITECTURE.md` §3/§13.4, `STACK.md` §17). This phase
+  delivers only the server-side **intake endpoint** it posts to.
+- Payment collection, invoicing the clinic, tax — **no billing gateway or payment SDK exists in this
+  product**; all payment happens on the website before it posts the provisioning intent
+  (`STACK.md` §17 non-goals). `BillingPeriod.AmountMinor` and `OnboardTenantRequestV1.ExternalPaymentReference`
+  are recorded for reference, never charged.
+- Rate limiting of the operator + onboarding API → D13 (the onboarding route joins the `operator`
+  limiter policy there).
 
 ## Acceptance criteria
 - Build: `scripts/sandbox/build.sh full` = 0 warnings / 0 errors.
@@ -263,6 +312,12 @@ separation is the point of this phase (`ARCHITECTURE.md` §13.1, R-B30).
 - `OperatorScopeTests` green: every `/api/operator/*` route returns `OPERATOR_SCOPE_REQUIRED` for a
   tenant-scoped token and for an anonymous caller; the tenant-filter bypass helper is the only place
   `Tenant` is disabled (asserted by source-level or reflection check over the queries type).
+- `OnboardingIntakeTests` green: `POST /api/onboarding/provision` returns `PROVISIONER_SCOPE_REQUIRED`
+  for a tenant-scoped **and** an operator-scoped token (provisioner identity only); a valid intent
+  provisions exactly one tenant + one `Trial`/`Active` subscription through the **same**
+  `ISubscriptionOperations.CreateAsync` the operator route uses; a replayed `X-Animora-Operation`
+  returns the stored `OnboardingResultV1` and provisions nothing new; the path writes no row in any
+  clinical or financial table and invokes no payment code (none exists).
 - `SubscriptionLifecycleWorker` advances a period-expired subscription to `PastDue`, then `Grace`,
   then `Suspended` at the policy boundaries, writing one event each and never skipping a state.
 - Desktop unaffected: `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
@@ -274,6 +329,9 @@ migration `108_Subscription`, `ISubscriptionOperations` + the ten operations and
 `X-Animora-Operation` idempotency key, `SubscriptionEventTypes` (**append-only, D11/E01/E02 read
 it**), the two outbox message types (**D11 consumes `subscription.plan.changed`**), `ISeatGuard` +
 the single `IdentityEndpoints` call site, `OperatorAccountService` + the `ANIMORA_OPERATOR_BOOTSTRAP`
-one-time path, the `/api/operator/*` route table (**E01 is its only UI client**), the tenant-filter
-bypass helper as the sole cross-tenant read path, `SubscriptionLifecycleWorker`, the 8 new error
-codes, deviations.
+one-time path, the `/api/operator/*` route table (**E01 is its only UI client**),
+`OnboardingEndpoints` (`POST /api/onboarding/provision`) + `OnboardingAccountService` +
+`ANIMORA_ONBOARDING_BOOTSTRAP` + `RequireProvisioner` (**the self-service register-and-buy seam,
+`ARCHITECTURE.md` §13.4; reuses `CreateAsync`; the public website is its only client**), the
+tenant-filter bypass helper as the sole cross-tenant read path, `SubscriptionLifecycleWorker`, the 9
+new error codes, deviations.
