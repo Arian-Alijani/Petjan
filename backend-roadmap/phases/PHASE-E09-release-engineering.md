@@ -102,15 +102,18 @@ phase produces runbooks, scripts and packaging config only — it adds nothing t
   1. **Gate (scripts only):** `release-check.sh` fails unless, **for every RID shipped**, E08's
      `Gate_K2_encrypted_lifecycle` is `PASS` (a `SKIPPED` K2 is a release blocker, not an accepted
      risk) **and** the native inventory shows the frozen cipher native for that RID.
-  2. **Enablement (the single declared exception to "no `src/` change" below):** the *release*
-     composition profile sets `EncryptionEnabled = true` and `K2Approved = true` — one narrow
-     edit at the composition root (`App.axaml.cs` / the options `configure` delegate already used by
-     `LocalTestProfile.ConfigureStore`), taken **only after** part 1 is green for that RID. Dev/test
-     profiles keep the current defaults. No new package pin (the cipher native is already frozen by
-     E08/K2), no migration, no wire change. An acceptance test asserts the *release* profile resolves
-     `EncryptionEnabled && K2Approved` and that `LocalStoreOptions.Validate()` accepts it.
-  *(Decision recorded 2026-10-07: E09 rather than E07/E08, because E07 is online identity and E08 is
-  proof-only and forbidden from touching `src/`; release is the only phase that knows which RIDs ship.)*
+  2. **Enablement — now performed in E07 (audit 2026-10-08 · SYNC-C-02, PH-01, supersedes the
+     2026-10-07 decision below).** The actual `EncryptionEnabled = true` edit moves **forward to E07**
+     (the first phase with a real server/credential path), so E03's `repl_*` and E05's
+     `ConflictQueueEntries` PII surface is never shipped in plaintext through E03–E08. **E09 remains
+     the release blocker/verifier**, not the enabler: `release-check.sh` fails if any shipped build
+     resolves `EncryptionEnabled=false`, and the acceptance test still asserts the *release* profile
+     resolves `EncryptionEnabled && K2Approved` and that `LocalStoreOptions.Validate()` accepts it.
+     `K2Approved` is still set here once part 1 is green. No new package pin, no migration, no wire change.
+  *(Superseded decision, kept for history — recorded 2026-10-07: "E09 rather than E07/E08, because E07
+  is online identity and E08 is proof-only." The 2026-10-08 audit overrides this: the new replica/
+  conflict PII surface makes plaintext-until-E09 unacceptable, so enablement is pulled to E07 while
+  E09 keeps the release-gate veto.)*
 - **No production code, no `src/` change (other than the single release-profile encryption edit above), no migration, no wire bump, no DI change, no new package
   pin** (packaging tools are invoked by scripts, not referenced by a project). `WireContract.Version`
   is **not** bumped here — E09 declares the supported window, it does not change the wire shape.

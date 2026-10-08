@@ -286,6 +286,10 @@ intent** (that is E06).
   write attempt on a non-writable entity is refused locally before any HTTP call.
 - Runnability: with no `ServerBaseUrl` configured, `scripts/sandbox/run.sh` = `SMOKE RUN OK` and
   every screen still works against the local DB.
+- **Encrypted replica tables (audit 2026-10-08 · SYNC-C-02):** the `repl_*` tables are created
+  **inside the encrypted container** when the release/encryption profile is active (enablement itself
+  lands in E07). A test opens a `repl_*` table through the store connection and asserts
+  `PRAGMA cipher_version` is non-empty — the replicated PII must never be a plaintext surface.
 
 ## PROGRESS.md update
 Mark E03 done; advance "Next phase" to `E04`; append a "Repo state" entry listing: the

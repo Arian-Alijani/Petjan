@@ -149,6 +149,17 @@ capabilities expire. This is the phase where the three security planes become re
   `CAPABILITY_SIGNATURE_INVALID`, `LICENSE_REQUEST_FAILED`, `SECURITY_STAMP_CHANGED`
   (`AUTH_REQUIRED`, `DEVICE_REVOKED`, `ENTITLEMENT_REQUIRED`, `CREDENTIALS_INVALID` exist — reuse).
 
+- **Encryption-at-rest enablement moves here (audit 2026-10-08 · SYNC-C-02, PH-01, CODE-01).**
+  E07 is the first phase with a real server/credential path, so it **owns flipping
+  `LocalStoreOptions.EncryptionEnabled = true`** for release-composition builds, **gated on the E08
+  K2 PoC** (`Gate_K2_encrypted_lifecycle`). Rationale: E03's `repl_*` replica tables and E05's
+  `ConflictQueueEntries` table are a **new plaintext PII surface** (owner names/phones, preserved
+  clinical history, server-synced demographics) that did not exist when Phase-Problem §7.2 assigned
+  enablement to E09. Leaving enablement at E09 ships E03–E08 with replicated PII in plaintext, which
+  violates `ARCHITECTURE.md` R3 / `STACK.md:57` ("encrypted at rest"). E09 **remains the release
+  blocker** (verifies the gate is green and no shipped build has `EncryptionEnabled=false`); E07 only
+  performs the enablement edit once K2 passes. No new migration, no wire change.
+
 ## Files to create / modify
 | Path | Action | Contents (one line) |
 |---|---|---|
@@ -273,6 +284,11 @@ capabilities expire. This is the phase where the three security planes become re
   neither extends the licence nor an expired capability.
 - Runnability: with no `ServerBaseUrl`, `run.sh` = `SMOKE RUN OK`, offline login works, and the
   entitlement gate uses the sealed local cache.
+- **Encryption enablement (audit 2026-10-08 · SYNC-C-02):** once the E08 `Gate_K2_encrypted_lifecycle`
+  PoC passes, the release-composition profile resolves `EncryptionEnabled = true`; an acceptance test
+  asserts the release profile opens the store with a non-empty `PRAGMA cipher_version`, and that the
+  `repl_*` (E03) and `ConflictQueueEntries` (E05) tables live inside the same encrypted container
+  (see E03/E05 `PRAGMA cipher_version` assertions). Debug/dev profiles may stay unencrypted.
 
 ## PROGRESS.md update
 Mark E07 done; advance "Next phase" to `E08`; append a "Repo state" entry listing: the two remote

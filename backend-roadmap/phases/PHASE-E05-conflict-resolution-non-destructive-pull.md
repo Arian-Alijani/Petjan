@@ -254,6 +254,10 @@ client has fallen outside the retention window.
   `CorrelationId`; the topbar shows the open-conflict count.
 - `ResolverRegistrationTests` green: exactly the preference entity types have a generic resolver.
 - Runnability: `scripts/sandbox/run.sh` = `SMOKE RUN OK`; every screen still works offline.
+- **Encrypted conflict queue (audit 2026-10-08 · SYNC-C-02):** `ConflictQueueEntries` (which stores
+  `LocalPayloadJson`/`ServerPayloadJson` snapshots of PII/clinical rows) lives inside the encrypted
+  container when the encryption profile is active (enabled in E07). A test opens the table through the
+  store connection and asserts `PRAGMA cipher_version` is non-empty.
 
 ## PROGRESS.md update
 Mark E05 done; advance "Next phase" to `E06`; append a "Repo state" entry listing:
