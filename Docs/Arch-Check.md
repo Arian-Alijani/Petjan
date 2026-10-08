@@ -1,2511 +1,2577 @@
-نتیجه کلی: اسکلت معماری خوب است و تصمیم Modular Monolith + Offline-first + Server-authoritative + Outbox/Idempotency تصمیم‌های قابل دفاعی هستند؛ اما در وضعیت فعلی من این سند را برای شروع implementation مالی/clinical production-ready نمی‌دانم. چند تناقض و خلأ در آن وجود دارد که اگر همین حالا به code تبدیل شوند، بعداً اصلاح‌شان بسیار پرهزینه خواهد بود.
+Animora — Deep Architecture Review
+تاریخ بازبینی: 2026-10-08
+1. نتیجه نهایی
 
-1. مهم‌ترین نتیجه: 15 ایراد Blocking
+ارزیابی من از سند فعلی:
 
-این‌ها مواردی هستند که قبل از implementation باید اصلاح شوند.
+محور	وضعیت فعلی
+انتخاب Modular Monolith	9.5/10
+Clean/Onion + DDD-lite	9/10
+Multi-tenancy	7.5/10
+Offline-first	8/10
+Sync correctness	6.5/10
+Financial correctness	8/10
+Authentication / Authorization	8/10
+Licensing	7.5/10
+Reliability / Recovery	8/10
+Performance strategy	8/10
+Web architecture	7.5/10
+Operations / Deployment	7/10
+SMS / External integrations	5/10
+Product-domain completeness	7/10
 
-ID	شدت	موضوع
-A-01	بحرانی	Offline authentication/revocation از نظر منطقی کامل نیست
-A-02	بحرانی	License anti-cloning + monotonic clock راه‌حل کافی نیست
-A-03	بحرانی	Zero-Internet با onboarding/subscription مکانیزم انتقال ندارد
-A-04	بحرانی	Single-node عملاً Single Point of Failure کل SaaS است و RTO/RPO تعریف نشده
-A-05	بحرانی	قرارداد delta-sync در چند قسمت با خودش تناقض دارد
-A-06	بحرانی	retention برای tombstone و offline window تعریف نشده
-A-07	بحرانی	initial sync فاقد snapshot/barrier سازگار است
-A-08	بحرانی	ادعای "inventory movement ⇐ همیشه convergence صحیح" نادرست است
-A-09	بحرانی	optimistic concurrency برای appointment/resource allocation کافی نیست
-A-10	بحرانی	Accounting model هنوز یک General Ledger واقعی را تعریف نکرده
-A-11	بحرانی	Cross-context financial consistency تعریف نشده
-A-12	بحرانی	Data-loss سناریوی client disk loss عملاً queue را recover نمی‌کند
-A-13	بحرانی	Server/CA/license private keys با مدل recovery فعلی تناقض دارند
-A-14	بحرانی	Browser cookie authentication بدون CSRF contract ناقص است
-A-15	بحرانی	Tenant isolation بیش از حد قوی ادعا شده، در حالی که query filters قابل bypass هستند
+امتیاز کلی معماری فعلی: حدود 8/10.
 
-بعد از این‌ها حدود 20 ایراد High/Medium دیگر هم وجود دارد که پایین‌تر آورده‌ام.
+نکته مهم این است که این 8/10 به معنی «معماری بد» نیست؛ برعکس، سند فعلی از نظر تفکیک مفاهیم مثل state replication ≠ business intent، authentication ≠ authorization ≠ entitlement و idempotency ≠ ordering بسیار خوب نوشته شده است.
 
-2. §0 — Architecture at a Glance
-تصمیم‌های خوب
+مشکل اینجاست که چند تصمیم بسیار مهم هنوز از نظر semantics کامل نشده‌اند و بعضی تصمیم‌ها حتی با یکدیگر تناقض دارند. مهم‌ترینشان Sync، رفتار چند دستگاه یک کلینیک هنگام قطع ارتباط، SMS، مرزهای Client/Server Domain، ترتیب commit در ChangeSequence و الگوی Web Scale-out است.
 
-سه تصمیم اصلی واقعاً قوی هستند:
+Microsoft خودش برای applicationهای non-trivial، معماری monolithic همراه با separation of concerns و Clean Architecture را کاملاً قابل قبول می‌داند و حتی در راهنمای .NET تأکید می‌کند که یک monolith در بسیاری از workloadها از مجموعه‌ای از سرویس‌های جدا ساده‌تر و قابل‌مدیریت‌تر است.
 
-Modular Monolith برای سروری که عمداً ضعیف است انتخاب مناسبی است. Microsoft هم Clean Architecture را به عنوان ساختاری معرفی می‌کند که business/application core را از infrastructure جدا می‌کند.
+بنابراین:
 
-تفکیک:
+من Modular Monolith را حفظ می‌کنم.
 
-state replication ≠ business intent
+Microservices در این مقیاس نه تنها ضروری نیست، بلکه احتمالاً اشتباه است.
 
-هم از نظر معماری درست است و هم با واقعیت Offline-first سازگارتر از یک generic CRUD sync engine است. خود Microsoft در معماری‌های offline-first هم local database + queued writes + incremental synchronization را به کار می‌گیرد.
+2. بزرگ‌ترین ایرادهای معماری فعلی
+P0 — باید قبل از تثبیت معماری اصلاح شود
+P0-1 — تعریف «Offline» هنوز کامل نیست
 
-و:
+در سند گفته شده هر Desktop یک replica محلی دارد و هنگام عدم دسترسی به server می‌تواند کار کند.
 
-server = global authority
+اما فرض کن یک کلینیک چهار کاربر دارد:
 
-برای accounting، inventory و scheduling تصمیم درستی است.
+Clinic A
+  PC-1   local replica
+  PC-2   local replica
+  PC-3   local replica
+  PC-4   local replica
+       X
+ Central Server unreachable
 
-ایراد اول: WAF را بیش از حد به خود architecture تبدیل کرده‌ای
-
-Azure Well-Architected Framework پنج pillar دارد و برای traceability بسیار خوب است، اما خودش architecture style یا deployment prescription نیست. Microsoft هم آن را framework برای quality/reliability/security/performance معرفی می‌کند.
-
-پس بهتر است:
-
-Architecture decisions
-    ↓
-validated against
-    ↓
-WAF quality attributes
-
-نه:
-
-WAF pillar
-    ↓
-architecture decision
-
-این فرق در آینده جلوی overengineering را می‌گیرد.
-
-3. §1 — Architecture Drivers
-
-اینجا یک مشکل مهم وجود دارد:
-
-R7 هنوز دقیقاً requirement قابل تست نیست
-
-نوشته‌ای:
-
-fully operational with zero external-Internet connectivity
-
-ولی باید مشخص کنی:
-
-Runtime-plane:     Internet forbidden
-Management-plane:  ?
-Provisioning-plane: ?
-Update-plane:      ?
-Backup-plane:      ?
-Support-plane:     ?
-
-در وضعیت فعلی این‌ها با هم مخلوط‌اند.
+در این حالت چهار سیستم دیگر یک source of truth مشترک ندارند.
 
 مثلاً:
 
-customer از سایت خرید می‌کند
-سایت باید provisioning intent بفرستد
-license باید renew شود
-subscription باید تغییر کند
-server ممکن است کاملاً disconnected باشد
+Stock = 1
 
-پس باید architecture صریحاً بین این‌ها فرق بگذارد:
+PC1 offline → sells 1
+PC2 offline → sells 1
 
-DATA PLANE
-clinic operation
-→ must work with Internet = OFF
+هر دو locally valid هستند.
 
-CONTROL / MANAGEMENT PLANE
-provisioning / renewal / update / support
-→ may require controlled connectivity
-   OR signed offline bundle
+بعد از reconnect:
 
-بدون چنین جداسازی، R7 با §13 سازگار نیست.
+1 - 1 - 1 = -1
 
-4. §3–§4 — C4 Context / Container
+این موضوع برای inventory با policy قابل‌حل است، اما برای مواردی مثل:
 
-ساختار کلی خوب است، ولی یک نکته مستندسازی مهم وجود دارد.
+نوبت
+صندوق
+capacity
+اتاق
+boarding
+موجودی دارو
+شماره فاکتور
+sequenceهای مالی
 
-C4 و arc42 متعلق به Microsoft نیستند
+موضوع بسیار جدی‌تر می‌شود.
 
-در §23 نوشته شده:
+Microsoft نیز offline-first را دقیقاً بر اساس همین مدل می‌سازد: هر device یک local database دارد و تغییرات بعداً sync می‌شوند؛ تغییرات امنیتی و privilege هم تا sync بعدی روی device ممکن است معتبر بمانند.
 
-C4 … arc42 … as documented on Microsoft Learn / Azure Architecture Center
+بنابراین باید یک تصمیم محصولی کاملاً صریح اضافه شود:
 
-این از نظر provenance درست نیست.
+مدل A — Offline Device
 
-C4 منبع رسمی خودش را دارد و توسط Simon Brown تعریف شده است.
+هر سیستم می‌تواند مستقل کار کند.
 
-arc42 هم روش مستندسازی مستقل خودش است و حتی ساختار 12 قسمتی مشخص دارد.
+در این مدل:
 
-بنابراین §23 باید سه دسته source داشته باشد:
+Conflict قابل قبول است.
+همه چیز provisional است.
+scheduling/stock/cash دارای policy تسویه هستند.
+دو سیستم یک کلینیک ممکن است موقتاً واقعیت متفاوتی ببینند.
 
-Primary methodology
-    C4 → c4model.com
-    arc42 → arc42.org
+این مدل ساده‌تر و ارزان‌تر است.
 
-Microsoft architecture guidance
-    .NET Clean Architecture
-    WAF
-    Azure Architecture Center
-    ASP.NET Core
-    SQL Server
-    Dynamics 365
+مدل B — Offline Clinic Edge
 
-Standards
-    RFCs
-    TLS/OAuth/etc.
+هر کلینیک یک Local Coordinator دارد:
 
-این اصلاح مهم است چون AI agent نباید بعداً provenance جعلی برای تصمیم‌ها بسازد.
+                Central Server
+                     |
+                 Internet
+                     |
+             Clinic Edge Node
+            /      |       \
+          PC1     PC2      PC3
 
-5. §5 — Clean / Onion Architecture
+در این مدل حتی اگر WAN/Internet قطع شود:
+
+PC1 ↔ Edge ↔ PC2
+
+و Edge برای آن clinic source of truth محلی است.
+
+این مدل می‌تواند:
+
+appointment allocation
+inventory
+cashier
+local file access
+intra-clinic consistency
+
+را بسیار بهتر تضمین کند.
+
+اما هزینه deployment و support را بالا می‌برد.
+
+توصیه من
+
+برای نسخه اول Clinic Edge نساز مگر اینکه requirement محصول واقعاً این باشد که چهار دستگاه یک clinic در هنگام قطع ارتباط با central server همچنان باید با یکدیگر strongly coordinated باشند.
+
+اما این را در معماری به شکل یک explicit product boundary ثبت کن:
+
+Offline-first does not imply intra-clinic strong consistency while the central authority is unreachable.
+
+این جمله باید یکی از مهم‌ترین Invariantهای سیستم شود.
+
+3. P0 — ایراد جدی در ChangeSequence
+
+این بخش از سند از نظر مفهومی عالی است:
+
+UpdatedAt نباید cursor باشد و cursor باید monotonic باشد.
+
+اما یک خطر مهم هنوز حل نشده است:
+
+صرفاً Database Sequence کافی نیست
+
+مثلاً:
+
+Transaction A
+  allocate sequence = 100
+  not committed yet
+
+Transaction B
+  allocate sequence = 101
+  commit
+
+Initial sync:
+  sees 101
+  cursor = 101
+
+Transaction A:
+  commit
+
+اکنون رکورد A دارای ChangeSequence=100 است ولی client قبلاً cursor را روی 101 گذاشته است.
+
+نتیجه:
+
+Change 100 can be permanently skipped
+
+بنابراین شرط معماری باید این باشد:
+
+ChangeSequence باید یک commit-safe monotonic watermark باشد، نه صرفاً یک auto-increment number.
+
+راه‌حل پیشنهادی
+
+برای هر Tenant یک change counter داشته باش:
+
+TenantChangeState
+    TenantId
+    CurrentVersion
+
+و write transaction در همان transaction:
+
+lock tenant change state
+increment version
+write business row
+write change-log row
+commit
+
+به این ترتیب تخصیص version به commit order متصل می‌شود.
+
+برای initial sync:
+
+BEGIN REPEATABLE READ
+
+N = current TenantChangeVersion
+
+read all required tables
+read changes <= N
+
+COMMIT
+
+client cursor = N
+
+و بعد:
+
+pull where ChangeSequence > N
+
+این طراحی از نظر correctness بسیار قابل‌دفاع‌تر است.
+
+4. P0 — دو Queue کاملاً مستقل، کمی بیش از حد مستقل شده‌اند
+
+ایده:
+
+Replication Queue
+Business Command Queue
+
+در اصل درست است.
+
+اما یک مشکل دارید.
+
+فرض کن:
+
+Op1 = Create Patient
+Op2 = Book Appointment(PatientId)
+
+اگر Op1 از pipeline replication رفته باشد و Op2 از business-command pipeline، اکنون dependency بین دو transport وجود دارد.
+
+در معماری فعلی dependency عملاً برای command → command تعریف شده ولی برای:
+
+Replication operation → Business command
+
+کامل تعریف نشده است.
+
+معماری بهتر
+
+در client یک:
+
+Local Operation Journal
+
+داشته باش.
+
+داخل آن operationها typed هستند:
+
+StateMutation
+BusinessCommand
+FileOperation
+
+ولی transport handler آنها متفاوت است.
+
+مثلاً:
+
+Local Operation Journal
+        |
+        +---- Entity Mutation Handler
+        |
+        +---- Business Command Handler
+        |
+        +---- File Transfer Handler
+
+هر operation:
+
+OperationId
+OperationType
+CreatedAt
+LocalSequence
+DependsOn[]
+CausationId
+AggregateId
+PayloadHash
+Status
+
+دارد.
+
+در این حالت queueها هنوز از نظر semantics جدا هستند، ولی lifecycle و causal graph یکپارچه است.
+
+این به نظر من از جمله مهم‌ترین اصلاحات architectural است.
+
+5. P0 — Generic State Replication نباید به CRUD Sync تبدیل شود
+
+این خطر در سند فعلی کمی پنهان است.
+
+نباید نتیجه این شود:
+
+Entity changed locally
+       ↓
+send row
+       ↓
+server updates row
+
+برای بعضی داده‌ها مشکلی ندارد:
+
+UI preference
+Display setting
+Non-critical metadata
+
+ولی برای:
+
+Appointment
+Payment
+Inventory
+Invoice
+Cash session
+Medical history
+Patient ownership
+
+باید mutation semantics مشخص داشته باشد.
+
+بنابراین به جای دو کلاس صرف:
+
+State
+Intent
+
+یک classification چهارگانه بهتر است:
+
+نوع	رفتار
+Immutable Fact	فقط append
+Replicated State	versioned sync
+Business Command	server settlement
+Derived Projection	قابل بازسازی
+
+مثلاً:
+
+Patient.Name
+    → Replicated State
+
+Appointment
+    → Business Commands
+       BookAppointment
+       RescheduleAppointment
+       CancelAppointment
+
+Payment
+    → Immutable Fact / Command
+
+Ledger
+    → Immutable Fact
+
+Dashboard
+    → Derived Projection
+
+این مرز از نظر معماری بسیار دقیق‌تر است.
+
+6. P0 — SMS با R7 فعلی تناقض دارد
+
+در سند می‌گویید:
+
+هیچ external runtime dependency وجود ندارد.
+
+اما SMS یک capability عملیاتی محصول است.
+
+SMS provider:
+
+Animora → external SMS gateway
+
+وابستگی خارجی است.
+
+بنابراین باید R7 اصلاح شود.
+
+نسخه درست:
+
+Core clinic operation must not depend synchronously on external Internet services.
+
+نه اینکه:
+
+هیچ external service در runtime وجود ندارد.
+
+معماری SMS
+Business action
+      ↓
+CommunicationOutbox
+      ↓
+SMS Worker
+      ↓
+Provider Adapter
+      ↓
+SMS Gateway
+
+و وضعیت:
+
+Queued
+ProviderUnavailable
+Submitting
+Submitted
+Delivered
+Failed
+Expired
+DeadLetter
+
+اگر اینترنت قطع بود:
+
+appointment reminder
+       ↓
+Queued
+       ↓
+clinic continues normally
+
+نه:
+
+SMS call failed → transaction failed
+
+Microsoft برای workloadهایی که dependency خارجی ممکن است workload را block کند، queue-based load leveling را به عنوان راهکار decoupling و smoothing بار توصیه می‌کند؛ این دقیقاً برای SMS، report generation و برخی file jobs مناسب است.
+
+7. P0 — یک Bounded Context مهم کم است
+
+Contextهای فعلی:
+
+Identity
+Tenant
+Patient
+Clinical
+Scheduling
+Sales
+Inventory
+Finance
+Reporting
+Files
+Subscription
+Licensing
+Audit
+Synchronization
+
+خوب‌اند.
+
+اما با نیازهایی که خودت گفتی، حداقل این context باید اضافه شود:
+
+Communication / Customer Engagement
+
+مثلاً:
+
+Communication
+    Message
+    Template
+    Provider
+    DeliveryAttempt
+    DeliveryReceipt
+    Campaign
+
+Customer Engagement / Loyalty
+    CustomerProfile
+    Segment
+    LoyaltyAccount
+    LoyaltyTransaction
+    Reward
+    CampaignEnrollment
+    Consent
+چرا Loyalty باید ledger باشد؟
+
+نباید:
+
+Points = 350
+
+را دائماً overwrite کنی.
+
+بلکه:
+
++100 Purchase
++50 Campaign
+-20 Reward
+-10 Expired
+
+و:
+
+Balance = SUM(transactions)
+
+یا یک projection معتبر از آن.
+
+این همان تفکر append-only است که برای Finance انتخاب کرده‌ای و باید برای Loyalty هم استفاده شود.
+
+8. P1 — Sharing کامل Domain/Application بین Server و Desktop را توصیه نمی‌کنم
+
+این بخش:
+
+Shared Domain
+Shared Application
+Shared Contracts
+
+بیش‌ازحد aggressive است.
+
+مشکل
+
+Server domain شما شامل چیزهایی خواهد شد مثل:
+
+EF/database assumptions
+server authorization context
+database repositories
+server-only invariants
+transaction boundaries
+background jobs
+tenant context
+
+اینها نباید وارد Desktop شوند.
+
+معماری بهتر
+                    Shared
+              ┌─────────────────┐
+              │ Contracts        │
+              │ DTOs             │
+              │ Error Codes      │
+              │ IDs              │
+              │ deterministic    │
+              │ calculation libs │
+              └─────────────────┘
+                   /       \
+                  /         \
+        Desktop Core       Server Core
+        ----------         -----------
+        Local model        Domain model
+        Offline workflows  Application
+        Local DB           DB
+        Sync               Infrastructure
+
+یعنی:
+
+Contract sharing: yes
+
+Pure deterministic business-calculation sharing: yes
+
+Server Application layer sharing: no
+
+Server persistence/domain model sharing: generally no
+
+Microsoft's Clean Architecture guidance also puts business logic in the application core and infrastructure behind abstractions; it does not require that same server core to become the client runtime.
+
+9. P1 — Multi-tenancy: Global Query Filter را Security Boundary نکن
+
+این قسمت در سند شما نسبتاً خوب است اما wording باید اصلاح شود.
+
+EF Core خودش می‌گوید Global Query Filters برای multitenancy مفیدند، ولی:
+
+IgnoreQueryFilters()
+
+می‌تواند آنها را bypass کند؛ همچنین required navigationها می‌توانند رفتار غیرمنتظره ایجاد کنند.
+
+بنابراین معماری صحیح:
+
+Authorization
+      +
+Tenant-scoped Application Service
+      +
+Tenant-aware Repository / Query
+      +
+Database RLS
+
+است.
+
+و نه:
+
+Global Query Filter = Security
+پیشنهاد مهم
+
+اگر DB شما PostgreSQL است، من RLS را از «optional hardening» به recommended production defense-in-depth تبدیل می‌کنم.
+
+PostgreSQL RLS می‌تواند visibility و write access را در سطح خود database enforce کند و در صورت نبود policy default-deny دارد. SQL Server هم RLS رسمی دارد و Microsoft آن را برای multitenant row isolation صراحتاً مطرح می‌کند.
 
 ساختار:
 
-Presentation
-  ↓
-Application
-  ↓
-Domain
-  ↑
-Infrastructure
+Application authorization
+          ↓
+Tenant Context
+          ↓
+Tenant-aware query
+          ↓
+Database RLS
 
-مناسب است.
+دو لایه اول برای correctness و authorization، RLS برای defense-in-depth.
 
-Microsoft هم Clean Architecture را با business logic در مرکز و dependency inversion به سمت core توضیح می‌دهد.
+10. P1 — «Tenant isolation حتی اگر App filter خاموش باشد» هدف درستی نیست
 
-اما این خط مشکل دارد:
+در سند آمده که چند لایه باید «مستقلاً کافی» باشند.
 
-every external-facing capability ... is defined as a port owned by Domain/Application
-
-برای ISyncEngine، Domain نباید صاحب abstraction باشد.
-
-Sync یک domain capability نیست.
-
-بهتر:
-
-Client Application Layer
-    ↓
-ISyncTransport / ISyncCoordinator
-    ↓
-Infrastructure
-
-نه:
-
-Domain
-    ↓
-ISyncEngine
-
-به‌خصوص چون خود §6 می‌گوید Synchronization bounded context نیست و business domain نیست.
-
-اصلاح
-Domain
-  هیچ اطلاعی از Sync ندارد.
-
-Application
-  orchestration interface برای Sync دارد.
-
-Infrastructure
-  sync implementation را فراهم می‌کند.
-6. §6 — Bounded Contexts
-
-اینجا یکی از بزرگ‌ترین structural risks وجود دارد.
-
-Microsoft در DDD guidance روی استقلال bounded context و ownership persistence تأکید می‌کند؛ bounded context ideally persistence خودش را هم مالک می‌شود.
-
-اما architecture تو می‌گوید:
-
-14 bounded contexts
-        ↓
-1 shared database
-
-این ذاتاً غلط نیست، ولی باید قواعد بسیار سختی اضافه کنی.
-
-در حال حاضر مشخص نیست آیا این موارد ممنوع‌اند یا مجاز:
-
-Finance → SELECT InventoryTables
-Finance → FK → SalesTable
-Reporting → JOIN FinanceTables + InventoryTables
-Sales → JOIN PatientTables
-
-اگر این‌ها مجاز شوند، bounded contextها عملاً به database partitions تبدیل می‌شوند، نه context واقعی.
-
-پیشنهاد قطعی
-
-حتی با shared DB:
-
-dbo.Identity.*
-dbo.Tenant.*
-dbo.Patient.*
-dbo.Finance.*
-dbo.Inventory.*
-...
-
-و:
-
-هیچ context نباید مستقیماً table context دیگر را query کند.
-
-ارتباط فقط:
-
-Public contract
-Command
-Query interface
-Integration event
-
-و ترجیحاً FK بین bounded contexts نداشته باش؛ reference ID داشته باش.
-
-این کار بعداً Deployment Stamp و database separation را بسیار آسان‌تر می‌کند.
-
-7. §6 — یک مشکل جدی‌تر: Cross-context Finance
-
-این قسمت:
-
-SaleCompleted ← create draft invoice
-
-از نظر eventual event architecture قابل قبول است، ولی برای accounting کافی نیست.
-
-مثلاً فروش:
-
-Sale
-Payment
-Inventory decrease
-COGS
-Cash/AR
-Tax
-Invoice
-
-ممکن است همه بخشی از یک business transaction باشند.
-
-اگر:
-
-Sales commits
-   ↓
-Outbox
-   ↓
-Finance consumes later
-
-برای مدتی این وضعیت ممکن است رخ دهد:
-
-Sale = complete
-Inventory = decreased
-Payment = settled
-Finance = not posted
-
-اگر این حالت مجاز است، باید صریحاً بگویی:
-
-financially incomplete / pending posting
-
-و اگر مجاز نیست، باید یک application-level transactional workflow داشته باشی که در یک DB transaction چند bounded context را هماهنگ کند.
-
-این Distributed Transaction نیست، چون همه در یک process/database هستند.
-
-یعنی:
-
-Application Workflow
-    ↓
-Sales aggregate
-Inventory aggregate
-Finance posting
-    ↓
-ONE database transaction
-
-اما domain ownership همچنان حفظ شود.
-
-8. §7 — Shared Client Kernel
-
-ایده خوب است، اما این بخش خطرناک است:
-
-Shared ... Authorization policies
-
-نباید authorization client/server را به عنوان یک implementation مشترک تلقی کنی.
-
-کلاینت قابل compromise است.
-
-بنابراین:
-
-Client authorization = UX optimization / local gating
-
-Server authorization = security authority
-
-حتی اگر همان policy code را share کنی، نباید هیچ security invariant به اجرای client وابسته باشد.
-
-ASP.NET Core هم authorization را مستقل از authentication می‌داند و برای resource-based authorization بر ارزیابی server-side resource تأکید می‌کند.
-
-9. §8 — Sync Architecture
-
-این مهم‌ترین بخش سند است و چند مشکل جدی دارد.
-
-A-05 — UpdatedAt هنوز اشتباه مدل شده
-
-ابتدا گفته‌ای:
-
-UpdatedAt
-— ONLY basis for delta cursors
-
-بعد پایین‌تر می‌گویی:
-
-strictly increasing server sequence
-must back the delta cursor
-
-این دو با هم سازگار نیستند.
-
-باید تبدیل شود به:
-ChangeCursor
-    opaque
-    server-issued
-    strictly ordered within a sync scope
-
-UpdatedAt
-    informational/business/display timestamp
+این تعریف بیش از حد تئوریک است.
 
 مثلاً:
 
-ChangeSequence = 8471932
-UpdatedAt      = 2026-10-08T08:31:44Z
-Version        = opaque row concurrency token
+Application authorizes user as Tenant A
 
-Client فقط ChangeSequence را cursor می‌کند.
+به تنهایی جلوی این query را نمی‌گیرد:
 
-10. A-06 — Tombstone retention تعریف نشده
+SELECT * FROM Patients WHERE Id = @id;
 
-این یکی بحرانی است.
+پس:
 
-فرض کن:
+Application authorization alone is not a data-isolation mechanism.
 
-Device offline = 120 days
-Server deletes Patient X
-Server deletes tombstone after 30 days
-Device reconnects on day 120
+بهترین طراحی:
 
-Client هیچ وقت deletion را نمی‌بیند و ممکن است Patient X را دوباره sync کند.
+tenant context
+   ↓
+every repository call requires tenant scope
+   ↓
+database policy also checks tenant
 
-بنابراین:
+و test:
 
-tombstone retention ≥ maximum supported offline duration + safety margin
+Tenant A
+   └── request object belonging to Tenant B
 
-باید invariant باشد.
+باید در:
 
-و این برای:
+API
+Application
+Repository
+Database
+Cache
+File storage
+Reports
+Background Jobs
 
-deletes
-revoked memberships
-removed permissions
-removed products
-cancelled appointments
-license/device revocation
-changed references
+رد شود.
 
-هم مهم است.
+OWASP نیز در راهنمای فعلی multitenancy تأکید می‌کند که tenant isolation باید در application، database، cache، storage و سایر لایه‌ها بررسی شود.
 
-11. A-07 — Initial sync consistency
+11. P1 — Web architecture شما یک فرض اشتباه درباره Scale-out دارد
 
-این هم در architecture نیست.
+در سند آمده:
 
-فرض کن:
+دو instance وب → session affinity + backplane
 
-Patient
-Owner
-Appointment
-Invoice
-Payment
+این همیشه درست نیست.
 
-در هنگام initial sync تغییر می‌کنند.
+اگر Web شما:
 
-اگر هر table جداگانه pull شود:
+Stateless HTTP
++ signed/authenticated cookie
++ persisted Data Protection keys
++ no server-side session
 
-Patient snapshot = T1
-Appointment snapshot = T2
-Invoice snapshot = T3
-Payment snapshot = T4
+باشد، نیازی به sticky session برای request/response معمولی ندارید.
 
-ممکن است client state از هیچ لحظه واقعی سیستم نباشد.
+مشکل اصلی زمانی است که از:
 
-باید initial sync داشته باشی:
+Interactive Server / SignalR
 
-BEGIN SNAPSHOT
-     ↓
-SnapshotWatermark = N
-     ↓
-download all required state <= N
-     ↓
-apply local snapshot
-     ↓
-advance to N
-     ↓
-pull changes > N
-     ↓
-END
+استفاده کنید.
 
-یا معادل آن با یک sync token چندscope‌ای.
+Microsoft توضیح می‌دهد که Interactive Server برای هر interactive session یک server-side circuit و state ایجاد می‌کند.
 
-Microsoft offline-first خودش incremental sync و local-first operation را تأیید می‌کند، اما architecture تو باید consistency mechanism مخصوص رابطه‌های چندموجودیتی را خودش تعریف کند.
-
-12. Sync conflict model یک مفهوم دیگر کم دارد: resurrection
-
-تو deletion را soft-delete کرده‌ای، ولی این scenario وجود دارد:
-
-Device A:
-  edits Patient X offline
-
-Server:
-  Patient X deleted
-
-Device A reconnect:
-  sends update to X
-
-باید مشخص شود:
-
-Reject?
-Restore?
-Create replacement?
-Human resolution?
-
-این صرفاً Version conflict نیست.
-
-پیشنهاد:
-
-DeletedAt
-DeletionVersion
-DeletionReason
-DeletedBy
-
-و update deleted aggregate یک business conflict مستقل باشد.
-
-13. A-08 — Inventory convergence
-
-این جمله غلط است:
-
-two offline devices recording different movements always converge to a correct total
-
-فقط وقتی درست است که movementها independent باشند.
-
-مثلاً:
-
-Server stock = 1
-
-Device A offline:
-  sell 1
-
-Device B offline:
-  sell 1
-
-دو movement معتبر هستند، ولی آیا نتیجه:
-
--1 stock
-
-مجاز است؟
-
-یا باید یکی reject شود؟
-
-این به policy بستگی دارد.
-
-Microsoft Dynamics هم inventory را صرفاً یک عدد ساده نمی‌بیند؛ inventory transactionها physical/financial states، dimensions، batch/serial و settlement دارند.
-
-بنابراین Inventory باید این موارد را explicitly تعریف کند:
-
-Negative inventory allowed?
-Reservation model?
-Batch?
-Expiry?
-Serial?
-Lot?
-Warehouse/location?
-Cost layer?
-Concurrent reservation?
-Transfer?
-Return?
-Stock adjustment?
-
-برای دامپزشکی مخصوصاً:
-
-expiry date
-batch/lot
-controlled drugs
-serial numbers
-stock location
-cold-storage inventory
-
-می‌تواند مهم شود.
-
-14. A-09 — Appointment conflict
-
-این:
-
-version mismatch
-→ conflict
-
-برای scheduling کافی نیست.
-
-فرض:
-
-Room 1
-09:00–10:00
-
-Client A:
-  books 09:30–10:30
-
-Client B:
-  books 09:30–10:30
-
-ممکن است هر دو روی versionهای مختلف بخوانند و سپس write کنند.
-
-حتی اگر version token داشته باشند، business invariant باید server-side در transaction enforce شود.
-
-برای چنین invariants باید از یکی از این‌ها استفاده شود:
-
-database uniqueness strategy
-serializable transaction
-application lock
-resource partition lock
-slot allocation table
-
-SQL Server برای uniqueness constraint و application locks primitiveهای مشخص دارد.
-
-پس Scheduling باید یک:
-
-Resource Allocation Model
-
-داشته باشد، نه فقط optimistic concurrency.
-
-15. A-10 — Accounting model ناقص است
-
-«Append-only ledger» به تنهایی Accounting Architecture نیست.
-
-Microsoft General Ledger هم اساس را بر debit/credit entries و chart of accounts می‌گذارد.
-
-حداقل باید architectural invariants این‌ها باشند:
-
-Every posted journal:
-    total debit = total credit
-
-No posted journal mutation
-
-Posting period must be open
-
-Posting date != arbitrary client timestamp
-
-Currency defined
-
-Exchange rate versioned
-
-Rounding policy defined
-
-Tax calculation snapshot retained
-
-Account dimensions immutable for posted entry
-
-Source document reference retained
-
-Reversal references original posting
-
-Correction requires compensating entry
+برای server ضعیف پیشنهاد من:
+Static SSR
+   +
+HTTP API
+   +
+Client-side interaction only where needed
 
 و:
 
-PeriodClose
+Interactive Server
 
-باید واقعاً یک state machine باشد:
+فقط برای بخش‌هایی که واقعاً نیاز دارند.
 
-Open
-→ SoftClose
-→ Review
-→ Closed
-→ Reopen by authorized correction
+برای 500–600 user، مخصوصاً اگر server ضعیف باشد، نباید stateful browser circuit را baseline قرار داد.
 
-Dynamics 365 هم period closing را صرفاً یک boolean ساده نمی‌داند و قبل از close مراحل مختلف، posting controls و reconciliation دارد.
+12. P1 — Data Protection Key design درست است اما deployment semantics باید دقیق‌تر شود
 
-16. یک مشکل بسیار مهم: Offline + Period Close
+این تصمیم فعلی صحیح است:
 
-این scenario اصلاً در architecture نیست:
+key ring نباید ephemeral باشد.
 
-Device offline on Sep 30
+Microsoft نیز تأکید می‌کند که Data Protection keys باید persistent باشند و حذف key می‌تواند payloadهای قبلی را برای همیشه غیرقابل‌بازگشت کند.
 
-Accounting period:
-Sep 30 → CLOSED
+اما باید اضافه شود:
 
-Device reconnects on Oct 3
+Primary key ring
++
+Backup copy
++
+Restore test
++
+Rotation policy
++
+Compromise/revocation procedure
 
-Pending:
-Invoice dated Sep 30
-Payment dated Sep 30
-Stock movement dated Sep 30
+و برای scale-out:
 
-چه می‌شود؟
+all app instances use same key ring
 
-گزینه‌ها:
+بدون این، cookie/antiforgery در instance دیگر قابل validate نیست.
 
-Reject
-Post into Oct 3
-Allow authorized back-posting
-Hold for accountant
-Create adjustment
+13. P1 — Desktop authentication architecture خوب است ولی Offline Auth باید دقیق‌تر شود
 
-این باید architecture-level policy باشد.
+انتخاب:
 
-وگرنه "offline accounting" با period close در conflict است.
+Authorization Code + PKCE
+External Browser
 
-17. A-11 — Cross-context financial atomicity
+کاملاً استاندارد است.
 
-این‌ها باید مشخص شوند:
+RFC 8252 برای native apps استفاده از external user-agent و PKCE را best practice می‌داند و Microsoft Windows نیز APIهای OAuth desktop مبتنی بر Authorization Code + PKCE و system browser دارد.
 
-Sale + Payment
-Sale + Inventory reduction
-Purchase receipt + payable
-Payment + cash session
-Refund + inventory return
-Period close + pending commands
+پس این بخش را نگه می‌دارم.
 
-برای هرکدام باید بگویی:
+اما این را اضافه می‌کنم:
 
-Atomic
-Eventually consistent
-Compensating
-Human approval
+Online identity
+      ≠
+Offline capability
 
-در حال حاضر همه زیر event-driven eventual consistency پنهان شده‌اند.
+Offline capability باید:
 
-برای accounting این کافی نیست.
+device-bound
+signed
+time-bounded
+capability-scoped
+non-transferable
 
-18. Command Queue
+باشد.
 
-مدل کلی خوب است، ولی یک semantic اشتباه دارد:
+در Windows، TPM/CNG برای hardware-backed key storage گزینه مناسبی است؛ Microsoft Platform Crypto Provider برای استفاده از TPM طراحی شده و می‌تواند private key را سخت‌تر قابل استخراج کند.
 
-Draft
-→ LocallyPosted
-→ PendingSettlement
-→ Settled
+نکته مهم
 
-برای accounting واژه LocallyPosted خطرناک است.
+این را هرگز به عنوان:
 
-Posted باید server/accounting meaning داشته باشد.
+ضدکپی مطلق
 
-بهتر:
+معرفی نکن.
 
-Draft
-→ LocallyCommitted
-→ PendingSettlement
-→ Settled
+بلکه:
 
-و:
+hardware binding raises the cost of cloning and credential extraction.
 
-SettlementStatus
+14. P1 — Offline capability باید Matrix داشته باشد
 
-را از:
+الان architecture می‌گوید «per capability»، ولی specification هنوز آن matrix را کامل نکرده.
 
-BusinessLifecycleStatus
+من این مدل را پیشنهاد می‌کنم:
 
-جدا کن.
+Capability	Offline
+View patients	Yes
+View clinical history	Yes
+Add notes	Yes
+Draft invoice	Yes
+Create appointment draft	Yes
+Book appointment	Yes, policy-controlled
+Sell item	Yes, policy-controlled
+Register payment	Yes, policy-controlled
+Inventory adjustment	محدود
+Refund	No / very short window
+Cash closing	No
+Period close	No
+User/role management	No
+Subscription management	No
+Device revocation	No
+License issuance	No
 
-همچنین:
+این جدول باید جزو ADRهای رسمی شود.
 
-Reversed
+Power Apps نیز در offline-first دقیقاً رویکردی مشابه دارد: local work ادامه دارد، اما privilege changes و برخی online-only operations تا sync معتبرند و offline profile تعیین می‌کند چه داده‌ای روی device وجود داشته باشد.
 
-بهتر است state اصلی command نباشد؛ reversal خودش یک business command جدید است که به command قبلی reference دارد.
+15. P1 — Server باید «Source of Truth» باشد، ولی برخی چیزها نباید به Eventual Consistency رانده شوند
 
-19. Dependency metadata اشتباه ترکیب شده
+این بخش:
 
-نوشته‌ای:
+Sale + stock reduction + payment = atomic
+Sale → finance draft = eventual
 
-CausationId / DependsOnOperationId
+باید دوباره بررسی شود.
 
-این‌ها باید دو مفهوم کاملاً مستقل باشند:
+چون اگر accounting برای شما جزء core product است، ممکن است کاربر بگوید:
 
-CausationId
-    چرا این command/event به وجود آمد؟
-
-DependsOnOperationId
-    قبل از این command کدام operation باید settle شود؟
-
-و باید invariant اضافه کنی:
-
-dependency graph = DAG
-
-یعنی:
-
-Op A → B → C
-
-مجاز.
+Sale successful
 
 ولی:
 
-A → B
-B → C
-C → A
+General Ledger
 
-باید قبل از اجرا detect شود.
+هنوز آن را نداشته باشد.
 
-20. OperationId خوب است، ولی UserId را نباید از payload قبول کنی
+برای خیلی از سیستم‌ها این مطلوب نیست.
 
-در command آمده:
+از آنجا که شما:
+
+same process
+same database
+
+دارید، باید تا جایی که business rule نیاز دارد عملیات مالی را یک transaction واحد کنید.
+
+مثلاً:
+
+Checkout
+ ├── Sale
+ ├── Payment
+ ├── Inventory movement
+ ├── Tax snapshot
+ ├── COGS
+ └── Journal entries
+
+در یک transaction.
+
+بعد:
+
+Outbox
+
+برای:
+
+notifications
+analytics
+reports
+customer club
+SMS
+
+استفاده شود.
+
+Microsoft's Transactional Outbox guidance نیز دقیقاً state change و event را در یک transaction قرار می‌دهد تا dual-write اتفاق نیفتد.
+
+16. P1 — Ledger را بهتر است Event Sourcing ننامیم
+
+این عبارت:
+
+event-sourcing-lite
+
+برای ledger ممکن است از نظر terminology گمراه‌کننده باشد.
+
+بهتر:
+
+Append-only Accounting Journal / Immutable Financial Facts
+
+چون:
+
+Event Sourcing
+
+و:
+
+Accounting Ledger
+
+یکی نیستند.
+
+Event Sourcing یعنی state از events بازسازی شود؛ accounting ledger الزاماً چنین معماری‌ای ندارد.
+
+17. P1 — Idempotency retention یک hole دارد
+
+در سند:
+
+(TenantId, OperationId)
+
+خیلی خوب است.
+
+اما مدت نگهداری رکورد idempotency تعریف نشده.
+
+فرض کن:
+
+Client offline = 90 days
+
+و:
+
+Server idempotency record retention = 30 days
+
+بعد client یک operation قدیمی را retry کرد.
+
+اگر original effect واقعاً قبلاً اجرا شده باشد و record idempotency حذف شده باشد:
+
+duplicate effect
+
+ممکن است رخ دهد.
+
+بنابراین:
+
+Financial commands
+
+OperationId باید عملاً بخشی از immutable financial history باشد.
+
+Non-financial commands
+
+Retention:
+
+max offline command lifetime
++
+replay safety margin
+
+باشد.
+
+18. P1 — Audit باید دو سطح داشته باشد
+
+الان:
+
+Audit = async sink
+
+به نظرم کافی نیست.
+
+برای:
+
+payment
+refund
+invoice posting
+role change
+device registration/revocation
+subscription change
+period close
+
+Audit fact باید با business fact اتمی باشد.
+
+مثلاً:
+
+Transaction
+ ├── JournalEntry
+ ├── Payment
+ ├── AuditEvent
+ └── OutboxEvent
+
+همه commit شوند.
+
+برای telemetry معمولی:
+
+async
+
+کاملاً مناسب است.
+
+بنابراین:
+
+Compliance/Security Audit = synchronous durable fact
+Operational Logging = async telemetry
+
+این دو را از هم جدا کن.
+
+19. P1 — Logging فعلی باید Privacy-aware شود
+
+در یک clinic system احتمالاً اینها وارد سیستم می‌شوند:
+
+owner name
+phone
+address
+animal medical history
+documents
+payment information
+
+نباید اینها بی‌دلیل وارد log شوند.
+
+OWASP صراحتاً توصیه می‌کند access token، password، encryption key، connection string و sensitive PII/health-like data در log ثبت نشوند و در صورت نیاز mask/hash شوند.
+
+پس:
 
 TenantId
 UserId
 DeviceId
+CorrelationId
+OperationId
+RequestId
 
-همان طور که TenantId را از client نباید قبول کرد، UserId و DeviceId هم نباید trusted باشند.
-
-بهتر:
-
-Client sends:
-    OperationId
-    CommandType
-    AggregateId
-    Payload
-
-Server derives:
-    TenantId
-    UserId
-    DeviceId
-    AuthorizationContext
-
-DeviceId هم باید به credential/device registration cryptographically bind باشد.
-
-21. Optimistic concurrency کافی نیست
-
-EF Core هم optimistic concurrency را برای detecting stale writes معرفی می‌کند، ولی خودش توضیح می‌دهد که isolation levels بالاتر بعضی guarantees اضافی دارند.
-
-بنابراین:
-
-VersionToken
-
-برای:
-
-Patient edit
-
-مناسب است.
-
-اما برای:
-
-booking
-stock reservation
-cash close
-period close
-seat allocation
-license/device registration
-
-ممکن است کافی نباشد.
-
-این‌ها business invariants هستند و باید transactionally enforce شوند.
-
-22. §9 — Multi-tenancy
-
-Shared DB/shared schema از نظر architecture ممکن است، و Microsoft هم isolation را spectrum می‌داند.
-
-اما یک مشکل wording داری:
-
-Cross-tenant access is architecturally impossible even if one layer is disabled
-
-این ادعا با مدل فعلی قابل اثبات نیست.
-
-مثلاً اگر:
-
-Tenant filter accidentally disabled
-
-و query application اشتباه باشد، auth layer لزوماً مانع leakage نمی‌شود.
-
-یا:
-
-IgnoreQueryFilters()
-raw SQL
-bulk update
-stored procedure
-report query
-maintenance job
-file query
-cache
-
-می‌توانند global filter را bypass کنند.
-
-Microsoft خودش هم global query filters را convenience mechanism برای multi-tenancy معرفی می‌کند و حتی caveatهای required navigation و disabling filter را مستند کرده است.
-
-پس معماری بهتر:
-Layer 1:
-  authenticated tenant context
-
-Layer 2:
-  tenant-scoped repository/query abstraction
-
-Layer 3:
-  DB RLS / equivalent hardening
-
-Layer 4:
-  adversarial isolation tests
-
-و مشخصاً:
-
-no raw database access outside approved tenant-aware infrastructure.
-
-23. Tenant context باید immutable باشد
-
-این:
-
-ambient request context
-
-خطر دارد اگر mutable باشد.
-
-بهتر:
-
-ResolvedTenantContext
-    immutable
-    created once at request boundary
-
-و هیچ پایین‌دستی نباید بتواند:
-
-TenantId = X → Y
-
-را تغییر دهد.
-
-این مخصوصاً در:
-
-async continuations
-background jobs
-worker claims
-outbox handlers
-scheduled jobs
-
-مهم است.
-
-24. §10 — Authentication
-
-معماری cookie برای browser و token برای desktop قابل دفاع است.
+خوب است.
 
 ولی:
 
-bearer + refresh token
+full patient record
+access token
+refresh token
+password
+medical note
+file contents
 
-برای native application باید با flow استاندارد درست پیاده شود.
+نباید log شوند.
 
-Microsoft برای desktop/native app استفاده از Authorization Code + PKCE را توصیه می‌کند.
+20. P1 — File architecture درست است، اما Content Hash باید tenant-scoped باشد
 
-RFC 8252 هم BCP صریحاً می‌گوید native app باید authorization request را با external user-agent، معمولاً browser، انجام دهد و public native client باید PKCE داشته باشد.
+این:
 
-و RFC 9700 جدیدتر برای public clients refresh-token rotation یا sender-constraining را الزام/توصیه می‌کند.
+File Store
+content addressed by hash
 
-بنابراین در STACK/architecture باید این contract باشد:
+از نظر deduplication خوب است.
 
-Desktop:
-    Authorization Code
-    + PKCE
-    + OS secure storage
-    + refresh-token rotation
-    + device-bound key where appropriate
+ولی بهتر است کلید storage چیزی مثل:
 
-Web:
-    server-side login
-    + secure cookie
-    + CSRF protection
-25. A-14 — Cookie authentication بدون CSRF کامل نیست
+Tenant/{TenantId}/File/{FileId}/{ContentHash}
 
-این یکی صریحاً در architecture جا افتاده.
+باشد، نه فقط:
 
-هر browser request که cookie را خودکار می‌فرستد می‌تواند در برابر CSRF آسیب‌پذیر باشد.
+SHA256(file)
 
-Microsoft هم anti-forgery را برای cookie-based authentication و mutationهای unsafe مستند کرده است.
+چون global content addressing می‌تواند اطلاعات جانبی درباره existence فایل مشترک بین tenantها ایجاد کند.
 
-باید architecture-level invariant اضافه شود:
+همچنین برای فایل‌های حساس:
 
-All browser state-changing requests require anti-forgery protection.
+DB metadata
++
+binary
++
+hash
++
+tenant
++
+classification
++
+encryption status
++
+retention
++
+quarantine state
 
-همراه با:
+لازم است.
+
+OWASP نیز نگهداری فایل خارج از webroot یا روی storage جدا از application را در صورت امکان توصیه می‌کند و روی اعتبارسنجی نوع/محتوا و کنترل دسترسی تأکید دارد.
+
+21. P1 — File Valet Key برای self-hosted local storage کمی over-engineered است
+
+Valet Key ذاتاً برای زمانی بسیار مفید است که storage جداست و می‌خواهید application از مسیر انتقال file حذف شود؛ Microsoft نیز همین مزیت را تصریح می‌کند.
+
+اما شما در launch احتمالاً دارید:
+
+Application
+Database
+File Store
+
+را روی یک node اجرا می‌کنید.
+
+برای فایل‌های کوچک:
+
+Authorized API endpoint
+
+کاملاً مناسب است.
+
+برای فایل‌های بزرگ‌تر:
+
+Authorization
+   ↓
+internal redirect / direct local file serving
+
+بهتر است تا application process مجبور نباشد bytes را حمل کند.
+
+پس Valet Key را capability pattern نگه می‌دارم، ولی آن را الزام تمام file transferها نمی‌کنم.
+
+22. P1 — Background Worker بهتر است process جدا داشته باشد، نه فقط BackgroundService
+
+Modular Monolith الزاماً به معنای:
+
+one process
+
+نیست.
+
+بهتر است:
+
+                Same Codebase
+                     |
+          ┌──────────┴──────────┐
+          |                     |
+     Animora API           Animora Worker
+          |                     |
+       HTTP/UI              Jobs/Outbox
+          |                     |
+          └──────────┬──────────┘
+                     |
+                  Database
+
+یعنی:
+
+one deployment unit
+one repository
+one architecture
+one database
+
+ولی:
+
+API process
+Worker process
+
+جدا.
+
+فایده:
+
+report سنگین API را نمی‌کشد
+SMS backlog CPU را نمی‌گیرد
+sync processing request threads را اشغال نمی‌کند
+file processing قابل محدودسازی است
+crash worker کل API را نمی‌خواباند
+
+این دقیقاً با هدف weak-server شما هماهنگ‌تر است.
+
+23. Worker Queue
+
+در launch نیازی به RabbitMQ/Kafka/Redis ندارید.
+
+یک relational database-backed queue کافی است:
+
+WorkItem
+----------
+Id
+Type
+TenantId
+Priority
+Status
+AvailableAt
+LeaseUntil
+Attempts
+LastError
+CreatedAt
+
+claim:
+
+Pending
+  ↓
+atomic claim
+  ↓
+Processing
+  ↓
+Succeeded
+
+یا:
+
+Retry
+DeadLetter
+
+برای PostgreSQL می‌توان از قابلیت‌های locking مناسب برای claim کردن کارها استفاده کرد؛ در scale فعلی لازم نیست message broker اضافه کنید.
+
+Microsoft در الگوی Competing Consumers نیز روی idempotency، ordering و Dead Letter تأکید دارد.
+
+24. P1 — Competing Consumers را بیش‌ازحد استفاده نکن
+
+برای:
+
+Financial command settlement
+Appointment allocation
+Cash session
+Ledger posting
+
+worker concurrency بالا خطرناک است.
+
+برای هر work type تعریف کن:
+
+ConcurrencyClass
+OrderingKey
+RetryPolicy
+DeadLetterPolicy
+
+مثلاً:
+
+SMS
+    concurrency = 10
+    ordering = none
+
+Reports
+    concurrency = 1-2
+    ordering = none
+
+Tenant financial settlement
+    concurrency = controlled
+    ordering = Tenant/Aggregate
+
+Microsoft نیز تأکید می‌کند Competing Consumers ذاتاً ordering را تضمین نمی‌کند؛ وقتی order مهم است باید explicit ordering key یا مکانیزم مخصوص داشته باشید.
+
+25. P1 — Retry باید بر اساس operation semantics باشد
+
+برای Sync:
+
+retry = yes
+
+برای command:
+
+retry same OperationId = yes
+retry with new OperationId = NEVER
+
+این بخش در سند فعلی صحیح است.
+
+ولی اضافه کن:
+
+max elapsed retry duration
+max attempts
+jitter
+per-device backoff
+per-tenant reconnect cap
+global reconnect cap
+
+Microsoft درباره Retry Storm دقیقاً هشدار می‌دهد که retryهای همزمان می‌توانند recovery سرور را بدتر کنند.
+
+26. P1 — Reconnect Storm باید برای 500–600 user واقعاً شبیه‌سازی شود
+
+این یکی از مهم‌ترین benchmarkهای شماست.
+
+سناریو:
+
+600 clients
+server unavailable = 30 min
+
+server comes back
+
+600 clients reconnect simultaneously
+
+اگر هر client:
+
+login
+pull metadata
+pull records
+push commands
+upload files
+refresh license
+
+را همزمان انجام دهد، server می‌تواند از ترافیک عادی چندین برابر فشار ببیند.
+
+راه‌حل:
+
+random startup jitter
+exponential backoff
+priority command settlement
+progressive synchronization
+per-device sync budget
+server throttling
+
+Microsoft's throttling guidance نیز توصیه می‌کند throttling را قبل از saturation انجام دهید و علاوه بر request rate، concurrency، queue depth و resource saturation را هم کنترل کنید.
+
+27. Capacity — 500 تا 600 User دقیقاً چه معنی دارد؟
+
+این عدد به‌تنهایی قابل sizing نیست.
+
+مثلاً:
+
+حالت A
+
+600 user × 5 request/min:
+
+3000 requests/min
+≈ 50 requests/sec
+حالت B
+
+600 user × 10 request/min:
+
+6000 requests/min
+≈ 100 requests/sec
+حالت C
+
+600 user × 20 request/min:
+
+12000 requests/min
+≈ 200 requests/sec
+
+این فقط baseline است.
+
+Sync storm می‌تواند عدد را خیلی بالاتر ببرد.
+
+بنابراین من target benchmark را این‌طور تعریف می‌کنم:
+
+600 concurrently authenticated users
++
+at least 150–200 actively interacting users
++
+100 RPS sustained business workload
++
+200–300 RPS peak burst
++
+mass reconnect test
++
+background workload
++
+database reporting workload
+
+اینها اهداف benchmark پیشنهادی هستند، نه ظرفیت تضمین‌شده.
+
+Microsoft نیز صراحتاً توصیه می‌کند reliability/performance targets از business workload تعریف شوند و بعد اندازه‌گیری شوند؛ عدد concurrent user از روی hardware به‌تنهایی ظرفیت را ثابت نمی‌کند.
+
+28. برای 500–600 User، Modular Monolith کاملاً کافی است
+
+من در launch این کارها را نمی‌کنم:
+
+Kubernetes
+Microservices
+Kafka
+Service Mesh
+Distributed Cache
+CQRS database split
+Event Store
+Multi-region
+Global API Gateway
+
+معماری launch:
+
+Internet / National Network
+          |
+       Reverse Proxy
+          |
+     API/Web Process
+          |
+   Modular Application
+          |
+     Relational DB
+          |
+      File Store
+
+      Worker Process
+          |
+       DB Queue
+          |
+   SMS / Reports / Files
+
+این بسیار استانداردتر و عملی‌تر است.
+
+Microsoft هم monolithic deployment را برای applicationهای غیرtrivial معتبر می‌داند و Deployment Stamps را زمانی مناسب می‌داند که واقعاً نیاز به scale/isolation بیشتری وجود داشته باشد.
+
+29. Scale-out Escape Hatch را تغییر بده
+
+نسخه فعلی:
+
+Web app → 2+ instances
+requires sticky session + backplane
+
+بهتر است:
+
+Stage 0
+Single node
+
+Stage 1
+Separate worker process
+
+Stage 2
+Separate DB/file host
+
+Stage 3
+Stateless API x2
+
+Stage 4
+Dedicated read/reporting node
+
+Stage 5
+Deployment stamps
+
+Stage 6
+High availability DB
+
+نه:
+
+single node → microservices
+
+Microsoft Deployment Stamps را دقیقاً برای تقسیم tenantها بین scale units مستقل و کاهش blast radius معرفی می‌کند.
+
+30. یکی از مهم‌ترین توصیه‌های من: یک «Control Plane» واقعی تعریف کن
+
+در معماری شما عملاً control plane وجود دارد ولی نام‌گذاری نشده.
+
+من آن را صریح می‌کنم:
+
+CONTROL PLANE
+------------
+Identity provisioning
+Tenant provisioning
+Subscription
+Billing state
+License issuance
+Device registration
+Plan management
+Software release
+Support
+Backup management
+
+DATA PLANE
+----------
+Clinic login
+Patient
+Clinical
+Scheduling
+Sales
+Inventory
+Finance
+Sync
+Files
+Reports
+
+اصل:
+
+Data Plane must not synchronously depend on Control Plane.
+
+این دقیقاً باعث می‌شود:
+
+Website unavailable
+
+ولی:
+
+Clinic continues
+
+باشد.
+
+و:
+
+Billing system unavailable
+
+ولی:
+
+Clinic continues
+
+باشد.
+
+31. Website نباید Identity Database جداگانه داشته باشد
+
+در حال حاضر خطر implicit وجود دارد:
+
+Website Account
+Animora Account
+
+نباید دو identity مستقل باشند.
+
+باید:
+
+Product Identity
+       |
+       +--- Website
+       |
+       +--- Desktop
+       |
+       +--- Web
+
+باشد.
+
+Website:
+
+register
+purchase
+provision
+
+را انجام می‌دهد ولی identity authority یکی است.
+
+Website نباید:
+
+User password
+User roles
+Tenant membership
+
+را duplicate کند.
+
+32. Subscription و Seat Model را دقیق‌تر کن
+
+اینها را از هم جدا کن:
+
+User
+Membership
+Device
+Session
+Seat
+Subscription
+License
+
+مثلاً:
+
+Subscription
+   └── seat limit = 4
+
+Tenant
+   ├── User A
+   ├── User B
+   ├── User C
+   └── User D
+
+Devices
+   ├── Device 1
+   ├── Device 2
+   └── Device 3
+
+و باید مشخص شود:
+
+seat یعنی user یا device یا concurrent session؟
+
+من پیشنهاد می‌کنم:
+
+Licensed user seats
++
+device registrations
++
+concurrent session limit
+
+سه مفهوم جدا باشند.
+
+برای crash:
+
+session lease
+heartbeat
+expiry
+reclaim
+
+لازم است.
+
+33. API Contract Architecture
+
+این بخش در سند باید اضافه شود.
+
+برای هر API/Sync contract:
+
+ContractVersion
+SchemaVersion
+RequestId
+CorrelationId
+OperationId
+TenantScope
+DeviceId
+FeatureFlags
+
+و compatibility policy:
+
+Server N
+supports:
+N
+N-1
+N-2
+
+ولی الزام:
+
+new client ↔ old server
+
+نباید کورکورانه وجود داشته باشد.
+
+بهتر:
+
+New client asks server capability/version
+
+If unsupported:
+    controlled "upgrade required"
+
+Otherwise:
+    negotiate compatible contract
+
+این بسیار مهم‌تر از ادعای:
+
+N/N-1 bidirectional compatibility
+
+است.
+
+34. Initial Sync را به «Offline Profile» تبدیل کن
+
+این بخش از Power Apps بسیار قابل اقتباس است.
+
+برای هر device:
+
+Offline Profile
+
+تعریف کن.
+
+مثلاً Doctor:
+
+patients
+clinical
+appointments
+vaccinations
+
+Cashier:
+
+patients
+sales
+payments
+products
+cash session
+
+Inventory:
+
+products
+stock
+suppliers
+purchases
+
+نه اینکه کل Tenant روی هر device دانلود شود.
+
+Power Apps نیز offline profile را برای تعیین جدول‌ها، روابط و subset داده‌ای که روی device قرار می‌گیرد به کار می‌برد و صراحتاً توصیه می‌کند فقط داده موردنیاز offline روی device download شود.
+
+این هم:
+
+performance
+
+را بهتر می‌کند و هم:
+
+security
+
+را.
+
+35. Client Local Database
+
+اگر برای Desktop از SQLite استفاده می‌کنی، انتخاب بسیار منطقی‌ای است.
+
+ولی سه قانون مهم:
+
+Local SSD only
+WAL mode
+Never network share
+
+SQLite در WAL mode concurrency خواندن/نوشتن بهتری دارد، اما همچنان فقط یک writer همزمان دارد و WAL برای network filesystem مناسب نیست.
+
+برای یک Desktop که local database دارد:
+
+SQLite
+
+عالی است.
+
+برای:
+
+\\server\clinic\animora.db
+
+اصلاً مناسب نیست.
+
+36. Local data encryption باید واقعی باشد
+
+برای Windows:
+
+Local DB
+   ↓
+encrypted
+   ↓
+key protected by Windows/TPM/user context
+
+نه:
+
+machineId
++
+AES key stored next to DB
+
+Windows DPAPI/CNG برای حفاظت از secrets روی همان دستگاه mechanisms رسمی دارد و TPM/CNG می‌تواند برای device-bound keys استفاده شود.
+
+37. Backup architecture را از نظر فیزیکی کمی قوی‌تر کن
+
+برای SaaS با clinic data:
+
+Primary Server
+     |
+     +--- Local backup
+     |
+     +--- Off-host backup
+     |
+     +--- Immutable backup
+
+حداقل.
+
+اگر DB شما PostgreSQL باشد، WAL archiving و PITR به شما اجازه می‌دهد از base backup + WAL برای point-in-time recovery استفاده کنید؛ این بسیار بهتر از فقط nightly dump است.
+
+برای full restore نیز:
+
+Database
++
+Files
++
+Runtime Key Ring
++
+Configuration
++
+Build/Schema version
+
+باید به یک Recovery Point وصل باشند.
+
+38. Single Node را به عنوان HA معرفی نکن
+
+این جمله فعلی درست است:
+
+single node = SPoF
+
+اما برای Production من توصیه می‌کنم:
+
+Single-node compute
+
+اگر هزینه مهم است.
+
+ولی:
+
+Off-host backup
+
+حتماً.
+
+و بعداً:
+
+DB standby
+
+اولین گام HA باشد، نه microservices.
+
+Microsoft WAF نیز availability و recovery را باید با SLO/RTO/RPO تعریف کند و failure domain را بخشی از طراحی reliability می‌داند.
+
+39. PKI داخلی فعلی احتمالاً بیش‌ازحد پیچیده است
+
+این قسمت را ساده‌تر می‌کنم.
+
+اگر مشتریان به:
+
+https://app.animora.ir
+
+وصل می‌شوند، برای runtime endpoint از certificate عمومی استاندارد استفاده کن.
+
+نیازی نیست:
+
+Animora Root CA
+
+را به همه PCها install کنی.
+
+این بیشتر برای:
+
+private LAN endpoint
+internal admin endpoint
+mTLS
+
+مناسب است.
+
+برای central SaaS endpoint:
+
+Public trusted TLS
+
+عملی‌تر است.
+
+در نتیجه:
+
+Public TLS
+
+برای:
+
+Desktop
+Web
+Website
+API
+
+و:
+
+Private CA
+
+فقط برای private infrastructure در صورت نیاز.
+
+این deployment را بسیار ساده‌تر می‌کند.
+
+40. Domain decomposition پیشنهادی من
+
+نسخه بهتر Context Map:
+
+Identity
+Tenant / Clinic
+Membership
+Patient / Owner
+Clinical
+Scheduling
+Sales / POS
+Inventory
+Finance
+Files
+Reporting
+Subscription
+Licensing
+Communication
+Customer Engagement / Loyalty
+Audit
+
+و زیر سیستم‌های infrastructure:
+
+Synchronization
+Job Processing
+File Transfer
+Caching
+Observability
+External Integrations
+
+یعنی:
+
+Synchronization را واقعاً از Domain جدا نگه دار.
+
+این بخش فعلی شما یکی از بهترین تصمیم‌هاست و باید حفظ شود.
+
+41. Customer Engagement معماری پیشنهادی
+
+مثلاً:
+
+Patient
+  |
+Owner
+  |
+Customer Profile
+  |
+Segment
+  |
+Campaign
+  |
+Communication
+  |
+SMS Provider
+
+و برای loyalty:
+
+LoyaltyAccount
+     |
+LoyaltyTransaction[]
+     |
+Balance Projection
+
+هر transaction:
+
+OperationId
+Source
+Reason
+Points
+Timestamp
+Reference
+
+داشته باشد.
+
+42. Scheduling نیازمند مدل Resource Allocation است
+
+این قسمت architecture فعلی درست متوجه شده ولی باید اجرایی‌تر شود.
+
+مثلاً:
+
+Veterinarian
+Room
+Boarding Cage
+Surgery Room
+Equipment
+
+همگی resource هستند.
+
+Appointment فقط record نیست.
+
+بلکه:
+
+AppointmentRequest
+    ↓
+Allocation Transaction
+    ↓
+ResourceAssignment
+
+و constraint:
+
+same resource
+same time interval
+cannot overlap
+
+باید در DB/business transaction enforce شود.
+
+اگر DB شما PostgreSQL باشد، unique/exclusion constraints و transaction isolation ابزارهای بسیار خوبی برای این نوع invariantها هستند؛ SERIALIZABLE نیز برای بعضی allocationها می‌تواند مناسب باشد، هرچند serialization failure باید retry شود.
+
+43. Inventory
+
+مدل فعلی بسیار خوب است.
+
+ولی اینها را حتماً به ADR تبدیل کن:
+
+Negative Stock
+Reservation
+Lot
+Batch
+Expiry
+Serial
+Warehouse
+Location
+Cost Layer
+COGS
+Return
+Damaged
+Adjustment
+
+و یک اصل:
+
+QuantityOnHand هیچ‌وقت مستقیماً توسط client overwrite نمی‌شود.
+
+44. Finance
+
+Finance باید شامل این invariantها باشد:
+
+Double entry
+Immutable posted fact
+Period state
+Currency
+Tax
+Rounding
+Exchange rate snapshot
+Source document
+Reversal
+Audit
+Idempotency
+
+و:
+
+Draft
+Posted
+Reversed
+
+با:
+
+Command Settlement Status
+
+دو status system جدا باشند.
+
+این تفکیک فعلی شما بسیار خوب است و باید حفظ شود.
+
+45. Reporting
+
+روی weak server:
+
+OLTP query
++
+heavy report
+
+نباید یکی باشند.
+
+نسخه launch:
+
+OLTP DB
+    |
+    +--- normal queries
+    |
+    +--- precomputed summary tables
+    |
+    +--- scheduled reports
+
+و بعداً:
+
+Reporting DB
+
+فقط وقتی benchmark نشان داد نیاز است.
+
+46. Cache
+
+در launch Redis لازم نیست.
+
+اول:
+
+in-memory bounded cache
+
+برای چیزهایی مثل:
+
+plans
+permissions metadata
+reference data
+configuration
+
+کافی است.
+
+ولی key باید شامل:
+
+Tenant
+User / permission scope
+Resource
+Query version
+
+باشد.
+
+Microsoft Cache-Aside را برای read optimization مناسب می‌داند، ولی تأکید می‌کند که cache freshness و invalidation باید بخشی از طراحی باشد.
+
+47. Rate limiting را از ابتدا داشته باش
+
+نه فقط برای حمله.
+
+برای noisy tenant:
+
+per IP
+per user
+per device
+per tenant
+per endpoint
+
+مثلاً:
+
+/login
+/sync
+/command
+/files/upload
+/reports
+/sms
+
+هرکدام policy مختلف.
+
+Microsoft throttling را دقیقاً به عنوان ابزار کنترل resource consumption و noisy-neighbor معرفی می‌کند.
+
+OWASP API Security نیز unrestricted resource consumption را یکی از ریسک‌های اصلی API می‌داند.
+
+48. Authentication security
+
+برای password:
+
+Argon2id
+
+یا fallback مناسب.
+
+OWASP در نسخه فعلی Password Storage guidance استفاده از Argon2id را توصیه می‌کند و work factor را باید با benchmark روی hardware واقعی تعیین کرد.
+
+برای desktop:
+
+Authorization Code
++
+PKCE S256
++
+External Browser
++
+Refresh Token Rotation
++
+Secure OS Storage
+
+برای web:
 
 Secure
 HttpOnly
 SameSite
-Origin/Fetch metadata checks where appropriate
-strict CORS
-
-CORS خودش جای CSRF protection نیست. Microsoft صراحتاً این را توضیح داده است.
-
-26. A-01 — Offline Session
-
-اینجا تضاد جدی وجود دارد.
-
-نوشته‌ای:
-
-security-stamp/password-change invalidates cached offline sessions
-
-اگر دستگاه واقعاً offline باشد، server نمی‌تواند session snapshot موجود را invalidate کند.
-
-واقعیت:
-
-Server changes role
-       ↓
-Offline device
-       ↓
-cannot know
-
-پس چیزی که واقعاً می‌توانی بگویی:
-
-Revocation takes effect:
-    immediately online
-    at next trusted contact offline
-
-و اگر بخواهی قبل از آن invalid شود، باید mechanism دیگری وجود داشته باشد.
-
-بنابراین عبارت invalidates باید تبدیل شود به:
-
-invalidation is enforced at next synchronization/contact; no offline revocation is possible without an externally delivered revocation artifact.
-
-این limitation ذاتی architecture است، bug نیست؛ ولی الان درست بیان نشده.
-
-27. Long offline window و security policy
-
-یک trade-off بنیادی داری:
-
-Long offline window
-        ↕
-Fast revocation
-
-هرچه offline window بزرگ‌تر:
-
-stolen device
-stolen credential
-role revoked
-employee terminated
-subscription cancelled
-
-مدت بیشتری ممکن است offline capability داشته باشد.
-
-بنابراین maximum offline lifetime نباید فقط technical number باشد؛ باید برای هر capability risk classification داشته باشد.
-
-این بخش خوب شروع شده، ولی باید به جدول واقعی تبدیل شود:
-
-Capability	Offline?	Max age	Requires fresh auth?
-View patient	Yes	X	No
-Add clinical note	Yes	Y	Maybe
-Sale	Yes	Y	Maybe
-Refund	No/short	Z	Yes
-Period close	No	0	Yes
-Change roles	No	0	Yes
-28. A-02 — License anti-cloning
-
-این جمله:
-
-installation-bound identity
-
-به خودی خود کافی نیست.
-
-اگر identity با software-only secret ذخیره شود:
-
-copy disk
-copy secret
-copy license
-
-ممکن است clone ساخته شود.
-
-Microsoft برای Windows hardware-backed keys و TPM توضیح می‌دهد که private key می‌تواند non-migratable و hardware-bound باشد.
-
-در macOS هم Secure Enclave می‌تواند private key را طوری نگه دارد که plaintext key اصلاً در application در دسترس نباشد و key به همان device bind شود.
-
-پس بهتر:
-
-Installation Identity
-    ↓
-generated on device
-    ↓
-private key non-exportable where supported
-    ↓
-public key registered with server
-    ↓
-license/capability bound to public key
-
-نه:
-
-machine fingerprint
+Cookie
 +
-encrypted local secret
-
-که anti-cloning ضعیف‌تری دارد.
-
-29. A-02 — Monotonic clock برای license
-
-این قسمت:
-
-verify against a MONOTONIC high-water clock
-
-به شکلی که نوشته شده کافی نیست.
-
-Windows performance/uptime counters زمان سپری‌شده از system start را می‌دهند؛ یعنی یک monotonic uptime counter، تقویم دائمی بین rebootها نیست. GetTickCount نیز صریحاً elapsed time since system startup است. QueryPerformanceFrequency هم counter frequency را در زمان boot مشخص می‌کند.
-
-پس:
-
-MonotonicClock
-
-برای:
-
-time elapsed while process/device remains running
-
-مناسب است،
-
-اما برای:
-
-license expires on 2027-01-01
-
-به تنهایی کافی نیست.
-
-بهتر:
-Server-issued trusted time
-+
-persisted high-water wall time
-+
-monotonic elapsed-time evidence
-+
-rollback detection
-+
-secure device state
-
-و رفتار anomaly:
-
-clock rollback detected
-    → sensitive offline operations disabled
-    → local evidence preserved
-    → recovery requires server contact
-30. A-13 — PKI architecture یک تناقض دارد
-
-§10.5 می‌گوید:
-
-CA private key lives ONLY on server/deployment authority
-
-§17.3 می‌گوید:
-
-full server backup includes cryptographic keys
-
-این دو با هم قابل جمع نیستند.
-
-اگر CA root key در full server backup باشد:
-
-root CA private key
-→ attacker who obtains server backup
-→ can create trusted certificates
-→ MITM all clients
-معماری صحیح‌تر:
-Offline Root CA
-    ↓
-Issuing CA
-    ↓
-Server certificate
-
-Root private key:
-
-NOT on production server
-NOT in normal backup
-
-Microsoft هم برای AD CS از offline root CA به عنوان الگوی افزایش حفاظت نام می‌برد.
-
-31. Certificate revocation
-
-R7 می‌گوید اینترنت نباید لازم باشد.
-
-ولی X.509 chain validation می‌تواند برای revocation به network دسترسی داشته باشد؛ .NET هم Online و Offline revocation modes را جدا می‌کند و صراحتاً می‌گوید Online ممکن است live request انجام دهد.
-
-بنابراین باید architecture مشخص کند:
-
-Production runtime:
-    RevocationMode = Offline
-
-Local CRL:
-    served internally
-
-OR
-
-Short-lived certificates + controlled renewal
-
-و certificate validation نباید accidentally به CRL/OCSP اینترنتی وابسته شود.
-
-32. §11 — Data Architecture
-Accounting خوب شروع شده ولی ناقص است
-
-Append-only صحیح است.
-
-اما برای accounting باید علاوه بر immutability داشته باشی:
-
-Journal
-JournalLine
-PostingBatch
-Account
-FiscalPeriod
-AccountingDate
-DocumentDate
-Currency
-ExchangeRate
-Tax
-Dimensions
-ReversalReference
-SourceDocument
-PostingUser
-PostingTimestamp
-
-و invariant:
-
-sum(debits) == sum(credits)
-33. Inventory
-
-Movement-based مدل خوبی است؛ Microsoft Dynamics هم inventory را بر اساس transactionها، physical/financial state، settlement و dimensionها مدیریت می‌کند.
-
-اما inventory movement به معنای event sourcing کامل نیست.
-
-حداقل باید مشخص شود:
-
-quantity
-uom
-base uom
-conversion
-lot
-expiry
-serial
-location
-cost
-valuation method
-reservation
-availability
-negative inventory
-
-به‌خصوص cost layer مهم است. Microsoft حتی برای FIFO settlement بین issue و receipt مدل صریح دارد.
-
-34. §12 — Outbox
-
-این تصمیم درست است.
-
-Transactional Outbox واقعاً برای atomically storing business state + event مناسب است. Microsoft همین مدل را توضیح می‌دهد: transaction state و outbox event را با هم commit و سپس worker آنها را relay می‌کند.
-
-اما state machine تو ناقص است.
-
-فعلاً:
-
-Pending
-→ Claimed
-→ Processing
-→ Succeeded / Retry
-
-لازم داری:
-
-Pending
-Claimed
-Processing
-RetryScheduled
-Succeeded
-DeadLetter
-Cancelled
-Poison
-
-همراه:
-
-LeaseExpiry
-AttemptCount
-LastException
-NextAttemptAt
-FirstFailedAt
-LastFailedAt
-DeadLetterReason
-35. Competing Consumers + Ordering
-
-Microsoft خودش می‌گوید Competing Consumers برای independent tasks مناسب است و اگر tasks باید sequence خاصی داشته باشند، مناسب نیست مگر سازوکار ordering داشته باشی.
-
-پس این invariant باید اضافه شود:
-
-WorkType
-    → concurrency class
-    → ordering key
-    → retry policy
-    → dead-letter policy
-
-مثلاً:
-
-TenantId + AggregateId
-
-می‌تواند ordering partition باشد.
-
-36. Circuit Breaker در Outbox launch تقریباً بی‌معناست
-
-در §12.3 نوشته‌ای:
-
-circuit breaker on chronically failing downstream effect
-
-ولی R7 می‌گوید:
-
-No external runtime dependency
-
-و launch:
-
-single process
-single database
-no broker
-
-پس بسیاری از outbox effects در واقع local هستند.
-
-Microsoft هم توضیح می‌دهد Circuit Breaker عمدتاً برای remote dependency مناسب است و برای message-driven یا local resource می‌تواند مناسب نباشد.
-
-برای launch:
-
-Retry
-Backoff
-Dead-letter
-Operator remediation
-
-از Circuit Breaker مهم‌تر است.
-
-37. Retry storm
-
-این قسمت خوب است که jitter گذاشته‌ای.
-
-این کاملاً با guidance Microsoft سازگار است؛ retryهای مکرر می‌توانند outage را بدتر کنند و retry storm/thundering herd بسازند.
-
-ولی باید مشخص شود:
-
-retry budget
-max attempts
-max elapsed time
-jitter distribution
-per-tenant reconnect limit
-global reconnect limit
-
-صرفاً «exponential backoff» کافی نیست.
-
-38. §12.4 — Bulkhead در یک process
-
-اینجا یک تناقض معماری داری.
-
-نوشته‌ای:
-
-worker threads isolated from request handling
-
-اما اگر همه داخل:
-
-one process
-one runtime
-one memory space
-one OS scheduler
-
-باشند، thread-count isolation به معنای واقعی Bulkhead نیست.
-
-مثلاً:
-
-500 file uploads
-+
-200 reports
-+
-100 sync workers
-
-می‌توانند:
-
-CPU
-memory
-DB connections
-disk I/O
-bandwidth
-
-را تمام کنند.
-
-Microsoft Bulkhead را به عنوان isolation into pools تعریف می‌کند، ولی تو باید pool resource واقعی تعریف کنی.
-
-برای single node پیشنهاد:
-
-Interactive request budget
-Sync budget
-File-transfer budget
-Report budget
-Maintenance budget
-
-و برای هرکدام:
-
-max concurrency
-queue depth
-CPU budget
-DB concurrency
-rate limit
-39. §9 + §16 — Noisy Neighbor
-
-این یکی بسیار مهم است و الان کم‌رنگ است.
-
-Shared infrastructure یعنی:
-
-Clinic A
-  massive report
-  huge file import
-  reconnect storm
-       ↓
-Server saturated
-       ↓
-Clinic B degraded
-
-Microsoft این را دقیقاً Noisy Neighbor antipattern می‌نامد.
-
-Deployment Stamp راه‌حل بعد از وقوع مشکل است.
-
-برای launch هم باید حداقل داشته باشی:
-
-Per-tenant request rate
-Per-tenant background concurrency
-Per-tenant storage quota
-Per-tenant sync bandwidth
-Per-tenant report concurrency
-Per-tenant file upload limits
-
-Throttling باید resource-cost-aware باشد، نه فقط requests/second. Microsoft هم همین نکته را صراحتاً مطرح می‌کند.
-
-40. §11.5 — Reporting isolation ناقص
-
-گفتن:
-
-Heavy reporting has its own budget
-
-کافی نیست.
-
-اگر report همچنان:
-
-same database
-same CPU
-same disk
-same buffer cache
-same connection pool
-
-را مصرف کند، budget نرم است.
-
-باید حداقل:
-
-Report query timeout
-Max report concurrency
-Max rows/scans
-Cancellation
-Dedicated connection pool
-Read-only transaction
-Snapshot isolation strategy
-
-داشته باشی.
-
-و بعداً:
-
-read replica / reporting DB
-
-به عنوان escalation.
-
-41. §14 — Files
-
-مدل دو consistency domain درست است.
-
-اما چهار مورد مهم نیست:
-
-1. File hash نباید File identity باشد
-
-بهتر:
-
-FileId = random opaque identifier
-
-ContentHash = SHA-256(...)
-
-نه:
-
-File path = content hash
-
-چون deduplication جهانی می‌تواند cross-tenant side channel درست کند.
-
-2. Quarantine باید security gate باشد
-
-الان:
-
-Uploaded
-→ HashVerified
-→ Committed
-→ Available
-
-برای فایل خارجی بهتر:
-
-Staged
-→ Uploaded
-→ HashVerified
-→ MalwareScanned
-→ ContentValidated
-→ Committed
-→ Available
-3. Backup consistency
-
-DB metadata و binary backup باید یک recovery point سازگار داشته باشند.
-
-این الان مشخص نشده.
-
-4. Storage exhaustion
-
-روی single node:
-
-disk full
-
-می‌تواند باعث شود:
-
-file store
-DB
-logs
-outbox
-backups
-
-همزمان fail شوند.
-
-باید storage quota و low-water/high-water alarms داشته باشی.
-
-42. Valet Key
-
-Valet Key از نظر اصول درست است و Microsoft آن را برای direct limited access به resource تعریف می‌کند.
-
-اما در معماری فعلی file store روی همان node است.
-
-پس باید تصمیم بگیری:
-
-Valet key for separate storage
-
-یا:
-
-application-mediated streaming
-
-اگر File Store واقعاً filesystem محلی است، Valet Key پیچیدگی بیشتری ایجاد می‌کند؛ البته همچنان می‌توان آن را با signed access token روی file endpoint پیاده کرد.
-
-43. §15 — Observability
-
-جهت‌گیری خوب است.
-
-اما یک ایراد امنیتی:
-
-Diagnostics bundle
-    = logs + config snapshot + sync state
-
-اگر config snapshot شامل:
-
-DB credentials
-certificate private key
-license signing key
-connection strings
-JWT signing secret
-DataProtection key
-
-شود، diagnostics bundle خودش تبدیل به credential dump می‌شود.
-
-Microsoft صریحاً تأکید می‌کند secrets و sensitive data نباید در logs قرار بگیرند.
-
-پس:
-
-Diagnostics Bundle
-    secrets = NEVER
-    credentials = NEVER
-    private keys = NEVER
-
-و باید redaction policy معماری باشد.
-
-44. Audit Log
-
-این:
-
-append-only audit log
-
-به معنی tamper-proof نیست.
-
-اگر:
-
-database admin
-vendor root operator
-malware
-
-دسترسی کامل DB داشته باشند، append-only application table را می‌توان تغییر داد.
-
-برای audit قوی‌تر:
-
-Audit Record
-    ↓
-hash chain / signed batches
-    ↓
-separate audit key
-    ↓
-restricted writer
-    ↓
-periodic immutable export
-
-یا حداقل:
-
-Audit DB/schema separate security boundary
-
-باشد.
-
-45. Server timestamp
-
-Microsoft WAF برای security audit هم توصیه می‌کند eventها server-side timestamp شوند.
-
-بنابراین در audit:
-
-ClientCreatedAt
-
-می‌تواند نگه داشته شود، ولی canonical timestamp باید:
-
-ServerObservedAt
-
-باشد.
-
-46. §13 — Subscription / Licensing
-
-از نظر conceptual separation خوب است:
-
-Subscription != Licensing
-
-اما یک سؤال بنیادی هنوز جواب ندارد:
-
-"installation" دقیقاً چیست؟
-
-آیا license به:
-
-server deployment
-desktop installation
-device
-user
-tenant
-
-bind شده؟
-
-در SaaS با یک server مرکزی، این پنج مفهوم متفاوت‌اند.
-
-من پیشنهاد می‌کنم:
-
-Subscription
-    tenant-level commercial entitlement
-
-DeviceRegistration
-    one physical client installation
-
-OfflineCapabilityGrant
-    short-lived signed capability for one device
-
-ServerLicense
-    vendor deployment entitlement, if needed
-
-این چهار مفهوم را جدا کن.
-
-47. License signing key نباید داخل runtime server باشد
-
-اگر:
-
-server
-+
-license signing private key
-
-با هم باشند و server compromise شود:
-
-attacker
-→ steals signing key
-→ issues valid licenses
-
-پس:
-
-Runtime Server:
-    public verification keys only
-
-License Issuer:
-    protected offline signing key
-
-این یک security architecture مهم است.
-
-48. Subscription website
-
-بخش:
-
-website → onboarding intent
-
-خوب است ولی security contract کم است.
-
-باید داشته باشی:
-
-signed webhook/message
-issuer identity
-audience
-contract version
-idempotency key
-timestamp
-expiration
-replay protection
-signature verification
-payment reference
-correlation ID
-
-و lifecycle:
-
-Paid
-→ Provisioned
-→ Active
-→ RenewalPending
-→ Renewed
-→ Grace
-→ Suspended
-→ Cancelled
-
-همچنین:
-
-refund
-chargeback
-payment dispute
-
-باید اثر entitlement را مشخص کند.
-
-49. A-03 — مشکل واقعی Zero-Internet و Website
-
-این از نظر معماری یکی از بزرگ‌ترین gapهاست.
-
-فرض:
-
-Internet OFF
-
-در همان لحظه:
-
-customer buys
-website creates onboarding
-
-چطور به central server برسد؟
-
-در متن نوشته‌ای:
-
-async, out-of-band onboarding contract
-
-ولی out-of-band transport تعریف نشده.
-
-باید یکی از این‌ها وجود داشته باشد:
-
-مدل پیشنهادی
-Public Website
-     ↓
-Signed Provisioning Package
-     ↓
-Operator/Admin workstation
-     ↓ USB / controlled transfer
-     ↓
-Animora Server
-
-یا:
-
-Website
- ↓
-Vendor Provisioning Queue
- ↓
-Controlled management connection
- ↓
-Animora
-
-که management plane است و باید صریحاً خارج از runtime plane تعریف شود.
-
-50. §17 — Deployment
-
-اینجا معماری single-node است، ولی از نظر Reliability یک واقعیت باید صریح نوشته شود:
-
-single node
-=
-single point of failure
-
-Microsoft WAF مستقیماً redundancy و حذف SPoF را یکی از اصول reliability می‌داند.
-
-این به معنی آن نیست که single-node برای launch غلط است؛ ممکن است تصمیم هزینه/محصول باشد.
-
-اما باید صریح باشد:
-
-RTO during total node failure = X
-RPO = Y
-
-بدون این اعداد نمی‌توانیم بگوییم architecture reliable است.
-
-51. Backup فقط «داشتن backup» نیست
-
-باید architecture این را تعریف کند:
-
-Production
-   ↓
-Backup copy #1
-   ↓
-Backup copy #2
-
-و حداقل یکی:
-
-off-host
-isolated
-immutable
-
-باشد.
-
-Microsoft برای ransomware-resilient architecture هم روی immutable/independent recovery data و تست restore تأکید می‌کند.
-
-و:
-
-Backup exists
-
-بدون:
-
-Restore succeeded
-
-ارزش محدودی دارد.
-
-52. A-04 — RTO/RPO باید در Architecture Drivers بیاید
-
-الان داری:
-
-performance
-offline
-security
-
-ولی برای یک SaaS accounting باید حتماً:
-
-Availability SLO
-RTO
-RPO
-Maximum data loss
-Maximum offline command age
-Maximum outage before client lock
-
-هم تعریف شود.
-
-Microsoft WAF هم توصیه می‌کند SLO/RTO/RPO مشخص شوند و recovery بر اساس آن‌ها طراحی و آزمایش شود.
-
-53. Client disk loss — یک تناقض مهم
-
-§17.3 می‌گوید:
-
-Client disk loss ← server-driven resync + pending-command-recovery policy
-
-ولی اگر command هنوز به server نرفته باشد:
-
-command exists only on lost disk
-
-پس server اصلاً آن را ندارد.
-
-بنابراین resync نمی‌تواند آن command را recover کند.
-
-باید صریحاً تعیین شود:
-
-Unsent command
-    = recoverable?
-
-اگر بله:
-
-encrypted local backup
-
-لازم است.
-
-اگر نه:
-
-user-facing warning:
-"not synchronized / unrecoverable after local disk loss"
-
-لازم است.
-
-54. Device stolen
-
-متن می‌گوید:
-
-stolen device ← revocation ← next contact
-
-اما attacker می‌تواند:
-
-steal device
-disconnect network
-continue offline
-
-تا زمانی که offline capability expire شود.
-
-پس عبارتش باید بشود:
-
-Stolen device:
-    server revocation takes effect at next contact;
-    meanwhile cached offline capability remains a risk bounded by
-    its expiry and local device protection.
-
-این trade-off باید به customer risk model گفته شود.
-
-55. §18 — Versioning
-
-ایده mixed fleet خوب است، ولی:
-
-N/N-1/N-2 bidirectional
-
-بیش از حد سخت است.
-
-من توصیه می‌کنم:
-
-Server N
-supports Client N, N-1, N-2
-
-Client N
-requires Server >= minimum compatible server
-
-و نه الزاماً:
-
-New client must work with old server
-
-چون این هزینه API/schema compatibility را چند برابر می‌کند.
-
-برای rollback server باید migration strategy داشته باشی:
-
-Expand
-→ Deploy compatible code
-→ Migrate
-→ Switch
-→ Contract
-
-و نه:
-
-deploy schema
-→ if failed restore old executable
-56. Sync versioning باید Capability Negotiation هم داشته باشد
-
-صرفاً:
-
-ContractVersion = 4
-
-کافی نیست.
-
-باید server/client بتوانند اعلام کنند:
-
-Capabilities:
-    appointment-v2
-    inventory-lots
-    offline-refund
-    tax-v3
-
-تا mixed fleet feature activation قابل کنترل باشد.
-
-57. §19 — Fitness Gates
-
-این قسمت از بهترین قسمت‌های سند است.
-
-اما چند gate ضروری کم است.
-
-پیشنهاد می‌کنم اضافه شوند:
-
-W — Period Close Race
-Device offline
-+
-period closes
-+
-old command reconnects
-X — Client Disk Loss
-unsent commands
-+
-disk loss
-Y — Delete Resurrection
-offline update
-+
-server delete
-+
-reconnect
-Z — Initial Sync Consistency
-multi-table concurrent writes
-+
-initial snapshot
-AA — Operator Cross-Tenant
-operator role
-+
-tenant impersonation
-+
-cross-tenant file
-+
-cache
-+
-report
-AB — Backup Restore Consistency
-DB backup
-+
-file backup
-+
-key restore
-+
-server restart
-AC — License Key Compromise
-server compromise
-→ license signing key remains unavailable
-AD — Poison Outbox
-permanent event failure
-→ bounded retry
-→ dead-letter
-→ operator repair
-AE — Resource Starvation
-one tenant
-→ max reports
-→ max uploads
-→ max sync
-→ other tenants remain within SLO
-58. §20 — ADRها
-
-تعداد ADRها خوب است، ولی تصمیم‌های زیر هنوز ADR جدا می‌خواهند:
-
-ADR-16
-Offline authentication threat model
-
-ADR-17
-Tombstone retention
-
-ADR-18
-Sync snapshot consistency
-
-ADR-19
-Inventory concurrency semantics
-
-ADR-20
-Scheduling allocation semantics
-
-ADR-21
-Cross-context financial transactions
-
-ADR-22
-PKI hierarchy and root-key custody
-
-ADR-23
-License-signing key custody
-
-ADR-24
-Offline subscription provisioning
-
-ADR-25
-Backup topology / RPO / RTO
-
-ADR-26
-Audit tamper evidence
-
-ADR-27
-Client disk loss semantics
-
-این‌ها از جنس «implementation detail» نیستند؛ architecture decisions واقعی‌اند.
-
-59. §21 — AI Agent Rules
-
-Rules بسیار خوب هستند، ولی دو rule باید اصلاح شوند.
-
-A-RULE 009
-
-فعلاً:
-
-UpdatedAt is delta-cursor basis only
-
-باید:
-
-Opaque server-issued ChangeCursor is the only synchronization cursor; UpdatedAt is informational.
-
-A-RULE 030
-
-فعلاً:
-
-installation-binding mandatory
-
-بهتر:
-
-Installation binding MUST be based on a protected device identity; software-only machine fingerprints are not accepted as anti-cloning proof.
-
-60. یک Rule جدید بسیار مهم
-
-اضافه کن:
-
-A-RULE 036
-
-Client-originated TenantId, UserId, DeviceId, Role, Entitlement,
-AccountingDate, AuthorizationDecision, or EffectivePostingState
-must never be treated as authoritative server state.
-
-این rule خیلی از attackهای آینده را جلوگیری می‌کند.
-
-61. یک Rule دیگر
-A-RULE 037
-
-Every supported offline duration must have corresponding tombstone,
-authorization-revocation, command-retention, and licensing-retention
-durations that are at least as long as the supported offline window,
-plus an explicit safety margin.
-
-این یکی برای Offline-first فوق‌العاده مهم است.
-
-62. یک Rule دیگر برای Accounting
-A-RULE 038
-
-A client-local financial state may be provisional, but no UI state,
-event, report, or local label may represent it as globally posted,
-settled, closed, or authoritative until server settlement succeeds.
-63. §23 — Pattern Catalog
-
-لیست patternها در کل خوب است، ولی یک مشکل دارند: بعضی را بیش از حد به کار برده‌ای.
-
-واقعاً مناسب
-Transactional Outbox       ✓
-Idempotent Consumer        ✓
-Competing Consumers        ✓ with ordering caveat
-Retry                      ✓
-Throttling                 ✓
-Deployment Stamps          ✓ future
-Cache-Aside                ✓ if cache exists
-Valet Key                  ✓ depending on file architecture
-نیاز به بازنگری
-Circuit Breaker
-
-برای local launch dependencies احتمالاً unnecessary است. Microsoft خودش محدودیت‌های استفاده از آن را توضیح می‌دهد.
-
-همچنین:
-
-"applied as-is"
-
-را حذف کن.
-
-بهتر:
-
-adapted to Animora's deployment and reliability constraints
-
-چون Azure Architecture Center patternها context-specific هستند.
-
-64. چیزی که معماری هنوز به اندازه کافی روی آن تأکید نکرده: Data Classification
-
-این سیستم فقط accounting نیست؛ داده دارد:
-
-owner identity
-contact information
-animal medical history
-clinical documents
-financial transactions
-payment records
-audit
-credentials
-license/device identity
-
-Microsoft WAF توصیه می‌کند data classification پیش از تصمیم امنیتی انجام شود و classification روی retention، storage و protection اثر بگذارد.
-
-بنابراین باید taxonomy داشته باشی:
-
-Public
-Internal
-Tenant Confidential
-Clinical Sensitive
-Financial Sensitive
-Security Secret
-Cryptographic Key
-
-و هرکدام:
-
-encryption
-retention
-logging
-backup
-access
-deletion/pseudonymization
-
-خاص خودشان را داشته باشند.
-
-65. Server-side encryption اصلاً کافی مشخص نشده
-
-می‌گویی:
-
-client local store encrypted
-
-ولی برای server:
-
-DB encryption at rest?
-file encryption?
-backup encryption?
-key encryption?
-log encryption?
-
-مشخص نیست.
-
-Microsoft security guidance روی encryption مطابق data classification تأکید دارد.
-
-برای single-node vendor-hosted server، من حداقل این را معماری می‌دانم:
-
-Disk encryption
-+
-DB encryption where available
-+
-encrypted backups
-+
-separate backup encryption key
-+
-key rotation/recovery procedure
-66. Key management باید خودش یک معماری مستقل باشد
-
-الان چند key مختلف داری ولی همه به صورت پراکنده آمده‌اند:
-
-TLS CA keys
-Server certificate
-Data Protection keys
-License signing key
-Offline capability signing key
-File access grant signing key
-Device identity keys
-Database encryption keys
-Backup encryption keys
-
-این‌ها نباید یک «Crypto section» مبهم باشند.
-
-حداقل باید:
-
-Key
-Owner
-Purpose
-Where generated
-Where stored
-Who can use
-Can export?
-Rotation
-Revocation
-Backup
-Recovery
-Compromise procedure
+Anti-forgery
+
+Microsoft صراحتاً تأکید می‌کند cookie-based auth برای state-changing browser requests بدون antiforgery کافی نیست.
+
+49. Public API Security
+
+تمام endpoints باید:
+
+Authentication
+Authorization
+Tenant scope
+Resource authorization
+Input validation
+Rate limit
+Payload size limit
+Timeout
+Audit where sensitive
 
 داشته باشند.
 
-Microsoft هم برای secrets روی least privilege، rotation، auditing و جداسازی نقش user/admin/auditor تأکید می‌کند.
+خصوصاً:
 
-67. Single Server یعنی Key Custody خطرناک‌تر است
+GET /patients/{id}
 
-چون:
+نباید صرفاً بگوید:
 
-App
-DB
-File store
-CA
-Licensing
-Audit
+user authenticated
 
-همه روی یک ماشین‌اند.
+بلکه:
 
-اگر root credential آن ماشین compromise شود، blast radius بسیار بزرگ است.
+Does this user have access to this patient?
 
-بنابراین حتی اگر compute single-node باشد، لازم نیست trust domain هم single-node باشد.
+را بررسی کند.
 
-بهتر:
+OWASP API Security در API1 Broken Object Level Authorization دقیقاً روی همین مسئله تأکید می‌کند.
 
+50. Revised Target Architecture
+
+معماری نهایی پیشنهادی من:
+
+                        ┌──────────────────────┐
+                        │ Public Website       │
+                        │ Register / Billing   │
+                        │ Download             │
+                        └──────────┬───────────┘
+                                   │
+                            Control Plane
+                                   │
+                  ┌────────────────┴─────────────────┐
+                  │                                  │
+             Identity                         Subscription
+             Provisioning                       Licensing
+                  │                                  │
+                  └────────────────┬─────────────────┘
+                                   │
+                       signed / authenticated
+                         management contract
+                                   │
+                                   ▼
+┌────────────────────────────────────────────────────────────┐
+│                    ANIMORA CENTRAL NODE                    │
+│                                                            │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ Reverse Proxy / TLS / Rate Limit                    │  │
+│  └───────────────────────┬──────────────────────────────┘  │
+│                          ▼                                 │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │                 Animora API/Web                     │  │
+│  │                                                      │  │
+│  │ Business API       Sync API        File API         │  │
+│  └───────────────────────┬──────────────────────────────┘  │
+│                          ▼                                 │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │              Modular Application Core                │  │
+│  │                                                      │  │
+│  │ Identity     Tenant        Patient      Clinical    │  │
+│  │ Scheduling   Sales         Inventory    Finance     │  │
+│  │ Reporting    Files         Subscription Licensing  │  │
+│  │ Communication              Loyalty                 │  │
+│  └───────────────────────┬──────────────────────────────┘  │
+│                          │                                 │
+│              ┌───────────┴───────────┐                     │
+│              ▼                       ▼                     │
+│       Relational Database       File Storage               │
+│              │                       │                     │
+│              └───────────┬───────────┘                     │
+│                          ▼                                 │
+│              ┌──────────────────────┐                      │
+│              │ Animora Worker       │                      │
+│              │                      │                      │
+│              │ Outbox               │                      │
+│              │ SMS                  │                      │
+│              │ Reports              │                      │
+│              │ File reconciliation  │                      │
+│              │ Cleanup              │                      │
+│              │ Notifications        │                      │
+│              └──────────┬───────────┘                      │
+│                         │                                  │
+└─────────────────────────┼──────────────────────────────────┘
+                          │
+                    external adapters
+                          │
+              ┌───────────┴────────────┐
+              │                        │
+           SMS Provider           Other Providers
+51. Desktop Target Architecture
+Desktop
+│
+├── Presentation
+│
+├── Offline Application Core
+│
+├── Local Authorization UX
+│
+├── Local Store
+│
+├── Local Operation Journal
+│
+├── Sync Coordinator
+│
+├── Command Settlement Coordinator
+│
+├── File Transfer Manager
+│
+├── Device Identity
+│
+├── Offline Capability
+│
+└── Secure Key Storage
+
+و local DB:
+
+encrypted local database
++
+local operation journal
++
+sync cursor
++
+settlement states
++
+device metadata
+52. Sync Protocol پیشنهادی
+Down Sync
+Client
+  |
+  | lastChangeSequence
+  v
 Server
-  ├── app
-  ├── db
-  ├── files
-  └── public verification keys
+  |
+  | page of changes
+  v
+Client
+  |
+  | apply transaction
+  |
+  | advance cursor
 
-Outside runtime:
-  ├── Root CA key
-  ├── license signing key
-  └── backup recovery keys
-68. §15 Health Checks
+Cursor فقط بعد از:
 
-Liveness/readiness تفکیک خوب است و Microsoft هم همین distinction را مستند می‌کند.
+local transaction committed
 
-اما endpointهای health نباید روی public/clinic network اطلاعات حساس بدهند.
+advance شود.
 
-بهتر:
+هر page:
 
-/health/live
-    minimal
+Changes
++
+NextCursor
++
+HasMore
 
-/health/ready
-    management network only
+دارد.
 
-/health/deep
-    authenticated operator only
-69. Rate limiting
+53. Full Resync
 
-در architecture فقط reconnect throttling آمده است.
+اگر:
 
-باید این‌ها را هم داشته باشی:
+client cursor < server retention floor
 
-Authentication attempts
-Password reset
-Device registration
-Command submission
-Sync
-File upload
-Report generation
-Search/typeahead
-Operator APIs
-Provisioning API
+یا:
 
-ASP.NET Core rate limiting middleware خودش partitioning, metrics و load testing را پشتیبانی می‌کند، و Microsoft تأکید دارد rate limits باید با workload واقعی stress-test شوند.
+local DB corrupted
 
-70. یک مشکل با "static-first web rendering"
+باشد:
 
-برای server ضعیف خوب است، ولی اگر web UI شامل interactive server components باشد، باید در capacity model حساب شود:
+FULL RESYNC
 
-connected sessions
-session memory
-reconnect frequency
-circuit/state
-websocket/HTTP connection
-server-side timers
+نه تلاش برای repair ناقص.
 
-نباید فرض کرد:
+54. Sync Conflict State Machine
 
-browser = تقریباً zero server cost
+بهتر است:
 
-اگر rendering واقعاً stateless server-rendered باشد، عالی است.
+Pending
+↓
+Applying
+↓
+Accepted
+│
+├── Rejected
+├── Conflict
+├── NeedsUserAction
+└── Superseded
 
-اگر server-side interactive باشد، کاملاً متفاوت است.
+برای هر conflict:
 
-71. Scale-out escape hatch ناقص است
+what happened
+why
+server state
+client state
+available action
+financial impact
 
-نوشته:
+در UI.
 
-2+ instances
-→ session affinity + backplane
+55. Client UI باید Sync state را first-class نشان دهد
 
-برای scale-out واقعی باید حداقل این‌ها هم بررسی شوند:
+مثلاً:
 
-Data Protection shared key ring
-Session state
-Cache
-SignalR / realtime
-File access
-Background worker leadership
-Outbox leases
-Database concurrency
-Health routing
-Connection draining
-Deployment coordination
+● Connected
+● Offline
+↻ Syncing
+! 3 Pending Changes
+! 1 Conflict
+✓ All Changes Synced
 
-Microsoft هم برای web farm روی shared Data Protection key ring و shared caching تأکید می‌کند.
+این الگو در محصولات Microsoft offline-first نیز به‌صورت explicit sync status نمایش داده می‌شود.
 
-پس "add a backplane" به تنهایی escape hatch کامل نیست.
+56. Architecture Fitness Tests که باید به لیست فعلی اضافه شوند
 
-72. §19 — Gate برای Cache
+علاوه بر Gateهای فعلی:
 
-Gate L خوب است، ولی فقط key composition را تست نکن.
+G-A
 
-باید این‌ها تست شوند:
+ChangeSequence Commit Ordering
 
-permission change
-role change
-tenant switch
-subscription change
-cache expiry
-stale authorization
-logout/login as different user
-
-چون:
-
-Tenant + User + Resource + Version
-
-اگر permission بعداً تغییر کند ممکن است کافی نباشد.
-
-73. مسئله Cache Invalidation
-
-Cache-Aside pattern خودش consistency problem دارد؛ Microsoft هم صریحاً می‌گوید cached data همیشه با source data همگام نیست و باید stale detection/refresh strategy وجود داشته باشد.
-
-برای financial output بهتر است:
-
-financial authoritative views
-    no long-lived cache
-
-و برای:
-
-reference data
-catalog
-UI settings
-
-cache allowed.
-
-74. Backup + File Store
-
-معماری باید یک Recovery Point Manifest داشته باشد:
-
-BackupSetId
-DatabaseBackupVersion
-FileStoreSnapshotVersion
-KeySetVersion
-LicenseKeyVersion
-ServerBuildVersion
-SchemaVersion
-
-تا معلوم باشد یک restore point کامل دقیقاً چه چیزی است.
-
-75. مهم‌ترین اصلاحی که برای Sync پیشنهاد می‌کنم
-
-اگر بخواهم فقط یک بخش architecture را بازنویسی کنم، §8 را این‌طور می‌کنم:
-
-LOCAL STATE
-    ↓
-Local transaction
-    ↓
-Pending command / local mutation
-    ↓
-SYNC SESSION
-    ├── upload commands
-    ├── upload replicated changes
-    ├── establish server snapshot watermark
-    ├── download snapshot pages
-    ├── download post-snapshot changes
-    └── reconcile provisional state
-
-و server:
-
-Server Change Log
-    ChangeSequence
-    TenantId
-    EntityType
-    EntityId
-    Operation
-    Version
-    CommitPosition
-
-نه UpdatedAt به عنوان cursor.
-
-76. معماری پیشنهادی اصلاح‌شده برای Sync
-                    ┌────────────────────┐
-                    │ Server Change Log  │
-                    │ monotonic cursor   │
-                    └─────────┬──────────┘
-                              │
-                       Pull changes
-                              │
-Desktop ──────────────────────┼─────────────────
-  │                           │
-  │ Local DB                  │
-  │                           │
-  ├── Replicated State        │
-  │                           │
-  ├── Pending Commands ───────┼──► Business API
-  │                           │
-  └── Provisional State       │
-                              │
-                        Server Transaction
-                              │
-                 ┌────────────┴─────────────┐
-                 │ authorization             │
-                 │ preconditions             │
-                 │ domain invariants         │
-                 │ idempotency               │
-                 │ posting                   │
-                 │ outbox                    │
-                 └───────────────────────────┘
-77. Architecture scorecard فعلی
-حوزه	ارزیابی
-Modular Monolith	عالی
-Clean Architecture	خوب
-C4 documentation	خوب
-DDD decomposition	خوب ولی shared DB خطرناک
-Offline-first direction	خوب
-State vs intent split	بسیار خوب
-Command idempotency	بسیار خوب
-Financial immutability	خوب ولی accounting model ناقص
-Inventory	خوب ولی convergence claim غلط
-Scheduling	ناقص
-Multi-tenancy	خوب ولی security claims بیش‌ازحد
-Authentication	نیازمند اصلاح جدی
-Offline auth	ناقص/بحرانی
-Licensing	ناقص/بحرانی
-PKI	نیازمند redesign
-Outbox	خوب
-Worker reliability	نیازمند DLQ/lease/resource model
-File lifecycle	خوب ولی security/backup gaps
-Observability	خوب
-Reporting	ناقص از نظر resource isolation
-Single-node deployment	قابل قبول برای launch، نه بدون RTO/RPO
-Disaster recovery	ناقص
-Versioning	بیش از حد ambitious و ناقص
-Fitness functions	یکی از قوی‌ترین بخش‌ها
-78. ترتیب اصلاح قبل از coding
-
-من این پروژه را در این ترتیب جلو می‌بردم:
-
-Phase 0 — معماری‌های حل‌نشده
-
-اول:
-
-1. Offline security threat model
-2. RTO/RPO/SLO
-3. Sync cursor + snapshot protocol
-4. Tombstone retention
-5. Inventory consistency model
-6. Scheduling allocation model
-7. Accounting posting model
-8. Cross-context financial transaction model
-9. PKI/key custody
-10. Offline provisioning
-
-تا این‌ها حل نشوند، coding sync/accounting اشتباه است.
-
-Phase 1 — Kernel invariants
-Tenant isolation
-Auth
-Device identity
-OperationId
-Idempotency
-Versioning
-Transaction boundaries
-Ledger invariants
-Phase 2 — Offline substrate
-Local DB
-encrypted storage
-device key
-replicated-state protocol
-command queue
-reconnect
-conflict handling
-Phase 3 — Finance/Inventory/Scheduling
-
-به همین ترتیب و نه برعکس.
-
-Phase 4 — Scale / reporting / file optimization
-
-بعداً.
-
-79. یک نسخه اصلاح‌شده از «Spine» معماری
-
-به‌نظر من spine واقعی Animora باید این باشد:
-
-                    ANIMORA
-                       │
-           ┌───────────┴────────────┐
-           │                        │
-     Replicated State          Business Intent
-           │                        │
-     Change Log/Cursor          Command Contract
-           │                        │
-       Client DB              Idempotency
-           │                        │
-      Conflict Policy        Preconditions
-           │                        │
-       Reconciliation       Domain Transaction
-           │                        │
-           └──────────┬─────────────┘
-                      │
-               Server Authority
-                      │
-          ┌───────────┼────────────┐
-          │           │            │
-       Finance    Inventory    Scheduling
-          │           │            │
-          └────── business invariants ──────┘
-                      │
-                  Outbox
-                      │
-              Integration Events
-                      │
-          Reporting / Audit / Projections
-
-و امنیت:
-
-Identity
-   +
-Device Identity
-   +
-Authorization
-   +
-Entitlement
-   +
-Tenant Context
-
-جدا از business synchronization بماند.
-
-80. نتیجه نهایی من
-
-این معماری از پایه بد نیست؛ برعکس، spine آن از بسیاری از معماری‌های SaaS که دیده می‌شود بالغ‌تر است.
-
-خصوصاً این تصمیم‌ها را نگه می‌دارم:
+دو transaction concurrent → هیچ change skip نشود.
+
+G-B
+
+Cross Pipeline Causality
+
+Replication Op → Business Command dependency درست settlement شود.
+
+G-C
+
+Financial Idempotency Retention
+
+بعد از restart، restore و long offline replay، financial duplicate رخ ندهد.
+
+G-D
+
+Four Devices One Clinic Offline
+
+چهار desktop یک clinic برای N روز بدون central server کار کنند و conflictها deterministic باشند.
+
+G-E
+
+SMS Provider Down
+
+SMS provider برای 24 ساعت down شود و clinic core function همچنان کار کند.
+
+G-F
+
+Worker Starvation
+
+100,000 report/SMS/file jobs وجود داشته باشد ولی interactive API SLO از بین نرود.
+
+G-G
+
+Tenant Cache Poisoning
+
+Tenant A هرگز result tenant B را نگیرد.
+
+G-H
+
+Audit Atomicity
+
+Business transaction success ⇒ required audit fact exists.
+
+Business transaction rollback ⇒ corresponding audit business fact نیز rollback شود.
+
+G-I
+
+Client Lost Disk
+
+exact policy برای unsent commands ثابت شود.
+
+G-J
+
+Server Restore
+
+Database + files + Data Protection keys از یک recovery point restore شوند.
+
+G-K
+
+Mixed Version
+
+Server N + client N/N-1/N-2.
+
+و:
+
+unsupported combination
+
+باید controlled failure داشته باشد.
+
+57. Production deployment پیشنهادی
+
+برای launch:
+
+4 vCPU
+8–16 GB RAM
+NVMe SSD
+Linux
+
+را به عنوان benchmark baseline می‌گذارم، نه requirement قطعی.
+
+اگر منظور از weak server چیزی مانند:
+
+1 vCPU
+2 GB RAM
+slow HDD
+
+است، من برای 500–600 concurrent users بدون benchmark موفقیت را تضمین نمی‌کنم.
+
+ترتیب منابع:
+
+Fast SSD
+RAM
+CPU
+
+برای workload شما بسیار مهم است، چون:
+
+DB
+sync
+file store
+reports
+worker jobs
+
+همه روی یک node هستند.
+
+58. اولویت اصلاحات
+Must Fix Before Coding
+تعریف دقیق Offline semantics
+Clinic Edge یا عدم وجود آن به عنوان explicit product decision
+Commit-safe ChangeSequence
+unified Local Operation Journal
+entity sync classification
+SMS/Communication architecture
+exact Offline Capability Matrix
+financial atomicity policy
+identity ownership between Website and Animora
+tenant enforcement model
+client/server shared-code boundary
+idempotency retention
+audit atomicity
+API contract/versioning rules
+قبل از Production
+worker process isolation
+rate limiting
+reconnect storm
+backup/PITR
+file reconciliation
+privacy-aware logging
+RLS
+local encryption
+disaster restore drill
+mixed-version compatibility
+security testing
+بعداً
+Redis
+Message Broker
+separate reporting DB
+deployment stamps
+read replicas
+dedicated tenant DB
+active-active HA
+
+اینها را الان نساز.
+
+59. معماری‌ای که من برای Animora نهایی می‌کنم
+
+اگر خودم مسئول Architecture Sign-off این پروژه بودم، تصمیم‌ها را این‌طور ثبت می‌کردم:
+
+AD-01
+Modular Monolith
+
+AD-02
+Relational Database
+
+AD-03
+Shared database + tenant discriminator
+
+AD-04
+Database-level RLS as defense-in-depth
+
+AD-05
+Server is global authority
+
+AD-06
+Offline desktop is local-first
+
+AD-07
+No web offline at launch
+
+AD-08
+Local Operation Journal
+
+AD-09
+Typed mutation model:
+State / Command / Immutable Fact / Projection
+
+AD-10
+Commit-safe tenant-local change sequence
+
+AD-11
+Snapshot-consistent initial sync
+
+AD-12
+Business command idempotency
+
+AD-13
+Financial facts immutable
+
+AD-14
+Financially coupled operations atomic
+
+AD-15
+Outbox for asynchronous effects
+
+AD-16
+DB-backed durable worker queue
+
+AD-17
+Separate API and worker processes
+
+AD-18
+SMS is asynchronous external integration
+
+AD-19
+Offline capability is capability-scoped
+
+AD-20
+Authorization Code + PKCE for native client
+
+AD-21
+Device-bound offline capability
+
+AD-22
+Website is control-plane client
+
+AD-23
+Single product identity authority
+
+AD-24
+Subscription ≠ License ≠ Authorization
+
+AD-25
+Public TLS for public runtime endpoint
+
+AD-26
+Private CA only where private infrastructure actually needs it
+
+AD-27
+Tenant-safe cache and file access
+
+AD-28
+Audit business facts are transactionally durable
+
+AD-29
+RTO/RPO explicitly tested
+
+AD-30
+Capacity certified by load/chaos testing
+
+AD-31
+Deployment Stamps deferred
+
+AD-32
+Microservices deferred
+60. جمع‌بندی نهایی
+چیزهایی که در معماری فعلی واقعاً درست هستند
+
+اینها را من حفظ می‌کنم:
 
 Modular Monolith
 Clean Architecture
-DDD-lite
-Server authority
-State replication ≠ business intent
-Command idempotency
+DDD bounded contexts
+Server authoritative
+Offline-first desktop
+Transactional Outbox
+Idempotent Consumer
 Append-only financial facts
 Movement-based inventory
-Transactional Outbox
+Tenant-aware design
+Capability-scoped offline security
+Explicit RTO/RPO
 Local observability
-Gated scale-out
+Contract versioning
+No microservices at launch
 
-اما در همین شکل implementation را شروع نمی‌کنم.
+این قسمت‌ها از نظر معماری mature هستند. Microsoft guidance نیز با انتخاب monolith، separation of concerns، transactional outbox، multitenancy، throttling و deployment stamps در نقاط مربوط هم‌جهت است.
 
-چهار نقطه‌ای که بیشترین احتمال دارد بعداً پروژه را به بن‌بست برسانند عبارت‌اند از:
+چیزهایی که حتماً تغییر می‌دهم
+Two totally independent client queues
+        ↓
+Unified Local Operation Journal + typed handlers
 
-1. Offline security / licensing
-2. Sync correctness
-3. Cross-context accounting consistency
-4. Single-node disaster recovery
+Global/per-scope sequence without commit semantics
+        ↓
+Commit-safe tenant-local change version
 
-و بعد از آنها:
+Generic row sync for too many entities
+        ↓
+Typed Sync Semantics
 
-5. Inventory/scheduling concurrency
-6. Tenant isolation enforcement
-7. Key/PKI custody
-8. Resource/noisy-neighbor isolation
+Shared full Domain/Application between server/client
+        ↓
+Shared Contracts + pure deterministic libraries only
 
-از نظر Microsoft هم جهت کلی architecture قابل دفاع است: Clean Architecture و multitenancy model انتخاب‌شده قابل استفاده‌اند، Offline-first با local store و queued synchronization الگوی شناخته‌شده‌ای است، Outbox/Idempotent Consumer مناسب‌اند، و WAF تأکید می‌کند که reliability باید با redundancy، RTO/RPO، recovery و testing اثبات شود—not merely documented.
+Zero external runtime dependency
+        ↓
+Core operations independent of external providers
 
-اما 15 مورد Blocking بالا باید قبل از code freeze به تصمیم معماری تبدیل شوند.
+SMS direct integration
+        ↓
+Durable Communication Outbox + Worker
 
-یک نکته مهم هم باقی می‌ماند: چون STACK.md را در این پیام ندارم، عمداً وارد حکم نسخه/کتابخانه/DB/desktop framework نشده‌ام؛ این بررسی architecture-level است. برای مثال، اینکه آیا انتخاب واقعی DB شما می‌تواند snapshot/change cursor، RLS، indexing، locking و restore model موردنیاز را تحمل کند، وابسته به STACK است.
+Audit async-only
+        ↓
+Transactional business audit + async operational telemetry
 
-منابع اصلی مورد استفاده
+Interactive server web as potential baseline
+        ↓
+Stateless HTTP/SSR baseline
 
-برای provenance معماری از منابع رسمی C4 و arc42 استفاده کردم؛ برای بخش Microsoft از Microsoft Learn شامل WAF، multitenancy، ASP.NET Core، EF Core، SQL Server، Azure Architecture Center و Dynamics 365؛ و برای OAuth/crypto از RFC Editor و مستندات رسمی Apple/Microsoft استفاده کردم.
+Global EF filter as isolation hardening
+        ↓
+Tenant-scoped application boundary + DB RLS
+
+Single worker inside main process
+        ↓
+Separate worker process, same modular monolith
+
+Single-node backups
+        ↓
+Off-host immutable backup + tested restore
+61. حکم نهایی من
+
+Animora نباید Microservice شود.
+
+برای هدف:
+
+500–600 concurrent users
+125–200 clinics تقریباً
+3–4 concurrent users / clinic
+weak Linux server
+offline-first desktop
+future web
+multi-tenant SaaS
+finance
+inventory
+SMS
+loyalty
+
+بهترین architecture به نظر من:
+
+Modular Monolith + Relational Database + Offline-first Local Replica + Unified Local Operation Journal + Server-authoritative Business Settlement + Transactional Outbox + Durable DB-backed Workers + Strict Tenant Isolation + Explicit Offline Capability Model
+
+است.
+
+این معماری هم ساده‌تر از microservices است، هم روی hardware ضعیف‌تر شانس بسیار بهتری دارد، هم مسیر scale-out واقعی دارد.
+
+اما من قبل از نوشتن featureهای اصلی، Sync Protocol، Local Operation Journal، Offline Capability Matrix، Financial Transaction boundaries و Tenant isolation را freeze می‌کردم. اگر این پنج قسمت اشتباه طراحی شوند، بعداً تغییر دادنشان بسیار پرهزینه خواهد بود.
+
+و یک نکته مهم درباره مستندات: Microsoft خودش WAF و Architecture Center را به‌عنوان ابزار تصمیم‌گیری و ارزیابی ارائه می‌کند، نه نسخه آماده برای همه workloadها؛ بنابراین اینکه سند Animora پر از نام pattern است به‌تنهایی مزیت نیست. معیار نهایی باید invariant، failure mode، measurable SLO و fitness test باشد.
+
+مهم‌ترین منابع اصلی بررسی‌شده
+
+Microsoft .NET — Architectural Principles
+
+Microsoft .NET — Common Web Application Architectures / Clean Architecture
+
+Microsoft Azure — Multitenant Architecture Guidance
+
+Microsoft Azure — Deployment Stamps
+
+Microsoft Azure — Transactional Outbox
+
+Microsoft EF Core — Global Query Filters
+
+Microsoft Power Apps — Offline-first architecture
+
+IETF RFC 8252 — OAuth 2.0 for Native Apps
+
+OWASP — Multi-Tenant Application Security
+
+PostgreSQL — Row-Level Security
+
+PostgreSQL — Transaction Isolation
+
+Microsoft — ASP.NET Core Data Protection Key Management
