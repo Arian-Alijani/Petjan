@@ -191,7 +191,7 @@ multi-file edit, still push it as one coherent commit with a clear message.
 
 ---
 
-### [ ] T5 — Define projection delete-order + skip-cascade + FK behavior (rank 5)
+### [x] T5 — Define projection delete-order + skip-cascade + FK behavior (rank 5)
 - **Audit refs:** SYNC-C-03, scenario SC-01. Owner phase: **E03**.
 - **Ground truth:** `PHASE-E03...md:83-98,271-276` — `ProjectionOrder` lists parents
   before children (correct for inserts) but says nothing about **deletes** (tombstones)

@@ -107,6 +107,21 @@ intent** (that is E06).
   same `AggregateId` is **skipped and recorded** as `ConflictKind.VersionMismatch` — the A-RULE 017
   guarantee's first line, with E05 owning the full policy; (c) projection is idempotent; (d)
   `UpdatedAt`/`Version` stay **only** on the `repl_` row, never copied to a domain column.
+  **Delete order, skip-cascade and FK safety (audit 2026-10-08 · SYNC-C-03):** `ProjectionOrder` is
+  parents-before-children, which is correct for inserts/updates but says nothing about deletes, and
+  `foreign_keys=ON` (`CONVENTIONS §5`) means a half-applied batch can leave a dangling reference.
+  Binding rules: (e) **tombstones (`Deleted = true`) are applied in reverse `ProjectionOrder`**
+  (children first, parents last), so a parent is never soft-deleted while a live child row of the
+  same pass is still unprocessed; (f) a soft delete only flips the domain `IsDeleted`/`DeletedAt`
+  flag — it **never cascade-deletes** children (the child FK to `OwnerId`/`PetId` is configured
+  `DeleteBehavior.Restrict`; verify at execution and fix the configuration if any child uses
+  `Cascade`), so delete order is a consistency nicety, not a data-loss risk; (g) **skip-cascade:**
+  when a parent aggregate is skipped in a pass (unsent `PendingCommand`, rule (b)), every dependent
+  row of that parent **in the same pass is also skipped and reported** (as
+  `ConflictKind.VersionMismatch` with the parent's `AggregateId` as cause) — the business store
+  never receives a child that points at a not-yet-projected or skipped parent. Skipped rows stay in
+  `repl_*` and are retried on the next pass, so `PartiallyCompleted` batches always leave the
+  business store referentially consistent.
 - **Cursor storage reuses C11's `SyncCursor`,** which is owned by `AnimoraLocalDbContext`. Because it
   lives on a different context than the `repl_*` tables, its new columns ship as a **separate
   local-context migration** — `SyncCursorReplicaColumns`, numbered at the **next free ordinal on the
@@ -285,6 +300,12 @@ intent** (that is E06).
   `PendingCommand` is skipped and returned as `ConflictKind.VersionMismatch`; batches commit every
   200 rows and a mid-projection failure leaves earlier batches committed with
   `SyncOutcome.PartiallyCompleted`.
+  Additional `ReplicaProjectionTests` cases (audit 2026-10-08 · SYNC-C-03): **parent skipped → child
+  skipped** (an `Owner` with an unsent `PendingCommand` also skips that owner's `Pet` rows in the same
+  pass and reports them; no `Pet` row lands without its `Owner`); **tombstone applied in reverse
+  `ProjectionOrder`** (deleting an `Owner` and its `Pet` in one pass soft-deletes the `Pet` first, no
+  FK violation, no child physically removed); **parent soft-delete does not cascade** (a child with
+  no tombstone of its own stays live); and a `PartiallyCompleted` run leaves zero orphaned FK rows.
 - `SyncPreflightTests` green: null `ServerBaseUrl` → `Offline` with zero HTTP calls; a
   `409 resync-after-upgrade` → `ContractUpgradeRequired` and **no rows written**; a
   `409 server-upgrade-required` → `Rejected`; a mismatched echoed header →
