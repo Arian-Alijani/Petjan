@@ -239,6 +239,6 @@ Physical pg_basebackup + continuous off-host WAL/timeline history, DB/file/key m
 pg_verifybackup and actual PITR + pg_amcheck/domain integrity + fresh ServerFeedEpoch are required.
 pg_dump is logical portability, not a PITR chain. Test encryption-key survival, delayed archives/
 disk headroom and post-restore client shadow/receipt recovery. Never clear pending intent.
-First deployment has no installed server SQL Server schema; external-source migration requires
+First deployment has no installed server PostgreSQL schema; external-source migration requires
 §PG.5 staging/count/hash/FK/ledger/stock/file/receipt comparisons and write-freeze/rollback rehearsal.
 Do not claim completed server migration from specification changes.
