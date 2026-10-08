@@ -60,6 +60,24 @@ conservative paging, and a contract-version gate that makes a mixed-version flee
   no such field, so the entity stays purely read-only on the wire.
   This split **is** the "replication ≠ intent" line drawn in data. `SyncSurfaceTests` asserts the
   two sets exactly, so no later phase can quietly replicate a financial table.
+  **DECISION — cross-device financial read models (audit 2026-10-08 · SYNC-C-05, SYNC-H-02, IMP-03;
+  Option A chosen).** Financial *aggregates* (`Invoice`/`Payment`/`StockMovement`/…) stay
+  **not-replicated by state** (command-settled) — correct for *writes*. But that leaves a correctness
+  hole for *reads*: device B never learns device A's posted invoice, so C09/C10's
+  `OwnerFinancialSnapshot.TotalSpendMinor` and the dashboard revenue (built from the **local** ledger =
+  this device's commands only) **disagree across devices**. To close it, a **third, distinct class** is
+  added to the replicated surface: **read-only, server-computed finance read-model projections**
+  `DailyFinanceFact` and `OwnerFinancialSnapshot`, exposed as **read-only** `<Entity>SyncContract`s so
+  every device converges on the server's numbers. These are NOT the financial aggregates (which remain
+  command-settled); they are server-authoritative *projections* the client only reads and never writes.
+  `SyncSurfaceTests` is extended to assert this third set is read-only and contains exactly these two
+  projections. (Move `DailyFinanceFacts`/`OwnerFinancialSnapshot` out of the "server-internal" row
+  above when this lands — they become replicated read-models, raising the read-only set accordingly;
+  update the manifest count from the `SyncContractCatalog`, never a literal.) Convergence is asserted in
+  the E-track (see E04/E05 acceptance: two devices reach the same `OwnerFinancialSnapshot.TotalSpendMinor`
+  after sync). *Rejected alternative (Option B): leave finance reads server-online-only and degrade
+  those widgets to "requires connection" offline — rejected because the desktop is offline-first and
+  silently-wrong dashboards are worse than a visible staleness marker.*
 - **One controller per entity**, `src/Animora.Server/Tables/<Entity>TableController.cs`:
   `[Route("tables/<plural-lower>")] sealed class <Entity>TableController : TableController<<Entity>SyncContract>`.
   Repository: `EntityTableRepository<T>` over `AnimoraServerDbContext` — but over a **projected

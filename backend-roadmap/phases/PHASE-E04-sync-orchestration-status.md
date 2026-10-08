@@ -235,6 +235,10 @@ zero `.axaml` changes.
 - `SyncOrchestratorTests` green: two concurrent `SyncNowAsync` calls cause exactly one engine pass
   and both await it; catch-up stops at `MaxCatchUpPasses`; `StopAsync` cancels within the 5 s drain
   and a subsequent start resumes from the persisted cursors.
+- `MultiDeviceFinanceConvergenceTests` green (audit 2026-10-08 · SYNC-C-05, SYNC-H-02, IMP-03):
+  after device A posts an invoice and both devices sync, device B's replicated
+  `OwnerFinancialSnapshot.TotalSpendMinor` and dashboard revenue equal device A's — the server-computed
+  finance read-model projections (D08) converge across devices (they are read-only pulls, never pushed).
 - `SyncDiagnosticsQueryTests` green: `SyncBacklogDto` reports unsent count, oldest age, incomplete
   entity count and circuit state; `DisplayKey` values are localization keys (no Persian literal in
   any backend project — grep assertion).
