@@ -97,6 +97,25 @@ prefix pattern.
   migration collisions resolved (E03 split across two contexts); D06/D07 handler inventories rebuilt
   from the live `CommandTypes`; D13/E02/E01 path & rate-limit-policy drift corrected.
 
+## Maintenance drift ledger (consult before any D/E phase)
+
+> Added 2026-10-08 (audit · IMP-02). Out-of-roadmap sources that record real drift against the C11
+> baseline. A forward phase MUST read these before authoring/executing, so it starts from the true
+> state rather than the C11 snapshot. This is the single index that replaces re-discovering drift.
+
+| Source | Drift it records | Status |
+|---|---|---|
+| `backend-roadmap/PROGRESS.md` → "Post-C11 drift" (above) | migrations `020`–`031`, 2 new aggregates, 86 `CommandTypes`, Statistics module, next-free-ordinal rule | authoritative baseline |
+| `docs/Phase-Problem.md` | migration-id collisions, handler-inventory rebuild, path/rate-limit drift | ✅ resolved 2026-10-07 (do not re-flag) |
+| `docs/BACKEND_SYNC_ARCHITECTURE_AUDIT_2026-10-08.md` | second-order sync-design + roadmap gaps (SYNC-C/H/M, SRV-M, PH, RM-H, CODE, OPT, IMP) | carried into D/E phase files 2026-10-08 (tagged `audit 2026-10-08`) |
+| `Plan/*.md` audits, `CODE_AUDIT_REPORT_2026-10-07.md`, `docs/*_AUDIT_*.md` | perf indexes, new columns/aggregates, code debts (ct/clock/`.Result`/leaks) | historical; code debts gated into owning D/E phases |
+
+**Verified-no-action items (recorded so they are not re-flagged):**
+- **PH-07** — `PHASE-C03` phase file is a reconstructed historical stub only; acceptable (C03 is Done),
+  the stub + `ROADMAP.md` note exist. No change.
+- **PH-08** — `identity`→`auth` rate-limit-policy name already corrected in text. At D13/E01 execution,
+  verify only `auth, commands, tables, files, operator` policies exist. No change now.
+
 ## Next phase
 
 **Next phase: `D01`** — Track C mock purge and scoped offline acceptance are complete through C11.

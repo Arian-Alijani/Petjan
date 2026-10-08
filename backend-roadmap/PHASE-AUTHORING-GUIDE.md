@@ -95,6 +95,11 @@ added`, `Rules that apply here`, `Out of scope` (with owning phase IDs), `Accept
 - [ ] "Out of scope" names the owning phase for each deferred item.
 - [ ] The file was **verified against the tree at authoring time** — the snippets are copies, not
       recollections. Re-verify whenever a dependency phase changes the shapes it references.
+- [ ] **Baseline-verified line (audit 2026-10-08 · IMP-06).** At execution time the phase records a
+      single line proving it read the true baseline, e.g.
+      `> Baseline verified <YYYY-MM-DD>: migration head <NNN>, CommandTypes <N>, projects <list>`
+      (consult `PROGRESS.md` → "Maintenance drift ledger" first). One diff of this line detects the
+      next drift before it silently poisons migration numbering or the replicated set.
 
 ---
 
