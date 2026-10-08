@@ -120,11 +120,32 @@ prefix pattern.
 
 User-authorized replacement of the future server SQL Server baseline with PostgreSQL 18 / Npgsql 10 for a 2–4 GiB, 1–3-core host. ARCHITECTURE §PG / §16-CT–§18-CT govern the commit-safe tenant journal, UUID Version, REPEATABLE READ immutable exports, resource/period/outbox locking, mappings, pool budgets and WAL recovery. D/E recipes and STACK are aligned. SQLite and completed local migration history are unchanged. **No server/runtime/data-transfer test is claimed; no D/E phase is marked done.** Mandatory PostgreSQL CI and performance/restore gates remain implementation work. Historical completed-phase entries below retain their original technology wording.
 
-Verification for this revision: `python3 -B scripts/validate-postgresql-architecture.py` = **17 static checks PASS** (provider/recipe drift, all 22 forward phases, batch/CAS/shadow/retention/tenant boundaries, version seams and resource/recovery gates). `git diff --check` clean. These are specification regressions, NOT real PostgreSQL integration/load/restore acceptance. No production C# code, package pins, solution or local migrations changed; .NET runtime suite was not run (SDK absent). Source importer/history remain intact. Commit/push and PR #228 carry this architecture revision; runtime server work still begins at D01.
+This revision aligned `ARCHITECTURE.md`/`STACK.md`/`CONVENTIONS.md`/`ROADMAP.md` on PostgreSQL. It made NO real PostgreSQL integration/load/restore acceptance claim, and changed no production C# code, package pins, solution or local migration. Source importer/history remain intact. Mandatory PostgreSQL CI and performance/restore gates remain implementation work.
+
+## Server-track reset — 2026-10-08 (supersedes the D/E phase files)
+
+User-authorized reset of the **remaining (unbuilt) backend work**. Tracks A–C are complete and
+untouched. The old `D01`–`D13` and `E01`–`E09` phase files were authored across mixed/pre-PostgreSQL
+baselines and had accumulated drift against the current architecture; **all 22 were deleted** together
+with the now-obsolete `scripts/validate-postgresql-architecture.py` (it only asserted text inside those
+deleted files). **No server/sync/admin code ever existed** — only planning files were removed, so the
+solution, migrations and Tracks A–C are byte-identical. The remaining server+sync+admin work is now
+regenerated from the current PostgreSQL / .NET 10 baseline by a single **meta-phase `M00`** (see
+`phases/PHASE-M00-server-track-regeneration.md`): it holds a resumable checkbox TODO list whose tasks
+each author a small batch of fresh, baseline-accurate server/sync/admin phase files. Phase IDs for the
+regenerated work use the **`S##`** (server) / `G##` (sync/integration/release) families to avoid any
+confusion with the deleted `D`/`E` files. The regenerated phases — not `M00` — carry the production
+server implementation; `M00` only produces them.
 
 ## Next phase
 
-**Next phase: `D01`** — Track C mock purge and scoped offline acceptance are complete through C11.
+**Next phase: `M00`** — the server-track regeneration meta-phase. Tracks A–C are complete through
+C11; the old D/E phase files were deleted (see "Server-track reset — 2026-10-08" above). `M00` is a
+multi-session meta-phase: read its file, do the **first unchecked task** in its TODO list, tick it,
+update this file, and stop. Each task authors a small batch of fresh `S##`/`G##` server-track phase
+files from the current PostgreSQL/.NET 10 baseline. `M00` writes documentation only — it adds no C#,
+no migration, and must leave the solution building. Once `M00`'s TODO list is fully ticked, "Next
+phase" advances to `S01` (the first regenerated server phase) and normal execution resumes.
 
 **Track C complete** — real server-free local baseline, all 24 Contracts registrations audited,
 32 final focused regressions passed, and networking-disabled GUI smoke recorded. Full build/full suite
@@ -182,30 +203,10 @@ separate outstanding item; C11 stock/UoW regressions do not close that debt.
 | C09 | ✅ Done | 2026-09-29 | Finance & reporting read models on the real local DB — **a single, balanced, append-only ledger writer** and **projected fact read models off the OLTP path**. `LedgerPostingHandler` is the only `JournalEntry` constructor (`IDomainEventHandler<>` for 10 events: `InvoicePosted/Refunded/Voided`, `PaymentRegistered`, `StockMovementRecorded`, `GoodsReceiptPosted`, `ChequeCleared/Bounced`, `CashSessionClosed`, `ExpensePosted`), asserted by `LedgerSingleWriterTests`; balance enforced by `JournalEntry.EnsureBalanced()` + `AppendOnlyGuard` (`LEDGER_UNBALANCED`). `JournalNumberAllocator` + `ExpenseNumberAllocator` over the B02 counter. Three `[LocalOnly]` fact tables (`DailyFinanceFact`, `ProductSalesFact`, `OwnerFinancialSnapshot`) + migration **`016_FinanceProjections`** (numbered 016 not the phase's 015 — 015 is C08's, D1), maintained outside the OLTP section by `FinanceProjectionWorker` + `FinanceProjectionStore`/`FinanceProjectionRebuilder`; `RebuildFinanceProjectionsAsync` recomputes from the ledger (proven by `FinanceProjectionIntegrityTests` + run at end of seeding). **FIFO-by-latest-receipt COGS.** 7 fact-only reporting queries (`FinanceQueries`, tenant/user/version cache keys) + `RecordExpenseCommand`/`CloseAccountingPeriodCommand`; late-event-into-next-open-period rule; **`ReopenAccountingPeriodCommand` not implemented (D2).** `FinanceQueryService`/`FinanceMapping`; **`PatientsMapping` now reads `OwnerFinancialSnapshot` — C01's deferred `TotalSpend` closed**. DI swap + worker registered; **mock deleted: `MockFinanceQueryService.cs`**; `CommandTypes` += 2 (`finance.period.close`, `finance.expense.post`, D3); `ErrorCodes` += finance/period codes (D4); 4 test classes. Verified: Application/Persistence/Client.Services build clean. |
 | C10 | ✅ Done | 2026-09-29 | History, Dashboard, Global search & Profile on the real local DB — **reads the C09 fact tables, adds no new ledger writer**. Materialized `[LocalOnly]` `ActivityEvent` feed + `UserPreference` (migrations **`017_ActivityFeed`** + **`018_UserPreferences`** — 016 taken by C09, D-01); `ActivityFeedMapper` maps **14** domain event types to one `ActivityEvent` each with documented key/args/amount/sign; `IActivityFeedWriter` appends on the OLTP path and `RebuildActivityFeedAsync` replays the outbox to reproduce the feed exactly (proven by tests). History feed query + `CsvWriter` (UTF-8-BOM, Persian-correct) + export path (50 001 rows → `EXPORT_TOO_LARGE`). `DashboardComposer` + role mapping (manager sees revenue/doctor-loads/species; doctor gets none) with a **≤8-statement budget** per snapshot. Five-source **`UNION ALL`** global search (owners/pets/invoices/products/appointments), one statement, Persian-digit + Arabic-form matching via the normalized `SearchKey`, <2-char no-op, per-source limits. Profile/settings queries + **non-journaled** save commands (`UserProfileService`) that survive restart. 4 client services + `CsvWriter` + `HistoryText`; 4 DI swaps; **mocks deleted: `MockHistoryQueryService`, `MockDashboardQueryService`, `MockSearchService`, `MockUserProfileService`**; `ErrorCodes` += 3; 3 test classes (`ActivityFeedTests` 14-type mapping + rebuild-exact + ASCII, `DashboardBudgetTests`, `GlobalSearchQueryTests` — **21 tests green**). Verified: Application/Persistence.Sqlite/Client.Services build 0/0; targeted test run green. Deviation D-01 + the ExportCsv contract-vs-path resolution recorded below. |
 | C11 | Done (scoped verification) | 2026-09-30 | Final mock removed; migration 019; DI/layering guards, 14-step clinic/reopen/boarding scenario, startup guard; 32/32 focused tests, targeted Desktop build 0/0, isolated SMOKE RUN OK, six offline metrics recorded. No full suite/build by user directive; manual UI and proxy/cold-start limitations recorded below. |
-| D01 | ⬜ Not started | | |
-| D02 | ⬜ Not started | | |
-| D03 | ⬜ Not started | | |
-| D04 | ⬜ Not started | | |
-| D05 | ⬜ Not started | | |
-| D06 | ⬜ Not started | | |
-| D07 | ⬜ Not started | | |
-| D08 | ⬜ Not started | | |
-| D09 | ⬜ Not started | | |
-| D10 | ⬜ Not started | | |
-| D11 | ⬜ Not started | | |
-| D12 | ⬜ Not started | | |
-| D13 | ⬜ Not started | | |
-| E01 | ⬜ Not started | | |
-| E02 | ⬜ Not started | | |
-| E03 | ⬜ Not started | | |
-| E04 | ⬜ Not started | | |
-| E05 | ⬜ Not started | | |
-| E06 | ⬜ Not started | | |
-| E07 | ⬜ Not started | | |
-| E08 | ⬜ Not started | | |
-| E09 | ⬜ Not started | | |
+| ~~D01–D13, E01–E09~~ | 🗑️ Removed 2026-10-08 | | **Deleted, not executed.** Planning-only files with baseline drift; superseded by the `M00` regeneration (see "Server-track reset — 2026-10-08"). No code existed. |
+| M00 | 🟨 In progress | 2026-10-08 | Server-track regeneration meta-phase. Authors fresh `S##`/`G##` phase files, one small batch per TODO task; resumable across sessions. See `phases/PHASE-M00-server-track-regeneration.md`. |
 
-Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blocked (reason)`.
+Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blocked (reason)` · `🗑️ Removed`.
 
 ---
 
