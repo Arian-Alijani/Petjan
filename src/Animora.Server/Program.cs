@@ -3,6 +3,7 @@ using Animora.Persistence.PostgreSql.KeyRing;
 using Animora.Server.Auth;
 using Animora.Server.Authorization;
 using Animora.Server.Hosting;
+using Animora.Server.Commands;
 using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -50,6 +51,9 @@ builder.Services.AddAnimoraIdentity(builder.Configuration);
 
 // 4c. Tenant context + stored-RBAC authorization + entitlement slot + snapshot signing (S05).
 builder.Services.AddAnimoraAuthorization();
+
+// 4d. Fenced command intake (S06): server Application profile, no desktop journal/session dependencies.
+builder.Services.AddAnimoraCommandPlane();
 
 // 5. Health checks: readiness probes (data root, database, key ring, schema head).
 //    Probes degrade to Unhealthy when PostgreSQL is absent; the host still boots.
@@ -105,6 +109,9 @@ app.MapAuthEndpoints();
 
 // Device approve/revoke, capability snapshots (S05) and the anonymous public key set.
 app.MapDeviceEndpoints();
+
+// S06 command conversation: independent settlements and server-allocated id maps.
+app.MapCommandEndpoints();
 
 // Health endpoints — anonymous, never rate-limited, leak no secret (ARCH §4).
 app.MapGet(ServerRoutes.HealthLive, () => Results.Json(new { status = "live" }));
