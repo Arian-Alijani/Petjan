@@ -246,7 +246,7 @@ Out of scope points the client entitlement wiring at its `G##` owner. Tick + fil
 
 **Evidence (T6):** Authored PHASE-S14-subscription-operator-api (Plan/Subscription/BillingPeriod/SubscriptionEvent, operator identity + `/operator` API, single `ProvisioningEngine`, `ILicenseIssuanceScheduler` seam), S15-onboarding-intake (HMAC-signed idempotent async provisioning intent → same engine), S16-licensing-anti-piracy (`Animora.Server.Licensing` Verification/Issuance halves, signed installation-bound licence, fail-closed policy matrix + grace + high-water clock, grants, `ServerEntitlementGate`; client wiring → G06).
 
-### - [ ] T7 — Author the admin-web phases (operator panel core → insight seams)
+### - [x] T7 — Author the admin-web phases (operator panel core → insight seams)
 **Read:** this file; `M00-source-brief.md`; `STACK.md` §0 (Blazor Web App — Static SSR default +
 selective `InteractiveServer` islands, never global); `ARCHITECTURE.md` §17/§19; the `R-B##` rows for
 the operator admin site; ROADMAP §5 (cross-tenant analytics is **deferred** — only the read-model seam
@@ -257,6 +257,8 @@ clinic-facing web client (ROADMAP §5 deferred). Split if over band M.
 **Done when:** each file exists and passes the checklist; render-mode policy (Static SSR first) is
 stated; deferred analytics features are explicitly out of scope with the §5 trigger noted. Tick + file
 names.
+
+**Evidence (T7):** Authored PHASE-S19-admin-web-operator-core (`Animora.Web.Admin` RCL, Static SSR, `__Host-` cookie auth, port/adapter split, zero islands) and PHASE-S20-admin-web-insight-seams (ops pages, the single `LiveStatusPanel` island, `ITenantInsightQuery` disabled-by-default seam, consent-ADR startup contract); S15/S20 re-banded M (weight honest), deferred analytics explicit in Out of scope.
 
 ### - [ ] T8 — Author the client-sync + release phases (engine → orchestration → conflict → transport → online auth → gates → release)
 **Read:** this file; `M00-source-brief.md`; `ARCHITECTURE.md` §8/§16-CT–§18-CT/§48–§50/§PG; `STACK.md`

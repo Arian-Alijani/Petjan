@@ -1,6 +1,6 @@
 # Phase S15 — Self-service onboarding intake — authenticated, idempotent, async provisioning intent from the vendor website
 
-**Band:** S · **Track:** S (server) · **Depends on:** S14 · **Next:** S16
+**Band:** M · **Track:** S (server) · **Depends on:** S14 · **Next:** S16
 **Satisfies:** R-B30, R-B36, R-B29 · **Runnable after this phase:** desktop offline yes · server required no
 **Produced by:** M00 (regenerated 2026-10-09; supersedes the deleted `PHASE-D10` file, second half).
 
@@ -130,7 +130,7 @@ Tables `WebsiteClients`, `ProvisioningIntents`; endpoints `POST|GET /provisionin
 ## Acceptance criteria (mechanical)
 
 1. `scripts/sandbox/build.sh full` = 0/0; `scripts/sandbox/run.sh` = `SMOKE RUN OK`; client sources unchanged.
-2. `grep -rn "ProvisioningEngine" src/Animora.Server/Provisioning src/Animora.Server/Operator` shows exactly **one** `ProvisionAsync` call site per caller type (worker + operator create-tenant) and no tenant/subscription construction outside S14's engine (`grep -rn "Tenant.Create(\|Subscription.Start(" src/Animora.Server` returns nothing).
+2. `grep -rn "ProvisioningEngine" src/Animora.Server/Provisioning src/Animora.Server/Operator` shows exactly **one** `ProvisionAsync` call site per caller type (worker + operator create-tenant; S19 later adds the admin adapter as a third caller type under `Admin/`) and no tenant/subscription construction outside S14's engine (`grep -rn "Tenant.Create(\|Subscription.Start(" src/Animora.Server` returns nothing).
 3. Pure tests pass: `RequestSignatureVerifierTests.ValidSignature_Accepted`, `…TamperedBody_Rejected`, `…SkewBeyond5Min_Rejected`, `…UnknownKeyAndBadSignature_SameError`, `…ReplayInsideWindow_Rejected`, `ReplayWindowTests.BoundedAndExpires`, `ProvisioningEndpointsTests.Post_ReturnsAccepted_AndDuplicateSameFingerprint_ReplaysSameId`, `…DuplicateDifferentFingerprint_409`, `…OversizeBody_413`, `…ClientCannotReadOthersIntent`, `ProvisioningEndpointsTests.TempPassword_ReturnedOnceThenWiped`, `ProvisioningIntentWorkerTests.PermanentFailure_NoRetry`, `…TransientFailure_RetriesWithJitter_ThenDead`, `…CrashAfterEngineCommit_RerunIsReplayNoSecondTenant`, `…UsesWebsiteIntentActor`, `ProvisioningParityTests.WebsiteAndOperatorPaths_ProduceSameState`, `WebsiteClientServiceTests.SecretShownOnce_MaxThreeActive_Revocation`, `ProvisioningSecretsTests.PayloadAndPassword_NeverInLogsOrAudit`.
 4. PG-gated (**mandatory G07**): `ProvisioningIntentStoreTests.InsertOnConflict_Race_OneRow`, `…TwoWorkers_NeverClaimSameIntent`, `…ExpiredLease_Reclaimable_FencedCompletionRejected`, `ProvisioningRetentionTests.PayloadWiped_After7Days`.
 5. `ls src/Animora.Persistence.PostgreSql/Migrations/Server | grep -c ProvisioningIntents` ≥ 1 (next free ordinal); `grep -c "PROVISIONING_SIGNATURE_INVALID\|PROVISIONING_INTENT_NOT_FOUND" src/Animora.Domain/Results/ErrorCodes.cs` = 2.
