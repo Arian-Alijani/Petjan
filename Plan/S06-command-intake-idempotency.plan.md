@@ -219,7 +219,7 @@ Concrete handlers/ports/aggregate tables/permission rows (S07–S10); journal/ou
 
 ## TASK LIST (do top-to-bottom; push after each)
 
-### T1 — Wire v2 + ErrorCodes + Application server profile  ⬜
+### T1 — Wire v2 + ErrorCodes + Application server profile  ✅
 **Edit:**
 - `src/Animora.Contracts.Wire/Commands/CommandEnvelope.cs`: add trailing positional params
   `string? ExpectedServerVersion = null`? → records can't default positional except trailing; add them as the LAST two
@@ -363,4 +363,4 @@ then delete this Plan file as the absolute last action.
 ---
 
 ## Progress log (update as you go)
-- T1 ⬜  T2 ⬜  T3 ⬜  T4 ⬜  T5 ⬜  T6 ⬜  T7 ⬜  T8 ⬜
+- T1 ✅  T2 ⬜  T3 ⬜  T4 ⬜  T5 ⬜  T6 ⬜  T7 ⬜  T8 ⬜

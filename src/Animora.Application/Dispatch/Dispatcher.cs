@@ -25,6 +25,21 @@ public sealed class Dispatcher(HandlerRegistry registry, IServiceProvider servic
         new AuditBehavior(),
     ];
 
+    /// <summary>
+    /// The server-side chain: identical to <see cref="Chain"/> minus <c>CommandJournalBehavior</c> (client-only — needs the
+    /// local journal and sequence allocator). Selected through <see cref="ApplicationPipelineProfile.Server"/>.
+    /// </summary>
+    public static IReadOnlyList<IPipelineBehavior> ServerChain { get; } =
+    [
+        new CorrelationBehavior(),
+        new ExceptionMappingBehavior(),
+        new ValidationBehavior(),
+        new AuthorizationBehavior(),
+        new EntitlementBehavior(),
+        new TransactionBehavior(),
+        new AuditBehavior(),
+    ];
+
     public Task<Result<TResult>> SendAsync<TResult>(ICommand<TResult> command, CommandContext ctx,
         CancellationToken ct = default)
     {

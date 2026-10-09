@@ -682,4 +682,28 @@ public static class ErrorCodes
         new("SETTING_KEY_UNKNOWN", ErrorCode.Validation);
 
     #endregion
+
+    #region Server command intake (Phase S06)
+
+    /// <summary>The same operation is currently being processed under an unexpired lease; retry later.</summary>
+    public static readonly ErrorCode CommandInProgress =
+        new("COMMAND_IN_PROGRESS", ErrorCode.Conflict);
+
+    /// <summary>The command this one depends on was settled as rejected, so this one can never apply.</summary>
+    public static readonly ErrorCode DependencyRejected =
+        new("DEPENDENCY_REJECTED", ErrorCode.Conflict);
+
+    /// <summary>A command batch exceeded the 50-command cap.</summary>
+    public static readonly ErrorCode BatchTooLarge =
+        new("BATCH_TOO_LARGE", ErrorCode.Validation);
+
+    /// <summary>The envelope's wire-contract version is not supported by this server.</summary>
+    public static readonly ErrorCode ContractVersionUnsupported =
+        new("CONTRACT_VERSION_UNSUPPORTED", ErrorCode.Validation);
+
+    /// <summary>The envelope's rule-set version is older than the oldest version still supported.</summary>
+    public static readonly ErrorCode RuleSetUnsupported =
+        new("RULESET_UNSUPPORTED", ErrorCode.Validation);
+
+    #endregion
 }

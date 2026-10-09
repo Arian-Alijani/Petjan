@@ -10,7 +10,16 @@ namespace Animora.Contracts.Wire;
 public static class WireContract
 {
     /// <summary>Current wire contract version. Bump only on a wire-shape change.</summary>
-    public const int Version = 1;
+    public const int Version = 2;
+
+    /// <summary>Header carrying the comma-separated supported versions on a <c>426</c> response.</summary>
+    public const string SupportedVersionsHeaderName = "X-Animora-Supported-Versions";
+
+    /// <summary>Every wire version the server still accepts (v1 envelopes remain valid).</summary>
+    public static IReadOnlyList<int> SupportedContractVersions { get; } = [1, 2];
+
+    /// <summary>True when <paramref name="version"/> is a supported wire-contract version.</summary>
+    public static bool IsSupported(int version) => version is 1 or 2;
 
     /// <summary>HTTP header carrying <see cref="Version"/> on every wire request.</summary>
     public const string HeaderName = "X-Animora-Contract-Version";

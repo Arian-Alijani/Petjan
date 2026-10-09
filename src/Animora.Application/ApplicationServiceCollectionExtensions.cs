@@ -26,9 +26,12 @@ public static class ApplicationServiceCollectionExtensions
     /// explicit registration (identity use cases: <c>builder.AddIdentityUseCases()</c>, B03b) from
     /// <paramref name="configure"/>, then validates and freezes the handler registry.
     /// Throws <see cref="InvalidOperationException"/> on any registry gap (startup failure).
+    /// <paramref name="profile"/> picks the behavior chain: <see cref="ApplicationPipelineProfile.Client"/> (default,
+    /// with the local journal) or <see cref="ApplicationPipelineProfile.Server"/> (no journal).
     /// </summary>
     public static IServiceCollection AddAnimoraApplication(this IServiceCollection services,
-        Action<ApplicationRegistrationBuilder>? configure = null)
+        Action<ApplicationRegistrationBuilder>? configure = null,
+        ApplicationPipelineProfile profile = ApplicationPipelineProfile.Client)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -55,7 +58,7 @@ public static class ApplicationServiceCollectionExtensions
         builder.AddQuery<UnsettledCommandListQuery, PagedResult<PendingCommandRecord>, UnsettledCommandListQueryHandler>();
         configure?.Invoke(builder);
 
-        var registry = builder.Build(Dispatcher.Chain);
+        var registry = builder.Build(profile == ApplicationPipelineProfile.Server ? Dispatcher.ServerChain : Dispatcher.Chain);
         services.AddSingleton(registry);
         services.TryAddScoped<IDispatcher, Dispatcher>();
         return services;

@@ -21,7 +21,15 @@ namespace Animora.Contracts.Wire.Commands;
 /// <param name="LocalSequence">Monotonic per-installation sequence; the only local ordering key the processor honours.</param>
 /// <param name="CausationId">The command/event that caused this one, when known (A-RULE 021).</param>
 /// <param name="DependsOnOperationId">Explicit dependency on another command settling first (A-RULE 021/022).</param>
-/// <param name="ExpectedAggregateVersion">The opaque version the caller expects, when known. Detection only (A-RULE 004/010).</param>
+/// <param name="ExpectedAggregateVersion">
+/// Legacy (v1) numeric version hint. Detection only (A-RULE 004/010); the server ignores it as concurrency evidence
+/// (it is superseded by <paramref name="ExpectedServerVersion"/>).
+/// </param>
+/// <param name="ExpectedServerVersion">
+/// Wire v2: canonical lowercase UUID the client last observed for the target aggregate. When present and different from the
+/// server's current aggregate version the command settles <c>Conflict</c> before any handler runs. Absent ⇒ no precondition.
+/// </param>
+/// <param name="RuleSetVersion">Wire v2: business rule-set version (integer string) the command was authored under (A-RULE 037). Absent ⇒ current.</param>
 public sealed record CommandEnvelope(
     int ContractVersion,
     string OperationId,
@@ -37,7 +45,9 @@ public sealed record CommandEnvelope(
     long LocalSequence,
     string? CausationId,
     string? DependsOnOperationId,
-    long? ExpectedAggregateVersion)
+    long? ExpectedAggregateVersion,
+    string? ExpectedServerVersion = null,
+    string? RuleSetVersion = null)
 {
     /// <summary>
     /// Builds an envelope stamped with the current <see cref="WireContract.Version"/> — the default path.
@@ -58,8 +68,10 @@ public sealed record CommandEnvelope(
         long localSequence,
         string? causationId = null,
         string? dependsOnOperationId = null,
-        long? expectedAggregateVersion = null) =>
+        long? expectedAggregateVersion = null,
+        string? expectedServerVersion = null,
+        string? ruleSetVersion = null) =>
         new(WireContract.Version, operationId, tenantId, userId, deviceId, commandType, aggregateType,
             aggregateId, payloadJson, commandFingerprint, createdAtUtc, localSequence, causationId,
-            dependsOnOperationId, expectedAggregateVersion);
+            dependsOnOperationId, expectedAggregateVersion, expectedServerVersion, ruleSetVersion);
 }
