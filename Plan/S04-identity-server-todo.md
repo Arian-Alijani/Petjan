@@ -185,7 +185,7 @@ Create in `src/Animora.Persistence.PostgreSql/Identity/`:
 4. Edit `ServerSchemaVersion.cs`: `ExpectedHead = "102_Identity"`.
 5. `build.sh fast`.
 **Push:** `scripts/git/push.sh "feat(persistence): S04 task7 — 102_Identity migration + version/immutable triggers + schema head"`
-**Status:** ⬜ TODO
+**Status:** ✅ DONE (build 0/0; Up + Down verified on a real local PostgreSQL 17: trigger raises on UPDATE/DELETE/TRUNCATE). Added extra `trg_SecurityAudit_no_truncate` statement trigger (TRUNCATE bypasses row triggers).
 
 ---
 
