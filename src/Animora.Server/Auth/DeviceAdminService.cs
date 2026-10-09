@@ -21,7 +21,6 @@ internal sealed class DeviceAdminService(
     ISecurityAuditWriter audit,
     ServerAuthorizationSubjectFactory subjects,
     ISnapshotSignerProvider signers,
-    SigningKeyStore keys,
     IClock clock)
 {
     /// <summary>Audit action: a device was approved.</summary>
@@ -172,7 +171,7 @@ internal sealed class DeviceAdminService(
     /// <summary>Public halves of every snapshot key (retired ones included), newest first. No private material.</summary>
     public async Task<PublicKeySet> ListPublicKeysAsync(CancellationToken ct = default)
     {
-        IReadOnlyList<SigningKey> rows = await keys.ListPublicAsync(SigningKey.Purposes.Snapshot, ct).ConfigureAwait(false);
+        IReadOnlyList<SigningKey> rows = await signers.ListPublicAsync(SigningKey.Purposes.Snapshot, ct).ConfigureAwait(false);
         return new PublicKeySet(rows
             .Select(k => new PublicKeyInfo(k.KeyId, k.Algorithm, Convert.ToBase64String(k.PublicKeyDer), k.NotAfterUtc))
             .ToArray());

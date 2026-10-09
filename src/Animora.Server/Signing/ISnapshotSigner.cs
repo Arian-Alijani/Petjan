@@ -1,4 +1,5 @@
 using Animora.Domain.Results;
+using Animora.Persistence.PostgreSql.Security;
 
 namespace Animora.Server.Signing;
 
@@ -21,9 +22,12 @@ internal interface ISnapshotSigner
     bool Verify(ReadOnlySpan<byte> canonicalPayload, string signatureBase64);
 }
 
-/// <summary>Resolves the signer for the currently active snapshot key, creating the first key when none exists.</summary>
+/// <summary>Resolves the signer for the currently active snapshot key and lists the published public keys.</summary>
 internal interface ISnapshotSignerProvider
 {
-    /// <summary>The signer over the active <c>snapshot</c> key.</summary>
+    /// <summary>The signer over the active <c>snapshot</c> key (the first key is created when none exists).</summary>
     Task<ISnapshotSigner> GetAsync(CancellationToken ct = default);
+
+    /// <summary>All keys of <paramref name="purpose"/>, newest first, retired ones included (public halves are published).</summary>
+    Task<IReadOnlyList<SigningKey>> ListPublicAsync(string purpose, CancellationToken ct = default);
 }

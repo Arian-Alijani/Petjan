@@ -30,7 +30,7 @@ internal sealed class SigningKeyStore(
         return EcdsaSnapshotSigner.FromPkcs8(key.KeyId, pkcs8);
     }
 
-    /// <summary>All published public keys for <paramref name="purpose"/>, newest first (retired keys included).</summary>
+    /// <inheritdoc />
     public async Task<IReadOnlyList<SigningKey>> ListPublicAsync(string purpose, CancellationToken ct = default) =>
         await context.SigningKeys
             .AsNoTracking()
