@@ -432,7 +432,7 @@ mechanical. Tick + file name. **This closes the T8 batch; the next unchecked tas
 
 **Evidence (T8i):** Authored PHASE-G09-release-engineering (band M): three single-operator runbooks under `docs/release/` — `01-deployment-topology` (ARCH §17.1 one-host shape + migration-discipline first-install checklist: owner/DDL role runs `dotnet-ef database update` before traffic, runtime role has no DDL rights, `EnsureCreated` forbidden, migrations from 101 never edited), `02-upgrade-rollback` (ARCH §17.2/§18 stop-migrate-start | blue/green, additive-migration + versioned-wire → one-step-back rollback never strands clients, `WireContract.IsSupported` the N/N-1/N-2 rolling-upgrade guard), `03-backup-restore-hostmove` (ARCH §17.3 three-part **single consistency boundary** DB+files+key-ring, named **RPO** cadence, **measured RTO** cited from the G07 `restore-rto.txt`, off-host durability ≥1 copy on different hardware, host-move/promotion path + named §16.2 scale-out trigger); `scripts/release/make-release-manifest.sh` emitting a **NuGet SBOM** (CycloneDX, no cloud; `NuGetAuditMode=all` + lock-file) + a **native-binary inventory** (`e_sqlite3`/`e_sqlite3mc`/SQLCipher + DLL/DYLIB/SO with version + RID — STACK §16) + a suppression-ledger that rejects native-DB/crypto entries without an `expiry` (no permanent suppression); `publish-portable.ps1 -EmitManifest` ships the manifest with the package; **launch-gate aggregator** `scripts/release/launch-gate.sh` + `.github/workflows/release-gates.yml` failing the release unless every ARCH §19 lane (G07 pg-gates + G08 perf-gates + desktop smoke + SBOM/native-inventory + **zero-Internet built-output scan**, R-B27 gate Z promoted to a ship-blocker) is green, emitting `artifacts/launch-gate-report.md`; `LaunchGateManifestTests.EveryArch19Gate_IsCoveredByALane` locks the gate list to the §19 table. No `src/**` change, no migration, no ErrorCode — every acceptance is a script exit / generated artifact / named test. "Next phase" stays `M00` (T9 closes the meta-phase).
 
-### - [ ] T9 — Reconcile the set and hand off to S01
+### - [x] T9 — Reconcile the set and hand off to S01
 **Read:** this file; `M00-source-brief.md`; every `PHASE-S##-*.md` / `PHASE-G##-*.md` created in
 T3–T7 and T8a–T8i (this is the one task that reads the sibling phase files — to cross-check them); `ROADMAP.md`
 §1/§2; `PROGRESS.md` top section.
@@ -449,6 +449,27 @@ it and say why). (e) Confirm no `D##`/`E##` phase-file reference remains anywher
 **Done when:** ROADMAP §1/§2 + PROGRESS reflect the regenerated set, "Next phase" is `S01`, the
 coverage matrix shows full §2 coverage, and the grep check is clean. Tick the box — **M00 is now
 complete.**
+
+**Evidence (T9):** (a) Coverage verified against the brief §2 regeneration map — every ROADMAP §2 D/E
+inventory row maps to ≥1 regenerated phase (D01→S01, D02→S02/S03, D03→S04, D04→S05, D05→S06,
+D06→S07/S08, D07→S09/S10, D08→S11/S12, D09→S13, D10→S14/S15, D11→S16, D12→S17, D13→S18, E01→S19,
+E02→S20, E03→G01/G02, E04→G03, E05→G04, E06→G05, E07→G06, E08→G07/G08, E09→G09) and post-C11 drift is
+covered (`TreatmentPlan`→S07 handler + S11 replicated set; `RecurringExpense`→S10 handler,
+command-settled not replicated; `Statistics` has no server surface, stated in S11 Out of scope); all 29
+files pass the authoring checklist (every file has the baseline-verified line, "Runnable after: desktop
+offline yes", a `Band:` line, `Acceptance criteria`, and no forward dependency — every `Depends on:`
+cites only a lower-numbered S/G phase or C11). No duplicate introducer found. (b) `ROADMAP.md` §1
+(Tracks) + §2 (phase index) list the regenerated S01–S20/G01–G09 set with bands/deps/`R-B##` taken from
+the live phase headers; band tally **S=5 (A01,A02,A03,S03,G01) · M=52 · XL=0**, total **57**
+(A12+B5+C11+S20+G9); §3/§5/§6 refreshed, the post-reset deviation recorded in §6; §5 deferred list
+retained. (c) `PROGRESS.md`: the S01–S20/G01–G09 rows added to the Phase-status table as
+`⬜ Not started`, the `M00` row flipped to `✅ Done`, "Next phase" set to **`S01`**. (d) Kept
+`phases/M00-source-brief.md` — its §2 regeneration map + Reference pack R1–R6 remain the single
+cross-check index the audit trail references and are not duplicated verbatim into any one phase file
+(deleting it would lose the one-glance coverage matrix). (e) `grep -rn "PHASE-D0\|PHASE-D1\|PHASE-E0"
+backend-roadmap/phases/PHASE-S*.md backend-roadmap/phases/PHASE-G*.md` returns **nothing** (the only
+remaining D/E tokens are this M00 file's own acceptance-criterion/matrix prose, which is historical and
+expected). **M00 is complete.**
 
 ---
 
