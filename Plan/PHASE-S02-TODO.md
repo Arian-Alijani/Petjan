@@ -105,7 +105,7 @@ public sealed class Tenant : AggregateRoot {
 
 ---
 
-### [ ] T01 — Add package pins (`Directory.Packages.props`)
+### [x] T01 — Add package pins (`Directory.Packages.props`)
 **Do:** Add the three `<PackageVersion>` lines from §0.5 into the Backend-track `<ItemGroup>` (near the EF Core 10 pins, line ~29-31). Keep exact versions; no floating ranges.
 **Why:** PG + DataProtection EF store packages must resolve centrally before the project can reference them.
 **Verify:** `grep -n "Npgsql\|DataProtection.EntityFrameworkCore" Directory.Packages.props` shows the 3 new lines.
