@@ -201,7 +201,7 @@ Namespace `Animora.Persistence.PostgreSql.Configurations`. `public sealed class 
 
 ---
 
-### [ ] T08 — Main DbContext + design-time factory (`.../Context/`)
+### [x] T08 — Main DbContext + design-time factory (`.../Context/`)
 Namespace `Animora.Persistence.PostgreSql.Context`.
 1. **`AnimoraServerDbContext.cs`** — `public sealed class AnimoraServerDbContext : DbContext`:
    - Ctor takes `DbContextOptions<AnimoraServerDbContext>` + `ITenantContext`. Store the tenant context.
