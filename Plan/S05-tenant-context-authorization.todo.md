@@ -571,7 +571,7 @@ public sealed class SigningKey {
     + `/auth/keys` anonymous.
   Build fast. **Push:** `feat(server): S05 — AddAnimoraAuthorization DI + pipeline wiring`.
 
-- [ ] **T14 — Tests (`tests/Animora.Server.Tests/Authorization/`).**
+- [x] **T14 — Tests (`tests/Animora.Server.Tests/Authorization/`).**
   Create the dir + test classes. Use the existing patterns: `TestHostFactory`/`WebApplicationFactory<Program>`
   for endpoint/pipeline tests; `PgFixture`/`PgGatedTests` + `ANIMORA_PG_TEST_CONNECTION` skip for DB-backed
   tests; in-memory fakes for pure unit tests (fake `IMembershipResolver`/repos). Required tests (acceptance

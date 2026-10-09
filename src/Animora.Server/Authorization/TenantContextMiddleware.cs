@@ -35,13 +35,7 @@ internal sealed class TenantContextMiddleware(RequestDelegate next)
         || path.Equals(ServerRoutes.Auth + "/keys", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Runs the stage.</summary>
-    public async Task InvokeAsync(
-        HttpContext context,
-        IMembershipResolver resolver,
-        ServerAuthorizationSubjectFactory subjects,
-        IRequestAuthorizationState state,
-        ISecurityAuditWriter audit,
-        IClock clock)
+    public async Task InvokeAsync(HttpContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -58,6 +52,15 @@ internal sealed class TenantContextMiddleware(RequestDelegate next)
             await WriteFailureAsync(context, ErrorCodes.SessionExpired).ConfigureAwait(false);
             return;
         }
+
+        // Resolved only now, never as InvokeAsync parameters: those are built for EVERY request, so a skipped route
+        // (health, login, refresh, keys) would otherwise need the database just to be bypassed.
+        IServiceProvider services = context.RequestServices;
+        IMembershipResolver resolver = services.GetRequiredService<IMembershipResolver>();
+        ServerAuthorizationSubjectFactory subjects = services.GetRequiredService<ServerAuthorizationSubjectFactory>();
+        IRequestAuthorizationState state = services.GetRequiredService<IRequestAuthorizationState>();
+        ISecurityAuditWriter audit = services.GetRequiredService<ISecurityAuditWriter>();
+        IClock clock = services.GetRequiredService<IClock>();
 
         Result<ResolvedMembership> resolved = await resolver
             .ResolveAsync(caller.UserId, caller.DeviceId, caller.SecurityStamp, context.RequestAborted)
