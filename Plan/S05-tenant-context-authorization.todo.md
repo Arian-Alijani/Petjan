@@ -406,19 +406,19 @@ public sealed class SigningKey {
 
 > After EVERY task: `scripts/git/push.sh "feat(server): S05 — <summary>"`. Mark the box `[x]`.
 
-- [ ] **T1 — Read-first + baseline sanity.**
+- [x] **T1 — Read-first + baseline sanity.**
   Read only: `backend-roadmap/PROGRESS.md` (top up to & incl. "Phase status" — grep `^### S04` if you need
   S04 detail), `ARCHITECTURE.md` §9.2/§10.1/§10.3/§10.4 (only these). You already have the code facts above.
   Confirm head: `grep -n ExpectedHead src/Animora.Persistence.PostgreSql/ServerSchemaVersion.cs` → `102_Identity`.
   No code change. (This task's "push" is a no-op; skip the push if nothing changed — proceed to T2.)
 
-- [ ] **T2 — `SigningKey` entity + EF config + DbSet (Persistence.PostgreSql).**
+- [x] **T2 — `SigningKey` entity + EF config + DbSet (Persistence.PostgreSql).**
   Create `src/Animora.Persistence.PostgreSql/Security/SigningKey.cs` (per 2.8) and
   `Configurations/SigningKeyConfiguration.cs`. Add `DbSet<SigningKey> SigningKeys => Set<SigningKey>();` to
   `AnimoraServerDbContext`. Do NOT add any tenant filter for it. Build: `scripts/sandbox/build.sh fast`.
   **Push:** `feat(server): S05 — SigningKey entity + configuration`.
 
-- [ ] **T3 — Migration `103_SigningKeys` + bump ExpectedHead.**
+- [x] **T3 — Migration `103_SigningKeys` + bump ExpectedHead.**
   Generate with the sandbox EF tool against `AnimoraServerDbContext` (server migrations live in
   `Migrations/Server`). Command pattern (verify exact factory usage from existing migrations — there is an
   `AnimoraServerDbContextFactory`):

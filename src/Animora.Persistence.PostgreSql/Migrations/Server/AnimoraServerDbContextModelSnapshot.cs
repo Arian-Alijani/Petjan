@@ -484,6 +484,50 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
 
                     b.ToTable("SecurityAudit", "public");
                 });
+
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Security.SigningKey", b =>
+                {
+                    b.Property<string>("KeyId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<string>("Algorithm")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasPrecision(6)
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("NotAfterUtc")
+                        .HasPrecision(6)
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("ProtectedPrivateKey")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<byte[]>("PublicKeyDer")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset?>("RetiredUtc")
+                        .HasPrecision(6)
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("KeyId");
+
+                    b.HasIndex("Purpose", "RetiredUtc")
+                        .HasDatabaseName("IX_SigningKeys_Purpose_RetiredUtc");
+
+                    b.ToTable("SigningKeys", "public");
+                });
 #pragma warning restore 612, 618
         }
     }

@@ -80,7 +80,7 @@ public sealed class IdentityMigrationTests(PgFixture pg) : IClassFixture<PgFixtu
         Assert.Equal(1L, reader.GetInt64(1));
         Assert.Equal(1L, reader.GetInt64(2));
         Assert.True(ServerSchemaVersion.IsExpectedHead(reader.GetString(3)));
-        Assert.Equal("102_Identity", ServerSchemaVersion.ExpectedHead);
+        Assert.Equal("103_SigningKeys", ServerSchemaVersion.ExpectedHead);
     }
 
     internal static async Task<ProvisionedTenant> Provision(IdentityPgHost host, string code, string owner)
