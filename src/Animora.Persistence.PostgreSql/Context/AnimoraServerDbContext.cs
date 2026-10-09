@@ -42,6 +42,9 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     /// <summary>Append-only security audit trail (S04).</summary>
     public DbSet<SecurityAuditEntry> SecurityAudit => Set<SecurityAuditEntry>();
 
+    /// <summary>Vendor-global asymmetric signing keys (S05); never tenant-scoped.</summary>
+    public DbSet<Security.SigningKey> SigningKeys => Set<Security.SigningKey>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
