@@ -350,7 +350,7 @@ surfaced to ISyncStatusService) | band M | Track G | Depends on: G02 | R-B03 | c
 
 **Evidence (T8c):** Authored PHASE-G03-sync-orchestration-status (band M): `SyncOrchestrator` (PullOnce/PullAll, advances `SyncCursor` via `ISyncCursorStore` only on Applied/UpToDate), `SyncSchedulerHostedService` (dormant when unconfigured, jitter ±20% + capped backoff, `IDelayProvider`/`TimeProvider` for deterministic tests — no Thread.Sleep), `ISyncResyncHandler` seam + `NullSyncResyncHandler` (real full-resync → G04), `LocalSyncStatusService` extended to combine state-pull outcome + command backlog into one `SyncState` (two passes, never merged), `AddAnimoraSyncOrchestration` DI; no HTTP in Client.Services (grep-gated), no migration/ErrorCode.
 
-### - [ ] T8d — Author G04 (conflict resolution & non-destructive pull)
+### - [x] T8d — Author G04 (conflict resolution & non-destructive pull)
 **Map row (verbatim):** `G04 | Conflict resolution & non-destructive pull (preserve pending intent;
 posted-invoice conflicts reversal-only) | band M | Track G | Depends on: G03 | R-B03, R-B17, R-B18 |
 covers E05`.
@@ -361,6 +361,8 @@ preserves pending intent; posted-invoice conflicts are **reversal-only** per `AR
 destructive overwrite). Introduce the conflict-policy types once.
 **Done when:** `PHASE-G04-conflict-resolution-non-destructive-pull.md` exists and passes the checklist;
 the reversal-only invariant is stated as a mechanical acceptance criterion. Tick + file name.
+
+**Evidence (T8d):** Authored PHASE-G04-conflict-resolution-non-destructive-pull (band M): three-layer store (`repl_base`/`repl_staging`/`repl_checkpoint`, one client migration next-free ordinal, all `[LocalOnly]`), `SqliteSyncApplyStore` replacing G02's `BufferingSyncApplyStore` (atomic base+checkpoint on one connection/transaction, A-RULE 022 — partial page never advances checkpoint, overlay never touched), `ConflictResolver`+`ConflictPolicyCatalog` encoding ARCH §8.5 by data class (posted invoice/payment **reversal-only, never in-place** — test-enforced; UI-prefs LWW only; inventory additive; slot rejected; demographics field-merge), `ShadowResyncHandler` replacing G03's `NullSyncResyncHandler` (encrypted shadow generation preserves overlay then atomic switch), +2/3 ErrorCodes; conditional DI Replace, no-op defaults stay when unconfigured.
 
 ### - [ ] T8e — Author G05 (command transport & settlement reconciliation)
 **Map row (verbatim):** `G05 | Command transport & settlement reconciliation (replaces
