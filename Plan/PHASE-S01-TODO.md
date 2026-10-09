@@ -356,7 +356,7 @@ public const string RateLimited = "RATE_LIMITED";
       `scripts/sandbox/test.sh Server` (سبز)، `scripts/sandbox/run.sh` (`SMOKE RUN OK`). اجرای grepهای
       acceptance #3/#4/#5. **اگر فیکس لازم شد و سنگین بود، همان‌جا با پیام واضح push کن.** در پایان،
       اگر چیزی تغییر کرد: push: `fix(server): make S01 build/tests green (0 warnings)` — اگر چیزی تغییر نکرد، این تسک push جدا ندارد.
-- [ ] **T8 — PROGRESS.md.** به‌روزرسانی طبق §6. push: `docs(progress): mark S01 done, next S02`
+- [x] **T8 — PROGRESS.md.** به‌روزرسانی طبق §6. push: `docs(progress): mark S01 done, next S02`
 - [ ] **T9 — تسک پایانی: حذف این فایل.** حذف `Plan/PHASE-S01-TODO.md` (فقط همین فایلِ داخل `Plan`؛ به
       فایل فازِ روادمپ `backend-roadmap/phases/PHASE-S01-*.md` و بقیه کاری نداشته باش — **دست نزن**).
       push: `chore(plan): remove completed S01 TODO`
