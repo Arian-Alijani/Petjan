@@ -41,24 +41,26 @@ internal sealed class IntakeTestFixture
     public FakeOutbox Outbox { get; } = new();
     public FakeUnitOfWork UnitOfWork { get; } = new();
     public RequestAuthorizationState State { get; } = new();
-    public string TenantId { get; } = IdGenerator.NewId();
+    public string TenantId { get; }
     public string UserId { get; } = IdGenerator.NewId();
     public string DeviceId { get; } = IdGenerator.NewId();
     public CommandPayloadCatalog Catalog { get; }
     public RuleSetPolicy Rules { get; init; } = new();
 
-    public IntakeTestFixture()
+    public IntakeTestFixture(string? tenantId = null)
     {
+        TenantId = tenantId ?? IdGenerator.NewId();
         State.Set(new ResolvedMembership(TenantId, StaffRole.Manager, UserId, DeviceId, true),
             new AuthorizationSubject(TenantId, UserId, new HashSet<string>(), StaffRole.Manager, DeviceId, false));
         Catalog = new CommandPayloadCatalogBuilder().Add<TestCreateCommand>("test.create", "Test")
             .Add<TestUpdateCommand>("test.update", "Test").Build();
     }
 
-    public CommandIntakeService CreateService(CommandPayloadCatalog? catalog = null) => new(Store, Dispatcher,
-        UnitOfWork, Authorizer, Entitlement, new FixedTenantContext(TenantId), State, Audit, catalog ?? Catalog,
-        Versions, Rules, new IntakeRecoveryService(Store, [new NoProbe()], Clock), Outbox, Clock,
-        new HttpContextAccessor { HttpContext = new DefaultHttpContext() });
+    public CommandIntakeService CreateService(CommandPayloadCatalog? catalog = null, IDispatcher? dispatcher = null, IUnitOfWork? unitOfWork = null,
+        ICommandIntakeStore? store = null, IServerCommandConcurrencyGuard? guard = null, IAggregateVersionReader? versions = null, ICommandEffectIdCollector? effectIds = null) => new(store ?? Store, dispatcher ?? Dispatcher,
+        unitOfWork ?? UnitOfWork, Authorizer, Entitlement, new FixedTenantContext(TenantId), State, Audit, catalog ?? Catalog,
+        versions ?? Versions, Rules, new IntakeRecoveryService(store ?? Store, [new NoProbe()], Clock), Outbox, Clock,
+        new HttpContextAccessor { HttpContext = new DefaultHttpContext() }, guard, effectIds);
 
     public CommandEnvelope Envelope(string type = "test.create", string payload = "{\"name\":\"alpha\"}",
         string? operation = null, string? aggregateId = null) => CommandEnvelope.Create(operation ?? IdGenerator.NewId(),

@@ -40,4 +40,9 @@ public sealed record StayItem(
     Quantity Quantity,
     Money UnitPrice,
     DateTimeOffset ConsumedUtc,
-    string RecordedByUserId);
+    string RecordedByUserId)
+{
+    /// <summary>EF materialization only; business creation uses the positional constructor.</summary>
+    private StayItem() : this(string.Empty, StayItemKind.Custom, null, string.Empty,
+        default, default, default, string.Empty) { }
+}

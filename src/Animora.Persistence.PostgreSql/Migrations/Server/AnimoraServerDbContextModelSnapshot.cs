@@ -655,6 +655,464 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
 
                     b.ToTable("SigningKeys", "public");
                 });
+            modelBuilder.Entity("Animora.Domain.Patients.Owner", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("FullName").IsRequired().HasColumnType("text");
+                b.Property<string>("PhonePrimary").IsRequired().HasColumnType("text");
+                b.Property<string>("PhoneSecondary").HasColumnType("text");
+                b.Property<string>("NationalId").HasColumnType("text");
+                b.Property<string>("Email").HasColumnType("text");
+                b.Property<string>("Address").HasColumnType("text");
+                b.Property<string>("City").HasColumnType("text");
+                b.Property<int>("Gender").HasColumnType("integer");
+                b.Property<string>("Notes").HasColumnType("text");
+                b.Property<DateTimeOffset>("RegisteredUtc").HasColumnType("timestamp with time zone");
+                b.Property<bool>("IsBlocked").HasColumnType("boolean");
+                b.Property<string>("BlockReason").HasColumnType("text");
+                b.Property<string>("SearchKey").IsRequired().HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("Owners", "public");
+                b.HasIndex("TenantId", "PhonePrimary").HasDatabaseName("IX_Owners_TenantId_Phone");
+                b.HasIndex("TenantId", "FullName").HasDatabaseName("IX_Owners_TenantId_FullName");
+                b.HasIndex("TenantId", "SearchKey").HasDatabaseName("IX_Owners_TenantId_SearchKey");
+                b.HasIndex("TenantId", "RegisteredUtc").HasDatabaseName("IX_Owners_TenantId_RegisteredUtc");
+            });
+            modelBuilder.Entity("Animora.Domain.Patients.Pet", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("OwnerId").IsRequired().HasColumnType("text");
+                b.Property<string>("Name").IsRequired().HasColumnType("text");
+                b.Property<int>("Species").HasColumnType("integer");
+                b.Property<string>("Breed").HasColumnType("text");
+                b.Property<int>("Gender").HasColumnType("integer");
+                b.Property<DateTimeOffset?>("BirthDateUtc").HasColumnType("timestamp with time zone");
+                b.Property<bool>("IsNeutered").HasColumnType("boolean");
+                b.Property<string>("Color").HasColumnType("text");
+                b.Property<string>("MicrochipCode").HasColumnType("text");
+                b.Property<DateTimeOffset?>("MicrochipImplantUtc").HasColumnType("timestamp with time zone");
+                b.Property<int>("Status").HasColumnType("integer");
+                b.Property<string>("AllergyNotes").HasColumnType("text");
+                b.Property<string>("ChronicNotes").HasColumnType("text");
+                b.Property<DateTimeOffset>("RegisteredUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("SearchKey").IsRequired().HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("Pets", "public");
+                b.HasIndex("TenantId", "OwnerId").HasDatabaseName("IX_Pets_TenantId_OwnerId");
+                b.HasIndex("TenantId", "Name").HasDatabaseName("IX_Pets_TenantId_Name");
+                b.HasIndex("TenantId", "SearchKey").HasDatabaseName("IX_Pets_TenantId_SearchKey");
+                b.HasIndex("TenantId", "BirthDateUtc").HasDatabaseName("IX_Pets_TenantId_BirthDateUtc");
+            });
+            modelBuilder.Entity("Animora.Domain.Patients.WeightEntry", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("PetId").IsRequired().HasColumnType("text");
+                b.Property<decimal>("WeightKg").HasColumnType("numeric");
+                b.Property<DateTimeOffset>("MeasuredUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("Note").HasColumnType("text");
+                b.Property<string>("RecordedByUserId").IsRequired().HasColumnType("text");
+                b.Property<string>("CorrectsEntryId").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("WeightEntries", "public");
+                b.HasIndex("TenantId", "PetId", "MeasuredUtc").HasDatabaseName("IX_WeightEntries_TenantId_PetId_MeasuredUtc");
+            });
+            modelBuilder.Entity("Animora.Domain.Patients.DocumentReference", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("OwnerId").HasColumnType("text");
+                b.Property<string>("PetId").HasColumnType("text");
+                b.Property<string>("VisitId").HasColumnType("text");
+                b.Property<string>("Title").IsRequired().HasColumnType("text");
+                b.Property<int>("Kind").HasColumnType("integer");
+                b.Property<string>("FileId").IsRequired().HasColumnType("text");
+                b.Property<long>("SizeBytes").HasColumnType("bigint");
+                b.Property<string>("ContentHashSha256").IsRequired().HasColumnType("text");
+                b.Property<DateTimeOffset>("UploadedUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("UploadedByUserId").IsRequired().HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("DocumentReferences", "public");
+                b.HasIndex("TenantId", "PetId").HasDatabaseName("IX_DocumentReferences_TenantId_PetId");
+            });
+            modelBuilder.Entity("Animora.Domain.Clinical.MedicalHistoryEntry", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("PetId").IsRequired().HasColumnType("text");
+                b.Property<int>("Kind").HasColumnType("integer");
+                b.Property<string>("Title").IsRequired().HasColumnType("text");
+                b.Property<string>("Detail").HasColumnType("text");
+                b.Property<DateTimeOffset>("OccurredUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("SourceEntityId").HasColumnType("text");
+                b.Property<string>("SourceEntityType").HasColumnType("text");
+                b.Property<string>("RecordedByUserId").IsRequired().HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("MedicalHistory", "public");
+                b.HasIndex("TenantId", "PetId", "OccurredUtc").HasDatabaseName("IX_MedicalHistoryEntries_TenantId_PetId_OccurredUtc");
+                b.HasIndex("TenantId", "SourceEntityId").HasDatabaseName("IX_MedicalHistoryEntries_TenantId_SourceEntityId");
+            });
+            modelBuilder.Entity("Animora.Domain.Scheduling.ReceptionQueueEntry", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("PetId").IsRequired().HasColumnType("text");
+                b.Property<string>("OwnerId").IsRequired().HasColumnType("text");
+                b.Property<string>("AppointmentId").HasColumnType("text");
+                b.Property<string>("DoctorUserId").HasColumnType("text");
+                b.Property<int>("State").HasColumnType("integer");
+                b.Property<int>("Source").HasColumnType("integer");
+                b.Property<int>("TicketNumber").HasColumnType("integer");
+                b.Property<DateTimeOffset>("EnqueuedUtc").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset?>("CalledUtc").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset?>("ClosedUtc").HasColumnType("timestamp with time zone");
+                b.Property<int>("Priority").HasColumnType("integer");
+                b.Property<string>("Note").HasColumnType("text");
+                b.Property<string>("VisitId").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("ReceptionQueueEntries", "public");
+                b.HasIndex("TenantId", "State", "EnqueuedUtc").HasDatabaseName("IX_ReceptionQueueEntries_TenantId_State_EnqueuedUtc");
+                b.HasIndex("TenantId", "AppointmentId").HasDatabaseName("IX_ReceptionQueueEntries_TenantId_AppointmentId").HasFilter("\"AppointmentId\" IS NOT NULL");
+            });
+            modelBuilder.Entity("Animora.Domain.Clinical.Visit", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("PetId").IsRequired().HasColumnType("text");
+                b.Property<string>("OwnerId").IsRequired().HasColumnType("text");
+                b.Property<string>("AppointmentId").HasColumnType("text");
+                b.Property<string>("DoctorUserId").IsRequired().HasColumnType("text");
+                b.Property<int>("State").HasColumnType("integer");
+                b.Property<int>("Reason").HasColumnType("integer");
+                b.Property<string>("ChiefComplaint").HasColumnType("text");
+                b.Property<DateTimeOffset>("StartedUtc").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset?>("CompletedUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("Diagnosis").HasColumnType("text");
+                b.Property<string>("TreatmentPlan").HasColumnType("text");
+                b.Property<string>("DoctorNotes").HasColumnType("text");
+                b.Property<string>("InvoiceId").HasColumnType("text");
+                b.Property<string>("CancellationReason").HasColumnType("text");
+                b.Property<string>("_serviceLines").HasColumnName("ServiceLines").IsRequired().HasColumnType("jsonb");
+                b.HasKey("Id");
+                b.ToTable("Visits", "public");
+                b.HasIndex("TenantId", "PetId", "StartedUtc").HasDatabaseName("IX_Visits_TenantId_PetId_StartedUtc");
+                b.HasIndex("TenantId", "State", "StartedUtc").HasDatabaseName("IX_Visits_TenantId_State_StartedUtc");
+                b.HasIndex("TenantId", "DoctorUserId", "CompletedUtc").HasDatabaseName("IX_Visits_TenantId_DoctorUserId_CompletedUtc");
+                b.OwnsOne("Animora.Domain.Clinical.PetVitals", "Vitals", v =>
+                {
+                    v.Property<string>("VisitId").HasColumnType("character varying(26)");
+                    v.Property<decimal?>("WeightKg").HasColumnType("numeric");
+                    v.Property<decimal?>("TemperatureC").HasColumnType("numeric");
+                    v.Property<int?>("HeartRateBpm").HasColumnType("integer");
+                    v.Property<int?>("RespiratoryRate").HasColumnType("integer");
+                    v.Property<string>("MucousMembrane").HasColumnType("text");
+                    v.Property<string>("Hydration").HasColumnType("text");
+                    v.HasKey("VisitId");
+                    v.ToTable("Visits", "public");
+                    v.WithOwner().HasForeignKey("VisitId");
+                });
+                b.Navigation("Vitals");
+            });
+            modelBuilder.Entity("Animora.Domain.Clinical.VaccinationRecord", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("PetId").IsRequired().HasColumnType("text");
+                b.Property<string>("VaccineCode").IsRequired().HasColumnType("text");
+                b.Property<string>("VaccineName").IsRequired().HasColumnType("text");
+                b.Property<int>("DoseNumber").HasColumnType("integer");
+                b.Property<int?>("TotalDoses").HasColumnType("integer");
+                b.Property<DateTimeOffset>("AdministeredUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("AdministeredByUserId").IsRequired().HasColumnType("text");
+                b.Property<string>("BatchNumber").HasColumnType("text");
+                b.Property<DateTimeOffset?>("NextDueUtc").HasColumnType("timestamp with time zone");
+                b.Property<int>("State").HasColumnType("integer");
+                b.Property<string>("VisitId").HasColumnType("text");
+                b.Property<string>("Notes").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("VaccinationRecords", "public");
+                b.HasIndex("TenantId", "NextDueUtc", "State").HasDatabaseName("IX_VaccinationRecords_TenantId_DueUtc_State");
+                b.HasIndex("TenantId", "AdministeredUtc").HasDatabaseName("IX_VaccinationRecords_TenantId_AdministeredUtc");
+            });
+            modelBuilder.Entity("Animora.Domain.Clinical.TreatmentPlan", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("PetId").IsRequired().HasColumnType("text");
+                b.Property<int>("ItemType").HasColumnType("integer");
+                b.Property<int>("Kind").HasColumnType("integer");
+                b.Property<string>("Title").IsRequired().HasColumnType("text");
+                b.Property<string>("VaccineCode").HasColumnType("text");
+                b.Property<string>("Dosage").HasColumnType("text");
+                b.Property<string>("Notes").HasColumnType("text");
+                b.Property<bool>("NotifyOwner").HasColumnType("boolean");
+                b.Property<int>("ScheduleType").HasColumnType("integer");
+                b.Property<string>("CreatedByUserId").IsRequired().HasColumnType("text");
+                b.Property<DateTimeOffset>("CreatedUtc").HasColumnType("timestamp with time zone");
+                b.Property<int>("State").HasColumnType("integer");
+                b.HasKey("Id");
+                b.ToTable("TreatmentPlans", "public");
+                b.HasIndex("TenantId", "PetId", "State").HasDatabaseName("IX_TreatmentPlans_TenantId_PetId_State");
+            });
+            modelBuilder.Entity("Animora.Domain.Clinical.TreatmentOccurrence", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("PlanId").IsRequired().HasColumnType("text");
+                b.Property<DateOnly>("DueDay").HasColumnType("date");
+                b.Property<int>("SortOrder").HasColumnType("integer");
+                b.Property<int>("State").HasColumnType("integer");
+                b.Property<DateTimeOffset?>("DoneUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("DoneByUserId").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("TreatmentOccurrences", "public");
+                b.HasIndex("TenantId", "DueDay", "State").HasDatabaseName("IX_TreatmentOccurrences_TenantId_DueDay_State");
+                b.HasIndex("TenantId", "PlanId").HasDatabaseName("IX_TreatmentOccurrences_TenantId_PlanId");
+            });
+            modelBuilder.Entity("Animora.Domain.Clinical.VaccineCatalogItem", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("Code").IsRequired().HasColumnType("text");
+                b.Property<string>("Name").IsRequired().HasColumnType("text");
+                b.Property<string>("Protects").HasColumnType("text");
+                b.Property<int>("TotalDoses").HasColumnType("integer");
+                b.Property<int>("BoosterDays").HasColumnType("integer");
+                b.Property<int>("Stock").HasColumnType("integer");
+                b.Property<int>("MinStock").HasColumnType("integer");
+                b.Property<bool>("IsActive").HasColumnType("boolean");
+                b.HasKey("Id");
+                b.ToTable("VaccineCatalogItems", "public");
+                b.HasIndex("TenantId", "Code").HasDatabaseName("IX_VaccineCatalogItems_TenantId_Code").IsUnique();
+            });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Clinical.VisitBillingHandoff", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("VisitId").IsRequired().HasColumnType("text");
+                b.Property<string>("OwnerId").IsRequired().HasColumnType("text");
+                b.Property<string>("PetId").IsRequired().HasColumnType("text");
+                b.Property<string>("DoctorId").IsRequired().HasColumnType("text");
+                b.Property<DateTimeOffset>("CompletedUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("LinesJson").IsRequired().HasColumnType("jsonb");
+                b.Property<int>("Status").HasColumnType("integer");
+                b.Property<string>("InvoiceId").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("VisitHandoffLines", "public");
+                b.HasIndex("TenantId", "VisitId").HasDatabaseName("IX_VisitHandoffLines_TenantId_VisitId").IsUnique();
+                b.HasIndex("TenantId", "Status", "CompletedUtc").HasDatabaseName("IX_VisitHandoffLines_TenantId_Status_CompletedUtc");
+            });
+            modelBuilder.Entity("Animora.Domain.Clinical.PrescriptionLine", b =>
+            {
+                b.Property<string>("OwnerId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("LineId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("ProductId").HasColumnType("text");
+                b.Property<string>("DrugName").IsRequired().HasColumnType("text");
+                b.Property<string>("Dosage").IsRequired().HasColumnType("text");
+                b.Property<string>("Frequency").IsRequired().HasColumnType("text");
+                b.Property<int>("DurationDays").HasColumnType("integer");
+                b.Property<string>("Instructions").HasColumnType("text");
+                b.HasKey("OwnerId", "LineId");
+                b.ToTable("VisitRxLines", "public");
+                b.HasOne("Animora.Domain.Clinical.Visit", null).WithMany("Prescriptions").HasForeignKey("OwnerId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+            });
+            modelBuilder.Entity("Animora.Domain.Clinical.Visit", b => b.Navigation("Prescriptions").AutoInclude());
+            modelBuilder.Entity("Animora.Domain.Scheduling.Appointment", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("PetId").IsRequired().HasColumnType("text");
+                b.Property<string>("OwnerId").IsRequired().HasColumnType("text");
+                b.Property<string>("DoctorUserId").HasColumnType("text");
+                b.Property<string>("AppointmentTypeCode").IsRequired().HasColumnType("text");
+                b.Property<DateTimeOffset>("StartUtc").HasColumnType("timestamp with time zone");
+                b.Property<int>("DurationMinutes").HasColumnType("integer");
+                b.Property<int>("State").HasColumnType("integer");
+                b.Property<int>("Source").HasColumnType("integer");
+                b.Property<string>("Note").HasColumnType("text");
+                b.Property<string>("VisitId").HasColumnType("text");
+                b.Property<string>("CancelReason").HasColumnType("text");
+                b.Property<DateTimeOffset?>("CheckedInUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("CreatedByUserId").IsRequired().HasColumnType("text");
+                b.Property<int>("RescheduleCount").HasColumnType("integer");
+                b.HasKey("Id");
+                b.ToTable("Appointments", "public");
+                b.HasIndex("TenantId", "DoctorUserId", "StartUtc").HasDatabaseName("IX_Appointments_TenantId_DoctorId_StartUtc");
+                b.HasIndex("TenantId", "StartUtc", "DoctorUserId").HasDatabaseName("IX_Appointments_TenantId_StartUtc_DoctorUserId");
+                b.HasIndex("TenantId", "State", "StartUtc").HasDatabaseName("IX_Appointments_TenantId_State_StartUtc");
+                b.HasIndex("TenantId", "PetId").HasDatabaseName("IX_Appointments_TenantId_PetId");
+            });
+            modelBuilder.Entity("Animora.Domain.Boarding.Room", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("Code").IsRequired().HasColumnType("text");
+                b.Property<string>("DisplayName").IsRequired().HasColumnType("text");
+                b.Property<int>("Type").HasColumnType("integer");
+                b.Property<int>("Capacity").HasColumnType("integer");
+                b.Property<int>("Status").HasColumnType("integer");
+                b.Property<string>("Notes").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("Rooms", "public");
+                b.HasIndex("TenantId", "Code").HasDatabaseName("IX_Rooms_TenantId_Code").IsUnique();
+            });
+            modelBuilder.Entity("Animora.Domain.Boarding.BoardingServiceDef", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("Code").IsRequired().HasColumnType("text");
+                b.Property<string>("Title").IsRequired().HasColumnType("text");
+                b.Property<int>("Billing").HasColumnType("integer");
+                b.Property<bool>("IsActive").HasColumnType("boolean");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "UnitPrice", "Animora.Domain.Boarding.BoardingServiceDef.UnitPrice#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("UnitPriceMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("UnitPriceCurrency").HasColumnType("character varying(3)");
+                });
+                b.HasKey("Id");
+                b.ToTable("BoardingServiceDefs", "public");
+                b.HasIndex("TenantId", "Code").HasDatabaseName("IX_BoardingServiceDefs_TenantId_Code").IsUnique();
+            });
+            modelBuilder.Entity("Animora.Domain.Boarding.BoardingStay", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("PetId").IsRequired().HasColumnType("text");
+                b.Property<string>("OwnerId").IsRequired().HasColumnType("text");
+                b.Property<string>("RoomId").IsRequired().HasColumnType("text");
+                b.Property<DateTimeOffset>("CheckInUtc").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset>("PlannedCheckOutUtc").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset?>("ActualCheckOutUtc").HasColumnType("timestamp with time zone");
+                b.Property<int>("State").HasColumnType("integer");
+                b.Property<int>("PaymentMode").HasColumnType("integer");
+                b.Property<string>("CareNote").HasColumnType("text");
+                b.Property<string>("DietNote").HasColumnType("text");
+                b.Property<string>("InvoiceId").HasColumnType("text");
+                b.Property<string>("PrepaidInvoiceId").HasColumnType("text");
+                b.Property<long?>("PrepaidRoomChargeMinor").HasColumnType("bigint");
+                b.Property<long?>("FrozenTotalMinor").HasColumnType("bigint");
+                b.Property<string>("_roomHistory").HasColumnName("RoomHistory").IsRequired().HasColumnType("jsonb");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "DailyRate", "Animora.Domain.Boarding.BoardingStay.DailyRate#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("DailyRateMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("DailyRateCurrency").HasColumnType("character varying(3)");
+                });
+                b.HasKey("Id");
+                b.ToTable("BoardingStays", "public");
+                b.HasIndex("TenantId", "State", "CheckInUtc").HasDatabaseName("IX_BoardingStays_TenantId_State_CheckInUtc");
+                b.HasIndex("TenantId", "RoomId", "State").HasDatabaseName("IX_BoardingStays_TenantId_RoomId_State");
+            });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Scheduling.AppointmentSettingsEntity", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("SettingsJson").IsRequired().HasColumnType("jsonb");
+                b.HasKey("Id");
+                b.ToTable("AppointmentSettings", "public");
+                b.HasIndex("TenantId").HasDatabaseName("IX_AppointmentSettings_TenantId").IsUnique();
+            });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Boarding.BoardingBillingHandoff", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").HasMaxLength(26).IsRequired().HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("StayId").IsRequired().HasColumnType("text");
+                b.Property<string>("OwnerId").IsRequired().HasColumnType("text");
+                b.Property<string>("PetId").IsRequired().HasColumnType("text");
+                b.Property<string>("DoctorId").IsRequired().HasColumnType("text");
+                b.Property<DateTimeOffset>("CompletedUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("LinesJson").IsRequired().HasColumnType("jsonb");
+                b.Property<int>("Status").HasColumnType("integer");
+                b.Property<int>("Kind").HasColumnType("integer");
+                b.Property<string>("InvoiceId").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("BoardingHandoffLines", "public");
+                b.HasIndex("TenantId", "StayId").HasDatabaseName("IX_BoardingHandoffLines_TenantId_StayId");
+                b.HasIndex("TenantId", "Status", "CompletedUtc").HasDatabaseName("IX_BoardingHandoffLines_TenantId_Status_CompletedUtc");
+            });
+            modelBuilder.Entity("Animora.Domain.Boarding.StayItem", b =>
+            {
+                b.Property<string>("OwnerId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("ItemId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<int>("Kind").HasColumnType("integer");
+                b.Property<string>("CatalogItemId").HasColumnType("text");
+                b.Property<string>("Title").IsRequired().HasColumnType("text");
+                b.Property<DateTimeOffset>("ConsumedUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("RecordedByUserId").IsRequired().HasColumnType("text");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "UnitPrice", "Animora.Domain.Boarding.StayItem.UnitPrice#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("UnitPriceMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("UnitPriceCurrency").HasColumnType("character varying(3)");
+                });
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "Quantity", "Animora.Domain.Boarding.StayItem.Quantity#Quantity", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Value").HasColumnName("QuantityScaled").HasColumnType("bigint");
+                    v.Property<string>("UnitCode").IsRequired().HasMaxLength(12).HasColumnName("QuantityUnit").HasColumnType("character varying(12)");
+                });
+                b.HasKey("OwnerId", "ItemId");
+                b.ToTable("BoardingStayItems", "public");
+                b.HasOne("Animora.Domain.Boarding.BoardingStay", null).WithMany("Items").HasForeignKey("OwnerId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+            });
+            modelBuilder.Entity("Animora.Domain.Boarding.BoardingStay", b => b.Navigation("Items").AutoInclude());
 #pragma warning restore 612, 618
         }
     }

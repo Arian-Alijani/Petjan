@@ -28,6 +28,16 @@ public sealed class ServerUnitOfWork(AnimoraServerDbContext context, ITransactio
         {
             return Result.Fail(ErrorCodes.ConcurrencyConflict);
         }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+            { SqlState: RetryPolicy.UniqueViolation, ConstraintName: "IX_VaccineCatalogItems_TenantId_Code" })
+        {
+            return Result.Fail(ErrorCodes.VaccineCatalogCodeTaken);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+            { SqlState: RetryPolicy.UniqueViolation, ConstraintName: "IX_Rooms_TenantId_Code" })
+        {
+            return Result.Fail(ErrorCodes.RoomCodeDuplicate);
+        }
     }
 
     /// <inheritdoc />

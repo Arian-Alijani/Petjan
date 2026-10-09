@@ -21,7 +21,12 @@ public sealed class ApplicationRegistrationBuilder
     private readonly HashSet<Type> _validated = [];
     private readonly List<(Type Request, RequestKind Kind)> _required = [];
 
-    internal ApplicationRegistrationBuilder(IServiceCollection services) => _services = services;
+    private readonly bool _registerQueries;
+    internal ApplicationRegistrationBuilder(IServiceCollection services, bool registerQueries = true)
+    {
+        _services = services;
+        _registerQueries = registerQueries;
+    }
 
     internal IReadOnlyList<Registration> Handlers => _handlers;
 
@@ -51,6 +56,7 @@ public sealed class ApplicationRegistrationBuilder
         where TQuery : IQuery<TResult>
         where THandler : class, IQueryHandler<TQuery, TResult>
     {
+        if (!_registerQueries) return this;
         _services.TryAddScoped<THandler>();
         _handlers.Add(new Registration(typeof(TQuery), typeof(THandler), RequestKind.Query, Compose));
         return this;
@@ -84,7 +90,7 @@ public sealed class ApplicationRegistrationBuilder
     public ApplicationRegistrationBuilder RequireQuery<TQuery, TResult>()
         where TQuery : IQuery<TResult>
     {
-        _required.Add((typeof(TQuery), RequestKind.Query));
+        if (_registerQueries) _required.Add((typeof(TQuery), RequestKind.Query));
         return this;
     }
 

@@ -1,3 +1,10 @@
+using Animora.Domain.Boarding;
+using Animora.Persistence.PostgreSql.Boarding;
+using Animora.Persistence.PostgreSql.Scheduling;
+using Animora.Domain.Patients;
+using Animora.Domain.Clinical;
+using Animora.Domain.Scheduling;
+using Animora.Persistence.PostgreSql.Clinical;
 using Animora.Domain.Identity;
 using Animora.Persistence.PostgreSql.Commands;
 using Animora.Persistence.PostgreSql.Conventions;
@@ -51,6 +58,26 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
 
     /// <summary>Server ids each command created (S06).</summary>
     public DbSet<CommandIdMapEntry> CommandIdMap => Set<CommandIdMapEntry>();
+
+    public DbSet<Owner> OwnerSet => Set<Owner>();
+    public DbSet<Pet> PetSet => Set<Pet>();
+    public DbSet<WeightEntry> WeightEntrySet => Set<WeightEntry>();
+    public DbSet<MedicalHistoryEntry> MedicalHistoryEntrySet => Set<MedicalHistoryEntry>();
+    public DbSet<DocumentReference> DocumentReferenceSet => Set<DocumentReference>();
+    public DbSet<ReceptionQueueEntry> ReceptionQueueEntrySet => Set<ReceptionQueueEntry>();
+    public DbSet<Visit> VisitSet => Set<Visit>();
+    public DbSet<VaccinationRecord> VaccinationRecordSet => Set<VaccinationRecord>();
+    public DbSet<TreatmentPlan> TreatmentPlanSet => Set<TreatmentPlan>();
+    public DbSet<TreatmentOccurrence> TreatmentOccurrenceSet => Set<TreatmentOccurrence>();
+    public DbSet<VaccineCatalogItem> VaccineCatalogItemSet => Set<VaccineCatalogItem>();
+    public DbSet<VisitBillingHandoff> VisitBillingHandoffSet => Set<VisitBillingHandoff>();
+
+    public DbSet<Appointment> AppointmentSet => Set<Appointment>();
+    public DbSet<AppointmentSettingsEntity> AppointmentSettingsEntitySet => Set<AppointmentSettingsEntity>();
+    public DbSet<Room> RoomSet => Set<Room>();
+    public DbSet<BoardingServiceDef> BoardingServiceDefSet => Set<BoardingServiceDef>();
+    public DbSet<BoardingStay> BoardingStaySet => Set<BoardingStay>();
+    public DbSet<BoardingBillingHandoff> BoardingBillingHandoffSet => Set<BoardingBillingHandoff>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
