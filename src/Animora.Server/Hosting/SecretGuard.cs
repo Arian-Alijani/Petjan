@@ -19,7 +19,7 @@ internal sealed class SecretInConfigurationException(string keyPath)
 /// <summary>
 /// Refuses to boot if a literal connection string or secret appears in a bound
 /// JSON configuration file (ARCHITECTURE.md §4: "Secrets never live in config
-/// files"). Only <see cref="JsonConfigurationProvider"/> values are scanned;
+/// files"). Only JSON providers (file and stream) are scanned;
 /// environment-variable and user-secrets providers are exempt. Called in startup
 /// step (1).
 /// </summary>
@@ -43,7 +43,7 @@ internal static partial class SecretGuard
 
         foreach (var provider in root.Providers)
         {
-            if (provider is not JsonConfigurationProvider)
+            if (provider is not (JsonConfigurationProvider or JsonStreamConfigurationProvider))
             {
                 // Environment variables, user-secrets, in-memory, etc. are exempt.
                 continue;

@@ -45,6 +45,8 @@ internal sealed class GlobalExceptionMiddleware(
             }
 
             context.Response.Clear();
+            // Clear() drops headers, including the correlation id echoed up front.
+            CorrelationHeader.Echo(context, correlationId);
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
             var error = new WireApiError(
