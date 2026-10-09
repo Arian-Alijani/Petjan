@@ -310,7 +310,7 @@ names.
 >   line present), introduces no artifact a sibling already owns. Tick the box + one-line evidence naming
 >   the file. Then **stop** (next session picks up the next unchecked T8x).
 
-### - [ ] T8a — Author G01 (sync engine abstractions + `NullSyncEngine` fallback)
+### - [x] T8a — Author G01 (sync engine abstractions + `NullSyncEngine` fallback)
 **Map row (verbatim from brief §2):** `G01 | Animora.Sync.Abstractions — IStateSyncEngine/ISyncEngine,
 SyncScope, SyncResult, NullSyncEngine fallback + DI | band S | Track G | Depends on: S12 | R-B03, R-B13 |
 covers E03 (half 1)`.
@@ -322,6 +322,8 @@ scaffold (brief Reference pack R6): `IStateSyncEngine`/`ISyncEngine`, `SyncScope
 **no** server project. Band **S** (per map).
 **Done when:** `PHASE-G01-sync-engine-abstractions.md` exists and passes the shared Done-when checklist;
 `NullSyncEngine` keeps the desktop offline-runnable. Tick + file name.
+
+**Evidence (T8a):** Authored PHASE-G01-sync-engine-abstractions (band S): `IStateSyncEngine` (single name; `ISyncEngine` doc alias corrected), `SyncScope`/`SyncOutcome`/`SyncResult`, `NullSyncEngine` offline fallback, `AddAnimoraSyncEngine` TryAdd DI; Sync.Abstractions refs Domain + Contracts.Wire only (grep-checked).
 
 ### - [ ] T8b — Author G02 (custom immutable-batch HTTP adapter)
 **Map row (verbatim):** `G02 | Custom immutable-batch HTTP adapter (client refs no PostgreSQL driver, no
