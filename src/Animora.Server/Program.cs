@@ -1,5 +1,151 @@
+using System.Globalization;
+using System.Threading.RateLimiting;
+using Animora.Contracts.Wire.Errors;
+using Animora.Server.Hosting;
+using Microsoft.AspNetCore.RateLimiting;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fixed startup order (ARCHITECTURE.md §4). The numbering is binding; later
+// phases fill the deferred steps without reordering.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 1. Options: bind + ValidateOnStart (a misconfiguration fails at boot, not on
+//    first request), then SecretGuard (no literal secret may live in a JSON file).
+var contentRoot = builder.Environment.ContentRootPath;
+builder.Services
+    .AddOptions<ServerOptions>()
+    .Bind(builder.Configuration.GetSection(ServerOptions.SectionName))
+    .PostConfigure(options =>
+    {
+        // Normalize a relative DataRootPath (e.g. the Development "./.data") to an
+        // absolute path against the content root, so the absolute-path invariant
+        // holds regardless of how it was supplied.
+        if (!string.IsNullOrWhiteSpace(options.DataRootPath) && !Path.IsPathRooted(options.DataRootPath))
+        {
+            options.DataRootPath = Path.GetFullPath(options.DataRootPath, contentRoot);
+        }
+    })
+    .ValidateOnStart();
+builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<ServerOptions>, ServerOptionsValidator>();
+SecretGuard.ThrowIfSecretsInJsonFiles(builder.Configuration);
+
+// 2. Logging (console/providers are configured by the default host builder).
+
+// 3. DataProtection → S02 (persisted key ring, stable ApplicationName).
+
+// 4. DbContext → S02 (PostgreSQL; the running role has no DDL rights).
+
+// 5. Health checks: readiness probes. S01 ships the data-root writability probe;
+//    S02 adds DatabaseProbe + KeyRingProbe.
+builder.Services.AddSingleton<IReadinessProbe, DataRootWritableProbe>();
+
+// 6. OpenAPI (first-party) only in Development or when Server:EnableOpenApi=true.
+var enableOpenApi = builder.Environment.IsDevelopment() ||
+    builder.Configuration.GetValue($"{ServerOptions.SectionName}:{nameof(ServerOptions.EnableOpenApi)}", false);
+if (enableOpenApi)
+{
+    builder.Services.AddOpenApi();
+}
+
+// Rate limiting: five named fixed-window policies (ARCHITECTURE.md §4). Windows
+// are options-driven; a rejection becomes a 429 WireApiError + Retry-After.
+// Health endpoints are never limited (they carry no [EnableRateLimiting]).
+builder.Services.AddRateLimiter(limiter =>
+{
+    limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    limiter.OnRejected = async (context, token) =>
+    {
+        var httpContext = context.HttpContext;
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            httpContext.Response.Headers.RetryAfter =
+                ((int)retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture);
+        }
+
+        var correlationId = CorrelationHeader.Resolve(httpContext);
+        CorrelationHeader.Echo(httpContext, correlationId);
+
+        var error = new WireApiError(
+            Code: ServerErrorCodes.RateLimited,
+            Detail: null,
+            Fields: [],
+            CorrelationId: correlationId);
+        await httpContext.Response.WriteAsJsonAsync(error, token).ConfigureAwait(false);
+    };
+
+    foreach (var policy in RateLimitPolicies.All)
+    {
+        var policyName = policy;
+        limiter.AddPolicy(policyName, httpContext =>
+        {
+            var options = httpContext.RequestServices
+                .GetRequiredService<Microsoft.Extensions.Options.IOptions<ServerOptions>>().Value;
+            var window = options.RateLimits.ForPolicy(policyName);
+
+            // S01 partitions every policy by client IP. Tenant-scoped partitioning
+            // for commands/sync/files/operator arrives with tenant context (S04/S05).
+            var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            return RateLimitPartition.GetFixedWindowLimiter(
+                $"{policyName}:{partitionKey}",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = window.PermitLimit,
+                    Window = TimeSpan.FromSeconds(window.WindowSeconds),
+                    QueueLimit = 0,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                });
+        });
+    }
+});
+
 var app = builder.Build();
+
+// 7. Middleware pipeline (fixed order):
+//    global exception → HSTS/HTTPS redirect (non-Development) → request logging
+//    (skips /health/*) → [tenant → authN → authZ → entitlement : S04/S05] →
+//    rate limiter → routing → endpoints.
+app.UseMiddleware<GlobalExceptionMiddleware>();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
+// Request logging (sampled) skips health endpoints — added with observability in S18.
+// [tenant/authN/authZ/entitlement slots] → S04/S05 (S16 fills entitlement).
+
+app.UseRateLimiter();
+
+if (enableOpenApi)
+{
+    app.MapOpenApi();
+}
+
+// Health endpoints — anonymous, never rate-limited, leak no secret (ARCH §4).
+app.MapGet(ServerRoutes.HealthLive, () => Results.Json(new { status = "live" }));
+
+app.MapGet(ServerRoutes.HealthReady, async (
+    IEnumerable<IReadinessProbe> probes,
+    CancellationToken ct) =>
+{
+    var failed = new List<string>();
+    foreach (var probe in probes)
+    {
+        var result = await probe.CheckAsync(ct).ConfigureAwait(false);
+        if (!result.IsHealthy)
+        {
+            failed.Add(probe.Name);
+        }
+    }
+
+    return failed.Count == 0
+        ? Results.Json(new { status = "ready" })
+        : Results.Json(new { status = "not-ready", failed }, statusCode: StatusCodes.Status503ServiceUnavailable);
+});
+
 app.Run();
 
 // Exposed for WebApplicationFactory<Program> in Animora.Server.Tests.
