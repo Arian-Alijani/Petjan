@@ -138,4 +138,30 @@ public sealed class LayeringRulesTests
         var client = typeof(Animora.Client.Services.Sync.LocalSyncStatusService).Assembly;
         Assert.False(ReferencesNameStartingWith(client, "Microsoft.EntityFrameworkCore"));
     }
+
+    /// <summary>
+    /// S01: the client never references a server project (client/server isolation,
+    /// CONVENTIONS §2). Checked on assembly-name strings — no project reference to
+    /// the server is needed.
+    /// </summary>
+    [Fact]
+    public void Client_DoesNotReferenceServerProjects()
+    {
+        var clientAssemblies = new[]
+        {
+            typeof(Animora.Desktop.App).Assembly,
+            typeof(Animora.Client.Services.Sync.LocalSyncStatusService).Assembly,
+            typeof(Animora.Infrastructure.Local.LocalInfrastructureServiceCollectionExtensions).Assembly,
+            typeof(Animora.Persistence.Sqlite.Context.LocalStoreServiceCollectionExtensions).Assembly,
+        };
+
+        foreach (var assembly in clientAssemblies)
+        {
+            foreach (var prefix in new[] { "Animora.Server", "Animora.Persistence.PostgreSql", "Animora.Web.Admin" })
+            {
+                Assert.False(ReferencesNameStartingWith(assembly, prefix),
+                    $"{assembly.GetName().Name} must not reference {prefix}*");
+            }
+        }
+    }
 }

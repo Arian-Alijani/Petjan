@@ -1,8 +1,4 @@
-using System.Globalization;
-using System.Threading.RateLimiting;
-using Animora.Contracts.Wire.Errors;
 using Animora.Server.Hosting;
-using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,53 +48,7 @@ if (enableOpenApi)
 // Rate limiting: five named fixed-window policies (ARCHITECTURE.md §4). Windows
 // are options-driven; a rejection becomes a 429 WireApiError + Retry-After.
 // Health endpoints are never limited (they carry no [EnableRateLimiting]).
-builder.Services.AddRateLimiter(limiter =>
-{
-    limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    limiter.OnRejected = async (context, token) =>
-    {
-        var httpContext = context.HttpContext;
-        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
-        {
-            httpContext.Response.Headers.RetryAfter =
-                ((int)retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture);
-        }
-
-        var correlationId = CorrelationHeader.Resolve(httpContext);
-        CorrelationHeader.Echo(httpContext, correlationId);
-
-        var error = new WireApiError(
-            Code: ServerErrorCodes.RateLimited,
-            Detail: null,
-            Fields: [],
-            CorrelationId: correlationId);
-        await httpContext.Response.WriteAsJsonAsync(error, token).ConfigureAwait(false);
-    };
-
-    foreach (var policy in RateLimitPolicies.All)
-    {
-        var policyName = policy;
-        limiter.AddPolicy(policyName, httpContext =>
-        {
-            var options = httpContext.RequestServices
-                .GetRequiredService<Microsoft.Extensions.Options.IOptions<ServerOptions>>().Value;
-            var window = options.RateLimits.ForPolicy(policyName);
-
-            // S01 partitions every policy by client IP. Tenant-scoped partitioning
-            // for commands/sync/files/operator arrives with tenant context (S04/S05).
-            var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-            return RateLimitPartition.GetFixedWindowLimiter(
-                $"{policyName}:{partitionKey}",
-                _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = window.PermitLimit,
-                    Window = TimeSpan.FromSeconds(window.WindowSeconds),
-                    QueueLimit = 0,
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                });
-        });
-    }
-});
+builder.Services.AddRateLimiter(ServerRateLimiting.Configure);
 
 var app = builder.Build();
 

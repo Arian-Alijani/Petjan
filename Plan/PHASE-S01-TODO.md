@@ -348,7 +348,7 @@ public const string RateLimited = "RATE_LIMITED";
 - [x] **T5 — سیم‌کشیِ پروژه‌ی تست.** ویرایش `tests/Animora.Server.Tests/Animora.Server.Tests.csproj`:
       افزودن `ProjectReference` به `Animora.Server` + `PackageReference Microsoft.AspNetCore.Mvc.Testing`،
       حذف کامنت «No subject reference»؛ حذف `PlaceholderTests.cs`. push: `test(server): wire Server.Tests to subject + Mvc.Testing (S01)`
-- [ ] **T6 — تست‌ها.** نوشتن `HostSmokeTests`, `SecretGuardTests`, `GlobalExceptionMiddlewareTests`,
+- [x] **T6 — تست‌ها.** نوشتن `HostSmokeTests`, `SecretGuardTests`, `GlobalExceptionMiddlewareTests`,
       `RateLimitTests`, `ServerLayeringTests`, `SourceScanTests` (ده متدِ §4). ویرایش
       `tests/Animora.Domain.Tests/LayeringRulesTests.cs` ⟵ افزودن fact `Client_DoesNotReferenceServerProjects`.
       push: `test(server): S01 host/secret-guard/exception/rate-limit/layering/source-scan tests`
