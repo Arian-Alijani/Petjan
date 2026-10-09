@@ -319,7 +319,7 @@ Read the existing test project ONCE (`tests/Animora.Server.Tests/*.csproj`) to c
 
 ---
 
-### [ ] T14 — Source-scan guard test (`ServerSourceScanTests`)
+### [x] T14 — Source-scan guard test (`ServerSourceScanTests`)
 In `tests/Animora.Server.Tests` add `ServerSourceScanTests` (acceptance #4) that greps repo source and fails on violations:
 - `IgnoreQueryFilters()` (unnamed) present anywhere in `src/Animora.Persistence.PostgreSql` or `src/Animora.Server` ⇒ fail.
 - `IsRowVersion` or `xmin` present in `src/Animora.Persistence.PostgreSql` ⇒ fail.
