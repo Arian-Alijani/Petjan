@@ -116,7 +116,7 @@ public sealed class LocalUnitOfWork(AnimoraLocalDbContext db, IDomainEventDispat
         {
             return Result.Fail(ErrorCodes.StoreUnavailable);
         }
-        catch (SqliteException { SqliteErrorCode: 19 }) { return Result.Fail(ErrorCodes.ConcurrencyConflict); }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 19) { return Result.Fail(ErrorCodes.ConcurrencyConflict); }
         catch (SqliteException) { return Result.Fail(ErrorCodes.StoreUnavailable); }
     }
 }

@@ -71,8 +71,8 @@ public sealed class HostSmokeTests : IDisposable
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         using var doc = JsonDocument.Parse(body);
         Assert.Equal("not-ready", doc.RootElement.GetProperty("status").GetString());
-        var failed = doc.RootElement.GetProperty("failed").EnumerateArray().Select(e => e.GetString()).ToArray();
-        Assert.Equal(["data-root"], failed);
+        var failed = doc.RootElement.GetProperty("failed").EnumerateArray().Select(e => e.GetString()).ToList();
+        Assert.Equal(new List<string?> { "data-root" }, failed);
         Assert.DoesNotContain(missing, body, StringComparison.Ordinal);
     }
 }
