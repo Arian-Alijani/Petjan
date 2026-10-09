@@ -278,7 +278,7 @@ Add (TryAdd where appropriate):
       per B6 (abstract, no-tracking reads, `Page` via PageRules, `Add`/`SoftDelete`, NO `IgnoreQueryFilters`, NO
       unpaged `ToListAsync`). Push `feat(server): S03 T3 — TenantRepository<T> base (no-track, paged, soft-delete)`.
 
-- [ ] **T4 — Retry core + `UniqueViolationMapping` + `ITransactionRunner`.**
+- [x] **T4 — Retry core + `UniqueViolationMapping` + `ITransactionRunner`.**
       Create `Transactions/UniqueViolationMapping.cs` (B3), `Transactions/ITransactionRunner.cs` (B2 interface +
       `RetryPolicy` pure helper). This is the unit-testable retry seam — keep `RetryPolicy` free of EF/Db types.
       Push `feat(server): S03 T4 — transaction runner seam + retry policy + unique-violation mapping`.
