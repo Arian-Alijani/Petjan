@@ -174,7 +174,7 @@ Namespace `Animora.Persistence.PostgreSql.Conventions`. `public static class Ser
 
 ---
 
-### [ ] T06 — Options + validator (`.../Options/`)
+### [x] T06 — Options + validator (`.../Options/`)
 Namespace `Animora.Persistence.PostgreSql.Options`.
 1. **`DatabaseOptions.cs`** — `public sealed class DatabaseOptions`, `public const string SectionName = "Database";`. Props:
    - `string ConnectionString { get; set; } = "";` (bound **only** from env `Database__ConnectionString`; `SecretGuard` already blocks JSON — do NOT put it in appsettings).
