@@ -7,7 +7,7 @@ namespace Animora.Persistence.PostgreSql;
 public static class ServerSchemaVersion
 {
     /// <summary>Expected head migration name (without EF's timestamp prefix).</summary>
-    public const string ExpectedHead = "103_SigningKeys";
+    public const string ExpectedHead = "104_CommandIntake";
 
     /// <summary>
     /// <c>true</c> when <paramref name="appliedMigrationId"/> (EF id <c>&lt;timestamp&gt;_&lt;name&gt;</c>)

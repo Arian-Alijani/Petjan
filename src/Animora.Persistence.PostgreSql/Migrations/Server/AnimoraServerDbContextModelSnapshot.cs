@@ -369,6 +369,133 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                     b.ToTable("Users", "public");
                 });
 
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Commands.CommandIdMapEntry", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<string>("OperationId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<short>("Slot")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("ServerEntityId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.HasKey("TenantId", "OperationId", "Slot");
+
+                    b.ToTable("CommandIdMap", "public");
+                });
+
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Commands.CommandIntakeRecord", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<string>("OperationId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<string>("AttemptId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<short>("AttemptCount")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("CommandType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("DependsOnOperationId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(512)
+                        .HasColumnType("text");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<short>("FinancialEffect")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("LeaseOwner")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("LeaseUntilUtc")
+                        .HasPrecision(6)
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<short?>("Outcome")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("PayloadJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset>("ReceivedUtc")
+                        .HasPrecision(6)
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ResponsibleRole")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("ServerEntityId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<Guid?>("ServerVersion")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("SettledUtc")
+                        .HasPrecision(6)
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<short>("Status")
+                        .HasColumnType("smallint");
+
+                    b.HasKey("TenantId", "OperationId");
+
+                    b.HasIndex("TenantId", "DependsOnOperationId")
+                        .HasDatabaseName("IX_CommandIntake_TenantId_DependsOnOperationId");
+
+                    b.HasIndex("TenantId", "Status", "LeaseUntilUtc")
+                        .HasDatabaseName("IX_CommandIntake_TenantId_Status_LeaseUntilUtc");
+
+                    b.ToTable("CommandIntake", "public");
+                });
+
             modelBuilder.Entity("Animora.Persistence.PostgreSql.Identity.RefreshToken", b =>
                 {
                     b.Property<string>("Id")

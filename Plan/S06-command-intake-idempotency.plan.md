@@ -263,7 +263,7 @@ types `jsonb`/`uuid`/`char(64)`/`varchar(…)`, the `"Tenant"` named filter on `
 **Verify:** `scripts/sandbox/build.sh full` = 0/0 (no migration yet; that's T3).
 **Push:** `scripts/git/push.sh "feat(server): S06 T2 — CommandIntake/CommandIdMap entities, store, compactor"`
 
-### T3 — Migration 104_CommandIntake + schema head bump  ⬜
+### T3 — Migration 104_CommandIntake + schema head bump  ✅
 **Run:** `.sandbox/tools/dotnet-ef migrations add CommandIntake --project src/Animora.Persistence.PostgreSql
 --startup-project src/Animora.Persistence.PostgreSql --context AnimoraServerDbContext --output-dir Migrations/Server`.
 Then **rename** the generated files' ordinal to `104_CommandIntake` (match the `NNN` token; follow the existing
@@ -363,4 +363,4 @@ then delete this Plan file as the absolute last action.
 ---
 
 ## Progress log (update as you go)
-- T1 ✅  T2 ✅  T3 ⬜  T4 ⬜  T5 ⬜  T6 ⬜  T7 ⬜  T8 ⬜
+- T1 ✅  T2 ✅  T3 ✅  T4 ⬜  T5 ⬜  T6 ⬜  T7 ⬜  T8 ⬜

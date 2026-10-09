@@ -65,7 +65,7 @@ public sealed class AuthorizationPgTests(PgFixture pg) : IClassFixture<PgFixture
         string[] expected = ["Algorithm", "CreatedUtc", "KeyId", "NotAfterUtc", "Purpose", "ProtectedPrivateKey", "PublicKeyDer", "RetiredUtc"];
         Assert.Equal(expected.Order(StringComparer.Ordinal), columns.Order(StringComparer.Ordinal));
         Assert.DoesNotContain("TenantId", columns); // global table: never tenant-scoped
-        Assert.Equal("103_SigningKeys", ServerSchemaVersion.ExpectedHead);
+        Assert.Equal("104_CommandIntake", ServerSchemaVersion.ExpectedHead);
 
         await using AsyncServiceScope scope = provider.CreateAsyncScope();
         var store = scope.ServiceProvider.GetRequiredService<SigningKeyStore>();
