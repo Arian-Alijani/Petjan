@@ -274,7 +274,7 @@ Add (TryAdd where appropriate):
 - [x] **T2 — `PageRules`.** Create `src/Animora.Persistence.PostgreSql/Repositories/PageRules.cs` per B7
       (`MaxPageSize=200`, `ClampPageSize`, `NormalizePage`). Push `feat(server): S03 T2 — PageRules paging clamp (max 200)`.
 
-- [ ] **T3 — `TenantRepository<T>`.** Create `src/Animora.Persistence.PostgreSql/Repositories/TenantRepository.cs`
+- [x] **T3 — `TenantRepository<T>`.** Create `src/Animora.Persistence.PostgreSql/Repositories/TenantRepository.cs`
       per B6 (abstract, no-tracking reads, `Page` via PageRules, `Add`/`SoftDelete`, NO `IgnoreQueryFilters`, NO
       unpaged `ToListAsync`). Push `feat(server): S03 T3 — TenantRepository<T> base (no-track, paged, soft-delete)`.
 
