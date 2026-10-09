@@ -166,7 +166,7 @@ Edit `src/Animora.Persistence.PostgreSql/Context/AnimoraServerDbContext.cs`:
 2. In `OnModelCreating`, AFTER `ServerModelConventions.ApplyTenancy(...)`, add tenant query filters for the two non-syncable entities: `modelBuilder.Entity<RefreshToken>().HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);` and same for `SecurityAuditEntry`. (`DeviceStatus`/`MembershipStatus`/`StaffRole`/`UserStatus` enums map to int via convention since they're on SyncableEntity; RefreshToken/SecurityAudit have none.)
 3. `build.sh fast`.
 **Push:** `scripts/git/push.sh "feat(persistence): S04 task5 — identity DbSets + non-syncable tenant filters"`
-**Status:** ⬜ TODO
+**Status:** ✅ DONE (build 0/0)
 
 ### TASK 6 — ServerUserStore + ITenantDirectory + RefreshTokenService + SecurityAuditWriter + TenantProvisioner
 Create in `src/Animora.Persistence.PostgreSql/Identity/`:
