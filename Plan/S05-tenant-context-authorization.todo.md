@@ -594,7 +594,7 @@ public sealed class SigningKey {
   > Heavy-fix note: any non-trivial fix uncovered by tests (e.g. pipeline reorder, interceptor interaction)
   > gets its own push with a clear message.
 
-- [ ] **T15 — Acceptance self-check (mechanical).**
+- [x] **T15 — Acceptance self-check (mechanical).**
   Verify all of acceptance §Acceptance criteria:
   1. `scripts/sandbox/build.sh full` = 0/0; `run.sh` = `SMOKE RUN OK`; client sources unchanged.
   2. `grep -rn "FindFirst(\"role\")\|Claims.*role" src/Animora.Server/Authorization` → empty;
