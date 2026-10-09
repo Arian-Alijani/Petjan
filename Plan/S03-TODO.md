@@ -324,7 +324,7 @@ Add (TryAdd where appropriate):
       - If a large/heavy test fixture block is written, push it on its own with a clear message.
       Push `test(server): S03 T8 — PageRules/RetryPolicy/SessionInitializer + PG-gated TenantIsolation tests`.
 
-- [ ] **T9 — Build + test + smoke (acceptance).**
+- [x] **T9 — Build + test + smoke (acceptance).**
       `scripts/sandbox/build.sh full` ⇒ **0 warnings / 0 errors**.
       `scripts/sandbox/test.sh Server` ⇒ green (PG facts skipped locally with reason).
       `scripts/sandbox/run.sh` ⇒ `SMOKE RUN OK`.

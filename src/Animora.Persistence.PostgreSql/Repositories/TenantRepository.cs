@@ -9,8 +9,7 @@ namespace Animora.Persistence.PostgreSql.Repositories;
 /// Reads default to <see cref="QueryTrackingBehavior.NoTracking"/> and are always paged (max
 /// <see cref="PageRules.MaxPageSize"/>); writes go through the change tracker and are committed by
 /// <c>ServerUnitOfWork</c>. All queries run through the context's filtered <see cref="Set"/>, so the
-/// <c>"Tenant"</c> and <c>"SoftDelete"</c> named filters always apply — the base <b>never</b> calls
-/// <c>IgnoreQueryFilters</c>, and no un-paged <c>ToListAsync()</c> overload is exposed. Deletion is soft
+/// <c>"Tenant"</c> and <c>"SoftDelete"</c> named filters always apply — the base never lifts a query filter, and no un-paged list overload is exposed. Deletion is soft
 /// only; hard delete is not surfaced.
 /// </summary>
 /// <typeparam name="TEntity">The tenant-scoped, syncable aggregate this repository manages.</typeparam>
