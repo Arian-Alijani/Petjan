@@ -346,7 +346,7 @@ Add (TryAdd where appropriate):
       `TenantContextMissingException`/`TenantMismatchException` base-type note) in the "Decision & deviation log".
       Do NOT rewrite/shorten older entries. Push `docs(server): S03 T10 — PROGRESS.md status Done, Next S04, repo-state log`.
 
-- [ ] **T11 — Delete the source phase file.** `rm backend-roadmap/phases/PHASE-S03-server-data-layer-tenancy-ii.md`
+- [x] **T11 — Delete the source phase file.** `rm backend-roadmap/phases/PHASE-S03-server-data-layer-tenancy-ii.md`
       (phase recipe step; the phase is complete). Do NOT touch any other roadmap/phase file. Push
       `chore(server): S03 T11 — remove completed S03 phase file`.
 
