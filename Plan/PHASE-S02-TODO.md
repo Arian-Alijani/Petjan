@@ -277,7 +277,7 @@ Namespace `Animora.Server.Hosting`. All probes `internal sealed : IReadinessProb
 
 ---
 
-### [ ] T12 — Wire `Program.cs` steps 3/4/5 + appsettings note
+### [x] T12 — Wire `Program.cs` steps 3/4/5 + appsettings note
 **Do (edit `src/Animora.Server/Program.cs`; do NOT reorder the numbered block):**
 - **Step 3** (replace the `// 3. DataProtection → S02` placeholder):
   ```csharp
