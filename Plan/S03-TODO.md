@@ -296,7 +296,7 @@ Add (TryAdd where appropriate):
       Run `scripts/sandbox/build.sh fast` to confirm it compiles. Push
       `feat(server): S03 T7 — register UoW, session initializer, read factory in AddAnimoraPostgreSql`.
 
-- [ ] **T8 — Tests.** In `tests/Animora.Server.Tests/Persistence/`:
+- [x] **T8 — Tests.** In `tests/Animora.Server.Tests/Persistence/`:
       - `PageRulesTests.cs` — facts: `Clamps_To200` (e.g. 500→200, 200→200), `Page_Below1_Becomes1` (0→1,-5→1).
       - `RetryPolicyTests.cs` — pure, no DB, drive `RetryPolicy`/runner retry core with fake attempt-delegate +
         deterministic rng + no-op delay. Facts: `Retries40001_Max3_ThenFails` (transient thrown each time ⇒ exactly
