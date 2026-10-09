@@ -431,7 +431,7 @@ public sealed class SigningKey {
   > Heavy-change note: if the migration diff is large/unexpected, push it separately with a clear message
   > before continuing.
 
-- [ ] **T4 — Server-side RBAC repositories (PG impls of the Application ports).**
+- [x] **T4 — Server-side RBAC repositories (PG impls of the Application ports).**
   `Animora.Server` cannot reference Sqlite, and PG has no impl yet. Add, **in `Animora.Server/Authorization/`**
   (server-owned; they depend on `AnimoraServerDbContext` which Server may use via the Persistence reference):
   `ServerStaffMembershipRepository : IStaffMembershipRepository` and
