@@ -544,7 +544,7 @@ public sealed class SigningKey {
   `/auth/keys` anonymous). Build fast.
   **Push:** `feat(server): S05 — device approve/revoke, capabilities, /auth/keys + PublicKeySet wire`.
 
-- [ ] **T13 — DI (`AddAnimoraAuthorization`) + `Program.cs` pipeline.**
+- [x] **T13 — DI (`AddAnimoraAuthorization`) + `Program.cs` pipeline.**
   Add `Authorization/AuthorizationServiceCollectionExtensions.cs` with
   `AddAnimoraAuthorization(this IServiceCollection)`:
   - Register `RequestTenantContext` scoped and `services.Replace(ScopedITenantContext -> RequestTenantContext)`

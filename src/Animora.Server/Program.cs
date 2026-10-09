@@ -1,6 +1,7 @@
 using Animora.Persistence.PostgreSql.DependencyInjection;
 using Animora.Persistence.PostgreSql.KeyRing;
 using Animora.Server.Auth;
+using Animora.Server.Authorization;
 using Animora.Server.Hosting;
 using Microsoft.AspNetCore.DataProtection;
 
@@ -47,6 +48,9 @@ builder.Services.AddAnimoraPostgreSql(builder.Configuration);
 //     tokens (no JWT/OIDC), lockout, device binding, append-only security audit. Authentication only.
 builder.Services.AddAnimoraIdentity(builder.Configuration);
 
+// 4c. Tenant context + stored-RBAC authorization + entitlement slot + snapshot signing (S05).
+builder.Services.AddAnimoraAuthorization();
+
 // 5. Health checks: readiness probes (data root, database, key ring, schema head).
 //    Probes degrade to Unhealthy when PostgreSQL is absent; the host still boots.
 builder.Services.AddSingleton<IReadinessProbe, DataRootWritableProbe>();
@@ -71,8 +75,8 @@ var app = builder.Build();
 
 // 7. Middleware pipeline (fixed order):
 //    global exception → HSTS/HTTPS redirect (non-Development) → request logging
-//    (skips /health/*) → [tenant → authN → authZ → entitlement : S04/S05] →
-//    rate limiter → routing → endpoints.
+//    (skips /health/*) → authN → tenant binding → authZ → entitlement → rate limiter →
+//    routing → endpoints.
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 if (!app.Environment.IsDevelopment())
@@ -82,8 +86,12 @@ if (!app.Environment.IsDevelopment())
 }
 
 // Request logging (sampled) skips health endpoints — added with observability in S18.
-// [tenant/authZ/entitlement slots] → S05 (S16 fills entitlement). authN slot (S04):
+// Plane order is fixed and tested (PlaneOrderTests): authN (401) → tenant bound from the STORED membership →
+// permission authZ (403) → entitlement (S16 fills the gate; allow-all until then).
 app.UseAuthentication();
+app.UseMiddleware<TenantContextMiddleware>();
+app.UseAuthorization();
+app.UseMiddleware<EntitlementMiddleware>();
 
 app.UseRateLimiter();
 
@@ -94,6 +102,9 @@ if (enableOpenApi)
 
 // Authentication endpoints (S04) — /auth/login|refresh|logout|device/register under the `auth` rate limit.
 app.MapAuthEndpoints();
+
+// Device approve/revoke, capability snapshots (S05) and the anonymous public key set.
+app.MapDeviceEndpoints();
 
 // Health endpoints — anonymous, never rate-limited, leak no secret (ARCH §4).
 app.MapGet(ServerRoutes.HealthLive, () => Results.Json(new { status = "live" }));

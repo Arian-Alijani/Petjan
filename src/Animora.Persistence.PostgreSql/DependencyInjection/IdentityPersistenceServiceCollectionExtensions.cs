@@ -30,6 +30,12 @@ public static class IdentityPersistenceServiceCollectionExtensions
             .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
         services.AddScoped<ITenantDirectory, TenantDirectory>();
 
+        // S05: primary-key user lookup used before a tenant is bound (own keyless context, same read pool).
+        services.AddDbContext<UserLookupContext>((sp, options) => options
+            .UseNpgsql(sp.GetRequiredKeyedService<NpgsqlDataSource>(PersistenceServiceCollectionExtensions.OltpReadKey))
+            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
+        services.AddScoped<IUserLookup, UserLookup>();
+
         services.AddScoped<IIdentityRepository, EfIdentityRepository>();
         services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
         services.AddScoped<RefreshTokenService>();
