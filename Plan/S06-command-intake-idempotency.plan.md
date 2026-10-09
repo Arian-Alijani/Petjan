@@ -329,7 +329,7 @@ server concurrency evidence). `Animora.Server` adds no forbidden project ref.
 `scripts/sandbox/test.sh Server` green; `scripts/sandbox/test.sh Application` green; `scripts/sandbox/run.sh` = `SMOKE RUN OK`.
 **Push:** `scripts/git/push.sh "feat(server): S06 T5 — intake/batch/recovery/catalog/server-chain tests"`
 
-### T6 — Acceptance gate sweep  ⬜
+### T6 — Acceptance gate sweep  ✅
 Run each mechanical check from the phase (fix minimally if any fail, then re-push):
 - `grep -rn "Dispatcher.Chain" src/Animora.Application` still lists the unchanged client chain.
 - `grep -n "CommandJournal" src/Animora.Application/Dispatch/Dispatcher.cs` only in `Chain`, not `ServerChain`.
@@ -363,7 +363,8 @@ then delete this Plan file as the absolute last action.
 ---
 
 ## Progress log (update as you go)
-- T1 ✅  T2 ✅  T3 ✅  T4 ✅  T5 ✅  T6 ⬜  T7 ⬜  T8 ⬜
+- T1 ✅  T2 ✅  T3 ✅  T4 ✅  T5 ✅  T6 ✅  T7 ⬜  T8 ⬜
 
 - T4 implemented: fenced intake/recovery, catalog, settlement mapping, server pipeline adapters, atomic receipt/effect/id-map/outbox, endpoints and DI. Build/test/smoke deliberately NOT executed per user instruction. Intermediate T4 pushes followed by task completion push.
 - T5 implemented: pure intake/batch/recovery/rules/catalog/reserved/server-chain cases and PostgreSQL-gated concurrent winner, atomic rollback, fencing and compaction cases. Test sources written only; no test, build, smoke or database migration executed.
+- T6 verified by grep gates only (no build/test): chain unchanged, ServerChain has no CommandJournal, Version = 2, no stale wire-version test asserts, migration present, no ExpectedAggregateVersion in Animora.Server.
