@@ -9,7 +9,7 @@ namespace Animora.Persistence.PostgreSql.Transactions;
 /// (<c>ServerTransactionRunner</c>) wraps an EF Core execution strategy around
 /// begin → tenant-session-init → work → commit/rollback.
 /// </summary>
-internal interface ITransactionRunner
+public interface ITransactionRunner
 {
     /// <summary>
     /// Runs <paramref name="work"/> inside a retrying transaction, returning the work's own failure

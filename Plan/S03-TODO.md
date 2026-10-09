@@ -283,7 +283,7 @@ Add (TryAdd where appropriate):
       `RetryPolicy` pure helper). This is the unit-testable retry seam — keep `RetryPolicy` free of EF/Db types.
       Push `feat(server): S03 T4 — transaction runner seam + retry policy + unique-violation mapping`.
 
-- [ ] **T5 — `ServerUnitOfWork` + `ServerTransactionRunner`.**
+- [x] **T5 — `ServerUnitOfWork` + `ServerTransactionRunner`.**
       Create `Transactions/ServerUnitOfWork.cs` (B1, implements `IUnitOfWork`) and the default
       `ServerTransactionRunner` (B2) doing the real execution-strategy + begin/init/commit/rollback using
       `RetryPolicy` + store-exception mapping (B4). Cancellation never swallowed.
