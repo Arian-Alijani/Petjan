@@ -266,7 +266,7 @@ Add (TryAdd where appropriate):
 - [x] **T0 — Setup.** Create `Plan/` folder (done) and this file. Confirm branch `main`, git creds ready.
       Push: `feat(server): S03 T0 — add Plan/S03-TODO.md execution plan`.
 
-- [ ] **T1 — `ITenantSessionInitializer` + `NoopTenantSessionInitializer`.**
+- [x] **T1 — `ITenantSessionInitializer` + `NoopTenantSessionInitializer`.**
       Create `src/Animora.Persistence.PostgreSql/Tenancy/ITenantSessionInitializer.cs` (interface per B5) and
       `Tenancy/NoopTenantSessionInitializer.cs` (no-op, touches no connection). XML-doc the future RLS contract.
       `fast` compile optional. Push `feat(server): S03 T1 — tenant session initializer hook (RLS off noop)`.
