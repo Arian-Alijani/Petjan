@@ -218,7 +218,7 @@ Namespace `Animora.Persistence.PostgreSql.Context`.
 
 ---
 
-### [ ] T09 — Key-ring context + DI extension (`.../KeyRing/`, `.../DependencyInjection/`)
+### [x] T09 — Key-ring context + DI extension (`.../KeyRing/`, `.../DependencyInjection/`)
 1. **`KeyRing/AnimoraKeyRingDbContext.cs`** (namespace `Animora.Persistence.PostgreSql.KeyRing`) — `public sealed class AnimoraKeyRingDbContext : DbContext, IDataProtectionKeyContext`:
    - `public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();`
    - Own history table: in `OnModelCreating` or via migrations config, use `__EFMigrationsHistory_KeyRing` (set on the context's model config; EF-ef tool `--context` isolates its own history — ensure the migration uses the separate history table name). Ctor takes `DbContextOptions<AnimoraKeyRingDbContext>`.
