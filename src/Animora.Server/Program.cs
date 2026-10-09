@@ -1,4 +1,7 @@
+using Animora.Persistence.PostgreSql.DependencyInjection;
+using Animora.Persistence.PostgreSql.KeyRing;
 using Animora.Server.Hosting;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,13 +32,22 @@ SecretGuard.ThrowIfSecretsInJsonFiles(builder.Configuration);
 
 // 2. Logging (console/providers are configured by the default host builder).
 
-// 3. DataProtection → S02 (persisted key ring, stable ApplicationName).
+// 3. DataProtection: key ring persisted in PostgreSQL (own context + own pool), stable
+//    ApplicationName. No in-memory/file fallback — an unreachable ring fails readiness.
+builder.Services.AddDataProtection()
+    .SetApplicationName("Animora.Server")
+    .PersistKeysToDbContext<AnimoraKeyRingDbContext>();
 
-// 4. DbContext → S02 (PostgreSQL; the running role has no DDL rights).
+// 4. DbContext: PostgreSQL (keyed pooled data sources, tenancy/version interceptors).
+//    The running role has no DDL rights and the host never migrates on startup.
+builder.Services.AddAnimoraPostgreSql(builder.Configuration);
 
-// 5. Health checks: readiness probes. S01 ships the data-root writability probe;
-//    S02 adds DatabaseProbe + KeyRingProbe.
+// 5. Health checks: readiness probes (data root, database, key ring, schema head).
+//    Probes degrade to Unhealthy when PostgreSQL is absent; the host still boots.
 builder.Services.AddSingleton<IReadinessProbe, DataRootWritableProbe>();
+builder.Services.AddSingleton<IReadinessProbe, DatabaseProbe>();
+builder.Services.AddSingleton<IReadinessProbe, KeyRingProbe>();
+builder.Services.AddSingleton<IReadinessProbe, SchemaProbe>();
 
 // 6. OpenAPI (first-party) only in Development or when Server:EnableOpenApi=true.
 var enableOpenApi = builder.Environment.IsDevelopment() ||

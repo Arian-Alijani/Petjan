@@ -266,7 +266,7 @@ Namespace `Animora.Persistence.PostgreSql.Context`.
 
 ---
 
-### [ ] T11 — Readiness probes + `ServerSchemaVersion` (`src/Animora.Server/Hosting/`)
+### [x] T11 — Readiness probes + `ServerSchemaVersion` (`src/Animora.Server/Hosting/`)
 Namespace `Animora.Server.Hosting`. All probes `internal sealed : IReadinessProbe` (match S01 pattern, §0.4):
 1. **`DatabaseProbe.cs`** — Name `"database"`. `SELECT 1` with a **2 s** timeout against the `oltp-write` (or a dedicated) `NpgsqlDataSource`; ALSO verify `animora_set_version` exists (e.g. `SELECT 1 FROM pg_proc WHERE proname='animora_set_version'`). Any failure/timeout ⇒ `Unhealthy()` (catch expected Npgsql/timeout exceptions; never leak text).
 2. **`KeyRingProbe.cs`** — Name `"keyring"`. Resolve `AnimoraKeyRingDbContext` and confirm the key ring is readable (e.g. `await db.DataProtectionKeys.AnyAsync(ct)` inside try/catch; existence of the table/readability is enough — zero keys is still healthy). Unreachable ⇒ `Unhealthy()` (no in-memory fallback — A-RULE 027).
