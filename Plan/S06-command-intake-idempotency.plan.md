@@ -307,7 +307,7 @@ server concurrency evidence). `Animora.Server` adds no forbidden project ref.
 **Push:** `scripts/git/push.sh "feat(server): S06 T4 — command intake service, payload catalog, endpoints, seams"`
 > If T4 grows large or needs a heavy fix mid-way, push a sensible intermediate commit (clear message) rather than batching.
 
-### T5 — Tests (pure + PG-gated)  ⬜
+### T5 — Tests (pure + PG-gated)  ✅
 **Create `tests/Animora.Server.Tests/Commands/*.cs`** (pure, fake `ICommandIntakeStore` + fake `IDispatcher`):
 `CommandIntakeServiceTests`: `IdenticalRetry_ReturnsStoredResult_DoesNotReexecute`,
 `SameOperationId_DifferentFingerprint_Rejected_Audited`, `TenantMismatch_Rejected_Audited`,
@@ -363,6 +363,7 @@ then delete this Plan file as the absolute last action.
 ---
 
 ## Progress log (update as you go)
-- T1 ✅  T2 ✅  T3 ✅  T4 ✅  T5 ⬜  T6 ⬜  T7 ⬜  T8 ⬜
+- T1 ✅  T2 ✅  T3 ✅  T4 ✅  T5 ✅  T6 ⬜  T7 ⬜  T8 ⬜
 
 - T4 implemented: fenced intake/recovery, catalog, settlement mapping, server pipeline adapters, atomic receipt/effect/id-map/outbox, endpoints and DI. Build/test/smoke deliberately NOT executed per user instruction. Intermediate T4 pushes followed by task completion push.
+- T5 implemented: pure intake/batch/recovery/rules/catalog/reserved/server-chain cases and PostgreSQL-gated concurrent winner, atomic rollback, fencing and compaction cases. Test sources written only; no test, build, smoke or database migration executed.
