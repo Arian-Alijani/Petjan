@@ -244,7 +244,7 @@ Concrete handlers/ports/aggregate tables/permission rows (S07–S10); journal/ou
 (desktop untouched; default profile = Client). `grep -n "CommandJournal" .../Dispatcher.cs` shows it only in `Chain`.
 **Push:** `scripts/git/push.sh "feat(server): S06 T1 — wire v2, +5 error codes, Application server pipeline profile"`
 
-### T2 — Persistence.PostgreSql entities + store + compactor  ⬜
+### T2 — Persistence.PostgreSql entities + store + compactor  ✅
 **Create under `src/Animora.Persistence.PostgreSql/Commands/`:**
 - `CommandIntakeRecord.cs` (entity, all columns above; `IntakeStatus` enum here or shared — put `IntakeStatus` in this
   project under `Commands/IntakeStatus.cs`). NOT syncable; carries `"Tenant"` filter via config.
@@ -363,4 +363,4 @@ then delete this Plan file as the absolute last action.
 ---
 
 ## Progress log (update as you go)
-- T1 ✅  T2 ⬜  T3 ⬜  T4 ⬜  T5 ⬜  T6 ⬜  T7 ⬜  T8 ⬜
+- T1 ✅  T2 ✅  T3 ⬜  T4 ⬜  T5 ⬜  T6 ⬜  T7 ⬜  T8 ⬜

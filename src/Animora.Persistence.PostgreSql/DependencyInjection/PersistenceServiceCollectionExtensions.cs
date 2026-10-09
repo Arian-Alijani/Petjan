@@ -1,4 +1,5 @@
 using Animora.Application.Abstractions;
+using Animora.Persistence.PostgreSql.Commands;
 using Animora.Persistence.PostgreSql.Context;
 using Animora.Persistence.PostgreSql.KeyRing;
 using Animora.Persistence.PostgreSql.Options;
@@ -73,6 +74,10 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddSingleton<ITenantSessionInitializer, NoopTenantSessionInitializer>();
         services.TryAddScoped<ITransactionRunner, ServerTransactionRunner>();
         services.TryAddScoped<IUnitOfWork, ServerUnitOfWork>();
+
+        // S06: tenant-scoped idempotency store + retention compactor.
+        services.TryAddScoped<ICommandIntakeStore, CommandIntakeStore>();
+        services.TryAddScoped<CommandIntakeCompactor>();
         services.TryAddScoped<IServerReadContextFactory>(sp => new ServerReadContextFactory(
             sp.GetRequiredKeyedService<NpgsqlDataSource>(OltpReadKey),
             sp.GetRequiredService<ITenantContext>(),

@@ -1,4 +1,5 @@
 using Animora.Domain.Identity;
+using Animora.Persistence.PostgreSql.Commands;
 using Animora.Persistence.PostgreSql.Conventions;
 using Animora.Persistence.PostgreSql.Identity;
 using Animora.Persistence.PostgreSql.Tenancy;
@@ -45,6 +46,12 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     /// <summary>Vendor-global asymmetric signing keys (S05); never tenant-scoped.</summary>
     public DbSet<Security.SigningKey> SigningKeys => Set<Security.SigningKey>();
 
+    /// <summary>Server-side command idempotency store (S06).</summary>
+    public DbSet<CommandIntakeRecord> CommandIntake => Set<CommandIntakeRecord>();
+
+    /// <summary>Server ids each command created (S06).</summary>
+    public DbSet<CommandIdMapEntry> CommandIdMap => Set<CommandIdMapEntry>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,6 +65,10 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
         modelBuilder.Entity<RefreshToken>()
             .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<SecurityAuditEntry>()
+            .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<CommandIntakeRecord>()
+            .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<CommandIdMapEntry>()
             .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
     }
 }
