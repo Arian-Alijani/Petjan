@@ -2,7 +2,7 @@
 
 **Band:** M · **Track:** G (sync / integration / release) · **Depends on:** G03 · **Next:** G05
 **Satisfies:** R-B03, R-B17, R-B18 · **Runnable after this phase:** desktop offline yes · server required no
-**Produced by:** M00 (regenerated 2026-10-09; supersedes the deleted `PHASE-E05` file).
+**Produced by:** M00 (regenerated 2026-10-09; regenerates scope-inventory row E05 (Track-D/E planning files deleted in the 2026-10-08 server-track reset)).
 
 > Baseline verified 2026-10-09: client migration head `031` (`031_TreatmentPlans`), `CommandTypes` = live `CommandTypes.cs` (88 declared today — never freeze), `ErrorCodes` 161 (+ codes added by earlier S/G phases, incl. G02's 4 Sync-transport codes), `WireContract.Version` = 2 after S06; `src/` projects include `Animora.Sync.Abstractions` (G01), `Animora.Sync.Custom` (G02) (+ the server-track `S01–S20` projects).
 > **Next-free-ordinal rule.** This phase **adds one client SQLite migration** for the replica/staging store. Do **not** hard-code a number: list `src/Animora.Persistence.Sqlite/Migrations/` physical files and take the next free ordinal on the owning `DbContext` (client head is `031` today → next free is `032`, but **verify by listing**, matching the `NNN` token, not the double-underscore prefix). Server sequence (101+) is untouched by this client phase.

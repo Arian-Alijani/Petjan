@@ -2,7 +2,7 @@
 
 **Band:** S · **Track:** S (server) · **Depends on:** S02 · **Next:** S04
 **Satisfies:** R-B11, R-B19 · **Runnable after this phase:** desktop offline yes · server required no
-**Produced by:** M00 (regenerated 2026-10-08; supersedes the deleted `PHASE-D02 (half 2)` file).
+**Produced by:** M00 (regenerated 2026-10-08; regenerates scope-inventory row D02 (half 2; Track-D/E planning files deleted in the 2026-10-08 server-track reset)).
 
 > Baseline verified 2026-10-08: client migration head `031` (`031_TreatmentPlans`), `CommandTypes` = live `CommandTypes.cs` (88 declared today — never freeze), `ErrorCodes` 161, `WireContract.Version` = 1; `src/` projects = `Animora.Domain`, `Animora.Application`, `Animora.Persistence.Sqlite`, `Animora.Infrastructure.Local`, `Animora.Client.Services`, `Animora.Contracts`, `Animora.Contracts.Wire`, `Animora.Desktop`, `Animora.Sync.Abstractions` (+ server-track projects added by earlier S/G phases).
 > No migration in this phase.

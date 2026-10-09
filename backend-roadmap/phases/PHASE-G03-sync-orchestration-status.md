@@ -2,7 +2,7 @@
 
 **Band:** M · **Track:** G (sync / integration / release) · **Depends on:** G02 · **Next:** G04
 **Satisfies:** R-B03 · **Runnable after this phase:** desktop offline yes · server required no
-**Produced by:** M00 (regenerated 2026-10-09; supersedes the deleted `PHASE-E04` file).
+**Produced by:** M00 (regenerated 2026-10-09; regenerates scope-inventory row E04 (Track-D/E planning files deleted in the 2026-10-08 server-track reset)).
 
 > Baseline verified 2026-10-09: client migration head `031` (`031_TreatmentPlans`), `CommandTypes` = live `CommandTypes.cs` (88 declared today — never freeze), `ErrorCodes` 161 (+ codes added by earlier S/G phases, incl. G02 `NETWORK_UNAVAILABLE`/`SERVER_BUSY`/`SYNC_INTEGRITY_FAILED`/`SYNC_PROTOCOL_VIOLATION`), `WireContract.Version` = 2 after S06; `src/` projects include `Animora.Sync.Abstractions` (G01) and `Animora.Sync.Custom` (G02) (+ the server-track `S01–S20` projects).
 > **Next-free-ordinal rule.** This phase adds **no migration** — it reuses the client `SyncCursor` table (introduced by C11) and adds no column. For any later phase that does: list the physical files of the owning `DbContext`'s `Migrations/` folder and take the next free ordinal (server sequence starts at **101**; client SQLite head `031` is independent). Match on the `NNN` token.

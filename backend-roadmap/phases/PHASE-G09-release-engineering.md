@@ -2,7 +2,7 @@
 
 **Band:** M · **Track:** G (sync / integration / release) · **Depends on:** G08 · **Next:** — (closes the regenerated server track; M00 T9 then hands off to S01)
 **Satisfies:** R-B27, R-B31, R-B33 · **Runnable after this phase:** desktop offline yes · server required no
-**Produced by:** M00 (regenerated 2026-10-09; supersedes the deleted `PHASE-E09` file).
+**Produced by:** M00 (regenerated 2026-10-09; regenerates scope-inventory row E09 (Track-D/E planning files deleted in the 2026-10-08 server-track reset)).
 
 > Baseline verified 2026-10-09: server migration head = last server ordinal (read `ServerSchemaVersion.ExpectedHead` — never hard-code), client migration head = last client ordinal (list `src/Animora.Persistence.Sqlite/Migrations/`), `CommandTypes` = live `CommandTypes.cs` (88 today — never freeze), `ErrorCodes` = live count, `WireContract.Version` = 2 (supported {1,2}); all server + client sync projects exist (S01–S20, G01–G08) and the CI gate workflows `pg-gates.yml` (G07) + `perf-gates.yml` (G08) are present.
 > **Next-free-ordinal rule.** This phase adds **no migration** — like G07/G08 it is a **release-engineering** phase: it writes release runbooks, packaging scripts, SBOM/native-inventory generation and a release-gate aggregator under `docs/release/**`, `scripts/release/**`, `.github/**`, `tests/**` only — **never** a schema change, a runtime `src/**` change, a package pin or a `.sln` edit. A gate that exposes a real defect is fixed by the **owning** S/G phase, not here.

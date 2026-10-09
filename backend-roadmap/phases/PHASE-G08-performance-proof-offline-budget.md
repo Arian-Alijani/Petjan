@@ -2,7 +2,7 @@
 
 **Band:** M · **Track:** G (sync / integration / release) · **Depends on:** G07, S20 · **Next:** G09
 **Satisfies:** R-B07, R-B08, R-B10, R-B32 · **Runnable after this phase:** desktop offline yes · server required no
-**Produced by:** M00 (regenerated 2026-10-09; supersedes the deleted `PHASE-E08` file, second half).
+**Produced by:** M00 (regenerated 2026-10-09; regenerates scope-inventory row E08 (second half; Track-D/E planning files deleted in the 2026-10-08 server-track reset)).
 
 > Baseline verified 2026-10-09: server migration head = last server ordinal (read `ServerSchemaVersion.ExpectedHead` — never hard-code), client migration head = last client ordinal (list `src/Animora.Persistence.Sqlite/Migrations/`), `CommandTypes` = live `CommandTypes.cs` (88 today — never freeze), `ErrorCodes` = live count, `WireContract.Version` = 2 (supported {1,2}); all server + client sync projects exist (S01–S20, G01–G07).
 > **Next-free-ordinal rule.** This phase adds **no migration** — like G07 it is a **validation-gate** phase (harness + budget + audit glue in `scripts/**`, `.github/**`, `tests/**`). No schema, no runtime `src/**` change. A gate that exposes a real regression is fixed by the **owning** phase, not here.

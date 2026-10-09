@@ -2,7 +2,7 @@
 
 **Band:** M · **Track:** G (sync / integration / release) · **Depends on:** G04, S10 · **Next:** G06
 **Satisfies:** R-B03, R-B09, R-B16 · **Runnable after this phase:** desktop offline yes · server required no
-**Produced by:** M00 (regenerated 2026-10-09; supersedes the deleted `PHASE-E06` file).
+**Produced by:** M00 (regenerated 2026-10-09; regenerates scope-inventory row E06 (Track-D/E planning files deleted in the 2026-10-08 server-track reset)).
 
 > Baseline verified 2026-10-09: client migration head `031` + the G04 replica migration (verify by listing — the client ordinal moved when G04 landed `ReplicaStore`), `CommandTypes` = live `CommandTypes.cs` (88 declared today — never freeze), `ErrorCodes` 161 (+ codes added by earlier S/G phases, incl. S06's 5 intake codes and G02/G04's sync codes), `WireContract.Version` = 2 after S06 (supported {1,2}); `src/` projects include `Animora.Sync.Abstractions` (G01), `Animora.Sync.Custom` (G02) (+ server-track `S01–S20`).
 > **Next-free-ordinal rule.** This phase adds **no migration** (it reuses the B02 client command journal / `PendingCommandRecord` and the G04 id-remap surface; no schema change). If a column is genuinely needed, list `src/Animora.Persistence.Sqlite/Migrations/` and take the next free client ordinal; server sequence (101+) is untouched by this client phase.

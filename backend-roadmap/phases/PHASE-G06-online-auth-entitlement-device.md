@@ -2,7 +2,7 @@
 
 **Band:** M · **Track:** G (sync / integration / release) · **Depends on:** G05, S16 · **Next:** G07
 **Satisfies:** R-B04, R-B06, R-B20, R-B21, R-B36 · **Runnable after this phase:** desktop offline yes · server required no
-**Produced by:** M00 (regenerated 2026-10-09; supersedes the deleted `PHASE-E07` file).
+**Produced by:** M00 (regenerated 2026-10-09; regenerates scope-inventory row E07 (Track-D/E planning files deleted in the 2026-10-08 server-track reset)).
 
 > Baseline verified 2026-10-09: client migration head `031` + the G04 replica migration (verify by listing — the client ordinal moved when G04 landed `ReplicaStore`), `CommandTypes` = live `CommandTypes.cs` (88 declared today — never freeze), `ErrorCodes` = live count (161 at A02 + codes added by S04/S06/S16 and G02/G04/G05; S16 added the 8 `LICENSE_*` codes this phase reuses — never freeze, `grep -c`), `WireContract.Version` = 2 after S06 (supported {1,2}); `src/` projects include `Animora.Sync.Abstractions` (G01), `Animora.Sync.Custom` (G02), `Animora.Server.Licensing` with its client-reusable `Verification/` half (S16) (+ server-track `S01–S20`).
 > **Next-free-ordinal rule.** This phase adds **one client migration** (the sealed-entitlement + device-fingerprint + credential-mirror local tables, all `[LocalOnly]`). Do **not** hard-code an ordinal: list `src/Animora.Persistence.Sqlite/Migrations/` and take the **next free client ordinal** on `AnimoraDbContext` (expected `032`+ after G04's replica migration — verify). Server sequence (101+) is untouched by this client phase.

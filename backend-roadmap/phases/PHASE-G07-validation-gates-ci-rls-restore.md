@@ -2,7 +2,7 @@
 
 **Band:** M · **Track:** G (sync / integration / release) · **Depends on:** G06, S18 · **Next:** G08
 **Satisfies:** R-B19, R-B32 · **Runnable after this phase:** desktop offline yes · server required no
-**Produced by:** M00 (regenerated 2026-10-09; supersedes the deleted `PHASE-E08` file, first half).
+**Produced by:** M00 (regenerated 2026-10-09; regenerates scope-inventory row E08 (first half; Track-D/E planning files deleted in the 2026-10-08 server-track reset)).
 
 > Baseline verified 2026-10-09: server migration head = the last server ordinal shipped by S02–S16 (list `src/Animora.Persistence.PostgreSql/Migrations/` and read `ServerSchemaVersion.ExpectedHead` — **never** hard-code), client migration head = the last client ordinal after G04/G06 (list `src/Animora.Persistence.Sqlite/Migrations/`), `CommandTypes` = live `CommandTypes.cs` (88 today — never freeze), `ErrorCodes` = live count; `src/` server projects exist (`Animora.Server`, `Animora.Persistence.PostgreSql`, `Animora.Server.Licensing`, `Animora.Web.Admin`) and client sync projects (`Animora.Sync.Abstractions`, `Animora.Sync.Custom`).
 > **Next-free-ordinal rule.** This phase adds **no migration** — it is a **validation-gate** phase: it wires CI, a PG test harness, and a rehearsed restore drill; it writes `.github`/`scripts`/`tests` glue only, never a schema change. If a gate exposes a real bug, the **owning** S/G phase fixes it (not here); G07 only makes the gate run and fail loudly.
