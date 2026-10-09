@@ -352,7 +352,7 @@ public const string RateLimited = "RATE_LIMITED";
       `RateLimitTests`, `ServerLayeringTests`, `SourceScanTests` (ده متدِ §4). ویرایش
       `tests/Animora.Domain.Tests/LayeringRulesTests.cs` ⟵ افزودن fact `Client_DoesNotReferenceServerProjects`.
       push: `test(server): S01 host/secret-guard/exception/rate-limit/layering/source-scan tests`
-- [ ] **T7 — build + test + run (verification).** اجرای `scripts/sandbox/build.sh full` (0/0)،
+- [x] **T7 — build + test + run (verification).** اجرای `scripts/sandbox/build.sh full` (0/0)،
       `scripts/sandbox/test.sh Server` (سبز)، `scripts/sandbox/run.sh` (`SMOKE RUN OK`). اجرای grepهای
       acceptance #3/#4/#5. **اگر فیکس لازم شد و سنگین بود، همان‌جا با پیام واضح push کن.** در پایان،
       اگر چیزی تغییر کرد: push: `fix(server): make S01 build/tests green (0 warnings)` — اگر چیزی تغییر نکرد، این تسک push جدا ندارد.
