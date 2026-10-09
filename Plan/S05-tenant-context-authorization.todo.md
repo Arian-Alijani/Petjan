@@ -523,7 +523,7 @@ public sealed class SigningKey {
   `EntitlementMiddleware` (per 2.5). Build fast.
   **Push:** `feat(server): S05 — entitlement slot + EntitlementMiddleware (allow-all)`.
 
-- [ ] **T11 — `ISnapshotSigner` + `EcdsaSnapshotSigner` + `SigningKeyStore` + canonical payload.**
+- [x] **T11 — `ISnapshotSigner` + `EcdsaSnapshotSigner` + `SigningKeyStore` + canonical payload.**
   Add `Signing/ISnapshotSigner.cs`, `Signing/EcdsaSnapshotSigner.cs`, `Signing/SigningKeyStore.cs` (per
   2.7). Use `System.Security.Cryptography` (ECDSA P-256 is simplest cross-platform: `ECDsa.Create(ECCurve.NamedCurves.nistP256)`,
   `SignData(..., HashAlgorithmName.SHA256)`); store `ExportSubjectPublicKeyInfo()` as `PublicKeyDer` and the
