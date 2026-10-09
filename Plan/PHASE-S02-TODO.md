@@ -342,7 +342,7 @@ If any gate fails, fix (push the fix immediately with a clear `fix(server): S02 
 
 ---
 
-### [ ] T16 — Update `backend-roadmap/PROGRESS.md`
+### [x] T16 — Update `backend-roadmap/PROGRESS.md`
 Per the phase's "PROGRESS.md update" section (append-only; never rewrite old entries):
 - "Phase status" table: set `S02` row → `✅ Done` (add date `2026-10-09` + one-line summary).
 - Advance **"Next phase" → `S03`** (update the `## Next phase` section text that currently says S02).
