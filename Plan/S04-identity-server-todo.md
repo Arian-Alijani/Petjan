@@ -242,7 +242,7 @@ Run: `scripts/sandbox/test.sh Server` → green (PG-gated skip locally with reas
    - Log any deviation in "Decision & deviation log".
    - Update the `src/Animora.Persistence.PostgreSql/` and `src/Animora.Server/` rows of "Current state" to mention S04.
 **Push:** `scripts/git/push.sh "feat(server): S04 identity server"`
-**Status:** ⬜ TODO
+**Status:** ✅ DONE (acceptance greps clean; PROGRESS.md updated: S04 row ✅, Next phase → S05, Repo state log `### S04`, deviation log, Current-state rows).
 
 ---
 
