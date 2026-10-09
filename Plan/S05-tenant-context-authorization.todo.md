@@ -533,7 +533,7 @@ public sealed class SigningKey {
   keys, UTC `o` format). Build fast.
   **Push:** `feat(server): S05 — ISnapshotSigner (ECDSA-P256) + SigningKeyStore`.
 
-- [ ] **T12 — Device/capabilities/keys endpoints + Wire `PublicKeySet`.**
+- [x] **T12 — Device/capabilities/keys endpoints + Wire `PublicKeySet`.**
   Add Wire records `PublicKeySet` + `PublicKeyInfo` to `src/Animora.Contracts.Wire/Auth/`. Add
   `Auth/DeviceEndpoints.cs` (approve/revoke/capabilities) and `Auth/KeysEndpoint.cs` (`GET /auth/keys`) per
   2.6. Capability issuance: build the Domain `CapabilitySnapshot` from stored RBAC, omit Critical codes,
