@@ -129,7 +129,7 @@ public sealed class Tenant : AggregateRoot {
 
 ---
 
-### [ ] T03 — Tenancy layer (`src/Animora.Persistence.PostgreSql/Tenancy/`)
+### [x] T03 — Tenancy layer (`src/Animora.Persistence.PostgreSql/Tenancy/`)
 Namespace `Animora.Persistence.PostgreSql.Tenancy`. Create files:
 1. **`ITenantContext.cs`** — `public interface ITenantContext { string? TenantId { get; } bool IsOperator { get; } }`.
 2. **`NullTenantContext.cs`** — `public sealed class NullTenantContext : ITenantContext { public string? TenantId => null; public bool IsOperator => false; }` (default DI registration; S05 replaces with request-bound one).
