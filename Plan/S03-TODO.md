@@ -225,10 +225,12 @@ public static class PageRules {
 ```csharp
 public interface IServerReadContextFactory { AnimoraServerDbContext Create(); }
 ```
-- `ServerReadContextFactory : IServerReadContextFactory` (singleton). Ctor deps:
-  `[FromKeyedServices(OltpReadKey)] NpgsqlDataSource readDataSource`, `ITenantContext tenantContext`.
-  (Inject the keyed data source via `IServiceProvider.GetRequiredKeyedService` in the DI lambda, or constructor keyed
-  attribute — simplest is to build it in the DI registration lambda, see B9.)
+- `ServerReadContextFactory : IServerReadContextFactory` — **registered SCOPED** (decision corrected during impl:
+  it must capture the request-scoped `ITenantContext`; a singleton that resolves a fresh scope would read an
+  unpopulated tenant and break read-path isolation). Ctor deps (all injected directly):
+  `NpgsqlDataSource readDataSource` (the keyed `oltp-read` singleton, supplied via the DI lambda using
+  `sp.GetRequiredKeyedService<NpgsqlDataSource>(OltpReadKey)`), `ITenantContext tenantContext`,
+  `TenantStampingInterceptor stampingInterceptor`, `NoUnnamedIgnoreFiltersInterceptor ignoreFiltersInterceptor`.
 - `Create()` returns a NEW `AnimoraServerDbContext` configured with: the **`oltp-read`** data source,
   `optionsBuilder.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)`, same `ITenantContext` (same tenant filter),
   and **the same two interceptors** (`TenantStampingInterceptor`, `NoUnnamedIgnoreFiltersInterceptor`) so the ban/stamp
@@ -242,19 +244,13 @@ Add (TryAdd where appropriate):
 - `services.TryAddScoped<IUnitOfWork, ServerUnitOfWork>();` (namespace `Animora.Application.Abstractions.IUnitOfWork`).
 - `services.TryAddScoped<ITransactionRunner, ServerTransactionRunner>();`
 - `services.TryAddSingleton<ITenantSessionInitializer, NoopTenantSessionInitializer>();`
-- `services.TryAddSingleton<IServerReadContextFactory>(sp => new ServerReadContextFactory(
+- `services.TryAddScoped<IServerReadContextFactory>(sp => new ServerReadContextFactory(
       sp.GetRequiredKeyedService<NpgsqlDataSource>(OltpReadKey),
       sp.GetRequiredService<ITenantContext>(),
-      sp.GetRequiredService<TenantStampingInterceptor>(),       // or resolve per-create; decide at impl
+      sp.GetRequiredService<TenantStampingInterceptor>(),
       sp.GetRequiredService<NoUnnamedIgnoreFiltersInterceptor>()));`
-  NOTE: the two interceptors are registered **scoped**; a singleton factory must not capture scoped instances.
-  **Decision:** make `ServerReadContextFactory` take the `IServiceProvider` (or an `ObjectFactory`) and resolve the
-  interceptors fresh inside `Create()` from a new scope, OR register the interceptors as transient/singleton-safe.
-  Simplest safe path: register `ServerReadContextFactory` as **singleton** but have it depend only on the keyed
-  `NpgsqlDataSource` (singleton) + a `Func<ITenantContext>` / the root `IServiceProvider`, resolving `ITenantContext`
-  and the two interceptors from the provider on each `Create()`. Implement `Create()` to `using var scope =
-  _provider.CreateScope();` → resolve interceptors → build options → return context. (Keep the data source captured.)
-  Keep imports: `Microsoft.Extensions.DependencyInjection` (for `GetRequiredKeyedService`, `CreateScope`).
+  (SCOPED — captures the request's tenant + the scoped interceptors directly; no child-scope resolution.)
+  Keep import `Microsoft.Extensions.DependencyInjection` (for `GetRequiredKeyedService`).
 - Keep all additions inside the existing method; do not change its signature or the existing registrations/order.
 
 ### B10. Isolation test suite `TenantIsolationTests` (PG-gated) — see §C T8 for the exact 6 facts.
@@ -289,7 +285,7 @@ Add (TryAdd where appropriate):
       `RetryPolicy` + store-exception mapping (B4). Cancellation never swallowed.
       Push `feat(server): S03 T5 — ServerUnitOfWork + ServerTransactionRunner (exec-strategy, serialization retry)`.
 
-- [ ] **T6 — Read factory.** Create `Context/IServerReadContextFactory.cs` + `Context/ServerReadContextFactory.cs`
+- [x] **T6 — Read factory.** Create `Context/IServerReadContextFactory.cs` + `Context/ServerReadContextFactory.cs`
       per B8 (oltp-read data source, NoTracking, same tenant filter + interceptors). Push
       `feat(server): S03 T6 — OltpReadContext factory (no-tracking read context)`.
 
