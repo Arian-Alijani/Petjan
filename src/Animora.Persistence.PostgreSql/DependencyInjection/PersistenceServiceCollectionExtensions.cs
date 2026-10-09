@@ -1,7 +1,9 @@
+using Animora.Application.Abstractions;
 using Animora.Persistence.PostgreSql.Context;
 using Animora.Persistence.PostgreSql.KeyRing;
 using Animora.Persistence.PostgreSql.Options;
 using Animora.Persistence.PostgreSql.Tenancy;
+using Animora.Persistence.PostgreSql.Transactions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,8 +31,8 @@ public static class PersistenceServiceCollectionExtensions
     /// <summary>
     /// Registers options (validated on start), the tenant context default, the three keyed data
     /// sources and both DbContexts. No data source connects until first use, so the host boots
-    /// without PostgreSQL (readiness then reports not-ready). Retry policy is intentionally absent
-    /// (S03 wraps an ExecutionStrategy).
+    /// without PostgreSQL (readiness then reports not-ready). Transaction/retry policy lives in
+    /// <c>ServerUnitOfWork</c> (S03), not in the Npgsql provider options.
     /// </summary>
     public static IServiceCollection AddAnimoraPostgreSql(this IServiceCollection services, IConfiguration configuration)
     {
@@ -62,6 +64,16 @@ public static class PersistenceServiceCollectionExtensions
             .UseNpgsql(
                 sp.GetRequiredKeyedService<NpgsqlDataSource>(KeyRingKey),
                 npgsql => npgsql.MigrationsHistoryTable(AnimoraKeyRingDbContext.MigrationsHistoryTable)));
+
+        // S03: transaction policy, RLS-ready session hook (off) and the no-tracking read factory.
+        services.TryAddSingleton<ITenantSessionInitializer, NoopTenantSessionInitializer>();
+        services.TryAddScoped<ITransactionRunner, ServerTransactionRunner>();
+        services.TryAddScoped<IUnitOfWork, ServerUnitOfWork>();
+        services.TryAddScoped<IServerReadContextFactory>(sp => new ServerReadContextFactory(
+            sp.GetRequiredKeyedService<NpgsqlDataSource>(OltpReadKey),
+            sp.GetRequiredService<ITenantContext>(),
+            sp.GetRequiredService<TenantStampingInterceptor>(),
+            sp.GetRequiredService<NoUnnamedIgnoreFiltersInterceptor>()));
 
         return services;
     }

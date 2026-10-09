@@ -289,7 +289,7 @@ Add (TryAdd where appropriate):
       per B8 (oltp-read data source, NoTracking, same tenant filter + interceptors). Push
       `feat(server): S03 T6 — OltpReadContext factory (no-tracking read context)`.
 
-- [ ] **T7 — DI registrations.** Edit `DependencyInjection/PersistenceServiceCollectionExtensions.cs`
+- [x] **T7 — DI registrations.** Edit `DependencyInjection/PersistenceServiceCollectionExtensions.cs`
       (`AddAnimoraPostgreSql`) per B9: register `IUnitOfWork`→`ServerUnitOfWork` (scoped),
       `ITransactionRunner`→`ServerTransactionRunner` (scoped), `ITenantSessionInitializer`→`Noop…` (singleton),
       `IServerReadContextFactory`→`ServerReadContextFactory` (singleton, scope-resolves interceptors+tenant per Create).
