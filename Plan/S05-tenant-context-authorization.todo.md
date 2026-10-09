@@ -603,7 +603,7 @@ public sealed class SigningKey {
      → **empty** (if not, you edited a forbidden project — move the code into `Animora.Server`).
   Fix anything failing, pushing each fix. **Push (if any fix):** `fix(server): S05 — acceptance corrections`.
 
-- [ ] **T16 — PROGRESS.md update.**
+- [x] **T16 — PROGRESS.md update.**
   Per the phase's "PROGRESS.md update" recipe: set the `S05` row in "Phase status" to `✅ Done` (+ date +
   one-line summary); advance **"Next phase" → `S06`**; append one `### S05` entry to "Repo state log"
   (what exists now: `Animora.Server/Authorization` + `Signing`, `SigningKeys` table / migration `103_SigningKeys`,
