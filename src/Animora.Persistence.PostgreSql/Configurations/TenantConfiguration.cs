@@ -26,6 +26,11 @@ public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(e => e.DefaultCurrency).IsRequired().HasColumnType("character varying(3)").HasMaxLength(3);
         builder.Property(e => e.Status).HasConversion<int>().HasColumnType("integer");
 
+        // S04: the human-entered tenant code used at sign-in. Nullable (local/offline tenants have none);
+        // unique among the tenants that do have one.
+        builder.Property(e => e.Code).HasColumnType("character varying(32)").HasMaxLength(32);
+        builder.HasIndex(e => e.Code).IsUnique().HasFilter("\"Code\" IS NOT NULL").HasDatabaseName("UX_Tenants_Code");
+
         ServerModelConventions.TenantIndex(builder, nameof(Tenant.Status));
     }
 }
