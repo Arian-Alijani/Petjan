@@ -3,13 +3,14 @@
   <!--
     Phase S01 — server host scaffold. One ASP.NET Core 10 / Kestrel process.
     Layering (ARCHITECTURE.md §6): Animora.Server -> Application + Domain +
-    Contracts.Wire only. Persistence (PostgreSQL) arrives in S02; a client
+    Contracts.Wire only. Persistence.PostgreSql (S02) is referenced for DI wiring only; a client
     project is NEVER referenced (enforced by ServerLayeringTests).
   -->
   <ItemGroup>
     <ProjectReference Include="..\Animora.Domain\Animora.Domain.csproj" />
     <ProjectReference Include="..\Animora.Application\Animora.Application.csproj" />
     <ProjectReference Include="..\Animora.Contracts.Wire\Animora.Contracts.Wire.csproj" />
+    <ProjectReference Include="..\Animora.Persistence.PostgreSql\Animora.Persistence.PostgreSql.csproj" />
   </ItemGroup>
 
   <ItemGroup>

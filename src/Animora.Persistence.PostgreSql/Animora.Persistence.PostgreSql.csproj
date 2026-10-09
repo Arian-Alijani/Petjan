@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Phase S02 — PostgreSQL persistence for the server. The ONLY project that may
+    reference Npgsql / call UseNpgsql (layering gate). Server references it for
+    DI wiring only; client projects never do.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Animora.Domain\Animora.Domain.csproj" />
+    <ProjectReference Include="..\Animora.Application\Animora.Application.csproj" />
+    <ProjectReference Include="..\Animora.Contracts.Wire\Animora.Contracts.Wire.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Animora.Server.Tests" />
+  </ItemGroup>
+
+</Project>

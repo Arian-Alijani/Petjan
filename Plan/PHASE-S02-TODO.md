@@ -113,7 +113,7 @@ public sealed class Tenant : AggregateRoot {
 
 ---
 
-### [ ] T02 — Create `Animora.Persistence.PostgreSql` project + wire to solution & server
+### [x] T02 — Create `Animora.Persistence.PostgreSql` project + wire to solution & server
 **Do:**
 1. `source scripts/sandbox/_env.sh`; confirm absence: `ls src/Animora.Persistence.PostgreSql` → should error (not exist).
 2. Create `src/Animora.Persistence.PostgreSql/Animora.Persistence.PostgreSql.csproj` (`<Project Sdk="Microsoft.NET.Sdk">`), with:
