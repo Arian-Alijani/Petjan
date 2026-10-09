@@ -336,7 +336,7 @@ Add (TryAdd where appropriate):
       Fix anything red (push heavy fixes separately with a clear message).
       Push `chore(server): S03 T9 — full build 0/0, Server tests green, SMOKE RUN OK, acceptance greps`.
 
-- [ ] **T10 — PROGRESS.md.** Edit `backend-roadmap/PROGRESS.md`:
+- [x] **T10 — PROGRESS.md.** Edit `backend-roadmap/PROGRESS.md`:
       set `S03` row in "Phase status" → `✅ Done` (+ date 2026-10-09 + one-line summary); advance **"Next phase" → S04**;
       append ONE `### S03` entry to "Repo state log" (what exists now: new files/seams — `ServerUnitOfWork`,
       `ITransactionRunner`/`ServerTransactionRunner`, `RetryPolicy`, `UniqueViolationMapping`, `ITenantSessionInitializer`+
