@@ -497,7 +497,7 @@ public sealed class SigningKey {
   IsOffline:false)`. (The `PermissionEvaluator` recomputes from store regardless; this subject is the input.)
   Build fast. **Push:** `feat(server): S05 — ServerAuthorizationSubjectFactory`.
 
-- [ ] **T8 — `TenantContextMiddleware`.**
+- [x] **T8 — `TenantContextMiddleware`.**
   In `Authorization/`. Implements `IMiddleware` (register scoped) OR conventional ctor middleware. Logic per
   2.1: skip rule (health, `/auth/login`, `/auth/refresh`, `/auth/keys`, unauthenticated); read caller via
   `AuthenticatedCaller.TryRead(context.User)` — if null on a protected route, 401 `SESSION_EXPIRED`; call
