@@ -610,7 +610,7 @@ public sealed class SigningKey {
   no new error codes, the new test classes); log any deviation in "Decision & deviation log".
   **Push:** `feat(server): S05 tenant context & authorization policies` (the phase's canonical commit message).
 
-- [ ] **T17 — Delete this plan file (FINAL task).**
+- [x] **T17 — Delete this plan file (FINAL task).**
   `rm Plan/S05-tenant-context-authorization.todo.md` (leave the `Plan/` directory). Touch nothing else — do
   NOT edit the roadmap phase file or any other file in this task (the phase file deletion, if any, is the
   roadmap's own concern per PROGRESS, not this plan's — we only remove this plan artifact).
