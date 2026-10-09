@@ -511,7 +511,7 @@ public sealed class SigningKey {
   > `grep -rn "FindFirst(\"role\")\|Claims.*role" src/Animora.Server/Authorization` must stay EMPTY.
   **Push:** `feat(server): S05 — TenantContextMiddleware (membership-bound tenant)`.
 
-- [ ] **T9 — RBAC policy infra: requirement/handler/provider/coarse policies + command authorizer + table.**
+- [x] **T9 — RBAC policy infra: requirement/handler/provider/coarse policies + command authorizer + table.**
   Add in `Authorization/`: `PermissionRequirement`, `PermissionAuthorizationHandler`,
   `ServerPermissionPolicyProvider`, `CoarsePolicies` (+ `ManagerOnlyRequirement`/handler, `DeviceActive`
   handling reading `IRequestAuthorizationState`), `CommandPermissionTable` (empty `FrozenDictionary<string,
