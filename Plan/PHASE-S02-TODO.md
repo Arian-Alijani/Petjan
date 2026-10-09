@@ -147,7 +147,7 @@ Namespace `Animora.Persistence.PostgreSql.Tenancy`. Create files:
 
 ---
 
-### [ ] T04 — Concurrency layer (`.../Concurrency/`)
+### [x] T04 — Concurrency layer (`.../Concurrency/`)
 Namespace `Animora.Persistence.PostgreSql.Concurrency`. Create:
 1. **`StringGuidConverter.cs`** — `public sealed class StringGuidConverter : ValueConverter<string?, Guid>`. Model→DB: `s => s == null ? Guid.Empty : Guid.Parse(s)`; DB→Model: `g => g.ToString()` (canonical lowercase; `Guid.ToString()` default "D" is already lowercase hyphenated). **Column is NOT NULL** — in practice `Version` is null only pre-first-save, and the DB trigger always writes a value; the converter never persists `Guid.Empty` for a real row.
 2. **`EntityVersionCodec.cs`** — `public static class EntityVersionCodec { public static string ToWire(Guid g) => g.ToString("D"); public static bool TryParse(string? s, out Guid g) => Guid.TryParse(s, out g); }` (wire form = canonical lowercase hyphenated; equality only, per phase).
