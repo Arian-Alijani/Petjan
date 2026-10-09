@@ -330,7 +330,7 @@ In `tests/Animora.Server.Tests` add `ServerSourceScanTests` (acceptance #4) that
 
 ---
 
-### [ ] T15 — Full verification gate (acceptance #1/#3/#7)
+### [x] T15 — Full verification gate (acceptance #1/#3/#7)
 Run (ONLY here do the heavy full build + smoke):
 1. `scripts/sandbox/build.sh full` → **0 warnings / 0 errors**.
 2. `scripts/sandbox/run.sh` → **`SMOKE RUN OK`** (desktop offline, no PostgreSQL).
