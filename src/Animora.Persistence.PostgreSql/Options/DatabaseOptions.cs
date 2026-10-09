@@ -14,7 +14,7 @@ public sealed class DatabaseOptions
     public string ConnectionString { get; set; } = string.Empty;
 
     /// <summary>Max pooled connections of the read/write OLTP data source.</summary>
-    public int OltpWriteMax { get; set; } = 8;
+    public int OltpWriteMax { get; set; } = 7;
 
     /// <summary>Max pooled connections of the read-only OLTP data source.</summary>
     public int OltpReadMax { get; set; } = 4;

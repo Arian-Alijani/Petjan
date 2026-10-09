@@ -31,7 +31,8 @@ public sealed class TenantStampingInterceptor(ITenantContext tenantContext) : Sa
         return ValueTask.FromResult(result);
     }
 
-    private void Stamp(DbContext? context)
+    // Internal so unit tests can drive stamping without a database connection.
+    internal void Stamp(DbContext? context)
     {
         if (context is null)
         {

@@ -1,7 +1,9 @@
 using System.Net;
 using System.Text.Json;
+using Animora.Server.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Animora.Server.Tests;
@@ -18,13 +20,47 @@ public sealed class HostSmokeTests : IDisposable
         }
     }
 
-    private WebApplicationFactory<Program> CreateFactory(string dataRoot)
+    private sealed class HealthyProbe(string name) : IReadinessProbe
+    {
+        public string Name { get; } = name;
+
+        public Task<ReadinessResult> CheckAsync(CancellationToken ct) => Task.FromResult(ReadinessResult.Healthy());
+    }
+
+    // stubDatabaseProbes: replace the PostgreSQL-backed probes (S02) with healthy stubs so these
+    // tests keep isolating the data-root probe without needing a database.
+    private WebApplicationFactory<Program> CreateFactory(string dataRoot, bool stubDatabaseProbes = true)
         => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
             builder.ConfigureAppConfiguration((_, config) =>
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["Server:DataRootPath"] = dataRoot,
-                })));
+                }));
+
+            if (stubDatabaseProbes)
+            {
+                builder.ConfigureServices(services =>
+                {
+                    string[] dbProbes = ["database", "keyring", "schema"];
+                    var real = services
+                        .Where(d => d.ServiceType == typeof(IReadinessProbe)
+                                    && (d.ImplementationType == typeof(DatabaseProbe)
+                                        || d.ImplementationType == typeof(KeyRingProbe)
+                                        || d.ImplementationType == typeof(SchemaProbe)))
+                        .ToList();
+                    foreach (var descriptor in real)
+                    {
+                        services.Remove(descriptor);
+                    }
+
+                    foreach (var name in dbProbes)
+                    {
+                        services.AddSingleton<IReadinessProbe>(new HealthyProbe(name));
+                    }
+                });
+            }
+        });
 
     private static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage response)
     {
@@ -74,5 +110,24 @@ public sealed class HostSmokeTests : IDisposable
         var failed = doc.RootElement.GetProperty("failed").EnumerateArray().Select(e => e.GetString()).ToList();
         Assert.Equal(new List<string?> { "data-root" }, failed);
         Assert.DoesNotContain(missing, body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Ready_Returns503_NamingDatabaseProbes_WhenPostgreSqlIsAbsent()
+    {
+        // No Database:ConnectionString anywhere: the host must still boot (probes degrade, never throw).
+        using var factory = CreateFactory(_dataRoot, stubDatabaseProbes: false);
+        using var client = factory.CreateClient();
+
+        using var live = await client.GetAsync("/health/live");
+        Assert.Equal(HttpStatusCode.OK, live.StatusCode);
+
+        using var response = await client.GetAsync("/health/ready");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        using var doc = JsonDocument.Parse(body);
+        var failed = doc.RootElement.GetProperty("failed").EnumerateArray().Select(e => e.GetString()).ToList();
+        Assert.Equal(new List<string?> { "database", "keyring", "schema" }, failed);
     }
 }

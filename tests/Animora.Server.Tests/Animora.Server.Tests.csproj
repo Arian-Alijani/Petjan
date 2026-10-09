@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Animora.Server\Animora.Server.csproj" />
+    <ProjectReference Include="..\..\src\Animora.Persistence.PostgreSql\Animora.Persistence.PostgreSql.csproj" />
   </ItemGroup>
 
 </Project>

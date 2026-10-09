@@ -34,7 +34,7 @@ public sealed class ServerLayeringTests
     [Fact]
     public void Server_ReferencesOnlyAllowedAnimoraAssemblies()
     {
-        string[] allowed = ["Animora.Domain", "Animora.Application", "Animora.Contracts.Wire"];
+        string[] allowed = ["Animora.Domain", "Animora.Application", "Animora.Contracts.Wire", "Animora.Persistence.PostgreSql"];
 
         var animoraRefs = typeof(ServerRoutes).Assembly.GetReferencedAssemblies()
             .Select(a => a.Name!)
@@ -45,8 +45,9 @@ public sealed class ServerLayeringTests
     }
 
     [Fact]
-    public void Server_HasNoPostgresReference_InS01()
+    public void Server_HasNoDirectNpgsqlReference()
     {
+        // Npgsql is confined to Animora.Persistence.PostgreSql; the server only wires it via DI.
         Assert.DoesNotContain(
             typeof(ServerRoutes).Assembly.GetReferencedAssemblies(),
             a => a.Name is not null && a.Name.StartsWith("Npgsql", StringComparison.Ordinal));

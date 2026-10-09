@@ -303,7 +303,7 @@ Namespace `Animora.Server.Hosting`. All probes `internal sealed : IReadinessProb
 
 ---
 
-### [ ] T13 — Tests (`tests/Animora.Server.Tests/Persistence/` + `PgFixture.cs`)
+### [x] T13 — Tests (`tests/Animora.Server.Tests/Persistence/` + `PgFixture.cs`)
 Read the existing test project ONCE (`tests/Animora.Server.Tests/*.csproj`) to confirm it references the PG project (add a ProjectReference to `Animora.Persistence.PostgreSql` if missing) and uses xUnit. Create:
 1. **`PgFixture.cs`** — reads env `ANIMORA_PG_TEST_CONNECTION`; if unset → tests that need it **skip with a reason** (xUnit `Assert.Skip` / `[SkippableFact]` pattern, or a fixture flag the tests check). Under `ANIMORA_REQUIRE_PG=1` with no connection ⇒ **fail**. When present, creates a uniquely named schema/database per run.
 2. **Pure tests (no DB — MUST pass locally; acceptance #5):**
