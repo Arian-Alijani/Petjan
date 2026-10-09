@@ -332,20 +332,20 @@ public const string RateLimited = "RATE_LIMITED";
 
 - [x] **T0 — آماده‌سازی.** ساخت `Plan/`، خواندن فاز و مراجع، نوشتن همین TODO.
       سپس: `scripts/git/push.sh "chore(plan): add S01 execution TODO"`
-- [ ] **T1 — pinها.** افزودن دو `PackageVersion` (OpenApi 10.0.12، Mvc.Testing 10.0.12) به `Directory.Packages.props`
+- [x] **T1 — pinها.** افزودن دو `PackageVersion` (OpenApi 10.0.12، Mvc.Testing 10.0.12) به `Directory.Packages.props`
       (داخل ItemGroup backend). سپس push: `chore(deps): pin AspNetCore.OpenApi + Mvc.Testing 10.0.12 (S01)`
-- [ ] **T2 — csproj سرور + sln.** ساخت `src/Animora.Server/Animora.Server.csproj` (Sdk.Web، 3 ref، OpenApi،
+- [x] **T2 — csproj سرور + sln.** ساخت `src/Animora.Server/Animora.Server.csproj` (Sdk.Web، 3 ref، OpenApi،
       InternalsVisibleTo). افزودن به solution: `source scripts/sandbox/_env.sh && dotnet sln Animora.sln add src/Animora.Server/Animora.Server.csproj`.
       یک `Program.cs` حداقلی موقت بگذار که کامپایل شود (تا sln سالم بماند). push: `feat(server): add Animora.Server project + sln entry (S01)`
-- [ ] **T3 — کلاس‌های Hosting.** ساخت همه‌ی فایل‌های `src/Animora.Server/Hosting/*.cs` طبق §2.3–§2.9:
+- [x] **T3 — کلاس‌های Hosting.** ساخت همه‌ی فایل‌های `src/Animora.Server/Hosting/*.cs` طبق §2.3–§2.9:
       `ServerRoutes`, `ServerErrorCodes`, `ServerOptions`, `ServerOptionsValidator`, `RateLimitOptions`,
       `RateLimitPolicies`, `SecretGuard` (+exception), `CorrelationHeader`, `GlobalExceptionMiddleware`,
       `IReadinessProbe` (+`ReadinessResult`), `DataRootWritableProbe`. push: `feat(server): hosting primitives — options, secret-guard, exception mw, probes, rate-limit (S01)`
-- [ ] **T4 — Program.cs + appsettings.** نوشتن بلوک startup شماره‌دار (1..7 طبق §2 و ARCH §4)، سیم‌کشیِ
+- [x] **T4 — Program.cs + appsettings.** نوشتن بلوک startup شماره‌دار (1..7 طبق §2 و ARCH §4)، سیم‌کشیِ
       همه‌ی کلاس‌های T3، map کردن `/health/live` و `/health/ready`، `AddRateLimiter` با پنج policy،
       OpenAPI فقط Dev/opt-in، و `public partial class Program;`. ساخت `appsettings.json` و
       `appsettings.Development.json` (§2.10). push: `feat(server): numbered startup pipeline + health + appsettings (S01)`
-- [ ] **T5 — سیم‌کشیِ پروژه‌ی تست.** ویرایش `tests/Animora.Server.Tests/Animora.Server.Tests.csproj`:
+- [x] **T5 — سیم‌کشیِ پروژه‌ی تست.** ویرایش `tests/Animora.Server.Tests/Animora.Server.Tests.csproj`:
       افزودن `ProjectReference` به `Animora.Server` + `PackageReference Microsoft.AspNetCore.Mvc.Testing`،
       حذف کامنت «No subject reference»؛ حذف `PlaceholderTests.cs`. push: `test(server): wire Server.Tests to subject + Mvc.Testing (S01)`
 - [ ] **T6 — تست‌ها.** نوشتن `HostSmokeTests`, `SecretGuardTests`, `GlobalExceptionMiddlewareTests`,
