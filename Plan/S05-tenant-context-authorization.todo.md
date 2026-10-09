@@ -488,7 +488,7 @@ public sealed class SigningKey {
   ```
   Build fast. **Push:** `feat(server): S05 — RequestTenantContext + request authorization state`.
 
-- [ ] **T7 — `ServerAuthorizationSubjectFactory`.**
+- [x] **T7 — `ServerAuthorizationSubjectFactory`.**
   In `Authorization/`. `Task<AuthorizationSubject> BuildAsync(ResolvedMembership m, CancellationToken ct)`:
   load `RoleDefinition` via `IRoleDefinitionRepository.FindByRoleAsync(m.TenantId, m.Role)`; compute grants
   = role.PermissionCodes ∪ membership.ExtraPermissionCodes − membership.DeniedPermissionCodes (ordinal;
