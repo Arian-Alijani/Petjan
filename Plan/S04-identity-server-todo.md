@@ -205,7 +205,7 @@ Create in `src/Animora.Server/Auth/`:
 3. Edit `src/Animora.Server/Program.cs`: add `builder.Services.AddAnimoraIdentity(builder.Configuration);` after step 4; add `app.UseAuthentication();` in the reserved authN slot (after request logging, before `app.UseRateLimiter()`); add `app.MapAuthEndpoints();`.
 4. `build.sh full` → **0 warnings / 0 errors**. `run.sh` → `SMOKE RUN OK`.
 **Push:** `scripts/git/push.sh "feat(server): S04 task8 — auth endpoints + AddAnimoraIdentity + pipeline wiring"`
-**Status:** ⬜ TODO
+**Status:** ✅ DONE (build 0/0). `LoginService` (internal, in `Animora.Server/Auth/`) holds all sign-in/refresh/logout/device logic over seams (`ITenantDirectory`, `IIdentityRepository`, `RefreshTokenService`, `ISecurityAuditWriter`, `IAccessTokenIssuer`) for unit tests; `AuthEndpoints` only maps HTTP. Access token = framework bearer ticket protected by the DP key ring (`BearerAccessTokenIssuer`), claims `sub|tid|did|sst|role`. `ServerModelTests` updated: `UX_Tenants_Code` is the one documented global index.
 
 ---
 

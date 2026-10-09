@@ -1,5 +1,6 @@
 using Animora.Persistence.PostgreSql.DependencyInjection;
 using Animora.Persistence.PostgreSql.KeyRing;
+using Animora.Server.Auth;
 using Animora.Server.Hosting;
 using Microsoft.AspNetCore.DataProtection;
 
@@ -42,6 +43,10 @@ builder.Services.AddDataProtection()
 //    The running role has no DDL rights and the host never migrates on startup.
 builder.Services.AddAnimoraPostgreSql(builder.Configuration);
 
+// 4b. Identity (S04): ASP.NET Core Identity over the Domain User, opaque Data-Protection bearer + refresh
+//     tokens (no JWT/OIDC), lockout, device binding, append-only security audit. Authentication only.
+builder.Services.AddAnimoraIdentity(builder.Configuration);
+
 // 5. Health checks: readiness probes (data root, database, key ring, schema head).
 //    Probes degrade to Unhealthy when PostgreSQL is absent; the host still boots.
 builder.Services.AddSingleton<IReadinessProbe, DataRootWritableProbe>();
@@ -77,7 +82,8 @@ if (!app.Environment.IsDevelopment())
 }
 
 // Request logging (sampled) skips health endpoints — added with observability in S18.
-// [tenant/authN/authZ/entitlement slots] → S04/S05 (S16 fills entitlement).
+// [tenant/authZ/entitlement slots] → S05 (S16 fills entitlement). authN slot (S04):
+app.UseAuthentication();
 
 app.UseRateLimiter();
 
@@ -85,6 +91,9 @@ if (enableOpenApi)
 {
     app.MapOpenApi();
 }
+
+// Authentication endpoints (S04) — /auth/login|refresh|logout|device/register under the `auth` rate limit.
+app.MapAuthEndpoints();
 
 // Health endpoints — anonymous, never rate-limited, leak no secret (ARCH §4).
 app.MapGet(ServerRoutes.HealthLive, () => Results.Json(new { status = "live" }));

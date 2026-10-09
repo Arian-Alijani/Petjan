@@ -75,6 +75,13 @@ public sealed class RefreshTokenService(IRefreshTokenStore store, IClock clock)
         return (wire, row);
     }
 
+    /// <summary>Reads (without rotating) the row behind a presented wire token; <see langword="null"/> when unknown.</summary>
+    public Task<RefreshToken?> FindAsync(string presentedToken, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(presentedToken);
+        return store.FindByHashAsync(Hash(presentedToken), ct);
+    }
+
     /// <summary>
     /// Rotates <paramref name="presentedToken"/> (tenant already bound). Replaying an already-rotated token
     /// revokes the whole family here; rotating the security stamp and auditing is the caller's job.

@@ -23,12 +23,18 @@ public sealed class ServerModelTests
         {
             foreach (var index in type.GetIndexes())
             {
+                // The one documented global index: Tenants.Code is resolved BEFORE any tenant is known (S04).
+                if (index.GetDatabaseName() == "UX_Tenants_Code")
+                {
+                    continue;
+                }
+
                 Assert.Equal(nameof(SyncableEntity.TenantId), index.Properties[0].Name);
             }
         }
 
-        var tenantIndex = Assert.Single(db.Model.FindEntityType(typeof(Tenant))!.GetIndexes());
-        Assert.Equal("IX_Tenants_TenantId_Status", tenantIndex.GetDatabaseName());
+        var tenantIndexes = db.Model.FindEntityType(typeof(Tenant))!.GetIndexes().Select(i => i.GetDatabaseName()).Order().ToArray();
+        Assert.Equal(new[] { "IX_Tenants_TenantId_Status", "UX_Tenants_Code" }, tenantIndexes);
     }
 
     [Fact]

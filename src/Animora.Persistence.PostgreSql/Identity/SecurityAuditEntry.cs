@@ -96,6 +96,7 @@ public static class SecurityAuditActions
     public const string LoginFailure = "auth.login.failure";
     public const string LoginLocked = "auth.login.locked";
     public const string RefreshSuccess = "auth.refresh.success";
+    public const string RefreshFailure = "auth.refresh.failure";
     public const string RefreshReuseDetected = "auth.refresh.reuse_detected";
     public const string Logout = "auth.logout";
     public const string DeviceRegistered = "auth.device.registered";
