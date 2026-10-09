@@ -229,7 +229,7 @@ Create under `tests/Animora.Server.Tests/Identity/`. Pure tests use in-memory fa
 
 Run: `scripts/sandbox/test.sh Server` → green (PG-gated skip locally with reason unless `ANIMORA_PG_TEST_CONNECTION` set).
 **Push:** `scripts/git/push.sh "test(server): S04 task9 — identity pure + PG-gated tests"`
-**Status:** ⬜ TODO
+**Status:** ✅ DONE (Server.Tests 143/143 green incl. PG-gated run against local PostgreSQL 17; 9 pure test classes + 3 PG-gated classes under `tests/Animora.Server.Tests/Identity/`). Fixes found by the PG run: (1) EF `ManyServiceProvidersCreatedWarning` — scoped tenancy interceptors are now registered as `IInterceptor` and resolved from the app service provider (`UseApplicationServiceProvider` in `ServerReadContextFactory`) instead of per-scope `AddInterceptors`; (2) `Tenant.Code` is `Ignore`d in the SQLite `TenantConfiguration` so the local schema/snapshot stays unchanged (no PendingModelChanges); (3) PG trigger-name assertions are lowercase (unquoted `CREATE TRIGGER`).
 
 ---
 

@@ -25,7 +25,7 @@ public sealed class PgGatedTests(PgFixture pg) : IClassFixture<PgFixture>
         await conn.OpenAsync();
         await using var cmd = new NpgsqlCommand(
             "SELECT (SELECT count(*) FROM pg_proc WHERE proname='animora_set_version')," +
-            " (SELECT count(*) FROM pg_trigger WHERE tgname='trg_Tenants_version')", conn);
+            " (SELECT count(*) FROM pg_trigger WHERE tgname='trg_tenants_version')", conn);
         await using var reader = await cmd.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
         Assert.Equal(1L, reader.GetInt64(0));

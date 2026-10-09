@@ -37,11 +37,16 @@ public sealed class TenantIsolationTests(PgFixture pg) : IClassFixture<PgFixture
         }
     }
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (TenantStampingInterceptor, NoUnnamedIgnoreFiltersInterceptor)> Interceptors = new();
+
     private ProbeDbContext Create(ITenantContext tenant, NpgsqlDataSource? dataSource = null)
     {
         var builder = new DbContextOptionsBuilder<ProbeDbContext>();
         _ = dataSource is null ? builder.UseNpgsql(pg.ConnectionString) : builder.UseNpgsql(dataSource);
-        builder.AddInterceptors(new TenantStampingInterceptor(tenant), new NoUnnamedIgnoreFiltersInterceptor(tenant));
+        // One interceptor pair per distinct tenant (same id => same behaviour): EF keys its internal service provider on the interceptor
+        // instances, so a fresh pair per context would exhaust its 20-provider cache across the whole run.
+        var (stamping, ignoreFilters) = Interceptors.GetOrAdd(tenant.TenantId + "|" + tenant.IsOperator, _ => (new TenantStampingInterceptor(tenant), new NoUnnamedIgnoreFiltersInterceptor(tenant)));
+        builder.AddInterceptors(stamping, ignoreFilters);
         return new ProbeDbContext(builder.Options, tenant);
     }
 

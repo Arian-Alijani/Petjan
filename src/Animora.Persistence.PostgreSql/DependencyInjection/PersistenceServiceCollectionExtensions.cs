@@ -5,6 +5,7 @@ using Animora.Persistence.PostgreSql.Options;
 using Animora.Persistence.PostgreSql.Tenancy;
 using Animora.Persistence.PostgreSql.Transactions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -47,18 +48,21 @@ public static class PersistenceServiceCollectionExtensions
 
         // Default: no tenant. S05 replaces this with the request-bound implementation.
         services.TryAddSingleton<ITenantContext, NullTenantContext>();
+        // Interceptors are scoped (they capture the request's ITenantContext) and are registered as
+        // IInterceptor so EF resolves them from the application service provider. Attaching per-scope
+        // instances with AddInterceptors makes EF build a new internal service provider for every request
+        // (an unbounded cache that throws ManyServiceProvidersCreatedWarning after twenty).
         services.TryAddScoped<TenantStampingInterceptor>();
         services.TryAddScoped<NoUnnamedIgnoreFiltersInterceptor>();
+        services.AddScoped<IInterceptor>(sp => sp.GetRequiredService<TenantStampingInterceptor>());
+        services.AddScoped<IInterceptor>(sp => sp.GetRequiredService<NoUnnamedIgnoreFiltersInterceptor>());
 
         services.AddKeyedSingleton<NpgsqlDataSource>(OltpWriteKey, (sp, _) => BuildDataSource(sp, o => o.OltpWriteMax));
         services.AddKeyedSingleton<NpgsqlDataSource>(OltpReadKey, (sp, _) => BuildDataSource(sp, o => o.OltpReadMax));
         services.AddKeyedSingleton<NpgsqlDataSource>(KeyRingKey, (sp, _) => BuildDataSource(sp, o => o.KeyRingMax));
 
         services.AddDbContext<AnimoraServerDbContext>((sp, options) => options
-            .UseNpgsql(sp.GetRequiredKeyedService<NpgsqlDataSource>(OltpWriteKey))
-            .AddInterceptors(
-                sp.GetRequiredService<TenantStampingInterceptor>(),
-                sp.GetRequiredService<NoUnnamedIgnoreFiltersInterceptor>()));
+            .UseNpgsql(sp.GetRequiredKeyedService<NpgsqlDataSource>(OltpWriteKey)));
 
         services.AddDbContext<AnimoraKeyRingDbContext>((sp, options) => options
             .UseNpgsql(
@@ -72,8 +76,7 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<IServerReadContextFactory>(sp => new ServerReadContextFactory(
             sp.GetRequiredKeyedService<NpgsqlDataSource>(OltpReadKey),
             sp.GetRequiredService<ITenantContext>(),
-            sp.GetRequiredService<TenantStampingInterceptor>(),
-            sp.GetRequiredService<NoUnnamedIgnoreFiltersInterceptor>()));
+            sp));
 
         return services;
     }
