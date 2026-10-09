@@ -364,7 +364,7 @@ the reversal-only invariant is stated as a mechanical acceptance criterion. Tick
 
 **Evidence (T8d):** Authored PHASE-G04-conflict-resolution-non-destructive-pull (band M): three-layer store (`repl_base`/`repl_staging`/`repl_checkpoint`, one client migration next-free ordinal, all `[LocalOnly]`), `SqliteSyncApplyStore` replacing G02's `BufferingSyncApplyStore` (atomic base+checkpoint on one connection/transaction, A-RULE 022 — partial page never advances checkpoint, overlay never touched), `ConflictResolver`+`ConflictPolicyCatalog` encoding ARCH §8.5 by data class (posted invoice/payment **reversal-only, never in-place** — test-enforced; UI-prefs LWW only; inventory additive; slot rejected; demographics field-merge), `ShadowResyncHandler` replacing G03's `NullSyncResyncHandler` (encrypted shadow generation preserves overlay then atomic switch), +2/3 ErrorCodes; conditional DI Replace, no-op defaults stay when unconfigured.
 
-### - [ ] T8e — Author G05 (command transport & settlement reconciliation)
+### - [x] T8e — Author G05 (command transport & settlement reconciliation)
 **Map row (verbatim):** `G05 | Command transport & settlement reconciliation (replaces
 NullCommandTransport) | band M | Track G | Depends on: G04, S10 | R-B03, R-B09, R-B16 | covers E06`.
 **Read (plus shared):** `ARCHITECTURE.md` §8 (command transport + settlement); the brief Reference pack
@@ -374,6 +374,8 @@ R1 (wire seam) + R4 (`ICommandTransport`) + the settlement vocabulary; the `R-B0
 `NullCommandTransport` stays as the documented offline fallback.
 **Done when:** `PHASE-G05-command-transport-settlement.md` exists and passes the checklist; "replaces
 `NullCommandTransport`, keeps it as offline fallback" is explicit. Tick + file name.
+
+**Evidence (T8e):** Authored PHASE-G05-command-transport-settlement (band M): `HttpCommandTransport : ICommandTransport` (in Animora.Sync.Custom) consuming the S06 `POST /api/commands[/batch]` + `GET /api/commands/{op}/ids` surface, HTTP-200-for-settled-outcomes mapped onto the journal (four-question §8.7 UX), 426 settles Deferred (never dropped), transient faults stay pending (idempotency key (TenantId,OperationId) — never lost/double-applied), `ICommandBatchTransport` ordered results, `CommandIdRemapService` (server-minted-id remap + dependent-payload rewrite + fingerprint recompute), `IReplicaVersionReader` populating `ExpectedServerVersion` from G04 base, `SettlementReconciler` with strict `SettlementTransitions.EnsureAllowed`; replaces `NullCommandTransport` only when configured (fallback intact); command pipeline kept separate from the state engine (grep-gated).
 
 ### - [ ] T8f — Author G06 (online auth, entitlement & device lifecycle)
 **Map row (verbatim):** `G06 | Online auth, entitlement & device lifecycle (replaces
