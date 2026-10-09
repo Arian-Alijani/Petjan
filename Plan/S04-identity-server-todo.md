@@ -121,7 +121,7 @@ Files present: `User.cs`, `StaffMembership.cs`, `RoleDefinition.cs`, `Device.cs`
 
 **Verify:** `grep -rn "JwtBearer\|OpenIdConnect" src` returns nothing.
 **Push:** `scripts/git/push.sh -b genspark_ai_developer "chore(server): S04 task1 — add Identity.EntityFrameworkCore pin + package ref"`
-**Status:** ⬜ TODO
+**Status:** ✅ DONE (build full 0/0)
 
 ---
 
@@ -138,7 +138,7 @@ Files present: `User.cs`, `StaffMembership.cs`, `RoleDefinition.cs`, `Device.cs`
    (refresh returns the same `LoginResponse` shape per §Design.)
 3. `build.sh fast`.
 **Push:** `scripts/git/push.sh "feat(contracts): S04 task2 — auth wire DTOs + Tenant.Code"`
-**Status:** ⬜ TODO
+**Status:** ✅ DONE (build fast 0/0)
 
 ### TASK 3 — RefreshToken + SecurityAudit entities + adapter DTO
 Create in `src/Animora.Persistence.PostgreSql/Identity/`:

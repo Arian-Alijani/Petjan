@@ -52,6 +52,13 @@ public sealed class Tenant : AggregateRoot
     /// <summary>Lifecycle state; anything other than <see cref="TenantStatus.Active"/> gates writes.</summary>
     public TenantStatus Status { get; private set; } = TenantStatus.Active;
 
+    /// <summary>
+    /// Short unique slug used by server tenant-scoped login (S04). <see langword="null"/> for the
+    /// offline local default tenant, which never signs in against the server. Assigned by the
+    /// server-side <c>TenantProvisioner</c> via <see cref="SetCode"/>.
+    /// </summary>
+    public string? Code { get; private set; }
+
     /// <summary>Creates an active tenant whose <c>TenantId</c> equals its own <c>Id</c>.</summary>
     public static Tenant Create(
         string displayName,
@@ -105,6 +112,13 @@ public sealed class Tenant : AggregateRoot
 
     /// <summary>Moves the tenant to <paramref name="status"/>. Idempotent.</summary>
     public void SetStatus(TenantStatus status) => Status = status;
+
+    /// <summary>Assigns the server login slug (S04). Trimmed; never empty once set.</summary>
+    public void SetCode(string code)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        Code = code.Trim();
+    }
 
     /// <summary>Renames the clinic.</summary>
     public void Rename(string displayName, string? legalName = null)
