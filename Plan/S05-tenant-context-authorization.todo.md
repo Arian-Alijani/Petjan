@@ -518,7 +518,7 @@ public sealed class SigningKey {
   string>`), `ICommandAuthorizer` + `CommandAuthorizer`. Per 2.3 + 2.4. Build fast.
   **Push:** `feat(server): S05 — stored-RBAC policies + command authorizer (empty table)`.
 
-- [ ] **T10 — Entitlement slot + middleware.**
+- [x] **T10 — Entitlement slot + middleware.**
   Add `TenantEntitlementContext`, `IServerEntitlementGate`, `AllowAllServerEntitlementGate`,
   `EntitlementMiddleware` (per 2.5). Build fast.
   **Push:** `feat(server): S05 — entitlement slot + EntitlementMiddleware (allow-all)`.
