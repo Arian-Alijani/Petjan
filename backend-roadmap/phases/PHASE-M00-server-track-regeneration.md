@@ -392,7 +392,7 @@ credential-mirror offline fallback is explicit. Tick + file name.
 
 **Evidence (T8f):** Authored PHASE-G06-online-auth-entitlement-device (band M): `OnlineAuthClient`/`IOnlineAuthClient` over S04 `/auth/*`, `BearerAuthHandler` single-flight 401-refresh delegating handler on the shared HttpClient (so G05 transport + G02 engine never handle tokens), real `OnlineEntitlementGate : IEntitlementGate` replacing `AllowAllEntitlementGate` **only when configured** and deciding from the S16 sealed local cache + `LicensePolicy`/`CapabilityGate` offline-only (never a live server call, A-RULE 016/032), `HighWaterClock` persisted forward-only via `SealedEntitlementMerge` (backward clock can't revive expiry), `DeviceFingerprintSource` (raw components never leave the machine) + `DeviceLifecycleService` (`DEVICE_REVOKED` wipes offline authority at next contact), **credential-mirror** fallback (OS-protected capability snapshot + sealed entitlement + one-way password verifier) so a cold offline start authenticates with no server; one `[LocalOnly]` client migration (`ClientSessions`, `SealedEntitlements`, next free ordinal), +0/2 ErrorCodes (iff absent); only sanctioned client→server ref is `Animora.Server.Licensing.Verification` (grep-gated); `AllowAllEntitlementGate` stays unconfigured.
 
-### - [ ] T8g — Author G07 (validation gates I — PostgreSQL CI, tenancy/RLS, restore)
+### - [x] T8g — Author G07 (validation gates I — PostgreSQL CI, tenancy/RLS, restore)
 **Map row (verbatim):** `G07 | Validation gates I — mandatory PostgreSQL CI, tenancy/RLS gate, restore
 gate (STACK.md §12, ARCH §19) | band M | Track G | Depends on: G06, S18 | R-B19, R-B32 | covers E08
 (half 1)`.
@@ -402,6 +402,8 @@ invariant tests from S11/S12/S18 become mandatory here (see those phases' Out-of
 and restore gate, expressed as **named, mechanical** CI checks (not prose).
 **Done when:** `PHASE-G07-validation-gates-ci-rls-restore.md` exists and passes the checklist; acceptance
 criteria are named tests / CI exit codes. Tick + file name.
+
+**Evidence (T8g):** Authored PHASE-G07-validation-gates-ci-rls-restore (band M): adds `.github/workflows/pg-gates.yml` (PostgreSQL 18 service container, **non-owner/non-superuser/no-BYPASSRLS** app role, owner-run migrations, `ANIMORA_REQUIRE_PG=1` flipping the CONVENTIONS §1 skip into a **failure**) with three jobs — `pg-correctness` (promotes the already-authored S02/S03/S11/S12/S18 PG-gated tests to mandatory, 0 skipped: JournalOrdering×7, BatchFreezer×4, Gc×2, SyncIsolation, SyncFlow, VersionTrigger, Migration-101, KeyRing, SnapshotAgeMonitor, QueryBudget, NativeSqlite≥3.50.2), `pg-rls-hardening` (RLS-ON A→B→A/missing-context/non-owner/rollback leak proofs — proves RLS *safe to enable* while it stays ROADMAP §5 deferred; mandatory isolation lane stays RLS-**off**), `restore-drill` (ARCH §17.3 one-boundary DB+files+key-ring snapshot→restore→readiness+known-tenant, measured RTO artifact, key-ring-missing refuses readiness/serves liveness — gate K/R). `scripts/ci/pg-gate.sh` + `scripts/ci/restore-drill.sh`, `PgGateManifestTests` locks the `[PgGated]` set; **no `src/**` change, no migration, no ErrorCode** — every acceptance is a named test / CI exit code. All gates mechanical; owning-phase owns any defect a gate exposes.
 
 ### - [ ] T8h — Author G08 (validation gates II — performance proof & offline budget)
 **Map row (verbatim):** `G08 | Validation gates II — performance proof & offline budget (weak-server/
