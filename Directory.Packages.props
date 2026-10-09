@@ -21,6 +21,10 @@
 
   <!-- Backend track (STACK.md §11). Exact versions, no floating ranges (T-RULE 003, T-RULE 010). -->
   <ItemGroup>
+    <!-- Server host (S01). First-party OpenAPI for the Business API (STACK.md §5.1). -->
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <!-- Server tests only (S01): WebApplicationFactory host smoke tests. -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
     <!-- EF Core 10 line only — EF Core 11 must never resolve (T-RULE 003). -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
