@@ -236,7 +236,7 @@ Namespace `Animora.Persistence.PostgreSql.Context`.
 
 ---
 
-### [ ] T10 — Generate + hand-edit migrations (`.../Migrations/Server/`, `.../Migrations/KeyRing/`)
+### [x] T10 — Generate + hand-edit migrations (`.../Migrations/Server/`, `.../Migrations/KeyRing/`)
 **Prereq:** `source scripts/sandbox/_env.sh`. If `.sandbox/tools/dotnet-ef` missing → `scripts/sandbox/install-prereqs.sh` once, then retry. **Never** `dotnet tool install`.
 1. Generate server migration (next free ordinal = **101**; confirm `ls src/Animora.Persistence.PostgreSql/Migrations/Server` empty first):
 ```
