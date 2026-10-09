@@ -18,7 +18,8 @@ server / sync / admin phase files** that Tracks D/E used to hold, regenerated fr
 
 1. This file carries a **TODO list** (`## TODO`). Each task is a checkbox `- [ ]`.
 2. One execution session = **exactly one unchecked task**, top to bottom. Do its work, tick its box
-   (`- [x]`), append its one-line evidence under it, update `PROGRESS.md`, commit, **stop.**
+   (`- [x]`), append its one-line evidence under it, update `PROGRESS.md`, commit **with the mandated
+   push script** (see "Commit rule" below), **stop.**
 3. Every task is written to be **resumable with zero memory of any other session**: it re-states what
    to read and what to produce. A later session never needs to know what an earlier one "meant".
 4. M00 is **done** when every box in `## TODO` is `[x]`. At that point its last task flips
@@ -41,6 +42,29 @@ pin or the `.sln`, you are out of scope — that belongs to a regenerated `S##`/
   first server phase, not here). Forbidden tech (state it in every server phase): Redis, message
   broker, cloud IdP, cloud telemetry, CDN, EF Core 11, per-tenant database, hard-coded TLS version,
   Native AOT with EF Core.
+
+---
+
+## Commit rule — the ONE sanctioned way every M00 task commits & pushes (binding)
+
+Every M00 task ends its session by committing through the **repo's push script**, never with raw
+`git add/commit/push`. The script lives in the scripts directory at **`scripts/git/push.sh`**
+(documented in `scripts/git/README.md`). It performs, in order and silently: `add -A` → `commit` →
+`fetch` + `rebase --autostash` → `push -u`, printing exactly one `✓`/`✗` line.
+
+**Invocation (from anywhere in the repo), used verbatim at the end of each task:**
+
+```bash
+scripts/git/push.sh -b genspark_ai_developer "docs(backend-roadmap): M00 <Task> — <summary>"
+```
+
+- Always pass branch `genspark_ai_developer` (the script switches/creates it) and a conventional commit
+  message naming the task just finished.
+- **Exit codes you must handle:** `0` = done; `2` = rebase conflict (repo left clean — resolve, then
+  re-run the same command); `3` = no credentials (call the `setup_github_environment` tool once, then
+  re-run the same command). Never fall back to hand-rolled `git` commands to work around a non-zero exit.
+- This single rule replaces any ad-hoc `git` sequence mentioned elsewhere in this file: wherever a task
+  says "commit", it means "run `scripts/git/push.sh` as above".
 
 ---
 
@@ -146,8 +170,9 @@ a task is not "done" until its files pass this checklist):
 ## TODO — do the first unchecked task, tick it, update PROGRESS, stop
 
 > **Ordering is binding.** Tasks run top-to-bottom. T1/T2 build the shared source brief the later
-> authoring tasks reuse (so each authoring task is cheap and consistent). T3–T8 author the phase files
-> in dependency order. T9 is the final reconciliation that closes M00. **Each task below fully
+> authoring tasks reuse (so each authoring task is cheap and consistent). T3–T7 author the server `S##`
+> phase files, and T8a–T8i author one `G##` sync/release phase each — all in dependency order. T9 is the
+> final reconciliation that closes M00. **Each task below fully
 > re-states its own inputs and outputs — a fresh session can execute any single unchecked task without
 > reading the others.** When a task says "append to the source brief", it means
 > `backend-roadmap/phases/M00-source-brief.md` (a scratch doc M00 owns; create it in T1).
@@ -260,26 +285,138 @@ names.
 
 **Evidence (T7):** Authored PHASE-S19-admin-web-operator-core (`Animora.Web.Admin` RCL, Static SSR, `__Host-` cookie auth, port/adapter split, zero islands) and PHASE-S20-admin-web-insight-seams (ops pages, the single `LiveStatusPanel` island, `ITenantInsightQuery` disabled-by-default seam, consent-ADR startup contract); S15/S20 re-banded M (weight honest), deferred analytics explicit in Out of scope.
 
-### - [ ] T8 — Author the client-sync + release phases (engine → orchestration → conflict → transport → online auth → gates → release)
-**Read:** this file; `M00-source-brief.md`; `ARCHITECTURE.md` §8/§16-CT–§18-CT/§48–§50/§PG; `STACK.md`
-§4/§6/§11/§12; the `R-B##` rows for sync, conflict policy, transport, online auth, validation gates,
-release.
-**Produce:** the **client-side integration** `G##` phases: fill `Animora.Sync.Abstractions`
-(`IStateSyncEngine`/`ISyncEngine`, `SyncScope`, `SyncResult`, `NullSyncEngine` fallback) + the custom
-immutable-batch HTTP adapter (client references **no** PostgreSQL driver and **no** server project);
-sync orchestration + status; conflict resolution + non-destructive pull (preserve pending intent;
-posted-invoice conflicts are reversal-only per `ARCHITECTURE.md`); command transport + settlement
-reconciliation (replaces `NullCommandTransport`); online auth + entitlement + device lifecycle
-(replaces `AllowAllEntitlementGate`; local credential-mirror fallback); validation gates + performance
-proof (mandatory PostgreSQL CI, RLS gate, restore gate, offline budget); release engineering. Split
-any over band M; keep the offline fallback explicit in each.
-**Done when:** each file exists and passes the checklist; every sync phase keeps the desktop runnable
-offline via its `Null*`/local-cache fallback; the final release phase's acceptance criteria are the
-real launch gates (not prose). Tick + file names.
+> **T8 was split into one task per G-phase (T8a–T8i).** Each `G##` is now authored by its own
+> self-contained, independently-resumable task — one execution session authors exactly one `G##` file
+> (band permitting). The G01–G09 map (IDs, titles, bands, `Depends on`, `R-B##`, §2 coverage) is frozen
+> in `M00-source-brief.md` §2 "Regeneration map"; every T8x task below **re-uses that row verbatim** and
+> never re-derives it. All T8x tasks share the same read-set and the same binding rule set, re-stated in
+> each so a fresh session can run any single one cold:
+>
+> - **Read (every T8x):** this file (Authoring rules + Commit rule + Read-before list); `M00-source-brief.md`
+>   (§1 baseline snapshot, §2 map row for the `G##` being authored, `## Reference pack (shared)` — esp.
+>   R6 the `Animora.Sync.Abstractions` scaffold, R4 the application ports, R1 the wire seam); then **only
+>   the `§` named in that task** of `ARCHITECTURE.md` / `STACK.md`, plus the `R-B##` rows the map row cites.
+> - **Offline invariant (every T8x, non-negotiable):** the authored phase MUST state "Runnable after:
+>   desktop offline yes" and keep the desktop startable with no server via its `Null*`/local-cache
+>   fallback (CONVENTIONS §11, Standing principle 1). A `G##` that removes a `Null*` shim replaces it with
+>   a real impl **and** a documented offline fallback — never a hard server dependency.
+> - **One introducer (every T8x):** a type/interface/error-code introduced by this `G##` is introduced
+>   here once and referenced by exact name thereafter; cross-check the sibling `G##` rows in the map so
+>   two phases don't both introduce the same artifact.
+> - **Checklist + commit (every T8x):** author to the full Authoring-rules checklist (§ above); then
+>   commit via the **Commit rule** push script (`scripts/git/push.sh -b genspark_ai_developer "docs(backend-roadmap): M00 T8x — <summary>"`).
+> - **Done when (every T8x):** the single `PHASE-G<NN>-*.md` file exists, passes the authoring checklist
+>   (self-contained, baseline-verified line present, mechanical acceptance criteria, no forward dep, offline
+>   line present), introduces no artifact a sibling already owns. Tick the box + one-line evidence naming
+>   the file. Then **stop** (next session picks up the next unchecked T8x).
+
+### - [ ] T8a — Author G01 (sync engine abstractions + `NullSyncEngine` fallback)
+**Map row (verbatim from brief §2):** `G01 | Animora.Sync.Abstractions — IStateSyncEngine/ISyncEngine,
+SyncScope, SyncResult, NullSyncEngine fallback + DI | band S | Track G | Depends on: S12 | R-B03, R-B13 |
+covers E03 (half 1)`.
+**Read (in addition to the shared read-set above):** `ARCHITECTURE.md` §8/§16-CT; the `R-B03`, `R-B13`
+rows.
+**Produce:** `PHASE-G01-sync-engine-abstractions.md` — fills the empty `Animora.Sync.Abstractions`
+scaffold (brief Reference pack R6): `IStateSyncEngine`/`ISyncEngine`, `SyncScope`, `SyncResult`, the
+`NullSyncEngine` offline fallback, and DI registration. Client references **no** PostgreSQL driver and
+**no** server project. Band **S** (per map).
+**Done when:** `PHASE-G01-sync-engine-abstractions.md` exists and passes the shared Done-when checklist;
+`NullSyncEngine` keeps the desktop offline-runnable. Tick + file name.
+
+### - [ ] T8b — Author G02 (custom immutable-batch HTTP adapter)
+**Map row (verbatim):** `G02 | Custom immutable-batch HTTP adapter (client refs no PostgreSQL driver, no
+server project) | band M | Track G | Depends on: G01 | R-B03, R-B13, R-B31 | covers E03 (half 2)`.
+**Read (plus shared):** `ARCHITECTURE.md` §16-CT–§18-CT/§PG (batch wire shape); `STACK.md` §6/§11; the
+`R-B03`, `R-B13`, `R-B31` rows.
+**Produce:** `PHASE-G02-immutable-batch-http-adapter.md` — the client-side `Animora.Sync.Custom` adapter
+that consumes the server's immutable 256-KiB batch surface (introduced by S12) over HTTP. References
+`Sync.Abstractions` + `Application` + `Persistence.Sqlite` + `Contracts.Wire`; **no** Npgsql, **no**
+server-project reference (brief Reference pack R6 project table).
+**Done when:** `PHASE-G02-immutable-batch-http-adapter.md` exists and passes the checklist; the "no
+PostgreSQL driver / no server ref" constraint is a mechanical acceptance criterion (grep the csproj).
+Tick + file name.
+
+### - [ ] T8c — Author G03 (sync orchestration & status)
+**Map row (verbatim):** `G03 | Sync orchestration & status (scheduler, SyncCursor integration, status
+surfaced to ISyncStatusService) | band M | Track G | Depends on: G02 | R-B03 | covers E04`.
+**Read (plus shared):** `ARCHITECTURE.md` §8; `STACK.md` §4/§6; the `R-B03` row.
+**Produce:** `PHASE-G03-sync-orchestration-status.md` — the scheduler that drives the G02 adapter,
+`SyncCursor` integration, and status surfaced to `ISyncStatusService`. Offline fallback explicit.
+**Done when:** `PHASE-G03-sync-orchestration-status.md` exists and passes the checklist. Tick + file name.
+
+### - [ ] T8d — Author G04 (conflict resolution & non-destructive pull)
+**Map row (verbatim):** `G04 | Conflict resolution & non-destructive pull (preserve pending intent;
+posted-invoice conflicts reversal-only) | band M | Track G | Depends on: G03 | R-B03, R-B17, R-B18 |
+covers E05`.
+**Read (plus shared):** `ARCHITECTURE.md` §8/§16-CT–§18-CT (conflict + reversal-only posting rule); the
+`R-B03`, `R-B17`, `R-B18` rows.
+**Produce:** `PHASE-G04-conflict-resolution-non-destructive-pull.md` — non-destructive pull that
+preserves pending intent; posted-invoice conflicts are **reversal-only** per `ARCHITECTURE.md` (never a
+destructive overwrite). Introduce the conflict-policy types once.
+**Done when:** `PHASE-G04-conflict-resolution-non-destructive-pull.md` exists and passes the checklist;
+the reversal-only invariant is stated as a mechanical acceptance criterion. Tick + file name.
+
+### - [ ] T8e — Author G05 (command transport & settlement reconciliation)
+**Map row (verbatim):** `G05 | Command transport & settlement reconciliation (replaces
+NullCommandTransport) | band M | Track G | Depends on: G04, S10 | R-B03, R-B09, R-B16 | covers E06`.
+**Read (plus shared):** `ARCHITECTURE.md` §8 (command transport + settlement); the brief Reference pack
+R1 (wire seam) + R4 (`ICommandTransport`) + the settlement vocabulary; the `R-B03`, `R-B09`, `R-B16` rows.
+**Produce:** `PHASE-G05-command-transport-settlement.md` — the real `HttpCommandTransport` that **replaces
+`NullCommandTransport`** (brief R4 notes the fallback), plus settlement reconciliation against the server.
+`NullCommandTransport` stays as the documented offline fallback.
+**Done when:** `PHASE-G05-command-transport-settlement.md` exists and passes the checklist; "replaces
+`NullCommandTransport`, keeps it as offline fallback" is explicit. Tick + file name.
+
+### - [ ] T8f — Author G06 (online auth, entitlement & device lifecycle)
+**Map row (verbatim):** `G06 | Online auth, entitlement & device lifecycle (replaces
+AllowAllEntitlementGate; credential-mirror fallback) | band M | Track G | Depends on: G05, S16 | R-B04,
+R-B06, R-B20, R-B21, R-B36 | covers E07`.
+**Read (plus shared):** `ARCHITECTURE.md` §48–§50 (auth/entitlement/device); the brief Reference pack R4
+(`IEntitlementGate`, fallback `AllowAllEntitlementGate`); the `R-B04`, `R-B06`, `R-B20`, `R-B21`, `R-B36`
+rows. This phase consumes the S16 licensing surface.
+**Produce:** `PHASE-G06-online-auth-entitlement-device.md` — online auth + the real entitlement gate that
+**replaces `AllowAllEntitlementGate`**, device lifecycle, and the **local credential-mirror fallback** so
+the desktop still authenticates offline.
+**Done when:** `PHASE-G06-online-auth-entitlement-device.md` exists and passes the checklist; the
+credential-mirror offline fallback is explicit. Tick + file name.
+
+### - [ ] T8g — Author G07 (validation gates I — PostgreSQL CI, tenancy/RLS, restore)
+**Map row (verbatim):** `G07 | Validation gates I — mandatory PostgreSQL CI, tenancy/RLS gate, restore
+gate (STACK.md §12, ARCH §19) | band M | Track G | Depends on: G06, S18 | R-B19, R-B32 | covers E08
+(half 1)`.
+**Read (plus shared):** `STACK.md` §12; `ARCHITECTURE.md` §19; the `R-B19`, `R-B32` rows. The named PG-gated
+invariant tests from S11/S12/S18 become mandatory here (see those phases' Out-of-scope → G07 notes).
+**Produce:** `PHASE-G07-validation-gates-ci-rls-restore.md` — mandatory PostgreSQL CI, tenancy/RLS gate,
+and restore gate, expressed as **named, mechanical** CI checks (not prose).
+**Done when:** `PHASE-G07-validation-gates-ci-rls-restore.md` exists and passes the checklist; acceptance
+criteria are named tests / CI exit codes. Tick + file name.
+
+### - [ ] T8h — Author G08 (validation gates II — performance proof & offline budget)
+**Map row (verbatim):** `G08 | Validation gates II — performance proof & offline budget (weak-server/
+weak-client capacity, layering audit) | band M | Track G | Depends on: G07, S20 | R-B07, R-B08, R-B10,
+R-B32 | covers E08 (half 2)`.
+**Read (plus shared):** `STACK.md` §11/§12; `ARCHITECTURE.md` §19; the `R-B07`, `R-B08`, `R-B10`, `R-B32`
+rows; `scripts/sandbox/bench.sh` + `scripts/sandbox/offline-budget.py` (cite as the gate runners).
+**Produce:** `PHASE-G08-performance-proof-offline-budget.md` — weak-server/weak-client capacity proof,
+offline-budget gate, and the layering audit, as mechanical gates.
+**Done when:** `PHASE-G08-performance-proof-offline-budget.md` exists and passes the checklist; the
+offline budget is a script exit code / numeric threshold, not prose. Tick + file name.
+
+### - [ ] T8i — Author G09 (release engineering) — final T8 task
+**Map row (verbatim):** `G09 | Release engineering (topology, install/upgrade/rollback runbook,
+backup/restore rehearsal, packaging, SBOM) | band M | Track G | Depends on: G08 | R-B27, R-B31, R-B33 |
+covers E09`.
+**Read (plus shared):** `ARCHITECTURE.md` §17/§19; `STACK.md` §0; the `R-B27`, `R-B31`, `R-B33` rows;
+`scripts/windows/publish-portable.ps1` (cite as the packaging entry point).
+**Produce:** `PHASE-G09-release-engineering.md` — deployment topology, install/upgrade/rollback runbook,
+backup/restore rehearsal, packaging, and SBOM. Its acceptance criteria are the **real launch gates** (not
+prose).
+**Done when:** `PHASE-G09-release-engineering.md` exists and passes the checklist; launch gates are
+mechanical. Tick + file name. **This closes the T8 batch; the next unchecked task is T9.**
 
 ### - [ ] T9 — Reconcile the set and hand off to S01
 **Read:** this file; `M00-source-brief.md`; every `PHASE-S##-*.md` / `PHASE-G##-*.md` created in
-T3–T8 (this is the one task that reads the sibling phase files — to cross-check them); `ROADMAP.md`
+T3–T7 and T8a–T8i (this is the one task that reads the sibling phase files — to cross-check them); `ROADMAP.md`
 §1/§2; `PROGRESS.md` top section.
 **Do:** (a) Verify the regenerated set collectively covers the full ROADMAP §2 D/E scope inventory +
 post-C11 drift with no gap and no duplicate introducer (use the T1 matrix as the checklist); fix any
@@ -300,13 +437,15 @@ complete.**
 ## PROGRESS.md update recipe (run at the end of EVERY M00 task)
 
 Minimal, append-only to the `M00` row's Notes — never rewrite an older entry:
-- Keep `PROGRESS.md` "Next phase" = `M00` for tasks T1–T8; T9 is the only task that advances it to
-  `S01`.
+- Keep `PROGRESS.md` "Next phase" = `M00` for every task T1–T7 and T8a–T8i; T9 is the only task that
+  advances it to `S01`.
+- **Commit** at the end of the task via the **Commit rule** push script, not raw `git`:
+  `scripts/git/push.sh -b genspark_ai_developer "docs(backend-roadmap): M00 <Task> — <summary>"`.
 - In the "Phase status" table, update the `M00` row Notes with `Tx done: <one line>` for the task just
   finished (so a fresh session sees progress without opening this file). Leave the row status `🟨 In
   progress` until T9 flips it to `✅ Done`.
-- Commit on branch `genspark_ai_developer` with a conventional message, e.g.
-  `docs(backend-roadmap): M00 Tx — <summary>`.
+- Commit via the **Commit rule** push script (never raw `git`) on branch `genspark_ai_developer` with a
+  conventional message, e.g. `scripts/git/push.sh -b genspark_ai_developer "docs(backend-roadmap): M00 Tx — <summary>"`.
 
 ## Acceptance criteria (for M00 as a whole — checked by T9)
 - `ls backend-roadmap/phases/PHASE-S*.md backend-roadmap/phases/PHASE-G*.md` lists the full regenerated
