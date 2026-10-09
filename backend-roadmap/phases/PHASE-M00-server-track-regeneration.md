@@ -234,7 +234,7 @@ offline window + retention, and that the surface is the project-owned journal. T
 
 **Evidence (T5):** Authored PHASE-S11-journal-change-capture (commit-ordered ChangeSequence via deferred constraint trigger, SyncContractCatalog), S12-immutable-batch-export (RR frozen 256-KiB batches, retention 90d+30, crash-atomic GC), S13-outbox-workers-resilience (SKIP LOCKED fenced claim, breaker, bulkhead, SignalR hint), S17-files-valet-key, S18-observability-weak-server-performance (loopback-only OTLP, MinPoolSize=0, pool sum 12/20); PG-gated invariants are named tests mandatory in G07.
 
-### - [ ] T6 — Author the commerce phases (subscription + operator API + onboarding → licensing + anti-piracy)
+### - [x] T6 — Author the commerce phases (subscription + operator API + onboarding → licensing + anti-piracy)
 **Read:** this file; `M00-source-brief.md`; `ARCHITECTURE.md` §17 (SaaS/vendor-hosted), §10.5/§10.6
 (key material/TLS rationale); `STACK.md` §0; the `R-B##` rows for subscription, operator, licensing.
 **Produce:** the **commerce** phases: subscription context + operator API + self-service onboarding
@@ -243,6 +243,8 @@ grace window). Keep them server-side; the client entitlement fallback is a later
 it in Out of scope with its owning phase ID. Split if over band M.
 **Done when:** each file exists and passes the checklist; subscription/licensing types introduced once;
 Out of scope points the client entitlement wiring at its `G##` owner. Tick + file names.
+
+**Evidence (T6):** Authored PHASE-S14-subscription-operator-api (Plan/Subscription/BillingPeriod/SubscriptionEvent, operator identity + `/operator` API, single `ProvisioningEngine`, `ILicenseIssuanceScheduler` seam), S15-onboarding-intake (HMAC-signed idempotent async provisioning intent → same engine), S16-licensing-anti-piracy (`Animora.Server.Licensing` Verification/Issuance halves, signed installation-bound licence, fail-closed policy matrix + grace + high-water clock, grants, `ServerEntitlementGate`; client wiring → G06).
 
 ### - [ ] T7 — Author the admin-web phases (operator panel core → insight seams)
 **Read:** this file; `M00-source-brief.md`; `STACK.md` §0 (Blazor Web App — Static SSR default +
