@@ -29,8 +29,11 @@ public sealed class StaffMembershipConfiguration : IEntityTypeConfiguration<Staf
         builder.Property(e => e.WorkEndMinute).HasColumnType("integer");
         builder.Property(e => e.WorkDaysMask).HasColumnType("integer");
 
-        builder.Property(e => e.ExtraPermissionCodes).AsTextArray();
-        builder.Property(e => e.DeniedPermissionCodes).AsTextArray();
+        // The public IReadOnlySet views are read-only projections; the HashSet fields are the mapped state.
+        builder.Ignore(e => e.ExtraPermissionCodes);
+        builder.Ignore(e => e.DeniedPermissionCodes);
+        builder.MapPermissionSet("_extraPermissionCodes", "ExtraPermissionCodes");
+        builder.MapPermissionSet("_deniedPermissionCodes", "DeniedPermissionCodes");
 
         // IsActive is derived (Status + EndedUtc), never stored.
         builder.Ignore(e => e.IsActive);

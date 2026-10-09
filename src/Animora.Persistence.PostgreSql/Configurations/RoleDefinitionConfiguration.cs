@@ -22,7 +22,8 @@ public sealed class RoleDefinitionConfiguration : IEntityTypeConfiguration<RoleD
         builder.Property(e => e.Role).HasConversion<int>().HasColumnType("integer");
         builder.Property(e => e.DisplayKey).IsRequired().HasMaxLength(64);
         builder.Property(e => e.IsSystem).HasColumnType("boolean");
-        builder.Property(e => e.PermissionCodes).AsTextArray();
+        builder.Ignore(e => e.PermissionCodes);
+        builder.MapPermissionSet("_permissionCodes", "PermissionCodes");
 
         ServerModelConventions.TenantIndex(builder, nameof(RoleDefinition.Role)).IsUnique();
     }
