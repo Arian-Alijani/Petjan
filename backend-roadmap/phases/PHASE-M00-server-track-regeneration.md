@@ -325,7 +325,7 @@ scaffold (brief Reference pack R6): `IStateSyncEngine`/`ISyncEngine`, `SyncScope
 
 **Evidence (T8a):** Authored PHASE-G01-sync-engine-abstractions (band S): `IStateSyncEngine` (single name; `ISyncEngine` doc alias corrected), `SyncScope`/`SyncOutcome`/`SyncResult`, `NullSyncEngine` offline fallback, `AddAnimoraSyncEngine` TryAdd DI; Sync.Abstractions refs Domain + Contracts.Wire only (grep-checked).
 
-### - [ ] T8b — Author G02 (custom immutable-batch HTTP adapter)
+### - [x] T8b — Author G02 (custom immutable-batch HTTP adapter)
 **Map row (verbatim):** `G02 | Custom immutable-batch HTTP adapter (client refs no PostgreSQL driver, no
 server project) | band M | Track G | Depends on: G01 | R-B03, R-B13, R-B31 | covers E03 (half 2)`.
 **Read (plus shared):** `ARCHITECTURE.md` §16-CT–§18-CT/§PG (batch wire shape); `STACK.md` §6/§11; the
@@ -337,6 +337,8 @@ server-project reference (brief Reference pack R6 project table).
 **Done when:** `PHASE-G02-immutable-batch-http-adapter.md` exists and passes the checklist; the "no
 PostgreSQL driver / no server ref" constraint is a mechanical acceptance criterion (grep the csproj).
 Tick + file name.
+
+**Evidence (T8b):** Authored PHASE-G02-immutable-batch-http-adapter (band M): new `Animora.Sync.Custom` project (4 ProjectRefs only — Sync.Abstractions/Application/Persistence.Sqlite/Contracts.Wire, no Npgsql/server ref, grep-gated), `HttpStateSyncEngine` consuming the S12 `/sync/manifest|batches|pages|snapshots` surface with page-hash + content-hash verification, resumable `If-None-Match`/304, `ISyncApplyStore`/`ISyncApplySession` seam + `BufferingSyncApplyStore` default (real atomic apply → G04), conditional DI (Http engine wins only when `ServerEndpointOptions.IsConfigured`, else G01 `NullSyncEngine` stays), +4 ErrorCodes (Sync transport), BatchNotFound/ResyncRequired reused from S12; pull-only (no PushAsync).
 
 ### - [ ] T8c — Author G03 (sync orchestration & status)
 **Map row (verbatim):** `G03 | Sync orchestration & status (scheduler, SyncCursor integration, status
