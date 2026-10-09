@@ -160,7 +160,7 @@ Namespace `Animora.Persistence.PostgreSql.Concurrency`. Create:
 
 ---
 
-### [ ] T05 — Model conventions (`.../Conventions/ServerModelConventions.cs`)
+### [x] T05 — Model conventions (`.../Conventions/ServerModelConventions.cs`)
 Namespace `Animora.Persistence.PostgreSql.Conventions`. `public static class ServerModelConventions`:
 1. `public static void ApplyTenancy(ModelBuilder modelBuilder, Func<string> tenantAccessor)` — for every entity type assignable to `SyncableEntity`:
    - `HasQueryFilter("Tenant", e => e.TenantId == tenantAccessor())` and `HasQueryFilter("SoftDelete", e => !e.Deleted)` (EF 10 **named** filters, kept separable).
