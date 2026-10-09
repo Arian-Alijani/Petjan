@@ -377,7 +377,7 @@ R1 (wire seam) + R4 (`ICommandTransport`) + the settlement vocabulary; the `R-B0
 
 **Evidence (T8e):** Authored PHASE-G05-command-transport-settlement (band M): `HttpCommandTransport : ICommandTransport` (in Animora.Sync.Custom) consuming the S06 `POST /api/commands[/batch]` + `GET /api/commands/{op}/ids` surface, HTTP-200-for-settled-outcomes mapped onto the journal (four-question §8.7 UX), 426 settles Deferred (never dropped), transient faults stay pending (idempotency key (TenantId,OperationId) — never lost/double-applied), `ICommandBatchTransport` ordered results, `CommandIdRemapService` (server-minted-id remap + dependent-payload rewrite + fingerprint recompute), `IReplicaVersionReader` populating `ExpectedServerVersion` from G04 base, `SettlementReconciler` with strict `SettlementTransitions.EnsureAllowed`; replaces `NullCommandTransport` only when configured (fallback intact); command pipeline kept separate from the state engine (grep-gated).
 
-### - [ ] T8f — Author G06 (online auth, entitlement & device lifecycle)
+### - [x] T8f — Author G06 (online auth, entitlement & device lifecycle)
 **Map row (verbatim):** `G06 | Online auth, entitlement & device lifecycle (replaces
 AllowAllEntitlementGate; credential-mirror fallback) | band M | Track G | Depends on: G05, S16 | R-B04,
 R-B06, R-B20, R-B21, R-B36 | covers E07`.
@@ -389,6 +389,8 @@ rows. This phase consumes the S16 licensing surface.
 the desktop still authenticates offline.
 **Done when:** `PHASE-G06-online-auth-entitlement-device.md` exists and passes the checklist; the
 credential-mirror offline fallback is explicit. Tick + file name.
+
+**Evidence (T8f):** Authored PHASE-G06-online-auth-entitlement-device (band M): `OnlineAuthClient`/`IOnlineAuthClient` over S04 `/auth/*`, `BearerAuthHandler` single-flight 401-refresh delegating handler on the shared HttpClient (so G05 transport + G02 engine never handle tokens), real `OnlineEntitlementGate : IEntitlementGate` replacing `AllowAllEntitlementGate` **only when configured** and deciding from the S16 sealed local cache + `LicensePolicy`/`CapabilityGate` offline-only (never a live server call, A-RULE 016/032), `HighWaterClock` persisted forward-only via `SealedEntitlementMerge` (backward clock can't revive expiry), `DeviceFingerprintSource` (raw components never leave the machine) + `DeviceLifecycleService` (`DEVICE_REVOKED` wipes offline authority at next contact), **credential-mirror** fallback (OS-protected capability snapshot + sealed entitlement + one-way password verifier) so a cold offline start authenticates with no server; one `[LocalOnly]` client migration (`ClientSessions`, `SealedEntitlements`, next free ordinal), +0/2 ErrorCodes (iff absent); only sanctioned client→server ref is `Animora.Server.Licensing.Verification` (grep-gated); `AllowAllEntitlementGate` stays unconfigured.
 
 ### - [ ] T8g — Author G07 (validation gates I — PostgreSQL CI, tenancy/RLS, restore)
 **Map row (verbatim):** `G07 | Validation gates I — mandatory PostgreSQL CI, tenancy/RLS gate, restore
