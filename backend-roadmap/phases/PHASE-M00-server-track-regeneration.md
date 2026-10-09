@@ -340,13 +340,15 @@ Tick + file name.
 
 **Evidence (T8b):** Authored PHASE-G02-immutable-batch-http-adapter (band M): new `Animora.Sync.Custom` project (4 ProjectRefs only — Sync.Abstractions/Application/Persistence.Sqlite/Contracts.Wire, no Npgsql/server ref, grep-gated), `HttpStateSyncEngine` consuming the S12 `/sync/manifest|batches|pages|snapshots` surface with page-hash + content-hash verification, resumable `If-None-Match`/304, `ISyncApplyStore`/`ISyncApplySession` seam + `BufferingSyncApplyStore` default (real atomic apply → G04), conditional DI (Http engine wins only when `ServerEndpointOptions.IsConfigured`, else G01 `NullSyncEngine` stays), +4 ErrorCodes (Sync transport), BatchNotFound/ResyncRequired reused from S12; pull-only (no PushAsync).
 
-### - [ ] T8c — Author G03 (sync orchestration & status)
+### - [x] T8c — Author G03 (sync orchestration & status)
 **Map row (verbatim):** `G03 | Sync orchestration & status (scheduler, SyncCursor integration, status
 surfaced to ISyncStatusService) | band M | Track G | Depends on: G02 | R-B03 | covers E04`.
 **Read (plus shared):** `ARCHITECTURE.md` §8; `STACK.md` §4/§6; the `R-B03` row.
 **Produce:** `PHASE-G03-sync-orchestration-status.md` — the scheduler that drives the G02 adapter,
 `SyncCursor` integration, and status surfaced to `ISyncStatusService`. Offline fallback explicit.
 **Done when:** `PHASE-G03-sync-orchestration-status.md` exists and passes the checklist. Tick + file name.
+
+**Evidence (T8c):** Authored PHASE-G03-sync-orchestration-status (band M): `SyncOrchestrator` (PullOnce/PullAll, advances `SyncCursor` via `ISyncCursorStore` only on Applied/UpToDate), `SyncSchedulerHostedService` (dormant when unconfigured, jitter ±20% + capped backoff, `IDelayProvider`/`TimeProvider` for deterministic tests — no Thread.Sleep), `ISyncResyncHandler` seam + `NullSyncResyncHandler` (real full-resync → G04), `LocalSyncStatusService` extended to combine state-pull outcome + command backlog into one `SyncState` (two passes, never merged), `AddAnimoraSyncOrchestration` DI; no HTTP in Client.Services (grep-gated), no migration/ErrorCode.
 
 ### - [ ] T8d — Author G04 (conflict resolution & non-destructive pull)
 **Map row (verbatim):** `G04 | Conflict resolution & non-destructive pull (preserve pending intent;
