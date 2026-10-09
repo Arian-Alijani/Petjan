@@ -446,7 +446,7 @@ public sealed class SigningKey {
   > own EF-over-PG implementation. Build fast.
   **Push:** `feat(server): S05 — server RBAC repositories over PostgreSQL`.
 
-- [ ] **T5 — `IMembershipResolver` + `MembershipResolver`.**
+- [x] **T5 — `IMembershipResolver` + `MembershipResolver`.**
   In `Animora.Server/Authorization/`. Signature:
   `Task<Result<ResolvedMembership>> ResolveAsync(string userId, string deviceId, string securityStamp, CancellationToken ct)`
   where `ResolvedMembership(string TenantId, StaffRole Role, string UserId, string DeviceId, bool DeviceActive)`.
