@@ -189,7 +189,7 @@ Namespace `Animora.Persistence.PostgreSql.Options`.
 
 ---
 
-### [ ] T07 — Tenant mapping (`.../Configurations/TenantConfiguration.cs`)
+### [x] T07 — Tenant mapping (`.../Configurations/TenantConfiguration.cs`)
 Namespace `Animora.Persistence.PostgreSql.Configurations`. `public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>`:
 - Table `Tenants` (schema `public`). PK `Id` (`varchar(26)`). `TenantId varchar(26)` (= own Id so the generic Tenant filter applies).
 - `DisplayName`, `LegalName` (nullable), `Timezone`, `DefaultCurrency varchar(3)`, `Status` (integer enum), `UpdatedAt timestamptz(6)`, `Version uuid` (shape applied by `ServerModelConventions`), `Deleted boolean default false`.
