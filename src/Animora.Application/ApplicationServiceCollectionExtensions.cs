@@ -31,7 +31,8 @@ public static class ApplicationServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddAnimoraApplication(this IServiceCollection services,
         Action<ApplicationRegistrationBuilder>? configure = null,
-        ApplicationPipelineProfile profile = ApplicationPipelineProfile.Client)
+        ApplicationPipelineProfile profile = ApplicationPipelineProfile.Client,
+        bool registerQueries = true)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -52,7 +53,7 @@ public static class ApplicationServiceCollectionExtensions
         services.TryAddSingleton<ICommandTransport, NullCommandTransport>();
         services.TryAddSingleton<IIntegrityAlertSink, NullIntegrityAlertSink>();
 
-        var builder = new ApplicationRegistrationBuilder(services);
+        var builder = new ApplicationRegistrationBuilder(services, registerQueries);
         builder.AddQuery<PingQuery, string, PingQueryHandler>();
         builder.AddQuery<PendingCommandSummaryQuery, PendingCommandSummary, PendingCommandSummaryQueryHandler>();
         builder.AddQuery<UnsettledCommandListQuery, PagedResult<PendingCommandRecord>, UnsettledCommandListQueryHandler>();

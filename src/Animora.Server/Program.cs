@@ -4,6 +4,7 @@ using Animora.Server.Auth;
 using Animora.Server.Authorization;
 using Animora.Server.Hosting;
 using Animora.Server.Commands;
+using Animora.Server.Handlers;
 using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -44,6 +45,8 @@ builder.Services.AddDataProtection()
 // 4. DbContext: PostgreSQL (keyed pooled data sources, tenancy/version interceptors).
 //    The running role has no DDL rights and the host never migrates on startup.
 builder.Services.AddAnimoraPostgreSql(builder.Configuration);
+builder.Services.AddAnimoraClinicalPersistence();
+builder.Services.AddAnimoraSchedulingBoardingPersistence();
 
 // 4b. Identity (S04): ASP.NET Core Identity over the Domain User, opaque Data-Protection bearer + refresh
 //     tokens (no JWT/OIDC), lockout, device binding, append-only security audit. Authentication only.
@@ -53,7 +56,12 @@ builder.Services.AddAnimoraIdentity(builder.Configuration);
 builder.Services.AddAnimoraAuthorization();
 
 // 4d. Fenced command intake (S06): server Application profile, no desktop journal/session dependencies.
-builder.Services.AddAnimoraCommandPlane();
+builder.Services.AddAnimoraCommandPlane(
+    handlers => { ServerHandlerModuleS07.AddHandlers(handlers); ServerHandlerModuleS08.AddHandlers(handlers); },
+    payloads => { ServerHandlerModuleS07.AddPayloads(payloads); ServerHandlerModuleS08.AddPayloads(payloads); });
+builder.Services.AddScoped<IServerCommandConcurrencyGuard, ServerSchedulingConcurrencyGuard>();
+builder.Services.AddScoped<ICommandEffectIdCollector, ServerCommandEffectIdCollector>();
+builder.Services.AddScoped<IAggregateVersionReader, ClinicalAggregateVersionReader>();
 
 // 5. Health checks: readiness probes (data root, database, key ring, schema head).
 //    Probes degrade to Unhealthy when PostgreSQL is absent; the host still boots.

@@ -16,7 +16,7 @@ internal static class CommandPlaneServiceCollectionExtensions
         Action<ApplicationRegistrationBuilder>? configureHandlers = null,
         Action<CommandPayloadCatalogBuilder>? configurePayloads = null)
     {
-        services.AddAnimoraApplication(configureHandlers, ApplicationPipelineProfile.Server);
+        services.AddAnimoraApplication(configureHandlers, ApplicationPipelineProfile.Server, registerQueries: false);
         // AddAnimoraApplication also supplies client UI defaults. None belongs to this host: do not
         // satisfy their dependencies with a fake journal/session, or pull SQLite into server startup.
         services.RemoveAll<PendingCommandSummaryQueryHandler>();

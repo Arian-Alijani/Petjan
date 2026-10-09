@@ -1,4 +1,5 @@
 using System.Data;
+using Animora.Persistence.PostgreSql.Concurrency;
 using Animora.Domain.Results;
 using Animora.Persistence.PostgreSql.Context;
 using Animora.Persistence.PostgreSql.Tenancy;
@@ -24,24 +25,33 @@ internal sealed class ServerTransactionRunner(
     // S03 default: callers do not opt into unique-violation mapping. A future overload threads this through.
     private static readonly UniqueViolationMapping UniqueMapping = UniqueViolationMapping.None;
 
-    public Task<Result<T>> RunAsync<T>(Func<CancellationToken, Task<Result<T>>> work, CancellationToken ct)
+    public async Task<Result<T>> RunAsync<T>(Func<CancellationToken, Task<Result<T>>> work, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(work);
 
-        return RetryPolicy.ExecuteAsync(
-            attempt: (_, token) => RunOnceAsync(work, token),
-            isTransient: static ex => ex is PostgresException pg && RetryPolicy.IsTransient(pg.SqlState),
-            rng: Random.Shared.NextDouble,
-            delay: static (span, token) => Task.Delay(span, token),
-            ct: ct);
+        try
+        {
+            return await RetryPolicy.ExecuteAsync(
+                attempt: (_, token) => RunOnceAsync(work, token),
+                isTransient: IsRetryable,
+                rng: Random.Shared.NextDouble,
+                delay: static (span, token) => Task.Delay(span, token),
+                ct: ct).ConfigureAwait(false);
+        }
+        catch (ReservationConcurrencyException) { return Result<T>.Fail(ErrorCodes.ConcurrencyConflict); }
     }
 
-    private Task<Result<T>> RunOnceAsync<T>(Func<CancellationToken, Task<Result<T>>> work, CancellationToken ct)
+    private static bool IsRetryable(Exception ex) => ex is ReservationConcurrencyException
+        || ex is PostgresException pg && RetryPolicy.IsTransient(pg.SqlState)
+        || ex is DbUpdateException { InnerException: PostgresException inner } && RetryPolicy.IsTransient(inner.SqlState);
+
+    private async Task<Result<T>> RunOnceAsync<T>(Func<CancellationToken, Task<Result<T>>> work, CancellationToken ct)
     {
         // The execution strategy owns one attempt's begin→work→commit; RetryPolicy owns the retry cadence,
         // so the strategy stays non-retrying (no double jitter) and the whole transaction is re-run as a unit.
         IExecutionStrategy strategy = context.Database.CreateExecutionStrategy();
-        return strategy.ExecuteAsync(() => ExecuteTransactionAsync(work, ct));
+        try { return await strategy.ExecuteAsync(() => ExecuteTransactionAsync(work, ct)).ConfigureAwait(false); }
+        finally { context.ChangeTracker.Clear(); }
     }
 
     private async Task<Result<T>> ExecuteTransactionAsync<T>(

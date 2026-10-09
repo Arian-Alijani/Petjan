@@ -30,7 +30,9 @@ internal sealed class CommandIntakeService(
     IntakeRecoveryService recovery,
     IServerOutbox outbox,
     IClock clock,
-    IHttpContextAccessor http)
+    IHttpContextAccessor http,
+    IServerCommandConcurrencyGuard? concurrency = null,
+    ICommandEffectIdCollector? effectIds = null)
 {
     public async Task<Result<SettlementResult>> SubmitAsync(CommandEnvelope envelope, CancellationToken ct = default)
     {
@@ -127,24 +129,34 @@ internal sealed class CommandIntakeService(
                     return await CompleteAsync(envelope, attempt, Result.Fail(ErrorCodes.ConcurrencyConflict), caller,
                         correlation, ruleDetail, token).ConfigureAwait(false);
             }
+            if (concurrency is not null)
+            {
+                Result fence = await concurrency.PrepareAsync(payload.Value!.Command, token).ConfigureAwait(false);
+                if (fence.IsFailure)
+                    return await CompleteAsync(envelope, attempt, fence, caller, correlation, ruleDetail, token).ConfigureAwait(false);
+            }
             // Numeric v1 hints, client local sequence and timestamps never participate in concurrency/ordering.
             var context = new CommandContext(caller.TenantId, caller.UserId, caller.DeviceId, envelope.OperationId,
                 correlation, envelope.CausationId, envelope.DependsOnOperationId, null, clock.UtcNow);
             ResolvedCommandPayload resolved = payload.Value!;
             CommandDispatchResult? dispatched = null;
+            CapturedCommandEffectIds? generated = null;
             Result<object?> effect = await unitOfWork.ExecuteAsync(async handlerToken =>
             {
                 dispatched = await resolved.Candidate.Dispatch(resolved.Command, dispatcher, context, handlerToken).ConfigureAwait(false);
                 if (dispatched.Result.IsFailure)
                     return Result<object?>.Fail(dispatched.Result.Error, dispatched.Result.Detail);
+                generated = effectIds?.Capture(envelope, dispatched.Value);
                 Result saved = await unitOfWork.SaveAsync(handlerToken).ConfigureAwait(false);
                 return saved.IsSuccess ? Result<object?>.Ok(dispatched.Value) : Result<object?>.Fail(saved.Error, saved.Detail);
             }, token).ConfigureAwait(false);
             if (effect.IsFailure)
                 return await CompleteAsync(envelope, attempt, effect.ToResult(), caller, correlation, ruleDetail, token).ConfigureAwait(false);
+            string? target = generated?.PrimaryEntityId ?? CommandEffectIdentity.Primary(envelope, effect.Value);
             IReadOnlyList<CommandIdMapItem> ids = effect.Value is ICommandEffectMetadata metadata ? metadata.CreatedIds
-                : effect.Value is string entityId ? [new CommandIdMapItem(0, envelope.AggregateType, entityId)] : [];
-            string? primaryId = ids.FirstOrDefault(i => i.Slot == 0)?.ServerEntityId;
+                : generated?.CreatedIds ?? (envelope.AggregateId is null && target is not null
+                    ? [new CommandIdMapItem(0, envelope.AggregateType, target)] : []);
+            string? primaryId = ids.FirstOrDefault(i => i.Slot == 0)?.ServerEntityId ?? target;
             string? version = (effect.Value as ICommandEffectMetadata)?.ServerVersion;
             if (version is null && (primaryId ?? envelope.AggregateId) is { } targetId)
             {
