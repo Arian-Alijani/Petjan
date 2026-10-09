@@ -477,7 +477,7 @@ public sealed class SigningKey {
   > ordering in a comment.
   **Push:** `feat(server): S05 — IMembershipResolver + keyless user lookup`.
 
-- [ ] **T6 — `RequestTenantContext` + request accessor for the resolved subject/device.**
+- [x] **T6 — `RequestTenantContext` + request accessor for the resolved subject/device.**
   Add `RequestTenantContext` (per 2.2). Add a scoped `IRequestAuthorizationState` accessor that caches the
   `ResolvedMembership` + the built `AuthorizationSubject` for the request, so the authZ handlers
   (`ManagerOnly`, `DeviceActive`, `PermissionAuthorizationHandler`) and `EntitlementMiddleware` reuse the
