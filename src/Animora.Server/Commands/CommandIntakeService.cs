@@ -194,7 +194,11 @@ internal sealed class CommandIntakeService(
 
         if (committed.IsSuccess)
         {
-            metrics?.CommandsSettled.Add(1,new KeyValuePair<string,object?>("outcome",committed.Value!.Outcome.ToString()),new KeyValuePair<string,object?>("commandType",envelope.CommandType));
+            if (committed.Value!.Outcome != SettlementOutcome.Deferred)
+                metrics?.CommandsSettled.Add(1,
+                    new KeyValuePair<string, object?>("outcome", committed.Value.Outcome.ToString()),
+                    new KeyValuePair<string, object?>("commandType", catalog.Entries.ContainsKey(envelope.CommandType)
+                        ? envelope.CommandType : "unknown"));
             return committed;
         }
         // No effect/receipt committed on a transactional failure. Keep it recoverable, never invent an acceptance.

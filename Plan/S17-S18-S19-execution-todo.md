@@ -307,7 +307,8 @@ These were confirmed against the live tree; **do not re-derive**:
   add `<PackageReference>`s to `src/Animora.Server/Animora.Server.csproj` only. Confirm Serilog.AspNetCore resolves
   (or decide manual) — record. `build.sh fast` restores clean. → **push** `build(server): S18 OpenTelemetry pins (+serilog choice)`.
 
-- [~] **S18-T2 — Observability code.**
+- [x] **S18-T2 — Observability code.**
+  Completed 2026-10-10: sync bytes produced on successful stream writes (not 304/HEAD); settlement labels normalized to registered types and deferred outcomes excluded. Catalogue producers: request middleware, intake, snapshot/queue/pool monitor, heartbeat, sync open/download, reconciliation, rate limiter. No build/test executed.
   Create `src/Animora.Server/Observability/`: `ServerMetrics` (the full catalogue, one place, no tenant label),
   `LoggingSetup`, `RedactingEnricher` (+ destructuring policy for the secret property/header names),
   `TelemetryOptions` + `TelemetryOptionsValidator` (loopback/LAN/public rule, ValidateOnStart), `TelemetrySetup`
