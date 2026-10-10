@@ -141,7 +141,7 @@ server implementation; `M00` only produces them.
 
 ## Next phase
 
-**Next phase: `S11`** — commit-safe tenant journal & monotonic position; S09 and S10 implementation authored (migrations 107/108). Build/test/smoke and PostgreSQL application gates are unexecuted by explicit user directive.
+**Next phase: `S12`** — immutable batch export; S11 journal implementation authored (migration 109). Build/test/smoke and PostgreSQL application gates are unexecuted by explicit user directive.
 `S06` (command intake & idempotency) is **complete** (2026-10-09): every command is deduplicated by `(TenantId, OperationId)` in `CommandIntake`, identity comes only from the authenticated tenant context, the server recomputes fingerprints, settlement is atomic with the effect, and with no handler registered every command settles `Rejected(HANDLER_NOT_REGISTERED)`. Do its successor's work and advance down the `S##`/`G##` chain in dependency order.
 The desktop stays offline-runnable throughout (every phase carries "Runnable after: desktop offline yes").
 
@@ -213,7 +213,7 @@ separate outstanding item; C11 stock/UoW regressions do not close that debt.
 | S08 | ✅ Done | 2026-10-09 | Implementation authored: 13 wire types, PG ports, optimistic slot/room fences, migration `106_SchedulingBoarding`; tests written but build/test/smoke gates not executed. |
 | S09 | ✅ Done | 2026-10-10 | Authored (build/test/smoke NOT executed per user directive) — 21 live wire types (18 sales + 3 cashier), migration `107_SalesCashier`, PG ports, DocumentCounters allocator.  Server handlers II-a — sales & cashier. Band M · Depends on S08 · R-B01, R-B17, R-B22. See `phases/PHASE-S09-server-handlers-sales-cashier.md`. |
 | S10 | ✅ Done | 2026-10-10 | Authored (build/test/smoke NOT executed per user directive) — 23 live wire types, migration `108_MoneyStock` + immutability triggers, derived on-hand (never stored), ServerDomainEventDispatcher + LedgerPostingHandler, permission-catalog gate un-Skipped.  Server handlers II-b — inventory, purchasing, finance (incl. `RecurringExpense`, cheques, ledger). Band M · Depends on S09 · R-B01, R-B17, R-B22, R-B23. See `phases/PHASE-S10-server-handlers-money-stock.md`. |
-| S11 | ⬜ Not started | | Commit-safe tenant journal & monotonic position (`SyncContractCatalog` incl. the `TreatmentPlan` family). Band M · Depends on S06, S10 · R-B03, R-B11, R-B13. See `phases/PHASE-S11-journal-change-capture.md`. |
+| S11 | ✅ Implementation authored 2026-10-10; acceptance execution waived by user (unverified). |
 | S12 | ⬜ Not started | | Immutable 256-KiB batch export (REPEATABLE READ), offline window + retention, GC crash atomicity, wire version gate. Band M · Depends on S11 · R-B03, R-B11, R-B31. See `phases/PHASE-S12-immutable-batch-export.md`. |
 | S13 | ⬜ Not started | | Outbox, background workers, resilience (atomic claim, retry/breaker/timeout/bulkhead). Band M · Depends on S10 · R-B07, R-B09, R-B25. See `phases/PHASE-S13-outbox-workers-resilience.md`. |
 | S14 | ⬜ Not started | | Subscription context & operator API. Band M · Depends on S05, S13 · R-B05, R-B30, R-B29. See `phases/PHASE-S14-subscription-operator-api.md`. |
@@ -2604,3 +2604,10 @@ Impact:     B04 can build on `IAuthenticationService`/`CurrentUserContextService
 - T16 regressions authored (coverage, intake, stock derivation/immutability, ledger immutability, re-derive, domain-event coverage, PG-gated migration/e2e); none executed.
 - Static gate checks only: no `IgnoreQueryFilters` in PG repositories, no `OnHand` in PG configurations, no diff in Desktop/Sqlite/Client.Services. `ServerSchemaVersion.ExpectedHead = 108_MoneyStock`.
 - Deviations: live S10 catalog is 23 wire types (not 22 as planned); reserved types remain `HANDLER_NOT_REGISTERED`. Per explicit user directive, full/fast builds, tests and smoke run are NOT executed; this is implementation completion, not production acceptance. Next implementation phase: S11.
+
+### S11 — journal implementation (2026-10-10)
+
+- PostgreSQL write-path replication catalog, feed position/epoch services, deferred commit sequencing, root/child capture and tenant provisioning; migration `109_ChangeJournal` + frozen designer/snapshot. ProjectionOrder.Count records 25 replicated roots.
+- Authored CatalogTests, JournalSqlTemplatesTests, JournalCoverageTests, JournalOrderingTests; **no tests, builds, migrations or smoke runs executed**, by user directive. Implementation completion is not a production acceptance claim.
+- Decision/deviation: actual child FKs are ProductVariants.OwnerId, VisitRxLines.OwnerId, BoardingStayItems.OwnerId, VisitHandoffLines.VisitId and BoardingHandoffLines.StayId; handoffs captured as aggregate children, excluded as standalone roots. Child-only writes rotate the root token. Tenant feed row is saved first in one explicit provisioning transaction.
+- Decision/deviation: migrations hand-authored with frozen metadata because dotnet-ef generation implicitly builds. Runtime TRUNCATE revocation remains G09.
