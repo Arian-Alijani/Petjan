@@ -683,6 +683,16 @@ public static class ErrorCodes
 
     #endregion
 
+    #region Sync feed (S12)
+
+    /// <summary>The feed cursor has been fenced or lies beyond retained history.</summary>
+    public static readonly ErrorCode ResyncRequired = new("RESYNC_REQUIRED", ErrorCode.Conflict);
+
+    /// <summary>The requested tenant-owned immutable batch or page does not exist.</summary>
+    public static readonly ErrorCode BatchNotFound = new("BATCH_NOT_FOUND", ErrorCode.NotFound);
+
+    #endregion
+
     #region Server command intake (Phase S06)
 
     /// <summary>The same operation is currently being processed under an unexpired lease; retry later.</summary>
