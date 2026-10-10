@@ -34,7 +34,7 @@ internal static class CommandPlaneServiceCollectionExtensions
         services.TryAddScoped<IntakeRecoveryService>();
         services.TryAddScoped<CommandIntakeCompactor>();
         services.TryAddScoped<IAggregateVersionReader, NoAggregateVersionReader>();
-        services.TryAddSingleton<IServerOutbox, NoServerOutbox>();
+        services.Replace(ServiceDescriptor.Scoped<IServerOutbox, CommandServerOutbox>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IEffectCommittedProbe, NoProbe>());
         services.TryAddSingleton<RuleSetPolicy>();
         services.AddHttpContextAccessor();
