@@ -13,6 +13,7 @@ using Animora.Persistence.PostgreSql.Operator;
 using Animora.Persistence.PostgreSql.Tenancy;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
 
@@ -105,7 +106,8 @@ public sealed class ProvisioningEngine(AnimoraOperatorDbContext context,
         var auth = new AuthTenantContext();
         var tenantOptions = new DbContextOptionsBuilder<AnimoraServerDbContext>()
             .UseNpgsql(context.Database.GetDbConnection())
-            .AddInterceptors(new TenantStampingInterceptor(auth), new NoUnnamedIgnoreFiltersInterceptor(auth)).Options;
+            .AddInterceptors(new TenantStampingInterceptor(auth), new NoUnnamedIgnoreFiltersInterceptor(auth))
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)).Options;
         await using var tenantContext = new AnimoraServerDbContext(tenantOptions, auth);
         await tenantContext.Database.UseTransactionAsync(transaction.GetDbTransaction(), ct).ConfigureAwait(false);
         var provisioner = new TenantProvisioner(tenantContext, auth, passwordHasher, clock);

@@ -176,7 +176,7 @@ Most likely candidates (check first):
 
 ---
 
-### [~] TASK 3 — Group C: EF `ManyServiceProvidersCreatedWarning` promoted to error (14 tests)
+### [x] TASK 3 — Group C: EF `ManyServiceProvidersCreatedWarning` promoted to error (14 tests)
 
 **Failing tests:** `Admin/AdminEndToEndTests` (2), `Persistence/TenantIsolationTests` (6),
 `Subscriptions/SubscriptionPersistenceTests` (6).
@@ -215,6 +215,8 @@ contexts/hosts.
      factory instead of a new one per test.
   3. Keep a shared test helper if the pattern repeats (e.g. a `TestDbWarnings.Ignore` extension)
      so future PG tests inherit it.
+
+> **Done:** `ManyServiceProvidersCreatedWarning` ignored on the per-call tenant options in `ProvisioningEngine`/`OwnerCredentialAdministration`; the remaining AdminEndToEnd failure was a product NRE (`AdminSubscriptionAdapter` read `form.Reason`/`PlanCode` as non-null though SSR binds absent fields as null) — now null-safe. 17/17 green.
 
 **Verify:** `... --filter "FullyQualifiedName~TenantIsolationTests|FullyQualifiedName~SubscriptionPersistenceTests|FullyQualifiedName~AdminEndToEndTests"` → pass (note: some AdminEndToEndTests also depend on TASK 5/6 — re-check after those).
 
