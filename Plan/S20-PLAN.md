@@ -170,7 +170,7 @@ public static class InsightSourceCatalog { /* empty IReadOnlySet<string> of allo
 - [x] **T1 — ErrorCodes +1 & RenderModePolicy.** Add `#region Insight (Phase S20)` + `InsightNotEnabled ("INSIGHT_NOT_ENABLED", Entitlement)` after the Files region (`#endregion` line 761). Set `MaxIslands=1`. Verify `grep -c INSIGHT_NOT_ENABLED` = 1.
   `scripts/git/push.sh "feat(server): S20 add InsightNotEnabled code, raise island budget to 1"`
 
-- [ ] **T2 — FileLifecycle +2 edges & test.** Add `(FileState.Mismatch, FileState.Uploaded)` and `(FileState.Mismatch, FileState.Abandoned)` to `Edges` in `FileLifecycle.cs` AND to the `edges[]` array in `FilePlaneTests.cs` `AllowedAndForbiddenTransitions_Table`. Run `scripts/sandbox/test.sh FileLifecycle`.
+- [x] **T2 — FileLifecycle +2 edges & test.** Add `(FileState.Mismatch, FileState.Uploaded)` and `(FileState.Mismatch, FileState.Abandoned)` to `Edges` in `FileLifecycle.cs` AND to the `edges[]` array in `FilePlaneTests.cs` `AllowedAndForbiddenTransitions_Table`. Run `scripts/sandbox/test.sh FileLifecycle`.
   `scripts/git/push.sh "feat(server): S20 FileLifecycle Mismatch->Uploaded|Abandoned transitions"`
 
 - [ ] **T3 — Insight seam contract (persistence, no DB logic yet).** Create in `src/Animora.Persistence.PostgreSql/Insight/`: `ITenantInsightQuery.cs`, `InsightRequest.cs`, `InsightRow.cs`, `InsightPage.cs`, `InsightMetrics.cs` (empty set), `IInsightMetricProvider.cs` + `InsightQueryContext.cs`, `InsightSourceCatalog.cs` (empty set), `InsightOptions.cs` + `InsightOptionsValidator.cs`, `DisabledTenantInsightQuery.cs` (returns `InsightNotEnabled`). All `sealed`/`sealed record`, nullable honored, `ConfigureAwait(false)` for async, `CancellationToken ct=default`. Build fast.
