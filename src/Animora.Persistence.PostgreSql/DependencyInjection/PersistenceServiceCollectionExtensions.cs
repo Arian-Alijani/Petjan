@@ -84,6 +84,15 @@ public static class PersistenceServiceCollectionExtensions
             sp.GetRequiredService<ITenantContext>(),
             sp));
 
+        services.AddOptions<FeedStorageOptions>();
+        services.TryAddSingleton<IBackgroundAdmission>(_ => new SemaphoreBackgroundAdmission(1));
+        services.TryAddSingleton<FeedPageWriter>();
+        services.TryAddScoped<RecordProjector>();
+        services.TryAddScoped<BatchFreezer>();
+        services.TryAddScoped<FeedPageReader>();
+        services.TryAddScoped<FeedRetentionService>();
+        services.TryAddScoped<IFeedContextFactory>(sp => new FeedContextFactory(
+            sp.GetRequiredKeyedService<NpgsqlDataSource>(OltpReadKey), sp.GetRequiredService<ITenantContext>(), sp));
         services.TryAddScoped<IFeedPosition, FeedPositionReader>();
         services.TryAddScoped<IFeedEpoch, FeedEpochService>();
 
