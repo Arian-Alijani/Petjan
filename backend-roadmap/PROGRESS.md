@@ -141,7 +141,7 @@ server implementation; `M00` only produces them.
 
 ## Next phase
 
-**Next phase: `G01`** — client sync engine abstractions; the S01–S20 server implementation track is authored complete (2026-10-10). S20 delivers five Static SSR operations pages, one dashboard-only cached live island, and a disabled-by-default consent-gated reporting seam with empty metric/source catalogues. Server schema head remains `115_Files`; S20 has no migration. Builds, tests, smoke, restore, benchmarks and PostgreSQL migration application remain explicitly deferred by user directive; no compile/runtime/production acceptance is claimed. G07/G08 retain database and performance execution gates.
+**Next phase: `G02`** — immutable-batch HTTP adapter (`Animora.Sync.Custom`); G01 (client sync engine abstractions) is done (2026-10-10); the S01–S20 server implementation track is authored complete (2026-10-10). S20 delivers five Static SSR operations pages, one dashboard-only cached live island, and a disabled-by-default consent-gated reporting seam with empty metric/source catalogues. Server schema head remains `115_Files`; S20 has no migration. Builds, tests, smoke, restore, benchmarks and PostgreSQL migration application remain explicitly deferred by user directive; no compile/runtime/production acceptance is claimed. G07/G08 retain database and performance execution gates.
 `S06` (command intake & idempotency) is **complete** (2026-10-09): every command is deduplicated by `(TenantId, OperationId)` in `CommandIntake`, identity comes only from the authenticated tenant context, the server recomputes fingerprints, settlement is atomic with the effect, and with no handler registered every command settles `Rejected(HANDLER_NOT_REGISTERED)`. Do its successor's work and advance down the `S##`/`G##` chain in dependency order.
 The desktop stays offline-runnable throughout (every phase carries "Runnable after: desktop offline yes").
 
@@ -223,7 +223,7 @@ separate outstanding item; C11 stock/UoW regressions do not close that debt.
 | S18 | Done/authored; execution gates deferred | 2026-10-10 | Local redacted logging, optional private telemetry, full metric producer catalogue including actual sync bytes, budgets/cache/Kestrel/PG profiles and behavioral regressions authored and pushed. |
 | S19 | Done/authored; execution gates deferred | 2026-10-10 | Domain-only Static SSR operator RCL, separate secure cookie/auth/antiforgery/adapters/pages; real protected-bearer isolation, HTTP provisioning/replay/suspend/reinstate/licence-gate and degraded-status secrecy regressions authored and pushed. Next S20. |
 | S20 | ✅ Done (implementation/regression sources authored; execution deferred) | 2026-10-10 | Operations pages, one cached live island, consent-gated disabled insight seam and isolation/HTTP/PG regression sources. No analytics feature or migration; no test/build/smoke execution. Next G01. |
-| G01 | ⬜ Not started | | `Animora.Sync.Abstractions` — `IStateSyncEngine`, `SyncScope`, `SyncResult`, `NullSyncEngine` fallback + DI. Band S · Depends on S12 · R-B03, R-B13. See `phases/PHASE-G01-sync-engine-abstractions.md`. |
+| G01 | ✅ Done | 2026-10-10 | `IStateSyncEngine`/`SyncScope`/`SyncOutcome`/`SyncResult`/`NullSyncEngine` + `AddAnimoraSyncEngine()` (TryAdd) wired in Desktop; 10 Sync tests green. Details: `Animora.Sync.Abstractions` — `IStateSyncEngine`, `SyncScope`, `SyncResult`, `NullSyncEngine` fallback + DI. Band S · Depends on S12 · R-B03, R-B13. See `phases/PHASE-G01-sync-engine-abstractions.md`. |
 | G02 | ⬜ Not started | | Custom immutable-batch HTTP adapter (`Animora.Sync.Custom`; no PostgreSQL driver, no server project). Band M · Depends on G01 · R-B03, R-B13, R-B31. See `phases/PHASE-G02-immutable-batch-http-adapter.md`. |
 | G03 | ⬜ Not started | | Sync orchestration & status (scheduler, `SyncCursor` integration, status surfaced to `ISyncStatusService`). Band M · Depends on G02 · R-B03. See `phases/PHASE-G03-sync-orchestration-status.md`. |
 | G04 | ⬜ Not started | | Conflict resolution & non-destructive pull (preserve pending intent; posted-invoice conflicts reversal-only). Band M · Depends on G03 · R-B03, R-B17, R-B18. See `phases/PHASE-G04-conflict-resolution-non-destructive-pull.md`. |
@@ -2225,7 +2225,19 @@ Npgsql references only inside `Animora.Persistence.PostgreSql`; `git diff` on Sq
 - No build, test, smoke, restore, benchmark, migration application or acceptance script was executed, per explicit user directive. Completion means implementation and requested regression authoring only; no passing tests, zero-warning build, runtime safety/capacity or production readiness claim. Desktop/client/SQLite code and migration history are unchanged.
 - FINAL deletes only `Plan/S20-PLAN.md` and `backend-roadmap/phases/PHASE-S20-admin-web-insight-seams.md` as requested by T13; older phase files and historical progress entries are retained. Next phase advances to G01.
 
+### G01 — sync engine abstractions (2026-10-10)
+
+- Six types in `Animora.Sync.Abstractions`: `SyncScope` (normalised name, `default(SyncScope)` == `Default` == literal `"default"`, `Create` validates 1–64 chars of `[a-z0-9._-]`), `SyncOutcome` (UpToDate/Applied/Deferred/ResyncRequired), `SyncResult` (+4 factories), `IStateSyncEngine` (`IsConfigured`, `PullAsync` — no push), `NullSyncEngine(IClock)` (offline Deferred success, mirrors `NullCommandTransport`), `AddAnimoraSyncEngine()` (`TryAddSingleton`, so a real adapter registered later wins).
+- DI call site: `Animora.Desktop/App.axaml.cs` directly above `LocalSyncStatusService` registration. `Animora.Client.Services` references `Animora.Sync.Abstractions`; `ISyncStatusService` doc now names `IStateSyncEngine`.
+- Tests (`tests/Animora.Sync.Tests`, 10 facts): `SyncScopeTests`, `SyncResultTests`, `NullSyncEngineTests`, `SyncDiTests`, `SyncLayeringTests`. Placeholder test removed. Desktop quick build 0 warnings/0 errors.
+- No migration, no wire DTO, no ErrorCode.
+
 ## Decision & deviation log
+
+### G01 — deviations (2026-10-10)
+
+- `SyncScope` got an explicit value `Equals`/`GetHashCode` on the normalised `Name`: the compiler-synthesised record-struct equality compares the raw backing field, so `default(SyncScope)` (null field) was not equal to `SyncScope.Default`.
+- `SyncLayeringTests` asserts `Animora.Domain` is referenced but not `Animora.Contracts.Wire`: the compiler elides an assembly reference when no type from it is used yet (the project reference is still declared in the csproj).
 
 ### S14 — Execution directives and real-seam corrections (2026-10-10)
 - User explicitly prohibited every build/test/smoke execution. Gate task records implementation/progress only; no green execution acceptance is claimed. EF migrations were hand-authored, including frozen provider snapshots, to avoid the implicit build in scaffolding.
