@@ -119,10 +119,16 @@ public sealed class LayeringRulesTests
         var interfaces = typeof(Animora.Contracts.Sync.ISyncStatusService).Assembly.GetExportedTypes()
             .Where(t => t.IsInterface).ToArray();
         Assert.NotEmpty(interfaces);
-        // UI-only interfaces live in Desktop, not Contracts; no Contracts exception is necessary.
-        foreach (var contract in interfaces)
+        // UI-only interfaces live in Desktop, not Contracts. The one exception is an optional, deliberately
+        // unregistered seam that UserProfileService resolves with GetService (server-supplied account status; offline = absent).
+        foreach (var contract in interfaces.Where(t => t != typeof(Animora.Contracts.Profile.IClinicAccountStatusSource)))
         {
-            var descriptor = Assert.Single(services, d => d.ServiceType == contract);
+            // Offline TryAdd fallbacks (Null*) registered by lower layers are not "real" registrations.
+            var registrations = services
+                .Where(d => d.ServiceType == contract && d.ImplementationType?.Name.StartsWith("Null", StringComparison.Ordinal) != true)
+                .ToArray();
+            Assert.True(registrations.Length == 1, $"{contract.FullName} has {registrations.Length} registrations (expected exactly 1).");
+            var descriptor = registrations[0];
             var implementation = descriptor.ImplementationType ?? provider.GetRequiredService(contract).GetType();
             Assert.Equal("Animora.Client.Services", implementation.Assembly.GetName().Name);
         }
