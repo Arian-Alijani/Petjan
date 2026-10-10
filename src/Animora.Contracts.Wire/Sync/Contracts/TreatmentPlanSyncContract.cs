@@ -16,5 +16,4 @@ public sealed record TreatmentPlanSyncContract
     public string CreatedByUserId { get; init; } = string.Empty;
     public DateTimeOffset CreatedUtc { get; init; }
     public int State { get; init; }
-    public JsonElement Schedule { get; init; }
 }

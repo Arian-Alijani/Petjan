@@ -7,5 +7,5 @@ public sealed record RoleDefinitionSyncContract
     public int Role { get; init; }
     public string DisplayKey { get; init; } = string.Empty;
     public bool IsSystem { get; init; }
-    public IReadOnlyList<string> Permissions { get; init; } = [];
+    public IReadOnlyList<string> PermissionCodes { get; init; } = [];
 }
