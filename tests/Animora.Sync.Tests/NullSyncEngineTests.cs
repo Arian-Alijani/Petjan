@@ -23,7 +23,7 @@ public sealed class NullSyncEngineTests
         var result = await engine.PullAsync(SyncScope.Default);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(SyncOutcome.Deferred, result.Value.Outcome);
+        Assert.Equal(SyncOutcome.Deferred, result.Value!.Outcome);
     }
 
     [Fact]
@@ -39,6 +39,6 @@ public sealed class NullSyncEngineTests
     {
         var engine = new NullSyncEngine(new FakeClock(Fixed));
         var result = await engine.PullAsync(SyncScope.Default);
-        Assert.Equal(Fixed, result.Value.CompletedAtUtc);
+        Assert.Equal(Fixed, result.Value!.CompletedAtUtc);
     }
 }

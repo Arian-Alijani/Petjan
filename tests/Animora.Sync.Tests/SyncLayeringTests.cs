@@ -20,7 +20,7 @@ public sealed class SyncLayeringTests
         foreach (var prefix in forbidden)
             Assert.DoesNotContain(names, n => n.StartsWith(prefix, StringComparison.Ordinal));
 
+        // Animora.Contracts.Wire is a declared project reference but the compiler elides it until a wire type is used.
         Assert.Contains("Animora.Domain", names);
-        Assert.Contains("Animora.Contracts.Wire", names);
     }
 }

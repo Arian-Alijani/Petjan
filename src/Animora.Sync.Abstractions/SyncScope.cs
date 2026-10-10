@@ -32,6 +32,12 @@ public readonly record struct SyncScope
         return true;
     }
 
+    /// <summary>Value equality on the normalised name, so <c>default(SyncScope)</c> equals <see cref="Default"/>.</summary>
+    public bool Equals(SyncScope other) => string.Equals(Name, other.Name, StringComparison.Ordinal);
+
+    /// <summary>Hash consistent with <see cref="Equals(SyncScope)"/>.</summary>
+    public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Name);
+
     /// <summary>Returns the scope name.</summary>
     public override string ToString() => Name;
 }
