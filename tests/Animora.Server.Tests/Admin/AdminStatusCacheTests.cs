@@ -27,7 +27,7 @@ public sealed class AdminStatusCacheTests
         await cache.RefreshOnceAsync();
         var user = AdminAdaptersTests.CookieContext().User;
         ((ClaimsIdentity)user.Identity!).AddClaim(new("op_exp", DateTimeOffset.UtcNow.AddMinutes(30).ToUnixTimeSeconds().ToString()));
-        var reader = new AdminStatusReader(cache, new HttpContextAccessor(), new Authentication(user), TimeProvider.System);
+        var reader = new AdminStatusReader(cache, new Authentication(user), TimeProvider.System);
         for (int i = 0; i < 100; i++) Assert.Equal(7, (await reader.GetStatusAsync()).Value!.Counters.CommandsInProgress);
         Assert.Equal(1, source.Calls);
         await cache.RefreshOnceAsync(); Assert.Equal(2, source.Calls);
@@ -37,11 +37,11 @@ public sealed class AdminStatusCacheTests
         var services = new ServiceCollection(); using var container = services.BuildServiceProvider();
         using var cache = new AdminStatusCache(container.GetRequiredService<IServiceScopeFactory>(), new(TimeProvider.System), TimeProvider.System, NullLogger<AdminStatusCache>.Instance);
         var tenant = new ClaimsPrincipal(new ClaimsIdentity([new("sub", "tenant-user"), new("role", "operator")], "Bearer", ClaimTypes.Name, "role"));
-        var denied = await new AdminStatusReader(cache, new HttpContextAccessor(), new Authentication(tenant), TimeProvider.System).GetStatusAsync();
+        var denied = await new AdminStatusReader(cache, new Authentication(tenant), TimeProvider.System).GetStatusAsync();
         Assert.Equal(ErrorCodes.Forbidden, denied.Error);
         var cookie = AdminAdaptersTests.CookieContext().User;
         ((ClaimsIdentity)cookie.Identity!).AddClaim(new("op_exp", "1"));
-        Assert.Equal(ErrorCodes.Forbidden, (await new AdminStatusReader(cache, new HttpContextAccessor(), new Authentication(cookie), TimeProvider.System).GetStatusAsync()).Error);
+        Assert.Equal(ErrorCodes.Forbidden, (await new AdminStatusReader(cache, new Authentication(cookie), TimeProvider.System).GetStatusAsync()).Error);
     }
 }
 public sealed class LiveStatusPanelTests

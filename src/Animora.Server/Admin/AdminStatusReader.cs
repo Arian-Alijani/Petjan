@@ -25,13 +25,13 @@ internal sealed class AdminStatusSnapshotSource(OperatorReadQueries queries, Ser
     }
 }
 /// <summary>SSR and circuit readers consume one cached snapshot, never query persistence per panel/tick.</summary>
-internal sealed class AdminStatusReader(AdminStatusCache cache, IHttpContextAccessor http,
+internal sealed class AdminStatusReader(AdminStatusCache cache,
     AuthenticationStateProvider authentication, TimeProvider time) : IAdminStatusReader
 {
     public async Task<Result<AdminStatus>> GetStatusAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        var principal = http.HttpContext?.User ?? (await authentication.GetAuthenticationStateAsync().ConfigureAwait(false)).User;
+        var principal = (await authentication.GetAuthenticationStateAsync().ConfigureAwait(false)).User;
         if (!principal.Identities.Any(i => i.IsAuthenticated && i.AuthenticationType == OperatorCookie.Scheme) ||
             !principal.IsInRole("operator") || string.IsNullOrWhiteSpace(principal.FindFirstValue("sub")))
             return Result<AdminStatus>.Fail(ErrorCodes.Forbidden);
