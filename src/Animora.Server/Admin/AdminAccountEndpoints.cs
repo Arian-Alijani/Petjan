@@ -12,7 +12,9 @@ internal static class AdminAccountEndpoints
         var group=app.MapGroup("/admin/account").RequireRateLimiting(RateLimitPolicies.Operator);
         group.MapPost("/login",Login).AllowAnonymous();
         group.MapPost("/logout",Logout).RequireAuthorization(OperatorCookie.Policy);
-        group.MapPost("/change-password",ChangePassword).RequireAuthorization(OperatorCookie.Policy);
+        // The change-password Razor page shares this route (it renders on GET); POST must win over the component
+        // endpoint, which accepts every verb, or the request is rejected as an ambiguous match (HTTP 500).
+        group.MapPost("/change-password",ChangePassword).RequireAuthorization(OperatorCookie.Policy).WithOrder(-1);
     }
     private static async Task<IResult> Login(HttpContext http,OperatorAccountService service,IAntiforgery antiforgery,TimeProvider time,CancellationToken ct)
     {

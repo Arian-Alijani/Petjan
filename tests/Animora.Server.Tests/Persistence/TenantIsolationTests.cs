@@ -47,6 +47,8 @@ public sealed class TenantIsolationTests(PgFixture pg) : IClassFixture<PgFixture
         // instances, so a fresh pair per context would exhaust its 20-provider cache across the whole run.
         var (stamping, ignoreFilters) = Interceptors.GetOrAdd(tenant.TenantId + "|" + tenant.IsOperator, _ => (new TenantStampingInterceptor(tenant), new NoUnnamedIgnoreFiltersInterceptor(tenant)));
         builder.AddInterceptors(stamping, ignoreFilters);
+        // The suite shares one process-wide EF provider cache; other fixtures may already have used most of its 20 slots.
+        builder.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning));
         return new ProbeDbContext(builder.Options, tenant);
     }
 

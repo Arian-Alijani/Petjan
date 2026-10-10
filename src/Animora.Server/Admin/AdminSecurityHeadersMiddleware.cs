@@ -1,5 +1,6 @@
 using Animora.Server.Hosting;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Options;
 namespace Animora.Server.Admin;
 
@@ -26,6 +27,9 @@ internal sealed class AdminAntiforgeryMiddleware(RequestDelegate next)
     {
         if(http.Request.Path.StartsWithSegments(ServerRoutes.Admin)&&HttpMethods.IsPost(http.Request.Method))
         {
+            // UseAntiforgery() has already validated form posts and recorded the verdict: reading the form again
+            // after a failed validation throws InvalidOperationException (a 500), so honour the verdict first.
+            if(http.Features.Get<IAntiforgeryValidationFeature>() is { IsValid: false }) { http.Response.StatusCode=400; return; }
             try { await http.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(http).ConfigureAwait(false); }
             catch(AntiforgeryValidationException) { http.Response.StatusCode=400; return; }
         }
