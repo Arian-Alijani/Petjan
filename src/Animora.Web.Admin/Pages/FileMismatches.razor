@@ -1,0 +1,41 @@
+@page "/admin/files/mismatches"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminFileQueries Queries
+@inject IAdminFileCommands Commands
+<h1>Flagged file mismatches</h1><FormError Code="@Error" />
+@if (Rows is not null)
+{
+<table><caption>Mismatch metadata</caption><thead><tr><th scope="col">Tenant code</th><th scope="col">File id</th><th scope="col">Size (bytes)</th><th scope="col">SHA prefix</th><th scope="col">Updated UTC</th><th scope="col">Actions</th></tr></thead><tbody>
+@foreach (var row in Rows.Items)
+{
+<tr><td>@row.TenantCode</td><td>@row.FileId</td><td>@row.SizeBytes</td><td>@row.ShaPrefix</td><td>@row.UpdatedUtc</td><td>
+@foreach (var operation in new[] { "requeue", "abandon" })
+{
+<form method="post" @formname="@($"{operation}-{row.TenantId}-{row.FileId}")" @onsubmit="Change"><AntiforgeryToken />
+<input type="hidden" name="Action.TenantId" value="@row.TenantId" /><input type="hidden" name="Action.FileId" value="@row.FileId" />
+<input type="hidden" name="Action.Operation" value="@operation" /><ConfirmCheckbox Name="Action.Confirmed" /><button type="submit">@operation</button></form>
+}
+</td></tr>
+}
+</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="/admin/files/mismatches" />
+}
+@code {
+    [SupplyParameterFromQuery] public int Page { get; set; } = 1;
+    [SupplyParameterFromQuery] public int PageSize { get; set; } = 50;
+    [SupplyParameterFromForm] public FileMismatchActionForm? Action { get; set; }
+    private AdminPage<FileMismatchSummary>? Rows;
+    protected override async Task OnInitializedAsync() { Action ??= new(); await Load(); }
+    private async Task Load() => Rows = Capture(await Queries.ListMismatchesAsync(Page, PageSize, Cancellation));
+    private async Task Change()
+    {
+        if (Http?.Request.Method != "POST" || Action is null) return;
+        Result<MutationReceipt> result = Action.Operation switch
+        {
+            "requeue" => await Commands.RequeueAsync(Action, Cancellation),
+            "abandon" => await Commands.AbandonAsync(Action, Cancellation),
+            _ => Result<MutationReceipt>.Fail(ErrorCodes.ValidationFailed)
+        };
+        if (Capture(result) is not null) await Load();
+    }
+}

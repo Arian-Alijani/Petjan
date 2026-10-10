@@ -1,0 +1,45 @@
+@page "/admin/audit"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminAuditQueries Queries
+<h1>Audit viewer</h1><FormError Code="@Error" />
+<nav aria-label="Audit source"><a href="/admin/audit?tab=operator">Operator audit</a> <a href="/admin/audit?tab=tenant">Tenant security audit</a></nav>
+<form method="get"><input type="hidden" name="tab" value="@Tab" />
+<label>Tenant id <input name="tenantId" value="@TenantId" maxlength="26" required="@(Tab == "tenant")" /></label>
+@if (Tab != "tenant") { <label>Action <input name="action" value="@Action" maxlength="64" /></label> }
+<label>From UTC (inclusive) <input type="date" name="from" value="@From?.ToString("yyyy-MM-dd")" required="@(Tab == "tenant")" /></label>
+<label>To UTC (exclusive) <input type="date" name="to" value="@To?.ToString("yyyy-MM-dd")" required="@(Tab == "tenant")" /></label>
+<button type="submit">Filter</button></form>
+@if (Tab == "tenant") { <p>Select a tenant and a date range of at most 90 days.</p> }
+@if (Rows is not null)
+{
+<table><caption>@(Tab == "tenant" ? "Tenant security audit" : "Operator audit")</caption><thead><tr><th scope="col">UTC</th><th scope="col">Actor</th><th scope="col">Tenant</th><th scope="col">Action</th><th scope="col">Outcome</th><th scope="col">Correlation</th><th scope="col">Detail (bounded)</th></tr></thead><tbody>
+@foreach (var row in Rows.Items)
+{
+<tr><td>@row.OccurredUtc</td><td>@row.ActorId</td><td>@row.TenantId</td><td>@row.Action</td><td><StatusBadge Status="@row.Outcome" /></td><td>@row.CorrelationId</td><td><pre>@row.Detail</pre></td></tr>
+}
+</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@FilterUrl" />
+}
+@code {
+    [SupplyParameterFromQuery] public string Tab { get; set; } = "operator";
+    [SupplyParameterFromQuery] public string? TenantId { get; set; }
+    [SupplyParameterFromQuery] public string? Action { get; set; }
+    [SupplyParameterFromQuery] public DateTime? From { get; set; }
+    [SupplyParameterFromQuery] public DateTime? To { get; set; }
+    [SupplyParameterFromQuery] public int Page { get; set; } = 1;
+    [SupplyParameterFromQuery] public int PageSize { get; set; } = 50;
+    private AdminPage<AuditSummary>? Rows;
+    private static DateTimeOffset? Utc(DateTime? value) => value is { } date ? new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Utc)) : null;
+    private string FilterUrl => $"/admin/audit?tab={Uri.EscapeDataString(Tab)}&tenantId={Uri.EscapeDataString(TenantId ?? "")}&action={Uri.EscapeDataString(Action ?? "")}&from={From:yyyy-MM-dd}&to={To:yyyy-MM-dd}";
+    protected override async Task OnInitializedAsync()
+    {
+        var query = new AdminAuditQuery(TenantId, Action, Utc(From), Utc(To), Page, PageSize);
+        if (Tab == "tenant")
+        {
+            if (string.IsNullOrWhiteSpace(TenantId) || From is null || To is null) return;
+            Rows = Capture(await Queries.TenantAsync(query, Cancellation));
+        }
+        else if (Tab == "operator") Rows = Capture(await Queries.OperatorAsync(query, Cancellation));
+        else Error = ErrorCodes.ValidationFailed.Code;
+    }
+}
