@@ -39,6 +39,9 @@ internal sealed class CommandIntakeService(
 {
     public async Task<Result<SettlementResult>> SubmitAsync(CommandEnvelope envelope, CancellationToken ct = default)
     {
+        var metrics=http.HttpContext?.RequestServices.GetService<Animora.Server.Observability.ServerMetrics>();
+        using var metricLease=metrics?.CommandLease();
+        if(http.HttpContext is { } request) request.Items["OperationId"]=envelope.OperationId;
         Result shape = CommandEnvelopeValidator.Validate(envelope);
         if (shape.IsFailure) return Result<SettlementResult>.Fail(shape.Error, shape.Detail);
         ResolvedMembership? caller = authorization.Membership;
@@ -189,7 +192,11 @@ internal sealed class CommandIntakeService(
             return audited.IsSuccess ? Result<SettlementResult>.Ok(settlement) : Result<SettlementResult>.Fail(audited.Error, audited.Detail);
         }, ct).ConfigureAwait(false);
 
-        if (committed.IsSuccess) return committed;
+        if (committed.IsSuccess)
+        {
+            metrics?.CommandsSettled.Add(1,new KeyValuePair<string,object?>("outcome",committed.Value!.Outcome.ToString()),new KeyValuePair<string,object?>("commandType",envelope.CommandType));
+            return committed;
+        }
         // No effect/receipt committed on a transactional failure. Keep it recoverable, never invent an acceptance.
         return await DeferAsync(envelope, committed.Error, caller, correlation, ct).ConfigureAwait(false);
     }

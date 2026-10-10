@@ -1,0 +1,37 @@
+@page "/admin/tenants/{Id}"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminTenantQueries Queries
+@inject IAdminSubscriptionCommands Commands
+<h1>Tenant detail</h1><FormError Code="@Error" />
+@if (Receipt?.TemporaryPassword is { } password) { <p class="secret">Temporary password (shown once): <code>@password</code></p> }
+@if (Detail is not null) {
+<h2>@Detail.Core.Name (@Detail.Core.Code)</h2><StatusBadge Status="@Detail.Core.Status" />
+<p>Seats used: @Detail.SeatsUsed · devices: @Detail.DevicesCount · licences: @Detail.LicensesCount</p>
+<a href="@($"/admin/tenants/{Id}/licenses")">Manage licences</a>
+@if (Detail.Subscription is { } subscription) {
+<h2>Subscription</h2><p>@subscription.Status · @subscription.Seats seats · ends @subscription.PeriodEnd.ToString("u")</p>
+@foreach (var operation in Operations) {
+<EditForm Model="Form" FormName="@operation" method="post" Enhance OnSubmit="async _=>await Submit(operation)">
+<input type="hidden" name="Form.Stamp" value="@Form!.Stamp" />
+<fieldset><legend>@operation</legend>
+@if (operation=="extend") { <label>Days <InputNumber @bind-Value="Form.Days" /></label> }
+@if (operation=="reduce") { <label>New end (UTC) <InputDate @bind-Value="Form.Until" /></label> }
+@if (operation=="suspend") { <label>Reason <InputText @bind-Value="Form.Reason" maxlength="200" /></label> }
+@if (operation=="seats") { <label>Seats <InputNumber @bind-Value="Form.Seats" /></label> }
+@if (operation=="plan") { <label>Plan code <InputText @bind-Value="Form.PlanCode" maxlength="32" /></label> }
+@if (operation is "suspend" or "cancel" or "reduce") { <ConfirmCheckbox Name="Form.Confirmed" /> }
+<button type="submit">@operation</button></fieldset></EditForm>
+}
+}
+<table><caption>Last 20 subscription events</caption><thead><tr><th scope="col">Event</th><th scope="col">Time</th></tr></thead><tbody>
+@foreach (var e in Detail.Events) { <tr><td>@e.Type</td><td>@e.OccurredUtc.ToString("u")</td></tr> }</tbody></table>
+}
+@code {
+    [Parameter] public string Id { get; set; }="";
+    [SupplyParameterFromForm] public SubscriptionActionForm? Form { get; set; }
+    private TenantDetail? Detail; private MutationReceipt? Receipt;
+    private static readonly string[] Operations=["extend","reduce","suspend","reinstate","cancel","renew","seats","plan","reset-owner-password"];
+    protected override async Task OnParametersSetAsync() { Detail=Capture(await Queries.GetAsync(Id,Cancellation)); Form??=new() { Stamp=Detail?.Subscription?.ConcurrencyStamp??"" }; }
+    private async Task Submit(string operation) { Receipt=Capture(await Commands.MutateAsync(Id,operation,Form!,Cancellation)); }
+}

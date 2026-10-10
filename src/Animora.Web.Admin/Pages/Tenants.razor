@@ -1,0 +1,21 @@
+@page "/admin/tenants"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminTenantQueries Queries
+<h1>Tenants</h1><FormError Code="@Error" /><a href="/admin/tenants/new">Create tenant</a>
+<form method="get"><label>Search code or name <input name="search" value="@Search" maxlength="200" /></label>
+<label>Status <input name="status" value="@Status" maxlength="40" /></label><button type="submit">Filter</button></form>
+@if (Rows is not null) {
+<table><caption>Tenant directory</caption><thead><tr><th scope="col">Code</th><th scope="col">Name</th><th scope="col">Status</th></tr></thead><tbody>
+@foreach (var row in Rows.Items) { <tr><td><a href="@($"/admin/tenants/{row.Id}")">@row.Code</a></td><td>@row.Name</td><td><StatusBadge Status="@row.Status" /></td></tr> }
+</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@FilterUrl" />
+}
+@code {
+    [SupplyParameterFromQuery] public string? Search { get; set; }
+    [SupplyParameterFromQuery] public string? Status { get; set; }
+    [SupplyParameterFromQuery] public int Page { get; set; }=1;
+    [SupplyParameterFromQuery] public int PageSize { get; set; }=50;
+    private AdminPage<TenantSummary>? Rows;
+    private string FilterUrl=>$"/admin/tenants?search={Uri.EscapeDataString(Search??"")}&status={Uri.EscapeDataString(Status??"")}";
+    protected override async Task OnParametersSetAsync()=>Rows=Capture(await Queries.ListAsync(new(Status,Search,Page,PageSize),Cancellation));
+}

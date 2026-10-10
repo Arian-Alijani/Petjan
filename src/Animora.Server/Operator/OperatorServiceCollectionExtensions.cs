@@ -15,8 +15,9 @@ internal static class OperatorServiceCollectionExtensions
         services.AddHttpContextAccessor();
         services.AddScoped<OperatorTenantContext>();
         services.Replace(ServiceDescriptor.Scoped<ITenantContext>(sp =>
-            sp.GetRequiredService<IHttpContextAccessor>().HttpContext?.Request.Path.StartsWithSegments(ServerRoutes.Operator,
-                StringComparison.OrdinalIgnoreCase) == true ? sp.GetRequiredService<OperatorTenantContext>()
+            (sp.GetRequiredService<IHttpContextAccessor>().HttpContext?.Request.Path.StartsWithSegments(ServerRoutes.Operator,
+                StringComparison.OrdinalIgnoreCase) == true || sp.GetRequiredService<IHttpContextAccessor>().HttpContext?.Request.Path.StartsWithSegments(ServerRoutes.Admin,
+                StringComparison.OrdinalIgnoreCase) == true) ? sp.GetRequiredService<OperatorTenantContext>()
                 : sp.GetRequiredService<RequestTenantContext>()));
         services.AddSingleton<IPasswordHasher<OperatorAccount>, PasswordHasher<OperatorAccount>>();
         services.AddSingleton<OperatorDummyCredential>();

@@ -141,7 +141,7 @@ server implementation; `M00` only produces them.
 
 ## Next phase
 
-**Next phase: `S17`** — files / valet key. S16 licensing and anti-piracy sources authored (head `114_Licensing`); S15 signed onboarding intake sources authored (head `113_ProvisioningIntents`); execution gates deferred. S14 implementation/regression sources authored (head `112_Subscription`); builds, tests, smoke and PostgreSQL application remain unexecuted by explicit user directive.
+**Next phase: `S19`** — operator Static SSR admin web. S16 licensing and anti-piracy sources authored (head `114_Licensing`); S15 signed onboarding intake sources authored (head `113_ProvisioningIntents`); execution gates deferred. S14 implementation/regression sources authored (head `112_Subscription`); builds, tests, smoke and PostgreSQL application remain unexecuted by explicit user directive.
 `S06` (command intake & idempotency) is **complete** (2026-10-09): every command is deduplicated by `(TenantId, OperationId)` in `CommandIntake`, identity comes only from the authenticated tenant context, the server recomputes fingerprints, settlement is atomic with the effect, and with no handler registered every command settles `Rejected(HANDLER_NOT_REGISTERED)`. Do its successor's work and advance down the `S##`/`G##` chain in dependency order.
 The desktop stays offline-runnable throughout (every phase carries "Runnable after: desktop offline yes").
 
@@ -219,9 +219,9 @@ separate outstanding item; C11 stock/UoW regressions do not close that debt.
 | S14 | ✅ Done (implementation authored; execution gates deferred) | 2026-10-10 | Subscription domain/lifecycle, operator bearer identity/API, one atomic provisioning engine, bounded sweep and fenced expiry consumer; head `112_Subscription`. Pure/PG regression sources authored, none executed. |
 | S15 | ✅ Done (authored; gates unexecuted) | 2026-10-10 | Self-service onboarding intake (async idempotent provisioning intent). Band M · Depends on S14 · R-B30, R-B36, R-B29. See `phases/PHASE-S15-onboarding-intake.md`. |
 | S16 | ✅ Done (authored; gates unexecuted) | 2026-10-10 | Licensing & anti-piracy: `Animora.Server.Licensing` (pure verification + issuance halves), device-bound ECDSA-P256 licence envelope, grants projected from subscriptions through outbox `license.issue`, issuer, key rotation, real `ServerEntitlementGate`, operator licence routes; head `114_Licensing`. Band M · Depends on S15 · R-B06, R-B29, R-B30, R-B36. See `phases/PHASE-S16-licensing-anti-piracy.md`. |
-| S17 | ⬜ Not started | | Files — valet key + resumable transfer (`Staged→…→Available`, reconciliation job). Band M · Depends on S13 · R-B26. See `phases/PHASE-S17-files-valet-key.md`. |
-| S18 | ⬜ Not started | | Server observability & weak-server performance (bounded pools, `MinPoolSize=0`, loopback OTLP). Band M · Depends on S13 · R-B07, R-B27, R-B35. See `phases/PHASE-S18-observability-weak-server-performance.md`. |
-| S19 | ⬜ Not started | | Admin web I — operator panel core (`Animora.Web.Admin`, Blazor Web App Static-SSR-first, operator auth). Band M · Depends on S16, S18 · R-B05, R-B06, R-B29. See `phases/PHASE-S19-admin-web-operator-core.md`. |
+| S17 | Partial authored; execution deferred | 2026-10-10 | File plane/migration 115/regressions pushed; aged CAS temp cleanup and remaining HTTP/reconciliation coverage pending. |
+| S18 | Partial authored; execution deferred | 2026-10-10 | Observability/budgets/profiles/regressions pushed; remaining metric producer and behavioral coverage pending. |
+| S19 | Partial authored; execution deferred | 2026-10-10 | Domain-only Static SSR RCL, cookie auth/adapters/pages and regressions pushed; complete HTTP coverage and final phase checkpoint pending. |
 | S20 | ⬜ Not started | | Admin web II — insight seams (`ITenantInsightQuery` read-model port only; cross-tenant analytics deferred). Band M · Depends on S19 · R-B05, R-B11, R-B35. See `phases/PHASE-S20-admin-web-insight-seams.md`. |
 | G01 | ⬜ Not started | | `Animora.Sync.Abstractions` — `IStateSyncEngine`, `SyncScope`, `SyncResult`, `NullSyncEngine` fallback + DI. Band S · Depends on S12 · R-B03, R-B13. See `phases/PHASE-G01-sync-engine-abstractions.md`. |
 | G02 | ⬜ Not started | | Custom immutable-batch HTTP adapter (`Animora.Sync.Custom`; no PostgreSQL driver, no server project). Band M · Depends on G01 · R-B03, R-B13, R-B31. See `phases/PHASE-G02-immutable-batch-http-adapter.md`. |
@@ -2671,3 +2671,35 @@ Impact:     B04 can build on `IAuthenticationService`/`CurrentUserContextService
 - Relay claims two concurrently (within the required <=20 bound) to keep both in-flight consumer timeouts below lease lifetime. Queue capacity remains 64 with Wait backpressure/two consumers.
 - Recovery receipts omit authenticated user/device and aggregate precondition evidence. Worker takes over expired leases through IntakeRecoveryService, then fences safe records to Failed awaiting authenticated replay; it never fabricates authority or replays money effects anonymously. SignalR is a non-authoritative hint; a crash around delivery may duplicate a hint, never lose authoritative feed state.
 - Ready->Retired is required for GC and is the only permitted immutable batch lifecycle change. Self-referential compressed PageHash is impossible; authoritative page SHA-256 is metadata/ETag, with an empty embedded hash. Oversize indivisible roots fail rather than violating 256 KiB. Snapshot rows and page metadata are streamed via bounded disk staging, with UTC canonicalization and an absolute hard 10-second snapshot cap.
+
+### S17-T3 — migration authoring deviation (2026-10-10)
+- Additive `115_Files` and frozen target model/snapshot authored manually: EF migrations-add invokes a build, prohibited by the user. Not applied or executed.
+- ExpectedHead advances from stale `113_ProvisioningIntents` across existing `114_Licensing` to `115_Files`.
+- BlobRefs includes nullable UnreferencedUtc so a long-lived blob gets a full 24-hour grace period after its final reference is deleted.
+
+### S17 — files plane authored (2026-10-10)
+- Tenant-filtered FileObjects/FileUploadChunks + global ref-counted BlobRefs; additive 115_Files, ExpectedHead 113→115 (114 already existed), +5 domain error codes and 2 transport codes.
+- CAS/staging durability, scoped five-minute Data-Protection valet credentials, bounded resumable endpoints, permission/device gates, hash/type validation, safe Range downloads, unreferenced soft deletion.
+- Hourly dedicated-pool reconciliation, shared background admission, bounded metadata/FS scans, random integrity samples, manifest writer and files-root degraded probe. Secret-name catalogue includes X-Animora-Valet.
+- IFileExistenceChecker delivered in Persistence; no existing server command creates DocumentReference, so command integration remains intentionally unused.
+- Authored lifecycle, grant, CAS/type/header tests and PG transfer/tenant/reconciliation/crash regressions. NO build, test, smoke, migration application or runtime acceptance executed per user directive.
+- Deviations: hand-authored migration with frozen snapshot to avoid EF's build; UnreferencedUtc preserves last-reference GC grace. Global orphan/zero-reference findings append path-free system OperatorAudit rows in the same worker transaction, while tenant integrity findings append transactional SecurityAudit rows. Staging/CAS orphan cleanup uses shared publisher fences and never removes manifests/unknown operator files.
+
+### S18-T1 — package selection (2026-10-10)
+- NuGet-feed-resolved exact stable pins: OpenTelemetry.Extensions.Hosting 1.19.1, Instrumentation.AspNetCore 1.19.0, Instrumentation.Runtime 1.19.0, Exporter.OpenTelemetryProtocol 1.19.1. Package target groups inspected; compatible earlier .NET targets are consumable by net10.0. No restore/build executed.
+- Manual Serilog.Extensions.Logging integration chosen; Serilog.AspNetCore deliberately not added to avoid changing locked Serilog 4.2.0 / Extensions.Logging 9.0.0 / Sinks.File 6.0.0 pins.
+
+### S18 — observability and weak-host budgets authored (2026-10-10)
+- Manual Serilog integration (no Serilog.AspNetCore): local 14-file/50MiB rolling sink, Development-only console, sensitive properties/headers/bodies redacted, correlation enrichment and sampled request events.
+- OTel NuGet-feed pins verified with net10.0 package groups: Extensions.Hosting 1.19.1, Instrumentation.AspNetCore 1.19.0, Instrumentation.Runtime 1.19.0, Exporter.OpenTelemetryProtocol 1.19.1. Disabled by default, private collector validation, bounded asynchronous exporters with nonfatal/rate-limited warnings, no DB statement instrumentation.
+- Central no-tenant-label metrics; 15-second snapshot/queue monitor and worker ages, DB capability degraded probe, worker-only one-concurrent Reporting lease with read-only transaction/SET LOCAL 5s/10,000-row cap; bounded tenant-user-resource-version cache.
+- Profile-based Kestrel limits, command-batch body override, >=1KiB command JSON Brotli-only compression (no feed/files/auth/admin compression), concurrent workstation GC/70% heap/ConserveMemory=5/TieredPGO, PostgreSQL 18 2/4GiB starting-point artifacts.
+- Authored privacy, telemetry, limits, cache/profile/metrics regressions and PG statement-timeout/row-cap/concurrency/old-snapshot regressions; NO builds, tests, smoke or runtime capacity proof executed.
+- PG pool gauge bridges Npgsql 10 actual leased-connection instruments using fixed non-secret pool names (no connection-string labels); capacity remains unproven until G08.
+
+### S17–S19 — user-requested wrap-up checkpoint (2026-10-10)
+- S19 authored: Animora.Web.Admin (Domain-only Razor class library), Static SSR pages and enhanced forms, separate Animora.Operator.Cookie/AdminOnly scheme/policy, absolute secure host-prefixed cookie with per-request stamp/status checks, forced-password-change restriction, antiforgery on admin POSTs and no-store/CSP/frame-deny headers.
+- Thin admin adapters reuse subscription/provisioning/owner-reset/licensing services; narrow operator queries and shared audited plan service added. Dashboard uses cached readiness/counters/heartbeats plus one bounded subscription-count query. Root App and pages already belong to the same RCL, so no redundant AddAdditionalAssemblies call is used.
+- Authored SSR/layering/auth/CSRF/cookie/actor/concurrency/provisioning/licence tests, not executed. Existing client sources and SQLite migrations are untouched.
+- This is NOT full S17–S19 completion: remaining CAS temp-orphan cleanup, metric producer wiring and requested behavioral/HTTP coverage are listed in Plan/S17-S18-S19-execution-todo.md. S19 final checkpoint and FINAL deletion remain pending; Next phase remains S19.
+- NO build/test/smoke/restore/migration execution or compile/runtime acceptance claim. Work paused at the user's explicit wrap-up instruction; plan retained as the continuation record.

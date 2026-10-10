@@ -22,6 +22,48 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Files.FileObject", b =>
+            {
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("Sha256").HasColumnType("character(64)");
+                b.Property<long>("SizeBytes").HasColumnType("bigint");
+                b.Property<long>("DeclaredSizeBytes").HasColumnType("bigint");
+                b.Property<string>("ContentType").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
+                b.Property<string>("OriginalName").IsRequired().HasMaxLength(256).HasColumnType("character varying(256)");
+                b.Property<short>("State").HasColumnType("smallint");
+                b.Property<DateTimeOffset>("CreatedUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<DateTimeOffset>("UpdatedUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<string>("CreatedByUserId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("UploadId").HasMaxLength(26).HasColumnType("character varying(26)");
+                b.HasKey("TenantId", "Id");
+                b.HasIndex("TenantId", "State", "UpdatedUtc");
+                b.HasIndex("TenantId", "Sha256");
+                b.HasIndex("TenantId", "UploadId").IsUnique();
+                b.ToTable("FileObjects", "public");
+            });
+
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Files.FileUploadChunk", b =>
+            {
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("UploadId").HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<long>("Offset").HasColumnType("bigint");
+                b.Property<int>("Length").HasColumnType("integer");
+                b.HasKey("TenantId", "UploadId", "Offset");
+                b.ToTable("FileUploadChunks", "public");
+            });
+
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Files.BlobRef", b =>
+            {
+                b.Property<string>("Sha256").IsRequired().HasColumnType("character(64)");
+                b.Property<int>("RefCount").HasColumnType("integer");
+                b.Property<long>("SizeBytes").HasColumnType("bigint");
+                b.Property<DateTimeOffset>("FirstSeenUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<DateTimeOffset?>("UnreferencedUtc").HasColumnType("timestamp(6) with time zone");
+                b.HasKey("Sha256");
+                b.ToTable("BlobRefs", "public");
+            });
+
             modelBuilder.Entity("Animora.Persistence.PostgreSql.Licensing.LicenseGrant", b =>
             {
                 b.Property<string>("TenantId")

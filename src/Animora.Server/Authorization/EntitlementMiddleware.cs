@@ -17,7 +17,7 @@ internal sealed class EntitlementMiddleware(RequestDelegate next)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (ServerEntitlementGate.IsExempt(context.Request.Path)
+        if (context.Request.Path.StartsWithSegments(ServerRoutes.Admin) || ServerEntitlementGate.IsExempt(context.Request.Path)
             || state.Membership is not { } membership)
         {
             await next(context).ConfigureAwait(false);

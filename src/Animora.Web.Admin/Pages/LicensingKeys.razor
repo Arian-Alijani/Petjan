@@ -1,0 +1,17 @@
+@page "/admin/licensing/keys"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminLicenseCommands Commands
+<h1>Licence public keys</h1><FormError Code="@Error" />
+@if (Keys is not null) {
+<table><caption>Public key set</caption><thead><tr><th scope="col">Key</th><th scope="col">Algorithm</th><th scope="col">Public data</th></tr></thead><tbody>
+@foreach(var key in Keys.Keys) { <tr><td>@key.Id</td><td>@key.Algorithm</td><td><pre>@key.PublicKey</pre></td></tr> }</tbody></table>
+<EditForm Model="Form" FormName="rotate-key" method="post" OnSubmit="Rotate">
+<input type="hidden" name="Form.Stamp" value="@Form!.Stamp" /><ConfirmCheckbox Name="Form.Confirmed" /><button type="submit">Rotate signing key</button></EditForm>
+}
+@code {
+    [SupplyParameterFromForm] public KeyActionForm? Form { get; set; }
+    private LicenseKeySet? Keys;
+    protected override async Task OnInitializedAsync() { Keys=Capture(await Commands.GetKeySetAsync(Cancellation)); Form??=new() { Stamp=Keys?.Keys.LastOrDefault(k=>k.NotAfterUtc is null)?.Id??"" }; }
+    private async Task Rotate(EditContext _) { if(Form!.Confirmed) Capture(await Commands.RotateKeyAsync(Form.Stamp,Cancellation)); else Error=ErrorCodes.ValidationFailed.Code; }
+}

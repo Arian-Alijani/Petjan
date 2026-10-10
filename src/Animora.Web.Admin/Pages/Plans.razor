@@ -1,0 +1,25 @@
+@page "/admin/plans"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminPlanCommands Commands
+<h1>Plans</h1><FormError Code="@Error" />
+@if (Rows is not null) {
+<table><caption>Commercial plans</caption><thead><tr><th scope="col">Code</th><th scope="col">Name</th><th scope="col">Seats</th><th scope="col">Amount (minor)</th><th scope="col">Active</th><th scope="col">Action</th></tr></thead><tbody>
+@foreach (var row in Rows.Items) { <tr><td>@row.Code</td><td>@row.Name</td><td>@row.Seats</td><td>@row.MonthlyAmountMinor</td><td>@row.Active</td><td>
+@if(row.Active) { <EditForm Model="Action" FormName="@($"deactivate-{row.Id}")" method="post" OnSubmit="Deactivate">
+<input type="hidden" name="Action.Id" value="@row.Id" /><input type="hidden" name="Action.Stamp" value="@row.Stamp" /><button type="submit">Deactivate</button></EditForm> }</td></tr> }
+</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="/admin/plans" />
+}
+<h2>New plan</h2><EditForm Model="Form" FormName="create-plan" method="post" Enhance OnSubmit="Create">
+<label>Code <InputText @bind-Value="Form!.Code" maxlength="32" /></label><label>Name <InputText @bind-Value="Form.Name" maxlength="100" /></label>
+<label>Seats <InputNumber @bind-Value="Form.Seats" /></label><label>Monthly amount (IRT minor) <InputNumber @bind-Value="Form.AmountMinor" /></label>
+<label>Trial days <InputNumber @bind-Value="Form.TrialDays" /></label><button type="submit">Create plan</button></EditForm>
+@code {
+    [SupplyParameterFromQuery] public int Page { get; set; }=1;
+    [SupplyParameterFromForm] public CreatePlanForm? Form { get; set; }
+    [SupplyParameterFromForm] public PlanActionForm? Action { get; set; }
+    private AdminPage<PlanSummary>? Rows;
+    protected override async Task OnInitializedAsync() { Form??=new(); Action??=new(); Rows=Capture(await Commands.ListAsync(Page,50,Cancellation)); }
+    private async Task Create(EditContext _) { Capture(await Commands.CreateAsync(Form!,Cancellation)); }
+    private async Task Deactivate(EditContext _) { Capture(await Commands.DeactivateAsync(Action!.Id,Action.Stamp,Cancellation)); }
+}

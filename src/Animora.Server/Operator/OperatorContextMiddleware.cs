@@ -11,6 +11,22 @@ internal sealed class OperatorContextMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext http)
     {
+        if(http.Request.Path.StartsWithSegments(ServerRoutes.Admin,StringComparison.OrdinalIgnoreCase))
+        {
+            var cookie=await http.AuthenticateAsync(Animora.Server.Admin.OperatorCookie.Scheme).ConfigureAwait(false);
+            bool anonymous=http.Request.Path.Equals("/admin/login",StringComparison.OrdinalIgnoreCase)||
+                http.Request.Path.Equals("/admin/account/login",StringComparison.OrdinalIgnoreCase);
+            http.User=cookie.Principal??new System.Security.Claims.ClaimsPrincipal();
+            if(!cookie.Succeeded)
+            { if(!anonymous) { http.Response.Redirect("/admin/login"); return; } }
+            else
+            {
+                http.RequestServices.GetRequiredService<OperatorTenantContext>().Authenticate();
+                if(http.Items.ContainsKey("AdminPasswordChangeRequired")&&!Animora.Server.Admin.OperatorCookie.PasswordChangePath(http.Request.Path))
+                { http.Response.Redirect("/admin/account/change-password"); return; }
+            }
+            await next(http).ConfigureAwait(false); return;
+        }
         if (!http.Request.Path.StartsWithSegments(ServerRoutes.Operator, StringComparison.OrdinalIgnoreCase) ||
             http.Request.Path.Equals(ServerRoutes.Operator + "/auth/login", StringComparison.OrdinalIgnoreCase))
         { await next(http).ConfigureAwait(false); return; }

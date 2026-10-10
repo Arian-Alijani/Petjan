@@ -1,3 +1,4 @@
+using Animora.Persistence.PostgreSql.Files;
 using Animora.Persistence.PostgreSql.Outbox;
 using Animora.Persistence.PostgreSql.Replication;
 using Animora.Domain.Inventory;
@@ -114,6 +115,10 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     public DbSet<TenantFeedStateRow> TenantFeedState => Set<TenantFeedStateRow>();
     public DbSet<TenantJournalRow> TenantJournal => Set<TenantJournalRow>();
 
+    public DbSet<FileObject> FileObjects => Set<FileObject>();
+    public DbSet<FileUploadChunk> FileUploadChunks => Set<FileUploadChunk>();
+    public DbSet<BlobRef> BlobRefs => Set<BlobRef>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -121,6 +126,8 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AnimoraServerDbContext).Assembly);
         ServerModelConventions.ApplyTenancy(modelBuilder, () => CurrentTenantId);
+        modelBuilder.Entity<FileObject>().HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<FileUploadChunk>().HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<OutboxMessage>().HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<ConsumedMessage>().HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);

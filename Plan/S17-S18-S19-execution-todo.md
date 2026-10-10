@@ -167,12 +167,13 @@ These were confirmed against the live tree; **do not re-derive**:
 
 ### S17 tasks
 
-- [ ] **S17-T1 — Domain/Application primitives.**
+- [x] **S17-T1 — Domain/Application primitives.**
+  Existing implementation preserved from main; build/test execution deferred by user directive (2026-10-10).
   Edit `src/Animora.Domain/Results/ErrorCodes.cs`: add `#region Files (Phase S17)` with the 5 codes above.
   Create `src/Animora.Application/Ports/IFileExistenceChecker.cs` (interface as specified; async, `CancellationToken ct = default`).
   `build.sh fast` the two projects compile-clean. → **push** `feat(server): S17 file errorcodes + IFileExistenceChecker port`.
 
-- [ ] **S17-T2 — Persistence: entities + configs + lifecycle + checker.**
+- [x] **S17-T2 — Persistence: entities + configs + lifecycle + checker.**
   Create under `src/Animora.Persistence.PostgreSql/Files/`: `FileObject`, `FileUploadChunk`, `BlobRef` entities;
   `FileState` enum (0..6); `FileLifecycle` (table-driven `EnsureAllowed(from,to)` returning `Result`; edges exactly as
   listed; Mismatch terminal); `FileExistenceChecker : IFileExistenceChecker` (AsNoTracking query: row Available in tenant).
@@ -180,14 +181,14 @@ These were confirmed against the live tree; **do not re-derive**:
   (column types + PKs + the two indexes). Register `DbSet`s on `AnimoraServerDbContext` + apply configs. **No EF changes
   leak to Application.** → **push** `feat(server): S17 file metadata entities, lifecycle, existence checker`.
 
-- [ ] **S17-T3 — Migration `115_Files` + schema head bump.**
+- [x] **S17-T3 — Migration `115_Files` + schema head bump.**
   `.sandbox/tools/dotnet-ef migrations add Files --project src/Animora.Persistence.PostgreSql --startup-project
   src/Animora.Persistence.PostgreSql --context AnimoraServerDbContext --output-dir Migrations/Server`.
   Rename generated file's `NNN` token to **115** (`115_Files`). Edit `ServerSchemaVersion.ExpectedHead = "115_Files"`
   (closes the 113→115 drift; log in PROGRESS deviation). Migration must be additive; never edit later.
   `build.sh fast` compiles. → **push** `feat(server): S17 migration 115_Files + ExpectedHead bump`.
 
-- [ ] **S17-T4 — Server Files plane.**
+- [~] **S17-T4 — Server Files plane.**
   Create under `src/Animora.Server/Files/`: `FileStore` (CAS + staging, temp→fsync→atomic move, fan-out, ref-counted
   blob delete), `ValetKeyService` (ITimeLimitedDataProtector, purpose `"Animora.Files.Valet.v1"`, canonical JSON, TTL 5 min,
   bind tid/uid/did/fid/op/max; **no path anywhere**), `FileTypePolicy` (allow-list; executables rejected),
@@ -200,7 +201,7 @@ These were confirmed against the live tree; **do not re-derive**:
   Wire `AddAnimoraFiles()` + worker registration in `Program.cs`.
   `build.sh fast` compiles. → **push** `feat(server): S17 file store, valet key, endpoints, reconciliation worker`.
 
-- [ ] **S17-T5 — Tests (authored; pure run locally, PG-gated authored-not-run).**
+- [~] **S17-T5 — Tests (authored; pure run locally, PG-gated authored-not-run).**
   Create `tests/Animora.Server.Tests/Files/`:
   pure — `FileLifecycleTests.AllowedAndForbiddenTransitions_Table`,
   `ValetKeyServiceTests.RoundTrip_BoundToTenantUserDeviceFileOp`,
@@ -216,7 +217,7 @@ These were confirmed against the live tree; **do not re-derive**:
   `FileMetadataTests.CommitAndRefCount_SameTransaction`.
   → **push** `test(server): S17 files tests (pure + pg-gated authored)`.
 
-- [ ] **S17-T6 — Verify + PROGRESS + commit.**
+- [x] **S17-T6 — Verify + PROGRESS + commit.**
   Run `scripts/sandbox/build.sh full` (expect 0/0), `scripts/sandbox/test.sh Files` (pure green; PG skip-with-reason),
   `scripts/sandbox/run.sh` (→ `SMOKE RUN OK`). Acceptance greps:
   `grep -rn "Path\b.*Valet\|filePath" src/Animora.Server/Files/ValetKeyService.cs` → nothing;
@@ -299,12 +300,12 @@ These were confirmed against the live tree; **do not re-derive**:
 
 ### S18 tasks
 
-- [ ] **S18-T1 — Package pins.**
+- [x] **S18-T1 — Package pins.**
   Resolve the four OTel exact versions (feed or offline-resolved — record which). Add to `Directory.Packages.props`;
   add `<PackageReference>`s to `src/Animora.Server/Animora.Server.csproj` only. Confirm Serilog.AspNetCore resolves
   (or decide manual) — record. `build.sh fast` restores clean. → **push** `build(server): S18 OpenTelemetry pins (+serilog choice)`.
 
-- [ ] **S18-T2 — Observability code.**
+- [~] **S18-T2 — Observability code.**
   Create `src/Animora.Server/Observability/`: `ServerMetrics` (the full catalogue, one place, no tenant label),
   `LoggingSetup`, `RedactingEnricher` (+ destructuring policy for the secret property/header names),
   `TelemetryOptions` + `TelemetryOptionsValidator` (loopback/LAN/public rule, ValidateOnStart), `TelemetrySetup`
@@ -312,18 +313,18 @@ These were confirmed against the live tree; **do not re-derive**:
   data source), `KestrelProfile` (limits by `ProfileGiB`), `TenantScopedMemoryCache<TKey,TValue>`.
   `build.sh fast` compiles. → **push** `feat(server): S18 observability — metrics, logging, telemetry, query budget, cache`.
 
-- [ ] **S18-T3 — Program.cs + DatabaseOptions wiring.**
+- [x] **S18-T3 — Program.cs + DatabaseOptions wiring.**
   Edit `Program.cs`: steps 1–2 logging/options; step-7 pipeline request logging with sampling; register telemetry
   (only when enabled); apply `KestrelProfile`; response compression (JSON only, exclude `/sync` & `/files`); set
   runtimeconfig GC knobs (via `.csproj`/`runtimeconfig.template.json`). Edit `src/Animora.Persistence.PostgreSql/Options/
   DatabaseOptions*.cs`: add `IDatabaseCapabilityProbe` hook (max_connections advisory) + `worker` data source consumption
   by `QueryBudget`. `build.sh fast` compiles. → **push** `feat(server): S18 wire logging/telemetry/Kestrel + DB capability probe`.
 
-- [ ] **S18-T4 — PG profile artifacts.**
+- [x] **S18-T4 — PG profile artifacts.**
   Create `deploy/postgresql/animora-2gib.conf`, `animora-4gib.conf`, `README.md` (values + "starting point" disclaimer).
   → **push** `docs(deploy): S18 PostgreSQL 2/4 GiB starting profiles`.
 
-- [ ] **S18-T5 — Tests.**
+- [~] **S18-T5 — Tests.**
   Create `tests/Animora.Server.Tests/Observability/`:
   `TelemetryOptionsTests.PublicHost_Rejected_Loopback_Allowed_LanOnlyWithOptIn`,
   `TelemetryTests.Disabled_ConfiguresNoExporter`, `TelemetryTests.UnreachableCollector_DoesNotAffectRequests`,
@@ -336,7 +337,7 @@ These were confirmed against the live tree; **do not re-derive**:
   defaults); PG-gated — `SnapshotAgeMonitorTests.OldSnapshot_ReportsDegraded`,
   `QueryBudgetPgTests.StatementTimeout_Enforced`. → **push** `test(server): S18 observability tests`.
 
-- [ ] **S18-T6 — Verify + PROGRESS + commit.**
+- [x] **S18-T6 — Verify + PROGRESS + commit.**
   `build.sh full` (0/0); `test.sh Observability` (pure green; PG skip); `run.sh` (SMOKE RUN OK). Acceptance greps:
   `grep -rniE "Seq|Splunk|ApplicationInsights|Datadog|Loki|Elasticsearch|NewRelic" src --include=*.cs --include=*.csproj`
   → nothing; `grep -rn "SslProtocols\|PublishAot\|ServerGarbageCollector>true" src/Animora.Server` → nothing;
@@ -420,7 +421,7 @@ These were confirmed against the live tree; **do not re-derive**:
 
 ### S19 tasks
 
-- [ ] **S19-T1 — RCL project `Animora.Web.Admin`.**
+- [x] **S19-T1 — RCL project `Animora.Web.Admin`.**
   Create `src/Animora.Web.Admin/Animora.Web.Admin.csproj` (`Microsoft.NET.Sdk.Razor`, `FrameworkReference
   Microsoft.AspNetCore.App`, ProjectReference `Animora.Domain` only). Add `_Imports.razor`, `Routes.razor`, App pieces,
   `Layout/{MainLayout,NavMenu}.razor`, `Components/{Pager,StatusBadge,ConfirmCheckbox,FormError}.razor`,
@@ -428,7 +429,7 @@ These were confirmed against the live tree; **do not re-derive**:
   `Ports/*.cs`, `Models/*.cs`, `AdminMessages.cs`, `RenderModePolicy.cs` (const `MaxIslands = 0`), `wwwroot/admin.css`.
   Add project to `Animora.sln`. `build.sh fast` compiles the RCL. → **push** `feat(web-admin): S19 RCL scaffold, ports, pages, components`.
 
-- [ ] **S19-T2 — Server Admin wiring + adapters.**
+- [x] **S19-T2 — Server Admin wiring + adapters.**
   Create `src/Animora.Server/Admin/`: `AdminOptions`, `OperatorCookie` (scheme + cookie config + `OnValidatePrincipal`),
   `AdminAccountEndpoints` (login/logout/change-password minimal APIs), `AdminSecurityHeadersMiddleware` (the 5 headers + CSP),
   `AdminStatusReader`, `AdminTenantQueries`, `AdminSubscriptionAdapter`, `AdminPlanAdapter`, `AdminLicenseAdapter`,
@@ -440,7 +441,7 @@ These were confirmed against the live tree; **do not re-derive**:
   `AdminOptions`, `OperatorCookie` scheme, `AdminOnly` policy, admin security-headers middleware.
   `build.sh fast` compiles. → **push** `feat(server): S19 admin cookie auth, endpoints, security headers, port adapters, wiring`.
 
-- [ ] **S19-T3 — Tests (SSR via WebApplicationFactory + string assertions; NO new test package).**
+- [~] **S19-T3 — Tests (SSR via WebApplicationFactory + string assertions; NO new test package).**
   Create `tests/Animora.Server.Tests/Admin/`:
   `RenderModePolicyTests.NoGlobalRenderMode_AndIslandCountWithinBudget`,
   `WebAdminLayeringTests.RclReferencesOnlyDomain`, `AdminAuthTests.Anonymous_RedirectsToLogin_ForEveryAdminRoute`,
@@ -488,3 +489,21 @@ These were confirmed against the live tree; **do not re-derive**:
 ### Status legend
 `[ ]` not started · `[~]` in progress · `[x]` done (pushed `✓`). Keep this file's checkboxes current as you go —
 it is the only live progress record for a resumed session until each phase's PROGRESS.md entry is written.
+
+Execution policy: all builds, tests and smoke runs are deferred by explicit user directive (2026-10-10); checkmarks denote authored deliverables, not executed acceptance.
+
+## Checkpoint — user-requested wrap-up (2026-10-10)
+
+Implementation stopped at the user's wrap-up instruction, not at full-plan acceptance. This file is intentionally retained.
+All source changes have been committed and pushed. No build, test, smoke run, restore or migration application was executed.
+
+Remaining work before all checkboxes can truthfully be completed:
+- S17-T4: finish handling aged CAS publisher `.tmp` orphans (currently unknown/operator files are deliberately preserved).
+- S17-T5: complete real HTTP upload offset/header/download assertions and explicit orphan/zero-ref reconciliation cases; current tests include direct PG transfer/ref-count and crash-retry coverage.
+- S18-T2: complete sync-byte metric production and review the entire catalogue's producer coverage (catalogue and major producers are authored).
+- S18-T5: fill remaining requested behavioral coverage beyond the authored options/privacy/cache/limits/budget/snapshot regressions.
+- S19-T3: complete full HTTP suspension/reinstatement flow (current test checks stored tenant status), valid bearer-scheme isolation cases and degraded-status secrecy behavioral coverage.
+- S19-T4: final phase documentation/acceptance checkpoint has not been completed; Next phase remains S19.
+- FINAL: do not delete this plan until those implementation/coverage items are complete.
+
+Execution gates remain deferred under the no-build/no-test instruction, regardless of authored checkbox status.

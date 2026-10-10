@@ -31,6 +31,10 @@ internal sealed class ServerAuthorizationResultHandler : IAuthorizationMiddlewar
             return;
         }
 
+        if(context.Request.Path.StartsWithSegments(ServerRoutes.Admin))
+        {
+            await _default.HandleAsync(next,context,policy,authorizeResult).ConfigureAwait(false); return;
+        }
         if (authorizeResult.Challenged)
         {
             await WriteAsync(context, ErrorCodes.SessionExpired).ConfigureAwait(false);

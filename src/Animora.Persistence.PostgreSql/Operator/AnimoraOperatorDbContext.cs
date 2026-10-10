@@ -22,9 +22,15 @@ public sealed class AnimoraOperatorDbContext(DbContextOptions<AnimoraOperatorDbC
     public DbSet<StaffMembership> StaffMemberships => Set<StaffMembership>();
     public DbSet<OutboxMessage> Messages => Set<OutboxMessage>();
 
+    public DbSet<Device> Devices => Set<Device>();
+    public DbSet<Animora.Persistence.PostgreSql.Licensing.LicenseRecord> Licenses => Set<Animora.Persistence.PostgreSql.Licensing.LicenseRecord>();
+    public DbSet<Animora.Persistence.PostgreSql.Licensing.LicenseGrant> LicenseGrants => Set<Animora.Persistence.PostgreSql.Licensing.LicenseGrant>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.ApplyConfiguration(new LicenseGrantConfiguration());
+        b.ApplyConfiguration(new LicenseRecordConfiguration());
+        b.ApplyConfiguration(new DeviceConfiguration());
         b.ApplyConfiguration(new PlanConfiguration());
         b.ApplyConfiguration(new SubscriptionConfiguration());
         b.ApplyConfiguration(new BillingPeriodConfiguration());

@@ -16,7 +16,7 @@ internal static class CommandEndpoints
         var group = endpoints.MapGroup(ServerRoutes.Commands)
             .RequireRateLimiting(RateLimitPolicies.Commands).RequireAuthorization();
         group.MapPost("", SubmitAsync);
-        group.MapPost("/batch", BatchAsync);
+        group.MapPost("/batch", BatchAsync).WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(1024*1024));
         group.MapGet("/{operationId}/ids", GetIdsAsync);
         return endpoints;
     }

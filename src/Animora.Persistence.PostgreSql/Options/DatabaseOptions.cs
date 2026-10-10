@@ -26,5 +26,7 @@ public sealed class DatabaseOptions
     public int WorkerMax { get; set; } = 2;
 
     /// <summary>Server memory profile in GiB (2 or 4); decides the total pool budget.</summary>
+    public int PoolSum => OltpWriteMax + OltpReadMax + KeyRingMax + WorkerMax;
+
     public int ProfileGiB { get; set; } = 2;
 }

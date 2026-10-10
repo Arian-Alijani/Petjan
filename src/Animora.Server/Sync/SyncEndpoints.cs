@@ -31,7 +31,14 @@ internal static class SyncEndpoints
     private static async Task<IResult> Open(HttpContext http, BatchFreezer freezer, OpenBatchRequest request, bool full, CancellationToken ct)
     {
         if (!full && (request.Epoch < 1 || request.FromSequence < 0)) return Results.BadRequest();
-        try { return Results.Json(await freezer.OpenAsync(request, full, ct).ConfigureAwait(false)); }
+        try
+        {
+            var started=System.Diagnostics.Stopwatch.GetTimestamp();
+            var result=await freezer.OpenAsync(request,full,ct).ConfigureAwait(false);
+            var metrics=http.RequestServices.GetService<Animora.Server.Observability.ServerMetrics>();
+            metrics?.SyncBatches.Add(1); metrics?.SyncDuration.Record(System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            return Results.Json(result);
+        }
         catch (SnapshotLifetimeExceededException)
         {
             http.Response.Headers.RetryAfter = "1";

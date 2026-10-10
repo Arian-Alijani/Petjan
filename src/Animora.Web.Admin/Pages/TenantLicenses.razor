@@ -1,0 +1,24 @@
+@page "/admin/tenants/{Id}/licenses"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminLicenseCommands Commands
+<h1>Tenant licences</h1><FormError Code="@Error" />
+@if (Rows is not null) {
+<table><caption>Device licences</caption><thead><tr><th scope="col">Device</th><th scope="col">State</th><th scope="col">Expires</th><th scope="col">Revoke</th></tr></thead><tbody>
+@foreach (var row in Rows.Items) { <tr><td>@row.DeviceId</td><td>@row.Status</td><td>@row.ExpiresUtc.ToString("u")</td><td>
+<EditForm Model="Form" FormName="@($"revoke-{row.Id}")" method="post" OnSubmit="Revoke">
+<input type="hidden" name="Form.LicenseId" value="@row.Id" /><input type="hidden" name="Form.Stamp" value="@row.Sequence" />
+<label>Reason <InputText @bind-Value="Form!.Reason" maxlength="200" /></label><ConfirmCheckbox Name="Form.Confirmed" /><button type="submit">Revoke</button></EditForm>
+</td></tr> }</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@($"/admin/tenants/{Id}/licenses")" />
+<EditForm Model="Form" FormName="recheck" method="post" OnSubmit="Recheck">
+<input type="hidden" name="Form.Stamp" value="@Rows.Stamp" /><button type="submit">Recheck licence grants</button></EditForm>
+}
+@code {
+    [Parameter] public string Id { get; set; }="";
+    [SupplyParameterFromQuery] public int Page { get; set; }=1;
+    [SupplyParameterFromForm] public LicenseActionForm? Form { get; set; }
+    private AdminPage<LicenseSummary>? Rows;
+    protected override async Task OnInitializedAsync() { Form??=new(); Rows=Capture(await Commands.ListAsync(Id,Page,50,Cancellation)); }
+    private async Task Revoke(EditContext _) { Capture(await Commands.RevokeAsync(Id,Form!,Cancellation)); }
+    private async Task Recheck(EditContext _) { Capture(await Commands.RecheckAsync(Id,Form!.Stamp,Cancellation)); }
+}

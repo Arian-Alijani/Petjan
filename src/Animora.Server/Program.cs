@@ -1,3 +1,7 @@
+using Animora.Server.Admin;
+using Animora.Server.Observability;
+using Animora.Persistence.PostgreSql.Options;
+using Animora.Server.Files;
 using Animora.Server.Licensing;
 using Animora.Server.Workers;
 using Animora.Server.Operator;
@@ -43,7 +47,27 @@ builder.Services
 builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<ServerOptions>, ServerOptionsValidator>();
 SecretGuard.ThrowIfSecretsInJsonFiles(builder.Configuration);
 
-// 2. Logging (console/providers are configured by the default host builder).
+// 2. Local-only redacted logging and optional private telemetry.
+LoggingSetup.Configure(builder);
+builder.Services.AddSingleton<ServerMetrics>();
+builder.Services.AddSingleton<ReadinessSnapshot>();
+builder.Services.AddAnimoraTelemetry(builder.Configuration);
+builder.Services.AddSingleton<IReportingQuerySessionFactory,ReportingQuerySessionFactory>();
+builder.Services.AddSingleton<IQueryBudget,QueryBudget>();
+builder.Services.AddSingleton<IDatabaseCapabilityProbe,DatabaseCapabilityProbe>();
+builder.Services.AddSingleton<ServerDatabaseStatisticsReader>();
+builder.Services.AddSingleton<DatabasePoolUsage>();
+builder.Services.AddSingleton<SnapshotAgeMonitor>();
+builder.Services.AddHostedService(sp=>sp.GetRequiredService<SnapshotAgeMonitor>());
+builder.Services.AddSingleton<IReadinessProbe>(sp=>sp.GetRequiredService<SnapshotAgeMonitor>());
+builder.Services.AddSingleton<IReadinessProbe,DatabaseCapacityReadinessProbe>();
+builder.WebHost.ConfigureKestrel((context,options)=>KestrelProfile.Apply(options,context.Configuration.GetValue("Database:ProfileGiB",2)));
+builder.Services.AddResponseCompression(options=>
+{
+    options.EnableForHttps=true; options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    options.MimeTypes=["application/json"];
+});
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(o=>o.Level=System.IO.Compression.CompressionLevel.Fastest);
 
 // 3. DataProtection: key ring persisted in PostgreSQL (own context + own pool), stable
 //    ApplicationName. No in-memory/file fallback — an unreachable ring fails readiness.
@@ -70,6 +94,7 @@ builder.Services.AddAnimoraSubscriptions(builder.Configuration);
 builder.Services.AddAnimoraOperator();
 builder.Services.AddAnimoraProvisioning();
 builder.Services.AddAnimoraLicensing(builder.Configuration);
+builder.Services.AddAnimoraAdmin(builder.Configuration);
 
 // 4d. Fenced command intake (S06): server Application profile, no desktop journal/session dependencies.
 builder.Services.AddAnimoraCommandPlane(
@@ -85,6 +110,7 @@ builder.Services.AddOptions<FeedStorageOptions>().Configure<IOptions<ServerOptio
     (feed, server) => feed.DataRootPath = server.Value.DataRootPath);
 
 builder.Services.AddAnimoraWorkers();
+builder.Services.AddAnimoraFiles();
 
 // 5. Health checks: readiness probes (data root, database, key ring, schema head).
 //    Probes degrade to Unhealthy when PostgreSQL is absent; the host still boots.
@@ -120,9 +146,12 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
-// Request logging (sampled) skips health endpoints — added with observability in S18.
+app.UseMiddleware<RequestLoggingMiddleware>();
+// Compression is eligible only for known >=1KiB JSON responses; no sync/file/auth/admin response compression.
+app.UseWhen(c=>c.Request.Path.StartsWithSegments(ServerRoutes.Commands),branch=>branch.UseMiddleware<JsonCompressionMiddleware>());
 // Plane order is fixed and tested (PlaneOrderTests): authN (401) → tenant bound from the STORED membership →
 // permission authZ (403) → entitlement (S16 fills the gate; allow-all until then).
+app.UseMiddleware<AdminSecurityHeadersMiddleware>();
 app.UseAuthentication();
 app.UseMiddleware<OperatorContextMiddleware>();
 app.UseMiddleware<TenantContextMiddleware>();
@@ -130,6 +159,8 @@ app.UseAuthorization();
 app.UseMiddleware<EntitlementMiddleware>();
 
 app.UseRateLimiter();
+app.UseAntiforgery();
+app.UseMiddleware<AdminAntiforgeryMiddleware>();
 
 if (enableOpenApi)
 {
@@ -137,7 +168,12 @@ if (enableOpenApi)
 }
 
 // Authentication endpoints (S04) — /auth/login|refresh|logout|device/register under the `auth` rate limit.
+app.MapStaticAssets();
+app.MapAdminAccountEndpoints();
+// App and route pages live in the same RCL, already included by MapRazorComponents.
+app.MapRazorComponents<Animora.Web.Admin.App>().RequireAuthorization(OperatorCookie.Policy).RequireRateLimiting(RateLimitPolicies.Operator);
 app.MapAuthEndpoints();
+app.MapFileEndpoints();
 app.MapLicenseEndpoints();
 app.MapLicenseOperatorEndpoints();
 app.MapOperatorEndpoints();
@@ -160,6 +196,7 @@ app.MapGet(ServerRoutes.HealthLive, () => Results.Json(new { status = "live" }))
 app.MapGet(ServerRoutes.HealthReady, async (
     IEnumerable<IReadinessProbe> probes,
     WorkerHeartbeat workers,
+    ReadinessSnapshot snapshot,
     CancellationToken ct) =>
 {
     var failed = new List<string>();
@@ -167,6 +204,7 @@ app.MapGet(ServerRoutes.HealthReady, async (
     foreach (var probe in probes)
     {
         var result = await probe.CheckAsync(ct).ConfigureAwait(false);
+        snapshot.Set(probe.Name,result.IsHealthy,probe.IsRequired);
         if (!result.IsHealthy)
         {
             if (probe.IsRequired) failed.Add(probe.Name); else degraded.Add(probe.Name);

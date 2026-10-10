@@ -11,6 +11,7 @@ internal sealed class WorkerHeartbeat(TimeProvider clock)
         (_, entry) => entry with { LastSuccessUtc = clock.GetUtcNow() });
     public void Period(string name, TimeSpan period) => _entries.AddOrUpdate(name, _ => new(clock.GetUtcNow(), period),
         (_, entry) => entry with { Period = period });
+    public IReadOnlyDictionary<string,double> Ages() => _entries.ToDictionary(e=>e.Key,e=>Math.Max(0,(clock.GetUtcNow()-e.Value.LastSuccessUtc).TotalSeconds));
     public IReadOnlyList<string> StaleNames() => _entries.Where(e => clock.GetUtcNow() - e.Value.LastSuccessUtc > e.Value.Period * 5)
         .Select(e => e.Key).OrderBy(x => x, StringComparer.Ordinal).ToArray();
 }

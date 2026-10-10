@@ -1,0 +1,12 @@
+<nav aria-label="Pagination">
+@if(Page>1) { <a href="@Url(Page-1)" rel="prev">Previous</a> }
+<span>Page @Page</span>
+@if((long)Page*PageSize<Total) { <a href="@Url(Page+1)" rel="next">Next</a> }
+</nav>
+@code {
+    [Parameter] public int Page { get; set; }=1;
+    [Parameter] public int PageSize { get; set; }=50;
+    [Parameter] public long Total { get; set; }
+    [Parameter] public string BaseUrl { get; set; }="/admin/tenants";
+    private string Url(int page)=>$"{BaseUrl}{(BaseUrl.Contains('?')?"&":"?")}page={page}&pageSize={PageSize}";
+}

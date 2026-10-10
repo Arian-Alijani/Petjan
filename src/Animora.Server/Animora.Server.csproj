@@ -6,7 +6,18 @@
     Contracts.Wire only. Persistence.PostgreSql (S02) is referenced for DI wiring only; a client
     project is NEVER referenced (enforced by ServerLayeringTests).
   -->
+  <PropertyGroup>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+    <PublishReadyToRun>false</PublishReadyToRun>
+  </PropertyGroup>
   <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.HeapHardLimitPercent" Value="70" />
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Animora.Web.Admin\Animora.Web.Admin.csproj" />
     <ProjectReference Include="..\Animora.Server.Licensing\Animora.Server.Licensing.csproj" />
     <ProjectReference Include="..\Animora.Domain\Animora.Domain.csproj" />
     <ProjectReference Include="..\Animora.Application\Animora.Application.csproj" />
@@ -17,6 +28,13 @@
   <ItemGroup>
     <!-- First-party OpenAPI (Development / opt-in only). Pinned centrally. -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
   </ItemGroup>
 
   <ItemGroup>

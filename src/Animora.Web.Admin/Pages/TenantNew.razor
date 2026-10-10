@@ -1,0 +1,25 @@
+@page "/admin/tenants/new"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminSubscriptionCommands Commands
+<h1>Create tenant</h1><FormError Code="@Error" />
+@if (Receipt is not null) {
+<p>Tenant created: <a href="@($"/admin/tenants/{Receipt.TenantId}")">@Receipt.TenantId</a></p>
+@if (Receipt.TemporaryPassword is { } password) { <p class="secret">Temporary password (shown once): <code>@password</code></p> }
+} else {
+<EditForm Model="Form" FormName="create-tenant" method="post" Enhance OnSubmit="Submit">
+<input type="hidden" name="Form.IdempotencyKey" value="@Form!.IdempotencyKey" />
+<label>Tenant code <InputText @bind-Value="Form.Code" maxlength="32" /></label>
+<label>Clinic name <InputText @bind-Value="Form.Name" maxlength="200" /></label>
+<label>Owner username <InputText @bind-Value="Form.OwnerUserName" maxlength="64" /></label>
+<label>Owner name <InputText @bind-Value="Form.OwnerName" maxlength="200" /></label>
+<label>Plan code <InputText @bind-Value="Form.PlanCode" maxlength="32" /></label>
+<label>Seats override <InputNumber @bind-Value="Form.Seats" /></label>
+<label>Start trial <InputCheckbox @bind-Value="Form.StartTrial" /></label><button type="submit">Create tenant</button></EditForm>
+}
+@code {
+    [SupplyParameterFromForm] public CreateTenantForm? Form { get; set; }
+    private MutationReceipt? Receipt;
+    protected override void OnInitialized()=>Form??=new();
+    private async Task Submit(EditContext _)=>Receipt=Capture(await Commands.CreateTenantAsync(Form!,Form!.IdempotencyKey,Cancellation));
+}

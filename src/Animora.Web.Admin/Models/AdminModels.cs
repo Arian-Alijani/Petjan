@@ -1,0 +1,47 @@
+namespace Animora.Web.Admin.Models;
+
+public sealed record AdminPage<T>(IReadOnlyList<T> Items,int Page,int PageSize,long Total,string? Stamp=null)
+{
+    public static (int Page,int Size) Bounds(int page,int pageSize)=>(Math.Clamp(page,1,int.MaxValue/200),Math.Clamp(pageSize,1,200));
+}
+public sealed record NamedStatus(string Name,string Status);
+public sealed record WorkerStatus(string Name,double LastSuccessAgeSeconds);
+public sealed record AdminCounters(long CommandsInProgress,long OutboxPending,long OutboxDeadLettered,long IntakeInProgress);
+public sealed record AdminPg(int PoolInUse,int PoolMax);
+public sealed record AdminStatus(IReadOnlyList<NamedStatus> Readiness,IReadOnlyList<WorkerStatus> Workers,AdminCounters Counters,
+    AdminPg Pg,string Version,double UptimeSeconds,long ExpiringSoon,long PastDue);
+public sealed record TenantListQuery(string? Status=null,string? Search=null,int Page=1,int PageSize=50);
+public sealed record TenantSummary(string Id,string Code,string Name,string Status);
+public sealed record SubscriptionSummary(string Id,string Status,string PlanId,int Seats,DateTimeOffset PeriodEnd,string ConcurrencyStamp);
+public sealed record TenantEvent(string Type,DateTimeOffset OccurredUtc);
+public sealed record TenantDetail(TenantSummary Core,SubscriptionSummary? Subscription,int SeatsUsed,IReadOnlyList<TenantEvent> Events,int DevicesCount,int LicensesCount,long GrantSequence);
+public sealed record PlanSummary(string Id,string Code,string Name,int Seats,long MonthlyAmountMinor,int TrialDays,bool Active,string Stamp);
+public sealed record LicenseSummary(string Id,string DeviceId,long Sequence,string Status,DateTimeOffset ExpiresUtc);
+public sealed record PublicLicenseKey(string Id,string Algorithm,string PublicKey,DateTimeOffset CreatedUtc,DateTimeOffset? NotAfterUtc);
+public sealed record LicenseKeySet(IReadOnlyList<PublicLicenseKey> Keys);
+public sealed record MutationReceipt(string? TemporaryPassword=null,string? TenantId=null);
+public sealed class SubscriptionActionForm
+{
+    public string Stamp { get; set; }=""; public bool Confirmed { get; set; }
+    public int? Days { get; set; } public DateTime? Until { get; set; } public int? Seats { get; set; }
+    public string Reason { get; set; }=""; public string PlanCode { get; set; }="";
+}
+public sealed class CreateTenantForm
+{
+    public string Code { get; set; }=""; public string Name { get; set; }=""; public string OwnerUserName { get; set; }="";
+    public string OwnerName { get; set; }=""; public string PlanCode { get; set; }="standard";
+    public int? Seats { get; set; } public bool StartTrial { get; set; }=true;
+    public string IdempotencyKey { get; set; }=Guid.NewGuid().ToString("N");
+}
+public sealed class CreatePlanForm
+{
+    public string Code { get; set; }=""; public string Name { get; set; }=""; public int Seats { get; set; }=1;
+    public long AmountMinor { get; set; } public int TrialDays { get; set; }
+}
+public sealed class LicenseActionForm
+{
+    public string LicenseId { get; set; }=""; public string Stamp { get; set; }=""; public string Reason { get; set; }="";
+    public bool Confirmed { get; set; }
+}
+public sealed class PlanActionForm { public string Id { get; set; }=""; public string Stamp { get; set; }=""; }
+public sealed class KeyActionForm { public string Stamp { get; set; }=""; public bool Confirmed { get; set; } }

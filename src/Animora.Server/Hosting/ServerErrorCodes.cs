@@ -10,6 +10,8 @@ namespace Animora.Server.Hosting;
 internal static class ServerErrorCodes
 {
     /// <summary>Unclassified server-side failure (HTTP 500).</summary>
+    public const string FileOffsetMismatch = "FILE_OFFSET_MISMATCH";
+    public const string FileNotAvailable = "FILE_NOT_AVAILABLE";
     public const string Unexpected = "UNEXPECTED";
 
     /// <summary>A named rate-limit policy rejected the request (HTTP 429).</summary>

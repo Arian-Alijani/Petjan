@@ -62,11 +62,11 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IInterceptor>(sp => sp.GetRequiredService<TenantStampingInterceptor>());
         services.AddScoped<IInterceptor>(sp => sp.GetRequiredService<NoUnnamedIgnoreFiltersInterceptor>());
 
-        services.AddKeyedSingleton<NpgsqlDataSource>(OltpWriteKey, (sp, _) => BuildDataSource(sp, o => o.OltpWriteMax));
-        services.AddKeyedSingleton<NpgsqlDataSource>(OltpReadKey, (sp, _) => BuildDataSource(sp, o => o.OltpReadMax));
-        services.AddKeyedSingleton<NpgsqlDataSource>(KeyRingKey, (sp, _) => BuildDataSource(sp, o => o.KeyRingMax));
+        services.AddKeyedSingleton<NpgsqlDataSource>(OltpWriteKey, (sp, _) => BuildDataSource(sp, o => o.OltpWriteMax, "oltp-write"));
+        services.AddKeyedSingleton<NpgsqlDataSource>(OltpReadKey, (sp, _) => BuildDataSource(sp, o => o.OltpReadMax, "oltp-read"));
+        services.AddKeyedSingleton<NpgsqlDataSource>(KeyRingKey, (sp, _) => BuildDataSource(sp, o => o.KeyRingMax, "keyring"));
 
-        services.AddKeyedSingleton<NpgsqlDataSource>(WorkerKey, (sp, _) => BuildDataSource(sp, o => o.WorkerMax));
+        services.AddKeyedSingleton<NpgsqlDataSource>(WorkerKey, (sp, _) => BuildDataSource(sp, o => o.WorkerMax, "worker"));
         services.TryAddScoped<WorkerExecutionContext>();
         services.TryAddScoped<ServerOutbox>();
         services.TryAddScoped<OutboxClaimStore>();
@@ -131,18 +131,18 @@ public static class PersistenceServiceCollectionExtensions
             ? value
             : fallback;
 
-    private static NpgsqlDataSource BuildDataSource(IServiceProvider sp, Func<DatabaseOptions, int> maxPoolSize)
+    private static NpgsqlDataSource BuildDataSource(IServiceProvider sp, Func<DatabaseOptions, int> maxPoolSize, string poolName)
     {
         DatabaseOptions options = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
 
         var builder = new NpgsqlConnectionStringBuilder(options.ConnectionString)
         {
-            ApplicationName = ApplicationName,
+            ApplicationName = ApplicationName + "/" + poolName,
             MaxPoolSize = maxPoolSize(options),
             MinPoolSize = 0,
             CommandTimeout = CommandTimeoutSeconds,
         };
 
-        return new NpgsqlDataSourceBuilder(builder.ConnectionString).Build();
+        return new NpgsqlDataSourceBuilder(builder.ConnectionString) { Name=ApplicationName+"/"+poolName }.Build();
     }
 }

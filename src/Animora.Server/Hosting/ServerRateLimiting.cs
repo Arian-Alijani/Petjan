@@ -25,6 +25,7 @@ internal static class ServerRateLimiting
         limiter.OnRejected = async (context, token) =>
         {
             var httpContext = context.HttpContext;
+            httpContext.RequestServices.GetService<Animora.Server.Observability.ServerMetrics>()?.RateLimitRejected.Add(1);
             if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
             {
                 httpContext.Response.Headers.RetryAfter =

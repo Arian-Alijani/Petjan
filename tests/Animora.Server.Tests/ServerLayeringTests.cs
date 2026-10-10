@@ -34,7 +34,7 @@ public sealed class ServerLayeringTests
     [Fact]
     public void Server_ReferencesOnlyAllowedAnimoraAssemblies()
     {
-        string[] allowed = ["Animora.Domain", "Animora.Application", "Animora.Contracts.Wire", "Animora.Persistence.PostgreSql"];
+        string[] allowed = ["Animora.Domain", "Animora.Application", "Animora.Contracts.Wire", "Animora.Persistence.PostgreSql", "Animora.Server.Licensing", "Animora.Web.Admin"];
 
         var animoraRefs = typeof(ServerRoutes).Assembly.GetReferencedAssemblies()
             .Select(a => a.Name!)

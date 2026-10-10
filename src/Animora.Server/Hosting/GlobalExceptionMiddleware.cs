@@ -36,7 +36,7 @@ internal sealed class GlobalExceptionMiddleware(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unhandled exception for request {CorrelationId}.", correlationId);
+            logger.LogError("Unhandled {FailureClass} for request {CorrelationId}.", ex.GetType().Name, correlationId);
 
             if (context.Response.HasStarted)
             {
@@ -49,6 +49,14 @@ internal sealed class GlobalExceptionMiddleware(
             CorrelationHeader.Echo(context, correlationId);
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
+            if(context.Request.Path.StartsWithSegments(ServerRoutes.Admin))
+            {
+                Animora.Server.Admin.AdminSecurityHeadersMiddleware.Apply(context.Response);
+                context.Response.ContentType="text/html; charset=utf-8";
+                await context.Response.WriteAsync("<!doctype html><html lang=\"en\"><head><title>Request failed</title></head><body><h1>Request failed</h1><p>Correlation: "
+                    +System.Net.WebUtility.HtmlEncode(correlationId)+"</p></body></html>",context.RequestAborted).ConfigureAwait(false);
+                return;
+            }
             var error = new WireApiError(
                 Code: ServerErrorCodes.Unexpected,
                 Detail: environment.IsDevelopment() ? ex.Message : null,

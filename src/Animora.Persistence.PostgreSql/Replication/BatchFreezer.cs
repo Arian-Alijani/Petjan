@@ -54,6 +54,7 @@ public sealed class BatchFreezer(IFeedContextFactory factory, IBackgroundAdmissi
                 try
                 {
                     await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, budget.Token).ConfigureAwait(false);
+                    await db.Database.ExecuteSqlRawAsync("SET LOCAL application_name = 'Animora.Server/feed'", budget.Token).ConfigureAwait(false);
                     await db.Database.ExecuteSqlRawAsync("SET TRANSACTION READ ONLY", budget.Token).ConfigureAwait(false);
                     await db.Database.ExecuteSqlRawAsync("SET LOCAL TIME ZONE 'UTC'", budget.Token).ConfigureAwait(false);
                     position = await new FeedPositionReader(db).GetAsync(tenant, budget.Token).ConfigureAwait(false);
