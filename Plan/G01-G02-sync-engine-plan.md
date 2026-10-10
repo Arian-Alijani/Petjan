@@ -293,7 +293,7 @@ public static readonly ErrorCode Unauthorized         = new("UNAUTHORIZED",     
 - [x] **T0 — ساخت فایل پلن.** این فایل در `Plan/` ساخته شد. → پوش: `docs(plan): add G01+G02 sync engine implementation plan`
 - [x] **T1 — تایپ‌های G01.** ساخت ۶ فایل در `src/Animora.Sync.Abstractions/`: `SyncScope.cs`, `SyncOutcome.cs`, `SyncResult.cs`, `IStateSyncEngine.cs`, `NullSyncEngine.cs`, `SyncAbstractionsServiceCollectionExtensions.cs` (طبق §1). + ویرایش `.csproj` (PackageReference DI) و `README.md`. → پوش: `feat(sync): G01 sync engine abstractions + NullSyncEngine`
 - [x] **T2 — wiring G01.** `Animora.Client.Services.csproj` (ProjectReference)، `App.axaml.cs` (using + AddAnimoraSyncEngine بالای خط ۳۹۹)، `ISyncStatusService.cs` (کامنت ISyncEngine→IStateSyncEngine). → پوش: `feat(sync): wire G01 engine registration + fix ISyncStatusService doc`
-- [ ] **T3 — تست‌های G01.** حذف `PlaceholderTests.cs`؛ ساخت ۵ کلاس تست (۱۰ تست §1). → پوش: `test(sync): G01 engine abstractions tests`
+- [x] **T3 — تست‌های G01.** حذف `PlaceholderTests.cs`؛ ساخت ۵ کلاس تست (۱۰ تست §1). → پوش: `test(sync): G01 engine abstractions tests`
 - [ ] **T4 — verify G01.** `build.sh full` (0/0)، `test.sh Sync` (سبز)، `test.sh Layering` (سبز)، `run.sh` (`SMOKE RUN OK`)، و grepهای Acceptance G01 بند ۳/۴. اصلاح هر خطا تا سبز شدن. → پوش: `chore(sync): G01 build/test green` (یا پیام فیکس اگر لازم شد)
 - [ ] **T5 — PROGRESS G01.** به‌روزرسانی `backend-roadmap/PROGRESS.md` طبق §1. → پوش: `docs(progress): mark G01 done, next G02`
 
