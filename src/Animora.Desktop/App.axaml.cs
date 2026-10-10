@@ -174,6 +174,7 @@ public partial class App : global::Avalonia.Application
         {
             var ready = await InitializeLocalStoreAsync();
             Services.GetRequiredService<MaintenanceScheduler>().Start();
+            Services.GetRequiredService<SyncSchedulerHostedService>().Start(); // dormant unless a server is configured
             await Dispatcher.UIThread.InvokeAsync(() => viewModel.InitializeAsync(ready));
         }
         catch (Exception)
@@ -400,6 +401,7 @@ public partial class App : global::Avalonia.Application
         // Local offline sync status. E04 swaps engine internals behind the same contract.
         services.AddAnimoraSyncEngine();
         services.AddAnimoraHttpSyncEngine();
+        services.AddAnimoraSyncOrchestration();
         services.AddSingleton<LocalSyncStatusService>();
         services.AddSingleton<ISyncStatusService>(sp => sp.GetRequiredService<LocalSyncStatusService>());
 

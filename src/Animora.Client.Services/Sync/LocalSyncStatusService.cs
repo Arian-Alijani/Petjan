@@ -1,19 +1,30 @@
 using Animora.Application.Commands;
 using Animora.Application.Ports;
+using Animora.Application.UseCases.Sync;
+using Animora.Domain.Results;
 using Animora.Contracts.Sync;
 using Animora.Domain.Time;
+using Animora.Sync.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Client.Services.Sync;
 
 /// <summary>Real local status; E04 replaces the engine internals, not this registration.
-/// Singleton, with fresh scoped persistence per call; NullCommandTransport means no endpoint, not an error.</summary>
-public sealed class LocalSyncStatusService(IServiceScopeFactory scopes, ICommandTransport transport, IClock clock)
+/// Singleton, with fresh scoped persistence per call; NullCommandTransport means no endpoint, not an error.
+/// G03: when a configured state-pull engine is supplied, its outcome is combined with the command backlog into ONE state
+/// (two pipelines, never merged).</summary>
+public sealed class LocalSyncStatusService(
+    IServiceScopeFactory scopes,
+    ICommandTransport transport,
+    IClock clock,
+    IStateSyncEngine? engine = null,
+    SyncOrchestrator? orchestrator = null)
     : ISyncStatusService, IDisposable
 {
     private readonly SemaphoreSlim _pass = new(1, 1);
     private sealed record Snapshot(SyncState State, DateTimeOffset? LastSyncedAt);
-    private Snapshot _snapshot = new(transport is NullCommandTransport ? SyncState.Offline : SyncState.Idle, null);
+    private bool PullConfigured => orchestrator is not null && engine is { IsConfigured: true };
+    private Snapshot _snapshot = new(transport is NullCommandTransport && engine is not { IsConfigured: true } ? SyncState.Offline : SyncState.Idle, null);
     public SyncState State => Volatile.Read(ref _snapshot).State;
     public DateTimeOffset? LastSyncedAt => Volatile.Read(ref _snapshot).LastSyncedAt;
     public event EventHandler? StateChanged;
@@ -31,6 +42,7 @@ public sealed class LocalSyncStatusService(IServiceScopeFactory scopes, ICommand
         {
             await using var scope = scopes.CreateAsyncScope();
             var cursor = scope.ServiceProvider.GetRequiredService<ISyncCursorStore>();
+            Result<SyncOutcome>? pull = null;
             if (runPass)
             {
                 Publish(new(SyncState.Syncing, previous.LastSyncedAt));
@@ -41,15 +53,16 @@ public sealed class LocalSyncStatusService(IServiceScopeFactory scopes, ICommand
                     Publish(new(SyncState.Error, previous.LastSyncedAt));
                     return;
                 }
-                await cursor.MarkSyncedAsync(clock.UtcNow, ct).ConfigureAwait(false);
+                if (PullConfigured)
+                    pull = await orchestrator!.PullAllAsync(ct).ConfigureAwait(false);
+                // The command pass only counts as "synced" when no state-pull is configured or that pull was healthy.
+                if (pull is null || pull.Value.IsSuccess)
+                    await cursor.MarkSyncedAsync(clock.UtcNow, ct).ConfigureAwait(false);
             }
             var last = await cursor.ReadAsync(ct).ConfigureAwait(false);
             var summary = await scope.ServiceProvider.GetRequiredService<ICommandJournal>()
                 .GetSummaryAsync(ct).ConfigureAwait(false);
-            var state = summary.IsFailure ? SyncState.Error
-                : transport is NullCommandTransport ? SyncState.Offline
-                : summary.Value!.Total > 0 ? SyncState.Pending : SyncState.Synced;
-            Publish(new(state, last));
+            Publish(new(MapState(summary, pull), last));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -61,6 +74,16 @@ public sealed class LocalSyncStatusService(IServiceScopeFactory scopes, ICommand
             Publish(new(SyncState.Error, previous.LastSyncedAt));
         }
         finally { _pass.Release(); }
+    }
+
+    private SyncState MapState(Result<PendingCommandSummary> summary, Result<SyncOutcome>? pull)
+    {
+        if (summary.IsFailure) return SyncState.Error;
+        if (pull is { IsFailure: true } || pull is { Value: SyncOutcome.ResyncRequired }) return SyncState.Error;
+        if (transport is NullCommandTransport && !PullConfigured) return SyncState.Offline;
+        if (summary.Value!.Total > 0) return SyncState.Pending;
+        // A pass that deferred its pull (server unreachable) is not "synced".
+        return pull is { Value: SyncOutcome.Deferred } ? SyncState.Offline : SyncState.Synced;
     }
 
     private void Publish(Snapshot next)
