@@ -39,6 +39,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Animora.Server", "src\Animo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Animora.Persistence.PostgreSql", "src\Animora.Persistence.PostgreSql\Animora.Persistence.PostgreSql.csproj", "{A53825FC-AFF2-441D-BD3A-A966F54DF479}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Animora.Server.Licensing", "src\Animora.Server.Licensing\Animora.Server.Licensing.csproj", "{5F6A8B90-3C12-4EAF-9271-609DF3171642}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -49,6 +51,18 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5F6A8B90-3C12-4EAF-9271-609DF3171642}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5F6A8B90-3C12-4EAF-9271-609DF3171642}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5F6A8B90-3C12-4EAF-9271-609DF3171642}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5F6A8B90-3C12-4EAF-9271-609DF3171642}.Debug|x64.Build.0 = Debug|Any CPU
+		{5F6A8B90-3C12-4EAF-9271-609DF3171642}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5F6A8B90-3C12-4EAF-9271-609DF3171642}.Debug|x86.Build.0 = Debug|Any CPU
+		{5F6A8B90-3C12-4EAF-9271-609DF3171642}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5F6A8B90-3C12-4EAF-9271-609DF3171642}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5F6A8B90-3C12-4EAF-9271-609DF3171642}.Release|x64.ActiveCfg = Release|Any CPU
+		{5F6A8B90-3C12-4EAF-9271-609DF3171642}.Release|x64.Build.0 = Release|Any CPU
+		{5F6A8B90-3C12-4EAF-9271-609DF3171642}.Release|x86.ActiveCfg = Release|Any CPU
+		{5F6A8B90-3C12-4EAF-9271-609DF3171642}.Release|x86.Build.0 = Release|Any CPU
 		{32C86B01-D9DB-45D3-A8AA-B27CA13B8ADE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{32C86B01-D9DB-45D3-A8AA-B27CA13B8ADE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{32C86B01-D9DB-45D3-A8AA-B27CA13B8ADE}.Debug|x64.ActiveCfg = Debug|Any CPU

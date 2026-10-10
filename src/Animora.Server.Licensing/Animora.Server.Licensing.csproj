@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Animora.Domain\Animora.Domain.csproj" />
+    <ProjectReference Include="..\Animora.Contracts.Wire\Animora.Contracts.Wire.csproj" />
+    <ProjectReference Include="..\Animora.Application\Animora.Application.csproj" />
+    <InternalsVisibleTo Include="Animora.Server.Tests" />
+  </ItemGroup>
+</Project>
