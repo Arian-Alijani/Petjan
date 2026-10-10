@@ -155,7 +155,7 @@ public interface IFeedEpoch { Task AdvanceAsync(string tenantId, string reason, 
   Rename files + class/id to `109_ChangeJournal`. Hand-write `Up`: create the two functions, the `TenantFeedState`/`TenantJournal` tables + indexes (the UNIQUE-WHERE partial index needs raw `.Sql` or `HasFilter`), the constraint trigger, then **loop `SyncContractCatalog.ProjectionOrder`** calling `JournalTriggers.Apply(mb, d)` (migration must not hard-code table names). Backfill: `INSERT INTO "TenantFeedState" ("TenantId") SELECT "Id" FROM "Tenants" ON CONFLICT DO NOTHING;` Add the `TRUNCATE`-revoke documentation comment. `Down` drops triggers/functions/tables in reverse. Bump `ServerSchemaVersion.ExpectedHead = "109_ChangeJournal"`. Update `AnimoraServerDbContextModelSnapshot`.
   **PUSH:** `scripts/git/push.sh "feat(server): S11-T4 migration 109 ChangeJournal (functions, tables, triggers)"`
 
-- [ ] **S11-T5 — TenantProvisioner edit.** In `CreateTenantWithOwnerAsync`, before `SaveChangesAsync`, add `context.Set<TenantFeedStateRow>().Add(new TenantFeedStateRow { TenantId = tenant.Id, ... defaults })` so the feed-state row is created in the same transaction as the tenant.
+- [x] **S11-T5 — TenantProvisioner edit.** In `CreateTenantWithOwnerAsync`, before `SaveChangesAsync`, add `context.Set<TenantFeedStateRow>().Add(new TenantFeedStateRow { TenantId = tenant.Id, ... defaults })` so the feed-state row is created in the same transaction as the tenant.
   **PUSH:** `scripts/git/push.sh "feat(server): S11-T5 provision TenantFeedState row with tenant"`
 
 - [ ] **S11-T6 — Tests.** `tests/Animora.Server.Tests/Replication/`:
