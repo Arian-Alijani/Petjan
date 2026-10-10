@@ -116,6 +116,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Animora.Contracts\Animora.Contracts.csproj" />
     <ProjectReference Include="..\Animora.Client.Services\Animora.Client.Services.csproj" />
+    <ProjectReference Include="..\Animora.Sync.Custom\Animora.Sync.Custom.csproj" />
   </ItemGroup>
 
   <!-- ===================================================================== -->

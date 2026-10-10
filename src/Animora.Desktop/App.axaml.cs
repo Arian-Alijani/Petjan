@@ -67,6 +67,7 @@ using Animora.Infrastructure.Local.Startup;
 using Animora.Infrastructure.Local.Workers;
 using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Sync.Abstractions;
+using Animora.Sync.Custom;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -398,6 +399,7 @@ public partial class App : global::Avalonia.Application
 
         // Local offline sync status. E04 swaps engine internals behind the same contract.
         services.AddAnimoraSyncEngine();
+        services.AddAnimoraHttpSyncEngine();
         services.AddSingleton<LocalSyncStatusService>();
         services.AddSingleton<ISyncStatusService>(sp => sp.GetRequiredService<LocalSyncStatusService>());
 
