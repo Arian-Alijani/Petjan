@@ -175,7 +175,7 @@ public sealed class ObservabilityBehaviorTests
         var scope = new TenantCacheKey("t", "u", "r", "v");
         cache.Set(scope, "k", "old"); cache.Set(scope, "k", "new");
         Assert.True(cache.TryGet(scope, "k", out var value)); Assert.Equal("new", value);
-        foreach (var other in new[] { new TenantCacheKey("t", "other", "r", "v"), new("t", "u", "other", "v"), new("t", "u", "r", "other") })
+        foreach (var other in new TenantCacheKey[] { new("t", "other", "r", "v"), new("t", "u", "other", "v"), new("t", "u", "r", "other") })
             Assert.False(cache.TryGet(other, "k", out _));
         Assert.Throws<ArgumentOutOfRangeException>(() => new TenantScopedMemoryCache<int, string>(0));
     }
