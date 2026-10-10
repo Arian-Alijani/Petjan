@@ -32,7 +32,8 @@ internal sealed class CommandIntakeService(
     IClock clock,
     IHttpContextAccessor http,
     IServerCommandConcurrencyGuard? concurrency = null,
-    ICommandEffectIdCollector? effectIds = null)
+    ICommandEffectIdCollector? effectIds = null,
+    ServerCommandExecutionScope? execution = null)
 {
     public async Task<Result<SettlementResult>> SubmitAsync(CommandEnvelope envelope, CancellationToken ct = default)
     {
@@ -128,6 +129,11 @@ internal sealed class CommandIntakeService(
                 if (current.Value is not null && current.Value != envelope.ExpectedServerVersion)
                     return await CompleteAsync(envelope, attempt, Result.Fail(ErrorCodes.ConcurrencyConflict), caller,
                         correlation, ruleDetail, token).ConfigureAwait(false);
+            }
+            if (execution is not null)
+            {
+                execution.OperationId = envelope.OperationId;
+                execution.UserId = caller.UserId;
             }
             if (concurrency is not null)
             {

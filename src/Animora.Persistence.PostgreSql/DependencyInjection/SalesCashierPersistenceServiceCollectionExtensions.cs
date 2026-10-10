@@ -23,6 +23,10 @@ public static class SalesCashierPersistenceServiceCollectionExtensions
         services.TryAddScoped<ILocalSequenceAllocator, LocalSequenceAllocator>();
         services.TryAddScoped<ICashSessionContext, CashSessionContext>();
         services.TryAddScoped<ICashierQueries, CashierQueries>();
+        services.TryAddScoped<StockMovementWriter>();
+        services.TryAddScoped<IStockMovementWriter>(sp => sp.GetRequiredService<StockMovementWriter>());
+        services.TryAddScoped<IStockMovementRepository>(sp => sp.GetRequiredService<StockMovementWriter>());
+        services.TryAddScoped<MoneyResourceLock>();
         services.TryAddScoped<DocumentCounterAllocator>();
         services.TryAddScoped<ServerCommandExecutionScope>();
         return services;

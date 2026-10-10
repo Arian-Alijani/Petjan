@@ -52,7 +52,7 @@ internal sealed class CommandPayloadCatalogBuilder
 {
     private readonly Dictionary<string, List<CommandPayloadCandidate>> _entries = new(StringComparer.Ordinal);
 
-    public CommandPayloadCatalogBuilder Add<TCommand>(string commandType, string aggregateType)
+    public CommandPayloadCatalogBuilder Add<TCommand>(string commandType, string aggregateType, FinancialEffect financialEffect = FinancialEffect.None)
         where TCommand : IJournaledCommand
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(commandType);
@@ -69,7 +69,14 @@ internal sealed class CommandPayloadCatalogBuilder
         var dispatch = (Func<object, IDispatcher, CommandContext, CancellationToken, Task<CommandDispatchResult>>)
             typeof(CommandPayloadCatalogBuilder).GetMethod(nameof(CreateDispatcher), BindingFlags.Static | BindingFlags.NonPublic)!
                 .MakeGenericMethod(type, contracts[0].GetGenericArguments()[0]).Invoke(null, null)!;
-        candidates.Add(new CommandPayloadCandidate(type, aggregateType, names, dispatch));
+        candidates.Add(new CommandPayloadCandidate(type, aggregateType, names, async (command, dispatcher, context, ct) =>
+        {
+            var result = await dispatch(command, dispatcher, context, ct).ConfigureAwait(false);
+            return financialEffect == FinancialEffect.None ? result : result with
+            {
+                FinancialEffect = result.Result.IsSuccess ? financialEffect : FinancialEffect.NotApplied
+            };
+        }));
         return this;
     }
 

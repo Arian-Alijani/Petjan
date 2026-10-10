@@ -16,7 +16,7 @@ internal interface IFinancialEffectReporter
     FinancialEffect FinancialEffect { get; }
 }
 
-internal sealed record CommandDispatchResult(Result Result, object? Value, FinancialEffect FinancialEffect);
+internal sealed record CommandDispatchResult(Result Result, object? Value, FinancialEffect FinancialEffect) : IFinancialEffectReporter;
 
 internal static class SettlementMapper
 {

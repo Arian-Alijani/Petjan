@@ -2571,3 +2571,8 @@ Impact:     B04 can build on `IAuthenticationService`/`CurrentUserContextService
 - Sales/cashier PostgreSQL mappings, composite child rows, tenant-scoped DocumentCounters and migration 107 authored.
 - No standalone ServiceRate entity exists; rates remain Product/BoardingServiceDef, no ServiceRates table added.
 - Model tests authored. No build/test/smoke/EF-tool execution per explicit user instruction; migrations manually authored and execution gates unverified.
+
+### S09 T6 deviations — 2026-10-10
+- IFinancialEffectReporter already exists in the server. CommandDispatchResult implements it; explicit catalog metadata reports Applied only after successful monetary dispatch. Domain/Application remain independent of server metadata.
+- Existing PostInvoiceCommand already writes movements through IStockMovementRepository. A no-op would silently lose stock, so the narrow IStockMovementWriter uses a real transaction-bound append writer immediately; S10 supplies its mapped tables. No fake/no-op financial write is registered.
+- Intake exposes its current operation to the request-scoped cashier query, excluding the close command itself from unsettled-command blockers; transaction locks serialize invoice and cashier mutations.

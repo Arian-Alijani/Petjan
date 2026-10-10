@@ -1,3 +1,5 @@
+using Animora.Domain.Sales;
+using Animora.Domain.Cashier;
 using Animora.Domain.Boarding;
 using Animora.Domain.Clinical;
 using Animora.Domain.Patients;
@@ -15,6 +17,10 @@ internal sealed class ClinicalAggregateVersionReader(AnimoraServerDbContext db) 
     public Task<Result<string?>> TryReadAsync(string aggregateType, string aggregateId, CancellationToken ct = default) =>
         aggregateType switch
         {
+            "Invoice" => ReadAsync<Invoice>(aggregateId, ct),
+            "Payment" => ReadAsync<Payment>(aggregateId, ct),
+            "Insurer" => ReadAsync<Insurer>(aggregateId, ct),
+            "CashSession" => ReadAsync<CashSession>(aggregateId, ct),
             "Appointment" => ReadAsync<Appointment>(aggregateId, ct),
             "Room" => ReadAsync<Room>(aggregateId, ct),
             "BoardingStay" => ReadAsync<BoardingStay>(aggregateId, ct),
