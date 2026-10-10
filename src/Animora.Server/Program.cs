@@ -1,4 +1,5 @@
 using Animora.Server.Admin;
+using Animora.Server.Insight;
 using Animora.Server.Observability;
 using Animora.Persistence.PostgreSql.Options;
 using Animora.Server.Files;
@@ -95,6 +96,9 @@ builder.Services.AddAnimoraOperator();
 builder.Services.AddAnimoraProvisioning();
 builder.Services.AddAnimoraLicensing(builder.Configuration);
 builder.Services.AddAnimoraAdmin(builder.Configuration);
+builder.Services.AddAnimoraInsight(builder.Configuration);
+builder.Services.AddSingleton<AdminStatusCache>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<AdminStatusCache>());
 
 // 4d. Fenced command intake (S06): server Application profile, no desktop journal/session dependencies.
 builder.Services.AddAnimoraCommandPlane(
@@ -171,7 +175,8 @@ if (enableOpenApi)
 app.MapStaticAssets();
 app.MapAdminAccountEndpoints();
 // App and route pages live in the same RCL, already included by MapRazorComponents.
-app.MapRazorComponents<Animora.Web.Admin.App>().RequireAuthorization(OperatorCookie.Policy).RequireRateLimiting(RateLimitPolicies.Operator);
+app.MapRazorComponents<Animora.Web.Admin.App>().AddInteractiveServerRenderMode()
+    .RequireAuthorization(OperatorCookie.Policy).RequireRateLimiting(RateLimitPolicies.Operator);
 app.MapAuthEndpoints();
 app.MapFileEndpoints();
 app.MapLicenseEndpoints();

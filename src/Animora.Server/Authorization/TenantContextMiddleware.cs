@@ -31,6 +31,7 @@ internal sealed class TenantContextMiddleware(RequestDelegate next)
     internal static bool IsSkipped(PathString path) =>
         path.StartsWithSegments("/health", StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments(ServerRoutes.Admin, StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/_blazor", StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments(ServerRoutes.Operator, StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments(ServerRoutes.Provisioning, StringComparison.OrdinalIgnoreCase)
         || path.Equals(ServerRoutes.Auth + "/login", StringComparison.OrdinalIgnoreCase)

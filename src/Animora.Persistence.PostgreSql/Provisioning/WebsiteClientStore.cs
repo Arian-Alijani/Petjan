@@ -4,8 +4,18 @@ using Animora.Persistence.PostgreSql.Operator;
 using Microsoft.EntityFrameworkCore;
 namespace Animora.Persistence.PostgreSql.Provisioning;
 
+public sealed record WebsiteClientListItem(string Id, string KeyId, string Label, WebsiteClientStatus Status, DateTimeOffset CreatedUtc, DateTimeOffset? LastUsedUtc);
 public sealed class WebsiteClientStore(ProvisioningDbContext db)
 {
+    public async Task<OperatorPage<WebsiteClientListItem>> ListAsync(int page = 1, int size = 50, CancellationToken ct = default)
+    {
+        page = Math.Clamp(page, 1, int.MaxValue / 200); size = Math.Clamp(size, 1, 200);
+        var query = db.Clients.AsNoTracking();
+        long total = await query.LongCountAsync(ct).ConfigureAwait(false);
+        var rows = await query.OrderByDescending(x => x.CreatedUtc).ThenBy(x => x.Id).Skip((page - 1) * size).Take(size)
+            .Select(x => new WebsiteClientListItem(x.Id, x.KeyId, x.Label, x.Status, x.CreatedUtc, x.LastUsedUtc)).ToListAsync(ct).ConfigureAwait(false);
+        return new(rows, page, size, total);
+    }
     public Task<WebsiteClient?> FindAsync(string keyId, CancellationToken ct = default) =>
         db.Clients.AsNoTracking().SingleOrDefaultAsync(x => x.KeyId == keyId && x.Status == WebsiteClientStatus.Active, ct);
     public async Task<Result> CreateAsync(WebsiteClient row, ActorRef actor, CancellationToken ct = default)

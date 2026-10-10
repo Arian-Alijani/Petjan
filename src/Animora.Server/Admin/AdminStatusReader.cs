@@ -36,8 +36,8 @@ internal sealed class AdminStatusReader(AdminStatusCache cache, IHttpContextAcce
             !principal.IsInRole("operator") || string.IsNullOrWhiteSpace(principal.FindFirstValue("sub")))
             return Result<AdminStatus>.Fail(ErrorCodes.Forbidden);
         // Circuits outlive HttpContext. Bound their snapshot access to the same absolute cookie expiry.
-        if (http.HttpContext is null && (!long.TryParse(principal.FindFirstValue("op_exp"), out var expiry) ||
-            time.GetUtcNow().ToUnixTimeSeconds() >= expiry)) return Result<AdminStatus>.Fail(ErrorCodes.Forbidden);
+        if (!long.TryParse(principal.FindFirstValue("op_exp"), out var expiry) ||
+            time.GetUtcNow().ToUnixTimeSeconds() >= expiry) return Result<AdminStatus>.Fail(ErrorCodes.Forbidden);
         return cache.Read();
     }
 }

@@ -20,3 +20,15 @@ public sealed class AnimoraInsightReadContext(DbContextOptions<AnimoraInsightRea
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken ct = default)
         => throw new InvalidOperationException("Insight is read-only.");
 }
+
+public static class InsightPersistenceExtensions
+{
+    public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddInsightReadPersistence(this Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+    {
+        Microsoft.Extensions.DependencyInjection.EntityFrameworkServiceCollectionExtensions.AddDbContext<AnimoraInsightReadContext>(services, (sp, options) =>
+            options.UseNpgsql(Microsoft.Extensions.DependencyInjection.ServiceProviderKeyedServiceExtensions.GetRequiredKeyedService<Npgsql.NpgsqlDataSource>(
+                sp, Animora.Persistence.PostgreSql.DependencyInjection.PersistenceServiceCollectionExtensions.WorkerKey),
+                o => o.CommandTimeout(ReportingQuerySession.TimeoutSeconds)).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
+        return services;
+    }
+}
