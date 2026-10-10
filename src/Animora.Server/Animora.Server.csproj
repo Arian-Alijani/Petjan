@@ -7,6 +7,7 @@
     project is NEVER referenced (enforced by ServerLayeringTests).
   -->
   <ItemGroup>
+    <ProjectReference Include="..\Animora.Server.Licensing\Animora.Server.Licensing.csproj" />
     <ProjectReference Include="..\Animora.Domain\Animora.Domain.csproj" />
     <ProjectReference Include="..\Animora.Application\Animora.Application.csproj" />
     <ProjectReference Include="..\Animora.Contracts.Wire\Animora.Contracts.Wire.csproj" />

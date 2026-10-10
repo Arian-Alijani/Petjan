@@ -88,6 +88,15 @@ public sealed class SigningKey
     public bool IsUsable(DateTimeOffset nowUtc) =>
         RetiredUtc is null && (NotAfterUtc is null || NotAfterUtc > nowUtc);
 
+    /// <summary>Retains the public key through the complete licence offline/read-only horizon.</summary>
+    public void RetireLicense(IClock clock, DateTimeOffset verifyUntilUtc)
+    {
+        if (Purpose != Purposes.License || verifyUntilUtc < clock.UtcNow)
+            throw new ArgumentException("Invalid licence rotation horizon.");
+        Retire(clock);
+        if (NotAfterUtc is null || NotAfterUtc < verifyUntilUtc) NotAfterUtc = verifyUntilUtc.ToUniversalTime();
+    }
+
     /// <summary>Retires the key from signing. Idempotent: keeps the original instant.</summary>
     public void Retire(IClock clock)
     {

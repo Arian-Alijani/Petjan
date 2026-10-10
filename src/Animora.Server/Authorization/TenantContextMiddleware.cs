@@ -34,7 +34,8 @@ internal sealed class TenantContextMiddleware(RequestDelegate next)
         || path.StartsWithSegments(ServerRoutes.Provisioning, StringComparison.OrdinalIgnoreCase)
         || path.Equals(ServerRoutes.Auth + "/login", StringComparison.OrdinalIgnoreCase)
         || path.Equals(ServerRoutes.Auth + "/refresh", StringComparison.OrdinalIgnoreCase)
-        || path.Equals(ServerRoutes.Auth + "/keys", StringComparison.OrdinalIgnoreCase);
+        || path.Equals(ServerRoutes.Auth + "/keys", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments(ServerRoutes.Licensing + "/keys", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Runs the stage.</summary>
     public async Task InvokeAsync(HttpContext context)

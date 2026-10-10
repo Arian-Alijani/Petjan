@@ -1,6 +1,7 @@
 using Animora.Contracts.Wire.Errors;
 using Animora.Domain.Results;
 using Animora.Server.Hosting;
+using Animora.Server.Licensing;
 
 namespace Animora.Server.Authorization;
 
@@ -16,8 +17,7 @@ internal sealed class EntitlementMiddleware(RequestDelegate next)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (context.Request.Path.StartsWithSegments(ServerRoutes.Operator, StringComparison.OrdinalIgnoreCase)
-            || context.Request.Path.StartsWithSegments(ServerRoutes.Provisioning, StringComparison.OrdinalIgnoreCase)
+        if (ServerEntitlementGate.IsExempt(context.Request.Path)
             || state.Membership is not { } membership)
         {
             await next(context).ConfigureAwait(false);
@@ -36,10 +36,10 @@ internal sealed class EntitlementMiddleware(RequestDelegate next)
         string correlationId = CorrelationHeader.Resolve(context);
         CorrelationHeader.Echo(context, correlationId);
 
-        // Any non-success is coerced to the one stable entitlement code (the gate's own detail is not exposed).
+        // Preserve explicit revocation; other denials remain the stable entitlement response.
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
         await context.Response.WriteAsJsonAsync(
-            new WireApiError(ErrorCodes.EntitlementRequired.Code, null, [], correlationId),
+            new WireApiError(result.Error == ErrorCodes.LicenseRevoked ? ErrorCodes.LicenseRevoked.Code : ErrorCodes.EntitlementRequired.Code, result.Detail, [], correlationId),
             context.RequestAborted).ConfigureAwait(false);
     }
 }

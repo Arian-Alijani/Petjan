@@ -1,3 +1,4 @@
+using Animora.Server.Licensing;
 using Animora.Server.Workers;
 using Animora.Server.Operator;
 using Animora.Server.Provisioning;
@@ -68,6 +69,7 @@ builder.Services.AddAnimoraAuthorization();
 builder.Services.AddAnimoraSubscriptions(builder.Configuration);
 builder.Services.AddAnimoraOperator();
 builder.Services.AddAnimoraProvisioning();
+builder.Services.AddAnimoraLicensing(builder.Configuration);
 
 // 4d. Fenced command intake (S06): server Application profile, no desktop journal/session dependencies.
 builder.Services.AddAnimoraCommandPlane(
@@ -136,6 +138,8 @@ if (enableOpenApi)
 
 // Authentication endpoints (S04) — /auth/login|refresh|logout|device/register under the `auth` rate limit.
 app.MapAuthEndpoints();
+app.MapLicenseEndpoints();
+app.MapLicenseOperatorEndpoints();
 app.MapOperatorEndpoints();
 app.MapProvisioningEndpoints();
 app.MapWebsiteClientEndpoints();
