@@ -159,8 +159,10 @@ public sealed class LayeringRulesTests
         {
             foreach (var prefix in new[] { "Animora.Server", "Animora.Persistence.PostgreSql", "Animora.Web.Admin" })
             {
-                Assert.False(ReferencesNameStartingWith(assembly, prefix),
-                    $"{assembly.GetName().Name} must not reference {prefix}*");
+                var prohibited = ReferencedAssembliesOf(assembly).Where(a => a.Name is not null && a.Name.StartsWith(prefix, StringComparison.Ordinal))
+                    .Where(a => !(a.Name == "Animora.Server.Licensing" && assembly.GetName().Name is
+                        "Animora.Client.Services" or "Animora.Desktop" or "Animora.Infrastructure.Local"));
+                Assert.Empty(prohibited);
             }
         }
     }

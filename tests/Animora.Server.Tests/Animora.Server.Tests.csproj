@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Animora.Server.Licensing\Animora.Server.Licensing.csproj" />
     <ProjectReference Include="..\..\src\Animora.Server\Animora.Server.csproj" />
     <ProjectReference Include="..\..\src\Animora.Persistence.PostgreSql\Animora.Persistence.PostgreSql.csproj" />
   </ItemGroup>
