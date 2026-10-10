@@ -736,4 +736,17 @@ public static class ErrorCodes
     public static readonly ErrorCode ProvisioningIntentNotFound = new("PROVISIONING_INTENT_NOT_FOUND", ErrorCode.NotFound);
 
     #endregion
+
+    #region Licensing (Phase S16)
+
+    public static readonly ErrorCode LicenseInvalid = new("LICENSE_INVALID", ErrorCode.Entitlement);
+    public static readonly ErrorCode LicenseKeyUnknown = new("LICENSE_KEY_UNKNOWN", ErrorCode.Entitlement);
+    public static readonly ErrorCode LicenseExpired = new("LICENSE_EXPIRED", ErrorCode.Entitlement);
+    public static readonly ErrorCode LicenseRevoked = new("LICENSE_REVOKED", ErrorCode.Entitlement);
+    public static readonly ErrorCode LicenseDeviceMismatch = new("LICENSE_DEVICE_MISMATCH", ErrorCode.Forbidden);
+    public static readonly ErrorCode LicenseDeviceLimitReached = new("LICENSE_DEVICE_LIMIT_REACHED", ErrorCode.Conflict);
+    public static readonly ErrorCode LicenseClockRollback = new("LICENSE_CLOCK_ROLLBACK", ErrorCode.Entitlement);
+    public static readonly ErrorCode LicenseNotGranted = new("LICENSE_NOT_GRANTED", ErrorCode.Entitlement);
+
+    #endregion
 }

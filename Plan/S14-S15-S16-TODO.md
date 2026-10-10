@@ -434,7 +434,7 @@ precondition به ترتیب: grant موجود و `Status=Active` و `now ≤ Va
 
 ## ✅ تسک‌لیست اجرایی S16 (بعد از هر چک‌باکس → push)
 
-- [ ] **S16-T1 · ErrorCodes +8 + route + outbox type.** region `#region Licensing (Phase S16)` با ۸ کد + `ServerRoutes.Licensing="/licensing"`. (`license.issue` در S14-T4 اضافه شد.) push: `feat(server): S16 licensing error codes (+8) & route`.
+- [x] **S16-T1 · ErrorCodes +8 + route + outbox type.** region `#region Licensing (Phase S16)` با ۸ کد + `ServerRoutes.Licensing="/licensing"`. (`license.issue` در S14-T4 اضافه شد.) push: `feat(server): S16 licensing error codes (+8) & route`.
 - [ ] **S16-T2 · پروژهٔ Animora.Server.Licensing (Verification half).** csproj + refs + `InternalsVisibleTo` + افزودن به sln؛ `Verification/{LicensePayload,LicenseEnvelope,LicenseVerifier,ILicenseKeySet,LicensePublicKey,HighWaterClock,LicenseVerdict,LicensePolicy,CapabilityGate,DeviceFingerprint,SealedEntitlement,ISealedEntitlementStore,SealedEntitlementMerge,Base64Url}.cs`. push: `feat(licensing): S16 verification library (envelope, verifier, policy, fingerprint)`.
 - [ ] **S16-T3 · Issuance half + Wire DTOs.** `Issuance/{ILicenseSigner,EcdsaLicenseSigner,LicenseCanonicalPayload,LicensingOptions}.cs` + `src/Animora.Contracts.Wire/Licensing/*.cs`. push: `feat(licensing): S16 issuance signer, canonical payload & wire DTOs`.
 - [ ] **S16-T4 · تست‌های pure verification.** envelope/verifier/policy/capability/highwater/fingerprint/merge/canonical-parity + `LicensingLayeringTests` + ویرایش `LayeringRulesTests` whitelist. اجرا `scripts/sandbox/test.sh Licens`. push: `test(licensing): S16 verification matrix, fingerprint & layering`.
