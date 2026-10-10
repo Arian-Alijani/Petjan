@@ -35,7 +35,7 @@ public sealed partial class VaccinationRecordDetailViewModel : ObservableObject
         PetInitial = VaccinationPresentation.Initial(record.PetName);
         AvatarBrush = VaccinationPresentation.AvatarFill(record.Tone);
         PetName = record.PetName;
-        HeaderSub = $"{VaccinationPresentation.SpeciesLabel(record.Species)} · مالک: {record.OwnerName}";
+        HeaderSub = $"{VaccinationPresentation.SpeciesLabel(record.Species)} · سرپرست: {record.OwnerName}";
 
         var status = VaccinationPresentation.Status(record.Status);
         StatusText = status.Label;

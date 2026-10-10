@@ -16,7 +16,7 @@ public static class CashierPrintDocuments
         {
             new("شمارهٔ فاکتور", Digits(d.Id)),
             new("وضعیت", d.StateLabel),
-            new("مالک", d.OwnerName.Length == 0 ? "—" : d.OwnerName),
+            new("سرپرست", d.OwnerName.Length == 0 ? "—" : d.OwnerName),
             new("تلفن", d.Phone.Length == 0 ? "—" : d.Phone),
             new("تاریخ", d.Date),
         };
@@ -79,7 +79,7 @@ public static class CashierPrintDocuments
     public static string InvoicesCsv(IReadOnlyList<CashierInvoice> invoices)
     {
         var sb = new StringBuilder();
-        sb.Append("شماره,وضعیت,مالک,حیوان,تاریخ,مبلغ کل,پرداخت‌شده,مانده\r\n");
+        sb.Append("شماره,وضعیت,سرپرست,حیوان,تاریخ,مبلغ کل,پرداخت‌شده,مانده\r\n");
         foreach (var i in invoices)
         {
             sb.Append(Csv(i.Id)).Append(',')

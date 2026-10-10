@@ -129,7 +129,7 @@
                             <ComboBoxItem Content="قدیمی‌ترین" />
                             <ComboBoxItem Content="بیشترین مبلغ" />
                             <ComboBoxItem Content="کمترین مبلغ" />
-                            <ComboBoxItem Content="نام مالک (الفبا)" />
+                            <ComboBoxItem Content="نام سرپرست (الفبا)" />
                         </ComboBox>
                         <ComboBox Classes="hy-select" MinWidth="110" SelectedIndex="{Binding PageSizeIndex}"
                                   ToolTip.Tip="تعداد رکورد در صفحه">

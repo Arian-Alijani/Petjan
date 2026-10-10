@@ -536,7 +536,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     // ── server-side patient search (booking pattern: no eager load, min 2 chars, debounced, version-guarded) ──
     private const int PatientMinQueryLength = 2;
     private const int PatientPageSize = 20;
-    private const string PatientHintMessage = "برای انتخاب بیمار، حداقل ۲ حرف از نام بیمار، مالک یا شماره تماس را وارد کنید.";
+    private const string PatientHintMessage = "برای انتخاب بیمار، حداقل ۲ حرف از نام بیمار، سرپرست یا شماره تماس را وارد کنید.";
 
     private readonly Debouncer _patientSearchDebounce = new(System.TimeSpan.FromMilliseconds(300));
     private int _patientSearchVersion;
@@ -595,7 +595,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
             ShowPatientSearchMessage = PatientMatches.Count == 0 || hasMore;
             PatientSearchMessage = hasMore
                 ? "۲۰ نتیجه اول نمایش داده شد؛ برای یافتن بیمار، جست‌وجو را دقیق‌تر کنید."
-                : "بیماری با این مشخصات پیدا نشد؛ نام بیمار، مالک یا شماره تماس را بررسی کنید.";
+                : "بیماری با این مشخصات پیدا نشد؛ نام بیمار، سرپرست یا شماره تماس را بررسی کنید.";
             OnPropertyChanged(nameof(HasPatientMatches));
         }
         catch (Exception)

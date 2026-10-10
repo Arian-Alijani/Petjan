@@ -185,11 +185,11 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         _presenter = presenter;
         _dialogs = dialogs;
         _toast = toast;
-        Title = "پرونده مالک";
-        Eyebrow = "بیماران و مالکین";
+        Title = "پرونده سرپرست";
+        Eyebrow = "بیماران و سرپرستان";
         Breadcrumbs.Add("مدیریت کلینیک");
-        Breadcrumbs.Add("بیماران و مالکین");
-        Breadcrumbs.Add("پرونده مالک");
+        Breadcrumbs.Add("بیماران و سرپرستان");
+        Breadcrumbs.Add("پرونده سرپرست");
     }
 
     public ObservableCollection<OwnerSheetPetRowViewModel> Pets { get; } = [];
@@ -404,7 +404,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
         Apply(saved);
         IsEditing = false;
-        _toast.Show("اطلاعات مالک به‌روزرسانی شد", Tone.Ok);
+        _toast.Show("اطلاعات سرپرست به‌روزرسانی شد", Tone.Ok);
     }
 
     [RelayCommand]
@@ -429,7 +429,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
                 await _patients.CreatePetAsync(owner.Id, req);
                 _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
                 await LoadAsync(owner.Id);
-                _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
+                _toast.Show("حیوان جدید به پرونده سرپرست اضافه شد", Tone.Ok);
             },
             _dialogs, _toast), 760);
     }
@@ -479,14 +479,14 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         var ownerName = $"{_owner.FirstName} {_owner.LastName}".Trim();
         var petCount = Pets.Count;
         var note = petCount > 0
-            ? $"همراه با این مالک، {PersianNumberFormatter.ToPersianDigits(petCount.ToString())} حیوان ثبت‌شده برای او نیز از فهرست بیماران حذف می‌شود. سوابق مالی و درمانی در تاریخچه باقی می‌ماند."
+            ? $"همراه با این سرپرست، {PersianNumberFormatter.ToPersianDigits(petCount.ToString())} حیوان ثبت‌شده برای او نیز از فهرست بیماران حذف می‌شود. سوابق مالی و درمانی در تاریخچه باقی می‌ماند."
             : "سوابق مالی و درمانی در تاریخچه باقی می‌ماند.";
 
         _dialogs.ShowModal(new ConfirmDialogViewModel(
             _dialogs,
             "danger",
             "IconTrash",
-            "حذف پرونده مالک",
+            "حذف پرونده سرپرست",
             "پرونده ",
             $"«{ownerName}»",
             " و همه حیوانات او حذف شود؟",
@@ -498,7 +498,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
 
     private async Task DeleteOwnerConfirmedAsync(string ownerId)
     {
-        const string fallback = "حذف پرونده مالک انجام نشد؛ دوباره تلاش کنید";
+        const string fallback = "حذف پرونده سرپرست انجام نشد؛ دوباره تلاش کنید";
         try
         {
             await _patients.DeleteOwnerAsync(ownerId);
@@ -516,7 +516,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
 
         _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
         _dialogs.Close();
-        _toast.Show("پرونده مالک و حیوانات مرتبط حذف شد", Tone.Ok);
+        _toast.Show("پرونده سرپرست و حیوانات مرتبط حذف شد", Tone.Ok);
     }
 
     /// <summary>Deletes one pet from the owner's roster and refreshes the sheet so the row disappears.</summary>
@@ -537,7 +537,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
             "حذف حیوان",
             "پرونده ",
             $"«{row.Name}»",
-            " از فهرست حیوانات این مالک حذف شود؟",
+            " از فهرست حیوانات این سرپرست حذف شود؟",
             "سوابق ویزیت و واکسیناسیون در تاریخچه باقی می‌ماند.",
             "بله، حذف کن",
             "انصراف",
@@ -564,7 +564,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
 
         _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
         await LoadAsync(ownerId);
-        _toast.Show("حیوان از پرونده مالک حذف شد", Tone.Ok);
+        _toast.Show("حیوان از پرونده سرپرست حذف شد", Tone.Ok);
     }
 
     /// <summary>True when <paramref name="value"/> is real data (not blank / the «ثبت نشده» placeholder) and the sheet is not being edited.</summary>

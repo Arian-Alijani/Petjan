@@ -56,7 +56,7 @@ public static class HistoryText
 
     private static string Label(string key) => key switch
     {
-        "Pet" => "بیمار", "Owner" => "مالک", "Room" => "اتاق", "Invoice" => "فاکتور",
+        "Pet" => "بیمار", "Owner" => "سرپرست", "Room" => "اتاق", "Invoice" => "فاکتور",
         "Product" => "کالا", "Supplier" => "تأمین‌کننده", "Vaccine" => "واکسن", "Reason" => "علت",
         "Category" => "دسته", "From" => "از", "To" => "به", "Count" => "تعداد",
         "Quantity" => "مقدار", "Method" => "روش",
@@ -70,7 +70,7 @@ public static class HistoryText
     /// </summary>
     public static string EntityLabel(string entityType) => entityType switch
     {
-        "Invoice" => "فاکتور", "Payment" => "پرداخت", "Pet" => "بیمار", "Owner" => "مالک",
+        "Invoice" => "فاکتور", "Payment" => "پرداخت", "Pet" => "بیمار", "Owner" => "سرپرست",
         "Stay" => "پانسیون", "Vaccination" => "واکسیناسیون", "Visit" => "ویزیت",
         "Appointment" => "نوبت", "Cheque" => "چک", "Expense" => "هزینه",
         "GoodsReceipt" => "رسید کالا", "StockMovement" => "گردش انبار", "Product" => "کالا",

@@ -442,7 +442,7 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <TextBlock Classes="xlbl" Text="جستجو (نام بیمار، صاحب، تلفن، کد یا یادداشت)" />
+                            <TextBlock Classes="xlbl" Text="جستجو (نام بیمار، سرپرست، تلفن، کد یا یادداشت)" />
                             <TextBox Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="مثلاً «واکسن» یا ۰۹۱۲…" />
                         </StackPanel>
                     </Border>
@@ -561,7 +561,7 @@
                                 </ToggleButton>
                             </Grid>
                             <Grid Classes="trow" ColumnDefinitions="*,Auto">
-                                <TextBlock Text="شمارهٔ تماس صاحب" />
+                                <TextBlock Text="شمارهٔ تماس سرپرست" />
                                 <ToggleButton Grid.Column="1" Classes="bk-switch" IsChecked="{Binding ShowPhone, Mode=TwoWay}">
                                     <Ellipse Classes="bk-knob" Width="18" Height="18" />
                                 </ToggleButton>

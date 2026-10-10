@@ -134,7 +134,7 @@ public sealed partial class BoardingHistoryViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasNext;
 
-    public string SearchPlaceholder => "جستجو در نام حیوان، مالک، اتاق یا توضیح…";
+    public string SearchPlaceholder => "جستجو در نام حیوان، سرپرست، اتاق یا توضیح…";
 
     /// <summary>Active sort select index (0..3), mirroring the toolbar's four options.</summary>
     public int SortIndex

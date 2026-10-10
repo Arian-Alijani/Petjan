@@ -145,7 +145,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasNext;
 
-    public string SearchPlaceholder => "جستجو در شمارهٔ فاکتور، مالک، بیمار یا توضیح…";
+    public string SearchPlaceholder => "جستجو در شمارهٔ فاکتور، سرپرست، بیمار یا توضیح…";
 
     /// <summary>Active sort select index (0..4), mirroring the toolbar's options.</summary>
     public int SortIndex

@@ -262,7 +262,7 @@
                         <!-- search (.pb-search) -->
                         <Grid x:Name="SearchHost" Grid.Column="1" Width="420" MinWidth="200" VerticalAlignment="Stretch">
                             <TextBox x:Name="SearchBox" Classes="ap-search"
-                                     PlaceholderText="جستجوی بیمار، مالک یا پزشک…"
+                                     PlaceholderText="جستجوی بیمار، سرپرست یا پزشک…"
                                      Text="{Binding SearchQueryText, Mode=TwoWay}"
                                      KeyDown="OnSearchKeyDown" />
                             <Path Classes="icon" Width="16" Height="16" Margin="13,0,0,0"

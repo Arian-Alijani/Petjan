@@ -283,7 +283,7 @@ internal static class ProfileMapping
     {
         PermissionCodes.PatientsRead => "پرونده‌ها · مشاهده",
         PermissionCodes.PatientsWrite => "پرونده‌ها · ویرایش",
-        PermissionCodes.PatientsOwnerEdit => "پرونده‌ها · ویرایش مالک",
+        PermissionCodes.PatientsOwnerEdit => "پرونده‌ها · ویرایش سرپرست",
         PermissionCodes.PatientsPetEdit => "پرونده‌ها · ویرایش حیوان",
         PermissionCodes.ReceptionManage => "پذیرش · مدیریت صف",
         PermissionCodes.VisitsRead => "ویزیت · مشاهده",

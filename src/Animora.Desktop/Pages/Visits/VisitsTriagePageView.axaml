@@ -512,7 +512,7 @@
                                               Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}"
                                               VerticalAlignment="Center" />
                                         <TextBox Grid.Column="1" Classes="search-input" Text="{Binding SearchText}"
-                                                 PlaceholderText="جستجو بر اساس نام بیمار، مالک یا شماره…" />
+                                                 PlaceholderText="جستجو بر اساس نام بیمار، سرپرست یا شماره…" />
                                     </Grid>
                                 </Border>
                             </Grid>
@@ -666,7 +666,7 @@
                                                       Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}"
                                                       VerticalAlignment="Center" />
                                                 <TextBox Grid.Column="1" Classes="search-input" Text="{Binding PatientSearchText}"
-                                                         PlaceholderText="جستجوی بیمار: نام حیوان، مالک یا شماره تماس (حداقل ۲ حرف)…" />
+                                                         PlaceholderText="جستجوی بیمار: نام حیوان، سرپرست یا شماره تماس (حداقل ۲ حرف)…" />
                                             </Grid>
                                         </Border>
                                         <ProgressBar IsIndeterminate="True" Height="3" MinHeight="0"
@@ -713,7 +713,7 @@
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Brand700Brush}"
                                                       Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
-                                                <TextBlock Text="ثبت مالک و بیمار جدید" />
+                                                <TextBlock Text="ثبت سرپرست و بیمار جدید" />
                                             </StackPanel>
                                         </Button>
                                     </StackPanel>
@@ -740,7 +740,7 @@
                                                     <Run Text="{Binding PickedPatientName}" /><Run Text=" · " Foreground="{StaticResource MutedBrush}" /><Run Text="{Binding PickedPatientKind}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" />
                                                 </TextBlock>
                                                 <TextBlock FontSize="12" Foreground="{StaticResource Ink2Brush}">
-                                                    <Run Text="مالک: " /><Run Text="{Binding PickedPatientOwner}" FontWeight="Bold" /><Run Text="   " /><Run Text="{Binding PickedPatientPhone}" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" />
+                                                    <Run Text="سرپرست: " /><Run Text="{Binding PickedPatientOwner}" FontWeight="Bold" /><Run Text="   " /><Run Text="{Binding PickedPatientPhone}" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" />
                                                 </TextBlock>
                                             </StackPanel>
                                             <Button Grid.Column="2" Classes="outline" Padding="10,6" FontSize="12"

@@ -112,9 +112,9 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         _dialogs = dialogs;
         _toast = toast;
         Title = "پرونده بیمار";
-        Eyebrow = "بیماران و مالکین";
+        Eyebrow = "بیماران و سرپرستان";
         Breadcrumbs.Add("مدیریت کلینیک");
-        Breadcrumbs.Add("بیماران و مالکین");
+        Breadcrumbs.Add("بیماران و سرپرستان");
         Breadcrumbs.Add("پرونده بیمار");
 
         Tabs =
@@ -715,7 +715,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
             "پرونده ",
             $"«{petName}»",
             " از فهرست بیماران حذف شود؟",
-            "این پرونده از فهرست و پرونده مالک حذف می‌شود؛ سوابق ویزیت و واکسیناسیون در تاریخچه باقی می‌ماند.",
+            "این پرونده از فهرست و پرونده سرپرست حذف می‌شود؛ سوابق ویزیت و واکسیناسیون در تاریخچه باقی می‌ماند.",
             "بله، حذف کن",
             "انصراف",
             () => _ = DeleteConfirmedAsync(petId)), 480);

@@ -53,7 +53,7 @@ public enum CashierHistorySort
     /// <summary>«کمترین مبلغ» — smallest amount first.</summary>
     AmountAsc,
 
-    /// <summary>«نام مالک (الفبا)» — owner name A–Z, then newest.</summary>
+    /// <summary>«نام سرپرست (الفبا)» — owner name A–Z, then newest.</summary>
     Owner,
 }
 

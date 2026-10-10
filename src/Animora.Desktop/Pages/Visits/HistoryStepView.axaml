@@ -16,7 +16,7 @@
             <StackPanel Grid.Column="0" Spacing="6">
                 <TextBlock Classes="fld-label" Text="شرح حال بیمار" />
                 <TextBox Classes="fld-input" Text="{Binding HistoryText}" AcceptsReturn="True" TextWrapping="Wrap"
-                         MinHeight="150" PlaceholderText="سابقهٔ بیماری، مشاهدات مالک، طول مدت علائم…" />
+                         MinHeight="150" PlaceholderText="سابقهٔ بیماری، مشاهدات سرپرست، طول مدت علائم…" />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="6">
                 <TextBlock Classes="fld-label" Text="معاینهٔ فیزیکی" />

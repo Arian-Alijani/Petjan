@@ -52,7 +52,7 @@ public sealed record StayDetail(
 /// <param name="PetName">Pet name («نام حیوان»).</param>
 /// <param name="Species">Species («گونه»).</param>
 /// <param name="Breed">Breed («نژاد»), «نامشخص» when left blank.</param>
-/// <param name="OwnerName">Owner name («نام مالک»).</param>
+/// <param name="OwnerName">Owner name («نام سرپرست»).</param>
 /// <param name="OwnerPhone">Owner mobile, «—» when left blank.</param>
 /// <param name="PatientId">Linked patient id (empty for a fresh/manual entry).</param>
 /// <param name="Room">Room id (e.g. <c>A-1</c>).</param>

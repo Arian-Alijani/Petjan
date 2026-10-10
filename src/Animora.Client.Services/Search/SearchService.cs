@@ -14,7 +14,7 @@ public sealed class SearchService(IServiceScopeFactory scopes) : ISearchService
 
     public IReadOnlyList<SearchResult> DefaultSuggestions =>
     [
-        new("بیماران", "پرونده‌ها و مالکین", "IconUsers", "teal", Target("Patients.PatientsPageViewModel")),
+        new("بیماران", "پرونده‌ها و سرپرستان", "IconUsers", "teal", Target("Patients.PatientsPageViewModel")),
         new("فروش", "فاکتورها", "IconCart", "green", Target("Sales.SalePageViewModel")),
         new("نوبت‌ها", "تقویم کلینیک", "IconCalendar", "blue", Target("Appointments.AppointmentsCalendarViewModel")),
         new("انبار", "کالاها", "IconBox", "amber", Target("Inventory.InventoryPageViewModel")),

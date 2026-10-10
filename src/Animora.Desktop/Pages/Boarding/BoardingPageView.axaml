@@ -248,7 +248,7 @@
                                       Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}" />
                                 <TextBox Grid.Column="1" Text="{Binding SearchQueryText, Mode=TwoWay}" Background="Transparent"
                                          BorderThickness="0" FontSize="13" VerticalContentAlignment="Center"
-                                         PlaceholderText="جستجوی حیوان، مالک، اتاق…"
+                                         PlaceholderText="جستجوی حیوان، سرپرست، اتاق…"
                                          KeyDown="OnSearchKeyDown" />
                                 <Button Grid.Column="2" Classes="ghost" Width="28" Height="28" Padding="4"
                                         IsVisible="{Binding HasSearchValue}" Command="{Binding ClearSearchCommand}"

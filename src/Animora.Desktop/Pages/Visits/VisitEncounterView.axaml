@@ -630,7 +630,7 @@
 
                             <Border Classes="meta-row">
                                 <Grid ColumnDefinitions="Auto,*">
-                                    <TextBlock Grid.Column="0" Classes="meta-lbl" Text="مالک" />
+                                    <TextBlock Grid.Column="0" Classes="meta-lbl" Text="سرپرست" />
                                     <TextBlock Grid.Column="1" Classes="meta-val" Text="{Binding OwnerName}"
                                                HorizontalAlignment="Left" />
                                 </Grid>

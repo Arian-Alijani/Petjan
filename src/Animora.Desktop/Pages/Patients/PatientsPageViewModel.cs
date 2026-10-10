@@ -96,7 +96,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         _dialogs = dialogs;
         _toast = toast;
         Settings = new PatientsSettingsViewModel(toast);
-        Title = "بیماران و مالکین";
+        Title = "بیماران و سرپرستان";
         Eyebrow = "مدیریت کلینیک";
         Breadcrumbs.Add("مدیریت کلینیک");
         Breadcrumbs.Add("بیماران");
@@ -124,7 +124,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     public bool IsOwnersView => ViewMode == PatientViewMode.Owners;
     public bool IsPetsView => ViewMode == PatientViewMode.Pets;
 
-    // The three section tabs (مالکین / بیماران / تنظیمات) are mutually exclusive: the owners/pets
+    // The three section tabs (سرپرستان / بیماران / تنظیمات) are mutually exclusive: the owners/pets
     // tabs only light up while the directory is showing, otherwise «تنظیمات» is the active tab.
     public bool IsOwnersTabActive => IsDirectorySection && IsOwnersView;
     public bool IsPetsTabActive => IsDirectorySection && IsPetsView;
@@ -142,7 +142,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     public bool ShowPetsGrid => IsPetsView && IsGridView && HasPets;
     public bool ShowPetsTable => IsPetsView && IsListView && HasPets;
     public bool ShowEmptyState => (IsOwnersView && !HasOwners) || (IsPetsView && !HasPets);
-    public string EmptyTitle => IsOwnersView ? "مالکی پیدا نشد" : "بیماری پیدا نشد";
+    public string EmptyTitle => IsOwnersView ? "سرپرستی پیدا نشد" : "بیماری پیدا نشد";
 
     // ── Pagination-derived state ──────────────────────────────────────────
     private int PageSize => Math.Clamp(SelectedPageSize?.Value ?? 50, 1, ServerMaxPageSize);
@@ -182,7 +182,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
     /// <summary>Result counter text (reference toolbar .pb-count).</summary>
     public string ResultCountText => ViewMode == PatientViewMode.Owners
-        ? $"{PersianNumberFormatter.ToPersianDigits(_totalOwnerMatches)} مالک · "
+        ? $"{PersianNumberFormatter.ToPersianDigits(_totalOwnerMatches)} سرپرست · "
           + $"{PersianNumberFormatter.ToPersianDigits(_totalPetMatches)} بیمار"
         : $"{PersianNumberFormatter.ToPersianDigits(_totalPetMatches)} بیمار";
 
@@ -385,7 +385,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
         if (detail is null)
         {
-            _toast.Show("مالک پیدا نشد", Tone.Info);
+            _toast.Show("سرپرست پیدا نشد", Tone.Info);
             return;
         }
 
@@ -396,7 +396,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
                 await _patientsQueryService.CreatePetAsync(detail.Id, req);
                 _changes.Notify(DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
                 await ReloadPageAsync();
-                _toast.Show("حیوان جدید به پرونده مالک اضافه شد", Tone.Ok);
+                _toast.Show("حیوان جدید به پرونده سرپرست اضافه شد", Tone.Ok);
             },
             _dialogs, _toast), maxWidth: 760);
     }
@@ -505,7 +505,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         }
         catch (Exception)
         {
-            _toast.Show("بارگذاری بیماران و مالکین انجام نشد؛ دوباره تلاش کنید", Tone.Danger);
+            _toast.Show("بارگذاری بیماران و سرپرستان انجام نشد؛ دوباره تلاش کنید", Tone.Danger);
             return false;
         }
         finally

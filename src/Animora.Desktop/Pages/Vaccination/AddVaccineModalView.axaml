@@ -300,7 +300,7 @@
                 </ItemsControl>
                 <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0" IsVisible="{Binding CanNotifyOwner}">
                     <StackPanel Grid.Column="0" Spacing="3">
-                        <TextBlock Text="یادآور پیامکی برای مالک" FontSize="12.5" FontWeight="Bold" />
+                        <TextBlock Text="یادآور پیامکی برای سرپرست" FontSize="12.5" FontWeight="Bold" />
                         <TextBlock Text="فقط به‌صورت پرچم ثبت می‌شود؛ ارسال پیامک واقعی انجام نمی‌شود" FontSize="11" Foreground="{StaticResource MutedBrush}" />
                     </StackPanel>
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotifyOwner}" OnContent="" OffContent="" />

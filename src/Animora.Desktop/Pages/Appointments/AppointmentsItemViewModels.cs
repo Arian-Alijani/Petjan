@@ -417,7 +417,7 @@ public sealed class QueueCardViewModel
     public string PetName => Model.PetName;
     public string TypeLabel => Type.Label;
     public string TypeClass => Type.ClassKey;
-    public string Line2 => $"{Model.PetKind} · مالک: {Model.OwnerName}";
+    public string Line2 => $"{Model.PetKind} · سرپرست: {Model.OwnerName}";
     public string StatusLabel => AppointmentsPresentation.Lifecycle(Model.Lifecycle).Label;
     public string StatusClass => AppointmentsPresentation.LifecycleClassKey(Model.Lifecycle);
     public Tone StatusTone => AppointmentsPresentation.Lifecycle(Model.Lifecycle).Tone;
