@@ -137,6 +137,8 @@ public interface IFeedEpoch { Task AdvanceAsync(string tenantId, string reason, 
 - `FeedPositionReader : IFeedPosition` (scoped) — single-row read of `TenantFeedState`.
 - `FeedEpochService : IFeedEpoch` — `UPDATE TenantFeedState SET Epoch=Epoch+1, OldestRetainedSequence=LastSequence, UpdatedUtc=now() WHERE TenantId=@t`.
 
+> Execution directive: no builds/tests/smoke are run. Migrations and frozen designer/snapshot metadata are authored by hand to avoid dotnet-ef implicitly building. Acceptance execution is explicitly unverified.
+
 ### S11 tasks
 
 - [x] **S11-T1 — Catalog + seams (pure, no DB).** Create `Replication/SyncEntityDescriptor.cs`, `SyncContractCatalog.cs` (the 25-row `ProjectionOrder` from the verified table above, parents before children, with child tables + child→root FK column), `SyncExclusions.cs` (excluded entities + reason string each), `FeedPosition.cs` (record + `IFeedPosition`/`IFeedEpoch` interfaces). All `sealed`/`sealed record`. No magic totals anywhere (derive from `.Count`).
@@ -148,7 +150,7 @@ public interface IFeedEpoch { Task AdvanceAsync(string tenantId, string reason, 
 - [x] **S11-T3 — Entities + EF config + DbContext.** Create `TenantFeedStateRow`/`TenantJournalRow` (POCOs in `Replication/`), `Configurations/TenantFeedStateConfiguration.cs`, `Configurations/TenantJournalConfiguration.cs` (map columns/indexes exactly; `Id` = identity-by-default/`ValueGeneratedOnAdd`). Add `DbSet<>`s + explicit `"Tenant"` filters in `AnimoraServerDbContext.OnModelCreating` (mirror the existing non-syncable block). Register `FeedPositionReader`/`FeedEpochService` in the persistence DI extension (scoped).
   **PUSH:** `scripts/git/push.sh "feat(server): S11-T3 feed-state + journal entities, config, DI"`
 
-- [ ] **S11-T4 — Migration `109_ChangeJournal`.** `ls Migrations/Server` to re-confirm next ordinal = `109`. Run:
+- [x] **S11-T4 — Migration `109_ChangeJournal`.** `ls Migrations/Server` to re-confirm next ordinal = `109`. Run:
   `.sandbox/tools/dotnet-ef migrations add ChangeJournal --project src/Animora.Persistence.PostgreSql --startup-project src/Animora.Persistence.PostgreSql --context AnimoraServerDbContext --output-dir Migrations/Server`
   Rename files + class/id to `109_ChangeJournal`. Hand-write `Up`: create the two functions, the `TenantFeedState`/`TenantJournal` tables + indexes (the UNIQUE-WHERE partial index needs raw `.Sql` or `HasFilter`), the constraint trigger, then **loop `SyncContractCatalog.ProjectionOrder`** calling `JournalTriggers.Apply(mb, d)` (migration must not hard-code table names). Backfill: `INSERT INTO "TenantFeedState" ("TenantId") SELECT "Id" FROM "Tenants" ON CONFLICT DO NOTHING;` Add the `TRUNCATE`-revoke documentation comment. `Down` drops triggers/functions/tables in reverse. Bump `ServerSchemaVersion.ExpectedHead = "109_ChangeJournal"`. Update `AnimoraServerDbContextModelSnapshot`.
   **PUSH:** `scripts/git/push.sh "feat(server): S11-T4 migration 109 ChangeJournal (functions, tables, triggers)"`

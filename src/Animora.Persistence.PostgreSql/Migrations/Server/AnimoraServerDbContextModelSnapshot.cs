@@ -1846,6 +1846,34 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
             modelBuilder.Entity("Animora.Domain.Purchasing.GoodsReceipt", b => b.Navigation("Lines").AutoInclude());
             modelBuilder.Entity("Animora.Domain.Finance.JournalEntry", b => b.Navigation("Lines").AutoInclude());
             modelBuilder.Entity("Animora.Domain.Finance.Cheque", b => b.Navigation("History").AutoInclude());
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Replication.TenantFeedStateRow", b =>
+            {
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<long>("Epoch").ValueGeneratedOnAdd().HasColumnType("bigint").HasDefaultValue(1L);
+                b.Property<long>("Generation").ValueGeneratedOnAdd().HasColumnType("bigint").HasDefaultValue(1L);
+                b.Property<long>("LastSequence").ValueGeneratedOnAdd().HasColumnType("bigint").HasDefaultValue(0L);
+                b.Property<long>("OldestRetainedSequence").ValueGeneratedOnAdd().HasColumnType("bigint").HasDefaultValue(0L);
+                b.Property<DateTimeOffset>("UpdatedUtc").ValueGeneratedOnAdd().HasColumnType("timestamp(6) with time zone").HasDefaultValueSql("clock_timestamp()");
+                b.HasKey("TenantId");
+                b.ToTable("TenantFeedState", "public");
+            });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Replication.TenantJournalRow", b =>
+            {
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+                b.Property<string>("Entity").IsRequired().HasMaxLength(48).HasColumnType("character varying(48)");
+                b.Property<string>("EntityId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("Op").IsRequired().HasColumnType("character(1)");
+                b.Property<Guid?>("Version").HasColumnType("uuid");
+                b.Property<long?>("ChangeSequence").HasColumnType("bigint");
+                b.Property<long>("Epoch").HasColumnType("bigint");
+                b.Property<DateTimeOffset>("CapturedUtc").HasColumnType("timestamp(6) with time zone");
+                b.HasKey("TenantId", "Id");
+                b.HasIndex("TenantId", "Epoch", "ChangeSequence").IsUnique().HasDatabaseName("IX_TenantJournal_TenantId_Epoch_ChangeSequence").HasFilter("\"ChangeSequence\" IS NOT NULL");
+                b.HasIndex("TenantId", "Entity", "EntityId", "ChangeSequence").HasDatabaseName("IX_TenantJournal_TenantId_Entity_EntityId_ChangeSequence");
+                b.ToTable("TenantJournal", "public");
+            });
 #pragma warning restore 612, 618
         }
     }
