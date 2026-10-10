@@ -2592,3 +2592,8 @@ Impact:     B04 can build on `IAuthenticationService`/`CurrentUserContextService
 - Inventory, purchasing and finance PostgreSQL relational mappings, migration 108 and immutability triggers authored. No on-hand/read-model table is persisted.
 - Model, composite-child and pure stock-derivation regressions authored; all execution gates remain unexecuted per user directive.
 - RecurringExpensePayment is an existing SyncableEntity, not an owned Domain child. Its existing Id key + unique tenant/template/period guard are preserved; it is command-settled only and not exposed to replication.
+
+### S10 T15 catalog gate — 2026-10-10
+- Registered all 23 live inventory/purchasing/finance wire types and matching permissions; reserved types remain absent.
+- Removed the mandatory permission-catalog Skip; its inventory explicitly excludes reserved types which fail HANDLER_NOT_REGISTERED before authorization. No separate skipped payload-catalog test exists in this baseline.
+- No build/test executed. Gate enabled in source only, not claimed green.

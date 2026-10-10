@@ -1,19 +1,25 @@
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Identity;
 using Animora.Server.Authorization;
+using Animora.Server.Commands;
 using Xunit;
 
 namespace Animora.Server.Tests.Authorization;
 
 public sealed class CommandPermissionCatalogTests
 {
-    // S05 ships the frozen table EMPTY; S07–S10 append one row per command type. S10 removes this Skip.
-    [Fact(Skip = "enabled by S07, mandatory from S10")]
+    // Reserved types are deliberately unregistered and rejected before authorization.
+    [Fact]
     public void EveryCommandType_HasARequiredPermission()
     {
         var missing = new List<string>();
         foreach (string commandType in CommandTypes.All)
         {
+            if (ReservedCommandTypes.All.Contains(commandType))
+            {
+                Assert.Null(CommandPermissionTable.RequiredFor(commandType));
+                continue;
+            }
             string? required = CommandPermissionTable.RequiredFor(commandType);
             if (required is null || !PermissionCodes.Exists(required))
             {

@@ -60,8 +60,8 @@ builder.Services.AddAnimoraAuthorization();
 
 // 4d. Fenced command intake (S06): server Application profile, no desktop journal/session dependencies.
 builder.Services.AddAnimoraCommandPlane(
-    handlers => { ServerHandlerModuleS07.AddHandlers(handlers); ServerHandlerModuleS08.AddHandlers(handlers); ServerHandlerModuleS09.AddHandlers(handlers); },
-    payloads => { ServerHandlerModuleS07.AddPayloads(payloads); ServerHandlerModuleS08.AddPayloads(payloads); ServerHandlerModuleS09.AddPayloads(payloads); });
+    handlers => { ServerHandlerModuleS07.AddHandlers(handlers); ServerHandlerModuleS08.AddHandlers(handlers); ServerHandlerModuleS09.AddHandlers(handlers); ServerHandlerModuleS10.AddHandlers(handlers); },
+    payloads => { ServerHandlerModuleS07.AddPayloads(payloads); ServerHandlerModuleS08.AddPayloads(payloads); ServerHandlerModuleS09.AddPayloads(payloads); ServerHandlerModuleS10.AddPayloads(payloads); });
 builder.Services.AddScoped<ServerSchedulingConcurrencyGuard>();
 builder.Services.AddScoped<IServerCommandConcurrencyGuard, ServerFinancialConcurrencyGuard>();
 builder.Services.AddScoped<ICommandEffectIdCollector, ServerCommandEffectIdCollector>();
