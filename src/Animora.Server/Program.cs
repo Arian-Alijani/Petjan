@@ -1,3 +1,8 @@
+using Animora.Server.Workers;
+using Animora.Server.Hints;
+using Animora.Server.Sync;
+using Animora.Persistence.PostgreSql.Replication;
+using Microsoft.Extensions.Options;
 using Animora.Persistence.PostgreSql.DependencyInjection;
 using Animora.Persistence.PostgreSql.KeyRing;
 using Animora.Server.Auth;
@@ -67,6 +72,12 @@ builder.Services.AddScoped<IServerCommandConcurrencyGuard, ServerFinancialConcur
 builder.Services.AddScoped<ICommandEffectIdCollector, ServerCommandEffectIdCollector>();
 builder.Services.AddScoped<IAggregateVersionReader, ClinicalAggregateVersionReader>();
 
+// S12 feed storage shares the normalized, validated server data root.
+builder.Services.AddOptions<FeedStorageOptions>().Configure<IOptions<ServerOptions>>(
+    (feed, server) => feed.DataRootPath = server.Value.DataRootPath);
+
+builder.Services.AddAnimoraWorkers();
+
 // 5. Health checks: readiness probes (data root, database, key ring, schema head).
 //    Probes degrade to Unhealthy when PostgreSQL is absent; the host still boots.
 builder.Services.AddSingleton<IReadinessProbe, DataRootWritableProbe>();
@@ -124,27 +135,32 @@ app.MapDeviceEndpoints();
 
 // S06 command conversation: independent settlements and server-allocated id maps.
 app.MapCommandEndpoints();
+app.MapSyncEndpoints();
+app.MapHub<SyncHintHub>(ServerRoutes.Sync + "/hub").RequireAuthorization(CoarsePolicies.TenantMember, CoarsePolicies.DeviceActive)
+    .RequireRateLimiting(RateLimitPolicies.Sync);
 
 // Health endpoints — anonymous, never rate-limited, leak no secret (ARCH §4).
 app.MapGet(ServerRoutes.HealthLive, () => Results.Json(new { status = "live" }));
 
 app.MapGet(ServerRoutes.HealthReady, async (
     IEnumerable<IReadinessProbe> probes,
+    WorkerHeartbeat workers,
     CancellationToken ct) =>
 {
     var failed = new List<string>();
+    var degraded = new List<string>();
     foreach (var probe in probes)
     {
         var result = await probe.CheckAsync(ct).ConfigureAwait(false);
         if (!result.IsHealthy)
         {
-            failed.Add(probe.Name);
+            if (probe.IsRequired) failed.Add(probe.Name); else degraded.Add(probe.Name);
         }
     }
 
     return failed.Count == 0
-        ? Results.Json(new { status = "ready" })
-        : Results.Json(new { status = "not-ready", failed }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        ? Results.Json(new { status = degraded.Count == 0 ? "ready" : "degraded", degraded, workers = workers.StaleNames() })
+        : Results.Json(new { status = "not-ready", failed, degraded, workers = workers.StaleNames() }, statusCode: StatusCodes.Status503ServiceUnavailable);
 });
 
 app.Run();

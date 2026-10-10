@@ -1846,6 +1846,92 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
             modelBuilder.Entity("Animora.Domain.Purchasing.GoodsReceipt", b => b.Navigation("Lines").AutoInclude());
             modelBuilder.Entity("Animora.Domain.Finance.JournalEntry", b => b.Navigation("Lines").AutoInclude());
             modelBuilder.Entity("Animora.Domain.Finance.Cheque", b => b.Navigation("History").AutoInclude());
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Replication.TenantFeedStateRow", b =>
+            {
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<long>("Epoch").ValueGeneratedOnAdd().HasColumnType("bigint").HasDefaultValue(1L);
+                b.Property<long>("Generation").ValueGeneratedOnAdd().HasColumnType("bigint").HasDefaultValue(1L);
+                b.Property<long>("LastSequence").ValueGeneratedOnAdd().HasColumnType("bigint").HasDefaultValue(0L);
+                b.Property<long>("OldestRetainedSequence").ValueGeneratedOnAdd().HasColumnType("bigint").HasDefaultValue(0L);
+                b.Property<DateTimeOffset>("UpdatedUtc").ValueGeneratedOnAdd().HasColumnType("timestamp(6) with time zone").HasDefaultValueSql("clock_timestamp()");
+                b.HasKey("TenantId");
+                b.ToTable("TenantFeedState", "public");
+            });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Replication.TenantJournalRow", b =>
+            {
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+                b.Property<string>("Entity").IsRequired().HasMaxLength(48).HasColumnType("character varying(48)");
+                b.Property<string>("EntityId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("Op").IsRequired().HasColumnType("character(1)");
+                b.Property<Guid?>("Version").HasColumnType("uuid");
+                b.Property<long?>("ChangeSequence").HasColumnType("bigint");
+                b.Property<long>("Epoch").HasColumnType("bigint");
+                b.Property<DateTimeOffset>("CapturedUtc").HasColumnType("timestamp(6) with time zone");
+                b.HasKey("TenantId", "Id");
+                b.HasIndex("TenantId", "Epoch", "ChangeSequence").IsUnique().HasDatabaseName("IX_TenantJournal_TenantId_Epoch_ChangeSequence").HasFilter("\"ChangeSequence\" IS NOT NULL");
+                b.HasIndex("TenantId", "Entity", "EntityId", "ChangeSequence").HasDatabaseName("IX_TenantJournal_TenantId_Entity_EntityId_ChangeSequence");
+                b.ToTable("TenantJournal", "public");
+            });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Replication.FeedBatchRow", b =>
+            {
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("BatchId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<long>("Epoch").HasColumnType("bigint");
+                b.Property<long>("Generation").HasColumnType("bigint");
+                b.Property<long>("FromSequenceExclusive").HasColumnType("bigint");
+                b.Property<long>("Watermark").HasColumnType("bigint");
+                b.Property<int>("PageCount").HasColumnType("integer");
+                b.Property<string>("ContentHash").IsRequired().HasColumnType("character(64)");
+                b.Property<short>("State").HasColumnType("smallint");
+                b.Property<bool>("IsFullSnapshot").HasColumnType("boolean");
+                b.Property<DateTimeOffset>("CreatedUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<DateTimeOffset?>("RetiredUtc").HasColumnType("timestamp(6) with time zone");
+                b.HasKey("TenantId","BatchId");
+                b.HasIndex("TenantId","Epoch","FromSequenceExclusive","Watermark","IsFullSnapshot").IsUnique();
+                b.HasIndex("TenantId","State","CreatedUtc");
+                b.ToTable("FeedBatch", "public");
+            });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Replication.FeedBatchPageRow", b =>
+            {
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("BatchId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<int>("PageOrdinal").HasColumnType("integer");
+                b.Property<string>("PageHash").IsRequired().HasColumnType("character(64)");
+                b.Property<int>("SizeBytes").HasColumnType("integer");
+                b.HasKey("TenantId","BatchId","PageOrdinal");
+                b.ToTable("FeedBatchPage", "public");
+            });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Outbox.OutboxMessage", b =>
+            {
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("MessageType").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                b.Property<string>("PayloadJson").IsRequired().HasColumnType("jsonb");
+                b.Property<short>("Status").HasColumnType("smallint");
+                b.Property<int>("Attempts").HasColumnType("integer");
+                b.Property<DateTimeOffset>("NextAttemptUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<string>("ClaimToken").HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset?>("ClaimedUntilUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<string>("LastError").HasMaxLength(512).HasColumnType("character varying(512)");
+                b.Property<DateTimeOffset>("CreatedUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<DateTimeOffset?>("CompletedUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<string>("CorrelationId").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                b.HasKey("TenantId","Id");
+                b.HasIndex("Status", "NextAttemptUtc").HasDatabaseName("IX_ServerOutbox_Status_NextAttemptUtc").HasFilter("\"Status\" IN (0,1)");
+                b.HasIndex("TenantId", "CreatedUtc");
+                b.ToTable("ServerOutbox", "public");
+            });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Outbox.ConsumedMessage", b =>
+            {
+                b.Property<string>("ConsumerName").IsRequired().HasMaxLength(48).HasColumnType("character varying(48)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("MessageId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("ConsumedUtc").HasColumnType("timestamp(6) with time zone");
+                b.HasKey("ConsumerName","TenantId","MessageId");
+                b.ToTable("ConsumedMessages", "public");
+            });
 #pragma warning restore 612, 618
         }
     }

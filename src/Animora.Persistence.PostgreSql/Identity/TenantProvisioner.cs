@@ -1,3 +1,4 @@
+using Animora.Persistence.PostgreSql.Replication;
 using Animora.Application.Security;
 using Animora.Domain.Identity;
 using Animora.Domain.Results;
@@ -64,6 +65,12 @@ public sealed class TenantProvisioner(
         var owner = User.Create(tenant.Id, ownerUserName, ownerDisplayName, clock);
         owner.SetPasswordHash(passwordHasher.HashPassword(ServerUserStore.ToAdapter(owner), ownerPassword));
 
+        // Save the serialization row first inside the same transaction. EF cannot infer
+        // ordering between unrelated tables; the Tenant INSERT capture needs this row.
+        await using var transaction = await context.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+        context.Set<TenantFeedStateRow>().Add(new TenantFeedStateRow { TenantId = tenant.Id });
+        await context.SaveChangesAsync(ct).ConfigureAwait(false);
+
         context.Tenants.Add(tenant);
         foreach (StaffRole role in Enum.GetValues<StaffRole>())
         {
@@ -76,6 +83,7 @@ public sealed class TenantProvisioner(
         try
         {
             await context.SaveChangesAsync(ct).ConfigureAwait(false);
+            await transaction.CommitAsync(ct).ConfigureAwait(false);
         }
         catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
         {

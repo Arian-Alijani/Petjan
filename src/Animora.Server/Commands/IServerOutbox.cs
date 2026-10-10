@@ -1,16 +1,13 @@
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Results;
-
+using Animora.Persistence.PostgreSql.Outbox;
 namespace Animora.Server.Commands;
 
-/// <summary>S13 replaces this seam. Called only in the transaction carrying the accepted effect.</summary>
-internal interface IServerOutbox
-{
-    Task<Result> AppendAsync(CommandEnvelope envelope, SettlementResult settlement, CancellationToken ct = default);
-}
+/// <summary>Server facade preserves the S06 intake seam while delegating inward to persistence.</summary>
+internal interface IServerOutbox : Animora.Persistence.PostgreSql.Outbox.IServerOutbox { }
 
-internal sealed class NoServerOutbox : IServerOutbox
+internal sealed class CommandServerOutbox(ServerOutbox outbox) : IServerOutbox
 {
     public Task<Result> AppendAsync(CommandEnvelope envelope, SettlementResult settlement, CancellationToken ct = default) =>
-        Task.FromResult(Result.Ok());
+        outbox.AppendAsync(envelope, settlement, ct);
 }

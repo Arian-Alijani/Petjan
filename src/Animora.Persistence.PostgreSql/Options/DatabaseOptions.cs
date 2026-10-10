@@ -14,13 +14,16 @@ public sealed class DatabaseOptions
     public string ConnectionString { get; set; } = string.Empty;
 
     /// <summary>Max pooled connections of the read/write OLTP data source.</summary>
-    public int OltpWriteMax { get; set; } = 7;
+    public int OltpWriteMax { get; set; } = 6;
 
     /// <summary>Max pooled connections of the read-only OLTP data source.</summary>
-    public int OltpReadMax { get; set; } = 4;
+    public int OltpReadMax { get; set; } = 3;
 
     /// <summary>Max pooled connections of the DataProtection key-ring data source.</summary>
     public int KeyRingMax { get; set; } = 1;
+
+    /// <summary>Dedicated pool for bounded feed, recovery and relay jobs.</summary>
+    public int WorkerMax { get; set; } = 2;
 
     /// <summary>Server memory profile in GiB (2 or 4); decides the total pool budget.</summary>
     public int ProfileGiB { get; set; } = 2;

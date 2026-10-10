@@ -36,13 +36,15 @@ public sealed class DatabaseOptionsValidator : IValidateOptions<DatabaseOptions>
             failures.Add("Database:KeyRingMax must be >= 1.");
         }
 
+        if (options.WorkerMax < 1) failures.Add("Database:WorkerMax must be >= 1.");
+
         if (options.ProfileGiB is not (2 or 4))
         {
             failures.Add("Database:ProfileGiB must be 2 or 4.");
         }
         else
         {
-            long total = (long)options.OltpWriteMax + options.OltpReadMax + options.KeyRingMax;
+            long total = (long)options.OltpWriteMax + options.OltpReadMax + options.KeyRingMax + options.WorkerMax;
             int budget = options.ProfileGiB == 2 ? Budget2GiB : Budget4GiB;
             if (total > budget)
             {
