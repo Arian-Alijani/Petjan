@@ -37,3 +37,36 @@ public interface IAdminLicenseCommands
     Task<Result<MutationReceipt>> RotateKeyAsync(string ifMatchStamp,CancellationToken ct=default);
     Task<Result<LicenseKeySet>> GetKeySetAsync(CancellationToken ct=default);
 }
+
+public interface IAdminProvisioningQueries
+{
+    Task<Result<AdminPage<ProvisioningSummary>>> ListAsync(string? status, int page = 1, int pageSize = 50, CancellationToken ct = default);
+}
+public interface IAdminProvisioningCommands
+{
+    Task<Result<MutationReceipt>> RetryAsync(string id, bool confirm, CancellationToken ct = default);
+}
+public interface IAdminWebsiteClients
+{
+    Task<Result<AdminPage<WebsiteClientSummary>>> ListAsync(int page = 1, int pageSize = 50, CancellationToken ct = default);
+    Task<Result<WebsiteClientSecret>> CreateAsync(WebsiteClientCreateForm form, CancellationToken ct = default);
+    Task<Result<MutationReceipt>> RevokeAsync(string id, bool confirm, CancellationToken ct = default);
+}
+public interface IAdminFileQueries
+{
+    Task<Result<AdminPage<FileMismatchSummary>>> ListMismatchesAsync(int page = 1, int pageSize = 50, CancellationToken ct = default);
+}
+public interface IAdminFileCommands
+{
+    Task<Result<MutationReceipt>> RequeueAsync(FileMismatchActionForm form, CancellationToken ct = default);
+    Task<Result<MutationReceipt>> AbandonAsync(FileMismatchActionForm form, CancellationToken ct = default);
+}
+public interface IAdminAuditQueries
+{
+    Task<Result<AdminPage<AuditSummary>>> OperatorAsync(AdminAuditQuery query, CancellationToken ct = default);
+    Task<Result<AdminPage<AuditSummary>>> TenantAsync(AdminAuditQuery query, CancellationToken ct = default);
+}
+public interface IAdminInsightStatus
+{
+    Task<Result<InsightStatus>> GetAsync(CancellationToken ct = default);
+}
