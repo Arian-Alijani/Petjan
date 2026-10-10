@@ -37,6 +37,7 @@
     <!-- Data Protection key-ring EF store (S02) — persisted key ring context. -->
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.12" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
