@@ -1,3 +1,5 @@
+using Animora.Domain.Sales;
+using Animora.Domain.Cashier;
 using Animora.Domain.Boarding;
 using Animora.Persistence.PostgreSql.Boarding;
 using Animora.Persistence.PostgreSql.Scheduling;
@@ -79,6 +81,12 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     public DbSet<BoardingStay> BoardingStaySet => Set<BoardingStay>();
     public DbSet<BoardingBillingHandoff> BoardingBillingHandoffSet => Set<BoardingBillingHandoff>();
 
+    public DbSet<Invoice> InvoiceSet => Set<Invoice>();
+    public DbSet<Payment> PaymentSet => Set<Payment>();
+    public DbSet<Insurer> InsurerSet => Set<Insurer>();
+    public DbSet<CashSession> CashSessionSet => Set<CashSession>();
+    public DbSet<DocumentCounter> DocumentCounters => Set<DocumentCounter>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -89,6 +97,8 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
 
         // RefreshToken / SecurityAuditEntry are not SyncableEntity, so the convention skips them: scope
         // them to the tenant in context here (accessor stays rooted on this context instance).
+        modelBuilder.Entity<DocumentCounter>()
+            .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<RefreshToken>()
             .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<SecurityAuditEntry>()

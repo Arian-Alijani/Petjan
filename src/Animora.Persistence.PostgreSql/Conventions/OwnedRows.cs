@@ -28,6 +28,22 @@ internal static class OwnedRows
             quantity.Ignore(v => v.IsZero); quantity.Ignore(v => v.IsNegative);
         });
     }
+    public static void Map<TRoot, TChild>(EntityTypeBuilder<TRoot> root, Expression<Func<TRoot, IEnumerable<TChild>?>> navigation)
+        where TRoot : class where TChild : class
+    {
+        root.HasMany(navigation).WithOne().HasForeignKey("OwnerId").IsRequired().OnDelete(DeleteBehavior.Cascade);
+        root.Navigation(navigation).UsePropertyAccessMode(PropertyAccessMode.Field).AutoInclude();
+    }
+
+    public static void Row<TChild>(EntityTypeBuilder<TChild> child, string table, Expression<Func<TChild, string>> key)
+        where TChild : class
+    {
+        child.ToTable(table, "public");
+        child.Property<string>("OwnerId").HasColumnType("character varying(26)").HasMaxLength(26).IsRequired();
+        child.HasKey("OwnerId", ((MemberExpression)key.Body).Member.Name);
+        child.Property(key).HasMaxLength(26).ValueGeneratedNever();
+    }
+
     private static long Scale(decimal value)
     {
         var scaled = value * 1000m;
