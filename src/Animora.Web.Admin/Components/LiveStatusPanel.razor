@@ -1,0 +1,52 @@
+@rendermode new InteractiveServerRenderMode(prerender: false)
+@implements IAsyncDisposable
+@inject IAdminStatusReader Reader
+@inject TimeProvider Time
+<section aria-label="Live server status" aria-live="polite"><h2>Live status (10-second cached refresh)</h2>
+<FormError Code="@Error" />
+@if (Status is not null)
+{
+<p>Commands running: @Status.Counters.CommandsInProgress · pending outbox: @Status.Counters.OutboxPending · dead letters: @Status.Counters.OutboxDeadLettered</p>
+<p>PG active / max: @Status.Pg.PoolInUse / @Status.Pg.PoolMax · uptime: @Status.UptimeSeconds.ToString("F0") seconds</p>
+}
+</section>
+@code {
+    /// <summary>Single-instance island only, no backplane (A-RULE 031). Reads cached snapshots through its port.</summary>
+    private AdminStatus? Status;
+    private string? Error;
+    private readonly CancellationTokenSource _stop = new();
+    private PeriodicTimer? _timer;
+    private Task? _loop;
+    private bool _disposed;
+    protected override async Task OnInitializedAsync()
+    {
+        await Refresh();
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(10), Time);
+        _loop = Poll();
+    }
+    private async Task Refresh()
+    {
+        var result = await Reader.GetStatusAsync(_stop.Token);
+        Status = result.IsSuccess ? result.Value : null;
+        Error = result.IsFailure ? result.Error.Code : null;
+    }
+    private async Task Poll()
+    {
+        try
+        {
+            while (_timer is not null && await _timer.WaitForNextTickAsync(_stop.Token))
+                await InvokeAsync(async () => { if (!_disposed) { await Refresh(); StateHasChanged(); } });
+        }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
+        catch (ObjectDisposedException) when (_disposed) { }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        await _stop.CancelAsync();
+        _timer?.Dispose();
+        if (_loop is not null) await _loop;
+        _stop.Dispose();
+    }
+}
