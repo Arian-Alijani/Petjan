@@ -224,7 +224,7 @@ contexts/hosts.
 
 ---
 
-### [ ] TASK 4 — Group D: `PostgresException P0001: Missing tenant feed state` (6 tests)
+### [x] TASK 4 — Group D: `PostgresException P0001: Missing tenant feed state` (6 tests)
 
 **Failing tests:** `HandlersS07/S07EndToEndTests.CommandsRoundTrip_ThroughIntake_WithTenantIsolation`,
 `HandlersS08/S08ConcurrencyTests.{TwoDevices_LastRoomPlace_OneWins,TwoDevices_SameSlot_OneWins}`,
@@ -255,6 +255,8 @@ The first write then trips the trigger.
      row for the tenant (call the same initializer the working path uses, or `INSERT` the
      row the trigger reads). Put it in one shared place so all 6 tests inherit it.
   3. Keep tenant isolation: seed per-tenant for both tenants the isolation tests create.
+
+> **Done:** new shared helper `tests/.../Persistence/FeedStateSeed.cs` (`MigrateAndSeedAsync`) seeds the `TenantFeedState` row per invented tenant id; used by S07/S08/S09/S10 PG harness tests. 6/6 green.
 
 **Verify:** `... --filter "FullyQualifiedName~S07EndToEndTests|FullyQualifiedName~S08EndToEndTests|FullyQualifiedName~S08ConcurrencyTests|FullyQualifiedName~S09EndToEndTests|FullyQualifiedName~S10EndToEndTests"` → pass.
 

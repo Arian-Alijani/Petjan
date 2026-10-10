@@ -33,7 +33,7 @@ public sealed class S08EndToEndTests(PgFixture pg) : IClassFixture<PgFixture>
     {
         await using var a = new PgCommandHarness(pg.ConnectionString);
         await using var b = new PgCommandHarness(pg.ConnectionString);
-        await a.Db.Database.MigrateAsync();
+        await a.Db.MigrateAndSeedAsync(a.Intake.TenantId, b.Intake.TenantId);
         var command = new CreateRoomCommand("R1", "Room", RoomType.Standard, 1, null);
         var ea = a.Envelope(command); var eb = b.Envelope(command);
         var ra = await a.Service.SubmitAsync(ea); var rb = await b.Service.SubmitAsync(eb);
@@ -53,7 +53,7 @@ public sealed class S08ConcurrencyTests(PgFixture pg) : IClassFixture<PgFixture>
         var tenant = IdGenerator.NewId(); var doctor = IdGenerator.NewId();
         await using var a = new PgCommandHarness(pg.ConnectionString, tenant);
         await using var b = new PgCommandHarness(pg.ConnectionString, tenant);
-        await a.Db.Database.MigrateAsync();
+        await a.Db.MigrateAndSeedAsync(tenant);
         var owner = Owner.Register(tenant, "Owner", "09120000000", a.Intake.Clock);
         var pet = Pet.Register(tenant, owner.Id, "Pet", PetSpecies.Dog, a.Intake.Clock);
         var membership = StaffMembership.Create(tenant, doctor, StaffRole.Doctor, a.Intake.Clock);
@@ -72,7 +72,7 @@ public sealed class S08ConcurrencyTests(PgFixture pg) : IClassFixture<PgFixture>
         var tenant = IdGenerator.NewId();
         await using var a = new PgCommandHarness(pg.ConnectionString, tenant);
         await using var b = new PgCommandHarness(pg.ConnectionString, tenant);
-        await a.Db.Database.MigrateAsync();
+        await a.Db.MigrateAndSeedAsync(tenant);
         var owner = Owner.Register(tenant, "Owner", "09120000000", a.Intake.Clock);
         var pet = Pet.Register(tenant, owner.Id, "Pet", PetSpecies.Dog, a.Intake.Clock);
         var room = Room.Create(tenant, "R1", "Room", RoomType.Standard, 1).Value!;

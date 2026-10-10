@@ -57,7 +57,7 @@ public sealed class S07EndToEndTests(PgFixture pg) : IClassFixture<PgFixture>
     private async Task<string> CreateOwnerAsync(IntakeTestFixture f)
     {
         await using var db = TestSupport.CreateContext(new FixedTenantContext(f.TenantId), pg.ConnectionString);
-        await db.Database.MigrateAsync();
+        await db.MigrateAndSeedAsync(f.TenantId);
         var services = new ServiceCollection(); services.AddSingleton(db);
         services.AddSingleton<Animora.Domain.Time.IClock>(f.Clock);
         services.AddAnimoraClinicalPersistence();

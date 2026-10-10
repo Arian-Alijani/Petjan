@@ -34,7 +34,7 @@ public sealed class S09EndToEndTests(PgFixture pg) : IClassFixture<PgFixture>
     {
         await using var a = new PgCommandHarness(pg.ConnectionString);
         await using var b = new PgCommandHarness(pg.ConnectionString);
-        await a.Db.Database.MigrateAsync();
+        await a.Db.MigrateAndSeedAsync(a.Intake.TenantId, b.Intake.TenantId);
         var command = new CreateInsurerCommand("Insurer", 10, 0);
         var ea = a.Envelope(command); var eb = b.Envelope(command);
         var ra = await a.Service.SubmitAsync(ea); var rb = await b.Service.SubmitAsync(eb);
