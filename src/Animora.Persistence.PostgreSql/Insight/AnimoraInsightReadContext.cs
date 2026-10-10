@@ -16,6 +16,8 @@ public sealed class AnimoraInsightReadContext(DbContextOptions<AnimoraInsightRea
         Database.SetCommandTimeout(ReportingQuerySession.TimeoutSeconds);
         await Database.UseTransactionAsync(session.Transaction, ct).ConfigureAwait(false);
     }
+    internal async Task UnbindAsync(CancellationToken ct = default)
+        => await Database.UseTransactionAsync(null, ct).ConfigureAwait(false);
     public override int SaveChanges(bool acceptAllChangesOnSuccess) => throw new InvalidOperationException("Insight is read-only.");
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken ct = default)
         => throw new InvalidOperationException("Insight is read-only.");

@@ -38,7 +38,9 @@ public sealed class ReportingInsightQuery : ITenantInsightQuery
         if (_cache.TryGet(key, out var cached) && cached is not null) return Result<InsightPage<InsightRow>>.Ok(cached);
         await using var lease = await _budget.AcquireAsync(ct).ConfigureAwait(false);
         await _context.BindAsync(lease, ct).ConfigureAwait(false);
-        var result = await provider.ExecuteAsync(new(request, _context), ct).ConfigureAwait(false);
+        Result<IReadOnlyList<InsightRow>> result;
+        try { result = await provider.ExecuteAsync(new(request, _context), ct).ConfigureAwait(false); }
+        finally { await _context.UnbindAsync(CancellationToken.None).ConfigureAwait(false); }
         if (result.IsFailure) return Result<InsightPage<InsightRow>>.Fail(result.Error);
         if (result.Value is not { } rows || rows.Count > ReportingQuerySession.MaxRows)
             return Result<InsightPage<InsightRow>>.Fail(ErrorCodes.ValidationFailed);
