@@ -299,7 +299,7 @@ public static readonly ErrorCode Unauthorized         = new("UNAUTHORIZED",     
 
 ### G02
 - [x] **T6 — scaffold G02 project.** ساخت `src/Animora.Sync.Custom/Animora.Sync.Custom.csproj` (۴ ProjectRef + ۲ package)؛ افزودن `Microsoft.Extensions.Http` به `Directory.Packages.props`؛ افزودن پروژه به `Animora.sln` (ویرایش دستی، الگوی خط ۱۴). → پوش: `feat(sync): G02 scaffold Animora.Sync.Custom project`
-- [ ] **T7 — تایپ‌های G02.** `ServerEndpointOptions.cs`, `IPageIntegrity.cs` (hash روی gzip خام §0.1), `SyncFeedClient.cs` (+ `OpenBatchOutcome`), `ISyncApplyStore.cs` (+session+checkpoint), `BufferingSyncApplyStore.cs`, `HttpStateSyncEngine.cs`, `SyncCustomServiceCollectionExtensions.cs` (طبق §2). → پوش: `feat(sync): G02 immutable-batch HTTP adapter core types`
+- [x] **T7 — تایپ‌های G02.** `ServerEndpointOptions.cs`, `IPageIntegrity.cs` (hash روی gzip خام §0.1), `SyncFeedClient.cs` (+ `OpenBatchOutcome`), `ISyncApplyStore.cs` (+session+checkpoint), `BufferingSyncApplyStore.cs`, `HttpStateSyncEngine.cs`, `SyncCustomServiceCollectionExtensions.cs` (طبق §2). → پوش: `feat(sync): G02 immutable-batch HTTP adapter core types`
 - [x] **T8 — ErrorCodes G02.** افزودن `#region Sync transport` با ۴+۱ کد (طبق §2). → پوش: `feat(domain): add Sync transport error codes for G02`
 - [ ] **T9 — wiring G02.** `App.axaml.cs` (using + AddAnimoraHttpSyncEngine زیر AddAnimoraSyncEngine)، `Animora.Desktop.csproj` (ProjectReference به Sync.Custom)، `tests/Animora.Sync.Tests.csproj` (ProjectReference). → پوش: `feat(sync): wire G02 HTTP engine registration`
 - [ ] **T10 — تست‌های G02.** ۱۶ تست §2 با HttpMessageHandler fake و gzip-page helper (§0.1). → پوش: `test(sync): G02 HTTP adapter tests`
