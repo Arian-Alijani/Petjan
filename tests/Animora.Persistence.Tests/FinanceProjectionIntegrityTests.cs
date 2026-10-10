@@ -13,7 +13,7 @@ public sealed class FinanceProjectionIntegrityTests
     [Fact]
     public async Task SeededProjections_MatchIndependentRebuild_AndRepairCorruption()
     {
-        using var fixture = new LocalStoreTestFixture();
+        using var fixture = new LocalStoreTestFixture(configureOptions: o => o.SeedSampleData = true);
         await fixture.InitializeAsync(); // Deterministic C05–C08 seed, including invoices and movements.
         var original = await SnapshotAsync(fixture);
         Assert.NotEmpty(original.Daily);
@@ -34,7 +34,7 @@ public sealed class FinanceProjectionIntegrityTests
         using (var scope = fixture.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-            var row = await db.Set<DailyFinanceFact>().OrderBy(f => f.LocalDay).FirstAsync();
+            var row = await db.Set<DailyFinanceFact>().AsTracking().OrderBy(f => f.LocalDay).FirstAsync();
             row.Apply(revenue: 999);
             await db.SaveChangesAsync();
         }

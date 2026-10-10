@@ -24,7 +24,7 @@ public sealed class SeedingTests
     [Fact]
     public async Task Seeding_IsIdempotentAndComplete()
     {
-        using var fixture = new LocalStoreTestFixture();
+        using var fixture = new LocalStoreTestFixture(configureOptions: o => o.SeedSampleData = true); // sample data is explicit opt-in
         await fixture.MigrateAsync();
 
         using (var scope = fixture.CreateScope())
@@ -52,10 +52,11 @@ public sealed class SeedingTests
             Assert.Equal(12, await db.Set<ProductCategory>().CountAsync()); // C06: MED/VAC/FOOD/ACC/SRV/SUPP/GROOM/TOY/HYG/LAB/SURG/EQUIP.
             Assert.Equal(8, await db.Set<Room>().CountAsync());
             Assert.Equal(1, await db.Set<AccountingPeriod>().CountAsync());
-            // 11 reference blocks (tenant, permissions, roles, chart, period, units, categories, rooms,
-            // services, insurers, sms-templates) + 7 sample blocks (patients, reception, clinical,
-            // scheduling, boarding, inventory, sales) since SeedSampleData defaults true.
-            Assert.Equal(18, await db.Set<SeedMarker>().CountAsync());
+            // 12 reference blocks (tenant, permissions, roles, chart, period, units, categories, rooms,
+            // boarding services, insurers, sms-templates, default services) + 8 sample blocks (patients,
+            // reception, clinical, scheduling, boarding, inventory, sales, finance). SeedSampleData is
+            // explicitly enabled by this test; it defaults to false.
+            Assert.Equal(20, await db.Set<SeedMarker>().CountAsync());
 
             var period = await db.Set<AccountingPeriod>().SingleAsync();
             Assert.Equal(PeriodState.Open, period.State);
@@ -93,7 +94,7 @@ public sealed class SeedingTests
     [Fact]
     public async Task SampleData_SeedsTheC01OwnersPetsWeightsAndDocuments()
     {
-        using var fixture = new LocalStoreTestFixture();
+        using var fixture = new LocalStoreTestFixture(configureOptions: o => o.SeedSampleData = true); // sample data is explicit opt-in
         await fixture.MigrateAsync();
 
         using (var scope = fixture.CreateScope())

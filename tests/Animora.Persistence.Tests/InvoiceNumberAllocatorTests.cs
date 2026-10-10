@@ -19,8 +19,12 @@ public sealed class InvoiceNumberAllocatorTests
         var tasks = Enumerable.Range(0, 200).Select(async _ =>
         {
             await using var db = fixture.CreateContext(fixture.TenantId);
+            // The allocator requires the ambient UnitOfWork transaction (F-07); mirror it here.
+            await using var transaction = await db.Database.BeginTransactionAsync();
             var allocator = new InvoiceNumberAllocator(db, new PersianMonthPeriodCodeProvider());
-            return await allocator.AllocateAsync(fixture.TenantId, fixture.Clock.UtcNow);
+            var number = await allocator.AllocateAsync(fixture.TenantId, fixture.Clock.UtcNow);
+            await transaction.CommitAsync();
+            return number;
         });
 
         var numbers = await Task.WhenAll(tasks);
@@ -44,8 +48,10 @@ public sealed class InvoiceNumberAllocatorTests
         }
 
         await using var verificationDb = fixture.CreateContext(fixture.TenantId);
+        await using var verificationTransaction = await verificationDb.Database.BeginTransactionAsync();
         var verificationAllocator = new InvoiceNumberAllocator(verificationDb, new PersianMonthPeriodCodeProvider());
         var committed = await verificationAllocator.AllocateAsync(fixture.TenantId, fixture.Clock.UtcNow);
+        await verificationTransaction.CommitAsync();
 
         // Allocation joins the ambient transaction: rollback removes the reservation and exposes no gap.
         Assert.Equal(rolledBack, committed);

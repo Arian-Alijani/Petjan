@@ -460,7 +460,7 @@ projects only — not the full solution.)
 
 ---
 
-### [ ] TASK 9 (optional / client-track) — `Animora.Persistence.Tests` SQLite failures (6 tests)
+### [x] TASK 9 (optional / client-track) — `Animora.Persistence.Tests` SQLite failures (6 tests)
 
 > The report lists these under groups F and G but flags them as "not strictly Track S"
 > (SQLite client persistence). Include only if the directive wants the whole report cleared;
@@ -480,6 +480,8 @@ projects only — not the full solution.)
   trace each with one run, fix the wrong side.
 
 > **Note (not yet executed):** a plain `dotnet test tests/Animora.Persistence.Tests` crashes MSBuild (OOM, child node exited) in this 1 GB sandbox. Run it with the low-memory flags from `scripts/sandbox/_env.sh` (`MSBUILD_LOWMEM`: `-m:1 -p:UseSharedCompilation=false -p:BuildInParallel=false -nodeReuse:false`).
+
+> **Done:** 120/120 green. F: allocator tests now open the ambient transaction the F-07 guard requires. G: `UnitOfWorkTests` expects `CONCURRENCY_CONFLICT` (SQLITE_CONSTRAINT is deliberately a data conflict, not an outage); sample-data seeding tests opt in with `SeedSampleData = true` (default is false) and marker count is 20 (12 reference + 8 sample); product fixes: `InventorySampleData.AlreadySeeded` ignores service products (default-services block pre-seeds them, which silently skipped the inventory/sales/finance samples) and `LedgerRepository.FindInvoicePostingAsync` sees tracker-only postings (void-in-same-UoW seed); finance-corruption test uses `AsTracking()` (context defaults to NoTracking).
 
 **Verify:** `scripts/sandbox/test.sh` scoped to `Animora.Persistence.Tests` (or
 `dotnet test tests/Animora.Persistence.Tests --filter ...`) per test.

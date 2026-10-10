@@ -97,7 +97,9 @@ public sealed class InventorySampleData(AnimoraLocalDbContext db, ILocalTenantCo
         ("SUP-06", "آزمایشگاه مهر", "خانم شریفی", "021-44332211", 20),
     ];
 
-    public bool AlreadySeeded() => db.Set<Product>().IgnoreQueryFilters().Any();
+    // The default service catalogue (LocalSeeder.DefaultServicesKey) is seeded before this block and also
+    // creates Products, so only stock-keeping (non-service) products prove the inventory sample ran.
+    public bool AlreadySeeded() => db.Set<Product>().IgnoreQueryFilters().Any(p => p.Kind != ProductKind.Service);
 
     public void Populate()
     {

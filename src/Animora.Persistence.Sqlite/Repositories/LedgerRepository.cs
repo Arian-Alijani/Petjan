@@ -13,10 +13,15 @@ public sealed class LedgerRepository(AnimoraLocalDbContext db) : ILedgerReposito
     public async Task<JournalEntry> RequireAsync(string id, CancellationToken ct = default) =>
         await FindAsync(id, ct) ?? throw new InvalidOperationException($"JournalEntry {id} not found.");
 
+    // An invoice posted and voided inside one unit of work (e.g. the sample-data seed) has its posting entry
+    // only in the change tracker, not yet in the store: look there first so the reversal finds its original.
     public Task<JournalEntry?> FindInvoicePostingAsync(string invoiceId, CancellationToken ct = default) =>
-        db.Set<JournalEntry>().AsTracking()
-            .FirstOrDefaultAsync(e => e.SourceEntityType == "Invoice" && e.SourceEntityId == invoiceId &&
-                e.Source == JournalSource.Sales, ct);
+        db.Set<JournalEntry>().Local.FirstOrDefault(e => e.SourceEntityType == "Invoice" &&
+            e.SourceEntityId == invoiceId && e.Source == JournalSource.Sales) is { } pending
+            ? Task.FromResult<JournalEntry?>(pending)
+            : db.Set<JournalEntry>().AsTracking()
+                .FirstOrDefaultAsync(e => e.SourceEntityType == "Invoice" && e.SourceEntityId == invoiceId &&
+                    e.Source == JournalSource.Sales, ct);
 
     public void Add(JournalEntry entity) => db.Set<JournalEntry>().Add(entity);
     public void AddRange(IEnumerable<JournalEntry> entities) => db.Set<JournalEntry>().AddRange(entities);

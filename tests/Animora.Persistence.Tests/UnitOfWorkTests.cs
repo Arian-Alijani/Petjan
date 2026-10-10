@@ -186,7 +186,8 @@ public sealed class UnitOfWorkTests
         var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
         // Two entries with the same EntryNumber violate IX_JournalEntries_TenantId_EntryNumber:
-        // a DbUpdateException that the unit of work maps to STORE_UNAVAILABLE, never a crash.
+        // a SQLITE_CONSTRAINT DbUpdateException that the unit of work maps to CONCURRENCY_CONFLICT (a data
+        // conflict, deliberately not a store outage), never a crash.
         var outcome = await uow.ExecuteAsync(_ =>
         {
             db.Add(Entry("JE-DUP"));
@@ -195,7 +196,7 @@ public sealed class UnitOfWorkTests
         });
 
         Assert.True(outcome.IsFailure);
-        Assert.Equal(ErrorCodes.StoreUnavailable, outcome.Error);
+        Assert.Equal(ErrorCodes.ConcurrencyConflict, outcome.Error);
     }
 
     private static JournalEntry Entry(string number) =>
