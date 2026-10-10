@@ -47,6 +47,7 @@ builder.Services.AddDataProtection()
 builder.Services.AddAnimoraPostgreSql(builder.Configuration);
 builder.Services.AddAnimoraClinicalPersistence();
 builder.Services.AddAnimoraSchedulingBoardingPersistence();
+builder.Services.AddAnimoraSalesCashierPersistence();
 
 // 4b. Identity (S04): ASP.NET Core Identity over the Domain User, opaque Data-Protection bearer + refresh
 //     tokens (no JWT/OIDC), lockout, device binding, append-only security audit. Authentication only.
@@ -57,9 +58,10 @@ builder.Services.AddAnimoraAuthorization();
 
 // 4d. Fenced command intake (S06): server Application profile, no desktop journal/session dependencies.
 builder.Services.AddAnimoraCommandPlane(
-    handlers => { ServerHandlerModuleS07.AddHandlers(handlers); ServerHandlerModuleS08.AddHandlers(handlers); },
-    payloads => { ServerHandlerModuleS07.AddPayloads(payloads); ServerHandlerModuleS08.AddPayloads(payloads); });
-builder.Services.AddScoped<IServerCommandConcurrencyGuard, ServerSchedulingConcurrencyGuard>();
+    handlers => { ServerHandlerModuleS07.AddHandlers(handlers); ServerHandlerModuleS08.AddHandlers(handlers); ServerHandlerModuleS09.AddHandlers(handlers); },
+    payloads => { ServerHandlerModuleS07.AddPayloads(payloads); ServerHandlerModuleS08.AddPayloads(payloads); ServerHandlerModuleS09.AddPayloads(payloads); });
+builder.Services.AddScoped<ServerSchedulingConcurrencyGuard>();
+builder.Services.AddScoped<IServerCommandConcurrencyGuard, ServerFinancialConcurrencyGuard>();
 builder.Services.AddScoped<ICommandEffectIdCollector, ServerCommandEffectIdCollector>();
 builder.Services.AddScoped<IAggregateVersionReader, ClinicalAggregateVersionReader>();
 
