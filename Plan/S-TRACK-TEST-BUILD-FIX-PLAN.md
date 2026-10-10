@@ -490,7 +490,7 @@ projects only — not the full solution.)
 
 ---
 
-### [ ] TASK 10 — Final verification pass (server track)
+### [x] TASK 10 — Final verification pass (server track)
 
 - Run the Track S server test the report used (single run, no `--all` to avoid the client
   SQLite tree unless TASK 9 was done):
@@ -499,6 +499,8 @@ projects only — not the full solution.)
   `Animora.Server.Tests`.
 - If anything still red, fix narrowly and push with a precise message (heavy fixes get their
   own commit).
+
+> **Done:** `server-test.sh --require-pg` → **759/759 green**, 0 warnings in the log. Last residuals fixed: `POST /admin/account/change-password` was an `AmbiguousMatchException` (minimal-API endpoint vs the Razor page on the same route) → `.WithOrder(-1)`; `AdminAntiforgeryMiddleware` now honours `IAntiforgeryValidationFeature` (400 instead of re-reading an invalid form → 500); `TenantIsolationTests` probe ignores `ManyServiceProvidersCreatedWarning` (shared process-wide EF provider cache). Persistence.Tests 120/120 (TASK 9).
 
 **Push:** `scripts/git/push.sh "test(server): Track S green — 0 warnings, all server tests pass (TASK 10)"`
 
