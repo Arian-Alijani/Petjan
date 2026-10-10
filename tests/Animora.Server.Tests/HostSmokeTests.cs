@@ -27,8 +27,11 @@ public sealed class HostSmokeTests : IDisposable
         public Task<ReadinessResult> CheckAsync(CancellationToken ct) => Task.FromResult(ReadinessResult.Healthy());
     }
 
-    // stubDatabaseProbes: replace the PostgreSQL-backed probes (S02) with healthy stubs so these
-    // tests keep isolating the data-root probe without needing a database.
+    // stubDatabaseProbes: keep ONLY the data-root probe real and replace the PostgreSQL-backed probes
+    // (S02) with healthy stubs, so these tests isolate the data-root probe without needing a database.
+    // The optional, database/worker-backed probes (snapshot-age, database-capacity, files-root,
+    // workers) are dropped too: without PostgreSQL they would report "degraded", and files-root
+    // creates its directory under the data root, which would mask a missing data root.
     private WebApplicationFactory<Program> CreateFactory(string dataRoot, bool stubDatabaseProbes = true)
         => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
@@ -42,19 +45,16 @@ public sealed class HostSmokeTests : IDisposable
             {
                 builder.ConfigureServices(services =>
                 {
-                    string[] dbProbes = ["database", "keyring", "schema"];
-                    var real = services
+                    var others = services
                         .Where(d => d.ServiceType == typeof(IReadinessProbe)
-                                    && (d.ImplementationType == typeof(DatabaseProbe)
-                                        || d.ImplementationType == typeof(KeyRingProbe)
-                                        || d.ImplementationType == typeof(SchemaProbe)))
+                                    && d.ImplementationType != typeof(DataRootWritableProbe))
                         .ToList();
-                    foreach (var descriptor in real)
+                    foreach (var descriptor in others)
                     {
                         services.Remove(descriptor);
                     }
 
-                    foreach (var name in dbProbes)
+                    foreach (var name in (string[])["database", "keyring", "schema"])
                     {
                         services.AddSingleton<IReadinessProbe>(new HealthyProbe(name));
                     }
@@ -97,7 +97,12 @@ public sealed class HostSmokeTests : IDisposable
     [Fact]
     public async Task Ready_Returns503_NamesFailedProbeOnly_WhenDataRootMissing()
     {
-        var missing = Path.Combine(_dataRoot, "does-not-exist");
+        // The root must stay missing for the whole run: the rolling log sink creates "<root>/logs" on
+        // first write, so a merely absent directory would be re-created. Parenting it under a regular
+        // file makes it impossible to create, which is what a missing/unmounted data volume looks like.
+        var blocker = Path.Combine(_dataRoot, "not-a-directory");
+        File.WriteAllText(blocker, string.Empty);
+        var missing = Path.Combine(blocker, "data");
         using var factory = CreateFactory(missing);
         using var client = factory.CreateClient();
 

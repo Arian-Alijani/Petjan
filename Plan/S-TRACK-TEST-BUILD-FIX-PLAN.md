@@ -65,7 +65,7 @@ split off if they prove large.
 
 ---
 
-### [ ] TASK 1 — Group A: `ArgumentNullException (Parameter 'Host')` from `WebApplicationFactory<Program>` (34 tests)
+### [x] TASK 1 — Group A: `ArgumentNullException (Parameter 'Host')` from `WebApplicationFactory<Program>` (34 tests)
 
 **Failing tests (all boot the real host via `WebApplicationFactory<Program>`):**
 `Authorization/*` (AuthorizationTests, CapabilitySnapshotTests, DeviceEndpointsTests,
@@ -107,6 +107,14 @@ NOT thrown by the previously-fixed causes (pool budget / pending model / null Re
   4. Re-run the single test; then run one Authorization test
      (`...AuthorizationTests.RoleClaimInToken_IsNeverTrusted`) and one AuthEndpoints test
      to confirm the shared host now boots.
+
+> **Done:** real root cause was `NpgsqlDataSourceBuilder.Build()` rejecting the empty
+> `Database:ConnectionString` (eager data-source resolution by `SnapshotAgeMonitor`). `BuildDataSource`
+> now substitutes a reserved never-resolvable host (`*.invalid`) so the host boots and probes report
+> not-ready. Follow-ups fixed in the same task: HostSmoke stubs drop optional DB-backed probes and the
+> missing-data-root test uses an uncreatable path (log sink re-creates `<root>/logs`); PlaneOrder test
+> moved to an entitlement-gated route (`/files/{id}`, S16 exempts `/auth`); 7a schema-head literals →
+> `115_Files`; 7b permission-table/fail-closed tests updated to the seeded table. 111/111 green.
 
 **Why this is first:** 34 tests share one root; fixing the host unblocks the largest group.
 

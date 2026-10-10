@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Animora.Application.Security;
+using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Identity;
 using Animora.Domain.Results;
 using Animora.Server.Authorization;
@@ -126,17 +127,21 @@ public sealed class AuthorizationTests
         var world = new AuthzWorld();
         var authorizer = new CommandAuthorizer(EvaluatorOver(world));
 
+        // S07–S10 seeded real rows (e.g. sales.invoice.post), so fail-closed is asserted on a type no row maps.
         Result result = await authorizer.AuthorizeAsync(
-            "sales.invoice.post", SubjectOf(world, world.Alice, StaffRole.Manager), CancellationToken.None);
+            "unmapped.command.type", SubjectOf(world, world.Alice, StaffRole.Manager), CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorCodes.PermissionUnknown.Code, result.Error.Code);
     }
 
     [Fact]
-    public void CommandPermissionTable_StartsEmpty_AndUnmappedLookupIsNull()
+    public void CommandPermissionTable_MapsOnlyKnownPermissions_AndUnmappedLookupIsNull()
     {
-        Assert.Empty(CommandPermissionTable.Rows);
+        // The table is seeded by the handler phases (S07–S10); every row must name a real permission code.
+        Assert.NotEmpty(CommandPermissionTable.Rows);
+        Assert.All(CommandPermissionTable.Rows, row => Assert.Contains(row.Value, PermissionCodes.All));
+        Assert.Equal(PermissionCodes.SalesPost, CommandPermissionTable.RequiredFor(CommandTypes.SalesInvoicePost));
         Assert.Null(CommandPermissionTable.RequiredFor("anything"));
     }
 

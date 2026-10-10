@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Animora.Domain.Identity;
 using Animora.Domain.Results;
 using Xunit;
 
@@ -19,22 +20,26 @@ public sealed class PlaneOrderTests
     {
         var world = new AuthzWorld();
         await using var host = new AuthzHost(world, denyEntitlement: true);
-        Device_ pending = new(world);
+        // S16 exempts the /auth surface (login, device management, keys) from the entitlement plane, so the
+        // ordering is asserted on a tenant data route that IS entitlement-gated: DELETE /files/{id} (patients.write).
+        User cashier = world.AddUser("carol", StaffRole.Cashier);
+        Device cashierDevice = world.AddDevice(cashier, approve: true);
+        const string gatedRoute = "/files/missing-file";
 
         // 1. No credentials: 401 even though both the permission and the entitlement planes would deny.
-        using HttpResponseMessage anonymous = await host.Client().PostAsync($"/auth/device/{pending.Id}/approve", content: null);
+        using HttpResponseMessage anonymous = await host.Client().DeleteAsync(gatedRoute);
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
         Assert.Equal(ErrorCodes.SessionExpired.Code, await CodeOf(anonymous));
 
-        // 2. Authenticated but lacking devices.manage, with a deny-all entitlement gate: the PERMISSION denial is reported first.
-        using HttpClient receptionist = host.Client(host.Token(world.Bob, world.BobDevice));
-        using HttpResponseMessage permission = await receptionist.PostAsync($"/auth/device/{pending.Id}/approve", content: null);
+        // 2. Authenticated but lacking patients.write, with a deny-all entitlement gate: the PERMISSION denial is reported first.
+        using HttpClient cashierClient = host.Client(host.Token(cashier, cashierDevice));
+        using HttpResponseMessage permission = await cashierClient.DeleteAsync(gatedRoute);
         Assert.Equal(HttpStatusCode.Forbidden, permission.StatusCode);
         Assert.Equal(ErrorCodes.PermissionDenied.Code, await CodeOf(permission));
 
         // 3. Permission granted: only now does the entitlement plane speak.
         using HttpClient manager = host.Client(host.Token(world.Alice, world.AliceDevice));
-        using HttpResponseMessage entitlement = await manager.PostAsync($"/auth/device/{pending.Id}/approve", content: null);
+        using HttpResponseMessage entitlement = await manager.DeleteAsync(gatedRoute);
         Assert.Equal(HttpStatusCode.Forbidden, entitlement.StatusCode);
         Assert.Equal(ErrorCodes.EntitlementRequired.Code, await CodeOf(entitlement));
     }
@@ -70,12 +75,5 @@ public sealed class PlaneOrderTests
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal(ErrorCodes.TenantSuspended.Code, await CodeOf(response));
-    }
-
-    private sealed class Device_
-    {
-        public Device_(AuthzWorld world) => Id = world.AddDevice(world.Bob, approve: false).Id;
-
-        public string Id { get; }
     }
 }

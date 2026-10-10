@@ -34,6 +34,9 @@ public static class PersistenceServiceCollectionExtensions
     private const string ApplicationName = "Animora.Server";
     private const int CommandTimeoutSeconds = 30;
 
+    // RFC 2606 reserves ".invalid": DNS never resolves it, so an unconfigured data source cannot connect anywhere.
+    private const string UnconfiguredConnectionString = "Host=database-not-configured.invalid;Timeout=2";
+
     /// <summary>
     /// Registers options (validated on start), the tenant context default, the three keyed data
     /// sources and both DbContexts. No data source connects until first use, so the host boots
@@ -135,7 +138,15 @@ public static class PersistenceServiceCollectionExtensions
     {
         DatabaseOptions options = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
 
-        var builder = new NpgsqlConnectionStringBuilder(options.ConnectionString)
+        // An unconfigured database must not crash host startup (singletons such as the snapshot-age
+        // monitor resolve their data source eagerly). Npgsql rejects a host-less connection string at
+        // Build(), so substitute a reserved, never-resolvable host: every use fails fast and the
+        // readiness probes report the database as not-ready, exactly as for an unreachable server.
+        string connectionString = string.IsNullOrWhiteSpace(options.ConnectionString)
+            ? UnconfiguredConnectionString
+            : options.ConnectionString;
+
+        var builder = new NpgsqlConnectionStringBuilder(connectionString)
         {
             ApplicationName = ApplicationName + "/" + poolName,
             MaxPoolSize = maxPoolSize(options),
