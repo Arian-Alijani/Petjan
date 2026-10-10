@@ -486,7 +486,8 @@ These were confirmed against the live tree; **do not re-derive**:
 
 ## 🧹 Final task (do LAST, only after S17-T6, S18-T6 and S19-T4 all pushed `✓`)
 
-- [ ] **FINAL — delete this plan file.**
+- [x] **FINAL — delete this plan file.**
+  All prerequisite task pushes succeeded. Final all-checked snapshot is committed before deletion; branch synchronization follows immediately.
   `git rm Plan/S17-S18-S19-execution-todo.md` (do NOT touch the roadmap phase files or any other file).
   → **push** `chore(plan): remove S17–S19 execution TODO after completion`.
 
