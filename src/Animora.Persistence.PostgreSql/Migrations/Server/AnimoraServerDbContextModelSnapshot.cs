@@ -1903,6 +1903,35 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                 b.HasKey("TenantId","BatchId","PageOrdinal");
                 b.ToTable("FeedBatchPage", "public");
             });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Outbox.OutboxMessage", b =>
+            {
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("MessageType").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                b.Property<string>("PayloadJson").IsRequired().HasColumnType("jsonb");
+                b.Property<short>("Status").HasColumnType("smallint");
+                b.Property<int>("Attempts").HasColumnType("integer");
+                b.Property<DateTimeOffset>("NextAttemptUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<string>("ClaimToken").HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset?>("ClaimedUntilUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<string>("LastError").HasMaxLength(512).HasColumnType("character varying(512)");
+                b.Property<DateTimeOffset>("CreatedUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<DateTimeOffset?>("CompletedUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<string>("CorrelationId").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                b.HasKey("TenantId","Id");
+                b.HasIndex("Status", "NextAttemptUtc").HasDatabaseName("IX_ServerOutbox_Status_NextAttemptUtc").HasFilter("\"Status\" IN (0,1)");
+                b.HasIndex("TenantId", "CreatedUtc");
+                b.ToTable("ServerOutbox", "public");
+            });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Outbox.ConsumedMessage", b =>
+            {
+                b.Property<string>("ConsumerName").IsRequired().HasMaxLength(48).HasColumnType("character varying(48)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("MessageId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("ConsumedUtc").HasColumnType("timestamp(6) with time zone");
+                b.HasKey("ConsumerName","TenantId","MessageId");
+                b.ToTable("ConsumedMessages", "public");
+            });
 #pragma warning restore 612, 618
         }
     }
