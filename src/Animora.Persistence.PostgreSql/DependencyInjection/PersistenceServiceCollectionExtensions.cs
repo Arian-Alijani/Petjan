@@ -1,3 +1,4 @@
+using Animora.Persistence.PostgreSql.Replication;
 using Animora.Application.Abstractions;
 using Animora.Persistence.PostgreSql.Commands;
 using Animora.Persistence.PostgreSql.Context;
@@ -82,6 +83,9 @@ public static class PersistenceServiceCollectionExtensions
             sp.GetRequiredKeyedService<NpgsqlDataSource>(OltpReadKey),
             sp.GetRequiredService<ITenantContext>(),
             sp));
+
+        services.TryAddScoped<IFeedPosition, FeedPositionReader>();
+        services.TryAddScoped<IFeedEpoch, FeedEpochService>();
 
         return services;
     }

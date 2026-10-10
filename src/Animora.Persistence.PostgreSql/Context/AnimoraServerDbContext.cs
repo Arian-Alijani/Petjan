@@ -1,3 +1,4 @@
+using Animora.Persistence.PostgreSql.Replication;
 using Animora.Domain.Inventory;
 using Animora.Domain.Purchasing;
 using Animora.Domain.Finance;
@@ -105,6 +106,9 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     public DbSet<RecurringExpensePayment> RecurringExpensePaymentSet => Set<RecurringExpensePayment>();
     public DbSet<RecurringExpense> RecurringExpenseSet => Set<RecurringExpense>();
 
+    public DbSet<TenantFeedStateRow> TenantFeedState => Set<TenantFeedStateRow>();
+    public DbSet<TenantJournalRow> TenantJournal => Set<TenantJournalRow>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -112,6 +116,11 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AnimoraServerDbContext).Assembly);
         ServerModelConventions.ApplyTenancy(modelBuilder, () => CurrentTenantId);
+
+        modelBuilder.Entity<TenantFeedStateRow>()
+            .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<TenantJournalRow>()
+            .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
 
         // RefreshToken / SecurityAuditEntry are not SyncableEntity, so the convention skips them: scope
         // them to the tenant in context here (accessor stays rooted on this context instance).
