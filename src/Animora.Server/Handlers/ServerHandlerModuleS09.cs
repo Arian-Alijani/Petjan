@@ -8,12 +8,12 @@ namespace Animora.Server.Handlers;
 
 internal static class ServerHandlerModuleS09
 {
-    public static void AddHandlers(ApplicationRegistrationBuilder builder) => builder.AddSalesUseCases().AddCashierUseCases();
+    public static void AddHandlers(ApplicationRegistrationBuilder builder) => builder.AddSalesUseCases().AddCashierUseCases()
+        .AddCommand<CreateInvoiceFromHandoffCommand, string, CreateInvoiceFromHandoffCommandHandler>();
     public static void AddPayloads(CommandPayloadCatalogBuilder catalog)
     {
         catalog.Add<CreateBlankInvoiceCommand>(CommandTypes.SalesInvoiceCreate, "Invoice");
-        catalog.Add<CreateInvoiceFromVisitCommand>(CommandTypes.SalesInvoiceCreate, "Invoice");
-        catalog.Add<CreateInvoiceFromStayCommand>(CommandTypes.SalesInvoiceCreate, "Invoice");
+        catalog.Add<CreateInvoiceFromHandoffCommand>(CommandTypes.SalesInvoiceCreate, "Invoice");
         catalog.Add<AddInvoiceLineCommand>(CommandTypes.SalesInvoiceLineAdd, "Invoice");
         catalog.Add<AddCustomInvoiceLineCommand>(CommandTypes.SalesInvoiceLineAdd, "Invoice");
         catalog.Add<EditInvoiceLineCommand>(CommandTypes.SalesInvoiceLineEdit, "Invoice");

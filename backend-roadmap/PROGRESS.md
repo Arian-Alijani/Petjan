@@ -2576,3 +2576,7 @@ Impact:     B04 can build on `IAuthenticationService`/`CurrentUserContextService
 - IFinancialEffectReporter already exists in the server. CommandDispatchResult implements it; explicit catalog metadata reports Applied only after successful monetary dispatch. Domain/Application remain independent of server metadata.
 - Existing PostInvoiceCommand already writes movements through IStockMovementRepository. A no-op would silently lose stock, so the narrow IStockMovementWriter uses a real transaction-bound append writer immediately; S10 supplies its mapped tables. No fake/no-op financial write is registered.
 - Intake exposes its current operation to the request-scoped cashier query, excluding the close command itself from unsettled-command blockers; transaction locks serialize invoice and cashier mutations.
+
+### S09 T8 baseline corrections — 2026-10-10
+- Live S09 catalog has 21 wire types (18 sales + 3 cashier), not 18 total. S10 inventory has 9 live types, so S10 total is 23, not 22. Coverage asserts the live inventories rather than the erroneous plan totals.
+- Visit/stay invoice creation share aggregate and exactly the same HandoffId shape. A server-only routed payload looks up both tenant-scoped handoff stores and delegates to the existing Application handlers, rejecting an ambiguous or missing source. Both original handlers remain registered; desktop/wire contracts unchanged.
