@@ -124,7 +124,7 @@ public sealed class ObservabilityBehaviorTests
                 logger.Information("Safe marker {Password} {XAnimoraValet}", "password-never-visible", "valet-never-visible");
             Assert.Equal(development ? 1 : 0, sink.Events.Count);
             string written = string.Join("\n", Directory.GetFiles(Path.Combine(root, "logs")).Select(File.ReadAllText));
-            Assert.Contains("Safe marker", written); Assert.DoesNotContain("password-never-visible", written);
+            Assert.Contains("Safe marker", written); Assert.DoesNotContain("password-never-visible", written); Assert.DoesNotContain("valet-never-visible", written);
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }

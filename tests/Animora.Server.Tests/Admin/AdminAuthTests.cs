@@ -18,7 +18,7 @@ public sealed class AdminAuthTests
 {
     [Theory] [InlineData("/admin")] [InlineData("/admin/tenants")] [InlineData("/admin/tenants/new")]
     [InlineData("/admin/plans")] [InlineData("/admin/licensing/keys")] [InlineData("/admin/unknown-route")]
-    [InlineData("/admin/tenants/guess/licenses")] [InlineData("/admin/account/change-password")]
+    [InlineData("/admin/tenants/guess")] [InlineData("/admin/tenants/guess/licenses")] [InlineData("/admin/account/change-password")]
     public async Task Anonymous_RedirectsToLogin_ForEveryAdminRoute(string route)
     { using var host=new AdminHost();var response=await host.Client.GetAsync(route);Assert.Equal(HttpStatusCode.Redirect,response.StatusCode);Assert.Equal("/admin/login",response.Headers.Location?.OriginalString); }
     private static async Task AcceptedByScheme(AdminHost host, string scheme, string token)
