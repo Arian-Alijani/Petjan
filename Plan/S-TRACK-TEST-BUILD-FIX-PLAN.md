@@ -479,6 +479,8 @@ projects only — not the full solution.)
   Actual `Conflict/CONCURRENCY_CONFLICT`). These are client seeding / error-mapping drifts —
   trace each with one run, fix the wrong side.
 
+> **Note (not yet executed):** a plain `dotnet test tests/Animora.Persistence.Tests` crashes MSBuild (OOM, child node exited) in this 1 GB sandbox. Run it with the low-memory flags from `scripts/sandbox/_env.sh` (`MSBUILD_LOWMEM`: `-m:1 -p:UseSharedCompilation=false -p:BuildInParallel=false -nodeReuse:false`).
+
 **Verify:** `scripts/sandbox/test.sh` scoped to `Animora.Persistence.Tests` (or
 `dotnet test tests/Animora.Persistence.Tests --filter ...`) per test.
 
