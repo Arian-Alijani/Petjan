@@ -1874,6 +1874,35 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                 b.HasIndex("TenantId", "Entity", "EntityId", "ChangeSequence").HasDatabaseName("IX_TenantJournal_TenantId_Entity_EntityId_ChangeSequence");
                 b.ToTable("TenantJournal", "public");
             });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Replication.FeedBatchRow", b =>
+            {
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("BatchId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<long>("Epoch").HasColumnType("bigint");
+                b.Property<long>("Generation").HasColumnType("bigint");
+                b.Property<long>("FromSequenceExclusive").HasColumnType("bigint");
+                b.Property<long>("Watermark").HasColumnType("bigint");
+                b.Property<int>("PageCount").HasColumnType("integer");
+                b.Property<string>("ContentHash").IsRequired().HasColumnType("character(64)");
+                b.Property<short>("State").HasColumnType("smallint");
+                b.Property<bool>("IsFullSnapshot").HasColumnType("boolean");
+                b.Property<DateTimeOffset>("CreatedUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<DateTimeOffset?>("RetiredUtc").HasColumnType("timestamp(6) with time zone");
+                b.HasKey("TenantId","BatchId");
+                b.HasIndex("TenantId","Epoch","FromSequenceExclusive","Watermark","IsFullSnapshot").IsUnique();
+                b.HasIndex("TenantId","State","CreatedUtc");
+                b.ToTable("FeedBatch", "public");
+            });
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Replication.FeedBatchPageRow", b =>
+            {
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("BatchId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<int>("PageOrdinal").HasColumnType("integer");
+                b.Property<string>("PageHash").IsRequired().HasColumnType("character(64)");
+                b.Property<int>("SizeBytes").HasColumnType("integer");
+                b.HasKey("TenantId","BatchId","PageOrdinal");
+                b.ToTable("FeedBatchPage", "public");
+            });
 #pragma warning restore 612, 618
         }
     }

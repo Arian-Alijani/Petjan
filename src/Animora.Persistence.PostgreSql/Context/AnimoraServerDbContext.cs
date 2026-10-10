@@ -106,6 +106,8 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     public DbSet<RecurringExpensePayment> RecurringExpensePaymentSet => Set<RecurringExpensePayment>();
     public DbSet<RecurringExpense> RecurringExpenseSet => Set<RecurringExpense>();
 
+    public DbSet<FeedBatchRow> FeedBatches => Set<FeedBatchRow>();
+    public DbSet<FeedBatchPageRow> FeedBatchPages => Set<FeedBatchPageRow>();
     public DbSet<TenantFeedStateRow> TenantFeedState => Set<TenantFeedStateRow>();
     public DbSet<TenantJournalRow> TenantJournal => Set<TenantJournalRow>();
 
@@ -117,6 +119,8 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AnimoraServerDbContext).Assembly);
         ServerModelConventions.ApplyTenancy(modelBuilder, () => CurrentTenantId);
 
+        modelBuilder.Entity<FeedBatchRow>().HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<FeedBatchPageRow>().HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<TenantFeedStateRow>()
             .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<TenantJournalRow>()
