@@ -697,6 +697,25 @@ public static class ErrorCodes
 
     #endregion
 
+    #region Sync transport (G02)
+
+    /// <summary>The sync server could not be reached (offline, DNS, timeout, connection fault).</summary>
+    public static readonly ErrorCode NetworkUnavailable = new("NETWORK_UNAVAILABLE", ErrorCode.Infrastructure);
+
+    /// <summary>The sync server is temporarily busy (HTTP 429/503); the detail carries the Retry-After hint.</summary>
+    public static readonly ErrorCode ServerBusy = new("SERVER_BUSY", ErrorCode.Infrastructure);
+
+    /// <summary>A downloaded sync page or batch failed its integrity (hash) check.</summary>
+    public static readonly ErrorCode SyncIntegrityFailed = new("SYNC_INTEGRITY_FAILED", ErrorCode.Integrity);
+
+    /// <summary>The sync server response violated the wire protocol (oversized or structurally invalid).</summary>
+    public static readonly ErrorCode SyncProtocolViolation = new("SYNC_PROTOCOL_VIOLATION", ErrorCode.Integrity);
+
+    /// <summary>The server rejected the request as unauthenticated or unauthorised (HTTP 401/403).</summary>
+    public static readonly ErrorCode Unauthorized = new("UNAUTHORIZED", ErrorCode.Forbidden);
+
+    #endregion
+
     #region Server command intake (Phase S06)
 
     /// <summary>The same operation is currently being processed under an unexpired lease; retry later.</summary>
