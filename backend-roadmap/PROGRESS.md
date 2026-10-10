@@ -2566,3 +2566,8 @@ Impact:     B04 can build on `IAuthenticationService`/`CurrentUserContextService
 - Boarding items are relational Money/Quantity rows (private EF-only StayItem constructor); room history remains jsonb. LocalOnly handoff classes are not referenced: server owns syncable immutable snapshot rows for S09.
 - Invoice fields/filters await S09; product/variant selectable lookup awaits S10; only currently mapped boarding-service prices resolve. No missing financial or stock data is invented or implicitly mapped by S08.
 - Clinical live-handler drift and all skipped execution gates are recorded in the S07 entry. Full execution verification remains required before release; neither done row means tests were run.
+
+### S09-a — 2026-10-10 (T2–T4 authored)
+- Sales/cashier PostgreSQL mappings, composite child rows, tenant-scoped DocumentCounters and migration 107 authored.
+- No standalone ServiceRate entity exists; rates remain Product/BoardingServiceDef, no ServiceRates table added.
+- Model tests authored. No build/test/smoke/EF-tool execution per explicit user instruction; migrations manually authored and execution gates unverified.
