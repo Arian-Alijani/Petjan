@@ -18,15 +18,15 @@ public sealed class DatabaseOptionsValidatorTests
     public void Allows12_On2GiB_AndDefaults()
     {
         Assert.True(Validator.Validate(null, new DatabaseOptions()).Succeeded);
-        Assert.True(Validator.Validate(null, new DatabaseOptions { OltpWriteMax = 7, OltpReadMax = 4, KeyRingMax = 1 }).Succeeded);
+        Assert.True(Validator.Validate(null, new DatabaseOptions { OltpWriteMax = 6, OltpReadMax = 3, KeyRingMax = 1, WorkerMax = 2 }).Succeeded);
     }
 
     [Fact]
     public void Allows20_On4GiB()
     {
-        var result = Validator.Validate(null, new DatabaseOptions { OltpWriteMax = 14, OltpReadMax = 5, KeyRingMax = 1, ProfileGiB = 4 });
+        var result = Validator.Validate(null, new DatabaseOptions { OltpWriteMax = 12, OltpReadMax = 5, KeyRingMax = 1, WorkerMax = 2, ProfileGiB = 4 });
         Assert.True(result.Succeeded);
-        Assert.True(Validator.Validate(null, new DatabaseOptions { OltpWriteMax = 15, OltpReadMax = 5, KeyRingMax = 1, ProfileGiB = 4 }).Failed);
+        Assert.True(Validator.Validate(null, new DatabaseOptions { OltpWriteMax = 13, OltpReadMax = 5, KeyRingMax = 1, WorkerMax = 2, ProfileGiB = 4 }).Failed);
     }
 
     [Theory]
