@@ -238,7 +238,7 @@ public static readonly ErrorCode BatchNotFound  = new("BATCH_NOT_FOUND", ErrorCo
 - [x] **S12-T4 — Migration `110_FeedBatches`.** Re-confirm ordinal `110`. Generate via dotnet-ef, rename to `110_FeedBatches`, add the immutability trigger (raw SQL), bump `ServerSchemaVersion.ExpectedHead="110_FeedBatches"`, update snapshot. Add `DbSet<>`s + `"Tenant"` filters in `AnimoraServerDbContext`.
   **PUSH:** `scripts/git/push.sh "feat(server): S12-T4 migration 110 FeedBatches + immutability trigger"`
 
-- [ ] **S12-T5 — Endpoints + DI.** `src/Animora.Server/Sync/SyncEndpoints.cs` (+ `ServerRoutes.Sync` const or inline `"/sync"`), register `FeedRetentionService` + `BatchFreezer` + `IBackgroundAdmission` default in DI, map endpoints in `Program.cs` under the `sync` rate limit with `[Authorize]`+tenant+DeviceActive. Reuse S06's 426/contract-version gate. Audit foreign-batch 404s via the existing server audit writer (`ServerCommandAuditWriter` or the security audit — check which fits).
+- [x] **S12-T5 — Endpoints + DI.** `src/Animora.Server/Sync/SyncEndpoints.cs` (+ `ServerRoutes.Sync` const or inline `"/sync"`), register `FeedRetentionService` + `BatchFreezer` + `IBackgroundAdmission` default in DI, map endpoints in `Program.cs` under the `sync` rate limit with `[Authorize]`+tenant+DeviceActive. Reuse S06's 426/contract-version gate. Audit foreign-batch 404s via the existing server audit writer (`ServerCommandAuditWriter` or the security audit — check which fits).
   **PUSH:** `scripts/git/push.sh "feat(server): S12-T5 /sync endpoints (manifest, batches, pages, snapshots)"`
 
 - [ ] **S12-T6 — Tests.** `tests/Animora.Server.Tests/Sync/`:

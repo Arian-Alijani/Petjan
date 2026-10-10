@@ -1,3 +1,6 @@
+using Animora.Server.Sync;
+using Animora.Persistence.PostgreSql.Replication;
+using Microsoft.Extensions.Options;
 using Animora.Persistence.PostgreSql.DependencyInjection;
 using Animora.Persistence.PostgreSql.KeyRing;
 using Animora.Server.Auth;
@@ -67,6 +70,10 @@ builder.Services.AddScoped<IServerCommandConcurrencyGuard, ServerFinancialConcur
 builder.Services.AddScoped<ICommandEffectIdCollector, ServerCommandEffectIdCollector>();
 builder.Services.AddScoped<IAggregateVersionReader, ClinicalAggregateVersionReader>();
 
+// S12 feed storage shares the normalized, validated server data root.
+builder.Services.AddOptions<FeedStorageOptions>().Configure<IOptions<ServerOptions>>(
+    (feed, server) => feed.DataRootPath = server.Value.DataRootPath);
+
 // 5. Health checks: readiness probes (data root, database, key ring, schema head).
 //    Probes degrade to Unhealthy when PostgreSQL is absent; the host still boots.
 builder.Services.AddSingleton<IReadinessProbe, DataRootWritableProbe>();
@@ -124,6 +131,7 @@ app.MapDeviceEndpoints();
 
 // S06 command conversation: independent settlements and server-allocated id maps.
 app.MapCommandEndpoints();
+app.MapSyncEndpoints();
 
 // Health endpoints — anonymous, never rate-limited, leak no secret (ARCH §4).
 app.MapGet(ServerRoutes.HealthLive, () => Results.Json(new { status = "live" }));
