@@ -17,7 +17,7 @@ internal sealed class AdminHost : IDisposable
     private readonly string _root=Directory.CreateTempSubdirectory("animora-admin-test-").FullName;
     public WebApplicationFactory<Program> Factory { get; }
     public HttpClient Client { get; }
-    public AdminHost(string? connection=null)
+    public AdminHost(string? connection=null, Action<IServiceCollection>? configure=null)
     {
         Factory=new WebApplicationFactory<Program>().WithWebHostBuilder(builder=>
         {
@@ -30,6 +30,7 @@ internal sealed class AdminHost : IDisposable
                 // Isolate request behavior: workers/bootstrap are independently tested by their own gates.
                 foreach(var d in s.Where(d=>d.ServiceType==typeof(IHostedService)&&(d.ImplementationFactory is not null||d.ImplementationType?.Assembly==typeof(Program).Assembly)).ToArray())s.Remove(d);
                 s.AddSingleton<IDataProtectionProvider>(new EphemeralDataProtectionProvider());
+                configure?.Invoke(s);
             });
         });
         Client=Factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress=new Uri("https://localhost"),AllowAutoRedirect=false,HandleCookies=true });
@@ -51,6 +52,21 @@ internal sealed class AdminHost : IDisposable
         var existing=await db.Accounts.SingleOrDefaultAsync(a=>a.NormalizedUserName=="ADMIN");
         if(existing is null) db.Accounts.Add(account); else db.Entry(existing).CurrentValues.SetValues(account);
         await db.SaveChangesAsync();
+    }
+    public async Task<HttpResponseMessage> SubmitAsync(string route, string handler, IDictionary<string, string> fields)
+    {
+        var form = new Dictionary<string, string>(fields)
+        {
+            ["_handler"] = handler,
+            ["__RequestVerificationToken"] = await TokenAsync(route)
+        };
+        return await Client.PostAsync(route, new FormUrlEncodedContent(form));
+    }
+    internal static string Hidden(string html, string name)
+    {
+        var match = Regex.Match(html, "name=\"" + Regex.Escape(name) + "\"[^>]*value=\"([^\"]*)\"");
+        if (!match.Success) throw new InvalidOperationException("Expected SSR field missing: " + name);
+        return WebUtility.HtmlDecode(match.Groups[1].Value);
     }
     public void Dispose() { Client.Dispose();Factory.Dispose();if(Directory.Exists(_root))Directory.Delete(_root,true); }
 }

@@ -66,7 +66,25 @@ internal static class SyncEndpoints
             return Results.StatusCode(StatusCodes.Status304NotModified);
         }
         // Representation is the immutable gzip byte stream (not response middleware recompression).
-        return Results.Stream(page.Content, "application/gzip", enableRangeProcessing: false);
+        return new SyncPageResult(page, http.RequestServices.GetService<Animora.Server.Observability.ServerMetrics>());
+    }
+    /// <summary>Counts only gzip bytes successfully written, never 304s, missing pages or promised lengths.</summary>
+    internal sealed class SyncPageResult(FeedPageDownload page, Animora.Server.Observability.ServerMetrics? metrics) : IResult
+    {
+        public async Task ExecuteAsync(HttpContext context)
+        {
+            await using var content = page.Content;
+            context.Response.ContentType = "application/gzip";
+            context.Response.ContentLength = page.Length;
+            if (HttpMethods.IsHead(context.Request.Method)) return;
+            var buffer = new byte[65536];
+            int read;
+            while ((read = await content.ReadAsync(buffer, context.RequestAborted).ConfigureAwait(false)) > 0)
+            {
+                await context.Response.Body.WriteAsync(buffer.AsMemory(0, read), context.RequestAborted).ConfigureAwait(false);
+                metrics?.SyncBytes.Add(read);
+            }
+        }
     }
 }
 

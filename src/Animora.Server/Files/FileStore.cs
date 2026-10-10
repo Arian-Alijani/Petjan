@@ -14,6 +14,33 @@ internal sealed class FileStore(IOptions<ServerOptions> options)
     public static bool IsHash(string? value) => value is not null && Regex.IsMatch(value, "^[a-f0-9]{64}$", RegexOptions.CultureInvariant);
     public string Staging(string tenantId, string uploadId) => Path.Combine(Root, "staging", Id(tenantId), Id(uploadId) + ".part");
     public string Blob(string hash) => IsHash(hash) ? Path.Combine(Root, "cas", hash[..2], hash[2..4], hash) : throw new ArgumentException("Invalid content digest.");
+    internal bool TryPublisherTemporary(string path, out string hash)
+    {
+        hash = "";
+        string name = Path.GetFileName(path);
+        // Only the exact hash.guid.tmp layout produced by PublishAsync is owned by this store.
+        if (name.Length != 101 || name[64] != '.' || !name.EndsWith(".tmp", StringComparison.Ordinal)
+            || !IsHash(name[..64]) || !Guid.TryParseExact(name.Substring(65, 32), "N", out _)) return false;
+        string candidate = name[..64];
+        if (!string.Equals(Path.GetFullPath(path), Blob(candidate) + name[64..], StringComparison.Ordinal)) return false;
+        hash = candidate;
+        return true;
+    }
+    internal bool DeletePublisherTemporary(string path, DateTimeOffset before)
+    {
+        if (!TryPublisherTemporary(path, out _) || !File.Exists(path)
+            || File.GetLastWriteTimeUtc(path) >= before.UtcDateTime) return false;
+        try
+        {
+            // Sharing denial also protects a publisher still copying while an old temp is scanned.
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Delete);
+            if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0
+                || File.GetLastWriteTimeUtc(path) >= before.UtcDateTime) return false;
+            File.Delete(path);
+            return true;
+        }
+        catch (IOException) { return false; } // Missing/active file: retry on a later bounded pass.
+    }
     public async Task WriteChunkAsync(string tenantId, string uploadId, long offset, ReadOnlyMemory<byte> bytes, CancellationToken ct)
     {
         string path = Staging(tenantId, uploadId); Directory.CreateDirectory(Path.GetDirectoryName(path)!);

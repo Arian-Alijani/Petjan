@@ -4,19 +4,54 @@ using Animora.Persistence.PostgreSql.Operator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using Animora.Server.Auth;
+using Animora.Server.Operator;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.BearerToken;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
+using System.Text.Json;
 namespace Animora.Server.Tests.Admin;
 
 public sealed class AdminAuthTests
 {
     [Theory] [InlineData("/admin")] [InlineData("/admin/tenants")] [InlineData("/admin/tenants/new")]
     [InlineData("/admin/plans")] [InlineData("/admin/licensing/keys")] [InlineData("/admin/unknown-route")]
-    [InlineData("/admin/tenants/guess/licenses")] [InlineData("/admin/account/change-password")]
+    [InlineData("/admin/tenants/guess")] [InlineData("/admin/tenants/guess/licenses")] [InlineData("/admin/account/change-password")]
     public async Task Anonymous_RedirectsToLogin_ForEveryAdminRoute(string route)
     { using var host=new AdminHost();var response=await host.Client.GetAsync(route);Assert.Equal(HttpStatusCode.Redirect,response.StatusCode);Assert.Equal("/admin/login",response.Headers.Location?.OriginalString); }
+    private static async Task AcceptedByScheme(AdminHost host, string scheme, string token)
+    {
+        using var scope = host.Factory.Services.CreateScope();
+        var context = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
+        context.Request.Headers.Authorization = "Bearer " + token;
+        var result = await context.AuthenticateAsync(scheme);
+        Assert.True(result.Succeeded); Assert.Equal(scheme, result.Ticket!.AuthenticationScheme);
+    }
     [Fact] public async Task TenantBearerToken_CannotAccessAdmin()
-    { using var host=new AdminHost();host.Client.DefaultRequestHeaders.Authorization=new("Bearer","tenant-token");var response=await host.Client.GetAsync("/admin");Assert.Equal(HttpStatusCode.Redirect,response.StatusCode); }
+    {
+        using var host = new AdminHost();
+        string token;
+        using (var scope = host.Factory.Services.CreateScope())
+            token = scope.ServiceProvider.GetRequiredService<IAccessTokenIssuer>().Issue(new("user", "tenant", "device", "stamp", "Manager")).Token;
+        await AcceptedByScheme(host, IdentityConstants.BearerScheme, token);
+        host.Client.DefaultRequestHeaders.Authorization = new("Bearer", token);
+        using var response = await host.Client.GetAsync("/admin"); Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/admin/login", response.Headers.Location?.OriginalString);
+    }
     [Fact] public async Task OperatorApiBearer_CannotAccessAdmin()
-    { using var host=new AdminHost();host.Client.DefaultRequestHeaders.Authorization=new("Bearer","operator-api-token");Assert.Equal(HttpStatusCode.Redirect,(await host.Client.GetAsync("/admin")).StatusCode); }
+    {
+        using var host = new AdminHost();
+        string token;
+        using (var scope = host.Factory.Services.CreateScope())
+            token = JsonSerializer.SerializeToElement(OperatorAuth.Issue(new OperatorAccount { Id = "operator", SecurityStamp = "stamp" },
+                DateTimeOffset.UtcNow, scope.ServiceProvider.GetRequiredService<IOptionsMonitor<BearerTokenOptions>>())).GetProperty("accessToken").GetString()!;
+        await AcceptedByScheme(host, OperatorAuth.Scheme, token);
+        host.Client.DefaultRequestHeaders.Authorization = new("Bearer", token);
+        using var response = await host.Client.GetAsync("/admin"); Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/admin/login", response.Headers.Location?.OriginalString);
+    }
     [Fact] public async Task LoginPage_IsStaticSSR_WithAntiforgery()
     { using var host=new AdminHost();var html=await host.Client.GetStringAsync("/admin/login");Assert.Contains("Operator sign in",html);Assert.Contains("__RequestVerificationToken",html);Assert.DoesNotContain("blazor.server.js",html);Assert.DoesNotContain("blazor:server",html); }
 }
@@ -57,7 +92,7 @@ public sealed class AdminCookiePgTests(PgFixture pg) : IClassFixture<PgFixture>
     [PgFact] public async Task Cookie_CannotCallOperatorApi_AndPostsWithoutTokenRejected()
     {
         using var host=await Host();await host.LoginAsync();Assert.Equal(HttpStatusCode.Unauthorized,(await host.Client.GetAsync("/operator/tenants")).StatusCode);
-        foreach(string route in new[] { "/admin/tenants/new","/admin/plans","/admin/licensing/keys","/admin/account/logout","/admin/account/change-password" })
+        foreach(string route in new[] { "/admin/tenants/new","/admin/tenants/guess","/admin/tenants/guess/licenses","/admin/plans","/admin/licensing/keys","/admin/account/logout","/admin/account/change-password" })
             Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.PostAsync(route,new StringContent(""))).StatusCode);
     }
     [PgFact] public async Task CookieRevokedByOperatorPasswordChange()

@@ -15,17 +15,21 @@ internal static class LoggingSetup
         builder.Services.AddSingleton<Serilog.ILogger>(sp=>
         {
             var root=sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ServerOptions>>().Value.DataRootPath;
-            var config=new LoggerConfiguration().MinimumLevel.Information()
-                .MinimumLevel.Override("Microsoft",LogEventLevel.Warning)
-                .Destructure.With(new SecretDestructuringPolicy())
-                .Enrich.With(new RedactingEnricher(sp.GetRequiredService<IHttpContextAccessor>()))
-                .WriteTo.File(Path.Combine(root,"logs","server-.log"),rollingInterval:RollingInterval.Day,
-                    retainedFileCountLimit:RetainedFiles,fileSizeLimitBytes:FileSizeLimit,rollOnFileSizeLimit:true,
-                    shared:false,buffered:true,flushToDiskInterval:TimeSpan.FromSeconds(1));
-            if (builder.Environment.IsDevelopment()) config.WriteTo.Sink(new DevelopmentConsoleSink());
-            return config.CreateLogger();
+            return CreateLogger(root, builder.Environment.IsDevelopment(), sp.GetRequiredService<IHttpContextAccessor>());
         });
         builder.Services.AddSingleton<Microsoft.Extensions.Logging.ILoggerProvider>(sp=>new Serilog.Extensions.Logging.SerilogLoggerProvider(sp.GetRequiredService<Serilog.ILogger>(),dispose:true));
+    }
+    internal static Logger CreateLogger(string root, bool development, IHttpContextAccessor accessor, ILogEventSink? developmentSink = null)
+    {
+        var config = new LoggerConfiguration().MinimumLevel.Information()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            .Destructure.With(new SecretDestructuringPolicy())
+            .Enrich.With(new RedactingEnricher(accessor))
+            .WriteTo.File(Path.Combine(root, "logs", "server-.log"), rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: RetainedFiles, fileSizeLimitBytes: FileSizeLimit, rollOnFileSizeLimit: true,
+                shared: false, buffered: true, flushToDiskInterval: TimeSpan.FromSeconds(1));
+        if (development) config.WriteTo.Sink(developmentSink ?? new DevelopmentConsoleSink());
+        return config.CreateLogger();
     }
     private sealed class DevelopmentConsoleSink : ILogEventSink
     {

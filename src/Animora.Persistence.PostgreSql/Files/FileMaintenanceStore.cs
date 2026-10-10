@@ -47,6 +47,19 @@ public sealed class FileMaintenanceStore([FromKeyedServices(PersistenceServiceCo
         await AuditAsync(connection,tx,orphan?"orphan":"zero_ref",null,ct).ConfigureAwait(false);
         await tx.CommitAsync(ct).ConfigureAwait(false); return true;
     }
+    public async Task<bool> CollectPublisherTemporaryAsync(string hash, Func<bool> delete, CancellationToken ct)
+    {
+        await using var connection = await source.OpenConnectionAsync(ct).ConfigureAwait(false);
+        await using var tx = await connection.BeginTransactionAsync(ct).ConfigureAwait(false);
+        await using var fence = new NpgsqlCommand("SELECT pg_advisory_xact_lock(hashtextextended(@key,0))", connection, tx);
+        fence.Parameters.AddWithValue("key", "file-blob:" + hash);
+        await fence.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        // A publisher temp is never the committed blob. Existing references must remain untouched.
+        if (!delete()) return false;
+        await AuditAsync(connection, tx, "orphan", null, ct).ConfigureAwait(false);
+        await tx.CommitAsync(ct).ConfigureAwait(false);
+        return true;
+    }
     public async Task<bool> CollectStagingAsync(string tenantId,string uploadId,Func<Task> delete,CancellationToken ct)
     {
         await using var connection=await source.OpenConnectionAsync(ct).ConfigureAwait(false);
