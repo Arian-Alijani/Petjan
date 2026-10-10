@@ -176,7 +176,7 @@ Most likely candidates (check first):
 
 ---
 
-### [ ] TASK 3 — Group C: EF `ManyServiceProvidersCreatedWarning` promoted to error (14 tests)
+### [~] TASK 3 — Group C: EF `ManyServiceProvidersCreatedWarning` promoted to error (14 tests)
 
 **Failing tests:** `Admin/AdminEndToEndTests` (2), `Persistence/TenantIsolationTests` (6),
 `Subscriptions/SubscriptionPersistenceTests` (6).
@@ -189,6 +189,13 @@ Most likely candidates (check first):
   per-test `DbContextOptionsBuilder` builds a fresh EF internal service provider; running
   >20 within one class crosses the threshold and EF, in test config, promotes the warning
   to an exception.
+
+> **Progress note (traced, not yet fixed):** the extra internal providers come from product code that
+> builds per-call options with fresh interceptor instances — `ProvisioningEngine.cs:108` and
+> `OwnerCredentialAdministration.cs:32` (`AddInterceptors(new TenantStampingInterceptor(..), new NoUnnamed..(..))`),
+> called by License/Subscription tests via `CreateTenantWithKey`. Fix: ignore
+> `CoreEventId.ManyServiceProvidersCreatedWarning` on those options (or reuse interceptor instances)
+> plus the test-side `TenantIsolationTests.Create`.
 
 **Root cause:** the server tests do not pin/share EF's internal service provider nor
 suppress `ManyServiceProvidersCreatedWarning`, and the affected classes spin up >20
@@ -296,7 +303,7 @@ read it.
 
 ---
 
-### [ ] TASK 6 — Group G (product bug): `JournalEntrys` → `JournalEntries` table-name mismatch
+### [x] TASK 6 — Group G (product bug): `JournalEntrys` → `JournalEntries` table-name mismatch
 
 **Failing test:** `HandlersS10/MoneyStockModelTests.MoneyStockTable_HasTenantIndexesFiltersAndUuid`
 (Expected `"JournalEntries"`, Actual `"JournalEntrys"` at pos 11).
@@ -319,6 +326,8 @@ remains).
 **Verify:** `... --filter FullyQualifiedName~MoneyStockModelTests.MoneyStockTable_HasTenantIndexesFiltersAndUuid` → pass.
 Also re-run one migration-apply test (`... --filter FullyQualifiedName~IdentityMigrationTests`) to
 ensure no new pending-model drift.
+
+> **Done:** config now maps `JournalEntries`; MoneyStockModelTests + IdentityMigrationTests green.
 
 **Push:** `scripts/git/push.sh "fix(persistence): map JournalEntry to JournalEntries table (TASK 6 / group G)"`
 

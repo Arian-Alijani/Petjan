@@ -9,7 +9,7 @@ public sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journal
 {
     public void Configure(EntityTypeBuilder<JournalEntry> builder)
     {
-        builder.ToTable("JournalEntrys", "public");
+        builder.ToTable("JournalEntries", "public");
         OwnedRows.Money(builder, e => e.TotalDebit);
         builder.HasKey(e => e.Id);
         builder.HasIndex(e => new { e.TenantId, e.PeriodId, e.PostedUtc }).HasDatabaseName("IX_JournalEntries_TenantId_PeriodId_PostedUtc");
