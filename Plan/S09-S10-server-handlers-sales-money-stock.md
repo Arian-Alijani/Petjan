@@ -209,7 +209,7 @@ Every `SyncableEntity` table: `Id/TenantId varchar(26)`, `UpdatedAt timestamptz(
   `DomainEventHandlerCoverageTests.EveryRaisedEvent_HasServerHandlerWhereClientHas`;
   PG-gated: `S10MigrationTests.Applies_OnTopOfPreviousHead`, `S10EndToEndTests.CommandsRoundTrip_ThroughIntake_WithTenantIsolation`.
   `scripts/sandbox/test.sh HandlersS10`. **Push.**
-- [ ] **T17 — S10 gate.** `scripts/sandbox/build.sh full` (0/0) → `scripts/sandbox/test.sh Server` (green — the un-Skipped catalog-coverage tests now run across ALL `CommandTypes.All`) → `scripts/sandbox/run.sh` (`SMOKE RUN OK`). `git diff --stat -- src/Animora.Desktop src/Animora.Persistence.Sqlite src/Animora.Client.Services` empty; `grep -rn "IgnoreQueryFilters" src/Animora.Persistence.PostgreSql/Repositories` empty; `grep -rn "OnHand" src/Animora.Persistence.PostgreSql/Configurations` empty. Update `PROGRESS.md`: S10 → `✅ Done`, Next phase → `S11`, append `### S10` entry, log deviations. **Push** `feat(server): S10 server handlers ii-b`.
+- [x] **T17 — S10 gate.** `scripts/sandbox/build.sh full` (0/0) → `scripts/sandbox/test.sh Server` (green — the un-Skipped catalog-coverage tests now run across ALL `CommandTypes.All`) → `scripts/sandbox/run.sh` (`SMOKE RUN OK`). `git diff --stat -- src/Animora.Desktop src/Animora.Persistence.Sqlite src/Animora.Client.Services` empty; `grep -rn "IgnoreQueryFilters" src/Animora.Persistence.PostgreSql/Repositories` empty; `grep -rn "OnHand" src/Animora.Persistence.PostgreSql/Configurations` empty. Update `PROGRESS.md`: S10 → `✅ Done`, Next phase → `S11`, append `### S10` entry, log deviations. **Push** `feat(server): S10 server handlers ii-b`.
 
 ---
 
