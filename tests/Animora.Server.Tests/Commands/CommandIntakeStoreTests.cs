@@ -27,7 +27,7 @@ public sealed class CommandIntakeStoreTests(PgFixture pg) : IClassFixture<PgFixt
             return await store.TryBeginAsync(Row(tenantId, operationId));
         }).ToArray();
         IntakeBeginResult[] results = await Task.WhenAll(attempts);
-        Assert.Single(results.Where(r => r.Inserted));
+        Assert.Single(results, r => r.Inserted);
         Assert.All(results.Where(r => !r.Inserted), r => Assert.Equal(operationId, r.Existing!.OperationId));
         await using var verify = TestSupport.CreateContext(tenant, pg.ConnectionString);
         Assert.Equal(1, await verify.CommandIntake.CountAsync(r => r.OperationId == operationId));

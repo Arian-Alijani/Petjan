@@ -12,7 +12,7 @@ public sealed class BatchFreezerTests(PgFixture pg) : IClassFixture<PgFixture>
         await using var rig = new SyncPgRig(pg.ConnectionString); await rig.Initialize();
         var result = await rig.Freezer.OpenAsync(new(1, 0), false, CancellationToken.None);
         Assert.NotNull(result.Batch); Assert.Equal(1, result.Batch!.Watermark);
-        Assert.Single((await rig.Download(result.Batch)).Where(r => r.Entity == "Tenant"));
+        Assert.Single(await rig.Download(result.Batch), r => r.Entity == "Tenant");
     }
     [PgFact]
     public async Task SnapshotCommitted_BeforePageMaterialization()

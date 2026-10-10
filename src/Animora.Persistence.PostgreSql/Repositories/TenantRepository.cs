@@ -26,6 +26,9 @@ public abstract class TenantRepository<TEntity>
         _context = context;
     }
 
+    /// <summary>The request-scoped context, for derived repositories that also touch child sets (no need to capture the ctor parameter).</summary>
+    protected AnimoraServerDbContext Context => _context;
+
     /// <summary>The filtered set for <typeparamref name="TEntity"/> (tenant + soft-delete filters applied).</summary>
     protected DbSet<TEntity> Set => _context.Set<TEntity>();
 

@@ -8,7 +8,7 @@ namespace Animora.Persistence.PostgreSql.Repositories;
 public sealed class BoardingServiceRepository(AnimoraServerDbContext db) : TenantRepository<BoardingServiceDef>(db), IBoardingServiceRepository
 {
     public Task<BoardingServiceDef?> FindAsync(string id, CancellationToken ct = default) =>
-        db.Set<BoardingServiceDef>().AsTracking().FirstOrDefaultAsync(e => e.Id == id, ct);
+        Context.Set<BoardingServiceDef>().AsTracking().FirstOrDefaultAsync(e => e.Id == id, ct);
 
-    public new void Add(BoardingServiceDef entity) => db.Set<BoardingServiceDef>().Add(entity);
+    public new void Add(BoardingServiceDef entity) => Context.Set<BoardingServiceDef>().Add(entity);
 }

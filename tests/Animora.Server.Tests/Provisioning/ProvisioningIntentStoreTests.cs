@@ -51,10 +51,10 @@ public sealed class ProvisioningIntentStoreTests(PgFixture fixture) : IClassFixt
     public async Task ExpiredLease_Reclaimable_AndStaleCompletionRejected()
     {
         await Migrate(); await using var db = Context(); var row = await Insert(db); var store = new ProvisioningIntentStore(db);
-        var claims = await store.ClaimAsync(Now, 5); var first = Assert.Single(claims.Where(x => x.Id == row.Id));
+        var claims = await store.ClaimAsync(Now, 5); var first = Assert.Single(claims, x => x.Id == row.Id);
         await using var secondDb = Context(); var secondStore = new ProvisioningIntentStore(secondDb);
         Assert.DoesNotContain(await secondStore.ClaimAsync(Now, 5), x => x.Id == row.Id);
-        var second = Assert.Single((await secondStore.ClaimAsync(Now.AddSeconds(61), 5)).Where(x => x.Id == row.Id));
+        var second = Assert.Single(await secondStore.ClaimAsync(Now.AddSeconds(61), 5), x => x.Id == row.Id);
         Assert.NotEqual(first.ClaimToken, second.ClaimToken);
         Assert.False(await store.CompleteAsync(first, "{}", null, Now.AddSeconds(61)));
         Assert.True(await secondStore.CompleteAsync(second, "{}", null, Now.AddSeconds(61)));

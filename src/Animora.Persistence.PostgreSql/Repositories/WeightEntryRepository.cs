@@ -7,5 +7,5 @@ namespace Animora.Persistence.PostgreSql.Repositories;
 
 public sealed class WeightEntryRepository(AnimoraServerDbContext db) : TenantRepository<WeightEntry>(db), IWeightEntryRepository
 {
-    public new void Add(WeightEntry entry) => db.Set<WeightEntry>().Add(entry);
+    public new void Add(WeightEntry entry) => Context.Set<WeightEntry>().Add(entry);
 }

@@ -412,7 +412,7 @@ Authorization + HandlersS07 + HandlersS10 + Outbox + Subscriptions names touched
 
 ---
 
-### [ ] TASK 8 — Build warnings → clean build (0 warnings)
+### [x] TASK 8 — Build warnings → clean build (0 warnings)
 
 **8a. Source — 26 × `CS9107` (product, `src/Animora.Persistence.PostgreSql/Repositories/*Repository.cs`).**
 - Pattern (e.g. `WeightEntryRepository.cs:8`):
@@ -447,6 +447,8 @@ Authorization + HandlersS07 + HandlersS10 + Outbox + Subscriptions names touched
   `.Where(pred).Single()` as `Assert.Single(collection, pred)`.
 - `xUnit2000` `Sync/PureFeedTests.cs:15,17` → put the constant
   `RetentionPolicy.JournalRetentionDays` as the **expected** (first) arg of `Assert.Equal`.
+
+> **Done:** `TenantRepository` gained a protected `Context` accessor; the 26 repositories use it instead of the captured ctor param (0 CS9107); 12 test warnings rewritten. `dotnet build tests/Animora.Server.Tests --no-incremental` → 0 warnings, 0 errors.
 
 **Verify:** `dotnet build src/Animora.Persistence.PostgreSql --no-incremental` → 0 CS9107;
 `dotnet build tests/Animora.Server.Tests --no-incremental` → 0 warnings. (Building these two

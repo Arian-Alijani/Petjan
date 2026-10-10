@@ -16,6 +16,6 @@ public sealed class ContractsTests
     {
         var types = typeof(SyncRecord).Assembly.GetTypes().Where(t => t.Name.EndsWith("SyncContract", StringComparison.Ordinal)).ToArray();
         Assert.Equal(SyncContractCatalog.ProjectionOrder.Count, types.Length);
-        foreach (var entry in SyncContractCatalog.ProjectionOrder) Assert.Single(types.Where(t => t.Name == entry.Name + "SyncContract"));
+        foreach (var entry in SyncContractCatalog.ProjectionOrder) Assert.Single(types, t => t.Name == entry.Name + "SyncContract");
     }
 }

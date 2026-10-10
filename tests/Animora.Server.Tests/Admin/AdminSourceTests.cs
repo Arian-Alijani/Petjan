@@ -45,7 +45,7 @@ public sealed class AdminPagesTests
 {
     [Fact] public void Lists_Paged_Max200() { Assert.Equal((1,200),AdminPage<string>.Bounds(-1,1000)); }
     [Fact] public void Dashboard_ReadsInProcessCountersOnly()
-    { string source=File.ReadAllText(Path.Combine(RepoRoot.Find(),"src/Animora.Server/Admin/AdminStatusReader.cs"));Assert.DoesNotContain("CheckAsync",source);Assert.Contains("metrics.OutboxPending",source);Assert.Equal(1,System.Text.RegularExpressions.Regex.Matches(source,"queries.DashboardAsync").Count); }
+    { string source=File.ReadAllText(Path.Combine(RepoRoot.Find(),"src/Animora.Server/Admin/AdminStatusReader.cs"));Assert.DoesNotContain("CheckAsync",source);Assert.Contains("metrics.OutboxPending",source);Assert.Single(System.Text.RegularExpressions.Regex.Matches(source,"queries.DashboardAsync")); }
     [Fact] public void TempPassword_ShownOnce_NotInUrlOrLogs()
     { foreach(string f in Directory.EnumerateFiles(Path.Combine(RepoRoot.Find(),"src/Animora.Web.Admin/Pages"),"*.razor")) {var source=File.ReadAllText(f);Assert.DoesNotContain("?password",source);Assert.DoesNotContain("Logger",source);}Assert.Contains("r.WasReplay?null:r.OwnerTemporaryPassword",File.ReadAllText(Path.Combine(RepoRoot.Find(),"src/Animora.Server/Admin/AdminSubscriptionAdapter.cs"))); }
 }

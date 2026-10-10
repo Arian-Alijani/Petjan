@@ -8,11 +8,11 @@ namespace Animora.Persistence.PostgreSql.Repositories;
 public sealed class VaccinationRepository(AnimoraServerDbContext db) : TenantRepository<VaccinationRecord>(db), IVaccinationRepository
 {
     public Task<VaccinationRecord?> FindAsync(string id, CancellationToken ct = default) =>
-        db.Set<VaccinationRecord>().AsTracking().FirstOrDefaultAsync(e => e.Id == id, ct);
+        Context.Set<VaccinationRecord>().AsTracking().FirstOrDefaultAsync(e => e.Id == id, ct);
 
     public async Task<VaccinationRecord> RequireAsync(string id, CancellationToken ct = default) =>
         await FindAsync(id, ct).ConfigureAwait(false) ?? throw new InvalidOperationException($"VaccinationRecord {id} not found.");
 
-    public new void Add(VaccinationRecord entity) => db.Set<VaccinationRecord>().Add(entity);
-    public void AddRange(IEnumerable<VaccinationRecord> entities) => db.Set<VaccinationRecord>().AddRange(entities);
+    public new void Add(VaccinationRecord entity) => Context.Set<VaccinationRecord>().Add(entity);
+    public void AddRange(IEnumerable<VaccinationRecord> entities) => Context.Set<VaccinationRecord>().AddRange(entities);
 }

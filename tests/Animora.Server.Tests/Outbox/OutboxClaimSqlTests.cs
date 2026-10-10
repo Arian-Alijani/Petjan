@@ -25,7 +25,7 @@ public sealed class ConsumerIdempotencyTests
         Assert.Equal(new[] { "ConsumerName", "TenantId", "MessageId" }, db.Model.FindEntityType(typeof(ConsumedMessage))!
             .FindPrimaryKey()!.Properties.Select(p => p.Name));
         Assert.Equal(2, db.Model.GetEntityTypes().Count());
-        Assert.All(db.Model.GetEntityTypes(), t => Assert.Null(t.GetQueryFilter()));
+        Assert.All(db.Model.GetEntityTypes(), t => Assert.Empty(t.GetDeclaredQueryFilters()));
         var source = File.ReadAllText(Path.Combine(RepoRoot.Find(), "src/Animora.Persistence.PostgreSql/Outbox/OutboxConsumerRunner.cs"));
         Assert.Contains("ON CONFLICT", source); Assert.Contains("if (inserted == 0)", source);
         Assert.True(source.IndexOf("if (inserted == 0)", StringComparison.Ordinal) < source.IndexOf("consumer.ConsumeAsync", StringComparison.Ordinal));

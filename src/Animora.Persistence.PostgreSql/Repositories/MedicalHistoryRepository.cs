@@ -6,5 +6,5 @@ namespace Animora.Persistence.PostgreSql.Repositories;
 
 public sealed class MedicalHistoryRepository(AnimoraServerDbContext db) : TenantRepository<MedicalHistoryEntry>(db), IMedicalHistoryRepository
 {
-    public new void Add(MedicalHistoryEntry entry) => db.Set<MedicalHistoryEntry>().Add(entry);
+    public new void Add(MedicalHistoryEntry entry) => Context.Set<MedicalHistoryEntry>().Add(entry);
 }

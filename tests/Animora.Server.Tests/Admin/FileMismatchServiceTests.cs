@@ -48,7 +48,7 @@ public sealed class FileMismatchServiceTests(PgFixture pg) : IClassFixture<PgFix
         }
         var mismatch = await Seed(FileState.Mismatch);
         await using var read = Context(); var page = await new FileMismatchService(read, Time).ListAsync(1, 1000);
-        Assert.Equal(200, page.Size); var safe = Assert.Single(page.Items.Where(x => x.Id == mismatch.File));
+        Assert.Equal(200, page.Size); var safe = Assert.Single(page.Items, x => x.Id == mismatch.File);
         Assert.Equal(8, safe.ShaPrefix?.Length); Assert.DoesNotContain("/secret", JsonSerializer.Serialize(safe)); Assert.Empty(read.ChangeTracker.Entries());
     }
     [PgFact] public async Task ConcurrentOperators_OnlyOneTransitionAndOneAudit()
@@ -57,7 +57,7 @@ public sealed class FileMismatchServiceTests(PgFixture pg) : IClassFixture<PgFix
         await using var a = Context(); await using var b = Context();
         var results = await Task.WhenAll(new FileMismatchService(a, Time).RequeueAsync(tenant, file, Actor),
             new FileMismatchService(b, Time).AbandonAsync(tenant, file, Actor));
-        Assert.Single(results.Where(x => x.IsSuccess)); Assert.Single(results.Where(x => x.Error == ErrorCodes.FileHashMismatch));
+        Assert.Single(results, x => x.IsSuccess); Assert.Single(results, x => x.Error == ErrorCodes.FileHashMismatch);
         await using var verify = Context(); Assert.Equal(1, await verify.Audit.CountAsync(x => x.TargetTenantId == tenant));
     }
     private sealed class FailAudit : SaveChangesInterceptor

@@ -12,9 +12,9 @@ namespace Animora.Server.Tests.Sync;
 public sealed class RetentionPolicyTests
 {
     [Fact] public void JournalRetention_Is_OfflineWindowPlus30() =>
-        Assert.Equal(new OfflineWindowOptions().MaxOfflineDays + 30, RetentionPolicy.JournalRetentionDays);
+        Assert.Equal(RetentionPolicy.JournalRetentionDays, new OfflineWindowOptions().MaxOfflineDays + 30);
     [Fact] public void SameConstantSizesCommandIntakeRetention() =>
-        Assert.Equal(new CommandIntakeRetentionOptions().FullRecordDays, RetentionPolicy.JournalRetentionDays);
+        Assert.Equal(RetentionPolicy.JournalRetentionDays, new CommandIntakeRetentionOptions().FullRecordDays);
 }
 public sealed class OpenBatchDecisionTests
 {
