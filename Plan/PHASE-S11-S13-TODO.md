@@ -226,7 +226,7 @@ public static readonly ErrorCode BatchNotFound  = new("BATCH_NOT_FOUND", ErrorCo
 
 ### S12 tasks
 
-- [ ] **S12-T1 — Wire DTOs.** Create `src/Animora.Contracts.Wire/Sync/*.cs` (manifest/open/response/page/record above) + `Sync/Contracts/<Entity>SyncContract.cs`, **one per catalog entry (25)**, hand-written with allowed fields only, no `TenantId`. (Derive the required list from `SyncContractCatalog` — but Contracts.Wire must not reference the persistence project; so maintain the list by hand and let the S12 test `EveryCatalogEntry_HasExactlyOneSyncContract`, which lives in Server.Tests and *can* see both, enforce parity.)
+- [x] **S12-T1 — Wire DTOs.** Create `src/Animora.Contracts.Wire/Sync/*.cs` (manifest/open/response/page/record above) + `Sync/Contracts/<Entity>SyncContract.cs`, **one per catalog entry (25)**, hand-written with allowed fields only, no `TenantId`. (Derive the required list from `SyncContractCatalog` — but Contracts.Wire must not reference the persistence project; so maintain the list by hand and let the S12 test `EveryCatalogEntry_HasExactlyOneSyncContract`, which lives in Server.Tests and *can* see both, enforce parity.)
   **PUSH:** `scripts/git/push.sh "feat(wire): S12-T1 sync feed DTOs + per-entity sync contracts"`
 
 - [ ] **S12-T2 — ErrorCodes +2.** Add region "Sync feed (S12)" with `ResyncRequired`, `BatchNotFound` to `src/Animora.Domain/Results/ErrorCodes.cs`.
