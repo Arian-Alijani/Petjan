@@ -30,7 +30,7 @@
 @code {
     [Parameter] public string Id { get; set; }="";
     [SupplyParameterFromForm] public SubscriptionActionForm? Form { get; set; }
-    private TenantDetail? Detail; private MutationReceipt? Receipt;
+    private Models.TenantDetail? Detail; private MutationReceipt? Receipt;
     private static readonly string[] Operations=["extend","reduce","suspend","reinstate","cancel","renew","seats","plan","reset-owner-password"];
     protected override async Task OnParametersSetAsync() { Detail=Capture(await Queries.GetAsync(Id,Cancellation)); Form??=new() { Stamp=Detail?.Subscription?.ConcurrencyStamp??"" }; }
     private async Task Submit(string operation) { Receipt=Capture(await Commands.MutateAsync(Id,operation,Form!,Cancellation)); }

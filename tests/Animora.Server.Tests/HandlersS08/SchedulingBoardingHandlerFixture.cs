@@ -1,5 +1,6 @@
 using System.Reflection;
 using Animora.Application;
+using Animora.Application.Dispatch;
 using Animora.Application.Ports;
 using Animora.Application.UseCases.Boarding;
 using Animora.Application.UseCases.Boarding.ReadModels;
