@@ -48,6 +48,8 @@ builder.Services.AddAnimoraPostgreSql(builder.Configuration);
 builder.Services.AddAnimoraClinicalPersistence();
 builder.Services.AddAnimoraSchedulingBoardingPersistence();
 builder.Services.AddAnimoraSalesCashierPersistence();
+builder.Services.AddAnimoraMoneyStockPersistence();
+builder.Services.AddAnimoraServerFinancialEvents();
 
 // 4b. Identity (S04): ASP.NET Core Identity over the Domain User, opaque Data-Protection bearer + refresh
 //     tokens (no JWT/OIDC), lockout, device binding, append-only security audit. Authentication only.

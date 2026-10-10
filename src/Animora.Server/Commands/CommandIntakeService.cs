@@ -8,6 +8,7 @@ using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Persistence.PostgreSql.Commands;
 using Animora.Persistence.PostgreSql.Identity;
+using Animora.Persistence.PostgreSql.Repositories;
 using Animora.Persistence.PostgreSql.Tenancy;
 using Animora.Server.Authorization;
 using Animora.Server.Hosting;
@@ -33,7 +34,8 @@ internal sealed class CommandIntakeService(
     IHttpContextAccessor http,
     IServerCommandConcurrencyGuard? concurrency = null,
     ICommandEffectIdCollector? effectIds = null,
-    ServerCommandExecutionScope? execution = null)
+    ServerCommandExecutionScope? execution = null,
+    IServerFinancialEventProcessor? financialEvents = null)
 {
     public async Task<Result<SettlementResult>> SubmitAsync(CommandEnvelope envelope, CancellationToken ct = default)
     {
@@ -152,6 +154,11 @@ internal sealed class CommandIntakeService(
                 dispatched = await resolved.Candidate.Dispatch(resolved.Command, dispatcher, context, handlerToken).ConfigureAwait(false);
                 if (dispatched.Result.IsFailure)
                     return Result<object?>.Fail(dispatched.Result.Error, dispatched.Result.Detail);
+                if (financialEvents is not null)
+                {
+                    var financial = await financialEvents.ProcessAsync(context, handlerToken).ConfigureAwait(false);
+                    if (financial.IsFailure) return Result<object?>.Fail(financial.Error, financial.Detail);
+                }
                 generated = effectIds?.Capture(envelope, dispatched.Value);
                 Result saved = await unitOfWork.SaveAsync(handlerToken).ConfigureAwait(false);
                 return saved.IsSuccess ? Result<object?>.Ok(dispatched.Value) : Result<object?>.Fail(saved.Error, saved.Detail);
