@@ -4,7 +4,7 @@ using Animora.Persistence.PostgreSql.Outbox;
 namespace Animora.Server.Commands;
 
 /// <summary>Server facade preserves the S06 intake seam while delegating inward to persistence.</summary>
-internal interface IServerOutbox : Animora.Persistence.PostgreSql.Outbox.IServerOutbox;
+internal interface IServerOutbox : Animora.Persistence.PostgreSql.Outbox.IServerOutbox { }
 
 internal sealed class CommandServerOutbox(ServerOutbox outbox) : IServerOutbox
 {

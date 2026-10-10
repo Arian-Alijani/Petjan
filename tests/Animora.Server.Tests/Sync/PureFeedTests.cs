@@ -37,6 +37,7 @@ public sealed class RecordProjectorTests
         Assert.True(names.IndexOf("Owner") < names.IndexOf("Pet"));
         var source = File.ReadAllText(Path.Combine(RepoRoot.Find(), "src/Animora.Persistence.PostgreSql/Replication/RecordProjector.cs"));
         Assert.Contains("CASE WHEN r.\"Id\" IS NULL THEN 1 ELSE 0 END", source);
+        Assert.Contains("ChildImage(child.Table)", source);
     }
     [Fact]
     public void Projection_StripsTenantAndUnknownFields_Recursively()

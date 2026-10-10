@@ -23,7 +23,8 @@ public sealed class RecordProjector
                     "BoardingStayItems" => "Items", _ => "BillingHandoffs" };
                 var predicate = $"c.{Q(child.RootIdColumn)} = r.\"Id\"" +
                     (child.HasTenantId ? " AND c.\"TenantId\" = @tenant" : "");
-                extras.Add($"'{name}', (SELECT coalesce(jsonb_agg(to_jsonb(c) - 'TenantId' ORDER BY to_jsonb(c)::text), '[]'::jsonb) FROM public.{Q(child.Table)} c WHERE {predicate})");
+                var childImage = ChildImage(child.Table);
+                extras.Add($"'{name}', (SELECT coalesce(jsonb_agg({childImage} ORDER BY {childImage}::text), '[]'::jsonb) FROM public.{Q(child.Table)} c WHERE {predicate})");
             }
             var image = "to_jsonb(r)" + (extras.Count == 0 ? "" : " || jsonb_build_object(" + string.Join(",", extras) + ")");
             var sql = full
@@ -84,5 +85,21 @@ public sealed class RecordProjector
         JsonValueKind.Null => null,
         _ => value.Clone(),
     };
+    // Closed child-column lists prevent future table columns from silently becoming wire fields.
+    private static string ChildImage(string table)
+    {
+        string[] columns = table switch
+        {
+            "ProductVariants" => ["VariantId", "Sku", "AttributeName", "AttributeValue", "CostPriceMinor", "CostPriceCurrency",
+                "SalePriceMinor", "SalePriceCurrency", "ReorderLevelScaled", "ReorderLevelUnit", "Barcode", "IsActive"],
+            "VisitRxLines" => ["LineId", "ProductId", "DrugName", "Dosage", "Frequency", "DurationDays", "Instructions"],
+            "BoardingStayItems" => ["ItemId", "Kind", "CatalogItemId", "Title", "QuantityScaled", "QuantityUnit",
+                "UnitPriceMinor", "UnitPriceCurrency", "ConsumedUtc", "RecordedByUserId"],
+            "VisitHandoffLines" => ["Id", "VisitId", "OwnerId", "PetId", "DoctorId", "CompletedUtc", "LinesJson", "Status", "InvoiceId"],
+            "BoardingHandoffLines" => ["Id", "StayId", "OwnerId", "PetId", "DoctorId", "CompletedUtc", "LinesJson", "Status", "Kind", "InvoiceId"],
+            _ => throw new InvalidOperationException("Uncatalogued child projection."),
+        };
+        return "jsonb_build_object(" + string.Join(",", columns.Select(n => $"'{n}',c.{Q(n)}")) + ")";
+    }
     private static string Q(string name) => JournalSqlTemplates.Quote(name);
 }
