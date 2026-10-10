@@ -1,3 +1,6 @@
+using Animora.Domain.Inventory;
+using Animora.Domain.Purchasing;
+using Animora.Domain.Finance;
 using Animora.Domain.Sales;
 using Animora.Domain.Cashier;
 using Animora.Domain.Boarding;
@@ -86,6 +89,21 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     public DbSet<Insurer> InsurerSet => Set<Insurer>();
     public DbSet<CashSession> CashSessionSet => Set<CashSession>();
     public DbSet<DocumentCounter> DocumentCounters => Set<DocumentCounter>();
+
+    public DbSet<Product> ProductSet => Set<Product>();
+    public DbSet<ProductCategory> ProductCategorySet => Set<ProductCategory>();
+    public DbSet<StockMovement> StockMovementSet => Set<StockMovement>();
+    public DbSet<UnitOfMeasure> UnitOfMeasureSet => Set<UnitOfMeasure>();
+    public DbSet<GoodsReceipt> GoodsReceiptSet => Set<GoodsReceipt>();
+    public DbSet<PurchaseOrder> PurchaseOrderSet => Set<PurchaseOrder>();
+    public DbSet<Supplier> SupplierSet => Set<Supplier>();
+    public DbSet<AccountingPeriod> AccountingPeriodSet => Set<AccountingPeriod>();
+    public DbSet<Cheque> ChequeSet => Set<Cheque>();
+    public DbSet<Expense> ExpenseSet => Set<Expense>();
+    public DbSet<JournalEntry> JournalEntrySet => Set<JournalEntry>();
+    public DbSet<LedgerAccount> LedgerAccountSet => Set<LedgerAccount>();
+    public DbSet<RecurringExpensePayment> RecurringExpensePaymentSet => Set<RecurringExpensePayment>();
+    public DbSet<RecurringExpense> RecurringExpenseSet => Set<RecurringExpense>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
