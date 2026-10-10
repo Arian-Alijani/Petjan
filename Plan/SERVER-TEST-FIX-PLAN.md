@@ -62,7 +62,7 @@ scripts/sandbox/install-postgres.sh            # PG محلی + connection.env
 
 ---
 
-## TASK 1 — رفع R1: pool budget در appsettings — [ ]
+## TASK 1 — رفع R1: pool budget در appsettings — [x]
 
 **فایل:** `src/Animora.Server/appsettings.json`
 **علت دقیق (کشف‌شده):** پیش‌فرض‌های `DatabaseOptions` =
@@ -322,7 +322,7 @@ scripts/git/push.sh "chore(plan): remove completed server-test fix plan"
 ## چک‌لیست فشرده (برای مرور سریع وضعیت)
 
 - [x] TASK 0 — محیط آماده (SDK + PG)
-- [ ] TASK 1 — appsettings pool ≤12 (R1) + push
+- [x] TASK 1 — appsettings pool ≤12 (R1) + push
 - [ ] TASK 2 — null-guard RequestServices (R2) + push
 - [ ] TASK 3 — allow-list Licensing در source-scan (R4) + push
 - [ ] TASK 4 — sync snapshot/migration (R3) + push
