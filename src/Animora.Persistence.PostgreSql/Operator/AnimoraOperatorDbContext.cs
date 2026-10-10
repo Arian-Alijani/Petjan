@@ -12,6 +12,7 @@ namespace Animora.Persistence.PostgreSql.Operator;
 /// <summary>Narrow vendor-global context. No tenant filters; never owns migrations.</summary>
 public sealed class AnimoraOperatorDbContext(DbContextOptions<AnimoraOperatorDbContext> options) : DbContext(options)
 {
+    public DbSet<Animora.Persistence.PostgreSql.Files.FileObject> FileObjects => Set<Animora.Persistence.PostgreSql.Files.FileObject>();
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<SubscriptionEvent> SubscriptionEvents => Set<SubscriptionEvent>();
@@ -28,6 +29,7 @@ public sealed class AnimoraOperatorDbContext(DbContextOptions<AnimoraOperatorDbC
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.ApplyConfiguration(new FileObjectConfiguration());
         b.ApplyConfiguration(new LicenseGrantConfiguration());
         b.ApplyConfiguration(new LicenseRecordConfiguration());
         b.ApplyConfiguration(new DeviceConfiguration());
