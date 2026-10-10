@@ -167,7 +167,7 @@ public static class InsightSourceCatalog { /* empty IReadOnlySet<string> of allo
 - [x] **T0 — Branch + plan committed.** Ensure on `genspark_ai_developer`; this plan file is in `Plan/`. Push with `-b`. ✅ done (commit 11f4208).
   `scripts/git/push.sh -b genspark_ai_developer "docs(plan): S20 execution plan"`
 
-- [ ] **T1 — ErrorCodes +1 & RenderModePolicy.** Add `#region Insight (Phase S20)` + `InsightNotEnabled ("INSIGHT_NOT_ENABLED", Entitlement)` after the Files region (`#endregion` line 761). Set `MaxIslands=1`. Verify `grep -c INSIGHT_NOT_ENABLED` = 1.
+- [x] **T1 — ErrorCodes +1 & RenderModePolicy.** Add `#region Insight (Phase S20)` + `InsightNotEnabled ("INSIGHT_NOT_ENABLED", Entitlement)` after the Files region (`#endregion` line 761). Set `MaxIslands=1`. Verify `grep -c INSIGHT_NOT_ENABLED` = 1.
   `scripts/git/push.sh "feat(server): S20 add InsightNotEnabled code, raise island budget to 1"`
 
 - [ ] **T2 — FileLifecycle +2 edges & test.** Add `(FileState.Mismatch, FileState.Uploaded)` and `(FileState.Mismatch, FileState.Abandoned)` to `Edges` in `FileLifecycle.cs` AND to the `edges[]` array in `FilePlaneTests.cs` `AllowedAndForbiddenTransitions_Table`. Run `scripts/sandbox/test.sh FileLifecycle`.
