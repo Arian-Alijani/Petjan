@@ -14,7 +14,7 @@ public static class LicensingPersistenceExtensions
             sp.GetRequiredService<WorkerExecutionContext>().IsWorker ? PersistenceServiceCollectionExtensions.WorkerKey : PersistenceServiceCollectionExtensions.OltpWriteKey)));
         services.AddDbContext<AnimoraEntitlementReadContext>((sp, o) => o.UseNpgsql(
             sp.GetRequiredKeyedService<NpgsqlDataSource>(PersistenceServiceCollectionExtensions.OltpReadKey)));
-        services.AddScoped<LicenseIssuer>(); services.AddScoped<LicenseGrantProjector>();
+        services.AddScoped<LicenseAdministration>(); services.AddScoped<LicenseIssuer>(); services.AddScoped<LicenseGrantProjector>();
         services.AddScoped<SubscriptionOutbox>();
         return services;
     }

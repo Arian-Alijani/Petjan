@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Animora.Contracts.Wire.Licensing;
 using Animora.Domain.Subscriptions;
+using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Persistence.PostgreSql.Operator;
 using Animora.Persistence.PostgreSql.Security;
@@ -28,16 +29,23 @@ public sealed class LicenseKeyManager(LicenseStore db, IDataProtectionProvider p
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
 
-    public async Task<string> EnsureAsync(CancellationToken ct = default) => await ChangeAsync(false, new ActorRef(ActorKind.System), ct).ConfigureAwait(false);
-    public async Task<string> RotateAsync(ActorRef actor, CancellationToken ct = default) => await ChangeAsync(true, actor, ct).ConfigureAwait(false);
+    public async Task<string> EnsureAsync(CancellationToken ct = default)
+    {
+        var result = await ChangeAsync(false, null, new ActorRef(ActorKind.System), ct).ConfigureAwait(false);
+        return result.Value ?? throw new InvalidOperationException("Licence key initialization failed.");
+    }
+    public Task<Result<string>> RotateAsync(string expectedKeyId, ActorRef actor, CancellationToken ct = default) =>
+        ChangeAsync(true, expectedKeyId, actor, ct);
 
-    private async Task<string> ChangeAsync(bool rotate, ActorRef actor, CancellationToken ct)
+    private async Task<Result<string>> ChangeAsync(bool rotate, string? expectedKeyId, ActorRef actor, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(160016)", ct).ConfigureAwait(false);
         var active = await db.Keys.Where(k => k.Purpose == SigningKey.Purposes.License && k.RetiredUtc == null)
             .OrderByDescending(k => k.CreatedUtc).ToListAsync(ct).ConfigureAwait(false);
-        if (!rotate && active.FirstOrDefault(k => k.IsUsable(clock.UtcNow)) is { } existing) return existing.KeyId;
+        if (!rotate && active.FirstOrDefault(k => k.IsUsable(clock.UtcNow)) is { } existing) return Result<string>.Ok(existing.KeyId);
+        if (rotate && (string.IsNullOrWhiteSpace(expectedKeyId) || active.FirstOrDefault()?.KeyId != expectedKeyId.Trim('"')))
+            return Result<string>.Fail(ErrorCodes.ConcurrencyConflict);
         var horizon = clock.UtcNow.AddDays(RetentionDays(options.Value));
         foreach (var old in active) old.RetireLicense(clock, horizon);
         var (publicKey, privateKey) = EcdsaLicenseSigner.GenerateKeyPair();
@@ -48,7 +56,7 @@ public sealed class LicenseKeyManager(LicenseStore db, IDataProtectionProvider p
         db.Keys.Add(created);
         db.Audit.Add(OperatorAudit.Create(clock.UtcNow, actor, rotate ? "license.key_rotated" : "license.key_bootstrapped", null, created.KeyId));
         await db.SaveChangesAsync(ct).ConfigureAwait(false); await tx.CommitAsync(ct).ConfigureAwait(false);
-        return created.KeyId;
+        return Result<string>.Ok(created.KeyId);
     }
 
     public async Task<LicensePublicKeySet> PublicAsync(CancellationToken ct = default)

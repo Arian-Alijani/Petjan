@@ -39,6 +39,11 @@ public sealed class LicenseGrantProjector(AnimoraOperatorDbContext db, OutboxDbC
                 "Status"=EXCLUDED."Status", "Sequence"="LicenseGrants"."Sequence"+1,
                 "SourceEventSequence"=EXCLUDED."SourceEventSequence", "UpdatedUtc"=EXCLUDED."UpdatedUtc"
             WHERE "LicenseGrants"."SourceEventSequence" < EXCLUDED."SourceEventSequence"
+               OR ("LicenseGrants"."SourceEventSequence" = EXCLUDED."SourceEventSequence" AND
+                   ("LicenseGrants"."SubscriptionId", "LicenseGrants"."PlanCode", "LicenseGrants"."SeatLimit",
+                    "LicenseGrants"."MaxDevices", "LicenseGrants"."ValidUntilUtc", "LicenseGrants"."Status")
+                   IS DISTINCT FROM (EXCLUDED."SubscriptionId", EXCLUDED."PlanCode", EXCLUDED."SeatLimit",
+                                     EXCLUDED."MaxDevices", EXCLUDED."ValidUntilUtc", EXCLUDED."Status"))
             """, ct).ConfigureAwait(false);
         return Result.Ok();
     }

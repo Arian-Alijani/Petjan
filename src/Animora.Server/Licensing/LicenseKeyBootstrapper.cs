@@ -18,9 +18,9 @@ internal sealed class LicenseKeyBootstrapper(IServiceScopeFactory scopes, IBackg
             {
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
                 timeout.CancelAfter(TimeSpan.FromSeconds(10));
-                using var lease = await admission.AcquireAsync(timeout.Token).ConfigureAwait(false);
+                await using var lease = await admission.EnterAsync(timeout.Token).ConfigureAwait(false);
                 await using var scope = scopes.CreateAsyncScope();
-                scope.ServiceProvider.GetRequiredService<WorkerExecutionContext>().MarkWorker();
+                scope.ServiceProvider.GetRequiredService<WorkerExecutionContext>().IsWorker = true;
                 var schema = scope.ServiceProvider.GetRequiredService<AnimoraServerDbContext>();
                 var applied = await schema.Database.GetAppliedMigrationsAsync(timeout.Token).ConfigureAwait(false);
                 if (ServerSchemaVersion.IsExpectedHead(applied.LastOrDefault()))
