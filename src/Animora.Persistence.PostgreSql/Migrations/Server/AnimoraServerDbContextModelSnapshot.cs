@@ -22,6 +22,94 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Licensing.LicenseGrant", b =>
+            {
+                b.Property<string>("TenantId")
+                    .IsRequired()
+                    .HasMaxLength(26)
+                    .HasColumnType("character varying(26)");
+                b.Property<string>("SubscriptionId")
+                    .IsRequired()
+                    .HasMaxLength(26)
+                    .HasColumnType("character varying(26)");
+                b.Property<string>("PlanCode")
+                    .IsRequired()
+                    .HasMaxLength(32)
+                    .HasColumnType("character varying(32)");
+                b.Property<int>("SeatLimit")
+                    .HasColumnType("integer");
+                b.Property<int>("MaxDevices")
+                    .HasColumnType("integer");
+                b.Property<DateTimeOffset>("ValidUntilUtc")
+                    .HasPrecision(6)
+                    .HasColumnType("timestamp with time zone");
+                b.Property<short>("Status")
+                    .HasColumnType("smallint");
+                b.Property<long>("Sequence")
+                    .HasColumnType("bigint");
+                b.Property<int>("SourceEventSequence")
+                    .HasColumnType("integer");
+                b.Property<DateTimeOffset>("UpdatedUtc")
+                    .HasPrecision(6)
+                    .HasColumnType("timestamp with time zone");
+                b.HasKey("TenantId");
+                b.ToTable("LicenseGrants", "public");
+            });
+
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Licensing.LicenseRecord", b =>
+            {
+                b.Property<string>("TenantId")
+                    .IsRequired()
+                    .HasMaxLength(26)
+                    .HasColumnType("character varying(26)");
+                b.Property<string>("Id")
+                    .IsRequired()
+                    .HasMaxLength(26)
+                    .HasColumnType("character varying(26)");
+                b.Property<string>("DeviceId")
+                    .IsRequired()
+                    .HasMaxLength(26)
+                    .HasColumnType("character varying(26)");
+                b.Property<string>("InstallationIdHash")
+                    .IsRequired()
+                    .HasColumnType("character(64)");
+                b.Property<long>("Sequence")
+                    .HasColumnType("bigint");
+                b.Property<DateTimeOffset>("IssuedUtc")
+                    .HasPrecision(6)
+                    .HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset>("ExpiresUtc")
+                    .HasPrecision(6)
+                    .HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset>("OfflineGraceUntilUtc")
+                    .HasPrecision(6)
+                    .HasColumnType("timestamp with time zone");
+                b.Property<string>("KeyId")
+                    .IsRequired()
+                    .HasMaxLength(26)
+                    .HasColumnType("character varying(26)");
+                b.Property<string>("PayloadSha256")
+                    .IsRequired()
+                    .HasColumnType("character(64)");
+                b.Property<short>("Status")
+                    .HasColumnType("smallint");
+                b.Property<DateTimeOffset?>("RevokedUtc")
+                    .HasPrecision(6)
+                    .HasColumnType("timestamp with time zone");
+                b.Property<string>("RevokedByActor")
+                    .HasMaxLength(26)
+                    .HasColumnType("character varying(26)");
+                b.Property<string>("RevokeReason")
+                    .HasMaxLength(200)
+                    .HasColumnType("character varying(200)");
+                b.HasKey("TenantId", "Id");
+                b.HasIndex("TenantId", "DeviceId").IsUnique().HasDatabaseName("UX_Licenses_Tenant_Device_Active").HasFilter("\"Status\"=0");
+                b.HasIndex("TenantId", "Status").HasDatabaseName("IX_Licenses_TenantId_Status");
+                b.ToTable("Licenses", "public");
+            });
+
+
+
             modelBuilder.Entity("Animora.Domain.Identity.Device", b =>
                 {
                     b.Property<string>("Id")
