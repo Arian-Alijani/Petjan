@@ -327,7 +327,8 @@ These were confirmed against the live tree; **do not re-derive**:
   Create `deploy/postgresql/animora-2gib.conf`, `animora-4gib.conf`, `README.md` (values + "starting point" disclaimer).
   → **push** `docs(deploy): S18 PostgreSQL 2/4 GiB starting profiles`.
 
-- [~] **S18-T5 — Tests.**
+- [x] **S18-T5 — Tests.**
+  Completed 2026-10-10: behavioral log sinks/redaction/body exclusion, all cache scope parts, Kestrel protections, full metric catalogue, actual sync stream bytes and reporting admission cancellation authored. PG timeout/snapshot tests retained; nothing executed.
   Create `tests/Animora.Server.Tests/Observability/`:
   `TelemetryOptionsTests.PublicHost_Rejected_Loopback_Allowed_LanOnlyWithOptIn`,
   `TelemetryTests.Disabled_ConfiguresNoExporter`, `TelemetryTests.UnreachableCollector_DoesNotAffectRequests`,
