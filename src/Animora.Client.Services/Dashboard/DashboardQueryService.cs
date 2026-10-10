@@ -195,7 +195,7 @@ internal static class DashboardMapping
         if (alert.Kind == "BoardingVaccine")
         {
             var what = alert.ItemType == "Medication" ? "دارو" : "واکسن";
-            var owner = string.IsNullOrWhiteSpace(alert.Subtitle) ? string.Empty : $"مالک: {alert.Subtitle}";
+            var owner = string.IsNullOrWhiteSpace(alert.Subtitle) ? string.Empty : $"سرپرست: {alert.Subtitle}";
             return new("", $"{what} پانسیون امروز: {alert.Title}", owner, "امروز", tone,
                 alert.ItemType == "Medication" ? "IconFlask" : "IconSyringe", "AlertBoardingVaccine", alert.State);
         }
@@ -299,7 +299,7 @@ internal static class DashboardMapping
     private static DashboardListItem OperationalItem(DashboardOperationalRow row, TimeZoneInfo zone) =>
         new("", string.IsNullOrWhiteSpace(row.Name) ? "بدون عنوان" : row.Name,
             $"{TimeZoneInfo.ConvertTime(row.AtUtc, zone):MM/dd HH:mm} · " +
-            (string.IsNullOrWhiteSpace(row.OwnerName) ? "مالک نامشخص" : row.OwnerName) +
+            (string.IsNullOrWhiteSpace(row.OwnerName) ? "سرپرست نامشخص" : row.OwnerName) +
             (row.Kind == "Vaccine" && !string.IsNullOrWhiteSpace(row.Reference) ? $" · {row.Reference}" : ""),
             row.State switch { "Draft" => "پیش‌نویس", "Posted" => "در انتظار پرداخت", "PartiallyPaid" => "پرداخت جزئی",
                 "Ready" => "آماده صدور", "Due" => "موعد واکسن", _ => "عملیات" },

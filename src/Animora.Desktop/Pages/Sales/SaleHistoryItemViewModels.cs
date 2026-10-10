@@ -105,7 +105,7 @@ public sealed partial class SaleHistoryRangeViewModel : ObservableObject
 /// One ledger row of the «تاریخچه صندوق» tab, rendered through the shared
 /// <c>HistoryRowTemplate</c> (<see cref="IHistoryRowView"/>) so it is pixel-identical to
 /// the main History page: kind badge, time, title («پذیرش فاکتور ۱۲۳») + note, the party
-/// («مالک · پتیار»), actor, signed amount, the invoice-state chip and the kind pill.
+/// («سرپرست · پتیار»), actor, signed amount, the invoice-state chip and the kind pill.
 /// Clicking the row opens the unified invoice sheet via <see cref="OpenCommand"/>
 /// (routed through <c>IHistoryRecordOpener</c>). Every display string + brush is computed
 /// once in the constructor (PERFORMANCE.md §9) — the template only binds.
@@ -151,7 +151,7 @@ public sealed class SaleHistoryRowViewModel : IHistoryRowView
         ActorInitials = entry.Actor.Initials;
         ActorRole = entry.Actor.RoleLabel;
 
-        // «مالک · پتیار» subtitle, or just the owner when there is no patient.
+        // «سرپرست · پتیار» subtitle, or just the owner when there is no patient.
         Subtitle = string.IsNullOrEmpty(PetName) ? OwnerName : OwnerName + " · " + PetName;
 
         // Shared-row surface: title = «پذیرش فاکتور ۱۲۳»; detail = the audit note.
@@ -221,7 +221,7 @@ public sealed class SaleHistoryRowViewModel : IHistoryRowView
     /// <inheritdoc cref="TimeText"/>
     public string Time => TimeText;
 
-    /// <summary>The party column: «مالک · پتیار».</summary>
+    /// <summary>The party column: «سرپرست · پتیار».</summary>
     public string Entity => Subtitle;
 
     public string CategoryLabel { get; }

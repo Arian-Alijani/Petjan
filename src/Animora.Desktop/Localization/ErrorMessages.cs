@@ -24,7 +24,7 @@ public static class ErrorMessages
         ["VISIT_INVALID_TRANSITION"] = "تغییر وضعیت ویزیت در این مرحله مجاز نیست.",
         ["VISIT_INCOMPLETE"] = "اطلاعات ویزیت کامل نیست.",
         ["VISIT_DIAGNOSIS_REQUIRED"] = "ثبت تشخیص برای پایان ویزیت الزامی است.",
-        ["OWNER_NOT_FOUND"] = "مالک موردنظر پیدا نشد.",
+        ["OWNER_NOT_FOUND"] = "سرپرست موردنظر پیدا نشد.",
         ["PET_NOT_FOUND"] = "بیمار موردنظر پیدا نشد.",
         ["APPOINTMENT_NOT_FOUND"] = "نوبت موردنظر پیدا نشد.",
         ["APPOINTMENT_SLOT_CONFLICT"] = "این زمان با نوبت دیگری تداخل دارد.",

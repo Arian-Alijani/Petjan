@@ -117,7 +117,7 @@
                                        Foreground="{StaticResource MutedBrush}" />
                             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DoctorText}" FontSize="12.5"
                                        FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="تماس مالک" FontSize="12.5"
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="تماس سرپرست" FontSize="12.5"
                                        Foreground="{StaticResource MutedBrush}" />
                             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PhoneText}" FontSize="12.5"
                                        FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />

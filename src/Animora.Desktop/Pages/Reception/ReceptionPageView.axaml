@@ -110,7 +110,7 @@
                         </StackPanel>
                     </Border>
                     <Grid Grid.Column="2">
-                        <TextBox Text="{Binding SearchText}" PlaceholderText="جستجوی حیوان، مالک یا پزشک…" Padding="36,8,12,8" CornerRadius="10" />
+                        <TextBox Text="{Binding SearchText}" PlaceholderText="جستجوی حیوان، سرپرست یا پزشک…" Padding="36,8,12,8" CornerRadius="10" />
                         <Path Classes="icon" Width="16" Height="16" Margin="12,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconSearch}" IsHitTestVisible="False" />
                     </Grid>
                     <Button Grid.Column="3" Classes="outline compact" Command="{Binding FilterAdvancedCommand}">
@@ -131,7 +131,7 @@
                                         </Border>
                                         <StackPanel Grid.Column="1" Spacing="2">
                                             <TextBlock FontSize="15" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"><Run Text="{Binding Ticket.PatientName}" /><Run Text=" · " Foreground="{StaticResource Muted2Brush}" /><Run Text="{Binding Ticket.PatientKind}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Muted2Brush}" /></TextBlock>
-                                            <TextBlock FontSize="12" Foreground="{StaticResource MutedBrush}"><Run Text="مالک: " /><Run Text="{Binding Ticket.OwnerName}" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" /><Run Text=" · " /><Run Text="{Binding Ticket.OwnerPhone}" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" /></TextBlock>
+                                            <TextBlock FontSize="12" Foreground="{StaticResource MutedBrush}"><Run Text="سرپرست: " /><Run Text="{Binding Ticket.OwnerName}" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" /><Run Text=" · " /><Run Text="{Binding Ticket.OwnerPhone}" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" /></TextBlock>
                                             <WrapPanel Margin="0,6,0,0" Orientation="Horizontal">
                                                 <controls:Badge Margin="0,0,6,0" Text="{Binding PriorityText}" Tone="{Binding PriorityTone}" />
                                                 <controls:Badge Margin="0,0,6,0" Text="{Binding SourceText}" Tone="{Binding SourceTone}" />

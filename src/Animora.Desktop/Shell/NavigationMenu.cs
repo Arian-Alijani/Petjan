@@ -35,7 +35,7 @@ public static class NavigationMenu
         // «فروش و صندوق» زیرمجموعهٔ گروه «مرکز فرمان» است (بلافاصله بعد از «نوبت‌ها»).
         new("sale", "فروش و صندوق", "IconCart", typeof(SalePageViewModel), "مرکز فرمان"),
 
-        new("patients", "بیماران و مالکین", "IconUsers", typeof(PatientsPageViewModel), "مدیریت کلینیک"),
+        new("patients", "بیماران و سرپرستان", "IconUsers", typeof(PatientsPageViewModel), "مدیریت کلینیک"),
         new("visits", "ویزیت و پرونده", "IconClipboard", typeof(VisitsTriagePageViewModel), "مدیریت کلینیک"),
         new("vaccine", "دارو و واکسن", "IconSyringe", typeof(VaccinationPageViewModel), "مدیریت کلینیک"),
         new("boarding", "پانسیون", "IconHome", typeof(BoardingPageViewModel), "مدیریت کلینیک"),

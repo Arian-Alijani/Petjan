@@ -137,7 +137,7 @@ public sealed class AppSettings
 
     public string DefaultCalendarView { get; set; } = string.Empty;
 
-    // ── Owner notifications («اطلاع‌رسانی به مالک») ──
+    // ── Owner notifications («اطلاع‌رسانی به سرپرست») ──
     public bool SmsReminder { get; set; }
 
     public bool SmsInstantConfirm { get; set; }

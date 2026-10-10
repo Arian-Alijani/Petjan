@@ -45,7 +45,7 @@
                 <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Lot}" FontWeight="Bold" FontSize="12.5" />
                 <TextBlock Grid.Row="6" Grid.Column="0" Text="دامپزشک" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
                 <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding VetName}" FontWeight="Bold" FontSize="12.5" />
-                <TextBlock Grid.Row="7" Grid.Column="0" Text="موبایل مالک" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
+                <TextBlock Grid.Row="7" Grid.Column="0" Text="موبایل سرپرست" Foreground="{StaticResource MutedBrush}" FontSize="12.5" />
                 <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding Mobile}" FontWeight="Bold" FontSize="12.5" />
             </Grid>
             <TextBlock Text="پیشینه واکسیناسیون" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Brand600Brush}" Margin="0,8,0,0" />

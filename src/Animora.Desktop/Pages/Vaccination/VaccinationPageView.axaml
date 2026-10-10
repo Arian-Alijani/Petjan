@@ -227,7 +227,7 @@
                         <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
                             <StackPanel Grid.Column="0" Spacing="3">
                                 <TextBlock Text="یادآوری پیش از نوبت" FontSize="12.5" FontWeight="Bold" />
-                                <TextBlock Text="ارسال به مالک بیمار" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                                <TextBlock Text="ارسال به سرپرست بیمار" FontSize="11" Foreground="{StaticResource MutedBrush}" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1" IsChecked="{Binding RemindBeforeDue}" OnContent="" OffContent="" />
                         </Grid>

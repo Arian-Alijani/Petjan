@@ -180,7 +180,7 @@
             </Border>
             <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                 <TextBlock Classes="meyebrow" Text="ساخت پرونده جدید" />
-                <TextBlock Classes="mtitle" Text="ثبت مالک و حیوان" />
+                <TextBlock Classes="mtitle" Text="ثبت سرپرست و حیوان" />
             </StackPanel>
             <Button Grid.Column="2" Classes="mclose" Command="{Binding CancelCommand}"
                     VerticalAlignment="Top" ToolTip.Tip="بستن">
@@ -201,7 +201,7 @@
                                    Foreground="{StaticResource Ink2Brush}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
-                    <TextBlock Classes="wstep-t" Text="اطلاعات مالک" />
+                    <TextBlock Classes="wstep-t" Text="اطلاعات سرپرست" />
                 </StackPanel>
             </Border>
             <Border Grid.Column="1" Classes="wstep" Classes.on="{Binding IsStepTwo}">
@@ -235,7 +235,7 @@
                                 <Path Classes="icon" Width="15" Height="15"
                                       Stroke="{Binding $parent[Button].Foreground}"
                                       Data="{StaticResource IconUser}" />
-                                <TextBlock Text="مالک جدید" />
+                                <TextBlock Text="سرپرست جدید" />
                             </StackPanel>
                         </Button>
                         <Button Grid.Column="1" Classes="segbtn" Classes.on="{Binding IsExistingMode}"
@@ -245,7 +245,7 @@
                                 <Path Classes="icon" Width="15" Height="15"
                                       Stroke="{Binding $parent[Button].Foreground}"
                                       Data="{StaticResource IconSearch}" />
-                                <TextBlock Text="انتخاب مالک موجود" />
+                                <TextBlock Text="انتخاب سرپرست موجود" />
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -298,7 +298,7 @@
 
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,0,0,12">
                         <StackPanel Grid.Column="0" Spacing="6">
-                            <TextBlock Classes="flabel" Text="جنسیت مالک" />
+                            <TextBlock Classes="flabel" Text="جنسیت سرپرست" />
                             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                                 <Button Grid.Column="0" Classes="rpill" Classes.on="{Binding OwnerIsFemale}"
                                         Content="خانم" Margin="0" MinHeight="40"
@@ -356,12 +356,12 @@
                     <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8" Margin="0,4,0,12">
                         <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
                               Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconSearch}" />
-                        <TextBlock Grid.Column="1" Classes="frt" Text="جستجوی پرونده مالک" />
+                        <TextBlock Grid.Column="1" Classes="frt" Text="جستجوی پرونده سرپرست" />
                         <Rectangle Grid.Column="2" Classes="frtrule" />
                     </Grid>
 
                     <TextBox Classes="qf" Text="{Binding OwnerSearch}" Margin="0,0,0,12"
-                             PlaceholderText="نام مالک، شماره پرونده یا موبایل را جستجو کنید..." />
+                             PlaceholderText="نام سرپرست، شماره پرونده یا موبایل را جستجو کنید..." />
 
                     <Border Classes="opick" MaxHeight="258">
                         <ScrollViewer>

@@ -101,7 +101,7 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
 
     public ObservableCollection<BookingKindChipViewModel> KindChips { get; } = [];
 
-    public string PatientSearchPlaceholder => "نام بیمار، مالک یا شماره تماس…";
+    public string PatientSearchPlaceholder => "نام بیمار، سرپرست یا شماره تماس…";
 
     [ObservableProperty]
     private string _queryText = string.Empty;

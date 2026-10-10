@@ -115,7 +115,7 @@ public sealed partial class VaccinationHistoryViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasNext;
 
-    public string SearchPlaceholder => "جستجو در بیمار، مالک یا واکسن…";
+    public string SearchPlaceholder => "جستجو در بیمار، سرپرست یا واکسن…";
 
     /// <summary>Active sort select index (0..1), mirroring the toolbar's two options.</summary>
     public int SortIndex

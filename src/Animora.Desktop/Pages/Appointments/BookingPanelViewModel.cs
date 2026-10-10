@@ -181,7 +181,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     private int _firstFreeMinutes;
 
     // ── section 2 · patient picker ───────────────────────────────────────────
-    public string PatientSearchPlaceholder => "نام بیمار، مالک، شماره تماس یا شناسه پرونده…";
+    public string PatientSearchPlaceholder => "نام بیمار، سرپرست، شماره تماس یا شناسه پرونده…";
 
     [ObservableProperty]
     private bool _isPatientSearching;

@@ -89,7 +89,7 @@ public sealed partial class NewStayModalViewModel : ObservableObject
     // ── server-side patient search (booking pattern: no eager load, min 2 chars, debounced, version-guarded) ──
     private const int MinQueryLength = 2;
     private const int PetPageSize = 20;
-    private const string PetHintMessage = "برای انتخاب بیمار، حداقل ۲ حرف از نام بیمار، مالک یا شماره تماس را وارد کنید.";
+    private const string PetHintMessage = "برای انتخاب بیمار، حداقل ۲ حرف از نام بیمار، سرپرست یا شماره تماس را وارد کنید.";
 
     private readonly Debouncer _petSearchDebounce = new(TimeSpan.FromMilliseconds(300));
     private int _petSearchVersion;
@@ -173,7 +173,7 @@ public sealed partial class NewStayModalViewModel : ObservableObject
             ShowPetSearchMessage = !HasPetResults || hasMore;
             PetSearchMessage = hasMore
                 ? "۲۰ نتیجه اول نمایش داده شد؛ برای یافتن بیمار، جست‌وجو را دقیق‌تر کنید."
-                : "بیماری با این مشخصات پیدا نشد؛ نام بیمار، مالک یا شماره تماس را بررسی کنید.";
+                : "بیماری با این مشخصات پیدا نشد؛ نام بیمار، سرپرست یا شماره تماس را بررسی کنید.";
         }
         catch (Exception)
         {
@@ -326,7 +326,7 @@ public sealed partial class NewStayModalViewModel : ObservableObject
             owner = ManualOwner.Trim();
             if (petName.Length == 0 || owner.Length == 0)
             {
-                _toast.Show("نام حیوان و مالک الزامی است", Tone.Danger);
+                _toast.Show("نام حیوان و سرپرست الزامی است", Tone.Danger);
                 return;
             }
 

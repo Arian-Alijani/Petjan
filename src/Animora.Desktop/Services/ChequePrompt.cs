@@ -19,7 +19,7 @@ public sealed class ChequePrompt(
         // A cheque can only be registered against a real owner; walk-in (guest) invoices have none.
         if (string.IsNullOrWhiteSpace(invoice.OwnerId))
         {
-            toast.Show("چک برای مشتری گذری در بخش چک‌ها ثبت نمی‌شود؛ ابتدا مالک فاکتور را انتخاب کنید", Tone.Warn);
+            toast.Show("چک برای مشتری گذری در بخش چک‌ها ثبت نمی‌شود؛ ابتدا سرپرست فاکتور را انتخاب کنید", Tone.Warn);
             return Task.FromResult(false);
         }
 

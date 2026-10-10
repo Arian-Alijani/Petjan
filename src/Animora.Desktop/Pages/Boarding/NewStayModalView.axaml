@@ -138,7 +138,7 @@
                                   VerticalAlignment="Center" />
                             <TextBox Grid.Column="1" Text="{Binding PatientQueryText}" Background="Transparent"
                                      BorderThickness="0" FontSize="13" VerticalContentAlignment="Center"
-                                     PlaceholderText="نام بیمار، مالک یا شماره تماس (حداقل ۲ حرف)…" />
+                                     PlaceholderText="نام بیمار، سرپرست یا شماره تماس (حداقل ۲ حرف)…" />
                         </Grid>
                     </Border>
 
@@ -240,11 +240,11 @@
                         <TextBox Text="{Binding ManualBreed}" FontSize="13" PlaceholderText="مثلاً: ژرمن شپرد" />
                     </StackPanel>
                     <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,12">
-                        <TextBlock Classes="flabel" Text="نام مالک *" />
+                        <TextBlock Classes="flabel" Text="نام سرپرست *" />
                         <TextBox Text="{Binding ManualOwner}" FontSize="13" PlaceholderText="مثلاً: امیر رستگار" />
                     </StackPanel>
                     <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,12">
-                        <TextBlock Classes="flabel" Text="موبایل مالک" />
+                        <TextBlock Classes="flabel" Text="موبایل سرپرست" />
                         <TextBox Text="{Binding ManualPhone}" FontSize="13" PlaceholderText="09xx-xxx-xxxx" />
                     </StackPanel>
                 </Grid>

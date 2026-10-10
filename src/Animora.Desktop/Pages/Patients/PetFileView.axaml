@@ -230,7 +230,7 @@
                             <TextBlock Grid.Column="2" Classes="owbar" Text="{Binding OwnerMobile}" />
                             <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6"
                                         VerticalAlignment="Center">
-                                <TextBlock Text="مشاهده پرونده مالک" FontSize="11" Foreground="#BFFFFFFF"
+                                <TextBlock Text="مشاهده پرونده سرپرست" FontSize="11" Foreground="#BFFFFFFF"
                                            VerticalAlignment="Center" />
                                 <Button Background="#1AFFFFFF" BorderBrush="#24FFFFFF" BorderThickness="1"
                                         CornerRadius="20" Padding="10,4" Command="{Binding BackToOwnerCommand}">
@@ -484,7 +484,7 @@
                                         <Path Classes="icon" Width="15" Height="15"
                                               Stroke="{StaticResource Brand600Brush}"
                                               Data="{StaticResource IconUser}" />
-                                        <TextBlock Classes="panelhead" Text="مالک" />
+                                        <TextBlock Classes="panelhead" Text="سرپرست" />
                                     </StackPanel>
                                 </Border>
                                 <Border Padding="15">
@@ -522,7 +522,7 @@
                                                     <Path Classes="icon" Width="13" Height="13"
                                                           Stroke="{Binding $parent[Button].Foreground}"
                                                           Data="{StaticResource IconFile}" />
-                                                    <TextBlock Text="پرونده مالک" />
+                                                    <TextBlock Text="پرونده سرپرست" />
                                                 </StackPanel>
                                             </Button>
                                         </Grid>

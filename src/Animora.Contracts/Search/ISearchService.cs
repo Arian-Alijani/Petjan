@@ -7,7 +7,7 @@ namespace Animora.Contracts.Search;
 /// resolved through <see cref="Animora.Contracts.Navigation"/>'s navigation seam.
 /// </summary>
 /// <param name="Title">Primary line (e.g. «جستجوی بیمار»).</param>
-/// <param name="Subtitle">Secondary muted line (e.g. «پرونده‌ها و مالکین»).</param>
+/// <param name="Subtitle">Secondary muted line (e.g. «پرونده‌ها و سرپرستان»).</param>
 /// <param name="IconKey">Resource key of the icon geometry (e.g. "IconUsers").</param>
 /// <param name="Tone">
 /// Colored chip tone — one of <c>teal</c>/<c>blue</c>/<c>violet</c>/<c>green</c>/<c>amber</c>,

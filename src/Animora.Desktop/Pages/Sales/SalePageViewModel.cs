@@ -138,7 +138,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     public RangeObservableCollection<InvoicePaymentViewModel> Payments { get; } = [];
 
-    public string SearchPlaceholder => "جستجو در ویزیت، فاکتور یا مالک…";
+    public string SearchPlaceholder => "جستجو در ویزیت، فاکتور یا سرپرست…";
 
     public bool IsReadySegment => _segment == "ready";
 

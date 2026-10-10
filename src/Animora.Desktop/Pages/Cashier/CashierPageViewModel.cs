@@ -85,7 +85,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     public RangeObservableCollection<CashierDiscountOptionViewModel> DiscountOptions { get; } = [];
 
-    public string SearchPlaceholder => "جستجو در فاکتورها، مالکین یا حیوانات…";
+    public string SearchPlaceholder => "جستجو در فاکتورها، سرپرستان یا حیوانات…";
 
     [ObservableProperty]
     private string _searchText = string.Empty;

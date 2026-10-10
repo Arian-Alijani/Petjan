@@ -173,8 +173,8 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
     public string FileBadge => "پرونده ۷۲-۱۱۲۰";
 
     public string ModeHint => IsExistingMode
-        ? "مالک موردنظر را از فهرست زیر جستجو و انتخاب کنید تا حیوان جدید به همان پرونده اضافه شود."
-        : "اگر این مالک برای اولین‌بار مراجعه می‌کند، اطلاعات هویتی و تماس او را کامل کنید.";
+        ? "سرپرست موردنظر را از فهرست زیر جستجو و انتخاب کنید تا حیوان جدید به همان پرونده اضافه شود."
+        : "اگر این سرپرست برای اولین‌بار مراجعه می‌کند، اطلاعات هویتی و تماس او را کامل کنید.";
 
     public string NextLabel => IsStepOne ? "ادامه — اطلاعات حیوان" : "ثبت پرونده";
     public bool IsNextWithCheck => Step == 2;
@@ -270,7 +270,7 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
         if (!IsExistingMode &&
             (string.IsNullOrWhiteSpace(FirstName) || string.IsNullOrWhiteSpace(Mobile1)))
         {
-            _toast?.Show("نام و شماره تماس مالک را کامل کنید", Tone.Warn);
+            _toast?.Show("نام و شماره تماس سرپرست را کامل کنید", Tone.Warn);
             return;
         }
 
@@ -348,8 +348,8 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
     /// </summary>
     public string OwnerEmptyHint =>
         PersianText.Normalize(OwnerSearch).Length < MinSearchChars
-            ? "برای یافتن مالک، حداقل دو حرف از نام یا شماره تماس را وارد کنید"
-            : "مالکی با این مشخصات پیدا نشد";
+            ? "برای یافتن سرپرست، حداقل دو حرف از نام یا شماره تماس را وارد کنید"
+            : "سرپرستی با این مشخصات پیدا نشد";
 
     private static string? Blank(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

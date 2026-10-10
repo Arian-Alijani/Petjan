@@ -517,7 +517,7 @@
         <!-- ── page header (.pt-head) ─────────────────────────────── -->
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="20" Margin="0,0,0,18">
             <StackPanel Grid.Column="0" VerticalAlignment="Bottom">
-                <TextBlock Text="بیماران و مالکین" FontSize="26" FontWeight="ExtraBold"
+                <TextBlock Text="بیماران و سرپرستان" FontSize="26" FontWeight="ExtraBold"
                            Foreground="{StaticResource InkBrush}" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
@@ -535,7 +535,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Path Classes="icon" Width="16" Height="16" Stroke="White"
                               Data="{StaticResource IconPlus}" />
-                        <TextBlock Text="مالک و بیمار جدید" />
+                        <TextBlock Text="سرپرست و بیمار جدید" />
                     </StackPanel>
                 </Button>
             </StackPanel>
@@ -560,7 +560,7 @@
                                     <StackPanel Orientation="Horizontal" Spacing="7">
                                         <Path Classes="icon" Width="16" Height="16"
                                               Data="{StaticResource IconUsers}" />
-                                        <TextBlock Text="مالکین" FontSize="13.5" FontWeight="Bold" />
+                                        <TextBlock Text="سرپرستان" FontSize="13.5" FontWeight="Bold" />
                                     </StackPanel>
                                 </Button>
                             </Border>
@@ -580,7 +580,7 @@
                                 <Button Classes="segtap lg" HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center"
                                         Command="{Binding SetSectionCommand}" CommandParameter="settings"
-                                        ToolTip.Tip="تنظیمات مالکین و بیماران">
+                                        ToolTip.Tip="تنظیمات سرپرستان و بیماران">
                                     <StackPanel Orientation="Horizontal" Spacing="7">
                                         <Path Classes="icon" Width="16" Height="16"
                                               Data="{StaticResource IconTag}" />
@@ -603,7 +603,7 @@
                                   Stroke="{StaticResource MutedBrush}"
                                   Data="{StaticResource IconSearch}" IsHitTestVisible="False" />
                             <TextBox Grid.Column="1" Text="{Binding SearchText}"
-                                     PlaceholderText="جستجوی نام، مالک، پرونده، موبایل یا میکروچیپ…"
+                                     PlaceholderText="جستجوی نام، سرپرست، پرونده، موبایل یا میکروچیپ…"
                                      FontSize="13" BorderThickness="0" Background="Transparent"
                                      Padding="0,10" VerticalContentAlignment="Center" />
                             <Button Grid.Column="2" Width="20" Height="20" Padding="0"
@@ -883,7 +883,7 @@
                                             <Path Classes="icon" Width="13" Height="13"
                                                   Stroke="{Binding $parent[Button].Foreground}"
                                                   Data="{StaticResource IconFile}" />
-                                            <TextBlock Text="پرونده مالک" />
+                                            <TextBlock Text="پرونده سرپرست" />
                                         </StackPanel>
                                     </Button>
                                     <Button Grid.Column="1" Classes="tiny"
@@ -1020,7 +1020,7 @@
             <StackPanel>
                 <Border Classes="rowhead">
                     <Grid ColumnDefinitions="2.2*,1.5*,1.8*,1.2*,1.2*,96,28" ColumnSpacing="12">
-                        <TextBlock Grid.Column="0" Classes="th" Text="مالک" />
+                        <TextBlock Grid.Column="0" Classes="th" Text="سرپرست" />
                         <TextBlock Grid.Column="1" Classes="th" Text="تماس" />
                         <TextBlock Grid.Column="2" Classes="th" Text="حیوانات" />
                         <TextBlock Grid.Column="3" Classes="th" Text="آخرین ویزیت" />
@@ -1098,7 +1098,7 @@
                     <Grid ColumnDefinitions="2.2*,1.5*,1.8*,1.1*,1.4*,1.4*,96,28" ColumnSpacing="12">
                         <TextBlock Grid.Column="0" Classes="th" Text="بیمار" />
                         <TextBlock Grid.Column="1" Classes="th" Text="گونه و نژاد" />
-                        <TextBlock Grid.Column="2" Classes="th" Text="مالک" />
+                        <TextBlock Grid.Column="2" Classes="th" Text="سرپرست" />
                         <TextBlock Grid.Column="3" Classes="th" Text="سن و وزن" />
                         <TextBlock Grid.Column="4" Classes="th" Text="آخرین ویزیت" />
                         <TextBlock Grid.Column="5" Classes="th" Text="واکسن بعدی" />
@@ -1271,7 +1271,7 @@
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
                                 VerticalAlignment="Center">
-                        <TextBlock Text="تنظیمات مالکین و بیماران" FontSize="18" FontWeight="ExtraBold"
+                        <TextBlock Text="تنظیمات سرپرستان و بیماران" FontSize="18" FontWeight="ExtraBold"
                                    Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
                         <TextBlock Text="نوع حیوانات، نژادها و پیامک باز شدن پرونده" FontSize="12.5"
                                    Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
@@ -1537,7 +1537,7 @@
                                                        Foreground="{StaticResource MutedBrush}" />
                                         </Border>
                                     </StackPanel>
-                                    <TextBlock Text="هنگام ثبت پرونده جدید، پیامک اطلاع‌رسانی برای مالک ارسال می‌شود."
+                                    <TextBlock Text="هنگام ثبت پرونده جدید، پیامک اطلاع‌رسانی برای سرپرست ارسال می‌شود."
                                                FontSize="12.5" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="2" VerticalAlignment="Center"

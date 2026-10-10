@@ -16,7 +16,7 @@ public static class BoardingPrintDocuments
         var meta = new List<PrintMeta>
         {
             new("حیوان", stay.PetName),
-            new("مالک", stay.OwnerName),
+            new("سرپرست", stay.OwnerName),
             new("تلفن", string.IsNullOrWhiteSpace(stay.OwnerPhone) ? "—" : stay.OwnerPhone),
             new("اتاق", Digits(stay.Room)),
             new("ورود", BoardingPresentation.Long(stay.CheckIn)),

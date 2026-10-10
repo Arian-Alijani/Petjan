@@ -244,14 +244,14 @@
                                                        Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
                                         </StackPanel>
                                         <TextBlock FontSize="12" Foreground="{StaticResource Ink2Brush}">
-                                            <Run Text="{Binding PetName}" FontWeight="Bold" /><Run Text=" · " /><Run Text="{Binding SpeciesText}" /><Run Text=" · مالک: " /><Run Text="{Binding OwnerName}" />
+                                            <Run Text="{Binding PetName}" FontWeight="Bold" /><Run Text=" · " /><Run Text="{Binding SpeciesText}" /><Run Text=" · سرپرست: " /><Run Text="{Binding OwnerName}" />
                                         </TextBlock>
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <Path Classes="icon" Width="13" Height="13" Stroke="{Binding Brush}"
                                                   Data="{Binding KindIconKey, Converter={StaticResource IconKeyConverter}}" />
                                             <TextBlock Text="{Binding KindLabel}" FontSize="11.5" FontWeight="Bold"
                                                        Foreground="{Binding Brush}" />
-                                            <TextBlock Text="· یادآور پیامکی مالک" IsVisible="{Binding ShowsOwnerReminder}" FontSize="11"
+                                            <TextBlock Text="· یادآور پیامکی سرپرست" IsVisible="{Binding ShowsOwnerReminder}" FontSize="11"
                                                        Foreground="{StaticResource MutedBrush}" />
                                             <Button Classes="link" Padding="6,0" Background="Transparent" BorderThickness="0"
                                                     Foreground="{StaticResource Brand700Brush}" FontSize="11.5" FontWeight="Bold"

@@ -659,7 +659,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- card · اطلاع‌رسانی به مالک -->
+            <!-- card · اطلاع‌رسانی به سرپرست -->
             <Border Grid.Row="1" Grid.Column="0" Classes="ps-card" Margin="0,14,0,0">
                 <StackPanel Spacing="11">
                     <StackPanel>
@@ -669,7 +669,7 @@
                                       Data="{StaticResource IconSms}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
-                            <TextBlock Classes="ps-title" Text="اطلاع‌رسانی به مالک" VerticalAlignment="Center" />
+                            <TextBlock Classes="ps-title" Text="اطلاع‌رسانی به سرپرست" VerticalAlignment="Center" />
                         </StackPanel>
                         <TextBlock Classes="ps-sub" Margin="0,5,0,0" TextWrapping="Wrap"
                                    Text="پیام‌های خودکار مرتبط با نوبت." />

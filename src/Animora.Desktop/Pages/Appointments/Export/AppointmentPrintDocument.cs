@@ -293,7 +293,7 @@ public static class AppointmentPrintDocument
             sb.Append("<th class=\"c-time\">ساعت</th>");
         }
 
-        sb.Append("<th class=\"c-pet\">بیمار</th><th class=\"c-owner\">صاحب").Append(o.ShowPhone ? " / تماس" : string.Empty).Append("</th>");
+        sb.Append("<th class=\"c-pet\">بیمار</th><th class=\"c-owner\">سرپرست").Append(o.ShowPhone ? " / تماس" : string.Empty).Append("</th>");
         if (showDoctor)
         {
             sb.Append("<th class=\"c-doc\">پزشک</th>");

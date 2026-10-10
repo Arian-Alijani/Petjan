@@ -85,7 +85,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                         <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding CanEditNotify}">
-                            <TextBlock Grid.Column="0" Text="یادآور پیامکی برای مالک" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="0" Text="یادآور پیامکی برای سرپرست" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center" />
                             <ToggleSwitch Grid.Column="1" IsChecked="{Binding EditNotify}" OnContent="" OffContent="" />
                         </Grid>
                         <TextBox Text="{Binding EditNotes}" MaxLength="1000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="56"

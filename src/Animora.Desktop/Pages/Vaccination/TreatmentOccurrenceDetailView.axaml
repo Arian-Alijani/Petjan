@@ -17,7 +17,7 @@
                 <TextBlock Text="{Binding ItemTypeLabel}" FontSize="11" FontWeight="Bold" Foreground="{Binding Brush}" />
                 <TextBlock Text="{Binding Title}" FontSize="17" FontWeight="ExtraBold" TextTrimming="CharacterEllipsis" />
                 <TextBlock FontSize="12" Foreground="{StaticResource MutedBrush}" Margin="0,3,0,0">
-                    <Run Text="{Binding PetName}" FontWeight="Bold" /><Run Text=" · " /><Run Text="{Binding SpeciesText}" /><Run Text=" · مالک: " /><Run Text="{Binding OwnerName}" />
+                    <Run Text="{Binding PetName}" FontWeight="Bold" /><Run Text=" · " /><Run Text="{Binding SpeciesText}" /><Run Text=" · سرپرست: " /><Run Text="{Binding OwnerName}" />
                 </TextBlock>
             </StackPanel>
             <Button Grid.Column="2" Classes="ghost" Width="36" Height="36" Padding="8" Command="{Binding CloseCommand}" ToolTip.Tip="بستن">
@@ -47,9 +47,9 @@
                            IsVisible="{Binding HasVaccineCode}" />
                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding VaccineCodeText}" FontWeight="Bold" FontSize="12.5"
                            IsVisible="{Binding HasVaccineCode}" />
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="یادآور مالک" Foreground="{StaticResource MutedBrush}" FontSize="12.5"
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="یادآور سرپرست" Foreground="{StaticResource MutedBrush}" FontSize="12.5"
                            IsVisible="{Binding ShowsOwnerReminder}" />
-                <TextBlock Grid.Row="3" Grid.Column="1" Text="پیامک یادآور برای مالک فعال است" FontWeight="Bold" FontSize="12.5"
+                <TextBlock Grid.Row="3" Grid.Column="1" Text="پیامک یادآور برای سرپرست فعال است" FontWeight="Bold" FontSize="12.5"
                            IsVisible="{Binding ShowsOwnerReminder}" />
             </Grid>
 

@@ -409,7 +409,7 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <TextBlock Text="حیوانی برای این مالک ثبت نشده است"
+                                <TextBlock Text="حیوانی برای این سرپرست ثبت نشده است"
                                            IsVisible="{Binding !HasPets}" FontSize="12"
                                            Foreground="{StaticResource MutedBrush}"
                                            HorizontalAlignment="Center" Padding="22" />
@@ -694,12 +694,12 @@
                     <TextBlock Text="بستن" HorizontalAlignment="Center" />
                 </Button>
                 <Button Classes="odbtn danger" Height="42" Command="{Binding DeleteCommand}"
-                        IsVisible="{Binding IsViewing}" Width="150" ToolTip.Tip="حذف مالک و همه حیوانات او">
+                        IsVisible="{Binding IsViewing}" Width="150" ToolTip.Tip="حذف سرپرست و همه حیوانات او">
                     <StackPanel Orientation="Horizontal" Spacing="7"
                                 HorizontalAlignment="Center">
                         <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource DangerBrush}"
                               Data="{StaticResource IconTrash}" />
-                        <TextBlock Text="حذف مالک" />
+                        <TextBlock Text="حذف سرپرست" />
                     </StackPanel>
                 </Button>
             </StackPanel>

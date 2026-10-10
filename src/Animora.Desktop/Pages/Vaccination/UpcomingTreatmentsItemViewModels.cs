@@ -40,8 +40,8 @@ public sealed class UpcomingCardViewModel
         Event = item;
         IndexText = VaccinationPresentation.Fa(index);
         Line2 = item.HasDosage
-            ? $"{item.Title} · {item.DosageText} · مالک: {item.OwnerName}"
-            : $"{item.Title} · مالک: {item.OwnerName}";
+            ? $"{item.Title} · {item.DosageText} · سرپرست: {item.OwnerName}"
+            : $"{item.Title} · سرپرست: {item.OwnerName}";
         StatusLabel = item.IsDone ? "انجام‌شده" : "در انتظار";
         StatusTone = item.IsDone ? Tone.Ok : Tone.Warn;
     }

@@ -438,7 +438,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
 
     private static readonly (string Id, string Label, string Sub)[] MatrixCatalog =
     [
-        ("cancel", "لغو نوبت", "وقتی مالک یا پذیرش نوبتی را لغو می‌کند"),
+        ("cancel", "لغو نوبت", "وقتی سرپرست یا پذیرش نوبتی را لغو می‌کند"),
         ("overdue", "چک سررسیدگذشته", "چک‌های وصول‌نشده پس از سررسید"),
         ("cheque", "چک در حال تسویه", "روزشمارش تا سررسید چک‌های دریافتی"),
         ("stock", "موجودی انبار بحرانی", "کالا زیر نقطهٔ سفارش‌گذاری"),

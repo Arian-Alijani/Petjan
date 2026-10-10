@@ -335,7 +335,7 @@ public sealed class CashierDetailViewModel
         PetTitle = detail.PetName.Length > 0 ? detail.PetName : "فاکتور";
         OwnerName = detail.OwnerName.Length > 0 ? detail.OwnerName : "—";
         Phone = detail.Phone.Length > 0 ? detail.Phone : "—";
-        CustomerLine = $"مالک: {OwnerName} · {Phone} · {detail.Date}";
+        CustomerLine = $"سرپرست: {OwnerName} · {Phone} · {detail.Date}";
 
         IsEditable = detail.IsEditable;
         HasPayments = detail.Payments.Count > 0;

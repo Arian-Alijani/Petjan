@@ -136,9 +136,9 @@
                             <StackPanel>
                                 <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,11">
                                     <Border Grid.Column="0" Classes="step"><TextBlock Text="۲" /></Border>
-                                    <TextBlock Grid.Column="1" Text="بیمار و مالک" FontSize="13" FontWeight="ExtraBold"
+                                    <TextBlock Grid.Column="1" Text="بیمار و سرپرست" FontSize="13" FontWeight="ExtraBold"
                                                VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="3" Text="جستجو بر اساس نام حیوان، مالک، نژاد یا شمارهٔ تماس"
+                                    <TextBlock Grid.Column="3" Text="جستجو بر اساس نام حیوان، سرپرست، نژاد یا شمارهٔ تماس"
                                                FontSize="11" Foreground="{StaticResource MutedBrush}"
                                                VerticalAlignment="Center" />
                                 </Grid>
@@ -659,7 +659,7 @@
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                             <TextBlock Text="بیماری انتخاب نشده" FontSize="13.5" FontWeight="ExtraBold"
                                                        Foreground="{StaticResource Muted2Brush}" />
-                                            <TextBlock Text="از بخش «بیمار و مالک» بیمار را انتخاب کنید" FontSize="11"
+                                            <TextBlock Text="از بخش «بیمار و سرپرست» بیمار را انتخاب کنید" FontSize="11"
                                                        Foreground="{StaticResource Muted2Brush}" />
                                         </StackPanel>
                                     </Grid>

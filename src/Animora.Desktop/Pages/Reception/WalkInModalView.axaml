@@ -27,7 +27,7 @@
                 <TextBox Text="{Binding Name}" PlaceholderText="مثلاً: پشمک" Padding="12,10" CornerRadius="10" />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="6">
-                <TextBlock Text="نام مالک" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+                <TextBlock Text="نام سرپرست" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
                 <TextBox Text="{Binding Owner}" PlaceholderText="نام و نام خانوادگی" Padding="12,10" CornerRadius="10" />
             </StackPanel>
         </Grid>

@@ -168,7 +168,7 @@ public sealed partial class BookingDetailViewModel : ObservableObject
         AvatarBrush = AppointmentsPresentation.AvatarBrush(a.AvatarTone);
         IconKey = a.SpeciesIconKey;
         PetName = a.PetName;
-        PetSub = $"{a.PetKind} · مالک: {a.OwnerName}";
+        PetSub = $"{a.PetKind} · سرپرست: {a.OwnerName}";
         RangeText = AppointmentsPresentation.Range(a.StartMinutes, a.EndMinutes);
         var isToday = a.Date == _clock.Today;
         WhenSubText = AppointmentsCalendarMath.DayNames[AppointmentsCalendarMath.WeekIndex(a.Date)] + " " +
@@ -196,7 +196,7 @@ public sealed partial class BookingDetailViewModel : ObservableObject
         (StatusTimelineTitle, StatusTimelineSub, StatusTimelineMuted) = a.Lifecycle switch
         {
             AppointmentLifecycle.Scheduled or AppointmentLifecycle.Confirmed =>
-                ("در انتظار پذیرش", "پس از حضور مالک", true),
+                ("در انتظار پذیرش", "پس از حضور سرپرست", true),
             AppointmentLifecycle.CheckedIn =>
                 ("پذیرش انجام شد", a.CheckedInUtc is null ? "ثبت در صف پذیرش" : "ثبت شده در صف پذیرش", false),
             AppointmentLifecycle.InVisit => ("ویزیت در جریان است", "ثبت در پرونده", false),

@@ -22,7 +22,7 @@
             </Border>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                 <TextBlock Text="پیامک یادآور" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Brand600Brush}" />
-                <TextBlock Text="ارسال پیامک به مالک" FontSize="18" FontWeight="ExtraBold" />
+                <TextBlock Text="ارسال پیامک به سرپرست" FontSize="18" FontWeight="ExtraBold" />
             </StackPanel>
             <Button Grid.Column="2" Classes="ghost" Width="36" Height="36" Padding="8" Command="{Binding CancelCommand}" ToolTip.Tip="بستن">
                 <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconX}" />
@@ -37,7 +37,7 @@
                     </Border>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock FontWeight="Bold" FontSize="13">
-                            <Run Text="{Binding OwnerName}" /><Run Text=" · مالک " /><Run Text="{Binding PetName}" />
+                            <Run Text="{Binding OwnerName}" /><Run Text=" · سرپرست " /><Run Text="{Binding PetName}" />
                         </TextBlock>
                         <TextBlock Text="{Binding OwnerMobile}" FontSize="11" Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
                     </StackPanel>
