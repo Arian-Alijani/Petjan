@@ -144,7 +144,7 @@ scripts/git/push.sh "fix(server): guard null RequestServices in CommandIntakeSer
 
 ---
 
-## TASK 3 — رفع R4: invariant source-scan OperatorContext — [ ]
+## TASK 3 — رفع R4: invariant source-scan OperatorContext — [x]
 
 **تست مرجع:** `tests/Animora.Server.Tests/ServerSourceScanTests.cs`
 متد `OperatorContext_OnlyUsedInOperatorAndSubscriptionNamespaces`.
@@ -324,7 +324,7 @@ scripts/git/push.sh "chore(plan): remove completed server-test fix plan"
 - [x] TASK 0 — محیط آماده (SDK + PG)
 - [x] TASK 1 — appsettings pool ≤12 (R1) + push
 - [x] TASK 2 — null-guard RequestServices (R2) + push
-- [ ] TASK 3 — allow-list Licensing در source-scan (R4) + push
+- [x] TASK 3 — allow-list Licensing در source-scan (R4) + push
 - [ ] TASK 4 — sync snapshot/migration (R3) + push
 - [ ] TASK 5 — تأیید R5 و بقیه + push در صورت تغییر
 - [ ] TASK 6 — حذف این فایل پلن + push

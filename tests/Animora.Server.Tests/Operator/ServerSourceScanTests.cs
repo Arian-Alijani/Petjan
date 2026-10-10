@@ -14,7 +14,7 @@ public sealed class ServerSourceScanTests
             if (!File.ReadAllText(file).Contains("AnimoraOperatorDbContext", StringComparison.Ordinal)) continue;
             var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
             Assert.True(relative.StartsWith("Operator/", StringComparison.Ordinal) || relative.StartsWith("Subscriptions/", StringComparison.Ordinal) ||
-                relative.StartsWith("Admin/", StringComparison.Ordinal) || relative.StartsWith("Insight/", StringComparison.Ordinal), relative);
+                relative.StartsWith("Admin/", StringComparison.Ordinal) || relative.StartsWith("Insight/", StringComparison.Ordinal) || relative.StartsWith("Licensing/", StringComparison.Ordinal), relative);
         }
     }
 }
