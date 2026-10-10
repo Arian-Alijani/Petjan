@@ -1,3 +1,4 @@
+using Animora.Persistence.PostgreSql.Outbox;
 using Animora.Persistence.PostgreSql.Replication;
 using Animora.Application.Abstractions;
 using Animora.Persistence.PostgreSql.Commands;
@@ -27,6 +28,8 @@ public static class PersistenceServiceCollectionExtensions
 
     /// <summary>Keyed <see cref="NpgsqlDataSource"/> key of the DataProtection key-ring pool.</summary>
     public const string KeyRingKey = "keyring";
+
+    public const string WorkerKey = "worker";
 
     private const string ApplicationName = "Animora.Server";
     private const int CommandTimeoutSeconds = 30;
@@ -63,8 +66,16 @@ public static class PersistenceServiceCollectionExtensions
         services.AddKeyedSingleton<NpgsqlDataSource>(OltpReadKey, (sp, _) => BuildDataSource(sp, o => o.OltpReadMax));
         services.AddKeyedSingleton<NpgsqlDataSource>(KeyRingKey, (sp, _) => BuildDataSource(sp, o => o.KeyRingMax));
 
+        services.AddKeyedSingleton<NpgsqlDataSource>(WorkerKey, (sp, _) => BuildDataSource(sp, o => o.WorkerMax));
+        services.TryAddScoped<WorkerExecutionContext>();
+        services.TryAddScoped<ServerOutbox>();
+        services.TryAddScoped<OutboxClaimStore>();
+        services.TryAddSingleton<WorkerTenantDirectory>(sp => new(sp.GetRequiredKeyedService<NpgsqlDataSource>(WorkerKey)));
+        services.AddDbContext<OutboxDbContext>((sp, o) => o.UseNpgsql(sp.GetRequiredKeyedService<NpgsqlDataSource>(WorkerKey)));
+
         services.AddDbContext<AnimoraServerDbContext>((sp, options) => options
-            .UseNpgsql(sp.GetRequiredKeyedService<NpgsqlDataSource>(OltpWriteKey)));
+            .UseNpgsql(sp.GetRequiredKeyedService<NpgsqlDataSource>(
+                sp.GetRequiredService<WorkerExecutionContext>().IsWorker ? WorkerKey : OltpWriteKey)));
 
         services.AddDbContext<AnimoraKeyRingDbContext>((sp, options) => options
             .UseNpgsql(
@@ -92,7 +103,7 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<FeedPageReader>();
         services.TryAddScoped<FeedRetentionService>();
         services.TryAddScoped<IFeedContextFactory>(sp => new FeedContextFactory(
-            sp.GetRequiredKeyedService<NpgsqlDataSource>(OltpReadKey), sp.GetRequiredService<ITenantContext>(), sp));
+            sp.GetRequiredKeyedService<NpgsqlDataSource>(WorkerKey), sp.GetRequiredService<ITenantContext>(), sp));
         services.TryAddScoped<IFeedPosition, FeedPositionReader>();
         services.TryAddScoped<IFeedEpoch, FeedEpochService>();
 
@@ -110,6 +121,7 @@ public static class PersistenceServiceCollectionExtensions
         options.OltpWriteMax = ReadInt(section, nameof(DatabaseOptions.OltpWriteMax), options.OltpWriteMax);
         options.OltpReadMax = ReadInt(section, nameof(DatabaseOptions.OltpReadMax), options.OltpReadMax);
         options.KeyRingMax = ReadInt(section, nameof(DatabaseOptions.KeyRingMax), options.KeyRingMax);
+        options.WorkerMax = ReadInt(section, nameof(DatabaseOptions.WorkerMax), options.WorkerMax);
         options.ProfileGiB = ReadInt(section, nameof(DatabaseOptions.ProfileGiB), options.ProfileGiB);
     }
 
