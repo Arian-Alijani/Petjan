@@ -15,9 +15,14 @@ public sealed class AuditQueries(AnimoraOperatorDbContext db, IReportingQuerySes
         if (action is { Length: > 64 } || tenantId is { Length: > 26 } || from > to)
             return Result<OperatorPage<AuditRow>>.Fail(ErrorCodes.ValidationFailed);
         page = Math.Clamp(page, 1, int.MaxValue / 200); size = Math.Clamp(size, 1, 200);
-        var query = db.Audit.AsNoTracking();
+        // jsonb is explicitly cast to text before LEFT; never apply string substring directly to jsonb.
+        var query = db.Database.SqlQueryRaw<AuditRow>("""
+            SELECT "Id", "OccurredUtc", "OperatorId" AS "ActorId", "Action", "TargetTenantId" AS "TenantId",
+                "Outcome", "CorrelationId", LEFT("DetailJson"::text, 2048) AS "Detail"
+            FROM public."OperatorAudit"
+            """).AsNoTracking();
         if (!string.IsNullOrWhiteSpace(action)) query = query.Where(x => x.Action == action);
-        if (!string.IsNullOrWhiteSpace(tenantId)) query = query.Where(x => x.TargetTenantId == tenantId);
+        if (!string.IsNullOrWhiteSpace(tenantId)) query = query.Where(x => x.TenantId == tenantId);
         if (from is { } start) query = query.Where(x => x.OccurredUtc >= start);
         if (to is { } end) query = query.Where(x => x.OccurredUtc < end);
         long total;
@@ -29,8 +34,7 @@ public sealed class AuditQueries(AnimoraOperatorDbContext db, IReportingQuerySes
         }
         else total = await query.LongCountAsync(ct).ConfigureAwait(false);
         var rows = await query.OrderByDescending(x => x.OccurredUtc).ThenByDescending(x => x.Id).Skip((page - 1) * size).Take(size)
-            .Select(x => new AuditRow(x.Id, x.OccurredUtc, x.OperatorId, x.Action, x.TargetTenantId, x.Outcome, x.CorrelationId,
-                x.DetailJson.Length > 2048 ? x.DetailJson.Substring(0, 2048) : x.DetailJson)).ToListAsync(ct).ConfigureAwait(false);
+            .ToListAsync(ct).ConfigureAwait(false);
         return Result<OperatorPage<AuditRow>>.Ok(new(rows.Select(x => x with { Detail = TruncateDetail(x.Detail) }).ToArray(), page, size, total));
     }
     public async Task<Result<OperatorPage<AuditRow>>> TenantAsync(string tenantId, DateTimeOffset from, DateTimeOffset to,
@@ -39,11 +43,12 @@ public sealed class AuditQueries(AnimoraOperatorDbContext db, IReportingQuerySes
         if (string.IsNullOrWhiteSpace(tenantId) || tenantId.Length > 26 || to <= from || to - from > TimeSpan.FromDays(90))
             return Result<OperatorPage<AuditRow>>.Fail(ErrorCodes.ValidationFailed);
         page = Math.Clamp(page, 1, int.MaxValue / 200); size = Math.Clamp(size, 1, 200);
-        var query = db.SecurityAudit.AsNoTracking().Where(x => x.TenantId == tenantId && x.OccurredUtc >= from && x.OccurredUtc < to);
+        var query = db.Database.SqlQueryRaw<AuditRow>("""
+            SELECT "Id", "OccurredUtc", "ActorUserId" AS "ActorId", "Action", "TenantId", "Outcome", "CorrelationId",
+                LEFT("DetailJson"::text, 2048) AS "Detail" FROM public."SecurityAudit"
+            """).AsNoTracking().Where(x => x.TenantId == tenantId && x.OccurredUtc >= from && x.OccurredUtc < to);
         long total = await query.LongCountAsync(ct).ConfigureAwait(false);
         var rows = await query.OrderByDescending(x => x.OccurredUtc).ThenByDescending(x => x.Id).Skip((page - 1) * size).Take(size)
-            .Select(x => new AuditRow(x.Id, x.OccurredUtc, x.ActorUserId, x.Action, x.TenantId, x.Outcome, x.CorrelationId,
-                x.DetailJson == null ? null : x.DetailJson.Length > 2048 ? x.DetailJson.Substring(0, 2048) : x.DetailJson))
             .ToListAsync(ct).ConfigureAwait(false);
         return Result<OperatorPage<AuditRow>>.Ok(new(rows.Select(x => x with { Detail = TruncateDetail(x.Detail) }).ToArray(), page, size, total));
     }

@@ -17,6 +17,8 @@ namespace Animora.Server.Tests.Admin;
 public sealed class AdminAuthTests
 {
     [Theory] [InlineData("/admin")] [InlineData("/admin/tenants")] [InlineData("/admin/tenants/new")]
+    [InlineData("/admin/provisioning")] [InlineData("/admin/website-clients")] [InlineData("/admin/files/mismatches")]
+    [InlineData("/admin/audit")] [InlineData("/admin/system")]
     [InlineData("/admin/plans")] [InlineData("/admin/licensing/keys")] [InlineData("/admin/unknown-route")]
     [InlineData("/admin/tenants/guess")] [InlineData("/admin/tenants/guess/licenses")] [InlineData("/admin/account/change-password")]
     public async Task Anonymous_RedirectsToLogin_ForEveryAdminRoute(string route)
@@ -51,6 +53,17 @@ public sealed class AdminAuthTests
         host.Client.DefaultRequestHeaders.Authorization = new("Bearer", token);
         using var response = await host.Client.GetAsync("/admin"); Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal("/admin/login", response.Headers.Location?.OriginalString);
+    }
+    [Fact] public async Task BlazorHub_RefusesAnonymous_AndTenantToken()
+    {
+        using var host = new AdminHost();
+        using var anonymous = await host.Client.PostAsync("/_blazor/negotiate?negotiateVersion=1", new StringContent(""));
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        using (var scope = host.Factory.Services.CreateScope())
+            host.Client.DefaultRequestHeaders.Authorization = new("Bearer", scope.ServiceProvider.GetRequiredService<IAccessTokenIssuer>()
+                .Issue(new("user", "tenant", "device", "stamp", "Manager")).Token);
+        using var tenant = await host.Client.PostAsync("/_blazor/negotiate?negotiateVersion=1", new StringContent(""));
+        Assert.Equal(HttpStatusCode.Unauthorized, tenant.StatusCode);
     }
     [Fact] public async Task LoginPage_IsStaticSSR_WithAntiforgery()
     { using var host=new AdminHost();var html=await host.Client.GetStringAsync("/admin/login");Assert.Contains("Operator sign in",html);Assert.Contains("__RequestVerificationToken",html);Assert.DoesNotContain("blazor.server.js",html);Assert.DoesNotContain("blazor:server",html); }
