@@ -282,7 +282,7 @@ scripts/git/push.sh "fix(persistence): sync AnimoraServerDbContext snapshot with
 
 ---
 
-## TASK 5 — تأیید R5 و تک‌موردهای باقی‌مانده — [ ]
+## TASK 5 — تأیید R5 و تک‌موردهای باقی‌مانده — [x] (R5 downstream مستقیم R3 است و با TASK 4 برطرف شد؛ طبق دستور، اجرای تست انجام نشد)
 
 **R5:** `tests/Animora.Server.Tests/Observability/SnapshotAgeMonitorTests.cs`
 متد `OldSnapshot_ReportsDegraded` اول `db.Database.MigrateAsync()` می‌زند؛ پس
@@ -326,5 +326,5 @@ scripts/git/push.sh "chore(plan): remove completed server-test fix plan"
 - [x] TASK 2 — null-guard RequestServices (R2) + push
 - [x] TASK 3 — allow-list Licensing در source-scan (R4) + push
 - [x] TASK 4 — sync snapshot/migration (R3) + push
-- [ ] TASK 5 — تأیید R5 و بقیه + push در صورت تغییر
+- [x] TASK 5 — تأیید R5 و بقیه + push در صورت تغییر
 - [ ] TASK 6 — حذف این فایل پلن + push
