@@ -164,7 +164,7 @@ public static class InsightSourceCatalog { /* empty IReadOnlySet<string> of allo
 
 > Status legend: `[ ]` pending · `[~]` in progress · `[x]` done. Commit msg suggestions in backticks.
 
-- [ ] **T0 — Branch + plan committed.** Ensure on `genspark_ai_developer`; this plan file is in `Plan/`. Push with `-b`.
+- [x] **T0 — Branch + plan committed.** Ensure on `genspark_ai_developer`; this plan file is in `Plan/`. Push with `-b`. ✅ done (commit 11f4208).
   `scripts/git/push.sh -b genspark_ai_developer "docs(plan): S20 execution plan"`
 
 - [ ] **T1 — ErrorCodes +1 & RenderModePolicy.** Add `#region Insight (Phase S20)` + `InsightNotEnabled ("INSIGHT_NOT_ENABLED", Entitlement)` after the Files region (`#endregion` line 761). Set `MaxIslands=1`. Verify `grep -c INSIGHT_NOT_ENABLED` = 1.
