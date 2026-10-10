@@ -131,6 +131,9 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
         modelBuilder.Entity<TenantJournalRow>()
             .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
 
+        modelBuilder.Entity<Animora.Persistence.PostgreSql.Licensing.LicenseRecord>()
+            .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
+
         // RefreshToken / SecurityAuditEntry are not SyncableEntity, so the convention skips them: scope
         // them to the tenant in context here (accessor stays rooted on this context instance).
         modelBuilder.Entity<DocumentCounter>()

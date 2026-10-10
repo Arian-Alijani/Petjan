@@ -24,6 +24,7 @@ public sealed class AnimoraOperatorDbContext(DbContextOptions<AnimoraOperatorDbC
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.ApplyConfiguration(new LicenseGrantConfiguration());
         b.ApplyConfiguration(new PlanConfiguration());
         b.ApplyConfiguration(new SubscriptionConfiguration());
         b.ApplyConfiguration(new BillingPeriodConfiguration());
