@@ -9,7 +9,7 @@ namespace Animora.Server.Handlers;
 internal static class ServerHandlerModuleS10
 {
     public static void AddHandlers(ApplicationRegistrationBuilder builder) =>
-        builder.AddInventoryUseCases().AddPurchasingUseCases().AddFinanceUseCases();
+        builder.AddInventoryUseCases().AddPurchasingUseCases().AddFinanceUseCases().AddChequeUseCases();
     public static void AddPayloads(CommandPayloadCatalogBuilder catalog)
     {
         catalog.Add<CreateProductCategoryCommand>(CommandTypes.InventoryCategoryCreate, "ProductCategory");

@@ -106,8 +106,7 @@ public sealed class OutboxClaimTests(PgFixture pg) : IClassFixture<PgFixture>
     public async Task Redelivery_ConsumerEffectRunsOnce()
     {
         await using var rig = new SyncPgRig(pg.ConnectionString); await rig.Initialize(); await Seed(rig, 1);
-        await using var db = Context(rig);
-        await db.Messages.ExecuteDeleteAsync(); await db.Consumed.ExecuteDeleteAsync();
+        await using var db = Context(rig); // Seed already cleared both tables; deleting again would erase the seeded message.
         var now = DateTimeOffset.UtcNow;
         var claim = Assert.Single(await new OutboxClaimStore(db).ClaimAsync(now, 1, CancellationToken.None));
         var consumer = new CountConsumer(); var runner = new OutboxConsumerRunner(db);

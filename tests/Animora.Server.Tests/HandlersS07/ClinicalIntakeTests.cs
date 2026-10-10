@@ -61,7 +61,7 @@ public sealed class ClinicalIntakeTests
         {
             nameof(DeleteOwnerCommand) => ErrorCodes.OwnerNotFound,
             nameof(DeletePetCommand) or nameof(AddWeightEntryCommand) => ErrorCodes.PetNotFound,
-            nameof(CreateWalkInCommand) => ErrorCodes.WalkInPhoneRequired,
+            // The validator (Phone REQUIRED) runs before the handler's defensive WALKIN_PHONE_REQUIRED guard.
             nameof(AdmitTicketCommand) or nameof(EnterVisitCommand) or nameof(LeaveQueueCommand)
                 or nameof(MarkNoShowCommand) or nameof(ToggleTicketUrgentCommand) or nameof(StartVisitFromTicketCommand) => ErrorCodes.TicketNotFound,
             nameof(SaveVisitVitalsCommand) or nameof(SaveVisitNoteCommand) or nameof(RemovePrescriptionLineCommand)

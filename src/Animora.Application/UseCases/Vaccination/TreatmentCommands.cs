@@ -186,6 +186,8 @@ public sealed class MarkTreatmentOccurrenceDoneCommandHandler(ITreatmentPlanRepo
         if (occurrence is null || occurrence.Deleted) return Result<string>.Fail(ErrorCodes.TreatmentOccurrenceNotFound);
         var plan = await plans.FindPlanAsync(occurrence.PlanId, ct);
         if (plan is null || plan.Deleted) return Result<string>.Fail(ErrorCodes.TreatmentPlanNotFound);
+        // A dose already given reports the precise, idempotent outcome even after its plan auto-completed.
+        if (occurrence.State == TreatmentOccurrenceState.Done) return Result<string>.Fail(ErrorCodes.TreatmentOccurrenceAlreadyDone);
         if (plan.State != TreatmentPlanState.Active) return Result<string>.Fail(ErrorCodes.TreatmentPlanNotActive);
 
         var done = occurrence.MarkDone(clock.UtcNow, context.UserId);

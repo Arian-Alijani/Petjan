@@ -339,7 +339,7 @@ ensure no new pending-model drift.
 
 ---
 
-### [ ] TASK 7 — Group G (stale test expectations): schema-head + misc assertion mismatches
+### [x] TASK 7 — Group G (stale test expectations): schema-head + misc assertion mismatches
 
 These are independent assertion fixes. Group by which side is wrong (traced below). Fix each,
 then push once at the end of the task (they're small and related: "test expectation corrections").
@@ -400,6 +400,8 @@ wrong side (expectation vs behavior). For each, the report's Expected/Actual tel
 > **Working method for 7b:** run each named test once, read the single stack/assert, fix the
 > wrong side, re-run that test. Do NOT run the whole class repeatedly. Several of these
 > auto-clear once TASK 3/4 land — verify before editing.
+
+> **Done:** 7a literals fixed (TASK 1). 7b: walk-in test now expects the validator's `VALIDATION_FAILED` (validator runs before the handler guard, Application tests keep the specific code); `MarkTreatmentOccurrenceDone` checks the occurrence's Done state before plan-active (precise idempotent code); S10 module now registers `AddChequeUseCases()` (fixes coverage test + 4 cheque settles); `Redelivery_ConsumerEffectRunsOnce` no longer deletes the seeded message. 130/130 green.
 
 **Verify:** each named test green individually; then one combined filter run across the
 Authorization + HandlersS07 + HandlersS10 + Outbox + Subscriptions names touched.
