@@ -45,3 +45,26 @@ public sealed class LicenseActionForm
 }
 public sealed class PlanActionForm { public string Id { get; set; }=""; public string Stamp { get; set; }=""; }
 public sealed class KeyActionForm { public string Stamp { get; set; }=""; public bool Confirmed { get; set; } }
+
+public sealed record ProvisioningSummary(string Id, string IdempotencyKey, string ClientId, string Status, int Attempts,
+    string? ErrorCode, DateTimeOffset ReceivedUtc, DateTimeOffset? CompletedUtc);
+public sealed record WebsiteClientSummary(string Id, string KeyId, string Label, string Status, DateTimeOffset CreatedUtc, DateTimeOffset? LastUsedUtc);
+public sealed record WebsiteClientSecret(string KeyId, string Secret)
+{
+    public override string ToString() => $"WebsiteClientSecret {{ KeyId = {KeyId}, Secret = [redacted] }}";
+}
+public sealed record FileMismatchSummary(string TenantId, string TenantCode, string FileId, long SizeBytes, string? ShaPrefix, DateTimeOffset UpdatedUtc);
+public sealed record AuditSummary(string Id, DateTimeOffset OccurredUtc, string? ActorId, string Action, string? TenantId,
+    string Outcome, string CorrelationId, string? Detail);
+public sealed record AdminAuditQuery(string? TenantId, string? Action, DateTimeOffset? From, DateTimeOffset? To, int Page = 1, int PageSize = 50);
+public sealed record InsightStatus(bool Enabled, bool HasConsentAdr);
+public sealed class ProvisioningActionForm { public string Id { get; set; } = ""; public bool Confirmed { get; set; } }
+public sealed class WebsiteClientCreateForm { public string Label { get; set; } = ""; public bool Confirmed { get; set; } }
+public sealed class WebsiteClientActionForm { public string Id { get; set; } = ""; public bool Confirmed { get; set; } }
+public sealed class FileMismatchActionForm
+{
+    public string TenantId { get; set; } = "";
+    public string FileId { get; set; } = "";
+    public string Operation { get; set; } = "";
+    public bool Confirmed { get; set; }
+}

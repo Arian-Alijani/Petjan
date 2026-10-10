@@ -8,6 +8,8 @@ public sealed record OperatorPage<T>(IReadOnlyList<T> Items,int Page,int Size,lo
 public sealed record OperatorTenantDetail(Tenant Tenant,Subscription? Subscription,int Seats,int Devices,int Licenses,long GrantSequence,IReadOnlyList<SubscriptionEvent> Events);
 public sealed class OperatorReadQueries(AnimoraOperatorDbContext db)
 {
+    public Task<bool> SessionValidAsync(string id, string stamp, CancellationToken ct = default) => db.Accounts.AsNoTracking()
+        .AnyAsync(x => x.Id == id && x.SecurityStamp == stamp && x.Status == OperatorAccountStatus.Active && !x.MustChangePassword, ct);
     public async Task<OperatorPage<Tenant>> TenantsAsync(string? status,string? search,int page,int size,CancellationToken ct)
     {
         page=Math.Clamp(page,1,int.MaxValue/200);size=Math.Clamp(size,1,200); var now=DateTimeOffset.UtcNow;

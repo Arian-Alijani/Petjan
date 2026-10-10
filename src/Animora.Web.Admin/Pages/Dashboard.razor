@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy="AdminOnly")]
 @inherits AdminPageComponent
 @inject IAdminStatusReader Reader
+@inject IAdminInsightStatus Insight
 <h1>Dashboard</h1><a href="/admin">Refresh</a><FormError Code="@Error" />
 @if (Status is not null) {
 <p>Version @Status.Version · uptime @Status.UptimeSeconds.ToString("F0") seconds</p>
@@ -16,4 +17,19 @@
 <dt>Past due / grace</dt><dd><a href="/admin/tenants?status=past-due">@Status.PastDue</a></dd>
 <dt>PG active / pool max</dt><dd>@Status.Pg.PoolInUse / @Status.Pg.PoolMax</dd></dl>
 }
-@code { private AdminStatus? Status; protected override async Task OnInitializedAsync()=>Status=Capture(await Reader.GetStatusAsync(Cancellation)); }
+<LiveStatusPanel />
+@if (InsightState is not null)
+{
+<p>Insight: @(InsightState.Enabled ? "enabled" : InsightState.HasConsentAdr ? "disabled" : "disabled (no consent ADR)")</p>
+}
+@code {
+    private AdminStatus? Status;
+    private InsightStatus? InsightState;
+    protected override async Task OnInitializedAsync()
+    {
+        Status = Capture(await Reader.GetStatusAsync(Cancellation));
+        var statusError = Error;
+        InsightState = Capture(await Insight.GetAsync(Cancellation));
+        Error ??= statusError;
+    }
+}

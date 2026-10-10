@@ -151,6 +151,7 @@ public sealed class AdminStatusReaderTests(PgFixture pg) : IClassFixture<PgFixtu
         var snapshot = host.Factory.Services.GetRequiredService<ReadinessSnapshot>(); snapshot.Set(probe.Name, false, false);
         var metrics = host.Factory.Services.GetRequiredService<ServerMetrics>(); metrics.SetQueues(781913, 517, 41); metrics.SetPoolInUse(3);
         using var command = metrics.CommandLease();
+        await host.Factory.Services.GetRequiredService<AdminStatusCache>().RefreshOnceAsync();
         using var response = await host.Client.GetAsync("/admin"); Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         string html = await response.Content.ReadAsStringAsync();
         Assert.Contains(probe.Name, html); Assert.Contains("degraded", html); Assert.Contains("781913", html); Assert.Contains("517", html);

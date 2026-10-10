@@ -1,4 +1,8 @@
 using Animora.Persistence.PostgreSql.Operator;
+using Animora.Persistence.PostgreSql.Provisioning;
+using Animora.Persistence.PostgreSql.Files;
+using Animora.Persistence.PostgreSql.Audit;
+using Microsoft.AspNetCore.Components.Authorization;
 using Animora.Server.Operator;
 using Animora.Web.Admin.Ports;
 namespace Animora.Server.Admin;
@@ -20,7 +24,24 @@ internal static class AdminServiceCollectionExtensions
             })));
         services.AddAntiforgery(o=> { o.Cookie.Name="__Host-animora-af";o.Cookie.Path="/";o.Cookie.HttpOnly=true;
             o.Cookie.SecurePolicy=CookieSecurePolicy.Always;o.Cookie.SameSite=SameSiteMode.Strict; });
-        services.AddRazorComponents();
+        services.AddRazorComponents().AddInteractiveServerComponents().AddCircuitOptions(o =>
+        {
+            o.DisconnectedCircuitMaxRetained = 2;
+            o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(1);
+            o.MaxBufferedUnacknowledgedRenderBatches = 4;
+        });
+        services.AddCascadingAuthenticationState();
+        services.AddScoped<AuthenticationStateProvider, OperatorAuthenticationStateProvider>();
+        services.AddScoped<IAdminStatusSnapshotSource, AdminStatusSnapshotSource>();
+        services.AddScoped<ProvisioningQueries>(); services.AddScoped<FileMismatchService>(); services.AddScoped<AuditQueries>();
+        services.AddScoped<AdminProvisioningAdapter>();
+        services.AddScoped<IAdminProvisioningQueries>(sp => sp.GetRequiredService<AdminProvisioningAdapter>());
+        services.AddScoped<IAdminProvisioningCommands>(sp => sp.GetRequiredService<AdminProvisioningAdapter>());
+        services.AddScoped<IAdminWebsiteClients, AdminWebsiteClientsAdapter>();
+        services.AddScoped<AdminFilesAdapter>();
+        services.AddScoped<IAdminFileQueries>(sp => sp.GetRequiredService<AdminFilesAdapter>());
+        services.AddScoped<IAdminFileCommands>(sp => sp.GetRequiredService<AdminFilesAdapter>());
+        services.AddScoped<IAdminAuditQueries, AdminAuditAdapter>(); services.AddScoped<IAdminInsightStatus, AdminInsightStatusAdapter>();
         services.AddScoped<AdminSession>();services.AddScoped<IAdminSession>(sp=>sp.GetRequiredService<AdminSession>());
         services.AddScoped<OperatorReadQueries>();services.AddScoped<OperatorPlanAdministration>();
         services.AddScoped<IAdminStatusReader,AdminStatusReader>();services.AddScoped<IAdminTenantQueries,AdminTenantQueries>();

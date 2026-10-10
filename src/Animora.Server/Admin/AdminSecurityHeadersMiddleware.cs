@@ -13,7 +13,7 @@ internal sealed class AdminSecurityHeadersMiddleware(RequestDelegate next)
     }
     public async Task InvokeAsync(HttpContext http,IOptions<AdminOptions> options)
     {
-        if(!http.Request.Path.StartsWithSegments(ServerRoutes.Admin)) { await next(http).ConfigureAwait(false); return; }
+        if(!http.Request.Path.StartsWithSegments(ServerRoutes.Admin) && !http.Request.Path.StartsWithSegments("/_blazor")) { await next(http).ConfigureAwait(false); return; }
         Apply(http.Response); http.Response.OnStarting(()=>{Apply(http.Response);return Task.CompletedTask;});
         if(options.Value.RequireHttps&&!http.Request.IsHttps) { http.Response.StatusCode=400; return; }
         await next(http).ConfigureAwait(false);

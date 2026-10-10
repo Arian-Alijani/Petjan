@@ -1,0 +1,39 @@
+@page "/admin/provisioning"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminProvisioningQueries Queries
+@inject IAdminProvisioningCommands Commands
+<h1>Provisioning intents</h1><FormError Code="@Error" />
+<form method="get"><label>Status <select name="status"><option value="">All</option>
+@foreach (var value in new[] { "Received", "Processing", "Completed", "Failed", "Dead" }) { <option value="@value" selected="@(Status == value)">@value</option> }
+</select></label><button type="submit">Filter</button></form>
+@if (Rows is not null)
+{
+<table><caption>Intake metadata</caption><thead><tr><th scope="col">Id</th><th scope="col">Client</th><th scope="col">Status</th><th scope="col">Attempts</th><th scope="col">Error</th><th scope="col">Received UTC</th><th scope="col">Completed UTC</th><th scope="col">Action</th></tr></thead><tbody>
+@foreach (var row in Rows.Items)
+{
+<tr><td>@row.Id</td><td>@row.ClientId</td><td><StatusBadge Status="@row.Status" /></td><td>@row.Attempts</td><td>@row.ErrorCode</td><td>@row.ReceivedUtc</td><td>@row.CompletedUtc</td><td>
+@if (row.Status is "Failed" or "Dead")
+{
+<form method="post" @formname="@($"retry-{row.Id}")" @onsubmit="Retry"><AntiforgeryToken />
+<input type="hidden" name="Action.Id" value="@row.Id" /><ConfirmCheckbox Name="Action.Confirmed" /><button type="submit">Retry</button></form>
+}
+</td></tr>
+}
+</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@FilterUrl" />
+}
+@code {
+    [SupplyParameterFromQuery] public string? Status { get; set; }
+    [SupplyParameterFromQuery] public int Page { get; set; } = 1;
+    [SupplyParameterFromQuery] public int PageSize { get; set; } = 50;
+    [SupplyParameterFromForm] public ProvisioningActionForm? Action { get; set; }
+    private AdminPage<ProvisioningSummary>? Rows;
+    private string FilterUrl => $"/admin/provisioning?status={Uri.EscapeDataString(Status ?? "")}";
+    protected override async Task OnInitializedAsync() { Action ??= new(); await Load(); }
+    private async Task Load() => Rows = Capture(await Queries.ListAsync(Status, Page, PageSize, Cancellation));
+    private async Task Retry()
+    {
+        if (Http?.Request.Method != "POST" || Action is null) return;
+        if (Capture(await Commands.RetryAsync(Action.Id, Action.Confirmed, Cancellation)) is not null) await Load();
+    }
+}

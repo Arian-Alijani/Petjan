@@ -759,4 +759,10 @@ public static class ErrorCodes
     public static readonly ErrorCode ValetKeyInvalid = new("VALET_KEY_INVALID", ErrorCode.Forbidden);
 
     #endregion
+
+    #region Insight (Phase S20)
+
+    public static readonly ErrorCode InsightNotEnabled = new("INSIGHT_NOT_ENABLED", ErrorCode.Entitlement);
+
+    #endregion
 }

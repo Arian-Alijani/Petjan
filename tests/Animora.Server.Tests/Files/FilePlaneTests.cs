@@ -13,7 +13,8 @@ public sealed class FileLifecycleTests
     {
         (FileState, FileState)[] edges = [(FileState.Staged, FileState.Uploaded),(FileState.Uploaded,FileState.HashVerified),
             (FileState.Uploaded,FileState.Mismatch),(FileState.HashVerified,FileState.Committed),(FileState.Committed,FileState.Available),
-            (FileState.Committed,FileState.Mismatch),(FileState.Available,FileState.Mismatch),(FileState.Staged,FileState.Abandoned),(FileState.Uploaded,FileState.Abandoned)];
+            (FileState.Committed,FileState.Mismatch),(FileState.Available,FileState.Mismatch),(FileState.Staged,FileState.Abandoned),(FileState.Uploaded,FileState.Abandoned),
+            (FileState.Mismatch,FileState.Uploaded),(FileState.Mismatch,FileState.Abandoned)];
         foreach (var from in Enum.GetValues<FileState>()) foreach (var to in Enum.GetValues<FileState>())
             Assert.Equal(edges.Contains((from,to)), FileLifecycle.EnsureAllowed(from,to).IsSuccess);
     }

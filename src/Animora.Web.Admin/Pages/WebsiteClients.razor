@@ -1,0 +1,48 @@
+@page "/admin/website-clients"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminWebsiteClients Clients
+<h1>Website clients</h1><FormError Code="@Error" />
+@if (Issued is not null)
+{
+<section role="status"><h2>Copy now — shown only in this POST response</h2><dl><dt>Key id</dt><dd>@Issued.KeyId</dd><dt>Secret</dt><dd><code>@Issued.Secret</code></dd></dl></section>
+}
+@if (Rows is not null)
+{
+<table><caption>Website credentials (metadata only)</caption><thead><tr><th scope="col">Label</th><th scope="col">Key id</th><th scope="col">Status</th><th scope="col">Created UTC</th><th scope="col">Last used UTC</th><th scope="col">Action</th></tr></thead><tbody>
+@foreach (var row in Rows.Items)
+{
+<tr><td>@row.Label</td><td>@row.KeyId</td><td><StatusBadge Status="@row.Status" /></td><td>@row.CreatedUtc</td><td>@row.LastUsedUtc</td><td>
+@if (row.Status == "Active")
+{
+<form method="post" @formname="@($"revoke-client-{row.Id}")" @onsubmit="Revoke"><AntiforgeryToken /><input type="hidden" name="RevokeForm.Id" value="@row.Id" />
+<ConfirmCheckbox Name="RevokeForm.Confirmed" /><button type="submit">Revoke</button></form>
+}
+</td></tr>
+}
+</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="/admin/website-clients" />
+}
+<h2>Create client</h2><p>At most three active clients are allowed.</p>
+<form method="post" @formname="create-website-client" @onsubmit="Create"><AntiforgeryToken />
+<label>Label <input name="CreateForm.Label" maxlength="100" required /></label><ConfirmCheckbox Name="CreateForm.Confirmed" /><button type="submit">Create</button></form>
+@code {
+    [SupplyParameterFromQuery] public int Page { get; set; } = 1;
+    [SupplyParameterFromQuery] public int PageSize { get; set; } = 50;
+    [SupplyParameterFromForm] public WebsiteClientCreateForm? CreateForm { get; set; }
+    [SupplyParameterFromForm] public WebsiteClientActionForm? RevokeForm { get; set; }
+    private AdminPage<WebsiteClientSummary>? Rows;
+    private WebsiteClientSecret? Issued;
+    protected override async Task OnInitializedAsync() { CreateForm ??= new(); RevokeForm ??= new(); Issued = null; await Load(); }
+    private async Task Load() => Rows = Capture(await Clients.ListAsync(Page, PageSize, Cancellation));
+    private async Task Create()
+    {
+        if (Http?.Request.Method != "POST" || CreateForm is null) return;
+        Issued = Capture(await Clients.CreateAsync(CreateForm, Cancellation));
+        if (Issued is not null) await Load();
+    }
+    private async Task Revoke()
+    {
+        if (Http?.Request.Method != "POST" || RevokeForm is null) return;
+        if (Capture(await Clients.RevokeAsync(RevokeForm.Id, RevokeForm.Confirmed, Cancellation)) is not null) await Load();
+    }
+}
