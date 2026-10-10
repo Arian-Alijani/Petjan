@@ -469,7 +469,8 @@ These were confirmed against the live tree; **do not re-derive**:
   Edit `tests/Animora.Server.Tests/Animora.Server.Tests.csproj` only if a ProjectReference to `Animora.Web.Admin` is needed
   (no new NuGet). → **push** `test(server): S19 admin web tests (auth, antiforgery, headers, adapters, pages)`.
 
-- [ ] **S19-T4 — Verify + PROGRESS + commit.**
+- [x] **S19-T4 — Verify + PROGRESS + commit.**
+  Completed 2026-10-10: PROGRESS marks S17/S18/S19 Done/authored with execution gates deferred, records S19 delivery and continuation closure, Next phase S20. No tests/builds/smoke/restore/migrations run.
   `build.sh full` (0/0); `test.sh Admin` (pure/host green; PG skip); `run.sh` (SMOKE RUN OK; client sources unchanged).
   Acceptance greps:
   `grep -rn "Npgsql\|EntityFrameworkCore\|Animora.Persistence\|Animora.Application\|Animora.Server"
@@ -497,18 +498,8 @@ it is the only live progress record for a resumed session until each phase's PRO
 
 Execution policy: all builds, tests and smoke runs are deferred by explicit user directive (2026-10-10); checkmarks denote authored deliverables, not executed acceptance.
 
-## Checkpoint — user-requested wrap-up (2026-10-10)
+## Completion checkpoint — 2026-10-10
 
-Implementation stopped at the user's wrap-up instruction, not at full-plan acceptance. This file is intentionally retained.
-All source changes have been committed and pushed. No build, test, smoke run, restore or migration application was executed.
-
-Remaining work before all checkboxes can truthfully be completed:
-- S17-T4: finish handling aged CAS publisher `.tmp` orphans (currently unknown/operator files are deliberately preserved).
-- S17-T5: complete real HTTP upload offset/header/download assertions and explicit orphan/zero-ref reconciliation cases; current tests include direct PG transfer/ref-count and crash-retry coverage.
-- S18-T2: complete sync-byte metric production and review the entire catalogue's producer coverage (catalogue and major producers are authored).
-- S18-T5: fill remaining requested behavioral coverage beyond the authored options/privacy/cache/limits/budget/snapshot regressions.
-- S19-T3: complete full HTTP suspension/reinstatement flow (current test checks stored tenant status), valid bearer-scheme isolation cases and degraded-status secrecy behavioral coverage.
-- S19-T4: final phase documentation/acceptance checkpoint has not been completed; Next phase remains S19.
-- FINAL: do not delete this plan until those implementation/coverage items are complete.
-
-Execution gates remain deferred under the no-build/no-test instruction, regardless of authored checkbox status.
+All implementation and regression-authoring tasks are complete and pushed. The previous partial checkpoint is superseded by backend-roadmap/PROGRESS.md's continuation-completed entry; prior history remains in git.
+No build, test, smoke, restore, package restore, benchmark or migration application was executed. Execution acceptance is still deferred, not passed.
+Only FINAL plan deletion and final branch-tip synchronization remain. The roadmap phase files and client/SQLite sources stay untouched.
