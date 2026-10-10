@@ -57,10 +57,11 @@ internal sealed class IntakeTestFixture
     }
 
     public CommandIntakeService CreateService(CommandPayloadCatalog? catalog = null, IDispatcher? dispatcher = null, IUnitOfWork? unitOfWork = null,
-        ICommandIntakeStore? store = null, IServerCommandConcurrencyGuard? guard = null, IAggregateVersionReader? versions = null, ICommandEffectIdCollector? effectIds = null) => new(store ?? Store, dispatcher ?? Dispatcher,
+        ICommandIntakeStore? store = null, IServerCommandConcurrencyGuard? guard = null, IAggregateVersionReader? versions = null, ICommandEffectIdCollector? effectIds = null, ServerCommandExecutionScope? execution = null,
+        Animora.Persistence.PostgreSql.Repositories.IServerFinancialEventProcessor? financialEvents = null) => new(store ?? Store, dispatcher ?? Dispatcher,
         unitOfWork ?? UnitOfWork, Authorizer, Entitlement, new FixedTenantContext(TenantId), State, Audit, catalog ?? Catalog,
         versions ?? Versions, Rules, new IntakeRecoveryService(store ?? Store, [new NoProbe()], Clock), Outbox, Clock,
-        new HttpContextAccessor { HttpContext = new DefaultHttpContext() }, guard, effectIds);
+        new HttpContextAccessor { HttpContext = new DefaultHttpContext() }, guard, effectIds, execution, financialEvents);
 
     public CommandEnvelope Envelope(string type = "test.create", string payload = "{\"name\":\"alpha\"}",
         string? operation = null, string? aggregateId = null) => CommandEnvelope.Create(operation ?? IdGenerator.NewId(),
