@@ -141,7 +141,7 @@ server implementation; `M00` only produces them.
 
 ## Next phase
 
-**Next phase: `S09`** — sales and cashier; S07/S08 implementation authored. Build/test/smoke and PostgreSQL application gates are unexecuted by explicit user directive.
+**Next phase: `S10`** — inventory, purchasing and finance; S09 implementation authored. Build/test/smoke and PostgreSQL application gates are unexecuted by explicit user directive.
 `S06` (command intake & idempotency) is **complete** (2026-10-09): every command is deduplicated by `(TenantId, OperationId)` in `CommandIntake`, identity comes only from the authenticated tenant context, the server recomputes fingerprints, settlement is atomic with the effect, and with no handler registered every command settles `Rejected(HANDLER_NOT_REGISTERED)`. Do its successor's work and advance down the `S##`/`G##` chain in dependency order.
 The desktop stays offline-runnable throughout (every phase carries "Runnable after: desktop offline yes").
 
@@ -2580,3 +2580,10 @@ Impact:     B04 can build on `IAuthenticationService`/`CurrentUserContextService
 ### S09 T8 baseline corrections — 2026-10-10
 - Live S09 catalog has 21 wire types (18 sales + 3 cashier), not 18 total. S10 inventory has 9 live types, so S10 total is 23, not 22. Coverage asserts the live inventories rather than the erroneous plan totals.
 - Visit/stay invoice creation share aggregate and exactly the same HandoffId shape. A server-only routed payload looks up both tenant-scoped handoff stores and delegates to the existing Application handlers, rejecting an ambiguous or missing source. Both original handlers remain registered; desktop/wire contracts unchanged.
+
+### S09 — 2026-10-10 (T9 implementation gate)
+- Sales/cashier handlers, 21 live wire types, permissions, PostgreSQL ports, UUID version reads, resource locks and authoritative document counters authored.
+- Intake coverage, money/cash invariants, migration/tenant-isolation/counter-concurrency regressions authored; none executed.
+- Desktop, SQLite and client services untouched. Repository query filters never bypassed.
+- Per explicit user directive, full/fast builds, tests and smoke run are NOT executed. This is implementation completion, not production acceptance; runtime/PG gates remain unverified.
+- Reporter/stock seam and identical handoff-shape deviations documented in the S09 task entries above. Next implementation phase: S10.

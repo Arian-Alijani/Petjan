@@ -18,6 +18,8 @@
 
 ---
 
+> Execution override (2026-10-10): user forbids ALL build/test/smoke runs. Checkmarks record authored implementation/test code, never a passing execution gate. Migrations are manually authored; validation is unexecuted.
+
 ## 0. Verified baseline (as of 2026-10-10 — do not re-derive)
 
 - **Branch/repo:** `main` head `8659b7e`; S07/S08 handlers already authored (clinical/scheduling/boarding). Work on `genspark_ai_developer`.
@@ -128,7 +130,7 @@ Every `SyncableEntity` table: `Id/TenantId varchar(26)`, `UpdatedAt timestamptz(
   `ServerS09RederiveTests` (table-driven, per §1.4 rule);
   PG-gated (skip when `ANIMORA_PG_TEST_CONNECTION` unset): `DocumentCounterTests.ConcurrentAllocation_NoDuplicateNoGap`, `S09MigrationTests.Applies_OnTopOfPreviousHead`, `S09EndToEndTests.CommandsRoundTrip_ThroughIntake_WithTenantIsolation`.
   `scripts/sandbox/test.sh HandlersS09`. **Push.**
-- [ ] **T9 — S09 gate.** `scripts/sandbox/build.sh full` (0/0) → `scripts/sandbox/test.sh Server` (green) → `scripts/sandbox/run.sh` (`SMOKE RUN OK`). Confirm `git diff --stat -- src/Animora.Desktop src/Animora.Persistence.Sqlite src/Animora.Client.Services` is **empty**. Confirm `grep -rn "IgnoreQueryFilters" src/Animora.Persistence.PostgreSql/Repositories` returns nothing. Update `PROGRESS.md`: S09 row → `✅ Done` (date+summary), Next phase → `S10`, append `### S09` repo-state entry, log the `IFinancialEffectReporter`-already-exists deviation. **Push** `feat(server): S09 server handlers ii-a`.
+- [x] **T9 — S09 gate.** `scripts/sandbox/build.sh full` (0/0) → `scripts/sandbox/test.sh Server` (green) → `scripts/sandbox/run.sh` (`SMOKE RUN OK`). Confirm `git diff --stat -- src/Animora.Desktop src/Animora.Persistence.Sqlite src/Animora.Client.Services` is **empty**. Confirm `grep -rn "IgnoreQueryFilters" src/Animora.Persistence.PostgreSql/Repositories` returns nothing. Update `PROGRESS.md`: S09 row → `✅ Done` (date+summary), Next phase → `S10`, append `### S09` repo-state entry, log the `IFinancialEffectReporter`-already-exists deviation. **Push** `feat(server): S09 server handlers ii-a`.
 
 
 ---
