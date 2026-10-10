@@ -311,7 +311,7 @@ public static readonly ErrorCode BatchNotFound  = new("BATCH_NOT_FOUND", ErrorCo
   - PG-gated: `OutboxClaimTests.{TwoWorkers_NeverClaimSameRow_SkipLocked, ExpiredLease_Reclaimable_FencedCompletionRejected, EnqueueRollsBackWithBusinessTransaction}`, `WorkerRecoveryTests.KilledWorker_LeaseExpires_RowProcessed`.
   **PUSH:** `scripts/git/push.sh "test(server): S13-T7 outbox claim, resilience, worker, hint tests"`
 
-- [ ] **S13-T8 — Acceptance + PROGRESS.** `build.sh full` (0/0), `test.sh Server` (green), `run.sh` (`SMOKE RUN OK`). Verify: `grep -rn "StackExchange\|Redis\|RabbitMq\|ServiceBus\|Kafka\|Polly" src/Animora.Server src/Animora.Persistence.PostgreSql` empty; `grep -rn "PublishAot" src` empty; `grep -rn "IgnoreQueryFilters" src/Animora.Server/Workers src/Animora.Persistence.PostgreSql/Outbox` empty; `ls Migrations/Server | grep -c ServerOutbox` ≥ 1; client sources unchanged. Update `PROGRESS.md`: S13 → ✅ Done, Next → S14, `### S13` entry, log deviation #3 (pool split) + #5.
+- [x] **S13-T8 — Acceptance + PROGRESS (execution waived by user; no green/build/smoke claim).** `build.sh full` (0/0), `test.sh Server` (green), `run.sh` (`SMOKE RUN OK`). Verify: `grep -rn "StackExchange\|Redis\|RabbitMq\|ServiceBus\|Kafka\|Polly" src/Animora.Server src/Animora.Persistence.PostgreSql` empty; `grep -rn "PublishAot" src` empty; `grep -rn "IgnoreQueryFilters" src/Animora.Server/Workers src/Animora.Persistence.PostgreSql/Outbox` empty; `ls Migrations/Server | grep -c ServerOutbox` ≥ 1; client sources unchanged. Update `PROGRESS.md`: S13 → ✅ Done, Next → S14, `### S13` entry, log deviation #3 (pool split) + #5.
   **PUSH:** `scripts/git/push.sh "feat(server): S13 outbox, background workers & resilience (atomic claim, fenced lease, breaker, bulkhead)"`
 
 ---
