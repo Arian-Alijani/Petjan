@@ -293,21 +293,21 @@ public static readonly ErrorCode Unauthorized         = new("UNAUTHORIZED",     
 - [x] **T0 — ساخت فایل پلن.** این فایل در `Plan/` ساخته شد. → پوش: `docs(plan): add G01+G02 sync engine implementation plan`
 - [x] **T1 — تایپ‌های G01.** ساخت ۶ فایل در `src/Animora.Sync.Abstractions/`: `SyncScope.cs`, `SyncOutcome.cs`, `SyncResult.cs`, `IStateSyncEngine.cs`, `NullSyncEngine.cs`, `SyncAbstractionsServiceCollectionExtensions.cs` (طبق §1). + ویرایش `.csproj` (PackageReference DI) و `README.md`. → پوش: `feat(sync): G01 sync engine abstractions + NullSyncEngine`
 - [x] **T2 — wiring G01.** `Animora.Client.Services.csproj` (ProjectReference)، `App.axaml.cs` (using + AddAnimoraSyncEngine بالای خط ۳۹۹)، `ISyncStatusService.cs` (کامنت ISyncEngine→IStateSyncEngine). → پوش: `feat(sync): wire G01 engine registration + fix ISyncStatusService doc`
-- [x] **T3 — تست‌های G01.** حذف `PlaceholderTests.cs`؛ ساخت ۵ کلاس تست (۱۰ تست §1). → پوش: `test(sync): G01 engine abstractions tests`
-- [x] **T4 — verify G01.** `build.sh full` (0/0)، `test.sh Sync` (سبز)، `test.sh Layering` (سبز)، `run.sh` (`SMOKE RUN OK`)، و grepهای Acceptance G01 بند ۳/۴. اصلاح هر خطا تا سبز شدن. → پوش: `chore(sync): G01 build/test green` (یا پیام فیکس اگر لازم شد)
-- [x] **T5 — PROGRESS G01.** به‌روزرسانی `backend-roadmap/PROGRESS.md` طبق §1. → پوش: `docs(progress): mark G01 done, next G02`
+- [ ] **T3 — تست‌های G01.** حذف `PlaceholderTests.cs`؛ ساخت ۵ کلاس تست (۱۰ تست §1). → پوش: `test(sync): G01 engine abstractions tests`
+- [ ] **T4 — verify G01.** `build.sh full` (0/0)، `test.sh Sync` (سبز)، `test.sh Layering` (سبز)، `run.sh` (`SMOKE RUN OK`)، و grepهای Acceptance G01 بند ۳/۴. اصلاح هر خطا تا سبز شدن. → پوش: `chore(sync): G01 build/test green` (یا پیام فیکس اگر لازم شد)
+- [ ] **T5 — PROGRESS G01.** به‌روزرسانی `backend-roadmap/PROGRESS.md` طبق §1. → پوش: `docs(progress): mark G01 done, next G02`
 
 ### G02
-- [x] **T6 — scaffold G02 project.** ساخت `src/Animora.Sync.Custom/Animora.Sync.Custom.csproj` (۴ ProjectRef + ۲ package)؛ افزودن `Microsoft.Extensions.Http` به `Directory.Packages.props`؛ افزودن پروژه به `Animora.sln` (ویرایش دستی، الگوی خط ۱۴). → پوش: `feat(sync): G02 scaffold Animora.Sync.Custom project`
-- [x] **T7 — تایپ‌های G02.** `ServerEndpointOptions.cs`, `IPageIntegrity.cs` (hash روی gzip خام §0.1), `SyncFeedClient.cs` (+ `OpenBatchOutcome`), `ISyncApplyStore.cs` (+session+checkpoint), `BufferingSyncApplyStore.cs`, `HttpStateSyncEngine.cs`, `SyncCustomServiceCollectionExtensions.cs` (طبق §2). → پوش: `feat(sync): G02 immutable-batch HTTP adapter core types`
-- [x] **T8 — ErrorCodes G02.** افزودن `#region Sync transport` با ۴+۱ کد (طبق §2). → پوش: `feat(domain): add Sync transport error codes for G02`
-- [x] **T9 — wiring G02.** `App.axaml.cs` (using + AddAnimoraHttpSyncEngine زیر AddAnimoraSyncEngine)، `Animora.Desktop.csproj` (ProjectReference به Sync.Custom)، `tests/Animora.Sync.Tests.csproj` (ProjectReference). → پوش: `feat(sync): wire G02 HTTP engine registration`
-- [x] **T10 — تست‌های G02.** ۱۶ تست §2 با HttpMessageHandler fake و gzip-page helper (§0.1). → پوش: `test(sync): G02 HTTP adapter tests`
-- [x] **T11 — verify G02.** `build.sh full` (0/0)، `test.sh Sync` (سبز)، `test.sh Layering` (سبز)، `run.sh` (`SMOKE RUN OK`)، grepهای Acceptance G02 بند ۳/۴/۵. اصلاح تا سبز. → پوش: `chore(sync): G02 build/test green`
-- [x] **T12 — PROGRESS G02.** به‌روزرسانی `backend-roadmap/PROGRESS.md` طبق §2 (+ ثبت deviation §0.1). → پوش: `docs(progress): mark G02 done, next G03`
+- [ ] **T6 — scaffold G02 project.** ساخت `src/Animora.Sync.Custom/Animora.Sync.Custom.csproj` (۴ ProjectRef + ۲ package)؛ افزودن `Microsoft.Extensions.Http` به `Directory.Packages.props`؛ افزودن پروژه به `Animora.sln` (ویرایش دستی، الگوی خط ۱۴). → پوش: `feat(sync): G02 scaffold Animora.Sync.Custom project`
+- [ ] **T7 — تایپ‌های G02.** `ServerEndpointOptions.cs`, `IPageIntegrity.cs` (hash روی gzip خام §0.1), `SyncFeedClient.cs` (+ `OpenBatchOutcome`), `ISyncApplyStore.cs` (+session+checkpoint), `BufferingSyncApplyStore.cs`, `HttpStateSyncEngine.cs`, `SyncCustomServiceCollectionExtensions.cs` (طبق §2). → پوش: `feat(sync): G02 immutable-batch HTTP adapter core types`
+- [ ] **T8 — ErrorCodes G02.** افزودن `#region Sync transport` با ۴+۱ کد (طبق §2). → پوش: `feat(domain): add Sync transport error codes for G02`
+- [ ] **T9 — wiring G02.** `App.axaml.cs` (using + AddAnimoraHttpSyncEngine زیر AddAnimoraSyncEngine)، `Animora.Desktop.csproj` (ProjectReference به Sync.Custom)، `tests/Animora.Sync.Tests.csproj` (ProjectReference). → پوش: `feat(sync): wire G02 HTTP engine registration`
+- [ ] **T10 — تست‌های G02.** ۱۶ تست §2 با HttpMessageHandler fake و gzip-page helper (§0.1). → پوش: `test(sync): G02 HTTP adapter tests`
+- [ ] **T11 — verify G02.** `build.sh full` (0/0)، `test.sh Sync` (سبز)، `test.sh Layering` (سبز)، `run.sh` (`SMOKE RUN OK`)، grepهای Acceptance G02 بند ۳/۴/۵. اصلاح تا سبز. → پوش: `chore(sync): G02 build/test green`
+- [ ] **T12 — PROGRESS G02.** به‌روزرسانی `backend-roadmap/PROGRESS.md` طبق §2 (+ ثبت deviation §0.1). → پوش: `docs(progress): mark G02 done, next G03`
 
 ### پایان
-- [x] **T13 — حذف این فایل پلن.** فقط `Plan/G01-G02-sync-engine-plan.md` حذف شود (به rodmap و فایل‌های دیگر دست نزن). → پوش: `chore(plan): remove completed G01+G02 plan`
+- [ ] **T13 — حذف این فایل پلن.** فقط `Plan/G01-G02-sync-engine-plan.md` حذف شود (به rodmap و فایل‌های دیگر دست نزن). → پوش: `chore(plan): remove completed G01+G02 plan`
 
 ---
 

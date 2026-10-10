@@ -33,7 +33,7 @@ public enum SyncState
 /// — never how sync actually works.
 /// <para>
 /// <b>Backend-ready seam.</b> A future real sync engine
-/// (<c>Animora.Sync.Abstractions.ISyncEngine</c> plus its transport/store
+/// (<c>Animora.Sync.Abstractions.IStateSyncEngine</c> plus its transport/store
 /// implementation) will drive this interface: it publishes <see cref="State"/>
 /// transitions through <see cref="StateChanged"/> and implements
 /// <see cref="SyncNowAsync"/> as a real flush/pull round-trip. Because the view
