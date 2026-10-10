@@ -749,4 +749,14 @@ public static class ErrorCodes
     public static readonly ErrorCode LicenseNotGranted = new("LICENSE_NOT_GRANTED", ErrorCode.Entitlement);
 
     #endregion
+
+    #region Files (Phase S17)
+
+    public static readonly ErrorCode FileNotFound = new("FILE_NOT_FOUND", ErrorCode.NotFound);
+    public static readonly ErrorCode FileHashMismatch = new("FILE_HASH_MISMATCH", ErrorCode.Integrity);
+    public static readonly ErrorCode FileTypeNotAllowed = new("FILE_TYPE_NOT_ALLOWED", ErrorCode.Validation);
+    public static readonly ErrorCode FileTooLarge = new("FILE_TOO_LARGE", ErrorCode.Validation);
+    public static readonly ErrorCode ValetKeyInvalid = new("VALET_KEY_INVALID", ErrorCode.Forbidden);
+
+    #endregion
 }
