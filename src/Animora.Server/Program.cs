@@ -1,4 +1,7 @@
 using Animora.Server.Workers;
+using Animora.Server.Operator;
+using Animora.Server.Provisioning;
+using Animora.Persistence.PostgreSql.Subscriptions;
 using Animora.Server.Hints;
 using Animora.Server.Sync;
 using Animora.Persistence.PostgreSql.Replication;
@@ -62,6 +65,9 @@ builder.Services.AddAnimoraIdentity(builder.Configuration);
 
 // 4c. Tenant context + stored-RBAC authorization + entitlement slot + snapshot signing (S05).
 builder.Services.AddAnimoraAuthorization();
+builder.Services.AddAnimoraSubscriptions(builder.Configuration);
+builder.Services.AddAnimoraOperator();
+builder.Services.AddAnimoraProvisioning();
 
 // 4d. Fenced command intake (S06): server Application profile, no desktop journal/session dependencies.
 builder.Services.AddAnimoraCommandPlane(
@@ -116,6 +122,7 @@ if (!app.Environment.IsDevelopment())
 // Plane order is fixed and tested (PlaneOrderTests): authN (401) → tenant bound from the STORED membership →
 // permission authZ (403) → entitlement (S16 fills the gate; allow-all until then).
 app.UseAuthentication();
+app.UseMiddleware<OperatorContextMiddleware>();
 app.UseMiddleware<TenantContextMiddleware>();
 app.UseAuthorization();
 app.UseMiddleware<EntitlementMiddleware>();
@@ -129,6 +136,10 @@ if (enableOpenApi)
 
 // Authentication endpoints (S04) — /auth/login|refresh|logout|device/register under the `auth` rate limit.
 app.MapAuthEndpoints();
+app.MapOperatorEndpoints();
+app.MapProvisioningEndpoints();
+app.MapWebsiteClientEndpoints();
+app.MapOperatorProvisioningEndpoints();
 
 // Device approve/revoke, capability snapshots (S05) and the anonymous public key set.
 app.MapDeviceEndpoints();

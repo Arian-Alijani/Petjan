@@ -57,7 +57,8 @@ internal static partial class SecretGuard
                 }
 
                 var leafKey = LeafOf(keyPath);
-                if (SensitiveKeyRegex().IsMatch(leafKey) && LooksLikeLiteralSecret(leafKey, value))
+                if (string.Equals(keyPath, "Operator:BootstrapPassword", StringComparison.OrdinalIgnoreCase)
+                    || SensitiveKeyRegex().IsMatch(leafKey) && LooksLikeLiteralSecret(leafKey, value))
                 {
                     throw new SecretInConfigurationException(keyPath);
                 }

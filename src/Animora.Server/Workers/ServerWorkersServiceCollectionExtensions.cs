@@ -16,6 +16,8 @@ internal static class ServerWorkersServiceCollectionExtensions
         services.TryAddSingleton<WorkerHeartbeat>(); services.TryAddSingleton<CircuitBreaker>();
         services.TryAddSingleton<OutboundTimeout>();
         services.AddScoped<IOutboxConsumer, FeedAdvancedHintConsumer>();
+        services.AddScoped<IOutboxConsumer, Animora.Server.Subscriptions.SubscriptionExpiryConsumer>();
+        services.AddHostedService<SubscriptionSweepWorker>();
         services.AddSingleton<IReadinessProbe, WorkersReadinessProbe>();
         services.AddSignalR();
         services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(10));

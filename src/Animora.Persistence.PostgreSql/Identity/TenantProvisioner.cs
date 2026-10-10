@@ -36,7 +36,9 @@ public sealed class TenantProvisioner(
         string ownerUserName,
         string ownerDisplayName,
         string ownerPassword,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? legalName = null,
+        string timezone = Tenant.DefaultTimezone)
     {
         if (string.IsNullOrWhiteSpace(displayName)
             || string.IsNullOrWhiteSpace(tenantCode)
@@ -58,16 +60,20 @@ public sealed class TenantProvisioner(
             return Result<ProvisionedTenant>.Fail(policy.Error, policy.Detail);
         }
 
-        var tenant = Tenant.Create(displayName, clock);
+        var tenant = Tenant.Create(displayName, clock, legalName, timezone);
         tenant.SetCode(code);
         tenantContext.Bind(tenant.Id);
 
         var owner = User.Create(tenant.Id, ownerUserName, ownerDisplayName, clock);
         owner.SetPasswordHash(passwordHasher.HashPassword(ServerUserStore.ToAdapter(owner), ownerPassword));
+        owner.RequirePasswordChange();
 
         // Save the serialization row first inside the same transaction. EF cannot infer
         // ordering between unrelated tables; the Tenant INSERT capture needs this row.
-        await using var transaction = await context.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+        // When wrapped by ProvisioningEngine, participate in its transaction and never commit it here.
+        await using var transaction = context.Database.CurrentTransaction is null
+            ? await context.Database.BeginTransactionAsync(ct).ConfigureAwait(false)
+            : null;
         context.Set<TenantFeedStateRow>().Add(new TenantFeedStateRow { TenantId = tenant.Id });
         await context.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -83,9 +89,9 @@ public sealed class TenantProvisioner(
         try
         {
             await context.SaveChangesAsync(ct).ConfigureAwait(false);
-            await transaction.CommitAsync(ct).ConfigureAwait(false);
+            if (transaction is not null) await transaction.CommitAsync(ct).ConfigureAwait(false);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+        catch (DbUpdateException ex) when (transaction is not null && ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
         {
             return Result<ProvisionedTenant>.Fail(ErrorCodes.ValidationFailed, "tenant code already in use");
         }

@@ -80,6 +80,20 @@ public static class ServerModelConventions
         return entity.HasIndex(all).HasDatabaseName($"IX_{table}_{string.Join('_', all)}");
     }
 
+    /// <summary>Reuses the physical column shape in narrow contexts without installing tenant filters.</summary>
+    public static void ApplyColumnsOnly(ModelBuilder modelBuilder)
+    {
+        ArgumentNullException.ThrowIfNull(modelBuilder);
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes().ToArray())
+        {
+            if (!typeof(SyncableEntity).IsAssignableFrom(entityType.ClrType)) continue;
+            var entity = modelBuilder.Entity(entityType.ClrType);
+            if (typeof(AggregateRoot).IsAssignableFrom(entityType.ClrType))
+                entity.Ignore(nameof(AggregateRoot.DomainEvents));
+            ConfigureColumns(entity);
+        }
+    }
+
     private static void ConfigureColumns(EntityTypeBuilder entity)
     {
         entity.Property(nameof(SyncableEntity.Id)).HasColumnType("character varying(26)").HasMaxLength(26);

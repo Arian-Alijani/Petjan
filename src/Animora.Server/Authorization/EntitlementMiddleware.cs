@@ -16,7 +16,9 @@ internal sealed class EntitlementMiddleware(RequestDelegate next)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (state.Membership is not { } membership)
+        if (context.Request.Path.StartsWithSegments(ServerRoutes.Operator, StringComparison.OrdinalIgnoreCase)
+            || context.Request.Path.StartsWithSegments(ServerRoutes.Provisioning, StringComparison.OrdinalIgnoreCase)
+            || state.Membership is not { } membership)
         {
             await next(context).ConfigureAwait(false);
             return;

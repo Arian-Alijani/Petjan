@@ -43,7 +43,7 @@
 | `src/Animora.Sync.Abstractions/` | Still an **empty scaffold** (csproj + README only) — Track E deliverable. |
 | `src/Animora.Server/` | **S11–S13 authored: sync manifest/batches/pages/snapshots, transactional outbox command adapter, five dedicated-pool workers, non-fatal heartbeat readiness and tenant SignalR hints; no execution acceptance claim.** **S07–S10 implementation authored (S09 sales/cashier 21 wire types, S10 inventory/purchasing/finance 23 wire types, in-transaction ledger posting); S07/S08: 39 wire types / 40 payloads, real PG ports/versions, optimistic scheduling fences, generated-id mapping; build/test/smoke unexecuted.** **S01 + S02 + S04 + S05 + S06 done (2026-10-09; S06 adds `Commands/` — command intake/idempotency service, payload catalog, recovery, `POST /api/commands`, `/batch`, `GET /{operationId}/ids`; S05 adds `Authorization/` (tenant binding, stored-RBAC policies, entitlement slot) + `Signing/` (ECDSA-P256 snapshot signer) + `DeviceEndpoints` (`/auth/device/{id}/approve|revoke`, `/auth/capabilities`, anonymous `/auth/keys`); S04 adds `Auth/` — `AddAnimoraIdentity`, `AuthEndpoints` (`POST /auth/login|refresh|logout|device/register` under the `auth` rate limit), internal `LoginService`, opaque Data-Protection bearer tokens (`AddBearerToken`, no JWT/OIDC), `UseAuthentication()` in the authN slot; authorization/tenant-context middleware stay S05); S02 wires DataProtection → PostgreSQL key ring, `AddAnimoraPostgreSql`, and `database`/`keyring`/`schema` readiness probes; host still boots without PostgreSQL, readiness = 503).** S01: ASP.NET Core 10 host scaffold — numbered startup block, validated options, `SecretGuard`, `GlobalExceptionMiddleware`, anonymous `/health/live` + `/health/ready`, five rate-limit policies, Development-only OpenAPI. No DB / identity / business route yet (S02+). |
 | `src/Animora.Persistence.PostgreSql/` | **S11–S13 authored: Replication/ and Outbox/, head `111_ServerOutbox` (109–111 authored/unapplied), 6/3/1/2 worker-inclusive pools.** **S07–S10 implementation authored: clinical, scheduling/boarding, sales/cashier, money/stock mappings/ports; head `108_MoneyStock` (105–108 unexecuted).** **S02 + S03 + S04 + S06 done (2026-10-09; S06 adds `CommandIntake`/`CommandIdMap` + `Commands/` store/compactor (migration `104_CommandIntake`); S04 maps the Domain `User/StaffMembership/RoleDefinition/Device` aggregates + `RefreshTokens` + append-only `SecurityAudit` (migration `102_Identity`, `Tenants.Code`), `Identity/` stores/services (`ServerUserStore`, `TenantDirectory`, `RefreshTokenService`, `SecurityAuditWriter`, `TenantProvisioner`); S03 adds ServerUnitOfWork, TenantRepository<T>, PageRules, read-context factory):** the only project that references Npgsql/EF-Npgsql. `AnimoraServerDbContext` (`Tenants`), `AnimoraKeyRingDbContext` (`DataProtectionKeys`, history table `__EFMigrationsHistory_KeyRing`), tenancy (`ITenantContext`, stamping + ignore-filter-ban interceptors), `ServerModelConventions`, `VersionTrigger`, `DatabaseOptions` + validator, `AddAnimoraPostgreSql`. Migrations `101_ServerFoundation`, `101_KeyRing`. |
-| Licensing / admin web | **Do not exist yet** (S14+/S19+). Next: S14; S07–S13 authored, execution gates unverified. |
+| Licensing / admin web | S14 operator identity/API and subscription implementation authored; onboarding S15 and licensing S16 not yet implemented. Admin UI remains S19. Execution gates unverified. |
 | Login | **Real local authentication (B03c).** `LoginViewModel` → `IAuthenticationService`; disabled until the local store is ready; first run shows `FirstRunView` (owner setup) and opens the shell. No hardcoded credentials, no demo user seeded. (`LoginWindow.axaml` still shows the old demo hint text — untouched by design.) |
 | `Directory.Packages.props` | Avalonia 12.1.2 (+Desktop/Fluent/Inter/DataGrid), CommunityToolkit.Mvvm 8.4.2, Microsoft.Extensions.DependencyInjection 10.0.12, Serilog 4.2.0 + Extensions.Logging 9.0.0 + Sinks.File 6.0.0, plus the Track A/B backend pins (EF Core Sqlite 10.0.12, xunit, etc. — see A01 entry). `ManagePackageVersionsCentrally=true`. |
 | `Directory.Build.props` | `net10.0`, `LangVersion 14.0`, `Nullable enable`, `ImplicitUsings enable`. |
@@ -141,7 +141,7 @@ server implementation; `M00` only produces them.
 
 ## Next phase
 
-**Next phase: `S14`** — operator plane; S11–S13 implementation and regression sources authored (head `111_ServerOutbox`). Builds, tests, smoke and PostgreSQL application are unexecuted by explicit user directive.
+**Next phase: `S15`** — signed onboarding intake. S14 implementation/regression sources authored (head `112_Subscription`); builds, tests, smoke and PostgreSQL application remain unexecuted by explicit user directive.
 `S06` (command intake & idempotency) is **complete** (2026-10-09): every command is deduplicated by `(TenantId, OperationId)` in `CommandIntake`, identity comes only from the authenticated tenant context, the server recomputes fingerprints, settlement is atomic with the effect, and with no handler registered every command settles `Rejected(HANDLER_NOT_REGISTERED)`. Do its successor's work and advance down the `S##`/`G##` chain in dependency order.
 The desktop stays offline-runnable throughout (every phase carries "Runnable after: desktop offline yes").
 
@@ -216,7 +216,7 @@ separate outstanding item; C11 stock/UoW regressions do not close that debt.
 | S11 | ✅ Implementation authored | 2026-10-10 | Commit-safe journal/capture; acceptance execution waived by user (unverified). |
 | S12 | ✅ Implementation authored | 2026-10-10 | Immutable batches/pages, sync endpoints, retention; acceptance execution waived (unverified). |
 | S13 | ✅ Implementation authored | 2026-10-10 | Transactional outbox, bounded workers/resilience and tenant hints; acceptance execution waived (unverified). |
-| S14 | ⬜ Not started | | Subscription context & operator API. Band M · Depends on S05, S13 · R-B05, R-B30, R-B29. See `phases/PHASE-S14-subscription-operator-api.md`. |
+| S14 | ✅ Done (implementation authored; execution gates deferred) | 2026-10-10 | Subscription domain/lifecycle, operator bearer identity/API, one atomic provisioning engine, bounded sweep and fenced expiry consumer; head `112_Subscription`. Pure/PG regression sources authored, none executed. |
 | S15 | ⬜ Not started | | Self-service onboarding intake (async idempotent provisioning intent). Band M · Depends on S14 · R-B30, R-B36, R-B29. See `phases/PHASE-S15-onboarding-intake.md`. |
 | S16 | ⬜ Not started | | Licensing & anti-piracy (signed license, device-fingerprint binding, offline grace, clock-rollback, fail-closed). Band M · Depends on S15 · R-B06, R-B29, R-B30, R-B36. See `phases/PHASE-S16-licensing-anti-piracy.md`. |
 | S17 | ⬜ Not started | | Files — valet key + resumable transfer (`Staged→…→Available`, reconciliation job). Band M · Depends on S13 · R-B26. See `phases/PHASE-S17-files-valet-key.md`. |
@@ -243,6 +243,16 @@ Status values: `⬜ Not started` · `🟨 In progress` · `✅ Done` · `⛔ Blo
 > do not read the entries around it. If nothing below is cited, you are done reading this file.
 
 ## Repo state log
+
+### S14 — Subscription and operator plane (2026-10-10; authored, not execution-accepted)
+- Pure subscription aggregate, table-driven lifecycle, gap-free event/billing sequences and tenant status mapping; eight additive error codes.
+- Narrow operator context with read-only membership enforcement, seven mappings, audited status/lifecycle services, configurable standard-plan default amount, seat usage and licence scheduler seam.
+- Atomic ProvisioningEngine: canonical business fingerprint, permanent ledger, per-key/code serialization, tenant/owner/feed/subscription/security/operator audit on one connection/transaction. TenantProvisioner participates in external transactions rather than prematurely committing; temporary owner passwords require change and are never returned on replay.
+- Separate 30-minute opaque operator bearer scheme without refresh, per-request stored stamp/status validation, lockout, forced password change, environment-only bootstrap and all planned operator routes, bounded paging, If-Match and atomic owner reset.
+- Migration `112_Subscription`, immutable event/operator-audit triggers and trial/standard seeds; frozen provider model authored manually. Not applied.
+- Bounded subscription sweep under shared admission and worker pool, period-key outbox dedupe, expiry consumer explicitly enlisted in the relay's fenced transaction.
+- Domain/operator/provisioning/source-boundary regression sources plus env-gated PG race/rollback/immutability/status/idempotency/auth-parity sources authored. **No test, build, smoke or database application executed.** Desktop/local client code untouched.
+
 
 ### S06 — Command intake & idempotency (2026-10-09)
 
@@ -2190,6 +2200,14 @@ Npgsql references only inside `Animora.Persistence.PostgreSql`; `git diff` on Sq
 - Implementation closeout is not a production acceptance claim. Client sources remain outside this phase's implementation scope; the plan is removed only after its implementation tasks are ticked and pushed.
 
 ## Decision & deviation log
+
+### S14 — Execution directives and real-seam corrections (2026-10-10)
+- User explicitly prohibited every build/test/smoke execution. Gate task records implementation/progress only; no green execution acceptance is claimed. EF migrations were hand-authored, including frozen provider snapshots, to avoid the implicit build in scaffolding.
+- IServerOutbox lives in ServerOutbox.cs, not a separate interface file. Generic enqueue was added there with injected IClock.
+- The existing TenantProvisioner owned and committed its transaction. It now preserves that standalone behavior while participating in a caller-owned transaction for atomic provisioning; legal-name/timezone forwarding is additive.
+- Outbox relay and operator contexts had independent connections. Expiry processing explicitly enlists the narrow operator context in the fenced relay transaction, preserving atomicity of consumed marker and subscription effects.
+- Standard plan migration seeds amount zero; SubscriptionOptions initializes the configured amount atomically only before its first subscription, preserving existing terms.
+
 
 ### S06 — verification deferred, server pipeline profile, wire v2 additive          (date: 2026-10-09)
 Context:    The session directive forbade running builds/tests; the plan also required reusing Application handlers on the server without the client-only journal.

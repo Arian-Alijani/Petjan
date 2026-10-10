@@ -1,5 +1,7 @@
 using Animora.Domain.Identity;
 using Animora.Domain.Results;
+using Animora.Persistence.PostgreSql.Tenancy;
+using Animora.Server.Operator;
 using Microsoft.AspNetCore.Authorization;
 
 namespace Animora.Server.Authorization;
@@ -73,13 +75,15 @@ internal sealed class DeviceActiveHandler(IRequestAuthorizationState state) : Au
     }
 }
 
-/// <summary>Never succeeds: there is no operator identity before S14 (fail closed).</summary>
-internal sealed class OperatorOnlyHandler : AuthorizationHandler<OperatorOnlyRequirement>
+/// <summary>Requires the separate operator identity and a validated operator request context.</summary>
+internal sealed class OperatorOnlyHandler(ITenantContext tenantContext) : AuthorizationHandler<OperatorOnlyRequirement>
 {
     /// <inheritdoc />
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, OperatorOnlyRequirement requirement)
     {
-        context.Fail(new AuthorizationFailureReason(this, PermissionAuthorizationHandler.ReasonPrefix + ErrorCodes.PermissionDenied.Code));
+        if (tenantContext.IsOperator && context.User.Identities.Any(i => i.IsAuthenticated && i.AuthenticationType == OperatorAuth.Scheme)
+            && context.User.IsInRole("operator")) context.Succeed(requirement);
+        else context.Fail(new AuthorizationFailureReason(this, PermissionAuthorizationHandler.ReasonPrefix + ErrorCodes.PermissionDenied.Code));
         return Task.CompletedTask;
     }
 }

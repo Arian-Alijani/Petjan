@@ -12,6 +12,7 @@ internal static class ServerRoutes
     public const string Sync = "/sync";
     public const string Auth = "/auth";
     public const string Operator = "/operator";
+    public const string Provisioning = "/provisioning";
     public const string Admin = "/admin";
     public const string HealthLive = "/health/live";
     public const string HealthReady = "/health/ready";

@@ -49,7 +49,8 @@ internal static class AuthorizationServiceCollectionExtensions
         services.AddAuthorizationBuilder()
             .AddPolicy(CoarsePolicies.TenantMember, p => p.RequireAuthenticatedUser())
             .AddPolicy(CoarsePolicies.ManagerOnly, p => p.RequireAuthenticatedUser().AddRequirements(new ManagerOnlyRequirement()))
-            .AddPolicy(CoarsePolicies.OperatorOnly, p => p.RequireAuthenticatedUser().AddRequirements(new OperatorOnlyRequirement()))
+            .AddPolicy(CoarsePolicies.OperatorOnly, p => p.AddAuthenticationSchemes(Animora.Server.Operator.OperatorAuth.Scheme)
+                .RequireAuthenticatedUser().AddRequirements(new OperatorOnlyRequirement()))
             .AddPolicy(CoarsePolicies.DeviceActive, p => p.RequireAuthenticatedUser().AddRequirements(new DeviceActiveRequirement()));
 
         services.AddScoped<ICommandAuthorizer, CommandAuthorizer>();

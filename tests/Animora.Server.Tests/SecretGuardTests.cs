@@ -67,6 +67,15 @@ public sealed class SecretGuardTests
     }
 
     [Fact]
+    public void OperatorBootstrapPasswordInJson_Refused()
+    {
+        var config = FromJson("""{ "Operator": { "BootstrapPassword": "do-not-log-this" } }""");
+        var ex = Assert.Throws<SecretInConfigurationException>(() => SecretGuard.ThrowIfSecretsInJsonFiles(config));
+        Assert.Equal("Operator:BootstrapPassword", ex.KeyPath);
+        Assert.DoesNotContain("do-not-log-this", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ShippedAppsettings_ContainNoSecrets()
     {
         var root = RepoRoot.Find();

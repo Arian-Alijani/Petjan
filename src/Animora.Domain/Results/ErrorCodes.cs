@@ -716,4 +716,24 @@ public static class ErrorCodes
         new("RULESET_UNSUPPORTED", ErrorCode.Validation);
 
     #endregion
+
+    #region Subscription & Operator (Phase S14)
+
+    public static readonly ErrorCode SubscriptionNotFound = new("SUBSCRIPTION_NOT_FOUND", ErrorCode.NotFound);
+    public static readonly ErrorCode SubscriptionInvalidTransition = new("SUBSCRIPTION_INVALID_TRANSITION", ErrorCode.Conflict);
+    public static readonly ErrorCode SeatLimitExceeded = new("SEAT_LIMIT_EXCEEDED", ErrorCode.Conflict);
+    public static readonly ErrorCode PlanNotFound = new("PLAN_NOT_FOUND", ErrorCode.NotFound);
+    public static readonly ErrorCode TenantCodeTaken = new("TENANT_CODE_TAKEN", ErrorCode.Conflict);
+    public static readonly ErrorCode ProvisioningKeyConflict = new("PROVISIONING_KEY_CONFLICT", ErrorCode.Integrity);
+    public static readonly ErrorCode OperatorCredentialsInvalid = new("OPERATOR_CREDENTIALS_INVALID", ErrorCode.Forbidden);
+    public static readonly ErrorCode OperatorLockedOut = new("OPERATOR_LOCKED_OUT", ErrorCode.Forbidden);
+
+    #endregion
+
+    #region Provisioning (Phase S15)
+
+    public static readonly ErrorCode ProvisioningSignatureInvalid = new("PROVISIONING_SIGNATURE_INVALID", ErrorCode.Forbidden);
+    public static readonly ErrorCode ProvisioningIntentNotFound = new("PROVISIONING_INTENT_NOT_FOUND", ErrorCode.NotFound);
+
+    #endregion
 }
