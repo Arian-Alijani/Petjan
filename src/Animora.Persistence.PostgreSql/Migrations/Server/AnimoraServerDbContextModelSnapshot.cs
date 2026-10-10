@@ -1363,6 +1363,489 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
             modelBuilder.Entity("Animora.Domain.Sales.Invoice", b => b.Navigation("Lines").AutoInclude());
             modelBuilder.Entity("Animora.Domain.Sales.Invoice", b => b.Navigation("Adjustments").AutoInclude());
             modelBuilder.Entity("Animora.Domain.Cashier.CashSession", b => b.Navigation("Movements").AutoInclude());
+            modelBuilder.Entity("Animora.Domain.Inventory.Product", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("Sku").IsRequired().HasColumnType("text");
+                b.Property<string>("Name").IsRequired().HasColumnType("text");
+                b.Property<string>("Brand").HasColumnType("text");
+                b.Property<string>("CategoryId").IsRequired().HasColumnType("text");
+                b.Property<int>("Kind").HasColumnType("integer");
+                b.Property<string>("UnitCode").IsRequired().HasColumnType("text");
+                b.Property<bool>("IsPrescriptionOnly").HasColumnType("boolean");
+                b.Property<bool>("IsActive").HasColumnType("boolean");
+                b.Property<bool>("TrackStock").HasColumnType("boolean");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "ReorderLevel", "Animora.Domain.Inventory.Product.ReorderLevel#Quantity", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Value").HasColumnName("ReorderLevelScaled").HasColumnType("bigint");
+                    v.Property<string>("UnitCode").IsRequired().HasMaxLength(12).HasColumnName("ReorderLevelUnit").HasColumnType("character varying(12)");
+                });
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "DefaultCostPrice", "Animora.Domain.Inventory.Product.DefaultCostPrice#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("DefaultCostPriceMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("DefaultCostPriceCurrency").HasColumnType("character varying(3)");
+                });
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "DefaultSalePrice", "Animora.Domain.Inventory.Product.DefaultSalePrice#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("DefaultSalePriceMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("DefaultSalePriceCurrency").HasColumnType("character varying(3)");
+                });
+                b.Property<int?>("ShelfLifeDays").HasColumnType("integer");
+                b.Property<string>("Notes").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("Products", "public");
+                b.HasIndex("TenantId", "Name").HasDatabaseName("IX_Products_TenantId_Name");
+                b.HasIndex("TenantId", "CategoryId").HasDatabaseName("IX_Products_TenantId_CategoryId");
+                b.HasIndex("TenantId", "Sku").IsUnique().HasDatabaseName("IX_Products_TenantId_Sku").HasFilter("\"Sku\" IS NOT NULL");
+            });
+            modelBuilder.Entity("Animora.Domain.Inventory.ProductCategory", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("Code").IsRequired().HasColumnType("text");
+                b.Property<string>("DisplayName").IsRequired().HasColumnType("text");
+                b.Property<string>("ParentCategoryId").HasColumnType("text");
+                b.Property<int>("SortOrder").HasColumnType("integer");
+                b.Property<bool>("IsActive").HasColumnType("boolean");
+                b.HasKey("Id");
+                b.ToTable("ProductCategories", "public");
+                b.HasIndex("TenantId", "Code").IsUnique().HasDatabaseName("IX_ProductCategories_TenantId_Code");
+            });
+            modelBuilder.Entity("Animora.Domain.Inventory.UnitOfMeasure", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("Code").IsRequired().HasColumnType("text");
+                b.Property<string>("DisplayKey").IsRequired().HasColumnType("text");
+                b.Property<int>("DecimalPlaces").HasColumnType("integer");
+                b.Property<string>("BaseUnitCode").HasColumnType("text");
+                b.Property<decimal?>("ConversionToBase").HasColumnType("numeric");
+                b.HasKey("Id");
+                b.ToTable("UnitsOfMeasure", "public");
+                b.HasIndex("TenantId", "Code").IsUnique().HasDatabaseName("IX_UnitsOfMeasure_TenantId_Code");
+            });
+            modelBuilder.Entity("Animora.Domain.Inventory.StockMovement", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("ProductId").IsRequired().HasColumnType("text");
+                b.Property<string>("VariantId").IsRequired().HasColumnType("text");
+                b.Property<int>("Kind").HasColumnType("integer");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "Quantity", "Animora.Domain.Inventory.StockMovement.Quantity#Quantity", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Value").HasColumnName("QuantityScaled").HasColumnType("bigint");
+                    v.Property<string>("UnitCode").IsRequired().HasMaxLength(12).HasColumnName("QuantityUnit").HasColumnType("character varying(12)");
+                });
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "UnitCost", "Animora.Domain.Inventory.StockMovement.UnitCost#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("UnitCostMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("UnitCostCurrency").HasColumnType("character varying(3)");
+                });
+                b.Property<string>("LotNumber").HasColumnType("text");
+                b.Property<DateTimeOffset?>("ExpiryUtc").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset>("OccurredUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("SourceEntityType").HasColumnType("text");
+                b.Property<string>("SourceEntityId").HasColumnType("text");
+                b.Property<string>("OperationId").HasColumnType("text");
+                b.Property<string>("RecordedByUserId").IsRequired().HasColumnType("text");
+                b.Property<string>("Reason").HasColumnType("text");
+                b.Property<string>("ReversesMovementId").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("StockMovements", "public");
+                b.HasIndex("TenantId", "ProductId", "VariantId", "OccurredUtc").HasDatabaseName("IX_StockMovements_TenantId_ProductId_VariantId_OccurredUtc");
+                b.HasIndex("TenantId", "Kind", "OccurredUtc").HasDatabaseName("IX_StockMovements_TenantId_Kind_OccurredUtc");
+            });
+            modelBuilder.Entity("Animora.Domain.Purchasing.PurchaseOrder", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("OrderNumber").IsRequired().HasColumnType("text");
+                b.Property<string>("SupplierId").IsRequired().HasColumnType("text");
+                b.Property<int>("State").HasColumnType("integer");
+                b.Property<DateTimeOffset>("OrderedUtc").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset?>("ExpectedUtc").HasColumnType("timestamp with time zone");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "Subtotal", "Animora.Domain.Purchasing.PurchaseOrder.Subtotal#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("SubtotalMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("SubtotalCurrency").HasColumnType("character varying(3)");
+                });
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "DiscountTotal", "Animora.Domain.Purchasing.PurchaseOrder.DiscountTotal#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("DiscountTotalMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("DiscountTotalCurrency").HasColumnType("character varying(3)");
+                });
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "TaxTotal", "Animora.Domain.Purchasing.PurchaseOrder.TaxTotal#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("TaxTotalMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("TaxTotalCurrency").HasColumnType("character varying(3)");
+                });
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "GrandTotal", "Animora.Domain.Purchasing.PurchaseOrder.GrandTotal#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("GrandTotalMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("GrandTotalCurrency").HasColumnType("character varying(3)");
+                });
+                b.Property<string>("CreatedByUserId").IsRequired().HasColumnType("text");
+                b.Property<string>("Notes").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("PurchaseOrders", "public");
+                b.HasIndex("TenantId", "State", "OrderedUtc").HasDatabaseName("IX_PurchaseOrders_TenantId_State_OrderedUtc");
+            });
+            modelBuilder.Entity("Animora.Domain.Purchasing.GoodsReceipt", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("ReceiptNumber").IsRequired().HasColumnType("text");
+                b.Property<string>("PurchaseOrderId").HasColumnType("text");
+                b.Property<string>("SupplierId").IsRequired().HasColumnType("text");
+                b.Property<DateTimeOffset>("ReceivedUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("ReceivedByUserId").IsRequired().HasColumnType("text");
+                b.Property<string>("InvoiceReference").HasColumnType("text");
+                b.Property<int>("State").HasColumnType("integer");
+                b.Property<string>("ReversesReceiptId").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("GoodsReceipts", "public");
+                b.HasIndex("TenantId", "PurchaseOrderId").HasDatabaseName("IX_GoodsReceipts_TenantId_PurchaseOrderId");
+            });
+            modelBuilder.Entity("Animora.Domain.Purchasing.Supplier", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("Code").IsRequired().HasColumnType("text");
+                b.Property<string>("Name").IsRequired().HasColumnType("text");
+                b.Property<string>("ContactPerson").HasColumnType("text");
+                b.Property<string>("Phone").HasColumnType("text");
+                b.Property<string>("Email").HasColumnType("text");
+                b.Property<string>("Address").HasColumnType("text");
+                b.Property<string>("NationalId").HasColumnType("text");
+                b.Property<int>("PaymentTermDays").HasColumnType("integer");
+                b.Property<bool>("IsActive").HasColumnType("boolean");
+                b.Property<string>("Notes").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("Suppliers", "public");
+                b.HasIndex("TenantId", "Name").HasDatabaseName("IX_Suppliers_TenantId_Name");
+            });
+            modelBuilder.Entity("Animora.Domain.Finance.LedgerAccount", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("Code").IsRequired().HasColumnType("text");
+                b.Property<string>("Name").IsRequired().HasColumnType("text");
+                b.Property<int>("Type").HasColumnType("integer");
+                b.Property<string>("ParentAccountId").HasColumnType("text");
+                b.Property<bool>("IsPostable").HasColumnType("boolean");
+                b.Property<bool>("IsActive").HasColumnType("boolean");
+                b.Property<string>("Description").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("LedgerAccounts", "public");
+                b.HasIndex("TenantId", "Code").IsUnique().HasDatabaseName("IX_LedgerAccounts_TenantId_Code");
+            });
+            modelBuilder.Entity("Animora.Domain.Finance.JournalEntry", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("EntryNumber").IsRequired().HasColumnType("text");
+                b.Property<DateTimeOffset>("PostedUtc").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset>("EffectiveUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("PeriodId").IsRequired().HasColumnType("text");
+                b.Property<int>("Source").HasColumnType("integer");
+                b.Property<string>("SourceEntityType").HasColumnType("text");
+                b.Property<string>("SourceEntityId").HasColumnType("text");
+                b.Property<string>("OperationId").HasColumnType("text");
+                b.Property<string>("Memo").IsRequired().HasColumnType("text");
+                b.Property<string>("PostedByUserId").IsRequired().HasColumnType("text");
+                b.Property<string>("ReversesEntryId").HasColumnType("text");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "TotalDebit", "Animora.Domain.Finance.JournalEntry.TotalDebit#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("TotalDebitMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("TotalDebitCurrency").HasColumnType("character varying(3)");
+                });
+                b.HasKey("Id");
+                b.ToTable("JournalEntries", "public");
+                b.HasIndex("TenantId", "PeriodId", "PostedUtc").HasDatabaseName("IX_JournalEntries_TenantId_PeriodId_PostedUtc");
+                b.HasIndex("TenantId", "SourceEntityType", "SourceEntityId").HasDatabaseName("IX_JournalEntries_TenantId_SourceEntityType_SourceEntityId");
+                b.HasIndex("TenantId", "EntryNumber").IsUnique().HasDatabaseName("IX_JournalEntries_TenantId_EntryNumber");
+            });
+            modelBuilder.Entity("Animora.Domain.Finance.AccountingPeriod", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("PeriodCode").IsRequired().HasColumnType("text");
+                b.Property<DateTimeOffset>("StartUtc").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset>("EndUtc").HasColumnType("timestamp with time zone");
+                b.Property<int>("State").HasColumnType("integer");
+                b.Property<DateTimeOffset?>("ClosedUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("ClosedByUserId").HasColumnType("text");
+                b.Property<string>("ClosingEntryId").HasColumnType("text");
+                b.Property<string>("Note").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("AccountingPeriods", "public");
+                b.HasIndex("TenantId", "PeriodCode").IsUnique().HasDatabaseName("IX_AccountingPeriods_TenantId_PeriodCode");
+            });
+            modelBuilder.Entity("Animora.Domain.Finance.Cheque", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("ChequeNumber").IsRequired().HasColumnType("text");
+                b.Property<int>("Direction").HasColumnType("integer");
+                b.Property<string>("BankName").HasColumnType("text");
+                b.Property<string>("BankBranch").HasColumnType("text");
+                b.Property<string>("AccountNumber").HasColumnType("text");
+                b.Property<string>("SayadId").HasColumnType("text");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "Amount", "Animora.Domain.Finance.Cheque.Amount#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("AmountMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("AmountCurrency").HasColumnType("character varying(3)");
+                });
+                b.Property<DateTimeOffset>("DueUtc").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset>("IssuedUtc").HasColumnType("timestamp with time zone");
+                b.Property<int>("State").HasColumnType("integer");
+                b.Property<string>("OwnerId").HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("SupplierId").HasColumnType("text");
+                b.Property<string>("InvoiceId").HasColumnType("text");
+                b.Property<string>("PaymentId").HasColumnType("text");
+                b.Property<string>("JournalEntryId").HasColumnType("text");
+                b.Property<string>("Note").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("Cheques", "public");
+                b.HasIndex("TenantId", "State", "DueUtc").HasDatabaseName("IX_Cheques_TenantId_State_DueUtc");
+            });
+            modelBuilder.Entity("Animora.Domain.Finance.Expense", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("ExpenseNumber").IsRequired().HasColumnType("text");
+                b.Property<string>("CategoryCode").IsRequired().HasColumnType("text");
+                b.Property<string>("Title").IsRequired().HasColumnType("text");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "Amount", "Animora.Domain.Finance.Expense.Amount#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("AmountMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("AmountCurrency").HasColumnType("character varying(3)");
+                });
+                b.Property<DateTimeOffset>("IncurredUtc").HasColumnType("timestamp with time zone");
+                b.Property<int>("State").HasColumnType("integer");
+                b.Property<int?>("SettledMethod").HasColumnType("integer");
+                b.Property<string>("SupplierId").HasColumnType("text");
+                b.Property<string>("ChequeId").HasColumnType("text");
+                b.Property<string>("ReceiptFileId").HasColumnType("text");
+                b.Property<string>("JournalEntryId").HasColumnType("text");
+                b.Property<string>("CreatedByUserId").IsRequired().HasColumnType("text");
+                b.Property<string>("Note").HasColumnType("text");
+                b.Property<string>("ReversesExpenseId").HasColumnType("text");
+                b.HasKey("Id");
+                b.ToTable("Expenses", "public");
+                b.HasIndex("TenantId", "IncurredUtc", "CategoryCode").HasDatabaseName("IX_Expenses_TenantId_IncurredUtc_CategoryCode");
+            });
+            modelBuilder.Entity("Animora.Domain.Finance.RecurringExpense", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("CategoryCode").IsRequired().HasColumnType("text");
+                b.Property<string>("Title").IsRequired().HasColumnType("text");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "Amount", "Animora.Domain.Finance.RecurringExpense.Amount#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("AmountMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("AmountCurrency").HasColumnType("character varying(3)");
+                });
+                b.Property<int>("DayOfMonth").HasColumnType("integer");
+                b.Property<bool>("IsActive").HasColumnType("boolean");
+                b.Property<string>("SupplierId").HasColumnType("text");
+                b.Property<string>("Note").HasColumnType("text");
+                b.Property<DateTimeOffset>("CreatedUtc").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");
+                b.ToTable("RecurringExpenses", "public");
+                b.HasIndex("TenantId", "Title").HasDatabaseName("IX_RecurringExpenses_TenantId_Title");
+            });
+            modelBuilder.Entity("Animora.Domain.Finance.RecurringExpensePayment", b =>
+            {
+                b.Property<string>("Id").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("TenantId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
+                b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("RecurringExpenseId").IsRequired().HasColumnType("text");
+                b.Property<string>("PeriodCode").IsRequired().HasColumnType("text");
+                b.Property<string>("ExpenseId").IsRequired().HasColumnType("text");
+                b.Property<DateTimeOffset>("PaidUtc").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");
+                b.ToTable("RecurringExpensePayments", "public");
+                b.HasIndex("TenantId", "RecurringExpenseId", "PeriodCode").IsUnique().HasDatabaseName("IX_RecurringExpensePayments_TenantId_RecurringExpenseId_PeriodCode");
+            });
+            modelBuilder.Entity("Animora.Domain.Inventory.ProductVariant", b =>
+            {
+                b.Property<string>("OwnerId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("VariantId").IsRequired().HasMaxLength(26).ValueGeneratedNever().HasColumnType("character varying(26)");
+                b.Property<string>("Sku").IsRequired().HasColumnType("text");
+                b.Property<string>("AttributeName").IsRequired().HasColumnType("text");
+                b.Property<string>("AttributeValue").IsRequired().HasColumnType("text");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "CostPrice", "Animora.Domain.Inventory.ProductVariant.CostPrice#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("CostPriceMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("CostPriceCurrency").HasColumnType("character varying(3)");
+                });
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "SalePrice", "Animora.Domain.Inventory.ProductVariant.SalePrice#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("SalePriceMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("SalePriceCurrency").HasColumnType("character varying(3)");
+                });
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "ReorderLevel", "Animora.Domain.Inventory.ProductVariant.ReorderLevel#Quantity", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Value").HasColumnName("ReorderLevelScaled").HasColumnType("bigint");
+                    v.Property<string>("UnitCode").IsRequired().HasMaxLength(12).HasColumnName("ReorderLevelUnit").HasColumnType("character varying(12)");
+                });
+                b.Property<string>("Barcode").HasColumnType("text");
+                b.Property<bool>("IsActive").HasColumnType("boolean");
+                b.HasKey("OwnerId", "VariantId");
+                b.ToTable("ProductVariants", "public");
+                b.HasOne("Animora.Domain.Inventory.Product", null).WithMany("Variants").HasForeignKey("OwnerId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+            });
+            modelBuilder.Entity("Animora.Domain.Purchasing.PurchaseOrderLine", b =>
+            {
+                b.Property<string>("OwnerId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("LineId").IsRequired().HasMaxLength(26).ValueGeneratedNever().HasColumnType("character varying(26)");
+                b.Property<string>("ProductId").IsRequired().HasColumnType("text");
+                b.Property<string>("VariantId").IsRequired().HasColumnType("text");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "OrderedQuantity", "Animora.Domain.Purchasing.PurchaseOrderLine.OrderedQuantity#Quantity", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Value").HasColumnName("OrderedQuantityScaled").HasColumnType("bigint");
+                    v.Property<string>("UnitCode").IsRequired().HasMaxLength(12).HasColumnName("OrderedQuantityUnit").HasColumnType("character varying(12)");
+                });
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "ReceivedQuantity", "Animora.Domain.Purchasing.PurchaseOrderLine.ReceivedQuantity#Quantity", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Value").HasColumnName("ReceivedQuantityScaled").HasColumnType("bigint");
+                    v.Property<string>("UnitCode").IsRequired().HasMaxLength(12).HasColumnName("ReceivedQuantityUnit").HasColumnType("character varying(12)");
+                });
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "UnitCost", "Animora.Domain.Purchasing.PurchaseOrderLine.UnitCost#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("UnitCostMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("UnitCostCurrency").HasColumnType("character varying(3)");
+                });
+                b.Property<decimal>("DiscountPercent").HasColumnType("numeric");
+                b.Property<decimal>("TaxPercent").HasColumnType("numeric");
+                b.Property<string>("LotNumber").HasColumnType("text");
+                b.Property<DateTimeOffset?>("ExpiryUtc").HasColumnType("timestamp with time zone");
+                b.HasKey("OwnerId", "LineId");
+                b.ToTable("PurchaseOrderLines", "public");
+                b.HasOne("Animora.Domain.Purchasing.PurchaseOrder", null).WithMany("Lines").HasForeignKey("OwnerId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+            });
+            modelBuilder.Entity("Animora.Domain.Purchasing.GoodsReceiptLine", b =>
+            {
+                b.Property<string>("OwnerId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("LineId").IsRequired().HasMaxLength(26).ValueGeneratedNever().HasColumnType("character varying(26)");
+                b.Property<string>("ProductId").IsRequired().HasColumnType("text");
+                b.Property<string>("VariantId").IsRequired().HasColumnType("text");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "Quantity", "Animora.Domain.Purchasing.GoodsReceiptLine.Quantity#Quantity", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Value").HasColumnName("QuantityScaled").HasColumnType("bigint");
+                    v.Property<string>("UnitCode").IsRequired().HasMaxLength(12).HasColumnName("QuantityUnit").HasColumnType("character varying(12)");
+                });
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "UnitCost", "Animora.Domain.Purchasing.GoodsReceiptLine.UnitCost#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("UnitCostMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("UnitCostCurrency").HasColumnType("character varying(3)");
+                });
+                b.Property<string>("LotNumber").HasColumnType("text");
+                b.Property<DateTimeOffset?>("ExpiryUtc").HasColumnType("timestamp with time zone");
+                b.HasKey("OwnerId", "LineId");
+                b.ToTable("GoodsReceiptLines", "public");
+                b.HasOne("Animora.Domain.Purchasing.GoodsReceipt", null).WithMany("Lines").HasForeignKey("OwnerId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+            });
+            modelBuilder.Entity("Animora.Domain.Finance.JournalLine", b =>
+            {
+                b.Property<string>("OwnerId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("LineId").IsRequired().HasMaxLength(26).ValueGeneratedNever().HasColumnType("character varying(26)");
+                b.Property<string>("AccountCode").IsRequired().HasColumnType("text");
+                b.Property<int>("Side").HasColumnType("integer");
+                b.ComplexProperty(typeof(System.Collections.Generic.Dictionary<string, object>), "Amount", "Animora.Domain.Finance.JournalLine.Amount#Money", v =>
+                {
+                    v.IsRequired();
+                    v.Property<long>("Minor").HasColumnName("AmountMinor").HasColumnType("bigint");
+                    v.Property<string>("Currency").IsRequired().HasMaxLength(3).HasColumnName("AmountCurrency").HasColumnType("character varying(3)");
+                });
+                b.Property<string>("Memo").HasColumnType("text");
+                b.Property<string>("CostCenter").HasColumnType("text");
+                b.HasKey("OwnerId", "LineId");
+                b.ToTable("JournalLines", "public");
+                b.HasOne("Animora.Domain.Finance.JournalEntry", null).WithMany("Lines").HasForeignKey("OwnerId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+            });
+            modelBuilder.Entity("Animora.Domain.Finance.ChequeEvent", b =>
+            {
+                b.Property<string>("OwnerId").IsRequired().HasMaxLength(26).HasColumnType("character varying(26)");
+                b.Property<string>("EventId").IsRequired().HasMaxLength(26).ValueGeneratedNever().HasColumnType("character varying(26)");
+                b.Property<int>("FromState").HasColumnType("integer");
+                b.Property<int>("ToState").HasColumnType("integer");
+                b.Property<DateTimeOffset>("OccurredUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("ActorUserId").IsRequired().HasColumnType("text");
+                b.Property<string>("Reason").HasColumnType("text");
+                b.HasKey("OwnerId", "EventId");
+                b.ToTable("ChequeEvents", "public");
+                b.HasOne("Animora.Domain.Finance.Cheque", null).WithMany("History").HasForeignKey("OwnerId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+            });
+            modelBuilder.Entity("Animora.Domain.Inventory.Product", b => b.Navigation("Variants").AutoInclude());
+            modelBuilder.Entity("Animora.Domain.Purchasing.PurchaseOrder", b => b.Navigation("Lines").AutoInclude());
+            modelBuilder.Entity("Animora.Domain.Purchasing.GoodsReceipt", b => b.Navigation("Lines").AutoInclude());
+            modelBuilder.Entity("Animora.Domain.Finance.JournalEntry", b => b.Navigation("Lines").AutoInclude());
+            modelBuilder.Entity("Animora.Domain.Finance.Cheque", b => b.Navigation("History").AutoInclude());
 #pragma warning restore 612, 618
         }
     }
