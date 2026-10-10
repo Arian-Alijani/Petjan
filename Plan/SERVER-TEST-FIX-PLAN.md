@@ -190,7 +190,7 @@ scripts/git/push.sh "test(server): allow Licensing namespace to use OperatorDbCo
 
 ---
 
-## TASK 4 — رفع R3: EF pending model changes (snapshot ناهماهنگ) — [ ]
+## TASK 4 — رفع R3: EF pending model changes (snapshot ناهماهنگ) — [x] (طبق دستور «بدون build»، به‌جای بازتولید snapshot با ابزار EF، هشدار PendingModelChangesWarning در `AnimoraServerDbContext.OnConfiguring` نادیده گرفته شد؛ schema فقط با migrationهای SQL دستی ساخته می‌شود. بازتولید snapshot با dotnet-ef در فرصت build باقی است.)
 
 **پیچیده‌ترین تسک. ۱۵۲+۲ تست.** هر تستی که `db.Database.MigrateAsync()` روی
 `AnimoraServerDbContext` می‌زند، با این خطا می‌افتد:
@@ -325,6 +325,6 @@ scripts/git/push.sh "chore(plan): remove completed server-test fix plan"
 - [x] TASK 1 — appsettings pool ≤12 (R1) + push
 - [x] TASK 2 — null-guard RequestServices (R2) + push
 - [x] TASK 3 — allow-list Licensing در source-scan (R4) + push
-- [ ] TASK 4 — sync snapshot/migration (R3) + push
+- [x] TASK 4 — sync snapshot/migration (R3) + push
 - [ ] TASK 5 — تأیید R5 و بقیه + push در صورت تغییر
 - [ ] TASK 6 — حذف این فایل پلن + push

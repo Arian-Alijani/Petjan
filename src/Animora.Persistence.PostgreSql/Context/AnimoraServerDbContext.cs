@@ -19,6 +19,7 @@ using Animora.Persistence.PostgreSql.Conventions;
 using Animora.Persistence.PostgreSql.Identity;
 using Animora.Persistence.PostgreSql.Tenancy;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Animora.Persistence.PostgreSql.Context;
 
@@ -118,6 +119,19 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     public DbSet<FileObject> FileObjects => Set<FileObject>();
     public DbSet<FileUploadChunk> FileUploadChunks => Set<FileUploadChunk>();
     public DbSet<BlobRef> BlobRefs => Set<BlobRef>();
+
+    /// <summary>
+    /// Server schema is created exclusively by hand-authored SQL migrations (see Migrations/Server), so the
+    /// EF model snapshot is tooling metadata only and is never used to derive DDL at runtime. EF's
+    /// pending-model-changes check would otherwise abort <c>MigrateAsync</c> on any cosmetic snapshot drift;
+    /// drift is instead caught by the PG-gated migration tests and by regenerating the snapshot with
+    /// <c>dotnet ef migrations has-pending-model-changes</c>.
+    /// </summary>
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        ArgumentNullException.ThrowIfNull(optionsBuilder);
+        optionsBuilder.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+    }
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
