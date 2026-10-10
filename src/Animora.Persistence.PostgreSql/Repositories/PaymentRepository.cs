@@ -8,7 +8,8 @@ namespace Animora.Persistence.PostgreSql.Repositories;
 public sealed class PaymentRepository(AnimoraServerDbContext db) : TenantRepository<Payment>(db), IPaymentRepository
 {
     public Task<Payment?> FindAsync(string id, CancellationToken ct = default) =>
-        db.Set<Payment>().AsTracking().FirstOrDefaultAsync(e => e.Id == id, ct);
+        db.Set<Payment>().Local.FirstOrDefault(e => e.Id == id && !e.Deleted) is { } local
+            ? Task.FromResult<Payment?>(local) : db.Set<Payment>().AsTracking().FirstOrDefaultAsync(e => e.Id == id, ct);
 
     public async Task<Payment> RequireAsync(string id, CancellationToken ct = default) =>
         await FindAsync(id, ct) ?? throw new InvalidOperationException($"Payment {id} not found.");

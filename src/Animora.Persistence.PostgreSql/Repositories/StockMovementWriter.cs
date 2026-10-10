@@ -14,7 +14,8 @@ public sealed class StockMovementWriter(AnimoraServerDbContext db)
     public new void Add(StockMovement entity) => Append(entity);
     public void AddRange(IEnumerable<StockMovement> entities) => db.Set<StockMovement>().AddRange(entities);
     public Task<StockMovement?> FindAsync(string id, CancellationToken ct = default) =>
-        db.Set<StockMovement>().AsNoTracking().FirstOrDefaultAsync(m => m.Id == id, ct);
+        db.Set<StockMovement>().Local.FirstOrDefault(m => m.Id == id) is { } local
+            ? Task.FromResult<StockMovement?>(local) : db.Set<StockMovement>().AsNoTracking().FirstOrDefaultAsync(m => m.Id == id, ct);
     public async Task<StockMovement> RequireAsync(string id, CancellationToken ct = default) =>
         await FindAsync(id, ct) ?? throw new InvalidOperationException($"StockMovement {id} not found.");
 }
