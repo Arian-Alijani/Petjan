@@ -1,3 +1,4 @@
+using Animora.Domain.Primitives;
 using Animora.Application;
 using Animora.Application.Dispatch;
 using Animora.Application.Ports;
@@ -55,13 +56,15 @@ internal sealed class MoneyStockHandlerFixture : IDisposable
     }
     public object Command(Type type, bool reject)
     {
-        var id = reject ? "missing" : Product.Id;
+        // A well-formed id that names no aggregate: the envelope stays valid and the HANDLER rejects it.
+        var missing = IdGenerator.NewId();
+        var id = reject ? missing : Product.Id;
         var now = Clinical.Intake.Clock.UtcNow;
         return type.Name switch
         {
             nameof(CreateProductCategoryCommand) => new CreateProductCategoryCommand(reject ? "" : "New"),
-            nameof(RenameProductCategoryCommand) => new RenameProductCategoryCommand(reject ? "missing" : Categories.Rows[0].Id, "Updated"),
-            nameof(DeleteProductCategoryCommand) => new DeleteProductCategoryCommand(reject ? "missing" : Categories.Rows[0].Id),
+            nameof(RenameProductCategoryCommand) => new RenameProductCategoryCommand(reject ? missing : Categories.Rows[0].Id, "Updated"),
+            nameof(DeleteProductCategoryCommand) => new DeleteProductCategoryCommand(reject ? missing : Categories.Rows[0].Id),
             nameof(CreateProductCommand) => new CreateProductCommand("NEW", reject ? "" : "New", "category", "PCS", ProductKind.Medicine, 10, 20,
                 [new ProductVariantInput(null, "NEW-1", ProductVariant.DefaultAttributeName, "NEW", 10, 20, 0)]),
             nameof(UpdateProductInfoCommand) => new UpdateProductInfoCommand(id, "Updated", 10, 20,
@@ -73,17 +76,17 @@ internal sealed class MoneyStockHandlerFixture : IDisposable
             nameof(CreatePurchaseOrderCommand) => new CreatePurchaseOrderCommand("supplier", [new PurchaseOrderLineInput(id, "variant", 1000, 10)]),
             nameof(ReceiveGoodsCommand) => new ReceiveGoodsCommand("supplier", [new GoodsReceiptLineInput(id, "variant", 1000, 10)], Order.Id),
             nameof(CreateSupplierCommand) => new CreateSupplierCommand(reject ? "" : "Supplier"),
-            nameof(CancelPurchaseOrderCommand) => new CancelPurchaseOrderCommand(reject ? "missing" : Order.Id, "Cancelled"),
+            nameof(CancelPurchaseOrderCommand) => new CancelPurchaseOrderCommand(reject ? missing : Order.Id, "Cancelled"),
             nameof(AddExpenseCommand) => new AddExpenseCommand(ExpenseCategories.Rent, reject ? "" : "Rent", 100, now),
-            nameof(ReverseExpenseCommand) => new ReverseExpenseCommand(reject ? "missing" : Expenses.Rows[0].Id, "Reverse"),
+            nameof(ReverseExpenseCommand) => new ReverseExpenseCommand(reject ? missing : Expenses.Rows[0].Id, "Reverse"),
             nameof(AddRecurringExpenseCommand) => new AddRecurringExpenseCommand(ExpenseCategories.Rent, reject ? "" : "Rent", 100, 10),
-            nameof(EditRecurringExpenseCommand) => new EditRecurringExpenseCommand(reject ? "missing" : Recurring.Rows[0].Id, ExpenseCategories.Rent, "Updated", 100, 10),
-            nameof(ToggleRecurringExpenseCommand) => new ToggleRecurringExpenseCommand(reject ? "missing" : Recurring.Rows[0].Id, false),
-            nameof(PayRecurringExpenseForPeriodCommand) => new PayRecurringExpenseForPeriodCommand(reject ? "missing" : Recurring.Rows[0].Id),
+            nameof(EditRecurringExpenseCommand) => new EditRecurringExpenseCommand(reject ? missing : Recurring.Rows[0].Id, ExpenseCategories.Rent, "Updated", 100, 10),
+            nameof(ToggleRecurringExpenseCommand) => new ToggleRecurringExpenseCommand(reject ? missing : Recurring.Rows[0].Id, false),
+            nameof(PayRecurringExpenseForPeriodCommand) => new PayRecurringExpenseForPeriodCommand(reject ? missing : Recurring.Rows[0].Id),
             nameof(RegisterChequeCommand) => new RegisterChequeCommand(ChequeDirection.Inbound, reject ? "" : "New", 100, now.AddDays(1), now, OwnerId: "owner"),
-            nameof(UpdateChequeMetadataCommand) => new UpdateChequeMetadataCommand(reject ? "missing" : Cheques.Rows[0].Id, "Updated", now.AddDays(2)),
-            nameof(DeleteChequeDraftCommand) => new DeleteChequeDraftCommand(reject ? "missing" : Cheques.Rows[0].Id),
-            nameof(TransitionChequeCommand) => new TransitionChequeCommand(reject ? "missing" : Cheques.Rows[0].Id, ChequeTransition.MoveToPortfolio),
+            nameof(UpdateChequeMetadataCommand) => new UpdateChequeMetadataCommand(reject ? missing : Cheques.Rows[0].Id, "Updated", now.AddDays(2)),
+            nameof(DeleteChequeDraftCommand) => new DeleteChequeDraftCommand(reject ? missing : Cheques.Rows[0].Id),
+            nameof(TransitionChequeCommand) => new TransitionChequeCommand(reject ? missing : Cheques.Rows[0].Id, ChequeTransition.MoveToPortfolio),
             _ => throw new InvalidOperationException(type.Name)
         };
     }

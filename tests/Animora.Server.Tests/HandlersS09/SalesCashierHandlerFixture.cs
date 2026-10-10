@@ -1,3 +1,4 @@
+using Animora.Domain.Primitives;
 using Animora.Application;
 using Animora.Application.Dispatch;
 using Animora.Application.Commands;
@@ -59,7 +60,9 @@ internal sealed class SalesCashierHandlerFixture : IDisposable
     public object Command(Type type, bool reject)
     {
         var clock = Clinical.Intake.Clock;
-        var id = reject ? "missing" : Invoice.Id;
+        // A well-formed id that names no aggregate: the envelope stays valid and the HANDLER rejects it.
+        var missing = IdGenerator.NewId();
+        var id = reject ? missing : Invoice.Id;
         if (type == typeof(RegisterPaymentCommand) || type == typeof(VoidInvoiceCommand) || type == typeof(RefundInvoiceCommand) || type == typeof(ReturnInvoiceLineCommand))
             Invoice.Post(clock);
         if (type == typeof(RefundInvoiceCommand))
@@ -69,9 +72,9 @@ internal sealed class SalesCashierHandlerFixture : IDisposable
         return type.Name switch
         {
             nameof(CreateBlankInvoiceCommand) => new CreateBlankInvoiceCommand(null, reject ? null : "Guest"),
-            nameof(CreateInvoiceFromVisitCommand) => new CreateInvoiceFromVisitCommand(reject ? "missing" : Draft.VisitHandoffId),
-            nameof(CreateInvoiceFromStayCommand) => new CreateInvoiceFromStayCommand(reject ? "missing" : Draft.StayHandoffId),
-            nameof(CreateInvoiceFromHandoffCommand) => new CreateInvoiceFromHandoffCommand(reject ? "missing" : Draft.VisitHandoffId),
+            nameof(CreateInvoiceFromVisitCommand) => new CreateInvoiceFromVisitCommand(reject ? missing : Draft.VisitHandoffId),
+            nameof(CreateInvoiceFromStayCommand) => new CreateInvoiceFromStayCommand(reject ? missing : Draft.StayHandoffId),
+            nameof(CreateInvoiceFromHandoffCommand) => new CreateInvoiceFromHandoffCommand(reject ? missing : Draft.VisitHandoffId),
             nameof(AddInvoiceLineCommand) => new AddInvoiceLineCommand(id, "catalog", 1),
             nameof(AddCustomInvoiceLineCommand) => new AddCustomInvoiceLineCommand(id, "Custom", 100, 1),
             nameof(EditInvoiceLineCommand) => new EditInvoiceLineCommand(id, 0, "line", 2, 0),
@@ -86,11 +89,11 @@ internal sealed class SalesCashierHandlerFixture : IDisposable
             nameof(RefundInvoiceCommand) => new RefundInvoiceCommand(id, Money.Irt(50), "Refund"),
             nameof(ReturnInvoiceLineCommand) => new ReturnInvoiceLineCommand(id, "line", "Return"),
             nameof(CreateInsurerCommand) => new CreateInsurerCommand(reject ? "" : "New", 10, 0),
-            nameof(UpdateInsurerCommand) => new UpdateInsurerCommand(reject ? "missing" : Insurers.Rows[0].Id, "Updated", 10, 0),
-            nameof(DeleteInsurerCommand) => new DeleteInsurerCommand(reject ? "missing" : Insurers.Rows[0].Id),
+            nameof(UpdateInsurerCommand) => new UpdateInsurerCommand(reject ? missing : Insurers.Rows[0].Id, "Updated", 10, 0),
+            nameof(DeleteInsurerCommand) => new DeleteInsurerCommand(reject ? missing : Insurers.Rows[0].Id),
             nameof(CreateServiceRateCommand) => new CreateServiceRateCommand(reject ? "" : "New", 100),
             nameof(CreateBoardingServiceRateCommand) => new CreateBoardingServiceRateCommand(reject ? "" : "New", 100, BoardingServiceBilling.PerStay),
-            nameof(UpdateServiceRateCommand) => new UpdateServiceRateCommand(reject ? "missing" : Products.Rows[0].Id, ServiceRateSources.Clinic, "Updated", 100, true),
+            nameof(UpdateServiceRateCommand) => new UpdateServiceRateCommand(reject ? missing : Products.Rows[0].Id, ServiceRateSources.Clinic, "Updated", 100, true),
             nameof(OpenCashSessionCommand) => new OpenCashSessionCommand(Money.Irt(reject ? -1 : 100)),
             nameof(CloseCashSessionCommand) => new CloseCashSessionCommand(Money.Irt(reject ? 90 : 100), null),
             nameof(RecordCashMovementCommand) => new RecordCashMovementCommand(CashMovementKind.FloatIn, Money.Irt(10), reject ? "" : "Float"),

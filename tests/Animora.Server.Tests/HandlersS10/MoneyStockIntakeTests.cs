@@ -44,6 +44,7 @@ public sealed class MoneyStockIntakeTests
         using var rejected = new MoneyStockHandlerFixture();
         var failure = await rejected.Clinical.Intake.CreateService(rejected.Catalog, rejected.Clinical.Dispatcher)
             .SubmitAsync(rejected.Clinical.Envelope(rejected.Command(type, true)));
+        Assert.True(failure.IsSuccess, $"{failure.Error.Code}: {failure.Detail}");
         Assert.Equal(SettlementOutcome.Rejected, failure.Value!.Outcome);
         Assert.NotNull(failure.Value.ErrorCode);
         Assert.NotEqual("HANDLER_NOT_REGISTERED", failure.Value.ErrorCode);

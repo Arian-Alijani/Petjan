@@ -124,7 +124,7 @@ NOT thrown by the previously-fixed causes (pool budget / pending model / null Re
 
 ---
 
-### [ ] TASK 2 — Group B: `NullReferenceException` in S09/S10 handler-intake tests (28 tests)
+### [x] TASK 2 — Group B: `NullReferenceException` in S09/S10 handler-intake tests (28 tests)
 
 **Failing tests:** `HandlersS09/SalesCashierIntakeTests.Settles_*` (16) and
 `HandlersS10/MoneyStockIntakeTests.Settles_*` (12). Note: the `Settles_Create*` cases that
@@ -163,6 +163,12 @@ Most likely candidates (check first):
      the frame points into `src/` (then fix the handler's null handling).
   3. Confirm the two Settles cases that currently pass still pass (no regression on
      `Settles_CreateBlankInvoiceCommand`).
+
+> **Done:** the NRE was `failure.Value!` on a *failed* Result — the reject-case commands used the
+> literal id `"missing"`, which is not a ULID, so `CommandEnvelopeValidator` refused the envelope
+> ("malformed envelope") before the handler ran. Fixtures now use a well-formed unknown ULID
+> (S07 pattern) and the test asserts the submit succeeded with a readable message. 28/28 cleared;
+> the 4 cheque cases are tracked under 7b.
 
 **Verify:** `... --filter "FullyQualifiedName~SalesCashierIntakeTests|FullyQualifiedName~MoneyStockIntakeTests"` → all pass.
 
