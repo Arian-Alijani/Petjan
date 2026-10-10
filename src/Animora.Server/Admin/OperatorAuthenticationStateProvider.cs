@@ -15,7 +15,12 @@ internal sealed class OperatorAuthenticationStateProvider(ILoggerFactory logger,
             !long.TryParse(user.FindFirstValue("op_exp"), out var expiry) || time.GetUtcNow().ToUnixTimeSeconds() >= expiry) return false;
         var id = user.FindFirstValue("sub"); var stamp = user.FindFirstValue("ost");
         if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(stamp)) return false;
-        await using var scope = scopes.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<OperatorReadQueries>().SessionValidAsync(id, stamp, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            return await scope.ServiceProvider.GetRequiredService<OperatorReadQueries>().SessionValidAsync(id, stamp, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception) { return false; } // Fail closed without leaking provider exception/connection text into logs.
     }
 }

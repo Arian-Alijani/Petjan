@@ -82,6 +82,13 @@ public sealed class AdminCookiePgTests(PgFixture pg) : IClassFixture<PgFixture>
         await using(var db=TestSupport.CreateContext(connection:pg.ConnectionString))await db.Database.MigrateAsync();
         var host=new AdminHost(pg.ConnectionString);await host.SeedOperatorAsync(mustChange);return host;
     }
+    [PgFact] public async Task BlazorHub_AcceptsOnlyValidOperatorCookie()
+    {
+        using var host = await Host(); await host.LoginAsync();
+        using var response = await host.Client.PostAsync("/_blazor/negotiate?negotiateVersion=1", new StringContent(""));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("connectionToken", await response.Content.ReadAsStringAsync());
+    }
     [PgFact] public async Task SecurityStampChange_InvalidatesCookieImmediately()
     {
         using var host=await Host();Assert.Equal(HttpStatusCode.Redirect,(await host.LoginAsync()).StatusCode);

@@ -94,7 +94,7 @@ public sealed class AdminAuditPagesTests
     }
     [Fact] public void DetailJson_IsCappedByUtf8Bytes_WithoutSplittingRunes()
     {
-        string detail = string.Concat(Enumerable.Repeat("گربه🐈", 1000));
+        string detail = string.Concat(Enumerable.Repeat("گربه\U0001F408", 1000));
         string truncated = AuditQueries.TruncateDetail(detail)!;
         Assert.True(Encoding.UTF8.GetByteCount(truncated) <= 2048); Assert.EndsWith("…", truncated); Assert.DoesNotContain("�", truncated);
     }
