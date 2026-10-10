@@ -445,7 +445,8 @@ These were confirmed against the live tree; **do not re-derive**:
   `AdminOptions`, `OperatorCookie` scheme, `AdminOnly` policy, admin security-headers middleware.
   `build.sh fast` compiles. → **push** `feat(server): S19 admin cookie auth, endpoints, security headers, port adapters, wiring`.
 
-- [~] **S19-T3 — Tests (SSR via WebApplicationFactory + string assertions; NO new test package).**
+- [x] **S19-T3 — Tests (SSR via WebApplicationFactory + string assertions; NO new test package).**
+  Completed 2026-10-10: genuine scheme-protected bearer isolation, cookie SSR provisioning/replay/suspend/stale-stamp/reinstate HTTP flow, tenant 403/restoration, licence-revocation HTTP gate and degraded-status secrecy/counter/header behavior authored. No build/test executed.
   Create `tests/Animora.Server.Tests/Admin/`:
   `RenderModePolicyTests.NoGlobalRenderMode_AndIslandCountWithinBudget`,
   `WebAdminLayeringTests.RclReferencesOnlyDomain`, `AdminAuthTests.Anonymous_RedirectsToLogin_ForEveryAdminRoute`,
