@@ -264,7 +264,7 @@ The first write then trips the trigger.
 
 ---
 
-### [ ] TASK 5 — Group E: `CryptographicException: payload invalid` in Licensing persistence (4 tests)
+### [x] TASK 5 — Group E: `CryptographicException: payload invalid` in Licensing persistence (4 tests)
 
 **Failing tests:** `Licensing/LicensePersistenceTests.{ConcurrentRenew_NoDuplicateLive,
 CrossTenant_CannotReadOrRevoke, DeviceLimit_Mismatch_AndRevokedGrant_AreRejected,
@@ -300,6 +300,8 @@ read it.
   3. If `LicenseKeyManager.EnsureAsync` persists the protected private key to PG and later
      reads it with a new ephemeral ring, make the test reuse the SAME manager/provider for the
      read, or use a fixed (non-ephemeral) test protector so the payload survives re-instantiation.
+
+> **Done:** root cause = xUnit builds a new class instance per test, so each test had its own ephemeral ring while the protected key row persisted in shared PG. `_protection` is now `static`. 7/7 green.
 
 **Verify:** `... --filter FullyQualifiedName~LicensePersistenceTests` → pass.
 

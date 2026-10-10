@@ -27,7 +27,9 @@ public sealed class LicensePersistenceTests(PgFixture fixture) : IClassFixture<P
     private static readonly DateTimeOffset T0 = new(2026, 10, 10, 0, 0, 0, TimeSpan.Zero);
     private readonly FixedClock _clock = new(T0);
     private readonly IOptions<LicensingOptions> _options = Options.Create(new LicensingOptions());
-    private readonly EphemeralDataProtectionProvider _protection = new();
+    // Static: xUnit builds one class instance per test, but the protected licence key row lives in the shared PG
+    // database, so every instance must unprotect with the same key ring that protected it.
+    private static readonly EphemeralDataProtectionProvider _protection = new();
 
     private async Task Migrate()
     {
